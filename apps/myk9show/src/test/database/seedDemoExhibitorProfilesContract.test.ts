@@ -110,16 +110,23 @@ describe('seed-demo sign-in account exhibitor profiles (MYK9-708)', () => {
       'person_id',
       'auth_user_id',
       'onboarding_completed_at',
+      // MYK9-1114: a seeded returning user has also finished every role step, or the
+      // new-role notice covers the bottom-right of every page.
+      'onboarded_roles',
     ]);
+    expect(insert![0]).toContain("ARRAY['judge', 'secretary', 'club_admin']");
     expect(insert![0]).toContain('ON CONFLICT (auth_user_id) DO NOTHING');
 
-    // The only UPDATE fills a NULL onboarding timestamp on the account's own row.
+    // The only UPDATE fills a NULL onboarding timestamp (and the role steps that come with it)
+    // on the account's own row.
     const updates = [...upsert.matchAll(/UPDATE public\.exhibitor_profiles[\s\S]*?;/g)];
     expect(updates).toHaveLength(1);
     const update = updates[0][0];
-    // The SET clause assigns onboarding_completed_at and nothing else.
+    // The SET clause assigns onboarding_completed_at and onboarded_roles, nothing else.
     const setClause = /\bSET\b([\s\S]*?)\bWHERE\b/.exec(update)![1];
-    expect(setClause.trim()).toMatch(/^onboarding_completed_at = [^,]*$/);
+    expect(setClause.trim()).toMatch(
+      /^onboarding_completed_at = [^,]*,\s*onboarded_roles = ARRAY\['judge', 'secretary', 'club_admin'\]$/
+    );
     expect(update).toContain('ep.onboarding_completed_at IS NULL');
     expect(update).toContain('ep.auth_user_id = v_auth_user_id');
   });

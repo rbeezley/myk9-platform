@@ -260,12 +260,22 @@ BEGIN
       AND p.auth_user_id IS NOT NULL
       AND EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.auth_user_id);
 
-    INSERT INTO public.exhibitor_profiles (person_id, auth_user_id, onboarding_completed_at)
-    VALUES (v_person_id, v_auth_user_id, ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC'))
+    -- onboarded_roles (MYK9-970, MYK9-1114): a returning user has finished every role step. Left
+    -- at its '{}' default, a freshly seeded staff account reads as having just gained its role and
+    -- NewRoleStepBanner floats a notice over the bottom-right of every page. The migration's own
+    -- backfill only reaches rows that existed when it ran.
+    INSERT INTO public.exhibitor_profiles (
+      person_id, auth_user_id, onboarding_completed_at, onboarded_roles
+    )
+    VALUES (
+      v_person_id, v_auth_user_id, ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC'),
+      ARRAY['judge', 'secretary', 'club_admin']
+    )
     ON CONFLICT (auth_user_id) DO NOTHING;
 
     UPDATE public.exhibitor_profiles ep
-    SET onboarding_completed_at = ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')
+    SET onboarding_completed_at = ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC'),
+        onboarded_roles = ARRAY['judge', 'secretary', 'club_admin']
     WHERE ep.auth_user_id = v_auth_user_id
       AND ep.person_id = v_person_id
       AND ep.onboarding_completed_at IS NULL;

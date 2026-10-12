@@ -198,9 +198,10 @@ test.describe('At-show judge scoring authorization', () => {
 
     await signInAsJudge(page, CLASS_PATH);
     await expect(page.getByText('Change Status')).toHaveCount(0);
-    await page.locator('[data-no-uppercase="true"]').first().click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await page.getByRole('button', { name: 'Pulled' }).click();
+    await page.getByTestId('check-in-button').first().click();
+    const statusDialog = page.getByRole('dialog', { name: 'Change Status' });
+    await expect(statusDialog).toBeVisible();
+    await statusDialog.getByRole('button', { name: 'Pulled' }).click();
 
     await expect
       .poll(() => rpcCalls.some(call => call.p_fields?.check_in_status === 'pulled'), {

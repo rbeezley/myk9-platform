@@ -40,12 +40,16 @@ test.describe('Admin user roster drill-down', () => {
     // Drilled down to the record — not the edit panel.
     await expect(page).toHaveURL(/\/people\/[0-9a-f-]{36}$/);
 
-    // The trail names where we came from, not the canonical /people parent.
-    const breadcrumb = page.getByRole('navigation', { name: /breadcrumb/i });
-    await expect(breadcrumb.getByRole('button', { name: 'Admin' })).toBeVisible();
-    await expect(breadcrumb.getByRole('button', { name: 'People' })).toHaveCount(0);
+    // The trail names where we came from, not the canonical /people parent. The record opens
+    // beside the People list, so there are two breadcrumbs on screen: the page's own ("Home >
+    // People") and the record's. The record's is the one that walks back. Its crumbs are links.
+    const breadcrumb = page
+      .getByRole('region', { name: 'Person details' })
+      .getByRole('navigation', { name: /breadcrumb/i });
+    await expect(breadcrumb.getByRole('link', { name: 'Admin' })).toBeVisible();
+    await expect(breadcrumb.getByRole('link', { name: 'People' })).toHaveCount(0);
 
-    await breadcrumb.getByRole('button', { name: 'Users' }).click();
+    await breadcrumb.getByRole('link', { name: 'Users' }).click();
 
     // Back on the roster with the search still applied.
     await expect(page).toHaveURL(/\/admin\/users\?.*\bq=a\b/);

@@ -15,7 +15,7 @@
 
 import type { ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, RefreshCw, SearchX } from 'lucide-react';
 import { replicatedShowsTable } from '@/services/replication';
 import { EmptyState, ErrorEmptyState, LoadingEmptyState } from '@/components/common/EmptyState';
@@ -29,6 +29,7 @@ import {
   classifyRefreshFailure,
   isShowUnreachableError,
   missingShowCopy,
+  retryUnlessShowUnreachable,
   resolveMissingShowReason,
   shouldOfferPriming,
   type MissingShowReason,
@@ -121,6 +122,7 @@ export function RingsideShowBoundary({ children }: { children: ReactNode }) {
   const { showId } = useParams<{ showId: string }>();
   const { user } = useAuthContext();
   const isOnline = useOnlineStatus();
+  const queryClient = useQueryClient();
   const passcodeRole = deriveRingsideRoleFromClaim(user, showId);
   const canVerifyOnline = Boolean(
     user && (!user.is_anonymous || (passcodeRole && passcodeRole !== 'exhibitor'))
@@ -134,6 +136,8 @@ export function RingsideShowBoundary({ children }: { children: ReactNode }) {
     // default "online" mode pauses queryFn offline, which bypasses the durable
     // show row and incorrectly falls through to the uncached-show state.
     networkMode: 'always',
+    // See retryUnlessShowUnreachable: no retry underneath the unreachable state (MYK9-1114).
+    retry: retryUnlessShowUnreachable(queryClient.getDefaultOptions().queries?.retry),
     // Online status is part of the key so a cold offline route can re-verify
     // when connectivity returns. Keep the last verified show during that key
     // transition: replacing children with the loading state unmounts an open

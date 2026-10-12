@@ -149,7 +149,13 @@ export function EntryManagementViewToolbar({
           }
         />
       </div>
-      {actions && <div className="flex flex-none items-center gap-2">{actions}</div>}
+      {/* Wraps inside its own box: More + Add Entry are 277px wide, wider than a 260px phone at 150%
+          zoom, and a non-wrapping group pushed the whole page sideways (MYK9-1114). */}
+      {actions && (
+        <div className="flex min-w-0 max-w-full flex-none flex-wrap items-center gap-2">
+          {actions}
+        </div>
+      )}
     </div>
   );
 }

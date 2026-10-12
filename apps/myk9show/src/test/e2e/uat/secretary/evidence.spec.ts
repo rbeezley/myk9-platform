@@ -51,7 +51,9 @@ test.describe('Phase 1 UAT - Secretary evidence pass', () => {
     await expect(page.getByRole('button', { name: 'Export Full CSV' })).toBeVisible();
     await attachScreenshot(page, testInfo, 'secretary-entry-management');
 
-    await page.getByRole('button', { name: 'Waitlist', exact: true }).click();
+    // Waitlist is a view in the page's "Show:" menu, beside the registration queues.
+    await page.getByRole('button', { name: /^Show:/ }).click();
+    await page.getByRole('menuitemradio', { name: 'Waitlist' }).click();
     await expect(page.getByText(/Wait list settings:/)).toBeVisible();
     await attachScreenshot(page, testInfo, 'secretary-waitlist');
 

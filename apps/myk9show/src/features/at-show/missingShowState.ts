@@ -16,6 +16,7 @@
  * returns, and it hid the one affordance that fixes the device (MYK9-205).
  */
 
+import type { QueryObserverOptions } from '@tanstack/react-query';
 import { isTransientBrowserFetchError } from '@/services/rbac/PermissionChecker';
 import { SAFE_SYNC_REFRESH_ERROR } from '@/services/replication/syncErrorUtils';
 
@@ -42,6 +43,23 @@ export function isShowUnreachableError(error: unknown): boolean {
       error !== null &&
       (error as { isShowUnreachable?: unknown }).isShowUnreachable === true)
   );
+}
+
+/**
+ * The boundary's query retry rule: an unreachable show is not retried (its state carries its own
+ * "Try again" and priming action, and each retry is a whole show sync that holds a steward with
+ * no signal on a spinner for ~44 seconds, MYK9-1114). Every other failure keeps whatever retry
+ * the app's QueryClient is configured with.
+ */
+export function retryUnlessShowUnreachable(
+  clientRetry: QueryObserverOptions['retry']
+): (failureCount: number, error: Error) => boolean {
+  return (failureCount, error) => {
+    if (isShowUnreachableError(error)) return false;
+    if (typeof clientRetry === 'function') return clientRetry(failureCount, error);
+    if (typeof clientRetry === 'number') return failureCount < clientRetry;
+    return clientRetry ?? failureCount < 3;
+  };
 }
 
 export type MissingShowReason = 'not-found' | 'uncached-offline' | 'unreachable' | 'refresh-failed';

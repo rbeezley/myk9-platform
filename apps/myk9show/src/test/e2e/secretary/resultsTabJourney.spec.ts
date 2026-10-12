@@ -220,6 +220,18 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
       await expect(markPrinted).toBeVisible();
       await markPrinted.click();
       await expect(page.getByText('Marked as printed.').first()).toBeVisible({ timeout: 15_000 });
+      // DIAGNOSTIC (temporary): what Reports itself says about the print it just recorded, before
+      // and after a reload. "Printed" here and "Stale" on Results means the two pages fingerprint
+      // the same class differently; "Stale" here too means the data really changed after printing.
+      const status = page.getByTestId('report-print-status');
+      const label = status.locator('div').first();
+      await expect(label).toHaveText(/^(Printed|Stale)$/, { timeout: 15_000 });
+      const before = await label.innerText();
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(label).toHaveText(/^(Printed|Stale)$/, { timeout: 30_000 });
+      console.warn(
+        `[MYK9-1031 diag] Reports print status: ${before}; after reload: ${await label.innerText()}`
+      );
     });
 
     await test.step('7. back on Results: sheet reads printed, record the judge initials', async () => {

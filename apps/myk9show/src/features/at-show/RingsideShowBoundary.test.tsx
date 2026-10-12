@@ -9,7 +9,7 @@
 
 import { Link, Routes, Route } from 'react-router-dom';
 import type { ReactNode } from 'react';
-import { onlineManager } from '@tanstack/react-query';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createTestQueryClient, render, screen, act } from '@/test/utils/testUtils';
 import { RingsideShowBoundary } from './RingsideShowBoundary';
@@ -285,6 +285,20 @@ describe('RingsideShowBoundary', () => {
       expect(screen.queryByText('Oops! Something went wrong')).not.toBeInTheDocument();
       // The connectivity-specific arm, reached through the real sanitiser.
       expect(screen.getByText(/venue wi-fi/i)).toBeInTheDocument();
+    });
+
+    it('reaches the priming state after ONE attempt, not after the query client retries', async () => {
+      // The app's real QueryClient retries a failed query 3 times with backoff. Each attempt
+      // here is a whole show sync, so a steward with no signal sat on "Loading ringside…" for
+      // ~44 seconds before the recovery action appeared (MYK9-1114). The state this leads to
+      // carries its own "Try again", so the boundary must not retry underneath it.
+      const productionRetryClient = new QueryClient({
+        defaultOptions: { queries: { retry: 3, retryDelay: 1, staleTime: Infinity } },
+      });
+      renderBoundary('show-unreachable-one-attempt', productionRetryClient);
+
+      await screen.findByText("This show isn't saved on this device");
+      expect(replicatedShowsTable.sync).toHaveBeenCalledTimes(1);
     });
 
     it('keeps a retry available, and an exit that is not the retry', async () => {

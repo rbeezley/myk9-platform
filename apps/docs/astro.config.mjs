@@ -4,7 +4,7 @@ import { defineConfig } from 'astro/config';
 // Output is plain static HTML/CSS; Vercel auto-detects Astro and serves the
 // build output. No adapter needed for static output.
 export default defineConfig({
-  site: 'https://guides.myk9show.com',
+  site: 'https://help.myk9show.com',
   output: 'static',
   trailingSlash: 'ignore',
   build: { format: 'directory' },

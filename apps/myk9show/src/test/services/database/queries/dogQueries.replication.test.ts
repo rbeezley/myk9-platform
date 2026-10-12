@@ -30,6 +30,8 @@ const { mockDogsTable, mockEntriesTable, mockDogRegistrationsTable, mockServerRe
     mockDogRegistrationsTable: {
       getRegistrationsForDogs: vi.fn(),
       getRegistrationsForDog: vi.fn(),
+      // Cold replica: these tests pin the merged server + replica read.
+      readForDogs: async () => ({ state: 'cold' }),
     },
     mockServerRegistrationRows: vi.fn(() => [] as Record<string, unknown>[]),
   }));

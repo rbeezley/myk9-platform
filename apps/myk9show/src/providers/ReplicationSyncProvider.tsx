@@ -61,6 +61,7 @@ import {
 } from './replicationSyncFormatters';
 import { useSyncPassScheduler } from './useSyncPassScheduler';
 import { useDiscardRevertCacheSync } from './useDiscardRevertCacheSync';
+import { useRegistrationsReplicaCacheSync } from './useRegistrationsReplicaCacheSync';
 import {
   classifyTableSyncResults,
   createTablesStatus,
@@ -202,6 +203,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   const { isOnline } = useNetworkStatus();
   const queryClient = useQueryClient();
   useDiscardRevertCacheSync();
+  useRegistrationsReplicaCacheSync();
   const wasOffline = useRef(false);
   const hasInitialSynced = useRef(false);
   const triggerSyncRef = useRef<((targets?: UploadSyncTarget[]) => Promise<void>) | undefined>(

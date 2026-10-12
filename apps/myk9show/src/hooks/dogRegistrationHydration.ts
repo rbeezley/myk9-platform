@@ -15,10 +15,11 @@
  * trust and what an empty result is allowed to mean. They are kept together
  * because that trade-off — not the mapping — is the actual subject matter.
  *
- * A note for whoever changes this next: `ReplicatedDogRegistrationsTable.sync()`
- * is a NO-OP. The replica only ever holds registrations created on this device,
- * so an empty result from it is never evidence of absence. Several fixes here
- * exist solely because that was assumed otherwise.
+ * A note for whoever changes this next: the registrations replica syncs
+ * (MYK9-1090), but an empty answer from it is evidence of absence ONLY once it
+ * is warm (`readForDogs`). A cold replica holds just the registrations created
+ * on this device. Several fixes here exist because emptiness was trusted when
+ * it should not have been.
  */
 
 import type { QueryClient } from '@tanstack/react-query';
@@ -36,13 +37,11 @@ import { queryKeys } from '@/lib/queryClient';
  * bare row and handed the result straight to `DogDialogs`, which flipped a
  * registered dog's breed label to "Breed not set" until the next refetch.
  *
- * Reads through `loadDogRegistrations`, the MERGED server+replica path. Round 2
- * used `replicatedDogRegistrationsTable` alone, which was inert in production:
- * that table's `sync()` is a no-op and server reads are never written into it,
- * so it only ever holds registrations created locally. For the common dog —
- * whose registrations came from PostgREST — it returned nothing and the label
- * still flipped to "Breed not set". The merged read answers from the server when
- * online and from the replica when not.
+ * Reads through `loadDogRegistrations`: the replica alone once it is warm,
+ * otherwise the server merged with whatever the replica holds. Round 2 read
+ * the replica alone while it never synced, so for the common dog it returned
+ * nothing and the label still flipped to "Breed not set"; the warm check is
+ * what makes a replica-only answer safe now (MYK9-1090).
  *
  * ONLY use this off the latency-critical path. `updateDog` is local-first and
  * must not await a network read — see `cachedRegistrationRowsForDog`.

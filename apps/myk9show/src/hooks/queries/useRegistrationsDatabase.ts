@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getAllRegistrations,
   getRegistrationById,
-  getRegistrationsByDog,
   getRegistrationsByOrganization,
   getRegistrationsByOwner,
   createRegistration,
@@ -14,8 +13,8 @@ import {
   getRegistrationStatistics,
   validateRegistrationNumber,
 } from '@/services/database/registrations';
+import { readRegistrationsForDog } from '@/services/database/registrations/replicaReads';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
-import { invalidateQueries } from '@/services/database/queryClient';
 import type { DbDogRegistrationInsert, DbDogRegistrationUpdate } from '@/types/database-mappings';
 
 // Get all registrations with dog information
@@ -45,16 +44,18 @@ export const useRegistrationQuery = (id: string, enabled = true) => {
   });
 };
 
-// Get registrations by dog ID
+// Get registrations by dog ID: the replica when warm, PostgREST when cold.
+// `networkMode: 'always'` because a warm read never touches the network: under
+// the default 'online' mode an offline query sits `paused` and the section
+// reads as empty. The refresh listener in ReplicationSyncProvider
+// (useRegistrationsReplicaCacheSync) invalidates this key on every replica
+// change, so the mutations below need not.
 export const useRegistrationsByDogQuery = (dogId: string, enabled = true) => {
   return useQuery({
     queryKey: queryKeys.registrationsByDog(dogId),
-    queryFn: async () => {
-      const { data, error } = await getRegistrationsByDog(dogId);
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => readRegistrationsForDog(dogId),
     enabled: !!dogId && enabled,
+    networkMode: 'always',
     ...cacheStrategies.moderate,
   });
 };
@@ -167,19 +168,8 @@ export const useCreateRegistrationMutation = () => {
       }
     },
     onSuccess: (_data, variables) => {
-      // Invalidate and refetch registration lists
-      invalidateQueries.all('dogs');
-
-      // If registration has dog, invalidate dog's registrations
-      if (variables.dog_id) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.registrationsByDog(variables.dog_id),
-        });
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.dogRegistrations(variables.dog_id),
-        });
-      }
-
+      // The dog's registrations and the dog reads refresh through the replica
+      // listener: createRegistration mirrors the new row into the replica.
       // Invalidate organization specific queries
       if (variables.organization) {
         queryClient.invalidateQueries({
@@ -229,18 +219,8 @@ export const useUpdateRegistrationMutation = () => {
       // Update specific registration cache
       queryClient.setQueryData(queryKeys.registration(id), data);
 
-      // Invalidate registration lists to ensure consistency
-      invalidateQueries.lists('dogs');
-
-      // If dog changed, invalidate both old and new dog registrations
-      if (data?.dog_id) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.registrationsByDog(data.dog_id),
-        });
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.dogRegistrations(data.dog_id),
-        });
-      }
+      // The dog's registrations and the dog reads refresh through the replica
+      // listener: updateRegistration mirrors the saved row into the replica.
 
       // If organization changed, invalidate organization queries
       if (data?.organization || updates.organization) {
@@ -295,25 +275,14 @@ export const useDeleteRegistrationMutation = () => {
         queryClient.setQueryData(queryKeys.registration(deletedId), context.previousRegistration);
       }
     },
-    onSuccess: (data, deletedId) => {
+    onSuccess: (_data, deletedId) => {
       // Remove from cache completely
       queryClient.removeQueries({ queryKey: queryKeys.registration(deletedId) });
 
-      // Invalidate registration lists
-      invalidateQueries.all('dogs');
-
-      // Invalidate statistics since count changed
+      // Invalidate statistics since count changed. The dog's registrations and
+      // the dog reads refresh through the replica listener: deleteRegistration
+      // removes the row from the replica.
       queryClient.invalidateQueries({ queryKey: ['dog_registrations', 'statistics'] });
-
-      // If we know the dog ID from the deleted registration, invalidate dog registrations
-      if (data?.dog_id) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.registrationsByDog(data.dog_id),
-        });
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.dogRegistrations(data.dog_id),
-        });
-      }
     },
   });
 };

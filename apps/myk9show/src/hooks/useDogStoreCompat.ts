@@ -30,6 +30,7 @@ import { useDogReplicaForEdit } from '@/hooks/useDogReplicaForEdit';
 import { queryKeys } from '@/lib/queryClient';
 import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompatUtils';
 import { syncDogRegistrations } from '@/hooks/dogStoreCompatHelpers';
+import { mirrorServerDogRegistrations } from '@/services/database/registrations/replicaMirror';
 import { rethrownDogDbError } from '@/hooks/translateDogDbError';
 import { supabase } from '@/lib/supabase';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
@@ -130,13 +131,16 @@ export const useDogStoreCompat = () => {
         if (rpcError) throw rethrownDogDbError(rpcError);
 
         const savedDogId = typeof rpcDogId === 'string' ? rpcDogId : dogId;
+        // The RPC wrote the registrations server-side under ids this device
+        // never saw; the registration readers answer from the replica, so
+        // copy them in now (its listener refreshes the registration reads).
+        await mirrorServerDogRegistrations(savedDogId);
         if (savedDogId !== dogId) {
           await replicatedDogsTable.delete(dogId);
           await queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
           if (dbData.owner_id) {
             queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(dbData.owner_id) });
           }
-          queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(savedDogId) });
 
           const existingLocalDog = await replicatedDogsTable.getDogById(savedDogId);
           const existingLoadedDog = dogs.find(dog => dog.id === savedDogId);
@@ -163,7 +167,6 @@ export const useDogStoreCompat = () => {
         if (dbData.owner_id) {
           queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(dbData.owner_id) });
         }
-        queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(dogId) });
         return await mapReplicatedDogWithRegistrations(replicatedDog);
       }
 
@@ -226,7 +229,6 @@ export const useDogStoreCompat = () => {
       registrations = savedRegistrations.map(registration =>
         replicatedDogRegistrationsTable.toSupabaseRow(registration)
       );
-      queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(savedDog.id) });
 
       await queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
       if (savedDog.ownerId) {
@@ -295,10 +297,9 @@ export const useDogStoreCompat = () => {
 
     if (updates.registrations && updates.registrations.length > 0) {
       try {
-        const changed = await syncDogRegistrations(id, updates.registrations);
-        if (changed) {
-          queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(id) });
-        }
+        // Each write it makes is mirrored into the replica, whose listener
+        // refreshes the registration reads.
+        await syncDogRegistrations(id, updates.registrations);
       } catch (err) {
         logger.error('Failed to update/create registrations', 'dogs', { dogId: id }, err as Error);
         notifications.warning(

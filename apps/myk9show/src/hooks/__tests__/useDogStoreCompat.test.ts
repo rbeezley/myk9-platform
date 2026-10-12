@@ -74,6 +74,8 @@ vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
     createLocalRegistrationsForDog: mockCreateLocalReplicatedDogRegistrationsForDog,
     toSupabaseRow: (registration: Record<string, unknown>) => registration,
     getRegistrationsForDogs: mockGetRegistrationsForDogs,
+    // Cold replica: these tests pin the merged server + replica read.
+    readForDogs: async () => ({ state: 'cold' }),
   },
 }));
 

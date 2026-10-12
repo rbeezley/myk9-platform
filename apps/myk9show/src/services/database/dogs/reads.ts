@@ -149,15 +149,14 @@ function overlayLocalCreationOrder(
 }
 
 /**
- * Registrations merged from the server and the offline replica, plus whether
- * either read leg failed.
+ * These dogs' registrations, plus whether the read was complete.
  *
- * The flag matters because `ReplicatedDogRegistrationsTable.sync()` is a no-op:
- * the replica only ever holds registrations CREATED locally, so for a dog whose
- * registrations came from PostgREST the local leg returns nothing. An empty
- * result is therefore ambiguous — "this dog has no registrations" and "we could
- * not read them" look identical — and callers that print paperwork must be able
- * to tell those apart rather than rendering a blank (MYK9-90 review round 3).
+ * A warm replica (fully synced on this device, MYK9-1090) answers alone, with
+ * no network request, and its empty answer means "no registrations". A cold or
+ * unreadable one cannot say that, so the server and whatever the replica holds
+ * (registrations created offline) are merged, and a failed leg marks the read
+ * incomplete: callers that print paperwork must tell "has none" from "could
+ * not read" rather than rendering a blank (MYK9-90 review round 3).
  */
 export interface DogRegistrationsResult {
   byDog: Map<string, Record<string, unknown>[]>;
@@ -165,14 +164,16 @@ export interface DogRegistrationsResult {
   registrationsReadComplete: boolean;
 }
 
-// Registrations can exist as pending local rows before PostGREST can see them.
-// Merge the local replica with server rows so offline-created dogs keep their
-// registration data after refresh and while the queue is waiting to upload.
 export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistrationsResult> {
   if (dogIds.length === 0) {
     return { byDog: new Map(), serverError: null, registrationsReadComplete: true };
   }
   const map = new Map<string, Record<string, unknown>[]>();
+  const replica = await replicatedDogRegistrationsTable.readForDogs(dogIds);
+  if (replica.state === 'warm') {
+    appendRegistrations(map, replica.rows);
+    return { byDog: map, serverError: null, registrationsReadComplete: true };
+  }
   const [localResult, serverResult] = await Promise.all([
     (async (): Promise<{ data: Record<string, unknown>[]; error: unknown | null }> => {
       try {

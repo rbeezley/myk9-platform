@@ -127,6 +127,7 @@ export const queryKeys = {
   dogRegistrations: (dogId: string) => ['dogs', dogId, 'registrations'] as const,
   dogHealthRecords: (dogId: string) => ['dogs', dogId, 'health'] as const,
   dogPedigree: (dogId: string) => ['dogs', dogId, 'pedigree'] as const,
+  dogCanEdit: (dogId: string) => ['dogs', dogId, 'can-edit'] as const,
 
   // Users
   users: {

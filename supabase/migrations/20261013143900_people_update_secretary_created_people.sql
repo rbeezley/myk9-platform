@@ -27,7 +27,9 @@
 -- person_email_lock_facts() (the edit panel's email-lock read), and by can_edit_person(),
 -- the UI's question. The two RPC bodies are copied from the live
 -- definitions (latest migrations 20260924231700 and 20261009214700); only their
--- authorization block changes.
+-- authorization block changes: each now locks the person row (FOR UPDATE) and THEN applies
+-- the rule to that locked row, so a signup adoption committing in between cannot leave a
+-- secretary writing an account-holding person through these definer functions.
 
 CREATE OR REPLACE FUNCTION public.person_edit_allowed(
   p_person_id uuid,
@@ -123,6 +125,9 @@ DECLARE
   v_patch jsonb;
   v_key text;
   v_value jsonb;
+  v_auth_user_id uuid;
+  v_created_by uuid;
+  v_created_from_show_id uuid;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'Not authenticated' USING ERRCODE = '42501';
@@ -147,18 +152,21 @@ BEGIN
     RAISE EXCEPTION 'Unknown private detail: %', v_unknown USING ERRCODE = '22023';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM public.people p WHERE p.id = p_person_id AND p.deleted_at IS NULL
-  ) THEN
+  -- MYK9-1134: lock the row BEFORE deciding, then apply the one edit rule (shared with
+  -- the people_update policy) to the locked, current row. Checking first and locking
+  -- later let a concurrent signup adoption link an account between the two, and this
+  -- definer function would then write a person the caller may no longer edit.
+  SELECT p.auth_user_id, p.created_by, p.created_from_show_id
+    INTO v_auth_user_id, v_created_by, v_created_from_show_id
+  FROM public.people p
+  WHERE p.id = p_person_id AND p.deleted_at IS NULL
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
     RAISE EXCEPTION 'Person not found' USING ERRCODE = '42501';
   END IF;
 
-  -- MYK9-1134: the one edit rule, shared with the people_update policy.
-  IF NOT EXISTS (
-    SELECT 1 FROM public.people p
-    WHERE p.id = p_person_id
-      AND public.person_edit_allowed(p.id, p.auth_user_id, p.created_by, p.created_from_show_id)
-  ) THEN
+  IF NOT public.person_edit_allowed(p_person_id, v_auth_user_id, v_created_by, v_created_from_show_id) THEN
     RAISE EXCEPTION 'Permission denied' USING ERRCODE = '42501';
   END IF;
 
@@ -249,6 +257,9 @@ DECLARE
   v_people jsonb := coalesce(p_people, '{}'::jsonb);
   v_current integer;
   v_row jsonb;
+  v_auth_user_id uuid;
+  v_created_by uuid;
+  v_created_from_show_id uuid;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'Not authenticated' USING ERRCODE = '42501';
@@ -261,31 +272,23 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  -- Same existence and authorization predicate as update_person_details, checked
-  -- before the version is read so a refusal reveals nothing about the row.
-  IF NOT EXISTS (
-    SELECT 1 FROM public.people p WHERE p.id = p_person_id AND p.deleted_at IS NULL
-  ) THEN
-    RAISE EXCEPTION 'Person not found' USING ERRCODE = '42501';
-  END IF;
-
-  -- MYK9-1134: the one edit rule, shared with the people_update policy.
-  IF NOT EXISTS (
-    SELECT 1 FROM public.people p
-    WHERE p.id = p_person_id
-      AND public.person_edit_allowed(p.id, p.auth_user_id, p.created_by, p.created_from_show_id)
-  ) THEN
-    RAISE EXCEPTION 'Permission denied' USING ERRCODE = '42501';
-  END IF;
-
-  -- Lock the row so the version cannot move between the check and the write.
-  SELECT p.version INTO v_current
+  -- Lock the row first, so neither the version nor the authorization facts can move
+  -- between the check and the write (MYK9-1134: a concurrent signup adoption). The
+  -- existence and authorization checks still run before the version is compared, so a
+  -- refusal reveals nothing about the row.
+  SELECT p.version, p.auth_user_id, p.created_by, p.created_from_show_id
+    INTO v_current, v_auth_user_id, v_created_by, v_created_from_show_id
   FROM public.people p
   WHERE p.id = p_person_id AND p.deleted_at IS NULL
   FOR UPDATE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Person not found' USING ERRCODE = '42501';
+  END IF;
+
+  -- Same rule as update_person_details and the people_update policy.
+  IF NOT public.person_edit_allowed(p_person_id, v_auth_user_id, v_created_by, v_created_from_show_id) THEN
+    RAISE EXCEPTION 'Permission denied' USING ERRCODE = '42501';
   END IF;
 
   IF p_expected_version IS NOT NULL AND v_current IS DISTINCT FROM p_expected_version THEN

@@ -195,6 +195,36 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
 
+  -- Once the mail-in person she created signs up (adoption links auth_user_id), the record is
+  -- theirs: every path refuses her. The signup is real: an auth.users row whose email matches
+  -- the person, adopted by the signup trigger, exactly as in production.
+  RESET ROLE;
+  UPDATE public.people SET email = 'pe-adopted@example.test' WHERE id = created_by_sec;
+  INSERT INTO auth.users (
+    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+    created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+    is_super_admin, is_sso_user, is_anonymous
+  ) VALUES (
+    '00000000-0000-0000-0000-0000e0e00104', '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'pe-adopted@example.test', '', now(), now(), now(),
+    '{}', '{}', false, false, false
+  );
+  SELECT count(*) INTO n FROM public.people
+  WHERE id = created_by_sec AND auth_user_id = '00000000-0000-0000-0000-0000e0e00104';
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL fixture: signup did not adopt the mail-in person; the refusal below would prove nothing';
+  END IF;
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', secretary, 'role', 'authenticated')::text, true);
+  BEGIN
+    PERFORM public.update_person_details(created_by_sec, jsonb_build_object('city', 'After adoption'));
+    RAISE EXCEPTION 'FAIL secretary edited a person after they signed up and were adopted';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  IF public.can_edit_person(created_by_sec) THEN
+    RAISE EXCEPTION 'FAIL can_edit_person() still offers an adopted person to the secretary';
+  END IF;
+
   -- Not on the server (e.g. created on a device, not uploaded yet) is unanswered, not "no".
   IF public.can_edit_person('00000000-0000-0000-0000-0000e0e0dfff') IS NOT NULL THEN
     RAISE EXCEPTION 'FAIL can_edit_person() of an unknown person id is not NULL';

@@ -1,4 +1,5 @@
 import type { AddDogSubMode } from '@/components/panels/edit/AddDogPanel/types';
+import { addDogSubModeTitle } from '@/components/panels/edit/AddDogPanel/subModeTitle';
 
 /** The three steps a Quick Create walks through. */
 export type QuickCreateStep = 'exhibitor' | 'dogs' | 'review';
@@ -26,11 +27,7 @@ export function quickCreateTitle(view: QuickCreateView, dogSubMode: AddDogSubMod
   if (view === 'person-form') return 'Add Person';
   if (view === 'person-edit') return 'Edit Person';
   if (view === 'dog-edit') return 'Edit Dog';
-  if (view === 'dog-form') {
-    if (dogSubMode === 'registration-add') return 'Add New Registration';
-    if (dogSubMode === 'registration-edit') return 'Edit Registration';
-    return 'Add Dog';
-  }
+  if (view === 'dog-form') return addDogSubModeTitle(dogSubMode);
   return 'Quick Registration Setup';
 }
 

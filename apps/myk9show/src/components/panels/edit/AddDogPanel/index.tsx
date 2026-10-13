@@ -23,13 +23,61 @@ import { buildDogSavedToast } from './dogSavedToast';
 import { AddDogPanelContent } from './AddDogPanelContent';
 import { RegistrationFormInline } from './RegistrationFormInline';
 import { usePanelModeFocus } from '../../usePanelModeFocus';
+import { SlideOverPanel } from '../../SlideOverPanel';
+import { addDogSubModeTitle } from './subModeTitle';
 import { findLikelyDuplicateDogCandidate, type DogIdentityCandidate } from '@/utils/dogIdentity';
 
 export type { AddDogPanelProps } from './types';
 
-export const AddDogPanel: React.FC<AddDogPanelProps> = props => (
-  <AddDogPanelSession key={props.open ? 'open' : 'closed'} {...props} />
-);
+/**
+ * `inline` renders into a host panel (Quick Create). `panel` is that same body
+ * in a slide-out of its own, so the registration form is always a view of one
+ * panel, never a second slide-out (MYK9-1116).
+ */
+export const AddDogPanel: React.FC<AddDogPanelProps> = props =>
+  props.variant === 'inline' ? (
+    <AddDogPanelSession key={props.open ? 'open' : 'closed'} {...props} />
+  ) : (
+    <AddDogPanelHost {...props} />
+  );
+
+const AddDogPanelHost: React.FC<AddDogPanelProps> = props => {
+  const { open, onSubModeChange } = props;
+  const [subMode, setSubMode] = useState<AddDogSubMode>('dog');
+  const ownCloseRef = useRef<(() => void) | null>(null);
+  const requestClose = useCallback(() => ownCloseRef.current?.(), []);
+  const handleSubModeChange = useCallback(
+    (mode: AddDogSubMode) => {
+      setSubMode(mode);
+      onSubModeChange?.(mode);
+    },
+    [onSubModeChange]
+  );
+  // A closed panel starts the next session on the dog form.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (!open) setSubMode('dog');
+  }
+  return (
+    <SlideOverPanel
+      open={open}
+      onClose={requestClose}
+      title={addDogSubModeTitle(subMode)}
+      size="xl"
+      {...(subMode !== 'dog' && { showBackButton: true, onBack: requestClose })}
+    >
+      <AddDogPanelSession
+        key={open ? 'open' : 'closed'}
+        {...props}
+        variant="inline"
+        showPhoto
+        closeRequestRef={ownCloseRef}
+        onSubModeChange={handleSubModeChange}
+      />
+    </SlideOverPanel>
+  );
+};
 
 const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   open,
@@ -37,7 +85,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   onDogCreated,
   userRole = UserRole.EXHIBITOR,
   currentUserPersonId,
-  variant = 'panel',
+  showPhoto = false,
   offlineFirst = false,
   offlineDependsOn,
   onEnterShowWithDog,
@@ -186,10 +234,9 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
     }
   };
 
-  // --- Inline only (MYK9-1081): the registration form is a sub-mode of this
-  // panel's host, shown in place of the dog form. The dog form stays mounted
+  // --- The registration form is a sub-mode of this panel's host (MYK9-1081,
+  // MYK9-1116), shown in place of the dog form. The dog form stays mounted
   // (hidden and inert) so its values and active tab survive the round trip.
-  const inline = variant === 'inline';
   const [registration, setRegistration] = useState<{ editing?: Registration } | null>(null);
   const subMode: AddDogSubMode = !registration
     ? 'dog'
@@ -242,7 +289,6 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
     home: 'dog',
     formRef: registrationFormRef,
     returnTarget: registrationReturnTarget,
-    enabled: inline,
   });
 
   const dogForm = (
@@ -258,8 +304,8 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
       saveLabel="Add Dog"
       enableAutoSave={false}
       showUnsavedWarning={true}
-      variant={variant}
-      {...(inline && { closeRequestRef: dogCloseRef })}
+      variant="inline"
+      closeRequestRef={dogCloseRef}
       onValidationFail={handleValidationFail}
       steps={{
         mode: 'create',
@@ -283,15 +329,12 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
           setAllowSeparateDog(true);
           setDuplicateCandidate(null);
         }}
-        {...(inline && {
-          onOpenRegistration: openRegistration,
-          saveRegistrationRef,
-        })}
+        onOpenRegistration={openRegistration}
+        saveRegistrationRef={saveRegistrationRef}
+        showPhoto={showPhoto}
       />
     </EditPanelWrapper>
   );
-
-  if (!inline) return dogForm;
 
   return (
     <>

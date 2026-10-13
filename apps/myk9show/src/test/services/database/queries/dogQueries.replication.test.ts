@@ -1,5 +1,5 @@
 import { createDatabaseError } from '@/services/database/databaseError';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 
@@ -298,13 +298,21 @@ describe('dogQueries (replication)', () => {
   // -----------------------------------------------------------------------
   // getDogById
   // -----------------------------------------------------------------------
-  describe('getDogById', () => {
-    it('returns dog with entries and supplemental data', async () => {
+  // getDogById reads the server first (MYK9-1126; its online paths are in
+  // services/database/dogs/__tests__/dogDetailRead.test.ts). These cover the
+  // device copy, which answers only when the server cannot be reached.
+  describe('getDogById, server unreachable', () => {
+    let onLine: { mockRestore: () => void } | undefined;
+    beforeEach(() => {
+      onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    });
+    afterEach(() => {
+      onLine?.mockRestore();
+    });
+
+    it('returns the device dog without entries (the dog page reads those itself)', async () => {
       mockDogsTable.getDogById.mockResolvedValue(makeDog());
-      mockEntriesTable.getAll.mockResolvedValue([
-        makeEntry({ dogId: 'dog-1' }),
-        makeEntry({ id: 'entry-other', dogId: 'dog-other' }),
-      ]);
+      mockEntriesTable.getAll.mockResolvedValue([makeEntry({ dogId: 'dog-1' })]);
 
       const result = await getDogById('dog-1');
 
@@ -312,13 +320,9 @@ describe('dogQueries (replication)', () => {
       const row = result.data as Record<string, unknown>;
       expect(row.id).toBe('dog-1');
       expect(row.name).toBe('Bella');
-      // Entries filtered to this dog
-      const entries = row.entries as Record<string, unknown>[];
-      expect(entries).toHaveLength(1);
-      expect(entries[0].id).toBe('entry-1');
-      expect(entries[0].dog_id).toBe('dog-1');
-      expect(entries[0].class_id).toBe('class-1');
-      expect(entries[0].show_id).toBe('show-1');
+      // MYK9-1126: entries come from getEntriesByDog, never from this row.
+      expect(row.entries).toBeUndefined();
+      expect(mockEntriesTable.getAll).not.toHaveBeenCalled();
     });
 
     it('includes local pending registrations in dog detail reads', async () => {
@@ -348,13 +352,13 @@ describe('dogQueries (replication)', () => {
       ]);
     });
 
-    it('returns { data: null, error: null } for missing dog', async () => {
+    it('returns an error, not a missing dog, when the dog is not on this device', async () => {
       mockDogsTable.getDogById.mockResolvedValue(null);
 
       const result = await getDogById('non-existent');
 
       expect(result.data).toBeNull();
-      expect(result.error).toBeNull();
+      expect(result.error).not.toBeNull();
     });
   });
 

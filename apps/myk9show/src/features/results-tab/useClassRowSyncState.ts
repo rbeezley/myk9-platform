@@ -1,0 +1,66 @@
+/**
+ * Whether the CLASS row itself still holds a change this device has not settled with the server
+ * (MYK9-1113). "Scores match the paper" saves its check on the server, but this device only learns
+ * `results_verified_at` from a later `classes` sync, and the replica refuses to overwrite a dirty
+ * row with the server's copy. So while the class row is dirty, queued, failed, or in conflict the
+ * saved check cannot show here, and the screen would look as if the click did nothing.
+ *
+ * Same signal as `useClassUnsyncedScores` (`hasUnsyncedLocalWork`, re-read on the table's own
+ * change notice, never polled), on the classes table. A persisted conflict snapshot is told apart
+ * so the message can point at the "changed elsewhere" choice.
+ *
+ * `null` until the first read and when the queue cannot be read: unknown is not "settled".
+ */
+import { useEffect, useState } from 'react';
+
+import { replicatedClassesTable } from '@/services/replication';
+
+export type ClassRowSyncState = 'settled' | 'waiting' | 'conflict';
+
+export async function readClassRowSyncState(classId: string): Promise<ClassRowSyncState> {
+  const row = await replicatedClassesTable.getReplicatedRow(classId);
+  if (row?.conflict) return 'conflict';
+  return (await replicatedClassesTable.hasUnsyncedLocalWork(classId)) ? 'waiting' : 'settled';
+}
+
+export function useClassRowSyncState(classId: string | null): ClassRowSyncState | null {
+  const [state, setState] = useState<{ classId: string; value: ClassRowSyncState } | null>(null);
+  const [notices, setNotices] = useState(0);
+
+  useEffect(
+    () =>
+      replicatedClassesTable.subscribe(() => setNotices(count => count + 1), {
+        emitCurrent: false,
+      }),
+    []
+  );
+
+  useEffect(() => {
+    if (!classId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const value = await readClassRowSyncState(classId);
+        if (!cancelled) setState({ classId, value });
+      } catch {
+        if (!cancelled) setState(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [classId, notices]);
+
+  return classId && state?.classId === classId ? state.value : null;
+}
+
+/** What to tell the secretary when the saved check cannot show yet, or null when it can. */
+export function classRowSyncBlockedReason(state: ClassRowSyncState | null): string | null {
+  if (state === 'conflict') {
+    return 'This class was changed elsewhere. Choose Keep mine or Take theirs on the notice to settle it, then the check can show.';
+  }
+  if (state === 'waiting') {
+    return "Waiting for this class's changes to sync before the check can show";
+  }
+  return null;
+}

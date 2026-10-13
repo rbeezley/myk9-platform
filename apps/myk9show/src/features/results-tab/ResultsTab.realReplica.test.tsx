@@ -7,6 +7,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
+import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 
 import { render, screen, waitFor } from '@/test/utils/testUtils';
@@ -322,6 +323,90 @@ describe('Results tab on the real replicated class rows', () => {
         expect(screen.getByText('NQ')).toBeInTheDocument();
         expect(screen.queryByText('Done')).not.toBeInTheDocument();
       });
+    });
+  });
+
+  describe('a class row this device has not synced (MYK9-1113)', () => {
+    const SAVE_CHECK = { name: 'Scores match the paper' };
+
+    /** The class has no check yet; the secretary ticks the dog, so Verify is ready to click. */
+    async function renderUncheckedAndTick() {
+      await downloadClassWithoutCheck('class-open');
+      const user = userEvent.setup();
+      render(
+        <Routes>
+          <Route path="/shows/:id/results" element={<ResultsTab />} />
+        </Routes>,
+        { initialRoute: '/shows/show-1/results?status=all&classId=class-open' }
+      );
+      await user.click(await screen.findByRole('checkbox', { name: /matches the paper/ }));
+      await waitFor(() => expect(screen.getByRole('button', SAVE_CHECK)).toBeEnabled());
+    }
+
+    /** What the server holds when this device's edit loses: the check is there, the row is not clean. */
+    async function conflictClass(classId: string) {
+      await replicatedClassesTable.updateClass(classId, { classStatus: 'Completed' });
+      const row = (await replicatedClassesTable.getReplicatedRow(classId))!;
+      await replicatedClassesTable.markConflict(classId, {
+        tableName: 'classes',
+        rowId: classId,
+        fields: ['classStatus'],
+        localData: row.data,
+        remoteData: {
+          ...row.data,
+          resultsVerifiedAt: '2026-10-10T15:00:00Z',
+          resultsVerifiedBy: 'u-1',
+        },
+        baseData: row.data,
+        baseVersion: row.version,
+        localVersion: row.version,
+        remoteServerVersion: 9,
+        detectedAt: Date.now(),
+      });
+    }
+
+    it('says a queued class change must sync first, keeps the ticks, and unlocks when it syncs', async () => {
+      await renderUncheckedAndTick();
+
+      await replicatedClassesTable.updateClass('class-open', { classStatus: 'Completed' });
+
+      await waitFor(() => expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled());
+      expect(screen.getByText(/Waiting for this class.s changes to sync/)).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: /matches the paper/ })).toBeChecked();
+
+      // The upload is acknowledged, then an ordinary class sync brings the server's check down.
+      await replicatedClassesTable.markAsSynced('class-open');
+      const row = (await replicatedClassesTable.get('class-open'))!;
+      await replicatedClassesTable.set(
+        'class-open',
+        { ...row, resultsVerifiedAt: '2026-10-10T15:00:00Z', resultsVerifiedBy: 'u-1' },
+        false
+      );
+
+      await waitFor(() =>
+        expect(screen.getByText(/Scores checked against the paper by you/)).toBeInTheDocument()
+      );
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled();
+    });
+
+    it('names an unresolved conflict and points at the Keep mine / Take theirs choice, then unlocks once resolved', async () => {
+      await renderUncheckedAndTick();
+
+      await conflictClass('class-open');
+
+      expect(await screen.findByText(/changed elsewhere/)).toBeInTheDocument();
+      expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled();
+      expect(screen.getByText(/Keep mine or Take theirs/)).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: /matches the paper/ })).toBeChecked();
+
+      // Take theirs: the server's row, check included, replaces the local one.
+      await replicatedClassesTable.resolveReplicationConflict('class-open', 'take-remote');
+
+      await waitFor(() =>
+        expect(screen.getByText(/Scores checked against the paper by you/)).toBeInTheDocument()
+      );
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled();
+      expect(screen.queryByText(/changed elsewhere/)).not.toBeInTheDocument();
     });
   });
 });

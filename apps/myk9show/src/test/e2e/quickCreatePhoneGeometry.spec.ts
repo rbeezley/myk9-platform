@@ -57,6 +57,9 @@ for (const width of WIDTHS) {
     await page.keyboard.press('Enter');
     await page.getByRole('menuitem', { name: /Exhibitor & Dog/i }).click();
 
+    // The slide-out itself, not its `role="dialog"` backdrop wrapper: one panel hosts every view.
+    const panel = page.locator('.slide-over-panel');
+
     // Duplicate prompt.
     const personDialog = page.getByRole('dialog', { name: 'Add Person' });
     await expect(personDialog).toBeVisible();
@@ -66,7 +69,7 @@ for (const width of WIDTHS) {
     await page.getByRole('button', { name: /Next: Contact/ }).click();
     const useThis = page.getByRole('button', { name: /Use This Person/i });
     await expect(useThis).toBeVisible({ timeout: 15000 });
-    const duplicateFit = await measureInsidePanel(personDialog, {
+    const duplicateFit = await measureInsidePanel(panel, {
       'Use This Person': useThis,
       'Add Person Anyway': page.getByRole('button', { name: /Add Person Anyway/i }),
     });
@@ -102,7 +105,7 @@ for (const width of WIDTHS) {
     await expect(steps.getByRole('heading', { name: 'Dogs Added (1):' })).toBeVisible({
       timeout: 15000,
     });
-    const dogsFit = await measureInsidePanel(steps, {
+    const dogsFit = await measureInsidePanel(panel, {
       Edit: steps.getByRole('button', { name: 'Edit', exact: true }),
       Remove: steps.getByRole('button', { name: 'Remove', exact: true }),
       Review: steps.getByRole('button', { name: 'Review', exact: true }),

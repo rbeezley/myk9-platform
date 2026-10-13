@@ -58,3 +58,13 @@ The club show day uses no screenshot: it is the working practice scoresheet (D9)
 - **MYK9-1146:** the sync-failure toast prints "Reason: [object Object]" when a write fails.
 - **MYK9-1147:** My Entries shows "Unknown Show" dated today for entries in a draft show.
 - **Not yet filed:** on the dog profile at 390px, the upcoming-entry title runs underneath the "Accepted — you're in" pill.
+
+## Explainer boxes (re-measured)
+
+Measured on `apps/myk9show/public/landing/stages/e-02.png` (1200x750) for the exhibitor "Enter in a few minutes" explainer. Values are percent of image width/height, padded a few pixels around each element.
+
+| Box | Element | Pixels (x-x, y-y) | x | y | w | h |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | When / where / trials / capacity row | 146-1054, 517-619 | 12 | 68.5 | 76 | 14.5 |
+| 2 | "Enter this show" in the sticky top bar | 930-1054, 60-102 | 77 | 7.5 | 11 | 6.5 |
+| 3 | "Closing in" countdown | 641-1054, 660-704 | 53 | 87.5 | 35 | 7 |

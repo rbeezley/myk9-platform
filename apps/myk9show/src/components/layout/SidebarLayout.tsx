@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
 import { APP_SHELL_HEADER_HEIGHT_PX } from './appShellContract';
+import { useIsGuestLanding } from './useIsGuestLanding';
 
 // Layout constants - single source of truth
 const SIDEBAR_LAYOUT_CONSTANTS = {
@@ -86,6 +87,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
   hoverToExpand = false,
 }) => {
   // Internal mobile state (uncontrolled mode)
+  const isGuestLanding = useIsGuestLanding();
   const [internalMobileOpen, setInternalMobileOpen] = useState(false);
 
   // Hover-to-expand state
@@ -209,6 +211,9 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
           Leaving overflow visible hands sticky the document scrollport, which
           is what --app-top-inset offsets are already written against.
 
+          The top padding is dropped for the guest landing page, whose own
+          header replaces the app header (see useIsGuestLanding).
+
           `min-w-0` replaces what `overflow-auto` used to do for width: a flex
           item's automatic minimum size is its content, so an over-wide child
           (a table, a long unbroken string) used to be absorbed by this
@@ -217,7 +222,8 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
       <main
         data-layout="app-shell-main"
         className={cn(
-          'flex-1 min-w-0 pt-[var(--app-header-height,3rem)]',
+          'flex-1 min-w-0',
+          isGuestLanding ? 'pt-0' : 'pt-[var(--app-header-height,3rem)]',
           'md:ml-[var(--sidebar-width)]'
         )}
         style={{ '--sidebar-width': `${mainMarginWidth}px` } as React.CSSProperties}

@@ -5,7 +5,7 @@
  * `_recoverAndRefresh`): MYK9-834's regression was exactly that, for the
  * ringside claim cache these handlers share.
  */
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { User } from '@supabase/supabase-js';
 import { useAuth } from './useAuth';
@@ -33,19 +33,19 @@ vi.mock('@/lib/supabase', () => ({
 const secretary = { id: 'auth-a', app_metadata: { provider: 'email' } } as unknown as User;
 
 describe('registrations replica trust across auth events', () => {
-  beforeEach(() => {
-    resetRegistrationsTrustForTests();
-    recordRegistrationsTrust('auth-a');
+  beforeEach(async () => {
+    await resetRegistrationsTrustForTests();
+    await recordRegistrationsTrust('auth-a');
     renderHook(() => useAuth());
   });
-  afterEach(() => {
-    resetRegistrationsTrustForTests();
+  afterEach(async () => {
+    await resetRegistrationsTrustForTests();
   });
 
   it('keeps trust when the same account signs in again (refocus)', async () => {
     await act(async () => transport.listener('SIGNED_IN', { user: secretary }));
 
-    expect(readRegistrationsTrust()?.authUserId).toBe('auth-a');
+    expect((await readRegistrationsTrust())?.authUserId).toBe('auth-a');
   });
 
   it('ends trust when a different account signs in', async () => {
@@ -53,18 +53,18 @@ describe('registrations replica trust across auth events', () => {
       transport.listener('SIGNED_IN', { user: { ...secretary, id: 'auth-b' } })
     );
 
-    expect(readRegistrationsTrust()).toBeNull();
+    await waitFor(async () => expect(await readRegistrationsTrust()).toBeNull());
   });
 
   it('ends trust on sign-out', async () => {
     await act(async () => transport.listener('SIGNED_OUT', null));
 
-    expect(readRegistrationsTrust()).toBeNull();
+    await waitFor(async () => expect(await readRegistrationsTrust()).toBeNull());
   });
 
   it('keeps trust through a token refresh', async () => {
     await act(async () => transport.listener('TOKEN_REFRESHED', { user: secretary }));
 
-    expect(readRegistrationsTrust()?.authUserId).toBe('auth-a');
+    expect((await readRegistrationsTrust())?.authUserId).toBe('auth-a');
   });
 });

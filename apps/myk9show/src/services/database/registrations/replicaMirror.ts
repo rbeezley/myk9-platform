@@ -25,7 +25,7 @@ async function notifyAfterFailedMirror(operation: string, error: unknown): Promi
   });
   // The replica now disagrees with the server, so it must not answer alone;
   // distrust BEFORE the readers refetch, so the refetch goes to the server.
-  distrustRegistrationsReplica(`mirror-failed:${operation}`);
+  await distrustRegistrationsReplica(`mirror-failed:${operation}`);
   try {
     await replicatedDogRegistrationsTable.notifyChanged();
   } catch {

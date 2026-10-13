@@ -6,7 +6,7 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { databaseManager } from '@myk9/replication';
+import { databaseManager, NOTIFY_DEBOUNCE_MS } from '@myk9/replication';
 import { supabase } from '@/services/database/supabaseClient';
 import { createTestQueryClient, render, renderHook, screen, waitFor } from '@/test/utils/testUtils';
 import { queryKeys } from '@/lib/queryClient';
@@ -47,16 +47,39 @@ function invalidated(queryClient: QueryClient): boolean[] {
 }
 
 beforeEach(async () => {
-  resetRegistrationsTrustForTests();
+  await resetRegistrationsTrustForTests();
   await databaseManager.reset();
 });
 
 afterEach(async () => {
-  resetRegistrationsTrustForTests();
+  // The shared table's trailing change notice fires NOTIFY_DEBOUNCE_MS after
+  // a write; let it land here, not inside the next test.
+  await new Promise(resolve => setTimeout(resolve, NOTIFY_DEBOUNCE_MS + 50));
+  await resetRegistrationsTrustForTests();
   await databaseManager.reset();
 });
 
 describe('useRegistrationsReplicaCacheSync', () => {
+  // Codex round 3: when the device cannot read the replica after a change
+  // (IndexedDB gone after a failed mirror), the readers still refetch.
+  it('refetches the reader keys when the replica cannot be read after a change', async () => {
+    const queryClient = mountListener();
+    const cache = (
+      replicatedDogRegistrationsTable as unknown as {
+        cacheManager: { getAllData: () => Promise<unknown> };
+      }
+    ).cacheManager;
+    const read = cache.getAllData;
+    cache.getAllData = async () => ({ ok: false, rows: [], error: new Error('IDB unavailable') });
+    try {
+      await replicatedDogRegistrationsTable.notifyChanged();
+
+      await waitFor(() => expect(invalidated(queryClient)).toEqual([true, true, true, true]));
+    } finally {
+      cache.getAllData = read;
+    }
+  });
+
   it('refetches the reader keys when a sync writes the replica', async () => {
     const queryClient = mountListener();
 
@@ -159,7 +182,7 @@ describe('a direct write reaches the dog page without a sync', () => {
     await replicatedDogRegistrationsTable.applyServerRows([
       serverRow({ registered_name: 'Old Name', version: 3 }),
     ]);
-    trustReplica();
+    await trustReplica();
     // Any sync attempt would read nothing.
     installRegistrationsServer(newServer());
   });

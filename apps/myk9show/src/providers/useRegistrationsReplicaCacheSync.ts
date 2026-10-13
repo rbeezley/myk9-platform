@@ -46,7 +46,15 @@ export function useRegistrationsReplicaCacheSync(): void {
       () => {
         refreshRegistrationReads(queryClient);
       },
-      { emitCurrent: false }
+      {
+        emitCurrent: false,
+        // A change the device then cannot read back (IndexedDB gone after a
+        // failed mirror) still means the reads are stale: refetch them, and
+        // the readers fall back to the server.
+        onError: () => {
+          refreshRegistrationReads(queryClient);
+        },
+      }
     );
     return unsubscribe;
   }, [queryClient]);

@@ -153,8 +153,8 @@ function overlayLocalCreationOrder(
  *
  * A trusted replica (dogRegistrationsTrust.ts, MYK9-1090) answers alone, with
  * no network request, and its empty answer means "no registrations". A cold or
- * unreadable one cannot say that, so the server and whatever the replica holds
- * (registrations created offline) are merged, and a failed leg marks the read
+ * unreadable one cannot say that, so the server read is merged with only the
+ * replica's unsent work (dirty rows, offline placeholders), and a failed leg marks the read
  * incomplete: callers that print paperwork must tell "has none" from "could
  * not read" rather than rendering a blank (MYK9-90 review round 3).
  */
@@ -178,7 +178,7 @@ export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistr
     (async (): Promise<{ data: Record<string, unknown>[]; error: unknown | null }> => {
       try {
         return {
-          data: await replicatedDogRegistrationsTable.getRegistrationsForDogs(dogIds),
+          data: await replicatedDogRegistrationsTable.getUnsentRegistrationsForDogs(dogIds),
           error: null,
         };
       } catch (error) {

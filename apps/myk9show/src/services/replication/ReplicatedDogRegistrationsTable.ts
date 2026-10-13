@@ -17,6 +17,7 @@ import {
   syncReplicatedTable,
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
+  REPLICATION_STORES,
   type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncResult,
@@ -32,6 +33,7 @@ import {
   buildRegistrationUpdatePayload,
   registrationToDbRow,
   rowToRegistration,
+  unsentRegistrationRows,
   visibleRegistrationRows,
   type DogRegistrationReadRow,
   type DogRegistrationRow,
@@ -137,12 +139,12 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   }
 
   override async clearCache(): Promise<void> {
-    distrustRegistrationsReplica('cache-cleared');
+    await distrustRegistrationsReplica('cache-cleared');
     await super.clearCache();
   }
 
   private afterEviction(evicted: number): number {
-    if (evicted > 0) distrustRegistrationsReplica('quota-eviction');
+    if (evicted > 0) void distrustRegistrationsReplica('quota-eviction');
     return evicted;
   }
 
@@ -187,11 +189,11 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     // for the signed-in account. A record for another account is a doubt in
     // itself; any sync that does not start trusted is a full one.
     const userId = await currentAuthUserId();
-    const record = readRegistrationsTrust();
+    const record = await readRegistrationsTrust();
     if (userId && record && record.authUserId !== userId) {
-      distrustRegistrationsReplica('account-mismatch');
+      await distrustRegistrationsReplica('account-mismatch');
     }
-    const forceFullSync = !userId || readRegistrationsTrust()?.authUserId !== userId;
+    const forceFullSync = !userId || (await readRegistrationsTrust())?.authUserId !== userId;
     const epoch = registrationsDistrustEpoch();
     const result = await syncReplicatedTable(
       this,
@@ -219,12 +221,12 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
         logger.log(`[${this.getTableName()}] ID pass`, idPass);
       }
     } catch (err) {
-      distrustRegistrationsReplica('id-pass-failed');
+      await distrustRegistrationsReplica('id-pass-failed');
       logger.warn(`[${this.getTableName()}] ID pass skipped`, err);
     }
 
     if (forceFullSync && userId && registrationsDistrustEpoch() === epoch) {
-      recordRegistrationsTrust(userId);
+      await recordRegistrationsTrust(userId);
     }
     return result;
   }
@@ -274,7 +276,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     const snapshot = await snapshotRegistrationRevisions(db, this.getTableName());
     const serverIds = await fetchVisibleRegistrationIds();
     if (!serverIds) {
-      distrustRegistrationsReplica('id-pass-incomplete');
+      await distrustRegistrationsReplica('id-pass-incomplete');
       logger.warn(`[${this.getTableName()}] ID pass read was incomplete; nothing removed`);
       return null;
     }
@@ -442,6 +444,17 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   async getRegistrationsForDogs(dogIds: string[]): Promise<Record<string, unknown>[]> {
     if (dogIds.length === 0) return [];
     return visibleRegistrationRows(await this.getAllOrThrow(), dogIds).map(registrationToDbRow);
+  }
+
+  /** Unsent work only (`unsentRegistrationRows`), for an untrusted replica's merge. */
+  async getUnsentRegistrationsForDogs(dogIds: string[]): Promise<Record<string, unknown>[]> {
+    if (dogIds.length === 0) return [];
+    const tx = (await this.init()).transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
+    const stored = (await tx.store.index('tableName').getAll(this.getTableName())) as Parameters<
+      typeof unsentRegistrationRows
+    >[0];
+    await tx.done;
+    return unsentRegistrationRows(stored, dogIds).map(registrationToDbRow);
   }
 
   async getRegistrationsForDog(dogId: string): Promise<Record<string, unknown>[]> {

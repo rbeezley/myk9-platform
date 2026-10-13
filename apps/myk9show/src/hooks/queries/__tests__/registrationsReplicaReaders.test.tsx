@@ -7,7 +7,7 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClientProvider, onlineManager } from '@tanstack/react-query';
-import { databaseManager } from '@myk9/replication';
+import { DB_NAME, databaseManager, NOTIFY_DEBOUNCE_MS } from '@myk9/replication';
 import { supabase } from '@/services/database/supabaseClient';
 import { createTestQueryClient, render, renderHook, screen, waitFor } from '@/test/utils/testUtils';
 import { useRegistrationsByDogQuery } from '@/hooks/queries/useRegistrationsDatabase';
@@ -46,21 +46,24 @@ function renderRegistrationsQuery(dogId: string) {
 }
 
 beforeEach(async () => {
-  resetRegistrationsTrustForTests();
+  await resetRegistrationsTrustForTests();
   await databaseManager.reset();
 });
 
 afterEach(async () => {
+  // The shared table's trailing change notice fires NOTIFY_DEBOUNCE_MS after
+  // a write; let it land here, not inside the next test.
+  await new Promise(resolve => setTimeout(resolve, NOTIFY_DEBOUNCE_MS + 50));
   onlineManager.setOnline(true);
   setOnline(true);
-  resetRegistrationsTrustForTests();
+  await resetRegistrationsTrustForTests();
   await databaseManager.reset();
 });
 
 describe('useRegistrationsByDogQuery', () => {
   it('answers from a warm replica while offline, without pausing', async () => {
     await replicatedDogRegistrationsTable.applyServerRows([serverRow()]);
-    trustReplica();
+    await trustReplica();
     onlineManager.setOnline(false);
 
     const { result } = renderRegistrationsQuery('dog-1');
@@ -74,7 +77,7 @@ describe('useRegistrationsByDogQuery', () => {
   });
 
   it('treats an empty warm answer as "no registrations"', async () => {
-    trustReplica();
+    await trustReplica();
 
     const { result } = renderRegistrationsQuery('dog-1');
 
@@ -117,7 +120,7 @@ describe('useRegistrationsByDogQuery', () => {
 describe('loadDogRegistrations', () => {
   it('answers from a warm replica alone, complete', async () => {
     await replicatedDogRegistrationsTable.applyServerRows([serverRow()]);
-    trustReplica();
+    await trustReplica();
 
     const result = await loadDogRegistrations(['dog-1', 'dog-2']);
 
@@ -143,9 +146,65 @@ describe('registrations replica trust', () => {
     postgrestAnswers({ data: [serverRow({ id: 'srv-1' })], error: null });
   });
 
+  // Codex round 3: trust lives with the rows. A recreated replica database
+  // (DatabaseManager.recover) must not leave trust behind for an empty store.
+  it('loses trust together with the rows when the replica database is recreated', async () => {
+    await trustReplica();
+    await databaseManager.reset();
+    await new Promise<void>(resolve => {
+      const request = indexedDB.deleteDatabase(DB_NAME);
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
+    });
+
+    expect((await replicatedDogRegistrationsTable.readForDogs(['dog-1'])).state).toBe('cold');
+  });
+
+  it('stops trusting the replica when the replication database recovers', async () => {
+    await trustReplica();
+
+    window.dispatchEvent(
+      new CustomEvent('replication:recovery', { detail: { reason: 'circuit-breaker' } })
+    );
+
+    expect((await replicatedDogRegistrationsTable.readForDogs(['dog-1'])).state).toBe('cold');
+  });
+
+  // Codex round 3: an untrusted replica may add only unsent local work to a
+  // server read, never a clean cached copy the server no longer returns.
+  it('merges only unsent local work into a cold server read', async () => {
+    await replicatedDogRegistrationsTable.applyServerRows([
+      serverRow({ id: 'stale-copy', registration_number: 'GONE1' }),
+    ]);
+    const dirty = await replicatedDogRegistrationsTable.get('from-a');
+    await replicatedDogRegistrationsTable.set(
+      'from-a',
+      { ...dirty!, registrationNumber: 'EDITED1' },
+      true
+    );
+    const [placeholder] = await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
+      'dog-1',
+      [
+        {
+          organization: 'UKC',
+          number: 'P77',
+          registeredName: 'New',
+          type: 'Beagle',
+          status: 'active',
+        },
+      ]
+    );
+
+    const result = await loadDogRegistrations(['dog-1']);
+    const ids = (result.byDog.get('dog-1') ?? []).map(row => row.id);
+
+    expect(ids).not.toContain('stale-copy');
+    expect(ids).toEqual(expect.arrayContaining(['srv-1', 'from-a', placeholder!.id]));
+  });
+
   // Codex round 2, P1: account B must never be served account A's replica.
   it('serves another account from PostgREST, not the replica account A verified', async () => {
-    trustReplica('auth-a');
+    await trustReplica('auth-a');
     signedInAs('auth-b');
 
     const result = await loadDogRegistrations(['dog-1']);
@@ -155,7 +214,7 @@ describe('registrations replica trust', () => {
   });
 
   it('does not trust an unresolved identity while online', async () => {
-    trustReplica('auth-a');
+    await trustReplica('auth-a');
     signedInAs(null);
 
     expect((await replicatedDogRegistrationsTable.readForDogs(['dog-1'])).state).toBe('cold');
@@ -163,7 +222,7 @@ describe('registrations replica trust', () => {
 
   // auth-js reports no session offline once the access token expired.
   it('keeps the recorded trust for an unresolved identity while offline', async () => {
-    trustReplica('auth-a');
+    await trustReplica('auth-a');
     signedInAs(null);
     setOnline(false);
 
@@ -171,7 +230,7 @@ describe('registrations replica trust', () => {
   });
 
   it('stops trusting the replica when a direct write cannot be mirrored', async () => {
-    trustReplica();
+    await trustReplica();
     const apply = vi
       .spyOn(replicatedDogRegistrationsTable, 'applyServerRows')
       .mockRejectedValueOnce(new Error('QuotaExceededError'));
@@ -190,7 +249,7 @@ describe('after a quota eviction', () => {
       serverRow({ id: 'r2', dog_id: 'dog-2' }),
       serverRow({ id: 'r3', dog_id: 'dog-3' }),
     ]);
-    trustReplica();
+    await trustReplica();
     const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 60 * 60 * 1000);
     const evicted = await replicatedDogRegistrationsTable.relieveQuota();
     clock.mockRestore();
@@ -212,7 +271,7 @@ describe('after a quota eviction', () => {
 describe('Registrations section on the real query', () => {
   it('shows the replica rows offline', async () => {
     await replicatedDogRegistrationsTable.applyServerRows([serverRow()]);
-    trustReplica();
+    await trustReplica();
     onlineManager.setOnline(false);
 
     render(<RegistrationsSection dog={{ id: 'dog-1' } as Dog} canEdit={false} />);

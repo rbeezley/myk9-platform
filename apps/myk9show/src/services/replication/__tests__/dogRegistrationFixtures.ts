@@ -56,9 +56,9 @@ export function signedInAs(authUserId: string | null): void {
 }
 
 /** Sign in as `authUserId` and record the trust a clean full sync would. */
-export function trustReplica(authUserId: string = TEST_AUTH_USER): void {
+export async function trustReplica(authUserId: string = TEST_AUTH_USER): Promise<void> {
   signedInAs(authUserId);
-  recordRegistrationsTrust(authUserId);
+  await recordRegistrationsTrust(authUserId);
 }
 
 export function setOnline(value: boolean): void {

@@ -25,8 +25,8 @@ vi.mock('@myk9/core', () => ({
 let table: ReplicatedDogRegistrationsTable;
 
 beforeEach(async () => {
-  resetRegistrationsTrustForTests();
-  trustReplica();
+  await resetRegistrationsTrustForTests();
+  await trustReplica();
   await databaseManager.reset();
   table = new ReplicatedDogRegistrationsTable();
   // Two synced registrations on this device.
@@ -213,7 +213,7 @@ describe('registrations ID pass', () => {
 
     expect(await table.get('reg-gone')).not.toBeNull();
     // An incomplete id set is a doubt: the replica stops answering alone.
-    expect(readRegistrationsTrust()).toBeNull();
+    expect(await readRegistrationsTrust()).toBeNull();
   });
 
   it('removes nothing when any id page fails', async () => {
@@ -224,6 +224,6 @@ describe('registrations ID pass', () => {
 
     expect(await table.get('reg-gone')).not.toBeNull();
     expect(await table.get('reg-kept')).not.toBeNull();
-    expect(readRegistrationsTrust()).toBeNull();
+    expect(await readRegistrationsTrust()).toBeNull();
   });
 });

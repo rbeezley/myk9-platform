@@ -3,6 +3,7 @@
  * select list, the server-to-local mapper, the read shape every reader gets,
  * and the allowlisted UPDATE payload.
  */
+import type { ReplicatedRow } from '@myk9/replication';
 import type { Database } from '@/types/supabase';
 import {
   normalizeDogRegistrationNumber,
@@ -176,4 +177,23 @@ export function visibleRegistrationRows(
     const key = identityKey(row);
     return key === null || !serverIdentities.has(key);
   });
+}
+
+/**
+ * Only the work this device has not sent: dirty rows and `_localOnly`
+ * placeholders (still hidden once their server twin is here). An untrusted
+ * replica adds these to a server read, never its clean cached copies, which
+ * may be rows the server no longer returns.
+ */
+export function unsentRegistrationRows(
+  stored: readonly ReplicatedRow<ReplicatedDogRegistration>[],
+  dogIds: readonly string[]
+): ReplicatedDogRegistration[] {
+  const unsent = new Set(
+    stored.filter(row => row.isDirty || row.data?._localOnly === true).map(row => row.id)
+  );
+  return visibleRegistrationRows(
+    stored.map(row => row.data),
+    dogIds
+  ).filter(row => unsent.has(row.id));
 }

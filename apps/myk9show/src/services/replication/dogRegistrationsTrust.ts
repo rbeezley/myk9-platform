@@ -12,9 +12,12 @@
  * failed write mirror, a cleared cache, an account mismatch at sync start, and
  * sign-out or a DIFFERENT account signing in (`useAuth`, the same handlers
  * that purge the ringside claim cache, MYK9-834). A same-user SIGNED_IN
- * (refocus, `_recoverAndRefresh`) keeps it. The persisted record is cleared
- * and an in-memory bit is set, so a removal that fails under the same storage
- * pressure still distrusts for this page's lifetime.
+ * (refocus, `_recoverAndRefresh`) keeps it, and a `replication:recovery`
+ * event (the database was deleted and recreated) ends it. The record is
+ * stored in the replica's own IndexedDB database, so it lives and dies with
+ * the rows it vouches for. Distrust sets an in-memory bit before anything is
+ * awaited and then removes the record, so a removal that fails under the
+ * same storage pressure still distrusts for this page's lifetime.
  *
  * Identity at read time (offline-identity-pairing, the ringside precedent in
  * `ringsideClaimCache.ts`): a resolved user must equal the record. An
@@ -29,10 +32,17 @@
  * sync's start); until then, offline, the device serves the replica it last
  * verified.
  */
+import { databaseManager, REPLICATION_STORES } from '@myk9/replication';
 import { logger } from '@/services/LoggingService';
 import { supabase } from '@/services/database/supabaseClient';
 
-const STORAGE_KEY = 'myk9:registrations-replica-trust';
+/**
+ * A reserved key in the replica database's sync metadata store (the
+ * MutationQueueStore sequence-counter precedent), so the record lives and dies
+ * with the rows: a deleted and recreated database (DatabaseManager.recover)
+ * has no trust in it.
+ */
+const TRUST_KEY = 'dog_registrations:trust';
 
 export interface RegistrationsTrustRecord {
   authUserId: string;
@@ -42,14 +52,18 @@ export interface RegistrationsTrustRecord {
 let distrusted = false;
 let distrustEpoch = 0;
 
-export function readRegistrationsTrust(): RegistrationsTrustRecord | null {
+async function metadataDb() {
+  return databaseManager.getDatabase('dog_registrations');
+}
+
+export async function readRegistrationsTrust(): Promise<RegistrationsTrustRecord | null> {
   if (distrusted) return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<RegistrationsTrustRecord> | null;
-    return parsed && typeof parsed.authUserId === 'string' && typeof parsed.verifiedAt === 'number'
-      ? { authUserId: parsed.authUserId, verifiedAt: parsed.verifiedAt }
+    const db = await metadataDb();
+    const stored = (await db.get(REPLICATION_STORES.SYNC_METADATA, TRUST_KEY)) as
+      Partial<RegistrationsTrustRecord> | undefined;
+    return stored && typeof stored.authUserId === 'string' && typeof stored.verifiedAt === 'number'
+      ? { authUserId: stored.authUserId, verifiedAt: stored.verifiedAt }
       : null;
   } catch {
     return null;
@@ -57,11 +71,18 @@ export function readRegistrationsTrust(): RegistrationsTrustRecord | null {
 }
 
 /** Record the trust a clean full sync for `authUserId` earned. */
-export function recordRegistrationsTrust(authUserId: string): void {
+export async function recordRegistrationsTrust(authUserId: string): Promise<void> {
+  const epoch = distrustEpoch;
   try {
-    const record: RegistrationsTrustRecord = { authUserId, verifiedAt: Date.now() };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
-    distrusted = false;
+    const db = await metadataDb();
+    await db.put(REPLICATION_STORES.SYNC_METADATA, {
+      tableName: TRUST_KEY,
+      authUserId,
+      verifiedAt: Date.now(),
+    });
+    // A distrust that landed while the write was in flight wins.
+    if (distrustEpoch === epoch) distrusted = false;
+    else await db.delete(REPLICATION_STORES.SYNC_METADATA, TRUST_KEY);
   } catch (error) {
     // Unrecorded trust is no trust: stay cold until a write succeeds.
     logger.warn('Could not record registrations replica trust', 'replication', {
@@ -70,16 +91,28 @@ export function recordRegistrationsTrust(authUserId: string): void {
   }
 }
 
-/** The one way to stop serving the registrations replica. */
-export function distrustRegistrationsReplica(reason: string): void {
+/**
+ * The one way to stop serving the registrations replica. The in-memory bit is
+ * set before anything is awaited, so callers may fire and forget; the stored
+ * record is removed best-effort (a failed removal still distrusts this page).
+ */
+export async function distrustRegistrationsReplica(reason: string): Promise<void> {
   distrusted = true;
   distrustEpoch++;
-  try {
-    window.localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // The in-memory bit holds for this page; a reload re-reads storage.
-  }
   logger.info('Registrations replica distrusted', 'replication', { reason });
+  try {
+    const db = await metadataDb();
+    await db.delete(REPLICATION_STORES.SYNC_METADATA, TRUST_KEY);
+  } catch {
+    // The in-memory bit holds for this page.
+  }
+}
+
+if (typeof window !== 'undefined') {
+  // DatabaseManager.recover() deleted and recreated the replica database.
+  window.addEventListener('replication:recovery', () => {
+    void distrustRegistrationsReplica('database-recovered');
+  });
 }
 
 /** Changes on every distrust, so a sync can tell one landed while it ran. */
@@ -103,7 +136,7 @@ function isOffline(): boolean {
 
 /** The single trust check both registration readers use. */
 export async function isRegistrationsReplicaTrusted(): Promise<boolean> {
-  const record = readRegistrationsTrust();
+  const record = await readRegistrationsTrust();
   if (!record) return false;
   const userId = await currentAuthUserId();
   if (userId) return userId === record.authUserId;
@@ -116,19 +149,25 @@ export async function isRegistrationsReplicaTrusted(): Promise<boolean> {
  */
 export function distrustRegistrationsOnAuthEvent(event: string, userId: string | undefined): void {
   if (event === 'SIGNED_OUT') {
-    distrustRegistrationsReplica('signed-out');
+    void distrustRegistrationsReplica('signed-out');
     return;
   }
   if (event !== 'SIGNED_IN') return;
-  const record = readRegistrationsTrust();
-  if (record && record.authUserId !== userId) distrustRegistrationsReplica('account-changed');
+  // Read-time identity checks cover the moment this read takes.
+  void readRegistrationsTrust().then(record => {
+    if (record && record.authUserId !== userId) {
+      return distrustRegistrationsReplica('account-changed');
+    }
+    return undefined;
+  });
 }
 
-/** Test-only: forget the in-memory distrust bit and the record. */
-export function resetRegistrationsTrustForTests(): void {
+/** Test-only: forget the in-memory distrust bit and the stored record. */
+export async function resetRegistrationsTrustForTests(): Promise<void> {
   distrusted = false;
   try {
-    window.localStorage.removeItem(STORAGE_KEY);
+    const db = await metadataDb();
+    await db.delete(REPLICATION_STORES.SYNC_METADATA, TRUST_KEY);
   } catch {
     // ignore
   }

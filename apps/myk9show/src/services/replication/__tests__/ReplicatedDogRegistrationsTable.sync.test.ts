@@ -32,14 +32,14 @@ const EXPECTED_SELECT =
 let table: ReplicatedDogRegistrationsTable;
 
 beforeEach(async () => {
-  resetRegistrationsTrustForTests();
+  await resetRegistrationsTrustForTests();
   signedInAs(TEST_AUTH_USER);
   await databaseManager.reset();
   table = new ReplicatedDogRegistrationsTable();
 });
 
 afterEach(async () => {
-  resetRegistrationsTrustForTests();
+  await resetRegistrationsTrustForTests();
   await databaseManager.reset();
 });
 
@@ -94,7 +94,7 @@ describe('registrations changes pass', () => {
       'updated_at',
       new Date(0).toISOString(),
     ]);
-    expect(readRegistrationsTrust()?.authUserId).toBe(TEST_AUTH_USER);
+    expect((await readRegistrationsTrust())?.authUserId).toBe(TEST_AUTH_USER);
     expect((await table.readForDogs(['dog-1'])).state).toBe('warm');
   });
 
@@ -147,7 +147,7 @@ function fullServer() {
 // Only a clean full sync for the signed-in account earns trust (Codex round 2).
 describe('registrations replica trust earned by sync', () => {
   it('distrusts another account at sync start, forces a full fetch, and trusts only the new one', async () => {
-    trustReplica('auth-a');
+    await trustReplica('auth-a');
     signedInAs('auth-b');
     const server = fullServer();
     installRegistrationsServer(server);
@@ -155,7 +155,7 @@ describe('registrations replica trust earned by sync', () => {
     await table.sync();
 
     expect(server.calls.find(c => c.method === 'gt')?.args[1]).toBe(new Date(0).toISOString());
-    expect(readRegistrationsTrust()?.authUserId).toBe('auth-b');
+    expect((await readRegistrationsTrust())?.authUserId).toBe('auth-b');
     signedInAs('auth-a');
     expect((await table.readForDogs(['dog-1'])).state).toBe('cold');
   });
@@ -163,15 +163,15 @@ describe('registrations replica trust earned by sync', () => {
   it('runs incrementally and keeps trust when the replica is already trusted for this account', async () => {
     await table.applyServerRows([serverRow({ id: 'r1' })]);
     await table.updateSyncMetadata({ lastIncrementalSyncAt: Date.parse('2026-10-01T00:00:00Z') });
-    trustReplica();
-    const before = readRegistrationsTrust();
+    await trustReplica();
+    const before = await readRegistrationsTrust();
     const server = fullServer();
     installRegistrationsServer(server);
 
     await table.sync();
 
     expect(server.calls.find(c => c.method === 'gt')?.args[1]).not.toBe(new Date(0).toISOString());
-    expect(readRegistrationsTrust()).toEqual(before);
+    expect(await readRegistrationsTrust()).toEqual(before);
   });
 
   it('does not earn trust without a resolved account', async () => {
@@ -180,7 +180,7 @@ describe('registrations replica trust earned by sync', () => {
 
     await table.sync();
 
-    expect(readRegistrationsTrust()).toBeNull();
+    expect(await readRegistrationsTrust()).toBeNull();
   });
 
   it('does not earn trust when the ID pass cannot hydrate a missing id, and the next clean sync does', async () => {
@@ -191,23 +191,23 @@ describe('registrations replica trust earned by sync', () => {
 
     await table.sync();
 
-    expect(readRegistrationsTrust()).toBeNull();
+    expect(await readRegistrationsTrust()).toBeNull();
     installRegistrationsServer(fullServer());
     await table.sync();
-    expect(readRegistrationsTrust()?.authUserId).toBe(TEST_AUTH_USER);
+    expect((await readRegistrationsTrust())?.authUserId).toBe(TEST_AUTH_USER);
   });
 
   it('stops trusting the replica when a later ID pass cannot hydrate a missing id', async () => {
     await table.applyServerRows([serverRow({ id: 'r1' })]);
     await table.updateSyncMetadata({ lastIncrementalSyncAt: Date.parse('2026-10-01T00:00:00Z') });
-    trustReplica();
+    await trustReplica();
     const server = newServer({ idPages: [[{ id: 'r1' }, { id: 'r-new' }]] });
     server.failIdLookups = true;
     installRegistrationsServer(server);
 
     await table.sync();
 
-    expect(readRegistrationsTrust()).toBeNull();
+    expect(await readRegistrationsTrust()).toBeNull();
   });
 
   it('does not earn trust when an ID page fails', async () => {
@@ -217,7 +217,7 @@ describe('registrations replica trust earned by sync', () => {
 
     await table.sync();
 
-    expect(readRegistrationsTrust()).toBeNull();
+    expect(await readRegistrationsTrust()).toBeNull();
   });
 });
 

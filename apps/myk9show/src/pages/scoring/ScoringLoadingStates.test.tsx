@@ -94,7 +94,12 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { get: vi.fn() },
 }));
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
-  replicatedTrialsTable: { getTrialById: vi.fn(), sync: vi.fn(), getTrialsByShow: vi.fn() },
+  replicatedTrialsTable: {
+    getTrialById: vi.fn(),
+    sync: vi.fn(),
+    getTrialsByShow: vi.fn(),
+    subscribe: vi.fn(() => () => {}),
+  },
 }));
 vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
   replicatedShowsTable: { get: vi.fn() },

@@ -10,6 +10,7 @@ import { useScoringBreadcrumb } from './useScoringBreadcrumb';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { loadEntriesWithDogs } from './paperScoresheetData';
 import { requireClassEntriesWhole, whenClassShowSyncSettles } from './paperScoresheetReadiness';
 import { ShowEntriesNotSyncedError } from '@/services/database/entries/requireShowEntriesSynced';
@@ -71,6 +72,9 @@ export function PaperScoresheetPage() {
   const [sportKey, setSportKey] = useState<ScoresheetSportType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // A background reload that failed: the last good list (and any unsaved
+  // entry) stays on screen with this note, never the error state.
+  const [refreshFailed, setRefreshFailed] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const retryLoad = () => setLoadAttempt(attempt => attempt + 1);
   // Counts class loads that read successfully. A save-and-next whose refresh
@@ -101,13 +105,20 @@ export function PaperScoresheetPage() {
         refreshing = true;
         setIsLoading(true);
         setError(null);
+        setRefreshFailed(false);
       }
+      // Only the page's own load and Try again may replace the screen with an
+      // error; a background reload that fails keeps what is shown (MYK9-1130).
+      const fail = (message: string) => {
+        if (refresh) setError(message);
+        else setRefreshFailed(true);
+      };
       let trialId: string | undefined;
       try {
         const cls = await replicatedClassesTable.getClassById(classId);
         if (cancelled()) return;
         if (!cls) {
-          setError('Class not found');
+          fail('Class not found');
           return;
         }
         trialId = cls.trialId;
@@ -117,6 +128,7 @@ export function PaperScoresheetPage() {
         const scoringEntries = await loadEntriesWithDogs(classId);
         if (cancelled()) return;
         setError(null);
+        setRefreshFailed(false);
         setEntries(calculatePlacements(scoringEntries));
         setFreshLoads(count => count + 1);
         setClassName(cls.name);
@@ -130,7 +142,7 @@ export function PaperScoresheetPage() {
         setMaxTimeSeconds(rules.areaCount > 1 ? undefined : rules.maxTimeSeconds);
       } catch (err) {
         if (cancelled()) return;
-        setError(err instanceof Error ? err.message : 'Failed to load');
+        fail(err instanceof Error ? err.message : 'Failed to load');
         if (err instanceof ShowEntriesNotSyncedError) recheckWhenSyncSettles(trialId);
       } finally {
         if (!cancelled()) setIsLoading(false);
@@ -155,11 +167,19 @@ export function PaperScoresheetPage() {
     }
     // Subscribed before the first read, so rows a sync writes while it runs
     // still reload the list: entries arriving after mount appear by themselves.
-    const unsubscribe = replicatedEntriesTable.subscribe(onReplicaChange, { emitCurrent: false });
+    // Trials too: a class whose trial has not synced yet cannot name its show,
+    // and the trial landing is what lets readiness pass.
+    const unsubscribeEntries = replicatedEntriesTable.subscribe(onReplicaChange, {
+      emitCurrent: false,
+    });
+    const unsubscribeTrials = replicatedTrialsTable.subscribe(onReplicaChange, {
+      emitCurrent: false,
+    });
     void load(true);
     return () => {
       disposed = true;
-      unsubscribe();
+      unsubscribeEntries();
+      unsubscribeTrials();
     };
   }, [classId, loadAttempt]);
 
@@ -321,6 +341,12 @@ export function PaperScoresheetPage() {
       </div>
 
       <SessionToolbar settings={scoring.sessionSettings} onChange={scoring.setSessionSettings} />
+
+      {refreshFailed && (
+        <p role="status" className="px-4 pt-2 text-sm text-muted-foreground">
+          Couldn’t refresh the run list. Showing the last copy.
+        </p>
+      )}
 
       <div
         className={cn(

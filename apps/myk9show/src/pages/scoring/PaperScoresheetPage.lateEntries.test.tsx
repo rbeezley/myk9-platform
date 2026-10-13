@@ -18,6 +18,8 @@ const replica = vi.hoisted(() => ({
   sync: vi.fn(),
   updateEntry: vi.fn(),
   inFlight: null as Promise<void> | null,
+  trialPresent: true,
+  trialListeners: new Set<() => void>(),
 }));
 
 vi.mock('./useScoringBreadcrumb', () => ({
@@ -61,7 +63,13 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
 }));
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: {
-    getTrialById: vi.fn().mockResolvedValue({ id: 'trial-1', showId: 'show-1' }),
+    getTrialById: vi.fn(async () =>
+      replica.trialPresent ? { id: 'trial-1', showId: 'show-1' } : null
+    ),
+    subscribe: vi.fn((listener: () => void) => {
+      replica.trialListeners.add(listener);
+      return () => replica.trialListeners.delete(listener);
+    }),
   },
 }));
 vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
@@ -111,6 +119,8 @@ describe('PaperScoresheetPage — entries that reach the replica after mount (MY
     replica.failRead = false;
     replica.inFlight = null;
     replica.listeners.clear();
+    replica.trialPresent = true;
+    replica.trialListeners.clear();
     replica.sync.mockResolvedValue({ success: false });
     onlineManager.setOnline(true);
   });
@@ -248,6 +258,8 @@ describe('PaperScoresheetPage — the selected dog leaves the class', () => {
     replica.failRead = false;
     replica.inFlight = null;
     replica.listeners.clear();
+    replica.trialPresent = true;
+    replica.trialListeners.clear();
     replica.updateEntry.mockResolvedValue(undefined);
     onlineManager.setOnline(true);
   });
@@ -347,4 +359,61 @@ describe('PaperScoresheetPage — the selected dog leaves the class', () => {
       expect(replica.updateEntry).toHaveBeenCalledWith('e3', expect.anything());
     }
   );
+
+  it.each(['sequential', 'split'] as const)(
+    'a failed background refresh keeps the scoresheet and the draft, and says so (%s)',
+    async mode => {
+      replica.rows = [dog('e1', 'Willow', 1, true), dog('e2', 'Cooper', 2)];
+      renderPage(mode);
+      expect((await screen.findAllByText('1 of 2 scored'))[0]).toBeInTheDocument();
+      fireEvent.click(await screen.findByRole('button', { name: /^Q$/ }));
+      const time = screen.getByLabelText(/Search Time/) as HTMLInputElement;
+      fireEvent.change(time, { target: { value: '4231' } });
+      const typed = time.value;
+
+      replica.failRead = true;
+      await act(async () => {
+        for (const listener of [...replica.listeners]) listener();
+      });
+
+      expect(await screen.findByText(/Couldn.t refresh the run list/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+      expect((screen.getByLabelText(/Search Time/) as HTMLInputElement).value).toBe(typed);
+
+      // The next change retries; a success clears the note and keeps the draft.
+      replica.failRead = false;
+      await act(async () => {
+        for (const listener of [...replica.listeners]) listener();
+      });
+      await waitFor(() =>
+        expect(screen.queryByText(/Couldn.t refresh the run list/)).not.toBeInTheDocument()
+      );
+      expect((screen.getByLabelText(/Search Time/) as HTMLInputElement).value).toBe(typed);
+
+      fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+      await waitFor(() => expect(replica.updateEntry).toHaveBeenCalledTimes(1));
+      expect(replica.updateEntry).toHaveBeenCalledWith(
+        'e2',
+        expect.objectContaining({ isScored: true, searchTimeSeconds: expect.any(Number) })
+      );
+      expect(replica.updateEntry.mock.calls[0]![1].searchTimeSeconds).toBeGreaterThan(0);
+    }
+  );
+
+  it('lists the dogs once the class’s trial reaches the replica, with no Try again', async () => {
+    // The class row synced before its trial, so the show cannot be named yet.
+    replica.trialPresent = false;
+    replica.rows = [];
+    renderPage('split');
+    expect(await screen.findByText(/not finished loading on this device/)).toBeInTheDocument();
+
+    replica.rows = [dog('e1', 'Willow', 1), dog('e2', 'Cooper', 2)];
+    replica.trialPresent = true;
+    await act(async () => {
+      for (const listener of [...replica.trialListeners]) listener();
+    });
+
+    expect((await screen.findAllByText('0 of 2 scored'))[0]).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Cooper/ })).toBeInTheDocument();
+  });
 });

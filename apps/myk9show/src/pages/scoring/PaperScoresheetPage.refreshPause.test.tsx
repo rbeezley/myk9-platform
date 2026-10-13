@@ -51,6 +51,7 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: {
     getTrialById: vi.fn().mockResolvedValue({ id: 'trial-1', showId: 'show-1' }),
+    subscribe: vi.fn(() => () => {}),
   },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({

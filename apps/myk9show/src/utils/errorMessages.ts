@@ -11,6 +11,8 @@ import {
   SIGN_IN_EMAIL_LOCKED_MESSAGE,
   SIGN_IN_EMAIL_UNVERIFIABLE_CODE,
   SIGN_IN_EMAIL_UNVERIFIABLE_MESSAGE,
+  PERSON_EDIT_NEEDS_CONNECTION_CODE,
+  PERSON_EDIT_NEEDS_CONNECTION_MESSAGE,
 } from './signInEmailMessages';
 
 /** Known PostgreSQL / PostgREST error code prefixes and their user-facing messages. */
@@ -47,6 +49,8 @@ export const ERROR_CODE_MESSAGES: Record<string, string> = {
   // original message in production.
   [SIGN_IN_EMAIL_LOCKED_CODE]: SIGN_IN_EMAIL_LOCKED_MESSAGE,
   [SIGN_IN_EMAIL_UNVERIFIABLE_CODE]: SIGN_IN_EMAIL_UNVERIFIABLE_MESSAGE,
+  // MYK9-1090: person edits are online-only.
+  [PERSON_EDIT_NEEDS_CONNECTION_CODE]: PERSON_EDIT_NEEDS_CONNECTION_MESSAGE,
 };
 
 /** Prefix-based fallbacks (e.g. all PGRST codes). */

@@ -61,6 +61,9 @@ export function useAddPerson() {
 export function useUpdatePerson() {
   const queryClient = useQueryClient();
   return useMutation({
+    // Offline, the save is refused with a reconnect message (MYK9-1090); an
+    // 'online' mutation would pause silently instead.
+    networkMode: 'always',
     mutationFn: async (person: User): Promise<User> => {
       // Support both `address` and `streetAddress` fields (User type has both)
       const streetValue = person.address || person.streetAddress || null;

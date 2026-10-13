@@ -309,6 +309,9 @@ export function useUpdateUserMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    // Offline, the save is refused with a reconnect message (MYK9-1090); an
+    // 'online' mutation would pause silently instead.
+    networkMode: 'always',
     mutationFn: ({ id, updates }: { id: string; updates: Partial<User> }) =>
       UserService.update(id, updates),
     onSuccess: (updatedUser: User) => {

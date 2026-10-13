@@ -31,20 +31,30 @@ Every product claim on the rebuilt landing page needs a KEEP row here with the c
 
 ## Screenshots
 
-To be filled in during Task 1 Step 2: open each guide capture against the current UI, retake any that drifted (the `screenshot-docs` skill), and re-measure explainer boxes on any retaken image.
+Captured 2026-10-13 from the dev server on this branch (`main` @ `864a03e76`) with seeded `@myk9t.com` accounts on the Heartland Scent Work Classic seed show (`dededede-0000-0000-0000-000000000010`).
 
-| Id   | Shape   | Used for                                                         | Matches current UI? | Retaken?        | Notes                                                    |
-| ---- | ------- | ---------------------------------------------------------------- | ------------------- | --------------- | -------------------------------------------------------- |
-| S-02 | desktop | club step 1                                                      | pending             |                 |                                                          |
-| S-07 | desktop | club step 2                                                      | pending             |                 |                                                          |
-| S-12 | desktop | club step 3 meanwhile (the night-before card is the main visual) | pending             |                 |                                                          |
-| J-04 | tablet  | exhibitor step 4 meanwhile                                       | pending             | **must retake** | Guide copy shows dog "Unknown", handler "Test Exhibitor" |
-| S-20 | desktop | club step 5                                                      | pending             |                 |                                                          |
-| E-01 | desktop | exhibitor step 1                                                 | pending             |                 |                                                          |
-| E-02 | desktop | exhibitor step 2 (explainer)                                     | pending             |                 |                                                          |
-| E-12 | phone   | exhibitor step 3                                                 | pending             |                 |                                                          |
-| E-13 | phone   | exhibitor step 4 (explainer)                                     | pending             |                 |                                                          |
-| E-17 | phone   | exhibitor step 5                                                 | pending             |                 |                                                          |
-| E-16 | phone   | exhibitor step 6                                                 | pending             |                 |                                                          |
+**Every capture blocked writes.** Each request to Supabase that was not a GET, a read-only `get_*` RPC or the sign-in token exchange was aborted. Opening a judge scoresheet alone calls `ringside_update_entry`, so a hand capture would have changed the shared demo fixtures.
 
-The club show day no longer uses a screenshot: it is the working practice scoresheet (D9).
+**The guide copies are not used.** `apps/docs/public/screenshots/*.png` is not tracked (it exists only in the main checkout), and several guide shots no longer match the app. The landing page ships the fresh captures below, which Task 2 copies into `apps/myk9show/public/landing/stages/`.
+
+| Landing slot                                   | Capture         | Shape   | What it shows                                                                                              | Notes                                                                                                                                                                                      |
+| ---------------------------------------------- | --------------- | ------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Club 1 main, exhibitor 1 meanwhile             | S-02            | desktop | Create Show step 1 with **"Clone from a previous show"** at the top                                        | Confirms the "start from last year's show" claim                                                                                                                                           |
+| Club 2 main, exhibitor 2 meanwhile             | S-07            | desktop | Entry Forms list, Needs review                                                                             |                                                                                                                                                                                            |
+| Exhibitor 3 meanwhile                          | S-12            | desktop | Reports: before, during and after the show; Check-in Sheet                                                 | Club step 3's main visual is the night-before card                                                                                                                                         |
+| Club 5 main, exhibitor 5 meanwhile             | S-20            | desktop | Results with Container Novice A opened: "Check the scores against the paper", the placement table          | The default view had an empty "Select a class" pane, so the capture opens a class                                                                                                          |
+| Exhibitor 1 main, club 1 meanwhile             | E-01            | desktop | Find Shows **signed in**: 2 upcoming shows                                                                 | Logged out the list is empty: the seed shows are not public, and production has no public upcoming shows                                                                                   |
+| Exhibitor 2 main (explainer), club 2 meanwhile | E-02            | desktop | Public show page: title, when/where/trials, Review details, closing countdown                              | **Changed since the canvas.** "Enter this show" moved to the sticky bar at the top; re-measure the three explainer boxes in Task 2                                                         |
+| Exhibitor 3 main, club 3 meanwhile             | My Entries card | phone   | Armband **100 Willow, Checked in**, Interior Advanced, Mon Nov 9, Trial 1                                  | Replaces E-12. The class page's "Your dogs in this class" callout only shows on show day                                                                                                   |
+| Exhibitor 4 main (explainer), club 4 meanwhile | E-13            | phone   | My Entries with the Show Today banner                                                                      | **Guide copy kept** (from the main checkout). The banner only renders on a show's own day, and seeding a show for today would write to shared data. The canvas explainer boxes still apply |
+| Exhibitor 4 meanwhile                          | J-04            | tablet  | Scoresheet: **Willow, armband 100**, timer 0:00.00, Area 1/2, Qualified · NQ · Absent · Excused · DQ, Save | Retaken, so no more "Unknown". The error toast from the blocked write is hidden in the capture; it is real behaviour on a failed write (MYK9-1146)                                         |
+| Exhibitor 5 main, club 5 meanwhile             | E-17            | phone   | Container Novice A: Willow **Qualified, 0:38.50, 0 faults, 1st**                                           |                                                                                                                                                                                            |
+| Exhibitor 6 main, club 6 meanwhile             | Dog record      | phone   | Willow → Career → **Past Results**: Q, Q #1, Q across two shows                                            | Replaces E-16. It shows "every Q on your dog's record" literally                                                                                                                           |
+
+The club show day uses no screenshot: it is the working practice scoresheet (D9).
+
+### Found while capturing (filed, outside this work)
+
+- **MYK9-1146:** the sync-failure toast prints "Reason: [object Object]" when a write fails.
+- **MYK9-1147:** My Entries shows "Unknown Show" dated today for entries in a draft show.
+- **Not yet filed:** on the dog profile at 390px, the upcoming-entry title runs underneath the "Accepted — you're in" pill.

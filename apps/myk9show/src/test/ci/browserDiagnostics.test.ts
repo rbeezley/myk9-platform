@@ -109,3 +109,20 @@ describe('a secret at a clipping boundary (Codex review, PR #2938)', () => {
     expect(out).not.toContain('Synthe');
   });
 });
+
+describe('error boundary section (MYK9-1114)', () => {
+  it('reports the boundary error text, redacted', () => {
+    const out = formatDiagnostics(
+      emptyDiagnosticsLog(),
+      {
+        url: 'https://a.test/x',
+        regions: [],
+        main: 'Failed to load component',
+        boundaryErrors: ['ResultsTab: TypeError: Failed to fetch dynamically imported module'],
+      },
+      []
+    );
+    expect(out).toContain('## Error boundary (1)');
+    expect(out).toContain('Failed to fetch dynamically imported module');
+  });
+});

@@ -97,6 +97,8 @@ export interface PageSnapshot {
   main: string;
   /** Service-worker state at failure: a controller swap can abort in-flight route chunks. */
   serviceWorker?: string;
+  /** `data-boundary-error` of any LoadingErrorBoundary fallback on the page (MYK9-1114). */
+  boundaryErrors?: string[];
 }
 
 export function formatDiagnostics(
@@ -112,6 +114,12 @@ export function formatDiagnostics(
       : [
           `## Page URL\n${stripUrlQuery(snapshot.url)}`,
           `## Service worker\n${snapshot.serviceWorker ?? '(not read)'}`,
+          section(
+            'Error boundary',
+            (snapshot.boundaryErrors ?? []).map(
+              text => `- ${redactThenClip(text, MAX_TEXT, secrets)}`
+            )
+          ),
           section(
             'Alert / toast regions',
             snapshot.regions.map(text => `- ${redactThenClip(text, MAX_TEXT, secrets)}`)
@@ -201,13 +209,16 @@ async function snapshotPage(page: Page): Promise<PageSnapshot | { error: string 
         regions: Array.from(new Set(regions)),
         main: (main as HTMLElement).innerText.trim(),
         serviceWorker,
+        boundaryErrors: Array.from(document.querySelectorAll('[data-boundary-error]')).map(
+          el => el.getAttribute('data-boundary-error') ?? ''
+        ),
       };
     });
     const timeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('page snapshot timed out')), SNAPSHOT_TIMEOUT_MS)
     );
-    const { regions, main, serviceWorker } = await Promise.race([read, timeout]);
-    return { url: page.url(), regions, main, serviceWorker };
+    const { regions, main, serviceWorker, boundaryErrors } = await Promise.race([read, timeout]);
+    return { url: page.url(), regions, main, serviceWorker, boundaryErrors };
   } catch (error) {
     return { error: error instanceof Error ? error.message : String(error) };
   }

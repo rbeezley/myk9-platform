@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import type { PlatformFeeRates } from '@/store/cartStore.helpers';
 import { usePlatformFeeRates } from '@/hooks/queries/usePlatformFeeRates';
 import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
+import { useRegistrationShellChrome } from '../RegistrationShellChrome';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import type { FeeCalculationResult } from '../PaymentStep/types';
 import {
@@ -129,7 +130,9 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   // Removing a line asks first; `requestRemove` opens the confirmation and the
   // confirmation calls `onRemoveLine` with the very same arguments.
   const { requestRemove, dialog: removeConfirmDialog } = useRemoveLineConfirm(groups, onRemoveLine);
-  const actionBarRef = useRegisterActionBar<HTMLDivElement>();
+  // The shell is the scrollport; it pads its scroll-padding-bottom by this bar (MYK9-1138).
+  const { setBarHeight } = useRegistrationShellChrome();
+  const actionBarRef = useRegisterActionBar<HTMLDivElement>({ onHeightChange: setBarHeight });
   const showRemove = isPayment && !!onRemoveLine;
 
   const lines = (

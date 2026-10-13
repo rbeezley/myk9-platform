@@ -68,6 +68,10 @@ const REGRESSION_SPECS = [
   // field inset, tab-strip fit and completion-check size of the Add Dog slide-out at
   // 320/375/768/1440 (MYK9-1121). jsdom cannot compute layout.
   '**/addDogPanelGeometry.spec.ts',
+  // Secretary-authed, writes nothing: the registration wizard's pinned header stays at most a
+  // quarter of the viewport and a focused control is never under it, at 375/768/1024/1440
+  // (MYK9-1138). jsdom cannot measure layout.
+  '**/registrationWizardStickyChrome.spec.ts',
   // Secretary-authed, writes nothing (every write is blocked or answered locally): Quick Create's
   // "Use This Person", the Dogs Added row's Remove and the step footer stay inside the slide-out at
   // 320/375/768/1280 (MYK9-1137). jsdom cannot measure layout.

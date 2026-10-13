@@ -94,8 +94,12 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     // A queued DELETE leaves its row marked `_pendingDelete` until the server
     // confirms it; the confirmation removes the row.
     if (!this.detachUploadListener && typeof window !== 'undefined') {
-      this.detachUploadListener = listenForConfirmedDeletes(this.getTableName(), ids =>
-        this.confirmDeleted(ids)
+      // An acknowledged INSERT makes the add an ordinary server-backed row:
+      // both add flags go together (`markServerBacked`).
+      this.detachUploadListener = listenForConfirmedDeletes(
+        this.getTableName(),
+        ids => this.confirmDeleted(ids),
+        ids => this.markServerBacked(ids)
       );
     }
   }

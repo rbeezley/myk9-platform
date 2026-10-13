@@ -21,8 +21,9 @@ export async function assertRegistrationEditable(id: string): Promise<void> {
     throw new FriendlySaveError(`${REGISTRATION_CHANGES_NEED_CONNECTION}.`);
   }
   const row = await replicatedDogRegistrationsTable.getReplicatedRow(id);
-  const deviceOnly =
-    row?.isDirty === true || row?.data._localOnly === true || row?.data._queuedAdd === true;
+  // The queue is the authority on unsent work; a dirty or device-only row
+  // also has some. A leftover add flag on a clean row is not.
+  const deviceOnly = row?.isDirty === true || row?.data._localOnly === true;
   if (
     deviceOnly ||
     (await replicatedDogRegistrationsTable.getUnsentMutationIdsForRow(id)).length > 0

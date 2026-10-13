@@ -171,17 +171,23 @@ export async function cancelUnsentAdd(
  */
 export function listenForConfirmedDeletes(
   tableName: string,
-  onDeleted: (ids: string[]) => Promise<void>
+  onDeleted: (ids: string[]) => Promise<void>,
+  onInserted: (ids: string[]) => Promise<void>
 ): () => void {
   const onUploadComplete = (event: Event) => {
     const mutations = (event as CustomEvent<UploadCompleteEventDetail>).detail?.mutations ?? [];
-    const ids = mutations
-      .filter(m => m.tableName === tableName && m.operation === 'DELETE')
-      .map(m => String(m.rowId));
-    if (ids.length === 0) return;
-    onDeleted(ids).catch((error: unknown) => {
-      logger.warn(`[${tableName}] Confirmed deletes not removed; the ID pass will`, error);
-    });
+    const idsOf = (operation: string) =>
+      mutations
+        .filter(m => m.tableName === tableName && m.operation === operation)
+        .map(m => String(m.rowId));
+    const confirm = (ids: string[], handle: (ids: string[]) => Promise<void>, what: string) => {
+      if (ids.length === 0) return;
+      handle(ids).catch((error: unknown) => {
+        logger.warn(`[${tableName}] Confirmed ${what} not applied; the next sync will`, error);
+      });
+    };
+    confirm(idsOf('DELETE'), onDeleted, 'deletes');
+    confirm(idsOf('INSERT'), onInserted, 'adds');
   };
   window.addEventListener('replication:upload-complete', onUploadComplete);
   return () => window.removeEventListener('replication:upload-complete', onUploadComplete);

@@ -432,6 +432,35 @@ describe('useDogStoreCompat.addDog — local-first', () => {
     expect(mockCreateReplicatedDogRegistrationsForDog).not.toHaveBeenCalled();
     expect(mockCreateMutateAsync).not.toHaveBeenCalled();
   });
+
+  // The dog and its registrations are already queued when the placeholders are
+  // written, and the placeholders are only the device's copy for the screen.
+  // A failed placeholder write must not report the committed save as failed:
+  // the caller would skip onDogCreated, and a retry could create the dog twice
+  // (Codex review, MYK9-1090).
+  it('reports the queued dog as saved when its placeholders cannot be written', async () => {
+    const registrations = [
+      {
+        organization: 'AKC',
+        number: 'SW123456',
+        registeredName: 'Beacon Hill Fast Lane',
+        type: 'Border Collie',
+        status: 'pending',
+      },
+    ];
+    mockCreateLocalReplicatedDogRegistrationsForDog.mockRejectedValue(
+      new Error('QuotaExceededError')
+    );
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    let saved: Awaited<ReturnType<typeof result.current.addDogOfflineFirst>> | undefined;
+    await act(async () => {
+      saved = await result.current.addDogOfflineFirst({ ...baseDogInput, registrations });
+    });
+
+    expect(mockCreateReplicatedDogWithRegistrationsRpc).toHaveBeenCalledTimes(1);
+    expect(saved).toEqual(expect.objectContaining({ name: 'Biscuit' }));
+  });
 });
 
 // MYK9-90 review round 3, finding 3 — REALISTIC-DATA proof.

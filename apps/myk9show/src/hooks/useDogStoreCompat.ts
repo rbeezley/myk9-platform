@@ -225,15 +225,28 @@ export const useDogStoreCompat = () => {
         registrationRows,
         createOptions
       );
-      const savedRegistrations =
-        await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
-          dogId,
-          dogData.registrations,
-          createdAts
+      // The save is committed once the dog is queued: the registrations travel
+      // inside that queued RPC. Placeholders are only the device's copy for
+      // the screen, so a failed write is logged, not reported as a failed save
+      // (a retry would create the dog twice). The next sync brings the
+      // server's rows.
+      try {
+        const savedRegistrations =
+          await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
+            dogId,
+            dogData.registrations,
+            createdAts
+          );
+        registrations = savedRegistrations.map(registration =>
+          replicatedDogRegistrationsTable.toSupabaseRow(registration)
         );
-      registrations = savedRegistrations.map(registration =>
-        replicatedDogRegistrationsTable.toSupabaseRow(registration)
-      );
+      } catch (error) {
+        logger.warn('Dog queued; its registration placeholders were not written', 'dogs', {
+          dogId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        registrations = registrationRows.map(row => ({ ...row, dog_id: dogId }));
+      }
 
       await queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
       if (savedDog.ownerId) {

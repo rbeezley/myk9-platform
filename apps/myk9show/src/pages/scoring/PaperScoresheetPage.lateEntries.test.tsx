@@ -210,6 +210,30 @@ describe('PaperScoresheetPage — entries that reach the replica after mount (MY
     await screen.findByText('0 of 1 scored');
     expect(replica.sync).toHaveBeenCalledTimes(1);
   });
+
+  it('lists the dogs once a sync that outlived the bounded wait settles', async () => {
+    // The bounded wait gave up; the sync keeps running. Its rows notify before
+    // it records the scope as synced, and recording that notifies nothing.
+    let settle!: () => void;
+    replica.inFlight = new Promise<void>(resolve => {
+      settle = resolve;
+    });
+    renderPage();
+    await screen.findByText(/not finished loading on this device/);
+
+    replica.rows = [dog('e1', 'Willow', 1), dog('e2', 'Cooper', 2)];
+    await act(async () => {
+      for (const listener of [...replica.listeners]) listener();
+    });
+    expect(screen.getByText(/not finished loading on this device/)).toBeInTheDocument();
+
+    replica.synced = true;
+    replica.inFlight = null;
+    await act(async () => settle());
+
+    expect(await screen.findByText('0 of 2 scored')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Cooper/ })).toBeInTheDocument();
+  });
 });
 
 /**

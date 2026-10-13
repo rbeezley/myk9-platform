@@ -11,7 +11,8 @@ import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLi
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { loadEntriesWithDogs } from './paperScoresheetData';
-import { requireClassEntriesWhole } from './paperScoresheetReadiness';
+import { requireClassEntriesWhole, whenClassShowSyncSettles } from './paperScoresheetReadiness';
+import { ShowEntriesNotSyncedError } from '@/services/database/entries/requireShowEntriesSynced';
 import { REFRESH_FAILED_MESSAGE, refreshEntriesAfterSave } from './paperScoresheetReload';
 import { type ScoresheetSportType } from '@myk9/scoring-ui';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -107,6 +108,7 @@ export function PaperScoresheetPage() {
         setIsLoading(true);
         setError(null);
       }
+      let trialId: string | undefined;
       try {
         const cls = await replicatedClassesTable.getClassById(classId);
         if (cancelled()) return;
@@ -114,6 +116,7 @@ export function PaperScoresheetPage() {
           setError('Class not found');
           return;
         }
+        trialId = cls.trialId;
         // An empty read is only "no dogs" once the show's entries have synced
         // here; before that it is "not loaded yet" (MYK9-1130).
         await requireClassEntriesWhole(cls.trialId, { refresh });
@@ -134,6 +137,7 @@ export function PaperScoresheetPage() {
       } catch (err) {
         if (cancelled()) return;
         setError(err instanceof Error ? err.message : 'Failed to load');
+        if (err instanceof ShowEntriesNotSyncedError) recheckWhenSyncSettles(trialId);
       } finally {
         if (!cancelled()) setIsLoading(false);
         if (refresh) {
@@ -141,6 +145,15 @@ export function PaperScoresheetPage() {
           if (changedWhileRefreshing && !disposed) onReplicaChange();
         }
       }
+    }
+    // A sync that outlived the bounded wait records the scope as synced
+    // without notifying; recheck when it settles. Starts no sync.
+    function recheckWhenSyncSettles(trialId: string | undefined) {
+      void whenClassShowSyncSettles(trialId)
+        .then(settled => {
+          if (settled && !disposed) onReplicaChange();
+        })
+        .catch(() => undefined);
     }
     function onReplicaChange() {
       changedWhileRefreshing = refreshing;

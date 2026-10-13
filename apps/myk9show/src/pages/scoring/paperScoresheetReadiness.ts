@@ -1,3 +1,4 @@
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { hasShowEntriesSynced } from '@/services/replication/entriesShowSyncState';
 import {
@@ -29,4 +30,21 @@ export async function requireClassEntriesWhole(
   if (!showId) throw new ShowEntriesNotSyncedError();
   if (refresh) await requireShowEntriesSynced(showId);
   else if (!(await hasShowEntriesSynced(showId))) throw new ShowEntriesNotSyncedError();
+}
+
+/**
+ * When the class's show has a sync still running, settles once it has (true);
+ * otherwise false at once. Starts nothing.
+ *
+ * The bounded refresh stops waiting after its deadline while the sync runs
+ * on. Its rows notify before it records the scope as synced, and recording
+ * that notifies nobody, so a page left on "not finished loading" rechecks
+ * from here rather than waiting for a change that never comes.
+ */
+export async function whenClassShowSyncSettles(trialId: string | undefined): Promise<boolean> {
+  const trial = trialId ? await replicatedTrialsTable.getTrialById(trialId) : null;
+  const running = trial?.showId ? replicatedEntriesTable.whenShowSyncSettles(trial.showId) : null;
+  if (!running) return false;
+  await running;
+  return true;
 }

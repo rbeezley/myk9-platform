@@ -43,34 +43,29 @@ export async function askCanEditDog(dogId: string): Promise<boolean | null> {
   }
 }
 
-/** The parts of the server check's query state the decision reads. */
+/** What the decision reads: the local verdict and the server's last answer. */
 export interface CanEditCheck {
   /** Decided locally (owner, co-owner, site admin, a dog made in this session). */
   knownAllowed: boolean;
-  /** The last answer received: false = no, null = server has no such dog yet. */
+  /**
+   * The last answer the server gave: false = no, null = it has no such dog yet, undefined =
+   * no answer yet. React Query keeps it through a failed refresh and while offline.
+   */
   data: boolean | null | undefined;
-  /** React Query's `status`: 'error' when the LATEST fetch failed, even if `data` is older. */
-  status: 'pending' | 'error' | 'success';
-  /** React Query's `fetchStatus`: 'paused' when a fetch is waiting for the network. */
-  fetchStatus: 'fetching' | 'paused' | 'idle';
 }
 
 /**
- * INTENT: only the latest check, completed online, answering "no" withholds editing.
- * Loading, offline (a paused fetch), a failed or timed-out check (even after an earlier
- * "no": the dog may have become editable since, e.g. its first entry was submitted in her
- * show) and a dog the server does not have yet all keep editing available. On show day a
- * secretary must not lose Edit to a flaky connection; the server still decides, with
- * Discard putting a refused edit back.
+ * INTENT: fail open only BEFORE the server has answered. Loading, offline from the start,
+ * a first check that failed or timed out, and a dog the server does not have yet all keep
+ * editing available, so on show day a secretary never loses Edit to a flaky connection.
+ * A "no" the server actually gave STANDS until a newer successful answer replaces it: a
+ * failed refresh or going offline does not erase it, because offering Edit there only
+ * produces a save the server refuses (the bug this check exists to prevent). The answer is
+ * cached for 60s, so once connected a dog that has since become editable (its first entry
+ * submitted) is asked again on the next visit.
  */
-export function canEditFromCheck({
-  knownAllowed,
-  data,
-  status,
-  fetchStatus,
-}: CanEditCheck): boolean {
-  if (knownAllowed) return true;
-  return !(status === 'success' && fetchStatus !== 'paused' && data === false);
+export function canEditFromCheck({ knownAllowed, data }: CanEditCheck): boolean {
+  return knownAllowed || data !== false;
 }
 
 export function useCanEditDog(dogId: string, knownAllowed: boolean): boolean {
@@ -81,10 +76,5 @@ export function useCanEditDog(dogId: string, knownAllowed: boolean): boolean {
     staleTime: 60_000,
     retry: false,
   });
-  return canEditFromCheck({
-    knownAllowed,
-    data: query.data,
-    status: query.status,
-    fetchStatus: query.fetchStatus,
-  });
+  return canEditFromCheck({ knownAllowed, data: query.data });
 }

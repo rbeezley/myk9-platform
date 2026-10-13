@@ -64,38 +64,21 @@ describe('askCanEditDog', () => {
   });
 });
 
-// Every state the query can be in, so a stale or unanswered check can never read as "no".
+// The rule: fail open only before the server has answered; an answered "no" stands.
 describe('canEditFromCheck', () => {
-  const cases: [string, Omit<CanEditCheck, 'knownAllowed'>, boolean][] = [
-    ['still loading', { data: undefined, status: 'pending', fetchStatus: 'fetching' }, true],
-    [
-      'offline before any answer',
-      { data: undefined, status: 'pending', fetchStatus: 'paused' },
-      true,
-    ],
-    ['the server said yes', { data: true, status: 'success', fetchStatus: 'idle' }, true],
-    ['the server said no', { data: false, status: 'success', fetchStatus: 'idle' }, false],
-    ['a no, refreshing now', { data: false, status: 'success', fetchStatus: 'fetching' }, false],
-    ['a no, then the refresh failed', { data: false, status: 'error', fetchStatus: 'idle' }, true],
-    [
-      'a no, refresh waiting for the network',
-      { data: false, status: 'success', fetchStatus: 'paused' },
-      true,
-    ],
-    ['the first check failed', { data: undefined, status: 'error', fetchStatus: 'idle' }, true],
-    [
-      'the server has no such dog yet',
-      { data: null, status: 'success', fetchStatus: 'idle' },
-      true,
-    ],
+  const cases: [string, CanEditCheck['data'], boolean][] = [
+    ['no answer yet (loading, offline from the start, first check failed)', undefined, true],
+    ['the server has no such dog yet', null, true],
+    ['the server said yes', true, true],
+    ['the server said no (and a later refresh failed, or the app went offline)', false, false],
   ];
 
-  it.each(cases)('%s', (_label, check, expected) => {
-    expect(canEditFromCheck({ knownAllowed: false, ...check })).toBe(expected);
+  it.each(cases)('%s', (_label, data, expected) => {
+    expect(canEditFromCheck({ knownAllowed: false, data })).toBe(expected);
   });
 
-  it.each(cases)('known-allowed viewers can always edit: %s', (_label, check) => {
-    expect(canEditFromCheck({ knownAllowed: true, ...check })).toBe(true);
+  it.each(cases)('known-allowed viewers can always edit: %s', (_label, data) => {
+    expect(canEditFromCheck({ knownAllowed: true, data })).toBe(true);
   });
 });
 
@@ -105,17 +88,48 @@ describe('useCanEditDog', () => {
     onlineManager.setOnline(true);
   });
 
-  it('a "no" followed by a failed refresh gives Edit back', async () => {
+  function renderCheck() {
     const queryClient = new QueryClient();
     const wrapper = ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client: queryClient }, children);
+    const rendered = renderHook(() => useCanEditDog('dog-1', false), { wrapper });
+    return { ...rendered, queryClient };
+  }
+
+  it('an answered "no" stands through a failed refresh', async () => {
     rpc.mockResolvedValueOnce({ data: false, error: null });
-    const { result } = renderHook(() => useCanEditDog('dog-1', false), { wrapper });
+    const { result, queryClient } = renderCheck();
     await waitFor(() => expect(result.current).toBe(false));
 
     rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
     await act(() => queryClient.invalidateQueries());
+    await waitFor(() => expect(rpc).toHaveBeenCalledTimes(2));
+    expect(result.current).toBe(false);
+  });
+
+  it('an answered "no" stands when the app goes offline', async () => {
+    rpc.mockResolvedValueOnce({ data: false, error: null });
+    const { result } = renderCheck();
+    await waitFor(() => expect(result.current).toBe(false));
+
+    act(() => onlineManager.setOnline(false));
+    expect(result.current).toBe(false);
+  });
+
+  it('a newer "yes" replaces an earlier "no"', async () => {
+    rpc.mockResolvedValueOnce({ data: false, error: null });
+    const { result, queryClient } = renderCheck();
+    await waitFor(() => expect(result.current).toBe(false));
+
+    rpc.mockResolvedValueOnce({ data: true, error: null });
+    await act(() => queryClient.invalidateQueries());
     await waitFor(() => expect(result.current).toBe(true));
-    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it('a first check that fails keeps editing available', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
+    const { result } = renderCheck();
+    await waitFor(() => expect(rpc).toHaveBeenCalledTimes(1));
+    expect(result.current).toBe(true);
   });
 });

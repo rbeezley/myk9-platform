@@ -269,4 +269,24 @@ describe('PaperScoresheetPage — the selected dog leaves the class', () => {
       expect(replica.updateEntry).not.toHaveBeenCalledWith('e1', expect.anything());
     }
   );
+
+  it('a second Save with no dog selected writes nothing (sequential)', async () => {
+    renderPage('sequential');
+    expect((await screen.findAllByText('0 of 2 scored'))[0]).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Q$/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(replica.updateEntry).toHaveBeenCalledTimes(1));
+    expect(replica.updateEntry).toHaveBeenCalledWith('e1', expect.anything());
+
+    // Save cleared the selection; a double-tap must not score the card shown.
+    const save = await screen.findByRole('button', { name: /^Save$/ });
+    await waitFor(() => expect(save).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: /^Q$/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 20));
+    });
+    expect(replica.updateEntry).toHaveBeenCalledTimes(1);
+  });
 });

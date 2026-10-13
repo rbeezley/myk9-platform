@@ -211,8 +211,11 @@ export function PaperScoresheetPage() {
 
   // The dog a save or clear writes to is the dog on screen, never a stale id:
   // the card shown in sequential mode, the open panel's dog in split mode.
-  const onScreenEntryId =
-    scoring.mode === 'sequential'
+  // No selection writes nothing, as before: a Save clears the selection, and a
+  // double-tap must not score the card the sequential view falls back to.
+  const onScreenEntryId = !scoring.selectedEntryId
+    ? null
+    : scoring.mode === 'sequential'
       ? (sortedEntries[sequentialIndex]?.entryId ?? null)
       : (sortedEntries.find(entry => entry.entryId === scoring.selectedEntryId)?.entryId ?? null);
 

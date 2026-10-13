@@ -18,6 +18,8 @@ export interface DirtyRemoteRowOutcome {
  *
  * - A same-field collision marks the row `conflict` and dispatches
  *   `replication:conflict`. The queued write is left untouched for the resolver.
+ * - A collision the table's compare policy reads as the same outcome (MYK9-1104)
+ *   is no collision: the server's spelling or stamp is adopted, the write rebases.
  * - Anything else reconciles: server fields the client never touched merge in,
  *   and the queued write rebases onto the server's token
  *   (`ReplicatedTable.reconcileDirtyRow`).
@@ -26,7 +28,7 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
   table: ReplicatedTable<TLocal>,
   adapter: Pick<
     SyncReplicatedTableAdapter<TRemote, TLocal>,
-    'mergeDirtyRow' | 'rebuildUpdatePayload'
+    'mergeDirtyRow' | 'rebuildUpdatePayload' | 'dirtyRowComparePolicy'
   >,
   params: {
     id: string;
@@ -41,6 +43,7 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
     local: existing.data,
     remote: remoteLocal,
     instantFields: instantFieldsFor(table.getTableName()),
+    comparePolicy: adapter.dirtyRowComparePolicy,
   });
   if (detection.hasConflict) {
     const snapshot: ReplicationConflictSnapshot<TLocal> = {
@@ -73,6 +76,8 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
     base: existing.baseData,
     remote: remoteLocal,
     remoteServerVersion,
+    adoptRemoteFields: detection.adoptRemoteFields,
+    detectedAtVersion: existing.version,
     mergedData: adapter.mergeDirtyRow
       ? ({ ...adapter.mergeDirtyRow(existing.data, remoteLocal), id } as TLocal)
       : undefined,

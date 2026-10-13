@@ -47,6 +47,7 @@ export { ConflictManager, conflictManager } from './conflict/ConflictManager';
 export type { ConflictEvent, ConflictEventType, ConflictStats } from './conflict/ConflictManager';
 export {
   detectDirtyRowConflict,
+  type DirtyRowComparePolicy,
   type DirtyRowConflictInput,
   type DirtyRowConflictResult,
 } from './conflict/detectDirtyRowConflict';

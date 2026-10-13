@@ -312,6 +312,15 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
    * `undefined`, the raw table-global row is returned unchanged (back-compat).
    */
   async getSyncMetadata(scopeValue?: string): Promise<SyncMetadata | null> {
+    try {
+      return await this.getSyncMetadataOrThrow(scopeValue);
+    } catch {
+      return null;
+    }
+  }
+
+  /** {@link getSyncMetadata} that throws on a failed or timed-out read (already logged). */
+  async getSyncMetadataOrThrow(scopeValue?: string): Promise<SyncMetadata | null> {
     const METADATA_TIMEOUT_MS = 5000;
 
     const readPromise = (async () => {
@@ -331,7 +340,7 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
       return await Promise.race([readPromise, timeoutPromise]);
     } catch (error) {
       this.logger.error(`[${this.tableName}] Metadata read failed:`, error);
-      return null;
+      throw error;
     }
   }
 
@@ -366,6 +375,13 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
     } else {
       delete projected.expectedRemoteRows;
     }
+    // Same rule as totalRows: another scope's (or the legacy global) stamp must
+    // never describe this scope.
+    if (scoped?.syncedByAuthUserId !== undefined) {
+      projected.syncedByAuthUserId = scoped.syncedByAuthUserId;
+    } else {
+      delete projected.syncedByAuthUserId;
+    }
     return projected;
   }
 
@@ -388,7 +404,15 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
    */
   async updateSyncMetadata(
     updates: Partial<SyncMetadata>,
-    options?: { scopeValue?: string; advanceWatermarkMonotonically?: boolean }
+    options?: {
+      scopeValue?: string;
+      advanceWatermarkMonotonically?: boolean;
+      /**
+       * Scoped writes only. A string stamps the scope as synced by that auth
+       * user, null clears the stamp, undefined keeps the scope's current one.
+       */
+      scopeSyncedBy?: string | null;
+    }
   ): Promise<void> {
     const METADATA_TIMEOUT_MS = 5000;
 
@@ -433,6 +457,13 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
         if (nextExpectedRemoteRows !== undefined) {
           nextScope.expectedRemoteRows = nextExpectedRemoteRows;
         }
+        const nextSyncedBy =
+          options?.scopeSyncedBy === undefined
+            ? prevScope?.syncedByAuthUserId
+            : (options.scopeSyncedBy ?? undefined);
+        if (nextSyncedBy !== undefined) {
+          nextScope.syncedByAuthUserId = nextSyncedBy;
+        }
         scopes = { ...existing?.scopes, [scopeValue]: nextScope };
 
         // Mirror an informational, monotonic "last incremental sync across ANY
@@ -464,6 +495,27 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
         );
       }
 
+      // The table-level stamp (an unscoped sync, or clearCache). Kept across
+      // every other update; a scoped write never touches it.
+      let tableSyncedBy = existing?.syncedByAuthUserId;
+      if (scopeValue === undefined && options?.scopeSyncedBy !== undefined) {
+        tableSyncedBy = options.scopeSyncedBy ?? undefined;
+        // An unscoped sync replaces the rows under every scope, so a scoped
+        // stamp it supersedes must not outlive it: it would out-rank the newer
+        // table stamp and hand one account's rows to another.
+        if (scopes) {
+          scopes = Object.fromEntries(
+            (Object.entries(scopes) as [string, ScopeSyncState][]).map(([key, state]) => {
+              const next: ScopeSyncState = { ...state };
+              delete next.syncedByAuthUserId;
+              if (tableSyncedBy !== undefined) next.syncedByAuthUserId = tableSyncedBy;
+              return [key, next];
+            })
+          );
+        }
+      }
+      delete atomicUpdates.syncedByAuthUserId;
+
       const metadata: SyncMetadata = {
         tableName: this.tableName,
         lastFullSyncAt: existing?.lastFullSyncAt || 0,
@@ -473,6 +525,7 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
         pendingMutations: existing?.pendingMutations || 0,
         ...(scopes !== undefined && { scopes }),
         ...atomicUpdates,
+        ...(tableSyncedBy !== undefined && { syncedByAuthUserId: tableSyncedBy }),
       };
 
       await tx.store.put(metadata);

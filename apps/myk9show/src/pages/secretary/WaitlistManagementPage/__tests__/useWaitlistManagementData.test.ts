@@ -277,3 +277,26 @@ describe('useWaitlistManagementData — remove that deleted nothing', () => {
     expect(result.current.error).toBe('Failed to remove from waitlist. Please try again.');
   });
 });
+
+// MYK9-1133: a class's capacity figure built from entries this account may not
+// read must never reach the page as a successful number. A withheld entries
+// scope is an error for the whole read, so no class (and no Offer Spot, which
+// the table enables from accepted_count < max_entries) is built from it.
+describe('useWaitlistManagementData — withheld capacity data', () => {
+  it("shows the read error and no classes when the show entries scope is another account's", async () => {
+    const withheld = new Error('The device copy of show-77 was saved by a different account.');
+    withheld.name = 'ForeignReplicaScopeError';
+    vi.mocked(getClassesWithWaitlistCounts).mockResolvedValueOnce({
+      data: [],
+      error: withheld,
+    } as never);
+
+    const { result } = renderHook(() => useWaitlistManagementData('show-77'), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.error).toBeTruthy();
+    expect(result.current.groups).toEqual([]);
+  });
+});

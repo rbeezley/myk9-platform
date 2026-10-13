@@ -35,9 +35,10 @@ const state = vi.hoisted(() => ({
 // bounded refresh, fake table underneath.
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
+    getCurrentAuthUserId: async () => 'user-test',
     getSyncMetadata: vi.fn(async () =>
       state.synced
-        ? { tableName: 'entries', totalRows: state.entries.length }
+        ? { tableName: 'entries', totalRows: state.entries.length, syncedByAuthUserId: 'user-test' }
         : { tableName: 'entries' }
     ),
     sync: (...args: unknown[]) => state.sync(...args),

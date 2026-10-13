@@ -12,6 +12,12 @@ const h = vi.hoisted(() => ({
 
 vi.mock('@/services/replication/ReplicatedWaitlistEntriesTable', () => ({
   replicatedWaitlistEntriesTable: {
+    getCurrentAuthUserId: async () => 'user-test',
+    getSyncMetadata: async () => ({
+      tableName: 'waitlist_entries',
+      totalRows: 1,
+      syncedByAuthUserId: 'user-test',
+    }),
     getByClass: async (classId: string) => h.rows.filter(r => r.classId === classId),
     getAllOrThrow: async () => h.rows,
     delete: async (id: string) => {
@@ -36,7 +42,15 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { getDogById: async () => ({ id: 'dog-1', callName: 'Rexy' }) },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
-  replicatedEntriesTable: { getAllOrThrow: async () => [] },
+  replicatedEntriesTable: {
+    getAllOrThrow: async () => [],
+    getCurrentAuthUserId: async () => 'user-test',
+    getSyncMetadata: async () => ({
+      tableName: 'entries',
+      totalRows: 1,
+      syncedByAuthUserId: 'user-test',
+    }),
+  },
 }));
 vi.mock('@/services/database/supabaseClient', () => {
   const chain: Record<string, unknown> = {};

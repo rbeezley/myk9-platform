@@ -36,6 +36,9 @@ const { tables, rbacCache, syncSpy, refreshSpy, authState, replicationState } = 
     },
     entries: {
       meta: null as unknown,
+      // Who stamped the show's entries scope, and who is signed in (MYK9-1133).
+      stampedBy: 'user-1' as string | undefined,
+      signedInAs: 'user-1' as string | null,
       rows: [] as Array<{ id: string }>,
       pendingDeleteIds: new Set<string>(),
     },
@@ -83,7 +86,12 @@ vi.mock('@/services/replication', () => ({
     updateSyncMetadata: vi.fn(async () => {}),
   },
   replicatedEntriesTable: {
-    getSyncMetadata: vi.fn(async () => tables.entries.meta),
+    getSyncMetadata: vi.fn(async () =>
+      tables.entries.meta && tables.entries.stampedBy
+        ? { ...(tables.entries.meta as object), syncedByAuthUserId: tables.entries.stampedBy }
+        : tables.entries.meta
+    ),
+    getCurrentAuthUserId: vi.fn(async () => tables.entries.signedInAs),
     getEntriesByShow: vi.fn(async () => tables.entries.rows),
     updateSyncMetadata: vi.fn(async () => {}),
     pendingDeletes: { coveredIds: vi.fn(async () => tables.entries.pendingDeleteIds) },
@@ -173,6 +181,8 @@ describe('useOfflineReadiness', () => {
     tables.classes.metaByTrial.clear();
     tables.classes.rowsByTrial.clear();
     tables.entries.meta = null;
+    tables.entries.stampedBy = 'user-1';
+    tables.entries.signedInAs = 'user-1';
     tables.entries.rows = [];
     tables.entries.pendingDeleteIds = new Set();
     tables.shows.row = null;
@@ -212,6 +222,24 @@ describe('useOfflineReadiness', () => {
   it('does not trust legacy local-only row counts as offline coverage', async () => {
     primeAllSignals();
     tables.entries.meta = { totalRows: 3, lastIncrementalSyncAt: 5_000 };
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.missing).toEqual(['entries']);
+    });
+  });
+
+  // MYK9-1133: the entries reads refuse a show another account (or a pre-stamp
+  // build) synced, so the badge must not call that cache offline-ready.
+  it.each([
+    ['another account synced the show', 'user-other', 'user-1'],
+    ['a pre-stamp build synced the show', undefined, 'user-1'],
+    ['the signed-in account cannot be resolved', 'user-1', null],
+  ] as const)('is not ready when %s', async (_name, stampedBy, signedInAs) => {
+    primeAllSignals();
+    tables.entries.stampedBy = stampedBy;
+    tables.entries.signedInAs = signedInAs;
 
     const { result } = renderHook(() => useOfflineReadiness('show-1'));
 

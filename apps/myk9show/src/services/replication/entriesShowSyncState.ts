@@ -1,10 +1,12 @@
-import type { SyncMetadata } from '@myk9/replication';
 import { replicatedEntriesTable } from './ReplicatedEntriesTable';
+import {
+  assertScopeNotForeign,
+  getScopeOwnership,
+  type StampedScopeTable,
+} from './scopeAccountStamp';
 
-/** The one method this check needs, so a test can hand it a real table. */
-export interface ScopedSyncMetadataReader {
-  getSyncMetadata(scopeValue?: string): Promise<SyncMetadata | null>;
-}
+/** The table methods this check needs, so a test can hand it a real table. */
+export type ScopedSyncMetadataReader = StampedScopeTable;
 
 /**
  * Has this show's `entries` scope completed a sync on this device?
@@ -25,8 +27,19 @@ export async function hasShowEntriesSynced(
   showId: string,
   table: ScopedSyncMetadataReader = replicatedEntriesTable
 ): Promise<boolean> {
-  const metadata = await table.getSyncMetadata(showId);
-  return metadata?.totalRows !== undefined;
+  return (await getScopeOwnership(table, showId)) === 'owned';
+}
+
+/**
+ * Refuse to read a show whose completed sync belongs to another account
+ * (MYK9-1133). A never-synced show passes: its rows are this device's own
+ * local writes, handled by the MYK9-746 cold path.
+ */
+export async function assertShowEntriesNotForeign(
+  showId: string,
+  table: ScopedSyncMetadataReader = replicatedEntriesTable
+): Promise<void> {
+  await assertScopeNotForeign(table, showId);
 }
 
 /** The two reads the unsaved-write check needs. */

@@ -20,6 +20,12 @@ const {
   mockOnlineCount,
 } = vi.hoisted(() => ({
   mockWaitlistTable: {
+    getCurrentAuthUserId: async () => 'user-test',
+    getSyncMetadata: async () => ({
+      tableName: 'waitlist_entries',
+      totalRows: 1,
+      syncedByAuthUserId: 'user-test',
+    }),
     getByClass: vi.fn(),
     getAll: vi.fn(),
     get getAllOrThrow() {

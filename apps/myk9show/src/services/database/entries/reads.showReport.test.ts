@@ -13,7 +13,10 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
     getEntriesByShow: mocks.entries,
     // A show scope that has completed a sync (MYK9-746).
-    getSyncMetadata: vi.fn().mockResolvedValue({ tableName: 'entries', totalRows: 1 }),
+    getCurrentAuthUserId: async () => 'user-test',
+    getSyncMetadata: vi
+      .fn()
+      .mockResolvedValue({ tableName: 'entries', totalRows: 1, syncedByAuthUserId: 'user-test' }),
   },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({

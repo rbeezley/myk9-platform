@@ -7,6 +7,7 @@ import { createDatabaseError } from '@/services/database/databaseError';
 import { resetAllStores } from './mocks/zustandReset';
 import { createSupabaseNetworkGuard } from './supabaseNetworkGuard';
 import 'fake-indexeddb/auto';
+import { ReplicatedTable } from '@myk9/replication';
 // Side-effect import: the missing-viewer-scope guard patches the shared
 // QueryCache entry point, so it must be installed for the ad-hoc
 // QueryClients tests construct as well as for the app's singleton. Without
@@ -22,6 +23,22 @@ import {
   IDBRequest as FDBRequest,
   IDBTransaction as FDBTransaction,
 } from 'fake-indexeddb';
+
+// Account-owned replicated tables (entries, waitlist, armbands, paperwork prints)
+// show each account only its own rows (MYK9-1133), and a table learns who is
+// signed in from the MutationManager the app wires at startup. A test that uses
+// a real table without one is signed in as this account; a table that has a
+// manager (or a test that spies `getCurrentAuthUserId`) is unaffected.
+export const TEST_ACCOUNT_ID = 'user-test';
+const resolveFromManager = ReplicatedTable.prototype.getCurrentAuthUserId;
+ReplicatedTable.prototype.getCurrentAuthUserId = async function (this: ReplicatedTable<never>) {
+  const manager = (
+    this as unknown as { mutationManager: { resolveCurrentUserId?: unknown } | null }
+  ).mutationManager;
+  return typeof manager?.resolveCurrentUserId === 'function'
+    ? resolveFromManager.call(this)
+    : TEST_ACCOUNT_ID;
+};
 
 // Global Supabase mock — prevents any test from hitting the real API.
 // Tests that need custom return data can import { mockSupabase, createChainableQuery }

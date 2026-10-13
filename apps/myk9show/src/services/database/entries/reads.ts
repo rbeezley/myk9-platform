@@ -16,6 +16,7 @@ import {
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import {
   areEntryRowsFromSyncedShows,
+  assertShowEntriesNotForeign,
   hasShowEntriesSynced,
   hasUnsavedWritesAmong,
 } from '@/services/replication/entriesShowSyncState';
@@ -767,6 +768,7 @@ export const getEntriesByShow = async (showId: string) => {
   let unverified = false;
   const result = await readWithReplicationFallback({
     replication: async () => {
+      await assertShowEntriesNotForeign(showId);
       const [entries, scopeSynced, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
         hasShowEntriesSynced(showId),
@@ -826,6 +828,7 @@ export const getEntriesByShow = async (showId: string) => {
 export const getEntriesByShowFromReplication = async (showId: string) => {
   return readWithReplicationFallback({
     replication: async () => {
+      await assertShowEntriesNotForeign(showId);
       const [rawEntries, scopeSynced, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
         hasShowEntriesSynced(showId),

@@ -91,6 +91,11 @@ export function rowToWaitlistEntry(row: WaitlistEntryRow): ReplicatedWaitlistEnt
 }
 
 export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWaitlistEntry> {
+  /** Rows are kept per signed-in account: another account's cache is invisible (MYK9-1133). */
+  override usesAccountOwnedRows(): boolean {
+    return true;
+  }
+
   constructor() {
     super('waitlist_entries', { logger });
   }

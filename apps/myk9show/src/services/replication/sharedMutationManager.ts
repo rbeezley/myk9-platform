@@ -12,6 +12,7 @@ import { MutationManager, type MutationUploadAuthContext } from '@myk9/replicati
 import { createSessionBoundSupabaseClient, supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/services/LoggingService';
 import { acquireCacheClearWriteLock } from '@/services/cacheClearGate';
+import { readPersistedAuthUserId } from '@/services/database/persistedAuthUserId';
 
 // Adapt myK9Show's LoggingService to the @myk9/replication Logger interface.
 const replicationLogger = {
@@ -47,6 +48,9 @@ export const mutationManager = new MutationManager(supabase, {
     if (error) throw error;
     return data.session?.user.id ?? null;
   },
+  // Replica account stamps only: getSession() errors once the token expires
+  // offline, so the persisted session's user id answers then (MYK9-1133).
+  getCachedUserId: () => readPersistedAuthUserId(),
   getCurrentUploadContext: async () => {
     const { data, error } = await supabase.auth.getSession();
     if (error) throw error;

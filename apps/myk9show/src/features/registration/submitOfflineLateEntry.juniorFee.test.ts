@@ -16,7 +16,12 @@ const { createEntryMock } = vi.hoisted(() => ({ createEntryMock: vi.fn() }));
 
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
-    getSyncMetadata: async () => ({ tableName: 'entries', totalRows: 1 }),
+    getCurrentAuthUserId: async () => 'user-test',
+    getSyncMetadata: async () => ({
+      tableName: 'entries',
+      totalRows: 1,
+      syncedByAuthUserId: 'user-test',
+    }),
   },
 }));
 

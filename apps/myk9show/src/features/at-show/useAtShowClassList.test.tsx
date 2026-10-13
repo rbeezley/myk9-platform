@@ -45,6 +45,7 @@ vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     getEntriesByShow: vi.fn(),
     getSyncMetadata: vi.fn(),
+    getCurrentAuthUserId: vi.fn(async () => 'user-test'),
     sync: vi.fn(),
     subscribe: vi.fn(
       (callback: (entries: ReplicatedEntry[]) => void, options?: { emitCurrent?: boolean }) => {
@@ -106,8 +107,10 @@ describe('useAtShowClassList entry refresh', () => {
     vi.mocked(replicatedTrialsTable.sync).mockResolvedValue({ success: true } as never);
     vi.mocked(replicatedClassesTable.sync).mockResolvedValue({ success: true } as never);
     vi.mocked(replicatedEntriesTable.sync).mockResolvedValue({ success: true } as never);
+    vi.mocked(replicatedEntriesTable.getCurrentAuthUserId).mockResolvedValue('user-test');
     vi.mocked(replicatedEntriesTable.getSyncMetadata).mockResolvedValue({
       totalRows: 1,
+      syncedByAuthUserId: 'user-test',
     } as never);
   });
 
@@ -232,6 +235,7 @@ describe('useAtShowClassList entry refresh', () => {
     vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([] as never);
     vi.mocked(replicatedEntriesTable.getSyncMetadata).mockResolvedValue({
       totalRows: 0,
+      syncedByAuthUserId: 'user-test',
     } as never);
     const client = makeClient();
     const { result } = renderHook(() => useAtShowClassList('show-1'), {

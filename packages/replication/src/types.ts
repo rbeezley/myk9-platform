@@ -67,6 +67,13 @@ export interface ReplicatedRow<T> {
    */
   lastOwnUpload?: { from: number; to: number };
   conflict?: ReplicationConflictSnapshot<T>; // Persisted conflict snapshot
+  /**
+   * The auth user whose session wrote this row (a sync download, or a local
+   * write), on tables that keep rows per account (MYK9-1133). A reader of such a
+   * table sees only its own account's rows; a row with no owner (written before
+   * this field existed) is visible to nobody until a sync rewrites it.
+   */
+  ownerAuthUserId?: string;
 }
 
 /**
@@ -101,6 +108,14 @@ export interface ScopeSyncState {
   totalRows?: number;
   /** Server-reported rows visible to this scope at the last successful sync. */
   expectedRemoteRows?: number;
+  /**
+   * The auth user whose session performed the last successful sync of this
+   * scope (MYK9-1133). Replicas survive sign-out (MYK9-202), so a scope's rows
+   * belong to whoever synced them. Absent on a scope synced by a build that did
+   * not stamp, or by a sync whose identity could not be settled; readers treat
+   * both as "not this account's".
+   */
+  syncedByAuthUserId?: string;
 }
 
 /**
@@ -118,6 +133,8 @@ export interface SyncMetadata {
   totalRows?: number; // Total rows cached
   /** Server-reported rows visible at the last successful sync. */
   expectedRemoteRows?: number;
+  /** Scoped reads only: {@link ScopeSyncState.syncedByAuthUserId} of the projected scope. */
+  syncedByAuthUserId?: string;
   syncStatus?: 'idle' | 'syncing' | 'error';
   errorMessage?: string | undefined;
   conflictCount?: number;

@@ -83,6 +83,11 @@ export function rowToArmband(row: ArmbandRow): ReplicatedArmband {
 }
 
 export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> {
+  /** Rows are kept per signed-in account: another account's cache is invisible (MYK9-1133). */
+  override usesAccountOwnedRows(): boolean {
+    return true;
+  }
+
   constructor() {
     super('armbands', { logger });
   }

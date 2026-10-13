@@ -92,6 +92,7 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
 }));
 
 import { replicatedWaitlistEntriesTable } from '../ReplicatedWaitlistEntriesTable';
+import { signInReplicatedTable } from '@/test/utils/signedInReplication';
 import { getWaitlistByClass } from '@/services/database/waitlists/reads';
 
 const CLASS_A = 'class-a';
@@ -135,6 +136,8 @@ describe('ReplicatedWaitlistEntriesTable — MYK9-660 read path', () => {
     let tick = 0;
     vi.spyOn(Date, 'now').mockImplementation(() => start + tick++);
     await resetReplica();
+    // The waitlist reads refuse a scope another account synced (MYK9-1133).
+    signInReplicatedTable(replicatedWaitlistEntriesTable);
     server.visibleRows = [];
     server.queries = [];
     server.rpc.mockReset();

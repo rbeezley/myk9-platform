@@ -57,7 +57,8 @@ export function useClassRowSyncState(classId: string | null): ClassRowSyncState 
 /** What to tell the secretary when the saved check cannot show yet, or null when it can. */
 export function classRowSyncBlockedReason(state: ClassRowSyncState | null): string | null {
   if (state === 'conflict') {
-    return 'This class was changed elsewhere. Choose Keep mine or Take theirs on the notice to settle it, then the check can show.';
+    // The notice can be closed, and a reload raises it again, so say so: never a dead end.
+    return 'This class was changed elsewhere. Choose Keep mine or Take theirs on the notice to settle it, then the check can show. If you closed the notice, reload the page to bring it back.';
   }
   if (state === 'waiting') {
     return "Waiting for this class's changes to sync before the check can show";

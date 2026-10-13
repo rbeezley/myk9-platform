@@ -397,6 +397,8 @@ describe('Results tab on the real replicated class rows', () => {
       expect(await screen.findByText(/changed elsewhere/)).toBeInTheDocument();
       expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled();
       expect(screen.getByText(/Keep mine or Take theirs/)).toBeInTheDocument();
+      // A dismissed notice is not a dead end: the copy says how to bring it back.
+      expect(screen.getByText(/reload the page to bring it back/)).toBeInTheDocument();
       expect(screen.getByRole('checkbox', { name: /matches the paper/ })).toBeChecked();
 
       // Take theirs: the server's row, check included, replaces the local one.

@@ -15,9 +15,9 @@ import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
  * - The ownership-filtered reads (getAllDogs own scope, getDogsByOwner,
  *   searchDogs, getDogStatistics) never return A's dog to B: they filter the
  *   replica by B's person id before anything leaves the read.
- * - getDogById answers from the replica with NO ownership or visibility filter,
- *   online included, so B reading dog-A's id gets A's dog (name, microchip,
- *   date of birth). `it.fails` until MYK9-1126 is fixed; flip it then.
+ * - getDogById reads the server first (MYK9-1126), so B reading dog-A's id
+ *   gets the server's answer for B (not found), never the replica's copy of
+ *   A's dog. Before the fix it answered from the replica with no filter.
  * - Not a leak but the same root cause: getAllDogs answers B's roster from A's
  *   warm replica, online, so B's own dog is missing (a false empty roster).
  */
@@ -34,6 +34,8 @@ const { replicaDogs, serverDogs, mockDogsTable } = vi.hoisted(() => ({
     getDogById: vi.fn(),
     getDogsByOwner: vi.fn(),
     searchDogs: vi.fn(),
+    // B's own queue holds nothing for dog-a.
+    getPendingMutationIdsForRow: vi.fn(async () => [] as string[]),
   },
 }));
 
@@ -180,23 +182,18 @@ describe('dogs replica after an account switch (MYK9-1126)', () => {
     });
   });
 
-  // MYK9-1126 LEAK: flip `it.fails` to `it` when the fix lands.
-  it.fails("getDogById does not hand B the replica's copy of A's dog", async () => {
-    const { data } = await getDogById('dog-a');
+  it("getDogById does not hand B the replica's copy of A's dog", async () => {
+    const { data, error } = await getDogById('dog-a');
     const row = data as Record<string, unknown> | null;
     expect(row?.id).toBeUndefined();
     expect(row?.microchip_number).toBeUndefined();
+    // The server's answer for B: no such dog. An error, never an empty dog.
+    expect(error?.code).toBe('PGRST116');
+    expect(mockDogsTable.getDogById).not.toHaveBeenCalled();
   });
 
-  it("getDogById serves A's dog from the replica today (the leak, pinned)", async () => {
-    const { data, error } = await getDogById('dog-a');
-    const row = data as Record<string, unknown>;
-    expect(error).toBeNull();
-    expect(row.id).toBe('dog-a');
-    expect(row.microchip_number).toBe('985112000000001');
-  });
-
-  // Same root cause, not a leak: B's roster is answered from A's replica.
+  // Same root cause, not a leak, still open: B's roster is answered from A's
+  // replica, so B's own dog is missing until B's first dogs sync.
   it.fails("getAllDogs shows B's own dog before B's first dogs sync", async () => {
     const { data, error } = await getAllDogs(PERSON_B);
     expect(error).toBeNull();

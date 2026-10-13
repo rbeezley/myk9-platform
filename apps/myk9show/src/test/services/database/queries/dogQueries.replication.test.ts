@@ -1,5 +1,5 @@
 import { createDatabaseError } from '@/services/database/databaseError';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 
@@ -298,7 +298,18 @@ describe('dogQueries (replication)', () => {
   // -----------------------------------------------------------------------
   // getDogById
   // -----------------------------------------------------------------------
-  describe('getDogById', () => {
+  // getDogById reads the server first (MYK9-1126; its online paths are in
+  // services/database/dogs/__tests__/dogDetailRead.test.ts). These cover the
+  // device copy, which answers only when the server cannot be reached.
+  describe('getDogById, server unreachable', () => {
+    let onLine: { mockRestore: () => void } | undefined;
+    beforeEach(() => {
+      onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    });
+    afterEach(() => {
+      onLine?.mockRestore();
+    });
+
     it('returns dog with entries and supplemental data', async () => {
       mockDogsTable.getDogById.mockResolvedValue(makeDog());
       mockEntriesTable.getAll.mockResolvedValue([
@@ -348,13 +359,13 @@ describe('dogQueries (replication)', () => {
       ]);
     });
 
-    it('returns { data: null, error: null } for missing dog', async () => {
+    it('returns an error, not a missing dog, when the dog is not on this device', async () => {
       mockDogsTable.getDogById.mockResolvedValue(null);
 
       const result = await getDogById('non-existent');
 
       expect(result.data).toBeNull();
-      expect(result.error).toBeNull();
+      expect(result.error).not.toBeNull();
     });
   });
 

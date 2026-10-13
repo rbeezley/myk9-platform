@@ -170,7 +170,11 @@ export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWa
       // counts them ignoring RLS: a row the caller merely can't see still
       // counts, and only rows really deleted read zero.
       verifyScopeEmpty: async () => {
-        const held = (await this.getAllOrThrow()).filter(row => row._localOnly !== true);
+        // Every account's rows: ownerless or another account's rows are invisible
+        // to the signed-in one, and an empty list would skip the proof (MYK9-1148).
+        const held = (await this.getAllOrThrowIncludingOtherAccounts()).filter(
+          row => row._localOnly !== true
+        );
         return verifyWaitlistEntriesGone(held.map(row => row.id));
       },
     };

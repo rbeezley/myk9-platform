@@ -64,6 +64,10 @@ const REGRESSION_SPECS = [
   // real accessibility tree at three viewports (MYK9-88). Nightly rather than
   // PR smoke on cost grounds — six panel opens across three viewports.
   '**/dogPanelAccessibleNames.spec.ts',
+  // Secretary-authed, read-only (types into the unsaved form, never saves): rendered
+  // field inset, tab-strip fit and completion-check size of the Add Dog slide-out at
+  // 320/375/768/1440 (MYK9-1121). jsdom cannot compute layout.
+  '**/addDogPanelGeometry.spec.ts',
   '**/cross-role-workflows.spec.ts',
   '**/simple-connectivity.spec.ts',
   // The live-data exhibitor canary. Here it runs with

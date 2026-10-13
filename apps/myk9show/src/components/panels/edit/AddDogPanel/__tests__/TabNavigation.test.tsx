@@ -98,11 +98,18 @@ describe('TabNavigation compact (inline) strip', () => {
     renderTabs({ ...props, compact: true });
     for (const icon of leadingIcons()) expect(icon).toHaveClass('hidden', 'sm:block');
     for (const tab of tabs()) {
-      expect(tab).toHaveClass('whitespace-normal', 'px-1', 'text-xs', 'sm:px-4', 'sm:text-sm');
+      expect(tab).toHaveClass('whitespace-normal', 'px-0', 'text-[11px]', 'sm:px-4', 'sm:text-sm');
       expect(tab).not.toHaveClass('whitespace-nowrap', 'px-4');
     }
     // The completion checks still show: they carry meaning, the icons do not.
     expect(screen.getAllByRole('tab')[0]?.querySelectorAll('.text-emerald-500')).toHaveLength(1);
+  });
+
+  it('takes the completion check out of the row below sm so it cannot be squeezed away', () => {
+    renderTabs({ ...props, compact: true });
+    const check = screen.getAllByRole('tab')[0]?.querySelector('.text-emerald-500');
+    expect(check).toHaveClass('absolute', 'sm:static');
+    expect(screen.getAllByRole('tab')[0]).toHaveClass('relative');
   });
 
   it('leaves the default strip unchanged', () => {

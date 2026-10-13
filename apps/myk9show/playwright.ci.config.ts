@@ -221,6 +221,7 @@ const PR_SMOKE_SPECS = [
   '**/exhibitorFixtureSmoke.spec.ts',
   '**/exhibitorReadPathCanary.spec.ts',
   '**/simple-connectivity.spec.ts',
+  '**/landing-lifecycle.spec.ts',
   '**/uat/secretary/qa-regression-proof.spec.ts',
   '**/uat/secretary/critical-path.spec.ts',
   '**/my-entries-page-ui.spec.ts',

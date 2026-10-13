@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { RegistrationShellChromeContext } from './RegistrationShellChrome';
 
 interface RegistrationWizardShellProps {
   children: React.ReactNode;
@@ -42,19 +43,29 @@ interface RegistrationWizardShellProps {
  * it. Step content owns content layout; it must not add margins to compensate
  * for the header.
  *
- * One CSS variable carries a measured chrome height to the things that must
- * clear them, because both heights depend on content (a wrapped breadcrumb, a
+ * Measured chrome heights reach the things that must clear them as CSS
+ * variables, because both heights depend on content (a wrapped breadcrumb, a
  * two-line commit label) and neither can be hard-coded:
- *  - `--registration-header-height`, set here, is what the sticky panel offsets
- *    itself by.
+ *  - `--registration-header-height` is the PINNED part of the header (its full
+ *    height minus the collapse below). The sticky entries panel offsets itself
+ *    by it, and the scrollport's `scroll-padding-top` uses it.
+ *  - `--registration-bar-height` is the bottom entries bar (below `lg`),
+ *    reported by the bar through `RegistrationShellChromeContext`. It is the
+ *    scrollport's `scroll-padding-bottom`.
  *
- * Below `sm` the header COLLAPSES as the step scrolls, with no scroll listener:
- * its sticky `top` is negative by the distance from the header's top to the
- * element marked `data-sticky-pin` (the stepper's step list). The exit row,
- * title and show name scroll away; the step list stays pinned. On a 393x727
- * phone the full header was 367px and, with the entries bar, left 158px for
- * the step itself (MYK9-622). From `sm` up the whole header stays pinned.
- * `--registration-header-collapse` carries that measured distance.
+ * The header COLLAPSES as the step scrolls, at every width, with no scroll
+ * listener: its sticky `top` is negative by the distance from the header's top
+ * to the element marked `data-sticky-pin` (the stepper's step list). The exit
+ * row, title and show name scroll away; the step list stays pinned. On a
+ * 393x727 phone the full header was 367px and, with the entries bar, left 158px
+ * for the step itself (MYK9-622). It was left whole from `sm` up, and at 768px
+ * that was 431px of an 800px viewport and a focused control sat under it
+ * (MYK9-1138), so the collapse now applies on every width.
+ *
+ * The scroll-padding is what keeps focus and `scrollIntoView` clear of the
+ * pinned chrome: the browser scrolls a focused control into the scrollport
+ * minus that padding, instead of parking it under the header or the bar
+ * (MYK9-764).
  */
 export function RegistrationWizardShell({
   children,
@@ -72,12 +83,15 @@ export function RegistrationWizardShell({
     const root = node?.parentElement ?? null;
     if (!node || !root) return;
     const apply = () => {
-      root.style.setProperty('--registration-header-height', `${node.offsetHeight}px`);
       const pin = node.querySelector<HTMLElement>('[data-sticky-pin]');
       const collapse = pin
         ? Math.max(0, pin.getBoundingClientRect().top - node.getBoundingClientRect().top)
         : 0;
       root.style.setProperty('--registration-header-collapse', `${collapse}px`);
+      root.style.setProperty(
+        '--registration-header-height',
+        `${Math.max(0, node.offsetHeight - collapse)}px`
+      );
     };
     apply();
     if (typeof ResizeObserver === 'undefined') return;
@@ -86,49 +100,61 @@ export function RegistrationWizardShell({
     return () => observer.disconnect();
   }, []);
 
-  return (
-    <div
-      ref={rootRef}
-      data-layout="registration-wizard-shell"
-      data-testid="registration-wizard-shell"
-      className={cn(
-        'bg-background',
-        // min-h-0 so the height is the height, not a floor a tall step can grow
-        // past — a grown root would scroll the document again.
-        'h-[calc(100dvh-var(--app-top-inset,3rem))] min-h-0 overflow-y-auto'
-      )}
-    >
-      <header
-        ref={headerRef}
-        data-layout="registration-wizard-header"
-        data-testid="registration-wizard-header"
-        className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-xl max-sm:top-[calc(var(--registration-header-collapse,0px)*-1)]"
-      >
-        {header}
-      </header>
+  const chrome = useMemo(
+    () => ({
+      setBarHeight: (height: number) =>
+        rootRef.current?.style.setProperty('--registration-bar-height', `${height}px`),
+    }),
+    [rootRef]
+  );
 
+  return (
+    <RegistrationShellChromeContext.Provider value={chrome}>
       <div
-        data-layout="registration-wizard-main"
-        data-testid="registration-wizard-main"
+        ref={rootRef}
+        data-layout="registration-wizard-shell"
+        data-testid="registration-wizard-shell"
         className={cn(
-          'container mx-auto max-w-7xl px-4 pb-[var(--app-shell-page-bottom,2rem)] pt-[var(--app-shell-page-gap,1.5rem)] sm:px-6',
-          // The second column only exists when there is a panel to put in it —
-          // the Receipt step would otherwise reserve 320px of nothing.
-          // No `items-start`: the panel column must stretch to the row height
-          // or the sticky card inside it has nowhere to travel.
-          aside && 'lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6'
+          'bg-background',
+          // min-h-0 so the height is the height, not a floor a tall step can grow
+          // past — a grown root would scroll the document again.
+          'h-[calc(100dvh-var(--app-top-inset,3rem))] min-h-0 overflow-y-auto',
+          // Scroll-to-focus lands clear of the pinned header and the bottom bar.
+          'scroll-pt-[var(--registration-header-height,0px)] scroll-pb-[var(--registration-bar-height,0px)]'
         )}
       >
-        <section
-          data-layout="registration-wizard-card"
-          data-testid="registration-wizard-card"
-          className="flex min-h-[600px] min-w-0 flex-col rounded-2xl border border-border bg-card shadow-sm"
+        <header
+          ref={headerRef}
+          data-layout="registration-wizard-header"
+          data-testid="registration-wizard-header"
+          className="sticky top-[calc(var(--registration-header-collapse,0px)*-1)] z-40 border-b bg-card/95 backdrop-blur-xl"
         >
-          <div className="flex-1 p-4 sm:p-8">{children}</div>
-          <div className="relative px-4 pb-6 sm:px-8 sm:pb-8">{footer}</div>
-        </section>
-        {aside}
+          {header}
+        </header>
+
+        <div
+          data-layout="registration-wizard-main"
+          data-testid="registration-wizard-main"
+          className={cn(
+            'container mx-auto max-w-7xl px-4 pb-[var(--app-shell-page-bottom,2rem)] pt-[var(--app-shell-page-gap,1.5rem)] sm:px-6',
+            // The second column only exists when there is a panel to put in it —
+            // the Receipt step would otherwise reserve 320px of nothing.
+            // No `items-start`: the panel column must stretch to the row height
+            // or the sticky card inside it has nowhere to travel.
+            aside && 'lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6'
+          )}
+        >
+          <section
+            data-layout="registration-wizard-card"
+            data-testid="registration-wizard-card"
+            className="flex min-h-[600px] min-w-0 flex-col rounded-2xl border border-border bg-card shadow-sm"
+          >
+            <div className="flex-1 p-4 sm:p-8">{children}</div>
+            <div className="relative px-4 pb-6 sm:px-8 sm:pb-8">{footer}</div>
+          </section>
+          {aside}
+        </div>
       </div>
-    </div>
+    </RegistrationShellChromeContext.Provider>
   );
 }

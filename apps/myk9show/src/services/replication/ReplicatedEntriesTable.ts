@@ -300,6 +300,19 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     return sync;
   }
 
+  /**
+   * Settles once every sync of this show running now has settled, its scope's
+   * sync metadata included; null when none is running. Starts nothing. For a
+   * reader that stopped waiting on a bounded refresh (MYK9-1130): recording a
+   * scope as synced notifies no listener, so the reader rechecks from here.
+   */
+  whenShowSyncSettles(showId: string): Promise<void> | null {
+    const running = [...this._syncsByShow]
+      .filter(([key]) => key.endsWith(`:${showId.trim()}`))
+      .map(([, { sync }]) => sync);
+    return running.length > 0 ? Promise.allSettled(running).then(noop) : null;
+  }
+
   async refreshReceiptReferencesForUser(principalId: string): Promise<void> {
     // MYK9-774: getAll() on purpose — maintenance: [] refreshes nothing this
     // pass; receipts keep their current references until the next refresh.

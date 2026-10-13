@@ -116,4 +116,35 @@ describe('ReplicatedEntriesTable sync coalescing', () => {
     await table.sync('show-1');
     expect(syncShow).toHaveBeenCalledTimes(2);
   });
+
+  describe('whenShowSyncSettles (MYK9-1130)', () => {
+    it('is null with no sync of the show running, and starts none', async () => {
+      expect(table.whenShowSyncSettles('show-1')).toBeNull();
+      await table.sync('show-1');
+      expect(table.whenShowSyncSettles('show-1')).toBeNull();
+      expect(syncShow).toHaveBeenCalledTimes(1);
+    });
+
+    it("settles with the running sync of that show, any principal's, and not another show's", async () => {
+      const mine = deferred<SyncResult>();
+      const other = deferred<SyncResult>();
+      syncShow.mockReturnValueOnce(mine.promise).mockReturnValueOnce(other.promise);
+      const running = table.syncForPrincipal('show-1', 'user-1').catch(() => undefined);
+      void table.sync('show-2');
+
+      const settled = vi.fn();
+      void table.whenShowSyncSettles('show-1')?.then(settled);
+      await flush();
+      expect(settled).not.toHaveBeenCalled();
+
+      mine.reject(new Error('Failed to fetch'));
+      await running;
+      await flush();
+      expect(settled).toHaveBeenCalledOnce();
+      expect(table.whenShowSyncSettles('show-1')).toBeNull();
+      expect(table.whenShowSyncSettles('show-2')).not.toBeNull();
+      expect(syncShow).toHaveBeenCalledTimes(2);
+      other.resolve(ok());
+    });
+  });
 });

@@ -58,7 +58,7 @@ vi.mock('./hooks/usePaperScoring', () => ({
   usePaperScoring: () => ({
     mode: 'split',
     setMode: vi.fn(),
-    selectedEntryId: null,
+    onScreenEntryId: null,
     selectEntry: vi.fn(),
     sessionSettings: {},
     setSessionSettings: vi.fn(),
@@ -83,13 +83,23 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   replicatedClassesTable: { getClassById: vi.fn(), sync: vi.fn() },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
-  replicatedEntriesTable: { getEntriesByClass: vi.fn(), sync: vi.fn(), updateEntry: vi.fn() },
+  replicatedEntriesTable: {
+    getEntriesByClass: vi.fn(),
+    sync: vi.fn(),
+    updateEntry: vi.fn(),
+    subscribe: vi.fn(() => () => {}),
+  },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { get: vi.fn() },
 }));
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
-  replicatedTrialsTable: { getTrialById: vi.fn(), sync: vi.fn(), getTrialsByShow: vi.fn() },
+  replicatedTrialsTable: {
+    getTrialById: vi.fn(),
+    sync: vi.fn(),
+    getTrialsByShow: vi.fn(),
+    subscribe: vi.fn(() => () => {}),
+  },
 }));
 vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
   replicatedShowsTable: { get: vi.fn() },

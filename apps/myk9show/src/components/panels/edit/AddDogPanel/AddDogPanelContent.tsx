@@ -5,7 +5,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AlertCircle } from 'lucide-react';
 import PhotoDialog from '@/components/common/PhotoDialog';
-import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
 import type { Dog, Registration } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import { cn } from '@/lib/utils';
@@ -39,6 +38,8 @@ interface AddDogPanelContentProps {
    */
   onOpenRegistration?: ((registration: Registration | undefined) => void) | undefined;
   saveRegistrationRef?: MutableRefObject<((registration: Registration) => void) | null> | undefined;
+  /** Keeps the photo control inline (MYK9-1116); defaults to off inline, on otherwise. */
+  showPhoto?: boolean | undefined;
 }
 
 export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
@@ -54,6 +55,7 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
   onCreateSeparateDog,
   onOpenRegistration,
   saveRegistrationRef,
+  showPhoto = !onOpenRegistration,
 }) => {
   const { form, runSelfNavigation, requestTab } = useEditPanel<DogFormData>();
   const inline = !!onOpenRegistration;
@@ -67,10 +69,6 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
     photoPreview,
     isPhotoDragging,
     setIsPhotoDragging,
-    // Registration dialog state
-    isAddEditRegDialogOpen,
-    setIsAddEditRegDialogOpen,
-    currentRegToEdit,
     // Handlers
     handleSaveRegistration,
     handleRemoveRegistration,
@@ -186,7 +184,7 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
               referenceDate={showStartDate}
               onPhotoOpen={() => handlePhotoDialogOpen(true)}
               onAddRegistration={openAddRegistration}
-              showPhoto={!inline}
+              showPhoto={showPhoto}
               flat={inline}
             />
           </TabsContent>
@@ -206,9 +204,9 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
         </Tabs>
       </div>
 
-      {/* Photo Dialog. Not inline (MYK9-1081, D4): a dialog over the host panel
-          for a routine step; the photo can be added later from the dog's profile. */}
-      {!inline && (
+      {/* Photo Dialog. Off in Quick Create (MYK9-1081, D4): a dialog over its host
+          panel for a routine step; the photo can be added later from the profile. */}
+      {showPhoto && (
         <PhotoDialog
           open={isPhotoDialogOpen}
           onOpenChange={handlePhotoDialogOpen}
@@ -230,22 +228,6 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
           title="Add Dog Photo"
           previewAlt="Dog photo preview"
         />
-      )}
-
-      {/* Registration slide-over. The wizard's dog isn't persisted yet, so this
-          writes to wizard state (handleSaveRegistration), not the DB — do not
-          swap it for AddRegistrationPanel's DB mutation path. Wrapped with an
-          explicit z-index above the wizard's own SlideOverPanel (z-50) so it
-          layers correctly on top even though both are position:fixed. */}
-      {!inline && (
-        <div className="relative z-[60]">
-          <AddEditRegistrationDialog
-            open={isAddEditRegDialogOpen}
-            onOpenChange={setIsAddEditRegDialogOpen}
-            onSave={handleSaveRegistration}
-            initialData={currentRegToEdit}
-          />
-        </div>
       )}
     </>
   );

@@ -107,7 +107,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         <div
           className={
             flat
-              ? 'flex items-start'
+              ? // The photo sits beside Call Name in the panel variant (MYK9-1116): keep them apart.
+                showPhoto
+                ? 'flex items-start gap-4'
+                : 'flex items-start'
               : 'flex items-start gap-6 p-6 bg-gradient-to-r from-muted/20 via-muted/10 to-transparent border border-border/20 rounded-2xl backdrop-blur-sm'
           }
         >

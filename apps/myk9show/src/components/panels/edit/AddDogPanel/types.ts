@@ -38,6 +38,12 @@ export interface AddDogPanelProps {
    * dog form's own Cancel (discard prompt when dirty).
    */
   closeRequestRef?: MutableRefObject<(() => void) | null> | undefined;
+  /**
+   * Keeps the dog photo control, which the inline form drops because its photo
+   * dialog would stack on the host panel (MYK9-1081, D4). Set by Add Dog's own
+   * slide-out host (MYK9-1116), where the photo dialog is the only overlay.
+   */
+  showPhoto?: boolean | undefined;
   /** `inline` only: which view of Add Dog is showing, so the host can title it. */
   onSubModeChange?: ((mode: AddDogSubMode) => void) | undefined;
 }

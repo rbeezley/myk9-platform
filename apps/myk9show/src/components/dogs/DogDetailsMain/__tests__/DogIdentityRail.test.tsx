@@ -183,4 +183,13 @@ describe('DogIdentityRail', () => {
     expect(screen.queryByText('No registrations yet.')).toBeNull();
     expect(screen.queryByText(/Couldn.t load registrations/)).toBeNull();
   });
+
+  it('labels an offline copy that has rows', () => {
+    renderRail(base, {
+      registrationsOffline: true,
+      registrations: [{ organization: 'AKC', registration_number: 'SW1' }],
+    });
+    expect(screen.getByText('SW1')).toBeInTheDocument();
+    expect(screen.getByText('Offline copy. It may be out of date.')).toBeInTheDocument();
+  });
 });

@@ -168,7 +168,14 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
             rail is the page's only registration summary, so printing the empty
             copy for either would read a registered dog as unregistered. */}
         {registry.rows.length > 0 ? (
-          <DogRegistryTable registry={registry} />
+          <>
+            {registrationsOffline && (
+              <p className="text-xs text-muted-foreground" role="status">
+                Offline copy. It may be out of date.
+              </p>
+            )}
+            <DogRegistryTable registry={registry} />
+          </>
         ) : registrationsLoading ? (
           <p className="text-xs text-muted-foreground" role="status">
             Loading registrations…

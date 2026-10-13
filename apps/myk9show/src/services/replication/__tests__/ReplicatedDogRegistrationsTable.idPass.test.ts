@@ -334,6 +334,21 @@ describe('placeholder twins by creation instant', () => {
     expect(await table.get(placeholder!.id)).toBeNull();
   });
 
+  // create_dog_with_registrations maps an offline create onto an EXISTING dog
+  // that already holds the number: no new row, so no created_at twin, and the
+  // placeholder's dog id is remapped to that dog, which is present. Without
+  // the number match it stayed for good and showed as a duplicate (review).
+  it('removes a placeholder whose dog was mapped onto an existing dog that holds the number', async () => {
+    const [placeholder] = await placeholdersWithNumbers('X123');
+    await table.applyServerRows([
+      serverCopyOf(placeholder!, 'srv-existing', '2020-01-01T00:00:00+00:00'),
+    ]);
+
+    await table.removeResolvedPlaceholders();
+
+    expect(await table.get(placeholder!.id)).toBeNull();
+  });
+
   it('matches across timestamp formats (server +00:00, device Z)', async () => {
     const [placeholder] = await placeholdersWithNumbers('');
     const serverFormat = placeholder!.createdAt.replace('Z', '+00:00');

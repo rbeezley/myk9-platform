@@ -280,8 +280,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
           twinFieldsOfDbRow(deletedRow),
         ])
       : [];
-    if (placeholders.length > 0) this.notifyListeners();
-    else if (deleted.length === 0) await this.notifyListeners();
+    if (placeholders.length > 0 || deleted.length === 0) await this.notifyListeners();
   }
 
   /**

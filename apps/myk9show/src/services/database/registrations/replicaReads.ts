@@ -16,6 +16,7 @@ import {
 import { appendRegistrations } from '../dogs/reads';
 import { dropServerTwins } from '@/services/replication/dogRegistrationRows';
 import { getRegistrationsByDog } from './reads';
+import { serverUnreachable } from './serverUnreachable';
 
 export interface RegistrationsForDog {
   rows: DogRegistrationReadRow[];
@@ -35,6 +36,9 @@ function byRegistrationDateDesc(a: DogRegistrationReadRow, b: DogRegistrationRea
 
 export async function readRegistrationsForDog(dogId: string): Promise<RegistrationsForDog> {
   const server = await getRegistrationsByDog(dogId);
+  // Only an unreachable server falls back to the device copy; a server that
+  // answered with an error is an error, with the screens' retry.
+  if (server.error && !serverUnreachable(server.error)) throw server.error;
   const source = server.error ? 'device' : 'server';
   // With the server's answer in hand, a device that cannot be read only costs
   // this device's unsent work, never the server rows (Codex review). Without

@@ -206,14 +206,19 @@ export function indexServerTwins(serverRows: readonly TwinFields[]): ServerTwinI
 }
 
 /**
- * The one definition of "this placeholder's server copy is here": by
- * (dog, created_at) when the placeholder has a usable `created_at`, else by
- * (dog, organization, number). The readers hide a placeholder by it and the
- * sync removes one by it.
+ * The one definition of "this placeholder's server copy is here": a server row
+ * on the same dog with the same `created_at` instant (the device sends it to
+ * `create_dog_with_registrations`), OR the same organization and number. The
+ * second also covers the RPC mapping an offline create onto an EXISTING dog
+ * that already holds that registration: no new row (so no `created_at` twin),
+ * and the placeholder's dog id is remapped to that dog (adversarial review).
+ * Safe because one dog cannot hold two live rows with the same organization
+ * and number (`dog_registrations_live_org_number_unique`). The readers hide a
+ * placeholder by it and the sync removes one by it.
  */
 export function hasServerTwin(placeholder: TwinFields, twins: ServerTwinIndex): boolean {
   const created = createdTwinKey(placeholder);
-  if (created !== null) return twins.created.has(created);
+  if (created !== null && twins.created.has(created)) return true;
   const identity = registrationIdentityKey(placeholder);
   return identity !== null && twins.identity.has(identity);
 }

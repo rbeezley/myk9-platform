@@ -20,6 +20,7 @@ import {
 import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
 import { dropServerTwins } from '@/services/replication/dogRegistrationRows';
 import { parseRestoreDogResult } from './restoreDogResult';
+import { serverUnreachable } from '../registrations/serverUnreachable';
 
 // PostgREST OR filter for dogs owned or co-owned by a person
 const ownedByPerson = (personId: string) => `owner_id.eq.${personId},co_owner_id.eq.${personId}`;
@@ -218,7 +219,10 @@ export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistr
   }
   const map = new Map<string, Record<string, unknown>[]>();
   const serverResult = await readServerRegistrations(dogIds);
-  const source = serverResult.error ? 'device' : 'server';
+  // The device copy answers only when the server could not be reached. A
+  // server that answered with an error stays a server read: unsent work is
+  // merged, `serverError` is set and the read is not complete.
+  const source = serverResult.error && serverUnreachable(serverResult.error) ? 'device' : 'server';
   let localRows: Record<string, unknown>[] = [];
   let localError: unknown = null;
   try {
@@ -241,7 +245,7 @@ export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistr
     // server returned registrations. Keep those rows for display, but mark the
     // merged read incomplete so callers that require verified data can refuse
     // to proceed. The offline copy is never complete.
-    registrationsReadComplete: source === 'server' && !localError,
+    registrationsReadComplete: source === 'server' && !serverResult.error && !localError,
     source,
   };
 }

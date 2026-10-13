@@ -149,12 +149,12 @@ export async function pruneRegistrationsMissingFromServer(
  * queues, run after the sync has stored the downloaded rows, a clean
  * `_localOnly` placeholder with no queued work of its own is removed when:
  *
- * - its server twin is here: a clean server row with the same dog and
- *   creation instant, or the same organization and number when the
- *   placeholder has no usable `created_at` (`hasServerTwin`); or
+ * - its server twin is here: a clean server row on the same dog with the
+ *   same creation instant, or the same organization and number
+ *   (`hasServerTwin`; the number match also covers the RPC mapping the
+ *   create onto an existing dog that already holds it); or
  * - it is an orphan: its dog is no longer in the dogs replica and no pending
- *   or failed `dogs` mutation names that dog (the create was discarded, or
- *   the RPC mapped it onto an existing dog).
+ *   or failed `dogs` mutation names that dog (the create was discarded).
  *
  * Otherwise it stays, including after its dog uploaded but before the
  * server's copies arrived: offline, it is the device's only copy.

@@ -33,6 +33,8 @@ function postgrestAnswers(answer: { data: unknown; error: unknown }) {
 }
 
 const OFFLINE = { data: null, error: new Error('Failed to fetch') };
+/** The server was reached and answered with an error (a 503, an RLS refusal). */
+const SERVER_ERROR = { data: null, error: { message: 'upstream unavailable', code: '503' } };
 
 function renderDogRegistrations(dogId: string) {
   const queryClient = createTestQueryClient();
@@ -173,6 +175,26 @@ describe('registration readers with the server reachable', () => {
   });
 });
 
+// A server that ANSWERED with an error is not "offline": falling back would
+// show the offline copy with no retry while the browser is online
+// (adversarial review of PR 2).
+describe('registration readers when the server answers with an error', () => {
+  it('report the error with its retry instead of an offline copy', async () => {
+    await replicatedDogRegistrationsTable.applyServerRows([serverRow({ id: 'cached' })]);
+    postgrestAnswers(SERVER_ERROR);
+
+    const { result } = renderDogRegistrations('dog-1');
+    const loaded = await loadDogRegistrations(['dog-1']);
+
+    await waitFor(() => expect(result.current.error).toBeTruthy());
+    expect(result.current.registrations).toBeUndefined();
+    expect(loaded.source).toBe('server');
+    expect(loaded.registrationsReadComplete).toBe(false);
+    expect(loaded.serverError).toBeTruthy();
+    expect((loaded.byDog.get('dog-1') ?? []).map(row => row.id)).not.toContain('cached');
+  });
+});
+
 describe('registration readers when the server cannot be read', () => {
   it('fall back to the device copy, labelled offline and never complete', async () => {
     await deviceHoldsMixedRows();
@@ -232,11 +254,11 @@ describe('identity rail decision (railRegistrations)', () => {
     });
   });
 
-  it('shows an offline copy that has rows, and a server answer as given', () => {
+  it('shows an offline copy that has rows, labelled, and a server answer as given', () => {
     const rows = [serverRow({ id: 'r-1' })] as unknown as RegistrationsForDog['rows'];
     expect(railRegistrations({ rows, source: 'device' })).toEqual({
       registrations: rows,
-      offline: false,
+      offline: true,
     });
     expect(railRegistrations({ rows: [], source: 'server' })).toEqual({
       registrations: [],

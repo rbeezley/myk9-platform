@@ -87,6 +87,12 @@ afterEach(async () => {
   await databaseManager.reset();
 });
 
+/** The queue once it holds one mutation: the row shows its new state before the write is queued. */
+async function queuedOnce() {
+  await waitFor(async () => expect(await queue.pending()).toHaveLength(1));
+  return queue.pending();
+}
+
 const noPostgrestWrites = () =>
   expect(postgrestMethods.filter(m => m !== 'select' && m !== 'eq')).toEqual([]);
 
@@ -106,7 +112,7 @@ describe('Manage registrations, offline', () => {
     await user.click(screen.getByRole('button', { name: 'Add Registration' }));
 
     expect(await screen.findByText('CH New Dog')).toBeInTheDocument();
-    const [insert, ...rest] = await queue.pending();
+    const [insert, ...rest] = await queuedOnce();
     expect(rest).toEqual([]);
     expect(insert).toMatchObject({
       operation: 'INSERT',
@@ -130,7 +136,7 @@ describe('Manage registrations, offline', () => {
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     expect(await screen.findByText('CH Old Name II')).toBeInTheDocument();
-    const [update, ...rest] = await queue.pending();
+    const [update, ...rest] = await queuedOnce();
     expect(rest).toEqual([]);
     expect(update).toMatchObject({
       operation: 'UPDATE',
@@ -152,7 +158,7 @@ describe('Manage registrations, offline', () => {
     await user.click(within(confirm).getByRole('button', { name: /^delete$/i }));
 
     await waitFor(() => expect(screen.queryByText('CH Old Name')).not.toBeInTheDocument());
-    const [deletion, ...rest] = await queue.pending();
+    const [deletion, ...rest] = await queuedOnce();
     expect(rest).toEqual([]);
     expect(deletion).toMatchObject({ operation: 'DELETE', rowId: 'reg-1' });
     noPostgrestWrites();

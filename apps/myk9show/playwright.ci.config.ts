@@ -135,6 +135,13 @@ const REGRESSION_SPECS = [
   // dedupe). Stateful and local-only: it calls the real cron-waitlist-expiration function on the
   // isolated target's edge runtime and restores the seed's full-class fixture in afterAll.
   '**/secretary/waitlistJourney.spec.ts',
+  // MYK9-1120: the only end-to-end proof of mail-in create (Add Person, Add Dog, Add New
+  // Registration, Review, Complete in the one Quick Create slide-out). Every person, dog and
+  // registration write is answered by the spec's own route mocks, so nothing persists and the
+  // second pass after the isolated reset cannot collide with the first; the shared-staging write
+  // guard is the second net. SEED DEPENDENCY: LIVE_REGISTRATION_SHOW_ID with an open entry window
+  // (applyRegistrationClock pins the moment). Nightly rather than PR smoke on cost grounds.
+  '**/registration/secretaryNewUsers.spec.ts',
 ];
 
 // PR Smoke: stable specs — connectivity, secretary regression proof, the

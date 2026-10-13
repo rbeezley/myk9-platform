@@ -105,7 +105,7 @@ describe('editing an add', () => {
       rowId: added.id,
       serverVersion: 1,
       dependsOn: [insert!.id],
-      data: { id: added.id, registration_number: 'FIXED1' },
+      data: { registration_number: 'FIXED1' },
     });
   });
 

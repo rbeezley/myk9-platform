@@ -182,28 +182,26 @@ export async function pruneRegistrationsMissingFromServer(
 
 /**
  * Mark device-only adds the server has shown it holds (`asServerBacked`), in
- * one transaction. `seen` maps each server row id to its version when known;
- * a known version becomes the row's server token. Called by the changes pass,
- * the ID pass and the server-first readers. Returns the ids it changed.
+ * one transaction. Called by the changes pass, the ID pass and the
+ * server-first readers. Returns the ids it changed. Only the flags change:
+ * the row's data and OCC token stay until a download brings both together, so
+ * a token is never ahead of the data it stands for (Codex final round).
  */
 export async function markServerBacked(
   db: ReplicaDb,
   tableName: string,
-  seen: ReadonlyMap<string, number | undefined>
+  ids: Iterable<string>
 ): Promise<string[]> {
-  if (seen.size === 0) return [];
+  const seen = [...ids];
+  if (seen.length === 0) return [];
   const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
   const changed: string[] = [];
-  for (const [id, version] of seen) {
+  for (const id of seen) {
     const row = (await tx.store.get([tableName, id])) as
       ReplicatedRow<ReplicatedDogRegistration> | undefined;
     if (!row?.data || (row.data._localOnly !== true && row.data._queuedAdd !== true)) continue;
     if (row.data._localOnly === true && isPlaceholder(row.data)) continue;
-    await tx.store.put({
-      ...row,
-      data: asServerBacked(row.data),
-      ...(version !== undefined ? { serverVersion: version } : {}),
-    });
+    await tx.store.put({ ...row, data: asServerBacked(row.data) });
     changed.push(id);
   }
   await tx.done;

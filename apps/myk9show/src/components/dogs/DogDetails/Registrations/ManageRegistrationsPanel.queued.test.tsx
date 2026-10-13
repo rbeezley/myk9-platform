@@ -142,7 +142,7 @@ describe('Manage registrations, offline', () => {
       operation: 'UPDATE',
       rowId: 'reg-1',
       serverVersion: 3,
-      data: { id: 'reg-1', registered_name: 'CH Old Name II' },
+      data: { registered_name: 'CH Old Name II' },
     });
     noPostgrestWrites();
   });

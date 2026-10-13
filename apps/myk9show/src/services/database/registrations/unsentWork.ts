@@ -16,18 +16,11 @@ export async function unsentWorkProvenByServer(
   serverRows: readonly Record<string, unknown>[] | null | undefined
 ): Promise<ReplicatedDogRegistration[]> {
   const unsent = await replicatedDogRegistrationsTable.getUnsentWorkForDogs(dogIds);
-  const serverIds = new Map(
-    (serverRows ?? []).map(row => [
-      String(row.id),
-      typeof row.version === 'number' ? row.version : undefined,
-    ])
-  );
-  const proven = new Map(
-    unsent
-      .filter(row => row._queuedAdd === true && serverIds.has(row.id))
-      .map(row => [row.id, serverIds.get(row.id)])
-  );
-  if (proven.size === 0) return unsent;
+  const serverIds = new Set((serverRows ?? []).map(row => String(row.id)));
+  const proven = unsent
+    .filter(row => row._queuedAdd === true && serverIds.has(row.id))
+    .map(row => row.id);
+  if (proven.length === 0) return unsent;
   try {
     await replicatedDogRegistrationsTable.markServerBacked(proven);
   } catch {

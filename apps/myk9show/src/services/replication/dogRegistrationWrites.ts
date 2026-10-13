@@ -80,16 +80,35 @@ export function assertRegistrationPatch(patch: Readonly<Record<string, unknown>>
   }
 }
 
-/** Apply an edit, given in column names, to a device row (allowlisted, see above). */
-export function applyRegistrationPatch(
+/** Blank, null and absent are one value when telling what an edit changed. */
+const comparable = (value: unknown) => (value === undefined || value === '' ? null : value);
+
+/**
+ * The columns an edit changes: each patch column whose value differs from the
+ * row the edit was made against (`updated_at` is never one; it is stamped).
+ */
+export function registrationChanges(
   row: ReplicatedDogRegistration,
   patch: Readonly<Record<string, unknown>>
-): ReplicatedDogRegistration {
+): Record<string, unknown> {
   assertRegistrationPatch(patch);
-  const next: Record<string, unknown> = { ...row };
+  const changes: Record<string, unknown> = {};
   for (const [column, value] of Object.entries(patch)) {
-    if (value === undefined || !isUpdateColumn(column)) continue;
-    next[FIELD_OF_COLUMN[column]] = value;
+    if (value === undefined || !isUpdateColumn(column) || column === 'updated_at') continue;
+    const current = (row as unknown as Record<string, unknown>)[FIELD_OF_COLUMN[column]];
+    if (comparable(value) !== comparable(current)) changes[column] = value;
+  }
+  return changes;
+}
+
+/** A device row with an edit's changed columns applied, and nothing else. */
+export function applyRegistrationChanges(
+  row: ReplicatedDogRegistration,
+  changes: Readonly<Record<string, unknown>>
+): ReplicatedDogRegistration {
+  const next: Record<string, unknown> = { ...row };
+  for (const [column, value] of Object.entries(changes)) {
+    if (isUpdateColumn(column)) next[FIELD_OF_COLUMN[column]] = value;
   }
   return {
     ...(next as unknown as ReplicatedDogRegistration),

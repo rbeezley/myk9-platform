@@ -9,10 +9,7 @@ import { configureConflictSurfacing, databaseManager } from '@myk9/replication';
 import { supabase } from '@/services/database/supabaseClient';
 import { replicatedDogRegistrationsTable as table } from '../ReplicatedDogRegistrationsTable';
 import { replicatedDogsTable } from '../ReplicatedDogsTable';
-import {
-  REGISTRATION_UPDATE_COLUMNS,
-  buildRegistrationUpdatePayload,
-} from '../dogRegistrationRows';
+import { REGISTRATION_UPDATE_COLUMNS } from '../dogRegistrationRows';
 import { REGISTRATIONS_NEED_CONNECTION } from '../dogRegistrationWrites';
 import { mergeUnsentWork } from '../dogRegistrationMerge';
 import { installRegistrationsServer, newServer, serverRow } from './dogRegistrationFixtures';
@@ -47,18 +44,21 @@ afterEach(async () => {
 });
 
 describe('edit', () => {
-  it('queues one full-row OCC UPDATE with only allowlisted columns, and sends nothing offline', async () => {
+  it('queues one OCC UPDATE of the changed columns only, and sends nothing offline', async () => {
     await table.updateRegistration('reg-1', { registered_name: 'New', breed: 'Beagle' });
     await queue.settle();
 
     const [mutation, ...rest] = await queue.pending();
     expect(rest).toHaveLength(0);
     expect(mutation).toMatchObject({ operation: 'UPDATE', rowId: 'reg-1', serverVersion: 3 });
-    expect(mutation!.data).toMatchObject({ id: 'reg-1', registered_name: 'New', breed: 'Beagle' });
-    // `id` is the row key the upload filters on; every other key is allowlisted.
-    expect(Object.keys(mutation!.data).sort()).toEqual(
-      ['id', ...REGISTRATION_UPDATE_COLUMNS].sort()
-    );
+    expect(mutation!.data).toMatchObject({ registered_name: 'New', breed: 'Beagle' });
+    // Only what changed travels (the server row's breed was Border Collie).
+    expect(Object.keys(mutation!.data).sort()).toEqual(['breed', 'registered_name', 'updated_at']);
+    expect(
+      Object.keys(mutation!.data).every(key =>
+        (REGISTRATION_UPDATE_COLUMNS as readonly string[]).includes(key)
+      )
+    ).toBe(true);
     expect(queue.sent).toEqual([]);
     expect(supabase.from).not.toHaveBeenCalled();
     expect(await table.get('reg-1')).toMatchObject({ registeredName: 'New', breed: 'Beagle' });
@@ -71,19 +71,6 @@ describe('edit', () => {
 
     expect(await queue.pending()).toEqual([]);
     expect(await table.get('reg-1')).toMatchObject({ registeredName: 'Old', dogId: 'dog-1' });
-  });
-
-  it('rebuilds a rebased payload with exactly the allowlisted columns', () => {
-    const rebuilt = buildRegistrationUpdatePayload({
-      id: 'reg-1',
-      dogId: 'dog-1',
-      organization: 'AKC',
-      registrationNumber: 'X',
-      createdAt: '2024-01-01T00:00:00.000Z',
-      isPrimary: true,
-      verified: true,
-    });
-    expect(Object.keys(rebuilt).sort()).toEqual([...REGISTRATION_UPDATE_COLUMNS].sort());
   });
 
   it('a refused edit, discarded, puts the row back', async () => {

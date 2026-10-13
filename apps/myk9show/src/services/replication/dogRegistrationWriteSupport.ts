@@ -8,6 +8,7 @@ import type { MutationManager, ReplicatedRow, UploadCompleteEventDetail } from '
 import { logger } from '@myk9/core';
 import { FriendlySaveError } from '@/utils/friendlySaveError';
 import {
+  registrationIdentityKey,
   visibleRegistrationRows,
   type DogRegistrationRow,
   type ReplicatedDogRegistration,
@@ -15,7 +16,7 @@ import {
 import { fetchRegistrationsWhere } from './dogRegistrationsServer';
 import { replicatedDogsTable } from './ReplicatedDogsTable';
 import { mergeUnsentWork } from './dogRegistrationMerge';
-import { registrationsNeedConnection } from './dogRegistrationWrites';
+import { applyRegistrationChanges, registrationsNeedConnection } from './dogRegistrationWrites';
 
 /** The parts of the registrations table these helpers use. */
 export interface RegistrationsReplica {
@@ -125,6 +126,57 @@ export async function queuedWorkBefore(
     ...(await table.getPendingMutationIdsForRow(row.id)),
     ...(await replicatedDogsTable.getPendingMutationIdsForRow(row.dogId)),
   ];
+}
+
+/**
+ * Write an edit's changed columns onto the row AS IT IS NOW, re-read for the
+ * write and stored only if nothing changed it in between (`set`'s revision
+ * check, retried). Never onto the snapshot the edit was read from: a download
+ * that landed meanwhile keeps its fields (Codex final round).
+ */
+export async function writeChangesOntoCurrentRow(
+  table: RegistrationsReplica & {
+    set(
+      id: string,
+      data: ReplicatedDogRegistration,
+      isDirty: boolean,
+      expectedVersion?: number
+    ): Promise<unknown>;
+  },
+  id: string,
+  changes: Readonly<Record<string, unknown>>
+): Promise<ReplicatedDogRegistration> {
+  for (let attempt = 0; ; attempt++) {
+    const current = await table.getReplicatedRow(id);
+    if (!current) {
+      throw new FriendlySaveError('This registration is no longer there. Refresh and try again.');
+    }
+    const next = applyRegistrationChanges(current.data, changes);
+    try {
+      await table.set(id, next, true, current.version);
+      return next;
+    } catch (error) {
+      if (attempt >= 4 || !/Concurrent modification/.test(String(error))) throw error;
+    }
+  }
+}
+
+/**
+ * The queued DELETEs of any registration with this organization and number
+ * (normalised, any dog): a re-add must upload after them, or the live
+ * org/number unique index refuses its INSERT (Codex final round).
+ */
+export async function pendingDeletesOfNumber(
+  table: RegistrationsReplica & { getPendingMutationIdsForRow(rowId: string): Promise<string[]> },
+  organization: string | null | undefined,
+  registrationNumber: string | null | undefined
+): Promise<string[]> {
+  const key = registrationIdentityKey({ dogId: '', organization, registrationNumber });
+  if (key === null) return [];
+  const deleting = (await table.getAllOrThrow()).filter(
+    row => row._pendingDelete === true && registrationIdentityKey({ ...row, dogId: '' }) === key
+  );
+  return (await Promise.all(deleting.map(row => table.getPendingMutationIdsForRow(row.id)))).flat();
 }
 
 /** Drop this user's queued mutations for a registration row. */

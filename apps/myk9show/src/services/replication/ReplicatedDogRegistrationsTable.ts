@@ -31,7 +31,8 @@ import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { replicatedDogsTable } from './ReplicatedDogsTable';
 import {
   asServerBacked,
-  buildRegistrationUpdatePayload,
+  registrationChangePayload,
+  registrationRebasePayload,
   registrationInsertRow,
   isPlaceholder,
   registrationToDbRow,
@@ -57,14 +58,16 @@ import {
   cancelUnsentAdd,
   type EditableRegistration,
   hasRefusedInsert,
+  pendingDeletesOfNumber,
   queuedWorkBefore,
+  writeChangesOntoCurrentRow,
   listenForConfirmedDeletes,
   loadDogRegistrationsForEdit,
   loadRowForWrite,
 } from './dogRegistrationWriteSupport';
 import {
   REGISTRATION_COMPARE_POLICY,
-  applyRegistrationPatch,
+  registrationChanges,
   assertRegistrationPatch,
   createRegistrationTimestamps,
   draftToRegistration,
@@ -105,8 +108,8 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   }
 
   /** A server row with these ids was seen: their device-only adds landed (`asServerBacked`). */
-  async markServerBacked(seen: ReadonlyMap<string, number | undefined>): Promise<void> {
-    const changed = await markServerBacked(await this.init(), this.getTableName(), seen);
+  async markServerBacked(ids: Iterable<string>): Promise<void> {
+    const changed = await markServerBacked(await this.init(), this.getTableName(), ids);
     if (changed.length > 0) await this.notifyListeners();
   }
 
@@ -124,10 +127,9 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     return !this.deletionFence.isFenced(id);
   }
 
-  protected override rebuildUpdatePayload(
-    registration: ReplicatedDogRegistration
-  ): Record<string, unknown> {
-    return buildRegistrationUpdatePayload(registration);
+  /** A rebase keeps the edit's own changed columns and only restamps `updated_at`. */
+  protected override rebuildUpdatePayload(): Record<string, unknown> {
+    return registrationRebasePayload();
   }
 
   /**
@@ -143,7 +145,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       fetchRowsById: ids => fetchRegistrationsWhere('id', ids),
       getRemoteId: remote => String(remote.id),
       toLocalRow: rowToRegistration,
-      rebuildUpdatePayload: buildRegistrationUpdatePayload,
+      rebuildUpdatePayload: registrationRebasePayload,
       dirtyRowComparePolicy: REGISTRATION_COMPARE_POLICY,
     };
   }
@@ -155,13 +157,13 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   async sync(): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
     const fence = this.deletionFence.open();
-    const downloaded = new Map<string, number | undefined>();
+    const downloaded = new Set<string>();
     try {
       const adapter: SyncReplicatedTableAdapter<DogRegistrationRow, ReplicatedDogRegistration> = {
         ...this.getRowRefetchAdapter(),
         fetchRemoteRows: async ({ since }) => {
           const rows = await fetchChangedRegistrations(since);
-          for (const row of rows) downloaded.set(String(row.id), row.version);
+          for (const row of rows) downloaded.add(String(row.id));
           return rows;
         },
         getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
@@ -238,7 +240,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
         snapshot
       );
       if (deleted.length > 0) await this.notifyListeners();
-      await this.markServerBacked(new Map([...serverIds].map(id => [id, undefined])));
+      await this.markServerBacked(serverIds);
 
       const localIds = await this.getAllLocalIds();
       const missing = [...serverIds].filter(id => !localIds.has(id));
@@ -286,7 +288,10 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
    */
   async addRegistration(draft: RegistrationDraft): Promise<ReplicatedDogRegistration> {
     const dogId = String(draft.dog_id);
-    const dependsOn = await replicatedDogsTable.getPendingMutationIdsForRow(dogId);
+    const dependsOn = [
+      ...(await replicatedDogsTable.getPendingMutationIdsForRow(dogId)),
+      ...(await pendingDeletesOfNumber(this, draft.organization, draft.registration_number)),
+    ];
     const [createdAt] = createRegistrationTimestamps(1);
     return this.queueNewRegistration(
       { ...draftToRegistration(draft, createdAt!), dogId, id: crypto.randomUUID() },
@@ -328,17 +333,9 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       _localOnly: true,
       _queuedAdd: true,
     };
-    // Starts with the token the INSERT will create (NEW_REGISTRATION_VERSION),
-    // so a later edit carries an OCC precondition: clean with it, then dirty.
-    // The clean seed holds no device-only flags, so a sync's merge against it
-    // keeps them until `markServerBacked` clears both together.
-    await this.set(
-      registration.id,
-      asServerBacked(registration),
-      false,
-      undefined,
-      NEW_REGISTRATION_VERSION
-    );
+    // Seeded clean with the INSERT's token and no device-only flags, then dirty.
+    const seed = asServerBacked(registration);
+    await this.set(registration.id, seed, false, undefined, NEW_REGISTRATION_VERSION);
     await this.set(registration.id, registration, true);
     await this.queueMutation(
       'INSERT',
@@ -350,9 +347,9 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   }
 
   /**
-   * Edit a registration: a full-row OCC UPDATE whose payload is built only
-   * from `REGISTRATION_UPDATE_COLUMNS`. `patch` is in column names; a key
-   * outside that list throws before anything is written or queued.
+   * Edit a registration: an OCC UPDATE of only the columns it changes (from
+   * `REGISTRATION_UPDATE_COLUMNS`; any other key throws before anything is
+   * written), written onto the row as it is at the write. A no-op queues nothing.
    */
   async updateRegistration(
     id: string,
@@ -360,21 +357,21 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   ): Promise<ReplicatedDogRegistration> {
     assertRegistrationPatch(patch);
     const row = await loadRowForWrite(this, id);
-    const updated = applyRegistrationPatch(row.data, patch);
     if (row.data._pendingDelete === true) {
       throw new FriendlySaveError('This registration is being deleted.');
     }
     if (isPlaceholder(row.data)) throw registrationAwaitsItsDog();
-    // An add the server refused cannot be edited: discard it and add again.
     if (row.data._localOnly === true && (await hasRefusedInsert(this, this.queue, id))) {
       throw registrationAddRefused();
     }
+    const changes = registrationChanges(row.data, patch);
+    if (Object.keys(changes).length === 0) return row.data;
     const dependsOn = await queuedWorkBefore(this, row.data);
-    await this.set(id, updated, true);
+    const updated = await writeChangesOntoCurrentRow(this, id, changes);
     await this.queueMutation(
       'UPDATE',
       id,
-      { id, ...buildRegistrationUpdatePayload(updated) },
+      registrationChangePayload(changes),
       dependsOn.length > 0 ? dependsOn : undefined
     );
     return updated;

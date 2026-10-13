@@ -102,9 +102,9 @@ describe('syncDogRegistrations, server reachable', () => {
 
     expect(queue.sent.map(([op]) => op).sort()).toEqual(['insert', 'update']);
     expect(queue.sent.find(([op]) => op === 'update')![2]).toMatchObject({
-      id: 'reg-akc',
       registered_name: 'CH New Name',
     });
+    expect(queue.filters.find(f => f.op === 'update')?.eqs).toMatchObject({ id: 'reg-akc' });
     expect(queue.sent.find(([op]) => op === 'insert')![2]).toMatchObject({
       dog_id: 'dog-1',
       organization: 'UKC',

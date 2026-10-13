@@ -152,13 +152,16 @@ describe('registrations row mapping', () => {
     ).toEqual(readColumns);
   });
 
-  it('builds an UPDATE payload from the allowlisted columns only', async () => {
+  // A rebase restamps updated_at only; the queue keeps the edit's own
+  // changed columns, so a rebase never widens it to a full row.
+  it('rebuilds a rebased UPDATE payload with updated_at only', async () => {
     await table.applyServerRows([serverRow()]);
     const payload = (
       table as unknown as { rebuildUpdatePayload: (row: unknown) => Record<string, unknown> }
     ).rebuildUpdatePayload(await table.get('reg-1'));
 
-    expect(Object.keys(payload).sort()).toEqual([...REGISTRATION_UPDATE_COLUMNS].sort());
+    expect(Object.keys(payload)).toEqual(['updated_at']);
+    expect(REGISTRATION_UPDATE_COLUMNS).toContain('updated_at');
   });
 
   it('re-fetches rows by id with the same column list', async () => {

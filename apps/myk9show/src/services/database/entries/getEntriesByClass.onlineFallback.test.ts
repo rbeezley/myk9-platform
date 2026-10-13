@@ -39,6 +39,7 @@ const {
     get getAllOrThrow() {
       return this.getAll;
     },
+    getCurrentAuthUserId: async () => 'user-test',
     getSyncMetadata: vi.fn(),
     getReplicatedRow: vi.fn(),
   },
@@ -118,7 +119,11 @@ const SECOND_ONLINE_ROW = { id: 'entry-online-2', class: { id: 'c1' } };
 beforeEach(() => {
   // Local rows below come from a show scope that has synced, unless a test says not.
   mockEntriesTable.getSyncMetadata.mockReset();
-  mockEntriesTable.getSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 1 });
+  mockEntriesTable.getSyncMetadata.mockResolvedValue({
+    tableName: 'entries',
+    totalRows: 1,
+    syncedByAuthUserId: 'user-test',
+  });
   // No local row carries an unsaved write unless a test says so.
   mockEntriesTable.getReplicatedRow.mockReset();
   mockEntriesTable.getReplicatedRow.mockImplementation(async (id: string) => ({

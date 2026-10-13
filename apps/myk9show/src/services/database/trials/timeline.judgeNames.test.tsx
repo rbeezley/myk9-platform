@@ -194,7 +194,9 @@ function stubWarmStores(classes: Awaited<ReturnType<typeof hydrateReplicatedClas
   );
   vi.spyOn(replicatedEntriesTable, 'getSyncMetadata').mockResolvedValue({
     totalRows: RESTRICTED_CLASS_ROWS.length,
+    syncedByAuthUserId: 'user-test',
   } as never);
+  vi.spyOn(replicatedEntriesTable, 'getCurrentAuthUserId').mockResolvedValue('user-test');
 }
 
 beforeEach(() => {

@@ -197,7 +197,7 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
       this,
       adapter,
       syncScopeId ? { value: syncScopeId } : {},
-      { forceFullSync: true }
+      { forceFullSync: true, stampSyncingAccount: true }
     );
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {

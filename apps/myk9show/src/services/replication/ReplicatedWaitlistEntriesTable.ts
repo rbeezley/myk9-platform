@@ -176,6 +176,8 @@ export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWa
       {},
       {
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+        // MYK9-1133: the waitlist belongs to the account that synced it.
+        stampSyncingAccount: true,
       }
     );
 

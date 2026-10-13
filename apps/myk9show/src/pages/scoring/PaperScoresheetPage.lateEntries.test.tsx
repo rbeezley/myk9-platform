@@ -41,8 +41,9 @@ vi.mock('./paperScoresheetData', () => ({
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
     sync: replica.sync,
+    getCurrentAuthUserId: async () => 'user-test',
     getSyncMetadata: vi.fn(async () =>
-      replica.synced ? { totalRows: replica.rows.length } : null
+      replica.synced ? { totalRows: replica.rows.length, syncedByAuthUserId: 'user-test' } : null
     ),
     subscribe: vi.fn((listener: () => void) => {
       replica.listeners.add(listener);

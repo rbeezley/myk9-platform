@@ -14,10 +14,9 @@ import {
   type DogRegistrationReadRow,
 } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { appendRegistrations } from '../dogs/reads';
-import { mergeUnsentWork } from '@/services/replication/dogRegistrationMerge';
+import { dropServerTwins } from '@/services/replication/dogRegistrationRows';
 import { getRegistrationsByDog } from './reads';
 import { serverUnreachable } from './serverUnreachable';
-import { unsentWorkProvenByServer } from './unsentWork';
 
 export interface RegistrationsForDog {
   rows: DogRegistrationReadRow[];
@@ -44,17 +43,20 @@ export async function readRegistrationsForDog(dogId: string): Promise<Registrati
   // With the server's answer in hand, a device that cannot be read only costs
   // this device's unsent work, never the server rows (Codex review). Without
   // it, the device copy is the answer, and a device failure is the error.
-  // Server rows with this device's unsent edits, deletes and adds applied
-  // (mergeUnsentWork): an unsent edit wins, a pending delete hides its row.
-  const rows =
+  const local =
     source === 'server'
-      ? mergeUnsentWork(
-          server.data,
-          await unsentWorkProvenByServer([dogId], server.data).catch(() => [])
-        )
+      ? await replicatedDogRegistrationsTable
+          .getUnsentRegistrationsForDogs([dogId])
+          .catch(() => [] as DogRegistrationReadRow[])
       : await replicatedDogRegistrationsTable.getRegistrationsForDogs([dogId]);
+
+  // Server rows first; a device row whose server copy is in the read (a
+  // placeholder's twin, the same id, or the same organization and number)
+  // is dropped.
+  const serverRows = server.error ? [] : server.data;
   const merged = new Map<string, Record<string, unknown>[]>();
-  appendRegistrations(merged, rows);
-  const forDog = (merged.get(dogId) ?? []) as unknown as DogRegistrationReadRow[];
-  return { rows: [...forDog].sort(byRegistrationDateDesc), source };
+  appendRegistrations(merged, serverRows);
+  appendRegistrations(merged, dropServerTwins(local, serverRows));
+  const rows = (merged.get(dogId) ?? []) as unknown as DogRegistrationReadRow[];
+  return { rows: [...rows].sort(byRegistrationDateDesc), source };
 }

@@ -495,6 +495,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       {
         forceFullSync: forceFullSync || needsReceiptReferenceRefresh,
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+        // MYK9-1133: the show's rows belong to the account that synced them.
+        stampSyncingAccount: true,
       }
     );
 

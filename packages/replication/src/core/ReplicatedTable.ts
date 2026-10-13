@@ -128,8 +128,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       this.logger,
       () => this.init(),
       () => this.notifyListeners(),
-      () => this.relieveQuota(),
-      id => this.acceptsRemoteRow(id)
+      () => this.relieveQuota()
     );
 
     this.queryManager = new ReplicatedTableQueryManager<T>(tableName, this.logger, () =>
@@ -484,17 +483,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     }
 
     return row;
-  }
-
-  /**
-   * Whether a downloaded (clean) row may be stored by {@link batchSet}, which
-   * every sync download and row fetch goes through. Checked synchronously in
-   * the write's own IndexedDB transaction, just before the put, so a decision
-   * made after the server was read (for example: this row's delete was just
-   * confirmed) cannot be overtaken by the write. Default: every row.
-   */
-  protected acceptsRemoteRow(_id: string): boolean {
-    return true;
   }
 
   /**
@@ -1225,14 +1213,17 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     // Also reset sync metadata so next sync does a full fetch. `scopes: {}` clears
     // every per-scope watermark too, so a scoped sync after clearCache re-fetches
     // from epoch rather than reading a stale scoped watermark.
-    await this.cacheManager.updateSyncMetadata({
-      lastFullSyncAt: 0,
-      lastIncrementalSyncAt: 0,
-      totalRows: 0,
-      syncStatus: 'idle',
-      errorMessage: undefined,
-      scopes: {},
-    });
+    await this.cacheManager.updateSyncMetadata(
+      {
+        lastFullSyncAt: 0,
+        lastIncrementalSyncAt: 0,
+        totalRows: 0,
+        syncStatus: 'idle',
+        errorMessage: undefined,
+        scopes: {},
+      },
+      { scopeSyncedBy: null }
+    );
     this.logger.log(`[${this.tableName}] Sync metadata reset`);
   }
 
@@ -1284,9 +1275,23 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   async updateSyncMetadata(
     updates: Partial<SyncMetadata>,
-    options?: { scopeValue?: string; advanceWatermarkMonotonically?: boolean }
+    options?: {
+      scopeValue?: string;
+      advanceWatermarkMonotonically?: boolean;
+      scopeSyncedBy?: string | null;
+    }
   ): Promise<void> {
     return this.cacheManager.updateSyncMetadata(updates, options);
+  }
+
+  /**
+   * The signed-in auth user, from the same source the mutation queue stamps its
+   * owner with. Null when it cannot be settled (no manager wired, no session, or
+   * an expired session that cannot refresh offline): callers treat null as its
+   * own state, never as a match and never as "no rows" (MYK9-1133).
+   */
+  async getCurrentAuthUserId(): Promise<string | null> {
+    return this.mutationManager ? this.mutationManager.resolveCurrentUserId() : null;
   }
 
   // ========================================

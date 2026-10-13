@@ -19,15 +19,6 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { deriveDogRosterScope } from '@/utils/dogRosterScope';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 
-/**
- * The dog reads come from the device replica first, so they run offline
- * (`offlineFirst`, as the entries reads do): with the default 'online' an
- * invalidation offline, such as an offline registration save refreshing
- * ['dogs'], paused the read and the dog page kept the old value until
- * reconnect (Codex final round on MYK9-1090).
- */
-const DOG_READ_NETWORK_MODE = 'offlineFirst' as const;
-
 // Get all dogs visible to the current user.
 // The canonical roster predicate controls both the replication and online paths.
 // Role chrome (cards/table and management affordances) is a separate question.
@@ -76,8 +67,6 @@ export const useDogsQuery = () => {
       return data ?? [];
     },
     enabled: scope === 'all' || (scope === 'own' && !!personId),
-    // Replica-backed: runs offline instead of pausing (see DOG_READ_NETWORK_MODE).
-    networkMode: DOG_READ_NETWORK_MODE,
     ...cacheStrategies.moderate, // 5 minutes stale, 10 minutes cache
   });
 
@@ -98,7 +87,6 @@ export const useDogQuery = (id: string, enabled = true) => {
       return data;
     },
     enabled: !!id && enabled,
-    networkMode: DOG_READ_NETWORK_MODE,
     ...cacheStrategies.moderate,
   });
 };
@@ -113,7 +101,6 @@ export const useDogsByOwnerQuery = (ownerId: string, enabled = true) => {
       return data;
     },
     enabled: !!ownerId && enabled,
-    networkMode: DOG_READ_NETWORK_MODE,
     ...cacheStrategies.moderate,
   });
 };

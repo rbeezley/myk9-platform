@@ -28,7 +28,7 @@ const { server, selects, mockDogsTable, mockEntriesTable, mockRegistrationsTable
     mockEntriesTable: { getAllOrThrow: vi.fn() },
     mockRegistrationsTable: {
       getRegistrationsForDogs: vi.fn(),
-      getUnsentWorkForDogs: vi.fn(),
+      getUnsentRegistrationsForDogs: vi.fn(),
     },
   })
 );
@@ -115,8 +115,8 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
     ]);
     mockRegistrationsTable.getRegistrationsForDogs.mockReset();
     mockRegistrationsTable.getRegistrationsForDogs.mockResolvedValue([]);
-    mockRegistrationsTable.getUnsentWorkForDogs.mockReset();
-    mockRegistrationsTable.getUnsentWorkForDogs.mockResolvedValue([]);
+    mockRegistrationsTable.getUnsentRegistrationsForDogs.mockReset();
+    mockRegistrationsTable.getUnsentRegistrationsForDogs.mockResolvedValue([]);
   });
 
   it('online, the server row wins over a different clean replica copy', async () => {
@@ -202,13 +202,12 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
 
   it('online, unsent registrations are merged into the server row', async () => {
     server.detail = { data: SERVER_ROW, error: null };
-    mockRegistrationsTable.getUnsentWorkForDogs.mockResolvedValue([
+    mockRegistrationsTable.getUnsentRegistrationsForDogs.mockResolvedValue([
       {
         id: 'registration-local-1',
-        _localOnly: true,
-        dogId: 'dog-1',
+        dog_id: 'dog-1',
         organization: 'AKC',
-        registrationNumber: 'SW123456',
+        registration_number: 'SW123456',
       },
     ]);
 
@@ -246,24 +245,22 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
         status: 'active',
       },
     ];
-    mockRegistrationsTable.getUnsentWorkForDogs.mockResolvedValue([
+    mockRegistrationsTable.getUnsentRegistrationsForDogs.mockResolvedValue([
       {
         id: 'local-ukc',
-        _localOnly: true,
-        dogId: 'dog-1',
+        dog_id: 'dog-1',
         organization: 'UKC',
-        registrationNumber: 'U2',
+        registration_number: 'U2',
         breed: 'Harrier',
-        createdAt: '2026-10-01T11:00:00.000Z',
+        created_at: '2026-10-01T11:00:00.000Z',
       },
       {
         id: 'local-akc',
-        _localOnly: true,
-        dogId: 'dog-1',
+        dog_id: 'dog-1',
         organization: 'AKC',
-        registrationNumber: 'SW1',
+        registration_number: 'SW1',
         breed: 'Beagle',
-        createdAt: '2026-10-01T11:00:01.000Z',
+        created_at: '2026-10-01T11:00:01.000Z',
       },
     ]);
     server.detail = { data: { ...SERVER_ROW, registrations: server.registrations }, error: null };

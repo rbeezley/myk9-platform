@@ -1,11 +1,11 @@
 /**
- * Mirror a direct server-side registration write into the replica (MYK9-1090).
+ * Mirror a direct registration write into the replica (MYK9-1090, plan §2).
  *
  * The dog page's registration readers fall back to the replica when the
- * server cannot be read, so registrations written straight to the server (the
- * online `create_dog_with_registrations` path, and an online-only edit) must
- * land in the replica too, or that offline copy lacks them until the next
- * sync. Adds and deletes are queued on the replica itself.
+ * server cannot be read, so a write that went straight to PostgREST must land
+ * in the replica too, or that offline copy keeps the old value until the next
+ * sync. Every direct write in `reads.ts` calls one of these after the server
+ * confirms it; PR 3 replaces those writes with queued ones.
  *
  * Never throws: the server write already succeeded. When the mirror fails, the
  * table still tells its subscribers to re-read, so the server-first readers
@@ -29,13 +29,28 @@ async function notifyAfterFailedMirror(operation: string, error: unknown): Promi
   }
 }
 
-/** Store the row the server returned from a direct (online) registration edit. */
+/** Store the row the server returned from an insert or update. */
 export async function mirrorServerRegistration(row: unknown): Promise<void> {
   if (!row || typeof row !== 'object') return;
   try {
     await replicatedDogRegistrationsTable.applyServerRows([row as DogRegistrationRow]);
   } catch (error) {
     await notifyAfterFailedMirror('upsert', error);
+  }
+}
+
+/**
+ * Remove a registration the server just deleted, and any offline-created
+ * placeholder that is its twin (`deletedRow` carries dog and created_at).
+ */
+export async function mirrorServerDelete(
+  id: string,
+  deletedRow?: Record<string, unknown>
+): Promise<void> {
+  try {
+    await replicatedDogRegistrationsTable.removeDeletedOnServer(id, deletedRow);
+  } catch (error) {
+    await notifyAfterFailedMirror('delete', error);
   }
 }
 

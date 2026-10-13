@@ -177,7 +177,7 @@ export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPa
       this,
       adapter,
       { value: showId },
-      { incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS }
+      { incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS, stampSyncingAccount: true }
     );
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);

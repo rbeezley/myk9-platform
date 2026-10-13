@@ -18,6 +18,7 @@ import { getClassesByTrialId } from '@/services/database/classes';
 import { getEntriesForShow } from '@/services/database/entries/secretary';
 import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
 import ResultsTab from './ResultsTab';
+import { signInReplicatedTable } from '@/test/utils/signedInReplication';
 
 const SYNC = {
   _version: 1,
@@ -99,9 +100,10 @@ beforeEach(async () => {
       resultStatus: 'qualified',
     })) as never
   );
+  signInReplicatedTable(replicatedEntriesTable, 'user-test');
   await replicatedEntriesTable.updateSyncMetadata(
     { lastIncrementalSyncAt: Date.now(), totalRows: 2 },
-    { scopeValue: 'show-1' }
+    { scopeValue: 'show-1', scopeSyncedBy: 'user-test' }
   );
   await replicatedClassesTable.batchSet([
     {

@@ -57,21 +57,10 @@ export interface ReplicatedDogRegistration {
   certificate?: string | null;
   updatedAt?: string | null;
   /**
-   * Set by a queued delete (MYK9-1075): the row stays until the delete
+   * Set by a queued delete (MYK9-1075, PR 3): the row stays until the delete
    * uploads, hidden from every reader by {@link visibleRegistrationRows}.
    */
   _pendingDelete?: boolean;
-  /**
-   * A registration added on this device with its own queued INSERT under this
-   * id (`addRegistration`), as opposed to a placeholder (see {@link isPlaceholder}).
-   */
-  _queuedAdd?: boolean;
-  /**
-   * On a placeholder: the id of the dog the offline create wrote it for. The
-   * upload may remap `dogId` to an existing dog; this does not move, so the
-   * create's placeholders can still be told apart (MYK9-1129).
-   */
-  _placeholderOf?: string;
   _version?: number;
   _lastModified?: Date;
   _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict';
@@ -164,56 +153,6 @@ export function buildRegistrationUpdatePayload(
   };
 }
 
-/**
- * A placeholder: a registration an offline dog create wrote to the device. It
- * uploads inside the dog's `create_dog_with_registrations`, which gives the
- * server copy a NEW id, so it is matched to that copy by content. A queued add
- * (`_queuedAdd`) is not one: it uploads its own INSERT under its own id. A
- * `_localOnly` row without the add mark is a placeholder.
- */
-export function isPlaceholder(row: Pick<ReplicatedDogRegistration, '_localOnly' | '_queuedAdd'>) {
-  return row._localOnly === true && row._queuedAdd !== true;
-}
-
-/**
- * A device-only add proven to be on the server: a server row with its id was
- * seen, so its INSERT landed even if the acknowledgement was lost (Codex
- * round 3). It becomes an ordinary server-backed row: both device-only flags
- * go together, so it is never mistaken for a placeholder.
- */
-export function asServerBacked(row: ReplicatedDogRegistration): ReplicatedDogRegistration {
-  const serverBacked = { ...row };
-  delete serverBacked._localOnly;
-  delete serverBacked._queuedAdd;
-  return serverBacked;
-}
-
-/** The INSERT payload for a registration created on this device. */
-export function registrationInsertRow(
-  registration: ReplicatedDogRegistration
-): Record<string, unknown> {
-  return {
-    id: registration.id,
-    dog_id: registration.dogId,
-    organization: registration.organization,
-    registration_number: registration.registrationNumber,
-    // Carried so the merged local+server list keeps the resolver's ordering.
-    // Local creation does not currently assign `isPrimary`, so it is omitted
-    // from the mutation payload and the server default remains authoritative.
-    created_at: registration.createdAt,
-    registered_name: registration.registeredName ?? null,
-    breed: registration.breed ?? null,
-    variety: registration.variety ?? null,
-    status: registration.status ?? 'pending',
-    registration_date: registration.registrationDate ?? null,
-    application_number: registration.applicationNumber ?? null,
-    submission_date: registration.submissionDate ?? null,
-    certificate: registration.certificate ?? null,
-    verified: registration.verified ?? false,
-    updated_at: new Date().toISOString(),
-  };
-}
-
 /** The fields twin matching reads, in either row shape. */
 export interface TwinFields {
   dogId: string;
@@ -274,7 +213,8 @@ export function indexServerTwins(serverRows: readonly TwinFields[]): ServerTwinI
  * that already holds that registration: no new row (so no `created_at` twin),
  * and the placeholder's dog id is remapped to that dog (adversarial review).
  * Safe because one dog cannot hold two live rows with the same organization
- * and number (`dog_registrations_live_org_number_unique`).
+ * and number (`dog_registrations_live_org_number_unique`). The readers hide a
+ * placeholder by it and the sync removes one by it.
  */
 export function hasServerTwin(placeholder: TwinFields, twins: ServerTwinIndex): boolean {
   const created = createdTwinKey(placeholder);
@@ -284,70 +224,48 @@ export function hasServerTwin(placeholder: TwinFields, twins: ServerTwinIndex): 
 }
 
 /**
- * The placeholders whose server copy is here (`hasServerTwin`), plus their
- * siblings from a create the server MERGED onto an existing dog (MYK9-1129).
- * When `create_dog_with_registrations` finds one of the create's registrations
- * on an existing dog, it returns that dog and inserts nothing, so the other
- * placeholders of the same create never get a server copy. The upload remaps
- * their dog id to the existing dog (`dogId !== _placeholderOf`); once any one
- * of that create resolves, all of them are resolved.
+ * Device rows to merge into a server read: drops each one whose server copy
+ * is in that read (a placeholder's twin, or the row itself).
  */
-export function resolvedPlaceholderIds(
-  placeholders: readonly ReplicatedDogRegistration[],
-  twins: ServerTwinIndex
-): Set<string> {
-  const resolved = new Set<string>();
-  const mergedCreates = new Set<string>();
-  for (const row of placeholders) {
-    if (!hasServerTwin(row, twins)) continue;
-    resolved.add(row.id);
-    if (row._placeholderOf && row._placeholderOf !== row.dogId)
-      mergedCreates.add(row._placeholderOf);
-  }
-  for (const row of placeholders) {
-    if (
-      row._placeholderOf &&
-      row._placeholderOf !== row.dogId &&
-      mergedCreates.has(row._placeholderOf)
-    ) {
-      resolved.add(row.id);
-    }
-  }
-  return resolved;
+export function dropServerTwins(
+  deviceRows: readonly Record<string, unknown>[],
+  serverRows: readonly Record<string, unknown>[] | null | undefined
+): Record<string, unknown>[] {
+  const twins = indexServerTwins((serverRows ?? []).map(twinFieldsOfDbRow));
+  return deviceRows.filter(row => !hasServerTwin(twinFieldsOfDbRow(row), twins));
 }
 
 /**
  * The rows a reader may show for these dogs: never a row waiting on its
  * delete, and never a placeholder once its server copy is on the device
- * (`resolvedPlaceholderIds`). A placeholder's twin may be a row this device is
- * deleting; a queued add is shown even when a row it replaces is being
- * deleted (a re-add). Every device-copy reader goes through this.
+ * (`hasServerTwin`). Every registration reader goes through this, so a new
+ * hiding rule lands once.
  */
 export function visibleRegistrationRows(
   rows: readonly ReplicatedDogRegistration[],
   dogIds: readonly string[]
 ): ReplicatedDogRegistration[] {
   const wanted = new Set(dogIds);
-  const forDogs = rows.filter(row => wanted.has(row.dogId));
-  const twins = indexServerTwins(forDogs.filter(row => row._localOnly !== true));
-  const live = forDogs.filter(row => row._pendingDelete !== true);
-  const resolved = resolvedPlaceholderIds(live.filter(isPlaceholder), twins);
-  return live.filter(row => !resolved.has(row.id));
+  const live = rows.filter(row => wanted.has(row.dogId) && row._pendingDelete !== true);
+  const twins = indexServerTwins(live.filter(row => row._localOnly !== true));
+  return live.filter(row => row._localOnly !== true || !hasServerTwin(row, twins));
 }
 
 /**
- * Only the work this device has not sent, for these dogs: dirty rows (edits,
- * pending deletes, queued adds) and `_localOnly` placeholders, raw. A server
- * read is merged with these (`mergeUnsentWork`), never with clean cached
- * copies, which may be rows the server no longer returns.
+ * Only the work this device has not sent: dirty rows and `_localOnly`
+ * placeholders (still hidden once their server twin is here). An untrusted
+ * replica adds these to a server read, never its clean cached copies, which
+ * may be rows the server no longer returns.
  */
-export function unsentRegistrationWork(
+export function unsentRegistrationRows(
   stored: readonly ReplicatedRow<ReplicatedDogRegistration>[],
   dogIds: readonly string[]
 ): ReplicatedDogRegistration[] {
-  const wanted = new Set(dogIds);
-  return stored
-    .filter(row => row.isDirty || row.data?._localOnly === true)
-    .map(row => row.data)
-    .filter(row => wanted.has(row.dogId));
+  const unsent = new Set(
+    stored.filter(row => row.isDirty || row.data?._localOnly === true).map(row => row.id)
+  );
+  return visibleRegistrationRows(
+    stored.map(row => row.data),
+    dogIds
+  ).filter(row => unsent.has(row.id));
 }

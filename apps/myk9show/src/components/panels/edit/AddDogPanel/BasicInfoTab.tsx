@@ -17,7 +17,6 @@ import { usePeopleQuery } from '@/hooks/usePeopleQuery';
 import { FormField } from '@/components/common/FormField';
 import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import { calculateAge } from './validation';
-import { ADD_REGISTRATION_ATTR } from './validationTab';
 import type { DogFormData } from './types';
 import { DobYoungDogWarning } from '../DobYoungDogWarning';
 import { tabCardClasses } from './tabCard';
@@ -99,15 +98,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               To enter most classes, your dog needs an organization registration. Breed is recorded
               with that registration, so you only enter it once.
             </p>
-            {/* Tagged like the Registration tab's button: only the shown tab is mounted, so
-                leaving the registration view finds whichever one opened it (MYK9-1116). */}
-            <Button
-              type="button"
-              variant="outline"
-              size="touch"
-              onClick={onAddRegistration}
-              {...{ [ADD_REGISTRATION_ATTR]: '' }}
-            >
+            <Button type="button" variant="outline" size="touch" onClick={onAddRegistration}>
               Add dog registration
             </Button>
           </div>

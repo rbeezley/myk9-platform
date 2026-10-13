@@ -18,6 +18,12 @@ vi.mock('@/services/replication', async importOriginal => ({
   ...(await importOriginal<Record<string, unknown>>()),
   replicatedPaperworkPrintsTable: {
     getByShow: vi.fn(async () => [{ id: 'print-1' }]),
+    getCurrentAuthUserId: async () => 'user-test',
+    getSyncMetadata: async () => ({
+      tableName: 'paperwork_prints',
+      totalRows: 1,
+      syncedByAuthUserId: 'user-test',
+    }),
     sync: vi.fn(async () => ({ success: false })),
     subscribe: vi.fn(() => () => {}),
   },

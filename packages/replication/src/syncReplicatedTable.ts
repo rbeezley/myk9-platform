@@ -37,6 +37,14 @@ export interface SyncReplicatedTableOptions extends Partial<SyncOptions> {
    *
    *  Per-call override takes precedence over `configureConflictSurfacing()`. */
   conflictSurfacingEnabled?: boolean;
+  /**
+   * MYK9-1133, opt-in. Stamp the scope (or, for an unscoped sync, the table)
+   * with the signed-in auth user, and make the first sync by an account that
+   * did not stamp the rows already here remove those clean rows before it
+   * stamps. Off by default: a table that does not opt in behaves exactly as
+   * before and carries no stamp.
+   */
+  stampSyncingAccount?: boolean;
 }
 
 /**
@@ -86,6 +94,17 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     // reading after the status write would lose the prior counts needed to
     // detect an unexpected replica recovery.
     const metadata = await table.getSyncMetadata(scope.value);
+
+    // MYK9-1133: a scope's rows belong to the account that synced them. Settle
+    // who is syncing before the fetch, and compare again after it.
+    const stampAccount = options.stampSyncingAccount === true;
+    const startAuthUserId = stampAccount ? await table.getCurrentAuthUserId() : null;
+    // Rows already here that this account did not stamp (another account's, or
+    // a pre-stamp cache): they are not part of what this sync proves.
+    const scopeHoldsOthersRows =
+      stampAccount &&
+      metadata?.totalRows !== undefined &&
+      metadata.syncedByAuthUserId !== startAuthUserId;
 
     await table.updateSyncMetadata({ syncStatus: 'syncing', errorMessage: undefined });
 
@@ -143,7 +162,8 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       localRows.length === 0 ||
       partialReplica ||
       overReplica ||
-      fullSyncStale;
+      fullSyncStale ||
+      (scopeHoldsOthersRows && startAuthUserId !== null);
 
     // Observability: a full sync triggered by an empty local replica that metadata
     // says previously held rows is an unexpected eviction/heal — the silent failure
@@ -304,7 +324,42 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       }
     }
 
+    // MYK9-1133: the first sync by this account over rows it did not stamp
+    // removes every clean row the server did not return, whatever the adapter's
+    // own cleanup policy: those rows are another account's, and the empty-scope
+    // proof exists to guard THIS account's replica against an RLS gap. Dirty
+    // rows stay. A fetch known to be partial, or an unreadable store, leaves the
+    // scope unstamped (cold) instead.
+    let foreignRowsCleared = false;
+    if (scopeHoldsOthersRows && startAuthUserId !== null && !staleCleanupCompleted) {
+      const fetchComplete =
+        expectedRemoteRows === undefined || coveredServerIds.size >= expectedRemoteRows;
+      // An empty fetch is no proof the rows are gone: a claims or RLS gap reads
+      // 0 and 0 for a legitimate account (MYK9-880). Without the same proof the
+      // cleanup above needs, remove nothing and leave the scope unstamped (cold).
+      const keep =
+        fetchComplete && (await scopeEmptyIsProven())
+          ? await staleCleanupKeepIds(table, serverIds, await getLocalRowsForScope())
+          : null;
+      if (keep) {
+        rowsAffected += await table.removeStaleEntries(keep, { syncedBefore: fetchStartedAt });
+        staleCleanupCompleted = true;
+        foreignRowsCleared = true;
+      }
+    }
+
     await adapter.afterSuccessfulSync?.({ scope, serverIds, localRows, staleCleanupCompleted });
+
+    // The stamp: this account, only when it was the account at both ends of the
+    // sync and the scope holds nothing it did not fetch. Otherwise cleared, so
+    // the scope reads as cold rather than as someone's.
+    let scopeSyncedBy: string | null | undefined;
+    if (stampAccount) {
+      const endAuthUserId = await table.getCurrentAuthUserId();
+      const identityHeld = startAuthUserId !== null && startAuthUserId === endAuthUserId;
+      scopeSyncedBy =
+        identityHeld && (!scopeHoldsOthersRows || foreignRowsCleared) ? startAuthUserId : null;
+    }
 
     // Server-authoritative, monotonic watermark, routed to the correct scope slot.
     // Advance only to a timestamp the client actually observed from the server, and
@@ -330,7 +385,11 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         totalRows: (await getLocalRowsForScope()).length,
         ...(expectedRemoteRows !== undefined ? { expectedRemoteRows } : {}),
       },
-      { scopeValue: scope.value, advanceWatermarkMonotonically: advanceWatermark }
+      {
+        scopeValue: scope.value,
+        advanceWatermarkMonotonically: advanceWatermark,
+        ...(scopeSyncedBy !== undefined ? { scopeSyncedBy } : {}),
+      }
     );
 
     // An incremental fetch can hide a deletion behind an equal count (one row

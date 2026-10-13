@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { replicatedPaperworkPrintsTable } from '@/services/replication';
+import { assertScopeNotForeign } from '@/services/replication/scopeAccountStamp';
 import { subscribeToShowChanges } from '@/features/show-live-sync/showChangeSignal';
 
 export function useShowPaperworkPrints(showId: string) {
@@ -52,7 +53,12 @@ export function useShowPaperworkPrints(showId: string) {
 
   const query = useQuery({
     queryKey,
-    queryFn: () => replicatedPaperworkPrintsTable.getByShow(showId),
+    queryFn: async () => {
+      // Another account's synced show is an error here, never its rows or an
+      // empty list (MYK9-1133); the sync above restamps the show for this one.
+      await assertScopeNotForeign(replicatedPaperworkPrintsTable, showId);
+      return replicatedPaperworkPrintsTable.getByShow(showId);
+    },
     // IndexedDB only: never pause it for the network (MYK9-955 offline reload).
     networkMode: 'always',
   });

@@ -68,8 +68,8 @@ export async function markReplicatedRowSynced(
 export async function removeOrphanedLocalOnlyRow(
   db: IDBPDatabase,
   discarded: PendingMutation
-): Promise<boolean> {
-  if (discarded.operation !== 'INSERT') return false;
+): Promise<void> {
+  if (discarded.operation !== 'INSERT') return;
   const rowId = String(discarded.rowId);
   const key = [discarded.tableName, rowId];
 
@@ -97,16 +97,11 @@ export async function removeOrphanedLocalOnlyRow(
     .index('tableName_rowId')
     .count(key);
   const data = row?.data as { _localOnly?: unknown } | null | undefined;
-  let removed = false;
   if (row && data !== null && typeof data === 'object' && data._localOnly === true) {
     const failedForRow = failed.some(m => String(m.rowId) === rowId);
-    if (pending === 0 && !failedForRow) {
-      await rows.delete(key);
-      removed = true;
-    }
+    if (pending === 0 && !failedForRow) await rows.delete(key);
   }
   await tx.done;
-  return removed;
 }
 
 export function remapDogIdReferences<T extends Record<string, unknown>>(

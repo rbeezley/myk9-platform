@@ -7,14 +7,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  * MYK9-1125: the online-only mutations an edit panel awaits must FAIL FAST when
  * the connection is gone, not pause. A paused mutation never settles, so the
  * panel's Save would spin forever and the write would fire late on reconnect.
- * Each of these writes straight to PostgREST, so pausing buys nothing. The
- * registration add and edit are not here: they are queued on the registrations
- * replica and succeed offline (MYK9-1090, ManageRegistrationsPanel.queued.test).
+ * Each of these writes straight to PostgREST, so pausing buys nothing.
  */
 const failed = { data: null, error: new TypeError('Failed to fetch') };
 const services = vi.hoisted(() => ({
   createManualResult: vi.fn(),
   createDog: vi.fn(),
+  createRegistration: vi.fn(),
+  updateRegistration: vi.fn(),
   updateClass: vi.fn(),
 }));
 
@@ -26,6 +26,11 @@ vi.mock('@/services/database/dogs', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/database/dogs')>()),
   createDog: services.createDog,
 }));
+vi.mock('@/services/database/registrations', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/database/registrations')>()),
+  createRegistration: services.createRegistration,
+  updateRegistration: services.updateRegistration,
+}));
 vi.mock('@/services/database/classes', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/database/classes')>()),
   updateClass: services.updateClass,
@@ -33,6 +38,10 @@ vi.mock('@/services/database/classes', async importOriginal => ({
 
 import { useCreateManualResultMutation } from '@/hooks/queries/useManualResultsDatabase';
 import { useCreateDogMutation } from '@/hooks/queries/useDogsDatabase';
+import {
+  useCreateRegistrationMutation,
+  useUpdateRegistrationMutation,
+} from '@/hooks/queries/useRegistrationsDatabase';
 import { useUpdateClassMutation } from '@/hooks/queries/useClassesDatabase';
 
 function makeWrapper() {
@@ -61,6 +70,18 @@ const CASES: ReadonlyArray<[string, () => SettlingMutation, unknown, () => unkno
     () => services.createManualResult,
   ],
   ['useCreateDogMutation (Add Dog)', useCreateDogMutation, { id: 'd1' }, () => services.createDog],
+  [
+    'useCreateRegistrationMutation (Add Registration)',
+    useCreateRegistrationMutation,
+    { dog_id: 'd1' },
+    () => services.createRegistration,
+  ],
+  [
+    'useUpdateRegistrationMutation (Edit Registration)',
+    useUpdateRegistrationMutation,
+    { id: 'r1', updates: {} },
+    () => services.updateRegistration,
+  ],
   [
     'useUpdateClassMutation (Edit Class)',
     useUpdateClassMutation,

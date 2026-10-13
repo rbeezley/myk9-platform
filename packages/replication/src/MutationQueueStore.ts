@@ -258,8 +258,8 @@ export class MutationQueueStore {
     if (!failed || failed.authUserId !== authUserId) return false;
     await confirmOwner();
     await db.delete(REPLICATION_STORES.FAILED_MUTATIONS, mutationId);
-    const rowRemoved = await removeOrphanedLocalOnlyRow(db, failed);
-    await this.discardReverters.afterDiscard(db, failed, rowRemoved);
+    await removeOrphanedLocalOnlyRow(db, failed);
+    await this.discardReverters.afterDiscard(db, failed);
     return true;
   }
 

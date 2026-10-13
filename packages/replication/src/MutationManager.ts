@@ -41,6 +41,7 @@ export class MutationManager {
   private restoreInFlight: Promise<void> | null = null;
   private uploadInFlight: Promise<SyncResult[]> | null = null;
   private readonly getCurrentUserId: () => Promise<string | null>;
+  private readonly getCachedUserId: () => string | null;
   private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext | null>;
   private readonly acquireQueueMutationLock: (() => () => void) | undefined;
   private readonly acquireQueueMutationLockAsync: (() => Promise<() => void>) | undefined;
@@ -52,6 +53,7 @@ export class MutationManager {
     if (!supabaseClient) throw new Error('[MutationManager] Supabase client is required');
     this.logger = options.logger ?? noopLogger;
     this.getCurrentUserId = options.getCurrentUserId ?? (async () => null);
+    this.getCachedUserId = options.getCachedUserId ?? (() => null);
     this.getCurrentUploadContext = options.getCurrentUploadContext ?? (async () => null);
     this.acquireQueueMutationLock = options.acquireQueueMutationLock;
     this.acquireQueueMutationLockAsync = options.acquireQueueMutationLockAsync;
@@ -71,6 +73,29 @@ export class MutationManager {
       () => this.requireCurrentUploadContext(),
       (tableName, rowId) => this.rowRefetchers.request(tableName, rowId)
     );
+  }
+
+  /**
+   * The current auth user id for comparing replica account stamps (MYK9-1133),
+   * or null when it cannot be settled. The live lookup `requireCurrentUserId`
+   * uses is tried first; when it throws or yields no user (an expired token
+   * cannot refresh offline) the optional cached id answers. For readers that
+   * branch on "unresolved" instead of failing: never for queue ownership.
+   */
+  async resolveCurrentUserId(): Promise<string | null> {
+    const usable = (id: unknown): id is string => typeof id === 'string' && id.trim().length > 0;
+    try {
+      const live = await this.getCurrentUserId();
+      if (usable(live)) return live;
+    } catch {
+      // Fall through: the live lookup fails offline once the token expires.
+    }
+    try {
+      const cached = this.getCachedUserId();
+      return usable(cached) ? cached : null;
+    } catch {
+      return null;
+    }
   }
 
   private async requireCurrentUserId(): Promise<string> {

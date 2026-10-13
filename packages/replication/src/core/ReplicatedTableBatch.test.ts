@@ -47,37 +47,6 @@ describe('ReplicatedTableBatchManager', () => {
     return rows;
   }
 
-  // MYK9-1129 (Codex round 2): a table's refusal must hold at the write, not
-  // where the caller decided to write, so it is asked inside the transaction.
-  describe('acceptsRemoteRow', () => {
-    it.each(['batchSet', 'batchSetChunked'] as const)(
-      '%s skips a row the table refuses, decided after the call was made',
-      async method => {
-        const refused = new Set<string>();
-        const manager = new ReplicatedTableBatchManager<TestEntity>(
-          tableName,
-          { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
-          async () => {
-            // The refusal arrives after batchSet was called, before its write.
-            refused.add('2');
-            return db;
-          },
-          notifyListeners as () => void,
-          async () => 0,
-          id => !refused.has(id)
-        );
-        const items = [
-          { id: '1', name: 'kept' },
-          { id: '2', name: 'refused' },
-        ];
-
-        await (method === 'batchSet' ? manager.batchSet(items) : manager.batchSetChunked(items, 1));
-
-        expect((await getAllRows()).map(row => row.id)).toEqual(['1']);
-      }
-    );
-  });
-
   describe('stale download vs acknowledged write (MYK9-1050)', () => {
     const versions = (v: number) => new Map([['1', v]]);
     const apply = (method: 'batchSet' | 'batchSetChunked', items: TestEntity[], v: number) =>

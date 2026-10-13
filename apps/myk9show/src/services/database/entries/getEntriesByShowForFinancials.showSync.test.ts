@@ -12,6 +12,7 @@ const { mockEntriesTable, online } = vi.hoisted(() => ({
   mockEntriesTable: {
     sync: vi.fn(),
     getEntriesByShow: vi.fn(),
+    getCurrentAuthUserId: async () => 'user-test',
     getSyncMetadata: vi.fn(),
     getReplicatedRow: vi.fn(),
   },
@@ -148,7 +149,11 @@ describe('getEntriesByShowForFinancials on a show that has not synced (MYK9-761)
   });
 
   it('reads locally once the show has synced', async () => {
-    mockEntriesTable.getSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 1 });
+    mockEntriesTable.getSyncMetadata.mockResolvedValue({
+      tableName: 'entries',
+      totalRows: 1,
+      syncedByAuthUserId: 'user-test',
+    });
     online.error = new TypeError('Failed to fetch');
 
     const result = await getEntriesByShowForFinancials('s1');

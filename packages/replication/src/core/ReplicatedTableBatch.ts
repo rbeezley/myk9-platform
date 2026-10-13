@@ -38,12 +38,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
     private getDb: () => Promise<IDBPDatabase>,
     private notifyListeners: () => void,
     /** Frees cache space when a bulk write hits the storage quota. */
-    private relieveQuota: () => Promise<number>,
-    /**
-     * Whether a downloaded row may be stored, asked inside the write's
-     * transaction just before the put (see ReplicatedTable.acceptsRemoteRow).
-     */
-    private acceptsRemoteRow: (id: string) => boolean = () => true
+    private relieveQuota: () => Promise<number>
   ) {}
 
   /**
@@ -80,16 +75,6 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
       if (existingRow?.isDirty) {
         this.logger.log(
           `[${this.tableName}] Skipped server push for row ${normalizedId} — local mutation pending`
-        );
-        continue;
-      }
-
-      // Asked synchronously inside this transaction, right before the put, so a
-      // decision the table made after the download was read (a delete it saw
-      // confirmed) still holds at the write.
-      if (!this.acceptsRemoteRow(normalizedId)) {
-        this.logger.log(
-          `[${this.tableName}] Skipped server push for row ${normalizedId} — refused`
         );
         continue;
       }
@@ -213,8 +198,6 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
             );
             continue;
           }
-
-          if (!this.acceptsRemoteRow(normalizedId)) continue;
 
           if (existingRow && isOlderThanRow(existingRow, serverVersions?.get(normalizedId))) {
             continue;

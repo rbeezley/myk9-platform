@@ -6,8 +6,13 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReplicatedEntriesTable, type ReplicatedEntry } from './ReplicatedEntriesTable';
+import { MutationManager } from '@myk9/replication';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { readPersistedAuthUserId } from '@/services/database/persistedAuthUserId';
+import { signInReplicatedTable } from '@/test/utils/signedInReplication';
 import {
   areEntryRowsFromSyncedShows,
+  excludeForeignShowRows,
   hasShowEntriesSynced,
   hasUnsavedLocalEntryWrites,
 } from './entriesShowSyncState';
@@ -33,6 +38,7 @@ describe('hasShowEntriesSynced (MYK9-746)', () => {
     const { databaseManager } = await import('@myk9/replication');
     await databaseManager.reset();
     table = new ReplicatedEntriesTable();
+    signInReplicatedTable(table, 'user-a');
     // reset() keeps the DATA; ask for an empty store so a shuffled run does
     // not inherit another test's rows or scope metadata.
     await table.clearCache();
@@ -58,7 +64,10 @@ describe('hasShowEntriesSynced (MYK9-746)', () => {
       allowColdInsert: 'local create',
     });
     // What syncReplicatedTable writes on success, routed to the show's scope.
-    await table.updateSyncMetadata({ totalRows: 3 }, { scopeValue: 'show-1' });
+    await table.updateSyncMetadata(
+      { totalRows: 3 },
+      { scopeValue: 'show-1', scopeSyncedBy: 'user-a' }
+    );
 
     expect(await hasShowEntriesSynced('show-1', table)).toBe(true);
     // Another show's sync proves nothing about this one.
@@ -66,13 +75,19 @@ describe('hasShowEntriesSynced (MYK9-746)', () => {
   });
 
   it('a synced show with zero entries still counts as synced', async () => {
-    await table.updateSyncMetadata({ totalRows: 0 }, { scopeValue: 'show-1' });
+    await table.updateSyncMetadata(
+      { totalRows: 0 },
+      { scopeValue: 'show-1', scopeSyncedBy: 'user-a' }
+    );
 
     expect(await hasShowEntriesSynced('show-1', table)).toBe(true);
   });
 
   it('rows are from synced shows only when every show they name has synced', async () => {
-    await table.updateSyncMetadata({ totalRows: 2 }, { scopeValue: 'show-1' });
+    await table.updateSyncMetadata(
+      { totalRows: 2 },
+      { scopeValue: 'show-1', scopeSyncedBy: 'user-a' }
+    );
 
     expect(await areEntryRowsFromSyncedShows([], table)).toBe(true);
     expect(await areEntryRowsFromSyncedShows([entry('a'), entry('b')], table)).toBe(true);
@@ -98,10 +113,117 @@ describe('hasShowEntriesSynced (MYK9-746)', () => {
   });
 
   it('clearing the cache returns every show to unsynced', async () => {
-    await table.updateSyncMetadata({ totalRows: 3 }, { scopeValue: 'show-1' });
+    await table.updateSyncMetadata(
+      { totalRows: 3 },
+      { scopeValue: 'show-1', scopeSyncedBy: 'user-a' }
+    );
 
     await table.clearCache();
 
     expect(await hasShowEntriesSynced('show-1', table)).toBe(false);
+  });
+
+  describe('whose sync it was (MYK9-1133)', () => {
+    const stamp = (syncedBy?: string) =>
+      table.updateSyncMetadata(
+        { totalRows: 2 },
+        { scopeValue: 'show-1', ...(syncedBy ? { scopeSyncedBy: syncedBy } : {}) }
+      );
+
+    it("a scope another account synced is not this account's", async () => {
+      await stamp('user-b');
+
+      expect(await hasShowEntriesSynced('show-1', table)).toBe(false);
+    });
+
+    it('a scope with no stamp (a cache from before the stamp) is cold', async () => {
+      await stamp();
+
+      expect(await hasShowEntriesSynced('show-1', table)).toBe(false);
+    });
+
+    it('an unresolved account owns no scope', async () => {
+      await stamp('user-a');
+      vi.spyOn(table, 'getCurrentAuthUserId').mockResolvedValue(null);
+
+      expect(await hasShowEntriesSynced('show-1', table)).toBe(false);
+    });
+
+    it('rows of a show another account synced are dropped; never-synced and show-less rows are kept', async () => {
+      await stamp('user-b');
+      await table.updateSyncMetadata(
+        { totalRows: 1 },
+        { scopeValue: 'show-3', scopeSyncedBy: 'user-a' }
+      );
+      const rows = [
+        entry('theirs', 'show-1'),
+        entry('mine', 'show-3'),
+        entry('local-only', 'show-9'),
+        { id: 'no-show' } as ReplicatedEntry,
+      ];
+
+      expect((await excludeForeignShowRows(rows, table)).map(row => row.id)).toEqual([
+        'mine',
+        'local-only',
+        'no-show',
+      ]);
+    });
+  });
+
+  // The expired-token-offline case, end to end through the real manager: the
+  // live lookup throws (as getSession() does), the persisted session answers.
+  describe('offline with an expired token (MYK9-1133)', () => {
+    const KEY = 'sb-test-auth-token';
+    let persisted: Record<string, string>;
+
+    beforeEach(() => {
+      persisted = {};
+      vi.restoreAllMocks();
+      const manager = new MutationManager({} as SupabaseClient, {
+        getCurrentUserId: async () => {
+          throw new Error('AuthRetryableFetchError');
+        },
+        getCachedUserId: () => readPersistedAuthUserId({ getItem: k => persisted[k] ?? null }, KEY),
+      });
+      table.setMutationManager(manager);
+    });
+
+    const persistSession = (id: string) => {
+      persisted[KEY] = JSON.stringify({ access_token: 'expired', user: { id } });
+    };
+    const syncedBy = (id: string) =>
+      table.updateSyncMetadata({ totalRows: 2 }, { scopeValue: 'show-1', scopeSyncedBy: id });
+
+    it("an account's own stamped show still reads as synced", async () => {
+      await syncedBy('user-a');
+      persistSession('user-a');
+
+      expect(await hasShowEntriesSynced('show-1', table)).toBe(true);
+    });
+
+    it('no persisted session means the show reads as not this account (cold, not empty)', async () => {
+      await syncedBy('user-a');
+
+      expect(await hasShowEntriesSynced('show-1', table)).toBe(false);
+    });
+
+    it("another account's persisted session leaves the first account's show foreign", async () => {
+      await syncedBy('user-a');
+      persistSession('user-b');
+
+      expect(await hasShowEntriesSynced('show-1', table)).toBe(false);
+    });
+
+    it('sign-out then B signing in replaces the persisted session, so A is not reused', async () => {
+      await syncedBy('user-a');
+      persistSession('user-a');
+      expect(await hasShowEntriesSynced('show-1', table)).toBe(true);
+
+      delete persisted[KEY];
+      expect(await hasShowEntriesSynced('show-1', table)).toBe(false);
+
+      persistSession('user-b');
+      expect(await hasShowEntriesSynced('show-1', table)).toBe(false);
+    });
   });
 });

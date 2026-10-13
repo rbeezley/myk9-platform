@@ -15,7 +15,7 @@
  *   yet), and
  *   unsent registrations. Registrations come from `loadDogRegistrations`, the
  *   roster's read, so the dog page and the roster resolve the same primary
- *   registration (one merge rule: `mergeUnsentWork` + local creation order).
+ *   registration (one merge rule: `dropServerTwins` + local creation order).
  * - Only when the server cannot be REACHED (`serverUnreachable`) does the
  *   device copy answer. A server that answered with an error is an error,
  *   never an empty or missing dog.

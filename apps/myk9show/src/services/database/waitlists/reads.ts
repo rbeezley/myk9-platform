@@ -8,6 +8,8 @@
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
+import { assertTableNotForeign } from '@/services/replication/scopeAccountStamp';
+import { excludeForeignShowRows } from '@/services/replication/entriesShowSyncState';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
@@ -103,6 +105,7 @@ export const getWaitlistByClass = async (classId: string) => {
   const startTime = Date.now();
 
   try {
+    await assertTableNotForeign(replicatedWaitlistEntriesTable, 'the waitlist');
     const waitlistEntries = filterQueuedWaitlistEntries(
       await replicatedWaitlistEntriesTable.getByClass(classId)
     );
@@ -142,6 +145,7 @@ export const getWaitlistOffersByClass = async (classId: string) => {
   const startTime = Date.now();
 
   try {
+    await assertTableNotForeign(replicatedWaitlistEntriesTable, 'the waitlist');
     const offered = filterOfferedWaitlistEntries(
       await replicatedWaitlistEntriesTable.getByClass(classId)
     );
@@ -214,10 +218,12 @@ export const getClassesWithWaitlistCounts = async (showId: string) => {
     const classes = allClasses.flat();
 
     // Batch-load all entries and waitlist entries once, count per class in JS
-    const [allEntries, allWaitlist] = await Promise.all([
+    await assertTableNotForeign(replicatedWaitlistEntriesTable, 'the waitlist');
+    const [storedEntries, allWaitlist] = await Promise.all([
       replicatedEntriesTable.getAllOrThrow(),
       replicatedWaitlistEntriesTable.getAllOrThrow(),
     ]);
+    const allEntries = await excludeForeignShowRows(storedEntries);
 
     const classesWithCounts = classes.map(cls => {
       const acceptedCount = countSeatHoldingEntries(allEntries.filter(e => e.classId === cls.id));

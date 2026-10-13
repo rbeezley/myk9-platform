@@ -16,6 +16,7 @@ import { subscribeAtShowSyncSettled, syncAtShowData } from '@/features/at-show/a
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useOptionalReplicationSync } from '@/hooks/useOptionalReplicationSync';
 import { logger } from '@/services/LoggingService';
+import { getScopeOwnership } from '@/services/replication/scopeAccountStamp';
 import {
   computeOfflineReadiness,
   type OfflineReadiness,
@@ -28,6 +29,19 @@ import {
   type ScopedMeta,
 } from './showStructureScopes';
 
+/**
+ * The show's entries scope metadata, or null when another account (or a build
+ * that stamped nothing) synced it: the entries reads refuse such a scope, so
+ * the cache is not offline-ready for this account (MYK9-1133).
+ */
+async function readOwnEntriesMeta(showId: string): Promise<ScopedMeta | null> {
+  const [meta, ownership] = await Promise.all([
+    replicatedEntriesTable.getSyncMetadata(showId) as Promise<ScopedMeta | null>,
+    getScopeOwnership(replicatedEntriesTable, showId),
+  ]);
+  return ownership === 'foreign' ? null : meta;
+}
+
 async function gatherReadiness(
   showId: string,
   userId: string,
@@ -39,7 +53,7 @@ async function gatherReadiness(
   // The async helper goes last: if an earlier read throws while this array is
   // built, it never starts, so no rejection is left unhandled.
   const [entriesMeta, entryRows, structure] = await Promise.all([
-    replicatedEntriesTable.getSyncMetadata(showId) as Promise<ScopedMeta | null>,
+    readOwnEntriesMeta(showId),
     replicatedEntriesTable.getEntriesByShow(showId),
     gatherShowStructureScopes(showId),
   ]);

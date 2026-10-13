@@ -16,6 +16,8 @@ import {
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import {
   areEntryRowsFromSyncedShows,
+  assertShowEntriesNotForeign,
+  excludeForeignShowRows,
   hasShowEntriesSynced,
   hasUnsavedWritesAmong,
 } from '@/services/replication/entriesShowSyncState';
@@ -705,7 +707,7 @@ export const getAllEntries = async () => {
         loadShowsMap(),
       ]);
       const sortedEntries = sortedCopy(
-        entries.filter(isLiveEntry),
+        (await excludeForeignShowRows(entries)).filter(isLiveEntry),
         compareDateDesc(getEntryCreatedSortValue)
       );
       const data = await mapReplicatedEntriesWithHandlerIdentity(sortedEntries, dogsMap, entry =>
@@ -767,6 +769,7 @@ export const getEntriesByShow = async (showId: string) => {
   let unverified = false;
   const result = await readWithReplicationFallback({
     replication: async () => {
+      await assertShowEntriesNotForeign(showId);
       const [entries, scopeSynced, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
         hasShowEntriesSynced(showId),
@@ -826,6 +829,7 @@ export const getEntriesByShow = async (showId: string) => {
 export const getEntriesByShowFromReplication = async (showId: string) => {
   return readWithReplicationFallback({
     replication: async () => {
+      await assertShowEntriesNotForeign(showId);
       const [rawEntries, scopeSynced, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
         hasShowEntriesSynced(showId),
@@ -959,7 +963,9 @@ export const getEntriesByTrial = async (trialId: string) => {
       const trialClassIds = new Set(trialClasses.map(c => c.id));
       const classesMap = buildMapFromArray(trialClasses, c => c.id);
       // Filter entries to only those whose classId is in the trial's classes (inner join)
-      const inTrial = allEntries.filter(e => e.classId && trialClassIds.has(e.classId));
+      const inTrial = await excludeForeignShowRows(
+        allEntries.filter(e => e.classId && trialClassIds.has(e.classId))
+      );
       const filtered = inTrial.filter(isLiveEntry);
       // Tombstones — a queued delete not yet synced. Required because this read
       // opts into `verifyOnlineWhenEmpty`: a replica holding only a soft-deleted
@@ -1015,10 +1021,11 @@ export const getEntriesByTrial = async (trialId: string) => {
 export const getEntriesByClass = async (classId: string) => {
   return readWithReplicationFallback({
     replication: async () => {
-      const [entries, dogsMap] = await Promise.all([
+      const [classEntries, dogsMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByClass(classId),
         loadDogsMap(),
       ]);
+      const entries = await excludeForeignShowRows(classEntries);
       // Locally-tombstoned entries (a queued delete not yet synced), reported so
       // the online verification excludes them and a stale server row cannot
       // resurrect a just-deleted entry. See read-shape.ts.

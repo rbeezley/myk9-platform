@@ -28,6 +28,7 @@ const {
     get getAllOrThrow() {
       return this.getAll;
     },
+    getCurrentAuthUserId: async () => 'user-test',
     getSyncMetadata: vi.fn(),
     getReplicatedRow: vi.fn(),
   },
@@ -96,7 +97,11 @@ describe('getEntriesByShow — cold local replica verifies online', () => {
     mockEntriesTable.sync.mockResolvedValue({ success: true });
     // Cached entries below come from a show scope that has synced before.
     mockEntriesTable.getSyncMetadata.mockReset();
-    mockEntriesTable.getSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 1 });
+    mockEntriesTable.getSyncMetadata.mockResolvedValue({
+      tableName: 'entries',
+      totalRows: 1,
+      syncedByAuthUserId: 'user-test',
+    });
     mockEntriesTable.getReplicatedRow.mockReset();
     mockEntriesTable.getReplicatedRow.mockImplementation(async (id: string) => ({
       id,

@@ -39,10 +39,16 @@ export async function mirrorServerRegistration(row: unknown): Promise<void> {
   }
 }
 
-/** Remove a registration the server just deleted. */
-export async function mirrorServerDelete(id: string): Promise<void> {
+/**
+ * Remove a registration the server just deleted, and any offline-created
+ * placeholder that is its twin (`deletedRow` carries dog and created_at).
+ */
+export async function mirrorServerDelete(
+  id: string,
+  deletedRow?: Record<string, unknown>
+): Promise<void> {
   try {
-    await replicatedDogRegistrationsTable.removeDeletedOnServer(id);
+    await replicatedDogRegistrationsTable.removeDeletedOnServer(id, deletedRow);
   } catch (error) {
     await notifyAfterFailedMirror('delete', error);
   }

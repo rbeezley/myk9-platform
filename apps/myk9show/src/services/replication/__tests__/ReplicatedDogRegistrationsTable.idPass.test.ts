@@ -162,7 +162,6 @@ function uploadedDog(): ReplicatedDog {
   return { ...offlineDog(), _localOnly: undefined };
 }
 
-/** The server's copy of the placeholder's registration, under a server id. */
 /** The server's copy of a placeholder: a new id, the creation instant it was sent. */
 const serverTwin = async (placeholderId: string) =>
   serverRow({
@@ -213,6 +212,33 @@ describe('offline-created placeholders', () => {
     await new ReplicatedDogsTable().set('dog-offline', uploadedDog(), false);
 
     await table.removeResolvedPlaceholders();
+
+    expect(await table.get(id)).not.toBeNull();
+  });
+
+  // The dog uploaded, its server rows never reached the device, and one is
+  // deleted. Without the deleted row as a twin the placeholder outlives it and
+  // shows the deleted registration again (Codex review).
+  it('are removed with a confirmed delete of their server twin the device never held', async () => {
+    const id = await placeholderFor('dog-offline');
+    await new ReplicatedDogsTable().set('dog-offline', uploadedDog(), false);
+    const deleted = await serverTwin(id);
+
+    await table.removeDeletedOnServer(String(deleted.id), deleted);
+
+    expect(await table.get(id)).toBeNull();
+  });
+
+  it('stay when a delete of an unrelated registration is confirmed', async () => {
+    const id = await placeholderFor('dog-offline');
+    await new ReplicatedDogsTable().set('dog-offline', uploadedDog(), false);
+    const other = serverRow({
+      id: 'srv-other',
+      dog_id: 'dog-offline',
+      created_at: '2020-01-01T00:00:00Z',
+    });
+
+    await table.removeDeletedOnServer('srv-other', other);
 
     expect(await table.get(id)).not.toBeNull();
   });

@@ -238,7 +238,7 @@ export const deleteRegistration = async (id: string) => {
       .from('dog_registrations')
       .delete()
       .eq('id', id)
-      .select('id, dog_id, registration_number, organization')
+      .select('id, dog_id, registration_number, organization, created_at')
       .single();
 
     const duration = Date.now() - startTime;
@@ -248,7 +248,7 @@ export const deleteRegistration = async (id: string) => {
       throw createDatabaseError(error, 'dog_registration', 'delete');
     }
 
-    await mirrorServerDelete(id);
+    await mirrorServerDelete(id, data ?? undefined);
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;

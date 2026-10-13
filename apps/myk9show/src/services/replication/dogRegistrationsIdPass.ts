@@ -19,6 +19,7 @@ import {
   hasServerTwin,
   indexServerTwins,
   type ReplicatedDogRegistration,
+  type TwinFields,
 } from './dogRegistrationRows';
 
 /** The replica's IndexedDB handle (`ReplicatedTable.init()`). */
@@ -157,10 +158,15 @@ export async function pruneRegistrationsMissingFromServer(
  *
  * Otherwise it stays, including after its dog uploaded but before the
  * server's copies arrived: offline, it is the device's only copy.
+ *
+ * `deletedOnServer` adds twins the device never held: a direct delete the
+ * server just confirmed takes the deleted row's placeholder with it, or the
+ * placeholder would outlive its twin and show the deleted registration again.
  */
 export async function removeResolvedPlaceholders(
   db: ReplicaDb,
-  tableName: string
+  tableName: string,
+  deletedOnServer: readonly TwinFields[] = []
 ): Promise<string[]> {
   const { tx, rows, pending, failedRowIds } = await openRemovalTransaction(db);
   const all = (await rows
@@ -168,9 +174,10 @@ export async function removeResolvedPlaceholders(
     .getAll(tableName)) as ReplicatedRow<ReplicatedDogRegistration>[];
   const failedRegistrations = await failedRowIds(tableName);
   const failedDogs = await failedRowIds(DOGS_TABLE);
-  const twins = indexServerTwins(
-    all.filter(row => !row.isDirty && row.data?._localOnly !== true).map(row => row.data)
-  );
+  const twins = indexServerTwins([
+    ...all.filter(row => !row.isDirty && row.data?._localOnly !== true).map(row => row.data),
+    ...deletedOnServer,
+  ]);
 
   const deleted: string[] = [];
   for (const row of all) {

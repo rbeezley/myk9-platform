@@ -38,6 +38,7 @@ import {
   type DogRegistrationReadRow,
   type DogRegistrationRow,
   type ReplicatedDogRegistration,
+  twinFieldsOfDbRow,
 } from './dogRegistrationRows';
 import {
   fetchVisibleRegistrationIds,
@@ -272,9 +273,15 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
    * Subscribers hear about it even when nothing local changed (the device
    * never held the row), so the server-first readers still refresh.
    */
-  async removeDeletedOnServer(id: string): Promise<void> {
+  async removeDeletedOnServer(id: string, deletedRow?: Record<string, unknown>): Promise<void> {
     const { deleted } = await this.deleteRowsIfClean([id]);
-    if (deleted.length === 0) await this.notifyListeners();
+    const placeholders = deletedRow
+      ? await removeResolvedPlaceholders(await this.init(), this.getTableName(), [
+          twinFieldsOfDbRow(deletedRow),
+        ])
+      : [];
+    if (placeholders.length > 0) this.notifyListeners();
+    else if (deleted.length === 0) await this.notifyListeners();
   }
 
   /**

@@ -33,11 +33,15 @@ vi.mock('@/hooks/useAuthContext', () => ({
 }));
 
 vi.mock('@/lib/notifications', () => ({
-  notifications: { error: vi.fn(), success: vi.fn() },
+  notifications: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
 }));
 
 import { notifications } from '@/lib/notifications';
 import { useProfileForm } from '../useProfileForm';
+import {
+  PERSON_EDIT_NEEDS_CONNECTION_CODE,
+  PERSON_EDIT_NEEDS_CONNECTION_MESSAGE,
+} from '@/utils/signInEmailMessages';
 
 const dbPersonData = {
   id: 'person-123',
@@ -310,6 +314,29 @@ describe('useProfileForm', () => {
 
     expect(notifications.error).toHaveBeenCalledWith('Failed to update profile.');
     expect(result.current.saveError).toBe('Failed to update profile.');
+  });
+
+  // MYK9-1090: an offline edit is refused by updateUser with a coded message.
+  // The account form must show that message calmly, not "Failed to update
+  // profile." (adversarial review of #2950).
+  it('save() shows the reconnect message, as a warning, when the edit is refused offline', async () => {
+    mockMutateAsync.mockRejectedValue(
+      Object.assign(new Error(PERSON_EDIT_NEEDS_CONNECTION_MESSAGE), {
+        code: PERSON_EDIT_NEEDS_CONNECTION_CODE,
+      })
+    );
+
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
+
+    await waitForFormLoaded(result);
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(notifications.warning).toHaveBeenCalledWith(PERSON_EDIT_NEEDS_CONNECTION_MESSAGE);
+    expect(notifications.error).not.toHaveBeenCalled();
+    expect(result.current.saveError).toBe(PERSON_EDIT_NEEDS_CONNECTION_MESSAGE);
   });
 
   it('save() sets saveSuccess on success and clearSaveStatus resets it', async () => {

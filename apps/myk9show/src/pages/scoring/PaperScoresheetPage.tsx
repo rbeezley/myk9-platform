@@ -9,7 +9,9 @@ import { ScoresheetLoadingSkeleton } from '@/components/scoring/ScoringLoadingSk
 import { useScoringBreadcrumb } from './useScoringBreadcrumb';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { loadEntriesWithDogs } from './paperScoresheetData';
+import { requireClassEntriesWhole } from './paperScoresheetReadiness';
 import { REFRESH_FAILED_MESSAGE, refreshEntriesAfterSave } from './paperScoresheetReload';
 import { type ScoresheetSportType } from '@myk9/scoring-ui';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -79,26 +81,45 @@ export function PaperScoresheetPage() {
   const pendingAdvanceRef = useRef<{ from: string; afterLoad: number } | null>(null);
 
   useEffect(() => {
-    // A retry can overlap an earlier load; only the latest may write (MYK9-774).
-    let cancelled = false;
-    async function load() {
+    // A retry or a replica change can overlap an earlier load; only the latest
+    // may write (MYK9-774).
+    let disposed = false;
+    let latest = 0;
+    // The page's own load may be waiting on the cold sync, which writes rows
+    // (notifying) BEFORE it records the scope as synced. A reload on that
+    // notification would read "not synced" and overrule it, so a change during
+    // that load is replayed once it finishes instead.
+    let refreshing = false;
+    let changedWhileRefreshing = false;
+    // `refresh`: the page's own load (mount, Try again) shows the skeleton and
+    // may sync a cold show; a reload on a replica change does neither.
+    async function load(refresh: boolean) {
       if (!classId) return;
-      setIsLoading(true);
-      setError(null);
+      const run = ++latest;
+      const cancelled = () => disposed || run !== latest;
+      if (refresh) {
+        refreshing = true;
+        setIsLoading(true);
+        setError(null);
+      }
       try {
         const cls = await replicatedClassesTable.getClassById(classId);
-        if (cancelled) return;
+        if (cancelled()) return;
         if (!cls) {
           setError('Class not found');
           return;
         }
+        // An empty read is only "no dogs" once the show's entries have synced
+        // here; before that it is "not loaded yet" (MYK9-1130).
+        await requireClassEntriesWhole(cls.trialId, { refresh });
         const scoringEntries = await loadEntriesWithDogs(classId);
-        if (cancelled) return;
+        if (cancelled()) return;
+        setError(null);
         setEntries(calculatePlacements(scoringEntries));
         setFreshLoads(count => count + 1);
         setClassName(cls.name);
         const derivedSport = await resolveSportTypeForClass(cls.trialId);
-        if (cancelled) return;
+        if (cancelled()) return;
         if (derivedSport) {
           const { organization, sportType } = mapSportType(derivedSport);
           setSportKey(toRegistryKey(organization, sportType));
@@ -106,15 +127,27 @@ export function PaperScoresheetPage() {
         const rules = classScoringRules(cls);
         setMaxTimeSeconds(rules.areaCount > 1 ? undefined : rules.maxTimeSeconds);
       } catch (err) {
-        if (cancelled) return;
+        if (cancelled()) return;
         setError(err instanceof Error ? err.message : 'Failed to load');
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled()) setIsLoading(false);
+        if (refresh) {
+          refreshing = false;
+          if (changedWhileRefreshing && !disposed) onReplicaChange();
+        }
       }
     }
-    load();
+    function onReplicaChange() {
+      changedWhileRefreshing = refreshing;
+      if (!refreshing) void load(false);
+    }
+    // Subscribed before the first read, so rows a sync writes while it runs
+    // still reload the list: entries arriving after mount appear by themselves.
+    const unsubscribe = replicatedEntriesTable.subscribe(onReplicaChange, { emitCurrent: false });
+    void load(true);
     return () => {
-      cancelled = true;
+      disposed = true;
+      unsubscribe();
     };
   }, [classId, loadAttempt]);
 
@@ -288,7 +321,11 @@ export function PaperScoresheetPage() {
           scoring.mode === 'sequential' && 'overflow-y-auto'
         )}
       >
-        {scoring.mode === 'split' ? (
+        {entries.length === 0 ? (
+          <p className="py-12 text-center text-muted-foreground">
+            No dogs are on this class’s run list.
+          </p>
+        ) : scoring.mode === 'split' ? (
           <SplitPanelView
             entries={entries}
             settings={scoring.sessionSettings}

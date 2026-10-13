@@ -42,7 +42,21 @@ vi.mock('./hooks/usePaperScoring', () => ({
 vi.mock('./paperScoresheetData', () => ({ loadEntriesWithDogs: harness.load }));
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   replicatedClassesTable: {
-    getClassById: vi.fn().mockResolvedValue({ id: 'class-1', name: 'Container Novice' }),
+    getClassById: vi
+      .fn()
+      .mockResolvedValue({ id: 'class-1', name: 'Container Novice', trialId: 'trial-1' }),
+  },
+}));
+// A warm device: the show's entries scope has synced (MYK9-1130).
+vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
+  replicatedTrialsTable: {
+    getTrialById: vi.fn().mockResolvedValue({ id: 'trial-1', showId: 'show-1' }),
+  },
+}));
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: {
+    getSyncMetadata: vi.fn().mockResolvedValue({ totalRows: 2 }),
+    subscribe: vi.fn(() => () => {}),
   },
 }));
 

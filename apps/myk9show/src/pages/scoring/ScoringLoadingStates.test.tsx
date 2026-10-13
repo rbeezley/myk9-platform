@@ -83,7 +83,12 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   replicatedClassesTable: { getClassById: vi.fn(), sync: vi.fn() },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
-  replicatedEntriesTable: { getEntriesByClass: vi.fn(), sync: vi.fn(), updateEntry: vi.fn() },
+  replicatedEntriesTable: {
+    getEntriesByClass: vi.fn(),
+    sync: vi.fn(),
+    updateEntry: vi.fn(),
+    subscribe: vi.fn(() => () => {}),
+  },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { get: vi.fn() },

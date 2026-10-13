@@ -74,28 +74,16 @@ async function findFixtureClass(page: Page, auth: RestAuth, today: string) {
 /**
  * Paper-score both fixture dogs Qualified, unless a previous run already scored the class.
  *
- * The paper page reads the LOCAL replica once on mount (PaperScoresheetPage.tsx load effect) and
- * never re-reads when entries sync in, so a cold direct load can list zero dogs while its
- * "0 of 0 scored" counter is already on screen (the first CI run timed out waiting for a dog
- * button for this reason). The Results tab reads reactively, so it is opened first and given time
- * to show the class's two dogs; only then does the paper page load, from a warm replica. The dog
- * wait reloads once more in case the replica was still filling.
+ * A direct cold load of the paper page, deliberately, with no warm-up and no reload: the page
+ * syncs the show's entries itself and lists dogs that reach the replica after mount, never a
+ * never-synced "0 of 0 scored" (MYK9-1130).
  */
-async function scoreFromPaper(page: Page, resultsUrl: string, classId: string) {
-  await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
-  await expect(
-    page.getByRole('list', { name: 'Classes' }).getByText(/Scored\s*\d+\s*\/\s*2/)
-  ).toBeVisible({ timeout: 45_000 });
-
+async function scoreFromPaper(page: Page, classId: string) {
   await page.goto(`/scoring/classes/${classId}/entries?mode=split`, {
     waitUntil: 'domcontentloaded',
   });
-  await expect(page.getByRole('heading', { name: CLASS_NAME })).toBeVisible({ timeout: 20_000 });
-  const willow = page.getByRole('button', { name: /Willow/ });
-  await expect(async () => {
-    if (!(await willow.isVisible())) await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(willow).toBeVisible({ timeout: 10_000 });
-  }).toPass({ timeout: 60_000 });
+  await expect(page.getByRole('heading', { name: CLASS_NAME })).toBeVisible({ timeout: 45_000 });
+  await expect(page.getByRole('button', { name: /Willow/ })).toBeVisible({ timeout: 45_000 });
 
   if (await page.getByText('2 of 2 scored').first().isVisible()) return;
 
@@ -183,7 +171,7 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
     });
 
     await test.step('2. score both dogs from paper', async () => {
-      await scoreFromPaper(page, resultsUrl, classId);
+      await scoreFromPaper(page, classId);
     });
 
     await test.step('3. open the class on Results once the server has completed it', async () => {

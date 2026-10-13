@@ -4,7 +4,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the pre-launch waitlist landing page at `/` with a launch page that recruits clubs first. A two-sided timeline tells the life of one show: what you do on the left, what the other side is doing ("Meanwhile") on the right. An audience switch opens on "I'm running a show" and offers "I'm entering a show". Explainer slides animate the key screenshots.
+**Goal:** Replace the pre-launch waitlist landing page at `/` with a launch page that recruits clubs first. A two-sided timeline tells the life of one show: what you do on the left, what the other side is doing ("Meanwhile") on the right. An audience switch opens on "I'm running a show" and offers "I'm entering a show". On the club story's show day, a **working practice scoresheet** lets visitors cut the venue's signal, time and score practice dogs with the real timer and result buttons, and watch the queued scores sync when the signal returns. The line between steps is a **scent trail** that winds like a dog working a search and marks "Alert!" at Results, and the club's "Before show day" step shows a **night-before checklist** that ticks itself green. Explainer slides animate the exhibitor screenshots.
 
 **Design reference:** canvas version **D**, "A's hero + B's timeline + audience switch" (https://claude.ai/artifact/VaDuhw1AHVTZroApgs9VJb, file `project/Combined.dc.html`). It is a mockup: copy, ordering, sizes and explainer coordinates carry over; its code does not. Two of its techniques are replaced here: the moving spotlight becomes cross-faded fixed boxes (opacity only), and scroll progress uses IntersectionObserver against the real document scroll, which the canvas frame could not demonstrate.
 
@@ -16,16 +16,19 @@
 
 ## Decisions taken
 
-| #   | Decision                                                                                                                                                                                                                                               | In this plan                                                                                                                     |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | Both waitlist forms go. Today a "Club / secretary" signup inserts into `platform_waitlist`, and a DB trigger sends an early-access invite (`send-waitlist-invite`). After launch, clubs use the existing `ClubOnboarding` request flow.                | Remove the forms. Leave the table, trigger and edge function in place and unused. File a follow-up to delete them.               |
-| D2  | Product claims on the current page that cannot be traced to a shipped, user-visible feature are dropped, not reworded.                                                                                                                                 | Task 1 decides each claim from evidence. "Thirteen years of placements" is already DROPPED (no legacy results were imported).    |
-| D3  | The page names no launch date and no version number.                                                                                                                                                                                                   | Timeless copy                                                                                                                    |
-| D4  | The Ziva & Tera photo stays, as a full-width band (A's hero), without the caption pill.                                                                                                                                                                | Keep                                                                                                                             |
-| D5  | Online entries are off for some shows (per-show switch, MYK9-979).                                                                                                                                                                                     | Copy says "enter online where the club accepts it"                                                                               |
-| D6  | **The homepage recruits clubs first (owner, 2026-10-13).** Most exhibitors arrive on a specific show page through their club's link, and with few clubs signed up "Find a show" leads to a short list.                                                 | "Bring your club" is the primary CTA in header, hero and close; the switch opens on the club story. Revisit when `/shows` fills. |
-| D7  | **Layout is canvas version D (owner, 2026-10-13):** A's hero, B's two-sided timeline, the audience switch, compact quiet steps, and show day as the one peak on a white panel.                                                                         | Tasks 4 to 6                                                                                                                     |
-| D8  | **Motion explains, it does not decorate.** Explainer slides on three screenshots (club show day, exhibitor show day, exhibitor entries). Scroll progress: dots and line fill to the reader's position and un-fill on scroll up; content rises in once. | Tasks 3 and 5                                                                                                                    |
+| #   | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | In this plan                                                                                                                     |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Both waitlist forms go. Today a "Club / secretary" signup inserts into `platform_waitlist`, and a DB trigger sends an early-access invite (`send-waitlist-invite`). After launch, clubs use the existing `ClubOnboarding` request flow.                                                                                                                                                                                                                                                                                     | Remove the forms. Leave the table, trigger and edge function in place and unused. File a follow-up to delete them.               |
+| D2  | Product claims on the current page that cannot be traced to a shipped, user-visible feature are dropped, not reworded.                                                                                                                                                                                                                                                                                                                                                                                                      | Task 1 decides each claim from evidence. "Thirteen years of placements" is already DROPPED (no legacy results were imported).    |
+| D3  | The page names no launch date and no version number.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Timeless copy                                                                                                                    |
+| D4  | The Ziva & Tera photo stays, as a full-width band (A's hero), without the caption pill.                                                                                                                                                                                                                                                                                                                                                                                                                                     | Keep                                                                                                                             |
+| D5  | Online entries are off for some shows (per-show switch, MYK9-979).                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Copy says "enter online where the club accepts it"                                                                               |
+| D6  | **The homepage recruits clubs first (owner, 2026-10-13).** Most exhibitors arrive on a specific show page through their club's link, and with few clubs signed up "Find a show" leads to a short list.                                                                                                                                                                                                                                                                                                                      | "Bring your club" is the primary CTA in header, hero and close; the switch opens on the club story. Revisit when `/shows` fills. |
+| D7  | **Layout is canvas version D (owner, 2026-10-13):** A's hero, B's two-sided timeline, the audience switch, compact quiet steps, and show day as the one peak on a white panel.                                                                                                                                                                                                                                                                                                                                              | Tasks 4 to 6                                                                                                                     |
+| D8  | **Motion explains, it does not decorate.** Explainer slides on two exhibitor screenshots (entries, show day). Scroll progress: dots and line fill to the reader's position and un-fill on scroll up; content rises in once.                                                                                                                                                                                                                                                                                                 | Tasks 3 and 5                                                                                                                    |
+| D9  | **Club show day is a working practice scoresheet (owner, 2026-10-13; canvas E2).** A landing-only component: practice dogs, the real `useStopwatch` timer and real `ResultChoiceChips` from `@myk9/scoring-ui` (both pure UI: no storage, no network, no replication), and a simulated venue signal and score queue. It never imports ringside scoring, sync or entry code. E1 (screenshot hotspot) was the cheaper option; the owner preferred E2 because visitors actually score. E3 (live practice ring) is a follow-up. | Task 4b                                                                                                                          |
+| D10 | **The timeline line is a scent trail (owner, 2026-10-13; canvas F1).** Between dots the line winds like a dog working a search, alternating sides, with an "Alert!" marker at Results; after Results it becomes a quiet dashed line. It follows the reader's scroll exactly like the dots (fills down, pulls back up).                                                                                                                                                                                                      | Task 5                                                                                                                           |
+| D11 | **The club's "Before show day" step shows a night-before checklist (owner, 2026-10-13; canvas F2).** It ticks five checks green and ends "Everything is handled." **Honesty rule:** until MYK9-1145 builds the real "Ready for show day" screen, the card lists only checks the app really makes today (the setup readiness signals in `features/show-workbench/setupReadinessSignals.ts`). Entries reconciled, printing and offline-tablet lines join only when MYK9-1145 ships.                                           | Task 4c                                                                                                                          |
 
 **Duplication check (CLAUDE.md § consolidate):** No new route and no new form. "Find a show" links the existing public `/shows`. "Bring your club" anchors to the re-housed `ClubOnboarding` (`#get-started`, which `Home.tsx` already deep-links). The rebuild deletes about 900 lines of `landing/v2` components plus the CSS rules only they used.
 
@@ -40,6 +43,8 @@
 - CTA order everywhere (D6): **Bring your club** is the filled primary; **Find a show** is the outlined secondary. Exactly these two labels; no "Browse shows", "Join the waitlist" or "Run your next trial".
 - Motion animates only `transform` and `opacity` (plus colour on the dots), under 300ms for UI state and up to 700ms for the line fill, no `transition: all`, no scroll-jacking, no video, no generated imagery.
 - Auto-advancing explainers have visible Pause and Next controls (WCAG 2.2.2). They advance only while on screen, and start paused under reduced motion. Their caption is `aria-live="off"` while playing and `"polite"` while paused, so screen readers are not interrupted every few seconds.
+- The practice scoresheet demo reuses the real timer (`useStopwatch`, voice announcements and the 30-second warning off) and the real result buttons (`ResultChoiceChips`, faults hidden), so it cannot drift from what judges see. Only the venue signal and the score queue are simulated, and the wording matches the ringside app's offline states. It makes no network request, stores nothing, and imports nothing from ringside scoring, sync or entry code. The signal switch is a real `role="switch"` button with `aria-checked`, and status changes are announced through one `aria-live="polite"` line.
+- The night-before card lists only checks the app makes today (D11). A test pins the list to the setup readiness signals.
 - Under `prefers-reduced-motion: reduce`: no transitions, all content revealed immediately, explainers paused. Dots still change colour, since that is state, not motion.
 - No words "waitlist", "pre-launch", "launching" or a version string on the rendered page.
 - Screenshots are real product captures of seeded `@myk9t.com` demo data, with real-looking names (no "Unknown" dog, no "Test Exhibitor"). Each image is 250 KB or less, has `width`/`height` set, and has `loading="lazy"` (hero photo excepted). Display width follows capture shape: phone captures never wider than 300px.
@@ -54,7 +59,7 @@
 4. **Old deep links.** `/#get-started` must still land on the club request form; `/#closing` and `/#features` must fail soft. _Test:_ Task 6 Home tests.
 5. **PR smoke already asserts on this page.** `src/test/e2e/simple-connectivity.spec.ts:13` expects a link named "Browse shows", and `a11y-smoke.spec.ts` runs axe on `/`. _Test:_ Task 6 Step 10 updates the spec; Task 7 Step 3 runs both.
 6. **PWA precache bloat.** `vite.config.ts` precaches `**/*.png,webp`. _Test:_ Task 2 adds `globIgnores: ['landing/**']` and proves it in a real build.
-7. [ADDED] **Explainer mid-sequence when the audience switches.** Club show day has 5 explainer steps and exhibitor show day has 3, and both render in the same slot. Without a reset, a reader on club step 4 who switches reads `steps[3]` of a 3-item list and the page crashes. _Test:_ Task 5 `switching audience mid-explainer does not crash`.
+7. [ADDED] **Switching audience mid-demo.** Club show day renders the practice scoresheet and exhibitor show day renders a 3-step explainer, in the same slot. Switching must unmount one cleanly (no timer firing into an unmounted component, no stopwatch left running) and start the other fresh. `ScreenshotExplainer` also clamps its index, in case a step list ever shrinks. _Test:_ Task 4b `clears its timers on unmount`; Task 5 `switching audience mid-demo does not crash`.
 8. [ADDED] **Signed-in return from sign-up.** `ClubOnboarding` sends new club officers to sign in or sign up, then back to `/?onboarding=true#get-started`. `HomeRedirect` (`src/routerComponents.tsx:33`) renders `Home` for a signed-in user on that URL, with the app header present. The landing page must work there: one header pinned under the app header, and the club form in view. _Test:_ Task 8 Step 3 walks it in a browser; Task 6 Step 9b pins the header offset per case.
 9. [ADDED] **The blank 48px band above the header (audit Low finding).** `AppHeader` returns null for a guest on `/` (`AppHeader.tsx:120`), but `SidebarLayout`'s `<main>` still pads for it (`SidebarLayout.tsx:220`), and `.l-hdr` sticks at `--app-top-inset`. _Test:_ Task 6 Step 9b, and Task 7 `guest header sits at the top with no blank band`.
 10. [ADDED] **Broken share preview.** `index.html` points `og:image`/`twitter:image` at `/og-image.jpg`, which does not exist. Production serves the SPA's HTML for it (checked 2026-10-13), so links shared to Facebook or iMessage show no image. _Test:_ Task 2 makes the file; Task 7 `og image is a real image`.
@@ -148,6 +153,8 @@ export type StoryStep = {
   body: string;
   shot: Shot | null;
   explainer?: readonly ExplainerStep[];
+  scoresheetDemo?: true; // club show day: the working practice scoresheet (D9)
+  nightBefore?: true; // club before show day: the night-before checklist (D11)
   meanwhile: string;
   meanwhileShot: Shot | null;
   peak?: true;
@@ -243,6 +250,15 @@ describe('STORIES', () => {
     }
   });
 
+  // [ADDED] D9 and D11
+  it('gives the club story the practice scoresheet on show day and the night-before card before it', () => {
+    const club = (id: string) => STORIES.club.find(x => x.id === id)!;
+    expect(club('showday').scoresheetDemo).toBe(true);
+    expect(club('showday').explainer).toBeUndefined();
+    expect(club('before').nightBefore).toBe(true);
+    expect(STORIES.exhibitor.some(x => x.scoresheetDemo || x.nightBefore)).toBe(false);
+  });
+
   it('keeps every explainer box inside its image and gives each a caption', () => {
     for (const a of AUDIENCES) {
       for (const s of STORIES[a]) {
@@ -326,6 +342,8 @@ export type StoryStep = {
   body: string;
   shot: Shot | null;
   explainer?: readonly ExplainerStep[];
+  scoresheetDemo?: true; // club show day: the working practice scoresheet (D9)
+  nightBefore?: true; // club before show day: the night-before checklist (D11)
   meanwhile: string;
   meanwhileShot: Shot | null;
   peak?: true;
@@ -396,48 +414,6 @@ const SHOTS = {
   'e-16': phone('e-16', 'Entry card with a Q result badge on a phone'),
 } as const;
 
-const CLUB_SHOW_DAY: readonly ExplainerStep[] = [
-  {
-    x: 0,
-    y: 0,
-    w: 0,
-    h: 0,
-    caption: 'The venue has no signal. The judge keeps going.',
-    badge: { text: 'No signal', tone: 'amber' },
-  },
-  {
-    x: 8,
-    y: 18.5,
-    w: 84,
-    h: 24,
-    caption: 'Time the search',
-    badge: { text: 'No signal', tone: 'amber' },
-  },
-  {
-    x: 27.5,
-    y: 52.5,
-    w: 14,
-    h: 5.5,
-    caption: 'Tap Q, NQ, Absent or Excused',
-    badge: { text: 'No signal', tone: 'amber' },
-  },
-  {
-    x: 50,
-    y: 59.8,
-    w: 42.5,
-    h: 6.6,
-    caption: 'Saved on the tablet',
-    badge: { text: '3 scores waiting', tone: 'amber' },
-  },
-  {
-    x: 0,
-    y: 0,
-    w: 0,
-    h: 0,
-    caption: 'Signal comes back. Every score syncs on its own.',
-    badge: { text: 'Back online · 3 synced', tone: 'green' },
-  },
-];
 const EXHIBITOR_ENTRIES: readonly ExplainerStep[] = [
   { x: 11, y: 67, w: 78, h: 16, caption: 'Dates, venue and trials, all on the show page' },
   { x: 11, y: 85.5, w: 16, h: 10, caption: 'One button to enter' },
@@ -472,6 +448,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       title: 'Before show day',
       body: 'Running orders, check-in sheets and armbands come from the entries you already have.',
       shot: SHOTS['s-12'],
+      nightBefore: true,
       meanwhile: 'Exhibitors see their armband and their place in the running order.',
       meanwhileShot: SHOTS['e-12'],
     },
@@ -481,7 +458,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       title: 'Show day',
       body: 'Judges score at the ring on a tablet, even with no signal. Scores catch up on their own when the connection comes back.',
       shot: SHOTS['j-04'],
-      explainer: CLUB_SHOW_DAY,
+      scoresheetDemo: true,
       meanwhile: 'Exhibitors check in and follow their classes from their phones.',
       meanwhileShot: SHOTS['e-13'],
     },
@@ -567,7 +544,7 @@ If Task 1 drops "even with one bar of signal", end that body at "from your phone
         globIgnores: ['landing/**'],
 ```
 
-- [ ] **Step 6: Run green.** Same command; expected PASS (8 tests).
+- [ ] **Step 6: Run green.** Same command; expected PASS (9 tests).
 
 - [ ] **Step 7: Prove the precache exclusion in a real build**
 
@@ -1064,6 +1041,925 @@ git commit -m "feat(landing): screenshot explainer slides with pause and next"
 
 ---
 
+### Task 4b: [ADDED] `ScoresheetDemo`, the working practice scoresheet (D9)
+
+**Files:**
+
+- Create: `apps/myk9show/src/components/landing/lifecycle/ScoresheetDemo.tsx`
+- Create: `apps/myk9show/src/components/landing/lifecycle/scoresheetDemo.css`
+- Test: `apps/myk9show/src/components/landing/lifecycle/__tests__/ScoresheetDemo.test.tsx`
+
+**Interfaces:**
+
+- Consumes: `useStopwatch`, `ResultChoiceChips` and the `QualifyingResult` type from `@myk9/scoring-ui` (exported at `packages/scoring-ui/src/index.ts:21` and `:92`). Both are pure UI: `useStopwatch` is React state only; `ResultChoiceChips` only calls `onResultChange`.
+- Produces: `export function ScoresheetDemo(props: { syncMs?: number }): JSX.Element` and `export const PRACTICE_DOGS`.
+
+**Boundary (non-negotiable):** this file imports nothing from ringside scoring, replication, sync, entries or Supabase. `grep -nE "replication|supabase|at-show|mutation" ScoresheetDemo.tsx` must print nothing; Step 5 runs it.
+
+- [ ] **Step 1: Write the failing test**
+
+```tsx
+import { act, fireEvent, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render } from '@/test/utils/testUtils';
+import { ScoresheetDemo } from '../ScoresheetDemo';
+
+const sw = () => screen.getByRole('switch', { name: 'Venue signal' });
+const status = () => screen.getByTestId('scoresheet-status');
+const log = () => screen.getByRole('list', { name: 'Scores this session' });
+const save = () => screen.getByRole('button', { name: 'Save' });
+
+describe('ScoresheetDemo', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('uses the real result buttons from the scoring package', () => {
+    render(<ScoresheetDemo />);
+    for (const label of ['Qualified', 'NQ', 'Absent', 'Excused']) {
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+    }
+  });
+
+  it('asks for a result before saving', () => {
+    render(<ScoresheetDemo />);
+    fireEvent.click(save());
+    expect(status()).toHaveTextContent('Pick a result first');
+    expect(screen.getByText('Ziva')).toBeInTheDocument();
+  });
+
+  it('queues a saved score while offline and moves to the next dog', () => {
+    render(<ScoresheetDemo />);
+    fireEvent.click(sw());
+    fireEvent.click(screen.getByRole('button', { name: 'Absent' }));
+    fireEvent.click(save());
+    expect(within(log()).getByText(/#101 Ziva: Absent/)).toBeInTheDocument();
+    expect(within(log()).getByText('Waiting')).toBeInTheDocument();
+    expect(screen.getByText('No signal · 1 waiting')).toBeInTheDocument();
+    expect(screen.getByText('Tera')).toBeInTheDocument();
+  });
+
+  it('syncs the queue in order when the signal returns', () => {
+    render(<ScoresheetDemo syncMs={1000} />);
+    fireEvent.click(sw());
+    fireEvent.click(screen.getByRole('button', { name: 'Absent' }));
+    fireEvent.click(save());
+    fireEvent.click(screen.getByRole('button', { name: 'Excused' }));
+    fireEvent.click(save());
+    fireEvent.click(sw());
+    expect(screen.getByText('Syncing 2…')).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(1000));
+    expect(within(log()).queryByText('Waiting')).toBeNull();
+    expect(within(log()).getAllByText('Synced')).toHaveLength(2);
+    expect(status()).toHaveTextContent('All 2 synced, in the order they were scored.');
+  });
+
+  it('saves straight through while online', () => {
+    render(<ScoresheetDemo />);
+    fireEvent.click(screen.getByRole('button', { name: 'Absent' }));
+    fireEvent.click(save());
+    expect(within(log()).getByText('Synced')).toBeInTheDocument();
+    expect(status()).toHaveTextContent('Ziva saved and synced.');
+  });
+
+  it('starts and stops the real timer', () => {
+    render(<ScoresheetDemo />);
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+    expect(screen.getByRole('button', { name: /Resume|Start/ })).toBeInTheDocument();
+  });
+
+  it('clears its timers on unmount', () => {
+    const { unmount } = render(<ScoresheetDemo syncMs={1000} />);
+    fireEvent.click(sw());
+    fireEvent.click(screen.getByRole('button', { name: 'Absent' }));
+    fireEvent.click(save());
+    fireEvent.click(sw());
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+```
+
+- [ ] **Step 2: Run red.** Run `pnpm vitest run src/components/landing/lifecycle/__tests__/ScoresheetDemo.test.tsx`. Expected: FAIL, module not found.
+
+- [ ] **Step 3: Implement `ScoresheetDemo.tsx`**
+
+```tsx
+import { useEffect, useRef, useState } from 'react';
+import { ResultChoiceChips, useStopwatch, type QualifyingResult } from '@myk9/scoring-ui';
+import './scoresheetDemo.css';
+
+// Practice dogs for the landing-page demo. Ziva and Tera are the owner's dogs (the hero photo).
+export const PRACTICE_DOGS = [
+  { arm: 101, name: 'Ziva', breed: 'Belgian Tervuren', handler: 'R. Beezley' },
+  { arm: 102, name: 'Tera', breed: 'Dutch Shepherd', handler: 'R. Beezley' },
+  { arm: 103, name: 'Juno', breed: 'Labrador Retriever', handler: 'K. Patel' },
+  { arm: 104, name: 'Mosby', breed: 'Vizsla', handler: 'D. Chen' },
+] as const;
+
+const RESULT_LABEL: Record<QualifyingResult, string> = {
+  Q: 'Qualified',
+  NQ: 'NQ',
+  ABS: 'Absent',
+  EX: 'Excused',
+  DQ: 'DQ',
+};
+type Logged = {
+  arm: number;
+  name: string;
+  result: string;
+  state: 'waiting' | 'synced';
+};
+
+// Working practice scoresheet for the landing page (canvas E2, plan D9).
+// INTENT: lets a visitor feel the real behaviour (scoring keeps working with no signal and
+// catches up on its own). The timer and result buttons are the real ones from
+// @myk9/scoring-ui; only the venue signal and the score queue are simulated here.
+// Nothing is saved, nothing goes over the network, and no ringside or sync code is imported.
+export function ScoresheetDemo({ syncMs = 1400 }: { syncMs?: number }) {
+  const stopwatch = useStopwatch({
+    maxTime: '2:00',
+    enableVoiceAnnouncements: false,
+    thirtySecondWarning: false,
+  });
+  const [online, setOnline] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [index, setIndex] = useState(0);
+  const [result, setResult] = useState<QualifyingResult | null>(null);
+  const [log, setLog] = useState<Logged[]>([]);
+  const [message, setMessage] = useState(
+    'Turn the signal off, press Start, pick a result and Save.'
+  );
+  const syncTimer = useRef<number | undefined>(undefined);
+
+  useEffect(() => () => window.clearTimeout(syncTimer.current), []);
+
+  const dog = PRACTICE_DOGS[index % PRACTICE_DOGS.length]!;
+  const waiting = log.filter(l => l.state === 'waiting').length;
+
+  const toggleSignal = () => {
+    window.clearTimeout(syncTimer.current);
+    if (online) {
+      setOnline(false);
+      setMessage('No signal. Keep scoring; nothing is lost.');
+      return;
+    }
+    setOnline(true);
+    if (!waiting) {
+      setMessage('Signal is back.');
+      return;
+    }
+    const n = waiting;
+    setSyncing(true);
+    setMessage(`Signal is back. Sending ${n}…`);
+    syncTimer.current = window.setTimeout(() => {
+      setLog(cur => cur.map(l => ({ ...l, state: 'synced' })));
+      setSyncing(false);
+      setMessage(`All ${n} synced, in the order they were scored.`);
+    }, syncMs);
+  };
+
+  const saveScore = () => {
+    if (!result) {
+      setMessage('Pick a result first: Qualified, NQ, Absent or Excused.');
+      return;
+    }
+    const elapsed = stopwatch.isRunning ? stopwatch.pause() : stopwatch.time;
+    const timed = result === 'Q' || result === 'NQ';
+    const entry: Logged = {
+      arm: dog.arm,
+      name: dog.name,
+      result: RESULT_LABEL[result] + (timed ? ` · ${stopwatch.formatTime(elapsed)}` : ''),
+      state: online ? 'synced' : 'waiting',
+    };
+    const next = [entry, ...log].slice(0, 4);
+    setLog(next);
+    stopwatch.reset();
+    setResult(null);
+    setIndex(i => i + 1);
+    const n = next.filter(l => l.state === 'waiting').length;
+    setMessage(
+      online
+        ? `${dog.name} saved and synced.`
+        : `${dog.name} saved on the tablet. ${n} waiting for signal.`
+    );
+  };
+
+  const badge = !online
+    ? {
+        text: waiting ? `No signal · ${waiting} waiting` : 'No signal',
+        tone: 'amber',
+      }
+    : syncing
+      ? { text: `Syncing ${waiting}…`, tone: 'blue' }
+      : log.length && !waiting
+        ? { text: 'All synced', tone: 'green' }
+        : { text: 'Online', tone: 'neutral' };
+
+  const maxMs = stopwatch.getMaxTimeMs();
+  const remainingPct = maxMs ? Math.max(0, (stopwatch.getRemainingTimeMs() / maxMs) * 100) : 100;
+
+  return (
+    <div className="lc-demo">
+      <div className="lc-demo-control">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={online}
+          aria-label="Venue signal"
+          className="lc-demo-switch"
+          onClick={toggleSignal}
+        >
+          <span className="lc-demo-knob" />
+        </button>
+        <div>
+          <span className="lc-demo-label">Venue signal: {online ? 'On' : 'Off'}</span>
+          <span className="lc-demo-hint">
+            {waiting
+              ? `${waiting} ${waiting === 1 ? 'score' : 'scores'} saved on the tablet, waiting`
+              : online
+                ? 'Tap to cut the signal, like a rural show site'
+                : 'Scores keep saving on the tablet'}
+          </span>
+        </div>
+      </div>
+
+      <div className="lc-demo-tablet">
+        <div className="lc-demo-screen">
+          <div className="lc-demo-head">
+            <div>
+              <div className="lc-demo-trial">Saturday Trial</div>
+              <div className="lc-demo-class">Container Novice A · practice</div>
+            </div>
+            <span className="lc-demo-badge" data-tone={badge.tone}>
+              {badge.text}
+            </span>
+          </div>
+          <div className="lc-demo-dog">
+            <span className="lc-demo-arm">{dog.arm}</span>
+            <div>
+              <div className="lc-demo-dogname">{dog.name}</div>
+              <div className="lc-demo-meta">
+                {dog.breed} · Handler: {dog.handler}
+              </div>
+            </div>
+          </div>
+          <div className="lc-demo-timer">
+            <div className="lc-demo-clock">{stopwatch.formatTime(stopwatch.time)}</div>
+            <div className="lc-demo-remaining">Remaining: {stopwatch.getRemainingTime()}</div>
+            <div className="lc-demo-bar">
+              <div style={{ width: `${remainingPct}%` }} />
+            </div>
+            <button
+              type="button"
+              className="lc-demo-start"
+              data-running={stopwatch.isRunning ? 'true' : 'false'}
+              onClick={() => (stopwatch.isRunning ? stopwatch.pause() : stopwatch.start())}
+            >
+              {stopwatch.isRunning ? 'Stop' : stopwatch.time ? 'Resume' : 'Start'}
+            </button>
+          </div>
+          <ResultChoiceChips selectedResult={result} onResultChange={setResult} hideFaults />
+          <button
+            type="button"
+            className="lc-demo-save"
+            data-ready={result ? 'true' : 'false'}
+            onClick={saveScore}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+
+      <ul className="lc-demo-log" aria-label="Scores this session">
+        {log.map((l, i) => (
+          <li key={`${l.arm}-${i}`}>
+            <span className="lc-demo-chip" data-state={l.state}>
+              {l.state === 'waiting' ? 'Waiting' : 'Synced'}
+            </span>
+            #{l.arm} {l.name}: {l.result}
+          </li>
+        ))}
+      </ul>
+      <p data-testid="scoresheet-status" className="lc-demo-status" aria-live="polite">
+        {message}
+      </p>
+    </div>
+  );
+}
+```
+
+Before relying on `stopwatch.pause()` returning the elapsed milliseconds, read `packages/scoring-ui/src/types/index.ts` (`StopwatchReturn`). The comment there says to save the returned value, not `time`. If `reset` or `formatTime` differ in name, use the real names; do not wrap or fork the hook. If `ResultChoiceChips` shows its NQ or Excused reason pickers in this context, leave them: that is what the real screen does.
+
+- [ ] **Step 4: Write `scoresheetDemo.css`.** Scope everything under `.landing-v2`. Copy the switch, badge tones and status-line rules from canvas E2. The values are listed here so the file is self-contained:
+
+```css
+/* Working practice scoresheet (plan D9). Scoped under .landing-v2. */
+.landing-v2 .lc-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.landing-v2 .lc-demo-control {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.875rem 1.125rem;
+  background: var(--ivory-50);
+  border: 1px solid #e8e2d4;
+  border-radius: 16px;
+}
+.landing-v2 .lc-demo-label {
+  display: block;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+.landing-v2 .lc-demo-hint {
+  display: block;
+  font-size: 0.9375rem;
+  color: var(--stone-500);
+}
+.landing-v2 .lc-demo-switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 76px;
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  background: #b8ae9c;
+  transition: background-color 200ms ease;
+}
+.landing-v2 .lc-demo-switch[aria-checked='true'] {
+  background: #2f7d46;
+}
+.landing-v2 .lc-demo-switch:focus-visible {
+  outline: 2px solid var(--terracotta-600);
+  outline-offset: 3px;
+}
+.landing-v2 .lc-demo-knob {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.25);
+  transition: transform 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.landing-v2 .lc-demo-switch[aria-checked='true'] .lc-demo-knob {
+  transform: translateX(32px);
+}
+.landing-v2 .lc-demo-tablet {
+  max-width: 520px;
+  padding: 16px;
+  border-radius: 28px;
+  background: #2a241f;
+  box-shadow: 0 40px 70px -36px rgb(0 0 0 / 0.55);
+}
+.landing-v2 .lc-demo-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.125rem 1.25rem;
+  border-radius: 14px;
+  background: var(--ivory-50);
+}
+.landing-v2 .lc-demo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.landing-v2 .lc-demo-trial {
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+.landing-v2 .lc-demo-class,
+.landing-v2 .lc-demo-meta,
+.landing-v2 .lc-demo-remaining {
+  font-size: 0.875rem;
+  color: var(--stone-500);
+}
+.landing-v2 .lc-demo-badge {
+  padding: 0.4375rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition:
+    background-color 240ms ease,
+    color 240ms ease;
+}
+.landing-v2 .lc-demo-badge[data-tone='neutral'] {
+  background: #eef0ec;
+  color: #39443a;
+}
+.landing-v2 .lc-demo-badge[data-tone='amber'] {
+  background: #fff1d6;
+  color: #6e4300;
+}
+.landing-v2 .lc-demo-badge[data-tone='blue'] {
+  background: #e2ecf8;
+  color: #1f3f6b;
+}
+.landing-v2 .lc-demo-badge[data-tone='green'] {
+  background: #e3f2e6;
+  color: #1e5b2e;
+}
+.landing-v2 .lc-demo-dog {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #fff;
+  border: 1px solid #e8e2d4;
+  border-radius: 12px;
+}
+.landing-v2 .lc-demo-arm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: var(--terracotta-500);
+  color: #fff;
+  font-size: 1.1875rem;
+  font-weight: 700;
+}
+.landing-v2 .lc-demo-dogname {
+  font-size: 1.1875rem;
+  font-weight: 700;
+}
+.landing-v2 .lc-demo-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #e8e2d4;
+  border-radius: 12px;
+}
+.landing-v2 .lc-demo-clock {
+  font-size: 3rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+}
+.landing-v2 .lc-demo-bar {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: #ede7db;
+  overflow: hidden;
+}
+.landing-v2 .lc-demo-bar > div {
+  height: 100%;
+  background: #2f9e57;
+}
+.landing-v2 .lc-demo-start {
+  min-height: 60px;
+  min-width: 190px;
+  padding: 0 1.75rem;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 1.3125rem;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  background: #2f7d46;
+}
+.landing-v2 .lc-demo-start[data-running='true'] {
+  background: #c8373a;
+}
+.landing-v2 .lc-demo-save {
+  min-height: 54px;
+  border: 0;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  background: #d3a598;
+}
+.landing-v2 .lc-demo-save[data-ready='true'] {
+  background: var(--terracotta-600);
+}
+.landing-v2 .lc-demo-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.landing-v2 .lc-demo-log li {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.9375rem;
+  color: var(--stone-700);
+}
+.landing-v2 .lc-demo-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 0.625rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.landing-v2 .lc-demo-chip[data-state='waiting'] {
+  background: #fff1d6;
+  color: #6e4300;
+}
+.landing-v2 .lc-demo-chip[data-state='synced'] {
+  background: #e3f2e6;
+  color: #1e5b2e;
+}
+.landing-v2 .lc-demo-status {
+  margin: 0;
+  min-height: 1.6em;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-v2 .lc-demo-switch,
+  .landing-v2 .lc-demo-knob,
+  .landing-v2 .lc-demo-badge {
+    transition: none;
+  }
+}
+```
+
+Check the Save button's disabled-looking colour (`#d3a598` with white text) against 4.5:1. It is about 2.3:1, so either keep the button visibly enabled (it explains what is missing when pressed) with the terracotta fill, or darken the idle fill to a tone that passes. Do not ship a low-contrast label.
+
+- [ ] **Step 5: Run green and prove the boundary.**
+
+```bash
+cd apps/myk9show && pnpm vitest run src/components/landing/lifecycle/__tests__/ScoresheetDemo.test.tsx > ../../.logs/landing-demo.log 2>&1; echo "EXIT=$?"
+grep -nE "replication|supabase|at-show|mutation" src/components/landing/lifecycle/ScoresheetDemo.tsx   # expected: no output
+```
+
+Expected: PASS (7 tests), and the grep prints nothing.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/myk9show/src/components/landing/lifecycle/ScoresheetDemo.tsx apps/myk9show/src/components/landing/lifecycle/scoresheetDemo.css apps/myk9show/src/components/landing/lifecycle/__tests__/ScoresheetDemo.test.tsx
+git commit -m "feat(landing): working practice scoresheet with a simulated venue signal"
+```
+
+---
+
+### Task 4c: [ADDED] `NightBeforeCard` (D11)
+
+**Files:**
+
+- Create: `apps/myk9show/src/components/landing/lifecycle/NightBeforeCard.tsx`
+- Test: `apps/myk9show/src/components/landing/lifecycle/__tests__/NightBeforeCard.test.tsx`
+
+**Interfaces:**
+
+- Consumes: the `SetupReadinessSignalId` type from `@/features/show-workbench/setupReadinessSignals` (compile-time pin of each check to a real signal).
+- Produces: `export function NightBeforeCard(props: { active: boolean; stepMs?: number }): JSX.Element` and `export const NIGHT_BEFORE_CHECKS`. Ticking starts only when `active` is true (the step has been revealed), so it never plays off screen.
+
+- [ ] **Step 1: Write the failing test**
+
+```tsx
+import { act, fireEvent, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render } from '@/test/utils/testUtils';
+import { NIGHT_BEFORE_CHECKS, NightBeforeCard } from '../NightBeforeCard';
+
+const setReducedMotion = (reduce: boolean) =>
+  vi.spyOn(window, 'matchMedia').mockImplementation(
+    q =>
+      ({
+        matches: reduce && q.includes('reduce'),
+        media: q,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }) as MediaQueryList
+  );
+
+describe('NightBeforeCard', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('lists only checks the app really makes today (D11 honesty rule)', () => {
+    expect(NIGHT_BEFORE_CHECKS.map(c => c.signal)).toEqual([
+      'show-details-missing',
+      'no-classes',
+      'judges-missing',
+      'show-not-visible',
+      'exhibitor-materials-unpublished',
+    ]);
+    for (const c of NIGHT_BEFORE_CHECKS) expect(c.label).not.toMatch(/offline|reconcil|print/i);
+  });
+
+  it('does not tick until its step is revealed', () => {
+    setReducedMotion(false);
+    render(<NightBeforeCard active={false} stepMs={100} />);
+    act(() => vi.advanceTimersByTime(2000));
+    expect(screen.getByText('0 of 5 checked')).toBeInTheDocument();
+  });
+
+  it('ticks each check green and ends with the all-clear line', () => {
+    setReducedMotion(false);
+    render(<NightBeforeCard active stepMs={100} />);
+    act(() => vi.advanceTimersByTime(250));
+    expect(screen.getByText('2 of 5 checked')).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.getByText('All set')).toBeInTheDocument();
+    expect(screen.getByText('Everything is handled. See you at the ring.')).toBeVisible();
+  });
+
+  it('replays from the start', () => {
+    setReducedMotion(false);
+    render(<NightBeforeCard active stepMs={100} />);
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByRole('button', { name: 'Replay' }));
+    expect(screen.getByText('0 of 5 checked')).toBeInTheDocument();
+  });
+
+  it('shows every check done under reduced motion', () => {
+    setReducedMotion(true);
+    render(<NightBeforeCard active={false} />);
+    expect(screen.getByText('All set')).toBeInTheDocument();
+  });
+});
+```
+
+- [ ] **Step 2: Run red.** Run `pnpm vitest run src/components/landing/lifecycle/__tests__/NightBeforeCard.test.tsx`. Expected: FAIL, module not found.
+
+- [ ] **Step 3: Implement `NightBeforeCard.tsx`**
+
+```tsx
+import { useEffect, useRef, useState } from 'react';
+import type { SetupReadinessSignalId } from '@/features/show-workbench/setupReadinessSignals';
+import { useReducedMotion } from '@/features/_shared/hooks/useReducedMotion';
+
+// D11 honesty rule: each line is the positive form of a setup readiness signal the app really
+// computes today. Entries-reconciled, printing and offline-tablet lines join only when MYK9-1145
+// builds the real "Ready for show day" screen.
+export const NIGHT_BEFORE_CHECKS: readonly {
+  signal: SetupReadinessSignalId;
+  label: string;
+  sub: string;
+}[] = [
+  {
+    signal: 'show-details-missing',
+    label: 'Show details complete',
+    sub: 'Dates, venue and trials in place',
+  },
+  {
+    signal: 'no-classes',
+    label: 'Classes built',
+    sub: 'Every trial has its classes',
+  },
+  {
+    signal: 'judges-missing',
+    label: 'Judges assigned to every class',
+    sub: 'Nothing waiting on a judge',
+  },
+  {
+    signal: 'show-not-visible',
+    label: 'Show visible to exhibitors',
+    sub: 'Listed and open to view',
+  },
+  {
+    signal: 'exhibitor-materials-unpublished',
+    label: 'Premium list published',
+    sub: 'Up to date since your last change',
+  },
+];
+
+export function NightBeforeCard({ active, stepMs = 750 }: { active: boolean; stepMs?: number }) {
+  const reducedMotion = useReducedMotion();
+  const total = NIGHT_BEFORE_CHECKS.length;
+  const [ticked, setTicked] = useState(reducedMotion ? total : 0);
+  const [run, setRun] = useState(0);
+  const timer = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      setTicked(total);
+      return;
+    }
+    if (!active) return;
+    setTicked(0);
+    timer.current = window.setInterval(() => {
+      setTicked(n => {
+        if (n + 1 >= total) window.clearInterval(timer.current);
+        return Math.min(n + 1, total);
+      });
+    }, stepMs);
+    return () => window.clearInterval(timer.current);
+  }, [active, reducedMotion, run, stepMs, total]);
+
+  const allSet = ticked >= total;
+  return (
+    <div className="lc-night">
+      <div className="lc-night-head">
+        <div>
+          <div className="lc-night-when">Friday, 9:40 pm</div>
+          <div className="lc-night-title">Ready for show day</div>
+        </div>
+        <span className="lc-night-summary" data-all={allSet ? 'true' : 'false'}>
+          {allSet ? 'All set' : `${ticked} of ${total} checked`}
+        </span>
+      </div>
+      <ul className="lc-night-list">
+        {NIGHT_BEFORE_CHECKS.map((c, i) => {
+          const state = ticked > i ? 'done' : ticked === i ? 'checking' : 'waiting';
+          return (
+            <li key={c.signal} data-state={state}>
+              <span className="lc-night-mark" aria-hidden="true" />
+              <div>
+                <div className="lc-night-label">{c.label}</div>
+                <div className="lc-night-sub">
+                  {state === 'done' ? c.sub : state === 'checking' ? 'Checking…' : 'Waiting'}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="lc-night-foot">
+        <p className="lc-night-closing" data-shown={allSet ? 'true' : 'false'}>
+          Everything is handled. See you at the ring.
+        </p>
+        <button type="button" className="lc-night-replay" onClick={() => setRun(r => r + 1)}>
+          Replay
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+Confirm each `signal` id exists in `SetupReadinessSignalId` (`setupReadinessSignals.ts` lines 7 to 14); the type makes a wrong id a compile error. If `exhibitor-materials-unpublished` is not the premium signal, use the id that is.
+
+- [ ] **Step 4: Add the card's CSS to `lifecycle.css` (Task 5 Step 5).**
+
+```css
+/* Night-before checklist (plan D11). */
+.landing-v2 .lc-night {
+  max-width: 560px;
+  padding: 1.5rem 1.75rem;
+  background: #fff;
+  border: 1px solid #e8e2d4;
+  border-radius: 20px;
+  box-shadow: 0 30px 60px -40px rgb(60 40 20 / 0.45);
+}
+.landing-v2 .lc-night-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.landing-v2 .lc-night-when {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--terracotta-600);
+}
+.landing-v2 .lc-night-title {
+  font-size: 1.1875rem;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+.landing-v2 .lc-night-summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 0.75rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  background: #f1ece2;
+  color: var(--stone-700);
+  white-space: nowrap;
+}
+.landing-v2 .lc-night-summary[data-all='true'] {
+  background: #e3f2e6;
+  color: #1e5b2e;
+}
+.landing-v2 .lc-night-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.landing-v2 .lc-night-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.6875rem 0;
+  border-top: 1px solid #efe9dd;
+}
+.landing-v2 .lc-night-mark {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  box-sizing: border-box;
+  border: 2px solid #e3dccd;
+  background: #fff center / 14px no-repeat;
+  transform: scale(0.92);
+  transition:
+    background-color 260ms ease,
+    border-color 260ms ease,
+    transform 260ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.landing-v2 .lc-night-list li[data-state='checking'] .lc-night-mark {
+  border-style: dashed;
+  border-color: #b8ae9c;
+}
+.landing-v2 .lc-night-list li[data-state='done'] .lc-night-mark {
+  transform: scale(1);
+  border-color: #2f7d46;
+  background-color: #2f7d46;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+}
+.landing-v2 .lc-night-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+.landing-v2 .lc-night-sub {
+  font-size: 0.875rem;
+  color: var(--stone-500);
+}
+.landing-v2 .lc-night-list li[data-state='done'] .lc-night-sub {
+  color: #1e5b2e;
+}
+.landing-v2 .lc-night-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+.landing-v2 .lc-night-closing {
+  margin: 0;
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 1.1875rem;
+  color: var(--stone-700);
+  opacity: 0;
+  transition: opacity 500ms ease;
+}
+.landing-v2 .lc-night-closing[data-shown='true'] {
+  opacity: 1;
+}
+.landing-v2 .lc-night-replay {
+  min-height: 44px;
+  padding: 0 0.875rem;
+  border-radius: 10px;
+  border: 1px solid #d9d3c4;
+  background: #fff;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-v2 .lc-night-mark,
+  .landing-v2 .lc-night-closing {
+    transition: none;
+  }
+}
+```
+
+The closing line is hidden with `opacity: 0` until all checks pass. That is the one place the page dims text on purpose, and it is decorative repetition of the "All set" badge, so the contrast harness in Task 7 must skip `.lc-night-closing[data-shown='false']`.
+
+- [ ] **Step 5: Run green.** Same command; expected PASS (5 tests).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/myk9show/src/components/landing/lifecycle/NightBeforeCard.tsx apps/myk9show/src/components/landing/lifecycle/__tests__/NightBeforeCard.test.tsx
+git commit -m "feat(landing): night-before checklist card built from real setup checks"
+```
+
+---
+
 ### Task 5: Timeline, audience switch and CSS
 
 **Files:**
@@ -1075,7 +1971,7 @@ git commit -m "feat(landing): screenshot explainer slides with pause and next"
 
 **Interfaces:**
 
-- Consumes: Task 2 exports, `useTimelineProgress` (Task 3), `ScreenshotExplainer` (Task 4).
+- Consumes: Task 2 exports, `useTimelineProgress` (Task 3), `ScreenshotExplainer` (Task 4), `ScoresheetDemo` (Task 4b), `NightBeforeCard` (Task 4c).
 - Produces: `export function LifecycleTimeline(): JSX.Element`, which renders `<section id="how-it-works">`. Each step row is `<div id={step.id} data-revealed>`, and each dot is `<span id={`${step.id}-dot`} data-reached>`.
 
 - [ ] **Step 1: Write the failing test**
@@ -1085,6 +1981,7 @@ import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { LifecycleTimeline } from '../LifecycleTimeline';
+import { trailPath } from '../TimelineStep';
 import { STORIES } from '../lifecycleStories';
 
 vi.mock('../useTimelineProgress', () => ({
@@ -1092,6 +1989,13 @@ vi.mock('../useTimelineProgress', () => ({
 }));
 
 const titles = () => screen.getAllByRole('heading', { level: 3 }).map(h => h.textContent);
+
+describe('trailPath', () => {
+  it('starts and ends on the dot axis and mirrors by side', () => {
+    expect(trailPath(1)).toMatch(/^M 48 0 .* 48 100$/);
+    expect(trailPath(1)).not.toBe(trailPath(-1));
+  });
+});
 
 describe('LifecycleTimeline', () => {
   it('opens on the club story', () => {
@@ -1129,25 +2033,49 @@ describe('LifecycleTimeline', () => {
     expect(reached).toEqual(['true', 'true', 'false', 'false', 'false', 'false']);
   });
 
-  it('marks show day as the peak with its lead line and an explainer', () => {
+  it('marks show day as the peak with its lead line and the signal switch', () => {
     render(<LifecycleTimeline />);
     const peak = document.getElementById('showday')!;
     expect(peak).toHaveAttribute('data-peak', 'true');
     expect(
       within(peak).getByText('Then show day arrives, and the venue has no signal.')
     ).toBeInTheDocument();
-    expect(within(peak).getByRole('button', { name: /Pause|Play/ })).toBeInTheDocument();
+    expect(within(peak).getByRole('switch', { name: 'Venue signal' })).toBeInTheDocument();
   });
 
   // [ADDED] Review Focus 7
-  it('switching audience mid-explainer does not crash and restarts the explainer', () => {
+  it('switching audience mid-demo does not crash; each side shows its own show-day piece', () => {
     render(<LifecycleTimeline />);
     const peak = () => document.getElementById('showday')!;
-    for (let i = 0; i < 4; i++)
-      fireEvent.click(within(peak()).getByRole('button', { name: 'Next' }));
-    expect(within(peak()).getByText('5 of 5')).toBeInTheDocument();
+    fireEvent.click(within(peak()).getByRole('switch', { name: 'Venue signal' }));
+    fireEvent.click(within(peak()).getByRole('button', { name: 'Start' }));
     fireEvent.click(screen.getByRole('button', { name: 'I’m entering a show' }));
     expect(within(peak()).getByText('1 of 3')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'I’m running a show' }));
+    expect(within(peak()).getByRole('switch', { name: 'Venue signal' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+  });
+
+  // [ADDED] D10
+  it('draws a scent trail between every pair of steps, with Alert at Results only', () => {
+    const { container } = render(<LifecycleTimeline />);
+    expect(container.querySelectorAll('svg.lc-trail')).toHaveLength(5);
+    expect(container.querySelectorAll('.lc-alert')).toHaveLength(1);
+    expect(document.getElementById('results')!.querySelector('.lc-alert')).not.toBeNull();
+  });
+
+  // [ADDED] D11
+  it('shows the night-before card in the club story and the running-order screenshot for exhibitors', () => {
+    render(<LifecycleTimeline />);
+    const before = () => document.getElementById('before')!;
+    expect(within(before()).getByText('Ready for show day')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'I’m entering a show' }));
+    expect(within(before()).queryByText('Ready for show day')).toBeNull();
+    expect(
+      within(before()).getByRole('img', { name: STORIES.exhibitor[2]!.shot!.alt })
+    ).toBeInTheDocument();
   });
 
   it('caps phone screenshots at phone width', () => {
@@ -1165,6 +2093,8 @@ describe('LifecycleTimeline', () => {
 
 ```tsx
 import { ScreenshotExplainer } from './ScreenshotExplainer';
+import { NightBeforeCard } from './NightBeforeCard';
+import { ScoresheetDemo } from './ScoresheetDemo';
 import type { Shot, StoryStep } from './lifecycleStories';
 
 function Screenshot({ shot, side }: { shot: Shot; side: 'main' | 'meanwhile' }) {
@@ -1182,18 +2112,39 @@ function Screenshot({ shot, side }: { shot: Shot; side: 'main' | 'meanwhile' }) 
   );
 }
 
+// D10: one leg of the scent trail in a 96x100 box: cast out to one side, swing back across,
+// settle onto the next dot. `side` alternates per step so the trail zigzags like a search.
+export function trailPath(side: 1 | -1): string {
+  const x = (dx: number) => 48 + side * dx;
+  return `M 48 0 C ${x(14)} 12, ${x(40)} 10, ${x(40)} 32 S ${x(-32)} 50, ${x(-26)} 68 S ${x(4)} 92, 48 100`;
+}
+
+function PawIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <circle cx="6" cy="9" r="2.4" />
+      <circle cx="10" cy="5" r="2.4" />
+      <circle cx="14" cy="5" r="2.4" />
+      <circle cx="18" cy="9" r="2.4" />
+      <path d="M12 10c-3.2 0-6 3.6-6 6.4 0 2 1.6 3.1 3.4 2.6 1-.3 1.7-.6 2.6-.6s1.6.3 2.6.6c1.8.5 3.4-.6 3.4-2.6 0-2.8-2.8-6.4-6-6.4z" />
+    </svg>
+  );
+}
+
 export function TimelineStep({
   step,
   number,
   lead,
   reached,
   revealed,
+  isLast,
 }: {
   step: StoryStep;
   number: number;
   lead: string;
   reached: boolean;
   revealed: boolean;
+  isLast: boolean;
 }) {
   return (
     <div
@@ -1210,13 +2161,44 @@ export function TimelineStep({
           // [ADDED] key by image: a new screenshot starts its explainer from step 1, unpaused.
           <ScreenshotExplainer key={step.shot.src} shot={step.shot} steps={step.explainer} />
         )}
-        {step.shot && !step.explainer && <Screenshot shot={step.shot} side="main" />}
+        {step.scoresheetDemo && <ScoresheetDemo />}
+        {step.nightBefore && <NightBeforeCard active={revealed} />}
+        {step.shot && !step.explainer && !step.scoresheetDemo && !step.nightBefore && (
+          <Screenshot shot={step.shot} side="main" />
+        )}
       </div>
       <div className="lc-rail" aria-hidden="true">
-        <span id={`${step.id}-dot`} className="lc-dot" data-reached={reached ? 'true' : 'false'}>
-          {number}
+        <span className="lc-dot-wrap">
+          <span id={`${step.id}-dot`} className="lc-dot" data-reached={reached ? 'true' : 'false'}>
+            {number}
+          </span>
+          {step.id === 'results' && (
+            <span className="lc-alert" data-shown={reached ? 'true' : 'false'}>
+              <PawIcon />
+              Alert!
+            </span>
+          )}
         </span>
-        <span className="lc-line" data-filled={reached ? 'true' : 'false'} />
+        {!isLast && (
+          // D10: the scent trail to the next step. Stretched to the row's height; strokes stay crisp.
+          <svg
+            className="lc-trail"
+            viewBox="0 0 96 100"
+            preserveAspectRatio="none"
+            data-after-find={step.id === 'results' ? 'true' : 'false'}
+          >
+            <path
+              className="lc-trail-base"
+              d={trailPath(number % 2 === 1 ? 1 : -1)}
+              vectorEffect="non-scaling-stroke"
+            />
+            <path
+              className="lc-trail-scent"
+              d={trailPath(number % 2 === 1 ? 1 : -1)}
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        )}
       </div>
       <div className="lc-meanwhile">
         <p className="lc-meanwhile-text">{step.meanwhile}</p>
@@ -1286,6 +2268,7 @@ export function LifecycleTimeline() {
             lead={PEAK_LEAD[audience]}
             reached={reached >= i + 1}
             revealed={isRevealed(step.id)}
+            isLast={i === story.length - 1}
           />
         ))}
       </div>
@@ -1503,25 +2486,68 @@ Keying rows on `step.id` (shared by both audiences) keeps the same DOM nodes acr
   font-size: 1.375rem;
   margin-top: 2.5rem;
 }
-.landing-v2 .lc-line {
+.landing-v2 .lc-dot-wrap {
   position: relative;
+  display: flex;
+  justify-content: center;
+}
+/* D10: the scent trail between dots. The SVG stretches to the row; strokes stay crisp
+   (vector-effect: non-scaling-stroke on each path). It fills, by clip-path wipe, when the
+   NEXT step is reached, and pulls back when the reader scrolls up. */
+.landing-v2 .lc-trail {
   flex: 1 1 auto;
-  width: 2px;
-  margin-top: 8px;
-  background: #d9cfbc;
-  overflow: hidden;
+  width: 96px;
+  margin-top: 4px;
+  overflow: visible;
 }
-.landing-v2 .lc-line::after {
-  content: '';
+.landing-v2 .lc-trail-base {
+  fill: none;
+  stroke: #d9cfbc;
+  stroke-width: 2;
+}
+.landing-v2 .lc-trail-scent {
+  fill: none;
+  stroke: var(--terracotta-600);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 0.5 13;
+  clip-path: inset(0 0 100% 0);
+  transition: clip-path 900ms cubic-bezier(0.45, 0.05, 0.25, 1);
+}
+.landing-v2 .lc-trail[data-after-find='true'] .lc-trail-scent {
+  stroke: #b8ae9c;
+  stroke-width: 2;
+  stroke-dasharray: 3 8;
+  stroke-linecap: butt;
+}
+.landing-v2 .lc-row:has(+ .lc-row .lc-dot[data-reached='true']) .lc-trail-scent {
+  clip-path: inset(0 0 0 0);
+}
+.landing-v2 .lc-alert {
   position: absolute;
-  inset: 0;
-  background: var(--terracotta-600);
-  transform: scaleY(0);
-  transform-origin: top;
-  transition: transform 700ms cubic-bezier(0.23, 1, 0.32, 1);
+  left: 100%;
+  top: 6px;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #e3f2e6;
+  color: #1e5b2e;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 8px 18px -10px rgb(0 0 0 / 0.35);
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 400ms ease,
+    transform 400ms cubic-bezier(0.23, 1, 0.32, 1);
 }
-.landing-v2 .lc-row:has(+ .lc-row .lc-dot[data-reached='true']) .lc-line::after {
-  transform: scaleY(1);
+.landing-v2 .lc-alert[data-shown='true'] {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* Reveal once: content rises 20px and fades in; meanwhile follows 140ms later. */
@@ -1670,11 +2696,24 @@ Keying rows on `step.id` (shared by both audiences) keeps the same DOM nodes acr
   .landing-v2 .lc-row[data-peak='true'] .lc-dot {
     margin-top: 1rem;
   }
+  .landing-v2 .lc-alert {
+    left: 50%;
+    top: 100%;
+    margin: 6px 0 0;
+    transform: translate(-50%, 6px);
+  }
+  .landing-v2 .lc-alert[data-shown='true'] {
+    transform: translate(-50%, 0);
+  }
+  .landing-v2 .lc-trail {
+    width: 56px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .landing-v2 .lc-dot,
-  .landing-v2 .lc-line::after,
+  .landing-v2 .lc-trail-scent,
+  .landing-v2 .lc-alert,
   .landing-v2 .lc-main,
   .landing-v2 .lc-meanwhile,
   .landing-v2 .lc-explainer-box,
@@ -1687,7 +2726,7 @@ Keying rows on `step.id` (shared by both audiences) keeps the same DOM nodes acr
 
 `--ivory-100` does not exist (checked 2026-10-13), so the fallback `#f3efe6` is what renders. That value is the alt-section ground measured on production. Do not invent a token for it.
 
-- [ ] **Step 6: Run green.** Same command; expected PASS (7 tests).
+- [ ] **Step 6: Run green.** Same command; expected PASS (9 tests).
 
 - [ ] **Step 7: Commit**
 
@@ -2226,8 +3265,48 @@ for (const vp of VIEWPORTS) {
       expect((await reachedDots(page)).slice(0, 4)).toEqual(['true', 'true', 'true', 'true']);
     });
 
-    test('explainer pauses and steps', async ({ page }) => {
+    // [ADDED] D9
+    test('practice scoresheet queues scores offline and syncs them', async ({ page }) => {
       await page.goto('/');
+      const peak = page.locator('#showday');
+      await peak.scrollIntoViewIfNeeded();
+      const sw = peak.getByRole('switch', { name: 'Venue signal' });
+      await sw.click();
+      await peak.getByRole('button', { name: 'Start' }).click();
+      await page.waitForTimeout(600);
+      await peak.getByRole('button', { name: 'Stop' }).click();
+      await peak.getByRole('button', { name: 'Qualified' }).click();
+      await peak.getByRole('button', { name: 'Save' }).click();
+      await peak.getByRole('button', { name: 'Absent' }).click();
+      await peak.getByRole('button', { name: 'Save' }).click();
+      await expect(peak.getByText('No signal · 2 waiting')).toBeVisible();
+      await sw.click();
+      await expect(peak.getByText('All synced')).toBeVisible({ timeout: 4000 });
+    });
+
+    // [ADDED] D10
+    test('the scent trail follows the reader and marks Alert at Results', async ({ page }) => {
+      await page.goto('/');
+      const alert = page.locator('#results .lc-alert');
+      await expect(alert).toHaveAttribute('data-shown', 'false');
+      await scrollDotToMiddle(page, 'results');
+      await expect(alert).toHaveAttribute('data-shown', 'true');
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await expect(alert).toHaveAttribute('data-shown', 'false');
+    });
+
+    // [ADDED] D11
+    test('night-before card ticks green once revealed', async ({ page }) => {
+      await page.goto('/');
+      const card = page.locator('#before .lc-night');
+      await card.scrollIntoViewIfNeeded();
+      await expect(card.getByText('All set')).toBeVisible({ timeout: 6000 });
+      await expect(card.getByText('Everything is handled. See you at the ring.')).toBeVisible();
+    });
+
+    test('exhibitor explainer pauses and steps', async ({ page }) => {
+      await page.goto('/');
+      await page.getByRole('button', { name: 'I’m entering a show' }).click();
       const fig = page.locator('#showday figure');
       await fig.scrollIntoViewIfNeeded();
       await fig.getByRole('button', { name: 'Pause' }).click();
@@ -2313,6 +3392,7 @@ for (const vp of VIEWPORTS) {
             '.lc-step-body, .lc-meanwhile-text, .lc-lead, .lc-explainer-text, .lc-switch button, .l-lede, .lc-hero-registries'
           ),
         ]
+          .filter(el => !el.matches(".lc-night-closing[data-shown='false']"))
           .map(el => ({ text: el.textContent!.trim().slice(0, 30), ratio: +ratio(el).toFixed(2) }))
           .filter(x => x.ratio < 4.5);
         return { probeRatio, failures };
@@ -2340,6 +3420,7 @@ test.describe('reduced motion', () => {
     for (const id of STEPS) {
       expect(await page.locator(`#${id}`).getAttribute('data-revealed')).toBe('true');
     }
+    await page.getByRole('button', { name: 'I’m entering a show' }).click(); // club show day is the signal demo (D9)
     const fig = page.locator('#showday figure');
     await fig.scrollIntoViewIfNeeded();
     await expect(fig.getByRole('button', { name: 'Play' })).toBeVisible();
@@ -2450,6 +3531,10 @@ The change is a single squash commit touching only `apps/myk9show` source (inclu
 - Rationale: deletes a component directory, edits `vite.config.ts` (service-worker precache) and the PR-smoke e2e list, adds observer-driven behaviour, changes the app-shell header padding in `SidebarLayout` and `AppHeader` (every page renders through them; the change is limited to the guest-on-`/` case), and touches well over three production files, so the `commit` skill's high-risk ladder applies even though no data, auth or payment path changes.
 
 ## Follow-ups to file when this plan starts
+
+- [ADDED] **MYK9-1145 (filed 2026-10-13):** the real "Ready for show day" checklist on the secretary Overview. When it ships, add its entries, printing and offline lines to `NIGHT_BEFORE_CHECKS` (D11).
+
+- [ADDED] A live practice ring (canvas E3): a practice show with a public passcode, linked from the landing page as "Try it yourself". It needs a tidy practice show on the live database and a cold-phone airplane-mode check.
 
 - Delete the `platform_waitlist` insert path, trigger and `send-waitlist-invite` once the rebuild merges (D1).
 - Show-day photos in the timeline, once the owner supplies them.

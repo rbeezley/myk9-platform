@@ -1,7 +1,7 @@
 // apps/myk9show/src/pages/scoring/hooks/usePaperScoring.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { usePaperScoring } from './usePaperScoring';
+import { firstScorableEntryId, resolveOnScreenEntryId, usePaperScoring } from './usePaperScoring';
 import type { ScoringEntry } from '../types';
 
 // Mock the replicated table
@@ -41,9 +41,53 @@ describe('usePaperScoring', () => {
     localStorage.clear();
   });
 
-  it('starts with no selection', () => {
+  it('opens on the first scorable dog', () => {
     const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
-    expect(result.current.selectedEntryId).toBeNull();
+    expect(result.current.onScreenEntryId).toBe('e1');
+  });
+
+  it('a saved dog stays on screen', async () => {
+    const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
+    act(() => result.current.selectEntry('e2'));
+    await act(() => result.current.saveEntry('e2', 'Q', '4231', 0));
+    expect(result.current.onScreenEntryId).toBe('e2');
+  });
+
+  it('a cleared dog stays on screen', async () => {
+    const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
+    await act(() => result.current.clearEntry('e3'));
+    expect(result.current.onScreenEntryId).toBe('e3');
+  });
+
+  describe('resolveOnScreenEntryId (MYK9-1130)', () => {
+    const sorted = [entries[0]!, entries[1]!, entries[2]!];
+
+    it('shows the requested dog while it is listed', () => {
+      expect(resolveOnScreenEntryId(sorted, 'e3', 'sequential')).toBe('e3');
+      expect(resolveOnScreenEntryId(sorted, 'e3', 'split')).toBe('e3');
+    });
+
+    it('moves to the first scorable dog when the requested one leaves', () => {
+      const withoutE1 = [entries[1]!, entries[2]!];
+      expect(resolveOnScreenEntryId(withoutE1, 'e1', 'sequential')).toBe('e2');
+      expect(resolveOnScreenEntryId(withoutE1, 'e1', 'split')).toBe('e2');
+    });
+
+    it('shows nothing for an empty class, and the first scorable dog once it refills', () => {
+      expect(resolveOnScreenEntryId([], 'e1', 'sequential')).toBeNull();
+      expect(resolveOnScreenEntryId([], undefined, 'split')).toBeNull();
+      expect(resolveOnScreenEntryId([entries[1]!], 'e1', 'sequential')).toBe('e2');
+    });
+
+    it('a closed list panel shows nothing; card mode always shows a dog', () => {
+      expect(resolveOnScreenEntryId(sorted, null, 'split')).toBeNull();
+      expect(resolveOnScreenEntryId(sorted, null, 'sequential')).toBe('e1');
+    });
+
+    it('falls back to the first dog when every dog is scored', () => {
+      const allScored = sorted.map(e => ({ ...e, isScored: true }));
+      expect(firstScorableEntryId(allScored)).toBe('e1');
+    });
   });
 
   it('defaults to split list mode even when an old card preference was stored', () => {
@@ -52,10 +96,10 @@ describe('usePaperScoring', () => {
     expect(result.current.mode).toBe('split');
   });
 
-  it('selectEntry updates selectedEntryId', () => {
+  it('selectEntry puts that dog on screen', () => {
     const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
-    act(() => result.current.selectEntry('e1'));
-    expect(result.current.selectedEntryId).toBe('e1');
+    act(() => result.current.selectEntry('e2'));
+    expect(result.current.onScreenEntryId).toBe('e2');
   });
 
   it('nextUnscored returns first pending entry by exhibitorOrder', () => {

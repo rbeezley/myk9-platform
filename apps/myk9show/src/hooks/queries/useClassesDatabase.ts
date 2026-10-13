@@ -227,6 +227,9 @@ export const useUpdateClassMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
+    // Online-only write awaited by an edit panel: fail fast offline instead of
+    // pausing, or the panel's Save never settles (MYK9-1125).
+    networkMode: 'always',
     mutationFn: async ({ id, updates }: { id: string; updates: DbClassUpdate }) => {
       const { data, error } = await updateClass(id, updates);
       if (error) throw error;

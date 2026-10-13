@@ -159,7 +159,13 @@ describe('Dog Queries', () => {
       const result = await getDogById(dogId);
       const duration = Date.now() - startTime;
 
-      expect(result.data).toEqual(mockData);
+      // Registrations come from `loadDogRegistrations` (MYK9-1126), not this row.
+      expect(result.data).toMatchObject({
+        id: dogId,
+        name: 'Buddy',
+        breed: 'Golden Retriever',
+        owner: mockData.owner,
+      });
       expect(result.error).toBeNull();
       expect(duration).toBeLessThan(200);
     });
@@ -187,7 +193,7 @@ describe('Dog Queries', () => {
       const result = await getDogById(dogId);
       const duration = Date.now() - startTime;
 
-      expect(result.data).toEqual(mockData);
+      expect(result.data).toMatchObject(mockData);
       expect(duration).toBeLessThan(200);
     });
   });

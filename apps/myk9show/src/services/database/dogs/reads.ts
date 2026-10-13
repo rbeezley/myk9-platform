@@ -8,7 +8,6 @@ import { logger } from '@/services/LoggingService';
 import type { DbDogInsert, DbDogUpdate } from '../../../types/database-mappings';
 import type { TablesUpdate } from '@/types/supabase';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
-import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { mapReplicatedDogToDbRow } from '@/services/mappers/dogMappers';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
@@ -328,49 +327,6 @@ async function postgrestGetAllDogs(personId: string, showAll = false) {
   return { data: data || [], error: null };
 }
 
-async function postgrestGetDogById(id: string) {
-  const { data, error } = await supabase
-    .from('dogs')
-    .select(
-      `
-      *,
-      owner:people!dogs_owner_id_fkey(
-        id,
-        first_name,
-        last_name,
-        email,
-        phone,
-        street_address,
-        city,
-        state,
-        zip_code
-      ),
-      registrations:dog_registrations(*),
-      health_records(*),
-      entries(
-        *,
-        class:classes(
-          id,
-          name,
-          class_number
-        ),
-        show:shows(
-          id,
-          name,
-          start_date,
-          end_date
-        )
-      )
-    `
-    )
-    .eq('id', id)
-    .is('deleted_at', null)
-    .single();
-
-  if (error) throw createDatabaseError(error, 'dog', 'select_by_id');
-  return { data, error: null };
-}
-
 async function postgrestGetDogsByOwner(ownerId: string) {
   const { data, error } = await supabase
     .from('dogs')
@@ -485,89 +441,6 @@ export const getAllDogs = async (personId: string, showAll = false) => {
     table: 'dog',
     operation: 'select_all_with_owners',
     errorData: [],
-  });
-};
-
-// Get dog by ID with full details
-// HYBRID: reads dog from replication, entries from replication,
-// but uses PostgREST for owner details + dog_registrations + health_records (not replicated)
-export const getDogById = async (id: string) => {
-  return readWithReplicationFallback({
-    replication: async () => {
-      const dog = await replicatedDogsTable.getDogById(id);
-      if (!dog) return { data: null, error: null };
-
-      // Load entries from replication store
-      const allEntries = await replicatedEntriesTable.getAllOrThrow();
-      const dogEntries = allEntries.filter(e => e.dogId === id);
-
-      const [registrationsResult, supplementalResult] = await Promise.all([
-        loadDogRegistrations([id]),
-        supabase
-          .from('dogs')
-          .select(
-            `
-            owner:people!dogs_owner_id_fkey(
-              id,
-              first_name,
-              last_name,
-              email,
-              phone,
-              street_address,
-              city,
-              state,
-              zip_code
-            ),
-            health_records(*)
-          `
-          )
-          .eq('id', id)
-          .single(),
-      ]);
-
-      const supplemental = supplementalResult.data;
-      const owner = (supplemental as Record<string, unknown>)?.owner ?? null;
-      const registrations = registrationsResult.byDog.get(id) ?? [];
-      const healthRecords =
-        ((supplemental as Record<string, unknown>)?.health_records as Record<string, unknown>[]) ??
-        [];
-
-      // Map entries to the shape PostgREST returns (with class/show sub-objects from snake_case)
-      const entries = dogEntries.map(e => ({
-        id: e.id,
-        class_id: e.classId ?? null,
-        show_id: e.showId ?? null,
-        dog_id: e.dogId ?? null,
-        handler_id: e.handlerId ?? null,
-        armband: e.armband ?? null,
-        handler: e.handler ?? null,
-        entry_status: e.entryStatus ?? null,
-        jump_height: e.jumpHeight ?? null,
-        entry_fee: e.entryFee ?? null,
-        payment_status: e.paymentStatus ?? null,
-        run_order: e.runOrder ?? null,
-        move_up_requested: e.moveUpRequested ?? null,
-        preferred_judge: e.preferredJudge ?? null,
-        special_requests: e.specialRequests ?? null,
-        submitted_at: e.submittedAt ?? null,
-        // class and show sub-objects not available from replication — set null
-        class: null,
-        show: null,
-      }));
-
-      const data = mapReplicatedDogToDbRow(dog, {
-        owner: owner as Record<string, unknown> | null,
-        registrations,
-        registrationsReadComplete: registrationsResult.registrationsReadComplete,
-        entries,
-        healthRecords,
-      });
-      return { data, error: null };
-    },
-    postgrest: () => postgrestGetDogById(id),
-    table: 'dog',
-    operation: 'select_by_id_detailed',
-    errorData: null,
   });
 };
 

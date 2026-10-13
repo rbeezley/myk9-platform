@@ -118,7 +118,8 @@ describe('Comprehensive Database Test Suite', () => {
       const dogByIdResult = await getDogById('1');
       const getByIdDuration = Date.now() - startTime2;
 
-      expect(dogByIdResult.data).toEqual(singleDog);
+      // getDogById adds the registration read's rows and completeness (MYK9-1126).
+      expect(dogByIdResult.data).toMatchObject(singleDog);
       expect(getByIdDuration).toBeLessThan(200);
 
       // Test searchDogs

@@ -73,6 +73,13 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 
 import { getAllDogs, loadDogRegistrations } from '../reads';
 import { resolveDogIdentity } from '@/features/dogs/identity';
+
+// File-level, not per describe: CI shuffles tests across describes, and a test in the batching
+// describe sets this flag to true. Only that describe reset it, so any other describe's test that
+// ran after it saw every device row as clean and lost its unsent work (MYK9-1144).
+beforeEach(() => {
+  deviceRowsAreClean.value = false;
+});
 import { mapDatabaseToDog } from '@/services/mappers/dogMappers';
 
 /**

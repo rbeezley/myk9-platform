@@ -1053,10 +1053,12 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * disappearing.
    */
   async getConflictedRows(): Promise<ReplicationConflictSnapshot<T>[]> {
+    // The account is settled BEFORE the transaction opens: a lookup awaited
+    // inside it lets the transaction auto-commit (TransactionInactiveError).
+    const visible = await this.visibleRows();
     const db = await this.init();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
     const index = tx.store.index('tableName');
-    const visible = await this.visibleRows();
     const rows = ((await index.getAll(this.tableName)) as ReplicatedRow<T>[]).filter(
       row => !visible || visible(row as ReplicatedRow<never>)
     );
@@ -1408,12 +1410,13 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     serverIds: Set<string>,
     options: { syncedBefore?: number } = {}
   ): Promise<number> {
+    // Only the syncing account's own rows are ever stale to it: another
+    // account's cache must survive this account's sync (MYK9-1133). Settled
+    // before the transaction opens, never inside it.
+    const visible = await this.visibleRows();
     const db = await this.init();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const index = tx.store.index('tableName');
-    // Only the syncing account's own rows are ever stale to it: another
-    // account's cache must survive this account's sync (MYK9-1133).
-    const visible = await this.visibleRows();
     const rows = ((await index.getAll(this.tableName)) as ReplicatedRow<T>[]).filter(
       row => !visible || visible(row as ReplicatedRow<never>)
     );

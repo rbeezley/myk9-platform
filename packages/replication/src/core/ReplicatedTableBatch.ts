@@ -125,7 +125,9 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
         isDirty: false,
         syncStatus: 'synced',
         ...(serverVersion !== undefined && { serverVersion }),
-        ...(ownerAuthUserId !== undefined && { ownerAuthUserId }),
+        ...((ownerAuthUserId ?? existingRow?.ownerAuthUserId) !== undefined && {
+          ownerAuthUserId: (ownerAuthUserId ?? existingRow?.ownerAuthUserId) as string,
+        }),
       };
 
       await tx.store.put(row);
@@ -244,7 +246,9 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
             isDirty: false,
             syncStatus: 'synced',
             ...(serverVersion !== undefined && { serverVersion }),
-            ...(ownerAuthUserId !== undefined && { ownerAuthUserId }),
+            ...((ownerAuthUserId ?? existingRow?.ownerAuthUserId) !== undefined && {
+              ownerAuthUserId: (ownerAuthUserId ?? existingRow?.ownerAuthUserId) as string,
+            }),
           };
 
           await tx.store.put(row);

@@ -11,12 +11,11 @@ interface HeroProfileCardProps {
   lastName: string;
   fullName: string;
   photo: string;
-  onEditPhoto: () => void;
   /**
-   * The person is removed: the record is readable so an admin can decide whether to restore
-   * it (MYK9-153), and a banner says so, so the photo control is not offered.
+   * Absent when the viewer may not edit this person (MYK9-1134), or the person is removed
+   * (MYK9-153, a banner says so): the photo is shown, not offered.
    */
-  isRemoved?: boolean;
+  onEditPhoto?: (() => void) | undefined;
 }
 
 /**
@@ -32,16 +31,16 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
   fullName,
   photo,
   onEditPhoto,
-  isRemoved = false,
 }) => {
+  const canEditPhoto = onEditPhoto !== undefined;
   const roles = person.roles ?? [];
   const dogCount = person.dogs?.length ?? 0;
 
   const avatar = (
     <button
       type="button"
-      onClick={isRemoved ? undefined : onEditPhoto}
-      disabled={isRemoved}
+      onClick={canEditPhoto ? onEditPhoto : undefined}
+      disabled={!canEditPhoto}
       className="relative group rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       aria-label="Edit profile photo"
     >
@@ -54,7 +53,7 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
           </AvatarFallback>
         )}
       </Avatar>
-      {!isRemoved && (
+      {canEditPhoto && (
         <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 transition-colors group-hover:bg-black/40">
           <span className="rounded-full bg-card/90 p-2 text-foreground opacity-0 transition-opacity group-hover:opacity-100">
             <Camera className="h-5 w-5" />

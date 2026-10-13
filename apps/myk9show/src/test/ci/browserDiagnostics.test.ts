@@ -3,6 +3,7 @@ import {
   emptyDiagnosticsLog,
   formatDiagnostics,
   redactDiagnostics,
+  redactThenClip,
   stripUrlQuery,
 } from '../e2e/shared/browserDiagnostics';
 
@@ -84,5 +85,27 @@ describe('formatDiagnostics', () => {
     expect(formatDiagnostics(emptyDiagnosticsLog(), { error: 'closed' }, [])).toContain(
       '(unavailable: closed)'
     );
+  });
+});
+
+describe('a secret at a clipping boundary (Codex review, PR #2938)', () => {
+  const SECRET = 'SyntheticPasswordForReview1';
+
+  it('redactThenClip removes the whole secret before cutting, so no prefix survives', () => {
+    const out = redactThenClip(`${'x'.repeat(1_990)}${SECRET}`, 2_000, [SECRET]);
+    expect(out).not.toContain('Synthe');
+  });
+
+  it('page text that straddles the main-region limit leaks no prefix of a secret', () => {
+    const out = formatDiagnostics(
+      emptyDiagnosticsLog(),
+      {
+        url: 'https://a.test/x',
+        regions: [`${'y'.repeat(1_990)}${SECRET}`],
+        main: `${'x'.repeat(3_990)}${SECRET}`,
+      },
+      [SECRET]
+    );
+    expect(out).not.toContain('Synthe');
   });
 });

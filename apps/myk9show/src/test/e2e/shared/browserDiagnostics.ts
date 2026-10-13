@@ -66,6 +66,15 @@ function clip(text: string, max = MAX_TEXT): string {
     : text;
 }
 
+/**
+ * Redact FIRST, then cut. Cutting first can split a secret at the limit and leave a prefix the
+ * redaction no longer recognises (Codex review on PR #2938), so every captured value goes
+ * through this; the whole-report redaction in formatDiagnostics stays as a second pass.
+ */
+export function redactThenClip(text: string, max: number, secrets: readonly string[]): string {
+  return clip(redactDiagnostics(text, secrets), max);
+}
+
 export interface BrowserDiagnosticsLog {
   console: string[];
   pageErrors: string[];
@@ -102,9 +111,9 @@ export function formatDiagnostics(
           `## Page URL\n${stripUrlQuery(snapshot.url)}`,
           section(
             'Alert / toast regions',
-            snapshot.regions.map(text => `- ${clip(text, MAX_TEXT)}`)
+            snapshot.regions.map(text => `- ${redactThenClip(text, MAX_TEXT, secrets)}`)
           ),
-          `## Main region text\n${clip(snapshot.main, MAX_REGION_TEXT) || '(empty)'}`,
+          `## Main region text\n${redactThenClip(snapshot.main, MAX_REGION_TEXT, secrets) || '(empty)'}`,
         ].join('\n\n');
   const body = [
     section('Console', log.console),
@@ -127,6 +136,7 @@ function isAssetResponse(url: string, resourceType: string): boolean {
 /** Wires the listeners and returns the live log. Listeners die with the page. */
 export function collectBrowserDiagnostics(page: Page): BrowserDiagnosticsLog {
   const log = emptyDiagnosticsLog();
+  const secrets = collectSecrets();
   const started = Date.now();
   const at = () => `+${Date.now() - started}ms`;
 
@@ -135,10 +145,16 @@ export function collectBrowserDiagnostics(page: Page): BrowserDiagnosticsLog {
     const text = message.text();
     if (type !== 'error' && type !== 'warning' && !INTERESTING_CONSOLE.test(text)) return;
     const source = stripUrlQuery(message.location().url ?? '');
-    push(log.console, `${at()} [${type}] ${clip(text)}${source ? ` (${source})` : ''}`);
+    push(
+      log.console,
+      `${at()} [${type}] ${redactThenClip(text, MAX_TEXT, secrets)}${source ? ` (${source})` : ''}`
+    );
   });
   page.on('pageerror', error => {
-    push(log.pageErrors, `${at()} ${clip(error.stack ?? `${error.name}: ${error.message}`)}`);
+    push(
+      log.pageErrors,
+      `${at()} ${redactThenClip(error.stack ?? `${error.name}: ${error.message}`, MAX_TEXT, secrets)}`
+    );
   });
   page.on('requestfailed', request => {
     push(

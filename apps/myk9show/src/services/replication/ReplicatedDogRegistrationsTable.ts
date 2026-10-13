@@ -20,7 +20,6 @@ import {
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
   REPLICATION_STORES,
-  type DirtyRowComparePolicy,
   type MutationManager,
   type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
@@ -43,6 +42,7 @@ import {
 } from './dogRegistrationRows';
 import {
   fetchVisibleRegistrationIds,
+  type RegistrationIdPassResult,
   pruneRegistrationsMissingFromServer,
   removeConfirmedDeletes,
   removeResolvedPlaceholders,
@@ -60,6 +60,7 @@ import {
   loadRowForWrite,
 } from './dogRegistrationWriteSupport';
 import {
+  REGISTRATION_COMPARE_POLICY,
   applyRegistrationPatch,
   assertRegistrationPatch,
   createRegistrationTimestamps,
@@ -70,23 +71,8 @@ import {
   type RegistrationInput,
 } from './dogRegistrationWrites';
 export type { DogRegistrationReadRow, DogRegistrationRow, ReplicatedDogRegistration };
-export type { RegistrationDraft };
+export type { RegistrationDraft, RegistrationIdPassResult };
 export { createRegistrationTimestamps };
-
-/**
- * `updatedAt` is bookkeeping: an edit here and a server edit each stamp it, so
- * comparing it would turn every different-field pair into a conflict. Compare
- * it as one value; the UPDATE payload still carries its own timestamp.
- */
-const REGISTRATION_COMPARE_POLICY: DirtyRowComparePolicy = {
-  normalizeValue: (field, value) => (field === 'updatedAt' ? null : value),
-};
-
-/** Outcome of one ID pass; `null` from `reconcileWithServerIds` means it was skipped. */
-export interface RegistrationIdPassResult {
-  removed: number;
-  fetched: number;
-}
 
 export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedDogRegistration> {
   /** Discarding a refused edit or delete puts the row back as the server has it (MYK9-1076). */
@@ -360,11 +346,9 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   }
 
   /**
-   * An edit of an add the server has not acknowledged replaces its INSERT: the
-   * queued (or refused) INSERT is dropped and a new one carries the corrected
-   * row, still waiting for the dog's own create. An UPDATE would name a row the
-   * server does not have (Codex review of PR 3a). A refused INSERT is dropped
-   * only after the new one is queued, so Discard's cleanup keeps the row.
+   * Editing an unacknowledged add replaces its queued or refused INSERT (an
+   * UPDATE would name a row the server lacks); the new INSERT still waits for
+   * the dog's create. The refused one goes after, so Discard keeps the row.
    */
   private async replaceUnsentAdd(updated: ReplicatedDogRegistration): Promise<void> {
     await discardPendingWork(this, this.queue, updated.id);

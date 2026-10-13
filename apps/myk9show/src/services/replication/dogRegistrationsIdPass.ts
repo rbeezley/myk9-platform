@@ -26,6 +26,12 @@ import {
 /** The replica's IndexedDB handle (`ReplicatedTable.init()`). */
 type ReplicaDb = Awaited<ReturnType<DatabaseManager['getDatabase']>>;
 
+/** Outcome of one ID pass; `null` from `reconcileWithServerIds` means it was skipped. */
+export interface RegistrationIdPassResult {
+  removed: number;
+  fetched: number;
+}
+
 /** Bound on the id loop: 100 pages is 100,000 registrations. */
 export const DOG_REGISTRATION_ID_PASS_MAX_PAGES = 100;
 

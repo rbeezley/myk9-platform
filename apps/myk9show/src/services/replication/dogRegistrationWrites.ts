@@ -3,6 +3,7 @@
  * the edit patch (allowlisted), a new registration from a form draft, and the
  * refusals a save panel shows.
  */
+import type { DirtyRowComparePolicy } from '@myk9/replication';
 import type { DogInput } from '@/store/dogStore';
 import type { DbDogRegistrationInsert } from '@/types/database-mappings';
 import { FriendlySaveError } from '@/utils/friendlySaveError';
@@ -159,3 +160,12 @@ export function draftToRegistration(
     createdAt,
   };
 }
+
+/**
+ * `updatedAt` is bookkeeping: an edit here and a server edit each stamp it, so
+ * comparing it would turn every different-field pair into a conflict. Compare
+ * it as one value; the UPDATE payload still carries its own timestamp.
+ */
+export const REGISTRATION_COMPARE_POLICY: DirtyRowComparePolicy = {
+  normalizeValue: (field, value) => (field === 'updatedAt' ? null : value),
+};

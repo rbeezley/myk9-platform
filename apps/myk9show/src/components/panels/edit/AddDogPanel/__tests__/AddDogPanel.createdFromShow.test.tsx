@@ -46,7 +46,7 @@ const formData = {
 async function save() {
   const run = captured.onSave as (d: typeof formData, c: EditPanelSaveContext) => Promise<void>;
   await act(async () => {
-    await run(formData, { runSelfNavigation: fn => fn() });
+    await run(formData, { runSelfNavigation: fn => fn(), isCurrent: () => true });
   });
 }
 

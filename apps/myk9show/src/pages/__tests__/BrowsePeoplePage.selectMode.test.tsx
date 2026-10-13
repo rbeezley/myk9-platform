@@ -69,10 +69,18 @@ vi.mock('@/components/panels/edit', () => ({
     onSave,
   }: {
     open: boolean;
-    onSave: (data: Record<string, unknown>) => Promise<void>;
+    onSave: (data: Record<string, unknown>, context: unknown) => Promise<void>;
   }) =>
     open ? (
-      <button type="button" onClick={() => void onSave({ firstName: 'New', lastName: 'Person' })}>
+      <button
+        type="button"
+        onClick={() =>
+          void onSave(
+            { firstName: 'New', lastName: 'Person' },
+            { isCurrent: () => true, runSelfNavigation: (navigate: () => void) => navigate() }
+          )
+        }
+      >
         save new person
       </button>
     ) : null,

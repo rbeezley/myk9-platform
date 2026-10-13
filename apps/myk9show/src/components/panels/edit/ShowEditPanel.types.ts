@@ -8,6 +8,7 @@ import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { ShowStyle } from '@/features/registries';
 import type { GeneratedPremium } from '@/types/premium-types';
 import type { EditPanelDeleteOption } from './EditPanelDelete';
+import type { EditPanelSaveContext } from './EditPanelWrapper.types';
 
 export interface ShowEditPanelProps {
   open: boolean;
@@ -15,7 +16,7 @@ export interface ShowEditPanelProps {
   showId: string;
   showName: string;
   initialShowData: Partial<Show>;
-  onSave?: (showData: ShowEditSaveData) => Promise<void>;
+  onSave?: (showData: ShowEditSaveData, context: EditPanelSaveContext) => Promise<void>;
   enableAutoSave?: boolean;
   showAdvancedFields?: boolean;
   /** Tab the panel opens on; set by the `editTab` deep link (F4/F12). */

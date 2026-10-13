@@ -13,6 +13,7 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
+import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWrapper.types';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { Plus, Download, Search, Users } from 'lucide-react';
@@ -299,13 +300,14 @@ const UserManagementPage: React.FC = () => {
     [updateListParams]
   );
 
-  const handleEditPanelSave = async (userData: Partial<User>) => {
+  const handleEditPanelSave = async (userData: Partial<User>, ctx: EditPanelSaveContext) => {
     if (!selectedUser) return;
     try {
       const updatedUser = await updateUserMutation.mutateAsync({
         id: selectedUser.id,
         updates: userData,
       });
+      if (!ctx.isCurrent()) return; // Left while saving (MYK9-1125): no reselecting.
       setSelectedUser(updatedUser);
       setShowUserEditPanel(false);
     } catch (err) {

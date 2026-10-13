@@ -129,7 +129,10 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   );
 
   // Handle save: map DogFormData -> DogInput and persist
-  const handleSave = async (formData: DogFormData, { runSelfNavigation }: EditPanelSaveContext) => {
+  const handleSave = async (
+    formData: DogFormData,
+    { runSelfNavigation, isCurrent }: EditPanelSaveContext
+  ) => {
     setLocalSaveError(null);
     setDuplicateCandidate(null);
     if (!allowSeparateDog) {
@@ -200,6 +203,9 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
       setLocalSaveError(friendlySaveMessage(error));
       throw error;
     }
+    // Left while saving (MYK9-1125): no toast of our own and no onDogCreated, which
+    // would route or switch the flow under the person; the wrapper reports the save.
+    if (!isCurrent()) return;
     // 4.E: a durable "Dog saved" confirmation. The panel used to just close
     // silently, leaving a novice unsure the save worked. Fire before the
     // parent callback (which may navigate) so the toast survives the route

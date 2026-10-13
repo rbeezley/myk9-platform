@@ -1,4 +1,5 @@
 import type { ClassData } from '@/components/classes/types/classTypes';
+import type { EditPanelSaveContext } from './EditPanelWrapper.types';
 import type { TrialClass } from '@/components/trials/types/trial.types';
 import type { ClassStatusValue } from '@myk9/core';
 
@@ -12,7 +13,10 @@ export interface ClassEditPanelProps {
   classId: string;
   className: string;
   initialClassData: Partial<ClassData | TrialClass>;
-  onSave?: (classData: Partial<ClassData | TrialClass>) => Promise<void>;
+  onSave?: (
+    classData: Partial<ClassData | TrialClass>,
+    context: EditPanelSaveContext
+  ) => Promise<void>;
   enableAutoSave?: boolean;
   showId?: string;
   mode?: 'full' | 'simple'; // 'full' for ClassData with tabs, 'simple' for TrialClass

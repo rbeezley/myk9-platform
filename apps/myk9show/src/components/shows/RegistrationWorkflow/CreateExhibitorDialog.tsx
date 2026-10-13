@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWrapper.types';
 import { UserEditPanel } from '@/components/panels/edit/UserEditPanel';
 import type { EditPanelVariant } from '@/components/panels/edit/EditPanelWrapper';
 import { PanelSaveHandledError } from '@/components/panels/edit/panelSaveErrors';
@@ -151,7 +152,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     return true;
   };
 
-  const handleSave = async (data: Partial<PersonRecord>) => {
+  const handleSave = async (data: Partial<PersonRecord>, { isCurrent }: EditPanelSaveContext) => {
     // The card above the tabs explains this; the panel keeps the form open
     // without a failure toast.
     if (holdForDuplicate(data)) throw new PanelSaveHandledError();
@@ -187,7 +188,8 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
       const pendingMutationIds = await replicatedShowDeskPeopleTable.getPendingMutationIdsForRow(
         person.id
       );
-      onExhibitorCreated(newExhibitor, { pendingMutationIds });
+      // Left while saving (MYK9-1125): the flow has moved on; the wrapper reports the save.
+      if (isCurrent()) onExhibitorCreated(newExhibitor, { pendingMutationIds });
       return;
     }
 
@@ -208,6 +210,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
       logger.error('Error creating exhibitor:', 'shows', {}, (error ?? undefined) as Error);
       throw error ?? new Error('Unable to add person.');
     }
+    if (!isCurrent()) return;
     onExhibitorCreated({
       ...mapDatabaseToUser(row as Record<string, unknown>),
       roles: [UserRole.EXHIBITOR],

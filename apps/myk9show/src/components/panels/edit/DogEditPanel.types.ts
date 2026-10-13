@@ -1,4 +1,5 @@
 import type { Dog as DogType, DogStatus, Registration } from '@/types/dog-types';
+import type { EditPanelSaveContext } from './EditPanelWrapper.types';
 import type { User as PersonType } from '@/types/user-types';
 import { UserRole } from '@/types/auth-types';
 
@@ -33,7 +34,7 @@ export interface DogEditPanelProps {
   dogId: string;
   dogName: string;
   initialDogData: Partial<DogType>;
-  onSave?: (dogData: Partial<DogType>) => Promise<void>;
+  onSave?: (dogData: Partial<DogType>, context: EditPanelSaveContext) => Promise<void>;
   enableAutoSave?: boolean;
   showAdvancedFields?: boolean;
   /** User role - admins can change dog ownership */

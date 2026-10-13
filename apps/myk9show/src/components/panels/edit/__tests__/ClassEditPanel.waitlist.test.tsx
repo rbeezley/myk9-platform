@@ -53,7 +53,8 @@ describe('ClassEditPanel: entry limit and wait list', () => {
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ maxEntries: 12, allowsWaitlist: true })
+      expect.objectContaining({ maxEntries: 12, allowsWaitlist: true }),
+      expect.objectContaining({ isCurrent: expect.any(Function) })
     );
   });
 
@@ -65,7 +66,10 @@ describe('ClassEditPanel: entry limit and wait list', () => {
     await user.clear(limit);
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ maxEntries: null }));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ maxEntries: null }),
+      expect.objectContaining({ isCurrent: expect.any(Function) })
+    );
     // Unchanged, so not re-sent.
     expect(onSave.mock.calls[0]![0]).not.toHaveProperty('allowsWaitlist');
   });

@@ -80,7 +80,10 @@ describe('TrialEditPanel (MYK9-1086)', () => {
     await user.click(screen.getAllByRole('button', { name: /save changes/i })[0]!);
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ timeStarted: '' }));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ timeStarted: '' }),
+      expect.objectContaining({ isCurrent: expect.any(Function) })
+    );
   });
 
   it('refuses an unreadable start instead of dropping it on save', async () => {
@@ -107,7 +110,8 @@ describe('TrialEditPanel (MYK9-1086)', () => {
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ timeStarted: '2026-10-10T14:42:00.000Z' })
+      expect.objectContaining({ timeStarted: '2026-10-10T14:42:00.000Z' }),
+      expect.objectContaining({ isCurrent: expect.any(Function) })
     );
   });
 });

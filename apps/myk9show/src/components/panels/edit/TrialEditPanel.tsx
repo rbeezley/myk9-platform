@@ -1,6 +1,10 @@
 import React, { useCallback, useMemo } from 'react';
 import { z } from 'zod';
-import { EditPanelWrapper, type EditPanelDeleteOption } from './EditPanelWrapper';
+import {
+  EditPanelWrapper,
+  type EditPanelDeleteOption,
+  type EditPanelSaveContext,
+} from './EditPanelWrapper';
 import { savedMessage } from './panelSaveErrors';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
@@ -35,7 +39,7 @@ interface TrialEditPanelProps {
   trialId: string;
   trialName: string;
   initialTrialData: Partial<Trial>;
-  onSave?: (trialData: Partial<Trial>) => Promise<void>;
+  onSave?: (trialData: Partial<Trial>, context: EditPanelSaveContext) => Promise<void>;
   enableAutoSave?: boolean;
   showAdvancedFields?: boolean;
   organization?: string;
@@ -577,10 +581,10 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
 
   // Handle save
   const handleSave = useCallback(
-    async (formData: TrialEditFormData) => {
+    async (formData: TrialEditFormData, context: EditPanelSaveContext) => {
       const trialData = formDataToTrial(formData, getTrialTimezone(initialTrialData));
       if (onSave) {
-        await onSave(trialData);
+        await onSave(trialData, context);
       }
     },
     [onSave, initialTrialData]

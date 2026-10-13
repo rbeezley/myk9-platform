@@ -1,4 +1,5 @@
 import { useRegistrationsStore } from '@/store/registrationsStore';
+import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWrapper.types';
 import { dogSaveFailure } from '@/hooks/translateDogDbError';
 import type { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
 
@@ -44,25 +45,31 @@ export function useRegistrationFormSaves({ createRegistration, updateRegistratio
   const setIsEditOpen = useRegistrationsStore(state => state.setIsEditRegistrationDialogOpen);
   const setSelectedRegistration = useRegistrationsStore(state => state.setSelectedRegistration);
 
-  const handleAdd = (data: RegistrationFormData) =>
+  const handleAdd = (data: RegistrationFormData, { isCurrent }: EditPanelSaveContext) =>
     new Promise<void>((resolve, reject) => {
       createRegistration(toDbRegistration(data), {
         onSuccess: () => {
-          setIsAddOpen(false);
+          // Left while saving (MYK9-1125): the shared dialog state is no longer this save's.
+          if (isCurrent()) setIsAddOpen(false);
           resolve();
         },
         onError: error => reject(dogSaveFailure(error)),
       });
     });
 
-  const handleUpdate = (data: RegistrationFormData & { id: string }) =>
+  const handleUpdate = (
+    data: RegistrationFormData & { id: string },
+    { isCurrent }: EditPanelSaveContext
+  ) =>
     new Promise<void>((resolve, reject) => {
       updateRegistration(
         { id: data.id, updates: toDbRegistration(data) },
         {
           onSuccess: () => {
-            setIsEditOpen(false);
-            setSelectedRegistration(null);
+            if (isCurrent()) {
+              setIsEditOpen(false);
+              setSelectedRegistration(null);
+            }
             resolve();
           },
           onError: error => reject(dogSaveFailure(error)),

@@ -203,7 +203,7 @@ export const TrialManagementDialogs = forwardRef<
               }
             : undefined
         }
-        onSave={async classData => {
+        onSave={async (classData, { isCurrent }) => {
           if (!selectedClassForEdit?.id) return;
           // The one class save (judge, write, replication refresh, cache invalidation) shared with
           // Setup and Class Details, with the same patch-only contract. It rejects on failure,
@@ -214,6 +214,8 @@ export const TrialManagementDialogs = forwardRef<
             currentTrial?.id,
             selectedClassForEdit.judgeId
           );
+          // Left while saving (MYK9-1125): another class may be open in the panel by now.
+          if (!isCurrent()) return;
           setEditClassPanelOpen(false);
           setSelectedClassForEdit(null);
         }}

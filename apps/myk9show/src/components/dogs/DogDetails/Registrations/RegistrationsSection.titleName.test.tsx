@@ -1,4 +1,5 @@
 import React from 'react';
+import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWrapper.types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from '@testing-library/react';
 import { render, screen } from '@/test/utils/testUtils';
@@ -38,10 +39,11 @@ vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
     refetch: vi.fn(),
   }),
 }));
-let capturedOnSave: ((data: Record<string, string>) => Promise<void>) | undefined;
+let capturedOnSave:
+  ((data: Record<string, string>, context: EditPanelSaveContext) => Promise<void>) | undefined;
 vi.mock('./AddRegistrationPanel', () => ({
   default: ({ open, onSave }: { open: boolean; onSave: (d: never) => Promise<void> }) => {
-    capturedOnSave = onSave as unknown as (data: Record<string, string>) => Promise<void>;
+    capturedOnSave = onSave as unknown as typeof capturedOnSave;
     return open ? <div role="dialog">Add registration</div> : null;
   },
 }));
@@ -154,15 +156,18 @@ describe('registration name editing', () => {
     });
 
     await expect(
-      capturedOnSave!({
-        organization: 'AKC',
-        registeredName: 'CH Test Dog',
-        breed: 'Beagle',
-        variety: '',
-        registrationNumber: 'SR1',
-        status: 'Active',
-        registrationDate: '',
-      })
+      capturedOnSave!(
+        {
+          organization: 'AKC',
+          registeredName: 'CH Test Dog',
+          breed: 'Beagle',
+          variety: '',
+          registrationNumber: 'SR1',
+          status: 'Active',
+          registrationDate: '',
+        },
+        { isCurrent: () => true, runSelfNavigation: fn => fn() }
+      )
     ).rejects.toThrow();
     expect(useRegistrationsStore.getState().isAddRegistrationDialogOpen).toBe(true);
   });

@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWrapper.types';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -163,7 +164,7 @@ vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
     open: boolean;
     onClose: () => void;
     onDelete?: { kind: string; targets: { id: string; name: string }[] };
-    onSave?: (data: Record<string, unknown>) => Promise<void>;
+    onSave?: (data: Record<string, unknown>, context: EditPanelSaveContext) => Promise<void>;
   }) =>
     open ? (
       <div data-testid="edit-panel-open">
@@ -174,7 +175,10 @@ vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
           type="button"
           data-testid="edit-panel-save"
           onClick={() => {
-            void onSave?.(saveHarness.payload ?? {}).catch(() => undefined);
+            void onSave?.(saveHarness.payload ?? {}, {
+              isCurrent: () => true,
+              runSelfNavigation: (navigate: () => void) => navigate(),
+            }).catch(() => undefined);
           }}
         >
           Save

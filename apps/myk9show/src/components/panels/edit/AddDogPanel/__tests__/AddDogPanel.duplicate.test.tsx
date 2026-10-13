@@ -82,9 +82,10 @@ describe('AddDogPanel duplicate-dog prompt (M18)', () => {
     ) => Promise<void>;
     let rejection: unknown;
     await act(async () => {
-      rejection = await save(formData, { runSelfNavigation: fn => fn() }).catch(
-        (error: unknown) => error
-      );
+      rejection = await save(formData, {
+        runSelfNavigation: fn => fn(),
+        isCurrent: () => true,
+      }).catch((error: unknown) => error);
     });
 
     expect(rejection).toBeInstanceOf(PanelSaveHandledError);

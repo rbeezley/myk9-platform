@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { EditPanelWrapper } from './EditPanelWrapper';
+import { EditPanelWrapper, type EditPanelSaveContext } from './EditPanelWrapper';
 import { addedMessage, savedMessage } from './panelSaveErrors';
 import { useEditPanel } from './useEditPanel';
 import { JudgeQualificationPanel } from './JudgeQualificationPanel';
@@ -369,11 +369,11 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   // Handle save — persist profile data. Role assignments have their own
   // scope-aware surface in User Management.
   const handleSave = useCallback(
-    async (formData: UserFormData) => {
+    async (formData: UserFormData, context: EditPanelSaveContext) => {
       const userData = formDataToUser(formData);
 
       if (onSave) {
-        await onSave(userData);
+        await onSave(userData, context);
       }
     },
     [onSave]

@@ -348,7 +348,7 @@ function AuthorizedShowManagementShell({
               }
             : undefined
         }
-        onSave={async showData => {
+        onSave={async (showData, { isCurrent }) => {
           if (show.id) {
             const id = show.id;
             const publishableShowData = showData as Partial<ShowInput> & {
@@ -425,7 +425,8 @@ function AuthorizedShowManagementShell({
               await persistShowChanges();
             }
           }
-          setShowEditPanel(false);
+          // Left while saving (MYK9-1125): the panel may have been reopened since.
+          if (isCurrent()) setShowEditPanel(false);
         }}
       />
     </>

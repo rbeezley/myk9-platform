@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWrapper.types';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
@@ -38,9 +39,14 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
   const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false);
 
   // Handler for saving dog edits from DogEditPanel
-  const handleSaveDogEdit = async (updatedDogData: Partial<Dog>) => {
+  const handleSaveDogEdit = async (
+    updatedDogData: Partial<Dog>,
+    { isCurrent }: EditPanelSaveContext
+  ) => {
     if (!dogToEdit) return;
     await updateDog(dogToEdit.id, mapDogToDogInput({ ...dogToEdit, ...updatedDogData } as Dog));
+    // Left while saving (MYK9-1125): another dog may be open for editing by now.
+    if (!isCurrent()) return;
     setIsEditDialogOpen(false);
     setDogToEdit(null);
   };

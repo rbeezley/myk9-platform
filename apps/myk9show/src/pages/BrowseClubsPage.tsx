@@ -70,7 +70,7 @@ const BrowseClubsPage: React.FC = () => {
 
   // Handle club creation
   const handleClubCreated = useCallback(
-    async (clubData: Partial<Club>, { runSelfNavigation }: EditPanelSaveContext) => {
+    async (clubData: Partial<Club>, { runSelfNavigation, isCurrent }: EditPanelSaveContext) => {
       try {
         const newClub: Club = {
           id: '',
@@ -103,6 +103,8 @@ const BrowseClubsPage: React.FC = () => {
           // MYK9-905: the creator's club_admin grant is issued server-side once the club
           // uploads; refresh role scopes then so Edit appears without a reload.
           void refreshScopesAfterClubUpload(createdId, refreshPermissions);
+          // Left while saving (MYK9-1125): no selecting or routing the person elsewhere.
+          if (!isCurrent()) return;
           // The club is saved, so leaving the panel is not losing work: route
           // through the panel's self-navigation so its unsaved-changes guard
           // stands down instead of offering to "discard" a saved club.

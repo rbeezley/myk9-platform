@@ -1,4 +1,5 @@
 import React from 'react';
+import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWrapper.types';
 import { Club } from '@/types/club-types';
 import type { ClubMember } from '@/types/club-membership-types';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
@@ -11,7 +12,7 @@ interface ClubDialogsProps {
   // Edit panel
   showEditPanel: boolean;
   onCloseEditPanel: () => void;
-  onSaveEdit: (formData: Partial<Club>) => Promise<void>;
+  onSaveEdit: (formData: Partial<Club>, context: EditPanelSaveContext) => Promise<void>;
   // Photo dialog
   showPhotoDialog: boolean;
   onPhotoDialogChange: (open: boolean) => void;

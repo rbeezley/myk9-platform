@@ -20,6 +20,14 @@ export interface EditPanelSaveContext {
    * still navigate, and the save can still fail (MYK9-165).
    */
   runSelfNavigation: (navigate: () => void) => void;
+  /**
+   * False once the person chose "Leave anyway" while this save ran (MYK9-1125).
+   * After an await, a host skips everything that acts on its surroundings when
+   * it is false: closing, selecting, navigating, "created"/"saved" callbacks
+   * and its own success toast. The wrapper reports the late result instead.
+   * Data and cache updates still run. `runSelfNavigation` checks it itself.
+   */
+  isCurrent: () => boolean;
 }
 
 /**

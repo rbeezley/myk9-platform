@@ -106,6 +106,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   const [legacyHasChanges, setLegacyHasChanges] = useState(false);
   const [legacyErrors, setLegacyErrors] = useState<string[]>([]);
   const [legacyIsValid, setLegacyIsValid] = useState(true);
+  const { selfNavigationRef, runSelfNavigation } = useSelfNavigation();
   const {
     isSaving: isLoading,
     setIsSaving: setIsLoading,
@@ -113,7 +114,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     leaveWhileSaving,
     leavePromptOpen,
     setLeavePromptOpen,
-  } = usePanelSaveRun<T>({ title, successMessage });
+  } = usePanelSaveRun<T>({ title, successMessage, runSelfNavigation });
   const [, setLastAutoSave] = useState<number>(Date.now());
   const [isTouched, setIsTouched] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -230,7 +231,6 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     [useSchemaPath, form]
   );
 
-  const { selfNavigationRef, runSelfNavigation } = useSelfNavigation();
   const closeWithoutRouteGuard = useCallback(
     () => runSelfNavigation(onClose),
     [onClose, runSelfNavigation]
@@ -245,14 +245,14 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   const wrappedSave = useCallback(
     (validatedData: T) =>
       runSave(
-        () => onSave(validatedData, { runSelfNavigation }),
+        context => onSave(validatedData, context),
         validatedData,
         () => {
           confirmSaved(validatedData);
           closeWithoutRouteGuard();
         }
       ),
-    [runSave, onSave, closeWithoutRouteGuard, runSelfNavigation, confirmSaved]
+    [runSave, onSave, closeWithoutRouteGuard, confirmSaved]
   );
 
   const handleSave = useMemo(() => {
@@ -268,7 +268,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
       }
 
       await runSave(
-        () => onSave(legacyData, { runSelfNavigation }),
+        context => onSave(legacyData, context),
         legacyData,
         () => {
           setLegacyHasChanges(false);
@@ -286,7 +286,6 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     onSave,
     legacyData,
     closeWithoutRouteGuard,
-    runSelfNavigation,
     onValidationFail,
     confirmSaved,
   ]);

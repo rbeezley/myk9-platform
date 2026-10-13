@@ -11,6 +11,7 @@ import {
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
   REPLICATION_STORES,
+  type DirtyRowComparePolicy,
   type ReplicatedRow,
   type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
@@ -310,6 +311,38 @@ const SERVER_OWNED_CLASS_COLUMNS: ReadonlyArray<readonly [string, keyof Replicat
   ['num_hides', 'hideCount'],
 ];
 
+/**
+ * MYK9-1104: a device that marks a class complete writes `Completed` and its own
+ * `actual_end_time`; the server's derived completion reads back as `completed`
+ * with its own stamp. Both mean the class is complete, so the status compares in
+ * the server's spelling and the stamp yields to the server's once the status
+ * agrees. Any other status difference (the server reopened the class) still
+ * surfaces. Only known statuses are folded; anything else compares as written.
+ */
+export const CLASS_DIRTY_ROW_COMPARE_POLICY: DirtyRowComparePolicy = {
+  normalizeValue: (field, value) =>
+    field === 'classStatus' && typeof value === 'string' ? foldClassStatus(value) : value,
+  serverWinsFields: ['actual_end_time'],
+};
+
+function foldClassStatus(status: string): string {
+  switch (status) {
+    case 'Setup':
+      return 'setup';
+    case 'In Progress':
+      return 'in_progress';
+    case 'Completed':
+      return 'completed';
+    case 'Cancelled':
+      return 'cancelled';
+    case 'Scheduled':
+    case 'Upcoming':
+      return 'upcoming';
+    default:
+      return status;
+  }
+}
+
 const LEGACY_OMITTED_CLASS_KEYS_SERVER_WINS: readonly string[] = SERVER_OWNED_CLASS_COLUMNS.map(
   ([dbKey]) => dbKey
 );
@@ -554,6 +587,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         timeLimitRule: remote._timeLimitRule,
       }),
       rebuildUpdatePayload: cls => this.rebuildUpdatePayload(cls),
+      dirtyRowComparePolicy: CLASS_DIRTY_ROW_COMPARE_POLICY,
     };
   }
 

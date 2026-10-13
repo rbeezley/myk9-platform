@@ -25,6 +25,7 @@ export interface DogEditContextType {
 }
 
 import type { EditPanelDeleteOption } from './EditPanelDelete';
+import type { EditPanelVariant } from './EditPanelWrapper.types';
 
 export interface DogEditPanelProps {
   open: boolean;
@@ -47,6 +48,10 @@ export interface DogEditPanelProps {
   dogDeceasedDate?: string | undefined;
   /** Raises the status dialog; omit to render the Status row read-only. */
   onChangeStatus?: (() => void) | undefined;
+  /** 'inline' inside Quick Create's one slide-out; the default is the slide-over panel. */
+  variant?: EditPanelVariant | undefined;
+  /** `inline` only: filled with the form's close request, for the host's Back / Escape / X. */
+  closeRequestRef?: import('react').MutableRefObject<(() => void) | null> | undefined;
 }
 
 // Form data interface matching DogProfileEditDialog expectations

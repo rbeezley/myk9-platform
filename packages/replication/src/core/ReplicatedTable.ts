@@ -860,6 +860,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       remoteServerVersion: number | undefined;
       /** Pre-merged data from an adapter's mergeDirtyRow; omit for a generic 3-way merge. */
       mergedData?: T;
+      /** Fields to take from `remote` over the merged value (MYK9-1104). */
+      adoptRemoteFields?: readonly string[];
+      /** The local row `version` the conflict check read. Adopting is skipped
+       *  (row left dirty for the next pass) if the row has moved since. */
+      detectedAtVersion?: number;
       /** Rebuild a full Supabase UPDATE payload from the reconciled row, so a queued
        *  full-row UPDATE can be refreshed (not just the IDB row) and won't clobber. */
       rebuildPayload?: (local: T) => Record<string, unknown>;
@@ -888,6 +893,17 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       return false;
     }
 
+    // Convergence was judged on a snapshot; a local edit since then (the same
+    // revision guard markConflict applies) must not be overwritten by it.
+    if (
+      params.adoptRemoteFields?.length &&
+      params.detectedAtVersion !== undefined &&
+      existingRow.version !== params.detectedAtVersion
+    ) {
+      await tx.done;
+      return false;
+    }
+
     const mergedData =
       params.mergedData ??
       mergeNonConflictingServerFields({
@@ -897,6 +913,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
         instantFields: instantFieldsFor(this.tableName),
       }).merged;
     const normalizedMerged = { ...mergedData, id: normalizedId } as T;
+    for (const field of params.adoptRemoteFields ?? []) {
+      (normalizedMerged as Record<string, unknown>)[field] = (
+        params.remote as Record<string, unknown>
+      )[field];
+    }
 
     // Forward-only token advance: never pull the token back on a late/backdated row.
     const advanceToken =

@@ -42,6 +42,16 @@ export function addById<T extends { id: string }>(list: T[], record: T): T[] {
 }
 
 /**
+ * Replace the record with this id in place (an edit renamed it). A list without it is
+ * returned unchanged: an edit never makes something "created in this session".
+ */
+export function replaceById<T extends { id: string }>(list: T[], record: T): T[] {
+  return list.some(item => item.id === record.id)
+    ? list.map(item => (item.id === record.id ? record : item))
+    : list;
+}
+
+/**
  * Names to put in the prompt: every dog created here, plus each created owner
  * who has no created dog (an owner whose dog is listed is covered by the dog).
  */

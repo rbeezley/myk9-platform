@@ -5,7 +5,8 @@
  * Standalone routes (class management, sync) also render inside the unified layout.
  */
 
-import { lazy, useEffect } from 'react';
+import { useEffect } from 'react';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { LegacyTrialClassCreateRedirect } from './LegacyClassCreateRedirect';
 import { LegacyTrialClassManagementRedirect } from './LegacyClassManagementRedirect';
@@ -21,36 +22,42 @@ import { LegacySecretaryShowRedirect } from '@/routes/showRouteRedirects';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 
 // Secretary Dashboard (replaces old PipelineDashboard)
-const SecretaryDashboardPage = lazy(() =>
+const SecretaryDashboardPage = lazyWithRetry(() =>
   import('@/pages/secretary/SecretaryDashboardPage').then(m => ({
     default: m.SecretaryDashboardPage,
   }))
 );
-const TrialPipelineDetail = lazy(
+const TrialPipelineDetail = lazyWithRetry(
   () => import('@/features/pipeline/components/TrialPipelineDetail')
 );
 
-const ShowCreationWizardPage = lazy(() => import('@/pages/secretary/ShowCreationWizardPage'));
+const ShowCreationWizardPage = lazyWithRetry(
+  () => import('@/pages/secretary/ShowCreationWizardPage')
+);
 // Secretary components
-const SecretaryClassDashboard = lazy(() =>
+const SecretaryClassDashboard = lazyWithRetry(() =>
   import('@/components/secretary/SecretaryClassDashboard').then(m => ({
     default: m.SecretaryClassDashboard,
   }))
 );
 
 // People pages
-const PeopleMasterDetailPage = lazy(() => import('@/pages/PeopleMasterDetailPage'));
+const PeopleMasterDetailPage = lazyWithRetry(() => import('@/pages/PeopleMasterDetailPage'));
 
-const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
+const RegistrationWizardPage = lazyWithRetry(() => import('@/pages/RegistrationWizardPage'));
 
-const VolunteerSchedulingPage = lazy(() => import('@/pages/secretary/VolunteerSchedulingPage'));
-const ShowSettingsPage = lazy(() => import('@/pages/secretary/ShowSettingsPage'));
-const SecretaryMessagesPage = lazy(() => import('@/features/messages/pages/SecretaryMessagesPage'));
+const VolunteerSchedulingPage = lazyWithRetry(
+  () => import('@/pages/secretary/VolunteerSchedulingPage')
+);
+const ShowSettingsPage = lazyWithRetry(() => import('@/pages/secretary/ShowSettingsPage'));
+const SecretaryMessagesPage = lazyWithRetry(
+  () => import('@/features/messages/pages/SecretaryMessagesPage')
+);
 // Scoring pages
-const PaperScoresheetPage = lazy(() =>
+const PaperScoresheetPage = lazyWithRetry(() =>
   import('@/pages/scoring/PaperScoresheetPage').then(m => ({ default: m.PaperScoresheetPage }))
 );
-const ScoresheetPage = lazy(() =>
+const ScoresheetPage = lazyWithRetry(() =>
   import('@/pages/scoring/ScoresheetPage').then(m => ({ default: m.ScoresheetPage }))
 );
 

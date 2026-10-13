@@ -203,6 +203,8 @@ export const DogEditPanel: React.FC<DogEditPanelProps> = ({
   dogDeceasedDate,
   onChangeStatus,
   onDelete,
+  variant,
+  closeRequestRef,
 }) => {
   // A failed Save moves to the tab holding the first invalid field (MYK9-931).
   const { activeTab, setActiveTab, handleValidationFail } =
@@ -252,6 +254,8 @@ export const DogEditPanel: React.FC<DogEditPanelProps> = ({
         saveLabel="Save Changes"
         cancelLabel="Cancel"
         onDelete={onDelete}
+        {...(variant ? { variant } : {})}
+        {...(closeRequestRef ? { closeRequestRef } : {})}
         successMessage={data => savedMessage(data.callName || dogName)}
         onValidationFail={handleValidationFail}
       >

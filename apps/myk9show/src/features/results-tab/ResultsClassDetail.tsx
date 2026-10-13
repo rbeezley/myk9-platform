@@ -50,6 +50,8 @@ interface ResultsClassDetailProps {
   online: boolean;
   /** Why Release is held back on this tab right now (offline, scores still syncing), or null. */
   releaseBlockedReason: string | null;
+  /** Why the saved check could not show here yet (class row unsynced or in conflict), or null. */
+  verifyBlockedReason: string | null;
   /** Auth uid of the signed-in user, so the check can say "you". */
   currentUserId: string | null;
   /** The Judge sign-off section, rendered between the results table and "Then". */
@@ -63,7 +65,13 @@ function resultSignature(entry: ResultsEntryRow): string {
 
 interface PrimaryWorkProps extends Pick<
   ResultsClassDetailProps,
-  'showId' | 'row' | 'releasing' | 'onRelease' | 'online' | 'releaseBlockedReason'
+  | 'showId'
+  | 'row'
+  | 'releasing'
+  | 'onRelease'
+  | 'online'
+  | 'releaseBlockedReason'
+  | 'verifyBlockedReason'
 > {
   tickedCount: number;
   verifying: boolean;
@@ -77,6 +85,7 @@ function PrimaryWork({
   onRelease,
   online,
   releaseBlockedReason,
+  verifyBlockedReason,
   tickedCount,
   verifying,
   onVerify,
@@ -108,7 +117,7 @@ function PrimaryWork({
         ? 'Connect to save the check'
         : row.resultsCanonical === null
           ? 'These scores need a reload before they can be checked'
-          : null;
+          : verifyBlockedReason;
     title = 'Check the scores against the paper';
     body = `Tick each dog below when it matches its paper score sheet (${tickedCount} of ${row.entries.length}). Fix anything that is off first.${released ? ' These results are already released.' : ' Release unlocks once the scores are checked.'}`;
     action = row.statusCompleted ? (
@@ -332,6 +341,7 @@ export function ResultsClassDetail({
   verifying,
   online,
   releaseBlockedReason,
+  verifyBlockedReason,
   currentUserId,
   judgeSignOffSlot,
 }: ResultsClassDetailProps) {
@@ -414,6 +424,7 @@ export function ResultsClassDetail({
         onRelease={onRelease}
         online={online}
         releaseBlockedReason={releaseBlockedReason}
+        verifyBlockedReason={verifyBlockedReason}
         tickedCount={tickedCount}
         verifying={verifying}
         onVerify={handleVerify}

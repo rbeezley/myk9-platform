@@ -7,6 +7,7 @@ import {
   type RestAuth,
 } from '../helpers/liveCanary';
 import { expectNoHorizontalOverflow } from '../helpers/horizontalOverflow';
+import { installBrowserDiagnostics } from '../shared/browserDiagnostics';
 import { installSharedStagingWriteGuard } from '../helpers/sharedStagingWriteGuard';
 import { signInAsSecretary } from '../helpers/testUsers';
 
@@ -140,6 +141,9 @@ function paperworkRow(detail: Locator, label: string): Locator {
 }
 
 test.describe('Results tab: scored -> verified -> released -> printed -> initialed', () => {
+  // MYK9-1114: attaches console/network/toast text on failure (traces are not uploaded).
+  installBrowserDiagnostics(test);
+
   test.skip(
     !DATA_REQUIRED,
     'Stateful: writes scores, the paper check, a release, print records and judge initials. ' +

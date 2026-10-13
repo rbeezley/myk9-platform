@@ -12975,6 +12975,7 @@ export type Database = {
         Args: { p_club_id: string; p_livemode?: boolean }
         Returns: boolean
       }
+      can_edit_dog: { Args: { p_dog_id: string }; Returns: boolean }
       can_manage_show: { Args: { check_show_id: string }; Returns: boolean }
       can_manage_show_dog: { Args: { check_dog_id: string }; Returns: boolean }
       can_manage_show_lifecycle_email: {
@@ -13320,6 +13321,16 @@ export type Database = {
         Returns: undefined
       }
       derive_registry_id: { Args: { p_organization: string }; Returns: string }
+      dog_edit_allowed: {
+        Args: {
+          p_co_owner_id: string
+          p_created_by: string
+          p_created_from_show_id: string
+          p_dog_id: string
+          p_owner_id: string
+        }
+        Returns: boolean
+      }
       dog_force_delete_audit: {
         Args: { p_deleted_at: string; p_dog_id: string }
         Returns: {

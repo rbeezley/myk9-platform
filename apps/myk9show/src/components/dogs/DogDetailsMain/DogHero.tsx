@@ -20,9 +20,13 @@ import { formatDisplayDate } from './utils';
 
 interface DogHeroProps {
   dog: Dog;
-  onPhotoDialogOpen: () => void;
-  /** Required: the status badge itself is a button that raises the dialog. */
-  onStatusDialogOpen: () => void;
+  /**
+   * The camera button and the status badge's button each write the dog. Both are absent
+   * when the viewer may not edit it (`useCanEditDog`): the photo and the status still
+   * show, as display rather than controls.
+   */
+  onPhotoDialogOpen?: (() => void) | undefined;
+  onStatusDialogOpen?: (() => void) | undefined;
   /** Route-entry focus target (task 3.8): the page's main heading. */
   headingRef?: RefObject<HTMLHeadingElement | null>;
 }
@@ -56,14 +60,16 @@ const DogHero: React.FC<DogHeroProps> = ({
           </AvatarFallback>
         )}
       </Avatar>
-      <button
-        type="button"
-        onClick={onPhotoDialogOpen}
-        aria-label="Edit dog photo"
-        className="absolute -right-1 -bottom-1 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      >
-        <Camera className="h-5 w-5" />
-      </button>
+      {onPhotoDialogOpen && (
+        <button
+          type="button"
+          onClick={onPhotoDialogOpen}
+          aria-label="Edit dog photo"
+          className="absolute -right-1 -bottom-1 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <Camera className="h-5 w-5" />
+        </button>
+      )}
     </div>
   );
 
@@ -82,7 +88,13 @@ const DogHero: React.FC<DogHeroProps> = ({
               {sexBadge.label}
             </Badge>
           )}
-          {statusBadge && (
+          {statusBadge && !onStatusDialogOpen && (
+            <Badge variant="secondary" className={statusBadge.className}>
+              {statusBadge.label}
+              {deceasedSuffix}
+            </Badge>
+          )}
+          {statusBadge && onStatusDialogOpen && (
             /* The badge announces the lifecycle state, so it is also the control
                that changes it. The header Actions menu's "Change status" opens the
                same dialog. */

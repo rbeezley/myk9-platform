@@ -32,6 +32,7 @@ import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompa
 import { syncDogRegistrations } from '@/hooks/dogStoreCompatHelpers';
 import { mirrorServerDogRegistrations } from '@/services/database/registrations/replicaMirror';
 import { rethrownDogDbError } from '@/hooks/translateDogDbError';
+import { FriendlySaveError } from '@/utils/friendlySaveError';
 import { supabase } from '@/lib/supabase';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
 import {
@@ -315,13 +316,15 @@ export const useDogStoreCompat = () => {
 
     if (updates.registrations && updates.registrations.length > 0) {
       try {
-        // Each write it makes is mirrored into the replica, whose listener
-        // refreshes the registration reads.
+        // Each write it makes is queued on the registrations replica, whose
+        // listener refreshes the registration reads.
         await syncDogRegistrations(id, updates.registrations);
       } catch (err) {
         logger.error('Failed to update/create registrations', 'dogs', { dogId: id }, err as Error);
         notifications.warning(
-          'Dog details saved, but registration changes could not be synced. Please try editing registrations again.'
+          err instanceof FriendlySaveError
+            ? `Dog details saved, but not its registrations. ${err.message.replace(/\.$/, '')}.`
+            : 'Dog details saved, but registration changes could not be synced. Please try editing registrations again.'
         );
       }
     }

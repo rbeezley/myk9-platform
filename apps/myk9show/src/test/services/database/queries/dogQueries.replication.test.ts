@@ -29,7 +29,7 @@ const { mockDogsTable, mockEntriesTable, mockDogRegistrationsTable, mockServerRe
     },
     mockDogRegistrationsTable: {
       getRegistrationsForDogs: vi.fn(),
-      getUnsentRegistrationsForDogs: vi.fn(),
+      getUnsentWorkForDogs: vi.fn(),
       getRegistrationsForDog: vi.fn(),
     },
     mockServerRegistrationRows: vi.fn(() => [] as Record<string, unknown>[]),
@@ -146,7 +146,7 @@ describe('dogQueries (replication)', () => {
       cold: false,
     }));
     mockServerRegistrationRows.mockReturnValue([]);
-    mockDogRegistrationsTable.getUnsentRegistrationsForDogs.mockResolvedValue([]);
+    mockDogRegistrationsTable.getUnsentWorkForDogs.mockResolvedValue([]);
     mockDogRegistrationsTable.getRegistrationsForDog.mockResolvedValue([]);
   });
 
@@ -196,15 +196,17 @@ describe('dogQueries (replication)', () => {
 
     it('includes local pending registrations when PostgREST has not synced them yet', async () => {
       mockDogsTable.getAllDogs.mockResolvedValue([makeDog()]);
-      mockDogRegistrationsTable.getUnsentRegistrationsForDogs.mockResolvedValue([
+      mockDogRegistrationsTable.getUnsentWorkForDogs.mockResolvedValue([
         {
           id: 'registration-local-1',
-          dog_id: 'dog-1',
+          dogId: 'dog-1',
           organization: 'AKC',
-          registration_number: 'SW123456',
-          registered_name: 'Beacon Hill Fast Lane',
+          registrationNumber: 'SW123456',
+          registeredName: 'Beacon Hill Fast Lane',
           breed: 'Golden Retriever',
           status: 'pending',
+          _localOnly: true,
+          _queuedAdd: true,
         },
       ]);
 
@@ -233,15 +235,17 @@ describe('dogQueries (replication)', () => {
           status: 'approved',
         },
       ]);
-      mockDogRegistrationsTable.getUnsentRegistrationsForDogs.mockResolvedValue([
+      mockDogRegistrationsTable.getUnsentWorkForDogs.mockResolvedValue([
         {
           id: 'registration-local-1',
-          dog_id: 'dog-1',
+          dogId: 'dog-1',
           organization: 'akc',
-          registration_number: 'SW-123-456',
-          registered_name: 'Beacon Hill Fast Lane',
+          registrationNumber: 'SW-123-456',
+          registeredName: 'Beacon Hill Fast Lane',
           breed: 'Golden Retriever',
           status: 'pending',
+          _localOnly: true,
+          _queuedAdd: true,
         },
       ]);
 
@@ -328,15 +332,17 @@ describe('dogQueries (replication)', () => {
     it('includes local pending registrations in dog detail reads', async () => {
       mockDogsTable.getDogById.mockResolvedValue(makeDog());
       mockEntriesTable.getAll.mockResolvedValue([]);
-      mockDogRegistrationsTable.getUnsentRegistrationsForDogs.mockResolvedValue([
+      mockDogRegistrationsTable.getUnsentWorkForDogs.mockResolvedValue([
         {
           id: 'registration-local-1',
-          dog_id: 'dog-1',
+          dogId: 'dog-1',
           organization: 'AKC',
-          registration_number: 'SW123456',
-          registered_name: 'Beacon Hill Fast Lane',
+          registrationNumber: 'SW123456',
+          registeredName: 'Beacon Hill Fast Lane',
           breed: 'Golden Retriever',
           status: 'pending',
+          _localOnly: true,
+          _queuedAdd: true,
         },
       ]);
 

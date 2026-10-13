@@ -23,7 +23,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
   replicatedDogRegistrationsTable: {
     getRegistrationsForDogs: vi.fn(async () => []),
-    getUnsentRegistrationsForDogs: vi.fn(async () => []),
+    getUnsentWorkForDogs: vi.fn(async () => []),
   },
 }));
 

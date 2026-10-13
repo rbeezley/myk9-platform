@@ -51,6 +51,10 @@ vi.mock('@/services/database/supabaseClient', () => ({
 }));
 vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
   useRegistrationsByDogQuery: () => ({ data: [], isLoading: false }),
+  useRailRegistrationsQuery: () => ({
+    data: { registrations: [], offline: false },
+    isLoading: false,
+  }),
   useDogRegistrationManagement: () => ({
     registrations: [],
     isLoading: false,

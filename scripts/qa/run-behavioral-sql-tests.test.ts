@@ -81,6 +81,7 @@ const launchCriticalSqlTests = [
   'myk9_878_submit_entries_junior_fee_test.sql',
   'myk9_879_junior_declaration_test.sql',
   'myk9_854_dogs_select_show_scoped_secretary_test.sql',
+  'dogs_update_secretary_created_dogs_test.sql',
   'office_admin_rls_test.sql',
   'one_registry_per_show_test.sql',
   'entry_status_history_rls_test.sql',

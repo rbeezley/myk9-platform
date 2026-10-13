@@ -171,6 +171,18 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     'no BYPASSRLS, so it widens transitively with no text change. user_roles, entries, ' +
     'judge_assignments, and every other is_show_manager() caller are untouched, so the ' +
     'consolidation counts and overlap groups this test pins are unaffected.',
+  '20261012224900_dogs_update_secretary_created_dogs.sql':
+    'From this inventory it touches dogs (dogs_update) only. A secretary was offered Edit on ' +
+    'every dog she could read (MYK9-854) but dogs_update admitted only the owner, co-owner, ' +
+    'site admin, or a manager of a show the dog is already entered in, so a mail-in edit made ' +
+    'before the entry existed was refused on every upload and Retry. The predicate moves into ' +
+    'a new dog_edit_allowed() fed the row columns and gains two arms: created_from_show_id is ' +
+    'a show the caller can manage, and created_by is the caller while she still holds a staff ' +
+    'role. Same policy name, same single UPDATE policy, same TO authenticated role, USING and ' +
+    'WITH CHECK identical — predicate only, like the MYK9-147 / MYK9-854 entries above. ' +
+    'dogs_insert / dogs_insert_secretary (the policies this test pins for dogs), dogs_select ' +
+    'and dogs_delete are untouched, so the consolidation counts and overlap groups are ' +
+    'unaffected.',
 };
 
 const tableCases: TableCase[] = [

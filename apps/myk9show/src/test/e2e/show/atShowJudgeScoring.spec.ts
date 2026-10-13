@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsJudge } from '../uat/shared/auth';
+import { installBrowserDiagnostics } from '../shared/browserDiagnostics';
 import {
   installSharedStagingWriteGuard,
   type GuardedRingsideRpcCall,
@@ -56,6 +57,9 @@ const REPLICATED_TABLES_STORE = 'replicated_tables';
 const PENDING_MUTATIONS_STORE = 'pending_mutations';
 
 test.describe('At-show judge scoring authorization', () => {
+  // MYK9-1114: attaches console/network/toast text on failure (traces are not uploaded).
+  installBrowserDiagnostics(test);
+
   test('routes a judge score through ringside_update_entry and persists it', async ({ page }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
     await installSharedStagingWriteGuard(page, {

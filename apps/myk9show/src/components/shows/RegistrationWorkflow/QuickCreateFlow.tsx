@@ -60,6 +60,9 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   const [view, setView] = useState<QuickCreateView>('steps');
   const [dogSubMode, setDogSubMode] = useState<AddDogSubMode>('dog');
   const [editingDogId, setEditingDogId] = useState<string | null>(null);
+  // Dogs picked from the duplicate prompt rather than made here. Only these need the
+  // server's word before Edit is offered: a dog made in this flow is the secretary's to fix.
+  const [existingDogIds, setExistingDogIds] = useState<ReadonlySet<string>>(() => new Set());
   const closeFormRef = useRef<(() => void) | null>(null);
   const stepsRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
@@ -95,7 +98,8 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   };
 
   const handleDogCreated = (dog: Dog, options?: { existing?: boolean }) => {
-    if (!options?.existing) createdInSession?.recordDogCreated(dog);
+    if (options?.existing) setExistingDogIds(prev => new Set(prev).add(dog.id));
+    else createdInSession?.recordDogCreated(dog);
     setFlowState(prev => ({
       ...prev,
       dogs: [...prev.dogs, dog],
@@ -215,6 +219,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
             onOpenPersonForm={() => setView('person-form')}
             onEditPerson={() => setView('person-edit')}
             onOpenDogForm={openDogForm}
+            existingDogIds={existingDogIds}
             onEditDog={handleEditDog}
             onRemoveDog={handleRemoveDog}
           />

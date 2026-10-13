@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { MutationManager } from './MutationManager';
+import { reconcileDirtyRemoteRow } from './reconcileDirtyRemoteRow';
 import type { DirtyRowComparePolicy } from './conflict/detectDirtyRowConflict';
 import {
   adapterFor,
@@ -135,5 +136,48 @@ describe('a write whose outcome the server already reached (MYK9-1104)', () => {
     afterBackoff();
     await manager.uploadPendingMutations();
     expect(server.updates.every(call => call.expectedVersion === 3)).toBe(true);
+  });
+});
+
+describe('adopting converged fields rechecks the row since detection (MYK9-1104 review)', () => {
+  let tableName: string;
+
+  beforeEach(async () => {
+    tableName = await resetForStaleRowTest();
+  });
+
+  afterEach(() => teardownStaleRowTest(undefined));
+
+  it('a local edit landing between detection and reconcile is never overwritten', async () => {
+    const table = new RefetchingEntriesTable(
+      tableName,
+      adapterFor({ status: 'done', final_placement: 2, version: 8 })
+    );
+    await table.set('1', { id: '1', status: 'scored', finalPlacement: null }, false, undefined, 3);
+    await table.set('1', { id: '1', status: 'Done', finalPlacement: 1 }, true);
+    const existing = (await table.getReplicatedRow('1'))!;
+
+    // The secretary resets the entry after detection read `Done`, before the
+    // reconcile transaction opens.
+    const realReconcile = table.reconcileDirtyRow.bind(table);
+    vi.spyOn(table, 'reconcileDirtyRow').mockImplementation(async (id, params) => {
+      await table.set(id, { id, status: 'scored', finalPlacement: null }, true);
+      return realReconcile(id, params);
+    });
+
+    await reconcileDirtyRemoteRow(
+      table,
+      { dirtyRowComparePolicy: comparePolicy },
+      {
+        id: '1',
+        existing: { ...existing, baseData: existing.baseData! },
+        remoteLocal: { id: '1', status: 'done', finalPlacement: 2 },
+        remoteServerVersion: 8,
+      }
+    );
+
+    const row = await table.getReplicatedRow('1');
+    expect(row?.data).toEqual({ id: '1', status: 'scored', finalPlacement: null });
+    expect(row?.isDirty).toBe(true);
   });
 });

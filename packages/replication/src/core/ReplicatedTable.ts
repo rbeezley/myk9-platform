@@ -862,6 +862,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       mergedData?: T;
       /** Fields to take from `remote` over the merged value (MYK9-1104). */
       adoptRemoteFields?: readonly string[];
+      /** The local row `version` the conflict check read. Adopting is skipped
+       *  (row left dirty for the next pass) if the row has moved since. */
+      detectedAtVersion?: number;
       /** Rebuild a full Supabase UPDATE payload from the reconciled row, so a queued
        *  full-row UPDATE can be refreshed (not just the IDB row) and won't clobber. */
       rebuildPayload?: (local: T) => Record<string, unknown>;
@@ -885,6 +888,17 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       !existingRow.isDirty ||
       existingRow.syncStatus === 'conflict' ||
       isOlderThanRow(existingRow, params.remoteServerVersion)
+    ) {
+      await tx.done;
+      return false;
+    }
+
+    // Convergence was judged on a snapshot; a local edit since then (the same
+    // revision guard markConflict applies) must not be overwritten by it.
+    if (
+      params.adoptRemoteFields?.length &&
+      params.detectedAtVersion !== undefined &&
+      existingRow.version !== params.detectedAtVersion
     ) {
       await tx.done;
       return false;

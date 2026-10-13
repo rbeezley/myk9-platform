@@ -153,22 +153,88 @@ export function buildRegistrationUpdatePayload(
   };
 }
 
+/** The fields twin matching reads, in either row shape. */
+export interface TwinFields {
+  dogId: string;
+  createdAt?: string | null | undefined;
+  organization?: string | null | undefined;
+  registrationNumber?: string | null | undefined;
+}
+
+/** A snake_case registration row (PostgREST or `registrationToDbRow`) as TwinFields. */
+export function twinFieldsOfDbRow(row: Record<string, unknown>): TwinFields {
+  return {
+    dogId: String(row.dog_id ?? ''),
+    createdAt: (row.created_at as string | null | undefined) ?? null,
+    organization: (row.organization as string | null | undefined) ?? null,
+    registrationNumber: (row.registration_number as string | null | undefined) ?? null,
+  };
+}
+
 /**
- * The one definition of "the same registration": same dog, organization and
- * number, normalised. Readers hide a placeholder by it and the sync removes a
- * placeholder by it.
+ * Same dog, same creation instant. An offline create stamps each
+ * registration's `created_at` on the device and sends that value in the RPC
+ * payload, which stores it, so a placeholder and its server copy carry the
+ * identical instant. Compared as epoch ms: the server answers timestamptz
+ * (`+00:00`), the device wrote `Z`.
  */
-export function registrationIdentityKey(registration: ReplicatedDogRegistration): string | null {
-  const organization = normalizeDogRegistrationOrganization(registration.organization);
-  const number = normalizeDogRegistrationNumber(registration.registrationNumber);
-  return organization && number ? `${registration.dogId}|${organization}|${number}` : null;
+function createdTwinKey(row: TwinFields): string | null {
+  const ms = row.createdAt ? Date.parse(row.createdAt) : Number.NaN;
+  return Number.isFinite(ms) ? `${row.dogId}|t:${ms}` : null;
+}
+
+/**
+ * Same dog, organization and number, normalised. The fallback for a
+ * placeholder with no usable `created_at`, and the dedupe the readers already
+ * apply between server and device rows.
+ */
+export function registrationIdentityKey(row: TwinFields): string | null {
+  const organization = normalizeDogRegistrationOrganization(row.organization);
+  const number = normalizeDogRegistrationNumber(row.registrationNumber);
+  return organization && number ? `${row.dogId}|${organization}|${number}` : null;
+}
+
+export interface ServerTwinIndex {
+  created: ReadonlySet<string>;
+  identity: ReadonlySet<string>;
+}
+
+export function indexServerTwins(serverRows: readonly TwinFields[]): ServerTwinIndex {
+  const keys = (key: (row: TwinFields) => string | null) =>
+    new Set(serverRows.map(key).filter((k): k is string => k !== null));
+  return { created: keys(createdTwinKey), identity: keys(registrationIdentityKey) };
+}
+
+/**
+ * The one definition of "this placeholder's server copy is here": by
+ * (dog, created_at) when the placeholder has a usable `created_at`, else by
+ * (dog, organization, number). The readers hide a placeholder by it and the
+ * sync removes one by it.
+ */
+export function hasServerTwin(placeholder: TwinFields, twins: ServerTwinIndex): boolean {
+  const created = createdTwinKey(placeholder);
+  if (created !== null) return twins.created.has(created);
+  const identity = registrationIdentityKey(placeholder);
+  return identity !== null && twins.identity.has(identity);
+}
+
+/**
+ * Device rows to merge into a server read: drops each one whose server copy
+ * is in that read (a placeholder's twin, or the row itself).
+ */
+export function dropServerTwins(
+  deviceRows: readonly Record<string, unknown>[],
+  serverRows: readonly Record<string, unknown>[] | null | undefined
+): Record<string, unknown>[] {
+  const twins = indexServerTwins((serverRows ?? []).map(twinFieldsOfDbRow));
+  return deviceRows.filter(row => !hasServerTwin(twinFieldsOfDbRow(row), twins));
 }
 
 /**
  * The rows a reader may show for these dogs: never a row waiting on its
- * delete, and never a placeholder once the server's copy of the same
- * registration (same dog, organization and number) is on the device. Every
- * registration reader goes through this, so a new hiding rule lands once.
+ * delete, and never a placeholder once its server copy is on the device
+ * (`hasServerTwin`). Every registration reader goes through this, so a new
+ * hiding rule lands once.
  */
 export function visibleRegistrationRows(
   rows: readonly ReplicatedDogRegistration[],
@@ -176,14 +242,8 @@ export function visibleRegistrationRows(
 ): ReplicatedDogRegistration[] {
   const wanted = new Set(dogIds);
   const live = rows.filter(row => wanted.has(row.dogId) && row._pendingDelete !== true);
-  const serverIdentities = new Set(
-    live.filter(row => row._localOnly !== true).map(registrationIdentityKey)
-  );
-  return live.filter(row => {
-    if (row._localOnly !== true) return true;
-    const key = registrationIdentityKey(row);
-    return key === null || !serverIdentities.has(key);
-  });
+  const twins = indexServerTwins(live.filter(row => row._localOnly !== true));
+  return live.filter(row => row._localOnly !== true || !hasServerTwin(row, twins));
 }
 
 /**

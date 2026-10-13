@@ -14,6 +14,7 @@ import {
   type DogRegistrationReadRow,
 } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { appendRegistrations } from '../dogs/reads';
+import { dropServerTwins } from '@/services/replication/dogRegistrationRows';
 import { getRegistrationsByDog } from './reads';
 
 export interface RegistrationsForDog {
@@ -40,11 +41,13 @@ export async function readRegistrationsForDog(dogId: string): Promise<Registrati
       ? await replicatedDogRegistrationsTable.getUnsentRegistrationsForDogs([dogId])
       : await replicatedDogRegistrationsTable.getRegistrationsForDogs([dogId]);
 
-  // Server rows first; a local row that repeats one (same id, or same
-  // organization and number) is dropped.
+  // Server rows first; a device row whose server copy is in the read (a
+  // placeholder's twin, the same id, or the same organization and number)
+  // is dropped.
+  const serverRows = server.error ? [] : server.data;
   const merged = new Map<string, Record<string, unknown>[]>();
-  appendRegistrations(merged, server.error ? [] : server.data);
-  appendRegistrations(merged, local);
+  appendRegistrations(merged, serverRows);
+  appendRegistrations(merged, dropServerTwins(local, serverRows));
   const rows = (merged.get(dogId) ?? []) as unknown as DogRegistrationReadRow[];
   return { rows: [...rows].sort(byRegistrationDateDesc), source };
 }

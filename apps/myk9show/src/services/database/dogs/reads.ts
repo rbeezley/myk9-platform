@@ -18,6 +18,7 @@ import {
   normalizeDogRegistrationOrganization,
 } from '@/utils/dogIdentity';
 import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
+import { dropServerTwins } from '@/services/replication/dogRegistrationRows';
 import { parseRestoreDogResult } from './restoreDogResult';
 
 // PostgREST OR filter for dogs owned or co-owned by a person
@@ -230,7 +231,8 @@ export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistr
   }
 
   appendRegistrations(map, serverResult.data);
-  appendRegistrations(map, localRows);
+  // A placeholder whose server copy is in this read is that copy (hasServerTwin).
+  appendRegistrations(map, dropServerTwins(localRows, serverResult.data));
   overlayLocalCreationOrder(map, localRows);
   return {
     byDog: map,

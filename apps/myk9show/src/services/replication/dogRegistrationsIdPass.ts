@@ -16,7 +16,8 @@ import {
 import { supabase } from '@/services/database/supabaseClient';
 import {
   DOG_REGISTRATIONS_PAGE_SIZE,
-  registrationIdentityKey,
+  hasServerTwin,
+  indexServerTwins,
   type ReplicatedDogRegistration,
 } from './dogRegistrationRows';
 
@@ -147,8 +148,9 @@ export async function pruneRegistrationsMissingFromServer(
  * queues, run after the sync has stored the downloaded rows, a clean
  * `_localOnly` placeholder with no queued work of its own is removed when:
  *
- * - its server twin is here: a clean server row with the same dog,
- *   organization and number (`registrationIdentityKey`); or
+ * - its server twin is here: a clean server row with the same dog and
+ *   creation instant, or the same organization and number when the
+ *   placeholder has no usable `created_at` (`hasServerTwin`); or
  * - it is an orphan: its dog is no longer in the dogs replica and no pending
  *   or failed `dogs` mutation names that dog (the create was discarded, or
  *   the RPC mapped it onto an existing dog).
@@ -166,24 +168,20 @@ export async function removeResolvedPlaceholders(
     .getAll(tableName)) as ReplicatedRow<ReplicatedDogRegistration>[];
   const failedRegistrations = await failedRowIds(tableName);
   const failedDogs = await failedRowIds(DOGS_TABLE);
-  const twins = new Set(
-    all
-      .filter(row => !row.isDirty && row.data?._localOnly !== true)
-      .map(row => registrationIdentityKey(row.data))
-      .filter((key): key is string => key !== null)
+  const twins = indexServerTwins(
+    all.filter(row => !row.isDirty && row.data?._localOnly !== true).map(row => row.data)
   );
 
   const deleted: string[] = [];
   for (const row of all) {
     if (row.data?._localOnly !== true || row.isDirty || failedRegistrations.has(row.id)) continue;
     if ((await pending.count([tableName, row.id])) > 0) continue;
-    const key = registrationIdentityKey(row.data);
     const dogId = String(row.data.dogId);
     const orphan =
       !(await rows.get([DOGS_TABLE, dogId])) &&
       !failedDogs.has(dogId) &&
       (await pending.count([DOGS_TABLE, dogId])) === 0;
-    if ((key !== null && twins.has(key)) || orphan) {
+    if (hasServerTwin(row.data, twins) || orphan) {
       await rows.delete([tableName, row.id]);
       deleted.push(row.id);
     }

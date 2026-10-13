@@ -163,12 +163,14 @@ function uploadedDog(): ReplicatedDog {
 }
 
 /** The server's copy of the placeholder's registration, under a server id. */
-const serverTwin = () =>
+/** The server's copy of a placeholder: a new id, the creation instant it was sent. */
+const serverTwin = async (placeholderId: string) =>
   serverRow({
     id: 'srv-twin',
     dog_id: 'dog-offline',
     organization: 'AKC',
     registration_number: 'SR99',
+    created_at: (await table.get(placeholderId))!.createdAt,
   });
 
 // Placeholders are removed by content, never by the server id set (Codex
@@ -198,7 +200,7 @@ describe('offline-created placeholders', () => {
   it('are removed once their server twin is on the device', async () => {
     const id = await placeholderFor('dog-offline');
     await new ReplicatedDogsTable().set('dog-offline', uploadedDog(), false);
-    await table.applyServerRows([serverTwin()]);
+    await table.applyServerRows([await serverTwin(id)]);
 
     await table.removeResolvedPlaceholders();
 
@@ -246,9 +248,10 @@ describe('offline-created placeholders', () => {
   it('are removed in the sync whose changes pass brings their twin', async () => {
     const id = await placeholderFor('dog-offline');
     await new ReplicatedDogsTable().set('dog-offline', uploadedDog(), false);
+    const twin = await serverTwin(id);
     installRegistrationsServer(
       newServer({
-        changePages: [[serverRow({ id: 'reg-kept' }), serverTwin()]],
+        changePages: [[serverRow({ id: 'reg-kept' }), twin]],
         idPages: [[{ id: 'reg-kept' }, { id: 'srv-twin' }]],
       })
     );
@@ -257,5 +260,81 @@ describe('offline-created placeholders', () => {
 
     expect(await table.get(id)).toBeNull();
     expect(await table.get('srv-twin')).not.toBeNull();
+  });
+});
+/** Placeholders for `dog-offline` with these numbers, created in one batch. */
+async function placeholdersWithNumbers(...numbers: string[]) {
+  return table.createLocalRegistrationsForDog(
+    'dog-offline',
+    numbers.map(number => ({
+      organization: 'AKC',
+      number,
+      registeredName: 'Offline Dog',
+      type: 'Beagle',
+      status: 'active',
+    }))
+  );
+}
+
+/** The server's copy of a placeholder: a new id, the creation instant it was sent. */
+function serverCopyOf(
+  placeholder: { createdAt: string; registrationNumber: string },
+  id: string,
+  createdAt: string = placeholder.createdAt
+) {
+  return serverRow({
+    id,
+    dog_id: 'dog-offline',
+    organization: 'AKC',
+    registration_number: placeholder.registrationNumber,
+    created_at: createdAt,
+  });
+}
+
+// The twin key is (dog, created_at): a placeholder without a number has no
+// (organization, number) identity, and would otherwise show beside its
+// server copy for good (Codex review).
+describe('placeholder twins by creation instant', () => {
+  beforeEach(async () => {
+    await new ReplicatedDogsTable().set('dog-offline', uploadedDog(), false);
+  });
+
+  it('removes a placeholder with no number once its server copy arrives', async () => {
+    const [placeholder] = await placeholdersWithNumbers('');
+    await table.applyServerRows([serverCopyOf(placeholder!, 'srv-a')]);
+
+    await table.removeResolvedPlaceholders();
+
+    expect(await table.get(placeholder!.id)).toBeNull();
+  });
+
+  it('matches across timestamp formats (server +00:00, device Z)', async () => {
+    const [placeholder] = await placeholdersWithNumbers('');
+    const serverFormat = placeholder!.createdAt.replace('Z', '+00:00');
+    await table.applyServerRows([serverCopyOf(placeholder!, 'srv-a', serverFormat)]);
+
+    await table.removeResolvedPlaceholders();
+
+    expect(await table.get(placeholder!.id)).toBeNull();
+  });
+
+  it('pairs each placeholder with its own server copy, not a sibling', async () => {
+    const [first, second] = await placeholdersWithNumbers('', '');
+    await table.applyServerRows([serverCopyOf(first!, 'srv-a')]);
+
+    await table.removeResolvedPlaceholders();
+
+    expect(await table.get(first!.id)).toBeNull();
+    expect(await table.get(second!.id)).not.toBeNull();
+  });
+
+  it('falls back to organization and number when a placeholder has no usable created_at', async () => {
+    const [placeholder] = await placeholdersWithNumbers('SR55');
+    await table.set(placeholder!.id, { ...placeholder!, createdAt: '' }, false);
+    await table.applyServerRows([serverCopyOf(placeholder!, 'srv-a', '2020-01-01T00:00:00.000Z')]);
+
+    await table.removeResolvedPlaceholders();
+
+    expect(await table.get(placeholder!.id)).toBeNull();
   });
 });

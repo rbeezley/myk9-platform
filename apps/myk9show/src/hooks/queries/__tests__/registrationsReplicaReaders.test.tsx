@@ -107,6 +107,40 @@ describe('registration readers with the server reachable', () => {
     expect(loaded).toMatchObject({ source: 'server', registrationsReadComplete: true });
   });
 
+  // A placeholder with no number has no (organization, number) identity; its
+  // server copy is recognised by dog and creation instant (Codex review).
+  it('hide a placeholder whose server copy is in the read, even without a number', async () => {
+    const [placeholder] = await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
+      'dog-1',
+      [
+        {
+          organization: 'AKC',
+          number: '',
+          registeredName: 'Pending',
+          type: 'Beagle',
+          status: 'active',
+        },
+      ]
+    );
+    postgrestAnswers({
+      data: [
+        serverRow({
+          id: 'srv-copy',
+          registration_number: '',
+          created_at: placeholder!.createdAt.replace('Z', '+00:00'),
+        }),
+      ],
+      error: null,
+    });
+
+    const { result } = renderDogRegistrations('dog-1');
+    const loaded = await loadDogRegistrations(['dog-1']);
+
+    await waitFor(() => expect(result.current.registrations).toBeDefined());
+    expect(result.current.registrations!.map(row => row.id)).toEqual(['srv-copy']);
+    expect((loaded.byDog.get('dog-1') ?? []).map(row => row.id)).toEqual(['srv-copy']);
+  });
+
   it('treats an empty server answer as "no registrations"', async () => {
     postgrestAnswers({ data: [], error: null });
 

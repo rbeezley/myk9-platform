@@ -58,7 +58,7 @@ vi.mock('./hooks/usePaperScoring', () => ({
   usePaperScoring: () => ({
     mode: 'split',
     setMode: vi.fn(),
-    selectedEntryId: null,
+    onScreenEntryId: null,
     selectEntry: vi.fn(),
     sessionSettings: {},
     setSessionSettings: vi.fn(),

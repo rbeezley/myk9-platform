@@ -258,6 +258,7 @@ describe('PaperScoresheetPage — the selected dog leaves the class', () => {
       renderPage(mode);
       expect((await screen.findAllByText('0 of 2 scored'))[0]).toBeInTheDocument();
 
+      await putOnScreen(mode, 'Willow');
       await deliver([dog('e2', 'Cooper', 2)]);
       expect((await screen.findAllByText('0 of 1 scored'))[0]).toBeInTheDocument();
 
@@ -270,23 +271,56 @@ describe('PaperScoresheetPage — the selected dog leaves the class', () => {
     }
   );
 
-  it('a second Save with no dog selected writes nothing (sequential)', async () => {
+  /** Ask for a dog explicitly, so the test exercises a chosen dog, not the default. */
+  async function putOnScreen(mode: 'split' | 'sequential', name: 'Willow' | 'Cooper') {
+    if (mode === 'split') {
+      fireEvent.click(await screen.findByRole('button', { name: new RegExp(name) }));
+    } else {
+      fireEvent.click(await screen.findByRole('button', { name: 'next' }));
+      if (name === 'Willow') fireEvent.click(screen.getByRole('button', { name: 'prev' }));
+    }
+    expect((await screen.findAllByText(name))[0]).toBeInTheDocument();
+  }
+
+  async function saveOnScreen(button: RegExp = /^Save$/) {
+    fireEvent.click(await screen.findByRole('button', { name: /^Q$/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: button })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: button }));
+  }
+
+  it('a plain Save keeps the same dog on screen, and a second Save rewrites that dog', async () => {
     renderPage('sequential');
     expect((await screen.findAllByText('0 of 2 scored'))[0]).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'next' }));
+    expect(await screen.findByText('Cooper')).toBeInTheDocument();
 
-    fireEvent.click(await screen.findByRole('button', { name: /^Q$/ }));
-    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await saveOnScreen();
     await waitFor(() => expect(replica.updateEntry).toHaveBeenCalledTimes(1));
-    expect(replica.updateEntry).toHaveBeenCalledWith('e1', expect.anything());
+    expect(screen.getByText('Cooper')).toBeInTheDocument();
+    expect(screen.queryByText('Willow')).not.toBeInTheDocument();
 
-    // Save cleared the selection; a double-tap must not score the card shown.
-    const save = await screen.findByRole('button', { name: /^Save$/ });
-    await waitFor(() => expect(save).toBeEnabled());
-    fireEvent.click(screen.getByRole('button', { name: /^Q$/ }));
-    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 20));
-    });
-    expect(replica.updateEntry).toHaveBeenCalledTimes(1);
+    await saveOnScreen();
+    await waitFor(() => expect(replica.updateEntry).toHaveBeenCalledTimes(2));
+    expect(replica.updateEntry).toHaveBeenNthCalledWith(1, 'e2', expect.anything());
+    expect(replica.updateEntry).toHaveBeenNthCalledWith(2, 'e2', expect.anything());
   });
+
+  it.each(['sequential', 'split'] as const)(
+    'after the class empties and refills, a save goes to the dog that arrived (%s)',
+    async mode => {
+      renderPage(mode);
+      expect((await screen.findAllByText('0 of 2 scored'))[0]).toBeInTheDocument();
+
+      await putOnScreen(mode, 'Cooper');
+      await deliver([]);
+      expect(await screen.findByText('No dogs are on this class’s run list.')).toBeInTheDocument();
+
+      await deliver([dog('e3', 'Biscuit', 3)]);
+      expect((await screen.findAllByText('0 of 1 scored'))[0]).toBeInTheDocument();
+
+      await saveOnScreen(/save & next/i);
+      await waitFor(() => expect(replica.updateEntry).toHaveBeenCalledTimes(1));
+      expect(replica.updateEntry).toHaveBeenCalledWith('e3', expect.anything());
+    }
+  );
 });

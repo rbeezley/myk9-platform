@@ -45,11 +45,6 @@ function getClassDetailsHref({
   return `/classes/${classId}`;
 }
 
-/** The dog a class opens on: the first unscored, else the first, in exhibitor order. */
-function firstEditableEntryId(sorted: ScoringEntry[]): string | null {
-  return (sorted.find(entry => !entry.isScored) ?? sorted[0])?.entryId ?? null;
-}
-
 /** The next dog to score after `from`, in exhibitor order. */
 function nextUnscoredAfter(entries: ScoringEntry[], from: string): string | null {
   return (
@@ -66,7 +61,6 @@ export function PaperScoresheetPage() {
   const requestedEntryId = searchParams.get('entryId');
   const requestedMode = searchParams.get('mode');
   const appliedRequestRef = useRef<string | null>(null);
-  const autoSelectedClassRef = useRef<string | null>(null);
 
   const [entries, setEntries] = useState<ScoringEntry[]>([]);
   const [className, setClassName] = useState<string | null>(null);
@@ -174,9 +168,12 @@ export function PaperScoresheetPage() {
   const scoringMode = scoring.mode;
   const setScoringMode = scoring.setMode;
   const sortedEntries = useMemo(() => sortByExhibitorOrder(entries), [entries]);
+  // The one dog on screen: the card in card mode, the open panel's dog in list
+  // mode. Every save and clear writes to exactly this dog (MYK9-1130).
+  const onScreenEntryId = scoring.onScreenEntryId;
   const sequentialIndex = Math.max(
     0,
-    sortedEntries.findIndex(entry => entry.entryId === scoring.selectedEntryId)
+    sortedEntries.findIndex(entry => entry.entryId === onScreenEntryId)
   );
 
   useEffect(() => {
@@ -193,37 +190,10 @@ export function PaperScoresheetPage() {
   }, [entries, requestedEntryId, scoring]);
 
   useEffect(() => {
-    if (!classId || requestedEntryId || entries.length === 0) return;
-    if (autoSelectedClassRef.current === classId) return;
-    const firstEditable = firstEditableEntryId(sortedEntries);
-    if (!firstEditable) return;
-    scoring.selectEntry(firstEditable);
-    autoSelectedClassRef.current = classId;
-  }, [classId, entries.length, requestedEntryId, scoring, sortedEntries]);
-
-  // A replica update can remove the selected dog (a pull, a move-up). Move the
-  // selection to a dog that is still listed rather than keep naming one that left.
-  useEffect(() => {
-    const selected = scoring.selectedEntryId;
-    if (!selected || entries.some(entry => entry.entryId === selected)) return;
-    scoring.selectEntry(firstEditableEntryId(sortedEntries));
-  }, [entries, scoring, sortedEntries]);
-
-  // The dog a save or clear writes to is the dog on screen, never a stale id:
-  // the card shown in sequential mode, the open panel's dog in split mode.
-  // No selection writes nothing, as before: a Save clears the selection, and a
-  // double-tap must not score the card the sequential view falls back to.
-  const onScreenEntryId = !scoring.selectedEntryId
-    ? null
-    : scoring.mode === 'sequential'
-      ? (sortedEntries[sequentialIndex]?.entryId ?? null)
-      : (sortedEntries.find(entry => entry.entryId === scoring.selectedEntryId)?.entryId ?? null);
-
-  useEffect(() => {
     const pending = pendingAdvanceRef.current;
     if (!pending || freshLoads <= pending.afterLoad) return;
     pendingAdvanceRef.current = null;
-    scoring.selectEntry(nextUnscoredAfter(entries, pending.from));
+    scoring.selectEntry(nextUnscoredAfter(entries, pending.from) ?? pending.from);
   }, [entries, freshLoads, scoring]);
 
   // After a landed save: a list that cannot refresh pauses scoring rather than
@@ -262,7 +232,8 @@ export function PaperScoresheetPage() {
       pendingAdvanceRef.current = { from: currentEntryId, afterLoad: freshLoads };
       return;
     }
-    scoring.selectEntry(nextUnscoredAfter(fresh, currentEntryId));
+    // With no dog left to score, the saved dog stays on screen.
+    scoring.selectEntry(nextUnscoredAfter(fresh, currentEntryId) ?? currentEntryId);
   };
 
   const handleClearResult = async () => {
@@ -365,7 +336,7 @@ export function PaperScoresheetPage() {
           <SplitPanelView
             entries={entries}
             settings={scoring.sessionSettings}
-            selectedEntryId={scoring.selectedEntryId}
+            selectedEntryId={onScreenEntryId}
             onSelectEntry={scoring.selectEntry}
             onSave={handleSave}
             onSaveAndNext={handleSaveAndNext}

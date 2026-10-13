@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { SCORE_DETAIL_CLEAR_FIELDS } from '@/services/replication/scoreResetFields';
 import type { ScoringEntry } from '../types';
@@ -19,17 +19,47 @@ function writeModeToStorage(userId: string, mode: PaperScoringMode) {
   }
 }
 
+/**
+ * The dog the person asked for: an entry id; `null` for nothing (the split
+ * panel closed); `undefined` for the class's first scorable dog.
+ */
+type RequestedEntry = string | null | undefined;
+
+/** The dog a class opens on: the first unscored, else the first, in exhibitor order. */
+export function firstScorableEntryId(sorted: readonly ScoringEntry[]): string | null {
+  return (sorted.find(entry => !entry.isScored) ?? sorted[0])?.entryId ?? null;
+}
+
+/**
+ * The one dog on screen (MYK9-1130), which every save and clear writes to.
+ * The requested dog while it is listed; when it leaves the class, the first
+ * scorable dog. Nothing only when the class is empty, or when the split
+ * panel was closed; card mode always shows a dog when there is one.
+ */
+export function resolveOnScreenEntryId(
+  sorted: readonly ScoringEntry[],
+  requested: RequestedEntry,
+  mode: PaperScoringMode
+): string | null {
+  if (typeof requested === 'string' && sorted.some(entry => entry.entryId === requested)) {
+    return requested;
+  }
+  if (requested === null && mode === 'split') return null;
+  return firstScorableEntryId(sorted);
+}
+
 export function usePaperScoring(entries: ScoringEntry[], userId: string) {
-  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [requestedEntryId, setRequestedEntryId] = useState<RequestedEntry>(undefined);
   const [sessionSettings, setSessionSettingsState] =
     useState<SessionSettings>(DEFAULT_SESSION_SETTINGS);
   const [mode, setModeState] = useState<PaperScoringMode>('split');
   const [isSaving, setIsSaving] = useState(false);
 
-  const currentIndex = entries.findIndex(e => e.entryId === selectedEntryId);
+  const sortedEntries = useMemo(() => sortByExhibitorOrder(entries), [entries]);
+  const onScreenEntryId = resolveOnScreenEntryId(sortedEntries, requestedEntryId, mode);
 
   const selectEntry = useCallback((entryId: string | null) => {
-    setSelectedEntryId(entryId);
+    setRequestedEntryId(entryId);
   }, []);
 
   /** Returns entryId of the next unscored entry in run order, or null if all scored. */
@@ -84,7 +114,8 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
       reason?: string
     ) => {
       await performSave(entryId, result, timeDigits, faults, reason);
-      setSelectedEntryId(null);
+      // The saved dog stays on screen, showing its result.
+      setRequestedEntryId(entryId);
     },
     [performSave]
   );
@@ -107,6 +138,8 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
         disqualification_reason: null,
         ...SCORE_DETAIL_CLEAR_FIELDS,
       });
+      // The cleared dog stays on screen.
+      setRequestedEntryId(entryId);
     } finally {
       setIsSaving(false);
     }
@@ -125,10 +158,9 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
   );
 
   return {
-    selectedEntryId,
+    onScreenEntryId,
     sessionSettings,
     mode,
-    currentIndex,
     isSaving,
     selectEntry,
     nextUnscored,

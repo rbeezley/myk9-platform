@@ -141,6 +141,24 @@ describe('registration readers with the server reachable', () => {
     expect((loaded.byDog.get('dog-1') ?? []).map(row => row.id)).toEqual(['srv-copy']);
   });
 
+  // The server answered; a broken device store must not hide that answer
+  // behind an error (Codex review). Before MYK9-1090 this read never needed
+  // IndexedDB.
+  it('keep the server answer when the device cannot be read', async () => {
+    postgrestAnswers({ data: [serverRow({ id: 'srv-1' })], error: null });
+    const read = vi
+      .spyOn(replicatedDogRegistrationsTable, 'getUnsentRegistrationsForDogs')
+      .mockRejectedValue(new Error('IndexedDB unavailable'));
+
+    const { result } = renderDogRegistrations('dog-1');
+
+    await waitFor(() => expect(result.current.registrations).toBeDefined());
+    expect(result.current.registrations!.map(row => row.id)).toEqual(['srv-1']);
+    expect(result.current.registrationsSource).toBe('server');
+    expect(result.current.error).toBeFalsy();
+    read.mockRestore();
+  });
+
   it('treats an empty server answer as "no registrations"', async () => {
     postgrestAnswers({ data: [], error: null });
 

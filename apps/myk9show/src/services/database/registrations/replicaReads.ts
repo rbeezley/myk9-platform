@@ -36,9 +36,14 @@ function byRegistrationDateDesc(a: DogRegistrationReadRow, b: DogRegistrationRea
 export async function readRegistrationsForDog(dogId: string): Promise<RegistrationsForDog> {
   const server = await getRegistrationsByDog(dogId);
   const source = server.error ? 'device' : 'server';
+  // With the server's answer in hand, a device that cannot be read only costs
+  // this device's unsent work, never the server rows (Codex review). Without
+  // it, the device copy is the answer, and a device failure is the error.
   const local =
     source === 'server'
-      ? await replicatedDogRegistrationsTable.getUnsentRegistrationsForDogs([dogId])
+      ? await replicatedDogRegistrationsTable
+          .getUnsentRegistrationsForDogs([dogId])
+          .catch(() => [] as DogRegistrationReadRow[])
       : await replicatedDogRegistrationsTable.getRegistrationsForDogs([dogId]);
 
   // Server rows first; a device row whose server copy is in the read (a

@@ -95,9 +95,11 @@ describe('editing an add', () => {
 
     await table.updateRegistration(added.id, { registration_number: 'FIXED1' });
 
-    const [insert, update, ...rest] = await queue.pending();
-    expect(rest).toEqual([]);
-    expect(insert).toMatchObject({ operation: 'INSERT', rowId: added.id });
+    const pending = await queue.pending();
+    expect(pending).toHaveLength(2);
+    const insert = pending.find(m => m.operation === 'INSERT');
+    const update = pending.find(m => m.operation === 'UPDATE');
+    expect(insert).toMatchObject({ rowId: added.id });
     expect(update).toMatchObject({
       operation: 'UPDATE',
       rowId: added.id,

@@ -71,6 +71,54 @@ describe('a. a confirmed delete is not stored back by an ID pass already reading
   });
 });
 
+// Codex round 2: the fence was checked before the async store, so a DELETE
+// confirmed after the server read but before the replica write still came
+// back. The confirmation here lands exactly in that window: after the read
+// has returned and before the rows are written.
+describe('a. a delete confirmed between the server read and the replica write', () => {
+  /** Run `confirm` once, just before the next replica write of server rows. */
+  function confirmBeforeNextWrite(confirm: () => Promise<void>) {
+    const write = table.batchSet.bind(table);
+    vi.spyOn(table, 'batchSet').mockImplementationOnce(async (...args) => {
+      await confirm();
+      return write(...args);
+    });
+  }
+
+  async function deleteAndConfirm(id: string) {
+    await table.deleteRegistration(id);
+    await queue.upload();
+    expect(await table.getReplicatedRow(id)).toBeNull();
+  }
+
+  it('is not stored by the ID pass hydration', async () => {
+    const deleted = serverRow({ id: 'reg-del' });
+    installRegistrationsServer(newServer({ idPages: [[{ id: 'reg-del' }]], rows: [deleted] }));
+    confirmBeforeNextWrite(async () => {
+      await table.applyServerRows([deleted]);
+      await deleteAndConfirm('reg-del');
+    });
+
+    await table.reconcileWithServerIds();
+
+    expect(await table.getReplicatedRow('reg-del')).toBeNull();
+  });
+
+  it('is not stored by the changes pass', async () => {
+    const deleted = serverRow({ id: 'reg-del', registered_name: 'Changed Elsewhere' });
+    await table.applyServerRows([serverRow({ id: 'reg-del' })]);
+    // The ID pass is skipped (its read fails), so only the changes pass writes.
+    installRegistrationsServer(
+      newServer({ changePages: [[deleted]], idPages: [new Error('timeout')] })
+    );
+    confirmBeforeNextWrite(() => deleteAndConfirm('reg-del'));
+
+    await table.sync();
+
+    expect(await table.getReplicatedRow('reg-del')).toBeNull();
+  });
+});
+
 describe('b. an acknowledged add survives the ID pass that was reading', () => {
   it('keeps a queued add whose INSERT uploads while the id pages are in flight', async () => {
     setDeviceOnline(false);

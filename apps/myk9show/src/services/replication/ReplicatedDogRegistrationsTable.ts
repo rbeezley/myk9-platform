@@ -109,6 +109,11 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     await this.notifyListeners();
   }
 
+  /** Never store a row whose delete was confirmed mid-pass; asked inside the write (MYK9-1129). */
+  protected override acceptsRemoteRow(id: string): boolean {
+    return !this.deletionFence.isFenced(id);
+  }
+
   protected override rebuildUpdatePayload(
     registration: ReplicatedDogRegistration
   ): Record<string, unknown> {
@@ -143,10 +148,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     try {
       const adapter: SyncReplicatedTableAdapter<DogRegistrationRow, ReplicatedDogRegistration> = {
         ...this.getRowRefetchAdapter(),
-        fetchRemoteRows: async ({ since }) =>
-          (await fetchChangedRegistrations(since)).filter(
-            row => !this.deletionFence.isDeletedSince(fence, String(row.id))
-          ),
+        fetchRemoteRows: ({ since }) => fetchChangedRegistrations(since),
         getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
         resolveConflict: (local, remote) => this.resolveConflict(local, remote),
       };
@@ -224,9 +226,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       const localIds = await this.getAllLocalIds();
       const missing = [...serverIds].filter(id => !localIds.has(id));
       const fetchedRows = missing.length > 0 ? await fetchRegistrationsWhere('id', missing) : [];
-      const fetched = await this.applyServerRows(
-        fetchedRows.filter(row => !this.deletionFence.isDeletedSince(token, String(row.id)))
-      );
+      const fetched = await this.applyServerRows(fetchedRows);
       return { removed: deleted.length, fetched };
     } finally {
       if (fence === undefined) this.deletionFence.close(token);
@@ -311,11 +311,8 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       _localOnly: true,
       _queuedAdd: true,
     };
-    // The row starts with the OCC token the server will give it: the INSERT
-    // sends no `version`, so the column default (1) applies, and the upload's
-    // acknowledgement carries none. Without it a later edit would be an UPDATE
-    // with no precondition (Codex round 2). Written clean with the token, then
-    // dirty, which keeps it.
+    // Starts with the token the INSERT will create (NEW_REGISTRATION_VERSION),
+    // so a later edit carries an OCC precondition: clean with it, then dirty.
     await this.set(registration.id, registration, false, undefined, NEW_REGISTRATION_VERSION);
     await this.set(registration.id, registration, true);
     await this.queueMutation(

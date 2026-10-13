@@ -44,6 +44,11 @@ function getClassDetailsHref({
   return `/classes/${classId}`;
 }
 
+/** The dog a class opens on: the first unscored, else the first, in exhibitor order. */
+function firstEditableEntryId(sorted: ScoringEntry[]): string | null {
+  return (sorted.find(entry => !entry.isScored) ?? sorted[0])?.entryId ?? null;
+}
+
 /** The next dog to score after `from`, in exhibitor order. */
 function nextUnscoredAfter(entries: ScoringEntry[], from: string): string | null {
   return (
@@ -177,11 +182,26 @@ export function PaperScoresheetPage() {
   useEffect(() => {
     if (!classId || requestedEntryId || entries.length === 0) return;
     if (autoSelectedClassRef.current === classId) return;
-    const firstEditableEntry = sortedEntries.find(entry => !entry.isScored) ?? sortedEntries[0];
-    if (!firstEditableEntry) return;
-    scoring.selectEntry(firstEditableEntry.entryId);
+    const firstEditable = firstEditableEntryId(sortedEntries);
+    if (!firstEditable) return;
+    scoring.selectEntry(firstEditable);
     autoSelectedClassRef.current = classId;
   }, [classId, entries.length, requestedEntryId, scoring, sortedEntries]);
+
+  // A replica update can remove the selected dog (a pull, a move-up). Move the
+  // selection to a dog that is still listed rather than keep naming one that left.
+  useEffect(() => {
+    const selected = scoring.selectedEntryId;
+    if (!selected || entries.some(entry => entry.entryId === selected)) return;
+    scoring.selectEntry(firstEditableEntryId(sortedEntries));
+  }, [entries, scoring, sortedEntries]);
+
+  // The dog a save or clear writes to is the dog on screen, never a stale id:
+  // the card shown in sequential mode, the open panel's dog in split mode.
+  const onScreenEntryId =
+    scoring.mode === 'sequential'
+      ? (sortedEntries[sequentialIndex]?.entryId ?? null)
+      : (sortedEntries.find(entry => entry.entryId === scoring.selectedEntryId)?.entryId ?? null);
 
   useEffect(() => {
     const pending = pendingAdvanceRef.current;
@@ -206,8 +226,8 @@ export function PaperScoresheetPage() {
     faults: number,
     reason?: string
   ) => {
-    if (!scoring.selectedEntryId) return;
-    const entryId = scoring.selectedEntryId;
+    const entryId = onScreenEntryId;
+    if (!entryId) return;
     await scoring.saveEntry(entryId, result, timeDigits, faults, reason);
     await reloadEntries();
   };
@@ -218,8 +238,8 @@ export function PaperScoresheetPage() {
     faults: number,
     reason?: string
   ) => {
-    if (!scoring.selectedEntryId) return;
-    const currentEntryId = scoring.selectedEntryId;
+    const currentEntryId = onScreenEntryId;
+    if (!currentEntryId) return;
     await scoring.saveEntry(currentEntryId, result, timeDigits, faults, reason);
     const fresh = await reloadEntries();
     if (!fresh) {
@@ -230,8 +250,8 @@ export function PaperScoresheetPage() {
   };
 
   const handleClearResult = async () => {
-    if (!scoring.selectedEntryId) return;
-    const entryId = scoring.selectedEntryId;
+    const entryId = onScreenEntryId;
+    if (!entryId) return;
     await scoring.clearEntry(entryId);
     await reloadEntries();
   };

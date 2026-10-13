@@ -16,6 +16,8 @@ const replica = vi.hoisted(() => ({
   failRead: false,
   listeners: new Set<() => void>(),
   sync: vi.fn(),
+  updateEntry: vi.fn(),
+  inFlight: null as Promise<void> | null,
 }));
 
 vi.mock('./useScoringBreadcrumb', () => ({
@@ -44,7 +46,8 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
       replica.listeners.add(listener);
       return () => replica.listeners.delete(listener);
     }),
-    updateEntry: vi.fn(),
+    updateEntry: replica.updateEntry,
+    whenShowSyncSettles: vi.fn(() => replica.inFlight),
   },
 }));
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
@@ -91,12 +94,12 @@ async function deliver(rows: ScoringEntry[]) {
   });
 }
 
-function renderPage() {
+function renderPage(mode: 'split' | 'sequential' = 'split') {
   return render(
     <Routes>
       <Route path="/scoring/classes/:classId/entries" element={<PaperScoresheetPage />} />
     </Routes>,
-    { initialRoute: '/scoring/classes/class-1/entries?mode=split' }
+    { initialRoute: `/scoring/classes/class-1/entries?mode=${mode}` }
   );
 }
 
@@ -106,6 +109,7 @@ describe('PaperScoresheetPage — entries that reach the replica after mount (MY
     replica.rows = [];
     replica.synced = false;
     replica.failRead = false;
+    replica.inFlight = null;
     replica.listeners.clear();
     replica.sync.mockResolvedValue({ success: false });
     onlineManager.setOnline(true);
@@ -206,4 +210,39 @@ describe('PaperScoresheetPage — entries that reach the replica after mount (MY
     await screen.findByText('0 of 1 scored');
     expect(replica.sync).toHaveBeenCalledTimes(1);
   });
+});
+
+/**
+ * A replica update can remove the dog being scored (a pull, a move-up). The
+ * score must go to the dog on screen, never to the one that left.
+ */
+describe('PaperScoresheetPage — the selected dog leaves the class', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    replica.rows = [dog('e1', 'Willow', 1), dog('e2', 'Cooper', 2)];
+    replica.synced = true;
+    replica.failRead = false;
+    replica.inFlight = null;
+    replica.listeners.clear();
+    replica.updateEntry.mockResolvedValue(undefined);
+    onlineManager.setOnline(true);
+  });
+
+  it.each(['sequential', 'split'] as const)(
+    'saves to the dog on screen, not the removed one (%s)',
+    async mode => {
+      renderPage(mode);
+      expect((await screen.findAllByText('0 of 2 scored'))[0]).toBeInTheDocument();
+
+      await deliver([dog('e2', 'Cooper', 2)]);
+      expect((await screen.findAllByText('0 of 1 scored'))[0]).toBeInTheDocument();
+
+      fireEvent.click(await screen.findByRole('button', { name: /^Q$/ }));
+      fireEvent.click(screen.getByRole('button', { name: /save & next/i }));
+
+      await waitFor(() => expect(replica.updateEntry).toHaveBeenCalledTimes(1));
+      expect(replica.updateEntry).toHaveBeenCalledWith('e2', expect.anything());
+      expect(replica.updateEntry).not.toHaveBeenCalledWith('e1', expect.anything());
+    }
+  );
 });

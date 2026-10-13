@@ -17,6 +17,7 @@ const helper = read('apps/myk9show/src/test/e2e/shared/browserDiagnostics.ts');
 const WIRED_SPECS = [
   'apps/myk9show/src/test/e2e/secretary/resultsTabJourney.spec.ts',
   'apps/myk9show/src/test/e2e/show/atShowJudgeScoring.spec.ts',
+  'apps/myk9show/src/test/e2e/slice2-dog-workspace-evidence.spec.ts',
 ];
 
 describe('regression failure diagnostics', () => {

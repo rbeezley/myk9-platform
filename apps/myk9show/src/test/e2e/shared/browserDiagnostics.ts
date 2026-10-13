@@ -95,6 +95,8 @@ export interface PageSnapshot {
   url: string;
   regions: string[];
   main: string;
+  /** Service-worker state at failure: a controller swap can abort in-flight route chunks. */
+  serviceWorker?: string;
 }
 
 export function formatDiagnostics(
@@ -109,6 +111,7 @@ export function formatDiagnostics(
       ? `## Page snapshot\n(unavailable: ${snapshot.error})`
       : [
           `## Page URL\n${stripUrlQuery(snapshot.url)}`,
+          `## Service worker\n${snapshot.serviceWorker ?? '(not read)'}`,
           section(
             'Alert / toast regions',
             snapshot.regions.map(text => `- ${redactThenClip(text, MAX_TEXT, secrets)}`)
@@ -187,16 +190,24 @@ async function snapshotPage(page: Page): Promise<PageSnapshot | { error: string 
         .map(el => (el as HTMLElement).innerText.trim())
         .filter(text => text.length > 0);
       const main = document.querySelector('main, [role="main"]') ?? document.body;
+      const sw = navigator.serviceWorker;
+      const controller = sw?.controller;
+      const serviceWorker = !sw
+        ? 'unsupported'
+        : controller
+          ? `controlled by ${controller.scriptURL.replace(/[?#].*$/, '')} (${controller.state})`
+          : 'no controller';
       return {
         regions: Array.from(new Set(regions)),
         main: (main as HTMLElement).innerText.trim(),
+        serviceWorker,
       };
     });
     const timeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('page snapshot timed out')), SNAPSHOT_TIMEOUT_MS)
     );
-    const { regions, main } = await Promise.race([read, timeout]);
-    return { url: page.url(), regions, main };
+    const { regions, main, serviceWorker } = await Promise.race([read, timeout]);
+    return { url: page.url(), regions, main, serviceWorker };
   } catch (error) {
     return { error: error instanceof Error ? error.message : String(error) };
   }

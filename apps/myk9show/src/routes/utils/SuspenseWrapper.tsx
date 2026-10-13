@@ -53,6 +53,13 @@ class LoadingErrorBoundary extends React.Component<
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     logger.error('LoadingErrorBoundary caught an error:', 'utils', { data: error, errorInfo });
+    // MYK9-1114: the logger never reaches the browser console, so a lazy route that failed to
+    // load left no trace in E2E diagnostics or in a support session. Name it on the console too.
+    console.error(
+      `LoadingErrorBoundary caught an error in ${this.props.componentName ?? 'a lazy route'}: ` +
+        `${error.name}: ${error.message}`,
+      error.stack?.split('\n').slice(0, 4).join('\n') ?? ''
+    );
 
     // Track error in metrics
     if (this.props.componentName) {

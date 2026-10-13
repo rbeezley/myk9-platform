@@ -24,9 +24,14 @@ import {
 } from '@/services/replication/__tests__/registrationQueueHarness';
 import ManageRegistrationsPanel from './ManageRegistrationsPanel';
 
-const notified = vi.hoisted(() => ({ error: vi.fn() }));
+const notified = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 vi.mock('@/lib/notifications', () => ({
-  notifications: { error: notified.error, success: vi.fn(), warning: vi.fn(), info: vi.fn() },
+  notifications: {
+    error: notified.error,
+    success: notified.success,
+    warning: vi.fn(),
+    info: vi.fn(),
+  },
 }));
 import DogRegistrationDialogs from './DogRegistrationDialogs';
 
@@ -52,11 +57,21 @@ function postgrestUnreachable() {
   vi.mocked(supabase.from).mockImplementation((() => builder) as unknown as typeof supabase.from);
 }
 
-function Harness() {
-  const [open, setOpen] = useState(true);
+/** Mounts the replica refresh listener, as ReplicationSyncProvider does. */
+function RefreshListener() {
   useRegistrationsReplicaCacheSync();
+  return null;
+}
+
+/**
+ * `listener: false` leaves out the replica refresh, so whatever the screen
+ * shows comes from the delete itself, never from a refetch (MYK9-1143).
+ */
+function Harness({ listener = true }: { listener?: boolean }) {
+  const [open, setOpen] = useState(true);
   return (
     <>
+      {listener && <RefreshListener />}
       <ManageRegistrationsPanel open={open} onClose={() => setOpen(false)} dog={dog} />
       <DogRegistrationDialogs dog={dog} managePanelOpen={open} />
     </>
@@ -69,6 +84,7 @@ beforeEach(async () => {
   await databaseManager.reset();
   configureConflictSurfacing(true);
   queue = createRegistrationQueueHarness();
+  notified.success.mockClear();
   await replicatedDogRegistrationsTable.applyServerRows([
     serverRow({ id: 'reg-1', registered_name: 'CH Old Name', organization: 'AKC', version: 3 }),
   ]);
@@ -96,6 +112,15 @@ afterEach(async () => {
 async function queuedOnce() {
   await waitFor(async () => expect(await queue.pending()).toHaveLength(1));
   return queue.pending();
+}
+
+/** Kebab, Delete, then the confirm dialog's Delete. */
+async function confirmDelete(user: ReturnType<typeof render>['user']) {
+  await user.click(screen.getByRole('button', { name: /more actions/i }));
+  await user.click(await screen.findByRole('menuitem', { name: /delete/i }));
+  const confirm = await screen.findByRole('dialog', { name: /delete registration/i });
+  expect(confirm).toHaveTextContent('CH Old Name');
+  await user.click(within(confirm).getByRole('button', { name: /^delete$/i }));
 }
 
 const noPostgrestWrites = () =>
@@ -159,16 +184,56 @@ describe('Manage registrations, offline', () => {
     const { user } = render(<Harness />);
     expect(await screen.findByText('CH Old Name')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /more actions/i }));
-    await user.click(await screen.findByRole('menuitem', { name: /delete/i }));
-    const confirm = await screen.findByRole('dialog', { name: /delete registration/i });
-    expect(confirm).toHaveTextContent('CH Old Name');
-    await user.click(within(confirm).getByRole('button', { name: /^delete$/i }));
+    await confirmDelete(user);
 
     await waitFor(() => expect(screen.queryByText('CH Old Name')).not.toBeInTheDocument());
     const [deletion, ...rest] = await queuedOnce();
     expect(rest).toEqual([]);
     expect(deletion).toMatchObject({ operation: 'DELETE', rowId: 'reg-1' });
     noPostgrestWrites();
+  });
+
+  // MYK9-1143: offline the row went only when the replica listener's refetch
+  // landed, seconds later, with nothing said. With the listener left out, only
+  // the delete itself can take the row away.
+  it('Delete takes the row away at once, without a refetch, and says it saved on this device', async () => {
+    const { user } = render(<Harness listener={false} />);
+    expect(await screen.findByText('CH Old Name')).toBeInTheDocument();
+
+    await confirmDelete(user);
+
+    await waitFor(() => expect(screen.queryByText('CH Old Name')).not.toBeInTheDocument(), {
+      timeout: 300,
+    });
+    await waitFor(() =>
+      expect(notified.success).toHaveBeenCalledWith(
+        "Registration deleted on this device — it will sync when you're back online"
+      )
+    );
+    const [deletion] = await queuedOnce();
+    expect(deletion).toMatchObject({ operation: 'DELETE', rowId: 'reg-1' });
+    noPostgrestWrites();
+  });
+
+  // MYK9-1075 unchanged: the row taken away at once still comes back when a
+  // refused delete is discarded.
+  it('a refused delete, discarded, puts the row back on screen', async () => {
+    const { user } = render(<Harness />);
+    expect(await screen.findByText('CH Old Name')).toBeInTheDocument();
+
+    await confirmDelete(user);
+    await waitFor(() => expect(screen.queryByText('CH Old Name')).not.toBeInTheDocument());
+    await queuedOnce();
+
+    setDeviceOnline(true);
+    queue.answer.delete = { data: null, error: { code: '42501', message: 'permission denied' } };
+    await queue.upload();
+    const [failed] = await queue.failed();
+    expect(failed).toMatchObject({ operation: 'DELETE', rowId: 'reg-1' });
+
+    setDeviceOnline(false);
+    await act(() => queue.manager.discardFailedMutation(failed!.id));
+
+    expect(await screen.findByText('CH Old Name')).toBeInTheDocument();
   });
 });

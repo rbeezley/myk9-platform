@@ -177,6 +177,8 @@ export const queryKeys = {
   // Registrations
   registrations: ['registrations'] as const,
   registration: (id: string) => ['registrations', id] as const,
+  /** Prefix of every `registrationsByDog` key: every dog's registrations. */
+  registrationsByDogAll: ['registrations', 'dog'] as const,
   registrationsByDog: (dogId: string) => ['registrations', 'dog', dogId] as const,
   registrationsByOwner: (ownerId: string) => ['registrations', 'owner', ownerId] as const,
 

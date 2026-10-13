@@ -4,7 +4,7 @@ import SectionCard from '@/components/common/SectionCard';
 import ThreeDotMenu from '@/components/ui/ThreeDotMenu';
 import { Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, WifiOff } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
 import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
@@ -58,6 +58,7 @@ export default function RegistrationsSection({ dog, canEdit }: RegistrationsSect
   // Use database hooks for data management
   const {
     registrations: dbRegistrations,
+    registrationsSource,
     isLoading,
     error,
     refetch,
@@ -118,6 +119,21 @@ export default function RegistrationsSection({ dog, canEdit }: RegistrationsSect
     );
   }
 
+  // The server could not be read, so this list is what the device last saved.
+  // INTENT "Offline is normal": a quiet note, not an error.
+  const isOfflineCopy = registrationsSource === 'device';
+
+  if (isOfflineCopy && (!registrations || registrations.length === 0)) {
+    return (
+      <EmptyState
+        icon={WifiOff}
+        title="No registrations saved on this device"
+        description="Reconnect to see this dog's registrations."
+        action={null}
+      />
+    );
+  }
+
   if (!registrations || registrations.length === 0) {
     return (
       <EmptyState
@@ -135,6 +151,12 @@ export default function RegistrationsSection({ dog, canEdit }: RegistrationsSect
 
   return (
     <div className="grid gap-4 grid-cols-1">
+      {isOfflineCopy && (
+        <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
+          <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
+          Offline copy. It may be out of date.
+        </p>
+      )}
       {(registrations as RegistrationRecord[]).map((reg: RegistrationRecord, idx: number) => (
         <SectionCard key={reg.id || idx} className="min-h-[170px] justify-between">
           {canEdit && (

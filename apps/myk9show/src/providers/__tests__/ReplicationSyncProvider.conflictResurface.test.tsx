@@ -105,6 +105,7 @@ vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
     setMutationManager: vi.fn(),
     sync: vi.fn().mockResolvedValue({ success: true, rowsAffected: 0 }),
     getConflictedRows: hoisted.conflictSpies.dog_registrations,
+    subscribe: () => () => undefined,
   },
 }));
 vi.mock('@/services/replication/ReplicatedShowDeskPeopleTable', () => ({

@@ -15,10 +15,11 @@
  * trust and what an empty result is allowed to mean. They are kept together
  * because that trade-off — not the mapping — is the actual subject matter.
  *
- * A note for whoever changes this next: `ReplicatedDogRegistrationsTable.sync()`
- * is a NO-OP. The replica only ever holds registrations created on this device,
- * so an empty result from it is never evidence of absence. Several fixes here
- * exist solely because that was assumed otherwise.
+ * A note for whoever changes this next: the registrations replica syncs
+ * (MYK9-1090), but it is never authoritative. Reads go to the server first;
+ * the device copy answers only when the server cannot be read, and is then
+ * marked incomplete. Several fixes here exist because emptiness was trusted
+ * when it should not have been.
  */
 
 import type { QueryClient } from '@tanstack/react-query';
@@ -27,6 +28,7 @@ import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import { mapDatabaseToDog, mapReplicatedDogToDbRow } from '@/services/mappers/dogMappers';
 import { loadDogRegistrations } from '@/services/database/dogs/reads';
 import { queryKeys } from '@/lib/queryClient';
+import type { RegistrationsForDog } from '@/services/database/registrations/replicaReads';
 
 /**
  * Map a replicated dog to a `Dog`, hydrating its registrations first.
@@ -36,13 +38,10 @@ import { queryKeys } from '@/lib/queryClient';
  * bare row and handed the result straight to `DogDialogs`, which flipped a
  * registered dog's breed label to "Breed not set" until the next refetch.
  *
- * Reads through `loadDogRegistrations`, the MERGED server+replica path. Round 2
- * used `replicatedDogRegistrationsTable` alone, which was inert in production:
- * that table's `sync()` is a no-op and server reads are never written into it,
- * so it only ever holds registrations created locally. For the common dog —
- * whose registrations came from PostgREST — it returned nothing and the label
- * still flipped to "Breed not set". The merged read answers from the server when
- * online and from the replica when not.
+ * Reads through `loadDogRegistrations`: the server plus this device's unsent
+ * work, or the labelled device copy when the server cannot be read. Round 2
+ * read the replica alone while it never synced, so for the common dog it
+ * returned nothing and the label still flipped to "Breed not set".
  *
  * ONLY use this off the latency-critical path. `updateDog` is local-first and
  * must not await a network read — see `cachedRegistrationRowsForDog`.
@@ -113,8 +112,10 @@ export function cachedRegistrationRowsForDog(
     return (loadedDog.registrations ?? []) as unknown as Record<string, unknown>[];
   }
 
-  const cached = queryClient.getQueryData(queryKeys.registrationsByDog(dogId));
-  if (Array.isArray(cached)) return cached as Record<string, unknown>[];
+  // Only a server-backed answer; an offline device copy is no better than
+  // the rows the loaded list already holds.
+  const cached = queryClient.getQueryData<RegistrationsForDog>(queryKeys.registrationsByDog(dogId));
+  if (cached?.source === 'server') return cached.rows as unknown as Record<string, unknown>[];
 
   // A failed merged read may still contain server rows. Preserve those rows
   // when no better per-dog cache exists; completeness remains false for

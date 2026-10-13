@@ -7,6 +7,13 @@ import { mockSupabase } from '@/test/mocks/supabase';
 import type { DogInput } from '@/store/dogStore';
 import { queryKeys } from '@/lib/queryClient';
 import { fromAny } from '@total-typescript/shoehorn';
+import { databaseManager } from '@myk9/replication';
+import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
+import {
+  installRegistrationsServer,
+  newServer,
+  serverRow,
+} from '@/services/replication/__tests__/dogRegistrationFixtures';
 
 // ---------------------------------------------------------------------------
 // Module-level mocks — use vi.hoisted so factories can reference these vars
@@ -335,5 +342,37 @@ describe('useDogStoreCompat.updateDog — roster refresh (MYK9-1061)', () => {
 
     expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.dogs });
     expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.personDogs('owner-123') });
+  });
+});
+
+// MYK9-1090: the dog page reads registrations from the replica once it is
+// warm, so the registrations the RPC wrote server-side must reach it at once.
+describe('useDogStoreCompat.addDog — registrations replica', () => {
+  beforeEach(async () => {
+    await databaseManager.reset();
+  });
+
+  it('copies the registrations the RPC created into the replica', async () => {
+    const server = newServer();
+    installRegistrationsServer(server);
+    mockSupabase.rpc.mockImplementation(
+      fromAny((_name: string, args?: { p_dog?: { id?: string } }) => {
+        const dogId = args?.p_dog?.id ?? 'dog-abc';
+        server.rows = [serverRow({ id: 'srv-reg', dog_id: dogId, version: 1 })];
+        return Promise.resolve({ data: dogId, error: null });
+      })
+    );
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await result.current.addDog(dogInputWithRegistrations);
+    });
+
+    const row = await replicatedDogRegistrationsTable.getReplicatedRow('srv-reg');
+    expect(row).toMatchObject({ isDirty: false, serverVersion: 1 });
+    expect(server.calls).toContainEqual({
+      method: 'in',
+      args: ['dog_id', [server.rows[0]!.dog_id]],
+    });
   });
 });

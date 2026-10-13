@@ -21,7 +21,10 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: mockDogsTable,
 }));
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
-  replicatedDogRegistrationsTable: { getRegistrationsForDogs: vi.fn(async () => []) },
+  replicatedDogRegistrationsTable: {
+    getRegistrationsForDogs: vi.fn(async () => []),
+    getUnsentRegistrationsForDogs: vi.fn(async () => []),
+  },
 }));
 
 /** Keep only the columns a select string names, as PostgREST would. */

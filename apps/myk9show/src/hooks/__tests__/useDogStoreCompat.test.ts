@@ -74,6 +74,7 @@ vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
     createLocalRegistrationsForDog: mockCreateLocalReplicatedDogRegistrationsForDog,
     toSupabaseRow: (registration: Record<string, unknown>) => registration,
     getRegistrationsForDogs: mockGetRegistrationsForDogs,
+    getUnsentRegistrationsForDogs: mockGetRegistrationsForDogs,
   },
 }));
 
@@ -401,7 +402,7 @@ describe('useDogStoreCompat.addDog — local-first', () => {
       })
     );
     // MYK9-90 round 4: the RPC payload must carry the ordered creation
-    // timestamp from the local mirror. Without it every registration in the
+    // timestamp the local mirror also gets. Without it every registration in the
     // RPC's transaction gets an identical server `created_at` and the primary
     // registration is decided by a random server UUID.
     expect(registrationRows).toEqual([
@@ -415,13 +416,50 @@ describe('useDogStoreCompat.addDog — local-first', () => {
       },
     ]);
     expect(options).toEqual({ dependsOn: ['person-mutation-1'] });
+    // The placeholders carry the same ordered timestamps as the RPC payload.
     expect(mockCreateLocalReplicatedDogRegistrationsForDog).toHaveBeenCalledWith(
       replicatedDog.id,
-      registrations
+      registrations,
+      ['2024-01-01T00:00:00.000Z']
+    );
+    // MYK9-1090: the dog is written dirty and queued BEFORE its placeholders
+    // exist, so the registrations ID pass never finds a placeholder whose dog
+    // holds no local work yet.
+    expect(mockCreateReplicatedDogWithRegistrationsRpc.mock.invocationCallOrder[0]).toBeLessThan(
+      mockCreateLocalReplicatedDogRegistrationsForDog.mock.invocationCallOrder[0]!
     );
     expect(mockCreateReplicatedDogWithId).not.toHaveBeenCalled();
     expect(mockCreateReplicatedDogRegistrationsForDog).not.toHaveBeenCalled();
     expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+  });
+
+  // The dog and its registrations are already queued when the placeholders are
+  // written, and the placeholders are only the device's copy for the screen.
+  // A failed placeholder write must not report the committed save as failed:
+  // the caller would skip onDogCreated, and a retry could create the dog twice
+  // (Codex review, MYK9-1090).
+  it('reports the queued dog as saved when its placeholders cannot be written', async () => {
+    const registrations = [
+      {
+        organization: 'AKC',
+        number: 'SW123456',
+        registeredName: 'Beacon Hill Fast Lane',
+        type: 'Border Collie',
+        status: 'pending',
+      },
+    ];
+    mockCreateLocalReplicatedDogRegistrationsForDog.mockRejectedValue(
+      new Error('QuotaExceededError')
+    );
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    let saved: Awaited<ReturnType<typeof result.current.addDogOfflineFirst>> | undefined;
+    await act(async () => {
+      saved = await result.current.addDogOfflineFirst({ ...baseDogInput, registrations });
+    });
+
+    expect(mockCreateReplicatedDogWithRegistrationsRpc).toHaveBeenCalledTimes(1);
+    expect(saved).toEqual(expect.objectContaining({ name: 'Biscuit' }));
   });
 });
 
@@ -527,7 +565,10 @@ describe('useDogStoreCompat.updateDog — breed survives the local re-map', () =
     // ...but the per-dog registrations query is invalidated-and-inactive, so it
     // still serves the deleted row.
     const staleQueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    staleQueryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), [serverRegistration]);
+    staleQueryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), {
+      rows: [serverRegistration],
+      source: 'server',
+    });
     const wrapper = ({ children }: { children: React.ReactNode }) =>
       React.createElement(QueryClientProvider, { client: staleQueryClient }, children);
 
@@ -555,7 +596,10 @@ describe('useDogStoreCompat.updateDog — breed survives the local re-map', () =
     ]);
 
     const staleQueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    staleQueryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), [serverRegistration]);
+    staleQueryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), {
+      rows: [serverRegistration],
+      source: 'server',
+    });
     const wrapper = ({ children }: { children: React.ReactNode }) =>
       React.createElement(QueryClientProvider, { client: staleQueryClient }, children);
 
@@ -601,13 +645,24 @@ describe('useDogStoreCompat.updateDog — breed survives the local re-map', () =
 describe('cachedRegistrationRowsForDog', () => {
   it('uses the per-dog cache when the dog is absent from the loaded list', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    queryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), [
-      { id: 'reg-akc', breed: 'Belgian Malinois' },
-    ]);
+    queryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), {
+      rows: [{ id: 'reg-akc', breed: 'Belgian Malinois' }],
+      source: 'server',
+    });
 
     expect(cachedRegistrationRowsForDog('dog-1', [], queryClient)).toEqual([
       { id: 'reg-akc', breed: 'Belgian Malinois' },
     ]);
+  });
+
+  it('does not treat an offline device copy as better than the loaded list', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), {
+      rows: [{ id: 'reg-old', breed: 'Beagle' }],
+      source: 'device',
+    });
+
+    expect(cachedRegistrationRowsForDog('dog-1', [], queryClient)).toEqual([]);
   });
 });
 

@@ -54,6 +54,10 @@ const registration = {
 };
 vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
   useRegistrationsByDogQuery: () => ({ data: [registration], isLoading: false }),
+  useRailRegistrationsQuery: () => ({
+    data: { registrations: [registration], offline: false },
+    isLoading: false,
+  }),
   useDogRegistrationManagement: () => ({
     registrations: [registration],
     isLoading: false,

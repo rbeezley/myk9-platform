@@ -78,6 +78,13 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { setMutationManager: vi.fn(), sync: hoisted.syncSpies.dogs },
 }));
+vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
+  replicatedDogRegistrationsTable: {
+    setMutationManager: vi.fn(),
+    sync: vi.fn().mockResolvedValue({ success: true, rowsAffected: 0 }),
+    subscribe: () => () => undefined,
+  },
+}));
 vi.mock('@/services/replication/ReplicatedClubsTable', () => ({
   replicatedClubsTable: { setMutationManager: vi.fn(), sync: hoisted.syncSpies.clubs },
 }));

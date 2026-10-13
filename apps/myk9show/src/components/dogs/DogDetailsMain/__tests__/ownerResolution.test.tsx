@@ -94,6 +94,10 @@ vi.mock('@/services/LoggingService', () => ({
 
 vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
   useRegistrationsByDogQuery: () => ({ data: mockRegistrations, isLoading: false }),
+  useRailRegistrationsQuery: () => ({
+    data: { registrations: mockRegistrations, offline: false },
+    isLoading: false,
+  }),
   useDogRegistrationManagement: () => ({
     registrations: mockRegistrations,
     isLoading: false,

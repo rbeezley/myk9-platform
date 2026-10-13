@@ -1,6 +1,7 @@
 // Registration-related database queries
 // Phase 4.3: Registration System Integration
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { mirrorServerDelete, mirrorServerRegistration } from './replicaMirror';
 import type {
   DbDogRegistrationInsert,
   DbDogRegistrationUpdate,
@@ -176,6 +177,7 @@ export const createRegistration = async (registrationData: DbDogRegistrationInse
       throw createDatabaseError(error, 'dog_registration', 'insert');
     }
 
+    await mirrorServerRegistration(data);
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -217,6 +219,7 @@ export const updateRegistration = async (id: string, updates: DbDogRegistrationU
       throw createDatabaseError(error, 'dog_registration', 'update');
     }
 
+    await mirrorServerRegistration(data);
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -235,7 +238,7 @@ export const deleteRegistration = async (id: string) => {
       .from('dog_registrations')
       .delete()
       .eq('id', id)
-      .select('id, dog_id, registration_number, organization')
+      .select('id, dog_id, registration_number, organization, created_at')
       .single();
 
     const duration = Date.now() - startTime;
@@ -245,6 +248,7 @@ export const deleteRegistration = async (id: string) => {
       throw createDatabaseError(error, 'dog_registration', 'delete');
     }
 
+    await mirrorServerDelete(id, data ?? undefined);
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  formatSyncFailureReason,
   formatSyncFailureToast,
   formatDownloadFailureToast,
   hasPermanentScoreAuthorizationFailure,
@@ -200,4 +201,55 @@ describe('formatSyncFailureToast: publish-gate refusals (MYK9-979)', () => {
       expect(msg).toBe(`We couldn't save this show change. ${gateMessage}`);
     }
   );
+});
+
+describe('formatSyncFailureReason', () => {
+  const detail = (error?: string, tableName = 'dogs') => ({
+    count: 1,
+    mutations: [{ id: 'm1', tableName, operation: 'UPDATE' as const, error }],
+    message: '',
+  });
+
+  it('translates a permission refusal into plain English', () => {
+    expect(
+      formatSyncFailureReason(
+        detail(
+          'RLS policy blocked UPDATE on dogs for row abc. Check that the authenticated user has the required role.'
+        )
+      )
+    ).toBe("You don't have permission to change this dog.");
+  });
+
+  it("shows the refusal's own message for anything else", () => {
+    expect(
+      formatSyncFailureReason(detail('invalid input syntax for type date: "2025-13-45"'))
+    ).toBe('Reason: invalid input syntax for type date: "2025-13-45"');
+  });
+
+  it('clips a very long message', () => {
+    const reason = formatSyncFailureReason(detail('x'.repeat(500)));
+    expect(reason).toBe(`Reason: ${'x'.repeat(159)}…`);
+  });
+
+  // The queue prefixes what it stores (mutation-retry.ts); those words describe the
+  // queue, not the refusal, and mean nothing to a secretary.
+  it.each([
+    ['Non-retryable error: invalid input syntax for type uuid: "undefined"'],
+    ['Max retries exceeded: invalid input syntax for type uuid: "undefined"'],
+  ])('drops the queue prefix from %s', stored => {
+    expect(formatSyncFailureReason(detail(stored))).toBe(
+      'Reason: invalid input syntax for type uuid: "undefined"'
+    );
+  });
+
+  it('still translates a prefixed permission refusal', () => {
+    expect(
+      formatSyncFailureReason(detail('Non-retryable error: RLS policy blocked UPDATE on dogs'))
+    ).toBe("You don't have permission to change this dog.");
+  });
+
+  it('returns nothing when no mutation carries an error', () => {
+    expect(formatSyncFailureReason(detail(undefined))).toBeUndefined();
+    expect(formatSyncFailureReason({ count: 2, mutations: [], message: 'x' })).toBeUndefined();
+  });
 });

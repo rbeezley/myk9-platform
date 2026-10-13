@@ -141,6 +141,7 @@ export const queryKeys = {
     withDogCounts: () => ['users', 'dogCounts'] as const,
     statistics: () => ['users', 'statistics'] as const,
     dogs: (userId: string) => ['users', userId, 'dogs'] as const,
+    canEdit: (userId: string) => ['users', userId, 'can-edit'] as const,
   },
 
   // Legacy aliases — still in use by useUsersDatabase / useDogsDatabase.

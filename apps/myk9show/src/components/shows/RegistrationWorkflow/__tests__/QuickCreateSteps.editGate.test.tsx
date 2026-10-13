@@ -38,6 +38,7 @@ function setup(existingDogIds: ReadonlySet<string>) {
       mode="batch"
       onOpenPersonForm={vi.fn()}
       onEditPerson={vi.fn()}
+      personIsExisting={false}
       onOpenDogForm={vi.fn()}
       existingDogIds={existingDogIds}
       onEditDog={vi.fn()}
@@ -73,5 +74,54 @@ describe('QuickCreateSteps — dog Edit follows dogs_update', () => {
 
     await waitFor(() => expect(rpc).toHaveBeenCalled());
     expect(within(rowFor('Picked')).getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+  });
+});
+
+// MYK9-1134: the same for the person. One made in this flow is the secretary's to fix
+// (people_update's created-by and created-from-show arms); one picked from the duplicate
+// prompt may be someone else's record, so Edit Details asks can_edit_person first.
+function setupPerson(personIsExisting: boolean) {
+  return render(
+    <QuickCreateSteps
+      flowState={{ ...INITIAL_QUICK_CREATE_FLOW_STATE, step: 'exhibitor', exhibitor }}
+      mode="batch"
+      onOpenPersonForm={vi.fn()}
+      onEditPerson={vi.fn()}
+      personIsExisting={personIsExisting}
+      onOpenDogForm={vi.fn()}
+      existingDogIds={new Set()}
+      onEditDog={vi.fn()}
+      onRemoveDog={vi.fn()}
+    />
+  );
+}
+
+describe('QuickCreateSteps — person Edit Details follows people_update', () => {
+  beforeEach(() => {
+    rpc.mockReset();
+  });
+
+  it('offers Edit Details on a person made in this flow without asking', () => {
+    setupPerson(false);
+    expect(screen.getByRole('button', { name: 'Edit Details' })).toBeInTheDocument();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('hides Edit Details on a picked person the server will not let her change', async () => {
+    rpc.mockResolvedValue({ data: false, error: null });
+    setupPerson(true);
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Edit Details' })).toBeNull());
+    expect(rpc).toHaveBeenCalledWith('can_edit_person', { p_person_id: exhibitor.id });
+    // The person is still shown: hiding Edit is not hiding who the entry is for.
+    expect(screen.getByText('Debbie Owner')).toBeInTheDocument();
+  });
+
+  it('keeps Edit Details on a picked person the server lets her change', async () => {
+    rpc.mockResolvedValue({ data: true, error: null });
+    setupPerson(true);
+
+    await waitFor(() => expect(rpc).toHaveBeenCalled());
+    expect(screen.getByRole('button', { name: 'Edit Details' })).toBeInTheDocument();
   });
 });

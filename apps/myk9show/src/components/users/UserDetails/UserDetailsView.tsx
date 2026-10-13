@@ -22,6 +22,7 @@ import { getUserFriendlyError } from '@/utils/errorMessages';
 import { UserRole } from '@/types/auth-types';
 import { User as UserType } from '@/types/user-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useCanEditPerson } from '@/hooks/queries/useCanEditPerson';
 import { useRoleBasedPeople } from '@/hooks/useRoleBasedData';
 import { RecordPageLayout } from '@/components/layout/record';
 import type { PropertySectionConfig } from '@/components/layout/record';
@@ -108,23 +109,32 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
 
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  // The server's people_update rule, asked before offering Edit or Change Photo, so a
+  // viewer who may only READ this person (any secretary) is never handed a save the server
+  // refuses (MYK9-1134). The viewer's own record and site admins are decided locally.
+  const canEditPerson =
+    useCanEditPerson(person.id, isCurrentUser || hasPermission('admin:manage')) && !isRemoved;
   // Every action on this person lives in the header Actions menu (CRUD standard decision 6),
   // each offered only while the person is live: a removed record is readable, not editable,
   // and its banner says so. Delete is the Edit panel's footer button, never a menu item.
   usePageEditAction({
     kind: 'person',
-    enabled: !isRemoved,
+    enabled: canEditPerson,
     run: () => setIsEditModalOpen(true),
     title: fullName,
     extras: isRemoved
       ? []
       : [
-          {
-            id: 'photo',
-            label: 'Change Photo',
-            icon: 'photo',
-            run: () => setIsPhotoModalOpen(true),
-          },
+          ...(canEditPerson
+            ? [
+                {
+                  id: 'photo',
+                  label: 'Change Photo',
+                  icon: 'photo' as const,
+                  run: () => setIsPhotoModalOpen(true),
+                },
+              ]
+            : []),
           ...(canInvite
             ? [
                 {
@@ -395,8 +405,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
               lastName={lastName}
               fullName={fullName}
               photo={formData.photo}
-              isRemoved={isRemoved}
-              onEditPhoto={() => setIsPhotoModalOpen(true)}
+              onEditPhoto={canEditPerson ? () => setIsPhotoModalOpen(true) : undefined}
             />
           }
           properties={properties}

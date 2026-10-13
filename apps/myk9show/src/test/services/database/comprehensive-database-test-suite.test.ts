@@ -106,7 +106,10 @@ describe('Comprehensive Database Test Suite', () => {
       const allDogsResult = await getAllDogs(TEST_PERSON_ID);
       const getAllDuration = Date.now() - startTime;
 
-      expect(allDogsResult.data).toEqual(mockDogData);
+      // The roster merges in the registrations read (MYK9-1139): every server row gains them.
+      expect(allDogsResult.data).toEqual(
+        mockDogData.map(dog => ({ ...dog, registrations: [], registrations_read_complete: true }))
+      );
       expect(allDogsResult.error).toBeNull();
       expect(getAllDuration).toBeLessThan(200);
 

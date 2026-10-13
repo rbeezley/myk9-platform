@@ -113,6 +113,26 @@ for (const vp of VIEWPORTS) {
       expect(revealed).toBe('true');
     });
 
+    test('an instant jump past several dots still counts them, both ways', async ({ page }) => {
+      await openLanding(page);
+      const jump = (to: 'showday' | 'top') =>
+        page.evaluate(target => {
+          const top =
+            target === 'top'
+              ? 0
+              : document.getElementById(`${target}-dot`)!.getBoundingClientRect().top +
+                window.scrollY -
+                window.innerHeight * 0.4;
+          window.scrollTo({ top, behavior: 'instant' });
+        }, to);
+      await jump('showday');
+      await expect
+        .poll(() => reachedDots(page))
+        .toEqual(['true', 'true', 'true', 'true', 'false', 'false']);
+      await jump('top');
+      await expect.poll(() => reachedDots(page)).toEqual(Array(6).fill('false'));
+    });
+
     test('switching audience keeps progress and swaps the story', async ({ page }) => {
       await openLanding(page);
       await scrollDotToMiddle(page, 'showday');
@@ -177,10 +197,15 @@ for (const vp of VIEWPORTS) {
       await page.getByRole('button', { name: 'I’m entering a show' }).click();
       const fig = page.locator('#showday figure');
       await fig.scrollIntoViewIfNeeded();
+      const caption = fig.locator('figcaption');
+      // Positive control: autoplay really advances while playing, so "unchanged" after Pause
+      // means something.
+      const first = await caption.innerText();
+      await expect.poll(() => caption.innerText(), { timeout: 8000 }).not.toBe(first);
       await fig.getByRole('button', { name: 'Pause' }).click();
-      const before = await fig.locator('figcaption').innerText();
-      await page.waitForTimeout(3000);
-      expect(await fig.locator('figcaption').innerText()).toBe(before);
+      const before = await caption.innerText();
+      await page.waitForTimeout(3500);
+      expect(await caption.innerText()).toBe(before);
       await fig.getByRole('button', { name: 'Next' }).click();
       expect(await fig.locator('figcaption').innerText()).not.toBe(before);
     });
@@ -192,12 +217,6 @@ for (const vp of VIEWPORTS) {
         page.evaluate(sel => document.querySelector(sel)!.getBoundingClientRect().top, selector);
       await expect.poll(top('.landing-v2'), { timeout: 5000 }).toBeLessThanOrEqual(1);
       await expect.poll(top('.landing-v2 .l-hdr'), { timeout: 5000 }).toBeLessThanOrEqual(1);
-    });
-
-    test('og image is a real image', async ({ request }) => {
-      const res = await request.get('/og-image.jpg');
-      expect(res.status()).toBe(200);
-      expect(res.headers()['content-type']).toContain('image/jpeg');
     });
 
     test('rendered copy has no em dash, arrow or pre-launch words', async ({ page }) => {
@@ -221,48 +240,95 @@ for (const vp of VIEWPORTS) {
       expect(families).toEqual(['Montserrat', 'Playfair Display']);
     });
 
-    // The probe span has a known low ratio, so a broken harness cannot pass by accident.
+    // Two known-answer probes print with the result so a broken harness cannot pass by accident:
+    // an opaque pair, and translucent text on a translucent layer over a dark ancestor.
     test('step copy, meanwhile copy and captions meet 4.5:1 on their rendered ground', async ({
       page,
     }) => {
       await openLanding(page);
       await scrollToBottom(page);
       const result = await page.evaluate(() => {
+        type Rgba = [number, number, number, number];
+        const parse = (s: string): Rgba | null => {
+          const m = s.match(/^rgba?\(([^)]+)\)$/);
+          if (!m) return null;
+          const n = m[1]!
+            .split(/[\s,/]+/)
+            .filter(Boolean)
+            .map(Number);
+          if (n.length < 3 || n.slice(0, 3).some(Number.isNaN)) return null;
+          return [n[0]!, n[1]!, n[2]!, n[3] ?? 1];
+        };
+        const over = (fg: Rgba, bg: number[]) =>
+          [0, 1, 2].map(i => fg[i]! * fg[3] + bg[i]! * (1 - fg[3]));
         const lin = (c: number) =>
           (c /= 255) <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
         const lum = (rgb: number[]) =>
           0.2126 * lin(rgb[0]!) + 0.7152 * lin(rgb[1]!) + 0.0722 * lin(rgb[2]!);
-        const parse = (s: string) => (s.match(/[\d.]+/g) ?? []).map(Number);
-        const ground = (el: Element): number[] => {
+        // The colour behind an element: each translucent layer blended over the ones below it.
+        const ground = (el: Element): number[] | 'gradient' | 'unreadable' => {
+          const layers: Rgba[] = [];
           for (let n: Element | null = el; n; n = n.parentElement) {
-            const c = parse(getComputedStyle(n).backgroundColor);
-            if (c.length === 3 || (c[3] ?? 1) > 0.99) return c.slice(0, 3);
+            const cs = getComputedStyle(n);
+            if (cs.backgroundImage !== 'none') return 'gradient';
+            const c = parse(cs.backgroundColor);
+            if (!c) return 'unreadable';
+            if (c[3] > 0) layers.push(c);
+            if (c[3] >= 1) break;
           }
-          return [255, 255, 255];
+          let acc = [255, 255, 255];
+          for (const layer of layers.reverse()) acc = over(layer, acc);
+          return acc;
         };
-        const ratio = (el: Element) => {
-          const a = lum(parse(getComputedStyle(el).color).slice(0, 3));
-          const b = lum(ground(el));
+        const measure = (el: Element) => {
+          const g = ground(el);
+          if (typeof g === 'string') return g;
+          const fg = parse(getComputedStyle(el).color);
+          if (!fg) return 'unreadable';
+          const a = lum(over(fg, g));
+          const b = lum(g);
           return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
         };
-        const probe = document.createElement('span');
-        probe.style.cssText = 'color:#999;background:#aaa';
-        probe.textContent = 'probe';
-        document.body.appendChild(probe);
-        const probeRatio = ratio(probe);
-        probe.remove();
-        const failures = [
-          ...document.querySelectorAll(
-            '.lc-step-body, .lc-meanwhile-text, .lc-lead, .lc-explainer-text, .lc-switch button, .l-lede, .lc-hero-registries'
-          ),
-        ]
-          .filter(el => !el.matches(".lc-night-closing[data-shown='false']"))
-          .map(el => ({ text: el.textContent!.trim().slice(0, 30), ratio: +ratio(el).toFixed(2) }))
-          .filter(x => x.ratio < 4.5);
-        return { probeRatio, failures };
+        const probe = (html: string) => {
+          const host = document.createElement('div');
+          host.innerHTML = html;
+          document.body.appendChild(host);
+          const r = measure(host.querySelector('span')!);
+          host.remove();
+          return r;
+        };
+        const opaque = probe(
+          '<div style="background:#aaa"><span style="color:#999">p</span></div>'
+        );
+        const translucent = probe(
+          '<div style="background:#000"><div style="background:rgba(255,255,255,0.5)">' +
+            '<span style="color:rgba(0,0,0,0.3)">p</span></div></div>'
+        );
+        const selector =
+          '.lc-step-body, .lc-meanwhile-text, .lc-lead, .lc-explainer-text, .lc-switch button, .l-lede, .lc-hero-registries';
+        const nodes = [...document.querySelectorAll(selector)];
+        const rows = nodes.map(el => ({
+          selector: `${el.className}: ${el.textContent!.trim().slice(0, 30)}`,
+          ratio: measure(el),
+        }));
+        const numeric = rows.filter(r => typeof r.ratio === 'number').map(r => r.ratio as number);
+        return {
+          opaque,
+          translucent,
+          measured: numeric.length,
+          min: Math.min(...numeric),
+          unmeasured: rows.filter(r => typeof r.ratio === 'string'),
+          failures: rows.filter(r => typeof r.ratio === 'number' && r.ratio < 4.5),
+        };
       });
-      expect(result.probeRatio).toBeLessThan(1.5);
-      expect(result.failures).toEqual([]);
+      expect(result.opaque).toBeLessThan(1.5);
+      // Hand-computed: ground 127.5 grey (white at 50% over black), text 89.25 grey (black at
+      // 30% over that ground), WCAG ratio 1.753.
+      expect(result.translucent as number).toBeGreaterThan(1.65);
+      expect(result.translucent as number).toBeLessThan(1.85);
+      expect(result.measured, 'selector list matched too few elements').toBeGreaterThan(5);
+      expect(result.unmeasured, 'colours the harness could not read').toEqual([]);
+      expect(result.failures, `minimum ratio observed ${result.min.toFixed(2)}`).toEqual([]);
     });
 
     test('page length is 8 to 14 screens on phone', async ({ page }) => {
@@ -277,9 +343,26 @@ for (const vp of VIEWPORTS) {
   });
 }
 
+const motionOf = (page: Page) =>
+  page.evaluate(() => ({
+    dot: getComputedStyle(document.querySelector('.lc-dot')!).transitionProperty,
+    fill: getComputedStyle(document.querySelector('.lc-trail-scent')!).transitionProperty,
+  }));
+
+test.describe('motion with no preference', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+  // Positive control for the reduced-motion test below: these elements do animate by default.
+  test('the dots and the scent line have transitions', async ({ page }) => {
+    await openLanding(page);
+    const { dot, fill } = await motionOf(page);
+    expect(dot).not.toBe('none');
+    expect(fill).not.toBe('none');
+  });
+});
+
 test.describe('reduced motion', () => {
   test.use({ reducedMotion: 'reduce', viewport: { width: 390, height: 844 } });
-  test('everything is revealed and explainers start paused', async ({ page }) => {
+  test('everything is revealed, explainers start paused, nothing animates', async ({ page }) => {
     await openLanding(page);
     for (const id of STEPS) {
       expect(await page.locator(`#${id}`).getAttribute('data-revealed')).toBe('true');
@@ -288,12 +371,14 @@ test.describe('reduced motion', () => {
     const fig = page.locator('#showday figure');
     await fig.scrollIntoViewIfNeeded();
     await expect(fig.getByRole('button', { name: 'Play' })).toBeVisible();
-    const t = await page
-      .locator('.lc-dot')
-      .first()
-      .evaluate(el => getComputedStyle(el).transitionProperty);
     // The app's global reduced-motion rule forces transition-duration to 100ms, so the duration
     // is not the signal; no transition property means nothing animates.
-    expect(t).toBe('none');
+    expect(await motionOf(page)).toEqual({ dot: 'none', fill: 'none' });
   });
+});
+
+test('og image is a real image', async ({ request }) => {
+  const res = await request.get('/og-image.jpg');
+  expect(res.status()).toBe(200);
+  expect(res.headers()['content-type']).toContain('image/jpeg');
 });

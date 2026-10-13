@@ -3,17 +3,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useTimelineProgress } from '../useTimelineProgress';
 
 type Entry = Partial<IntersectionObserverEntry> & { target: Element };
-type Observer = {
-  cb: (e: Entry[]) => void;
-  options: IntersectionObserverInit;
-  unobserve: ReturnType<typeof vi.fn>;
-};
+type Observer = { cb: (e: Entry[]) => void; unobserve: ReturnType<typeof vi.fn> };
 let observers: Observer[] = [];
+let frames: FrameRequestCallback[] = [];
+let tops: Record<string, number> = {};
 
 const el = (id: string) => document.getElementById(id)!;
-const rect = (top: number) => ({ top }) as DOMRectReadOnly;
 // A stable array: a fresh literal per render would rebuild the observers on every render.
 const IDS = ['a', 'b', 'c'] as const;
+
+// Scroll to a position by placing each dot, then let the scheduled animation frame run.
+const scrollTo = (positions: Record<string, number>) =>
+  act(() => {
+    tops = positions;
+    window.dispatchEvent(new Event('scroll'));
+    const pending = frames;
+    frames = [];
+    pending.forEach(f => f(0));
+  });
 
 describe('useTimelineProgress', () => {
   beforeEach(() => {
@@ -21,10 +28,20 @@ describe('useTimelineProgress', () => {
       .map(id => `<div id="${id}"><span id="${id}-dot"></span></div>`)
       .join('');
     observers = [];
+    frames = [];
+    tops = { 'a-dot': 900, 'b-dot': 1400, 'c-dot': 1900 };
+    vi.stubGlobal('innerHeight', 800);
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => frames.push(cb));
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement
+    ) {
+      return { top: tops[this.id] ?? 0 } as DOMRect;
+    });
     vi.stubGlobal(
       'IntersectionObserver',
-      vi.fn(function (this: unknown, cb: Observer['cb'], options: IntersectionObserverInit) {
-        const o = { cb, options, unobserve: vi.fn() };
+      vi.fn(function (this: unknown, cb: Observer['cb']) {
+        const o = { cb, unobserve: vi.fn() };
         observers.push(o);
         return { observe: vi.fn(), unobserve: o.unobserve, disconnect: vi.fn() };
       })
@@ -32,39 +49,60 @@ describe('useTimelineProgress', () => {
   });
   afterEach(() => {
     vi.unstubAllGlobals();
-    vi.restoreAllMocks(); // [ADDED] the reduced-motion case spies on matchMedia
+    vi.restoreAllMocks(); // the reduced-motion case spies on matchMedia
   });
 
-  // The progress observer is the one with a negative bottom margin (top half of the viewport).
-  const progress = () => observers.find(o => String(o.options.rootMargin).includes('-50%'))!;
-  const reveal = () => observers.find(o => o !== progress())!;
+  const reveal = () => observers[0]!;
 
-  it('counts steps whose dot has reached the middle of the viewport', () => {
+  it('counts steps whose dot is at or above the middle of the viewport', () => {
+    const { result } = renderHook(() => useTimelineProgress(IDS));
+    scrollTo({ 'a-dot': 400, 'b-dot': 400.0, 'c-dot': 401 }); // middle is 400
+    expect(result.current.reached).toBe(2);
+  });
+
+  it('measures once on mount, before any scroll', () => {
     const { result } = renderHook(() => useTimelineProgress(IDS));
     expect(result.current.reached).toBe(0);
-    act(() =>
-      progress().cb([
-        { target: el('a-dot'), isIntersecting: false, boundingClientRect: rect(-40) }, // scrolled past
-        { target: el('b-dot'), isIntersecting: true, boundingClientRect: rect(200) }, // in the top half
-        { target: el('c-dot'), isIntersecting: false, boundingClientRect: rect(900) }, // below the middle
-      ])
-    );
+    act(() => {
+      tops = { 'a-dot': -50, 'b-dot': 100, 'c-dot': 700 };
+      frames.splice(0).forEach(f => f(0));
+    });
     expect(result.current.reached).toBe(2);
   });
 
   it('un-reaches a step when its dot returns below the middle', () => {
     const { result } = renderHook(() => useTimelineProgress(IDS));
-    act(() =>
-      progress().cb([
-        { target: el('a-dot'), isIntersecting: true, boundingClientRect: rect(100) },
-        { target: el('b-dot'), isIntersecting: true, boundingClientRect: rect(300) },
-      ])
-    );
+    scrollTo({ 'a-dot': 100, 'b-dot': 300, 'c-dot': 900 });
     expect(result.current.reached).toBe(2);
-    act(() =>
-      progress().cb([{ target: el('b-dot'), isIntersecting: false, boundingClientRect: rect(700) }])
-    );
+    scrollTo({ 'a-dot': 300, 'b-dot': 700, 'c-dot': 1300 });
     expect(result.current.reached).toBe(1);
+  });
+
+  it('counts every dot passed by a jump that never showed them', () => {
+    const { result } = renderHook(() => useTimelineProgress(IDS));
+    scrollTo({ 'a-dot': -3000, 'b-dot': -2000, 'c-dot': 200 });
+    expect(result.current.reached).toBe(3);
+    scrollTo({ 'a-dot': 900, 'b-dot': 1400, 'c-dot': 1900 });
+    expect(result.current.reached).toBe(0);
+  });
+
+  it('counts from the top: a reached dot below an unreached one does not count', () => {
+    const { result } = renderHook(() => useTimelineProgress(IDS));
+    scrollTo({ 'a-dot': 100, 'b-dot': 900, 'c-dot': 200 });
+    expect(result.current.reached).toBe(1);
+  });
+
+  it('batches scroll events into one measurement per frame and stops on unmount', () => {
+    const { unmount } = renderHook(() => useTimelineProgress(IDS));
+    act(() => frames.splice(0).forEach(f => f(0))); // the mount measurement
+    window.dispatchEvent(new Event('scroll'));
+    window.dispatchEvent(new Event('scroll'));
+    window.dispatchEvent(new Event('resize'));
+    expect(frames).toHaveLength(1);
+    unmount();
+    frames = [];
+    window.dispatchEvent(new Event('scroll'));
+    expect(frames).toHaveLength(0);
   });
 
   it('reveals a step once and stops watching it', () => {
@@ -100,5 +138,7 @@ describe('useTimelineProgress', () => {
     );
     const { result } = renderHook(() => useTimelineProgress(IDS));
     expect(['a', 'b', 'c'].every(result.current.isRevealed)).toBe(true);
+    scrollTo({ 'a-dot': 100, 'b-dot': 900, 'c-dot': 1500 });
+    expect(result.current.reached).toBe(1); // dots still follow position
   });
 });

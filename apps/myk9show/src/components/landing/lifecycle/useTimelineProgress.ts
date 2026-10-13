@@ -2,32 +2,21 @@ import { useCallback, useEffect, useState } from 'react';
 import { useReducedMotion } from '@/features/_shared/hooks/useReducedMotion';
 
 // Scroll progress for the lifecycle timeline.
-// - `reached`: steps (from the top) whose dot is at or above the viewport's middle. It follows
-//   the reader both ways, so dots and line segments un-fill when they scroll back up.
+// - `reached`: steps (from the top) whose dot is at or above the viewport's middle. It is read
+//   from the dots' positions on scroll, resize and layout change, so it follows the reader both
+//   ways and also an instant jump (End key, scrollbar drag, anchor) that skips past dots; an
+//   IntersectionObserver would never report a dot that was never on screen.
 // - `isRevealed`: a step's content rises in once, the first time 8% of it is visible.
 // INTENT: progress and reveal carry meaning (where you are in the show); nothing here
 // hijacks scroll, and reduced motion shows everything at once (docs/plan-landing-lifecycle.md D8).
 export function useTimelineProgress(ids: readonly string[]) {
   const reducedMotion = useReducedMotion();
   const supported = typeof IntersectionObserver !== 'undefined';
-  const [reachedById, setReachedById] = useState<Record<string, boolean>>({});
+  const [measured, setMeasured] = useState(0);
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!supported) return;
-    const progress = new IntersectionObserver(
-      entries => {
-        setReachedById(prev => {
-          const next = { ...prev };
-          for (const e of entries) {
-            const id = e.target.id.replace(/-dot$/, '');
-            next[id] = e.isIntersecting || e.boundingClientRect.top < 0;
-          }
-          return next;
-        });
-      },
-      { rootMargin: '0px 0px -50% 0px', threshold: 0 }
-    );
     const reveal = new IntersectionObserver(
       entries => {
         for (const e of entries) {
@@ -40,24 +29,44 @@ export function useTimelineProgress(ids: readonly string[]) {
       { threshold: [0, 0.08] }
     );
     for (const id of ids) {
-      const dot = document.getElementById(`${id}-dot`);
       const row = document.getElementById(id);
-      if (dot) progress.observe(dot);
       if (row) reveal.observe(row);
     }
+    return () => reveal.disconnect();
+  }, [ids, supported]);
+
+  useEffect(() => {
+    if (!supported) return;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const middle = window.innerHeight * 0.5;
+      let count = 0;
+      for (const id of ids) {
+        const dot = document.getElementById(`${id}-dot`);
+        if (!dot || dot.getBoundingClientRect().top > middle) break;
+        count += 1;
+      }
+      setMeasured(prev => (prev === count ? prev : count));
+    };
+    const schedule = () => {
+      if (!frame) frame = window.requestAnimationFrame(measure);
+    };
+    schedule();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
+    // Content above the reader can change height with no scroll (images, the audience switch).
+    const resize = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(schedule);
+    resize?.observe(document.documentElement);
     return () => {
-      progress.disconnect();
-      reveal.disconnect();
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      resize?.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
     };
   }, [ids, supported]);
 
-  // Count from the top: a step counts only if every step above it is reached too.
-  let reached = 0;
-  if (!supported) reached = ids.length;
-  else
-    for (const id of ids)
-      if (reachedById[id]) reached += 1;
-      else break;
+  const reached = supported ? Math.min(measured, ids.length) : ids.length;
 
   const isRevealed = useCallback(
     (id: string) => !supported || reducedMotion || !!revealed[id],

@@ -4,9 +4,11 @@
  * 1. An edit and a server change to DIFFERENT fields merge: `updatedAt`, which
  *    both sides stamp, is bookkeeping, not a collision. A same-field change
  *    still surfaces.
- * 2. Editing an add whose INSERT the server has not acknowledged (still
- *    queued, or refused) replaces that INSERT: no UPDATE is ever queued
- *    against a row the server does not have, and the corrected value uploads.
+ * 2. Editing an add (Codex round 2): a queued add's edit is an UPDATE that
+ *    waits for the INSERT and carries the OCC token every new registration
+ *    starts with (1), so a lost INSERT response or another device's change
+ *    can never be overwritten silently. An add the server refused cannot be
+ *    edited: discard it and add it again.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureConflictSurfacing, databaseManager } from '@myk9/replication';
@@ -85,58 +87,27 @@ describe('an edit meeting a server change', () => {
   });
 });
 
-describe('editing an add the server has not acknowledged', () => {
-  const inserts = () => queue.sent.filter(([op]) => op === 'insert');
+describe('editing an add', () => {
+  const REFUSED = "This registration couldn't be added. Discard it and add it again.";
 
-  it('replaces its queued INSERT; the corrected number uploads', async () => {
+  it('queued: an UPDATE that waits for its INSERT and carries the token 1', async () => {
     const added = await table.addRegistration({ dog_id: 'dog-1', registration_number: 'TYPO1' });
 
     await table.updateRegistration(added.id, { registration_number: 'FIXED1' });
 
-    const pending = await queue.pending();
-    expect(pending.map(m => m.operation)).toEqual(['INSERT']);
-    expect(pending[0]!.data).toMatchObject({ id: added.id, registration_number: 'FIXED1' });
-    setDeviceOnline(true);
-    await queue.upload();
-    expect(inserts()).toHaveLength(1);
-    expect(inserts()[0]![2]).toMatchObject({ registration_number: 'FIXED1' });
-    expect(queue.sent.filter(([op]) => op === 'update')).toEqual([]);
-  });
-
-  it('replaces a refused INSERT; the corrected number uploads', async () => {
-    setDeviceOnline(true);
-    queue.answer.insert = {
-      data: null,
-      error: {
-        code: '23505',
-        message:
-          'duplicate key value violates unique constraint "dog_registrations_live_org_number_unique"',
-      },
-    };
-    const added = await table.addRegistration({ dog_id: 'dog-1', registration_number: 'TAKEN1' });
-    await queue.upload();
-    expect(await queue.failed()).toHaveLength(1);
-
-    setDeviceOnline(false);
-    await table.updateRegistration(added.id, { registration_number: 'FREE1' });
-
-    expect(await queue.failed()).toEqual([]);
-    const pending = await queue.pending();
-    expect(pending.map(m => m.operation)).toEqual(['INSERT']);
-    expect(await table.getReplicatedRow(added.id)).toMatchObject({
-      data: { registrationNumber: 'FREE1' },
+    const [insert, update, ...rest] = await queue.pending();
+    expect(rest).toEqual([]);
+    expect(insert).toMatchObject({ operation: 'INSERT', rowId: added.id });
+    expect(update).toMatchObject({
+      operation: 'UPDATE',
+      rowId: added.id,
+      serverVersion: 1,
+      dependsOn: [insert!.id],
+      data: { id: added.id, registration_number: 'FIXED1' },
     });
-    delete queue.answer.insert;
-    setDeviceOnline(true);
-    await queue.upload();
-    expect(inserts().map(([, , payload]) => payload)).toEqual([
-      expect.objectContaining({ registration_number: 'TAKEN1' }),
-      expect.objectContaining({ registration_number: 'FREE1' }),
-    ]);
-    expect(queue.sent.filter(([op]) => op === 'update')).toEqual([]);
   });
 
-  it('keeps waiting for its dog when the dog was created offline', async () => {
+  it('queued on a dog created offline: the UPDATE also waits for the dog', async () => {
     await replicatedDogsTable.createDogWithId({
       id: 'dog-new',
       name: 'Scout',
@@ -149,8 +120,69 @@ describe('editing an add the server has not acknowledged', () => {
 
     await table.updateRegistration(added.id, { registration_number: 'N2' });
 
-    const insert = (await queue.pending()).find(m => m.rowId === added.id);
-    expect(insert).toMatchObject({ operation: 'INSERT', dependsOn: [dogCreate] });
-    expect(insert!.data).toMatchObject({ registration_number: 'N2' });
+    const pending = await queue.pending();
+    const insert = pending.find(m => m.rowId === added.id && m.operation === 'INSERT');
+    const update = pending.find(m => m.rowId === added.id && m.operation === 'UPDATE');
+    expect(update!.dependsOn).toEqual(expect.arrayContaining([insert!.id, dogCreate]));
+  });
+
+  // The INSERT committed but its response was lost: the server already holds
+  // the row. The replay is a primary-key duplicate (success), then the UPDATE
+  // lands at version 1 and the correction is what the server ends with.
+  it('after a lost INSERT response, the correction still reaches the server', async () => {
+    const added = await table.addRegistration({ dog_id: 'dog-1', registration_number: 'TYPO1' });
+    await table.updateRegistration(added.id, { registration_number: 'FIXED1' });
+    queue.server.set(added.id, { id: added.id, registration_number: 'TYPO1', version: 1 });
+
+    setDeviceOnline(true);
+    await queue.upload();
+
+    expect(await queue.pending()).toEqual([]);
+    expect(await queue.failed()).toEqual([]);
+    expect(queue.filters).toEqual([{ op: 'update', eqs: { id: added.id, version: 1 } }]);
+    expect(queue.server.get(added.id)).toMatchObject({
+      registration_number: 'FIXED1',
+      version: 2,
+    });
+  });
+
+  it('refused by the server: the edit is refused and nothing is queued', async () => {
+    setDeviceOnline(true);
+    queue.answer.insert = {
+      data: null,
+      error: {
+        code: '23505',
+        message:
+          'duplicate key value violates unique constraint "dog_registrations_live_org_number_unique"',
+      },
+    };
+    const added = await table.addRegistration({ dog_id: 'dog-1', registration_number: 'TAKEN1' });
+    await queue.upload();
+    expect(await queue.failed()).toHaveLength(1);
+    setDeviceOnline(false);
+
+    await expect(
+      table.updateRegistration(added.id, { registration_number: 'FREE1' })
+    ).rejects.toThrow(REFUSED);
+
+    expect(await queue.pending()).toEqual([]);
+    expect(await queue.failed()).toHaveLength(1);
+    expect(await table.get(added.id)).toMatchObject({ registrationNumber: 'TAKEN1' });
+  });
+
+  // Uploaded but not yet downloaded: the INSERT's acknowledgement carries no
+  // version, so the add must already hold its token, or the edit would be an
+  // UPDATE with no precondition.
+  it('uploaded but not downloaded: the edit carries the token 1', async () => {
+    setDeviceOnline(true);
+    const added = await table.addRegistration({ dog_id: 'dog-1', registration_number: 'UP1' });
+    await queue.upload();
+    expect(await table.getReplicatedRow(added.id)).toMatchObject({ isDirty: false });
+    setDeviceOnline(false);
+
+    await table.updateRegistration(added.id, { registered_name: 'Edited' });
+
+    const [update] = await queue.pending();
+    expect(update).toMatchObject({ operation: 'UPDATE', rowId: added.id, serverVersion: 1 });
   });
 });

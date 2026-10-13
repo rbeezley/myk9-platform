@@ -29,6 +29,18 @@ export function registrationChangesNeedConnection(): FriendlySaveError {
 }
 
 /**
+ * The OCC token of a registration the device adds: the INSERT never sends
+ * `version`, so the server's column default applies (`version integer NOT
+ * NULL DEFAULT 1`, 20261009214700; the trigger bumps it on UPDATE only).
+ */
+export const NEW_REGISTRATION_VERSION = 1;
+
+/** The refusal for editing an add the server refused (Codex round 2). */
+export function registrationAddRefused(): FriendlySaveError {
+  return new FriendlySaveError("This registration couldn't be added. Discard it and add it again.");
+}
+
+/**
  * The refusal for editing or deleting a registration that travels inside its
  * dog's queued create: it has no server row of its own to change until the dog
  * uploads.

@@ -29,6 +29,14 @@ export interface RegistrationQueueHarness {
   sent: Array<[string, string, unknown]>;
   /** The answer the next uploads get (default: success). */
   answer: { insert?: UploadAnswer; update?: UploadAnswer; delete?: UploadAnswer };
+  /** The `.eq()` filters of each UPDATE or DELETE sent, in order. */
+  filters: Array<{ op: string; eqs: Record<string, unknown> }>;
+  /**
+   * Rows the fake server holds, by id. Opt-in: a row put here behaves like the
+   * real table (a second INSERT is a primary-key duplicate, an UPDATE applies
+   * only at the matching `version` and bumps it). Rows not here are echoed.
+   */
+  server: Map<string, Record<string, unknown>>;
   pending(): Promise<PendingMutation[]>;
   failed(): Promise<PendingMutation[]>;
   /** Upload the queue and let the confirmed-delete listener run. */
@@ -45,10 +53,41 @@ export function setDeviceOnline(online: boolean): void {
 export function createRegistrationQueueHarness(): RegistrationQueueHarness {
   const sent: Array<[string, string, unknown]> = [];
   const answer: RegistrationQueueHarness['answer'] = {};
+  const filters: RegistrationQueueHarness['filters'] = [];
+  const server: RegistrationQueueHarness['server'] = new Map();
   const from = vi.fn((table: string) => {
     const respond = (op: 'insert' | 'update' | 'delete', payload: unknown, row: unknown) => {
       sent.push([op, table, payload]);
       return answer[op] ?? { data: [row], error: null };
+    };
+    const insert = (payload: Record<string, unknown>) => {
+      const id = String(payload.id);
+      if (!answer.insert && server.has(id)) {
+        sent.push(['insert', table, payload]);
+        return {
+          data: null,
+          error: {
+            code: '23505',
+            message: `duplicate key value violates unique constraint "${table}_pkey"`,
+            details: `Key (id)=(${id}) already exists.`,
+          },
+        };
+      }
+      const result = respond('insert', payload, { id });
+      if (!answer.insert) server.set(id, { ...payload, version: 1 });
+      return result;
+    };
+    const update = (payload: Record<string, unknown>, eqs: Record<string, unknown>) => {
+      const held = server.get(String(eqs.id));
+      if (answer.update || !held) {
+        return respond('update', payload, { id: eqs.id, version: Number(eqs.version ?? 0) + 1 });
+      }
+      sent.push(['update', table, payload]);
+      if (eqs.version !== undefined && eqs.version !== held.version)
+        return { data: [], error: null };
+      const next = { ...held, ...payload, version: Number(held.version) + 1 };
+      server.set(String(eqs.id), next);
+      return { data: [{ id: eqs.id, version: next.version }], error: null };
     };
     const filtered = (op: 'update' | 'delete', payload: unknown) => {
       const eqs: Record<string, unknown> = {};
@@ -57,14 +96,23 @@ export function createRegistrationQueueHarness(): RegistrationQueueHarness {
           eqs[column] = value;
           return chain;
         },
-        select: async () =>
-          respond(op, payload, { id: eqs.id, version: Number(eqs.version ?? 0) + 1 }),
+        maybeSingle: async () => {
+          const held = server.get(String(eqs.id));
+          return { data: held ? { version: held.version } : null, error: null };
+        },
+        select: async () => {
+          filters.push({ op, eqs: { ...eqs } });
+          if (op === 'update') return update(payload as Record<string, unknown>, eqs);
+          server.delete(String(eqs.id));
+          return respond(op, payload, { id: eqs.id });
+        },
       };
       return chain;
     };
     return {
+      select: () => filtered('update', undefined),
       insert: (payload: Record<string, unknown>) => ({
-        select: async () => respond('insert', payload, { id: payload.id }),
+        select: async () => insert(payload),
       }),
       update: (payload: unknown) => filtered('update', payload),
       delete: () => filtered('delete', undefined),
@@ -89,6 +137,8 @@ export function createRegistrationQueueHarness(): RegistrationQueueHarness {
     manager,
     sent,
     answer,
+    filters,
+    server,
     pending: () => readStore(REPLICATION_STORES.PENDING_MUTATIONS),
     failed: () => readStore(REPLICATION_STORES.FAILED_MUTATIONS),
     upload: async () => {

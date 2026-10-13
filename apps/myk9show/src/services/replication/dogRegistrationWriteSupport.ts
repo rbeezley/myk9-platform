@@ -96,8 +96,23 @@ export async function loadDogRegistrationsForEdit(
   };
 }
 
+/**
+ * True when the server refused this row's INSERT (a failed mutation the user
+ * has not retried or discarded).
+ */
+export async function hasRefusedInsert(
+  table: RegistrationsReplica,
+  queue: MutationManager | null,
+  id: string
+): Promise<boolean> {
+  if (!queue) return false;
+  return (await queue.getFailedMutations()).some(
+    m => m.tableName === table.getTableName() && String(m.rowId) === id && m.operation === 'INSERT'
+  );
+}
+
 /** Drop this user's queued mutations for a registration row. */
-export async function discardPendingWork(
+async function discardPendingWork(
   table: RegistrationsReplica,
   queue: MutationManager | null,
   id: string
@@ -106,7 +121,7 @@ export async function discardPendingWork(
 }
 
 /** Drop this user's refused mutations for a registration row. */
-export async function discardFailedWork(
+async function discardFailedWork(
   table: RegistrationsReplica,
   queue: MutationManager | null,
   id: string

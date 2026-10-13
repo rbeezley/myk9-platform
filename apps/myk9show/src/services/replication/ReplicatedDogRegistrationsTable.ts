@@ -53,8 +53,7 @@ import { RegistrationDeletionFence } from './registrationDeletionFence';
 import {
   cancelUnsentAdd,
   type EditableRegistration,
-  discardFailedWork,
-  discardPendingWork,
+  hasRefusedInsert,
   listenForConfirmedDeletes,
   loadDogRegistrationsForEdit,
   loadRowForWrite,
@@ -66,6 +65,8 @@ import {
   createRegistrationTimestamps,
   draftToRegistration,
   normalizeRegistration,
+  NEW_REGISTRATION_VERSION,
+  registrationAddRefused,
   registrationAwaitsItsDog,
   type RegistrationDraft,
   type RegistrationInput,
@@ -310,6 +311,12 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       _localOnly: true,
       _queuedAdd: true,
     };
+    // The row starts with the OCC token the server will give it: the INSERT
+    // sends no `version`, so the column default (1) applies, and the upload's
+    // acknowledgement carries none. Without it a later edit would be an UPDATE
+    // with no precondition (Codex round 2). Written clean with the token, then
+    // dirty, which keeps it.
+    await this.set(registration.id, registration, false, undefined, NEW_REGISTRATION_VERSION);
     await this.set(registration.id, registration, true);
     await this.queueMutation(
       'INSERT',
@@ -336,31 +343,24 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       throw new FriendlySaveError('This registration is being deleted.');
     }
     if (isPlaceholder(row.data)) throw registrationAwaitsItsDog();
+    // An add the server has not acknowledged: the edit waits for its INSERT
+    // (and the dog's create). One the server refused cannot be edited.
+    let dependsOn: string[] = [];
     if (row.data._localOnly === true) {
-      await this.replaceUnsentAdd(updated);
-      return updated;
+      if (await hasRefusedInsert(this, this.queue, id)) throw registrationAddRefused();
+      dependsOn = [
+        ...(await this.getPendingMutationIdsForRow(id)),
+        ...(await replicatedDogsTable.getPendingMutationIdsForRow(row.data.dogId)),
+      ];
     }
     await this.set(id, updated, true);
-    await this.queueMutation('UPDATE', id, { id, ...buildRegistrationUpdatePayload(updated) });
-    return updated;
-  }
-
-  /**
-   * Editing an unacknowledged add replaces its queued or refused INSERT (an
-   * UPDATE would name a row the server lacks); the new INSERT still waits for
-   * the dog's create. The refused one goes after, so Discard keeps the row.
-   */
-  private async replaceUnsentAdd(updated: ReplicatedDogRegistration): Promise<void> {
-    await discardPendingWork(this, this.queue, updated.id);
-    const dependsOn = await replicatedDogsTable.getPendingMutationIdsForRow(updated.dogId);
-    await this.set(updated.id, updated, true);
     await this.queueMutation(
-      'INSERT',
-      updated.id,
-      this.toSupabaseRow(updated),
+      'UPDATE',
+      id,
+      { id, ...buildRegistrationUpdatePayload(updated) },
       dependsOn.length > 0 ? dependsOn : undefined
     );
-    await discardFailedWork(this, this.queue, updated.id);
+    return updated;
   }
 
   /**

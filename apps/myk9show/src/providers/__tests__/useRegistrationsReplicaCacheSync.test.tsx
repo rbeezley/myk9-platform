@@ -1,6 +1,6 @@
 /**
  * The one refresh rule for registrations (MYK9-1090, plan §2): any change to
- * the replica refetches the registration reads, and a direct write lands in
+ * the replica refetches the registration reads, and a queued write lands in
  * the replica so the dog page shows it without a sync.
  */
 import React from 'react';
@@ -11,7 +11,6 @@ import { supabase } from '@/services/database/supabaseClient';
 import { createTestQueryClient, render, renderHook, screen, waitFor } from '@/test/utils/testUtils';
 import { queryKeys } from '@/lib/queryClient';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
-import { updateRegistration, deleteRegistration } from '@/services/database/registrations';
 import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/RegistrationsSection';
 import type { Dog } from '@/types/dog-types';
 import { serverRow } from '@/services/replication/__tests__/dogRegistrationFixtures';
@@ -151,17 +150,11 @@ describe('a cold read in flight when the replica changes', () => {
   });
 });
 
-/**
- * PostgREST that cannot answer a read (the device is offline for reads) but
- * confirms a direct update or delete with `writeRow`.
- */
-function serverAcceptsWritesOnly(writeRow: () => Record<string, unknown>) {
+/** PostgREST that cannot answer a read: the device is offline. */
+function serverUnreachable() {
   const builder = {
-    update: () => builder,
-    delete: () => builder,
     eq: () => builder,
     select: () => builder,
-    single: async () => ({ data: writeRow(), error: null }),
     order: async () => ({ data: null, error: new Error('Failed to fetch') }),
   };
   vi.mocked(supabase.from).mockImplementation((() => builder) as unknown as typeof supabase.from);
@@ -172,37 +165,31 @@ function Page() {
   return <RegistrationsSection dog={{ id: 'dog-1' } as Dog} canEdit={false} />;
 }
 
-// The offline copy the readers fall back to must hold a direct write at once.
-describe('a direct write reaches the offline device copy without a sync', () => {
-  let written: Record<string, unknown>;
-
+// The offline copy the readers fall back to shows a queued write at once.
+describe('a queued write reaches the offline device copy without a sync', () => {
   beforeEach(async () => {
     await replicatedDogRegistrationsTable.applyServerRows([
       serverRow({ registered_name: 'Old Name', version: 3 }),
     ]);
-    written = serverRow({ registered_name: 'New Name', version: 4 });
-    serverAcceptsWritesOnly(() => written);
+    serverUnreachable();
   });
 
-  it('shows an edit saved straight to the server', async () => {
+  it('shows a queued edit', async () => {
     render(<Page />);
     expect(await screen.findByText('Old Name')).toBeInTheDocument();
 
-    const { error } = await updateRegistration('reg-1', { registered_name: 'New Name' });
+    await replicatedDogRegistrationsTable.updateRegistration('reg-1', {
+      registered_name: 'New Name',
+    });
 
-    expect(error).toBeNull();
     expect(await screen.findByText('New Name')).toBeInTheDocument();
-    expect((await replicatedDogRegistrationsTable.getReplicatedRow('reg-1'))?.serverVersion).toBe(
-      4
-    );
   });
 
-  it('drops a registration deleted straight on the server', async () => {
+  it('hides a queued delete', async () => {
     render(<Page />);
     expect(await screen.findByText('Old Name')).toBeInTheDocument();
-    written = { id: 'reg-1', dog_id: 'dog-1' };
 
-    await deleteRegistration('reg-1');
+    await replicatedDogRegistrationsTable.deleteRegistration('reg-1');
 
     expect(await screen.findByText('No registrations saved on this device')).toBeInTheDocument();
   });

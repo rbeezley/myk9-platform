@@ -38,7 +38,18 @@ vi.mock('../../supabaseClient', () => ({
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
   replicatedDogRegistrationsTable: {
     getRegistrationsForDogs: mockLocalGet,
-    getUnsentRegistrationsForDogs: mockLocalGet,
+    // The same device rows, as the unsent work a server read is merged with:
+    // offline-created placeholders.
+    getUnsentWorkForDogs: async (dogIds: string[]) =>
+      ((await mockLocalGet(dogIds)) as Record<string, unknown>[]).map(row => ({
+        id: row.id,
+        dogId: row.dog_id,
+        organization: row.organization,
+        registrationNumber: row.registration_number,
+        createdAt: row.created_at,
+        breed: row.breed,
+        _localOnly: true,
+      })),
   },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
@@ -235,7 +246,7 @@ describe('loadDogRegistrations', () => {
     const { byDog, serverError, registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
 
     expect(serverError).toBeInstanceOf(Error);
-    expect(byDog.get('dog-1')).toEqual([localRegistration]);
+    expect(byDog.get('dog-1')).toEqual([expect.objectContaining(localRegistration)]);
     expect(registrationsReadComplete).toBe(false);
   });
 

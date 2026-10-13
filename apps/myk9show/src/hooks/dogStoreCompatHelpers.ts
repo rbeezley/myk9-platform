@@ -1,12 +1,10 @@
 // Pure helper functions for useDogStoreCompat
 
 import {
-  updateRegistration,
-  getRegistrationsByDog,
-  createRegistration,
-} from '@/services/database/registrations';
+  replicatedDogRegistrationsTable,
+  type ReplicatedDogRegistration,
+} from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { logger } from '@/services/LoggingService';
-import type { DbDogRegistration } from '@/types/database-mappings';
 import { normalizeDogRegistrationOrganization } from '@/utils/dogIdentity';
 
 interface RegistrationInput {
@@ -22,8 +20,8 @@ interface RegistrationInput {
  */
 function findMatchingRegistration(
   inputReg: RegistrationInput,
-  existingRegs: DbDogRegistration[]
-): DbDogRegistration | undefined {
+  existingRegs: readonly ReplicatedDogRegistration[]
+): ReplicatedDogRegistration | undefined {
   const inputOrganization = normalizeDogRegistrationOrganization(inputReg.organization || 'AKC');
   return existingRegs.find(
     er => normalizeDogRegistrationOrganization(er.organization) === inputOrganization
@@ -31,29 +29,30 @@ function findMatchingRegistration(
 }
 
 /**
- * Updates or creates registrations for a dog.
+ * Saves the registration fields of an Edit dog form: edits the dog's
+ * registration for each organization, or adds one. Both are queued on the
+ * registrations replica (MYK9-1090), so they work offline.
  * Returns true if any registrations were changed.
  *
- * Does not throw — registration failures are logged but do not
- * fail the parent dog update.
+ * Throws when the dog's registrations cannot be read on this device (offline
+ * on a replica that never synced: "Reconnect to load this dog's
+ * registrations") or a write is refused; nothing is queued for the refused one.
  */
 export async function syncDogRegistrations(
   dogId: string,
   registrations: RegistrationInput[]
 ): Promise<boolean> {
-  if (registrations.length === 0) return false;
+  const toSave = registrations.filter(registration => registration.registeredName);
+  if (toSave.length === 0) return false;
 
+  const existingRegs = await replicatedDogRegistrationsTable.getRegistrationsForEdit(dogId);
   let changed = false;
 
-  const { data: existingRegs } = await getRegistrationsByDog(dogId);
-
-  for (const inputReg of registrations) {
-    if (!inputReg.registeredName) continue;
-
-    const existing = findMatchingRegistration(inputReg, existingRegs ?? []);
+  for (const inputReg of toSave) {
+    const existing = findMatchingRegistration(inputReg, existingRegs);
 
     if (existing) {
-      await updateRegistration(existing.id, {
+      await replicatedDogRegistrationsTable.updateRegistration(existing.id, {
         registered_name: inputReg.registeredName,
         breed: inputReg.type || null,
         status: inputReg.status || null,
@@ -66,23 +65,16 @@ export async function syncDogRegistrations(
       continue;
     }
 
-    // Create new registration for this organization
-    const { error: createError, data: newReg } = await createRegistration({
+    const added = await replicatedDogRegistrationsTable.addRegistration({
       dog_id: dogId,
       organization: inputReg.organization || 'AKC',
-      registered_name: inputReg.registeredName,
+      registered_name: inputReg.registeredName ?? null,
       registration_number: inputReg.number || '',
       breed: inputReg.type || null,
       status: inputReg.status || 'pending',
     });
-
-    if (createError) {
-      logger.error('Failed to create registration', 'dogs', { dogId }, createError as Error);
-      continue;
-    }
-
-    logger.debug('Created new registration', 'dogs', {
-      registrationId: newReg?.id,
+    logger.debug('Added registration', 'dogs', {
+      registrationId: added.id,
       registeredName: inputReg.registeredName,
       organization: inputReg.organization || 'AKC',
     });

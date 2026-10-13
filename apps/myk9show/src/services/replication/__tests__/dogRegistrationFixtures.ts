@@ -55,6 +55,8 @@ export interface RegistrationsServer {
   failIdLookups?: boolean;
   /** Called as each ID page is answered (to simulate a write mid-pass). */
   onIdPage?: (index: number) => Promise<void>;
+  /** Called before a read by id is answered (to simulate a write mid-read). */
+  onIdLookup?: () => Promise<void>;
   /** Every select list and filter the code sent. */
   calls: Array<{ method: string; args: unknown[] }>;
 }
@@ -85,6 +87,7 @@ export function installRegistrationsServer(server: RegistrationsServer): void {
       },
       in: async (column: string, values: string[]) => {
         record('in', [column, values]);
+        if (column === 'id') await server.onIdLookup?.();
         if (column === 'id' && server.failIdLookups) {
           return { data: null, error: { message: 'timeout' } };
         }

@@ -18,7 +18,11 @@ import {
   normalizeDogRegistrationOrganization,
 } from '@/utils/dogIdentity';
 import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
-import { dropServerTwins } from '@/services/replication/dogRegistrationRows';
+import {
+  registrationToDbRow,
+  type ReplicatedDogRegistration,
+} from '@/services/replication/dogRegistrationRows';
+import { mergeUnsentWork } from '@/services/replication/dogRegistrationMerge';
 import { parseRestoreDogResult } from './restoreDogResult';
 import { serverUnreachable } from '../registrations/serverUnreachable';
 
@@ -223,20 +227,29 @@ export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistr
   // server that answered with an error stays a server read: unsent work is
   // merged, `serverError` is set and the read is not complete.
   const source = serverResult.error && serverUnreachable(serverResult.error) ? 'device' : 'server';
-  let localRows: Record<string, unknown>[] = [];
+  let unsent: ReplicatedDogRegistration[] = [];
+  let deviceRows: Record<string, unknown>[] = [];
   let localError: unknown = null;
   try {
-    localRows =
-      source === 'server'
-        ? await replicatedDogRegistrationsTable.getUnsentRegistrationsForDogs(dogIds)
-        : await replicatedDogRegistrationsTable.getRegistrationsForDogs(dogIds);
+    if (source === 'server') {
+      unsent = await replicatedDogRegistrationsTable.getUnsentWorkForDogs(dogIds);
+    } else {
+      deviceRows = await replicatedDogRegistrationsTable.getRegistrationsForDogs(dogIds);
+    }
   } catch (error) {
     localError = error;
   }
 
-  appendRegistrations(map, serverResult.data);
-  // A placeholder whose server copy is in this read is that copy (hasServerTwin).
-  appendRegistrations(map, dropServerTwins(localRows, serverResult.data));
+  // Server rows with this device's unsent edits, deletes and adds applied
+  // (mergeUnsentWork); offline, the device copy alone.
+  appendRegistrations(
+    map,
+    source === 'server' ? mergeUnsentWork(serverResult.data, unsent) : deviceRows
+  );
+  const localRows =
+    source === 'server'
+      ? unsent.filter(row => row._pendingDelete !== true).map(registrationToDbRow)
+      : deviceRows;
   overlayLocalCreationOrder(map, localRows);
   return {
     byDog: map,

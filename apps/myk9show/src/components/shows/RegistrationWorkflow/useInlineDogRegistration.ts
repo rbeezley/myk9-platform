@@ -3,12 +3,12 @@ import { toast } from 'sonner';
 import { useCreateRegistrationMutation } from '@/hooks/queries/useRegistrationsDatabase';
 import { dogSaveMessage } from '@/hooks/translateDogDbError';
 import type { Registration } from '@/types/dog-types';
-import type { DbDogRegistrationInsert } from '@/types/database-mappings';
+import type { RegistrationDraft } from '@/services/replication/ReplicatedDogRegistrationsTable';
 
 export function toDogRegistrationInsert(
   dogId: string,
   registration: Registration
-): DbDogRegistrationInsert {
+): RegistrationDraft {
   return {
     dog_id: dogId,
     organization: registration.organization,
@@ -24,7 +24,7 @@ export function toDogRegistrationInsert(
   };
 }
 
-/** Reuses the canonical registration mutation while keeping wizard context in place. */
+/** Reuses the canonical (queued) registration add while keeping wizard context in place. */
 export function useInlineDogRegistration(onSaved?: () => void) {
   const [registrationDogId, setRegistrationDogId] = useState<string | null>(null);
   const createRegistration = useCreateRegistrationMutation();

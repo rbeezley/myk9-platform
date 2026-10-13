@@ -14,7 +14,7 @@ import {
   type DogRegistrationReadRow,
 } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { appendRegistrations } from '../dogs/reads';
-import { dropServerTwins } from '@/services/replication/dogRegistrationRows';
+import { mergeUnsentWork } from '@/services/replication/dogRegistrationMerge';
 import { getRegistrationsByDog } from './reads';
 import { serverUnreachable } from './serverUnreachable';
 
@@ -43,20 +43,17 @@ export async function readRegistrationsForDog(dogId: string): Promise<Registrati
   // With the server's answer in hand, a device that cannot be read only costs
   // this device's unsent work, never the server rows (Codex review). Without
   // it, the device copy is the answer, and a device failure is the error.
-  const local =
+  // Server rows with this device's unsent edits, deletes and adds applied
+  // (mergeUnsentWork): an unsent edit wins, a pending delete hides its row.
+  const rows =
     source === 'server'
-      ? await replicatedDogRegistrationsTable
-          .getUnsentRegistrationsForDogs([dogId])
-          .catch(() => [] as DogRegistrationReadRow[])
+      ? mergeUnsentWork(
+          server.data,
+          await replicatedDogRegistrationsTable.getUnsentWorkForDogs([dogId]).catch(() => [])
+        )
       : await replicatedDogRegistrationsTable.getRegistrationsForDogs([dogId]);
-
-  // Server rows first; a device row whose server copy is in the read (a
-  // placeholder's twin, the same id, or the same organization and number)
-  // is dropped.
-  const serverRows = server.error ? [] : server.data;
   const merged = new Map<string, Record<string, unknown>[]>();
-  appendRegistrations(merged, serverRows);
-  appendRegistrations(merged, dropServerTwins(local, serverRows));
-  const rows = (merged.get(dogId) ?? []) as unknown as DogRegistrationReadRow[];
-  return { rows: [...rows].sort(byRegistrationDateDesc), source };
+  appendRegistrations(merged, rows);
+  const forDog = (merged.get(dogId) ?? []) as unknown as DogRegistrationReadRow[];
+  return { rows: [...forDog].sort(byRegistrationDateDesc), source };
 }

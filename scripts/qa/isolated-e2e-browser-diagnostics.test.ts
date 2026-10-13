@@ -30,7 +30,7 @@ describe('regression failure diagnostics', () => {
   it.each(WIRED_SPECS)('%s installs the diagnostics in its describe block', specPath => {
     const spec = read(specPath);
     expect(spec).toMatch(
-      /import \{ installBrowserDiagnostics \} from '\.\.\/shared\/browserDiagnostics';/
+      /import \{ installBrowserDiagnostics \} from '\.\.?\/shared\/browserDiagnostics';/
     );
     expect(spec).toMatch(/^\s+installBrowserDiagnostics\(test\);$/m);
   });

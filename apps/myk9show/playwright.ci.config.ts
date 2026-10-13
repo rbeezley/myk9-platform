@@ -68,6 +68,10 @@ const REGRESSION_SPECS = [
   // field inset, tab-strip fit and completion-check size of the Add Dog slide-out at
   // 320/375/768/1440 (MYK9-1121). jsdom cannot compute layout.
   '**/addDogPanelGeometry.spec.ts',
+  // Secretary-authed, read-only (never saves, never dismisses): the new-role
+  // notice must not cover the show wizard's Next at 390/1280px (MYK9-1131).
+  // It rewrites the profile read to empty onboarded_roles. jsdom cannot measure.
+  '**/secretary/newRoleNoticeWizardFooter.spec.ts',
   '**/cross-role-workflows.spec.ts',
   '**/simple-connectivity.spec.ts',
   // The live-data exhibitor canary. Here it runs with

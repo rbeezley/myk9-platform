@@ -53,6 +53,7 @@ import {
   revokeRingsidePasscodeAccess,
 } from '@/features/at-show/ringsidePasscodeRevocation';
 import {
+  formatSyncFailureReason,
   formatSyncFailureToast,
   formatDownloadFailureToast,
   hasPermanentScoreAuthorizationFailure,
@@ -659,8 +660,10 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           );
           toast.dismiss(toastId);
         };
+        const reason = formatSyncFailureReason(failureDetail);
         toast.error(formatSyncFailureToast(failureDetail), {
           id: toastId,
+          ...(reason && { description: reason }),
           // INTENT: Failure toasts persist until the user makes an explicit
           // choice. The underlying mutations survive in IDB either way, so a
           // dismissed-by-reload toast re-surfaces on the next sign-in.

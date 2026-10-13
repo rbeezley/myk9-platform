@@ -119,7 +119,7 @@ export async function executeMutation(
           supabase.rpc(
             mutation.rpc.name,
             mutation.rpc.args ?? {
-              [mutation.rpc.idParam ?? 'p_entry_id']: data.id as string,
+              [mutation.rpc.idParam ?? 'p_entry_id']: mutation.rowId,
               p_fields: mutation.rpc.fields ?? {},
               p_expected_version: mutation.serverVersion ?? null,
             }
@@ -176,10 +176,9 @@ export async function executeMutation(
         tableName === 'entries' && data.deleted_at === null
           ? Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'deleted_at'))
           : data;
-      let updateQuery = supabase
-        .from(tableName)
-        .update(updateData)
-        .eq('id', data.id as string);
+      // Address the row by the queued rowId, not payload.id: write-protected tables send
+      // only the columns they may write and omit `id` (MYK9-1132).
+      let updateQuery = supabase.from(tableName).update(updateData).eq('id', mutation.rowId);
       if (mutation.serverVersion !== undefined) {
         updateQuery = updateQuery.eq('version', mutation.serverVersion);
       }
@@ -196,11 +195,7 @@ export async function executeMutation(
           // Disambiguate: OCC rejection (version advanced) vs RLS denial (version unchanged)
           // vs row deleted. One bounded re-check avoids silent permanent queue stall.
           const { data: check, error: checkError } = await withTimeout(
-            supabase
-              .from(tableName)
-              .select('version')
-              .eq('id', data.id as string)
-              .maybeSingle(),
+            supabase.from(tableName).select('version').eq('id', mutation.rowId).maybeSingle(),
             TIMEOUT_PRESETS.standard,
             `${tableName} occ-check`
           );
@@ -221,11 +216,7 @@ export async function executeMutation(
 
     case 'DELETE': {
       const { data: rows, error } = await withTimeout(
-        supabase
-          .from(tableName)
-          .delete()
-          .eq('id', data.id as string)
-          .select('id'),
+        supabase.from(tableName).delete().eq('id', mutation.rowId).select('id'),
         TIMEOUT_PRESETS.standard,
         `${tableName} delete`
       );

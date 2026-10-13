@@ -156,7 +156,7 @@ describe('an add whose INSERT committed but whose acknowledgement was lost', () 
   });
 
   // Before any sync: the server read already shows the row. The device's
-  // queued edit of it must win, as any unsent edit does.
+  // queued edit of it must win, like every unsent edit.
   it('before a sync: a server read shows the unsent edit, not the server copy', async () => {
     const { added, committed } = await addWhoseAckWasLost();
     await table.updateRegistration(added.id, { registration_number: 'FIXED1' });

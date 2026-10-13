@@ -20,6 +20,7 @@ import {
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
   REPLICATION_STORES,
+  type DirtyRowComparePolicy,
   type MutationManager,
   type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
@@ -51,6 +52,9 @@ import { fetchChangedRegistrations, fetchRegistrationsWhere } from './dogRegistr
 import { RegistrationDeletionFence } from './registrationDeletionFence';
 import {
   cancelUnsentAdd,
+  type EditableRegistration,
+  discardFailedWork,
+  discardPendingWork,
   listenForConfirmedDeletes,
   loadDogRegistrationsForEdit,
   loadRowForWrite,
@@ -68,6 +72,15 @@ import {
 export type { DogRegistrationReadRow, DogRegistrationRow, ReplicatedDogRegistration };
 export type { RegistrationDraft };
 export { createRegistrationTimestamps };
+
+/**
+ * `updatedAt` is bookkeeping: an edit here and a server edit each stamp it, so
+ * comparing it would turn every different-field pair into a conflict. Compare
+ * it as one value; the UPDATE payload still carries its own timestamp.
+ */
+const REGISTRATION_COMPARE_POLICY: DirtyRowComparePolicy = {
+  normalizeValue: (field, value) => (field === 'updatedAt' ? null : value),
+};
 
 /** Outcome of one ID pass; `null` from `reconcileWithServerIds` means it was skipped. */
 export interface RegistrationIdPassResult {
@@ -129,6 +142,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       getRemoteId: remote => String(remote.id),
       toLocalRow: rowToRegistration,
       rebuildUpdatePayload: buildRegistrationUpdatePayload,
+      dirtyRowComparePolicy: REGISTRATION_COMPARE_POLICY,
     };
   }
 
@@ -336,17 +350,33 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       throw new FriendlySaveError('This registration is being deleted.');
     }
     if (isPlaceholder(row.data)) throw registrationAwaitsItsDog();
-    // An edit of an add that has not uploaded yet follows its INSERT.
-    const dependsOn =
-      row.data._localOnly === true ? await this.getPendingMutationIdsForRow(id) : undefined;
+    if (row.data._localOnly === true) {
+      await this.replaceUnsentAdd(updated);
+      return updated;
+    }
     await this.set(id, updated, true);
-    await this.queueMutation(
-      'UPDATE',
-      id,
-      { id, ...buildRegistrationUpdatePayload(updated) },
-      dependsOn && dependsOn.length > 0 ? dependsOn : undefined
-    );
+    await this.queueMutation('UPDATE', id, { id, ...buildRegistrationUpdatePayload(updated) });
     return updated;
+  }
+
+  /**
+   * An edit of an add the server has not acknowledged replaces its INSERT: the
+   * queued (or refused) INSERT is dropped and a new one carries the corrected
+   * row, still waiting for the dog's own create. An UPDATE would name a row the
+   * server does not have (Codex review of PR 3a). A refused INSERT is dropped
+   * only after the new one is queued, so Discard's cleanup keeps the row.
+   */
+  private async replaceUnsentAdd(updated: ReplicatedDogRegistration): Promise<void> {
+    await discardPendingWork(this, this.queue, updated.id);
+    const dependsOn = await replicatedDogsTable.getPendingMutationIdsForRow(updated.dogId);
+    await this.set(updated.id, updated, true);
+    await this.queueMutation(
+      'INSERT',
+      updated.id,
+      this.toSupabaseRow(updated),
+      dependsOn.length > 0 ? dependsOn : undefined
+    );
+    await discardFailedWork(this, this.queue, updated.id);
   }
 
   /**
@@ -375,7 +405,9 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
    * One dog's registrations, for a write built on what exists (Edit dog's
    * registration fields); see `loadDogRegistrationsForEdit`.
    */
-  async getRegistrationsForEdit(dogId: string): Promise<ReplicatedDogRegistration[]> {
+  async getRegistrationsForEdit(
+    dogId: string
+  ): Promise<{ registrations: EditableRegistration[]; server: boolean }> {
     return loadDogRegistrationsForEdit(this, dogId);
   }
 

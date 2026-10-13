@@ -1,9 +1,7 @@
 // Pure helper functions for useDogStoreCompat
 
-import {
-  replicatedDogRegistrationsTable,
-  type ReplicatedDogRegistration,
-} from '@/services/replication/ReplicatedDogRegistrationsTable';
+import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
+import { registrationChangesNeedConnection } from '@/services/replication/dogRegistrationWrites';
 import { logger } from '@/services/LoggingService';
 import { normalizeDogRegistrationOrganization } from '@/utils/dogIdentity';
 
@@ -18,10 +16,10 @@ interface RegistrationInput {
 /**
  * Finds an existing registration matching the given organization.
  */
-function findMatchingRegistration(
+function findMatchingRegistration<T extends { organization: string }>(
   inputReg: RegistrationInput,
-  existingRegs: readonly ReplicatedDogRegistration[]
-): ReplicatedDogRegistration | undefined {
+  existingRegs: readonly T[]
+): T | undefined {
   const inputOrganization = normalizeDogRegistrationOrganization(inputReg.organization || 'AKC');
   return existingRegs.find(
     er => normalizeDogRegistrationOrganization(er.organization) === inputOrganization
@@ -34,9 +32,11 @@ function findMatchingRegistration(
  * registrations replica (MYK9-1090), so they work offline.
  * Returns true if any registrations were changed.
  *
- * Throws when the dog's registrations cannot be read on this device (offline
- * on a replica that never synced: "Reconnect to load this dog's
- * registrations") or a write is refused; nothing is queued for the refused one.
+ * Online, the candidates are the server's rows plus this device's unsent work.
+ * When the server cannot be read, only registrations on the device can be
+ * edited: a form organization with none is refused with "Reconnect to save
+ * registration changes" BEFORE anything is queued, never inferred to be new.
+ * Throws on a refusal; the dog's own fields are saved by the caller either way.
  */
 export async function syncDogRegistrations(
   dogId: string,
@@ -45,7 +45,11 @@ export async function syncDogRegistrations(
   const toSave = registrations.filter(registration => registration.registeredName);
   if (toSave.length === 0) return false;
 
-  const existingRegs = await replicatedDogRegistrationsTable.getRegistrationsForEdit(dogId);
+  const { registrations: existingRegs, server } =
+    await replicatedDogRegistrationsTable.getRegistrationsForEdit(dogId);
+  if (!server && toSave.some(inputReg => !findMatchingRegistration(inputReg, existingRegs))) {
+    throw registrationChangesNeedConnection();
+  }
   let changed = false;
 
   for (const inputReg of toSave) {

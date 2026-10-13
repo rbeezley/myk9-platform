@@ -4,12 +4,7 @@
  * offline), a queued add cancelled before it is sent, and the upload pass's
  * word that a queued DELETE landed.
  */
-import type {
-  MutationManager,
-  ReplicatedRow,
-  SyncMetadata,
-  UploadCompleteEventDetail,
-} from '@myk9/replication';
+import type { MutationManager, ReplicatedRow, UploadCompleteEventDetail } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { FriendlySaveError } from '@/utils/friendlySaveError';
 import {
@@ -18,6 +13,7 @@ import {
   type ReplicatedDogRegistration,
 } from './dogRegistrationRows';
 import { fetchRegistrationsWhere } from './dogRegistrationsServer';
+import { mergeUnsentWork } from './dogRegistrationMerge';
 import { registrationsNeedConnection } from './dogRegistrationWrites';
 
 /** The parts of the registrations table these helpers use. */
@@ -26,7 +22,7 @@ export interface RegistrationsReplica {
   getReplicatedRow(id: string): Promise<ReplicatedRow<ReplicatedDogRegistration> | null>;
   applyServerRows(rows: readonly DogRegistrationRow[]): Promise<number>;
   getAllOrThrow(): Promise<ReplicatedDogRegistration[]>;
-  getSyncMetadata(): Promise<SyncMetadata | null>;
+  getUnsentWorkForDogs(dogIds: string[]): Promise<ReplicatedDogRegistration[]>;
   delete(id: string): Promise<void>;
 }
 
@@ -58,29 +54,69 @@ export async function loadRowForWrite(
   return loaded;
 }
 
+/** A registration Edit dog may change: its row id and organization. */
+export interface EditableRegistration {
+  id: string;
+  organization: string;
+}
+
 /**
  * One dog's registrations, for a write built on what exists (Edit dog's
- * registration fields). Online, the dog's rows are read into the replica
- * first. Offline on a replica that has never synced, the device cannot tell
- * "none" from "not loaded": refuse rather than add a duplicate.
+ * registration fields).
+ *
+ * - `server: true`: the server's rows (also stored in the replica) plus this
+ *   device's unsent work (`mergeUnsentWork`). A cached copy the server no
+ *   longer returns is not a candidate (Codex review of PR 3a).
+ * - `server: false`: the server could not be read; the registrations on the
+ *   device. The caller may only edit these: absence proves nothing.
  */
 export async function loadDogRegistrationsForEdit(
   table: RegistrationsReplica,
   dogId: string
-): Promise<ReplicatedDogRegistration[]> {
-  let loaded = false;
+): Promise<{ registrations: EditableRegistration[]; server: boolean }> {
   if (!deviceIsOffline()) {
     try {
-      await table.applyServerRows(await fetchRegistrationsWhere('dog_id', [dogId]));
-      loaded = true;
+      const serverRows = await fetchRegistrationsWhere('dog_id', [dogId]);
+      await table.applyServerRows(serverRows);
+      const merged = mergeUnsentWork(serverRows, await table.getUnsentWorkForDogs([dogId]));
+      return {
+        registrations: merged.map(row => ({
+          id: String(row.id),
+          organization: String(row.organization ?? ''),
+        })),
+        server: true,
+      };
     } catch (error) {
-      logger.warn(`[${table.getTableName()}] Could not load dog ${dogId}'s registrations`, error);
+      logger.warn(`[${table.getTableName()}] Could not read dog ${dogId}'s registrations`, error);
     }
   }
-  if (!loaded && !(await table.getSyncMetadata())?.lastFullSyncAt) {
-    throw registrationsNeedConnection();
+  return {
+    registrations: visibleRegistrationRows(await table.getAllOrThrow(), [dogId]),
+    server: false,
+  };
+}
+
+/** Drop this user's queued mutations for a registration row. */
+export async function discardPendingWork(
+  table: RegistrationsReplica,
+  queue: MutationManager | null,
+  id: string
+): Promise<void> {
+  await queue?.discardPendingMutationsForRow(table.getTableName(), id);
+}
+
+/** Drop this user's refused mutations for a registration row. */
+export async function discardFailedWork(
+  table: RegistrationsReplica,
+  queue: MutationManager | null,
+  id: string
+): Promise<void> {
+  if (!queue) return;
+  for (const mutation of await queue.getFailedMutations()) {
+    if (mutation.tableName === table.getTableName() && String(mutation.rowId) === id) {
+      await queue.discardFailedMutation(mutation.id);
+    }
   }
-  return visibleRegistrationRows(await table.getAllOrThrow(), [dogId]);
 }
 
 /**
@@ -93,16 +129,8 @@ export async function cancelUnsentAdd(
   queue: MutationManager | null,
   id: string
 ): Promise<void> {
-  const tableName = table.getTableName();
-  if (queue) {
-    await queue.discardPendingMutationsForRow(tableName, id);
-    const failed = await queue.getFailedMutations();
-    for (const mutation of failed) {
-      if (mutation.tableName === tableName && String(mutation.rowId) === id) {
-        await queue.discardFailedMutation(mutation.id);
-      }
-    }
-  }
+  await discardPendingWork(table, queue, id);
+  await discardFailedWork(table, queue, id);
   await table.delete(id);
 }
 

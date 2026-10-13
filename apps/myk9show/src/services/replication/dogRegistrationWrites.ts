@@ -16,6 +16,18 @@ export function registrationsNeedConnection(): FriendlySaveError {
 }
 
 /**
+ * The refusal for Edit dog's registration fields when the server cannot be
+ * read and the form names an organization with no registration on the device:
+ * "new" cannot be told from "not loaded", so nothing is inferred (Codex review
+ * of PR 3a). Offline adds go through Manage registrations' explicit Add.
+ */
+export const REGISTRATION_CHANGES_NEED_CONNECTION = 'Reconnect to save registration changes';
+
+export function registrationChangesNeedConnection(): FriendlySaveError {
+  return new FriendlySaveError(REGISTRATION_CHANGES_NEED_CONNECTION);
+}
+
+/**
  * The refusal for editing or deleting a registration that travels inside its
  * dog's queued create: it has no server row of its own to change until the dog
  * uploads.

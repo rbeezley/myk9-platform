@@ -1,32 +1,25 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
-import { LandingHeader } from './LandingHeader';
+import { LandingHeader } from '../LandingHeader';
 
 describe('LandingHeader', () => {
-  it('surfaces a Browse shows link to the public /shows route (UX-P2-05)', () => {
-    render(<LandingHeader onJoinWaitlistClick={() => {}} />);
+  it('surfaces a Find a show link to the public /shows route', () => {
+    render(<LandingHeader />);
 
     // Cold-start exhibitors must be able to reach show discovery without first
-    // signing in or joining the waitlist.
-    const browse = screen.getByRole('link', { name: /browse shows/i });
-    expect(browse).toHaveAttribute('href', '/shows');
-
-    // Regression guard: `.l-hdr-nav` is display:none below 640px, so the link
-    // must NOT live inside it or phone users lose discovery. It must be a
-    // persistent header button alongside Sign in. (jsdom can't evaluate the
-    // media query, so we assert structure instead.)
-    expect(browse.closest('.l-hdr-nav')).toBeNull();
-    expect(browse).toHaveClass('l-btn');
+    // signing in or requesting club onboarding.
+    const find = screen.getByRole('link', { name: 'Find a show' });
+    expect(find).toHaveAttribute('href', '/shows');
+    expect(find).toHaveClass('l-btn');
+    expect(find).not.toHaveClass('l-btn-primary');
   });
 
-  it('still offers sign-in and waitlist entry points', () => {
-    const onJoinWaitlistClick = vi.fn();
-    render(<LandingHeader onJoinWaitlistClick={onJoinWaitlistClick} />);
+  it('offers sign-in and Bring your club as the filled primary action', () => {
+    render(<LandingHeader />);
 
-    const signIn = screen.getByRole('link', { name: /sign in/i });
-    expect(signIn).toHaveAttribute('href', '/sign-in');
-    expect(signIn).toHaveClass('l-signin-btn');
-    screen.getByRole('button', { name: /join the waitlist/i }).click();
-    expect(onJoinWaitlistClick).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('link', { name: /sign in/i })).toHaveAttribute('href', '/sign-in');
+    const club = screen.getByRole('link', { name: 'Bring your club' });
+    expect(club).toHaveAttribute('href', '#get-started');
+    expect(club).toHaveClass('l-btn-primary');
   });
 });

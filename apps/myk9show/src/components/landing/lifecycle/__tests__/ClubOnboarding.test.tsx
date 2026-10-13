@@ -1,19 +1,25 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@/test/utils/testUtils';
-import { ClubOnboarding } from './ClubOnboarding';
+import { ClubOnboarding } from '../ClubOnboarding';
+import { BANNED_COPY } from '../lifecycleStories';
 
 const mockSubmit = vi.fn();
 const mockGetRequests = vi.fn();
-const mockUser = {
+const auth = vi.hoisted(() => ({
+  user: null as null | {
+    id: string;
+    email: string;
+    user_metadata: { firstName: string; lastName: string };
+  },
+}));
+const signedInUser = {
   id: 'user-1',
   email: 'club@example.com',
   user_metadata: { firstName: 'Pat', lastName: 'Morgan' },
 };
 
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({
-    user: mockUser,
-  }),
+  useAuthContext: () => auth,
 }));
 
 vi.mock('@/services/database/onboarding-requests', () => ({
@@ -28,6 +34,7 @@ vi.mock('@/services/LoggingService', () => ({
 describe('ClubOnboarding', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    auth.user = signedInUser;
     mockGetRequests.mockResolvedValue([]);
   });
 
@@ -51,5 +58,18 @@ describe('ClubOnboarding', () => {
     await waitFor(() =>
       expect(screen.getByText(/already have a request under review/i)).toBeInTheDocument()
     );
+  });
+
+  it('leads with the club heading', () => {
+    render(<ClubOnboarding />, { initialRoute: '/' });
+    expect(
+      screen.getByRole('heading', { level: 2, name: /bring your club to myk9show/i })
+    ).toBeInTheDocument();
+  });
+
+  it('contains no banned copy in the signed-out state', () => {
+    auth.user = null;
+    const { container } = render(<ClubOnboarding />);
+    for (const re of BANNED_COPY) expect(container.textContent ?? '').not.toMatch(re);
   });
 });

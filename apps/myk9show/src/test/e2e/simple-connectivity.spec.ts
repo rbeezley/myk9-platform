@@ -10,7 +10,7 @@ test.describe('Basic Connectivity Test', () => {
     await expect(page).toHaveTitle(/myK9Show/);
 
     console.log('4. Checking for public discovery link...');
-    await expect(page.getByRole('link', { name: 'Browse shows' })).toBeVisible({
+    await expect(page.locator('#top').getByRole('link', { name: 'Find a show' })).toBeVisible({
       timeout: 30000,
     });
 

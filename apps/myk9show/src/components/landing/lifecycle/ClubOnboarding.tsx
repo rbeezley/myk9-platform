@@ -156,20 +156,23 @@ export function ClubOnboarding() {
             skip under the section's own <h2>. */}
         <p className="l-success-title">Create your free account</p>
         <p>
-          Requesting club onboarding takes a myK9Show account — it's free. Sign in or sign up, then
-          your request form will be ready when you return.
+          Requesting club onboarding takes a myK9Show account, and the account is free. Sign in or
+          sign up, then your request form will be ready when you return.
         </p>
         <div className="l-submit-row">
-          <button type="button" className="l-btn l-btn-primary l-btn-lg" onClick={handleSignIn}>
+          <button
+            type="button"
+            className="l-btn l-btn-primary l-btn-lg min-h-11"
+            onClick={handleSignIn}
+          >
             Sign in to get started
-            <span aria-hidden="true">→</span>
           </button>
         </div>
         <p className="l-fineprint">
           Don't have an account?{' '}
           <button
             type="button"
-            className="l-btn-text"
+            className="l-btn-text inline-flex min-h-11 items-center"
             onClick={() => navigate(buildSignUpPathForRedirect('/?onboarding=true#get-started'))}
           >
             Create one for free
@@ -214,8 +217,8 @@ export function ClubOnboarding() {
       <div className="l-onboard-card" role="status" aria-live="polite">
         <p className="l-success-title">Request submitted.</p>
         <p>
-          Thanks for your interest — we'll review your request and get back to you, usually within
-          24 hours.
+          Thanks for your interest. We'll review your request and get back to you, usually within 24
+          hours.
         </p>
       </div>
     );
@@ -338,13 +341,16 @@ export function ClubOnboarding() {
         {error && <p className="l-error">{error}</p>}
 
         <div className="l-submit-row">
-          <button type="submit" className="l-btn l-btn-primary l-btn-lg" disabled={submitting}>
+          <button
+            type="submit"
+            className="l-btn l-btn-primary l-btn-lg min-h-11"
+            disabled={submitting}
+          >
             {submitting ? 'Submitting…' : 'Submit request'}
-            <span aria-hidden="true">→</span>
           </button>
         </div>
         <p className="l-fineprint">
-          No obligation — this just starts a conversation. We'll only email you about your request.
+          No obligation. This just starts a conversation. We'll only email you about your request.
         </p>
       </form>
     );
@@ -355,11 +361,11 @@ export function ClubOnboarding() {
       <div className="l-container">
         <span className="l-eyebrow">For clubs &amp; secretaries</span>
         <h2>
-          Run your next trial on <em>myK9Show</em>.
+          Bring your club to <em>myK9Show</em>.
         </h2>
         <p>
           Bringing your club aboard is a quick request, not a migration. Tell us who you are and
-          we'll get you set up — across AKC, UKC, and ASCA.
+          we'll get you set up, across AKC, UKC, and ASCA.
         </p>
         {card}
       </div>

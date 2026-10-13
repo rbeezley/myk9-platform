@@ -1,0 +1,241 @@
+/* Working practice scoresheet (plan D9). Scoped under .landing-v2. */
+.landing-v2 .lc-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.landing-v2 .lc-demo-control {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.875rem 1.125rem;
+  background: var(--ivory-50);
+  border: 1px solid #e8e2d4;
+  border-radius: 16px;
+}
+.landing-v2 .lc-demo-label {
+  display: block;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+.landing-v2 .lc-demo-hint {
+  display: block;
+  font-size: 0.9375rem;
+  color: var(--stone-500);
+}
+.landing-v2 .lc-demo-switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 76px;
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  background: #b8ae9c;
+  transition: background-color 200ms ease;
+}
+.landing-v2 .lc-demo-switch[aria-checked='true'] {
+  background: #2f7d46;
+}
+.landing-v2 .lc-demo-switch:focus-visible {
+  outline: 2px solid var(--terracotta-600);
+  outline-offset: 3px;
+}
+.landing-v2 .lc-demo-knob {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.25);
+  transition: transform 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.landing-v2 .lc-demo-switch[aria-checked='true'] .lc-demo-knob {
+  transform: translateX(32px);
+}
+.landing-v2 .lc-demo-tablet {
+  max-width: 520px;
+  padding: 16px;
+  border-radius: 28px;
+  background: #2a241f;
+  box-shadow: 0 40px 70px -36px rgb(0 0 0 / 0.55);
+}
+.landing-v2 .lc-demo-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.125rem 1.25rem;
+  border-radius: 14px;
+  background: var(--ivory-50);
+}
+.landing-v2 .lc-demo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.landing-v2 .lc-demo-trial {
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+.landing-v2 .lc-demo-class,
+.landing-v2 .lc-demo-meta,
+.landing-v2 .lc-demo-remaining {
+  font-size: 0.875rem;
+  color: var(--stone-500);
+}
+.landing-v2 .lc-demo-badge {
+  padding: 0.4375rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition:
+    background-color 240ms ease,
+    color 240ms ease;
+}
+.landing-v2 .lc-demo-badge[data-tone='neutral'] {
+  background: #eef0ec;
+  color: #39443a;
+}
+.landing-v2 .lc-demo-badge[data-tone='amber'] {
+  background: #fff1d6;
+  color: #6e4300;
+}
+.landing-v2 .lc-demo-badge[data-tone='blue'] {
+  background: #e2ecf8;
+  color: #1f3f6b;
+}
+.landing-v2 .lc-demo-badge[data-tone='green'] {
+  background: #e3f2e6;
+  color: #1e5b2e;
+}
+.landing-v2 .lc-demo-dog {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #fff;
+  border: 1px solid #e8e2d4;
+  border-radius: 12px;
+}
+.landing-v2 .lc-demo-arm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: var(--terracotta-500);
+  color: #fff;
+  font-size: 1.1875rem;
+  font-weight: 700;
+}
+.landing-v2 .lc-demo-dogname {
+  font-size: 1.1875rem;
+  font-weight: 700;
+}
+.landing-v2 .lc-demo-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #e8e2d4;
+  border-radius: 12px;
+}
+.landing-v2 .lc-demo-clock {
+  font-size: 3rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+}
+.landing-v2 .lc-demo-bar {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: #ede7db;
+  overflow: hidden;
+}
+.landing-v2 .lc-demo-bar > div {
+  height: 100%;
+  background: #2f9e57;
+}
+.landing-v2 .lc-demo-start {
+  min-height: 60px;
+  min-width: 190px;
+  padding: 0 1.75rem;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 1.3125rem;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  background: #2f7d46;
+}
+.landing-v2 .lc-demo-start[data-running='true'] {
+  background: #c8373a;
+}
+/* Terracotta in both states: the status line says what is missing, so the label keeps 4.5:1. */
+.landing-v2 .lc-demo-save {
+  min-height: 54px;
+  border: 0;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  background: var(--terracotta-600);
+}
+.landing-v2 .lc-demo-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.landing-v2 .lc-demo-log li {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.9375rem;
+  color: var(--stone-700);
+}
+.landing-v2 .lc-demo-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 0.625rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.landing-v2 .lc-demo-chip[data-state='waiting'] {
+  background: #fff1d6;
+  color: #6e4300;
+}
+.landing-v2 .lc-demo-chip[data-state='synced'] {
+  background: #e3f2e6;
+  color: #1e5b2e;
+}
+.landing-v2 .lc-demo-status {
+  margin: 0;
+  min-height: 1.6em;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-v2 .lc-demo-switch,
+  .landing-v2 .lc-demo-knob,
+  .landing-v2 .lc-demo-badge {
+    transition: none;
+  }
+}

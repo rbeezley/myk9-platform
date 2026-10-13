@@ -103,7 +103,10 @@ describe('Dog Queries', () => {
       const result = await getAllDogs(TEST_PERSON_ID);
 
       expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
-      expect(result.data).toEqual(mockDogs);
+      // The roster merges in the registrations read (MYK9-1139): every server row gains them.
+      expect(result.data).toEqual(
+        mockDogs.map(dog => ({ ...dog, registrations: [], registrations_read_complete: true }))
+      );
       expect(result.error).toBeNull();
     });
 
@@ -380,7 +383,10 @@ describe('Dog Queries', () => {
       const result = await searchDogs(searchTerm, TEST_PERSON_ID);
 
       expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
-      expect(result.data).toEqual(mockResults);
+      // The roster merges in the registrations read (MYK9-1139): every server row gains them.
+      expect(result.data).toEqual(
+        mockResults.map(dog => ({ ...dog, registrations: [], registrations_read_complete: true }))
+      );
       expect(result.error).toBeNull();
     });
   });
@@ -511,7 +517,10 @@ describe('Dog Queries', () => {
       const result = await getDogsByOwner(ownerId);
 
       expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
-      expect(result.data).toEqual(mockDogs);
+      // The roster merges in the registrations read (MYK9-1139): every server row gains them.
+      expect(result.data).toEqual(
+        mockDogs.map(dog => ({ ...dog, registrations: [], registrations_read_complete: true }))
+      );
       expect(result.error).toBeNull();
     });
   });

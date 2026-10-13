@@ -220,12 +220,18 @@ describe('waitlist replica after an account switch (MYK9-1133)', () => {
       expect(result.error).not.toBeNull();
     });
 
-    it("class counts leave out another account's entries scope", async () => {
-      state.entriesStampedBy = 'user-b';
-      const { data } = await getClassesWithWaitlistCounts('show-y');
-      expect(data.map(c => [c.id, c.accepted_count, c.waitlist_count, c.offered_count])).toEqual([
-        ['class-y', 0, 2, 1],
-      ]);
+    // Capacity enables Offer Spot (accepted_count < max_entries). A count built
+    // from a withheld entries scope would read 0 on a full class, so the whole
+    // read is unavailable instead of succeeding with a smaller number.
+    it.each([
+      ['another account synced the show entries', 'user-b'],
+      ['a pre-stamp build synced the show entries', undefined],
+    ] as const)('class counts are unavailable, not zero, when %s', async (_name, stampedBy) => {
+      state.entriesStampedBy = stampedBy;
+      const result = await getClassesWithWaitlistCounts('show-y');
+      expect(result.data).toEqual([]);
+      expect(result.error).not.toBeNull();
+      expect(result.error?.message).toMatch(/different account/);
     });
   });
 

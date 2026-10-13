@@ -315,7 +315,7 @@ describe('syncReplicatedTable account stamp (MYK9-1133)', () => {
     expect(await stampOf('show-1')).toBe('user-a');
   });
 
-  it('keeps the other account unsent write and still stamps', async () => {
+  it('keeps the other account unsent write and does not stamp the scope for B', async () => {
     await stampedSync(
       table,
       adapterReturning(() => [row('a1')]),
@@ -332,7 +332,7 @@ describe('syncReplicatedTable account stamp (MYK9-1133)', () => {
     );
 
     expect(await idsIn('show-1')).toEqual(['b1', 'draft']);
-    expect(await stampOf('show-1')).toBe('user-b');
+    expect(await stampOf('show-1')).toBeUndefined();
   });
 
   it('a partial fetch by a new account removes nothing and leaves the scope unstamped', async () => {

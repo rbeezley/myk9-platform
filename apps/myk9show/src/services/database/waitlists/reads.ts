@@ -9,7 +9,7 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
 import { assertTableNotForeign } from '@/services/replication/scopeAccountStamp';
-import { excludeForeignShowRows } from '@/services/replication/entriesShowSyncState';
+import { assertShowEntriesNotForeign } from '@/services/replication/entriesShowSyncState';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
@@ -218,12 +218,15 @@ export const getClassesWithWaitlistCounts = async (showId: string) => {
     const classes = allClasses.flat();
 
     // Batch-load all entries and waitlist entries once, count per class in JS
+    // Capacity decides whether Offer Spot is enabled, so a figure is never built
+    // from a scope this account may not read: that would be a successful 0 on a
+    // full class. Either scope being another account's fails the whole read.
     await assertTableNotForeign(replicatedWaitlistEntriesTable, 'the waitlist');
-    const [storedEntries, allWaitlist] = await Promise.all([
+    await assertShowEntriesNotForeign(showId);
+    const [allEntries, allWaitlist] = await Promise.all([
       replicatedEntriesTable.getAllOrThrow(),
       replicatedWaitlistEntriesTable.getAllOrThrow(),
     ]);
-    const allEntries = await excludeForeignShowRows(storedEntries);
 
     const classesWithCounts = classes.map(cls => {
       const acceptedCount = countSeatHoldingEntries(allEntries.filter(e => e.classId === cls.id));

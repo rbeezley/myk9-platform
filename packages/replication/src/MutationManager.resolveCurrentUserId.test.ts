@@ -4,9 +4,12 @@ import { MutationManager, type MutationManagerOptions } from './MutationManager'
 
 /**
  * MYK9-1133: `resolveCurrentUserId` names the account for the replica stamp.
- * The live lookup is tried first; only when it throws or yields no user does
- * the offline-durable cached id answer. The queue and upload paths keep
- * `requireCurrentUserId`, which never consults the cache.
+ * It answers from the persisted session first, a synchronous read that never
+ * waits on the network: with an expired token offline the live lookup retries
+ * its refresh with backoff for tens of seconds, and guarded IndexedDB reads
+ * must not wait on that. The live lookup answers only when nothing is
+ * persisted. The queue and upload paths keep `requireCurrentUserId`, which
+ * never consults the cache.
  */
 
 function manager(options: MutationManagerOptions) {
@@ -16,46 +19,48 @@ function manager(options: MutationManagerOptions) {
   });
 }
 
+const offline = () => {
+  throw new Error('AuthRetryableFetchError');
+};
+
 describe('MutationManager.resolveCurrentUserId', () => {
-  it('prefers the live lookup over the cached id', async () => {
-    const m = manager({
-      getCurrentUserId: async () => 'live-user',
-      getCachedUserId: () => 'cached-user',
-    });
+  it('answers from the persisted id without waiting on a live lookup that never resolves', async () => {
+    const getCurrentUserId = vi.fn(() => new Promise<string | null>(() => {}));
+    const m = manager({ getCurrentUserId, getCachedUserId: () => 'cached-user' });
+
+    expect(await m.resolveCurrentUserId()).toBe('cached-user');
+    expect(getCurrentUserId).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the live lookup when nothing is persisted', async () => {
+    const m = manager({ getCurrentUserId: async () => 'live-user', getCachedUserId: () => null });
     expect(await m.resolveCurrentUserId()).toBe('live-user');
   });
 
-  it('falls back to the cached id when the live lookup throws (expired token offline)', async () => {
-    const m = manager({
-      getCurrentUserId: async () => {
-        throw new Error('AuthRetryableFetchError');
-      },
-      getCachedUserId: () => 'cached-user',
+  it('falls back to the live lookup when the persisted id is blank or the read throws', async () => {
+    const blank = manager({
+      getCurrentUserId: async () => 'live-user',
+      getCachedUserId: () => '  ',
     });
-    expect(await m.resolveCurrentUserId()).toBe('cached-user');
+    expect(await blank.resolveCurrentUserId()).toBe('live-user');
+    const throwing = manager({
+      getCurrentUserId: async () => 'live-user',
+      getCachedUserId: offline,
+    });
+    expect(await throwing.resolveCurrentUserId()).toBe('live-user');
   });
 
-  it('falls back to the cached id when the live lookup yields no user', async () => {
-    const m = manager({ getCurrentUserId: async () => null, getCachedUserId: () => 'cached-user' });
-    expect(await m.resolveCurrentUserId()).toBe('cached-user');
+  it('uses the live lookup alone when no cache is configured', async () => {
+    expect(
+      await manager({ getCurrentUserId: async () => 'live-user' }).resolveCurrentUserId()
+    ).toBe('live-user');
   });
 
   it.each([
-    ['no cached id', () => null],
-    ['a blank cached id', () => '  '],
-    [
-      'a throwing cache',
-      () => {
-        throw new Error('storage');
-      },
-    ],
-  ])('is null when the live lookup fails and there is %s', async (_name, getCachedUserId) => {
-    const m = manager({
-      getCurrentUserId: async () => {
-        throw new Error('offline');
-      },
-      getCachedUserId,
-    });
+    ['the live lookup throws', async () => offline()],
+    ['the live lookup yields no user', async () => null],
+  ])('is null with nothing persisted when %s', async (_name, getCurrentUserId) => {
+    const m = manager({ getCurrentUserId, getCachedUserId: () => null });
     expect(await m.resolveCurrentUserId()).toBeNull();
   });
 
@@ -65,9 +70,7 @@ describe('MutationManager.resolveCurrentUserId', () => {
 
   it('never lends the cached id to queue operations', async () => {
     const m = manager({
-      getCurrentUserId: async () => {
-        throw new Error('offline');
-      },
+      getCurrentUserId: async () => offline(),
       getCachedUserId: () => 'cached-user',
     });
     await expect(m.getFailedMutations()).rejects.toThrow();

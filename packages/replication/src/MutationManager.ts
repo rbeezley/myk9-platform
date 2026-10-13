@@ -77,22 +77,24 @@ export class MutationManager {
 
   /**
    * The current auth user id for comparing replica account stamps (MYK9-1133),
-   * or null when it cannot be settled. The live lookup `requireCurrentUserId`
-   * uses is tried first; when it throws or yields no user (an expired token
-   * cannot refresh offline) the optional cached id answers. For readers that
-   * branch on "unresolved" instead of failing: never for queue ownership.
+   * or null when it cannot be settled. The optional cached id (a synchronous
+   * read of the persisted session) answers first: the live lookup refreshes an
+   * expired token and, offline, retries that with backoff for tens of seconds,
+   * which guarded IndexedDB reads must not wait on. The live lookup answers only
+   * when nothing is persisted. For readers that branch on "unresolved" instead
+   * of failing; never for queue ownership, which stays on `requireCurrentUserId`.
    */
   async resolveCurrentUserId(): Promise<string | null> {
     const usable = (id: unknown): id is string => typeof id === 'string' && id.trim().length > 0;
     try {
-      const live = await this.getCurrentUserId();
-      if (usable(live)) return live;
+      const cached = this.getCachedUserId();
+      if (usable(cached)) return cached;
     } catch {
-      // Fall through: the live lookup fails offline once the token expires.
+      // Fall through to the live lookup.
     }
     try {
-      const cached = this.getCachedUserId();
-      return usable(cached) ? cached : null;
+      const live = await this.getCurrentUserId();
+      return usable(live) ? live : null;
     } catch {
       return null;
     }

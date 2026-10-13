@@ -491,6 +491,19 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
       let tableSyncedBy = existing?.syncedByAuthUserId;
       if (scopeValue === undefined && options?.scopeSyncedBy !== undefined) {
         tableSyncedBy = options.scopeSyncedBy ?? undefined;
+        // An unscoped sync replaces the rows under every scope, so a scoped
+        // stamp it supersedes must not outlive it: it would out-rank the newer
+        // table stamp and hand one account's rows to another.
+        if (scopes) {
+          scopes = Object.fromEntries(
+            (Object.entries(scopes) as [string, ScopeSyncState][]).map(([key, state]) => {
+              const next: ScopeSyncState = { ...state };
+              delete next.syncedByAuthUserId;
+              if (tableSyncedBy !== undefined) next.syncedByAuthUserId = tableSyncedBy;
+              return [key, next];
+            })
+          );
+        }
       }
       delete atomicUpdates.syncedByAuthUserId;
 

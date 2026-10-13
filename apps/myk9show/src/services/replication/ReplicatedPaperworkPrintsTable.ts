@@ -117,6 +117,11 @@ export function rowToPaperworkPrint(row: PaperworkPrintRow): ReplicatedPaperwork
 }
 
 export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPaperworkPrint> {
+  /** Rows are kept per signed-in account: another account's cache is invisible (MYK9-1133). */
+  override usesAccountOwnedRows(): boolean {
+    return true;
+  }
+
   constructor() {
     super('paperwork_prints', { logger });
   }
@@ -177,7 +182,7 @@ export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPa
       this,
       adapter,
       { value: showId },
-      { incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS, stampSyncingAccount: true }
+      { incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS }
     );
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);

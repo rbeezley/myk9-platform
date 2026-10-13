@@ -56,18 +56,26 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
    * yet. Allowing a sync download (isDirty=false) to clobber it would cause
    * data loss — this mirrors the Phase 1 set() guard (scoring-sync-bug fix).
    */
-  async batchSet(items: T[], serverVersions?: Map<string, number>): Promise<void> {
+  async batchSet(
+    items: T[],
+    serverVersions?: Map<string, number>,
+    ownerAuthUserId?: string
+  ): Promise<void> {
     // Bulk sync downloads are the most likely point to overflow the storage
     // quota. Evict + retry once on a quota abort instead of letting it escape.
     await withQuotaEviction(
-      () => this.batchSetOnce(items, serverVersions),
+      () => this.batchSetOnce(items, serverVersions, ownerAuthUserId),
       () => this.relieveQuota(),
       this.logger
     );
   }
 
   /** Single attempt of {@link batchSet}; opens its own transaction so it is safe to retry. */
-  private async batchSetOnce(items: T[], serverVersions?: Map<string, number>): Promise<void> {
+  private async batchSetOnce(
+    items: T[],
+    serverVersions?: Map<string, number>,
+    ownerAuthUserId?: string
+  ): Promise<void> {
     const db = await this.getDb();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
 
@@ -117,6 +125,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
         isDirty: false,
         syncStatus: 'synced',
         ...(serverVersion !== undefined && { serverVersion }),
+        ...(ownerAuthUserId !== undefined && { ownerAuthUserId }),
       };
 
       await tx.store.put(row);
@@ -150,18 +159,19 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
   async batchSetChunked(
     items: T[],
     chunkSize: number = MAX_CHUNK_SIZE,
-    serverVersions?: Map<string, number>
+    serverVersions?: Map<string, number>,
+    ownerAuthUserId?: string
   ): Promise<void> {
     const totalRows = items.length;
 
     if (totalRows <= chunkSize) {
-      return this.batchSet(items, serverVersions);
+      return this.batchSet(items, serverVersions, ownerAuthUserId);
     }
 
     // The chunked write already rolls itself back atomically on failure, so a
     // quota abort leaves a clean slate — safe to evict and retry the whole run.
     await withQuotaEviction(
-      () => this.batchSetChunkedOnce(items, chunkSize, serverVersions),
+      () => this.batchSetChunkedOnce(items, chunkSize, serverVersions, ownerAuthUserId),
       () => this.relieveQuota(),
       this.logger
     );
@@ -171,7 +181,8 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
   private async batchSetChunkedOnce(
     items: T[],
     chunkSize: number,
-    serverVersions?: Map<string, number>
+    serverVersions?: Map<string, number>,
+    ownerAuthUserId?: string
   ): Promise<void> {
     const totalRows = items.length;
 
@@ -233,6 +244,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
             isDirty: false,
             syncStatus: 'synced',
             ...(serverVersion !== undefined && { serverVersion }),
+            ...(ownerAuthUserId !== undefined && { ownerAuthUserId }),
           };
 
           await tx.store.put(row);

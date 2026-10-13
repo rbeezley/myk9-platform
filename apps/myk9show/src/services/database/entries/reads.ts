@@ -17,7 +17,6 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import {
   areEntryRowsFromSyncedShows,
   assertShowEntriesNotForeign,
-  excludeForeignShowRows,
   hasShowEntriesSynced,
   hasUnsavedWritesAmong,
 } from '@/services/replication/entriesShowSyncState';
@@ -707,7 +706,7 @@ export const getAllEntries = async () => {
         loadShowsMap(),
       ]);
       const sortedEntries = sortedCopy(
-        (await excludeForeignShowRows(entries)).filter(isLiveEntry),
+        entries.filter(isLiveEntry),
         compareDateDesc(getEntryCreatedSortValue)
       );
       const data = await mapReplicatedEntriesWithHandlerIdentity(sortedEntries, dogsMap, entry =>
@@ -963,9 +962,7 @@ export const getEntriesByTrial = async (trialId: string) => {
       const trialClassIds = new Set(trialClasses.map(c => c.id));
       const classesMap = buildMapFromArray(trialClasses, c => c.id);
       // Filter entries to only those whose classId is in the trial's classes (inner join)
-      const inTrial = await excludeForeignShowRows(
-        allEntries.filter(e => e.classId && trialClassIds.has(e.classId))
-      );
+      const inTrial = allEntries.filter(e => e.classId && trialClassIds.has(e.classId));
       const filtered = inTrial.filter(isLiveEntry);
       // Tombstones — a queued delete not yet synced. Required because this read
       // opts into `verifyOnlineWhenEmpty`: a replica holding only a soft-deleted
@@ -1021,11 +1018,10 @@ export const getEntriesByTrial = async (trialId: string) => {
 export const getEntriesByClass = async (classId: string) => {
   return readWithReplicationFallback({
     replication: async () => {
-      const [classEntries, dogsMap] = await Promise.all([
+      const [entries, dogsMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByClass(classId),
         loadDogsMap(),
       ]);
-      const entries = await excludeForeignShowRows(classEntries);
       // Locally-tombstoned entries (a queued delete not yet synced), reported so
       // the online verification excludes them and a stale server row cannot
       // resurrect a just-deleted entry. See read-shape.ts.

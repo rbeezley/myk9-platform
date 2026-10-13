@@ -312,6 +312,15 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
    * `undefined`, the raw table-global row is returned unchanged (back-compat).
    */
   async getSyncMetadata(scopeValue?: string): Promise<SyncMetadata | null> {
+    try {
+      return await this.getSyncMetadataOrThrow(scopeValue);
+    } catch {
+      return null;
+    }
+  }
+
+  /** {@link getSyncMetadata} that throws on a failed or timed-out read (already logged). */
+  async getSyncMetadataOrThrow(scopeValue?: string): Promise<SyncMetadata | null> {
     const METADATA_TIMEOUT_MS = 5000;
 
     const readPromise = (async () => {
@@ -331,7 +340,7 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
       return await Promise.race([readPromise, timeoutPromise]);
     } catch (error) {
       this.logger.error(`[${this.tableName}] Metadata read failed:`, error);
-      return null;
+      throw error;
     }
   }
 

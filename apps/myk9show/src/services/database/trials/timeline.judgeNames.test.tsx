@@ -192,10 +192,12 @@ function stubWarmStores(classes: Awaited<ReturnType<typeof hydrateReplicatedClas
   vi.spyOn(replicatedEntriesTable, 'getEntriesByShow').mockResolvedValue(
     RESTRICTED_CLASS_ROWS.map(cls => ({ id: `entry-${cls.id}`, classId: cls.id })) as never
   );
-  vi.spyOn(replicatedEntriesTable, 'getSyncMetadata').mockResolvedValue({
+  const syncedMetadata = {
     totalRows: RESTRICTED_CLASS_ROWS.length,
     syncedByAuthUserId: 'user-test',
-  } as never);
+  } as never;
+  vi.spyOn(replicatedEntriesTable, 'getSyncMetadata').mockResolvedValue(syncedMetadata);
+  vi.spyOn(replicatedEntriesTable, 'getSyncMetadataOrThrow').mockResolvedValue(syncedMetadata);
   vi.spyOn(replicatedEntriesTable, 'getCurrentAuthUserId').mockResolvedValue('user-test');
 }
 

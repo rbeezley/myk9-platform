@@ -8,7 +8,6 @@ import { supabase, createDatabaseError, type DatabaseError } from '../supabaseCl
 import { withReplicationFallback } from '../_shared/replication-fallback';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
-import { excludeForeignShowRows } from '@/services/replication/entriesShowSyncState';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
@@ -170,7 +169,7 @@ export const searchEntries = async (searchTerm: string) => {
         const classesMap = buildMapFromArray(classes, c => c.id);
         const showsMap = buildMapFromArray(shows, s => s.id);
         const term = searchTerm.toLowerCase();
-        const filtered = (await excludeForeignShowRows(allEntries))
+        const filtered = allEntries
           .filter(
             e =>
               (e.armband && e.armband.toLowerCase().includes(term)) ||

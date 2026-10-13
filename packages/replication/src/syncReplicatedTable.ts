@@ -3,7 +3,6 @@ import type { SyncOptions, SyncResult } from './types';
 import { repairStuckPendingFlagsOnce } from './core/repairStuckPendingFlags';
 import { reconcileDirtyRemoteRow } from './reconcileDirtyRemoteRow';
 import { countCoveredRows, staleCleanupKeepIds, getCoveredRemoteIds } from './replicaCoverage';
-import { decideScopeStamp, hasForeignUnsentWork } from './scopeStampDecision';
 import {
   configureConflictSurfacing as _configureConflictSurfacing,
   isConflictSurfacingEnabled,
@@ -38,14 +37,6 @@ export interface SyncReplicatedTableOptions extends Partial<SyncOptions> {
    *
    *  Per-call override takes precedence over `configureConflictSurfacing()`. */
   conflictSurfacingEnabled?: boolean;
-  /**
-   * MYK9-1133, opt-in. Stamp the scope (or, for an unscoped sync, the table)
-   * with the signed-in auth user, and make the first sync by an account that
-   * did not stamp the rows already here remove those clean rows before it
-   * stamps. Off by default: a table that does not opt in behaves exactly as
-   * before and carries no stamp.
-   */
-  stampSyncingAccount?: boolean;
 }
 
 /**
@@ -85,6 +76,14 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     return adapter.filterLocalRows ? adapter.filterLocalRows(rows, scope) : rows;
   };
 
+  /** Every row of the scope whoever owns it: only for the emptiness proof. */
+  const getAllRowsForScope = async (): Promise<TLocal[]> => {
+    const rows = await table.getAllOrThrowIncludingOtherAccounts(
+      adapter.filterLocalRows ? undefined : scope.value
+    );
+    return adapter.filterLocalRows ? adapter.filterLocalRows(rows, scope) : rows;
+  };
+
   try {
     // MYK9-1055: once per table instance, heal rows a pre-MYK9-1050 build left stuck.
     await repairStuckPendingFlagsOnce(table, adapter);
@@ -96,25 +95,21 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     // detect an unexpected replica recovery.
     const metadata = await table.getSyncMetadata(scope.value);
 
-    // MYK9-1133: a scope's rows belong to the account that synced them. Settle
-    // who is syncing before the fetch, and compare again after it.
-    const stampAccount = options.stampSyncingAccount === true;
-    const startAuthUserId = stampAccount ? await table.getCurrentAuthUserId() : null;
-    // An unscoped sync replaces rows under every scoped stamp too, so those
-    // stamps are part of what it must reconcile.
-    const scopedStates = scope.value === undefined ? Object.values(metadata?.scopes ?? {}) : [];
-    // This account has not yet vouched for the scope (another account's stamp,
-    // a pre-stamp cache, or never synced).
-    const claimingScope =
-      stampAccount &&
-      (metadata?.syncedByAuthUserId !== startAuthUserId ||
-        scopedStates.some(state => state.syncedByAuthUserId !== startAuthUserId));
-    // ...and it already holds rows no stamp of this account covers: they are
-    // not part of what this sync proves.
-    const scopeHoldsOthersRows =
-      claimingScope &&
-      (metadata?.totalRows !== undefined ||
-        scopedStates.some(state => state.totalRows !== undefined));
+    // MYK9-1133: on a table that keeps rows per account, the rows this sync
+    // writes belong to the account that was signed in BEFORE the fetch. Without
+    // a settled account nothing may be written (an ownerless row is invisible).
+    const accountOwned = table.usesAccountOwnedRows();
+    const syncingAuthUserId = accountOwned ? await table.getCurrentAuthUserId() : null;
+    if (accountOwned && syncingAuthUserId === null) {
+      throw new Error('The signed-in account could not be settled; nothing was applied.');
+    }
+    // A scope this account has not stamped is not known to be whole for it
+    // (another account's, a pre-ownership cache, or never synced): download it
+    // in full so every row is written, and owned, by this account.
+    const scopeNotStampedByMe =
+      accountOwned &&
+      metadata?.totalRows !== undefined &&
+      metadata.syncedByAuthUserId !== syncingAuthUserId;
 
     await table.updateSyncMetadata({ syncStatus: 'syncing', errorMessage: undefined });
 
@@ -173,7 +168,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       partialReplica ||
       overReplica ||
       fullSyncStale ||
-      (scopeHoldsOthersRows && startAuthUserId !== null);
+      scopeNotStampedByMe;
 
     // Observability: a full sync triggered by an empty local replica that metadata
     // says previously held rows is an unexpected eviction/heal — the silent failure
@@ -203,7 +198,16 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       forceFullSync,
     });
 
+    // The account must be the one that asked: rows fetched for another account
+    // are never applied, and never written ownerless.
+    if (accountOwned && (await table.getCurrentAuthUserId()) !== syncingAuthUserId) {
+      throw new Error('The signed-in account changed during the sync; nothing was applied.');
+    }
+
     const serverIds = new Set<string>();
+    // A server row this sync could not apply because another account holds
+    // unsent work on it: the download is not whole for this account.
+    let skippedForeignUnsentRow = false;
     const coveredServerIds = getCoveredRemoteIds(remoteRows, adapter);
     // Collect clean rows for a single bulk IDB transaction (batchSet perf path).
     const cleanRowsToCache: TLocal[] = [];
@@ -230,9 +234,15 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         }
       }
 
-      const existing = await table.getReplicatedRow(id);
+      // Whoever owns it: another account's UNSENT row must be seen to be kept.
+      const existing = await table.getReplicatedRowIncludingOtherAccounts(id);
+      const ownRow = !accountOwned || existing?.ownerAuthUserId === syncingAuthUserId;
+      if (existing?.isDirty && !ownRow) {
+        skippedForeignUnsentRow = true;
+        continue;
+      }
       const remoteLocal = { ...adapter.toLocalRow(remote), id } as TLocal;
-      const local = existing?.data ?? null;
+      const local = ownRow ? (existing?.data ?? null) : null;
       // Extract the server-side `version` column before toLocalRow() strips it.
       // Stored as serverVersion on the IDB row so the next offline UPDATE can
       // carry an OCC precondition (WHERE version = remoteServerVersion).
@@ -296,7 +306,8 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     if (cleanRowsToCache.length > 0) {
       await table.batchSet(
         cleanRowsToCache,
-        serverVersionMap.size > 0 ? serverVersionMap : undefined
+        serverVersionMap.size > 0 ? serverVersionMap : undefined,
+        syncingAuthUserId ?? undefined
       );
     }
 
@@ -304,7 +315,8 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     // the fetch share one RLS, so an RLS gap returns 0 and 0 -- "complete".
     // Over a warm replica that needs independent proof; otherwise skip cleanup.
     const scopeEmptyIsProven = async (): Promise<boolean> => {
-      if (serverIds.size > 0 || countServerBackedRows(localRows) === 0) return true;
+      if (serverIds.size > 0 || countServerBackedRows(await getAllRowsForScope()) === 0)
+        return true;
       try {
         return (await adapter.verifyScopeEmpty?.({ scope })) === true;
       } catch {
@@ -334,50 +346,29 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       }
     }
 
-    // MYK9-1133: the first sync by this account over rows it did not stamp
-    // removes every clean row the server did not return, whatever the adapter's
-    // own cleanup policy: those rows are another account's, and the empty-scope
-    // proof exists to guard THIS account's replica against an RLS gap. Dirty
-    // rows stay. A fetch known to be partial, or an unreadable store, leaves the
-    // scope unstamped (cold) instead.
-    const fetchComplete =
-      expectedRemoteRows === undefined || coveredServerIds.size >= expectedRemoteRows;
-    if (scopeHoldsOthersRows && startAuthUserId !== null && !staleCleanupCompleted) {
-      // An empty fetch is no proof the rows are gone: a claims or RLS gap reads
-      // 0 and 0 for a legitimate account (MYK9-880). Without the same proof the
-      // cleanup above needs, remove nothing and leave the scope unstamped (cold).
-      const keep =
-        fetchComplete && (await scopeEmptyIsProven())
-          ? await staleCleanupKeepIds(table, serverIds, await getLocalRowsForScope())
-          : null;
-      if (keep) {
-        rowsAffected += await table.removeStaleEntries(keep, { syncedBefore: fetchStartedAt });
-        staleCleanupCompleted = true;
-      }
-    }
-
     await adapter.afterSuccessfulSync?.({ scope, serverIds, localRows, staleCleanupCompleted });
 
-    // The stamp (see decideScopeStamp). Cleanup keeps unsent rows; one that this
-    // download did not return and the current account has no unsent work for is
-    // another account's, and the scope must not be stamped as if it were not.
+    // The scope stamp is only the marker that THIS account finished a whole
+    // download of it: the fetch covered the server's count, nothing was held
+    // back for another account's unsent work, an empty answer was proven, and
+    // the same account was signed in at both ends. Anything less never stamps. (Row visibility is the row owner's job, not this.)
     let scopeSyncedBy: string | null | undefined;
-    if (stampAccount) {
-      const endAuthUserId = await table.getCurrentAuthUserId();
-      const foreignWorkRemaining =
-        claimingScope && startAuthUserId !== null
-          ? await hasForeignUnsentWork(table, await getLocalRowsForScope(), serverIds)
-          : false;
-      const decision = decideScopeStamp({
-        stamping: true,
-        identityHeld: startAuthUserId !== null && startAuthUserId === endAuthUserId,
-        holdsOthersRows: scopeHoldsOthersRows,
-        cleanupCompleted: staleCleanupCompleted,
-        fetchComplete,
-        foreignWorkRemaining,
-      });
-      scopeSyncedBy =
-        decision === 'stamp' ? startAuthUserId : decision === 'clear' ? null : undefined;
+    if (accountOwned) {
+      const fetchComplete =
+        expectedRemoteRows === undefined || coveredServerIds.size >= expectedRemoteRows;
+      const whole =
+        fetchComplete &&
+        !skippedForeignUnsentRow &&
+        (serverIds.size > 0 || (await scopeEmptyIsProven())) &&
+        (await table.getCurrentAuthUserId()) === syncingAuthUserId;
+      // A sync that falls short leaves this account's own earlier whole-download
+      // stamp alone (its rows are still its own), but must clear any other stamp:
+      // it may have re-owned some of the rows that stamp vouched for.
+      scopeSyncedBy = whole
+        ? syncingAuthUserId
+        : metadata?.syncedByAuthUserId === syncingAuthUserId
+          ? undefined
+          : null;
     }
 
     // Server-authoritative, monotonic watermark, routed to the correct scope slot.

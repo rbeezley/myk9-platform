@@ -142,6 +142,11 @@ function withdrawEligibilityOf(
 }
 
 export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
+  /** Rows are kept per signed-in account: another account's cache is invisible (MYK9-1133). */
+  override usesAccountOwnedRows(): boolean {
+    return true;
+  }
+
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
   private _hasWarnedMissingShowScope = false;
@@ -495,8 +500,6 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       {
         forceFullSync: forceFullSync || needsReceiptReferenceRefresh,
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
-        // MYK9-1133: the show's rows belong to the account that synced them.
-        stampSyncingAccount: true,
       }
     );
 

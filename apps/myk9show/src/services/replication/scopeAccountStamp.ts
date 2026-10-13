@@ -1,31 +1,34 @@
 /**
- * Whose rows does a replicated scope hold? (MYK9-1133)
+ * Has THIS account finished a whole download of a replicated scope? (MYK9-1133)
  *
- * Sign-out keeps the IndexedDB replicas on purpose (MYK9-202), so on a shared
- * browser account B opens a replica account A synced. The sync stamps a scope
- * (or, for an unscoped sync, the table) with the auth user that synced it
- * (`SyncMetadata.syncedByAuthUserId`). Reads ask this module whether the rows
- * they are about to return are the signed-in account's:
+ * Rows are kept per account: a reader of an account-owned table sees only its
+ * own rows, so another account's cache can never leak. What that cannot say is
+ * whether the rows an account sees are the WHOLE scope, and a half-loaded scope
+ * reads as an empty list or a zero capacity. The sync stamps a scope (or, for an
+ * unscoped sync, the table) with the auth user that completed a whole download
+ * (`SyncMetadata.syncedByAuthUserId`); the reads below ask for it:
  *
- * - `owned`: the scope completed a sync stamped with the current account.
- * - `never-synced`: no sync has completed here. Whatever rows exist are this
- *   device's own local writes (cold inserts); that is the pre-existing
- *   MYK9-746 cold path, unchanged.
+ * - `owned`: the signed-in account's own whole download.
+ * - `never-synced`: no sync has completed. Any rows are this device's own local
+ *   writes (cold inserts), the MYK9-746 cold path, unchanged.
  * - `foreign`: a sync completed but not as the current account: another
- *   account's stamp, no stamp at all (a cache from before the stamp existed),
- *   or the current account cannot be settled (no session, or an expired one
- *   that cannot refresh offline). Unresolved is its own state: it never matches
- *   and never reads as "no rows".
+ *   account's stamp, no stamp (a cache from before ownership), or the current
+ *   account cannot be settled. Unresolved is its own state: it never matches and
+ *   never reads as "no rows".
+ * - `unreadable`: the metadata read failed or timed out. Not "never synced":
+ *   nothing may be assumed, so every guard treats it like `foreign`.
  */
 import type { SyncMetadata } from '@myk9/replication';
 
-/** The two table methods the check needs, so a test can hand it a real table. */
+/** The table methods the check needs, so a test can hand it a real table. */
 export interface StampedScopeTable {
   getSyncMetadata(scopeValue?: string): Promise<SyncMetadata | null>;
+  /** Throws on a failed read; preferred when present. */
+  getSyncMetadataOrThrow?(scopeValue?: string): Promise<SyncMetadata | null>;
   getCurrentAuthUserId(): Promise<string | null>;
 }
 
-export type ScopeOwnership = 'owned' | 'never-synced' | 'foreign';
+export type ScopeOwnership = 'owned' | 'never-synced' | 'foreign' | 'unreadable';
 
 export interface ScopeOwnershipOptions {
   /**
@@ -36,12 +39,21 @@ export interface ScopeOwnershipOptions {
   includeTableStamp?: boolean;
 }
 
-/** A replica read refused because the scope holds another account's rows. */
+/** A replica read refused because the scope is not this account's whole download. */
 export class ForeignReplicaScopeError extends Error {
   constructor(scopeId: string) {
     super(`The device copy of ${scopeId} was saved by a different account.`);
     this.name = 'ForeignReplicaScopeError';
   }
+}
+
+async function readMetadata(
+  table: StampedScopeTable,
+  scopeValue?: string
+): Promise<SyncMetadata | null> {
+  return table.getSyncMetadataOrThrow
+    ? table.getSyncMetadataOrThrow(scopeValue)
+    : table.getSyncMetadata(scopeValue);
 }
 
 async function ownershipOf(
@@ -58,38 +70,45 @@ export async function getScopeOwnership(
   scopeId: string,
   options: ScopeOwnershipOptions = {}
 ): Promise<ScopeOwnership> {
-  const scoped = await ownershipOf(await table.getSyncMetadata(scopeId), table);
-  if (scoped) return scoped;
-  if (options.includeTableStamp) {
-    const tableLevel = await ownershipOf(await table.getSyncMetadata(), table);
-    if (tableLevel) return tableLevel;
+  try {
+    const scoped = await ownershipOf(await readMetadata(table, scopeId), table);
+    if (scoped) return scoped;
+    if (options.includeTableStamp) {
+      const tableLevel = await ownershipOf(await readMetadata(table), table);
+      if (tableLevel) return tableLevel;
+    }
+    return 'never-synced';
+  } catch {
+    return 'unreadable';
   }
-  return 'never-synced';
 }
 
+/** Ownership of a table synced WITHOUT a scope (waitlist entries): its table-level stamp. */
+export async function getTableOwnership(table: StampedScopeTable): Promise<ScopeOwnership> {
+  try {
+    return (await ownershipOf(await readMetadata(table), table)) ?? 'never-synced';
+  } catch {
+    return 'unreadable';
+  }
+}
+
+const withheld = (ownership: ScopeOwnership) =>
+  ownership === 'foreign' || ownership === 'unreadable';
+
 /**
- * For a read that answers from the replica: refuse a foreign scope. Inside
- * `withReplicationFallback` the throw sends the read to PostgREST, which
- * answers as RLS does for this account online and fails (an error, never an
- * empty list) offline.
+ * For a read that answers from the replica: refuse a scope that is not this
+ * account's whole download. Inside `withReplicationFallback` the throw sends the
+ * read to PostgREST (RLS answers online) and returns an error offline: never an
+ * empty list or a zero.
  */
 export async function assertScopeNotForeign(
   table: StampedScopeTable,
   scopeId: string,
   options: ScopeOwnershipOptions = {}
 ): Promise<void> {
-  if ((await getScopeOwnership(table, scopeId, options)) === 'foreign') {
+  if (withheld(await getScopeOwnership(table, scopeId, options))) {
     throw new ForeignReplicaScopeError(scopeId);
   }
-}
-
-/**
- * Ownership of a table synced WITHOUT a scope (waitlist entries): the
- * table-level stamp an unscoped sync writes. A table never synced is
- * `never-synced`.
- */
-export async function getTableOwnership(table: StampedScopeTable): Promise<ScopeOwnership> {
-  return (await ownershipOf(await table.getSyncMetadata(), table)) ?? 'never-synced';
 }
 
 /** {@link assertScopeNotForeign} for an unscoped table. */
@@ -97,5 +116,5 @@ export async function assertTableNotForeign(
   table: StampedScopeTable,
   label: string
 ): Promise<void> {
-  if ((await getTableOwnership(table)) === 'foreign') throw new ForeignReplicaScopeError(label);
+  if (withheld(await getTableOwnership(table))) throw new ForeignReplicaScopeError(label);
 }

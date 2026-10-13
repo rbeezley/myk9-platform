@@ -39,7 +39,7 @@ async function readOwnEntriesMeta(showId: string): Promise<ScopedMeta | null> {
     replicatedEntriesTable.getSyncMetadata(showId) as Promise<ScopedMeta | null>,
     getScopeOwnership(replicatedEntriesTable, showId),
   ]);
-  return ownership === 'foreign' ? null : meta;
+  return ownership === 'foreign' || ownership === 'unreadable' ? null : meta;
 }
 
 async function gatherReadiness(

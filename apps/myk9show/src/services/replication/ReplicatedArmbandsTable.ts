@@ -83,6 +83,11 @@ export function rowToArmband(row: ArmbandRow): ReplicatedArmband {
 }
 
 export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> {
+  /** Rows are kept per signed-in account: another account's cache is invisible (MYK9-1133). */
+  override usesAccountOwnedRows(): boolean {
+    return true;
+  }
+
   constructor() {
     super('armbands', { logger });
   }
@@ -197,7 +202,7 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
       this,
       adapter,
       syncScopeId ? { value: syncScopeId } : {},
-      { forceFullSync: true, stampSyncingAccount: true }
+      { forceFullSync: true }
     );
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {

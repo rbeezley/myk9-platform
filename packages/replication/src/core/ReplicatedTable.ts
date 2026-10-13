@@ -41,7 +41,7 @@ import {
   type ReplicatedTableSubscriptionOptions,
 } from './ReplicatedTableCache';
 import { ReplicatedTableBatchManager } from './ReplicatedTableBatch';
-import { ReplicatedTableQueryManager } from './ReplicatedTableQuery';
+import { ReplicatedTableQueryManager, type RowVisibility } from './ReplicatedTableQuery';
 import { RowLockRegistry } from './RowLockRegistry';
 import {
   applyConflictSnapshot,
@@ -247,7 +247,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    */
   public async hasUnsyncedLocalWork(rowId: string): Promise<boolean> {
     const id = String(rowId);
-    const row = await this.getReplicatedRow(id);
+    // Whoever owns the row: its unsent work is not ours to purge either.
+    const row = await this.getReplicatedRowIncludingOtherAccounts(id);
     if (!row) return false;
     const data = row.data as { _localOnly?: unknown } | null;
     if (row.isDirty || data?._localOnly === true) return true;
@@ -440,6 +441,39 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * dirty state without relying on app-specific fields.
    */
   async getReplicatedRow(id: string): Promise<ReplicatedRow<T> | null> {
+    const row = await this.getReplicatedRowIncludingOtherAccounts(id);
+    if (!row) return null;
+    const visible = await this.visibleRows();
+    return !visible || visible(row as ReplicatedRow<never>) ? row : null;
+  }
+
+  /**
+   * Whether this table keeps rows per account (MYK9-1133). Such a table stores
+   * each row's `ownerAuthUserId` and every reader sees only its own account's
+   * rows, so a replica left by one account is invisible to the next. Default
+   * off: a table that does not opt in is unchanged.
+   */
+  usesAccountOwnedRows(): boolean {
+    return false;
+  }
+
+  /**
+   * Which stored rows a reader may return: all of them, or only the signed-in
+   * account's. An account that cannot be settled sees none. The ONE place a read
+   * is narrowed; every collection reader and `getReplicatedRow` goes through it.
+   */
+  private async visibleRows(): Promise<RowVisibility | undefined> {
+    if (!this.usesAccountOwnedRows()) return undefined;
+    const current = await this.getCurrentAuthUserId();
+    return row => current !== null && row.ownerAuthUserId === current;
+  }
+
+  /**
+   * The stored row whoever owns it. For the sync engine and the cache's own
+   * bookkeeping only (dirty detection, conflict code): a reader that returned
+   * this would hand one account another's rows.
+   */
+  async getReplicatedRowIncludingOtherAccounts(id: string): Promise<ReplicatedRow<T> | null> {
     const db = await this.init();
     const normalizedId = String(id);
     const key = [this.tableName, normalizedId];
@@ -542,6 +576,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     // refused as an INSERT. `attempt.rowExisted`, recorded inside the first
     // transaction, carries that fact into the retry.
     const attempt: SetAttempt = { rowExisted: false };
+    const ownerAuthUserId = await this.rowOwnerFor();
     try {
       const result = await withQuotaEviction(
         () =>
@@ -552,7 +587,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
             expectedVersion,
             incomingServerVersion,
             composeRetrySetOptions(options, attempt.rowExisted),
-            attempt
+            attempt,
+            ownerAuthUserId
           ),
         () => this.relieveQuota(),
         this.logger
@@ -597,7 +633,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     expectedVersion?: number,
     incomingServerVersion?: number,
     options?: ReplicatedSetOptions,
-    attempt?: SetAttempt
+    attempt?: SetAttempt,
+    ownerAuthUserId?: string
   ): Promise<ReplicatedSetResult> {
     const db = await this.init();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
@@ -656,6 +693,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       isDirty,
       existingRow,
       incomingServerVersion,
+      ownerAuthUserId,
       now: Date.now(),
     });
 
@@ -1018,7 +1056,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const db = await this.init();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
     const index = tx.store.index('tableName');
-    const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
+    const visible = await this.visibleRows();
+    const rows = ((await index.getAll(this.tableName)) as ReplicatedRow<T>[]).filter(
+      row => !visible || visible(row as ReplicatedRow<never>)
+    );
     return getConflictSnapshots(rows);
   }
 
@@ -1081,7 +1122,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * Get all rows for this table
    */
   async getAll(licenseKey?: string): Promise<T[]> {
-    return this.presentRows(await this.queryManager.getAll(licenseKey));
+    return this.presentRows(await this.queryManager.getAll(licenseKey, await this.visibleRows()));
   }
 
   /**
@@ -1089,7 +1130,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * would drive a user-visible or operational claim.
    */
   async getAllWithStatus(licenseKey?: string): Promise<ReplicatedReadResult<T>> {
-    return this.presentResult(await this.queryManager.getAllWithStatus(licenseKey));
+    return this.presentResult(
+      await this.queryManager.getAllWithStatus(licenseKey, await this.visibleRows())
+    );
   }
 
   /**
@@ -1098,7 +1141,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * (MYK9-788).
    */
   async getByShowWithStatus(showId: string): Promise<ReplicatedReadResult<T>> {
-    return this.presentResult(await this.queryManager.getByShowWithStatus(showId));
+    return this.presentResult(
+      await this.queryManager.getByShowWithStatus(showId, await this.visibleRows())
+    );
   }
 
   /**
@@ -1109,6 +1154,17 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    */
   async getAllOrThrow(licenseKey?: string): Promise<T[]> {
     return this.rowsOrThrow(await this.getAllWithStatus(licenseKey));
+  }
+
+  /**
+   * Every row whoever owns it, or throw when the device could not read them.
+   * For the sync engine's emptiness proof only: a reader would hand one
+   * account another's rows.
+   */
+  async getAllOrThrowIncludingOtherAccounts(licenseKey?: string): Promise<T[]> {
+    return this.rowsOrThrow(
+      this.presentResult(await this.queryManager.getAllWithStatus(licenseKey))
+    );
   }
 
   /**
@@ -1184,16 +1240,41 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   // --- Batch Operations ---
 
-  async batchSet(items: T[], serverVersions?: Map<string, number>): Promise<void> {
-    return this.batchManager.batchSet(items, serverVersions);
+  /**
+   * Downloaded (clean) rows. On an account-owned table they are written as the
+   * `ownerAuthUserId` account: the sync passes the account it captured before
+   * its fetch; any other caller writes as the signed-in account.
+   */
+  async batchSet(
+    items: T[],
+    serverVersions?: Map<string, number>,
+    ownerAuthUserId?: string
+  ): Promise<void> {
+    return this.batchManager.batchSet(
+      items,
+      serverVersions,
+      await this.rowOwnerFor(ownerAuthUserId)
+    );
   }
 
   async batchSetChunked(
     items: T[],
     chunkSize?: number,
-    serverVersions?: Map<string, number>
+    serverVersions?: Map<string, number>,
+    ownerAuthUserId?: string
   ): Promise<void> {
-    return this.batchManager.batchSetChunked(items, chunkSize, serverVersions);
+    return this.batchManager.batchSetChunked(
+      items,
+      chunkSize,
+      serverVersions,
+      await this.rowOwnerFor(ownerAuthUserId)
+    );
+  }
+
+  /** The owner a write stamps on its rows: undefined on a table that keeps no owners. */
+  private async rowOwnerFor(explicit?: string): Promise<string | undefined> {
+    if (!this.usesAccountOwnedRows()) return undefined;
+    return explicit ?? (await this.getCurrentAuthUserId()) ?? undefined;
   }
 
   async batchDelete(ids: string[]): Promise<void> {
@@ -1285,6 +1366,15 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     return this.cacheManager.getSyncMetadata(scopeValue);
   }
 
+  /**
+   * {@link getSyncMetadata} that throws when the read fails or times out instead
+   * of answering null, so a caller can tell "never synced" from "could not
+   * tell" (MYK9-1133).
+   */
+  async getSyncMetadataOrThrow(scopeValue?: string): Promise<SyncMetadata | null> {
+    return this.cacheManager.getSyncMetadataOrThrow(scopeValue);
+  }
+
   async updateSyncMetadata(
     updates: Partial<SyncMetadata>,
     options?: {
@@ -1311,7 +1401,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   // ========================================
 
   async getAllLocalIds(): Promise<Set<string>> {
-    return this.queryManager.getAllLocalIds();
+    return this.queryManager.getAllLocalIds(await this.visibleRows());
   }
 
   async removeStaleEntries(
@@ -1321,7 +1411,12 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const db = await this.init();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const index = tx.store.index('tableName');
-    const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
+    // Only the syncing account's own rows are ever stale to it: another
+    // account's cache must survive this account's sync (MYK9-1133).
+    const visible = await this.visibleRows();
+    const rows = ((await index.getAll(this.tableName)) as ReplicatedRow<T>[]).filter(
+      row => !visible || visible(row as ReplicatedRow<never>)
+    );
 
     let removedCount = 0;
 

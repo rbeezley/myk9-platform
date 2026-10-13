@@ -42,27 +42,6 @@ export async function assertShowEntriesNotForeign(
   await assertScopeNotForeign(table, showId);
 }
 
-/**
- * The rows of these that are not another account's: drops every row whose show
- * completed a sync stamped by someone else (or by nobody). For reads keyed
- * below the show or on nothing at all. A row naming no show cannot come from a
- * show-scoped sync, so it is kept, as is a row of a show that never synced
- * (this device's own local writes, the MYK9-746 cold path).
- */
-export async function excludeForeignShowRows<T extends { showId?: string | null | undefined }>(
-  rows: readonly T[],
-  table: ScopedSyncMetadataReader = replicatedEntriesTable
-): Promise<T[]> {
-  const showIds = [...new Set(rows.map(row => row.showId).filter((id): id is string => !!id))];
-  const foreign = new Set<string>();
-  await Promise.all(
-    showIds.map(async showId => {
-      if ((await getScopeOwnership(table, showId)) === 'foreign') foreign.add(showId);
-    })
-  );
-  return rows.filter(row => !row.showId || !foreign.has(row.showId));
-}
-
 /** The two reads the unsaved-write check needs. */
 export interface ShowEntryRowStateReader {
   getEntriesByShow(showId: string): Promise<readonly { id: string }[]>;

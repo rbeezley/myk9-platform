@@ -7,6 +7,7 @@ interface BuildReplicatedRowForSetOptions<T extends { id: string }> {
   isDirty: boolean;
   existingRow?: ReplicatedRow<T> | undefined;
   incomingServerVersion?: number | undefined;
+  ownerAuthUserId?: string | undefined;
   now: number;
 }
 
@@ -17,6 +18,7 @@ export function buildReplicatedRowForSet<T extends { id: string }>({
   isDirty,
   existingRow,
   incomingServerVersion,
+  ownerAuthUserId,
   now,
 }: BuildReplicatedRowForSetOptions<T>): ReplicatedRow<T> {
   const normalizedData = { ...data, id } as T;
@@ -63,6 +65,7 @@ export function buildReplicatedRowForSet<T extends { id: string }>({
     ...(baseVersion !== undefined && { baseVersion }),
     ...(baseServerVersion !== undefined && { baseServerVersion }),
     ...(serverVersion !== undefined && { serverVersion }),
+    ...(ownerAuthUserId !== undefined && { ownerAuthUserId }),
     // A local (dirty) write keeps the server token, so it keeps the record of
     // how this device last moved it; a server write replaces both.
     ...(isDirty && existingRow?.lastOwnUpload && { lastOwnUpload: existingRow.lastOwnUpload }),

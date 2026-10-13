@@ -7,12 +7,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReplicatedEntriesTable, type ReplicatedEntry } from './ReplicatedEntriesTable';
 import { MutationManager } from '@myk9/replication';
+import { getScopeOwnership } from './scopeAccountStamp';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { readPersistedAuthUserId } from '@/services/database/persistedAuthUserId';
 import { signInReplicatedTable } from '@/test/utils/signedInReplication';
 import {
   areEntryRowsFromSyncedShows,
-  excludeForeignShowRows,
+  assertShowEntriesNotForeign,
   hasShowEntriesSynced,
   hasUnsavedLocalEntryWrites,
 } from './entriesShowSyncState';
@@ -149,24 +150,15 @@ describe('hasShowEntriesSynced (MYK9-746)', () => {
       expect(await hasShowEntriesSynced('show-1', table)).toBe(false);
     });
 
-    it('rows of a show another account synced are dropped; never-synced and show-less rows are kept', async () => {
-      await stamp('user-b');
-      await table.updateSyncMetadata(
-        { totalRows: 1 },
-        { scopeValue: 'show-3', scopeSyncedBy: 'user-a' }
-      );
-      const rows = [
-        entry('theirs', 'show-1'),
-        entry('mine', 'show-3'),
-        entry('local-only', 'show-9'),
-        { id: 'no-show' } as ReplicatedEntry,
-      ];
+    it('a metadata read that fails is not a never-synced scope: it reads as not this account', async () => {
+      await stamp('user-a');
+      vi.spyOn(table, 'getSyncMetadataOrThrow').mockRejectedValue(new Error('IndexedDB timed out'));
 
-      expect((await excludeForeignShowRows(rows, table)).map(row => row.id)).toEqual([
-        'mine',
-        'local-only',
-        'no-show',
-      ]);
+      expect(await getScopeOwnership(table, 'show-1')).toBe('unreadable');
+      expect(await hasShowEntriesSynced('show-1', table)).toBe(false);
+      await expect(assertShowEntriesNotForeign('show-1', table)).rejects.toMatchObject({
+        name: 'ForeignReplicaScopeError',
+      });
     });
   });
 

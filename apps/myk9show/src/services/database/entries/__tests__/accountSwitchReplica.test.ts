@@ -31,8 +31,6 @@ import { createDatabaseError } from '@/services/database/databaseError';
  * a mis-seeded replica cannot pass for the wrong reason.
  */
 
-type SignedIn = 'A' | 'B';
-
 const ENTRY_A1 = {
   id: 'entry-a1',
   showId: 'show-y',
@@ -179,6 +177,17 @@ function ids(result: { data: unknown }): string[] {
 
 const CURRENT_USER_ID = { A: 'user-a', B: 'user-b' } as const;
 
+/**
+ * Rows are kept per account (MYK9-1133), so the real table hands a reader only
+ * rows it wrote. This stand-in models that: the replica's rows are owned by the
+ * account that stamped the show (none, for a pre-ownership cache), and a reader
+ * sees them only when it is that account.
+ */
+function visibleReplica() {
+  const current = state.user ? CURRENT_USER_ID[state.user] : null;
+  return state.stampedBy !== undefined && state.stampedBy === current ? state.replica : [];
+}
+
 beforeEach(() => {
   state.user = 'A';
   state.offline = false;
@@ -187,19 +196,19 @@ beforeEach(() => {
 
   mockEntriesTable.getEntriesByShow.mockReset();
   mockEntriesTable.getEntriesByShow.mockImplementation(async (showId: string) =>
-    state.replica.filter(row => row.showId === showId)
+    visibleReplica().filter(row => row.showId === showId)
   );
   mockEntriesTable.getEntriesByClass.mockReset();
   mockEntriesTable.getEntriesByClass.mockImplementation(async (classId: string) =>
-    state.replica.filter(row => row.classId === classId)
+    visibleReplica().filter(row => row.classId === classId)
   );
   for (const read of [mockEntriesTable.getAll, mockEntriesTable.getAllOrThrow]) {
     read.mockReset();
-    read.mockImplementation(async () => [...state.replica]);
+    read.mockImplementation(async () => [...visibleReplica()]);
   }
   mockEntriesTable.getEntryById.mockReset();
   mockEntriesTable.getEntryById.mockImplementation(
-    async (id: string) => state.replica.find(row => row.id === id) ?? null
+    async (id: string) => visibleReplica().find(row => row.id === id) ?? null
   );
   // show-y completed a sync on this device, as the account in `stampedBy`.
   mockEntriesTable.getSyncMetadata.mockReset();
@@ -301,6 +310,18 @@ describe('entries replica after an account switch (MYK9-1133)', () => {
       const result = await getEntriesByClass('class-y');
       expect(ids(result)).toEqual([]);
       expect(result.error ?? null).not.toBeNull();
+    });
+
+    it('an unreadable sync-metadata read fails closed: A is sent to the server, offline it is an error', async () => {
+      mockEntriesTable.getSyncMetadata.mockRejectedValue(new Error('IndexedDB timed out'));
+      expect(ids(await getEntriesByClass('class-y'))).toEqual(A_IDS);
+
+      state.offline = true;
+      // The account's own rows may ride along, but the read says it is unverified.
+      expect((await getEntriesByClass('class-y')).error ?? null).not.toBeNull();
+      const roster = await getEntriesForShow('show-y');
+      expect(ids(roster)).toEqual([]);
+      expect(roster.error ?? null).not.toBeNull();
     });
 
     it('A, then B, then A: B restamps the show, and A reads cold until A syncs again', async () => {

@@ -67,6 +67,13 @@ export interface ReplicatedRow<T> {
    */
   lastOwnUpload?: { from: number; to: number };
   conflict?: ReplicationConflictSnapshot<T>; // Persisted conflict snapshot
+  /**
+   * The auth user whose session wrote this row (a sync download, or a local
+   * write), on tables that keep rows per account (MYK9-1133). A reader of such a
+   * table sees only its own account's rows; a row with no owner (written before
+   * this field existed) is visible to nobody until a sync rewrites it.
+   */
+  ownerAuthUserId?: string;
 }
 
 /**

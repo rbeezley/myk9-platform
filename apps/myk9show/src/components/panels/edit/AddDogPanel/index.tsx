@@ -292,7 +292,11 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
             `[${EDIT_REGISTRATION_ATTR}="${CSS.escape(editedId)}"]`
           )
         : dogForm?.querySelector<HTMLElement>(`[${ADD_REGISTRATION_ATTR}]`);
-    return target ?? dogForm;
+    // The opener can be gone (the Essential tab's shortcut shows only until a registration
+    // exists): the selected tab is still a real control to resume from (MYK9-1116).
+    return (
+      target ?? dogForm?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]') ?? dogForm
+    );
   }, []);
   usePanelModeFocus({
     mode: subMode,

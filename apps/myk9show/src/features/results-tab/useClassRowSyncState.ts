@@ -6,12 +6,15 @@
  * saved check cannot show here, and the screen would look as if the click did nothing.
  *
  * Same signal as `useClassUnsyncedScores` (`hasUnsyncedLocalWork`, re-read on the table's own
- * change notice, never polled), on the classes table. A persisted conflict snapshot is told apart
+ * change notice), on the classes table, plus a short re-check while waiting (see below). A persisted conflict snapshot is told apart
  * so the message can point at the "changed elsewhere" choice.
  *
  * `null` until the first read and when the queue cannot be read: unknown is not "settled".
  */
 import { useEffect, useState } from 'react';
+
+/** How often a class waiting to sync is re-read; see the effect below. */
+const WAITING_RECHECK_MS = 1_500;
 
 import { replicatedClassesTable } from '@/services/replication';
 
@@ -51,7 +54,19 @@ export function useClassRowSyncState(classId: string | null): ClassRowSyncState 
     };
   }, [classId, notices]);
 
-  return classId && state?.classId === classId ? state.value : null;
+  const value = classId && state?.classId === classId ? state.value : null;
+
+  // Some transitions empty this class's queue without a classes-table notice: Take theirs
+  // discards the queued write after its replace has notified, and an upload ack marks the row
+  // synced with a raw write. Event-driven alone, Verify could stay on "waiting" for a change
+  // that will never sync, so re-read on a short timer while, and only while, the class waits.
+  useEffect(() => {
+    if (value !== 'waiting') return;
+    const timer = setTimeout(() => setNotices(count => count + 1), WAITING_RECHECK_MS);
+    return () => clearTimeout(timer);
+  }, [value, notices]);
+
+  return value;
 }
 
 /** What to tell the secretary when the saved check cannot show yet, or null when it can. */

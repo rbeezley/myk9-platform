@@ -389,6 +389,40 @@ describe('Results tab on the real replicated class rows', () => {
       expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled();
     });
 
+    it('recovers from waiting when the queue empties without a table notice (Take theirs discard, upload ack)', async () => {
+      await renderUncheckedAndTick();
+      // Some transitions empty this class's queue without notifying the classes table: Take
+      // theirs discards the queued write after its replace has notified; an upload ack marks
+      // the row synced with a raw write. Hold "unsynced" through one real notice, then clear
+      // it silently, which is exactly what the hook sees in those cases.
+      let unsynced = true;
+      const spy = vi
+        .spyOn(replicatedClassesTable, 'hasUnsyncedLocalWork')
+        .mockImplementation(async () => unsynced);
+      try {
+        const row = (await replicatedClassesTable.get('class-open'))!;
+        await replicatedClassesTable.set('class-open', { ...row }, false);
+        await waitFor(() => expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled());
+        expect(screen.getByText(/Waiting for this class.s changes to sync/)).toBeInTheDocument();
+
+        // Let every notice from that write drain (leading and trailing debounce edges), so
+        // nothing table-driven is left to re-read for us.
+        await new Promise(resolve => setTimeout(resolve, 500));
+        expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled();
+        unsynced = false;
+
+        await waitFor(() => expect(screen.getByRole('button', SAVE_CHECK)).toBeEnabled(), {
+          timeout: 4_000,
+        });
+        expect(
+          screen.queryByText(/Waiting for this class.s changes to sync/)
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: /matches the paper/ })).toBeChecked();
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
     it('names an unresolved conflict and points at the Keep mine / Take theirs choice, then unlocks once resolved', async () => {
       await renderUncheckedAndTick();
 

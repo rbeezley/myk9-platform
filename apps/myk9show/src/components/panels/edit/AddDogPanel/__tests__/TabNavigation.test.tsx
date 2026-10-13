@@ -98,7 +98,7 @@ describe('TabNavigation compact (inline) strip', () => {
     renderTabs({ ...props, compact: true });
     for (const icon of leadingIcons()) expect(icon).toHaveClass('hidden', 'sm:block');
     for (const tab of tabs()) {
-      expect(tab).toHaveClass('whitespace-normal', 'px-0', 'text-[11px]', 'sm:px-4', 'sm:text-sm');
+      expect(tab).toHaveClass('whitespace-normal', 'px-0', 'text-xs', 'sm:px-4', 'sm:text-sm');
       expect(tab).not.toHaveClass('whitespace-nowrap', 'px-4');
     }
     // The completion checks still show: they carry meaning, the icons do not.

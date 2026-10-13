@@ -14,6 +14,8 @@ export interface TabFit {
   /** Pixels the label text box pokes past the tab's left/right edge (<= 0 = inside). */
   labelPastLeft: number;
   labelPastRight: number;
+  /** Computed font-size of the label in px. INTENT.md floors text at 14px. */
+  labelFontSize: number;
 }
 
 export interface AddDogPanelGeometry {
@@ -51,6 +53,7 @@ export async function measureAddDogPanel(callName: Locator): Promise<AddDogPanel
         scrollOverflow: tab.scrollWidth - tab.clientWidth,
         labelPastLeft: t.left - l.left,
         labelPastRight: l.right - t.right,
+        labelFontSize: parseFloat(getComputedStyle(label ?? tab).fontSize),
       };
     });
     return {

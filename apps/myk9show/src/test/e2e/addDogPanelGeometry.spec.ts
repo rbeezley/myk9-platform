@@ -31,6 +31,8 @@ async function openAddDog(page: Page) {
 
 for (const width of WIDTHS) {
   test(`Add Dog panel geometry @ ${width}px`, async ({ page }) => {
+    // Sign-in plus a cold dev-server compile can eat most of the default 30s.
+    test.setTimeout(90000);
     await page.setViewportSize({ width, height: 800 });
     await openAddDog(page);
 
@@ -62,6 +64,8 @@ for (const width of WIDTHS) {
       expect(tab.scrollOverflow, `${tab.label}: ${measured}`).toBeLessThanOrEqual(0);
       expect(tab.labelPastLeft, `${tab.label}: ${measured}`).toBeLessThanOrEqual(0);
       expect(tab.labelPastRight, `${tab.label}: ${measured}`).toBeLessThanOrEqual(0);
+      // docs/INTENT.md: never below 14px. Fit is solved in layout, not by shrinking text.
+      expect(tab.labelFontSize, `${tab.label}: ${measured}`).toBeGreaterThanOrEqual(14);
     }
 
     // Fill the Essential tab (unsaved form state) so the REAL green check renders.

@@ -30,7 +30,9 @@ import { FriendlySaveError } from '@/utils/friendlySaveError';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { replicatedDogsTable } from './ReplicatedDogsTable';
 import {
+  asServerBacked,
   buildRegistrationUpdatePayload,
+  registrationInsertRow,
   isPlaceholder,
   registrationToDbRow,
   rowToRegistration,
@@ -44,6 +46,7 @@ import {
   fetchVisibleRegistrationIds,
   type RegistrationIdPassResult,
   pruneRegistrationsMissingFromServer,
+  markServerBacked,
   removeConfirmedDeletes,
   removeResolvedPlaceholders,
   snapshotRegistrationRevisions,
@@ -54,6 +57,7 @@ import {
   cancelUnsentAdd,
   type EditableRegistration,
   hasRefusedInsert,
+  queuedWorkBefore,
   listenForConfirmedDeletes,
   loadDogRegistrationsForEdit,
   loadRowForWrite,
@@ -98,6 +102,12 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
         this.confirmDeleted(ids)
       );
     }
+  }
+
+  /** A server row with these ids was seen: their device-only adds landed (`asServerBacked`). */
+  async markServerBacked(seen: ReadonlyMap<string, number | undefined>): Promise<void> {
+    const changed = await markServerBacked(await this.init(), this.getTableName(), seen);
+    if (changed.length > 0) await this.notifyListeners();
   }
 
   /** Remove rows whose queued DELETE the server confirmed, and their placeholders. */
@@ -145,10 +155,15 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   async sync(): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
     const fence = this.deletionFence.open();
+    const downloaded = new Map<string, number | undefined>();
     try {
       const adapter: SyncReplicatedTableAdapter<DogRegistrationRow, ReplicatedDogRegistration> = {
         ...this.getRowRefetchAdapter(),
-        fetchRemoteRows: ({ since }) => fetchChangedRegistrations(since),
+        fetchRemoteRows: async ({ since }) => {
+          const rows = await fetchChangedRegistrations(since);
+          for (const row of rows) downloaded.set(String(row.id), row.version);
+          return rows;
+        },
         getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
         resolveConflict: (local, remote) => this.resolveConflict(local, remote),
       };
@@ -165,6 +180,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
         return { ...result, error: getSyncErrorMessage(result.error) };
       }
       if (!result.success) return result;
+      await this.markServerBacked(downloaded);
 
       // Side effect only: a failure here never turns a good download into a
       // failed sync.
@@ -222,6 +238,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
         snapshot
       );
       if (deleted.length > 0) await this.notifyListeners();
+      await this.markServerBacked(new Map([...serverIds].map(id => [id, undefined])));
 
       const localIds = await this.getAllLocalIds();
       const missing = [...serverIds].filter(id => !localIds.has(id));
@@ -313,7 +330,15 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     };
     // Starts with the token the INSERT will create (NEW_REGISTRATION_VERSION),
     // so a later edit carries an OCC precondition: clean with it, then dirty.
-    await this.set(registration.id, registration, false, undefined, NEW_REGISTRATION_VERSION);
+    // The clean seed holds no device-only flags, so a sync's merge against it
+    // keeps them until `markServerBacked` clears both together.
+    await this.set(
+      registration.id,
+      asServerBacked(registration),
+      false,
+      undefined,
+      NEW_REGISTRATION_VERSION
+    );
     await this.set(registration.id, registration, true);
     await this.queueMutation(
       'INSERT',
@@ -340,16 +365,11 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       throw new FriendlySaveError('This registration is being deleted.');
     }
     if (isPlaceholder(row.data)) throw registrationAwaitsItsDog();
-    // An add the server has not acknowledged: the edit waits for its INSERT
-    // (and the dog's create). One the server refused cannot be edited.
-    let dependsOn: string[] = [];
-    if (row.data._localOnly === true) {
-      if (await hasRefusedInsert(this, this.queue, id)) throw registrationAddRefused();
-      dependsOn = [
-        ...(await this.getPendingMutationIdsForRow(id)),
-        ...(await replicatedDogsTable.getPendingMutationIdsForRow(row.data.dogId)),
-      ];
+    // An add the server refused cannot be edited: discard it and add again.
+    if (row.data._localOnly === true && (await hasRefusedInsert(this, this.queue, id))) {
+      throw registrationAddRefused();
     }
+    const dependsOn = await queuedWorkBefore(this, row.data);
     await this.set(id, updated, true);
     await this.queueMutation(
       'UPDATE',
@@ -374,12 +394,13 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       await cancelUnsentAdd(this, this.queue, id);
       return;
     }
+    const dependsOn = await queuedWorkBefore(this, row.data);
     await this.set(
       id,
       { ...row.data, _pendingDelete: true, _lastModified: new Date(), _syncStatus: 'pending' },
       true
     );
-    await this.queueMutation('DELETE', id, { id });
+    await this.queueMutation('DELETE', id, { id }, dependsOn.length > 0 ? dependsOn : undefined);
   }
 
   /**
@@ -469,26 +490,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
 
   /** The INSERT payload for a registration created on this device. */
   toSupabaseRow(registration: ReplicatedDogRegistration): Record<string, unknown> {
-    return {
-      id: registration.id,
-      dog_id: registration.dogId,
-      organization: registration.organization,
-      registration_number: registration.registrationNumber,
-      // Carried so the merged local+server list keeps the resolver's ordering.
-      // Local creation does not currently assign `isPrimary`, so it is omitted
-      // from the mutation payload and the server default remains authoritative.
-      created_at: registration.createdAt,
-      registered_name: registration.registeredName ?? null,
-      breed: registration.breed ?? null,
-      variety: registration.variety ?? null,
-      status: registration.status ?? 'pending',
-      registration_date: registration.registrationDate ?? null,
-      application_number: registration.applicationNumber ?? null,
-      submission_date: registration.submissionDate ?? null,
-      certificate: registration.certificate ?? null,
-      verified: registration.verified ?? false,
-      updated_at: new Date().toISOString(),
-    };
+    return registrationInsertRow(registration);
   }
 }
 

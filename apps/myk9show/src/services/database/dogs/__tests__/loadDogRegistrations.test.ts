@@ -447,4 +447,22 @@ describe('loadDogRegistrations batching', () => {
     expect(result.byDog.get('dog-0')).toHaveLength(1);
     expect(result.byDog.get('dog-200')).toHaveLength(1);
   });
+
+  // Codex round 3: one batch failing with a NETWORK error flipped the whole
+  // read to the device copy and threw the batches that succeeded away; with an
+  // empty replica, those dogs lost their registrations.
+  it('keeps the batches that succeeded when a later one fails as unreachable', async () => {
+    mockLocalGet.mockResolvedValue([]);
+    mockServerIn
+      .mockReturnValueOnce({ data: [{ id: 'reg-1', dog_id: 'dog-0' }], error: null })
+      .mockReturnValueOnce({ data: null, error: { message: 'TypeError: Failed to fetch' } })
+      .mockReturnValueOnce({ data: [{ id: 'reg-2', dog_id: 'dog-200' }], error: null });
+
+    const result = await loadDogRegistrations(ids);
+
+    expect(result.byDog.get('dog-0')).toEqual([expect.objectContaining({ id: 'reg-1' })]);
+    expect(result.byDog.get('dog-200')).toEqual([expect.objectContaining({ id: 'reg-2' })]);
+    expect(result.registrationsReadComplete).toBe(false);
+    expect(result.serverError).toBeTruthy();
+  });
 });

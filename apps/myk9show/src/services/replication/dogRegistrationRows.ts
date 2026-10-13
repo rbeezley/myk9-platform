@@ -176,6 +176,45 @@ export function isPlaceholder(row: Pick<ReplicatedDogRegistration, '_localOnly' 
   return row._localOnly === true && row._queuedAdd !== true;
 }
 
+/**
+ * A device-only add proven to be on the server: a server row with its id was
+ * seen, so its INSERT landed even if the acknowledgement was lost (Codex
+ * round 3). It becomes an ordinary server-backed row: both device-only flags
+ * go together, so it is never mistaken for a placeholder.
+ */
+export function asServerBacked(row: ReplicatedDogRegistration): ReplicatedDogRegistration {
+  const serverBacked = { ...row };
+  delete serverBacked._localOnly;
+  delete serverBacked._queuedAdd;
+  return serverBacked;
+}
+
+/** The INSERT payload for a registration created on this device. */
+export function registrationInsertRow(
+  registration: ReplicatedDogRegistration
+): Record<string, unknown> {
+  return {
+    id: registration.id,
+    dog_id: registration.dogId,
+    organization: registration.organization,
+    registration_number: registration.registrationNumber,
+    // Carried so the merged local+server list keeps the resolver's ordering.
+    // Local creation does not currently assign `isPrimary`, so it is omitted
+    // from the mutation payload and the server default remains authoritative.
+    created_at: registration.createdAt,
+    registered_name: registration.registeredName ?? null,
+    breed: registration.breed ?? null,
+    variety: registration.variety ?? null,
+    status: registration.status ?? 'pending',
+    registration_date: registration.registrationDate ?? null,
+    application_number: registration.applicationNumber ?? null,
+    submission_date: registration.submissionDate ?? null,
+    certificate: registration.certificate ?? null,
+    verified: registration.verified ?? false,
+    updated_at: new Date().toISOString(),
+  };
+}
+
 /** The fields twin matching reads, in either row shape. */
 export interface TwinFields {
   dogId: string;

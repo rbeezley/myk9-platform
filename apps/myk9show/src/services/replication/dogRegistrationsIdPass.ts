@@ -16,6 +16,7 @@ import {
 import { supabase } from '@/services/database/supabaseClient';
 import {
   DOG_REGISTRATIONS_PAGE_SIZE,
+  asServerBacked,
   indexServerTwins,
   isPlaceholder,
   resolvedPlaceholderIds,
@@ -177,6 +178,36 @@ export async function pruneRegistrationsMissingFromServer(
 
   await tx.done;
   return result;
+}
+
+/**
+ * Mark device-only adds the server has shown it holds (`asServerBacked`), in
+ * one transaction. `seen` maps each server row id to its version when known;
+ * a known version becomes the row's server token. Called by the changes pass,
+ * the ID pass and the server-first readers. Returns the ids it changed.
+ */
+export async function markServerBacked(
+  db: ReplicaDb,
+  tableName: string,
+  seen: ReadonlyMap<string, number | undefined>
+): Promise<string[]> {
+  if (seen.size === 0) return [];
+  const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+  const changed: string[] = [];
+  for (const [id, version] of seen) {
+    const row = (await tx.store.get([tableName, id])) as
+      ReplicatedRow<ReplicatedDogRegistration> | undefined;
+    if (!row?.data || (row.data._localOnly !== true && row.data._queuedAdd !== true)) continue;
+    if (row.data._localOnly === true && isPlaceholder(row.data)) continue;
+    await tx.store.put({
+      ...row,
+      data: asServerBacked(row.data),
+      ...(version !== undefined ? { serverVersion: version } : {}),
+    });
+    changed.push(id);
+  }
+  await tx.done;
+  return changed;
 }
 
 /**

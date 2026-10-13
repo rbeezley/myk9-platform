@@ -3,8 +3,9 @@
  * (MYK9-1090 plan §2, MYK9-1129 item 5). The rule both server-first readers
  * share, so the dog page and the dog reads agree:
  *
- * - an unsent edit (a dirty row) WINS over the server row with the same id:
- *   until it uploads, the device's value is the newest one the user saw;
+ * - an unsent edit or add WINS over the server row with the same id: until
+ *   it uploads, the device's value is the newest one the user saw (an add
+ *   whose acknowledgement was lost is on the server already, Codex round 3);
  * - a row waiting on its delete hides the server row it deletes;
  * - a queued add shows unless the read already holds it, including a re-add
  *   of a registration whose old row is being deleted (new id, same number);
@@ -33,7 +34,7 @@ export function mergeUnsentWork(
   const deletedIds = new Set(deleting.map(row => row.id));
   const live = unsent.filter(row => row._pendingDelete !== true);
   const edits = new Map(
-    live.filter(row => row._localOnly !== true).map(row => [row.id, registrationToDbRow(row)])
+    live.filter(row => !isPlaceholder(row)).map(row => [row.id, registrationToDbRow(row)])
   );
   const serverIds = new Set(server.map(row => String(row.id)));
 
@@ -46,7 +47,6 @@ export function mergeUnsentWork(
       .filter(row => !deletedIds.has(String(row.id)))
       .map(row => edits.get(String(row.id)) ?? row),
     ...[...edits.values()].filter(row => !serverIds.has(row.id)),
-    ...live.filter(row => row._localOnly === true && !isPlaceholder(row)).map(registrationToDbRow),
     ...placeholders.filter(row => !resolved.has(row.id)).map(registrationToDbRow),
   ];
 }

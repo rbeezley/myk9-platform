@@ -17,6 +17,7 @@ import { appendRegistrations } from '../dogs/reads';
 import { mergeUnsentWork } from '@/services/replication/dogRegistrationMerge';
 import { getRegistrationsByDog } from './reads';
 import { serverUnreachable } from './serverUnreachable';
+import { unsentWorkProvenByServer } from './unsentWork';
 
 export interface RegistrationsForDog {
   rows: DogRegistrationReadRow[];
@@ -49,7 +50,7 @@ export async function readRegistrationsForDog(dogId: string): Promise<Registrati
     source === 'server'
       ? mergeUnsentWork(
           server.data,
-          await replicatedDogRegistrationsTable.getUnsentWorkForDogs([dogId]).catch(() => [])
+          await unsentWorkProvenByServer([dogId], server.data).catch(() => [])
         )
       : await replicatedDogRegistrationsTable.getRegistrationsForDogs([dogId]);
   const merged = new Map<string, Record<string, unknown>[]>();

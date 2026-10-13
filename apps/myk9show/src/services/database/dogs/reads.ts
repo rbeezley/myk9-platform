@@ -25,6 +25,7 @@ import {
 import { mergeUnsentWork } from '@/services/replication/dogRegistrationMerge';
 import { parseRestoreDogResult } from './restoreDogResult';
 import { serverUnreachable } from '../registrations/serverUnreachable';
+import { unsentWorkProvenByServer } from '../registrations/unsentWork';
 
 // PostgREST OR filter for dogs owned or co-owned by a person
 const ownedByPerson = (personId: string) => `owner_id.eq.${personId},co_owner_id.eq.${personId}`;
@@ -178,7 +179,7 @@ export interface DogRegistrationsResult {
 
 async function readServerRegistrations(
   dogIds: string[]
-): Promise<{ data: Record<string, unknown>[] | null; error: unknown }> {
+): Promise<{ data: Record<string, unknown>[] | null; error: unknown; answered: number }> {
   // A thrown network error must surface as `error`, not reject the whole
   // read: the device copy may still be able to answer.
   try {
@@ -189,6 +190,7 @@ async function readServerRegistrations(
     // error because the rejection carries no CORS headers (MYK9-272).
     const rows: Record<string, unknown>[] = [];
     let firstError: unknown = null;
+    let answered = 0;
     for (const batch of chunk(dogIds, ID_CHUNK_SIZE)) {
       const result = await supabase
         .from('dog_registrations')
@@ -204,11 +206,12 @@ async function readServerRegistrations(
       // dropping it here would make those dogs read as having no
       // registrations at all.
       if (result.error) firstError = firstError ?? result.error;
+      else answered++;
       rows.push(...((result.data ?? []) as Record<string, unknown>[]));
     }
-    return { data: rows, error: firstError };
+    return { data: rows, error: firstError, answered };
   } catch (error) {
-    return { data: null, error };
+    return { data: null, error, answered: 0 };
   }
 }
 
@@ -226,13 +229,18 @@ export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistr
   // The device copy answers only when the server could not be reached. A
   // server that answered with an error stays a server read: unsent work is
   // merged, `serverError` is set and the read is not complete.
-  const source = serverResult.error && serverUnreachable(serverResult.error) ? 'device' : 'server';
+  // A batch that could not be reached does not discard the batches the
+  // server answered (Codex round 3): those stay a server read, incomplete.
+  const source =
+    serverResult.error && serverResult.answered === 0 && serverUnreachable(serverResult.error)
+      ? 'device'
+      : 'server';
   let unsent: ReplicatedDogRegistration[] = [];
   let deviceRows: Record<string, unknown>[] = [];
   let localError: unknown = null;
   try {
     if (source === 'server') {
-      unsent = await replicatedDogRegistrationsTable.getUnsentWorkForDogs(dogIds);
+      unsent = await unsentWorkProvenByServer(dogIds, serverResult.data);
     } else {
       deviceRows = await replicatedDogRegistrationsTable.getRegistrationsForDogs(dogIds);
     }

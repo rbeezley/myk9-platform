@@ -13,6 +13,7 @@ import {
   type ReplicatedDogRegistration,
 } from './dogRegistrationRows';
 import { fetchRegistrationsWhere } from './dogRegistrationsServer';
+import { replicatedDogsTable } from './ReplicatedDogsTable';
 import { mergeUnsentWork } from './dogRegistrationMerge';
 import { registrationsNeedConnection } from './dogRegistrationWrites';
 
@@ -109,6 +110,21 @@ export async function hasRefusedInsert(
   return (await queue.getFailedMutations()).some(
     m => m.tableName === table.getTableName() && String(m.rowId) === id && m.operation === 'INSERT'
   );
+}
+
+/**
+ * Work an edit or delete must upload after: the row's own queued mutations
+ * (its INSERT, which may replay as a duplicate after a lost acknowledgement)
+ * and its dog's (a create still queued). Never out of order after a backoff.
+ */
+export async function queuedWorkBefore(
+  table: { getPendingMutationIdsForRow(rowId: string): Promise<string[]> },
+  row: ReplicatedDogRegistration
+): Promise<string[]> {
+  return [
+    ...(await table.getPendingMutationIdsForRow(row.id)),
+    ...(await replicatedDogsTable.getPendingMutationIdsForRow(row.dogId)),
+  ];
 }
 
 /** Drop this user's queued mutations for a registration row. */

@@ -14,6 +14,7 @@
  */
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { unzipSync, zipSync } from 'fflate';
 
 /**
  * Env vars whose VALUES are secrets, matched by NAME pattern rather than a hand-kept
@@ -44,10 +45,72 @@ export function collectSecrets(env: NodeJS.ProcessEnv = process.env): string[] {
   return [...seen];
 }
 
+/**
+ * The spellings a secret takes in a stored artifact: verbatim, and JSON-escaped
+ * (the HTML reporter's report.json and every `.json` file write `"` and `\\` as
+ * escapes, so a password containing either would slip past a verbatim match).
+ */
+export function secretForms(secret: string): string[] {
+  const escaped = JSON.stringify(secret).slice(1, -1);
+  return escaped === secret ? [secret] : [secret, escaped];
+}
+
 export function scrubSecrets(text: string, secrets: readonly string[]): string {
   let out = text;
-  for (const secret of secrets) out = out.split(secret).join('***REDACTED***');
+  for (const secret of secrets) {
+    for (const form of secretForms(secret)) out = out.split(form).join('***REDACTED***');
+  }
   return out;
+}
+
+/**
+ * MYK9-1128. The HTML reporter does not store per-test data (step titles such as
+ * `Fill "<password>"`) as text: it appends a base64 ZIP to index.html inside
+ * `<template id="playwrightReportBase64">` (playwright lib/runner `_writeReportData`).
+ * Plain-text scrubbing of index.html cannot see inside it. This decodes that zip,
+ * scrubs every entry (recursing into nested zips), re-zips and re-encodes it.
+ */
+export const REPORT_TEMPLATE =
+  /(<template id="playwrightReportBase64">data:application\/zip;base64,)([^<]*)(<\/template>)/;
+
+/** Scrubs every entry of a zip; returns the input untouched when nothing matched. */
+export function scrubZip(zip: Uint8Array, secrets: readonly string[]): Uint8Array {
+  const entries = unzipSync(zip);
+  let changed = false;
+  const out: Record<string, Uint8Array<ArrayBufferLike>> = {};
+  for (const [name, data] of Object.entries(entries)) {
+    let next: Uint8Array = data;
+    if (name.endsWith('.zip')) {
+      next = scrubZip(data, secrets);
+    } else {
+      const text = Buffer.from(data).toString('utf8');
+      const scrubbed = scrubSecrets(text, secrets);
+      if (scrubbed !== text) next = Buffer.from(scrubbed, 'utf8');
+    }
+    if (next !== data) changed = true;
+    out[name] = next;
+  }
+  return changed ? zipSync(out) : zip;
+}
+
+/** Scrubs the report data embedded in an HTML report; other HTML is just text-scrubbed. */
+export function scrubReportHtml(html: string, secrets: readonly string[]): string {
+  const match = REPORT_TEMPLATE.exec(html);
+  let out = html;
+  if (match) {
+    const zip = new Uint8Array(Buffer.from(match[2], 'base64'));
+    const scrubbed = scrubZip(zip, secrets);
+    if (scrubbed !== zip) {
+      const encoded = Buffer.from(scrubbed).toString('base64');
+      out =
+        html.slice(0, match.index) +
+        match[1] +
+        encoded +
+        match[3] +
+        html.slice(match.index + match[0].length);
+    }
+  }
+  return scrubSecrets(out, secrets);
 }
 
 /**
@@ -86,7 +149,9 @@ export async function scrubArtifactSecrets(...outputDirs: string[]): Promise<voi
   for (const outputDir of outputDirs) {
     for await (const file of walk(outputDir)) {
       const original = await readFile(file, 'utf8');
-      const scrubbed = scrubSecrets(original, secrets);
+      const scrubbed = file.endsWith('.html')
+        ? scrubReportHtml(original, secrets)
+        : scrubSecrets(original, secrets);
       if (scrubbed !== original) await writeFile(file, scrubbed, 'utf8');
     }
   }

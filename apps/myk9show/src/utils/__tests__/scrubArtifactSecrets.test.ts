@@ -9,6 +9,14 @@ describe('scrubArtifactSecrets', () => {
     );
   });
 
+  it('also scrubs the JSON-escaped spelling of a secret with quotes or backslashes', () => {
+    const secret = 'pa"ss\\word-Fake1';
+    const json = JSON.stringify({ title: `Fill "${secret}"` });
+    expect(json).not.toContain(secret);
+    expect(scrubSecrets(json, [secret])).not.toContain('ss\\\\word');
+    expect(scrubSecrets(json, [secret])).toContain('REDACTED');
+  });
+
   it('leaves text alone when there are no secrets', () => {
     expect(scrubSecrets('nothing to see', [])).toBe('nothing to see');
   });

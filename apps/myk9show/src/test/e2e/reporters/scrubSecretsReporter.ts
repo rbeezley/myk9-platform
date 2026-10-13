@@ -27,17 +27,24 @@ import { ARTIFACT_ROOTS, scrubArtifactSecrets } from '../../../utils/scrubArtifa
 // shells out to `playwright --list`.
 const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 
-async function scrubAll(): Promise<void> {
-  await scrubArtifactSecrets(...ARTIFACT_ROOTS.map(dir => path.join(APP_ROOT, dir)));
+/** `outputDirs` overrides the default roots (used by the hermetic report test). */
+interface ScrubSecretsReporterOptions {
+  outputDirs?: string[];
 }
 
 class ScrubSecretsReporter implements Reporter {
+  private readonly dirs: string[];
+
+  constructor(options: ScrubSecretsReporterOptions = {}) {
+    this.dirs = options.outputDirs ?? ARTIFACT_ROOTS.map(dir => path.join(APP_ROOT, dir));
+  }
+
   async onEnd(): Promise<void> {
-    await scrubAll();
+    await scrubArtifactSecrets(...this.dirs);
   }
 
   async onExit(): Promise<void> {
-    await scrubAll();
+    await scrubArtifactSecrets(...this.dirs);
   }
 
   printsToStdio(): boolean {

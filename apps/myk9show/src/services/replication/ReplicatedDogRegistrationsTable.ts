@@ -42,6 +42,7 @@ import {
 import {
   fetchVisibleRegistrationIds,
   pruneRegistrationsMissingFromServer,
+  removeResolvedPlaceholders,
   snapshotRegistrationRevisions,
 } from './dogRegistrationsIdPass';
 export type { DogRegistrationReadRow, DogRegistrationRow, ReplicatedDogRegistration };
@@ -169,7 +170,21 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     } catch (err) {
       logger.warn(`[${this.getTableName()}] ID pass skipped`, err);
     }
+    // After the downloads are stored, so a twin the changes pass or the
+    // hydration just brought is seen.
+    try {
+      await this.removeResolvedPlaceholders();
+    } catch (err) {
+      logger.warn(`[${this.getTableName()}] Placeholder cleanup skipped`, err);
+    }
     return result;
+  }
+
+  /** Remove placeholders whose server twin is here, or whose dog is gone (by content). */
+  async removeResolvedPlaceholders(): Promise<number> {
+    const deleted = await removeResolvedPlaceholders(await this.init(), this.getTableName());
+    if (deleted.length > 0) await this.notifyListeners();
+    return deleted.length;
   }
 
   /**

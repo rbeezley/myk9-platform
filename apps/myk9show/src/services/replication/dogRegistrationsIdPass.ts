@@ -14,7 +14,11 @@ import {
   type ReplicatedRow,
 } from '@myk9/replication';
 import { supabase } from '@/services/database/supabaseClient';
-import { DOG_REGISTRATIONS_PAGE_SIZE, type ReplicatedDogRegistration } from './dogRegistrationRows';
+import {
+  DOG_REGISTRATIONS_PAGE_SIZE,
+  registrationIdentityKey,
+  type ReplicatedDogRegistration,
+} from './dogRegistrationRows';
 
 /** The replica's IndexedDB handle (`ReplicatedTable.init()`). */
 type ReplicaDb = Awaited<ReturnType<DatabaseManager['getDatabase']>>;
@@ -67,6 +71,27 @@ export async function snapshotRegistrationRevisions(
 
 const DOGS_TABLE = 'dogs';
 
+/** The open transaction's stores the two removal passes read. */
+async function openRemovalTransaction(db: ReplicaDb) {
+  const tx = db.transaction(
+    [
+      REPLICATION_STORES.REPLICATED_TABLES,
+      REPLICATION_STORES.PENDING_MUTATIONS,
+      REPLICATION_STORES.FAILED_MUTATIONS,
+    ],
+    'readwrite'
+  );
+  const failed = tx.objectStore(REPLICATION_STORES.FAILED_MUTATIONS).index('tableName');
+  return {
+    tx,
+    rows: tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES),
+    pending: tx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).index('tableName_rowId'),
+    // Failed mutations of every user count: keeping a row is the safe error.
+    failedRowIds: async (table: string) =>
+      new Set(((await failed.getAll(table)) as PendingMutation[]).map(m => String(m.rowId))),
+  };
+}
+
 /**
  * Remove local registrations the server no longer shows this account, in ONE
  * IndexedDB transaction over the replica and both mutation queues, so no write
@@ -76,12 +101,9 @@ const DOGS_TABLE = 'dogs';
  * - it was written after the pass began (revision differs from `snapshot`, or
  *   it is not in the snapshot at all);
  * - it is dirty, or a pending or failed mutation names it;
- * - it is a `_localOnly` placeholder whose dog has not reached the server: the
- *   dog's replica row is dirty or `_localOnly`, or a pending or failed `dogs`
- *   mutation names it. Once the dog has uploaded, the server holds its
- *   registrations under server ids, so the placeholder goes.
- *
- * Failed mutations of every user count: keeping a row is the safe error.
+ * - it is a `_localOnly` placeholder. The server gives its copy a new id, so
+ *   the id set says nothing about a placeholder; `removeResolvedPlaceholders`
+ *   decides by content instead.
  */
 export async function pruneRegistrationsMissingFromServer(
   db: ReplicaDb,
@@ -93,49 +115,20 @@ export async function pruneRegistrationsMissingFromServer(
   const candidates = [...snapshot.keys()].filter(id => !serverIds.has(id));
   if (candidates.length === 0) return result;
 
-  const tx = db.transaction(
-    [
-      REPLICATION_STORES.REPLICATED_TABLES,
-      REPLICATION_STORES.PENDING_MUTATIONS,
-      REPLICATION_STORES.FAILED_MUTATIONS,
-    ],
-    'readwrite'
-  );
-  const rows = tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES);
-  const pending = tx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).index('tableName_rowId');
-  const failed = tx.objectStore(REPLICATION_STORES.FAILED_MUTATIONS).index('tableName');
-  const failedIds = async (table: string) =>
-    new Set(((await failed.getAll(table)) as PendingMutation[]).map(m => String(m.rowId)));
-  const failedRegistrations = await failedIds(tableName);
-  const failedDogs = await failedIds(DOGS_TABLE);
-
-  // The dog's own row counts as well as its queue: an offline create writes
-  // the dog dirty before it queues the upload, so between the two there is
-  // no dogs mutation yet but the dog has not reached the server either.
-  const dogHoldsLocalWork = async (dogId: string): Promise<boolean> => {
-    const dog = (await rows.get([DOGS_TABLE, dogId])) as
-      ReplicatedRow<{ _localOnly?: boolean }> | undefined;
-    return (
-      dog?.isDirty === true ||
-      dog?.data?._localOnly === true ||
-      failedDogs.has(dogId) ||
-      (await pending.count([DOGS_TABLE, dogId])) > 0
-    );
-  };
+  const { tx, rows, pending, failedRowIds } = await openRemovalTransaction(db);
+  const failed = await failedRowIds(tableName);
 
   for (const id of candidates) {
     const row = (await rows.get([tableName, id])) as
       ReplicatedRow<ReplicatedDogRegistration> | undefined;
     if (!row) continue;
-    const ownWork =
+    const keep =
+      row.data?._localOnly === true ||
       row.version !== snapshot.get(id) ||
       row.isDirty ||
-      failedRegistrations.has(id) ||
+      failed.has(id) ||
       (await pending.count([tableName, id])) > 0;
-    const dogId = String(row.data?.dogId ?? '');
-    const placeholderAwaitingDog =
-      row.data?._localOnly === true && (await dogHoldsLocalWork(dogId));
-    if (ownWork || placeholderAwaitingDog) {
+    if (keep) {
       result.kept.push(id);
     } else {
       await rows.delete([tableName, id]);
@@ -145,4 +138,57 @@ export async function pruneRegistrationsMissingFromServer(
 
   await tx.done;
   return result;
+}
+
+/**
+ * Remove offline-created placeholders that are resolved, judged by content and
+ * never by timing (Codex review rounds 4 and 5: every timing guard had a
+ * window). In ONE IndexedDB transaction over the replica and both mutation
+ * queues, run after the sync has stored the downloaded rows, a clean
+ * `_localOnly` placeholder with no queued work of its own is removed when:
+ *
+ * - its server twin is here: a clean server row with the same dog,
+ *   organization and number (`registrationIdentityKey`); or
+ * - it is an orphan: its dog is no longer in the dogs replica and no pending
+ *   or failed `dogs` mutation names that dog (the create was discarded, or
+ *   the RPC mapped it onto an existing dog).
+ *
+ * Otherwise it stays, including after its dog uploaded but before the
+ * server's copies arrived: offline, it is the device's only copy.
+ */
+export async function removeResolvedPlaceholders(
+  db: ReplicaDb,
+  tableName: string
+): Promise<string[]> {
+  const { tx, rows, pending, failedRowIds } = await openRemovalTransaction(db);
+  const all = (await rows
+    .index('tableName')
+    .getAll(tableName)) as ReplicatedRow<ReplicatedDogRegistration>[];
+  const failedRegistrations = await failedRowIds(tableName);
+  const failedDogs = await failedRowIds(DOGS_TABLE);
+  const twins = new Set(
+    all
+      .filter(row => !row.isDirty && row.data?._localOnly !== true)
+      .map(row => registrationIdentityKey(row.data))
+      .filter((key): key is string => key !== null)
+  );
+
+  const deleted: string[] = [];
+  for (const row of all) {
+    if (row.data?._localOnly !== true || row.isDirty || failedRegistrations.has(row.id)) continue;
+    if ((await pending.count([tableName, row.id])) > 0) continue;
+    const key = registrationIdentityKey(row.data);
+    const dogId = String(row.data.dogId);
+    const orphan =
+      !(await rows.get([DOGS_TABLE, dogId])) &&
+      !failedDogs.has(dogId) &&
+      (await pending.count([DOGS_TABLE, dogId])) === 0;
+    if ((key !== null && twins.has(key)) || orphan) {
+      await rows.delete([tableName, row.id]);
+      deleted.push(row.id);
+    }
+  }
+
+  await tx.done;
+  return deleted;
 }

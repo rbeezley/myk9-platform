@@ -5,7 +5,7 @@
  * not uploaded.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { databaseManager } from '@myk9/replication';
+import { databaseManager, REPLICATION_STORES } from '@myk9/replication';
 import { ReplicatedDogRegistrationsTable } from '../ReplicatedDogRegistrationsTable';
 import { ReplicatedDogsTable, type ReplicatedDog } from '../ReplicatedDogsTable';
 import { DOG_REGISTRATION_ID_PASS_MAX_PAGES } from '../dogRegistrationsIdPass';
@@ -133,70 +133,6 @@ describe('registrations ID pass', () => {
     expect(await table.get('reg-gone')).toMatchObject({ registeredName: 'Rewritten' });
   });
 
-  it('keeps a placeholder while its dog still has a pending dog mutation', async () => {
-    const id = await placeholderFor('dog-offline');
-    await putQueueRecord('pending', { id: 'm-dog', tableName: 'dogs', rowId: 'dog-offline' });
-    serverShows('reg-gone');
-
-    await table.reconcileWithServerIds();
-
-    expect(await table.get(id)).not.toBeNull();
-  });
-
-  it('keeps a placeholder while its dog has a failed dog mutation', async () => {
-    const id = await placeholderFor('dog-offline');
-    await putQueueRecord('failed', { id: 'm-dog', tableName: 'dogs', rowId: 'dog-offline' });
-    serverShows('reg-gone');
-
-    await table.reconcileWithServerIds();
-
-    expect(await table.get(id)).not.toBeNull();
-  });
-
-  // An offline create writes the dog dirty, then queues its upload: between
-  // the two, no dogs mutation names the dog yet (Codex review, P2).
-  it('keeps a placeholder while its dog row is dirty with nothing queued yet', async () => {
-    const id = await placeholderFor('dog-offline');
-    // Dirty alone, so this pins the dirty check apart from the local-only one.
-    await new ReplicatedDogsTable().set(
-      'dog-offline',
-      { ...offlineDog(), _localOnly: undefined },
-      true
-    );
-    serverShows('reg-gone');
-
-    await table.reconcileWithServerIds();
-
-    expect(await table.get(id)).not.toBeNull();
-  });
-
-  it('keeps a placeholder while its dog exists only on this device', async () => {
-    const id = await placeholderFor('dog-offline');
-    await new ReplicatedDogsTable().set('dog-offline', offlineDog(), false);
-    serverShows('reg-gone');
-
-    await table.reconcileWithServerIds();
-
-    expect(await table.get(id)).not.toBeNull();
-  });
-
-  it('removes a placeholder once its dog has uploaded', async () => {
-    const id = await placeholderFor('dog-offline');
-    // The uploaded dog: clean and no longer local-only.
-    await new ReplicatedDogsTable().set(
-      'dog-offline',
-      { ...offlineDog(), _localOnly: undefined },
-      false
-    );
-    // Another dog's queued work does not hold this placeholder.
-    await putQueueRecord('pending', { id: 'm-dog', tableName: 'dogs', rowId: 'dog-other' });
-    serverShows('reg-gone');
-
-    await table.reconcileWithServerIds();
-
-    expect(await table.get(id)).toBeNull();
-  });
-
   it('removes nothing when the page cap is reached', async () => {
     const fullPage = Array.from({ length: 1000 }, (_, i) => ({ id: `srv-${i}` }));
     installRegistrationsServer(
@@ -218,5 +154,108 @@ describe('registrations ID pass', () => {
 
     expect(await table.get('reg-gone')).not.toBeNull();
     expect(await table.get('reg-kept')).not.toBeNull();
+  });
+});
+
+/** The dog row as the upload leaves it: clean and no longer local-only. */
+function uploadedDog(): ReplicatedDog {
+  return { ...offlineDog(), _localOnly: undefined };
+}
+
+/** The server's copy of the placeholder's registration, under a server id. */
+const serverTwin = () =>
+  serverRow({
+    id: 'srv-twin',
+    dog_id: 'dog-offline',
+    organization: 'AKC',
+    registration_number: 'SR99',
+  });
+
+// Placeholders are removed by content, never by the server id set (Codex
+// rounds 4 and 5: every timing-based guard had a window).
+describe('offline-created placeholders', () => {
+  it('survive an ID pass when their dog uploads while the id response is in flight', async () => {
+    const id = await placeholderFor('dog-offline');
+    const dogs = new ReplicatedDogsTable();
+    await dogs.set('dog-offline', offlineDog(), true);
+    await putQueueRecord('pending', { id: 'm-dog', tableName: 'dogs', rowId: 'dog-offline' });
+    const server = serverShows('reg-gone');
+    server.onIdPage = async () => {
+      // The dog's upload is acknowledged: clean row, queue record gone. The
+      // id set being read predates the server rows that replace the placeholder.
+      await dogs.markAsSynced('dog-offline');
+      await dogs.set('dog-offline', uploadedDog(), false);
+      expect((await dogs.getReplicatedRow('dog-offline'))?.isDirty).toBe(false);
+      const db = await databaseManager.getDatabase('dog_registrations');
+      await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, 'm-dog');
+    };
+
+    await table.reconcileWithServerIds();
+
+    expect(await table.get(id)).not.toBeNull();
+  });
+
+  it('are removed once their server twin is on the device', async () => {
+    const id = await placeholderFor('dog-offline');
+    await new ReplicatedDogsTable().set('dog-offline', uploadedDog(), false);
+    await table.applyServerRows([serverTwin()]);
+
+    await table.removeResolvedPlaceholders();
+
+    expect(await table.get(id)).toBeNull();
+    expect(await table.get('srv-twin')).not.toBeNull();
+  });
+
+  it('stay while the dog has uploaded but its server rows have not arrived', async () => {
+    const id = await placeholderFor('dog-offline');
+    await new ReplicatedDogsTable().set('dog-offline', uploadedDog(), false);
+
+    await table.removeResolvedPlaceholders();
+
+    expect(await table.get(id)).not.toBeNull();
+  });
+
+  it('are removed as orphans when their dog is gone and nothing is queued for it', async () => {
+    const id = await placeholderFor('dog-offline');
+    // Another dog's queued work does not hold this placeholder.
+    await putQueueRecord('pending', { id: 'm-dog', tableName: 'dogs', rowId: 'dog-other' });
+
+    await table.removeResolvedPlaceholders();
+
+    expect(await table.get(id)).toBeNull();
+  });
+
+  it('stay as orphans while a failed dog mutation still names the dog', async () => {
+    const id = await placeholderFor('dog-offline');
+    await putQueueRecord('failed', { id: 'm-dog', tableName: 'dogs', rowId: 'dog-offline' });
+
+    await table.removeResolvedPlaceholders();
+
+    expect(await table.get(id)).not.toBeNull();
+  });
+
+  it('stay as orphans while a pending dog mutation still names the dog', async () => {
+    const id = await placeholderFor('dog-offline');
+    await putQueueRecord('pending', { id: 'm-dog', tableName: 'dogs', rowId: 'dog-offline' });
+
+    await table.removeResolvedPlaceholders();
+
+    expect(await table.get(id)).not.toBeNull();
+  });
+
+  it('are removed in the sync whose changes pass brings their twin', async () => {
+    const id = await placeholderFor('dog-offline');
+    await new ReplicatedDogsTable().set('dog-offline', uploadedDog(), false);
+    installRegistrationsServer(
+      newServer({
+        changePages: [[serverRow({ id: 'reg-kept' }), serverTwin()]],
+        idPages: [[{ id: 'reg-kept' }, { id: 'srv-twin' }]],
+      })
+    );
+
+    await table.sync();
+
+    expect(await table.get(id)).toBeNull();
+    expect(await table.get('srv-twin')).not.toBeNull();
   });
 });

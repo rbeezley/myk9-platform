@@ -153,7 +153,12 @@ export function buildRegistrationUpdatePayload(
   };
 }
 
-function identityKey(registration: ReplicatedDogRegistration): string | null {
+/**
+ * The one definition of "the same registration": same dog, organization and
+ * number, normalised. Readers hide a placeholder by it and the sync removes a
+ * placeholder by it.
+ */
+export function registrationIdentityKey(registration: ReplicatedDogRegistration): string | null {
   const organization = normalizeDogRegistrationOrganization(registration.organization);
   const number = normalizeDogRegistrationNumber(registration.registrationNumber);
   return organization && number ? `${registration.dogId}|${organization}|${number}` : null;
@@ -171,10 +176,12 @@ export function visibleRegistrationRows(
 ): ReplicatedDogRegistration[] {
   const wanted = new Set(dogIds);
   const live = rows.filter(row => wanted.has(row.dogId) && row._pendingDelete !== true);
-  const serverIdentities = new Set(live.filter(row => row._localOnly !== true).map(identityKey));
+  const serverIdentities = new Set(
+    live.filter(row => row._localOnly !== true).map(registrationIdentityKey)
+  );
   return live.filter(row => {
     if (row._localOnly !== true) return true;
-    const key = identityKey(row);
+    const key = registrationIdentityKey(row);
     return key === null || !serverIdentities.has(key);
   });
 }

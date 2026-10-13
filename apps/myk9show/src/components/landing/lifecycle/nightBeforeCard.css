@@ -1,0 +1,126 @@
+/* Night-before checklist (plan D11). */
+.landing-v2 .lc-night {
+  max-width: 560px;
+  padding: 1.5rem 1.75rem;
+  background: #fff;
+  border: 1px solid #e8e2d4;
+  border-radius: 20px;
+  box-shadow: 0 30px 60px -40px rgb(60 40 20 / 0.45);
+}
+.landing-v2 .lc-night-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.landing-v2 .lc-night-when {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--terracotta-600);
+}
+.landing-v2 .lc-night-title {
+  font-size: 1.1875rem;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+.landing-v2 .lc-night-summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 0.75rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  background: #f1ece2;
+  color: var(--stone-700);
+  white-space: nowrap;
+}
+.landing-v2 .lc-night-summary[data-all='true'] {
+  background: #e3f2e6;
+  color: #1e5b2e;
+}
+.landing-v2 .lc-night-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.landing-v2 .lc-night-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.6875rem 0;
+  border-top: 1px solid #efe9dd;
+}
+.landing-v2 .lc-night-mark {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  box-sizing: border-box;
+  border: 2px solid #e3dccd;
+  background: #fff center / 14px no-repeat;
+  transform: scale(0.92);
+  transition:
+    background-color 260ms ease,
+    border-color 260ms ease,
+    transform 260ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.landing-v2 .lc-night-list li[data-state='checking'] .lc-night-mark {
+  border-style: dashed;
+  border-color: #b8ae9c;
+}
+.landing-v2 .lc-night-list li[data-state='done'] .lc-night-mark {
+  transform: scale(1);
+  border-color: #2f7d46;
+  background-color: #2f7d46;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+}
+.landing-v2 .lc-night-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+.landing-v2 .lc-night-sub {
+  font-size: 0.875rem;
+  color: var(--stone-500);
+}
+.landing-v2 .lc-night-list li[data-state='done'] .lc-night-sub {
+  color: #1e5b2e;
+}
+.landing-v2 .lc-night-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+.landing-v2 .lc-night-closing {
+  margin: 0;
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 1.1875rem;
+  color: var(--stone-700);
+  opacity: 0;
+  transition: opacity 500ms ease;
+}
+.landing-v2 .lc-night-closing[data-shown='true'] {
+  opacity: 1;
+}
+.landing-v2 .lc-night-replay {
+  min-height: 44px;
+  padding: 0 0.875rem;
+  border-radius: 10px;
+  border: 1px solid #d9d3c4;
+  background: #fff;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-v2 .lc-night-mark,
+  .landing-v2 .lc-night-closing {
+    transition: none;
+  }
+}

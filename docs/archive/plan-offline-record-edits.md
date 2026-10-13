@@ -1,8 +1,8 @@
 # Offline edits to existing dog registrations (MYK9-1090, MYK9-1076, MYK9-1075)
 
-> **Status:** Active
+> **Status:** Complete
 
-Owner-approved design, 2026-10-12. It supersedes the abandoned app half of [`archive/plan-myk9-1071-offline-registrations-people.md`](archive/plan-myk9-1071-offline-registrations-people.md), whose review rounds are the background for every rule below.
+Owner-approved design, 2026-10-12. It supersedes the abandoned app half of [`archive/plan-myk9-1071-offline-registrations-people.md`](plan-myk9-1071-offline-registrations-people.md), whose review rounds are the background for every rule below.
 
 ## Goal and scope
 

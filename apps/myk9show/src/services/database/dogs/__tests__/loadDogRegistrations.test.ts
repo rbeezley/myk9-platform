@@ -301,6 +301,9 @@ describe('getAllDogs registration completeness', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // A cold-store flag set by one test must not reach the next (it is not consumed when
+    // the server answers, so the device copy never reads it).
+    mockColdStore.mockReset();
     mockReplicatedGetAllDogs.mockResolvedValue([
       {
         id: 'dog-1',
@@ -357,7 +360,7 @@ describe('getAllDogs registration completeness', () => {
     });
 
     it('reports an error instead of an empty roster when the store is cold and offline', async () => {
-      mockColdStore.mockReturnValueOnce(true);
+      mockColdStore.mockReturnValue(true);
 
       const result = await getAllDogs('person-1', true);
 
@@ -367,7 +370,7 @@ describe('getAllDogs registration completeness', () => {
   });
 
   it('reads the server rather than reporting an empty roster from a cold local store', async () => {
-    mockColdStore.mockReturnValueOnce(true);
+    mockColdStore.mockReturnValue(true);
     mockServerIn.mockResolvedValue({ data: [], error: null });
 
     const result = await getAllDogs('person-1', true);

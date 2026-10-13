@@ -238,6 +238,27 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * The ids of every row in this table that the signed-in user has an unsent
+   * mutation for (pending, or failed and kept for Retry or Discard), from one
+   * pair of owner-scoped queue reads. The bulk form of
+   * `getUnsentMutationIdsForRow`, for a list read that overlays the user's
+   * unsent work and must not read the queue once per row.
+   */
+  public async getUnsentRowIds(): Promise<Set<string>> {
+    if (!this.mutationManager) return new Set();
+    const [pending, failed] = await Promise.all([
+      this.mutationManager.getPendingMutationsForTable(this.tableName),
+      this.mutationManager.getFailedMutations(),
+    ]);
+    const rowIds = new Set<string>();
+    for (const mutation of pending) rowIds.add(String(mutation.rowId));
+    for (const mutation of failed) {
+      if (mutation.tableName === this.tableName) rowIds.add(String(mutation.rowId));
+    }
+    return rowIds;
+  }
+
+  /**
    * True when this device holds work for the row that the server may not have:
    * the row is dirty or exists only locally (`_localOnly`), or a pending or
    * failed mutation points at it. Callers that purge a row for a server-side

@@ -12,6 +12,7 @@ import {
   quickCreateProgress,
 } from './QuickCreateFlow.helpers';
 import type { QuickCreateFlowState } from './QuickCreateFlow.types';
+import { useCanEditDog } from '@/hooks/queries/useCanEditDog';
 
 const ENTRY = { [QUICK_CREATE_ENTRY_ATTR]: '' };
 const REMOVE_DOG = { [QUICK_CREATE_REMOVE_DOG_ATTR]: '' };
@@ -20,17 +21,42 @@ interface QuickCreateStepsProps {
   flowState: QuickCreateFlowState;
   mode: 'single' | 'batch';
   onOpenPersonForm: () => void;
+  onEditPerson: () => void;
   onOpenDogForm: () => void;
+  /** Dogs picked from the duplicate prompt, not made in this flow. */
+  existingDogIds: ReadonlySet<string>;
   onEditDog: (index: number) => void;
   onRemoveDog: (index: number) => void;
 }
+
+/**
+ * Edit for one dog in the list, offered only when the server would accept the save. A dog
+ * made in this flow is the secretary's to fix (she created it, from this show). An existing
+ * dog picked from the duplicate prompt is the owner's record until it is entered in her
+ * show, so the server is asked (`useCanEditDog`) rather than offering an edit it refuses.
+ */
+const DogEditButton: React.FC<{ dogId: string; knownAllowed: boolean; onEdit: () => void }> = ({
+  dogId,
+  knownAllowed,
+  onEdit,
+}) => {
+  const canEdit = useCanEditDog(dogId, knownAllowed);
+  if (!canEdit) return null;
+  return (
+    <Button variant="outline" size="sm" onClick={onEdit}>
+      Edit
+    </Button>
+  );
+};
 
 /** Quick Create's step screens: progress, then Person, Dogs or Review (MYK9-1081). */
 export const QuickCreateSteps: React.FC<QuickCreateStepsProps> = ({
   flowState,
   mode,
   onOpenPersonForm,
+  onEditPerson,
   onOpenDogForm,
+  existingDogIds,
   onEditDog,
   onRemoveDog,
 }) => (
@@ -84,7 +110,7 @@ export const QuickCreateSteps: React.FC<QuickCreateStepsProps> = ({
                 variant="outline"
                 size="sm"
                 className="mt-2"
-                onClick={onOpenPersonForm}
+                onClick={onEditPerson}
                 {...ENTRY}
               >
                 Edit Details
@@ -124,9 +150,11 @@ export const QuickCreateSteps: React.FC<QuickCreateStepsProps> = ({
                     <p className="text-sm text-muted-foreground">{dog.name}</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => onEditDog(index)}>
-                      Edit
-                    </Button>
+                    <DogEditButton
+                      dogId={dog.id}
+                      knownAllowed={!existingDogIds.has(dog.id)}
+                      onEdit={() => onEditDog(index)}
+                    />
                     <Button
                       variant="outline"
                       size="sm"

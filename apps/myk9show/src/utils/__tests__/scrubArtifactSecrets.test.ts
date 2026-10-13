@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ARTIFACT_ROOTS, collectSecrets, scrubSecrets } from '../scrubArtifactSecrets';
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
+import { ARTIFACT_ROOTS, collectSecrets, scrubSecrets, scrubZip } from '../scrubArtifactSecrets';
 
 describe('scrubArtifactSecrets', () => {
   it('replaces every occurrence of a secret', () => {
@@ -7,6 +8,14 @@ describe('scrubArtifactSecrets', () => {
     expect(scrubSecrets(snapshot, ['hunter2superlong'])).toBe(
       'textbox "Password": ***REDACTED***\n- and again ***REDACTED***'
     );
+  });
+
+  it('also scrubs the JSON-escaped spelling of a secret with quotes or backslashes', () => {
+    const secret = 'pa"ss\\word-Fake1';
+    const json = JSON.stringify({ title: `Fill "${secret}"` });
+    expect(json).not.toContain(secret);
+    expect(scrubSecrets(json, [secret])).not.toContain('ss\\\\word');
+    expect(scrubSecrets(json, [secret])).toContain('REDACTED');
   });
 
   it('leaves text alone when there are no secrets', () => {
@@ -70,5 +79,29 @@ describe('ARTIFACT_ROOTS', () => {
     expect(ARTIFACT_ROOTS).toContain('test-results');
     expect(ARTIFACT_ROOTS).toContain('playwright-report-ci');
     expect(ARTIFACT_ROOTS).toContain('playwright-report');
+  });
+});
+
+describe('scrub order (Codex review on PR #2945)', () => {
+  it('a password ending in a backslash leaves the report JSON parseable and secret-free', () => {
+    // Its verbatim spelling is a prefix of its JSON-escaped spelling, so replacing the
+    // verbatim form first left a lone backslash that broke the JSON.
+    const secret = 'FakePass-91\\';
+    const entry = JSON.stringify({ steps: [{ title: `Fill "${secret}"` }] });
+    const zip = zipSync({ 'abc.json': strToU8(entry) });
+
+    const out = strFromU8(unzipSync(scrubZip(zip, [secret]))['abc.json']!);
+
+    expect(() => JSON.parse(out)).not.toThrow();
+    expect(out).not.toContain('FakePass-91');
+    expect(out).toContain('REDACTED');
+  });
+
+  it('a secret that is a prefix of another is not left as a partial match', () => {
+    const out = scrubSecrets('token FakeLongSecret-12 end', [
+      'FakeLongSecret-1',
+      'FakeLongSecret-12',
+    ]);
+    expect(out).toBe('token ***REDACTED*** end');
   });
 });

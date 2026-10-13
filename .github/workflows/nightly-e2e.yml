@@ -149,8 +149,23 @@ jobs:
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
           E2E_CLUB_ADMIN_PASSWORD: ${{ secrets.E2E_CLUB_ADMIN_PASSWORD }}
 
-      - name: Upload Playwright regression reports
+      # MYK9-1128: fail the job (and so skip the upload below) if a configured secret is
+      # still in the artifact, including inside the HTML report's embedded zip. Prints
+      # file names and counts only. Trace zips are not uploaded, so they are skipped.
+      - name: Verify no secrets in artifacts (Playwright regression reports)
+        id: verify-artifacts
         if: always()
+        working-directory: apps/myk9show
+        run: pnpm exec tsx scripts/verify-artifact-secrets.ts --skip-zip-files playwright-report-ci playwright-report-ci-first
+        env:
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+          E2E_CLUB_ADMIN_PASSWORD: ${{ secrets.E2E_CLUB_ADMIN_PASSWORD }}
+
+      - name: Upload Playwright regression reports
+        if: ${{ always() && steps.verify-artifacts.outcome != 'failure' }}
         uses: actions/upload-artifact@v7
         with:
           name: myk9show-playwright-regression-report

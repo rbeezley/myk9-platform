@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useUserStore } from '@/store/userStore';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { useCanDeleteDog } from '@/hooks/useRoleBasedData';
+import { useCanEditDog } from '@/hooks/queries/useCanEditDog';
 import { UserRole } from '@/types/auth-types';
 import { deriveDogPageGates, type DogPageGates } from './dogViewerAccess';
 import { useDogViewerRelationship } from './useDogViewerRelationship';
@@ -17,7 +18,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { toPageHeaderCrumbs } from '@/components/common/pageHeaderCrumbs';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { getDogDisplayName, type Dog, type DogStatus, type Owner } from '@/types/dog-types';
-import { useRegistrationsByDogQuery } from '@/hooks/queries/useRegistrationsDatabase';
+import { useRailRegistrationsQuery } from '@/hooks/queries/useRegistrationsDatabase';
 import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/services/LoggingService';
 import '@/styles/myk9-show-details.css';
@@ -77,6 +78,10 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
   // failed) when the user can't delete. The admin override lives in the shared
   // delete dialog.
   const canDeleteDog = useCanDeleteDog(dog.id);
+  // The server's dogs_update rule, asked before offering Edit, Change Photo or Change
+  // status, so a viewer who may only READ this dog (any secretary, MYK9-854) is never
+  // handed a save the server refuses. Owners and site admins are decided locally.
+  const canEditDog = useCanEditDog(dog.id, gates.viewerOwnsDog || hasRole(UserRole.SITE_ADMIN));
 
   // Route-entry focus/scroll (task 3.8, design.md Decision 10): a dog-card
   // click or a Career/Records deep link lands on the main heading; browser
@@ -172,21 +177,29 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
   // Every action on this dog lives in the header Actions menu (MYK9-928; CRUD standard
   // decision 6). The page shows the dog to its viewer only once access is checked, and the
   // rail button and hero ⋮ these replace had no narrower gate. The hero keeps its camera
-  // button and status badge: controls on the thing itself, not a menu.
+  // button and status badge: controls on the thing itself, not a menu. All three write the
+  // dog, so all three follow canEditDog.
   usePageEditAction({
     kind: 'dog',
-    enabled: true,
+    enabled: canEditDog,
     run: () => setIsEditPanelOpen(true),
     title: dog.callName,
-    extras: [
-      { id: 'photo', label: 'Change Photo', icon: 'photo', run: () => setIsPhotoDialogOpen(true) },
-      {
-        id: 'status',
-        label: 'Change status',
-        icon: 'status',
-        run: () => setIsStatusDialogOpen(true),
-      },
-    ],
+    extras: canEditDog
+      ? [
+          {
+            id: 'photo',
+            label: 'Change Photo',
+            icon: 'photo',
+            run: () => setIsPhotoDialogOpen(true),
+          },
+          {
+            id: 'status',
+            label: 'Change status',
+            icon: 'status',
+            run: () => setIsStatusDialogOpen(true),
+          },
+        ]
+      : [],
   });
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   // The raw File is what we upload to Storage; photoPreview is only the data-URL
@@ -318,11 +331,11 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
   // the failure too: without `isError`, an errored read looks exactly like an
   // empty one and the dog reads as having no registrations.
   const {
-    data: dbRegistrations,
+    data: railRead,
     isError: registrationsFailed,
     isLoading: registrationsLoading,
     refetch: refetchRegistrations,
-  } = useRegistrationsByDogQuery(updatedDog.id);
+  } = useRailRegistrationsQuery(updatedDog.id);
 
   return (
     <>
@@ -335,8 +348,8 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
         />
         <DogHero
           dog={updatedDog}
-          onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}
-          onStatusDialogOpen={openStatusDialog}
+          onPhotoDialogOpen={canEditDog ? () => handlePhotoDialogOpen(true) : undefined}
+          onStatusDialogOpen={canEditDog ? openStatusDialog : undefined}
           headingRef={headingRef}
         />
         {/* Identity rail beside the content column; stacked below lg, and always in a pane. */}
@@ -346,13 +359,14 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
           <DogIdentityRail
             dog={updatedDog}
             owner={owner}
-            registrations={dbRegistrations}
+            registrations={railRead?.registrations}
             onAddRegistration={canManageRegistrations ? openAddRegistration : undefined}
             onManageRegistrations={
               canManageRegistrations ? () => setIsManageRegistrationsOpen(true) : undefined
             }
             registrationsFailed={registrationsFailed}
             registrationsLoading={registrationsLoading}
+            registrationsOffline={railRead?.offline ?? false}
             onRetryRegistrations={() => void refetchRegistrations()}
             role={isSecretary ? 'secretary' : 'exhibitor'}
             canOpenOwnerRecord={canOpenOwnerRecord}

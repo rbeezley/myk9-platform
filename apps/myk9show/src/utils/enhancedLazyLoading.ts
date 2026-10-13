@@ -5,7 +5,8 @@
  * priority-based loading, and performance monitoring
  */
 
-import { lazy, ComponentType, LazyExoticComponent } from 'react';
+import type { ComponentProps, ComponentType } from 'react';
+import { createResettableLazy } from '@/utils/lazyWithRetry';
 import { logger } from '@/services/LoggingService';
 
 // Enhanced lazy loading options
@@ -39,7 +40,7 @@ export interface PreloadableComponent {
 /** Type guard to check if a value has preload capability */
 function isPreloadable(value: unknown): value is PreloadableComponent {
   return (
-    typeof value === 'object' &&
+    (typeof value === 'object' || typeof value === 'function') &&
     value !== null &&
     'preload' in value &&
     typeof (value as PreloadableComponent).preload === 'function'
@@ -51,7 +52,7 @@ function isPreloadable(value: unknown): value is PreloadableComponent {
 export function createEnhancedLazy<T extends ComponentType<any>>(
   importFn: () => Promise<{ default: T } | T>,
   options: LazyLoadOptions = {}
-): LazyExoticComponent<T> {
+): ComponentType<ComponentProps<T>> & PreloadableComponent {
   const {
     preloadOnHover: _preloadOnHover = false,
     preloadOnIdle = false,
@@ -62,10 +63,8 @@ export function createEnhancedLazy<T extends ComponentType<any>>(
   } = options;
 
   let preloadPromise: Promise<{ default: T } | T> | null = null;
-  let retryCount = 0;
-
-  // Enhanced import with retry logic
-  const enhancedImport = async (): Promise<{ default: T } | T> => {
+  // Enhanced import with retry logic (attempt count is per load, so a reset starts fresh)
+  const enhancedImport = async (retryCount = 0): Promise<{ default: T } | T> => {
     try {
       const startTime = performance.now();
 
@@ -85,17 +84,17 @@ export function createEnhancedLazy<T extends ComponentType<any>>(
 
       return result;
     } catch (error) {
-      retryCount++;
+      const attempt = retryCount + 1;
 
-      if (retryCount <= retryAttempts) {
+      if (attempt <= retryAttempts) {
         logger.warn(
-          `🔄 Retrying import for ${displayName} (attempt ${retryCount}/${retryAttempts})`,
+          `🔄 Retrying import for ${displayName} (attempt ${attempt}/${retryAttempts})`,
           'utils',
           {}
         );
         // Exponential backoff
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
-        return enhancedImport();
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        return enhancedImport(attempt);
       }
 
       logger.error(
@@ -109,7 +108,7 @@ export function createEnhancedLazy<T extends ComponentType<any>>(
   };
 
   // Create the lazy component
-  const LazyComponent = lazy(() =>
+  const LazyComponent = createResettableLazy<T>(() =>
     enhancedImport().then(module => {
       // Handle both { default: T } and T patterns
       if (typeof module === 'object' && module !== null && 'default' in module) {
@@ -123,6 +122,10 @@ export function createEnhancedLazy<T extends ComponentType<any>>(
   const preload = () => {
     if (!preloadPromise) {
       preloadPromise = enhancedImport();
+      // A failed preload must not stay cached, or a later preload could never retry.
+      preloadPromise.catch(() => {
+        preloadPromise = null;
+      });
     }
     return preloadPromise;
   };

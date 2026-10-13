@@ -136,9 +136,11 @@ describe('WaitListSettingsCard', () => {
     await waitFor(() => expect(screen.getByLabelText('Judge Daily Capacity')).toHaveValue(125));
     expect(screen.getByText('No spots are reserved for mail-in entries.')).toBeVisible();
     await user.click(screen.getByRole('combobox', { name: 'Mail-In Reservation Strategy' }));
+    // Wait for the popup before asserting an absence, or the absence passes on a closed list.
+    const fixedCount = await screen.findByRole('option', { name: 'Fixed Count' });
     expect(screen.queryByRole('option', { name: 'Deadline' })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('option', { name: 'Fixed Count' }));
-    expect(screen.getByText(/Hold this many spots per judge day/)).toBeVisible();
+    await user.click(fixedCount);
+    expect(await screen.findByText(/Hold this many spots per judge day/)).toBeVisible();
     fireEvent.change(screen.getByLabelText('Reserved Spots'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() =>

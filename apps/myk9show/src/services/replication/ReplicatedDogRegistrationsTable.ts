@@ -1,34 +1,76 @@
-import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+/**
+ * ReplicatedDogRegistrationsTable - the device's copy of every registration
+ * this account can read (MYK9-1090).
+ *
+ * Sync is two passes: an incremental changes pass keyed on (updated_at, id),
+ * then an ID pass that fetches rows that came into view without an edit and
+ * removes rows that left it (see `dogRegistrationsIdPass.ts`). Writes in this
+ * release still go straight to PostgREST; each one is mirrored here at once
+ * (`applyServerRows` / `removeDeletedOnServer`) so the offline device copy
+ * the readers fall back to has it without waiting for a sync.
+ *
+ * Conflict resolution: the dogs rule. A clean row takes the server copy; a
+ * dirty row goes through the package's `reconcileDirtyRemoteRow`.
+ */
+import {
+  ReplicatedTable,
+  syncReplicatedTable,
+  parseUpdatedAtMs,
+  REPLICATION_INCREMENTAL_BUFFER_MS,
+  REPLICATION_STORES,
+  type RowRefetchAdapter,
+  type SyncReplicatedTableAdapter,
+  type SyncResult,
+} from '@myk9/replication';
 import { logger } from '@myk9/core';
+import { supabase } from '@/services/database/supabaseClient';
 import type { DogInput } from '@/store/dogStore';
+import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
+import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
+import {
+  DOG_REGISTRATION_SELECT,
+  DOG_REGISTRATIONS_PAGE_SIZE,
+  buildRegistrationUpdatePayload,
+  registrationToDbRow,
+  rowToRegistration,
+  unsentRegistrationRows,
+  visibleRegistrationRows,
+  type DogRegistrationReadRow,
+  type DogRegistrationRow,
+  type ReplicatedDogRegistration,
+  twinFieldsOfDbRow,
+} from './dogRegistrationRows';
+import {
+  fetchVisibleRegistrationIds,
+  pruneRegistrationsMissingFromServer,
+  removeResolvedPlaceholders,
+  snapshotRegistrationRevisions,
+} from './dogRegistrationsIdPass';
+export type { DogRegistrationReadRow, DogRegistrationRow, ReplicatedDogRegistration };
 
 type RegistrationInput = NonNullable<DogInput['registrations']>[number];
 
-export interface ReplicatedDogRegistration {
-  id: string;
-  dogId: string;
-  organization: string;
-  registrationNumber: string;
-  /**
-   * The identity resolver's ordering fields. Locally-cached registrations are
-   * merged with server rows before breed resolution, so dropping these made the
-   * comparator fall back to ordering by `id` for any dog with an offline
-   * registration (MYK9-90 review round 2).
-   *
-   * `createdAt` is REQUIRED (#1480) because both creation paths now always stamp
-   * it. `isPrimary` stays optional because local creation does not currently
-   * assign the owner's primary-registration choice.
-   */
-  createdAt: string;
-  isPrimary?: boolean | null;
-  registeredName?: string | null;
-  breed?: string | null;
-  status?: string | null;
-  verified?: boolean | null;
-  _version?: number;
-  _lastModified?: Date;
-  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean;
+/** Outcome of one ID pass; `null` from `reconcileWithServerIds` means it was skipped. */
+export interface RegistrationIdPassResult {
+  removed: number;
+  fetched: number;
+}
+
+async function fetchRegistrationsWhere(
+  column: 'id' | 'dog_id',
+  values: readonly string[]
+): Promise<DogRegistrationRow[]> {
+  const rows: DogRegistrationRow[] = [];
+  // Batched: the filter travels in the URL (MYK9-272).
+  for (const batch of chunk(values, ID_CHUNK_SIZE)) {
+    const { data, error } = await supabase
+      .from('dog_registrations')
+      .select(DOG_REGISTRATION_SELECT)
+      .in(column, batch);
+    if (error) throw new Error(`Supabase query failed: ${error.message}`);
+    rows.push(...((data ?? []) as unknown as DogRegistrationRow[]));
+  }
+  return rows;
 }
 
 /**
@@ -69,14 +111,190 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     super('dog_registrations', { logger });
   }
 
-  async sync(): Promise<SyncResult> {
+  protected override rebuildUpdatePayload(
+    registration: ReplicatedDogRegistration
+  ): Record<string, unknown> {
+    return buildRegistrationUpdatePayload(registration);
+  }
+
+  /**
+   * Reads rows by id with the sync's own column list, so a refused full-row
+   * UPDATE can re-fetch its row and rebase or surface (MYK9-771), and the ID
+   * pass can fetch rows that came into view.
+   */
+  protected override getRowRefetchAdapter(): RowRefetchAdapter<
+    DogRegistrationRow,
+    ReplicatedDogRegistration
+  > {
     return {
-      tableName: this.getTableName(),
-      success: true,
-      operation: 'incremental-sync',
-      rowsAffected: 0,
-      duration: 0,
+      fetchRowsById: ids => fetchRegistrationsWhere('id', ids),
+      getRemoteId: remote => String(remote.id),
+      toLocalRow: rowToRegistration,
+      rebuildUpdatePayload: buildRegistrationUpdatePayload,
     };
+  }
+
+  /**
+   * Changes pass, then (only after a successful one) the ID pass. No scope:
+   * RLS decides which registrations this account sees, the dogs parity rule.
+   */
+  async sync(): Promise<SyncResult> {
+    logger.log(`[${this.getTableName()}] Starting sync`);
+
+    const adapter: SyncReplicatedTableAdapter<DogRegistrationRow, ReplicatedDogRegistration> = {
+      ...this.getRowRefetchAdapter(),
+      fetchRemoteRows: ({ since }) => this.fetchChangedRows(since),
+      getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
+      resolveConflict: (local, remote) => this.resolveConflict(local, remote),
+    };
+
+    const result = await syncReplicatedTable(
+      this,
+      adapter,
+      {},
+      { incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS }
+    );
+
+    if (!result.success && result.error && !isAbortSyncError(result.error)) {
+      logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
+      return { ...result, error: getSyncErrorMessage(result.error) };
+    }
+    if (!result.success) return result;
+
+    // Side effect only: a failure here never turns a good download into a
+    // failed sync.
+    try {
+      const idPass = await this.reconcileWithServerIds();
+      if (idPass && idPass.removed + idPass.fetched > 0) {
+        logger.log(`[${this.getTableName()}] ID pass`, idPass);
+      }
+    } catch (err) {
+      logger.warn(`[${this.getTableName()}] ID pass skipped`, err);
+    }
+    // After the downloads are stored, so a twin the changes pass or the
+    // hydration just brought is seen.
+    try {
+      await this.removeResolvedPlaceholders();
+    } catch (err) {
+      logger.warn(`[${this.getTableName()}] Placeholder cleanup skipped`, err);
+    }
+    return result;
+  }
+
+  /** Remove placeholders whose server twin is here, or whose dog is gone (by content). */
+  async removeResolvedPlaceholders(): Promise<number> {
+    const deleted = await removeResolvedPlaceholders(await this.init(), this.getTableName());
+    if (deleted.length > 0) await this.notifyListeners();
+    return deleted.length;
+  }
+
+  /**
+   * Rows changed since `since`, paged by keyset on (updated_at, id) until a
+   * short page: PostgREST caps a response at max_rows.
+   */
+  private async fetchChangedRows(since: number): Promise<DogRegistrationRow[]> {
+    const rows: DogRegistrationRow[] = [];
+    let cursorUpdatedAt: string | null = null;
+    let cursorId: string | null = null;
+    for (;;) {
+      let query = supabase.from('dog_registrations').select(DOG_REGISTRATION_SELECT);
+      query =
+        cursorUpdatedAt && cursorId
+          ? query.or(
+              `updated_at.gt.${cursorUpdatedAt},and(updated_at.eq.${cursorUpdatedAt},id.gt.${cursorId})`
+            )
+          : query.gt('updated_at', new Date(since).toISOString());
+      const { data, error } = await query
+        .order('updated_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(0, DOG_REGISTRATIONS_PAGE_SIZE - 1);
+      if (error) throw new Error(`Supabase query failed: ${error.message}`);
+
+      const page = (data ?? []) as unknown as DogRegistrationRow[];
+      rows.push(...page);
+      if (page.length < DOG_REGISTRATIONS_PAGE_SIZE) return rows;
+      const last = page[page.length - 1];
+      if (!last?.updated_at || !last.id) return rows;
+      cursorUpdatedAt = String(last.updated_at);
+      cursorId = String(last.id);
+    }
+  }
+
+  /**
+   * The ID pass. Snapshot local revisions, read every visible id, then fetch
+   * server ids this device lacks and remove local ids the server no longer
+   * shows (guarded, see `pruneRegistrationsMissingFromServer`). Returns `null`
+   * when the id read was incomplete (a page failed or the page cap was hit):
+   * nothing is fetched or removed then.
+   */
+  async reconcileWithServerIds(): Promise<RegistrationIdPassResult | null> {
+    const db = await this.init();
+    const snapshot = await snapshotRegistrationRevisions(db, this.getTableName());
+    const serverIds = await fetchVisibleRegistrationIds();
+    if (!serverIds) {
+      logger.warn(`[${this.getTableName()}] ID pass read was incomplete; nothing removed`);
+      return null;
+    }
+
+    const { deleted } = await pruneRegistrationsMissingFromServer(
+      db,
+      this.getTableName(),
+      serverIds,
+      snapshot
+    );
+    if (deleted.length > 0) await this.notifyListeners();
+
+    const localIds = await this.getAllLocalIds();
+    const missing = [...serverIds].filter(id => !localIds.has(id));
+    const fetched =
+      missing.length > 0
+        ? await this.applyServerRows(await fetchRegistrationsWhere('id', missing))
+        : 0;
+    return { removed: deleted.length, fetched };
+  }
+
+  /**
+   * Store rows the server returned as clean copies, carrying `version` as the
+   * row's server token. Used by the ID pass and to mirror a direct write. A
+   * dirty local row is left alone (the package's batchSet guard).
+   */
+  async applyServerRows(rows: readonly DogRegistrationRow[]): Promise<number> {
+    if (rows.length === 0) return 0;
+    const versions = new Map<string, number>();
+    for (const row of rows) {
+      if (typeof row.version === 'number') versions.set(String(row.id), row.version);
+    }
+    await this.batchSet(rows.map(rowToRegistration), versions.size > 0 ? versions : undefined);
+    return rows.length;
+  }
+
+  /**
+   * Mirror a direct server delete. A row holding unsent local work stays.
+   * Subscribers hear about it even when nothing local changed (the device
+   * never held the row), so the server-first readers still refresh.
+   */
+  async removeDeletedOnServer(id: string, deletedRow?: Record<string, unknown>): Promise<void> {
+    const { deleted } = await this.deleteRowsIfClean([id]);
+    const placeholders = deletedRow
+      ? await removeResolvedPlaceholders(await this.init(), this.getTableName(), [
+          twinFieldsOfDbRow(deletedRow),
+        ])
+      : [];
+    if (placeholders.length > 0 || deleted.length === 0) await this.notifyListeners();
+  }
+
+  /**
+   * Re-read one dog's registrations from the server into the replica: for a
+   * direct write that creates registrations server-side under ids this device
+   * never saw (the online `create_dog_with_registrations` path).
+   */
+  async refreshDogFromServer(dogId: string): Promise<number> {
+    return this.applyServerRows(await fetchRegistrationsWhere('dog_id', [dogId]));
+  }
+
+  /** Tell subscribers to re-read, for a write that could not be mirrored. */
+  async notifyChanged(): Promise<void> {
+    await this.notifyListeners();
   }
 
   async createRegistrationsForDog(
@@ -115,16 +333,21 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     return saved;
   }
 
+  /**
+   * Write placeholder rows for a dog created on this device. Pass the
+   * `createdAts` the dog's upload carries, so the placeholders and the server
+   * rows agree on creation order (MYK9-90).
+   */
   async createLocalRegistrationsForDog(
     dogId: string,
-    registrations: RegistrationInput[]
+    registrations: RegistrationInput[],
+    createdAts: readonly string[] = createRegistrationTimestamps(registrations.length)
   ): Promise<ReplicatedDogRegistration[]> {
     const saved: ReplicatedDogRegistration[] = [];
 
     // `createdAt` comes from `creationTimestamps`, NOT from a per-row
     // `new Date()`: rows created in the same millisecond would tie, and a tie
     // sends the resolver back to its random-UUID tiebreak.
-    const createdAts = createRegistrationTimestamps(registrations.length);
     for (const [index, input] of registrations.entries()) {
       const normalized = normalizeRegistration(input, createdAts[index]!);
       const registration: ReplicatedDogRegistration = {
@@ -155,27 +378,40 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     return pendingIds.flat();
   }
 
+  /**
+   * These dogs' registrations on this device, whatever the sync state: the
+   * caller decides what an empty answer means. The readers use it only as a
+   * labelled offline copy when the server cannot be reached.
+   */
   async getRegistrationsForDogs(dogIds: string[]): Promise<Record<string, unknown>[]> {
     if (dogIds.length === 0) return [];
+    return visibleRegistrationRows(await this.getAllOrThrow(), dogIds).map(registrationToDbRow);
+  }
 
-    const dogIdSet = new Set(dogIds);
-    const registrations = await this.getAllOrThrow();
-    return registrations
-      .filter(registration => dogIdSet.has(registration.dogId))
-      .map(registration => this.toSupabaseRow(registration));
+  /** Unsent work only (`unsentRegistrationRows`), merged into a server read. */
+  async getUnsentRegistrationsForDogs(dogIds: string[]): Promise<Record<string, unknown>[]> {
+    if (dogIds.length === 0) return [];
+    const tx = (await this.init()).transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
+    const stored = (await tx.store.index('tableName').getAll(this.getTableName())) as Parameters<
+      typeof unsentRegistrationRows
+    >[0];
+    await tx.done;
+    return unsentRegistrationRows(stored, dogIds).map(registrationToDbRow);
   }
 
   async getRegistrationsForDog(dogId: string): Promise<Record<string, unknown>[]> {
     return this.getRegistrationsForDogs([dogId]);
   }
 
+  /** A clean row takes the server's copy (the dogs rule). */
   protected resolveConflict(
-    local: ReplicatedDogRegistration,
-    _remote: ReplicatedDogRegistration
+    _local: ReplicatedDogRegistration,
+    remote: ReplicatedDogRegistration
   ): ReplicatedDogRegistration {
-    return local;
+    return remote;
   }
 
+  /** The INSERT payload for a registration created on this device. */
   toSupabaseRow(registration: ReplicatedDogRegistration): Record<string, unknown> {
     return {
       id: registration.id,

@@ -783,8 +783,21 @@ jobs:
           E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
 
-      - name: Upload a11y report
+      # MYK9-1128: fail the job (and so skip the upload below) if a configured secret is
+      # still in the artifact, including inside the HTML report's embedded zip. Prints
+      # file names and counts only. Trace zips are not uploaded, so they are skipped.
+      - name: Verify no secrets in artifacts (a11y report)
+        id: verify-artifacts
         if: always()
+        working-directory: apps/myk9show
+        run: pnpm exec tsx scripts/verify-artifact-secrets.ts --skip-zip-files playwright-report-ci
+        env:
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+
+      - name: Upload a11y report
+        if: ${{ always() && steps.verify-artifacts.outcome != 'failure' }}
         uses: actions/upload-artifact@v7
         with:
           name: myk9show-a11y-report
@@ -884,8 +897,20 @@ jobs:
           E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
-      - name: Upload E2E results
+      # MYK9-1128: fail the job (and so skip the upload below) if a configured secret is
+      # still in the artifact, including inside the HTML report's embedded zip. Prints
+      # file names and counts only. Trace zips are not uploaded, so they are skipped.
+      - name: Verify no secrets in artifacts (E2E results)
+        id: verify-artifacts
         if: always()
+        working-directory: apps/myk9show
+        run: pnpm exec tsx scripts/verify-artifact-secrets.ts --skip-zip-files playwright-report-ci
+        env:
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+
+      - name: Upload E2E results
+        if: ${{ always() && steps.verify-artifacts.outcome != 'failure' }}
         uses: actions/upload-artifact@v7
         with:
           name: myk9show-e2e-results

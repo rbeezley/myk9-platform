@@ -13,7 +13,7 @@
  * the failure mode here, and nothing more.
  */
 import { describe, expect, it } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -71,4 +71,42 @@ describe('every Playwright config scrubs secrets from its artifacts', () => {
       expect(known.has(path.resolve(config))).toBe(true);
     }
   });
+});
+
+/**
+ * MYK9-1128. The scrubber is a best-effort rewrite; the verification step is the
+ * gate that fails the job if a secret still survives. Discovered from the workflow
+ * files, so a new Playwright artifact upload cannot ship without it.
+ */
+describe('every Playwright artifact upload is gated by the secret verification step', () => {
+  const workflowDir = path.join(REPO_ROOT, '.github/workflows');
+  const uploads = readdirSync(workflowDir)
+    .filter(f => f.endsWith('.yml'))
+    .flatMap(file => {
+      const steps = readFileSync(path.join(workflowDir, file), 'utf8').split(/^ {6}- name: /m);
+      return steps.flatMap((step, i) =>
+        step.includes('actions/upload-artifact') &&
+        /apps\/myk9show\/(playwright-report|test-results\/readiness)/.test(step)
+          ? [{ file, step, previous: steps[i - 1] ?? '' }]
+          : []
+      );
+    });
+
+  it('finds the known uploads (guards the discovery itself)', () => {
+    expect(uploads.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it.each(uploads.map(u => [`${u.file}: ${u.step.split('\n')[0]}`, u]))(
+    '%s verifies, over the same directories, before it uploads',
+    (_label, upload) => {
+      const { step, previous } = upload as (typeof uploads)[number];
+      expect(previous).toContain('id: verify-artifacts');
+      expect(previous).toContain('scripts/verify-artifact-secrets.ts');
+      // A failed verification must skip the upload: `always()` alone would not.
+      expect(step).toContain("steps.verify-artifacts.outcome != 'failure'");
+      const uploaded = [...step.matchAll(/^\s+apps\/myk9show\/([^\s!]+?)\/?$/gm)].map(m => m[1]);
+      expect(uploaded.length).toBeGreaterThan(0);
+      for (const dir of uploaded) expect(previous).toContain(dir);
+    }
+  );
 });

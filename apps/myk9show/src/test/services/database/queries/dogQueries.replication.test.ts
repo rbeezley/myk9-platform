@@ -29,6 +29,7 @@ const { mockDogsTable, mockEntriesTable, mockDogRegistrationsTable, mockServerRe
     },
     mockDogRegistrationsTable: {
       getRegistrationsForDogs: vi.fn(),
+      getUnsentRegistrationsForDogs: vi.fn(),
       getRegistrationsForDog: vi.fn(),
     },
     mockServerRegistrationRows: vi.fn(() => [] as Record<string, unknown>[]),
@@ -145,7 +146,7 @@ describe('dogQueries (replication)', () => {
       cold: false,
     }));
     mockServerRegistrationRows.mockReturnValue([]);
-    mockDogRegistrationsTable.getRegistrationsForDogs.mockResolvedValue([]);
+    mockDogRegistrationsTable.getUnsentRegistrationsForDogs.mockResolvedValue([]);
     mockDogRegistrationsTable.getRegistrationsForDog.mockResolvedValue([]);
   });
 
@@ -195,7 +196,7 @@ describe('dogQueries (replication)', () => {
 
     it('includes local pending registrations when PostgREST has not synced them yet', async () => {
       mockDogsTable.getAllDogs.mockResolvedValue([makeDog()]);
-      mockDogRegistrationsTable.getRegistrationsForDogs.mockResolvedValue([
+      mockDogRegistrationsTable.getUnsentRegistrationsForDogs.mockResolvedValue([
         {
           id: 'registration-local-1',
           dog_id: 'dog-1',
@@ -232,7 +233,7 @@ describe('dogQueries (replication)', () => {
           status: 'approved',
         },
       ]);
-      mockDogRegistrationsTable.getRegistrationsForDogs.mockResolvedValue([
+      mockDogRegistrationsTable.getUnsentRegistrationsForDogs.mockResolvedValue([
         {
           id: 'registration-local-1',
           dog_id: 'dog-1',
@@ -323,7 +324,7 @@ describe('dogQueries (replication)', () => {
     it('includes local pending registrations in dog detail reads', async () => {
       mockDogsTable.getDogById.mockResolvedValue(makeDog());
       mockEntriesTable.getAll.mockResolvedValue([]);
-      mockDogRegistrationsTable.getRegistrationsForDogs.mockResolvedValue([
+      mockDogRegistrationsTable.getUnsentRegistrationsForDogs.mockResolvedValue([
         {
           id: 'registration-local-1',
           dog_id: 'dog-1',

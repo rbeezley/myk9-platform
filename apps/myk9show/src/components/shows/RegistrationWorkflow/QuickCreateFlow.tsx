@@ -18,6 +18,7 @@ import {
   type QuickCreateFlowState,
 } from './QuickCreateFlow.types';
 import { QuickCreateSteps } from './QuickCreateSteps';
+import { QuickCreateDogEdit, QuickCreatePersonEdit } from './QuickCreateEditForms';
 import { QuickCreateFooter } from './QuickCreateFooter';
 import { useCreatedInSession } from './CreatedInSessionContext';
 
@@ -58,6 +59,10 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   const [flowState, setFlowState] = useState<QuickCreateFlowState>(INITIAL_QUICK_CREATE_FLOW_STATE);
   const [view, setView] = useState<QuickCreateView>('steps');
   const [dogSubMode, setDogSubMode] = useState<AddDogSubMode>('dog');
+  const [editingDogId, setEditingDogId] = useState<string | null>(null);
+  // Dogs picked from the duplicate prompt rather than made here. Only these need the
+  // server's word before Edit is offered: a dog made in this flow is the secretary's to fix.
+  const [existingDogIds, setExistingDogIds] = useState<ReadonlySet<string>>(() => new Set());
   const closeFormRef = useRef<(() => void) | null>(null);
   const stepsRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
@@ -93,7 +98,8 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   };
 
   const handleDogCreated = (dog: Dog, options?: { existing?: boolean }) => {
-    if (!options?.existing) createdInSession?.recordDogCreated(dog);
+    if (options?.existing) setExistingDogIds(prev => new Set(prev).add(dog.id));
+    else createdInSession?.recordDogCreated(dog);
     setFlowState(prev => ({
       ...prev,
       dogs: [...prev.dogs, dog],
@@ -103,10 +109,24 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     setView('steps');
   };
 
-  // Edit re-creates the dog through a blank form (unchanged, follow-up F6).
+  // Edit opens the saved dog in the Edit Dog panel (MYK9-1112). The dog stays in
+  // the selection until the edit saves, so Cancel and a refused save lose nothing.
   const handleEditDog = (index: number) => {
-    setFlowState(prev => ({ ...prev, dogs: prev.dogs.filter((_, i) => i !== index) }));
-    openDogForm();
+    const dog = flowState.dogs[index];
+    if (!dog) return;
+    setEditingDogId(dog.id);
+    setView('dog-edit');
+  };
+  const handleDogEdited = (saved: Dog) => {
+    createdInSession?.refreshDogCreated(saved);
+    setFlowState(prev => ({
+      ...prev,
+      dogs: prev.dogs.map(dog => (dog.id === saved.id ? saved : dog)),
+    }));
+  };
+  const handlePersonEdited = (saved: User) => {
+    createdInSession?.refreshOwnerCreated(saved);
+    setFlowState(prev => ({ ...prev, exhibitor: saved }));
   };
   const removedIndexRef = useRef<number | null>(null);
   const handleRemoveDog = (index: number) => {
@@ -166,6 +186,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     homeKey: `${flowState.step}:${flowState.dogs.length}`,
   });
 
+  const editingDog = flowState.dogs.find(dog => dog.id === editingDogId);
   const onSteps = view === 'steps';
   return (
     <SlideOverPanel
@@ -196,7 +217,9 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
             flowState={flowState}
             mode={mode}
             onOpenPersonForm={() => setView('person-form')}
+            onEditPerson={() => setView('person-edit')}
             onOpenDogForm={openDogForm}
+            existingDogIds={existingDogIds}
             onEditDog={handleEditDog}
             onRemoveDog={handleRemoveDog}
           />
@@ -215,6 +238,24 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
               offlineFirst={offlineFirst}
               createdFromShowId={createdFromShowId}
             />
+          ) : view === 'person-edit' ? (
+            flowState.exhibitor && (
+              <QuickCreatePersonEdit
+                record={flowState.exhibitor}
+                onSaved={handlePersonEdited}
+                onClose={showSteps}
+                closeRequestRef={closeFormRef}
+              />
+            )
+          ) : view === 'dog-edit' ? (
+            editingDog && (
+              <QuickCreateDogEdit
+                record={editingDog}
+                onSaved={handleDogEdited}
+                onClose={showSteps}
+                closeRequestRef={closeFormRef}
+              />
+            )
           ) : (
             <AddDogPanel
               open

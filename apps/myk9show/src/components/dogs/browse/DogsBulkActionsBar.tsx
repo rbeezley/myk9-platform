@@ -14,6 +14,9 @@ import { exportRowsCsv } from '@/utils/downloadCsv';
 import { dogExportHeaders, dogExportRows } from './dogsExport';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDogReplicaForEdit } from '@/hooks/useDogReplicaForEdit';
+import { askCanEditDog } from '@/hooks/queries/useCanEditDog';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { UserRole } from '@/types/auth-types';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { patchCachedDogRows } from '@/hooks/patchCachedDogRows';
 import { mapDogInputToUpdate, mapPartialDogInputToReplicated } from '@/services/mappers/dogMappers';
@@ -45,6 +48,8 @@ export function DogsBulkActionsBar({
   includeOwner = true,
 }: DogsBulkActionsBarProps) {
   const queryClient = useQueryClient();
+  // A site admin may change any dog, so the per-dog server check is skipped.
+  const isSiteAdmin = useAuthContext().hasRole(UserRole.SITE_ADMIN);
   const getDogForEdit = useDogReplicaForEdit();
   const [pendingDelete, setPendingDelete] = useState<Dog[] | null>(null);
 
@@ -71,6 +76,11 @@ export function DogsBulkActionsBar({
       await statusDispatch.run(
         dogs,
         async d => {
+          // Asked before queueing, like the dog page's Edit: a secretary can select any
+          // dog she can read, but only change the ones dogs_update lets her.
+          if (!isSiteAdmin && (await askCanEditDog(d.id)) === false) {
+            throw new Error('only its owner can change this dog');
+          }
           // Local write + queued UPDATE (offline-safe, OCC-versioned). A dog the
           // replica cannot supply after a normal table sync is a per-dog failure:
           // the user was told and nothing was queued.

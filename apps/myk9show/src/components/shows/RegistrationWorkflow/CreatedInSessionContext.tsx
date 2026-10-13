@@ -3,6 +3,7 @@ import type { Dog, User } from '@/types/dog-types';
 import {
   addById,
   EMPTY_CREATED_IN_SESSION,
+  replaceById,
   toCreatedDog,
   toCreatedOwner,
   type CreatedInSession,
@@ -12,6 +13,9 @@ interface CreatedInSessionValue {
   created: CreatedInSession;
   recordOwnerCreated: (owner: User) => void;
   recordDogCreated: (dog: Dog) => void;
+  /** An edit changed an owner already recorded here: keep the prompt's name current. */
+  refreshOwnerCreated: (owner: User) => void;
+  refreshDogCreated: (dog: Dog) => void;
 }
 
 const CreatedInSessionContext = createContext<CreatedInSessionValue | null>(null);
@@ -26,10 +30,25 @@ export function CreatedInSessionProvider({ children }: { children: ReactNode }) 
   const recordDogCreated = useCallback((dog: Dog) => {
     setCreated(current => ({ ...current, dogs: addById(current.dogs, toCreatedDog(dog)) }));
   }, []);
+  const refreshOwnerCreated = useCallback((owner: User) => {
+    setCreated(current => ({
+      ...current,
+      owners: replaceById(current.owners, toCreatedOwner(owner)),
+    }));
+  }, []);
+  const refreshDogCreated = useCallback((dog: Dog) => {
+    setCreated(current => ({ ...current, dogs: replaceById(current.dogs, toCreatedDog(dog)) }));
+  }, []);
 
   const value = useMemo(
-    () => ({ created, recordOwnerCreated, recordDogCreated }),
-    [created, recordOwnerCreated, recordDogCreated]
+    () => ({
+      created,
+      recordOwnerCreated,
+      recordDogCreated,
+      refreshOwnerCreated,
+      refreshDogCreated,
+    }),
+    [created, recordOwnerCreated, recordDogCreated, refreshOwnerCreated, refreshDogCreated]
   );
   return (
     <CreatedInSessionContext.Provider value={value}>{children}</CreatedInSessionContext.Provider>

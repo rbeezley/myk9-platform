@@ -17,3 +17,13 @@ export const SIGN_IN_EMAIL_LOCKED_MESSAGE =
 
 export const SIGN_IN_EMAIL_UNVERIFIABLE_MESSAGE =
   'Could not verify this account before changing its email address. Please try again.';
+
+/**
+ * MYK9-1090 (plan-offline-record-edits §5, owner decision): edits to an
+ * EXISTING person save online only. Offline, the save is refused with this code
+ * rather than sent or silently paused, so the user keeps their form. Creating a
+ * person offline (the show-desk add-entry flow) is unaffected.
+ */
+export const PERSON_EDIT_NEEDS_CONNECTION_CODE = 'PERSON_EDIT_NEEDS_CONNECTION';
+export const PERSON_EDIT_NEEDS_CONNECTION_MESSAGE =
+  'Reconnect to save changes. Edits to a person save only while online.';

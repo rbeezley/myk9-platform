@@ -15,6 +15,7 @@ import {
   trackLazyComponentRetry,
 } from '@/utils/lazyLoadingMetrics';
 import { logger } from '@/services/LoggingService';
+import { resetFailedLazyRoutes } from '@/utils/lazyWithRetry';
 
 interface SuspenseWrapperProps {
   children: React.ReactNode;
@@ -66,6 +67,9 @@ class LoadingErrorBoundary extends React.Component<
       trackLazyComponentRetry(componentName);
     }
 
+    // React.lazy caches a rejected import; swap failed lazies for fresh ones so this re-mount re-imports.
+    resetFailedLazyRoutes();
+
     this.setState(prevState => ({
       hasError: false,
       error: null,
@@ -80,7 +84,13 @@ class LoadingErrorBoundary extends React.Component<
       }
 
       return (
-        <div className="flex flex-col items-center justify-center min-h-[200px] p-6 pt-24">
+        <div
+          className="flex flex-col items-center justify-center min-h-[200px] p-6 pt-24"
+          // MYK9-1114: the logger never reaches the console and production builds drop console
+          // calls, so a lazy route that failed to load left no trace. Name the error here, out of
+          // sight, for E2E diagnostics and support sessions.
+          data-boundary-error={`${this.props.componentName ?? 'lazy route'}: ${this.state.error.name}: ${this.state.error.message}`}
+        >
           <div className="text-center max-w-md">
             <div className="flex justify-center mb-4">
               <div className="p-3 bg-destructive/10 rounded-full">

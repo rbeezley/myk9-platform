@@ -11,6 +11,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { signInAsTestUser } from './helpers/testUsers';
 import { expectNoHorizontalOverflow } from './helpers/horizontalOverflow';
+import { installBrowserDiagnostics } from './shared/browserDiagnostics';
 
 const SHOTS = process.env.EVIDENCE_DIR ?? 'evidence-slice2';
 
@@ -57,6 +58,9 @@ async function openFirstOwnedDog(page: Page): Promise<void> {
 }
 
 test.describe('Slice 2 dog workspace evidence (demo exhibitor)', () => {
+  // MYK9-1114: the same "Failed to load component" hit this spec in pass 1 of a nightly run.
+  installBrowserDiagnostics(test);
+
   test('captures viewport/theme matrix and navigation contracts', async ({ page }) => {
     test.setTimeout(300000);
     await signInAsTestUser(page, 'DEMO_EXHIBITOR');

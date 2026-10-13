@@ -65,6 +65,43 @@ describe('ReplicatedShowDeskPeopleTable', () => {
     expect(table.lastMutationId).toBe('person-mutation-1');
   });
 
+  it('offline, still stores and queues a new person (MYK9-1090: only edits need a connection)', async () => {
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+    const table = new ReplicatedShowDeskPeopleTable();
+    vi.spyOn(table, 'set').mockResolvedValue({ written: true });
+    const queueMutationSpy = vi
+      .spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      )
+      .mockResolvedValue('person-mutation-2');
+
+    try {
+      const person = await table.createPerson({
+        id: 'person-offline-1',
+        firstName: 'Jamie',
+        lastName: 'Walker',
+      });
+
+      expect(person).toEqual(
+        expect.objectContaining({ id: 'person-offline-1', _syncStatus: 'pending' })
+      );
+      expect(queueMutationSpy).toHaveBeenCalledWith(
+        'INSERT',
+        'person-offline-1',
+        expect.objectContaining({ id: 'person-offline-1', first_name: 'Jamie' })
+      );
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
   it('does not perform broad people-directory sync', async () => {
     const table = new ReplicatedShowDeskPeopleTable();
 

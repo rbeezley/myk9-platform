@@ -295,6 +295,7 @@ export const PINNED_RAW_INVOCATIONS: readonly string[] = [
   'pnpm exec vitest run --coverage --coverage.reporter=text-summary --coverage.reporter=json-summary --mergeReports=.vitest-reports',
   'pnpm exec tsx scripts/verify-e2e-auth-preflight.ts secretary admin judge',
   'pnpm exec tsx scripts/verify-e2e-auth-preflight.ts secretary exhibitor',
+  'pnpm exec tsx scripts/verify-artifact-secrets.ts --skip-zip-files playwright-report-ci',
   'pnpm --filter @myk9/show exec playwright install --with-deps chromium',
 ];
 

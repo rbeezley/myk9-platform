@@ -92,8 +92,15 @@ export function NewRoleStepBanner() {
     }
   };
 
+  // Sticky, not fixed (MYK9-1131): it still floats at the viewport bottom while
+  // the page scrolls, but it is in flow at the end of the document (App.tsx
+  // mounts it after the page), so scrolled to the bottom it sits BELOW the
+  // page's last control. Fixed, it permanently covered the show wizard's Next.
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-40 md:left-auto md:right-4 md:max-w-sm">
+    <div
+      data-testid="new-role-step-banner"
+      className="sticky bottom-4 z-40 mx-4 mb-4 mt-4 md:ml-auto md:max-w-sm"
+    >
       <Alert role="status" className="border-primary/30 bg-card pr-12 shadow-md">
         {/* Before the icon: the Alert's `svg ~ *` padding rule must not reach it. */}
         {dismissRoles && (

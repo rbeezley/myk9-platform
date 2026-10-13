@@ -36,7 +36,10 @@ vi.mock('../../supabaseClient', () => ({
   createDatabaseError,
 }));
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
-  replicatedDogRegistrationsTable: { getRegistrationsForDogs: mockLocalGet },
+  replicatedDogRegistrationsTable: {
+    getRegistrationsForDogs: mockLocalGet,
+    getUnsentRegistrationsForDogs: mockLocalGet,
+  },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: {

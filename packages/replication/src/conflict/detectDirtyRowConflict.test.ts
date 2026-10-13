@@ -241,3 +241,64 @@ describe('mergeNonConflictingServerFields', () => {
     expect(result.merged).toEqual({ id: '1', updated_at: 'a' });
   });
 });
+
+describe('detectDirtyRowConflict compare policy (MYK9-1104)', () => {
+  interface ClassLike {
+    id: string;
+    classStatus: string;
+    endedAt: string | null;
+  }
+  const comparePolicy = {
+    normalizeValue: (field: string, value: unknown) =>
+      field === 'classStatus' && typeof value === 'string' ? value.toLowerCase() : value,
+    serverWinsFields: ['endedAt'],
+  };
+  const base: ClassLike = { id: '1', classStatus: 'in_progress', endedAt: null };
+
+  it('reads two spellings of one outcome as agreement and adopts the server stamp', () => {
+    const result = detectDirtyRowConflict({
+      base,
+      local: { id: '1', classStatus: 'Completed', endedAt: '2026-10-12T10:00:00Z' },
+      remote: { id: '1', classStatus: 'completed', endedAt: '2026-10-12T09:59:00Z' },
+      comparePolicy,
+    });
+
+    expect(result).toEqual({
+      hasConflict: false,
+      fields: [],
+      adoptRemoteFields: ['classStatus', 'endedAt'],
+    });
+  });
+
+  it('still conflicts when the status itself differs, and lists the stamp with it', () => {
+    const result = detectDirtyRowConflict({
+      base,
+      local: { id: '1', classStatus: 'Completed', endedAt: '2026-10-12T10:00:00Z' },
+      remote: { id: '1', classStatus: 'upcoming', endedAt: '2026-10-12T09:59:00Z' },
+      comparePolicy,
+    });
+
+    expect(result).toEqual({ hasConflict: true, fields: ['classStatus', 'endedAt'] });
+  });
+
+  it('never waives a server-wins field that collides with nothing converged beside it', () => {
+    const result = detectDirtyRowConflict({
+      base,
+      local: { id: '1', classStatus: 'in_progress', endedAt: '2026-10-12T10:00:00Z' },
+      remote: { id: '1', classStatus: 'in_progress', endedAt: '2026-10-12T09:59:00Z' },
+      comparePolicy,
+    });
+
+    expect(result).toEqual({ hasConflict: true, fields: ['endedAt'] });
+  });
+
+  it('compares plainly without a policy', () => {
+    const result = detectDirtyRowConflict({
+      base,
+      local: { id: '1', classStatus: 'Completed', endedAt: null },
+      remote: { id: '1', classStatus: 'completed', endedAt: null },
+    });
+
+    expect(result).toEqual({ hasConflict: true, fields: ['classStatus'] });
+  });
+});

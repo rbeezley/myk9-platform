@@ -80,10 +80,22 @@ export interface BrowserDiagnosticsLog {
   pageErrors: string[];
   requestFailures: string[];
   assetFailures: string[];
+  /**
+   * Fetches the service worker itself made that failed or answered >= 400. The page's own
+   * listeners never see these, and a chunk the worker fails to serve looks like a page import
+   * failure with no failed page request (MYK9-1114 nightly 38342661850).
+   */
+  serviceWorkerFailures: string[];
 }
 
 export function emptyDiagnosticsLog(): BrowserDiagnosticsLog {
-  return { console: [], pageErrors: [], requestFailures: [], assetFailures: [] };
+  return {
+    console: [],
+    pageErrors: [],
+    requestFailures: [],
+    assetFailures: [],
+    serviceWorkerFailures: [],
+  };
 }
 
 function push(list: string[], line: string) {
@@ -131,6 +143,7 @@ export function formatDiagnostics(
     section('Page errors', log.pageErrors),
     section('Failed requests', log.requestFailures),
     section('JS/CSS responses >= 400', log.assetFailures),
+    section('Service worker fetches failed or >= 400', log.serviceWorkerFailures),
     page,
   ].join('\n\n');
   return redactDiagnostics(body, secrets);
@@ -179,7 +192,26 @@ export function collectBrowserDiagnostics(page: Page): BrowserDiagnosticsLog {
     if (response.status() < 400) return;
     const request = response.request();
     if (!isAssetResponse(response.url(), request.resourceType())) return;
-    push(log.assetFailures, `${at()} ${response.status()} ${stripUrlQuery(response.url())}`);
+    const via = response.fromServiceWorker() ? ' (served by service worker)' : '';
+    push(log.assetFailures, `${at()} ${response.status()} ${stripUrlQuery(response.url())}${via}`);
+  });
+  // Service-worker fetches surface only on the context, never on the page.
+  const context = page.context();
+  context.on('requestfailed', request => {
+    if (!request.serviceWorker()) return;
+    push(
+      log.serviceWorkerFailures,
+      `${at()} ${request.method()} ${stripUrlQuery(request.url())} -> ${
+        request.failure()?.errorText ?? 'unknown failure'
+      }`
+    );
+  });
+  context.on('response', response => {
+    if (response.status() < 400 || !response.request().serviceWorker()) return;
+    push(
+      log.serviceWorkerFailures,
+      `${at()} ${response.status()} ${stripUrlQuery(response.url())}`
+    );
   });
   return log;
 }

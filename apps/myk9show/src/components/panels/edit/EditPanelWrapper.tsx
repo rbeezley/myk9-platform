@@ -7,8 +7,9 @@ import { logger } from '@/services/LoggingService';
 import { useFormValidation, FormValidation } from '@/hooks/useFormValidation';
 import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
-import { DiscardChangesDialog } from './DiscardChangesDialog';
-import { announcePanelSaved, reportPanelSaveFailure } from './editPanelSaveFeedback';
+import { EditPanelClosePrompts } from './DiscardChangesDialog';
+import { announcePanelSaved } from './editPanelSaveFeedback';
+import { usePanelSaveRun } from './usePanelSaveRun';
 import { EditPanelDeleteDialog } from './EditPanelDelete';
 import type { DeleteRecordsResult } from '@/features/delete';
 import { EditPanelFooter } from './EditPanelFooter';
@@ -105,7 +106,14 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   const [legacyHasChanges, setLegacyHasChanges] = useState(false);
   const [legacyErrors, setLegacyErrors] = useState<string[]>([]);
   const [legacyIsValid, setLegacyIsValid] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
+  const {
+    isSaving: isLoading,
+    setIsSaving: setIsLoading,
+    runSave,
+    leaveWhileSaving,
+    leavePromptOpen,
+    setLeavePromptOpen,
+  } = usePanelSaveRun<T>({ title, successMessage });
   const [, setLastAutoSave] = useState<number>(Date.now());
   const [isTouched, setIsTouched] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -195,7 +203,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     }, autoSaveInterval);
 
     return () => clearTimeout(autoSaveTimer);
-  }, [data, hasChanges, isValid, enableAutoSave, autoSaveInterval, onAutoSave]);
+  }, [data, hasChanges, isValid, enableAutoSave, autoSaveInterval, onAutoSave, setIsLoading]);
 
   // Legacy: Update data function
   const updateData = useCallback(
@@ -235,19 +243,16 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
 
   // Handle save — schema path delegates to form.handleSubmit
   const wrappedSave = useCallback(
-    async (validatedData: T) => {
-      try {
-        setIsLoading(true);
-        await onSave(validatedData, { runSelfNavigation });
-        confirmSaved(validatedData);
-        closeWithoutRouteGuard();
-      } catch (error) {
-        reportPanelSaveFailure(error);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [onSave, closeWithoutRouteGuard, runSelfNavigation, confirmSaved]
+    (validatedData: T) =>
+      runSave(
+        () => onSave(validatedData, { runSelfNavigation }),
+        validatedData,
+        () => {
+          confirmSaved(validatedData);
+          closeWithoutRouteGuard();
+        }
+      ),
+    [runSave, onSave, closeWithoutRouteGuard, runSelfNavigation, confirmSaved]
   );
 
   const handleSave = useMemo(() => {
@@ -262,23 +267,22 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         return;
       }
 
-      try {
-        setIsLoading(true);
-        await onSave(legacyData, { runSelfNavigation });
-        setLegacyHasChanges(false);
-        confirmSaved(legacyData);
-        closeWithoutRouteGuard();
-      } catch (error) {
-        reportPanelSaveFailure(error);
-      } finally {
-        setIsLoading(false);
-      }
+      await runSave(
+        () => onSave(legacyData, { runSelfNavigation }),
+        legacyData,
+        () => {
+          setLegacyHasChanges(false);
+          confirmSaved(legacyData);
+          closeWithoutRouteGuard();
+        }
+      );
     };
   }, [
     useSchemaPath,
     form,
     wrappedSave,
     legacyIsValid,
+    runSave,
     onSave,
     legacyData,
     closeWithoutRouteGuard,
@@ -300,22 +304,23 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
       confirmedCloseRef.current = false;
     } else {
       setShowUnsavedDialog(false);
+      setLeavePromptOpen(false);
       setDeleteOpen(false);
     }
-  }, [open]);
+  }, [open, setLeavePromptOpen]);
 
   const handleClose = useCallback(() => {
     if (confirmedCloseRef.current) return;
-    // A save in flight may still fail, and closing now would drop the form it
-    // fails back to.
-    if (isLoading) return;
     // The delete dialog is answering for this panel: leaving now would orphan it.
     if (deleteOpen) return;
     // Defensive: Escape reaches the host's key handler AND the open prompt, and
     // the prompt answers it ("Keep editing"), so a host copy must not re-raise
     // it. Today the prompt's own dismissal already wins (the test passes with
     // this line removed); it keeps that true if the handlers ever reorder.
-    if (showUnsavedDialog) return;
+    if (showUnsavedDialog || leavePromptOpen) return;
+    // A save in flight may still fail back to this form, so ask; but a save that
+    // never settles must not trap the person here either (MYK9-1125).
+    if (isLoading) return setLeavePromptOpen(true);
     if (hasChanges && showUnsavedWarning) {
       setShowUnsavedDialog(true);
       return;
@@ -325,6 +330,8 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     hasChanges,
     showUnsavedWarning,
     showUnsavedDialog,
+    leavePromptOpen,
+    setLeavePromptOpen,
     closeWithoutRouteGuard,
     isLoading,
     deleteOpen,
@@ -396,6 +403,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
       onDelete={onDelete}
       onOpenDelete={() => setDeleteOpen(true)}
       controlsBlocked={controlsBlocked}
+      cancelDisabled={deleteOpen}
       hasChanges={hasChanges}
       enableAutoSave={enableAutoSave}
       footerActions={footerActions}
@@ -438,18 +446,13 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   // The prompts that answer for this panel, rendered beside it in every variant.
   const overlays = (
     <>
-      <DiscardChangesDialog
-        open={showUnsavedDialog}
-        onOpenChange={setShowUnsavedDialog}
-        // Inline: Discard unmounts this form and the prompt with it, and the
-        // dialog's default return-focus then falls back to some EARLIER popup's
-        // trigger behind the host's modal. The host places focus itself.
-        {...(variant === 'inline' && { finalFocus: () => !confirmedCloseRef.current })}
-        onDiscard={() => {
-          confirmedCloseRef.current = true;
-          setShowUnsavedDialog(false);
-          closeWithoutRouteGuard();
-        }}
+      <EditPanelClosePrompts
+        discard={[showUnsavedDialog, setShowUnsavedDialog]}
+        stillSaving={[leavePromptOpen, setLeavePromptOpen]}
+        inline={variant === 'inline'}
+        confirmedCloseRef={confirmedCloseRef}
+        onLeaveWhileSaving={leaveWhileSaving}
+        close={closeWithoutRouteGuard}
       />
       {routeLeaveGuard}
     </>

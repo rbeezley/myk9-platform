@@ -171,6 +171,9 @@ export const useCreateRegistrationMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
+    // Online-only write awaited by an edit panel: fail fast offline instead of
+    // pausing, or the panel's Save never settles (MYK9-1125).
+    networkMode: 'always',
     mutationFn: async (registrationData: DbDogRegistrationInsert) => {
       const { data, error } = await createRegistration(registrationData);
       if (error) throw error;
@@ -221,6 +224,9 @@ export const useUpdateRegistrationMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
+    // Online-only write awaited by an edit panel: fail fast offline instead of
+    // pausing, or the panel's Save never settles (MYK9-1125).
+    networkMode: 'always',
     mutationFn: async ({ id, updates }: { id: string; updates: DbDogRegistrationUpdate }) => {
       const { data, error } = await updateRegistration(id, updates);
       if (error) throw error;

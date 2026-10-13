@@ -1,4 +1,4 @@
-import { useCallback, useState, type ComponentProps } from 'react';
+import { useCallback, useState, type ComponentProps, type MutableRefObject } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +43,89 @@ export function DiscardChangesDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+/**
+ * Asked when someone closes a panel whose save has not come back yet
+ * (MYK9-1125). Leaving does not cancel the save; its result is toasted later.
+ */
+export function StillSavingDialog({
+  open,
+  onOpenChange,
+  onLeave,
+  finalFocus,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onLeave: () => void;
+  finalFocus?: ComponentProps<typeof AlertDialogContent>['finalFocus'];
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent {...(finalFocus !== undefined && { finalFocus })}>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Still saving</AlertDialogTitle>
+          <AlertDialogDescription>
+            Your changes haven&apos;t finished saving. If you leave, the save keeps going in the
+            background and you&apos;ll see a message when it finishes.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep waiting</AlertDialogCancel>
+          <AlertDialogAction onClick={onLeave}>Leave anyway</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+type PromptState = readonly [open: boolean, setOpen: (open: boolean) => void];
+
+/** EditPanelWrapper's two close prompts: "Discard changes?" and "Still saving". */
+export function EditPanelClosePrompts({
+  discard: [discardOpen, setDiscardOpen],
+  stillSaving: [stillSavingOpen, setStillSavingOpen],
+  inline,
+  confirmedCloseRef,
+  onLeaveWhileSaving,
+  close,
+}: {
+  discard: PromptState;
+  stillSaving: PromptState;
+  inline: boolean;
+  /** Set once a prompt confirmed the close, so the shell's own close does not re-ask. */
+  confirmedCloseRef: MutableRefObject<boolean>;
+  onLeaveWhileSaving: () => void;
+  close: () => void;
+}) {
+  // Inline: confirming unmounts this form and the prompt with it, and the
+  // dialog's default return-focus then falls back to some EARLIER popup's
+  // trigger behind the host's modal. The host places focus itself.
+  const focus = inline ? { finalFocus: () => !confirmedCloseRef.current } : {};
+  return (
+    <>
+      <DiscardChangesDialog
+        open={discardOpen}
+        onOpenChange={setDiscardOpen}
+        {...focus}
+        onDiscard={() => {
+          confirmedCloseRef.current = true;
+          setDiscardOpen(false);
+          close();
+        }}
+      />
+      <StillSavingDialog
+        open={stillSavingOpen}
+        onOpenChange={setStillSavingOpen}
+        {...focus}
+        onLeave={() => {
+          confirmedCloseRef.current = true;
+          onLeaveWhileSaving();
+          close();
+        }}
+      />
+    </>
   );
 }
 

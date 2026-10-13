@@ -123,6 +123,7 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
     expect(toast.error).toHaveBeenCalledWith(
       "We couldn't create this show. Retry or discard this change.",
       expect.objectContaining({
+        description: "You don't have permission to change this show.",
         duration: Infinity,
         action: expect.objectContaining({ label: 'Retry' }),
         cancel: expect.objectContaining({ label: 'Discard' }),

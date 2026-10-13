@@ -121,24 +121,26 @@ export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
 const REASON_MAX_LENGTH = 160;
 const PERMISSION_ERROR_PATTERN =
   /row-level security|rls policy blocked|permission denied|\b42501\b/i;
+/** What the queue prepends when it stores a failure (mutation-retry.ts); not the reason. */
+const QUEUE_PREFIX_PATTERN = /^(?:non-retryable error|max retries exceeded):\s*/i;
 
 /**
  * The server's reason for a refused write, shown under the failure toast so a
  * secretary (and whoever she calls) can see WHY Retry keeps failing. The
  * headline from `formatSyncFailureToast` stays plain English; this is the
  * detail line. Permission refusals are translated, anything else is the
- * server's own message, trimmed.
+ * refusal's own message (the server's, or a client timeout), trimmed.
  */
 export function formatSyncFailureReason(detail: SyncFailedEventDetail): string | undefined {
   const first = detail.mutations.find(mutation => mutation.error?.trim());
-  const error = first?.error?.trim();
+  const error = first?.error?.trim().replace(QUEUE_PREFIX_PATTERN, '');
   if (!first || !error) return undefined;
   if (PERMISSION_ERROR_PATTERN.test(error)) {
     return `You don't have permission to change this ${objectLabel(first.tableName)}.`;
   }
   const clipped =
     error.length > REASON_MAX_LENGTH ? `${error.slice(0, REASON_MAX_LENGTH - 1)}…` : error;
-  return `Server said: ${clipped}`;
+  return `Reason: ${clipped}`;
 }
 
 export function formatDownloadFailureToast(

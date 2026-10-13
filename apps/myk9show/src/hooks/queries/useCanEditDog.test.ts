@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { onlineManager } from '@tanstack/react-query';
 import { askCanEditDog } from './useCanEditDog';
 
 const rpc = vi.fn();
@@ -11,6 +12,11 @@ vi.mock('@/services/database/supabaseClient', () => ({
 describe('askCanEditDog', () => {
   beforeEach(() => {
     rpc.mockReset();
+    onlineManager.setOnline(true);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    onlineManager.setOnline(true);
   });
 
   it('asks can_edit_dog for that dog and passes a yes through', async () => {
@@ -39,5 +45,19 @@ describe('askCanEditDog', () => {
       throw new TypeError('Failed to fetch');
     });
     await expect(askCanEditDog('dog-1')).resolves.toBeNull();
+  });
+
+  it('does not ask at all while the app is offline', async () => {
+    onlineManager.setOnline(false);
+    await expect(askCanEditDog('dog-1')).resolves.toBeNull();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('gives up after a bounded wait on a stalled connection', async () => {
+    vi.useFakeTimers();
+    rpc.mockReturnValue(new Promise(() => {}));
+    const answer = askCanEditDog('dog-1');
+    await vi.advanceTimersByTimeAsync(5_000);
+    await expect(answer).resolves.toBeNull();
   });
 });

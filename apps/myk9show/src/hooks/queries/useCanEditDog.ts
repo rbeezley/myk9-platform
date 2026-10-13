@@ -10,23 +10,32 @@
  * passes `knownAllowed` when it can decide locally (owner, co-owner, site admin, a dog
  * created in this session), so those viewers never wait on, or depend on, the network.
  */
-import { useQuery } from '@tanstack/react-query';
+import { onlineManager, useQuery } from '@tanstack/react-query';
+import { withTimeout } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 
+/** A stalled venue connection must not hold up an edit for longer than this. */
+const CHECK_TIMEOUT_MS = 5_000;
+
 /** `null` when the server has no such dog yet (created on this device, not uploaded). */
 async function fetchCanEditDog(dogId: string): Promise<boolean | null> {
-  const { data, error } = await supabase.rpc('can_edit_dog', { p_dog_id: dogId });
+  const { data, error } = await withTimeout(
+    supabase.rpc('can_edit_dog', { p_dog_id: dogId }),
+    CHECK_TIMEOUT_MS,
+    'can_edit_dog'
+  );
   if (error) throw error;
   return typeof data === 'boolean' ? data : null;
 }
 
 /**
  * The same question outside React (bulk actions): `false` only when the server said no,
- * `null` when it could not answer (offline, failed, dog not uploaded yet), which callers
- * treat as "go ahead".
+ * `null` when it could not answer (offline, failed, timed out, dog not uploaded yet), which
+ * callers treat as "go ahead", so a local queued save is never held up waiting on it.
  */
 export async function askCanEditDog(dogId: string): Promise<boolean | null> {
+  if (!onlineManager.isOnline()) return null;
   try {
     return await fetchCanEditDog(dogId);
   } catch {

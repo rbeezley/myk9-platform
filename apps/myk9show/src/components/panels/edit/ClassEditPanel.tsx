@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { EditPanelWrapper, type EditPanelSaveContext } from './EditPanelWrapper';
+import { EditPanelWrapper } from './EditPanelWrapper';
 import { savedMessage } from './panelSaveErrors';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
@@ -256,9 +256,9 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
   if (isSimpleMode) {
     const initialFormData = trialClassToFormData(initialClassData as Partial<TrialClass>);
 
-    const handleSave = async (formData: TrialClassEditFormData, context: EditPanelSaveContext) => {
+    const handleSave = async (formData: TrialClassEditFormData) => {
       const classData = formDataToTrialClass(formData);
-      if (onSave) await onSave(classData, context);
+      if (onSave) await onSave(classData);
     };
 
     return (
@@ -278,9 +278,9 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
 
   const initialFormData = classToFormData(initialClassData as Partial<ClassData>);
 
-  const handleSave = async (formData: ClassEditFormData, context: EditPanelSaveContext) => {
+  const handleSave = async (formData: ClassEditFormData) => {
     const classData = formDataToClass(formData);
-    if (onSave) await onSave(classData, context);
+    if (onSave) await onSave(classData);
   };
 
   return (

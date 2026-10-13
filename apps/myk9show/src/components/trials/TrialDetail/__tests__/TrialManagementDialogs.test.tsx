@@ -1,5 +1,4 @@
 import React from 'react';
-import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWrapper.types';
 import { act, createTestQueryClient, render, screen } from '@/test/utils/testUtils';
 import { describe, it, expect, vi } from 'vitest';
 import {
@@ -56,22 +55,13 @@ vi.mock('@/components/panels/edit/ClassEditPanel', () => ({
     onDelete,
   }: {
     open: boolean;
-    onSave: (data: object, context: EditPanelSaveContext) => Promise<void>;
+    onSave: (data: object) => Promise<void>;
     onDelete?: typeof classPanel.onDelete;
   }) => {
     classPanel.onDelete = onDelete;
     return open ? (
       <div data-testid="edit-class-panel">
-        <button
-          onClick={() =>
-            void onSave(
-              {},
-              { isCurrent: () => true, runSelfNavigation: (navigate: () => void) => navigate() }
-            )
-          }
-        >
-          Save class
-        </button>
+        <button onClick={() => void onSave({})}>Save class</button>
       </div>
     ) : null;
   },

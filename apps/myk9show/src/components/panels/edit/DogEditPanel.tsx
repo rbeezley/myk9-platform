@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, createContext } from 'react';
-import { EditPanelWrapper, type EditPanelSaveContext } from './EditPanelWrapper';
+import { EditPanelWrapper } from './EditPanelWrapper';
 import { savedMessage } from './panelSaveErrors';
 import { useEditPanel } from './useEditPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -230,10 +230,10 @@ export const DogEditPanel: React.FC<DogEditPanelProps> = ({
 
   // Handle save
   const handleSave = useCallback(
-    async (formData: DogFormData, context: EditPanelSaveContext) => {
+    async (formData: DogFormData) => {
       const dogData = formDataToDog(formData);
       if (onSave) {
-        await onSave(dogData, context);
+        await onSave(dogData);
       }
     },
     [onSave]

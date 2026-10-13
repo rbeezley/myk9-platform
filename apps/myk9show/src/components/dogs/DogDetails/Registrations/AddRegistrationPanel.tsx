@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { z } from 'zod';
 import { EditPanelWrapper } from '@/components/panels/edit/EditPanelWrapper';
-import type {
-  EditPanelSaveContext,
-  EditPanelVariant,
-} from '@/components/panels/edit/EditPanelWrapper.types';
+import type { EditPanelVariant } from '@/components/panels/edit/EditPanelWrapper.types';
 import { addedMessage } from '@/components/panels/edit/panelSaveErrors';
 import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import { Input } from '@/components/ui/input';
@@ -30,7 +27,7 @@ type AddRegistrationFormData = z.infer<typeof addRegistrationFormSchema>;
 interface AddRegistrationPanelProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: AddRegistrationFormData, context: EditPanelSaveContext) => Promise<void>;
+  onSave: (data: AddRegistrationFormData) => Promise<void>;
   dogName?: string | undefined;
   /** `inline` renders the form inside a host panel (the Manage registrations panel). */
   variant?: EditPanelVariant;

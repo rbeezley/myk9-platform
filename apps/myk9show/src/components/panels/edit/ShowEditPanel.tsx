@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import type { z } from 'zod';
-import { EditPanelWrapper, type EditPanelSaveContext } from './EditPanelWrapper';
+import { EditPanelWrapper } from './EditPanelWrapper';
 import { savedMessage } from './panelSaveErrors';
 import type { ShowEditPanelProps, ShowEditFormData } from './ShowEditPanel.types';
 import { showToFormData, formDataToShowSaveData } from './ShowEditPanel.helpers';
@@ -62,10 +62,10 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
   // cannot itself trigger a draft->published transition and needs no gate of
   // its own.
   const handleSave = useCallback(
-    async (formData: ShowEditFormData, context: EditPanelSaveContext) => {
+    async (formData: ShowEditFormData) => {
       const showData = formDataToShowSaveData(formData);
       if (onSave) {
-        await onSave(showData, context);
+        await onSave(showData);
       }
     },
     [onSave]

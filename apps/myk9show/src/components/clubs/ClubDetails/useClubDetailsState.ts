@@ -1,5 +1,4 @@
 import { useState, startTransition, useMemo, useCallback, useEffect } from 'react';
-import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWrapper.types';
 import { useQuery } from '@tanstack/react-query';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { useNavigate } from 'react-router-dom';
@@ -179,7 +178,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
   }, [navigate]);
 
   const handleClubEditComplete = useCallback(
-    async (formData: Partial<Club>, { isCurrent }: EditPanelSaveContext) => {
+    async (formData: Partial<Club>) => {
       if (!selectedClub) return;
 
       logger.debug('Saving club form data', 'clubs', { formData });
@@ -216,8 +215,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
 
       try {
         await updateClub(updatedClub);
-        // Left while saving (MYK9-1125): the panel may have been reopened since.
-        if (isCurrent()) setShowEditPanel(false);
+        setShowEditPanel(false);
       } catch (error) {
         logger.error('Failed to save club', 'clubs', { clubId: selectedClub.id }, error as Error);
         // EditPanelWrapper keeps the panel open and reports the failure only

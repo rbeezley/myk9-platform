@@ -1,5 +1,4 @@
 import React, { useMemo, type MutableRefObject } from 'react';
-import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWrapper.types';
 import { onlineManager } from '@tanstack/react-query';
 import { DogEditPanel } from '@/components/panels/edit/DogEditPanel';
 import { UserEditPanel } from '@/components/panels/edit/UserEditPanel';
@@ -36,7 +35,7 @@ export const QuickCreateDogEdit: React.FC<EditFormProps<Dog>> = ({
 }) => {
   const { updateDog } = useDogStoreCompat();
 
-  const handleSave = async (data: Partial<Dog>, { isCurrent }: EditPanelSaveContext) => {
+  const handleSave = async (data: Partial<Dog>) => {
     // The registrations card is read-only, so they are not sent: updateDog would
     // re-sync them against the server, and a dog made seconds ago offline may not
     // have its rows there yet.
@@ -45,8 +44,6 @@ export const QuickCreateDogEdit: React.FC<EditFormProps<Dog>> = ({
     const saved = await updateDog(dog.id, input);
     // updateDog has already told the user why (the dog is not on this device yet).
     if (!saved) throw new PanelSaveHandledError();
-    // Left while saving (MYK9-1125): the flow has moved on; the wrapper reports the save.
-    if (!isCurrent()) return;
     // What the flow holds is the dog as it was plus what the form submitted. `saved` is
     // rebuilt from data already in memory (no owner, no health records, registrations from
     // a cache this dog may not be in yet), so none of it is merged back over the flow's copy.
@@ -101,7 +98,7 @@ export const QuickCreatePersonEdit: React.FC<EditFormProps<User>> = ({
     [exhibitor]
   );
 
-  const handleSave = async (data: Partial<PersonRecord>, { isCurrent }: EditPanelSaveContext) => {
+  const handleSave = async (data: Partial<PersonRecord>) => {
     // The update is a direct write that React Query PAUSES while offline, and a panel will not
     // close under a save in flight, so without this refusal the secretary is stuck here until
     // the signal returns (D6). MYK9-1090 replaces this with the service's own coded refusal.
@@ -111,8 +108,6 @@ export const QuickCreatePersonEdit: React.FC<EditFormProps<User>> = ({
       throw new PanelSaveHandledError();
     }
     await updateUser.mutateAsync({ id: exhibitor.id, updates: buildUserEditSavePayload(data) });
-    // Left while saving (MYK9-1125): the flow has moved on; the wrapper reports the save.
-    if (!isCurrent()) return;
     const firstName = data.firstName ?? exhibitor.firstName;
     const lastName = data.lastName ?? exhibitor.lastName;
     const street = data.address || undefined;

@@ -1,10 +1,7 @@
 import { useMemo, type MutableRefObject } from 'react';
 import { z } from 'zod';
 import { EditPanelWrapper } from '@/components/panels/edit/EditPanelWrapper';
-import type {
-  EditPanelSaveContext,
-  EditPanelVariant,
-} from '@/components/panels/edit/EditPanelWrapper.types';
+import type { EditPanelVariant } from '@/components/panels/edit/EditPanelWrapper.types';
 import { savedMessage } from '@/components/panels/edit/panelSaveErrors';
 import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import { Input } from '@/components/ui/input';
@@ -48,7 +45,7 @@ interface RegistrationInput {
 interface EditRegistrationPanelProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: EditRegistrationFormData, context: EditPanelSaveContext) => Promise<void>;
+  onSave: (data: EditRegistrationFormData) => Promise<void>;
   registration: RegistrationInput | null;
   dogName?: string | undefined;
   /** `inline` renders the form inside a host panel (the Manage registrations panel). */

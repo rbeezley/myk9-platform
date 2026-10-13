@@ -98,7 +98,7 @@ vi.mock('@/components/panels/edit/ClubEditPanel', () => ({
   }: {
     onSave: (
       club: Partial<Club>,
-      context: { runSelfNavigation: (navigate: () => void) => void; isCurrent: () => boolean }
+      context: { runSelfNavigation: (navigate: () => void) => void }
     ) => void;
   }) => (
     <button
@@ -116,7 +116,7 @@ vi.mock('@/components/panels/edit/ClubEditPanel', () => ({
               country: 'US',
             },
           },
-          { runSelfNavigation: mockRunSelfNavigation, isCurrent: () => true }
+          { runSelfNavigation: mockRunSelfNavigation }
         )
       }
     >

@@ -102,7 +102,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
                 }
               : undefined
           }
-          onSave={async (updatedDogData, { isCurrent }) => {
+          onSave={async updatedDogData => {
             // Store previous state for rollback on error
             const previousDog = { ...dog };
 
@@ -129,9 +129,6 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
                   // Update with the data returned from the database
                   onSetUpdatedDog(savedDog);
                   logger.debug('Dog data saved successfully', 'dogs', { dogId: savedDog.id });
-
-                  // Left while saving (MYK9-1125): the wrapper reports the save instead.
-                  if (!isCurrent()) return;
 
                   // Show success celebration
                   startCelebration(`${dog.callName} updated!`);

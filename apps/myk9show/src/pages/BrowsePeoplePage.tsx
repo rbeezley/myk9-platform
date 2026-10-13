@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWrapper.types';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { MasterDetailLayout } from '@/components/layout/MasterDetailLayout';
 import { SelectModeButton } from '@/components/layout/SelectModeButton';
@@ -143,7 +142,7 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
 
   // Handle user creation
   const handleCreateUser = useCallback(
-    async (userData: Partial<User>, { isCurrent }: EditPanelSaveContext) => {
+    async (userData: Partial<User>) => {
       const streetValue = userData.address || userData.streetAddress || '';
       const newPersonInput: PersonInput = {
         firstName: userData.firstName || '',
@@ -160,8 +159,7 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
       };
 
       const newUser = await addUser(newPersonInput);
-      const stillHere = isCurrent();
-      if (stillHere) closeCreatePersonDialog();
+      closeCreatePersonDialog();
       // Seed the cache synchronously so PersonDetailPage finds the new user
       // immediately. Without this, navigation races the cache refresh and
       // PersonDetailPage's not-found guard ping-pongs back to /people.
@@ -174,8 +172,6 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
       // Background revalidation — fire-and-forget.
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       // Select mode hides the detail pane, so the new person would open unseen.
-      // Left while saving (MYK9-1125): the cache is seeded, but the person stays where they went.
-      if (!stillHere) return;
       exitSelectMode();
       navigate(`/people/${newUser.id}`, { replace: true });
     },

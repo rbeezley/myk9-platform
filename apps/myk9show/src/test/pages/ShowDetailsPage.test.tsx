@@ -275,14 +275,8 @@ vi.mock('@/components/shows/tabs/ShowOverviewTab', () => ({
   ShowOverviewTab: () => <div data-testid="show-overview-tab">ShowOverviewTab</div>,
 }));
 vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
-  ShowEditPanel: (props: {
-    onSave: (data: Record<string, unknown>, context: unknown) => Promise<void>;
-  }) =>
-    // The wrapper's save context: this save is the panel's own (MYK9-1125).
-    showEditPanelMock.impl({
-      ...props,
-      onSave: data => props.onSave(data, { isCurrent: () => true, runSelfNavigation: () => {} }),
-    }),
+  ShowEditPanel: (props: { onSave: (data: Record<string, unknown>) => Promise<void> }) =>
+    showEditPanelMock.impl(props),
 }));
 vi.mock('@/features/delete/DeleteObjectDialog', () => ({
   DeleteObjectDialog: () => null,

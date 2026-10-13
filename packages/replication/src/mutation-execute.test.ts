@@ -226,6 +226,54 @@ describe('executeMutation', () => {
   });
 
   describe('UPDATE', () => {
+    // MYK9-1132: the paperwork void payload carried no `id`, so the UPDATE went out as
+    // id=eq.undefined and Postgres refused every attempt (22P02). The queued row id is the
+    // row the local write targeted; the executor filters on it, not on the payload.
+    it('filters on the queued row id even when the payload carries no id', async () => {
+      const updateChain = chainable({ data: [{ id: 'print-1', version: 2 }], error: null });
+      const supabase = {
+        from: vi.fn(() => ({ update: vi.fn(() => updateChain) })),
+        rpc: vi.fn(),
+      } as unknown as SupabaseClient;
+      const mutation = makeMutation({
+        tableName: 'paperwork_prints',
+        operation: 'UPDATE',
+        rowId: 'print-1',
+        serverVersion: 1,
+        data: {
+          voided_at: '2026-10-12T19:59:00Z',
+          voided_by: 'user-1',
+          void_reason: 'Wrong class',
+        },
+      });
+
+      await executeMutation(supabase, makeLogger(), mutation);
+      expect(updateChain.eq).toHaveBeenCalledWith('id', 'print-1');
+      expect(updateChain.eq).toHaveBeenCalledWith('version', 1);
+    });
+
+    it('re-checks a 0-row UPDATE against the queued row id when the payload carries no id', async () => {
+      const updateChain = chainable({ data: [], error: null });
+      const checkChain = chainable({ data: { version: 1 }, error: null });
+      const from = vi
+        .fn()
+        .mockReturnValueOnce({ update: vi.fn(() => updateChain) })
+        .mockReturnValueOnce({ select: vi.fn(() => checkChain) });
+      const supabase = { from, rpc: vi.fn() } as unknown as SupabaseClient;
+      const mutation = makeMutation({
+        tableName: 'paperwork_prints',
+        operation: 'UPDATE',
+        rowId: 'print-1',
+        serverVersion: 1,
+        data: { void_reason: 'Wrong class' },
+      });
+
+      await expect(executeMutation(supabase, makeLogger(), mutation)).rejects.toThrow(
+        'RLS policy blocked UPDATE on paperwork_prints for row print-1'
+      );
+      expect(checkChain.eq).toHaveBeenCalledWith('id', 'print-1');
+    });
+
     it('omits a stale deleted_at null from an older queued entry update', async () => {
       const updateChain = chainable({ data: [{ id: 'entry-1', version: 5 }], error: null });
       const update = vi.fn(() => updateChain);
@@ -308,10 +356,13 @@ describe('executeMutation', () => {
         rpc: vi.fn(() => Promise.resolve({ data: 4, error: null })),
       } as unknown as SupabaseClient;
 
+      // The queue names the class as the mutation's row; the RPC argument comes from it,
+      // not from a payload `id` (MYK9-1132).
       const mutation = makeMutation({
         operation: 'UPDATE',
+        rowId: 'class-1',
         serverVersion: 3,
-        data: { id: 'class-1' },
+        data: {},
         rpc: {
           name: 'ringside_update_class',
           fields: { status: 'in_progress' },
@@ -376,6 +427,23 @@ describe('executeMutation', () => {
   });
 
   describe('DELETE', () => {
+    it('filters on the queued row id even when the payload carries no id', async () => {
+      const eq = vi.fn(() => ({
+        select: vi.fn(() => Promise.resolve({ data: [{ id: 'entry-1' }], error: null })),
+      }));
+      const supabase = {
+        from: vi.fn(() => ({ delete: vi.fn(() => ({ eq })) })),
+        rpc: vi.fn(),
+      } as unknown as SupabaseClient;
+
+      await executeMutation(
+        supabase,
+        makeLogger(),
+        makeMutation({ operation: 'DELETE', rowId: 'entry-1', data: {} })
+      );
+      expect(eq).toHaveBeenCalledWith('id', 'entry-1');
+    });
+
     it('returns {} on a successful delete', async () => {
       const supabase = {
         from: vi.fn(() => ({

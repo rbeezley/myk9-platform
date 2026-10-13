@@ -250,6 +250,23 @@ export const useDeleteRegistrationMutation = () => {
   return useMutation({
     networkMode: 'always',
     mutationFn: (id: string) => replicatedDogRegistrationsTable.deleteRegistration(id),
+    // Hide the row at once (MYK9-1143): otherwise it stays on screen until the
+    // replica listener's refetch lands, seconds later offline. The listener's
+    // refetch still decides what shows, so a discarded refusal brings it back.
+    onMutate: async deletedId => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.registrationsByDogAll });
+      const snapshot = queryClient.getQueriesData<RegistrationsForDog>({
+        queryKey: queryKeys.registrationsByDogAll,
+      });
+      queryClient.setQueriesData<RegistrationsForDog>(
+        { queryKey: queryKeys.registrationsByDogAll },
+        old => old && { ...old, rows: old.rows.filter(row => row.id !== deletedId) }
+      );
+      return { snapshot };
+    },
+    onError: (_error, _deletedId, context) => {
+      for (const [key, data] of context?.snapshot ?? []) queryClient.setQueryData(key, data);
+    },
     onSuccess: (_data, deletedId) => {
       queryClient.removeQueries({ queryKey: queryKeys.registration(deletedId) });
       invalidateRegistrationSummaries(queryClient, null);

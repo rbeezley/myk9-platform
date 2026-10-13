@@ -8,9 +8,6 @@ import {
 import { queryKeys } from '@/lib/queryClient';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 
-/** Prefix of every `queryKeys.registrationsByDog(dogId)` key. */
-const REGISTRATIONS_BY_DOG_PREFIX = ['registrations', 'dog'] as const;
-
 /**
  * Refetch every read built on the registrations replica: each dog's
  * registrations, the dog reads under `['dogs']` (their registrations come from
@@ -18,7 +15,7 @@ const REGISTRATIONS_BY_DOG_PREFIX = ['registrations', 'dog'] as const;
  */
 export function refreshRegistrationReads(queryClient: QueryClient): void {
   const filters: QueryFilters[] = [
-    { queryKey: REGISTRATIONS_BY_DOG_PREFIX },
+    { queryKey: queryKeys.registrationsByDogAll },
     { queryKey: queryKeys.dogs },
     { predicate: (query: Query) => query.queryKey[0] === 'users' && query.queryKey[2] === 'dogs' },
   ];
@@ -37,7 +34,10 @@ export function refreshRegistrationReads(queryClient: QueryClient): void {
  * The one refresh rule for registrations (MYK9-1090, plan §2). Every change to
  * a registration reaches the device through the replica: a sync, a direct
  * write mirrored into it, upload, Take theirs, Keep mine, Discard. So one
- * subscription refreshes the screens, and no path patches a cache by hand.
+ * subscription refreshes the screens, and no path patches a cache by hand,
+ * with one owner-approved exception: a delete hides its row optimistically
+ * (useDeleteRegistrationMutation, MYK9-1143), and this listener's refetch then
+ * reconciles it, so a discarded refusal brings the row back.
  */
 export function useRegistrationsReplicaCacheSync(): void {
   const queryClient = useQueryClient();

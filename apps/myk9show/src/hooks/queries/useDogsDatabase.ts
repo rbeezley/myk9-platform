@@ -157,6 +157,9 @@ export const useCreateDogMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
+    // Online-only write awaited by an edit panel: fail fast offline instead of
+    // pausing, or the panel's Save never settles (MYK9-1125).
+    networkMode: 'always',
     mutationFn: async (dogData: DbDogInsert) => {
       const { data, error } = await createDog(dogData);
       if (error) throw error;

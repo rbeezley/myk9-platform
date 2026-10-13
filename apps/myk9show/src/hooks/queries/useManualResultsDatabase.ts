@@ -66,6 +66,9 @@ export const useCreateManualResultMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
+    // Online-only write awaited by an edit panel: fail fast offline instead of
+    // pausing, or the panel's Save never settles (MYK9-1125).
+    networkMode: 'always',
     mutationFn: async (entry: Omit<ManualResult, 'id' | 'created_at' | 'updated_at'>) => {
       const dbInsert = mapAppManualResultToDbInsert(entry);
       const { data, error } = await createManualResult(dbInsert);

@@ -8,8 +8,10 @@ interface EditPanelFooterProps {
   errors: string[];
   onDelete?: EditPanelDeleteOption | undefined;
   onOpenDelete: () => void;
-  /** Save and Close hold still while a save or the delete dialog is in flight. */
+  /** Save, Next and Delete hold still while a save or the delete dialog is in flight. */
   controlsBlocked: boolean;
+  /** Cancel stays live during a save, where it explains "Still saving" (MYK9-1125). */
+  cancelDisabled: boolean;
   hasChanges: boolean;
   enableAutoSave: boolean;
   footerActions?: React.ReactNode;
@@ -36,6 +38,7 @@ export function EditPanelFooter({
   onDelete,
   onOpenDelete,
   controlsBlocked,
+  cancelDisabled,
   hasChanges,
   enableAutoSave,
   footerActions,
@@ -108,7 +111,7 @@ export function EditPanelFooter({
           <Button
             variant="outline"
             onClick={onCancel}
-            disabled={controlsBlocked}
+            disabled={cancelDisabled}
             className={ACTION_BUTTON_CLASS}
           >
             <X className="h-4 w-4" />

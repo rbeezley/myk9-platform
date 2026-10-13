@@ -7,7 +7,7 @@ import { logger } from '@/services/LoggingService';
 import { useFormValidation, FormValidation } from '@/hooks/useFormValidation';
 import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
-import { DiscardChangesDialog } from './DiscardChangesDialog';
+import { DiscardChangesDialog, useStillSavingPrompt } from './DiscardChangesDialog';
 import { announcePanelSaved, reportPanelSaveFailure } from './editPanelSaveFeedback';
 import { EditPanelDeleteDialog } from './EditPanelDelete';
 import type { DeleteRecordsResult } from '@/features/delete';
@@ -290,6 +290,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   const actionBarRef = useRegisterActionBar<HTMLDivElement>();
 
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const { open: stillSavingOpen, ask: askStillSaving, dialog } = useStillSavingPrompt(isLoading);
   // Set to true when the user explicitly confirmed the close via AlertDialog,
   // so SlideOverPanel's own onClose callback doesn't re-trigger the dialog.
   const confirmedCloseRef = useRef(false);
@@ -306,16 +307,16 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
 
   const handleClose = useCallback(() => {
     if (confirmedCloseRef.current) return;
-    // A save in flight may still fail, and closing now would drop the form it
-    // fails back to.
-    if (isLoading) return;
     // The delete dialog is answering for this panel: leaving now would orphan it.
     if (deleteOpen) return;
     // Defensive: Escape reaches the host's key handler AND the open prompt, and
     // the prompt answers it ("Keep editing"), so a host copy must not re-raise
     // it. Today the prompt's own dismissal already wins (the test passes with
     // this line removed); it keeps that true if the handlers ever reorder.
-    if (showUnsavedDialog) return;
+    if (showUnsavedDialog || stillSavingOpen) return;
+    // A save in flight may still fail, and closing now would drop the form it
+    // fails back to. Hold still, but say why (MYK9-1125).
+    if (isLoading) return askStillSaving();
     if (hasChanges && showUnsavedWarning) {
       setShowUnsavedDialog(true);
       return;
@@ -325,6 +326,8 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     hasChanges,
     showUnsavedWarning,
     showUnsavedDialog,
+    stillSavingOpen,
+    askStillSaving,
     closeWithoutRouteGuard,
     isLoading,
     deleteOpen,
@@ -396,6 +399,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
       onDelete={onDelete}
       onOpenDelete={() => setDeleteOpen(true)}
       controlsBlocked={controlsBlocked}
+      cancelDisabled={deleteOpen}
       hasChanges={hasChanges}
       enableAutoSave={enableAutoSave}
       footerActions={footerActions}
@@ -451,6 +455,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
           closeWithoutRouteGuard();
         }}
       />
+      {dialog}
       {routeLeaveGuard}
     </>
   );

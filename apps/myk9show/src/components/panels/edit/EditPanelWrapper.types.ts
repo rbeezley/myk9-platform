@@ -85,7 +85,7 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   /**
    * `inline` only: filled with this form's close request (the same one Cancel
    * uses, so a dirty form raises the discard prompt and a save in flight holds
-   * the form open). Cleared on unmount.
+   * the form open and says "Still saving"). Cleared on unmount.
    */
   closeRequestRef?: React.MutableRefObject<(() => void) | null>;
 

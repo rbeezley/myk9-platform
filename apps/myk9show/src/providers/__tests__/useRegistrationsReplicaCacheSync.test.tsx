@@ -14,13 +14,7 @@ import { replicatedDogRegistrationsTable } from '@/services/replication/Replicat
 import { updateRegistration, deleteRegistration } from '@/services/database/registrations';
 import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/RegistrationsSection';
 import type { Dog } from '@/types/dog-types';
-import {
-  installRegistrationsServer,
-  trustReplica,
-  newServer,
-  serverRow,
-} from '@/services/replication/__tests__/dogRegistrationFixtures';
-import { resetRegistrationsTrustForTests } from '@/services/replication/dogRegistrationsTrust';
+import { serverRow } from '@/services/replication/__tests__/dogRegistrationFixtures';
 import { useRegistrationsByDogQuery } from '@/hooks/queries/useRegistrationsDatabase';
 import { useRegistrationsReplicaCacheSync } from '../useRegistrationsReplicaCacheSync';
 
@@ -47,7 +41,6 @@ function invalidated(queryClient: QueryClient): boolean[] {
 }
 
 beforeEach(async () => {
-  await resetRegistrationsTrustForTests();
   await databaseManager.reset();
 });
 
@@ -55,7 +48,6 @@ afterEach(async () => {
   // The shared table's trailing change notice fires NOTIFY_DEBOUNCE_MS after
   // a write; let it land here, not inside the next test.
   await new Promise(resolve => setTimeout(resolve, NOTIFY_DEBOUNCE_MS + 50));
-  await resetRegistrationsTrustForTests();
   await databaseManager.reset();
 });
 
@@ -159,15 +151,18 @@ describe('a cold read in flight when the replica changes', () => {
   });
 });
 
-/** PostgREST answers a direct update or delete with `row`. */
-function serverWriteReturns(row: Record<string, unknown>) {
-  const single = vi.fn(async () => ({ data: row, error: null }));
+/**
+ * PostgREST that cannot answer a read (the device is offline for reads) but
+ * confirms a direct update or delete with `writeRow`.
+ */
+function serverAcceptsWritesOnly(writeRow: () => Record<string, unknown>) {
   const builder = {
     update: () => builder,
     delete: () => builder,
     eq: () => builder,
     select: () => builder,
-    single,
+    single: async () => ({ data: writeRow(), error: null }),
+    order: async () => ({ data: null, error: new Error('Failed to fetch') }),
   };
   vi.mocked(supabase.from).mockImplementation((() => builder) as unknown as typeof supabase.from);
 }
@@ -177,20 +172,21 @@ function Page() {
   return <RegistrationsSection dog={{ id: 'dog-1' } as Dog} canEdit={false} />;
 }
 
-describe('a direct write reaches the dog page without a sync', () => {
+// The offline copy the readers fall back to must hold a direct write at once.
+describe('a direct write reaches the offline device copy without a sync', () => {
+  let written: Record<string, unknown>;
+
   beforeEach(async () => {
     await replicatedDogRegistrationsTable.applyServerRows([
       serverRow({ registered_name: 'Old Name', version: 3 }),
     ]);
-    await trustReplica();
-    // Any sync attempt would read nothing.
-    installRegistrationsServer(newServer());
+    written = serverRow({ registered_name: 'New Name', version: 4 });
+    serverAcceptsWritesOnly(() => written);
   });
 
   it('shows an edit saved straight to the server', async () => {
     render(<Page />);
     expect(await screen.findByText('Old Name')).toBeInTheDocument();
-    serverWriteReturns(serverRow({ registered_name: 'New Name', version: 4 }));
 
     const { error } = await updateRegistration('reg-1', { registered_name: 'New Name' });
 
@@ -204,10 +200,10 @@ describe('a direct write reaches the dog page without a sync', () => {
   it('drops a registration deleted straight on the server', async () => {
     render(<Page />);
     expect(await screen.findByText('Old Name')).toBeInTheDocument();
-    serverWriteReturns({ id: 'reg-1', dog_id: 'dog-1' });
+    written = { id: 'reg-1', dog_id: 'dog-1' };
 
     await deleteRegistration('reg-1');
 
-    expect(await screen.findByText('No Registrations Found')).toBeInTheDocument();
+    expect(await screen.findByText('No registrations saved on this device')).toBeInTheDocument();
   });
 });

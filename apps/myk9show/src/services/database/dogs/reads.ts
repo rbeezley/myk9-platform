@@ -70,7 +70,7 @@ async function loadOwnersMap(ownerIds: string[]): Promise<Map<string, OwnerRow>>
   return map;
 }
 
-function appendRegistrations(
+export function appendRegistrations(
   map: Map<string, Record<string, unknown>[]>,
   rows: Record<string, unknown>[] | null | undefined
 ): void {
@@ -149,88 +149,98 @@ function overlayLocalCreationOrder(
 }
 
 /**
- * These dogs' registrations, plus whether the read was complete.
+ * These dogs' registrations, plus whether the read was complete and where it
+ * came from (MYK9-1090).
  *
- * A trusted replica (dogRegistrationsTrust.ts, MYK9-1090) answers alone, with
- * no network request, and its empty answer means "no registrations". A cold or
- * unreadable one cannot say that, so the server read is merged with only the
- * replica's unsent work (dirty rows, offline placeholders), and a failed leg marks the read
- * incomplete: callers that print paperwork must tell "has none" from "could
- * not read" rather than rendering a blank (MYK9-90 review round 3).
+ * Server first. A successful PostgREST read is merged with ONLY this device's
+ * unsent work (dirty rows, offline-created placeholders), never its clean
+ * cached copies, which may be rows the server no longer returns.
+ *
+ * When the server read fails (offline, network error), the device copy
+ * answers: every registration the replica holds for these dogs. It is labelled
+ * `source: 'device'` and is never complete, so callers that print paperwork
+ * must tell "has none" from "could not read" rather than rendering a blank
+ * (MYK9-90 review round 3), and screens can say it is an offline copy.
  */
 export interface DogRegistrationsResult {
   byDog: Map<string, Record<string, unknown>[]>;
   serverError: unknown | null;
   registrationsReadComplete: boolean;
+  /** `device`: the server could not be read; this is the offline copy. */
+  source: 'server' | 'device';
+}
+
+async function readServerRegistrations(
+  dogIds: string[]
+): Promise<{ data: Record<string, unknown>[] | null; error: unknown }> {
+  // A thrown network error must surface as `error`, not reject the whole
+  // read: the device copy may still be able to answer.
+  try {
+    // Batched, not one `.in(...)`: the filter travels in the URL, so an
+    // unbounded id list produces a request the server rejects outright.
+    // A secretary gathering dogs across every managed show sent 200+ ids
+    // and the read failed every time, reported by the browser as a CORS
+    // error because the rejection carries no CORS headers (MYK9-272).
+    const rows: Record<string, unknown>[] = [];
+    let firstError: unknown = null;
+    for (const batch of chunk(dogIds, ID_CHUNK_SIZE)) {
+      const result = await supabase
+        .from('dog_registrations')
+        // Keep this list narrow: this read hydrates the dog roster and only
+        // needs identity/order fields plus the display metadata.
+        .select(
+          'dog_id, id, created_at, is_primary, registered_name, registration_number, organization, variety, breed, status'
+        )
+        .in('dog_id', batch);
+      // Keep going after a failed batch, and return the rows that did
+      // arrive alongside the error. #1490 established that a partial read
+      // stays VISIBLE and is reported as incomplete rather than discarded;
+      // dropping it here would make those dogs read as having no
+      // registrations at all.
+      if (result.error) firstError = firstError ?? result.error;
+      rows.push(...((result.data ?? []) as Record<string, unknown>[]));
+    }
+    return { data: rows, error: firstError };
+  } catch (error) {
+    return { data: null, error };
+  }
 }
 
 export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistrationsResult> {
   if (dogIds.length === 0) {
-    return { byDog: new Map(), serverError: null, registrationsReadComplete: true };
+    return {
+      byDog: new Map(),
+      serverError: null,
+      registrationsReadComplete: true,
+      source: 'server',
+    };
   }
   const map = new Map<string, Record<string, unknown>[]>();
-  const replica = await replicatedDogRegistrationsTable.readForDogs(dogIds);
-  if (replica.state === 'warm') {
-    appendRegistrations(map, replica.rows);
-    return { byDog: map, serverError: null, registrationsReadComplete: true };
+  const serverResult = await readServerRegistrations(dogIds);
+  const source = serverResult.error ? 'device' : 'server';
+  let localRows: Record<string, unknown>[] = [];
+  let localError: unknown = null;
+  try {
+    localRows =
+      source === 'server'
+        ? await replicatedDogRegistrationsTable.getUnsentRegistrationsForDogs(dogIds)
+        : await replicatedDogRegistrationsTable.getRegistrationsForDogs(dogIds);
+  } catch (error) {
+    localError = error;
   }
-  const [localResult, serverResult] = await Promise.all([
-    (async (): Promise<{ data: Record<string, unknown>[]; error: unknown | null }> => {
-      try {
-        return {
-          data: await replicatedDogRegistrationsTable.getUnsentRegistrationsForDogs(dogIds),
-          error: null,
-        };
-      } catch (error) {
-        return { data: [], error };
-      }
-    })(),
-    // A thrown network error must surface as `serverError`, not reject the whole
-    // read — the replica may still be able to answer.
-    (async (): Promise<{ data: unknown; error: unknown }> => {
-      try {
-        // Batched, not one `.in(...)`: the filter travels in the URL, so an
-        // unbounded id list produces a request the server rejects outright.
-        // A secretary gathering dogs across every managed show sent 200+ ids
-        // and the read failed every time, reported by the browser as a CORS
-        // error because the rejection carries no CORS headers (MYK9-272).
-        const rows: Record<string, unknown>[] = [];
-        let firstError: unknown = null;
-        for (const batch of chunk(dogIds, ID_CHUNK_SIZE)) {
-          const result = await supabase
-            .from('dog_registrations')
-            // Keep this list narrow: this read hydrates the dog roster and only
-            // needs identity/order fields plus the display metadata.
-            .select(
-              'dog_id, id, created_at, is_primary, registered_name, registration_number, organization, variety, breed, status'
-            )
-            .in('dog_id', batch);
-          // Keep going after a failed batch, and return the rows that did
-          // arrive alongside the error. #1490 established that a partial read
-          // stays VISIBLE and is reported as incomplete rather than discarded;
-          // dropping it here would make those dogs read as having no
-          // registrations at all.
-          if (result.error) firstError = firstError ?? result.error;
-          rows.push(...((result.data ?? []) as Record<string, unknown>[]));
-        }
-        return { data: rows, error: firstError };
-      } catch (error) {
-        return { data: null, error };
-      }
-    })(),
-  ]);
 
-  appendRegistrations(map, serverResult.data as Record<string, unknown>[] | null | undefined);
-  appendRegistrations(map, localResult.data);
-  overlayLocalCreationOrder(map, localResult.data);
+  appendRegistrations(map, serverResult.data);
+  appendRegistrations(map, localRows);
+  overlayLocalCreationOrder(map, localRows);
   return {
     byDog: map,
     serverError: serverResult.error ?? null,
-    // A local replica failure may hide a pending local-only row, even when the
+    // A device read failure may hide a pending local-only row, even when the
     // server returned registrations. Keep those rows for display, but mark the
     // merged read incomplete so callers that require verified data can refuse
-    // to proceed.
-    registrationsReadComplete: !serverResult.error && !localResult.error,
+    // to proceed. The offline copy is never complete.
+    registrationsReadComplete: source === 'server' && !localError,
+    source,
   };
 }
 

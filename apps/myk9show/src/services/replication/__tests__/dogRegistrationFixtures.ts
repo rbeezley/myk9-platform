@@ -7,7 +7,6 @@ import { vi } from 'vitest';
 import { databaseManager, REPLICATION_STORES } from '@myk9/replication';
 import { supabase } from '@/services/database/supabaseClient';
 import type { DogRegistrationRow } from '../dogRegistrationRows';
-import { recordRegistrationsTrust } from '../dogRegistrationsTrust';
 
 export function serverRow(overrides: Partial<DogRegistrationRow> = {}): DogRegistrationRow {
   return {
@@ -45,26 +44,6 @@ export async function putQueueRecord(
   await db.put(name, { operation: 'UPDATE', data: {}, status: store, ...record });
 }
 
-export const TEST_AUTH_USER = 'auth-user-1';
-
-/** Make `getSession()` report this auth user (null: no session). */
-export function signedInAs(authUserId: string | null): void {
-  vi.mocked(supabase.auth.getSession).mockResolvedValue({
-    data: { session: authUserId ? { user: { id: authUserId } } : null },
-    error: null,
-  } as unknown as Awaited<ReturnType<typeof supabase.auth.getSession>>);
-}
-
-/** Sign in as `authUserId` and record the trust a clean full sync would. */
-export async function trustReplica(authUserId: string = TEST_AUTH_USER): Promise<void> {
-  signedInAs(authUserId);
-  await recordRegistrationsTrust(authUserId);
-}
-
-export function setOnline(value: boolean): void {
-  Object.defineProperty(navigator, 'onLine', { configurable: true, value });
-}
-
 export interface RegistrationsServer {
   /** Pages answered to the changes pass, in order. */
   changePages: DogRegistrationRow[][];
@@ -74,8 +53,6 @@ export interface RegistrationsServer {
   rows: DogRegistrationRow[];
   /** Answer every read by id (hydration, row refetch) with an error. */
   failIdLookups?: boolean;
-  /** Called as each changes-pass page is answered. */
-  onChangePage?: () => Promise<void>;
   /** Called as each ID page is answered (to simulate a write mid-pass). */
   onIdPage?: (index: number) => Promise<void>;
   /** Every select list and filter the code sent. */
@@ -104,7 +81,6 @@ export function installRegistrationsServer(server: RegistrationsServer): void {
       order: chain('order'),
       range: async (...args: unknown[]) => {
         record('range', args);
-        await server.onChangePage?.();
         return { data: server.changePages.shift() ?? [], error: null };
       },
       in: async (column: string, values: string[]) => {

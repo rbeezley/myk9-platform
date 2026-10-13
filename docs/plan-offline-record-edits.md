@@ -45,30 +45,29 @@ Owner-approved design, 2026-10-12. It supersedes the abandoned app half of [`arc
 2. **ID pass.** A keyset-paged `select('id')` over every visible registration, the same shape as dogs' `reconcileDeleted`, bounded by a page cap that skips pruning when exceeded.
    - A server id missing locally is fetched by id through the row refetch adapter. That closes the coverage gap: a registration that becomes visible without an `updated_at` change, for example when its dog gains a co-owner.
    - A local id missing from the server is removed, **unless** a pending or failed mutation names the row, **or** the row was written locally after the pass began (snapshot of local ids and revisions taken before the first page). That closes the reconcile-versus-upload race.
-   - **Placeholders (found while building PR 2).** An offline dog create writes its registrations to the replica as clean `_localOnly` rows with device ids, and uploads them inside `create_dog_with_registrations`, which inserts server rows with **server-generated** ids. The two never match by id. A `_localOnly` row is therefore a placeholder: the ID pass keeps it while a pending or failed `dogs` mutation names its dog, and removes it once the dog has uploaded. The changes pass of the same sync has by then brought the server's rows, so the screen never shows both. This also covers the RPC returning an existing dog's id (the placeholders' dog id no longer exists).
+   - **Placeholders (found while building PR 2).** An offline dog create writes its registrations to the replica as clean `_localOnly` rows with device ids, and uploads them inside `create_dog_with_registrations`, which inserts server rows with **server-generated** ids. The two never match by id. A `_localOnly` row is therefore a placeholder: the ID pass keeps it while its dog's replica row is dirty or `_localOnly`, or a pending or failed `dogs` mutation names the dog, and removes it once the dog has uploaded. `addDogOfflineFirst` writes and queues the dog before its placeholders, so no placeholder exists without that protection. Readers hide a placeholder once its server twin (same dog, organization and number) is present.
 
 At 10,000 registrations a changes pass moves a handful of rows, and the ID pass about 400 KB, the same cost dogs already pay. The first sync on a fresh device downloads every row once, as dogs do.
 
 **Conflicts:** the dogs rule. A clean row takes the server copy (`resolveConflict` returns remote, replacing today's return-local). A dirty row goes through `reconcileDirtyRemoteRow`: different-field changes merge, a same-field change raises the existing Take theirs / Keep mine toast. `rebuildUpdatePayload` is overridden so a rebase rebuilds the allowlisted payload (§3).
 
-**Cold replica:** generalise `useDogReplicaForEdit` into `useReplicaRowsForEdit`. A warm replica answers at once. A cold one runs `replicationSync.syncTable('dog_registrations')` and looks again. Still missing while offline: "Reconnect to load this dog's registrations", and nothing is queued.
-
 **Sync cadence:** with the other replicated tables (sign-in, reconnect, the regular cycle). Sign-out clears it the way it clears dogs.
 
 ### 2. Readers
 
-**Switch to the replica:**
+**Server first, with a labelled offline copy (revised while building PR 2).**
 
-- `useRegistrationsByDogQuery` (`['registrations','dog',dogId]`): the Registrations section and Manage registrations panel.
-- `loadDogRegistrations` (inside dogs reads: list, detail, edit panel, add-entry dog options): replica alone when warm, PostgREST when cold, keeping the "present-and-empty is authoritative" rule from MYK9-90.
+- `useRegistrationsByDogQuery` (`['registrations','dog',dogId]`, the Registrations section and Manage registrations panel) and `loadDogRegistrations` (dogs reads: list, detail, edit panel, add-entry dog options) read PostgREST first. A successful read is merged with **only** this device's unsent work: dirty rows and `_localOnly` placeholders (`getUnsentRegistrationsForDogs`), never clean cached copies, which may be rows the server no longer returns. `registrationsReadComplete` reflects the server read, and a successful empty read is "no registrations" (MYK9-90).
+- When the PostgREST read fails (offline, network error), the device copy answers: every registration the replica holds for the dog. It is marked `source: 'device'` and `registrationsReadComplete: false`, never authoritative. The Registrations section shows "Offline copy. It may be out of date." above it, and "No registrations saved on this device" when it is empty. If the device cannot be read either, the read is an error.
+- `useRegistrationsByDogQuery` keeps `networkMode: 'always'`, so offline it runs and falls back instead of sitting paused.
 
-Both queries set `networkMode: 'always'` because their query functions never touch the network when warm.
+**Why not "replica alone when warm".** PR 2 first served the replica alone once a trust record said it was complete for the signed-in account. Four Codex review rounds each found another way the record could vouch for rows it should not (account switch, quota eviction, failed hydration, failed mirror, database recovery, a placeholder pruned mid-pass, a hydration racing a mirrored delete, offline `getSession()` retries), so the owner set a hard stop and the trust design was dropped. The account boundary for offline device copies (a device shared between accounts) is MYK9-1126.
 
 **Stay on PostgREST:** the all-registrations, organization, search, statistics and validate queries; `useAKCSubmissionData`, `useEntryFormData`, `useReportDogOptions`. Offline, the duplicate-number validate check is skipped; the server's rule catches a real duplicate at upload, which surfaces through Retry/Discard.
 
-**Direct writes in PR 2 (found while building it).** Until PR 3 queues them, add, edit and delete still go straight to PostgREST. Each successful direct write must also update the replica at once — set the returned row clean, or delete it locally — or the screens, now reading the replica, would show the old value until the next sync. PR 3 replaces these with queued writes.
+**Direct writes in PR 2 (found while building it).** Until PR 3 queues them, add, edit and delete still go straight to PostgREST. Each successful direct write also updates the replica at once (sets the returned row clean, or deletes it locally) so the offline copy does not show the old value until the next sync. PR 3 replaces these with queued writes.
 
-**One refresh rule.** `ReplicationSyncProvider` subscribes once to `replicatedDogRegistrationsTable` (`subscribe(cb, { emitCurrent: false })`). On any change it invalidates `['registrations','dog']`, `['dogs']` and the owner-dogs keys. Every source of change reaches the screens through this listener, because every one of them changes the replica: local add/edit/delete, sync, upload complete, Take theirs, Keep mine and Discard. No path patches a React Query cache by hand.
+**One refresh rule.** `ReplicationSyncProvider` subscribes once to `replicatedDogRegistrationsTable` (`subscribe(cb, { emitCurrent: false, onError })`). On any change, and on a change the device then cannot read back, it cancels and then invalidates `['registrations','dog']`, `['dogs']` and the owner-dogs keys, so a read already in flight cannot land after the change it predates. Every source of change reaches the screens through this listener, because every one of them changes the replica: local add/edit/delete, sync, upload complete, Take theirs, Keep mine and Discard. No path patches a React Query cache by hand.
 
 ### 3. Writes
 
@@ -103,11 +102,11 @@ The panel closes on save online or offline. Offline, the existing unsent-changes
 
 ## Delivery: three PRs
 
-| PR  | Contents                                                                                                                                                                                           | Closes          |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| 1   | `rowRevision`, `revertsOnDiscard`, the guarded revert, dogs opted in                                                                                                                               | MYK9-1076       |
-| 2   | Registrations sync (both passes, guarded prune, conflict rules, refetch adapter), the two readers on the replica with `networkMode: 'always'`, the single refresh listener. Writes still go direct | —               |
-| 3   | Queued add, edit and delete, the three caller groups, the `_pendingDelete` marker, registrations opted into the revert, the people offline refusal                                                 | MYK9-1075, 1090 |
+| PR  | Contents                                                                                                                                                                                                                   | Closes          |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| 1   | `rowRevision`, `revertsOnDiscard`, the guarded revert, dogs opted in                                                                                                                                                       | MYK9-1076       |
+| 2   | Registrations sync (both passes, guarded prune, conflict rules, refetch adapter), server-first readers with a labelled offline device copy, the single refresh listener. Writes still go direct, mirrored into the replica | —               |
+| 3   | Queued add, edit and delete, the three caller groups, the `_pendingDelete` marker, registrations opted into the revert, the people offline refusal                                                                         | MYK9-1075, 1090 |
 
 No `db push`. Each PR's production evidence needs a Deploy myK9Show run (owner go-ahead). Expected review floor: `independent` (Codex) for PR 1 at least, because it changes `@myk9/replication`; run `pnpm qa:review-tier --base origin/main` per PR.
 
@@ -130,7 +129,7 @@ Each test is written red before the code that turns it green. Every PR also runs
 - Changes pass select list is exact (no `*`) and unscoped; cursor is `(updated_at, id)`.
 - ID pass: a server-only id is fetched by id; a server-dropped id is removed; rows named by pending or failed mutations, and rows written after the pass began, survive; the page cap skips pruning.
 - `resolveConflict` takes remote; a dirty row same-field change raises the conflict.
-- Readers return replica rows offline (`fetchStatus` not `paused`); cold falls back to PostgREST; present-and-empty stays authoritative.
+- Readers: online, server rows plus only unsent device work (a clean cached copy the server no longer returns does not appear), and present-and-empty stays authoritative; server unreachable, the device copy marked `source: 'device'` and never complete, offline without pausing; the section shows the offline note and the empty offline copy message.
 - The listener invalidates the reader keys on a local write, a sync, an upload, Take theirs, Keep mine and Discard (render the real Registrations section, LESSON last-hop-drop).
 
 **PR 3 (writes and people)**

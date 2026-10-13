@@ -75,8 +75,6 @@ vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
     toSupabaseRow: (registration: Record<string, unknown>) => registration,
     getRegistrationsForDogs: mockGetRegistrationsForDogs,
     getUnsentRegistrationsForDogs: mockGetRegistrationsForDogs,
-    // Cold replica: these tests pin the merged server + replica read.
-    readForDogs: async () => ({ state: 'cold' }),
   },
 }));
 
@@ -538,7 +536,10 @@ describe('useDogStoreCompat.updateDog — breed survives the local re-map', () =
     // ...but the per-dog registrations query is invalidated-and-inactive, so it
     // still serves the deleted row.
     const staleQueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    staleQueryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), [serverRegistration]);
+    staleQueryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), {
+      rows: [serverRegistration],
+      source: 'server',
+    });
     const wrapper = ({ children }: { children: React.ReactNode }) =>
       React.createElement(QueryClientProvider, { client: staleQueryClient }, children);
 
@@ -566,7 +567,10 @@ describe('useDogStoreCompat.updateDog — breed survives the local re-map', () =
     ]);
 
     const staleQueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    staleQueryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), [serverRegistration]);
+    staleQueryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), {
+      rows: [serverRegistration],
+      source: 'server',
+    });
     const wrapper = ({ children }: { children: React.ReactNode }) =>
       React.createElement(QueryClientProvider, { client: staleQueryClient }, children);
 
@@ -612,13 +616,24 @@ describe('useDogStoreCompat.updateDog — breed survives the local re-map', () =
 describe('cachedRegistrationRowsForDog', () => {
   it('uses the per-dog cache when the dog is absent from the loaded list', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    queryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), [
-      { id: 'reg-akc', breed: 'Belgian Malinois' },
-    ]);
+    queryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), {
+      rows: [{ id: 'reg-akc', breed: 'Belgian Malinois' }],
+      source: 'server',
+    });
 
     expect(cachedRegistrationRowsForDog('dog-1', [], queryClient)).toEqual([
       { id: 'reg-akc', breed: 'Belgian Malinois' },
     ]);
+  });
+
+  it('does not treat an offline device copy as better than the loaded list', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(queryKeys.registrationsByDog('dog-1'), {
+      rows: [{ id: 'reg-old', breed: 'Beagle' }],
+      source: 'device',
+    });
+
+    expect(cachedRegistrationRowsForDog('dog-1', [], queryClient)).toEqual([]);
   });
 });
 

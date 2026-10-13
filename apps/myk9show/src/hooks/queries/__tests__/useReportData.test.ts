@@ -101,6 +101,7 @@ describe('useReportData', () => {
       byDog: new Map(),
       serverError: null,
       registrationsReadComplete: true,
+      source: 'server',
     });
   });
 
@@ -503,6 +504,7 @@ describe('useReportData', () => {
       byDog: new Map([['dog-1', [registration]]]),
       serverError: null,
       registrationsReadComplete: true,
+      source: 'server',
     });
 
     const { result } = renderHook(() => useReportData(defaultOptions), {
@@ -538,6 +540,7 @@ describe('useReportData', () => {
       byDog: new Map([['dog-1', [registration]]]),
       serverError: null,
       registrationsReadComplete: true,
+      source: 'server',
     });
 
     const { result } = renderHook(() => useReportData(defaultOptions), {
@@ -566,6 +569,7 @@ describe('useReportData', () => {
       byDog: new Map(),
       serverError: new Error('offline'),
       registrationsReadComplete: false,
+      source: 'device',
     });
 
     const { result } = renderHook(() => useReportData(defaultOptions), {

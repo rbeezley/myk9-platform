@@ -36,11 +36,9 @@ vi.mock('../../supabaseClient', () => ({
   createDatabaseError,
 }));
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
-  // Cold replica: these tests pin the merged server + replica read.
   replicatedDogRegistrationsTable: {
     getRegistrationsForDogs: mockLocalGet,
     getUnsentRegistrationsForDogs: mockLocalGet,
-    readForDogs: async () => ({ state: 'cold' }),
   },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({

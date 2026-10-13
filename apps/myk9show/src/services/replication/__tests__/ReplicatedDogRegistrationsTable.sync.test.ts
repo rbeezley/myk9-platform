@@ -11,15 +11,7 @@ import {
   registrationToDbRow,
   rowToRegistration,
 } from '../dogRegistrationRows';
-import {
-  installRegistrationsServer,
-  newServer,
-  serverRow,
-  signedInAs,
-  TEST_AUTH_USER,
-  trustReplica,
-} from './dogRegistrationFixtures';
-import { readRegistrationsTrust, resetRegistrationsTrustForTests } from '../dogRegistrationsTrust';
+import { installRegistrationsServer, newServer, serverRow } from './dogRegistrationFixtures';
 
 vi.mock('@myk9/core', () => ({
   logger: { log: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -32,14 +24,11 @@ const EXPECTED_SELECT =
 let table: ReplicatedDogRegistrationsTable;
 
 beforeEach(async () => {
-  await resetRegistrationsTrustForTests();
-  signedInAs(TEST_AUTH_USER);
   await databaseManager.reset();
   table = new ReplicatedDogRegistrationsTable();
 });
 
 afterEach(async () => {
-  await resetRegistrationsTrustForTests();
   await databaseManager.reset();
 });
 
@@ -75,7 +64,7 @@ describe('registrations changes pass', () => {
     expect(await table.get('reg-last')).toMatchObject({ dogId: 'dog-1' });
   });
 
-  it('makes the first sync a full one even when offline-created placeholders are present', async () => {
+  it('fetches every row on the first sync even when offline-created placeholders are present', async () => {
     await table.createLocalRegistrationsForDog('dog-offline', [
       {
         organization: 'AKC',
@@ -94,8 +83,7 @@ describe('registrations changes pass', () => {
       'updated_at',
       new Date(0).toISOString(),
     ]);
-    expect((await readRegistrationsTrust())?.authUserId).toBe(TEST_AUTH_USER);
-    expect((await table.readForDogs(['dog-1'])).state).toBe('warm');
+    expect(await table.get('reg-1')).toMatchObject({ dogId: 'dog-1' });
   });
 
   it('replaces a clean local row with the server copy', async () => {
@@ -137,152 +125,20 @@ describe('registrations changes pass', () => {
   });
 });
 
-function fullServer() {
-  return newServer({
-    changePages: [[serverRow({ id: 'r1' }), serverRow({ id: 'r2' }), serverRow({ id: 'r3' })]],
-    idPages: [[{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }]],
-  });
-}
-
-// Only a clean full sync for the signed-in account earns trust (Codex round 2).
-describe('registrations replica trust earned by sync', () => {
-  it('distrusts another account at sync start, forces a full fetch, and trusts only the new one', async () => {
-    await trustReplica('auth-a');
-    signedInAs('auth-b');
-    const server = fullServer();
-    installRegistrationsServer(server);
-
-    await table.sync();
-
-    expect(server.calls.find(c => c.method === 'gt')?.args[1]).toBe(new Date(0).toISOString());
-    expect((await readRegistrationsTrust())?.authUserId).toBe('auth-b');
-    signedInAs('auth-a');
-    expect((await table.readForDogs(['dog-1'])).state).toBe('cold');
-  });
-
-  it('runs incrementally and keeps trust when the replica is already trusted for this account', async () => {
-    await table.applyServerRows([serverRow({ id: 'r1' })]);
-    await table.updateSyncMetadata({ lastIncrementalSyncAt: Date.parse('2026-10-01T00:00:00Z') });
-    await trustReplica();
-    const before = await readRegistrationsTrust();
-    const server = fullServer();
-    installRegistrationsServer(server);
-
-    await table.sync();
-
-    expect(server.calls.find(c => c.method === 'gt')?.args[1]).not.toBe(new Date(0).toISOString());
-    expect(await readRegistrationsTrust()).toEqual(before);
-  });
-
-  it('does not earn trust without a resolved account', async () => {
-    signedInAs(null);
-    installRegistrationsServer(fullServer());
-
-    await table.sync();
-
-    expect(await readRegistrationsTrust()).toBeNull();
-  });
-
-  it('does not earn trust when the ID pass cannot hydrate a missing id, and the next clean sync does', async () => {
-    const server = fullServer();
-    server.idPages = [[{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }, { id: 'r4' }]];
-    installRegistrationsServer(server);
-    server.failIdLookups = true;
-
-    await table.sync();
-
-    expect(await readRegistrationsTrust()).toBeNull();
-    installRegistrationsServer(fullServer());
-    await table.sync();
-    expect((await readRegistrationsTrust())?.authUserId).toBe(TEST_AUTH_USER);
-  });
-
-  it('stops trusting the replica when a later ID pass cannot hydrate a missing id', async () => {
-    await table.applyServerRows([serverRow({ id: 'r1' })]);
-    await table.updateSyncMetadata({ lastIncrementalSyncAt: Date.parse('2026-10-01T00:00:00Z') });
-    await trustReplica();
-    const server = newServer({ idPages: [[{ id: 'r1' }, { id: 'r-new' }]] });
-    server.failIdLookups = true;
-    installRegistrationsServer(server);
-
-    await table.sync();
-
-    expect(await readRegistrationsTrust()).toBeNull();
-  });
-
-  it('does not earn trust when an ID page fails', async () => {
-    const server = fullServer();
-    server.idPages = [new Error('timeout')];
-    installRegistrationsServer(server);
-
-    await table.sync();
-
-    expect(await readRegistrationsTrust()).toBeNull();
-  });
-});
-
-/** Run a quota eviction as the package does on a storage-quota failure. */
-async function evictUnderQuota(): Promise<number> {
-  // Rows touched in the last few minutes are protected; step past that.
-  const later = Date.now() + 60 * 60 * 1000;
-  const clock = vi.spyOn(Date, 'now').mockReturnValue(later);
-  try {
-    return await table.relieveQuota();
-  } finally {
-    clock.mockRestore();
-  }
-}
-
-async function warmReplicaWithRows(): Promise<void> {
-  installRegistrationsServer(
-    newServer({
-      changePages: [[serverRow({ id: 'r1' }), serverRow({ id: 'r2' }), serverRow({ id: 'r3' })]],
-      idPages: [[{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }]],
-    })
-  );
-  await table.sync();
-  expect((await table.readForDogs(['dog-1'])).state).toBe('warm');
-}
-
-// A quota eviction drops clean rows: the replica is no longer every visible
-// registration, so "none here" stops meaning "none" (Codex review, P2).
-describe('registrations coverage after a quota eviction', () => {
-  it('goes cold, and the next sync is a full one that makes it warm again', async () => {
-    await warmReplicaWithRows();
-
-    expect(await evictUnderQuota()).toBeGreaterThan(0);
-    expect((await table.readForDogs(['dog-1'])).state).toBe('cold');
-
-    const server = newServer({
-      changePages: [[serverRow({ id: 'r1' }), serverRow({ id: 'r2' }), serverRow({ id: 'r3' })]],
-      idPages: [[{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }]],
-    });
-    installRegistrationsServer(server);
-    await table.sync();
-
-    expect(server.calls.find(c => c.method === 'gt')?.args).toEqual([
-      'updated_at',
-      new Date(0).toISOString(),
-    ]);
-    expect((await table.readForDogs(['dog-1'])).state).toBe('warm');
-    expect(await table.getAllLocalIds()).toEqual(new Set(['r1', 'r2', 'r3']));
-  });
-
-  it('stays cold when the eviction lands during the sync that would restore it', async () => {
-    await warmReplicaWithRows();
-    await evictUnderQuota();
+// The ID pass is a side effect: a failed hydration never fails the download.
+describe('registrations ID pass inside sync', () => {
+  it('keeps a successful changes pass successful when a missing id cannot be fetched', async () => {
     const server = newServer({
       changePages: [[serverRow({ id: 'r1' })]],
-      idPages: [[{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }]],
+      idPages: [[{ id: 'r1' }, { id: 'r-new' }]],
     });
-    server.onChangePage = async () => {
-      await evictUnderQuota();
-    };
+    server.failIdLookups = true;
     installRegistrationsServer(server);
 
-    await table.sync();
+    const result = await table.sync();
 
-    expect((await table.readForDogs(['dog-1'])).state).toBe('cold');
+    expect(result.success).toBe(true);
+    expect(await table.get('r1')).not.toBeNull();
   });
 });
 

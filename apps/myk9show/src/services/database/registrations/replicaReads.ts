@@ -1,19 +1,26 @@
 /**
  * One dog's registrations for the dog page (the Registrations section and the
- * Manage registrations panel), read from the replica when it is warm
- * (MYK9-1090, plan §2).
+ * Manage registrations panel), MYK9-1090, plan §2.
  *
- * Warm (trusted, see dogRegistrationsTrust.ts): the replica answers, with no
- * network request, so it works offline, and an empty answer means the dog has
- * no registrations. Cold (not trusted) or unreadable: PostgREST answers, and a
- * failed read throws so the screen shows an error, never an empty list
- * (MYK9-90).
+ * Server first: a successful PostgREST read, plus only this device's unsent
+ * work (dirty rows, offline-created placeholders hidden once their server
+ * twin is present). When the server cannot be read, the device copy answers,
+ * labelled `source: 'device'` so the screen says it is an offline copy and
+ * may be out of date. If the device cannot be read either, the read throws:
+ * an error is shown, never an empty list (MYK9-90).
  */
 import {
   replicatedDogRegistrationsTable,
   type DogRegistrationReadRow,
 } from '@/services/replication/ReplicatedDogRegistrationsTable';
+import { appendRegistrations } from '../dogs/reads';
 import { getRegistrationsByDog } from './reads';
+
+export interface RegistrationsForDog {
+  rows: DogRegistrationReadRow[];
+  /** `device`: the server could not be read; this is the offline copy. */
+  source: 'server' | 'device';
+}
 
 /** `registration_date` descending with nulls first, PostgREST's `order(..., { ascending: false })`. */
 function byRegistrationDateDesc(a: DogRegistrationReadRow, b: DogRegistrationReadRow): number {
@@ -25,11 +32,19 @@ function byRegistrationDateDesc(a: DogRegistrationReadRow, b: DogRegistrationRea
   return left < right ? 1 : -1;
 }
 
-export async function readRegistrationsForDog(dogId: string): Promise<DogRegistrationReadRow[]> {
-  const local = await replicatedDogRegistrationsTable.readForDogs([dogId]);
-  if (local.state === 'warm') return [...local.rows].sort(byRegistrationDateDesc);
+export async function readRegistrationsForDog(dogId: string): Promise<RegistrationsForDog> {
+  const server = await getRegistrationsByDog(dogId);
+  const source = server.error ? 'device' : 'server';
+  const local =
+    source === 'server'
+      ? await replicatedDogRegistrationsTable.getUnsentRegistrationsForDogs([dogId])
+      : await replicatedDogRegistrationsTable.getRegistrationsForDogs([dogId]);
 
-  const { data, error } = await getRegistrationsByDog(dogId);
-  if (error) throw error;
-  return data;
+  // Server rows first; a local row that repeats one (same id, or same
+  // organization and number) is dropped.
+  const merged = new Map<string, Record<string, unknown>[]>();
+  appendRegistrations(merged, server.error ? [] : server.data);
+  appendRegistrations(merged, local);
+  const rows = (merged.get(dogId) ?? []) as unknown as DogRegistrationReadRow[];
+  return { rows: [...rows].sort(byRegistrationDateDesc), source };
 }

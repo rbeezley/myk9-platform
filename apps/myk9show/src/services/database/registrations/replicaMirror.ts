@@ -1,31 +1,27 @@
 /**
  * Mirror a direct registration write into the replica (MYK9-1090, plan §2).
  *
- * The dog page's registration readers answer from the replica once it is warm,
- * so a write that went straight to PostgREST must land in the replica too, or
- * the screen keeps the old value until the next sync. Every direct write in
- * `reads.ts` calls one of these after the server confirms it; PR 3 replaces
- * those writes with queued ones.
+ * The dog page's registration readers fall back to the replica when the
+ * server cannot be read, so a write that went straight to PostgREST must land
+ * in the replica too, or that offline copy keeps the old value until the next
+ * sync. Every direct write in `reads.ts` calls one of these after the server
+ * confirms it; PR 3 replaces those writes with queued ones.
  *
  * Never throws: the server write already succeeded. When the mirror fails, the
- * replica is distrusted (the readers go to the server) and the table still
- * tells its subscribers to re-read; the next clean full sync restores trust.
+ * table still tells its subscribers to re-read, so the server-first readers
+ * refresh; the next sync puts the device copy right.
  */
 import { logger } from '@/services/LoggingService';
 import {
   replicatedDogRegistrationsTable,
   type DogRegistrationRow,
 } from '@/services/replication/ReplicatedDogRegistrationsTable';
-import { distrustRegistrationsReplica } from '@/services/replication/dogRegistrationsTrust';
 
 async function notifyAfterFailedMirror(operation: string, error: unknown): Promise<void> {
   logger.warn('Registration write not mirrored to this device', 'replication', {
     operation,
     error: error instanceof Error ? error.message : String(error),
   });
-  // The replica now disagrees with the server, so it must not answer alone;
-  // distrust BEFORE the readers refetch, so the refetch goes to the server.
-  await distrustRegistrationsReplica(`mirror-failed:${operation}`);
   try {
     await replicatedDogRegistrationsTable.notifyChanged();
   } catch {

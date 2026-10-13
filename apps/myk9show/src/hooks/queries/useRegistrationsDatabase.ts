@@ -13,7 +13,10 @@ import {
   getRegistrationStatistics,
   validateRegistrationNumber,
 } from '@/services/database/registrations';
-import { readRegistrationsForDog } from '@/services/database/registrations/replicaReads';
+import {
+  readRegistrationsForDog,
+  type RegistrationsForDog,
+} from '@/services/database/registrations/replicaReads';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import type { DbDogRegistrationInsert, DbDogRegistrationUpdate } from '@/types/database-mappings';
 
@@ -44,19 +47,24 @@ export const useRegistrationQuery = (id: string, enabled = true) => {
   });
 };
 
-// Get registrations by dog ID: the replica when warm, PostgREST when cold.
-// `networkMode: 'always'` because a warm read never touches the network: under
-// the default 'online' mode an offline query sits `paused` and the section
-// reads as empty. The refresh listener in ReplicationSyncProvider
+// One dog's registrations: server first, the labelled device copy when the
+// server cannot be read (readRegistrationsForDog). `networkMode: 'always'` so
+// offline the read runs and falls back instead of sitting `paused`, which
+// renders as an empty list. The refresh listener in ReplicationSyncProvider
 // (useRegistrationsReplicaCacheSync) invalidates this key on every replica
 // change, so the mutations below need not.
+const registrationsByDogOptions = (dogId: string, enabled: boolean) => ({
+  queryKey: queryKeys.registrationsByDog(dogId),
+  queryFn: () => readRegistrationsForDog(dogId),
+  enabled: !!dogId && enabled,
+  networkMode: 'always' as const,
+  ...cacheStrategies.moderate,
+});
+
 export const useRegistrationsByDogQuery = (dogId: string, enabled = true) => {
   return useQuery({
-    queryKey: queryKeys.registrationsByDog(dogId),
-    queryFn: () => readRegistrationsForDog(dogId),
-    enabled: !!dogId && enabled,
-    networkMode: 'always',
-    ...cacheStrategies.moderate,
+    ...registrationsByDogOptions(dogId, enabled),
+    select: (result: RegistrationsForDog) => result.rows,
   });
 };
 
@@ -336,14 +344,16 @@ export const useRegistrationManagement = () => {
 
 // Custom hook for dog-specific registration management
 export const useDogRegistrationManagement = (dogId: string) => {
-  const dogRegistrationsQuery = useRegistrationsByDogQuery(dogId);
+  const dogRegistrationsQuery = useQuery(registrationsByDogOptions(dogId, true));
   const createMutation = useCreateRegistrationMutation();
   const updateMutation = useUpdateRegistrationMutation();
   const deleteMutation = useDeleteRegistrationMutation();
 
   return {
     // Queries
-    registrations: dogRegistrationsQuery.data,
+    registrations: dogRegistrationsQuery.data?.rows,
+    /** `device`: the server could not be read; the list is the offline copy. */
+    registrationsSource: dogRegistrationsQuery.data?.source,
     isLoading: dogRegistrationsQuery.isLoading,
     error: dogRegistrationsQuery.error,
 

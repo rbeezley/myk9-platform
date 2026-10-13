@@ -6,8 +6,8 @@
  * then an ID pass that fetches rows that came into view without an edit and
  * removes rows that left it (see `dogRegistrationsIdPass.ts`). Writes in this
  * release still go straight to PostgREST; each one is mirrored here at once
- * (`applyServerRows` / `removeDeletedOnServer`) so the replica-backed readers
- * show it without waiting for a sync.
+ * (`applyServerRows` / `removeDeletedOnServer`) so the offline device copy
+ * the readers fall back to has it without waiting for a sync.
  *
  * Conflict resolution: the dogs rule. A clean row takes the server copy; a
  * dirty row goes through the package's `reconcileDirtyRemoteRow`.
@@ -44,29 +44,9 @@ import {
   pruneRegistrationsMissingFromServer,
   snapshotRegistrationRevisions,
 } from './dogRegistrationsIdPass';
-import {
-  currentAuthUserId,
-  distrustRegistrationsReplica,
-  isRegistrationsReplicaTrusted,
-  readRegistrationsTrust,
-  recordRegistrationsTrust,
-  registrationsDistrustEpoch,
-} from './dogRegistrationsTrust';
-
 export type { DogRegistrationReadRow, DogRegistrationRow, ReplicatedDogRegistration };
 
 type RegistrationInput = NonNullable<DogInput['registrations']>[number];
-
-/**
- * What the replica can say about some dogs' registrations. `warm` is an
- * answer, an empty one included. `cold` (not trusted, see dogRegistrationsTrust.ts)
- * and `unreadable` are not: the caller asks the server or reports an error,
- * never "no registrations".
- */
-export type RegistrationReplicaRead =
-  | { state: 'warm'; rows: DogRegistrationReadRow[] }
-  | { state: 'cold' }
-  | { state: 'unreadable'; error: unknown };
 
 /** Outcome of one ID pass; `null` from `reconcileWithServerIds` means it was skipped. */
 export interface RegistrationIdPassResult {
@@ -129,25 +109,6 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     super('dog_registrations', { logger });
   }
 
-  /** Evicted rows leave the replica partial, so it can no longer answer alone. */
-  override async relieveQuota(): Promise<number> {
-    return this.afterEviction(await super.relieveQuota());
-  }
-
-  override async evictLRU(targetSizeBytes: number): Promise<number> {
-    return this.afterEviction(await super.evictLRU(targetSizeBytes));
-  }
-
-  override async clearCache(): Promise<void> {
-    await distrustRegistrationsReplica('cache-cleared');
-    await super.clearCache();
-  }
-
-  private afterEviction(evicted: number): number {
-    if (evicted > 0) void distrustRegistrationsReplica('quota-eviction');
-    return evicted;
-  }
-
   protected override rebuildUpdatePayload(
     registration: ReplicatedDogRegistration
   ): Record<string, unknown> {
@@ -185,24 +146,11 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
     };
 
-    // Trust (dogRegistrationsTrust.ts) is earned only by a clean full sync
-    // for the signed-in account. A record for another account is a doubt in
-    // itself; any sync that does not start trusted is a full one.
-    const userId = await currentAuthUserId();
-    const record = await readRegistrationsTrust();
-    if (userId && record && record.authUserId !== userId) {
-      await distrustRegistrationsReplica('account-mismatch');
-    }
-    const forceFullSync = !userId || (await readRegistrationsTrust())?.authUserId !== userId;
-    const epoch = registrationsDistrustEpoch();
     const result = await syncReplicatedTable(
       this,
       adapter,
       {},
-      {
-        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
-        ...(forceFullSync && { forceFullSync }),
-      }
+      { incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS }
     );
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
@@ -212,21 +160,14 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     if (!result.success) return result;
 
     // Side effect only: a failure here never turns a good download into a
-    // failed sync, but it does stop the replica answering alone.
-    // An incomplete or failed ID pass distrusts the replica itself, so the
-    // epoch check below is the one test of "nothing doubted it".
+    // failed sync.
     try {
       const idPass = await this.reconcileWithServerIds();
       if (idPass && idPass.removed + idPass.fetched > 0) {
         logger.log(`[${this.getTableName()}] ID pass`, idPass);
       }
     } catch (err) {
-      await distrustRegistrationsReplica('id-pass-failed');
       logger.warn(`[${this.getTableName()}] ID pass skipped`, err);
-    }
-
-    if (forceFullSync && userId && registrationsDistrustEpoch() === epoch) {
-      await recordRegistrationsTrust(userId);
     }
     return result;
   }
@@ -268,15 +209,13 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
    * server ids this device lacks and remove local ids the server no longer
    * shows (guarded, see `pruneRegistrationsMissingFromServer`). Returns `null`
    * when the id read was incomplete (a page failed or the page cap was hit):
-   * nothing is fetched or removed then, and the replica is distrusted. A
-   * failed fetch of the missing ids throws; `sync` distrusts on any throw.
+   * nothing is fetched or removed then.
    */
   async reconcileWithServerIds(): Promise<RegistrationIdPassResult | null> {
     const db = await this.init();
     const snapshot = await snapshotRegistrationRevisions(db, this.getTableName());
     const serverIds = await fetchVisibleRegistrationIds();
     if (!serverIds) {
-      await distrustRegistrationsReplica('id-pass-incomplete');
       logger.warn(`[${this.getTableName()}] ID pass read was incomplete; nothing removed`);
       return null;
     }
@@ -315,8 +254,8 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
 
   /**
    * Mirror a direct server delete. A row holding unsent local work stays.
-   * Subscribers hear about it even when nothing local changed (a cold replica
-   * never held the row), so a PostgREST-backed reader still refreshes.
+   * Subscribers hear about it even when nothing local changed (the device
+   * never held the row), so the server-first readers still refresh.
    */
   async removeDeletedOnServer(id: string): Promise<void> {
     const { deleted } = await this.deleteRowsIfClean([id]);
@@ -335,25 +274,6 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   /** Tell subscribers to re-read, for a write that could not be mirrored. */
   async notifyChanged(): Promise<void> {
     await this.notifyListeners();
-  }
-
-  /**
-   * These dogs' registrations from the replica, through the shared visibility
-   * rule. Warm only while the replica is trusted (dogRegistrationsTrust.ts);
-   * only then is an empty answer "no registrations".
-   */
-  async readForDogs(dogIds: readonly string[]): Promise<RegistrationReplicaRead> {
-    try {
-      const read = await this.getAllWithStatus();
-      if (!read.ok) return { state: 'unreadable', error: read.error };
-      if (!(await isRegistrationsReplicaTrusted())) return { state: 'cold' };
-      return {
-        state: 'warm',
-        rows: visibleRegistrationRows(read.rows, dogIds).map(registrationToDbRow),
-      };
-    } catch (error) {
-      return { state: 'unreadable', error };
-    }
   }
 
   async createRegistrationsForDog(
@@ -439,14 +359,15 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
 
   /**
    * These dogs' registrations on this device, whatever the sync state: the
-   * caller decides what an empty answer means (see `readForDogs`).
+   * caller decides what an empty answer means. The readers use it only as a
+   * labelled offline copy when the server cannot be reached.
    */
   async getRegistrationsForDogs(dogIds: string[]): Promise<Record<string, unknown>[]> {
     if (dogIds.length === 0) return [];
     return visibleRegistrationRows(await this.getAllOrThrow(), dogIds).map(registrationToDbRow);
   }
 
-  /** Unsent work only (`unsentRegistrationRows`), for an untrusted replica's merge. */
+  /** Unsent work only (`unsentRegistrationRows`), merged into a server read. */
   async getUnsentRegistrationsForDogs(dogIds: string[]): Promise<Record<string, unknown>[]> {
     if (dogIds.length === 0) return [];
     const tx = (await this.init()).transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');

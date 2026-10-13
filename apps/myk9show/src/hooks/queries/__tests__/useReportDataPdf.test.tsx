@@ -162,6 +162,7 @@ describe('useReportData cached-row PDF integration', () => {
       byDog: new Map(),
       serverError: new Error('registration transport offline'),
       registrationsReadComplete: false,
+      source: 'device',
     });
 
     const { result } = renderHook(() => useReportData({ show, trialId: 'all', classId: 'all' }), {
@@ -194,6 +195,7 @@ describe('useReportData cached-row PDF integration', () => {
       byDog: new Map([['dog-1', [localRegistration]]]),
       serverError: new Error('registration transport offline'),
       registrationsReadComplete: false,
+      source: 'device',
     });
 
     const { result } = renderHook(

@@ -12,7 +12,9 @@
  *   wins. Two kinds of this device's unsent work are laid over it: the dog's
  *   own fields when the signed-in account's pending-mutation queue names the
  *   dog (an edit, or an offline create the server has not seen yet), and
- *   unsent registrations, as `loadDogRegistrations` merges them.
+ *   unsent registrations. Registrations come from `loadDogRegistrations`, the
+ *   roster's read, so the dog page and the roster resolve the same primary
+ *   registration (one merge rule: `dropServerTwins` + local creation order).
  * - Only when the server cannot be REACHED (`serverUnreachable`) does the
  *   device copy answer. A server that answered with an error is an error,
  *   never an empty or missing dog.
@@ -23,11 +25,9 @@ import {
   type ReplicatedDog,
 } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
-import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
-import { dropServerTwins } from '@/services/replication/dogRegistrationRows';
 import { mapReplicatedDogToDbRow } from '@/services/mappers/dogMappers';
 import { serverUnreachable } from '../registrations/serverUnreachable';
-import { appendRegistrations, loadDogRegistrations } from './reads';
+import { loadDogRegistrations, type DogRegistrationsResult } from './reads';
 
 type DogDetailRow = Record<string, unknown>;
 
@@ -57,7 +57,6 @@ async function readServerDog(id: string): Promise<DogDetailResult> {
           state,
           zip_code
         ),
-        registrations:dog_registrations(*),
         health_records(*),
         entries(
           *,
@@ -103,7 +102,7 @@ async function ownUnsentDog(id: string): Promise<ReplicatedDog | null> {
   }
 }
 
-/** The dog's own fields from the device; the server's owner, registrations, entries and health records. */
+/** The dog's own fields from the device; the server's owner, entries and health records. */
 function overlayUnsentDog(serverRow: DogDetailRow, dog: ReplicatedDog): DogDetailRow {
   const deviceFields = mapReplicatedDogToDbRow(dog);
   delete deviceFields.owner;
@@ -111,27 +110,11 @@ function overlayUnsentDog(serverRow: DogDetailRow, dog: ReplicatedDog): DogDetai
   return { ...serverRow, ...deviceFields };
 }
 
-/** Add this device's unsent registrations, dropping any whose server copy is already here. */
-async function withUnsentRegistrations(row: DogDetailRow, id: string): Promise<DogDetailRow> {
-  let unsent: Record<string, unknown>[];
-  try {
-    unsent = await replicatedDogRegistrationsTable.getUnsentRegistrationsForDogs([id]);
-  } catch {
-    return row;
-  }
-  if (unsent.length === 0) return row;
-  const serverRows = (row.registrations as Record<string, unknown>[] | undefined) ?? [];
-  const merged = new Map<string, Record<string, unknown>[]>();
-  appendRegistrations(
-    merged,
-    serverRows.map(registration => ({ ...registration, dog_id: registration.dog_id ?? id }))
-  );
-  appendRegistrations(merged, dropServerTwins(unsent, serverRows));
-  return { ...row, registrations: merged.get(id) ?? [] };
-}
-
 /** The device copy: the replica's dog and entries, with whatever owner and registrations can be read. */
-async function readDeviceDog(id: string): Promise<DogDetailResult> {
+async function readDeviceDog(
+  id: string,
+  registrationsResult: DogRegistrationsResult
+): Promise<DogDetailResult> {
   try {
     const dog = await replicatedDogsTable.getDogById(id);
     if (!dog) {
@@ -150,29 +133,26 @@ async function readDeviceDog(id: string): Promise<DogDetailResult> {
     const allEntries = await replicatedEntriesTable.getAllOrThrow();
     const dogEntries = allEntries.filter(e => e.dogId === id);
 
-    const [registrationsResult, supplementalResult] = await Promise.all([
-      loadDogRegistrations([id]),
-      supabase
-        .from('dogs')
-        .select(
-          `
-          owner:people!dogs_owner_id_fkey(
-            id,
-            first_name,
-            last_name,
-            email,
-            phone,
-            street_address,
-            city,
-            state,
-            zip_code
-          ),
-          health_records(*)
+    const supplementalResult = await supabase
+      .from('dogs')
+      .select(
         `
-        )
-        .eq('id', id)
-        .single(),
-    ]);
+        owner:people!dogs_owner_id_fkey(
+          id,
+          first_name,
+          last_name,
+          email,
+          phone,
+          street_address,
+          city,
+          state,
+          zip_code
+        ),
+        health_records(*)
+      `
+      )
+      .eq('id', id)
+      .single();
 
     const supplemental = supplementalResult.data as DogDetailRow | null;
     const entries = dogEntries.map(e => ({
@@ -211,12 +191,18 @@ async function readDeviceDog(id: string): Promise<DogDetailResult> {
 }
 
 export async function getDogById(id: string): Promise<DogDetailResult> {
-  const server = await readServerDog(id);
+  // In parallel: the registrations read is the roster's, and on its own
+  // falls back to the device copy when the server cannot be reached.
+  const [server, registrationsResult] = await Promise.all([
+    readServerDog(id),
+    loadDogRegistrations([id]),
+  ]);
   if (server.error) {
-    if (serverUnreachable(server.error)) return readDeviceDog(id);
+    if (serverUnreachable(server.error)) return readDeviceDog(id, registrationsResult);
     // An offline create the server has not received yet: this account's own
     // unsent dog, shown from the device until its upload lands.
-    if (server.error.code === NOT_FOUND && (await ownUnsentDog(id))) return readDeviceDog(id);
+    if (server.error.code === NOT_FOUND && (await ownUnsentDog(id)))
+      return readDeviceDog(id, registrationsResult);
     return { data: null, error: server.error };
   }
 
@@ -229,5 +215,12 @@ export async function getDogById(id: string): Promise<DogDetailResult> {
 
   const own = await ownUnsentDog(id);
   const row = own ? overlayUnsentDog(server.data, own) : server.data;
-  return { data: await withUnsentRegistrations(row, id), error: null };
+  return {
+    data: {
+      ...row,
+      registrations: registrationsResult.byDog.get(id) ?? [],
+      registrations_read_complete: registrationsResult.registrationsReadComplete,
+    },
+    error: null,
+  };
 }

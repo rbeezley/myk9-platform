@@ -14,8 +14,11 @@ const { server, mockDogsTable, mockEntriesTable, mockRegistrationsTable } = vi.h
   server: {
     detail: { data: null, error: null } as { data: unknown; error: unknown },
     throws: null as Error | null,
+    /** `dog_registrations` rows, for the roster's and the registration read. */
+    registrations: [] as Record<string, unknown>[],
   },
   mockDogsTable: {
+    getAllDogsWithStatus: vi.fn(),
     getDogById: vi.fn(),
     getPendingMutationIdsForRow: vi.fn(),
   },
@@ -44,7 +47,10 @@ vi.mock('@/services/database/supabaseClient', () => ({
         const settle = () => {
           if (isDetail && server.throws) return Promise.reject(server.throws);
           if (isDetail) return Promise.resolve(server.detail);
-          // The device path's owner/health supplement and registration reads.
+          // The device path's owner/health supplement, owners and registrations.
+          if (table === 'dog_registrations') {
+            return Promise.resolve({ data: server.registrations, error: null });
+          }
           return Promise.resolve({ data: table === 'dogs' ? null : [], error: null });
         };
         const chain: Record<string, unknown> = {
@@ -61,7 +67,8 @@ vi.mock('@/services/database/supabaseClient', () => ({
   createDatabaseError,
 }));
 
-import { getDogById } from '@/services/database/dogs';
+import { getAllDogs, getDogById } from '@/services/database/dogs';
+import { mapDatabaseToDog } from '@/services/mappers/dogMappers';
 
 const SERVER_ROW = {
   id: 'dog-1',
@@ -91,6 +98,7 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
   beforeEach(() => {
     server.detail = { data: null, error: null };
     server.throws = null;
+    server.registrations = [];
     mockDogsTable.getDogById.mockReset();
     mockDogsTable.getDogById.mockResolvedValue(replicaDog());
     mockDogsTable.getPendingMutationIdsForRow.mockReset();
@@ -111,7 +119,8 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
     const { data, error } = await getDogById('dog-1');
 
     expect(error).toBeNull();
-    expect(data).toEqual(SERVER_ROW);
+    // Registrations come from the roster's registration read (none here).
+    expect(data).toEqual({ ...SERVER_ROW, registrations: [], registrations_read_complete: true });
     expect(mockDogsTable.getDogById).not.toHaveBeenCalled();
     expect(mockEntriesTable.getAllOrThrow).not.toHaveBeenCalled();
   });
@@ -200,5 +209,62 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
     expect((data as Record<string, unknown>).registrations).toEqual([
       expect.objectContaining({ id: 'registration-local-1', registration_number: 'SW123456' }),
     ]);
+  });
+  it('detail and roster resolve the same primary registration when server timestamps tie', async () => {
+    // create_dog_with_registrations stamps every row with one instant, so the
+    // server rows tie and the id tiebreak would pick AKC. This device's
+    // placeholders hold the real creation order: UKC first. Both reads must
+    // carry that order over (overlayLocalCreationOrder) and agree.
+    const tied = '2026-10-01T12:00:00+00:00';
+    server.registrations = [
+      {
+        id: 'reg-a',
+        dog_id: 'dog-1',
+        organization: 'AKC',
+        registration_number: 'SW1',
+        breed: 'Beagle',
+        created_at: tied,
+        is_primary: false,
+        status: 'active',
+      },
+      {
+        id: 'reg-b',
+        dog_id: 'dog-1',
+        organization: 'UKC',
+        registration_number: 'U2',
+        breed: 'Harrier',
+        created_at: tied,
+        is_primary: false,
+        status: 'active',
+      },
+    ];
+    mockRegistrationsTable.getUnsentRegistrationsForDogs.mockResolvedValue([
+      {
+        id: 'local-ukc',
+        dog_id: 'dog-1',
+        organization: 'UKC',
+        registration_number: 'U2',
+        breed: 'Harrier',
+        created_at: '2026-10-01T11:00:00.000Z',
+      },
+      {
+        id: 'local-akc',
+        dog_id: 'dog-1',
+        organization: 'AKC',
+        registration_number: 'SW1',
+        breed: 'Beagle',
+        created_at: '2026-10-01T11:00:01.000Z',
+      },
+    ]);
+    server.detail = { data: { ...SERVER_ROW, registrations: server.registrations }, error: null };
+    mockDogsTable.getAllDogsWithStatus.mockResolvedValue({ rows: [replicaDog()], cold: false });
+
+    const detail = await getDogById('dog-1');
+    const roster = await getAllDogs('person-1');
+
+    const detailDog = mapDatabaseToDog(detail.data as Record<string, unknown>);
+    const rosterDog = mapDatabaseToDog((roster.data as Record<string, unknown>[])[0]!);
+    expect(rosterDog.breed).toBe('Harrier');
+    expect(detailDog.breed).toBe(rosterDog.breed);
   });
 });

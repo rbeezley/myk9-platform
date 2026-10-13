@@ -56,10 +56,12 @@ export function secretForms(secret: string): string[] {
 }
 
 export function scrubSecrets(text: string, secrets: readonly string[]): string {
+  // Longest spelling first, across every secret: a verbatim spelling can be a prefix
+  // of its own JSON-escaped spelling (a trailing backslash) or of another secret, and
+  // replacing the shorter one first leaves a fragment behind that can break the JSON.
+  const forms = [...new Set(secrets.flatMap(secretForms))].sort((a, b) => b.length - a.length);
   let out = text;
-  for (const secret of secrets) {
-    for (const form of secretForms(secret)) out = out.split(form).join('***REDACTED***');
-  }
+  for (const form of forms) out = out.split(form).join('***REDACTED***');
   return out;
 }
 

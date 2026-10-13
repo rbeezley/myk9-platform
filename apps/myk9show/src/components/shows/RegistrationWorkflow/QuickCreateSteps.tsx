@@ -158,10 +158,10 @@ export const QuickCreateSteps: React.FC<QuickCreateStepsProps> = ({
               {flowState.dogs.map((dog, index) => (
                 <div
                   key={dog.id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
+                  className="flex flex-col gap-3 p-3 border rounded-lg sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{dog.callName}</span>
                       <Badge variant="outline">{getDogBreedLabel(dog)}</Badge>
                       <Badge variant="secondary">{dog.gender}</Badge>

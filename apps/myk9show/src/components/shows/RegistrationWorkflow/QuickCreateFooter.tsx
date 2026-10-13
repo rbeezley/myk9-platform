@@ -17,7 +17,7 @@ export const QuickCreateFooter: React.FC<QuickCreateFooterProps> = ({
   onCancel,
   onComplete,
 }) => (
-  <div className="flex justify-between">
+  <div className="flex flex-wrap items-center justify-between gap-3">
     <div>
       {flowState.step !== 'exhibitor' && (
         <Button
@@ -35,7 +35,7 @@ export const QuickCreateFooter: React.FC<QuickCreateFooterProps> = ({
       )}
     </div>
 
-    <div className="flex gap-3">
+    <div className="flex flex-wrap gap-3">
       <Button variant="outline" onClick={onCancel}>
         Cancel
       </Button>

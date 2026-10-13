@@ -57,6 +57,16 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
 
   const sortedEntries = useMemo(() => sortByExhibitorOrder(entries), [entries]);
   const onScreenEntryId = resolveOnScreenEntryId(sortedEntries, requestedEntryId, mode);
+  // The dog on screen stays on screen while it is listed (MYK9-1130): once a
+  // fallback (opening, or the requested dog leaving) puts a dog up, it becomes
+  // the requested one, so an earlier-running dog that syncs in later cannot
+  // take its place and discard the unsaved entry. Only navigation or that dog
+  // leaving moves the screen. Adjusted during render, React's pattern for state
+  // derived from the previous render; it settles in one pass because the next
+  // resolve returns the same id. An empty class keeps the request as it is.
+  if (onScreenEntryId !== null && onScreenEntryId !== requestedEntryId) {
+    setRequestedEntryId(onScreenEntryId);
+  }
 
   const selectEntry = useCallback((entryId: string | null) => {
     setRequestedEntryId(entryId);

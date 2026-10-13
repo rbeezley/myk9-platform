@@ -306,6 +306,30 @@ describe('PaperScoresheetPage — the selected dog leaves the class', () => {
   });
 
   it.each(['sequential', 'split'] as const)(
+    'an earlier dog arriving mid-entry leaves the opened dog and its unsaved input alone (%s)',
+    async mode => {
+      // Willow ran and is scored, so the class opens on Cooper by itself.
+      replica.rows = [dog('e1', 'Willow', 1, true), dog('e2', 'Cooper', 2)];
+      renderPage(mode);
+      expect((await screen.findAllByText('1 of 2 scored'))[0]).toBeInTheDocument();
+
+      fireEvent.click(await screen.findByRole('button', { name: /^Q$/ }));
+      const time = screen.getByLabelText(/Search Time/) as HTMLInputElement;
+      fireEvent.change(time, { target: { value: '4231' } });
+      const typed = time.value;
+      expect(typed).not.toBe('');
+
+      await deliver([dog('e0', 'Ace', 0), ...(replica.rows as ScoringEntry[])]);
+      expect((await screen.findAllByText('1 of 3 scored'))[0]).toBeInTheDocument();
+
+      expect((screen.getByLabelText(/Search Time/) as HTMLInputElement).value).toBe(typed);
+      fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+      await waitFor(() => expect(replica.updateEntry).toHaveBeenCalledTimes(1));
+      expect(replica.updateEntry).toHaveBeenCalledWith('e2', expect.anything());
+    }
+  );
+
+  it.each(['sequential', 'split'] as const)(
     'after the class empties and refills, a save goes to the dog that arrived (%s)',
     async mode => {
       renderPage(mode);

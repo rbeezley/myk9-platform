@@ -40,7 +40,7 @@ export interface PreloadableComponent {
 /** Type guard to check if a value has preload capability */
 function isPreloadable(value: unknown): value is PreloadableComponent {
   return (
-    typeof value === 'object' &&
+    (typeof value === 'object' || typeof value === 'function') &&
     value !== null &&
     'preload' in value &&
     typeof (value as PreloadableComponent).preload === 'function'

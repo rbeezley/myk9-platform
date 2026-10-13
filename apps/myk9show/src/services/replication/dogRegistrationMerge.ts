@@ -3,9 +3,9 @@
  * (MYK9-1090 plan §2, MYK9-1129 item 5). The rule both server-first readers
  * share, so the dog page and the dog reads agree:
  *
- * - an unsent edit or add WINS over the server row with the same id: until
- *   it uploads, the device's value is the newest one the user saw (an add
- *   whose acknowledgement was lost is on the server already, Codex round 3);
+ * - an unsent add WINS over the server row with the same id: until it
+ *   uploads, the device's value is the newest one the user saw (an add whose
+ *   acknowledgement was lost is on the server already, Codex round 3);
  * - a row waiting on its delete hides the server row it deletes;
  * - a queued add shows unless the read already holds it, including a re-add
  *   of a registration whose old row is being deleted (new id, same number);

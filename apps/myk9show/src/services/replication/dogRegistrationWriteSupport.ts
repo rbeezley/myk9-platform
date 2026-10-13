@@ -9,6 +9,7 @@ import { logger } from '@myk9/core';
 import { FriendlySaveError } from '@/utils/friendlySaveError';
 import {
   registrationIdentityKey,
+  rowToRegistration,
   visibleRegistrationRows,
   type DogRegistrationRow,
   type ReplicatedDogRegistration,
@@ -56,11 +57,8 @@ export async function loadRowForWrite(
   return loaded;
 }
 
-/** A registration Edit dog may change: its row id and organization. */
-export interface EditableRegistration {
-  id: string;
-  organization: string;
-}
+/** A registration Edit dog may change. */
+export type EditableRegistration = ReplicatedDogRegistration;
 
 /**
  * One dog's registrations, for a write built on what exists (Edit dog's
@@ -82,10 +80,7 @@ export async function loadDogRegistrationsForEdit(
       await table.applyServerRows(serverRows);
       const merged = mergeUnsentWork(serverRows, await table.getUnsentWorkForDogs([dogId]));
       return {
-        registrations: merged.map(row => ({
-          id: String(row.id),
-          organization: String(row.organization ?? ''),
-        })),
+        registrations: merged.map(row => rowToRegistration(row as DogRegistrationRow)),
         server: true,
       };
     } catch (error) {
@@ -99,22 +94,7 @@ export async function loadDogRegistrationsForEdit(
 }
 
 /**
- * True when the server refused this row's INSERT (a failed mutation the user
- * has not retried or discarded).
- */
-export async function hasRefusedInsert(
-  table: RegistrationsReplica,
-  queue: MutationManager | null,
-  id: string
-): Promise<boolean> {
-  if (!queue) return false;
-  return (await queue.getFailedMutations()).some(
-    m => m.tableName === table.getTableName() && String(m.rowId) === id && m.operation === 'INSERT'
-  );
-}
-
-/**
- * Work an edit or delete must upload after: the row's own queued mutations
+ * Work a delete must upload after: the row's own queued mutations
  * (its INSERT, which may replay as a duplicate after a lost acknowledgement)
  * and its dog's (a create still queued). Never out of order after a backoff.
  */

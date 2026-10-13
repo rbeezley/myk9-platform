@@ -1,9 +1,8 @@
 /**
  * Shapes for the queued registration writes (MYK9-1090 plan §3, MYK9-1075):
- * the edit patch (allowlisted), a new registration from a form draft, and the
+ * what an Edit dog form changed (allowlisted), a new registration from a form draft, and the
  * refusals a save panel shows.
  */
-import type { DirtyRowComparePolicy } from '@myk9/replication';
 import type { DogInput } from '@/store/dogStore';
 import type { DbDogRegistrationInsert } from '@/types/database-mappings';
 import { FriendlySaveError } from '@/utils/friendlySaveError';
@@ -34,11 +33,6 @@ export function registrationChangesNeedConnection(): FriendlySaveError {
  * NULL DEFAULT 1`, 20261009214700; the trigger bumps it on UPDATE only).
  */
 export const NEW_REGISTRATION_VERSION = 1;
-
-/** The refusal for editing an add the server refused (Codex round 2). */
-export function registrationAddRefused(): FriendlySaveError {
-  return new FriendlySaveError("This registration couldn't be added. Discard it and add it again.");
-}
 
 /**
  * The refusal for editing or deleting a registration that travels inside its
@@ -99,23 +93,6 @@ export function registrationChanges(
     if (comparable(value) !== comparable(current)) changes[column] = value;
   }
   return changes;
-}
-
-/** A device row with an edit's changed columns applied, and nothing else. */
-export function applyRegistrationChanges(
-  row: ReplicatedDogRegistration,
-  changes: Readonly<Record<string, unknown>>
-): ReplicatedDogRegistration {
-  const next: Record<string, unknown> = { ...row };
-  for (const [column, value] of Object.entries(changes)) {
-    if (isUpdateColumn(column)) next[FIELD_OF_COLUMN[column]] = value;
-  }
-  return {
-    ...(next as unknown as ReplicatedDogRegistration),
-    updatedAt: new Date().toISOString(),
-    _lastModified: new Date(),
-    _syncStatus: 'pending',
-  };
 }
 
 /**
@@ -191,12 +168,3 @@ export function draftToRegistration(
     createdAt,
   };
 }
-
-/**
- * `updatedAt` is bookkeeping: an edit here and a server edit each stamp it, so
- * comparing it would turn every different-field pair into a conflict. Compare
- * it as one value; the UPDATE payload still carries its own timestamp.
- */
-export const REGISTRATION_COMPARE_POLICY: DirtyRowComparePolicy = {
-  normalizeValue: (field, value) => (field === 'updatedAt' ? null : value),
-};

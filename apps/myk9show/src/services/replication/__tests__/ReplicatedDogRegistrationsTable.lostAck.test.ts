@@ -3,13 +3,12 @@
  * round 3). The server holds the row; the device still has it as an unsent
  * add with its INSERT queued. A server row with the add's id proves the add
  * landed, so the device row becomes an ordinary server-backed row: the
- * readers show its unsent edit over the server copy, and edit and delete take
- * the normal path. The queued INSERT replays as a primary-key duplicate.
+ * readers merge it with the server copy, and delete takes the normal path.
+ * The queued INSERT replays as a primary-key duplicate.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureConflictSurfacing, databaseManager } from '@myk9/replication';
 import { replicatedDogRegistrationsTable as table } from '../ReplicatedDogRegistrationsTable';
-import { mergeUnsentWork } from '../dogRegistrationMerge';
 import { unsentWorkProvenByServer } from '@/services/database/registrations/unsentWork';
 import { installRegistrationsServer, newServer, serverRow } from './dogRegistrationFixtures';
 import {
@@ -107,22 +106,6 @@ describe('an add whose INSERT committed but whose acknowledgement was lost', () 
     }
   );
 
-  it('after the sync: the edit shows over the server copy and is what the server ends with', async () => {
-    const { added, committed } = await addWhoseAckWasLost();
-    await syncSees(committed);
-
-    await table.updateRegistration(added.id, { registration_number: 'FIXED1' });
-
-    const unsent = await table.getUnsentWorkForDogs(['dog-1']);
-    expect(mergeUnsentWork([committed], unsent)).toEqual([
-      expect.objectContaining({ id: added.id, registration_number: 'FIXED1' }),
-    ]);
-    setDeviceOnline(true);
-    await queue.upload();
-    expect(await queue.failed()).toEqual([]);
-    expect(queue.server.get(added.id)).toMatchObject({ registration_number: 'FIXED1' });
-  });
-
   it('after the sync: delete removes it from the server and the device', async () => {
     const { added, committed } = await addWhoseAckWasLost();
     await syncSees(committed);
@@ -153,18 +136,5 @@ describe('an add whose INSERT committed but whose acknowledgement was lost', () 
     expect(row?.data._localOnly).toBeUndefined();
     expect(row?.data._queuedAdd).toBeUndefined();
     expect(row?.serverVersion).toBe(1);
-  });
-
-  // Before any sync: the server read already shows the row. The device's
-  // queued edit of it must win, like every unsent edit.
-  it('before a sync: a server read shows the unsent edit, not the server copy', async () => {
-    const { added, committed } = await addWhoseAckWasLost();
-    await table.updateRegistration(added.id, { registration_number: 'FIXED1' });
-
-    const unsent = await table.getUnsentWorkForDogs(['dog-1']);
-
-    expect(mergeUnsentWork([committed], unsent)).toEqual([
-      expect.objectContaining({ id: added.id, registration_number: 'FIXED1' }),
-    ]);
   });
 });

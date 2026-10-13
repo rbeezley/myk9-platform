@@ -9,8 +9,6 @@ import { configureConflictSurfacing, databaseManager } from '@myk9/replication';
 import { supabase } from '@/services/database/supabaseClient';
 import { replicatedDogRegistrationsTable as table } from '../ReplicatedDogRegistrationsTable';
 import { replicatedDogsTable } from '../ReplicatedDogsTable';
-import { REGISTRATION_UPDATE_COLUMNS } from '../dogRegistrationRows';
-import { REGISTRATIONS_NEED_CONNECTION } from '../dogRegistrationWrites';
 import { mergeUnsentWork } from '../dogRegistrationMerge';
 import { installRegistrationsServer, newServer, serverRow } from './dogRegistrationFixtures';
 import {
@@ -41,59 +39,6 @@ afterEach(async () => {
   await queue.destroy();
   configureConflictSurfacing(false);
   await databaseManager.reset();
-});
-
-describe('edit', () => {
-  it('queues one OCC UPDATE of the changed columns only, and sends nothing offline', async () => {
-    await table.updateRegistration('reg-1', { registered_name: 'New', breed: 'Beagle' });
-    await queue.settle();
-
-    const [mutation, ...rest] = await queue.pending();
-    expect(rest).toHaveLength(0);
-    expect(mutation).toMatchObject({ operation: 'UPDATE', rowId: 'reg-1', serverVersion: 3 });
-    expect(mutation!.data).toMatchObject({ registered_name: 'New', breed: 'Beagle' });
-    // Only what changed travels (the server row's breed was Border Collie).
-    expect(Object.keys(mutation!.data).sort()).toEqual(['breed', 'registered_name', 'updated_at']);
-    expect(
-      Object.keys(mutation!.data).every(key =>
-        (REGISTRATION_UPDATE_COLUMNS as readonly string[]).includes(key)
-      )
-    ).toBe(true);
-    expect(queue.sent).toEqual([]);
-    expect(supabase.from).not.toHaveBeenCalled();
-    expect(await table.get('reg-1')).toMatchObject({ registeredName: 'New', breed: 'Beagle' });
-  });
-
-  it('throws on a column outside the allowlist before anything is written or queued', async () => {
-    await expect(
-      table.updateRegistration('reg-1', { registered_name: 'New', dog_id: 'dog-2' })
-    ).rejects.toThrow(/dog_id/);
-
-    expect(await queue.pending()).toEqual([]);
-    expect(await table.get('reg-1')).toMatchObject({ registeredName: 'Old', dogId: 'dog-1' });
-  });
-
-  it('a refused edit, discarded, puts the row back', async () => {
-    setDeviceOnline(true);
-    queue.answer.update = { data: null, error: { code: '42501', message: 'permission denied' } };
-    await table.updateRegistration('reg-1', { registered_name: 'Refused' });
-    await queue.upload();
-    const [failed] = await queue.failed();
-    expect(failed).toMatchObject({ operation: 'UPDATE', rowId: 'reg-1' });
-
-    setDeviceOnline(false);
-    await queue.manager.discardFailedMutation(failed!.id);
-
-    const row = await table.getReplicatedRow('reg-1');
-    expect(row).toMatchObject({ isDirty: false, data: { registeredName: 'Old' } });
-  });
-
-  it('refuses offline when the row is not on this device, and queues nothing', async () => {
-    await expect(table.updateRegistration('reg-cold', { registered_name: 'X' })).rejects.toThrow(
-      REGISTRATIONS_NEED_CONNECTION
-    );
-    expect(await queue.pending()).toEqual([]);
-  });
 });
 
 describe('add', () => {
@@ -136,6 +81,24 @@ describe('add', () => {
 
     const insert = (await queue.pending()).find(m => m.rowId === added.id);
     expect(insert).toMatchObject({ operation: 'INSERT', dependsOn: [dogCreate] });
+  });
+  // A re-add waits for the queued DELETE of the same organization and number,
+  // or the live org/number unique index refuses its INSERT (Codex).
+  it('a re-add waits for the queued DELETE of the same organization and number', async () => {
+    await table.applyServerRows([
+      serverRow({ id: 'reg-old', organization: 'AKC', registration_number: 'SR 123' }),
+    ]);
+    await table.deleteRegistration('reg-old');
+    const deletion = (await queue.pending()).find(m => m.operation === 'DELETE');
+
+    const readded = await table.addRegistration({
+      dog_id: 'dog-1',
+      organization: 'akc',
+      registration_number: 'SR123',
+    });
+
+    const insert = (await queue.pending()).find(m => m.rowId === readded.id);
+    expect(insert?.dependsOn).toContain(deletion!.id);
   });
 });
 

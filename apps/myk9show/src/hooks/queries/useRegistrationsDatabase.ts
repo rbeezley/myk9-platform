@@ -5,6 +5,7 @@ import {
   getRegistrationById,
   getRegistrationsByOrganization,
   getRegistrationsByOwner,
+  updateRegistration,
   searchRegistrations,
   getRegistrationStatistics,
   validateRegistrationNumber,
@@ -20,6 +21,7 @@ import {
   type RegistrationDraft,
 } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { registrationToDbRow } from '@/services/replication/dogRegistrationRows';
+import { assertRegistrationEditable } from '@/services/database/registrations/editGuard';
 
 // Get registration by ID with full details
 export const useRegistrationQuery = (id: string, enabled = true) => {
@@ -154,12 +156,13 @@ export const useValidateRegistrationNumber = (
   });
 };
 
-// The three registration writes go through the registrations replica's queue
-// (MYK9-1090, MYK9-1075): the device row changes at once and the write
-// uploads when the device is online, so they work offline and a refusal
-// reaches the Retry/Discard toast. `networkMode: 'always'`: a queued write is
-// the save, so it must not sit paused offline. The dog's registration reads
-// refresh through the replica listener (useRegistrationsReplicaCacheSync).
+// Add and delete go through the registrations replica's queue (MYK9-1090,
+// MYK9-1075): the device row changes at once and the write uploads when the
+// device is online, so they work offline and a refusal reaches the
+// Retry/Discard toast. `networkMode: 'always'`: a queued write is the save, so
+// it must not sit paused offline. An edit is online-only (below). The dog's
+// registration reads refresh through the replica listener
+// (useRegistrationsReplicaCacheSync).
 const invalidateRegistrationSummaries = (
   queryClient: ReturnType<typeof useQueryClient>,
   organization: string | null | undefined
@@ -185,12 +188,58 @@ export const useUpdateRegistrationMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
+    // Online-only write awaited by an edit panel: fail fast offline instead of
+    // pausing, or the panel's Save never settles (MYK9-1125).
     networkMode: 'always',
-    mutationFn: async ({ id, updates }: { id: string; updates: DbDogRegistrationUpdate }) =>
-      registrationToDbRow(await replicatedDogRegistrationsTable.updateRegistration(id, updates)),
-    onSuccess: (data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.registration(id) });
-      invalidateRegistrationSummaries(queryClient, data.organization);
+    mutationFn: async ({ id, updates }: { id: string; updates: DbDogRegistrationUpdate }) => {
+      // Edits are online-only (MYK9-1090): refused offline, or while the row
+      // has unsent work, before anything is written.
+      await assertRegistrationEditable(id);
+      const { data, error } = await updateRegistration(id, updates);
+      if (error) throw error;
+      return data;
+    },
+    onMutate: async ({ id, updates }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: queryKeys.registration(id) });
+
+      // Snapshot the previous value
+      const previousRegistration = queryClient.getQueryData(queryKeys.registration(id));
+
+      // Optimistically update to the new value
+      if (previousRegistration) {
+        queryClient.setQueryData(queryKeys.registration(id), (old: unknown) => {
+          return { ...(old as Record<string, unknown>), ...updates };
+        });
+      }
+
+      return { previousRegistration };
+    },
+    onError: (_err, { id }, context) => {
+      // If the mutation fails, use the context to roll back
+      if (context?.previousRegistration) {
+        queryClient.setQueryData(queryKeys.registration(id), context.previousRegistration);
+      }
+    },
+    onSuccess: (data, { id, updates }) => {
+      // Update specific registration cache
+      queryClient.setQueryData(queryKeys.registration(id), data);
+
+      // The dog's registrations and the dog reads refresh through the replica
+      // listener: updateRegistration mirrors the saved row into the replica.
+
+      // If organization changed, invalidate organization queries
+      if (data?.organization || updates.organization) {
+        const org = data?.organization || updates.organization;
+        if (org) {
+          queryClient.invalidateQueries({
+            queryKey: ['registrations', 'organization', org],
+          });
+        }
+      }
+
+      // Invalidate statistics
+      queryClient.invalidateQueries({ queryKey: ['dog_registrations', 'statistics'] });
     },
   });
 };

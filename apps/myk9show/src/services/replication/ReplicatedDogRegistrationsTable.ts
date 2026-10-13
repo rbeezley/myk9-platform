@@ -6,10 +6,11 @@
  * then an ID pass that fetches rows that came into view without an edit and
  * removes rows that left it (see `dogRegistrationsIdPass.ts`).
  *
- * Writes are queued (plan §3): add, edit and delete write the device row
- * dirty, then queue the INSERT, full-row OCC UPDATE or DELETE, so they work
- * offline and a refusal reaches Retry/Discard. Discard of a refused edit or
- * delete puts the row back (`revertsOnDiscard`, MYK9-1076).
+ * Adds and deletes are queued (plan §3): the device row is written dirty,
+ * then the INSERT or DELETE is queued, so they work offline and a refusal
+ * reaches Retry/Discard. Discard of a refused delete puts the row back
+ * (`revertsOnDiscard`, MYK9-1076). Edits are online-only and go straight to
+ * the server (`services/database/registrations/editGuard.ts`).
  *
  * Conflict resolution: the dogs rule. A clean row takes the server copy; a
  * dirty row goes through the package's `reconcileDirtyRemoteRow`.
@@ -26,11 +27,11 @@ import {
   type SyncResult,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
-import { FriendlySaveError } from '@/utils/friendlySaveError';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { replicatedDogsTable } from './ReplicatedDogsTable';
 import {
   asServerBacked,
+  buildRegistrationUpdatePayload,
   registrationInsertRow,
   isPlaceholder,
   registrationToDbRow,
@@ -53,14 +54,8 @@ import {
 import { fetchChangedRegistrations, fetchRegistrationsWhere } from './dogRegistrationsServer';
 import { RegistrationDeletionFence } from './registrationDeletionFence';
 import {
-  applyRegistrationEdit,
-  recomputePendingUpdate,
-  type ChangeSetContext,
-} from './dogRegistrationChangeSet';
-import {
   cancelUnsentAdd,
   type EditableRegistration,
-  hasRefusedInsert,
   pendingDeletesOfNumber,
   queuedWorkBefore,
   listenForConfirmedDeletes,
@@ -68,14 +63,10 @@ import {
   loadRowForWrite,
 } from './dogRegistrationWriteSupport';
 import {
-  REGISTRATION_COMPARE_POLICY,
-  registrationChanges,
-  assertRegistrationPatch,
   createRegistrationTimestamps,
   draftToRegistration,
   normalizeRegistration,
   NEW_REGISTRATION_VERSION,
-  registrationAddRefused,
   registrationAwaitsItsDog,
   type RegistrationDraft,
   type RegistrationInput,
@@ -129,6 +120,12 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     return !this.deletionFence.isFenced(id);
   }
 
+  protected override rebuildUpdatePayload(
+    registration: ReplicatedDogRegistration
+  ): Record<string, unknown> {
+    return buildRegistrationUpdatePayload(registration);
+  }
+
   /**
    * Reads rows by id with the sync's own column list, so a refused full-row
    * UPDATE can re-fetch its row and rebase or surface (MYK9-771), Discard can
@@ -142,7 +139,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       fetchRowsById: ids => fetchRegistrationsWhere('id', ids),
       getRemoteId: remote => String(remote.id),
       toLocalRow: rowToRegistration,
-      dirtyRowComparePolicy: REGISTRATION_COMPARE_POLICY,
+      rebuildUpdatePayload: buildRegistrationUpdatePayload,
     };
   }
 
@@ -340,53 +337,6 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       dependsOn && dependsOn.length > 0 ? dependsOn : undefined
     );
     return registration;
-  }
-
-  /**
-   * Edit a registration: an OCC UPDATE of only the columns it changes (from
-   * `REGISTRATION_UPDATE_COLUMNS`; any other key throws before anything is
-   * written), written onto the row as it is at the write. A no-op queues nothing.
-   */
-  async updateRegistration(
-    id: string,
-    patch: Readonly<Record<string, unknown>>
-  ): Promise<ReplicatedDogRegistration> {
-    assertRegistrationPatch(patch);
-    const row = await loadRowForWrite(this, id);
-    if (row.data._pendingDelete === true) {
-      throw new FriendlySaveError('This registration is being deleted.');
-    }
-    if (isPlaceholder(row.data)) throw registrationAwaitsItsDog();
-    if (row.data._localOnly === true && (await hasRefusedInsert(this, this.queue, id))) {
-      throw registrationAddRefused();
-    }
-    const changes = registrationChanges(row.data, patch);
-    if (Object.keys(changes).length === 0) return row.data;
-    return applyRegistrationEdit(this.changeSet(), id, changes);
-  }
-
-  private changeSet(): ChangeSetContext {
-    return {
-      table: this,
-      queue: this.queue,
-      queueUpdate: (id, payload, dependsOn) => this.queueMutation('UPDATE', id, payload, dependsOn),
-    };
-  }
-
-  /** A reconcile (or Keep mine, below) moved the row's base and token: recompute its UPDATE. */
-  override async reconcileDirtyRow(
-    ...args: Parameters<ReplicatedTable<ReplicatedDogRegistration>['reconcileDirtyRow']>
-  ): Promise<boolean> {
-    const reconciled = await super.reconcileDirtyRow(...args);
-    if (reconciled) await recomputePendingUpdate(this.changeSet(), args[0]);
-    return reconciled;
-  }
-
-  override async clearConflict(
-    ...args: Parameters<ReplicatedTable<ReplicatedDogRegistration>['clearConflict']>
-  ): Promise<void> {
-    await super.clearConflict(...args);
-    await recomputePendingUpdate(this.changeSet(), args[0]);
   }
 
   /**

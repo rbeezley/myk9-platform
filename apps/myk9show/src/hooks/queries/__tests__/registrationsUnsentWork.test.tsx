@@ -1,7 +1,7 @@
 /**
  * The registration readers show this device's unsent work over the server
- * copy (MYK9-1129 item 5): an unsent edit wins over the server row, a pending
- * delete hides it, and a re-added registration shows. Both readers: the dog
+ * copy (MYK9-1129 item 5): a pending delete hides the server row, and a
+ * re-added registration shows. Both readers: the dog
  * page's (`useDogRegistrationManagement`) and the dog reads'
  * (`loadDogRegistrations`).
  */
@@ -65,16 +65,6 @@ describe('with the server reachable', () => {
     postgrestAnswers({ data: [SERVER_ROW], error: null });
   });
 
-  it('an unsent edit wins over the server row', async () => {
-    await table.updateRegistration('reg-1', { registered_name: 'Edited Here' });
-
-    const { page, dogReads, loaded } = await readBoth();
-
-    expect(page).toEqual([['reg-1', 'Edited Here']]);
-    expect(dogReads).toEqual([['reg-1', 'Edited Here']]);
-    expect(loaded).toMatchObject({ source: 'server', registrationsReadComplete: true });
-  });
-
   it('a pending delete hides the server row', async () => {
     await table.deleteRegistration('reg-1');
 
@@ -97,19 +87,5 @@ describe('with the server reachable', () => {
 
     expect(page).toEqual([[readded.id, 'Re-added']]);
     expect(dogReads).toEqual([[readded.id, 'Re-added']]);
-  });
-});
-
-describe('with the server unreachable', () => {
-  it('the offline copy shows the unsent edit and stays labelled', async () => {
-    postgrestAnswers({ data: null, error: new Error('Failed to fetch') });
-    await table.updateRegistration('reg-1', { registered_name: 'Edited Here' });
-
-    const { page, pageSource, dogReads, loaded } = await readBoth();
-
-    expect(page).toEqual([['reg-1', 'Edited Here']]);
-    expect(pageSource).toBe('device');
-    expect(dogReads).toEqual([['reg-1', 'Edited Here']]);
-    expect(loaded).toMatchObject({ source: 'device', registrationsReadComplete: false });
   });
 });

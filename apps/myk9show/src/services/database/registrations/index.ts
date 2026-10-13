@@ -9,6 +9,7 @@ export {
   getRegistrationById,
   getRegistrationsByDog,
   getRegistrationsByOrganization,
+  updateRegistration,
   searchRegistrations,
   getRegistrationStatistics,
   validateRegistrationNumber,

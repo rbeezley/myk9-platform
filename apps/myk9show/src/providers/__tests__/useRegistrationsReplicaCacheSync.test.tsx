@@ -165,24 +165,13 @@ function Page() {
   return <RegistrationsSection dog={{ id: 'dog-1' } as Dog} canEdit={false} />;
 }
 
-// The offline copy the readers fall back to shows a queued write at once.
+// The offline copy the readers fall back to shows a queued delete at once.
 describe('a queued write reaches the offline device copy without a sync', () => {
   beforeEach(async () => {
     await replicatedDogRegistrationsTable.applyServerRows([
       serverRow({ registered_name: 'Old Name', version: 3 }),
     ]);
     serverUnreachable();
-  });
-
-  it('shows a queued edit', async () => {
-    render(<Page />);
-    expect(await screen.findByText('Old Name')).toBeInTheDocument();
-
-    await replicatedDogRegistrationsTable.updateRegistration('reg-1', {
-      registered_name: 'New Name',
-    });
-
-    expect(await screen.findByText('New Name')).toBeInTheDocument();
   });
 
   it('hides a queued delete', async () => {

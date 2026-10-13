@@ -284,26 +284,19 @@ export class MutationManager {
   }
 
   /**
-   * Discard all queued mutations for a specific row, or only those of one
-   * `operation` (a table that keeps one recomputed UPDATE per row replaces it
-   * without touching the row's queued INSERT).
+   * Discard all queued mutations for a specific row.
    *
    * Call this when the user chooses "Take theirs" in the conflict resolution UI —
    * otherwise the old local value re-uploads on the next sync cycle and silently
    * overwrites the remote version the user just accepted.
    */
-  async discardPendingMutationsForRow(
-    tableName: string,
-    rowId: string,
-    operation?: PendingMutation['operation']
-  ): Promise<void> {
+  async discardPendingMutationsForRow(tableName: string, rowId: string): Promise<void> {
     const authUserId = await this.requireCurrentUserId();
     const discarded = await this.queueStore.discardPendingMutationsForRow(
       tableName,
       rowId,
       authUserId,
-      () => this.requireSameCurrentUserId(authUserId),
-      operation
+      () => this.requireSameCurrentUserId(authUserId)
     );
     if (discarded === 0) return;
     await this.backupStore.writeCurrent();

@@ -1,7 +1,7 @@
 /**
- * The Manage registrations panel saves through the registrations queue
- * (MYK9-1090, MYK9-1075): offline, Add, Edit and Delete each queue their
- * write and make no PostgREST write, and the list shows the result at once.
+ * The Manage registrations panel offline (MYK9-1090, MYK9-1075): Add and
+ * Delete each queue their write and make no PostgREST write, and the list
+ * shows the result at once; Edit is online-only and is refused.
  * The real panel, dialogs, hooks, table and MutationManager; only the network
  * is faked (LESSON last-hop-drop: nothing between the form and the queue is
  * mocked).
@@ -23,6 +23,11 @@ import {
   type RegistrationQueueHarness,
 } from '@/services/replication/__tests__/registrationQueueHarness';
 import ManageRegistrationsPanel from './ManageRegistrationsPanel';
+
+const notified = vi.hoisted(() => ({ error: vi.fn() }));
+vi.mock('@/lib/notifications', () => ({
+  notifications: { error: notified.error, success: vi.fn(), warning: vi.fn(), info: vi.fn() },
+}));
 import DogRegistrationDialogs from './DogRegistrationDialogs';
 
 const dog = { id: 'dog-1', callName: 'Maple' } as unknown as Dog;
@@ -127,7 +132,9 @@ describe('Manage registrations, offline', () => {
     noPostgrestWrites();
   });
 
-  it('Edit queues an UPDATE of the row and shows the edit', async () => {
+  // Registration edits are online-only (MYK9-1090): offline the save is
+  // refused before anything is written, and the form stays open.
+  it('Edit is refused offline: nothing written or queued, and the form keeps the edit', async () => {
     const { user } = render(<Harness />);
     await user.click(
       await screen.findByRole('button', { name: /edit akc registered name for ch old name/i })
@@ -135,14 +142,15 @@ describe('Manage registrations, offline', () => {
     await user.type(await screen.findByDisplayValue('CH Old Name'), ' II');
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
-    expect(await screen.findByText('CH Old Name II')).toBeInTheDocument();
-    const [update, ...rest] = await queuedOnce();
-    expect(rest).toEqual([]);
-    expect(update).toMatchObject({
-      operation: 'UPDATE',
-      rowId: 'reg-1',
-      serverVersion: 3,
-      data: { registered_name: 'CH Old Name II' },
+    await waitFor(() =>
+      expect(JSON.stringify(notified.error.mock.calls)).toMatch(
+        /Reconnect to save registration changes/
+      )
+    );
+    expect(screen.getByDisplayValue('CH Old Name II')).toBeInTheDocument();
+    expect(await queue.pending()).toEqual([]);
+    expect(await replicatedDogRegistrationsTable.get('reg-1')).toMatchObject({
+      registeredName: 'CH Old Name',
     });
     noPostgrestWrites();
   });

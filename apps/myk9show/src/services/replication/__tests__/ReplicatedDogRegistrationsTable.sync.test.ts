@@ -152,16 +152,13 @@ describe('registrations row mapping', () => {
     ).toEqual(readColumns);
   });
 
-  // The package never rebases this table's queued UPDATE: its change set is
-  // recomputed against the merged row instead (dogRegistrationChangeSet).
-  it('gives the package no payload to rebase a queued UPDATE with', async () => {
+  it('builds an UPDATE payload from the allowlisted columns only', async () => {
     await table.applyServerRows([serverRow()]);
-    const rebuild = (
-      table as unknown as { rebuildUpdatePayload: (row: unknown) => unknown }
+    const payload = (
+      table as unknown as { rebuildUpdatePayload: (row: unknown) => Record<string, unknown> }
     ).rebuildUpdatePayload(await table.get('reg-1'));
 
-    expect(rebuild).toBeUndefined();
-    expect(REGISTRATION_UPDATE_COLUMNS).toContain('updated_at');
+    expect(Object.keys(payload).sort()).toEqual([...REGISTRATION_UPDATE_COLUMNS].sort());
   });
 
   it('re-fetches rows by id with the same column list', async () => {

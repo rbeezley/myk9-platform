@@ -1,6 +1,8 @@
 // Registration-related database queries
 // Phase 4.3: Registration System Integration
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { mirrorServerRegistration } from './replicaMirror';
+import type { DbDogRegistrationUpdate } from '../../../types/database-mappings';
 // Get registration by ID with full details
 export const getRegistrationById = async (id: string) => {
   const startTime = Date.now();
@@ -103,6 +105,48 @@ export const getRegistrationsByOrganization = async (organization: string) => {
     const dbError = createDatabaseError(error, 'dog_registration', 'select_by_organization');
     logQuery('dog_registration', 'select_by_organization', duration, dbError.message);
     return { data: [], error: dbError };
+  }
+};
+
+// Update registration
+export const updateRegistration = async (id: string, updates: DbDogRegistrationUpdate) => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('dog_registrations')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select(
+        `
+        *,
+        dog:dogs(
+          id,
+          name,
+          call_name,
+          breed
+        )
+      `
+      )
+      .single();
+
+    const duration = Date.now() - startTime;
+    logQuery('dog_registration', 'update', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'dog_registration', 'update');
+    }
+
+    await mirrorServerRegistration(data);
+    return { data, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'dog_registration', 'update');
+    logQuery('dog_registration', 'update', duration, dbError.message);
+    return { data: null, error: dbError };
   }
 };
 

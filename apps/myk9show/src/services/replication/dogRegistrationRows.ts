@@ -135,9 +135,7 @@ export function registrationToDbRow(
 /**
  * The only columns a queued registration UPDATE may write (plan §3). Never
  * `dog_id` (it fires the deleted-marker trigger), `verified`, `is_primary` or
- * `created_at`. An edit sends only the ones it changed
- * (`registrationChangePayload`); `updateRegistration` refuses a patch naming
- * any other key.
+ * `created_at`.
  */
 export const REGISTRATION_UPDATE_COLUMNS = [
   'organization',
@@ -150,16 +148,20 @@ export const REGISTRATION_UPDATE_COLUMNS = [
   'updated_at',
 ] as const;
 
-/**
- * The UPDATE payload for an edit: only the columns the user changed
- * (`registrationChanges`), plus `updated_at` (Codex final round). Columns the
- * user did not touch are never sent, so another device's change to them
- * survives even when this write carries the newer OCC token.
- */
-export function registrationChangePayload(
-  changes: Readonly<Record<string, unknown>>
+/** The full-row UPDATE payload for a registration, allowlisted columns only. */
+export function buildRegistrationUpdatePayload(
+  registration: ReplicatedDogRegistration
 ): Record<string, unknown> {
-  return { ...changes, updated_at: new Date().toISOString() };
+  return {
+    organization: registration.organization,
+    registration_number: registration.registrationNumber,
+    registered_name: registration.registeredName ?? null,
+    breed: registration.breed ?? null,
+    variety: registration.variety ?? null,
+    status: registration.status ?? null,
+    registration_date: registration.registrationDate ?? null,
+    updated_at: new Date().toISOString(),
+  };
 }
 
 /**

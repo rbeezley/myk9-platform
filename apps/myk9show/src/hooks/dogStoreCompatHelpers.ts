@@ -1,7 +1,12 @@
 // Pure helper functions for useDogStoreCompat
 
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
-import { registrationChangesNeedConnection } from '@/services/replication/dogRegistrationWrites';
+import {
+  registrationChanges,
+  registrationChangesNeedConnection,
+} from '@/services/replication/dogRegistrationWrites';
+import { saveRegistrationEditOnline } from '@/services/database/registrations/editGuard';
+import type { EditableRegistration } from '@/services/replication/dogRegistrationWriteSupport';
 import { logger } from '@/services/LoggingService';
 import { normalizeDogRegistrationOrganization } from '@/utils/dogIdentity';
 
@@ -28,15 +33,17 @@ function findMatchingRegistration<T extends { organization: string }>(
 
 /**
  * Saves the registration fields of an Edit dog form: edits the dog's
- * registration for each organization, or adds one. Both are queued on the
- * registrations replica (MYK9-1090), so they work offline.
+ * registration for each organization the form changed, or adds one.
  * Returns true if any registrations were changed.
  *
- * Online, the candidates are the server's rows plus this device's unsent work.
- * When the server cannot be read, only registrations on the device can be
- * edited: a form organization with none is refused with "Reconnect to save
- * registration changes" BEFORE anything is queued, never inferred to be new.
- * Throws on a refusal; the dog's own fields are saved by the caller either way.
+ * Online, the candidates are the server's rows plus this device's unsent work;
+ * an edit goes straight to the server (registration edits are online-only,
+ * MYK9-1090) and an add is queued. When the server cannot be read, any
+ * registration change is refused with "Reconnect to save registration
+ * changes" BEFORE anything is written: an edit cannot be saved offline, and a
+ * new organization cannot be told from one the device has not loaded. Fields
+ * the form did not change are not a change. Throws on a refusal; the dog's
+ * own fields are saved by the caller either way.
  */
 export async function syncDogRegistrations(
   dogId: string,
@@ -47,25 +54,31 @@ export async function syncDogRegistrations(
 
   const { registrations: existingRegs, server } =
     await replicatedDogRegistrationsTable.getRegistrationsForEdit(dogId);
-  if (!server && toSave.some(inputReg => !findMatchingRegistration(inputReg, existingRegs))) {
-    throw registrationChangesNeedConnection();
-  }
-  let changed = false;
-
-  for (const inputReg of toSave) {
+  type Planned = {
+    inputReg: RegistrationInput;
+    existing: EditableRegistration | undefined;
+    changes: Record<string, unknown>;
+  };
+  const plan = toSave.flatMap((inputReg): Planned[] => {
     const existing = findMatchingRegistration(inputReg, existingRegs);
+    if (!existing) return [{ inputReg, existing: undefined, changes: {} }];
+    const changes = registrationChanges(existing, {
+      registered_name: inputReg.registeredName,
+      breed: inputReg.type || null,
+      status: inputReg.status || null,
+    });
+    return Object.keys(changes).length > 0 ? [{ inputReg, existing, changes }] : [];
+  });
+  if (plan.length === 0) return false;
+  if (!server) throw registrationChangesNeedConnection();
 
+  for (const { inputReg, existing, changes } of plan) {
     if (existing) {
-      await replicatedDogRegistrationsTable.updateRegistration(existing.id, {
-        registered_name: inputReg.registeredName,
-        breed: inputReg.type || null,
-        status: inputReg.status || null,
-      });
+      await saveRegistrationEditOnline(existing.id, changes);
       logger.debug('Updated registration', 'dogs', {
         registrationId: existing.id,
         registeredName: inputReg.registeredName,
       });
-      changed = true;
       continue;
     }
 
@@ -82,8 +95,7 @@ export async function syncDogRegistrations(
       registeredName: inputReg.registeredName,
       organization: inputReg.organization || 'AKC',
     });
-    changed = true;
   }
 
-  return changed;
+  return true;
 }

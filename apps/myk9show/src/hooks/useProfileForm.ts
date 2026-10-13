@@ -8,6 +8,10 @@ import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 import { friendlyDbError } from '@/utils/friendlyDbError';
 import {
+  PERSON_EDIT_NEEDS_CONNECTION_CODE,
+  PERSON_EDIT_NEEDS_CONNECTION_MESSAGE,
+} from '@/utils/signInEmailMessages';
+import {
   juniorHandlerNumbersForSave,
   juniorHandlerNumbersPatch,
 } from '@/features/registries/juniorHandlerPolicy';
@@ -243,6 +247,14 @@ export function useProfileForm() {
       );
       setSaveSuccess(true);
     } catch (err) {
+      // An offline edit is refused by the service with its own message
+      // (MYK9-1090). It is an expected refusal, not a failure: show it calmly
+      // (docs/INTENT.md "Offline Is Normal, Not Broken"), keep the form.
+      if ((err as { code?: unknown } | null)?.code === PERSON_EDIT_NEEDS_CONNECTION_CODE) {
+        notifications.warning(PERSON_EDIT_NEEDS_CONNECTION_MESSAGE);
+        setSaveError(PERSON_EDIT_NEEDS_CONNECTION_MESSAGE);
+        return;
+      }
       const message = friendlyDbError(err, 'Failed to update profile.');
       notifications.error(message);
       setSaveError(message);

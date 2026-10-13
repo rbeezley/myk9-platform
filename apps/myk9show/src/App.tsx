@@ -239,12 +239,15 @@ function App() {
                       <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
                         <PWAInstallBanner />
                         <RbacOfflineNotice />
-                        <NewRoleStepBanner />
                         <AppHeader />
                         <NotificationCenter />
                         <AppToaster />
                         <ToastContainer />
                         <Outlet />
+                        {/* After the page, not before: the notice sits in flow at the
+                            end of the document so it reserves its own room there and
+                            never covers a page's last control (MYK9-1131). */}
+                        <NewRoleStepBanner />
                       </div>
                     </AppShellMobileNavProvider>
                   </ErrorBoundary>

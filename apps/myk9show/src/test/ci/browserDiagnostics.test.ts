@@ -126,3 +126,16 @@ describe('error boundary section (MYK9-1114)', () => {
     expect(out).toContain('Failed to fetch dynamically imported module');
   });
 });
+
+describe('service worker section (MYK9-1114)', () => {
+  it('reports the worker’s own failed fetches, redacted', () => {
+    const log = emptyDiagnosticsLog();
+    log.serviceWorkerFailures.push(
+      '+10ms GET http://localhost:4173/assets/scripts/useBulkSelection-8LPukdrJ.js -> net::ERR_FAILED secret-value-123'
+    );
+    const out = formatDiagnostics(log, { error: 'closed' }, ['secret-value-123']);
+    expect(out).toContain('## Service worker fetches failed or >= 400 (1)');
+    expect(out).toContain('useBulkSelection-8LPukdrJ.js -> net::ERR_FAILED');
+    expect(out).not.toContain('secret-value-123');
+  });
+});

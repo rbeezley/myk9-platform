@@ -33,15 +33,20 @@ async function importWithRetry<M>(factory: () => Promise<M>): Promise<M> {
   return factory();
 }
 
+/**
+ * A lazy component whose terminal failure is recoverable: `load` runs again after
+ * `resetFailedLazyRoutes()`. `load` owns any retry/backoff and must start a NEW attempt
+ * on every call. Shared by lazyWithRetry and createEnhancedLazy.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic component wrapper
-export function lazyWithRetry<T extends ComponentType<any>>(
-  factory: () => Promise<{ default: T }>
+export function createResettableLazy<T extends ComponentType<any>>(
+  load: () => Promise<{ default: T }>
 ): ComponentType<ComponentProps<T>> {
   let failed = false;
 
   const create = () =>
     lazy(() =>
-      importWithRetry(factory).catch(error => {
+      load().catch(error => {
         failed = true;
         throw error;
       })
@@ -58,6 +63,13 @@ export function lazyWithRetry<T extends ComponentType<any>>(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- props forwarded verbatim
     createElement(Inner as ComponentType<any>, props);
   return Wrapper;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic component wrapper
+export function lazyWithRetry<T extends ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+): ComponentType<ComponentProps<T>> {
+  return createResettableLazy(() => importWithRetry(factory));
 }
 
 /** Give every lazy route whose import failed a fresh import on its next mount. */

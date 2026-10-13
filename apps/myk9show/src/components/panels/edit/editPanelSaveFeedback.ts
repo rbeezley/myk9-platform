@@ -1,6 +1,6 @@
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-import { friendlySaveError, friendlySaveMessage } from '@/utils/friendlySaveError';
+import { friendlySaveError } from '@/utils/friendlySaveError';
 import { PanelSaveHandledError, offlineAwareMessage } from './panelSaveErrors';
 
 /**
@@ -27,31 +27,4 @@ export function announcePanelSaved<T>(
       typeof successMessage === 'function' ? successMessage(saved) : successMessage
     )
   );
-}
-
-/**
- * A save the person left the panel on finished (MYK9-1125). The panel's own
- * success message when it has one, else one that names the panel.
- */
-export function announceDetachedSaveSettled<T>(
-  successMessage: string | ((data: T) => string) | undefined,
-  saved: T,
-  panelTitle: string
-): void {
-  if (successMessage !== undefined) {
-    announcePanelSaved(successMessage, saved);
-    return;
-  }
-  notifications.success(`${panelTitle}: changes saved`);
-}
-
-/**
- * A save the person left the panel on failed (MYK9-1125). The form is gone, so
- * the usual "Your changes are still here" would be false: say it was not saved.
- */
-export function reportDetachedSaveFailure(error: unknown, panelTitle: string): void {
-  logger.error('Save failed after leaving the panel:', 'components', {}, error as Error);
-  notifications.error(`${panelTitle}: changes not saved`, {
-    description: friendlySaveMessage(error),
-  });
 }

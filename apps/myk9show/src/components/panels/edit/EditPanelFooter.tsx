@@ -10,7 +10,7 @@ interface EditPanelFooterProps {
   onOpenDelete: () => void;
   /** Save, Next and Delete hold still while a save or the delete dialog is in flight. */
   controlsBlocked: boolean;
-  /** Cancel stays live during a save, where it asks "Still saving" (MYK9-1125). */
+  /** Cancel stays live during a save, where it explains "Still saving" (MYK9-1125). */
   cancelDisabled: boolean;
   hasChanges: boolean;
   enableAutoSave: boolean;

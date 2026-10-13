@@ -1,4 +1,4 @@
-import { useCallback, useState, type ComponentProps, type MutableRefObject } from 'react';
+import { useCallback, useState, type ComponentProps } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,86 +47,40 @@ export function DiscardChangesDialog({
 }
 
 /**
- * Asked when someone closes a panel whose save has not come back yet
- * (MYK9-1125). Leaving does not cancel the save; its result is toasted later.
+ * Explains why a panel will not close while its save is in flight (MYK9-1125):
+ * the save may still fail back to the form, so the panel holds still, but it
+ * never ignores the person silently. `ask` opens it; it closes itself once the
+ * save settles, and Keep waiting is its only answer.
  */
-export function StillSavingDialog({
-  open,
-  onOpenChange,
-  onLeave,
-  finalFocus,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onLeave: () => void;
-  finalFocus?: ComponentProps<typeof AlertDialogContent>['finalFocus'];
-}) {
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent {...(finalFocus !== undefined && { finalFocus })}>
+export function useStillSavingPrompt(saving: boolean) {
+  const [open, setOpen] = useState(false);
+  // Reset during render when the save ends (React's "adjust state on a prop
+  // change" pattern), so a later save never reopens a stale prompt.
+  const [wasSaving, setWasSaving] = useState(saving);
+  if (saving !== wasSaving) {
+    setWasSaving(saving);
+    if (!saving) setOpen(false);
+  }
+  const ask = useCallback(() => setOpen(true), []);
+
+  const dialog = (
+    <AlertDialog open={open && saving} onOpenChange={setOpen}>
+      <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Still saving</AlertDialogTitle>
           <AlertDialogDescription>
-            Your changes haven&apos;t finished saving. If you leave, the save keeps going in the
-            background and you&apos;ll see a message when it finishes.
+            Waiting for the server to answer. This panel will close or show an error as soon as it
+            does.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Keep waiting</AlertDialogCancel>
-          <AlertDialogAction onClick={onLeave}>Leave anyway</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
-}
 
-type PromptState = readonly [open: boolean, setOpen: (open: boolean) => void];
-
-/** EditPanelWrapper's two close prompts: "Discard changes?" and "Still saving". */
-export function EditPanelClosePrompts({
-  discard: [discardOpen, setDiscardOpen],
-  stillSaving: [stillSavingOpen, setStillSavingOpen],
-  inline,
-  confirmedCloseRef,
-  onLeaveWhileSaving,
-  close,
-}: {
-  discard: PromptState;
-  stillSaving: PromptState;
-  inline: boolean;
-  /** Set once a prompt confirmed the close, so the shell's own close does not re-ask. */
-  confirmedCloseRef: MutableRefObject<boolean>;
-  onLeaveWhileSaving: () => void;
-  close: () => void;
-}) {
-  // Inline: confirming unmounts this form and the prompt with it, and the
-  // dialog's default return-focus then falls back to some EARLIER popup's
-  // trigger behind the host's modal. The host places focus itself.
-  const focus = inline ? { finalFocus: () => !confirmedCloseRef.current } : {};
-  return (
-    <>
-      <DiscardChangesDialog
-        open={discardOpen}
-        onOpenChange={setDiscardOpen}
-        {...focus}
-        onDiscard={() => {
-          confirmedCloseRef.current = true;
-          setDiscardOpen(false);
-          close();
-        }}
-      />
-      <StillSavingDialog
-        open={stillSavingOpen}
-        onOpenChange={setStillSavingOpen}
-        {...focus}
-        onLeave={() => {
-          confirmedCloseRef.current = true;
-          onLeaveWhileSaving();
-          close();
-        }}
-      />
-    </>
-  );
+  return { open: open && saving, ask, dialog };
 }
 
 /**

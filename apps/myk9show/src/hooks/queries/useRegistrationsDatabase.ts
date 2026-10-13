@@ -2,13 +2,10 @@
 // Phase 4.3: Registration System Integration
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  getAllRegistrations,
   getRegistrationById,
   getRegistrationsByOrganization,
   getRegistrationsByOwner,
-  createRegistration,
   updateRegistration,
-  deleteRegistration,
   searchRegistrations,
   getRegistrationStatistics,
   validateRegistrationNumber,
@@ -18,20 +15,13 @@ import {
   type RegistrationsForDog,
 } from '@/services/database/registrations/replicaReads';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
-import type { DbDogRegistrationInsert, DbDogRegistrationUpdate } from '@/types/database-mappings';
-
-// Get all registrations with dog information
-export const useRegistrationsQuery = () => {
-  return useQuery({
-    queryKey: queryKeys.registrations,
-    queryFn: async () => {
-      const { data, error } = await getAllRegistrations();
-      if (error) throw error;
-      return data;
-    },
-    ...cacheStrategies.moderate, // 5 minutes stale, 10 minutes cache
-  });
-};
+import type { DbDogRegistrationUpdate } from '@/types/database-mappings';
+import {
+  replicatedDogRegistrationsTable,
+  type RegistrationDraft,
+} from '@/services/replication/ReplicatedDogRegistrationsTable';
+import { registrationToDbRow } from '@/services/replication/dogRegistrationRows';
+import { assertRegistrationEditable } from '@/services/database/registrations/editGuard';
 
 // Get registration by ID with full details
 export const useRegistrationQuery = (id: string, enabled = true) => {
@@ -166,60 +156,34 @@ export const useValidateRegistrationNumber = (
   });
 };
 
-// Create registration mutation
+// Add and delete go through the registrations replica's queue (MYK9-1090,
+// MYK9-1075): the device row changes at once and the write uploads when the
+// device is online, so they work offline and a refusal reaches the
+// Retry/Discard toast. `networkMode: 'always'`: a queued write is the save, so
+// it must not sit paused offline. An edit is online-only (below). The dog's
+// registration reads refresh through the replica listener
+// (useRegistrationsReplicaCacheSync).
+const invalidateRegistrationSummaries = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  organization: string | null | undefined
+) => {
+  if (organization) {
+    queryClient.invalidateQueries({ queryKey: ['registrations', 'organization', organization] });
+  }
+  queryClient.invalidateQueries({ queryKey: ['dog_registrations', 'statistics'] });
+};
+
 export const useCreateRegistrationMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    // Online-only write awaited by an edit panel: fail fast offline instead of
-    // pausing, or the panel's Save never settles (MYK9-1125).
     networkMode: 'always',
-    mutationFn: async (registrationData: DbDogRegistrationInsert) => {
-      const { data, error } = await createRegistration(registrationData);
-      if (error) throw error;
-      return data;
-    },
-    onMutate: async newRegistration => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: queryKeys.registrations });
-
-      // Snapshot the previous value
-      const previousRegistrations = queryClient.getQueryData(queryKeys.registrations);
-
-      // Optimistically update to the new value
-      if (previousRegistrations) {
-        queryClient.setQueryData(queryKeys.registrations, (old: unknown) => {
-          const registrations = old as Array<{ id: string; registration_number: string }>;
-          return [...registrations, { ...newRegistration, id: 'temp-' + Date.now() }];
-        });
-      }
-
-      // Return a context object with the snapshotted value
-      return { previousRegistrations };
-    },
-    onError: (_err, _newRegistration, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousRegistrations) {
-        queryClient.setQueryData(queryKeys.registrations, context.previousRegistrations);
-      }
-    },
-    onSuccess: (_data, variables) => {
-      // The dog's registrations and the dog reads refresh through the replica
-      // listener: createRegistration mirrors the new row into the replica.
-      // Invalidate organization specific queries
-      if (variables.organization) {
-        queryClient.invalidateQueries({
-          queryKey: ['registrations', 'organization', variables.organization],
-        });
-      }
-
-      // Invalidate statistics
-      queryClient.invalidateQueries({ queryKey: ['dog_registrations', 'statistics'] });
-    },
+    mutationFn: async (registrationData: RegistrationDraft) =>
+      registrationToDbRow(await replicatedDogRegistrationsTable.addRegistration(registrationData)),
+    onSuccess: data => invalidateRegistrationSummaries(queryClient, data.organization),
   });
 };
 
-// Update registration mutation
 export const useUpdateRegistrationMutation = () => {
   const queryClient = useQueryClient();
 
@@ -228,6 +192,9 @@ export const useUpdateRegistrationMutation = () => {
     // pausing, or the panel's Save never settles (MYK9-1125).
     networkMode: 'always',
     mutationFn: async ({ id, updates }: { id: string; updates: DbDogRegistrationUpdate }) => {
+      // Edits are online-only (MYK9-1090): refused offline, or while the row
+      // has unsent work, before anything is written.
+      await assertRegistrationEditable(id);
       const { data, error } = await updateRegistration(id, updates);
       if (error) throw error;
       return data;
@@ -277,100 +244,17 @@ export const useUpdateRegistrationMutation = () => {
   });
 };
 
-// Delete registration mutation
 export const useDeleteRegistrationMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await deleteRegistration(id);
-      if (error) throw error;
-      return data;
-    },
-    onMutate: async deletedId => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: queryKeys.registrations });
-
-      // Snapshot the previous value
-      const previousRegistrations = queryClient.getQueryData(queryKeys.registrations);
-      const previousRegistration = queryClient.getQueryData(queryKeys.registration(deletedId));
-
-      // Optimistically update by removing the registration
-      if (previousRegistrations) {
-        queryClient.setQueryData(queryKeys.registrations, (old: unknown) => {
-          const registrations = old as Array<{ id: string }>;
-          return registrations.filter(reg => reg.id !== deletedId);
-        });
-      }
-
-      return { previousRegistrations, previousRegistration };
-    },
-    onError: (_err, deletedId, context) => {
-      // If the mutation fails, use the context to roll back
-      if (context?.previousRegistrations) {
-        queryClient.setQueryData(queryKeys.registrations, context.previousRegistrations);
-      }
-      if (context?.previousRegistration) {
-        queryClient.setQueryData(queryKeys.registration(deletedId), context.previousRegistration);
-      }
-    },
+    networkMode: 'always',
+    mutationFn: (id: string) => replicatedDogRegistrationsTable.deleteRegistration(id),
     onSuccess: (_data, deletedId) => {
-      // Remove from cache completely
       queryClient.removeQueries({ queryKey: queryKeys.registration(deletedId) });
-
-      // Invalidate statistics since count changed. The dog's registrations and
-      // the dog reads refresh through the replica listener: deleteRegistration
-      // removes the row from the replica.
-      queryClient.invalidateQueries({ queryKey: ['dog_registrations', 'statistics'] });
+      invalidateRegistrationSummaries(queryClient, null);
     },
   });
-};
-
-// Prefetch registration details for performance
-export const usePrefetchRegistration = () => {
-  const queryClient = useQueryClient();
-
-  return (id: string) => {
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.registration(id),
-      queryFn: async () => {
-        const { data, error } = await getRegistrationById(id);
-        if (error) throw error;
-        return data;
-      },
-      staleTime: cacheStrategies.moderate.staleTime,
-    });
-  };
-};
-
-// Custom hook for registration management with all operations
-export const useRegistrationManagement = () => {
-  const registrationsQuery = useRegistrationsQuery();
-  const createMutation = useCreateRegistrationMutation();
-  const updateMutation = useUpdateRegistrationMutation();
-  const deleteMutation = useDeleteRegistrationMutation();
-  const prefetchRegistration = usePrefetchRegistration();
-
-  return {
-    // Queries
-    registrations: registrationsQuery.data,
-    isLoading: registrationsQuery.isLoading,
-    error: registrationsQuery.error,
-
-    // Mutations
-    createRegistration: createMutation.mutate,
-    isCreating: createMutation.isPending,
-
-    updateRegistration: updateMutation.mutate,
-    isUpdating: updateMutation.isPending,
-
-    deleteRegistration: deleteMutation.mutate,
-    isDeleting: deleteMutation.isPending,
-
-    // Utilities
-    prefetchRegistration,
-    refetch: registrationsQuery.refetch,
-  };
 };
 
 // Custom hook for dog-specific registration management
@@ -390,7 +274,7 @@ export const useDogRegistrationManagement = (dogId: string) => {
 
     // Mutations (pre-filled with dogId)
     createRegistration: (
-      registrationData: Omit<DbDogRegistrationInsert, 'dog_id'>,
+      registrationData: Omit<RegistrationDraft, 'dog_id'>,
       options?: Parameters<typeof createMutation.mutate>[1]
     ) => createMutation.mutate({ ...registrationData, dog_id: dogId }, options),
     isCreating: createMutation.isPending,

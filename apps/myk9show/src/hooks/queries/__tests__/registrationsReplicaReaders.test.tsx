@@ -153,7 +153,7 @@ describe('registration readers with the server reachable', () => {
   it('keep the server answer when the device cannot be read', async () => {
     postgrestAnswers({ data: [serverRow({ id: 'srv-1' })], error: null });
     const read = vi
-      .spyOn(replicatedDogRegistrationsTable, 'getUnsentRegistrationsForDogs')
+      .spyOn(replicatedDogRegistrationsTable, 'getUnsentWorkForDogs')
       .mockRejectedValue(new Error('IndexedDB unavailable'));
 
     const { result } = renderDogRegistrations('dog-1');

@@ -128,7 +128,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       this.logger,
       () => this.init(),
       () => this.notifyListeners(),
-      () => this.relieveQuota()
+      () => this.relieveQuota(),
+      id => this.acceptsRemoteRow(id)
     );
 
     this.queryManager = new ReplicatedTableQueryManager<T>(tableName, this.logger, () =>
@@ -483,6 +484,17 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     }
 
     return row;
+  }
+
+  /**
+   * Whether a downloaded (clean) row may be stored by {@link batchSet}, which
+   * every sync download and row fetch goes through. Checked synchronously in
+   * the write's own IndexedDB transaction, just before the put, so a decision
+   * made after the server was read (for example: this row's delete was just
+   * confirmed) cannot be overtaken by the write. Default: every row.
+   */
+  protected acceptsRemoteRow(_id: string): boolean {
+    return true;
   }
 
   /**

@@ -1,12 +1,13 @@
 // Pure helper functions for useDogStoreCompat
 
+import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import {
-  updateRegistration,
-  getRegistrationsByDog,
-  createRegistration,
-} from '@/services/database/registrations';
+  registrationChanges,
+  registrationChangesNeedConnection,
+} from '@/services/replication/dogRegistrationWrites';
+import { saveRegistrationEditOnline } from '@/services/database/registrations/editGuard';
+import type { EditableRegistration } from '@/services/replication/dogRegistrationWriteSupport';
 import { logger } from '@/services/LoggingService';
-import type { DbDogRegistration } from '@/types/database-mappings';
 import { normalizeDogRegistrationOrganization } from '@/utils/dogIdentity';
 
 interface RegistrationInput {
@@ -20,10 +21,10 @@ interface RegistrationInput {
 /**
  * Finds an existing registration matching the given organization.
  */
-function findMatchingRegistration(
+function findMatchingRegistration<T extends { organization: string }>(
   inputReg: RegistrationInput,
-  existingRegs: DbDogRegistration[]
-): DbDogRegistration | undefined {
+  existingRegs: readonly T[]
+): T | undefined {
   const inputOrganization = normalizeDogRegistrationOrganization(inputReg.organization || 'AKC');
   return existingRegs.find(
     er => normalizeDogRegistrationOrganization(er.organization) === inputOrganization
@@ -31,63 +32,70 @@ function findMatchingRegistration(
 }
 
 /**
- * Updates or creates registrations for a dog.
+ * Saves the registration fields of an Edit dog form: edits the dog's
+ * registration for each organization the form changed, or adds one.
  * Returns true if any registrations were changed.
  *
- * Does not throw — registration failures are logged but do not
- * fail the parent dog update.
+ * Online, the candidates are the server's rows plus this device's unsent work;
+ * an edit goes straight to the server (registration edits are online-only,
+ * MYK9-1090) and an add is queued. When the server cannot be read, any
+ * registration change is refused with "Reconnect to save registration
+ * changes" BEFORE anything is written: an edit cannot be saved offline, and a
+ * new organization cannot be told from one the device has not loaded. Fields
+ * the form did not change are not a change. Throws on a refusal; the dog's
+ * own fields are saved by the caller either way.
  */
 export async function syncDogRegistrations(
   dogId: string,
   registrations: RegistrationInput[]
 ): Promise<boolean> {
-  if (registrations.length === 0) return false;
+  const toSave = registrations.filter(registration => registration.registeredName);
+  if (toSave.length === 0) return false;
 
-  let changed = false;
+  const { registrations: existingRegs, server } =
+    await replicatedDogRegistrationsTable.getRegistrationsForEdit(dogId);
+  type Planned = {
+    inputReg: RegistrationInput;
+    existing: EditableRegistration | undefined;
+    changes: Record<string, unknown>;
+  };
+  const plan = toSave.flatMap((inputReg): Planned[] => {
+    const existing = findMatchingRegistration(inputReg, existingRegs);
+    if (!existing) return [{ inputReg, existing: undefined, changes: {} }];
+    const changes = registrationChanges(existing, {
+      registered_name: inputReg.registeredName,
+      breed: inputReg.type || null,
+      status: inputReg.status || null,
+    });
+    return Object.keys(changes).length > 0 ? [{ inputReg, existing, changes }] : [];
+  });
+  if (plan.length === 0) return false;
+  if (!server) throw registrationChangesNeedConnection();
 
-  const { data: existingRegs } = await getRegistrationsByDog(dogId);
-
-  for (const inputReg of registrations) {
-    if (!inputReg.registeredName) continue;
-
-    const existing = findMatchingRegistration(inputReg, existingRegs ?? []);
-
+  for (const { inputReg, existing, changes } of plan) {
     if (existing) {
-      await updateRegistration(existing.id, {
-        registered_name: inputReg.registeredName,
-        breed: inputReg.type || null,
-        status: inputReg.status || null,
-      });
+      await saveRegistrationEditOnline(existing.id, changes);
       logger.debug('Updated registration', 'dogs', {
         registrationId: existing.id,
         registeredName: inputReg.registeredName,
       });
-      changed = true;
       continue;
     }
 
-    // Create new registration for this organization
-    const { error: createError, data: newReg } = await createRegistration({
+    const added = await replicatedDogRegistrationsTable.addRegistration({
       dog_id: dogId,
       organization: inputReg.organization || 'AKC',
-      registered_name: inputReg.registeredName,
+      registered_name: inputReg.registeredName ?? null,
       registration_number: inputReg.number || '',
       breed: inputReg.type || null,
       status: inputReg.status || 'pending',
     });
-
-    if (createError) {
-      logger.error('Failed to create registration', 'dogs', { dogId }, createError as Error);
-      continue;
-    }
-
-    logger.debug('Created new registration', 'dogs', {
-      registrationId: newReg?.id,
+    logger.debug('Added registration', 'dogs', {
+      registrationId: added.id,
       registeredName: inputReg.registeredName,
       organization: inputReg.organization || 'AKC',
     });
-    changed = true;
   }
 
-  return changed;
+  return true;
 }

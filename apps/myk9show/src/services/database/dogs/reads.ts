@@ -17,9 +17,14 @@ import {
   normalizeDogRegistrationOrganization,
 } from '@/utils/dogIdentity';
 import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
-import { dropServerTwins } from '@/services/replication/dogRegistrationRows';
+import {
+  registrationToDbRow,
+  type ReplicatedDogRegistration,
+} from '@/services/replication/dogRegistrationRows';
+import { mergeUnsentWork } from '@/services/replication/dogRegistrationMerge';
 import { parseRestoreDogResult } from './restoreDogResult';
 import { serverUnreachable } from '../registrations/serverUnreachable';
+import { unsentWorkProvenByServer } from '../registrations/unsentWork';
 
 // PostgREST OR filter for dogs owned or co-owned by a person
 const ownedByPerson = (personId: string) => `owner_id.eq.${personId},co_owner_id.eq.${personId}`;
@@ -171,9 +176,13 @@ export interface DogRegistrationsResult {
   source: 'server' | 'device';
 }
 
-async function readServerRegistrations(
-  dogIds: string[]
-): Promise<{ data: Record<string, unknown>[] | null; error: unknown }> {
+async function readServerRegistrations(dogIds: string[]): Promise<{
+  data: Record<string, unknown>[] | null;
+  error: unknown;
+  answered: number;
+  /** The dogs of batches the server could not be reached for. */
+  unreachableDogIds: string[];
+}> {
   // A thrown network error must surface as `error`, not reject the whole
   // read: the device copy may still be able to answer.
   try {
@@ -184,6 +193,8 @@ async function readServerRegistrations(
     // error because the rejection carries no CORS headers (MYK9-272).
     const rows: Record<string, unknown>[] = [];
     let firstError: unknown = null;
+    let answered = 0;
+    const unreachableDogIds: string[] = [];
     for (const batch of chunk(dogIds, ID_CHUNK_SIZE)) {
       const result = await supabase
         .from('dog_registrations')
@@ -199,11 +210,13 @@ async function readServerRegistrations(
       // dropping it here would make those dogs read as having no
       // registrations at all.
       if (result.error) firstError = firstError ?? result.error;
+      else answered++;
+      if (result.error && serverUnreachable(result.error)) unreachableDogIds.push(...batch);
       rows.push(...((result.data ?? []) as Record<string, unknown>[]));
     }
-    return { data: rows, error: firstError };
+    return { data: rows, error: firstError, answered, unreachableDogIds };
   } catch (error) {
-    return { data: null, error };
+    return { data: null, error, answered: 0, unreachableDogIds: dogIds };
   }
 }
 
@@ -221,21 +234,38 @@ export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistr
   // The device copy answers only when the server could not be reached. A
   // server that answered with an error stays a server read: unsent work is
   // merged, `serverError` is set and the read is not complete.
-  const source = serverResult.error && serverUnreachable(serverResult.error) ? 'device' : 'server';
-  let localRows: Record<string, unknown>[] = [];
+  // A batch that could not be reached does not discard the batches the
+  // server answered (Codex round 3): those stay a server read, incomplete.
+  const source =
+    serverResult.error && serverResult.answered === 0 && serverUnreachable(serverResult.error)
+      ? 'device'
+      : 'server';
+  // Per dog (Codex round 5): the dogs of an unreachable batch answer from
+  // the device copy, clean rows included; the answered dogs keep the
+  // server's rows with this device's unsent work applied (mergeUnsentWork).
+  const unreachable = new Set(source === 'device' ? dogIds : serverResult.unreachableDogIds);
+  const answeredDogIds = dogIds.filter(id => !unreachable.has(id));
+  let unsent: ReplicatedDogRegistration[] = [];
+  let deviceRows: Record<string, unknown>[] = [];
   let localError: unknown = null;
   try {
-    localRows =
-      source === 'server'
-        ? await replicatedDogRegistrationsTable.getUnsentRegistrationsForDogs(dogIds)
-        : await replicatedDogRegistrationsTable.getRegistrationsForDogs(dogIds);
+    if (answeredDogIds.length > 0) {
+      unsent = await unsentWorkProvenByServer(answeredDogIds, serverResult.data);
+    }
+    if (unreachable.size > 0) {
+      deviceRows = await replicatedDogRegistrationsTable.getRegistrationsForDogs([...unreachable]);
+    }
   } catch (error) {
     localError = error;
   }
 
-  appendRegistrations(map, serverResult.data);
-  // A placeholder whose server copy is in this read is that copy (hasServerTwin).
-  appendRegistrations(map, dropServerTwins(localRows, serverResult.data));
+  if (answeredDogIds.length > 0)
+    appendRegistrations(map, mergeUnsentWork(serverResult.data, unsent));
+  appendRegistrations(map, deviceRows);
+  const localRows = [
+    ...unsent.filter(row => row._pendingDelete !== true).map(registrationToDbRow),
+    ...deviceRows,
+  ];
   overlayLocalCreationOrder(map, localRows);
   return {
     byDog: map,

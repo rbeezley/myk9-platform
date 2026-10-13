@@ -74,7 +74,7 @@ vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
     createLocalRegistrationsForDog: mockCreateLocalReplicatedDogRegistrationsForDog,
     toSupabaseRow: (registration: Record<string, unknown>) => registration,
     getRegistrationsForDogs: mockGetRegistrationsForDogs,
-    getUnsentRegistrationsForDogs: mockGetRegistrationsForDogs,
+    getUnsentWorkForDogs: vi.fn(async () => []),
   },
 }));
 

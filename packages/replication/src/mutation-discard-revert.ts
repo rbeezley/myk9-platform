@@ -74,8 +74,16 @@ export async function revertDiscardedRowWrite(
   db: IDBPDatabase,
   discarded: PendingMutation
 ): Promise<boolean> {
-  if (discarded.operation === 'INSERT' || discarded.rowRevision === undefined) return false;
+  if (discarded.rowRevision === undefined) return false;
   const { tx, rows, row, blocked } = await openGuarded(db, discarded);
+  // A discarded INSERT of a row only this device holds is removed elsewhere
+  // (removeOrphanedLocalOnlyRow). One the server is known to hold (no longer
+  // `_localOnly`) goes back to its base like an edit, or it stays dirty for good.
+  const localOnly = (row?.data as { _localOnly?: unknown } | null | undefined)?._localOnly;
+  if (discarded.operation === 'INSERT' && localOnly === true) {
+    await tx.done;
+    return false;
+  }
 
   const conflict = row?.conflict;
   // The copy to restore, only when it is the server's state at the row's token.
@@ -171,15 +179,25 @@ export class DiscardRevertRegistry {
   /**
    * Run both steps for a discarded mutation. The local revert is awaited; the
    * re-fetch is not (it fails quietly offline and the next sync carries on).
+   * `rowRemoved`: the discard already removed the row (a refused add only this
+   * device held); the table's subscribers are told, and nothing else runs.
    */
-  async afterDiscard(db: IDBPDatabase, discarded: PendingMutation): Promise<void> {
+  async afterDiscard(
+    db: IDBPDatabase,
+    discarded: PendingMutation,
+    rowRemoved = false
+  ): Promise<void> {
     const hooks = this.hooks.get(discarded.tableName);
-    if (!hooks || discarded.operation === 'INSERT') return;
+    if (!hooks) return;
     const rowId = String(discarded.rowId);
     const changed = () => {
       hooks.onChanged();
       announceRowReplaced(discarded.tableName, rowId);
     };
+    if (rowRemoved) {
+      changed();
+      return;
+    }
     if (await revertDiscardedRowWrite(db, discarded)) changed();
     if (!hooks.fetchRow) return;
     void hooks

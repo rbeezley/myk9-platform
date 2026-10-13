@@ -39,11 +39,20 @@ describe('LifecycleTimeline', () => {
     expect(screen.getByText('Meanwhile, the club')).toBeInTheDocument();
   });
 
-  it('switching audience keeps revealed steps visible', () => {
+  it('switching audience keeps the same row nodes, so progress observers stay attached', () => {
     const { container } = render(<LifecycleTimeline />);
+    const showday = document.getElementById('showday');
+    const before = document.getElementById('before');
     fireEvent.click(screen.getByRole('button', { name: 'I’m entering a show' }));
-    const rows = container.querySelectorAll('[data-revealed]');
-    expect(Array.from(rows).every(r => r.getAttribute('data-revealed') === 'true')).toBe(true);
+    expect(document.getElementById('showday')).toBe(showday);
+    expect(document.getElementById('before')).toBe(before);
+    expect(document.body.contains(showday)).toBe(true);
+    expect(document.getElementById('results')!.querySelector('.lc-trail')).toHaveAttribute(
+      'data-after-find',
+      'true'
+    );
+    expect(before!.querySelector('.lc-trail')).toHaveAttribute('data-after-find', 'false');
+    expect(container.querySelectorAll('svg.lc-trail')).toHaveLength(5);
   });
 
   it('fills dots up to the reached step only', () => {

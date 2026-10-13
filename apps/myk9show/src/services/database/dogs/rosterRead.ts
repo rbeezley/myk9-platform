@@ -78,6 +78,34 @@ export async function readRosterServerFirst<T>({
 }
 
 /**
+ * The server rows with their registrations replaced by the roster's own read
+ * (`loadDogRegistrations`: the server's registrations with this device's unsent
+ * add and delete work merged in), so the roster and the dog page resolve the
+ * same primary registration. When that read was not complete the embed the
+ * server answered with stands: it is the more trustworthy of the two.
+ */
+export async function mergeUnsentRegistrations(
+  serverRows: DogRow[],
+  load: (dogIds: string[]) => Promise<{
+    byDog: Map<string, DogRow[]>;
+    registrationsReadComplete: boolean;
+  }>
+): Promise<DogRow[]> {
+  if (serverRows.length === 0) return serverRows;
+  try {
+    const result = await load(serverRows.map(row => String(row.id)));
+    if (!result.registrationsReadComplete) return serverRows;
+    return serverRows.map(row => ({
+      ...row,
+      registrations: result.byDog.get(String(row.id)) ?? [],
+      registrations_read_complete: true,
+    }));
+  } catch {
+    return serverRows;
+  }
+}
+
+/**
  * This account's dogs with an unsent mutation, read from the device. Empty when
  * there are none or the queue or replica cannot be read: the server's answer
  * then stands.

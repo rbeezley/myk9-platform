@@ -23,7 +23,12 @@ import {
 } from '@/services/replication/dogRegistrationRows';
 import { mergeUnsentWork } from '@/services/replication/dogRegistrationMerge';
 import { parseRestoreDogResult } from './restoreDogResult';
-import { readRosterServerFirst, overlayUnsentDogs, overlayUnsentDogCount } from './rosterRead';
+import {
+  readRosterServerFirst,
+  mergeUnsentRegistrations,
+  overlayUnsentDogs,
+  overlayUnsentDogCount,
+} from './rosterRead';
 import { serverUnreachable } from '../registrations/serverUnreachable';
 import { unsentWorkProvenByServer } from '../registrations/unsentWork';
 
@@ -430,6 +435,16 @@ async function hydrateWithRegistrations(dogs: ReplicatedDog[]): Promise<Record<s
   );
 }
 
+/** The server's roster with this device's unsent registrations and dogs laid over it. */
+async function overlayRoster(
+  serverRows: Record<string, unknown>[],
+  inScope: (dog: ReplicatedDog) => boolean,
+  hydrate: (dogs: ReplicatedDog[]) => Promise<Record<string, unknown>[]>
+) {
+  const rows = await mergeUnsentRegistrations(serverRows, loadDogRegistrations);
+  return overlayUnsentDogs(rows, inScope, hydrate);
+}
+
 /** The device replica's search match: name, call name or breed. */
 function matchesSearch(dog: ReplicatedDog, searchTerm: string): boolean {
   const lower = searchTerm.toLowerCase();
@@ -476,11 +491,7 @@ export const getAllDogs = async (personId: string, showAll = false) => {
       return { data: await hydrate(sortedDogs) };
     },
     overlay: rows =>
-      overlayUnsentDogs(
-        rows,
-        dog => showAll || filterByOwnership([dog], personId).length > 0,
-        hydrate
-      ),
+      overlayRoster(rows, dog => showAll || filterByOwnership([dog], personId).length > 0, hydrate),
     table: 'dog',
     operation: 'select_all_with_owners',
     errorData: [],
@@ -495,7 +506,7 @@ export const getDogsByOwner = async (ownerId: string) => {
       data: await hydrateWithRegistrations(await replicatedDogsTable.getDogsByOwner(ownerId)),
     }),
     overlay: rows =>
-      overlayUnsentDogs(
+      overlayRoster(
         rows,
         dog => filterByOwnership([dog], ownerId).length > 0,
         hydrateWithRegistrations
@@ -822,7 +833,7 @@ export const searchDogs = async (searchTerm: string, personId: string) => {
       return { data: await hydrateWithRegistrations(filterByOwnership(results, personId)) };
     },
     overlay: rows =>
-      overlayUnsentDogs(
+      overlayRoster(
         rows,
         dog => filterByOwnership([dog], personId).length > 0 && matchesSearch(dog, searchTerm),
         hydrateWithRegistrations

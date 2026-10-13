@@ -17,6 +17,8 @@ const { server, selects, mockDogsTable, mockEntriesTable, mockRegistrationsTable
       throws: null as Error | null,
       /** `dog_registrations` rows, for the roster's and the registration read. */
       registrations: [] as Record<string, unknown>[],
+      /** What the roster's `dogs` list query (no `.single()`) answers. */
+      roster: [] as Record<string, unknown>[],
     },
     /** Every select the read sends, by table. */
     selects: [] as { table: string; columns: string }[],
@@ -62,8 +64,13 @@ vi.mock('@/services/database/supabaseClient', () => ({
         const chain: Record<string, unknown> = {
           eq: () => chain,
           is: () => chain,
+          or: () => chain,
+          order: () => chain,
           in: () => settle(),
           single: () => settle(),
+          // The roster's list read: the server's dogs, awaited as a chain.
+          then: (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
+            Promise.resolve({ data: server.roster, error: null }).then(resolve, reject),
         };
         return chain;
       },
@@ -104,6 +111,7 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
     server.detail = { data: null, error: null };
     server.throws = null;
     server.registrations = [];
+    server.roster = [];
     mockDogsTable.getDogById.mockReset();
     mockDogsTable.getDogById.mockResolvedValue(replicaDog());
     selects.length = 0;
@@ -267,7 +275,7 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
       },
     ]);
     server.detail = { data: { ...SERVER_ROW, registrations: server.registrations }, error: null };
-    mockDogsTable.getAllDogsWithStatus.mockResolvedValue({ rows: [replicaDog()], cold: false });
+    server.roster = [{ ...SERVER_ROW, registrations: server.registrations }];
 
     const detail = await getDogById('dog-1');
     const roster = await getAllDogs('person-1');

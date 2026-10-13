@@ -47,38 +47,33 @@ vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
   replicatedDogRegistrationsTable: mockDogRegistrationsTable,
 }));
 
-// Mock supabase client (for loadOwnersMap and getDogById supplemental queries)
-vi.mock('@/services/database/supabaseClient', () => ({
-  supabase: {
-    from: () => ({
-      select: () => ({
-        in: () => Promise.resolve({ data: mockServerRegistrationRows(), error: null }),
-        eq: () => ({
-          single: () =>
-            Promise.resolve({
-              data: { owner: null, registrations: [], health_records: [] },
-              error: null,
-            }),
-          is: () => ({
-            order: () => Promise.resolve({ data: [], error: null }),
-          }),
-        }),
-        or: () => ({
-          or: () => ({
-            is: () => ({
-              order: () => Promise.resolve({ data: [], error: null }),
-            }),
-          }),
-          is: () => ({
-            order: () => Promise.resolve({ data: [], error: null }),
-          }),
-        }),
+// Mock supabase client. The roster reads and the dog page read the server first
+// (MYK9-1139, MYK9-1126), so this file pins the DEVICE copy, which answers only
+// when the server cannot be reached: every `dogs` query rejects as a network
+// failure, and the tests run with `navigator.onLine` false. `in` is the batch
+// read of registrations and owners.
+vi.mock('@/services/database/supabaseClient', () => {
+  const unreachable = () => ({ data: null, error: { message: 'Failed to fetch' } });
+  return {
+    supabase: {
+      from: () => ({
+        select: () => {
+          const chain: Record<string, unknown> = {};
+          for (const method of ['eq', 'or', 'is', 'order', 'ilike']) chain[method] = () => chain;
+          chain.in = () => Promise.resolve({ data: mockServerRegistrationRows(), error: null });
+          chain.single = () => Promise.resolve(unreachable());
+          chain.then = (
+            resolve: (value: unknown) => unknown,
+            reject: (reason: unknown) => unknown
+          ) => Promise.resolve(unreachable()).then(resolve, reject);
+          return chain;
+        },
       }),
-    }),
-  },
-  logQuery: vi.fn(),
-  createDatabaseError,
-}));
+    },
+    logQuery: vi.fn(),
+    createDatabaseError,
+  };
+});
 
 // Now import the functions under test
 import {
@@ -136,8 +131,14 @@ function makeEntry(overrides: Partial<ReplicatedEntry> = {}): ReplicatedEntry {
 // ---------------------------------------------------------------------------
 
 describe('dogQueries (replication)', () => {
+  let onLine: { mockRestore: () => void } | undefined;
+  afterEach(() => {
+    onLine?.mockRestore();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
+    onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     // getAllDogs() in reads.ts reads through getAllDogsWithStatus so a cold
     // local store cannot masquerade as an empty roster; these tests exercise a
     // warm store, so the wrapper just reports what getAllDogs returns.
@@ -306,14 +307,6 @@ describe('dogQueries (replication)', () => {
   // services/database/dogs/__tests__/dogDetailRead.test.ts). These cover the
   // device copy, which answers only when the server cannot be reached.
   describe('getDogById, server unreachable', () => {
-    let onLine: { mockRestore: () => void } | undefined;
-    beforeEach(() => {
-      onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-    });
-    afterEach(() => {
-      onLine?.mockRestore();
-    });
-
     it('returns the device dog without entries (the dog page reads those itself)', async () => {
       mockDogsTable.getDogById.mockResolvedValue(makeDog());
       mockEntriesTable.getAll.mockResolvedValue([makeEntry({ dogId: 'dog-1' })]);

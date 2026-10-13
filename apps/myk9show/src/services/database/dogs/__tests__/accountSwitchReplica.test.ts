@@ -3,7 +3,7 @@ import { createDatabaseError } from '@/services/database/databaseError';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 
 /**
- * MYK9-1126 reproduction: a shared browser where account A synced the dogs
+ * MYK9-1126 / MYK9-1139 reproduction: a shared browser where account A synced the dogs
  * replica, signed out (MYK9-202 keeps the replica), and exhibitor B signed in.
  * Before B's first dogs sync the replica still holds A's rows.
  *
@@ -12,14 +12,14 @@ import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
  * co-owner or handler; B is none of those for dog-A): B's own dog only.
  *
  * Findings, pinned here:
- * - The ownership-filtered reads (getAllDogs own scope, getDogsByOwner,
- *   searchDogs, getDogStatistics) never return A's dog to B: they filter the
- *   replica by B's person id before anything leaves the read.
+ * - The roster reads (getAllDogs, getDogsByOwner, searchDogs, getDogStatistics)
+ *   read the server first (MYK9-1139), so they answer for B from B's own rows,
+ *   never from A's warm replica: A's dog is not returned and B's own dog is.
  * - getDogById reads the server first (MYK9-1126), so B reading dog-A's id
  *   gets the server's answer for B (not found), never the replica's copy of
  *   A's dog. Before the fix it answered from the replica with no filter.
- * - Not a leak but the same root cause: getAllDogs answers B's roster from A's
- *   warm replica, online, so B's own dog is missing (a false empty roster).
+ * - Before MYK9-1139 getAllDogs answered B's roster from A's warm replica,
+ *   online, so B's own dog was missing (a false empty roster).
  */
 
 const PERSON_A = 'person-a';
@@ -36,6 +36,7 @@ const { replicaDogs, serverDogs, mockDogsTable } = vi.hoisted(() => ({
     searchDogs: vi.fn(),
     // B's own queue holds nothing for dog-a.
     getUnsentMutationIdsForRow: vi.fn(async () => [] as string[]),
+    getUnsentRowIds: vi.fn(async () => new Set<string>()),
   },
 }));
 
@@ -131,7 +132,7 @@ describe('dogs replica after an account switch (MYK9-1126)', () => {
   beforeEach(() => {
     replicaDogs.length = 0;
     serverDogs.length = 0;
-    // A synced; B has not. The replica is warm, so every read answers from it.
+    // A synced; B has not. The replica is warm, but the reads go to the server.
     replicaDogs.push(DOG_A);
     serverDogs.push(DOG_B_SERVER_ROW);
 
@@ -156,7 +157,7 @@ describe('dogs replica after an account switch (MYK9-1126)', () => {
     );
   });
 
-  describe("ownership-filtered reads never return A's dog to B", () => {
+  describe("roster reads never return A's dog to B", () => {
     it('getAllDogs, own-dogs scope', async () => {
       const { data, error } = await getAllDogs(PERSON_B);
       expect(error).toBeNull();
@@ -178,7 +179,8 @@ describe('dogs replica after an account switch (MYK9-1126)', () => {
     it('getDogStatistics for B', async () => {
       const { data, error } = await getDogStatistics(PERSON_B);
       expect(error).toBeNull();
-      expect(data).toEqual({ total: 0 });
+      // The server's count of B's dogs: B's own dog, not A's replica copy.
+      expect(data).toEqual({ total: 1 });
     });
   });
 
@@ -192,9 +194,9 @@ describe('dogs replica after an account switch (MYK9-1126)', () => {
     expect(mockDogsTable.getDogById).not.toHaveBeenCalled();
   });
 
-  // Same root cause, not a leak, still open: B's roster is answered from A's
-  // replica, so B's own dog is missing until B's first dogs sync.
-  it.fails("getAllDogs shows B's own dog before B's first dogs sync", async () => {
+  // Same root cause, not a leak (MYK9-1139): B's roster used to be answered from
+  // A's replica, so B's own dog was missing until B's first dogs sync.
+  it("getAllDogs shows B's own dog before B's first dogs sync", async () => {
     const { data, error } = await getAllDogs(PERSON_B);
     expect(error).toBeNull();
     expect(ids(data)).toEqual(['dog-b']);

@@ -12976,6 +12976,7 @@ export type Database = {
         Returns: boolean
       }
       can_edit_dog: { Args: { p_dog_id: string }; Returns: boolean }
+      can_edit_person: { Args: { p_person_id: string }; Returns: boolean }
       can_manage_show: { Args: { check_show_id: string }; Returns: boolean }
       can_manage_show_dog: { Args: { check_dog_id: string }; Returns: boolean }
       can_manage_show_lifecycle_email: {
@@ -14382,6 +14383,15 @@ export type Database = {
         Returns: string
       }
       official_show_ids: { Args: never; Returns: string[] }
+      person_edit_allowed: {
+        Args: {
+          p_auth_user_id: string
+          p_created_by: string
+          p_created_from_show_id: string
+          p_person_id: string
+        }
+        Returns: boolean
+      }
       person_email_lock_facts: { Args: { p_person_id: string }; Returns: Json }
       person_email_lock_facts_unchecked: {
         Args: { p_person_id: string }

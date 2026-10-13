@@ -63,6 +63,9 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   // Dogs picked from the duplicate prompt rather than made here. Only these need the
   // server's word before Edit is offered: a dog made in this flow is the secretary's to fix.
   const [existingDogIds, setExistingDogIds] = useState<ReadonlySet<string>>(() => new Set());
+  // The same for the person: one picked from the duplicate prompt needs the server's word
+  // before Edit Details is offered (MYK9-1134); one made in this flow is hers to fix.
+  const [personIsExisting, setPersonIsExisting] = useState(false);
   const closeFormRef = useRef<(() => void) | null>(null);
   const stepsRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
@@ -94,6 +97,15 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   ) => {
     // Saved the moment the form saves, even if the flow is closed before it completes.
     createdInSession?.recordOwnerCreated(exhibitor);
+    setPersonIsExisting(false);
+    continueWithExhibitor(exhibitor, metadata);
+  };
+
+  const handleDuplicateSelected = (
+    exhibitor: User,
+    metadata?: { pendingMutationIds?: string[] | undefined }
+  ) => {
+    setPersonIsExisting(true);
     continueWithExhibitor(exhibitor, metadata);
   };
 
@@ -218,6 +230,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
             mode={mode}
             onOpenPersonForm={() => setView('person-form')}
             onEditPerson={() => setView('person-edit')}
+            personIsExisting={personIsExisting}
             onOpenDogForm={openDogForm}
             existingDogIds={existingDogIds}
             onEditDog={handleEditDog}
@@ -233,7 +246,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
               closeRequestRef={closeFormRef}
               onOpenChange={isOpen => !isOpen && showSteps()}
               onExhibitorCreated={handleExhibitorCreated}
-              onDuplicateSelected={continueWithExhibitor}
+              onDuplicateSelected={handleDuplicateSelected}
               searchQuery={searchQuery}
               offlineFirst={offlineFirst}
               createdFromShowId={createdFromShowId}

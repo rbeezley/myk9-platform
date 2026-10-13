@@ -82,6 +82,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_879_junior_declaration_test.sql"
   "$TEST_DIR/myk9_854_dogs_select_show_scoped_secretary_test.sql"
   "$TEST_DIR/dogs_update_secretary_created_dogs_test.sql"
+  "$TEST_DIR/people_update_secretary_created_people_test.sql"
   "$TEST_DIR/office_admin_rls_test.sql"
   "$TEST_DIR/one_registry_per_show_test.sql"
   "$TEST_DIR/myk9_1008_show_requires_club_test.sql"

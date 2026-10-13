@@ -28,8 +28,8 @@ export function CreateExhibitorDuplicates({
 
       {duplicates.map(candidate => (
         <div key={candidate.person.id} className="border rounded-lg p-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <h4 className="font-semibold">
                   {candidate.person.firstName} {candidate.person.lastName}
@@ -66,7 +66,7 @@ export function CreateExhibitorDuplicates({
               variant="outline"
               size="sm"
               onClick={() => onSelect(candidate)}
-              className="ml-4"
+              className="self-start sm:ml-4 sm:shrink-0"
             >
               Use This Person
             </Button>

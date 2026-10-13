@@ -35,7 +35,7 @@ const { replicaDogs, serverDogs, mockDogsTable } = vi.hoisted(() => ({
     getDogsByOwner: vi.fn(),
     searchDogs: vi.fn(),
     // B's own queue holds nothing for dog-a.
-    getPendingMutationIdsForRow: vi.fn(async () => [] as string[]),
+    getUnsentMutationIdsForRow: vi.fn(async () => [] as string[]),
   },
 }));
 

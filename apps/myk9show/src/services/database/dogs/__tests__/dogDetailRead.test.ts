@@ -9,25 +9,29 @@ import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTa
  * over the server row; a server error is an error.
  */
 
-const { server, mockDogsTable, mockEntriesTable, mockRegistrationsTable } = vi.hoisted(() => ({
-  /** What `dogs ... .single()` resolves to; `throws` simulates a rejected fetch. */
-  server: {
-    detail: { data: null, error: null } as { data: unknown; error: unknown },
-    throws: null as Error | null,
-    /** `dog_registrations` rows, for the roster's and the registration read. */
-    registrations: [] as Record<string, unknown>[],
-  },
-  mockDogsTable: {
-    getAllDogsWithStatus: vi.fn(),
-    getDogById: vi.fn(),
-    getPendingMutationIdsForRow: vi.fn(),
-  },
-  mockEntriesTable: { getAllOrThrow: vi.fn() },
-  mockRegistrationsTable: {
-    getRegistrationsForDogs: vi.fn(),
-    getUnsentRegistrationsForDogs: vi.fn(),
-  },
-}));
+const { server, selects, mockDogsTable, mockEntriesTable, mockRegistrationsTable } = vi.hoisted(
+  () => ({
+    /** What `dogs ... .single()` resolves to; `throws` simulates a rejected fetch. */
+    server: {
+      detail: { data: null, error: null } as { data: unknown; error: unknown },
+      throws: null as Error | null,
+      /** `dog_registrations` rows, for the roster's and the registration read. */
+      registrations: [] as Record<string, unknown>[],
+    },
+    /** Every select the read sends, by table. */
+    selects: [] as { table: string; columns: string }[],
+    mockDogsTable: {
+      getAllDogsWithStatus: vi.fn(),
+      getDogById: vi.fn(),
+      getUnsentMutationIdsForRow: vi.fn(),
+    },
+    mockEntriesTable: { getAllOrThrow: vi.fn() },
+    mockRegistrationsTable: {
+      getRegistrationsForDogs: vi.fn(),
+      getUnsentRegistrationsForDogs: vi.fn(),
+    },
+  })
+);
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: mockDogsTable,
@@ -43,7 +47,9 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: (table: string) => ({
       select: (columns: string) => {
-        const isDetail = table === 'dogs' && columns.includes('entries(');
+        selects.push({ table, columns });
+        // The detail read is the one `dogs` select that starts with `*`.
+        const isDetail = table === 'dogs' && columns.trim().startsWith('*');
         const settle = () => {
           if (isDetail && server.throws) return Promise.reject(server.throws);
           if (isDetail) return Promise.resolve(server.detail);
@@ -79,7 +85,6 @@ const SERVER_ROW = {
   owner: { id: 'person-1', first_name: 'Pat', last_name: 'Owner' },
   registrations: [],
   health_records: [],
-  entries: [{ id: 'entry-server', dog_id: 'dog-1' }],
 };
 
 function replicaDog(overrides: Partial<ReplicatedDog> = {}): ReplicatedDog {
@@ -101,8 +106,9 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
     server.registrations = [];
     mockDogsTable.getDogById.mockReset();
     mockDogsTable.getDogById.mockResolvedValue(replicaDog());
-    mockDogsTable.getPendingMutationIdsForRow.mockReset();
-    mockDogsTable.getPendingMutationIdsForRow.mockResolvedValue([]);
+    selects.length = 0;
+    mockDogsTable.getUnsentMutationIdsForRow.mockReset();
+    mockDogsTable.getUnsentMutationIdsForRow.mockResolvedValue([]);
     mockEntriesTable.getAllOrThrow.mockReset();
     mockEntriesTable.getAllOrThrow.mockResolvedValue([
       { id: 'entry-device', dogId: 'dog-1' } as ReplicatedEntry,
@@ -136,7 +142,7 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
     expect(mockDogsTable.getDogById).not.toHaveBeenCalled();
   });
 
-  it('server unreachable: the device copy answers, with its entries', async () => {
+  it('server unreachable: the device copy answers, without replica entries', async () => {
     server.throws = new TypeError('Failed to fetch');
 
     const { data, error } = await getDogById('dog-1');
@@ -145,7 +151,9 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
     const row = data as Record<string, unknown>;
     expect(row.name).toBe('Device Name');
     expect(row.microchip_number).toBe('999');
-    expect((row.entries as { id: string }[]).map(e => e.id)).toEqual(['entry-device']);
+    // Entries are the dog page's own read (getEntriesByDog), never this row's.
+    expect(row.entries).toBeUndefined();
+    expect(mockEntriesTable.getAllOrThrow).not.toHaveBeenCalled();
   });
 
   it('server unreachable and the dog is not on this device: an error, not a missing dog', async () => {
@@ -170,7 +178,7 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
 
   it("online, this account's pending edit is laid over the server row", async () => {
     server.detail = { data: SERVER_ROW, error: null };
-    mockDogsTable.getPendingMutationIdsForRow.mockResolvedValue(['mutation-1']);
+    mockDogsTable.getUnsentMutationIdsForRow.mockResolvedValue(['mutation-1']);
 
     const { data, error } = await getDogById('dog-1');
 
@@ -178,14 +186,13 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
     const row = data as Record<string, unknown>;
     expect(row.name).toBe('Device Name');
     expect(row.microchip_number).toBe('999');
-    // Owner and entries still come from the server.
+    // The owner still comes from the server.
     expect(row.owner).toEqual(SERVER_ROW.owner);
-    expect(row.entries).toEqual(SERVER_ROW.entries);
   });
 
   it("online, this account's unsent create (not on the server yet) is shown from the device", async () => {
     server.detail = { data: null, error: { code: 'PGRST116', message: 'no rows' } };
-    mockDogsTable.getPendingMutationIdsForRow.mockResolvedValue(['mutation-create']);
+    mockDogsTable.getUnsentMutationIdsForRow.mockResolvedValue(['mutation-create']);
 
     const { data, error } = await getDogById('dog-1');
 
@@ -266,5 +273,29 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
     const rosterDog = mapDatabaseToDog((roster.data as Record<string, unknown>[])[0]!);
     expect(rosterDog.breed).toBe('Harrier');
     expect(detailDog.breed).toBe(rosterDog.breed);
+  });
+
+  it('never embeds entries: authenticated users hold only column-level SELECT on entries', async () => {
+    server.detail = { data: SERVER_ROW, error: null };
+
+    await getDogById('dog-1');
+    server.throws = new TypeError('Failed to fetch');
+    await getDogById('dog-1');
+
+    const dogSelects = selects.filter(select => select.table === 'dogs');
+    expect(dogSelects.length).toBeGreaterThan(0);
+    for (const { columns } of dogSelects) expect(columns).not.toMatch(/entries\s*\(/);
+    expect(selects.some(select => select.table === 'entries')).toBe(false);
+  });
+
+  it("online, this account's FAILED upload is still laid over the server row", async () => {
+    // Retries exhausted: the mutation moved to failed_mutations and the device
+    // keeps the edit for Retry or Discard, so the page must not revert it.
+    server.detail = { data: SERVER_ROW, error: null };
+    mockDogsTable.getUnsentMutationIdsForRow.mockResolvedValue(['failed-1']);
+
+    const { data } = await getDogById('dog-1');
+
+    expect((data as Record<string, unknown>).name).toBe('Device Name');
   });
 });

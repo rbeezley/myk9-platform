@@ -7,24 +7,30 @@
  * account B any of account A's dogs by id. So, the PR 2 shape
  * (`registrations/replicaReads.ts`):
  *
- * - Online, the server answers: the dog, owner, registrations, health records
- *   and entries as RLS lets this account see them. A clean replica copy never
+ * - Online, the server answers: the dog, owner, registrations and health
+ *   records as RLS lets this account see them. A clean replica copy never
  *   wins. Two kinds of this device's unsent work are laid over it: the dog's
- *   own fields when the signed-in account's pending-mutation queue names the
- *   dog (an edit, or an offline create the server has not seen yet), and
+ *   own fields when the signed-in account's queue names the dog with a pending
+ *   or failed mutation (an edit, or an offline create the server has not seen
+ *   yet), and
  *   unsent registrations. Registrations come from `loadDogRegistrations`, the
  *   roster's read, so the dog page and the roster resolve the same primary
  *   registration (one merge rule: `dropServerTwins` + local creation order).
  * - Only when the server cannot be REACHED (`serverUnreachable`) does the
  *   device copy answer. A server that answered with an error is an error,
  *   never an empty or missing dog.
+ *
+ * No entries. Authenticated users hold only column-level SELECT on `entries`
+ * (20260620001929), so an `entries(*)` embed fails the whole read, and the dog
+ * page reads a dog's entries itself through `getEntriesByDog` (the allowlisted
+ * columns, scored results and its own offline fallback). Nothing reads
+ * entries off this row.
  */
 import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
 import {
   replicatedDogsTable,
   type ReplicatedDog,
 } from '@/services/replication/ReplicatedDogsTable';
-import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { mapReplicatedDogToDbRow } from '@/services/mappers/dogMappers';
 import { serverUnreachable } from '../registrations/serverUnreachable';
 import { loadDogRegistrations, type DogRegistrationsResult } from './reads';
@@ -57,21 +63,7 @@ async function readServerDog(id: string): Promise<DogDetailResult> {
           state,
           zip_code
         ),
-        health_records(*),
-        entries(
-          *,
-          class:classes(
-            id,
-            name,
-            class_number
-          ),
-          show:shows(
-            id,
-            name,
-            start_date,
-            end_date
-          )
-        )
+        health_records(*)
       `
       )
       .eq('id', id)
@@ -87,22 +79,23 @@ async function readServerDog(id: string): Promise<DogDetailResult> {
 
 /**
  * The device's copy of the dog, when the signed-in account has a pending
- * mutation for it. The queue read is owner-scoped (`getPendingMutationIdsForRow`
- * reads only the signed-in user's mutations), so another account's unsent
- * work on this device never overlays this account's read. An unreadable queue
- * means no overlay: the server copy stands.
+ * mutation for it, or a failed one kept for Retry or Discard. The queue read is
+ * owner-scoped (`getUnsentMutationIdsForRow` reads only the signed-in user's
+ * mutations), so another account's unsent work on this device never overlays
+ * this account's read. An unreadable queue means no overlay: the server copy
+ * stands.
  */
 async function ownUnsentDog(id: string): Promise<ReplicatedDog | null> {
   try {
-    const pending = await replicatedDogsTable.getPendingMutationIdsForRow(id);
-    if (pending.length === 0) return null;
+    const unsent = await replicatedDogsTable.getUnsentMutationIdsForRow(id);
+    if (unsent.length === 0) return null;
     return await replicatedDogsTable.getDogById(id);
   } catch {
     return null;
   }
 }
 
-/** The dog's own fields from the device; the server's owner, entries and health records. */
+/** The dog's own fields from the device; the server's owner and health records. */
 function overlayUnsentDog(serverRow: DogDetailRow, dog: ReplicatedDog): DogDetailRow {
   const deviceFields = mapReplicatedDogToDbRow(dog);
   delete deviceFields.owner;
@@ -110,7 +103,7 @@ function overlayUnsentDog(serverRow: DogDetailRow, dog: ReplicatedDog): DogDetai
   return { ...serverRow, ...deviceFields };
 }
 
-/** The device copy: the replica's dog and entries, with whatever owner and registrations can be read. */
+/** The device copy: the replica's dog, with whatever owner and registrations can be read. */
 async function readDeviceDog(
   id: string,
   registrationsResult: DogRegistrationsResult
@@ -129,9 +122,6 @@ async function readDeviceDog(
         ),
       };
     }
-
-    const allEntries = await replicatedEntriesTable.getAllOrThrow();
-    const dogEntries = allEntries.filter(e => e.dogId === id);
 
     const supplementalResult = await supabase
       .from('dogs')
@@ -155,33 +145,10 @@ async function readDeviceDog(
       .single();
 
     const supplemental = supplementalResult.data as DogDetailRow | null;
-    const entries = dogEntries.map(e => ({
-      id: e.id,
-      class_id: e.classId ?? null,
-      show_id: e.showId ?? null,
-      dog_id: e.dogId ?? null,
-      handler_id: e.handlerId ?? null,
-      armband: e.armband ?? null,
-      handler: e.handler ?? null,
-      entry_status: e.entryStatus ?? null,
-      jump_height: e.jumpHeight ?? null,
-      entry_fee: e.entryFee ?? null,
-      payment_status: e.paymentStatus ?? null,
-      run_order: e.runOrder ?? null,
-      move_up_requested: e.moveUpRequested ?? null,
-      preferred_judge: e.preferredJudge ?? null,
-      special_requests: e.specialRequests ?? null,
-      submitted_at: e.submittedAt ?? null,
-      // class and show sub-objects are not in the replica
-      class: null,
-      show: null,
-    }));
-
     const data = mapReplicatedDogToDbRow(dog, {
       owner: (supplemental?.owner as Record<string, unknown> | null | undefined) ?? null,
       registrations: registrationsResult.byDog.get(id) ?? [],
       registrationsReadComplete: registrationsResult.registrationsReadComplete,
-      entries,
       healthRecords: (supplemental?.health_records as Record<string, unknown>[] | undefined) ?? [],
     });
     return { data, error: null };

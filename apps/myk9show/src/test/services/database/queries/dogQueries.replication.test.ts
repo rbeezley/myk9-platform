@@ -310,12 +310,9 @@ describe('dogQueries (replication)', () => {
       onLine?.mockRestore();
     });
 
-    it('returns dog with entries and supplemental data', async () => {
+    it('returns the device dog without entries (the dog page reads those itself)', async () => {
       mockDogsTable.getDogById.mockResolvedValue(makeDog());
-      mockEntriesTable.getAll.mockResolvedValue([
-        makeEntry({ dogId: 'dog-1' }),
-        makeEntry({ id: 'entry-other', dogId: 'dog-other' }),
-      ]);
+      mockEntriesTable.getAll.mockResolvedValue([makeEntry({ dogId: 'dog-1' })]);
 
       const result = await getDogById('dog-1');
 
@@ -323,13 +320,9 @@ describe('dogQueries (replication)', () => {
       const row = result.data as Record<string, unknown>;
       expect(row.id).toBe('dog-1');
       expect(row.name).toBe('Bella');
-      // Entries filtered to this dog
-      const entries = row.entries as Record<string, unknown>[];
-      expect(entries).toHaveLength(1);
-      expect(entries[0].id).toBe('entry-1');
-      expect(entries[0].dog_id).toBe('dog-1');
-      expect(entries[0].class_id).toBe('class-1');
-      expect(entries[0].show_id).toBe('show-1');
+      // MYK9-1126: entries come from getEntriesByDog, never from this row.
+      expect(row.entries).toBeUndefined();
+      expect(mockEntriesTable.getAll).not.toHaveBeenCalled();
     });
 
     it('includes local pending registrations in dog detail reads', async () => {

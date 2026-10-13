@@ -56,8 +56,9 @@ describe('an edit meeting a server change', () => {
     await table.applyServerRows([
       serverRow({ id: 'reg-1', registered_name: 'Old', breed: 'Beagle', version: 3 }),
     ]);
+    // The device stays offline, so the edit is still queued when the sync
+    // (whose reads the fake server answers) brings the server's change.
     await table.updateRegistration('reg-1', { registered_name: 'Edited Here' });
-    setDeviceOnline(true);
   });
 
   it('merges when the server changed a different field (no timestamp-only conflict)', async () => {

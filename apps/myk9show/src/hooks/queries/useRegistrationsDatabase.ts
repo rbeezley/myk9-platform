@@ -250,6 +250,22 @@ export const useDeleteRegistrationMutation = () => {
   return useMutation({
     networkMode: 'always',
     mutationFn: (id: string) => replicatedDogRegistrationsTable.deleteRegistration(id),
+    // Hide the row at once (MYK9-1143): otherwise it stays on screen until the
+    // replica listener's refetch lands, seconds later offline. The listener's
+    // refetch still decides what shows, so a discarded refusal brings it back.
+    onMutate: async deletedId => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.registrationsByDogAll });
+      queryClient.setQueriesData<RegistrationsForDog>(
+        { queryKey: queryKeys.registrationsByDogAll },
+        old => old && { ...old, rows: old.rows.filter(row => row.id !== deletedId) }
+      );
+    },
+    // A failed delete may have written nothing, so no listener refetch follows.
+    // Re-read from the replica rather than restore a snapshot: a snapshot taken
+    // before an overlapping delete succeeded would bring that row back too.
+    onError: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDogAll });
+    },
     onSuccess: (_data, deletedId) => {
       queryClient.removeQueries({ queryKey: queryKeys.registration(deletedId) });
       invalidateRegistrationSummaries(queryClient, null);

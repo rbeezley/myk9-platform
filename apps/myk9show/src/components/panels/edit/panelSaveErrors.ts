@@ -21,14 +21,24 @@ export function addedMessage(name: string | undefined | null, fallback = 'Item')
   return `${name?.trim() || fallback} added`;
 }
 
+/** The toast text a successful delete shows: "‹Name› deleted". */
+export function deletedMessage(name: string | undefined | null, fallback = 'Item'): string {
+  return `${name?.trim() || fallback} deleted`;
+}
+
+/** The browser reports no network, so a write lands on this device and queues. */
+export function deviceIsOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
 /**
  * A save made while offline is written to this device and queued, so "saved"
  * alone would overstate it. Says where it landed and that it will sync.
  */
 export function offlineAwareMessage(message: string): string {
-  if (typeof navigator === 'undefined' || navigator.onLine !== false) return message;
+  if (!deviceIsOffline()) return message;
   return message.replace(
-    / (saved|added)$/,
+    / (saved|added|deleted)$/,
     " $1 on this device — it will sync when you're back online"
   );
 }

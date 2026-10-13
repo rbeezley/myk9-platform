@@ -22,6 +22,12 @@ import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDa
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import { dogSaveMessage } from '@/hooks/translateDogDbError';
 import { useRegistrationFormSaves } from './useRegistrationFormSaves';
+import { notifications } from '@/lib/notifications';
+import {
+  deletedMessage,
+  deviceIsOffline,
+  offlineAwareMessage,
+} from '@/components/panels/edit/panelSaveErrors';
 
 interface DogRegistrationDialogsProps {
   dog?: Dog | undefined;
@@ -97,8 +103,17 @@ export default function DogRegistrationDialogs({
     // Same onError as add and update: the optimistic update targets a different
     // query key, so a rejected delete leaves the row on screen and would
     // otherwise say nothing at all.
+    // Offline the delete is queued on this device, so say so, as an offline Add
+    // does (MYK9-1143). Online stays quiet: the row simply goes.
     if (selectedRegistration?.id) {
-      deleteRegistration(selectedRegistration.id, { onError: reportSaveError });
+      deleteRegistration(selectedRegistration.id, {
+        onError: reportSaveError,
+        onSuccess: () => {
+          if (deviceIsOffline()) {
+            notifications.success(offlineAwareMessage(deletedMessage(undefined, 'Registration')));
+          }
+        },
+      });
     }
     setIsDeleteOpen(false);
     setSelectedRegistration(null);

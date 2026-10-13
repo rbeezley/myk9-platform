@@ -37,7 +37,8 @@ export function refreshRegistrationReads(queryClient: QueryClient): void {
  * subscription refreshes the screens, and no path patches a cache by hand,
  * with one owner-approved exception: a delete hides its row optimistically
  * (useDeleteRegistrationMutation, MYK9-1143), and this listener's refetch then
- * reconciles it, so a discarded refusal brings the row back.
+ * reconciles it, so a discarded refusal brings the row back. A delete that
+ * fails before writing re-reads the same queries; nothing restores by hand.
  */
 export function useRegistrationsReplicaCacheSync(): void {
   const queryClient = useQueryClient();

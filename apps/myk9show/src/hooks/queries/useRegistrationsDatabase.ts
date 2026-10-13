@@ -255,17 +255,16 @@ export const useDeleteRegistrationMutation = () => {
     // refetch still decides what shows, so a discarded refusal brings it back.
     onMutate: async deletedId => {
       await queryClient.cancelQueries({ queryKey: queryKeys.registrationsByDogAll });
-      const snapshot = queryClient.getQueriesData<RegistrationsForDog>({
-        queryKey: queryKeys.registrationsByDogAll,
-      });
       queryClient.setQueriesData<RegistrationsForDog>(
         { queryKey: queryKeys.registrationsByDogAll },
         old => old && { ...old, rows: old.rows.filter(row => row.id !== deletedId) }
       );
-      return { snapshot };
     },
-    onError: (_error, _deletedId, context) => {
-      for (const [key, data] of context?.snapshot ?? []) queryClient.setQueryData(key, data);
+    // A failed delete may have written nothing, so no listener refetch follows.
+    // Re-read from the replica rather than restore a snapshot: a snapshot taken
+    // before an overlapping delete succeeded would bring that row back too.
+    onError: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDogAll });
     },
     onSuccess: (_data, deletedId) => {
       queryClient.removeQueries({ queryKey: queryKeys.registration(deletedId) });

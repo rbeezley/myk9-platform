@@ -131,8 +131,8 @@ A comment at `AddDogPanel/index.tsx:417-421` forbids swapping one for the other.
   - The mode is derived from store flags.
   - `handlePanelClose` routes Escape, the backdrop, X and Back to `closeFormRef` while a form is open.
   - While a form is open it shows `showBackButton`/`onBack`, drops the panel footer, and puts the form in a `div.h-full` with `tabIndex=-1`.
-  - Focus is handled by `useRegistrationModeFocus.ts`, and the tests are in `ManageRegistrationsPanel.mode.test.tsx`.
-- **MessageCenterPanel** (`components/notifications/MessageCenterPanel.tsx`), with `useComposeModeFocus.ts`.
+  - Focus is handled by `usePanelModeFocus` (MYK9-1118), and the tests are in `ManageRegistrationsPanel.mode.test.tsx`.
+- **MessageCenterPanel** (`components/notifications/MessageCenterPanel.tsx`), with focus handled by `usePanelModeFocus` (MYK9-1118).
 
 ### 2.9 SlideOverPanel (`components/panels/SlideOverPanel.tsx`, 383 lines)
 
@@ -192,7 +192,7 @@ Duplication this plan touches but does not remove:
 
 1. **DSE has three create entry points.** "Add Person Only" auto-opens Add Dog, so it amounts to Quick Create without Review. Collapsing them is a product call (follow-up F5).
 2. **There are two registration forms (§2.6).** Consolidating them is out of scope (follow-up F2). Their save contracts and validation differ, and the issue forbids validation changes.
-3. **A third "mode inside a panel" focus hook.** The plan writes one generic hook, `components/panels/usePanelModeFocus.ts`. Migrating the other two is follow-up F4, so the shipped MYK9-1088/1089 code is not touched in a show-day-flow PR.
+3. **A third "mode inside a panel" focus hook.** The plan writes one generic hook, `components/panels/usePanelModeFocus.ts`. Migrating the other two was follow-up F4 (done in MYK9-1118), so the shipped MYK9-1088/1089 code is not touched in a show-day-flow PR.
 
 ## 4. Design
 
@@ -519,7 +519,7 @@ Search Linear with `includeArchived: true` before filing, and link each one to t
 - **F1.** AddDogPanel's registration slide-out still stacks on the panel in the `panel` and `dialog` variants (the Dogs page, onboarding `StepDogs`, DSE "Dog Only"). Restructure the `panel` variant into a host with an inline wrapper and the Phase 2 sub-mode.
 - **F2.** Consolidate `AddEditRegistrationDialog` with `AddRegistrationPanel` / `EditRegistrationPanel`: one schema, one set of labels, one breed picker, and Registration Date. This needs an owner decision on the validation differences.
 - **F3.** "Use This Person" in the duplicate-person card closes the form and selects nobody, in both Quick Create and DSE (`CreateExhibitorDialog.tsx:207-211`).
-- **F4.** Migrate `useComposeModeFocus` and `useRegistrationModeFocus` to `usePanelModeFocus`.
+- **F4.** Migrate the Message Center compose and Manage Registrations focus hooks to `usePanelModeFocus`. Done in MYK9-1118.
 - **F5.** Decide whether DSE "Add Person Only", which auto-opens Add Dog, should collapse into Quick Create. Rename `CreateExhibitorDialog` to `CreatePersonForm` if PR B does not.
 - **F6.** Quick Create's "Edit Details" and the dog row's "Edit" open blank create forms for records already saved (`QuickCreateFlow.tsx:208-215`, `:251-260`).
 - **F7.** Give the AddDogPanel `RegistrationTab` Edit and Remove icon buttons accessible names (`RegistrationTab.tsx:79-91`).

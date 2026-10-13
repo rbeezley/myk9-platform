@@ -1,4 +1,4 @@
-import { useRef, useState, type MouseEvent } from 'react';
+import { useCallback, useRef, useState, type MouseEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
@@ -24,7 +24,7 @@ import { formatRelativeTime } from '@/lib/timeUtils';
 import { PRIORITY_BORDER } from './notification-styles';
 import { AnnouncementItem } from '@/components/announcements/AnnouncementItem';
 import { getAnnouncementAuthor } from '@/types/announcement-types';
-import { useComposeModeFocus } from './useComposeModeFocus';
+import { usePanelModeFocus } from '@/components/panels/usePanelModeFocus';
 import { MessageCenterComposeForm } from './MessageCenterComposeForm';
 import { useMyJudgedShows } from '@/features/messages/hooks/useMyJudgedShows';
 import { readRouteShowId, selectComposeShows } from '@/features/messages/messageComposeShows';
@@ -184,7 +184,17 @@ export function MessageCenterPanel() {
   const [isComposing, setIsComposing] = useState(false);
   const composeBarRef = useRef<HTMLDivElement>(null);
   const composeBodyRef = useRef<HTMLDivElement>(null);
-  useComposeModeFocus(isComposing, composeBarRef, composeBodyRef);
+  // Compose unmounts its button: focus the form going in, that button coming back.
+  const composeReturnTarget = useCallback(
+    () => composeBarRef.current?.querySelector<HTMLElement>('button'),
+    []
+  );
+  usePanelModeFocus({
+    mode: isComposing ? 'compose' : 'list',
+    home: 'list',
+    formRef: composeBodyRef,
+    returnTarget: composeReturnTarget,
+  });
   // A closed Message Center always reopens on the list, never mid-compose.
   if (!isCenterOpen && isComposing) setIsComposing(false);
 

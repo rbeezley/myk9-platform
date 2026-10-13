@@ -15,6 +15,7 @@ import {
   trackLazyComponentRetry,
 } from '@/utils/lazyLoadingMetrics';
 import { logger } from '@/services/LoggingService';
+import { resetFailedLazyRoutes } from '@/utils/lazyWithRetry';
 
 interface SuspenseWrapperProps {
   children: React.ReactNode;
@@ -65,6 +66,9 @@ class LoadingErrorBoundary extends React.Component<
     if (componentName) {
       trackLazyComponentRetry(componentName);
     }
+
+    // React.lazy caches a rejected import; swap failed lazies for fresh ones so this re-mount re-imports.
+    resetFailedLazyRoutes();
 
     this.setState(prevState => ({
       hasError: false,

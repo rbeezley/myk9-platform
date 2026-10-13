@@ -51,6 +51,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
   onManageRegistrations,
   registrationsFailed = false,
   registrationsLoading = false,
+  registrationsOffline = false,
   onRetryRegistrations,
   role = 'exhibitor',
   canOpenOwnerRecord = false,
@@ -171,6 +172,10 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
         ) : registrationsLoading ? (
           <p className="text-xs text-muted-foreground" role="status">
             Loading registrations…
+          </p>
+        ) : registrationsOffline ? (
+          <p className="text-xs text-muted-foreground" role="status">
+            Offline. Registrations show when you reconnect.
           </p>
         ) : registrationsFailed ? (
           <div className="flex items-center gap-2">

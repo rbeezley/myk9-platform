@@ -9,7 +9,11 @@ import { QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { databaseManager, NOTIFY_DEBOUNCE_MS } from '@myk9/replication';
 import { supabase } from '@/services/database/supabaseClient';
 import { createTestQueryClient, render, renderHook, screen, waitFor } from '@/test/utils/testUtils';
-import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
+import {
+  railRegistrations,
+  useDogRegistrationManagement,
+} from '@/hooks/queries/useRegistrationsDatabase';
+import type { RegistrationsForDog } from '@/services/database/registrations/replicaReads';
 import { loadDogRegistrations } from '@/services/database/dogs/reads';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/RegistrationsSection';
@@ -217,6 +221,27 @@ describe('registration readers when the server cannot be read', () => {
     await waitFor(() => expect(result.current.error).toBeTruthy());
     expect(result.current.registrations).toBeUndefined();
     read.mockRestore();
+  });
+});
+
+describe('identity rail decision (railRegistrations)', () => {
+  it('treats an empty offline copy as unknown, so the dog record and the offline status show', () => {
+    expect(railRegistrations({ rows: [], source: 'device' })).toEqual({
+      registrations: undefined,
+      offline: true,
+    });
+  });
+
+  it('shows an offline copy that has rows, and a server answer as given', () => {
+    const rows = [serverRow({ id: 'r-1' })] as unknown as RegistrationsForDog['rows'];
+    expect(railRegistrations({ rows, source: 'device' })).toEqual({
+      registrations: rows,
+      offline: false,
+    });
+    expect(railRegistrations({ rows: [], source: 'server' })).toEqual({
+      registrations: [],
+      offline: false,
+    });
   });
 });
 

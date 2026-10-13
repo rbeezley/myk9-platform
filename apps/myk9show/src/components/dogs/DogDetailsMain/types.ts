@@ -35,6 +35,12 @@ export interface DogIdentityRailProps {
   registrationsFailed?: boolean | undefined;
   /** The registrations read is still in flight — also not "has none". */
   registrationsLoading?: boolean | undefined;
+  /**
+   * The registrations read could not reach the server and this device holds
+   * none for the dog (MYK9-1090): unknown, not "none". Shown as a quiet
+   * offline status (docs/INTENT.md "Offline Is Normal, Not Broken").
+   */
+  registrationsOffline?: boolean | undefined;
   onRetryRegistrations?: (() => void) | undefined;
   role?: 'exhibitor' | 'secretary';
   /**

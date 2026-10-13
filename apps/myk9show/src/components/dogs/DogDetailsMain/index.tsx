@@ -17,7 +17,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { toPageHeaderCrumbs } from '@/components/common/pageHeaderCrumbs';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { getDogDisplayName, type Dog, type DogStatus, type Owner } from '@/types/dog-types';
-import { useRegistrationsByDogQuery } from '@/hooks/queries/useRegistrationsDatabase';
+import { useRailRegistrationsQuery } from '@/hooks/queries/useRegistrationsDatabase';
 import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/services/LoggingService';
 import '@/styles/myk9-show-details.css';
@@ -318,11 +318,11 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
   // the failure too: without `isError`, an errored read looks exactly like an
   // empty one and the dog reads as having no registrations.
   const {
-    data: dbRegistrations,
+    data: railRead,
     isError: registrationsFailed,
     isLoading: registrationsLoading,
     refetch: refetchRegistrations,
-  } = useRegistrationsByDogQuery(updatedDog.id);
+  } = useRailRegistrationsQuery(updatedDog.id);
 
   return (
     <>
@@ -346,13 +346,14 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
           <DogIdentityRail
             dog={updatedDog}
             owner={owner}
-            registrations={dbRegistrations}
+            registrations={railRead?.registrations}
             onAddRegistration={canManageRegistrations ? openAddRegistration : undefined}
             onManageRegistrations={
               canManageRegistrations ? () => setIsManageRegistrationsOpen(true) : undefined
             }
             registrationsFailed={registrationsFailed}
             registrationsLoading={registrationsLoading}
+            registrationsOffline={railRead?.offline ?? false}
             onRetryRegistrations={() => void refetchRegistrations()}
             role={isSecretary ? 'secretary' : 'exhibitor'}
             canOpenOwnerRecord={canOpenOwnerRecord}

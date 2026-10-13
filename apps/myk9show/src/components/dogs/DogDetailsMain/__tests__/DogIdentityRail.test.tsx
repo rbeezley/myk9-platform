@@ -173,4 +173,14 @@ describe('DogIdentityRail', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(onRetryRegistrations).toHaveBeenCalledTimes(1);
   });
+
+  // MYK9-1090: an empty offline device copy is unknown, not "none" (Codex).
+  it('shows a quiet offline status, not "No registrations yet", when nothing is known offline', () => {
+    renderRail(base, { registrationsOffline: true });
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Offline. Registrations show when you reconnect.'
+    );
+    expect(screen.queryByText('No registrations yet.')).toBeNull();
+    expect(screen.queryByText(/Couldn.t load registrations/)).toBeNull();
+  });
 });

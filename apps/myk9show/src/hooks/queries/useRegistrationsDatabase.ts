@@ -68,6 +68,31 @@ export const useRegistrationsByDogQuery = (dogId: string, enabled = true) => {
   });
 };
 
+/**
+ * What the dog page's identity rail shows from one dog's registrations read
+ * (MYK9-1090). An EMPTY offline device copy is unknown, not "none": the rail
+ * then falls back to the registrations the dog record carries and, failing
+ * those, a quiet offline status instead of "No registrations yet".
+ */
+export function railRegistrations(result: RegistrationsForDog | undefined): {
+  registrations: RegistrationsForDog['rows'] | undefined;
+  offline: boolean;
+} {
+  if (!result) return { registrations: undefined, offline: false };
+  if (result.source === 'device' && result.rows.length === 0) {
+    return { registrations: undefined, offline: true };
+  }
+  return { registrations: result.rows, offline: false };
+}
+
+/** One dog's registrations read for the identity rail; shares the query cache. */
+export const useRailRegistrationsQuery = (dogId: string, enabled = true) => {
+  return useQuery({
+    ...registrationsByDogOptions(dogId, enabled),
+    select: railRegistrations,
+  });
+};
+
 // Get registrations by organization
 export const useRegistrationsByOrganizationQuery = (organization: string, enabled = true) => {
   return useQuery({

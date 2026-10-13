@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { onlineManager } from '@tanstack/react-query';
-import { askCanEditDog } from './useCanEditDog';
+import { createElement, type ReactNode } from 'react';
+import { renderHook, waitFor, act } from '@testing-library/react';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { askCanEditDog, canEditFromCheck, useCanEditDog, type CanEditCheck } from './useCanEditDog';
 
 const rpc = vi.fn();
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -59,5 +61,61 @@ describe('askCanEditDog', () => {
     const answer = askCanEditDog('dog-1');
     await vi.advanceTimersByTimeAsync(5_000);
     await expect(answer).resolves.toBeNull();
+  });
+});
+
+// Every state the query can be in, so a stale or unanswered check can never read as "no".
+describe('canEditFromCheck', () => {
+  const cases: [string, Omit<CanEditCheck, 'knownAllowed'>, boolean][] = [
+    ['still loading', { data: undefined, status: 'pending', fetchStatus: 'fetching' }, true],
+    [
+      'offline before any answer',
+      { data: undefined, status: 'pending', fetchStatus: 'paused' },
+      true,
+    ],
+    ['the server said yes', { data: true, status: 'success', fetchStatus: 'idle' }, true],
+    ['the server said no', { data: false, status: 'success', fetchStatus: 'idle' }, false],
+    ['a no, refreshing now', { data: false, status: 'success', fetchStatus: 'fetching' }, false],
+    ['a no, then the refresh failed', { data: false, status: 'error', fetchStatus: 'idle' }, true],
+    [
+      'a no, refresh waiting for the network',
+      { data: false, status: 'success', fetchStatus: 'paused' },
+      true,
+    ],
+    ['the first check failed', { data: undefined, status: 'error', fetchStatus: 'idle' }, true],
+    [
+      'the server has no such dog yet',
+      { data: null, status: 'success', fetchStatus: 'idle' },
+      true,
+    ],
+  ];
+
+  it.each(cases)('%s', (_label, check, expected) => {
+    expect(canEditFromCheck({ knownAllowed: false, ...check })).toBe(expected);
+  });
+
+  it.each(cases)('known-allowed viewers can always edit: %s', (_label, check) => {
+    expect(canEditFromCheck({ knownAllowed: true, ...check })).toBe(true);
+  });
+});
+
+describe('useCanEditDog', () => {
+  beforeEach(() => {
+    rpc.mockReset();
+    onlineManager.setOnline(true);
+  });
+
+  it('a "no" followed by a failed refresh gives Edit back', async () => {
+    const queryClient = new QueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+    rpc.mockResolvedValueOnce({ data: false, error: null });
+    const { result } = renderHook(() => useCanEditDog('dog-1', false), { wrapper });
+    await waitFor(() => expect(result.current).toBe(false));
+
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
+    await act(() => queryClient.invalidateQueries());
+    await waitFor(() => expect(result.current).toBe(true));
+    expect(rpc).toHaveBeenCalledTimes(2);
   });
 });

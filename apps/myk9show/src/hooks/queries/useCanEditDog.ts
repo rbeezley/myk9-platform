@@ -43,6 +43,36 @@ export async function askCanEditDog(dogId: string): Promise<boolean | null> {
   }
 }
 
+/** The parts of the server check's query state the decision reads. */
+export interface CanEditCheck {
+  /** Decided locally (owner, co-owner, site admin, a dog made in this session). */
+  knownAllowed: boolean;
+  /** The last answer received: false = no, null = server has no such dog yet. */
+  data: boolean | null | undefined;
+  /** React Query's `status`: 'error' when the LATEST fetch failed, even if `data` is older. */
+  status: 'pending' | 'error' | 'success';
+  /** React Query's `fetchStatus`: 'paused' when a fetch is waiting for the network. */
+  fetchStatus: 'fetching' | 'paused' | 'idle';
+}
+
+/**
+ * INTENT: only the latest check, completed online, answering "no" withholds editing.
+ * Loading, offline (a paused fetch), a failed or timed-out check (even after an earlier
+ * "no": the dog may have become editable since, e.g. its first entry was submitted in her
+ * show) and a dog the server does not have yet all keep editing available. On show day a
+ * secretary must not lose Edit to a flaky connection; the server still decides, with
+ * Discard putting a refused edit back.
+ */
+export function canEditFromCheck({
+  knownAllowed,
+  data,
+  status,
+  fetchStatus,
+}: CanEditCheck): boolean {
+  if (knownAllowed) return true;
+  return !(status === 'success' && fetchStatus !== 'paused' && data === false);
+}
+
 export function useCanEditDog(dogId: string, knownAllowed: boolean): boolean {
   const query = useQuery({
     queryKey: queryKeys.dogCanEdit(dogId),
@@ -51,9 +81,10 @@ export function useCanEditDog(dogId: string, knownAllowed: boolean): boolean {
     staleTime: 60_000,
     retry: false,
   });
-  // INTENT: only a definite "no" from the server withholds editing. Loading, offline (a
-  // paused query), a failed check and a dog the server does not have yet all keep editing
-  // available: on show day a secretary must not lose Edit to a flaky connection, and the
-  // server still decides, with Discard putting a refused edit back.
-  return knownAllowed || query.data !== false;
+  return canEditFromCheck({
+    knownAllowed,
+    data: query.data,
+    status: query.status,
+    fetchStatus: query.fetchStatus,
+  });
 }

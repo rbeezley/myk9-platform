@@ -163,15 +163,6 @@ export function registrationChangePayload(
 }
 
 /**
- * The payload a rebase rebuilds a queued edit with: only a fresh `updated_at`.
- * The queue keeps the edit's own changed columns (its explicit keys), so a
- * rebase never widens a changed-columns UPDATE into a full-row one.
- */
-export function registrationRebasePayload(): Record<string, unknown> {
-  return { updated_at: new Date().toISOString() };
-}
-
-/**
  * A placeholder: a registration an offline dog create wrote to the device. It
  * uploads inside the dog's `create_dog_with_registrations`, which gives the
  * server copy a NEW id, so it is matched to that copy by content. A queued add

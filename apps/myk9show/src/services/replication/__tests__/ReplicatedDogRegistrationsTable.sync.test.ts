@@ -152,15 +152,15 @@ describe('registrations row mapping', () => {
     ).toEqual(readColumns);
   });
 
-  // A rebase restamps updated_at only; the queue keeps the edit's own
-  // changed columns, so a rebase never widens it to a full row.
-  it('rebuilds a rebased UPDATE payload with updated_at only', async () => {
+  // The package never rebases this table's queued UPDATE: its change set is
+  // recomputed against the merged row instead (dogRegistrationChangeSet).
+  it('gives the package no payload to rebase a queued UPDATE with', async () => {
     await table.applyServerRows([serverRow()]);
-    const payload = (
-      table as unknown as { rebuildUpdatePayload: (row: unknown) => Record<string, unknown> }
+    const rebuild = (
+      table as unknown as { rebuildUpdatePayload: (row: unknown) => unknown }
     ).rebuildUpdatePayload(await table.get('reg-1'));
 
-    expect(Object.keys(payload)).toEqual(['updated_at']);
+    expect(rebuild).toBeUndefined();
     expect(REGISTRATION_UPDATE_COLUMNS).toContain('updated_at');
   });
 

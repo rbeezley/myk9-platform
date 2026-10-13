@@ -87,11 +87,13 @@ describe('a name-only edit never reverts a server change to another field', () =
     });
     queue.server.set('reg-1', { ...newer });
     // The download lands after the edit read the row, before it wrote it.
-    const read = table.getPendingMutationIdsForRow.bind(table);
-    vi.spyOn(table, 'getPendingMutationIdsForRow').mockImplementationOnce(async id => {
-      await table.applyServerRows([newer]);
-      return read(id);
-    });
+    const discard = queue.manager.discardPendingMutationsForRow.bind(queue.manager);
+    vi.spyOn(queue.manager, 'discardPendingMutationsForRow').mockImplementationOnce(
+      async (...args) => {
+        await table.applyServerRows([newer]);
+        return discard(...args);
+      }
+    );
 
     await table.updateRegistration('reg-1', { registered_name: 'New Name' });
 

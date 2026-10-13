@@ -176,9 +176,13 @@ export interface DogRegistrationsResult {
   source: 'server' | 'device';
 }
 
-async function readServerRegistrations(
-  dogIds: string[]
-): Promise<{ data: Record<string, unknown>[] | null; error: unknown; answered: number }> {
+async function readServerRegistrations(dogIds: string[]): Promise<{
+  data: Record<string, unknown>[] | null;
+  error: unknown;
+  answered: number;
+  /** The dogs of batches the server could not be reached for. */
+  unreachableDogIds: string[];
+}> {
   // A thrown network error must surface as `error`, not reject the whole
   // read: the device copy may still be able to answer.
   try {
@@ -190,6 +194,7 @@ async function readServerRegistrations(
     const rows: Record<string, unknown>[] = [];
     let firstError: unknown = null;
     let answered = 0;
+    const unreachableDogIds: string[] = [];
     for (const batch of chunk(dogIds, ID_CHUNK_SIZE)) {
       const result = await supabase
         .from('dog_registrations')
@@ -206,11 +211,12 @@ async function readServerRegistrations(
       // registrations at all.
       if (result.error) firstError = firstError ?? result.error;
       else answered++;
+      if (result.error && serverUnreachable(result.error)) unreachableDogIds.push(...batch);
       rows.push(...((result.data ?? []) as Record<string, unknown>[]));
     }
-    return { data: rows, error: firstError, answered };
+    return { data: rows, error: firstError, answered, unreachableDogIds };
   } catch (error) {
-    return { data: null, error, answered: 0 };
+    return { data: null, error, answered: 0, unreachableDogIds: dogIds };
   }
 }
 
@@ -234,29 +240,32 @@ export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistr
     serverResult.error && serverResult.answered === 0 && serverUnreachable(serverResult.error)
       ? 'device'
       : 'server';
+  // Per dog (Codex round 5): the dogs of an unreachable batch answer from
+  // the device copy, clean rows included; the answered dogs keep the
+  // server's rows with this device's unsent work applied (mergeUnsentWork).
+  const unreachable = new Set(source === 'device' ? dogIds : serverResult.unreachableDogIds);
+  const answeredDogIds = dogIds.filter(id => !unreachable.has(id));
   let unsent: ReplicatedDogRegistration[] = [];
   let deviceRows: Record<string, unknown>[] = [];
   let localError: unknown = null;
   try {
-    if (source === 'server') {
-      unsent = await unsentWorkProvenByServer(dogIds, serverResult.data);
-    } else {
-      deviceRows = await replicatedDogRegistrationsTable.getRegistrationsForDogs(dogIds);
+    if (answeredDogIds.length > 0) {
+      unsent = await unsentWorkProvenByServer(answeredDogIds, serverResult.data);
+    }
+    if (unreachable.size > 0) {
+      deviceRows = await replicatedDogRegistrationsTable.getRegistrationsForDogs([...unreachable]);
     }
   } catch (error) {
     localError = error;
   }
 
-  // Server rows with this device's unsent edits, deletes and adds applied
-  // (mergeUnsentWork); offline, the device copy alone.
-  appendRegistrations(
-    map,
-    source === 'server' ? mergeUnsentWork(serverResult.data, unsent) : deviceRows
-  );
-  const localRows =
-    source === 'server'
-      ? unsent.filter(row => row._pendingDelete !== true).map(registrationToDbRow)
-      : deviceRows;
+  if (answeredDogIds.length > 0)
+    appendRegistrations(map, mergeUnsentWork(serverResult.data, unsent));
+  appendRegistrations(map, deviceRows);
+  const localRows = [
+    ...unsent.filter(row => row._pendingDelete !== true).map(registrationToDbRow),
+    ...deviceRows,
+  ];
   overlayLocalCreationOrder(map, localRows);
   return {
     byDog: map,

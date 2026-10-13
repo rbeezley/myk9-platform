@@ -5,6 +5,7 @@ const {
   mockServerIn,
   mockServerSelect,
   mockLocalGet,
+  deviceRowsAreClean,
   mockPeopleIn,
   mockReplicatedGetAllDogs,
   mockPostgrestAllDogs,
@@ -13,6 +14,8 @@ const {
   mockServerIn: vi.fn(),
   mockServerSelect: vi.fn(),
   mockLocalGet: vi.fn(),
+  /** When true, the device rows are clean cached copies: none is unsent. */
+  deviceRowsAreClean: { value: false },
   mockPeopleIn: vi.fn(),
   mockReplicatedGetAllDogs: vi.fn(),
   mockPostgrestAllDogs: vi.fn(),
@@ -41,7 +44,10 @@ vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
     // The same device rows, as the unsent work a server read is merged with:
     // offline-created placeholders.
     getUnsentWorkForDogs: async (dogIds: string[]) =>
-      ((await mockLocalGet(dogIds)) as Record<string, unknown>[]).map(row => ({
+      (deviceRowsAreClean.value
+        ? []
+        : ((await mockLocalGet(dogIds)) as Record<string, unknown>[])
+      ).map(row => ({
         id: row.id,
         dogId: row.dog_id,
         organization: row.organization,
@@ -403,6 +409,7 @@ describe('getAllDogs registration completeness', () => {
 describe('loadDogRegistrations batching', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    deviceRowsAreClean.value = false;
   });
 
   const ids = Array.from({ length: 250 }, (_, i) => `dog-${i}`);
@@ -446,6 +453,35 @@ describe('loadDogRegistrations batching', () => {
     // The surviving batches are still here.
     expect(result.byDog.get('dog-0')).toHaveLength(1);
     expect(result.byDog.get('dog-200')).toHaveLength(1);
+  });
+
+  // Codex round 5: the dogs of the unreachable batch keep their device
+  // copies (clean cached rows included); the answered dogs keep the server's.
+  it('keeps the device copies for the dogs of an unreachable batch', async () => {
+    deviceRowsAreClean.value = true;
+    mockLocalGet.mockImplementation(async (dogIds: string[]) =>
+      dogIds.includes('dog-150')
+        ? [
+            {
+              id: 'cached-150',
+              dog_id: 'dog-150',
+              organization: 'AKC',
+              registration_number: 'C150',
+            },
+          ]
+        : []
+    );
+    mockServerIn
+      .mockReturnValueOnce({ data: [{ id: 'reg-1', dog_id: 'dog-0' }], error: null })
+      .mockReturnValueOnce({ data: null, error: { message: 'TypeError: Failed to fetch' } })
+      .mockReturnValueOnce({ data: [{ id: 'reg-2', dog_id: 'dog-200' }], error: null });
+
+    const result = await loadDogRegistrations(ids);
+
+    expect(result.byDog.get('dog-0')).toEqual([expect.objectContaining({ id: 'reg-1' })]);
+    expect(result.byDog.get('dog-150')).toEqual([expect.objectContaining({ id: 'cached-150' })]);
+    expect(result.byDog.get('dog-200')).toEqual([expect.objectContaining({ id: 'reg-2' })]);
+    expect(result.registrationsReadComplete).toBe(false);
   });
 
   // Codex round 3: one batch failing with a NETWORK error flipped the whole

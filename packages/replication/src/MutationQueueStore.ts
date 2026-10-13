@@ -267,12 +267,19 @@ export class MutationQueueStore {
     tableName: string,
     rowId: string,
     authUserId: string,
-    confirmOwner: () => Promise<void>
+    confirmOwner: () => Promise<void>,
+    operation?: PendingMutation['operation']
   ): Promise<number> {
     const db = await databaseManager.getDatabase('MutationManager');
     const all = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
     const toDelete = all
-      .filter(m => m.tableName === tableName && m.rowId === rowId && m.authUserId === authUserId)
+      .filter(
+        m =>
+          m.tableName === tableName &&
+          m.rowId === rowId &&
+          m.authUserId === authUserId &&
+          (operation === undefined || m.operation === operation)
+      )
       .map(m => m.id);
 
     if (toDelete.length === 0) return 0;

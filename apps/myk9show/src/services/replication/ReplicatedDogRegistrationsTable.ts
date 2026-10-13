@@ -31,8 +31,6 @@ import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { replicatedDogsTable } from './ReplicatedDogsTable';
 import {
   asServerBacked,
-  registrationChangePayload,
-  registrationRebasePayload,
   registrationInsertRow,
   isPlaceholder,
   registrationToDbRow,
@@ -55,12 +53,16 @@ import {
 import { fetchChangedRegistrations, fetchRegistrationsWhere } from './dogRegistrationsServer';
 import { RegistrationDeletionFence } from './registrationDeletionFence';
 import {
+  applyRegistrationEdit,
+  recomputePendingUpdate,
+  type ChangeSetContext,
+} from './dogRegistrationChangeSet';
+import {
   cancelUnsentAdd,
   type EditableRegistration,
   hasRefusedInsert,
   pendingDeletesOfNumber,
   queuedWorkBefore,
-  writeChangesOntoCurrentRow,
   listenForConfirmedDeletes,
   loadDogRegistrationsForEdit,
   loadRowForWrite,
@@ -127,11 +129,6 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     return !this.deletionFence.isFenced(id);
   }
 
-  /** A rebase keeps the edit's own changed columns and only restamps `updated_at`. */
-  protected override rebuildUpdatePayload(): Record<string, unknown> {
-    return registrationRebasePayload();
-  }
-
   /**
    * Reads rows by id with the sync's own column list, so a refused full-row
    * UPDATE can re-fetch its row and rebase or surface (MYK9-771), Discard can
@@ -145,7 +142,6 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       fetchRowsById: ids => fetchRegistrationsWhere('id', ids),
       getRemoteId: remote => String(remote.id),
       toLocalRow: rowToRegistration,
-      rebuildUpdatePayload: registrationRebasePayload,
       dirtyRowComparePolicy: REGISTRATION_COMPARE_POLICY,
     };
   }
@@ -366,15 +362,31 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     }
     const changes = registrationChanges(row.data, patch);
     if (Object.keys(changes).length === 0) return row.data;
-    const dependsOn = await queuedWorkBefore(this, row.data);
-    const updated = await writeChangesOntoCurrentRow(this, id, changes);
-    await this.queueMutation(
-      'UPDATE',
-      id,
-      registrationChangePayload(changes),
-      dependsOn.length > 0 ? dependsOn : undefined
-    );
-    return updated;
+    return applyRegistrationEdit(this.changeSet(), id, changes);
+  }
+
+  private changeSet(): ChangeSetContext {
+    return {
+      table: this,
+      queue: this.queue,
+      queueUpdate: (id, payload, dependsOn) => this.queueMutation('UPDATE', id, payload, dependsOn),
+    };
+  }
+
+  /** A reconcile (or Keep mine, below) moved the row's base and token: recompute its UPDATE. */
+  override async reconcileDirtyRow(
+    ...args: Parameters<ReplicatedTable<ReplicatedDogRegistration>['reconcileDirtyRow']>
+  ): Promise<boolean> {
+    const reconciled = await super.reconcileDirtyRow(...args);
+    if (reconciled) await recomputePendingUpdate(this.changeSet(), args[0]);
+    return reconciled;
+  }
+
+  override async clearConflict(
+    ...args: Parameters<ReplicatedTable<ReplicatedDogRegistration>['clearConflict']>
+  ): Promise<void> {
+    await super.clearConflict(...args);
+    await recomputePendingUpdate(this.changeSet(), args[0]);
   }
 
   /**
@@ -400,10 +412,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     await this.queueMutation('DELETE', id, { id }, dependsOn.length > 0 ? dependsOn : undefined);
   }
 
-  /**
-   * One dog's registrations, for a write built on what exists (Edit dog's
-   * registration fields); see `loadDogRegistrationsForEdit`.
-   */
+  /** One dog's registrations for Edit dog's fields (`loadDogRegistrationsForEdit`). */
   async getRegistrationsForEdit(
     dogId: string
   ): Promise<{ registrations: EditableRegistration[]; server: boolean }> {
@@ -452,11 +461,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     return pendingIds.flat();
   }
 
-  /**
-   * These dogs' registrations on this device, whatever the sync state: the
-   * caller decides what an empty answer means. The readers use it only as a
-   * labelled offline copy when the server cannot be reached.
-   */
+  /** These dogs' registrations on this device (the readers' labelled offline copy). */
   async getRegistrationsForDogs(dogIds: string[]): Promise<Record<string, unknown>[]> {
     if (dogIds.length === 0) return [];
     return visibleRegistrationRows(await this.getAllOrThrow(), dogIds).map(registrationToDbRow);
@@ -471,10 +476,6 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     >[0];
     await tx.done;
     return unsentRegistrationWork(stored, dogIds);
-  }
-
-  async getRegistrationsForDog(dogId: string): Promise<Record<string, unknown>[]> {
-    return this.getRegistrationsForDogs([dogId]);
   }
 
   /** A clean row takes the server's copy (the dogs rule). */

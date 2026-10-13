@@ -54,6 +54,29 @@ export function instantFieldsFor(tableName: string): ReadonlySet<string> {
   return INSTANT_FIELDS_BY_TABLE[tableName] ?? NO_INSTANT_FIELDS;
 }
 
+/**
+ * MYK9-1104: how a table lets one device action and a server action that
+ * reached the same outcome read as agreement, not a same-field collision.
+ */
+export interface DirtyRowComparePolicy {
+  /**
+   * Map a field's value to the server's spelling before comparing, so two
+   * spellings of one value (`Completed` / `completed`) are equal. Applied to
+   * base, local and remote alike. Compare only; stored values are untouched.
+   */
+  normalizeValue?: (field: string, value: unknown) => unknown;
+  /**
+   * Fields the server stamps as a by-product of the outcome (a completion time).
+   * When the device and the server each changed one to a different value and
+   * every OTHER collision on the row has converged (some other field changed on
+   * both sides to the same value, and none still differs), the server's value
+   * wins without a prompt. Never waives a collision on its own: with no
+   * converged field beside it, or any other field still differing, the row is
+   * still surfaced.
+   */
+  serverWinsFields?: readonly string[];
+}
+
 export interface DirtyRowConflictInput<T extends object> {
   base: T;
   local: T;
@@ -61,11 +84,19 @@ export interface DirtyRowConflictInput<T extends object> {
   ignoredFields?: Iterable<string>;
   /** Fields compared as instants; see {@link instantFieldsFor}. Default: none. */
   instantFields?: ReadonlySet<string>;
+  /** See {@link DirtyRowComparePolicy}. Default: plain comparison. */
+  comparePolicy?: DirtyRowComparePolicy;
 }
 
 export interface DirtyRowConflictResult {
   hasConflict: boolean;
   fields: string[];
+  /**
+   * Fields to take from the server snapshot when the row reconciles instead of
+   * surfacing: converged fields held under a different spelling, plus any
+   * waived server-wins fields. Absent when there are none.
+   */
+  adoptRemoteFields?: string[];
 }
 
 export function detectDirtyRowConflict<T extends object>({
@@ -74,8 +105,13 @@ export function detectDirtyRowConflict<T extends object>({
   remote,
   ignoredFields = DEFAULT_IGNORED_FIELDS,
   instantFields = NO_INSTANT_FIELDS,
+  comparePolicy,
 }: DirtyRowConflictInput<T>): DirtyRowConflictResult {
   const ignored = new Set(ignoredFields);
+  const normalize = comparePolicy?.normalizeValue;
+  const serverWins = new Set(comparePolicy?.serverWinsFields ?? []);
+  const respelled: string[] = [];
+  let agreedFields = 0;
   const fields = new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)]);
   const conflicts: string[] = [];
   const baseRecord = base as Record<string, unknown>;
@@ -85,20 +121,40 @@ export function detectDirtyRowConflict<T extends object>({
   for (const field of fields) {
     if (ignored.has(field)) continue;
 
-    const baseValue = baseRecord[field];
-    const localValue = localRecord[field];
-    const remoteValue = remoteRecord[field];
     const asInstant = instantFields.has(field);
+    const baseValue = normalize ? normalize(field, baseRecord[field]) : baseRecord[field];
+    const localValue = normalize ? normalize(field, localRecord[field]) : localRecord[field];
+    const remoteValue = normalize ? normalize(field, remoteRecord[field]) : remoteRecord[field];
     const localChanged = !deepEqual(localValue, baseValue, asInstant);
     const remoteChanged = !deepEqual(remoteValue, baseValue, asInstant);
     const sidesDiffer = !deepEqual(localValue, remoteValue, asInstant);
 
     if (localChanged && remoteChanged && sidesDiffer) {
       conflicts.push(field);
+    } else if (localChanged && remoteChanged) {
+      // Both sides moved the field to the same value.
+      agreedFields++;
+      // Same value, different spelling: the row holds the device's spelling.
+      if (!deepEqual(localRecord[field], remoteRecord[field], asInstant)) respelled.push(field);
     }
   }
 
-  return { hasConflict: conflicts.length > 0, fields: conflicts.sort() };
+  const waivable =
+    conflicts.length > 0 && agreedFields > 0 && conflicts.every(field => serverWins.has(field));
+  if (waivable) {
+    return {
+      hasConflict: false,
+      fields: [],
+      adoptRemoteFields: [...respelled, ...conflicts].sort(),
+    };
+  }
+
+  const adopt = conflicts.length > 0 ? [] : respelled.sort();
+  return {
+    hasConflict: conflicts.length > 0,
+    fields: conflicts.sort(),
+    ...(adopt.length > 0 && { adoptRemoteFields: adopt }),
+  };
 }
 
 export interface DirtyRowMergeResult<T> {

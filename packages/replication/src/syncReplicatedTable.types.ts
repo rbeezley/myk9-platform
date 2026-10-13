@@ -1,3 +1,5 @@
+import type { DirtyRowComparePolicy } from './conflict/detectDirtyRowConflict';
+
 export interface SyncScope {
   /**
    * Domain-specific scope for this sync, such as a myK9Q license key or a
@@ -81,6 +83,13 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
    * always route through a delta RPC don't need this (the RPC delta never clobbers).
    */
   rebuildUpdatePayload?: (local: TLocal) => Record<string, unknown>;
+
+  /**
+   * How a dirty row's same-field check reads two spellings of one value, and
+   * which server-stamped fields yield once the rest converged (MYK9-1104).
+   * Omit for plain comparison.
+   */
+  dirtyRowComparePolicy?: DirtyRowComparePolicy;
 
   shouldSkipRemoteRow?: (remote: TRemote, context: { local: TLocal | null }) => boolean;
   shouldCleanupStaleRows?: boolean;

@@ -860,6 +860,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       remoteServerVersion: number | undefined;
       /** Pre-merged data from an adapter's mergeDirtyRow; omit for a generic 3-way merge. */
       mergedData?: T;
+      /** Fields to take from `remote` over the merged value (MYK9-1104). */
+      adoptRemoteFields?: readonly string[];
       /** Rebuild a full Supabase UPDATE payload from the reconciled row, so a queued
        *  full-row UPDATE can be refreshed (not just the IDB row) and won't clobber. */
       rebuildPayload?: (local: T) => Record<string, unknown>;
@@ -897,6 +899,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
         instantFields: instantFieldsFor(this.tableName),
       }).merged;
     const normalizedMerged = { ...mergedData, id: normalizedId } as T;
+    for (const field of params.adoptRemoteFields ?? []) {
+      (normalizedMerged as Record<string, unknown>)[field] = (
+        params.remote as Record<string, unknown>
+      )[field];
+    }
 
     // Forward-only token advance: never pull the token back on a late/backdated row.
     const advanceToken =

@@ -175,3 +175,45 @@ describe(
     });
   }
 );
+
+describe(
+  'AddDogPanel panel host details (MYK9-1116 review round 1)',
+  { timeout: JOURNEY_TIMEOUT_MS },
+  () => {
+    it('keeps the closing panel as it was through its exit animation', async () => {
+      const onClose = vi.fn();
+      const panel = (open: boolean) => (
+        <AddDogPanel
+          open={open}
+          onClose={onClose}
+          onDogCreated={vi.fn()}
+          userRole={UserRole.SECRETARY}
+          currentUserPersonId="person-1"
+        />
+      );
+      // Mounted closed, then opened, as every page does: only that transition animates.
+      const { user, rerender } = render(panel(false));
+      rerender(panel(true));
+      await fillDogBasics(user);
+      await openAddRegistration(user);
+      expect(
+        await screen.findByRole('heading', { name: 'Add New Registration' })
+      ).toBeInTheDocument();
+
+      rerender(panel(false));
+
+      // While the panel slides out it still shows what the secretary was looking at, not a
+      // freshly reset Add Dog form.
+      expect(screen.getByRole('heading', { name: 'Add New Registration' })).toBeInTheDocument();
+      expect(screen.getByLabelText(/Registered Name/i)).toBeInTheDocument();
+      await waitFor(() => expect(dialogs()).toHaveLength(0));
+    });
+
+    it('keeps a gap between the dog photo and the Call Name field', () => {
+      renderPanel();
+      const photo = document.getElementById('dog-photo-button');
+      expect(photo).not.toBeNull();
+      expect(photo!.parentElement).toHaveClass('gap-4');
+    });
+  }
+);

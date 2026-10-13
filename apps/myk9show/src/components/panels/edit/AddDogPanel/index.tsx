@@ -53,11 +53,19 @@ const AddDogPanelHost: React.FC<AddDogPanelProps> = props => {
     },
     [onSubModeChange]
   );
-  // A closed panel starts the next session on the dog form.
+  // Each opening is a fresh session on the dog form. Closing keeps the session, title and
+  // content as they were until the slide-out has finished leaving, so it does not visibly
+  // reset while it animates away; the panel unmounts its content once it has exited.
+  const [session, setSession] = useState(0);
+  const [contentOpen, setContentOpen] = useState(open);
   const [wasOpen, setWasOpen] = useState(open);
   if (open !== wasOpen) {
     setWasOpen(open);
-    if (!open) setSubMode('dog');
+    if (open) {
+      setSubMode('dog');
+      setSession(count => count + 1);
+      setContentOpen(true);
+    }
   }
   return (
     <SlideOverPanel
@@ -65,11 +73,13 @@ const AddDogPanelHost: React.FC<AddDogPanelProps> = props => {
       onClose={requestClose}
       title={addDogSubModeTitle(subMode)}
       size="xl"
+      onExited={() => setContentOpen(false)}
       {...(subMode !== 'dog' && { showBackButton: true, onBack: requestClose })}
     >
       <AddDogPanelSession
-        key={open ? 'open' : 'closed'}
+        key={session}
         {...props}
+        open={contentOpen}
         variant="inline"
         showPhoto
         closeRequestRef={ownCloseRef}

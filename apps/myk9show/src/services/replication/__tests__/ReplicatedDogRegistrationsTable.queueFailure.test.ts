@@ -172,4 +172,53 @@ describe('a DELETE waits for a refused INSERT of the same row', () => {
       expect(await table.getRegistrationsForDogs(['dog-1'])).toEqual([]);
     }
   );
+
+  it.each([
+    ['registration', 'dog_registrations', 'reg-1'],
+    ['dog', 'dogs', 'dog-1'],
+  ])(
+    'a pending %s UPDATE ahead of the DELETE never strands it, even once the UPDATE is refused',
+    async (_label, tableName, rowId) => {
+      await table.applyServerRows([serverRow({ id: 'reg-1', dog_id: 'dog-1', version: 2 })]);
+      await queue.manager.queueMutation(tableName, 'UPDATE', rowId, { id: rowId }, undefined, 1);
+
+      await table.deleteRegistration('reg-1');
+      const pending = await queue.pending();
+      const update = pending.find(m => m.operation === 'UPDATE');
+      expect(pending.find(m => m.operation === 'DELETE')?.dependsOn ?? []).not.toContain(
+        update!.id
+      );
+
+      setDeviceOnline(true);
+      queue.answer.update = REFUSED;
+      await queue.upload();
+
+      expect(queue.sent.filter(([operation]) => operation === 'delete')).toHaveLength(1);
+      expect((await queue.pending()).filter(m => m.operation === 'DELETE')).toEqual([]);
+    }
+  );
+});
+
+describe('deleting the same registration twice at once', () => {
+  it('does not report success for a delete whose enqueue failed and was rolled back', async () => {
+    await table.applyServerRows([serverRow({ id: 'reg-1', dog_id: 'dog-1', version: 2 })]);
+    // The first enqueue fails late, so the second call arrives while the row is hidden.
+    vi.spyOn(queue.manager, 'queueMutation').mockImplementationOnce(async () => {
+      await new Promise(resolve => setTimeout(resolve, 60));
+      throw OVERFLOW;
+    });
+
+    const firstCall = table.deleteRegistration('reg-1');
+    await new Promise(resolve => setTimeout(resolve, 20));
+    const [first, second] = await Promise.allSettled([
+      firstCall,
+      table.deleteRegistration('reg-1'),
+    ]);
+
+    expect(first.status).toBe('rejected');
+    // The second call either queued the DELETE or rejected: never a silent success.
+    const queued = (await queue.pending()).some(m => m.operation === 'DELETE');
+    expect(second.status === 'rejected' || queued).toBe(true);
+    expect(queued).toBe(second.status === 'fulfilled');
+  });
 });

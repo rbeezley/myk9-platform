@@ -111,12 +111,13 @@ export async function payOnStripeCheckout(page: Page): Promise<string> {
   await expect(email).toBeVisible({ timeout: 30_000 });
   await email.fill(`waitlist-journey-${Date.now()}@example.com`);
 
-  // With dynamic payment methods the card form sits behind an accordion item named "Card".
+  // With dynamic payment methods the card form sits behind an accordion item whose button is
+  // named "Pay with card" (Nightly run 38598458786 recorded the page); older layouts used "Card".
   const cardNumber = page.locator('#cardNumber');
   if (!(await cardNumber.isVisible())) {
     await page
-      .getByRole('button', { name: /^card$/i })
-      .or(page.getByRole('radio', { name: /^card$/i }))
+      .getByRole('button', { name: /^(pay with )?card$/i })
+      .or(page.getByRole('radio', { name: /^(pay with )?card$/i }))
       .click();
   }
 
@@ -133,7 +134,7 @@ export async function payOnStripeCheckout(page: Page): Promise<string> {
   }
 
   // The submit button reads "Pay" (or "Pay $NN.NN"); "Pay with ..." is a payment-method choice.
-  await page.getByRole('button', { name: /^Pay\b(?! with)/ }).click();
+  await page.getByRole('button', { name: /^Pay(\s+\$[\d,.]+)?$/ }).click();
   await page.waitForURL(url => url.origin === ALLOWED_RETURN_ORIGIN, { timeout: 90_000 });
   const returned = new URL(page.url());
   return `${returned.pathname}${returned.search}`;

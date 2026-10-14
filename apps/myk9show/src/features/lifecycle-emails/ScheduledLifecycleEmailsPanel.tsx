@@ -14,6 +14,7 @@ import {
   sendLifecycleEmailJobs,
   skipLifecycleEmailJobsForReview,
   updateLifecycleEmailStepEnabled,
+  LifecycleSendPartialError,
   type LifecycleEmailJobReview,
   type LifecycleEmailSupabaseClient,
 } from './api';
@@ -173,6 +174,7 @@ function LifecycleBatchReviewDialog({
   onSent: () => void;
 }) {
   const lifecycleClient = supabase as unknown as LifecycleEmailSupabaseClient;
+  const queryClient = useQueryClient();
   const [subject, setSubject] = useState<string | null>(null);
   const [body, setBody] = useState<string | null>(null);
   const [secretaryNote, setSecretaryNote] = useState<string | null>(null);
@@ -202,6 +204,11 @@ function LifecycleBatchReviewDialog({
       });
     },
     onSuccess: onSent,
+    // A partly sent batch: refresh the list so what already went out drops off it.
+    onError: () =>
+      queryClient.invalidateQueries({
+        queryKey: ['show-lifecycle-email-review', showId, stepType],
+      }),
   });
   const jobs = jobsQuery.data ?? [];
   const selectedSubject = subject ?? jobs[0]?.subject ?? '';
@@ -226,19 +233,31 @@ function LifecycleBatchReviewDialog({
       title={`${STEP_LABELS[stepType]} review`}
       size="lg"
       footer={
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
-          <Button
-            type="button"
-            disabled={
-              sendMutation.isPending || (selectedJobs.length === 0 && skippedJobIds.length === 0)
-            }
-            onClick={() => sendMutation.mutate({ sendJobs: selectedJobs, skippedJobIds })}
-          >
-            {sendMutation.isPending ? 'Sending...' : 'Send now'}
-          </Button>
+        <div className="space-y-2">
+          {sendMutation.isError ? (
+            <p
+              role="alert"
+              className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+            >
+              {sendMutation.error instanceof LifecycleSendPartialError
+                ? sendMutation.error.message
+                : "Couldn't send these emails. Nothing was lost; try again."}
+            </p>
+          ) : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+            <Button
+              type="button"
+              disabled={
+                sendMutation.isPending || (selectedJobs.length === 0 && skippedJobIds.length === 0)
+              }
+              onClick={() => sendMutation.mutate({ sendJobs: selectedJobs, skippedJobIds })}
+            >
+              {sendMutation.isPending ? 'Sending...' : 'Send now'}
+            </Button>
+          </div>
         </div>
       }
     >

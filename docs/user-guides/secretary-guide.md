@@ -30,7 +30,7 @@ Open a show and you get **one row of four tabs**. Everything in this guide lives
 | Tab          | What it is                                                                                                                                                 |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Overview** | Your show home: a **Needs attention** strip, the schedule by trial and day, and the selected class's panel with its status, timing, checklist and actions. |
-| **Entries**  | Everything to do with entries, in view tabs: Needs review, Missing info, Payment due, All, Waitlist, Pulls, Move-ups.                                      |
+| **Entries**  | Everything to do with entries, in view tabs: Needs review, Missing info, Payment due, All, Waitlist, Pulls, Move-ups, Registration number needed.          |
 | **Results**  | Three steps: review and release results, submit them to the registry, then close the show.                                                                 |
 | **Reports**  | Printing: labels, check-in sheets, score sheets, catalogs and registry reports.                                                                            |
 
@@ -106,13 +106,22 @@ The view tabs across the top — _Needs review_, _Missing info_, _Payment due_, 
 
 > This works **after entries close** — you're the trial secretary, so the deadline doesn't block you.
 
-> **A dog needs a registration number** for the trial's registry. The entry form will
-> let you continue without one — it shows a warning, not a block — but the save is
-> refused by the database, so get the number first rather than expecting to fix it
-> later.
+> **No registration number yet?** You can still enter the dog. As the trial secretary,
+> the entry saves and takes its place in the class, so a mail-in with a missing or
+> illegible number does not lose its spot. Until the dog has a number for the trial's
+> registry the entry is _held_: it still counts toward the class limit, but it is left
+> off the catalog, the run sheet, the scoresheets and the emergency packet.
+>
+> Held entries are listed in **Entries → Show: Registration number needed**, with a
+> count. When the number arrives, choose **Add registration** on its row. The entry
+> leaves the list and appears on paperwork from then on. If the exhibitor will not
+> supply a number, choose **Pull / Withdraw** to open the entry and decide. Nothing is
+> pulled or withdrawn for you, even on show day.
+>
+> Exhibitors entering their own dogs still need the number first.
 >
 > **One exception:** conformation puppy classes. AKC allows a puppy to be entered while
-> its registration is still processing, and those entries are allowed through.
+> its registration is still processing, and those entries are never held.
 
 > The payment reference you enter shows on the registration's card in **Entries**,
 > so you can look a cheque number up later.

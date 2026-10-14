@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { isAwaitingRegistrationNumber } from '../isAwaitingRegistrationNumber';
+import {
+  isAwaitingRegistrationNumber,
+  registrationsFromRead,
+  registrationsIfKnown,
+} from '../isAwaitingRegistrationNumber';
 
 const live = { entryStatus: 'confirmed' };
 const akc = (registration_number: string, organization = 'AKC') => ({
@@ -92,5 +96,53 @@ describe('isAwaitingRegistrationNumber', () => {
     expect(
       isAwaitingRegistrationNumber({ ...live, deleted_at: '2026-10-01T00:00:00Z' }, 'AKC', [])
     ).toBe(false);
+  });
+});
+
+describe('registrationsIfKnown', () => {
+  it('returns the list only when it is known', () => {
+    const list = [akc('SR1')];
+    expect(registrationsIfKnown({ registrations: list })).toBe(list);
+    expect(registrationsIfKnown({ registrations: [] })).toEqual([]);
+    expect(registrationsIfKnown({ registrations: list, registrationsReadComplete: true })).toBe(
+      list
+    );
+  });
+
+  it('is unknown for a missing dog, an unloaded list or an incomplete read', () => {
+    expect(registrationsIfKnown(undefined)).toBeUndefined();
+    expect(registrationsIfKnown(null)).toBeUndefined();
+    expect(registrationsIfKnown({})).toBeUndefined();
+    expect(registrationsIfKnown({ registrations: null })).toBeUndefined();
+    expect(
+      registrationsIfKnown({ registrations: [], registrationsReadComplete: false })
+    ).toBeUndefined();
+  });
+});
+
+describe('registrationsFromRead', () => {
+  const rows = [akc('SR1')];
+
+  it('answers every dog from a complete read, none meaning none', () => {
+    const read = { byDog: new Map([['d1', rows]]), registrationsReadComplete: true };
+    expect(registrationsFromRead(read, 'd1')).toBe(rows);
+    expect(registrationsFromRead(read, 'd2')).toEqual([]);
+  });
+
+  it('answers an incomplete read only for the dogs it returned rows for', () => {
+    const read = { byDog: new Map([['d1', rows]]), registrationsReadComplete: false };
+    expect(registrationsFromRead(read, 'd1')).toBe(rows);
+    expect(registrationsFromRead(read, 'd2')).toBeUndefined();
+  });
+
+  it('treats a non-empty device read as authoritative, but an empty one as unknown', () => {
+    const answered = {
+      byDog: new Map([['d1', rows]]),
+      registrationsReadComplete: false,
+      source: 'device' as const,
+    };
+    expect(registrationsFromRead(answered, 'd2')).toEqual([]);
+    const empty = { byDog: new Map(), registrationsReadComplete: false, source: 'device' as const };
+    expect(registrationsFromRead(empty, 'd2')).toBeUndefined();
   });
 });

@@ -1,17 +1,11 @@
+import { describeError } from '@myk9/replication';
+
 export const SAFE_SYNC_REFRESH_ERROR =
   "We couldn't refresh saved show data. You can keep using the saved copy while we try again.";
 const SAFE_SYNC_CANCELLED_ERROR = 'Sync was cancelled.';
 
 function getRawSyncErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'string') return error;
-
-  if (error && typeof error === 'object') {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === 'string') return message;
-  }
-
-  return String(error);
+  return describeError(error);
 }
 
 function isAbortSyncMessage(message: string): boolean {

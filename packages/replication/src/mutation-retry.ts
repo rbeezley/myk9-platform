@@ -1,3 +1,4 @@
+import { describeError } from './error-message';
 import { calculateBackoffDelay, isAuthorizationError, isRetryableError } from './mutation-utils';
 import type { PendingMutation } from './types';
 
@@ -23,7 +24,7 @@ export function classifyMutationFailure({
   retryBackoffBase,
   now = Date.now(),
 }: ClassifyMutationFailureOptions): MutationFailureClassification {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = describeError(error);
   const canRetry = isRetryableError(error);
   const retries = (mutation.retries || 0) + 1;
   const permanentlyFailed = retries >= maxRetries || !canRetry;

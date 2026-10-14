@@ -3,6 +3,7 @@ import type { SyncOptions, SyncResult } from './types';
 import { repairStuckPendingFlagsOnce } from './core/repairStuckPendingFlags';
 import { reconcileDirtyRemoteRow } from './reconcileDirtyRemoteRow';
 import { anyRowNotOwnedBy, scopeStampDirective } from './rowOwnership';
+import { describeError } from './error-message';
 import { countCoveredRows, staleCleanupKeepIds, getCoveredRemoteIds } from './replicaCoverage';
 import {
   configureConflictSurfacing as _configureConflictSurfacing,
@@ -143,7 +144,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       try {
         await options.uploadPendingMutations();
       } catch (error) {
-        uploadError = error instanceof Error ? error.message : String(error);
+        uploadError = describeError(error);
       }
     }
 
@@ -478,7 +479,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       ...(uploadError ? { uploadError } : {}),
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = describeError(error);
     const stampOnFailure = accountOwned
       ? await scopeStampDirective(table, writtenIds, syncingAuthUserId, false).catch(
           () => undefined

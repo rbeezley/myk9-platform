@@ -177,6 +177,7 @@ export {
   MAX_BACKOFF_MS,
   BACKOFF_JITTER,
 } from './mutation-utils';
+export { describeError, UNKNOWN_ERROR_MESSAGE } from './error-message';
 
 // MutationManager
 export { MutationManager } from './MutationManager';

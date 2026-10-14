@@ -140,4 +140,28 @@ describe('classifyMutationFailure', () => {
     expect(result.permanentlyFailed).toBe(false);
     expect(result.mutation.status).toBe('pending');
   });
+
+  it.each([
+    ['a plain error object', { message: 'boom', code: 'XX000' }, 'boom'],
+    ['a TypeError from an aborted fetch', new TypeError('Failed to fetch'), 'Failed to fetch'],
+    ['a bare string', 'plain text', 'plain text'],
+    [
+      'an object with no message',
+      { code: 'XX000', details: 'deadlock detected' },
+      'deadlock detected',
+    ],
+    ['an object with nothing readable', {}, 'Unknown error'],
+  ])('records a readable message for %s, never [object Object]', (_label, error, expected) => {
+    const result = classifyMutationFailure({
+      mutation: mutation(),
+      error,
+      maxRetries: 1,
+      retryBackoffBase: 10,
+      now: 1_000,
+    });
+
+    expect(result.message).toBe(expected);
+    expect(result.mutation.error).toContain(expected);
+    expect(result.mutation.error).not.toContain('[object Object]');
+  });
 });

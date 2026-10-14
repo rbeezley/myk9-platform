@@ -52,22 +52,48 @@ function rehome(url: unknown): unknown {
   return `${ALLOWED_RETURN_ORIGIN}${parsed.pathname}${parsed.search}`;
 }
 
-/** See (1) above. Install on the exhibitor's page before "Complete payment". */
+/** The headers `stripe-payment-link`'s own `getCorsHeaders()` allows; used when no preflight names any. */
+const PAYMENT_LINK_ALLOW_HEADERS =
+  'authorization, x-client-info, apikey, content-type, x-function-secret';
+
+/**
+ * See (1) above. Install on the exhibitor's page before "Complete payment".
+ *
+ * The call still comes from the preview origin, which the function's `getCorsHeaders()` also does
+ * not list (it answers `Access-Control-Allow-Origin: https://myk9show.com`), so the browser could
+ * not read the session URL. So this route answers the preflight itself, sends the rewritten POST
+ * from the test runner (`route.fetch`, which no CORS policy applies to), and hands the function's
+ * real response back with the page's origin allowed. Status and body are the function's own.
+ */
 export async function routeStripeReturnThroughAllowedOrigin(page: Page): Promise<void> {
   await page.route('**/functions/v1/stripe-payment-link', async route => {
     const request = route.request();
+    const headers = await request.allHeaders();
+    const origin = headers.origin ?? new URL(page.url()).origin;
+    const cors = {
+      'access-control-allow-origin': origin,
+      'access-control-allow-methods': 'POST, OPTIONS',
+      'access-control-allow-headers':
+        headers['access-control-request-headers'] ?? PAYMENT_LINK_ALLOW_HEADERS,
+      vary: 'Origin',
+    };
+    if (request.method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: cors });
+      return;
+    }
     if (request.method() !== 'POST') {
       await route.fallback();
       return;
     }
     const body = (request.postDataJSON() ?? {}) as Record<string, unknown>;
-    await route.fallback({
+    const response = await route.fetch({
       postData: JSON.stringify({
         ...body,
         success_url: rehome(body.success_url),
         cancel_url: rehome(body.cancel_url),
       }),
     });
+    await route.fulfill({ response, headers: { ...response.headers(), ...cors } });
   });
   await page.route(`${ALLOWED_RETURN_ORIGIN}/**`, route =>
     route.fulfill({
@@ -85,11 +111,16 @@ export async function payOnStripeCheckout(page: Page): Promise<string> {
   await expect(email).toBeVisible({ timeout: 30_000 });
   await email.fill(`waitlist-journey-${Date.now()}@example.com`);
 
-  // With dynamic payment methods the card form sits behind an accordion item.
-  const cardChoice = page.getByTestId('card-accordion-item-button');
-  if (await cardChoice.isVisible()) await cardChoice.click();
+  // With dynamic payment methods the card form sits behind an accordion item named "Card".
+  const cardNumber = page.locator('#cardNumber');
+  if (!(await cardNumber.isVisible())) {
+    await page
+      .getByRole('button', { name: /^card$/i })
+      .or(page.getByRole('radio', { name: /^card$/i }))
+      .click();
+  }
 
-  await page.locator('#cardNumber').fill(TEST_CARD.number);
+  await cardNumber.fill(TEST_CARD.number);
   await page.locator('#cardExpiry').fill(TEST_CARD.expiry);
   await page.locator('#cardCvc').fill(TEST_CARD.cvc);
   await page.locator('#billingName').fill('Waitlist Journey');
@@ -101,7 +132,8 @@ export async function payOnStripeCheckout(page: Page): Promise<string> {
     await saveWithLink.uncheck();
   }
 
-  await page.getByTestId('hosted-payment-submit-button').click();
+  // The submit button reads "Pay" (or "Pay $NN.NN"); "Pay with ..." is a payment-method choice.
+  await page.getByRole('button', { name: /^Pay\b(?! with)/ }).click();
   await page.waitForURL(url => url.origin === ALLOWED_RETURN_ORIGIN, { timeout: 90_000 });
   const returned = new URL(page.url());
   return `${returned.pathname}${returned.search}`;

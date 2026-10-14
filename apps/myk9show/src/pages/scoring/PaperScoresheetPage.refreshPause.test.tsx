@@ -45,6 +45,7 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
     getClassById: vi
       .fn()
       .mockResolvedValue({ id: 'class-1', name: 'Container Novice', trialId: 'trial-1' }),
+    subscribe: vi.fn(() => () => undefined),
   },
 }));
 // A warm device: the show's entries scope has synced (MYK9-1130).

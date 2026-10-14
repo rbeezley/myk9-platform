@@ -62,6 +62,7 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
       name: 'Container Novice',
       trialId: 'trial-1',
     }),
+    subscribe: vi.fn(() => () => undefined),
   },
 }));
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({

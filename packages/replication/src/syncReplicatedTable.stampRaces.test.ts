@@ -298,6 +298,26 @@ describe('scope stamp races (MYK9-1148)', () => {
     });
   });
 
+  describe('a scoped write on a table that also has a table-level sync', () => {
+    it('keeps the table-level coverage and the scope watermark/expected count it did not set', async () => {
+      const unscoped = adapter(() => [{ ...row('r1'), updated_at: 5000 }]);
+      delete unscoped.filterLocalRows;
+      await syncReplicatedTable(table, unscoped, {});
+      await sync(adapter(() => [{ ...row('r2'), updated_at: 7000 }]));
+      const before = await table.getSyncMetadata('show-1');
+
+      await table.updateSyncMetadata({ syncStatus: 'syncing' }, { scopeValue: 'show-1' });
+
+      const tableLevel = await table.getSyncMetadata();
+      expect(tableLevel?.totalRows).toBeDefined();
+      expect(tableLevel?.syncedByAuthUserId).toBeDefined();
+      const after = await table.getSyncMetadata('show-1');
+      expect(after?.lastIncrementalSyncAt).toBe(before?.lastIncrementalSyncAt);
+      expect(after?.expectedRemoteRows).toBe(before?.expectedRemoteRows);
+      expect(after?.totalRows).toBe(before?.totalRows);
+    });
+  });
+
   describe('a failed read of the stored stamp', () => {
     it("does not clear the account's own earlier stamp", async () => {
       await sync(adapter(() => [row('r1')]));

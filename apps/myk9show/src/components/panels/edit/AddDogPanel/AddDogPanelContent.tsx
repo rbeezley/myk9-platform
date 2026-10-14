@@ -194,7 +194,9 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
             compact={inline}
           />
 
-          <TabsContent value="registration" className="space-y-8 mt-8">
+          {/* keepMounted: a registration typed here but not yet saved survives a move to another
+              step, including the gate's redirect when an earlier step is invalid (MYK9-1162). */}
+          <TabsContent value="registration" keepMounted className="space-y-8 mt-8">
             <RegistrationTab
               onRemoveRegistration={handleRemoveRegistration}
               onEditRegistration={openEditRegistration}

@@ -334,7 +334,7 @@ describe(
       expect(screen.queryByLabelText(/Registered Name/i)).toBeNull();
     });
 
-    it('holds a secretary on Registration while a registration is typed but not saved', async () => {
+    it('keeps a typed but unsaved registration across steps, including the invalid-step redirect', async () => {
       mockSupabase.rpc.mockResolvedValue({ data: false, error: null });
       const { user } = renderPanel(UserRole.SECRETARY);
       await typeIdentity(user);
@@ -343,19 +343,67 @@ describe(
       await user.paste('Half Typed');
 
       await user.click(screen.getByRole('button', { name: /Next: Essential/ }));
+      expect(await screen.findByLabelText(/Call Name/i)).toBeInTheDocument();
+      // Essential is empty, so asking for Optional details redirects back to Essential.
+      await user.click(screen.getByRole('tab', { name: /Optional details/ }));
+      await user.click(screen.getByRole('tab', { name: /Registration/ }));
 
-      expect(await screen.findByText(/Save this registration to continue/)).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /Registration/ })).toHaveAttribute(
-        'aria-selected',
-        'true'
-      );
-      expect(screen.queryByLabelText(/Call Name/i)).toBeNull();
+      expect(screen.getByLabelText(/Registered Name/i)).toHaveValue('Half Typed');
+      expect(document.getElementById('registrationNumber')).toHaveValue('DN12345601');
+    });
 
-      await user.click(screen.getByRole('tab', { name: /Essential/ }));
-      expect(screen.getByRole('tab', { name: /Registration/ })).toHaveAttribute(
-        'aria-selected',
-        'true'
+    it(
+      'refuses to add the dog while a registration is typed but not saved, and says why',
+      async () => {
+        mockSupabase.rpc.mockResolvedValue({ data: false, error: null });
+        const { user } = renderPanel(UserRole.SECRETARY);
+        await typeIdentity(user);
+        await findDog(user);
+        await user.click(await screen.findByLabelText(/Registered Name/i));
+        await user.paste('Half Typed');
+
+        await user.click(screen.getByRole('button', { name: /Next: Essential/ }));
+        await fillDogBasics(user);
+        await user.click(await screen.findByRole('button', { name: /Next: Optional details/ }));
+        await user.click(await screen.findByRole('button', { name: 'Add Dog' }));
+
+        expect(
+          await screen.findByText(/Save this registration before adding the dog/)
+        ).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /Registration/ })).toHaveAttribute(
+          'aria-selected',
+          'true'
+        );
+        expect(mocks.addDog).not.toHaveBeenCalled();
+        expect(mocks.addDogOfflineFirst).not.toHaveBeenCalled();
+      },
+      JOURNEY_TIMEOUT_MS
+    );
+
+    it("offers the user's own dog when the roster loads while the server is answering", async () => {
+      store.dogs = [];
+      let answer: (value: { data: boolean; error: null }) => void = () => undefined;
+      mockSupabase.rpc.mockImplementation(
+        () => new Promise(resolve => (answer = resolve)) as never
       );
+      const view = renderPanel();
+      await typeIdentity(view.user);
+      await findDog(view.user);
+
+      store.dogs = [dogOnDevice({ ownerId: 'person-1' })];
+      view.rerender(
+        <AddDogPanel
+          open
+          onClose={view.onClose}
+          onDogCreated={view.onDogCreated}
+          userRole={UserRole.EXHIBITOR}
+          currentUserPersonId="person-1"
+        />
+      );
+      answer({ data: true, error: null });
+
+      expect(await screen.findByText(/This looks like Ace/)).toBeInTheDocument();
+      expect(screen.queryByText(TAKEN_MESSAGE)).toBeNull();
     });
 
     it('lets a secretary with nothing typed move on without a registration', async () => {

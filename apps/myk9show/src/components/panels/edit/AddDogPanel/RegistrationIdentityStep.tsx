@@ -124,8 +124,8 @@ export const RegistrationIdentityStep: React.FC<RegistrationIdentityStepProps> =
       {draftBlocked && (
         <p role="alert" className="text-sm text-destructive">
           {onSkip
-            ? 'Save this registration to continue, or choose "No registration number yet".'
-            : 'Save this registration to continue.'}
+            ? 'Save this registration before adding the dog, or choose "No registration number yet".'
+            : 'Save this registration before adding the dog.'}
         </p>
       )}
 

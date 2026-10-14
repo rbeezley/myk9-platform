@@ -115,7 +115,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   const [registrationMatch, setRegistrationMatch] = useState<Dog | null>(null);
   // Registry and number typed on that step, which the dog form does not hold until it is saved.
   const [identityDraft, setIdentityDraft] = useState(false);
-  // Set when Next was refused because that draft is unsaved; cleared once it is saved or gone.
+  // Set when Save was refused because that draft is unsaved; cleared once it is saved or gone.
   const [draftBlocked, setDraftBlocked] = useState(false);
   const handleIdentityDraftChange = useCallback((draft: boolean) => {
     setIdentityDraft(draft);
@@ -124,6 +124,11 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   // Retires a lookup the user has since edited past, so a late answer cannot overwrite the
   // newer one's card. Owned here, not in the step, because the card lives in this state.
   const lookupSeqRef = useRef(0);
+  // The latest roster, read after the server answers: it may have loaded while Find dog waited.
+  const dogsRef = useRef(dogs);
+  useEffect(() => {
+    dogsRef.current = dogs;
+  }, [dogs]);
   // Lives here (not in the content) so a failed Save can move the user to the
   // tab holding the first invalid field (MYK9-885).
   const { activeTab, setActiveTab, handleValidationFail } = usePanelValidationNavigation<TabValue>(
@@ -148,6 +153,13 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   const handleSave = async (formData: DogFormData, { runSelfNavigation }: EditPanelSaveContext) => {
     setLocalSaveError(null);
     setDuplicateCandidate(null);
+    // A registration typed on the first step but not saved there is not in the form yet. Saving
+    // now would add the dog without it, so go back and say so instead.
+    if (identityDraft) {
+      setActiveTab('registration');
+      setDraftBlocked(true);
+      throw new PanelSaveHandledError();
+    }
     if (!allowSeparateDog) {
       const firstRegistration = formData.registrations[0];
       const candidate = findLikelyDuplicateDogCandidate(dogs, {
@@ -245,7 +257,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   const handleFindDog = async (identity: DogRegistrationIdentity) => {
     const seq = ++lookupSeqRef.current;
     const result = await lookupRegistrationIdentity(
-      dogs,
+      () => dogsRef.current,
       identity,
       ({ organization, registrationNumber }) =>
         isRegistryIdentityTaken(organization, registrationNumber)
@@ -356,13 +368,6 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
         activeTab,
         onTabChange: tab => setActiveTab(tab as TabValue),
         locate: locateInvalidField,
-        // A typed-but-unsaved registration is lost when the step unmounts, so Next and the tab
-        // bar refuse to leave it. The skip link is the explicit way on without one.
-        beforeNext: tab => {
-          if (tab !== 'registration' || !identityDraft) return true;
-          setDraftBlocked(true);
-          return false;
-        },
       }}
     >
       <AddDogPanelContent

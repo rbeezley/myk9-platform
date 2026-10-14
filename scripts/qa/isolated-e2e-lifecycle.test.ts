@@ -62,6 +62,12 @@ describe('buildJobEnvironment', () => {
     });
   });
 
+  it('hands the specs the local dummy webhook secret, never a Stripe API key', () => {
+    const env = buildJobEnvironment(local);
+    expect(env.MYK9_E2E_STRIPE_WEBHOOK_SECRET).toMatch(/^whsec_isolated_e2e_/);
+    expect(Object.values(env).some(value => /^(sk|rk)_(test|live)_/.test(value))).toBe(false);
+  });
+
   it('writes generated values without labels that could be mistaken for staging', () => {
     const lines = buildGithubEnvLines(local);
     expect(lines).toContain('MYK9_E2E_SUPABASE_PROJECT_REF=local');

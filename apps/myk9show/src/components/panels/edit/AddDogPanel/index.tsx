@@ -11,12 +11,8 @@ import { PanelSaveHandledError } from '../panelSaveErrors';
 import type { AddDogPanelProps, AddDogSubMode, DogFormData } from './types';
 import { createInitialFormData } from './types';
 import { addDogSchema } from './validation';
-import {
-  locateInvalidField,
-  DOG_STEP_TABS,
-  ADD_REGISTRATION_ATTR,
-  EDIT_REGISTRATION_ATTR,
-} from './validationTab';
+import { locateInvalidField, DOG_STEP_TABS, ADD_REGISTRATION_ATTR } from './validationTab';
+import { EDIT_REGISTRATION_ATTR } from '@/components/dogs/registrationAttrs';
 import { usePanelValidationNavigation } from '../usePanelValidationNavigation';
 import type { TabValue } from './types';
 import { buildDogSavedToast } from './dogSavedToast';

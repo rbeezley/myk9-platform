@@ -26,7 +26,7 @@ import AddRegistrationPanel from './AddRegistrationPanel';
 import EditRegistrationPanel from './EditRegistrationPanel';
 import { useRegistrationFormSaves } from './useRegistrationFormSaves';
 import { usePanelModeFocus } from '@/components/panels/usePanelModeFocus';
-import { EDIT_REGISTRATION_ATTR } from './useRegistrationModeFocus';
+import { EDIT_REGISTRATION_ATTR } from '@/components/dogs/registrationAttrs';
 
 interface ManageRegistrationsPanelProps {
   open: boolean;

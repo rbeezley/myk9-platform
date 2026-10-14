@@ -1,9 +1,16 @@
 import { fireEvent, screen, within } from '@testing-library/react';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
-import { LifecycleTimeline } from '../LifecycleTimeline';
+import { LifecycleTimeline as ControlledTimeline } from '../LifecycleTimeline';
 import { trailPath } from '../TimelineStep';
-import { STORIES } from '../lifecycleStories';
+import { DEFAULT_AUDIENCE, STORIES, type Audience } from '../lifecycleStories';
+
+// The page owns the audience (Home); this holds it the same way so the switch works here.
+function LifecycleTimeline() {
+  const [audience, setAudience] = useState<Audience>(DEFAULT_AUDIENCE);
+  return <ControlledTimeline audience={audience} onAudienceChange={setAudience} />;
+}
 
 vi.mock('../useTimelineProgress', () => ({
   useTimelineProgress: () => ({ reached: 2, isRevealed: () => true }),

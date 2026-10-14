@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   LandingHeader,
   LandingHero,
@@ -7,11 +7,14 @@ import {
   LandingClose,
   LandingFooter,
 } from '@/components/landing/lifecycle';
+import { DEFAULT_AUDIENCE, type Audience } from '@/components/landing/lifecycle/lifecycleStories';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
 const Home: React.FC = () => {
   const { user } = useAuthContext();
+  // The story switch also decides which calls to action the header and close lead with.
+  const [audience, setAudience] = useState<Audience>(DEFAULT_AUDIENCE);
 
   useEffect(() => {
     if (window.location.hash !== '#get-started') return;
@@ -28,12 +31,12 @@ const Home: React.FC = () => {
 
   return (
     <div className="landing-v2" data-guest={user ? 'false' : 'true'}>
-      <LandingHeader signedIn={Boolean(user)} />
+      <LandingHeader signedIn={Boolean(user)} audience={audience} />
       <ShowTodayBanner />
       <LandingHero />
-      <LifecycleTimeline />
+      <LifecycleTimeline audience={audience} onAudienceChange={setAudience} />
       <TrustSection />
-      <LandingClose />
+      <LandingClose audience={audience} />
       <LandingFooter />
     </div>
   );

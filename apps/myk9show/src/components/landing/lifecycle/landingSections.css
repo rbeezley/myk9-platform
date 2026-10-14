@@ -130,6 +130,24 @@
   gap: 0.75rem;
   margin-top: 1.75rem;
 }
+.landing-v2 .lc-close-ctas {
+  justify-content: center;
+}
+/* A quiet second path for exhibitors under the club-first buttons. */
+.landing-v2 .lc-hero-exhibitor {
+  margin: 0.75rem 0 0;
+  font-size: 1rem;
+  color: var(--stone-700);
+}
+.landing-v2 .lc-hero-exhibitor a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+  color: var(--terracotta-600);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .landing-v2 .lc-hero-registries {
   margin: 1rem 0 0;
   font-size: 0.9375rem;

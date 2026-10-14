@@ -54,6 +54,7 @@ export async function expectHeaderFits(page: Page) {
         return {
           text: (el as HTMLElement).innerText || el.getAttribute('aria-label') || 'logo',
           isButton: el.classList.contains('l-btn'),
+          isPrimary: el.classList.contains('l-btn-primary'),
           lines: tops.size,
           right: box.right,
           // Rounded: the page's fade-in transform leaves sub-pixel sizes like 43.999996.
@@ -62,11 +63,12 @@ export async function expectHeaderFits(page: Page) {
         };
       })
   );
-  // How many buttons show depends on sign-in (no Sign in) and header width (no Find a
-  // show when narrow); the primary club action is always there.
+  // How many buttons show depends on sign-in (no Sign in), header width (no Find a show
+  // when narrow) and the story switch (Add your club or Create account); a primary action
+  // is always there.
   expect(
-    targets.some(t => t.isButton && t.text === 'Add your club'),
-    'Add your club is missing from the header'
+    targets.some(t => t.isPrimary),
+    'the header has no primary action'
   ).toBe(true);
   const width = page.viewportSize()!.width;
   for (const t of targets) {

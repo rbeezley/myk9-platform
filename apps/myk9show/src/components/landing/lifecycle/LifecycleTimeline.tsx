@@ -1,8 +1,6 @@
-import { useState } from 'react';
 import { TimelineStep } from './TimelineStep';
 import {
   AUDIENCE_LABEL,
-  DEFAULT_AUDIENCE,
   MEANWHILE_LABEL,
   PEAK_LEAD,
   STORIES,
@@ -15,8 +13,15 @@ import './lifecycle.css';
 const STEP_IDS = STORIES.club.map(s => s.id); // both audiences share ids and order (tested)
 const AUDIENCES: Audience[] = ['club', 'exhibitor'];
 
-export function LifecycleTimeline() {
-  const [audience, setAudience] = useState<Audience>(DEFAULT_AUDIENCE);
+// The audience is owned by the page (Home), because the header and closing calls to action
+// follow the same switch.
+export function LifecycleTimeline({
+  audience,
+  onAudienceChange,
+}: {
+  audience: Audience;
+  onAudienceChange: (audience: Audience) => void;
+}) {
   const { reached, isRevealed } = useTimelineProgress(STEP_IDS);
   const story = STORIES[audience];
   return (
@@ -32,7 +37,7 @@ export function LifecycleTimeline() {
                 key={a}
                 type="button"
                 aria-pressed={audience === a}
-                onClick={() => setAudience(a)}
+                onClick={() => onAudienceChange(a)}
               >
                 {AUDIENCE_LABEL[a]}
               </button>

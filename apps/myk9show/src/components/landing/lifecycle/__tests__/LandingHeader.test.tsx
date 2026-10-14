@@ -23,6 +23,21 @@ describe('LandingHeader', () => {
     expect(club).toHaveClass('l-btn-primary');
   });
 
+  it('leads with a free account for a guest reading the exhibitor story', () => {
+    render(<LandingHeader audience="exhibitor" />);
+    expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute(
+      'href',
+      '/sign-up'
+    );
+    expect(screen.queryByRole('link', { name: 'Add your club' })).toBeNull();
+  });
+
+  it('keeps the club action for a signed-in visitor even on the exhibitor story', () => {
+    render(<LandingHeader signedIn audience="exhibitor" />);
+    expect(screen.getByRole('link', { name: 'Add your club' })).toHaveClass('l-btn-primary');
+    expect(screen.queryByRole('link', { name: 'Create account' })).toBeNull();
+  });
+
   it('hides Sign in for a signed-in visitor but keeps Add your club', () => {
     render(<LandingHeader signedIn />);
 

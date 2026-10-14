@@ -1,9 +1,19 @@
 import { Link } from 'react-router-dom';
-import { ADD_YOUR_CLUB, FIND_A_SHOW } from './landingCtas';
+import { ADD_YOUR_CLUB, CREATE_ACCOUNT, FIND_A_SHOW } from './landingCtas';
+import type { Audience } from './lifecycleStories';
 
 // Signed-in visitors reach the landing only through the club-onboarding return,
-// where the app header already shows their account, so Sign in is hidden.
-export function LandingHeader({ signedIn = false }: { signedIn?: boolean }) {
+// where the app header already shows their account, so Sign in is hidden and the
+// primary action stays the club one. A guest who switched the story to "I'm entering
+// a show" gets the exhibitor's first step, a free account, as the primary action.
+export function LandingHeader({
+  signedIn = false,
+  audience = 'club',
+}: {
+  signedIn?: boolean;
+  audience?: Audience;
+}) {
+  const exhibitor = audience === 'exhibitor' && !signedIn;
   return (
     <header className="l-hdr">
       <div className="l-hdr-inner">
@@ -25,9 +35,15 @@ export function LandingHeader({ signedIn = false }: { signedIn?: boolean }) {
             Sign in
           </Link>
         )}
-        <a href={ADD_YOUR_CLUB.href} className="l-btn l-btn-primary min-h-11">
-          {ADD_YOUR_CLUB.label}
-        </a>
+        {exhibitor ? (
+          <Link to={CREATE_ACCOUNT.to} className="l-btn l-btn-primary min-h-11">
+            {CREATE_ACCOUNT.short}
+          </Link>
+        ) : (
+          <a href={ADD_YOUR_CLUB.href} className="l-btn l-btn-primary min-h-11">
+            {ADD_YOUR_CLUB.label}
+          </a>
+        )}
       </div>
     </header>
   );

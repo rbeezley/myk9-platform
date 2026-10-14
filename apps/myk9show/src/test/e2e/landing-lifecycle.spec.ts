@@ -458,6 +458,9 @@ test('nothing spills out of its box on narrow phones', async ({ page }) => {
     for (const audience of ['club', 'exhibitor']) {
       if (audience === 'exhibitor') {
         await page.getByRole('button', { name: /entering a show/i }).click();
+        // The header's primary action becomes Create account; it must still fit.
+        await expect(page.locator('.l-hdr .l-btn-primary')).toHaveText('Create account');
+        await expectHeaderFits(page);
       }
       await expectNoLandingSpills(page, `${width}px ${audience}`);
     }

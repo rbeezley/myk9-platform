@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import Home from './Home';
@@ -30,17 +30,40 @@ describe('Home', () => {
     window.history.replaceState({}, '', '/');
   });
 
-  it('leads the hero with Add your club, then Find a show, and nothing else', () => {
+  it('leads the hero with Add your club, then Find a show, then the exhibitor account link', () => {
     render(<Home />);
     const hero = screen.getByRole('region', { name: /from premium list/i });
-    expect(linkTexts(hero)).toEqual(['Add your club', 'Find a show']);
+    expect(linkTexts(hero)).toEqual(['Add your club', 'Find a show', 'Create a free account']);
     expect(hero.querySelector('a[href="#get-started"]')).toHaveClass('l-btn-primary');
     expect(hero.querySelector('a[href="/shows"]')).not.toHaveClass('l-btn-primary');
+    const signUp = within(hero).getByRole('link', { name: 'Create a free account' });
+    expect(signUp).toHaveAttribute('href', '/sign-up');
+    expect(signUp).not.toHaveClass('l-btn-primary');
   });
 
   it('makes Add your club the primary button in the header', () => {
     render(<Home />);
     const header = screen.getByRole('banner');
+    expect(header.querySelector('.l-btn-primary')?.textContent).toBe('Add your club');
+  });
+
+  it('leads the header and close with a free account once the story is for exhibitors', () => {
+    render(<Home />);
+    const header = screen.getByRole('banner');
+    const close = screen.getByRole('region', { name: /ready when your next show is/i });
+    expect(within(close).getByRole('link', { name: 'Add your club' })).toHaveClass('l-btn-primary');
+
+    fireEvent.click(screen.getByRole('button', { name: 'I’m entering a show' }));
+    const primary = header.querySelector('.l-btn-primary')!;
+    expect(primary.textContent).toBe('Create account');
+    expect(primary).toHaveAttribute('href', '/sign-up');
+    const exhibitorClose = screen.getByRole('region', { name: /ready for your next trial/i });
+    expect(within(exhibitorClose).getByRole('link', { name: 'Create a free account' })).toHaveClass(
+      'l-btn-primary'
+    );
+    expect(within(exhibitorClose).queryByRole('link', { name: 'Add your club' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'I’m running a show' }));
     expect(header.querySelector('.l-btn-primary')?.textContent).toBe('Add your club');
   });
 

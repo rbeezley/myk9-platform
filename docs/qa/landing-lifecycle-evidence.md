@@ -1,6 +1,6 @@
 # Landing lifecycle: claim evidence and screenshot list
 
-> MYK9-1141, Task 1 of [`docs/plan-landing-lifecycle.md`](../plan-landing-lifecycle.md). Checked 2026-10-13 against `main` @ `864a03e76`.
+> MYK9-1141, Task 1 of [`docs/archive/plan-landing-lifecycle.md`](../archive/plan-landing-lifecycle.md). Checked 2026-10-13 against `main` @ `864a03e76`.
 
 Every product claim on the rebuilt landing page needs a KEEP row here with the code that backs it. A DROP row means the sentence comes out of the copy. It is not reworded into something vaguer (plan D2).
 

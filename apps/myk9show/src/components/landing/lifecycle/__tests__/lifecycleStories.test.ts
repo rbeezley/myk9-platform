@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { HERO_PHOTO_SIZES } from '../heroPhoto';
 import {
   AUDIENCE_LABEL,
   BANNED_COPY,
@@ -101,6 +102,17 @@ describe('STORIES', () => {
       expect(statSync(file).size, name).toBeLessThanOrEqual(maxKb * 1024);
       expect(readFileSync(file).subarray(0, 3).toString('hex'), name).toBe('ffd8ff'); // a JPEG, not HTML
     }
+  });
+
+  // A preload whose sizes differ from the <img> makes the browser fetch the hero twice.
+  it('preloads the hero with the same sizes the hero image uses', () => {
+    const doc = new DOMParser().parseFromString(
+      readFileSync(resolve(appRoot, 'index.html'), 'utf8'),
+      'text/html'
+    );
+    const preload = doc.querySelector('link[rel="preload"][as="image"][imagesrcset*="hero-ziva"]');
+    expect(preload, 'hero preload').not.toBeNull();
+    expect(preload!.getAttribute('imagesizes')).toBe(HERO_PHOTO_SIZES);
   });
 
   it('keeps landing screenshots out of the service-worker precache', () => {

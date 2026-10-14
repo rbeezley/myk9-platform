@@ -68,12 +68,49 @@
   top: var(--pwa-banner-height, 0px);
 }
 
+/* The hero lays out by its own width. Below 1100px: a full-width photo band above the copy.
+   From 1100px: copy on the left, the photo on the right in a tall rounded frame, so a wide
+   screen shows both dogs whole instead of cropping a short band to their faces. */
+.landing-v2 .lc-hero {
+  container: lc-hero / inline-size;
+}
 .landing-v2 .lc-hero-photo {
   display: block;
   width: 100%;
   height: clamp(200px, 34vh, 380px);
   object-fit: cover;
   object-position: center 35%;
+}
+@container lc-hero (min-width: 1100px) {
+  .landing-v2 .lc-hero-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-areas: 'copy photo';
+    align-items: center;
+    gap: clamp(3rem, 5cqi, 4.5rem);
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: clamp(3rem, 6cqi, 4.5rem) 32px;
+  }
+  .landing-v2 .lc-hero .lc-hero-photo {
+    grid-area: photo;
+    height: auto;
+    aspect-ratio: 15 / 16;
+    max-height: calc(100vh - 12rem);
+    object-position: 45% 40%;
+    border-radius: 28px;
+    box-shadow: 0 40px 80px -48px rgb(60 40 20 / 0.55);
+  }
+  .landing-v2 .lc-hero .lc-hero-copy {
+    grid-area: copy;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  .landing-v2 .lc-hero .l-h1 {
+    max-width: none;
+    font-size: clamp(2.75rem, 4.3cqi, 3.5rem);
+  }
 }
 .landing-v2 .lc-hero-copy {
   padding-block: clamp(1.5rem, 4vw, 3rem) clamp(2rem, 5vw, 3.5rem);

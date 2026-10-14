@@ -397,6 +397,52 @@ test.describe('reduced motion', () => {
   });
 });
 
+// Wide screens put the photo beside the copy in a tall frame (both dogs whole, not a short
+// band cropped to their faces); narrower screens keep the full-width band above the copy.
+test('hero: photo beside the copy on wide screens, band above it below 1100px', async ({
+  page,
+}, testInfo) => {
+  const measure = () =>
+    page.evaluate(() => {
+      const box = (sel: string) => document.querySelector(sel)!.getBoundingClientRect();
+      const h1 = document.querySelector<HTMLElement>('#top h1')!;
+      const cta = [...document.querySelectorAll<HTMLElement>('#top a')].find(
+        a => a.innerText === 'Add your club'
+      )!;
+      return {
+        photo: box('#top .lc-hero-photo').toJSON() as DOMRect,
+        h1: h1.getBoundingClientRect().toJSON() as DOMRect,
+        h1Lines: Math.round(
+          h1.getBoundingClientRect().height / parseFloat(getComputedStyle(h1).lineHeight)
+        ),
+        ctaBottom: cta.getBoundingClientRect().bottom,
+      };
+    });
+
+  for (const { width, height } of [
+    { width: 1100, height: 800 },
+    { width: 1440, height: 900 },
+    { width: 1920, height: 1080 },
+  ]) {
+    await page.setViewportSize({ width, height });
+    await openLanding(page);
+    const m = await measure();
+    expect(m.photo.left, `${width}px: photo is not beside the copy`).toBeGreaterThan(m.h1.right);
+    expect(m.photo.height / m.photo.width, `${width}px: photo is a band`).toBeGreaterThan(0.9);
+    expect(m.h1Lines, `${width}px: headline lines`).toBeLessThanOrEqual(2);
+    expect(m.ctaBottom, `${width}px: Add your club below the fold`).toBeLessThanOrEqual(height);
+    // Evidence for review; the page fades in on load, so let it settle first.
+    await page.waitForTimeout(1000);
+    await page.screenshot({ path: testInfo.outputPath(`hero-${width}.png`) });
+  }
+
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await openLanding(page);
+  const m = await measure();
+  expect(m.photo.width, '1024px: photo is not full width').toBeGreaterThan(1000);
+  expect(m.photo.bottom, '1024px: photo is not above the copy').toBeLessThanOrEqual(m.h1.top + 1);
+});
+
 test('header fits the narrowest phones', async ({ page }) => {
   for (const width of [320, 360]) {
     await page.setViewportSize({ width, height: 740 });

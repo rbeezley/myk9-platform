@@ -298,19 +298,29 @@ export async function sendLifecycleEmailJobs(args: {
   body?: string | null;
   secretaryNote?: string | null;
 }): Promise<void> {
-  const { error } = await args.supabase.functions.invoke('send-lifecycle-email', {
-    body: {
-      action: 'send',
-      show_id: args.showId,
-      job_ids: args.jobIds,
-      ...(args.subject == null ? {} : { subject: args.subject }),
-      ...(args.body == null ? {} : { body: args.body }),
-      ...(args.secretaryNote == null ? {} : { secretary_note: args.secretaryNote }),
-    },
-  });
+  // The edge function reads its job ids unpaged, so one call would be capped at max_rows (1000)
+  // and silently send only part of a large batch; chunk it like the skip path (MYK9-1187).
+  // Sent jobs leave the ready/failed set the review reads, so sending again resumes safely.
+  let sent = 0;
+  for (const jobIds of chunk(args.jobIds, ID_CHUNK_SIZE)) {
+    const { error } = await args.supabase.functions.invoke('send-lifecycle-email', {
+      body: {
+        action: 'send',
+        show_id: args.showId,
+        job_ids: jobIds,
+        ...(args.subject == null ? {} : { subject: args.subject }),
+        ...(args.body == null ? {} : { body: args.body }),
+        ...(args.secretaryNote == null ? {} : { secretary_note: args.secretaryNote }),
+      },
+    });
 
-  if (error) {
-    throw new Error(error.message ?? 'Failed to send lifecycle email');
+    if (error) {
+      if (sent === 0) throw new Error(error.message ?? 'Failed to send lifecycle email');
+      throw new Error(
+        `Sent ${sent} of ${args.jobIds.length} emails; the rest are still waiting. Send again to finish.`
+      );
+    }
+    sent += jobIds.length;
   }
 }
 

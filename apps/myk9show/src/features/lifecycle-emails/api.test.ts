@@ -12,6 +12,7 @@ import {
   type LifecycleEmailSupabaseClient,
 } from './api';
 import { fromAny } from '@total-typescript/shoehorn';
+import { ID_CHUNK_SIZE } from '@/utils/chunkIds';
 
 function createClient(
   tables: Record<string, unknown[]>,
@@ -459,6 +460,66 @@ describe('lifecycle email api helpers', () => {
       show_id: 'show-1',
       job_ids: ['job-1', 'job-2'],
       body: 'The venue has changed.',
+    });
+  });
+
+  describe('sendLifecycleEmailJobs chunking (MYK9-1187)', () => {
+    const ids = (n: number) => Array.from({ length: n }, (_, i) => `job-${i}`);
+    const recorder = (failOn?: number) => {
+      const bodies: Array<Record<string, unknown>> = [];
+      const client: LifecycleEmailFunctionsClient = {
+        functions: {
+          invoke: async (_name, options) => {
+            bodies.push(options.body);
+            return failOn === bodies.length
+              ? { data: null, error: { message: 'edge down' } }
+              : { data: null, error: null };
+          },
+        },
+      };
+      return { client, bodies };
+    };
+
+    it('sends 2300 ids in ordered chunks, each carrying the override text', async () => {
+      const { client, bodies } = recorder();
+      await sendLifecycleEmailJobs({
+        supabase: client,
+        showId: 'show-1',
+        jobIds: ids(2300),
+        subject: 'S',
+        body: 'B',
+        secretaryNote: 'N',
+      });
+
+      expect(bodies.length).toBeGreaterThanOrEqual(3);
+      for (const body of bodies) {
+        expect((body.job_ids as string[]).length).toBeLessThanOrEqual(ID_CHUNK_SIZE);
+        expect(body).toMatchObject({ subject: 'S', body: 'B', secretary_note: 'N' });
+      }
+      expect(bodies.flatMap(body => body.job_ids as string[])).toEqual(ids(2300));
+    });
+
+    it('stops at the failing chunk and reports how many were sent', async () => {
+      const { client, bodies } = recorder(2);
+      await expect(
+        sendLifecycleEmailJobs({ supabase: client, showId: 'show-1', jobIds: ids(2300) })
+      ).rejects.toThrow(
+        `Sent ${ID_CHUNK_SIZE} of 2300 emails; the rest are still waiting. Send again to finish.`
+      );
+      expect(bodies).toHaveLength(2);
+    });
+
+    it('keeps the plain error when the first chunk fails', async () => {
+      const { client } = recorder(1);
+      await expect(
+        sendLifecycleEmailJobs({ supabase: client, showId: 'show-1', jobIds: ids(5) })
+      ).rejects.toThrow('edge down');
+    });
+
+    it('sends a small batch as one invoke', async () => {
+      const { client, bodies } = recorder();
+      await sendLifecycleEmailJobs({ supabase: client, showId: 'show-1', jobIds: ids(5) });
+      expect(bodies).toHaveLength(1);
     });
   });
 

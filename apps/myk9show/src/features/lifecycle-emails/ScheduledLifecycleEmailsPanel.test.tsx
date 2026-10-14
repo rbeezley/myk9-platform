@@ -163,6 +163,19 @@ describe('ScheduledLifecycleEmailsPanel', () => {
     });
   });
 
+  it('shows the send error, including a partial-send count, in the review panel', async () => {
+    mockSendJobs.mockRejectedValue(
+      new Error('Sent 200 of 2300 emails; the rest are still waiting. Send again to finish.')
+    );
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    await user.click(screen.getByRole('button', { name: 'Send now' }));
+
+    expect(await screen.findByText(/Sent 200 of 2300 emails/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send now' })).toBeEnabled();
+  });
+
   it('closes the review slide-out on Escape and returns focus to the Review button', async () => {
     const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
     const reviewButton = await screen.findByRole('button', { name: 'Review' });

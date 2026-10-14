@@ -274,9 +274,11 @@ Deno.serve(async (req: Request) => {
         dogIds.length > 0
           ? serviceClient
               .from('entries')
-              .select('*', { count: 'exact', head: true })
+              .select('id', { count: 'exact', head: true })
               .eq('show_id', showId)
               .in('dog_id', dogIds)
+              .is('deleted_at', null)
+              .not('entry_status', 'in', '(withdrawn,scratched)')
           : Promise.resolve({ count: 0 }),
       ]);
 

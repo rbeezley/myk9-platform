@@ -333,7 +333,8 @@ export async function executeTool(
           class_status?: string;
         },
         supabase,
-        scope
+        scope,
+        resultsClient ?? supabase
       ).then(r => ({ result: r.data, error: r.error }));
 
     case 'get_entry_results':

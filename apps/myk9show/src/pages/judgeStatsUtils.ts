@@ -11,6 +11,8 @@ export interface JudgeClass {
   /** IANA timezone of the trial; "today" is computed in this zone, not the device's. */
   trialTimezone: string;
   scheduledTime: Date;
+  /** False when classes.start_time is empty: scheduledTime is then a midnight placeholder for sorting only and must not be shown. */
+  hasStartTime?: boolean;
   /** Rings are not modeled on classes yet; null hides the ring label. */
   ringNumber: number | null;
   totalEntries: number;

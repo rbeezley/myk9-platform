@@ -5,7 +5,7 @@ import { signInAsJudge } from '../uat/shared/auth';
  * Suite category: feature-audit.
  *
  * Judge dashboard journey (MYK9-42). Covers the judge-as-primary-actor surfaces
- * that exist today: the assignments dashboard (Today/Upcoming/Completed), the
+ * that exist today: the assignments dashboard (Today/Upcoming/Past), the
  * personal stats page, and the shared results dashboard. Read-only — no entry
  * data is mutated.
  *
@@ -25,7 +25,7 @@ import { signInAsJudge } from '../uat/shared/auth';
  */
 
 test.describe('Judge dashboard journey', () => {
-  test('shows judging assignments grouped by Today/Upcoming/Completed', async ({ page }) => {
+  test('shows judging assignments grouped by Today/Upcoming/Past', async ({ page }) => {
     await signInAsJudge(page, '/judge/dashboard');
     await expect(page).toHaveURL(/\/judge\/dashboard/);
 
@@ -36,7 +36,7 @@ test.describe('Judge dashboard journey', () => {
     // Tabs render — the dashboard buckets assignments client-side by date.
     const todayTab = page.getByRole('tab', { name: /Today/i });
     const upcomingTab = page.getByRole('tab', { name: /Upcoming/i });
-    const completedTab = page.getByRole('tab', { name: /Completed/i });
+    const completedTab = page.getByRole('tab', { name: /Past/i });
     await expect(todayTab).toBeVisible();
     await expect(upcomingTab).toBeVisible();
     await expect(completedTab).toBeVisible();

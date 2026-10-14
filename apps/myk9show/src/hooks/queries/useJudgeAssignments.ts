@@ -86,6 +86,11 @@ export function parseScheduledTime(
   return zonedWallTimeToInstant(trialDate, time, timeZone);
 }
 
+/** True when start_time carries a real clock time (not null/empty), so the UI may show it. */
+export function hasStartTime(startTime: string | null): boolean {
+  return !!startTime && (startTime.includes('T') || /^\d{1,2}:\d{2}/.test(startTime));
+}
+
 function toDashboardStatus(classStatus: string | null): JudgeClass['status'] {
   if (classStatus === 'completed') return 'completed';
   if (classStatus === 'in_progress') return 'in-progress';
@@ -114,6 +119,7 @@ export function mapAssignmentRowToJudgeClass(row: JudgeAssignmentRow): JudgeClas
       cls.start_time,
       trial.timezone ?? DEFAULT_TIMEZONE
     ),
+    hasStartTime: hasStartTime(cls.start_time),
     ringNumber: null,
     totalEntries: cls.total_entries_count ?? 0,
     checkedInEntries: cls.checked_in_count ?? 0,
@@ -148,6 +154,7 @@ export function mapReplicatedAssignmentToJudgeClass(
       a.classStartTime,
       a.trialTimezone ?? DEFAULT_TIMEZONE
     ),
+    hasStartTime: hasStartTime(a.classStartTime),
     ringNumber: null,
     totalEntries: a.classTotalEntries ?? 0,
     checkedInEntries: a.classCheckedInCount ?? 0,

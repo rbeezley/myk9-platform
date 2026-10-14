@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import JudgeDashboard from '../JudgeDashboard';
 import { localIsoDate, type JudgeClass } from '../judgeStatsUtils';
+import { auditService } from '@/services/AuditService';
 
 const mockNavigate = vi.hoisted(() => vi.fn());
 const mockUseJudgeAssignments = vi.hoisted(() => vi.fn());
@@ -225,16 +226,19 @@ describe('JudgeDashboard', () => {
     expect(screen.queryByRole('button', { name: /start judging/i })).not.toBeInTheDocument();
   });
 
-  it('keeps a past unfinished class reachable from the Completed tab', async () => {
+  it('labels the past tab "Past" and offers no Start Judging but an Open class action on a past not-started class', async () => {
     mockUseJudgeAssignments.mockReturnValue(
       hookState({
         assignments: [
           makeAssignment({
             id: 'p1',
             classId: 'class-past',
-            name: 'Yesterday Buried Excellent',
+            name: 'Container Novice A',
             trialDate: '2020-01-01',
-            scheduledTime: new Date('2020-01-01T09:00:00'),
+            scheduledTime: new Date('2020-01-01T00:00:00'),
+            hasStartTime: false,
+            totalEntries: 2,
+            completedEntries: 0,
             status: 'pending',
           }),
         ],
@@ -243,10 +247,62 @@ describe('JudgeDashboard', () => {
 
     const { user } = render(<JudgeDashboard />);
 
-    await user.click(screen.getByRole('tab', { name: /completed/i }));
-    await user.click(screen.getByRole('button', { name: /start judging/i }));
+    expect(screen.queryByRole('tab', { name: /completed/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: /past/i }));
 
+    expect(screen.getByText('Container Novice A')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /start judging/i })).not.toBeInTheDocument();
+
+    const auditCallsBefore = vi.mocked(auditService.log).mock.calls.length;
+    await user.click(screen.getByRole('button', { name: /open class/i }));
     expect(mockNavigate).toHaveBeenCalledWith('/at-show/show-1/class/class-past');
+    // Opening a past class is not starting it: no start_judging audit entry.
+    expect(vi.mocked(auditService.log).mock.calls.length).toBe(auditCallsBefore);
+  });
+
+  it('keeps Continue Judging for a past in-progress class', async () => {
+    mockUseJudgeAssignments.mockReturnValue(
+      hookState({
+        assignments: [
+          makeAssignment({
+            id: 'p2',
+            classId: 'class-past-ip',
+            trialDate: '2020-01-01',
+            scheduledTime: new Date('2020-01-01T09:00:00'),
+            status: 'in-progress',
+          }),
+        ],
+      })
+    );
+
+    const { user } = render(<JudgeDashboard />);
+
+    await user.click(screen.getByRole('tab', { name: /past/i }));
+    await user.click(screen.getByRole('button', { name: /continue judging/i }));
+
+    expect(mockNavigate).toHaveBeenCalledWith('/at-show/show-1/class/class-past-ip');
+  });
+
+  it('shows no clock time for a class without a start time', async () => {
+    mockUseJudgeAssignments.mockReturnValue(
+      hookState({
+        assignments: [
+          makeAssignment({
+            id: 'u1',
+            trialDate: '2999-11-09',
+            scheduledTime: new Date('2999-11-09T00:00:00'),
+            hasStartTime: false,
+          }),
+        ],
+      })
+    );
+
+    const { user } = render(<JudgeDashboard />);
+
+    await user.click(screen.getByRole('tab', { name: /upcoming/i }));
+
+    expect(screen.queryByText(/12:00/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\d{1,2}:\d{2}/)).not.toBeInTheDocument();
   });
 
   it('does not render the removed dead buttons', () => {

@@ -3,9 +3,10 @@ import { ClubOnboarding } from './ClubOnboarding';
 import { ADD_YOUR_CLUB, CREATE_ACCOUNT, FIND_A_SHOW } from './landingCtas';
 import type { Audience } from './lifecycleStories';
 
-// The close follows the story switch: clubs are asked to add their club, exhibitors to
-// create the free account they need to enter. The club form below stays for both, since
-// the header's club action and sign-in returns link to it.
+// `audience` is the CTA audience from ctaAudience() (always 'club' when signed in): clubs
+// are asked to add their club, exhibitors to create the free account they need to enter.
+// The club form below stays for both, since the header's club action and sign-in returns
+// link to it.
 export function LandingClose({ audience = 'club' }: { audience?: Audience }) {
   const exhibitor = audience === 'exhibitor';
   return (

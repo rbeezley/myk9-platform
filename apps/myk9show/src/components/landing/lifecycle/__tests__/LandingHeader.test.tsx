@@ -32,12 +32,6 @@ describe('LandingHeader', () => {
     expect(screen.queryByRole('link', { name: 'Add your club' })).toBeNull();
   });
 
-  it('keeps the club action for a signed-in visitor even on the exhibitor story', () => {
-    render(<LandingHeader signedIn audience="exhibitor" />);
-    expect(screen.getByRole('link', { name: 'Add your club' })).toHaveClass('l-btn-primary');
-    expect(screen.queryByRole('link', { name: 'Create account' })).toBeNull();
-  });
-
   it('hides Sign in for a signed-in visitor but keeps Add your club', () => {
     render(<LandingHeader signedIn />);
 

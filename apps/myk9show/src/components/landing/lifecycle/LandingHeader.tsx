@@ -2,10 +2,10 @@ import { Link } from 'react-router-dom';
 import { ADD_YOUR_CLUB, CREATE_ACCOUNT, FIND_A_SHOW } from './landingCtas';
 import type { Audience } from './lifecycleStories';
 
-// Signed-in visitors reach the landing only through the club-onboarding return,
-// where the app header already shows their account, so Sign in is hidden and the
-// primary action stays the club one. A guest who switched the story to "I'm entering
-// a show" gets the exhibitor's first step, a free account, as the primary action.
+// Signed-in visitors reach the landing only through the club-onboarding return, where the
+// app header already shows their account, so Sign in is hidden. `audience` is the CTA
+// audience from ctaAudience() (always 'club' when signed in); on 'exhibitor' the primary
+// action is the exhibitor's first step, a free account.
 export function LandingHeader({
   signedIn = false,
   audience = 'club',
@@ -13,7 +13,7 @@ export function LandingHeader({
   signedIn?: boolean;
   audience?: Audience;
 }) {
-  const exhibitor = audience === 'exhibitor' && !signedIn;
+  const exhibitor = audience === 'exhibitor';
   return (
     <header className="l-hdr">
       <div className="l-hdr-inner">

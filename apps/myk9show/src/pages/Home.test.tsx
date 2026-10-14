@@ -4,6 +4,8 @@ import { render } from '@/test/utils/testUtils';
 import Home from './Home';
 import { BANNED_COPY } from '@/components/landing/lifecycle/lifecycleStories';
 
+const auth = vi.hoisted(() => ({ user: null as { id: string } | null }));
+vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => ({ user: auth.user }) }));
 vi.mock('@/features/show-today/ShowTodayBanner', () => ({ ShowTodayBanner: () => null }));
 vi.mock('@/components/landing/lifecycle/ClubOnboarding', () => ({
   ClubOnboarding: () => <section id="get-started" aria-label="Add your club form" />,
@@ -25,6 +27,7 @@ describe('Home', () => {
     });
   });
   afterEach(() => {
+    auth.user = null;
     vi.restoreAllMocks();
     HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
     window.history.replaceState({}, '', '/');
@@ -45,6 +48,20 @@ describe('Home', () => {
     render(<Home />);
     const header = screen.getByRole('banner');
     expect(header.querySelector('.l-btn-primary')?.textContent).toBe('Add your club');
+  });
+
+  // A signed-in visitor (the club-onboarding return) already has an account: no sign-up
+  // offer anywhere, even after switching the story to exhibitors.
+  it('never offers a signed-in visitor a new account', () => {
+    auth.user = { id: 'signed-in' };
+    render(<Home />);
+    fireEvent.click(screen.getByRole('button', { name: 'I’m entering a show' }));
+    expect(screen.queryByRole('link', { name: /create (a free )?account/i })).toBeNull();
+    expect(screen.getByRole('banner').querySelector('.l-btn-primary')?.textContent).toBe(
+      'Add your club'
+    );
+    const close = screen.getByRole('region', { name: /ready when your next show is/i });
+    expect(within(close).getByRole('link', { name: 'Add your club' })).toHaveClass('l-btn-primary');
   });
 
   it('leads the header and close with a free account once the story is for exhibitors', () => {

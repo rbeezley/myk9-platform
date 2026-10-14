@@ -3,7 +3,8 @@ import { HERO_PHOTO_SIZES } from './heroPhoto';
 import { ADD_YOUR_CLUB, CREATE_ACCOUNT, FIND_A_SHOW } from './landingCtas';
 import './landingSections.css';
 
-export function LandingHero() {
+// `showSignUp` is false for a signed-in visitor, who already has an account.
+export function LandingHero({ showSignUp = true }: { showSignUp?: boolean }) {
   return (
     <section className="l-hero lc-hero" id="top" aria-labelledby="hero-title">
       <div className="lc-hero-inner">
@@ -35,9 +36,11 @@ export function LandingHero() {
               {FIND_A_SHOW.label}
             </Link>
           </div>
-          <p className="lc-hero-exhibitor">
-            Entering a show? <Link to={CREATE_ACCOUNT.to}>{CREATE_ACCOUNT.label}</Link>.
-          </p>
+          {showSignUp && (
+            <p className="lc-hero-exhibitor">
+              Entering a show? <Link to={CREATE_ACCOUNT.to}>{CREATE_ACCOUNT.label}</Link>.
+            </p>
+          )}
           <p className="lc-hero-registries">
             For AKC Scent Work, UKC Nosework and ASCA Scent Detection.
           </p>

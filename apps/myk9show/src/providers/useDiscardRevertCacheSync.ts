@@ -8,12 +8,11 @@ import { queryKeys } from '@/lib/queryClient';
  * every owner's dogs under `['users', ownerId, 'dogs']` (a discarded transfer
  * touched two owners' lists).
  *
- * Refetch only, no hand patch of the caches: the dog reads are hybrid
- * PostgREST reads, not replica subscribers, and patching them from the
- * replica kept missing fields (Codex review, round 2). The queries are
- * `networkMode: 'online'`, so offline the refetch waits for reconnect and the
- * screen shows the discarded value until then; the replica is already right.
- * Reading dogs from the replica removes that gap (MYK9-1124).
+ * Refetch only, no hand patch of the caches: patching them from the replica kept
+ * missing fields (Codex review, round 2). The dog reads are `offlineFirst`
+ * (server first, device replica when the server cannot be reached), so offline
+ * the refetch is answered from the replica, which Discard has already put right,
+ * and the restored dog shows without a reconnect (MYK9-1124).
  */
 export function refreshDogCachesAfterDiscard(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: queryKeys.dogs });

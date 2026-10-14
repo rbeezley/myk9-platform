@@ -68,6 +68,19 @@ describe('chunkLoadRecovery', () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
+  it('does not reload a second time in the same document even when sessionStorage is blocked', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(recoverFromChunkLoadError(CHUNK_ERROR)).toBe(true);
+    expect(recoverFromChunkLoadError(CHUNK_ERROR)).toBe(false);
+    await flushRecovery();
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
   it('does not reload again right after a recovery reload (new document, same session)', () => {
     window.sessionStorage.setItem(RECOVERY_STORAGE_KEY, String(Date.now()));
     expect(canRecoverByReload(CHUNK_ERROR)).toBe(false);

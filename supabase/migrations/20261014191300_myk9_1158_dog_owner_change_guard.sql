@@ -69,7 +69,8 @@ BEGIN
   END IF;
 
   v_me := public.get_my_person_id();
-  IF (v_me IS NOT NULL AND v_me IN (OLD.owner_id, OLD.co_owner_id))
+  -- NULL-safe: `v_me IN (owner, NULL)` is NULL, not false, for a dog with no co-owner.
+  IF (v_me IS NOT NULL AND (v_me = OLD.owner_id OR v_me IS NOT DISTINCT FROM OLD.co_owner_id))
      OR public.is_site_admin() THEN
     RETURN NEW;
   END IF;
@@ -101,16 +102,18 @@ STABLE
 SECURITY INVOKER
 SET search_path TO ''
 AS $function$
-  SELECT
+  -- coalesce: a row is always a true/false answer. NULL means only "no such dog here yet"
+  -- (no row); a NULL from `x IN (owner, NULL)` on a dog with no co-owner would otherwise
+  -- read as "unanswered" to the client, which then fails open.
+  SELECT coalesce(
     public.dog_edit_allowed(d.id, d.owner_id, d.co_owner_id, d.created_by, d.created_from_show_id)
     AND (
       NOT public.dog_has_account_holder(d.owner_id, d.co_owner_id)
-      OR (
-        (SELECT public.get_my_person_id()) IS NOT NULL
-        AND (SELECT public.get_my_person_id()) IN (d.owner_id, d.co_owner_id)
-      )
+      OR (SELECT public.get_my_person_id()) IN (d.owner_id, d.co_owner_id)
       OR (SELECT public.is_site_admin())
-    )
+    ),
+    false
+  )
   FROM public.dogs d
   WHERE d.id = p_dog_id;
 $function$;

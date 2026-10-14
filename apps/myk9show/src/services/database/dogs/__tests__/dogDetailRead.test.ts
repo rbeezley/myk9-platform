@@ -17,6 +17,10 @@ const { server, selects, mockDogsTable, mockEntriesTable, mockRegistrationsTable
       throws: null as Error | null,
       /** `dog_registrations` rows, for the roster's and the registration read. */
       registrations: [] as Record<string, unknown>[],
+      /** What the roster's `dogs` list query (no `.single()`) answers. */
+      roster: [] as Record<string, unknown>[],
+      /** When set, the roster's list read fails with it (a network failure). */
+      rosterError: null as { message: string } | null,
     },
     /** Every select the read sends, by table. */
     selects: [] as { table: string; columns: string }[],
@@ -62,8 +66,16 @@ vi.mock('@/services/database/supabaseClient', () => ({
         const chain: Record<string, unknown> = {
           eq: () => chain,
           is: () => chain,
+          or: () => chain,
+          order: () => chain,
           in: () => settle(),
           single: () => settle(),
+          // The roster's list read: the server's dogs, awaited as a chain.
+          then: (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
+            Promise.resolve({
+              data: server.rosterError ? null : server.roster,
+              error: server.rosterError,
+            }).then(resolve, reject),
         };
         return chain;
       },
@@ -104,6 +116,8 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
     server.detail = { data: null, error: null };
     server.throws = null;
     server.registrations = [];
+    server.roster = [];
+    server.rosterError = null;
     mockDogsTable.getDogById.mockReset();
     mockDogsTable.getDogById.mockResolvedValue(replicaDog());
     selects.length = 0;
@@ -218,7 +232,7 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
       expect.objectContaining({ id: 'registration-local-1', registration_number: 'SW123456' }),
     ]);
   });
-  it('detail and roster resolve the same primary registration when server timestamps tie', async () => {
+  it('detail and the device roster resolve the same primary registration when server timestamps tie', async () => {
     // create_dog_with_registrations stamps every row with one instant, so the
     // server rows tie and the id tiebreak would pick AKC. This device's
     // placeholders hold the real creation order: UKC first. Both reads must
@@ -267,6 +281,10 @@ describe('getDogById reads the server first (MYK9-1126)', () => {
       },
     ]);
     server.detail = { data: { ...SERVER_ROW, registrations: server.registrations }, error: null };
+    // The roster's online rows show the server's registrations with no merge of
+    // this device's queue (MYK9-1139); the device copy, read when the server
+    // cannot be reached, merges it, and must agree with the dog page.
+    server.rosterError = { message: 'Failed to fetch' };
     mockDogsTable.getAllDogsWithStatus.mockResolvedValue({ rows: [replicaDog()], cold: false });
 
     const detail = await getDogById('dog-1');

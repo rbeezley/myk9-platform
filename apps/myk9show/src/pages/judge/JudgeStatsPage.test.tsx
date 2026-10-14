@@ -1,5 +1,5 @@
-import { render } from '@/test/utils/testUtils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@/test/utils/testUtils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import JudgeStatsPage from './JudgeStatsPage';
 
 const mockStats = vi.hoisted(() => vi.fn());
@@ -41,5 +41,37 @@ describe('JudgeStatsPage', () => {
     expect(mockStats).toHaveBeenCalledWith('person-123');
     expect(mockUpcoming).toHaveBeenCalledWith('person-123');
     expect(mockQualifications).toHaveBeenCalledWith('person-123');
+  });
+
+  describe('upcoming assignment date (MYK9-1174)', () => {
+    const originalTimezone = process.env.TZ;
+    afterEach(() => {
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
+    });
+
+    it.each(['America/Chicago', 'America/Los_Angeles', 'UTC'])(
+      'shows the show’s own calendar day in %s',
+      timezone => {
+        process.env.TZ = timezone;
+        mockUpcoming.mockReturnValue({
+          data: [
+            {
+              id: 'a1',
+              show_name: 'Heartland Scent Work Classic',
+              // shows.start_date round-trips as a midnight-UTC instant.
+              show_start_date: '2026-11-09T00:00:00Z',
+              status: 'confirmed',
+            },
+          ],
+          isLoading: false,
+        });
+
+        render(<JudgeStatsPage />, { initialRoute: '/judge/stats' });
+
+        expect(screen.getByText(/Nov 9, 2026/)).toBeInTheDocument();
+        expect(screen.queryByText(/Nov 8, 2026|11\/8\/2026/)).not.toBeInTheDocument();
+      }
+    );
   });
 });

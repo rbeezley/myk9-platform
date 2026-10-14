@@ -111,21 +111,29 @@ export async function payOnStripeCheckout(page: Page): Promise<string> {
   await expect(email).toBeVisible({ timeout: 30_000 });
   await email.fill(`waitlist-journey-${Date.now()}@example.com`);
 
-  // With dynamic payment methods the card form sits behind an accordion item named "Card".
+  // With dynamic payment methods the card form sits behind an accordion item. Its trigger is a
+  // visually hidden button named "Pay with card" (older layouts: "Card"), so the click is
+  // dispatched to it rather than aimed at a point; the event bubbles to the visible row.
   const cardNumber = page.locator('#cardNumber');
   if (!(await cardNumber.isVisible())) {
     await page
-      .getByRole('button', { name: /^card$/i })
-      .or(page.getByRole('radio', { name: /^card$/i }))
-      .click();
+      .getByRole('button', { name: /^(pay with )?card$/i })
+      .or(page.getByRole('radio', { name: /^(pay with )?card$/i }))
+      .dispatchEvent('click');
   }
+  await expect(cardNumber).toBeVisible({ timeout: 15_000 });
 
   await cardNumber.fill(TEST_CARD.number);
   await page.locator('#cardExpiry').fill(TEST_CARD.expiry);
   await page.locator('#cardCvc').fill(TEST_CARD.cvc);
   await page.locator('#billingName').fill('Waitlist Journey');
   const zip = page.locator('#billingPostalCode');
-  if (await zip.isVisible()) await zip.fill(TEST_CARD.zip);
+  // The postal code appears once the country settles; a session without one skips it.
+  const zipShown = await zip.waitFor({ state: 'visible', timeout: 5_000 }).then(
+    () => true,
+    () => false
+  );
+  if (zipShown) await zip.fill(TEST_CARD.zip);
   // Link's "save my info" would ask for a phone number; this payer saves nothing.
   const saveWithLink = page.locator('#enableStripePass');
   if ((await saveWithLink.isVisible()) && (await saveWithLink.isChecked())) {
@@ -133,7 +141,8 @@ export async function payOnStripeCheckout(page: Page): Promise<string> {
   }
 
   // The submit button reads "Pay" (or "Pay $NN.NN"); "Pay with ..." is a payment-method choice.
-  await page.getByRole('button', { name: /^Pay\b(?! with)/ }).click();
+  // Deliberately strict: any other label should fail loudly rather than click a guess.
+  await page.getByRole('button', { name: /^Pay(\s+\$[\d,.]+)?$/ }).click();
   await page.waitForURL(url => url.origin === ALLOWED_RETURN_ORIGIN, { timeout: 90_000 });
   const returned = new URL(page.url());
   return `${returned.pathname}${returned.search}`;

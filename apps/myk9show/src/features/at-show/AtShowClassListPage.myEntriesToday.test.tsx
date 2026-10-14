@@ -253,6 +253,8 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
 
     expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
     expect(screen.queryByText('Your dogs today')).not.toBeInTheDocument();
+    // MYK9-1184: the "All classes" heading is for exhibitor-only viewers.
+    expect(screen.queryByRole('heading', { name: 'All classes' })).not.toBeInTheDocument();
   });
 
   it('lets the exhibitor switch to the full class list and back', async () => {

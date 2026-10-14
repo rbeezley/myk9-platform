@@ -446,7 +446,7 @@ export const AtShowClassListPage: React.FC = () => {
 
       {/* MYK9-1184: the exhibitor's way back to "Your dogs today" is a button,
           so name what this all-days list is. */}
-      {isExhibitorOnly && <h2 className="mb-3 text-center text-base font-medium">All classes</h2>}
+      {isExhibitorOnly && <h2 className="mb-3 px-1 text-sm font-semibold">All classes</h2>}
 
       {assignmentError && (
         <section

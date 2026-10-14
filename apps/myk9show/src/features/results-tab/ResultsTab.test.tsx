@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 
+import { replicatedClassesTable } from '@/services/replication';
 import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import type { SecretaryCockpitPaperwork } from '@/features/show-map/cockpit/secretaryCockpitTypes';
 import type { SecretaryEntry } from '@/services/database/entries';
@@ -959,5 +960,39 @@ describe('ResultsTab toolbar', () => {
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Containers Open')).toBeInTheDocument();
     expect(within(dialog).queryByText('Containers Advanced')).not.toBeInTheDocument();
+  });
+});
+
+describe('ResultsTab paper check while the class sync state is unknown (MYK9-1175)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const tickAll = (user: { click: (el: Element) => Promise<void> }) =>
+    user.click(screen.getByRole('checkbox', { name: 'Rex matches the paper' }));
+
+  it('keeps Scores match the paper disabled, with quiet copy, until the first read lands', async () => {
+    vi.spyOn(replicatedClassesTable, 'getReplicatedRow').mockReturnValue(new Promise(() => {}));
+    vi.spyOn(replicatedClassesTable, 'hasUnsyncedLocalWork').mockReturnValue(new Promise(() => {}));
+    hook.value = { ...hook.value, rows: buildRows({ checked: false }) };
+    const { user } = renderAt('?status=all&classId=class-ready');
+
+    await tickAll(user);
+
+    // No waitFor: the button must already be disabled the moment every dog is ticked.
+    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeDisabled();
+    expect(screen.getByText('Checking this class…')).toBeInTheDocument();
+  });
+
+  it('enables the same ticked class once the read resolves settled', async () => {
+    hook.value = { ...hook.value, rows: buildRows({ checked: false }) };
+    const { user } = renderAt('?status=all&classId=class-ready');
+
+    await tickAll(user);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
+    );
+    expect(screen.queryByText('Checking this class…')).not.toBeInTheDocument();
   });
 });

@@ -12,7 +12,11 @@ import { replicatedClassesTable } from '@/services/replication/ReplicatedClasses
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { loadEntriesWithDogs } from './paperScoresheetData';
-import { requireClassEntriesWhole, whenClassShowSyncSettles } from './paperScoresheetReadiness';
+import {
+  hasClassesReplicaSynced,
+  requireClassEntriesWhole,
+  whenClassShowSyncSettles,
+} from './paperScoresheetReadiness';
 import { ShowEntriesNotSyncedError } from '@/services/database/entries/requireShowEntriesSynced';
 import { REFRESH_FAILED_MESSAGE, refreshEntriesAfterSave } from './paperScoresheetReload';
 import { type ScoresheetSportType } from '@myk9/scoring-ui';
@@ -95,12 +99,17 @@ export function PaperScoresheetPage() {
     // that load is replayed once it finishes instead.
     let refreshing = false;
     let changedWhileRefreshing = false;
+    // A class not yet on a cold device: its arrival is a replica change, so the
+    // reload it starts gets the one bounded show sync the page's own load
+    // could not give it (MYK9-1130).
+    let awaitingClass = false;
     // `refresh`: the page's own load (mount, Try again) shows the skeleton and
     // may sync a cold show; a reload on a replica change does neither.
     async function load(refresh: boolean) {
       if (!classId) return;
       const run = ++latest;
       const cancelled = () => disposed || run !== latest;
+      let syncing = refresh;
       if (refresh) {
         refreshing = true;
         setIsLoading(true);
@@ -118,13 +127,32 @@ export function PaperScoresheetPage() {
         const cls = await replicatedClassesTable.getClassById(classId);
         if (cancelled()) return;
         if (!cls) {
-          fail('Class not found');
+          // Absent from a classes replica that never synced is "not loaded
+          // yet"; only a synced replica can say "not found" (MYK9-1130).
+          if (!(await hasClassesReplicaSynced())) {
+            awaitingClass = true;
+            throw new ShowEntriesNotSyncedError();
+          }
+          if (!cancelled()) fail('Class not found');
           return;
         }
         trialId = cls.trialId;
+        if (awaitingClass && !syncing) {
+          // Hold change reloads like the page's own load, so the sync's own
+          // row writes replay after it instead of overruling it.
+          syncing = true;
+          refreshing = true;
+        }
         // An empty read is only "no dogs" once the show's entries have synced
-        // here; before that it is "not loaded yet" (MYK9-1130).
-        await requireClassEntriesWhole(cls.trialId, { refresh });
+        // here; before that it is "not loaded yet" (MYK9-1130). The arrival
+        // allowance is spent only once the show can be named.
+        await requireClassEntriesWhole(cls.trialId, {
+          refresh: () => {
+            const allowed = refresh || awaitingClass;
+            awaitingClass = false;
+            return allowed;
+          },
+        });
         const scoringEntries = await loadEntriesWithDogs(classId);
         if (cancelled()) return;
         setError(null);
@@ -146,7 +174,7 @@ export function PaperScoresheetPage() {
         if (err instanceof ShowEntriesNotSyncedError) recheckWhenSyncSettles(trialId);
       } finally {
         if (!cancelled()) setIsLoading(false);
-        if (refresh) {
+        if (syncing) {
           refreshing = false;
           if (changedWhileRefreshing && !disposed) onReplicaChange();
         }
@@ -168,7 +196,11 @@ export function PaperScoresheetPage() {
     // Subscribed before the first read, so rows a sync writes while it runs
     // still reload the list: entries arriving after mount appear by themselves.
     // Trials too: a class whose trial has not synced yet cannot name its show,
-    // and the trial landing is what lets readiness pass.
+    // and the trial landing is what lets readiness pass. Classes too: on a
+    // cold device the class itself lands after mount (MYK9-1130).
+    const unsubscribeClasses = replicatedClassesTable.subscribe(onReplicaChange, {
+      emitCurrent: false,
+    });
     const unsubscribeEntries = replicatedEntriesTable.subscribe(onReplicaChange, {
       emitCurrent: false,
     });
@@ -178,6 +210,7 @@ export function PaperScoresheetPage() {
     void load(true);
     return () => {
       disposed = true;
+      unsubscribeClasses();
       unsubscribeEntries();
       unsubscribeTrials();
     };

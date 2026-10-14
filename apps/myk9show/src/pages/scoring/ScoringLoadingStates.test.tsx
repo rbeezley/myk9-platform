@@ -80,7 +80,13 @@ vi.mock('@/services/database/supabaseClient', () => ({
 
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   // `sync` is part of the F27 cold-store hydration path.
-  replicatedClassesTable: { getClassById: vi.fn(), sync: vi.fn() },
+  replicatedClassesTable: {
+    getClassById: vi.fn(),
+    sync: vi.fn(),
+    subscribe: vi.fn(() => () => {}),
+    // The app-wide classes sync has completed, so an absent class is "not found".
+    getSyncMetadataOrThrow: vi.fn(async () => ({ totalRows: 0 })),
+  },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {

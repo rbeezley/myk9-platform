@@ -1,3 +1,4 @@
+import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { hasShowEntriesSynced } from '@/services/replication/entriesShowSyncState';
@@ -22,13 +23,15 @@ import {
  */
 export async function requireClassEntriesWhole(
   trialId: string | undefined,
-  { refresh }: { refresh: boolean }
+  { refresh }: { refresh: boolean | (() => boolean) }
 ): Promise<void> {
   const trial = trialId ? await replicatedTrialsTable.getTrialById(trialId) : null;
   const showId = trial?.showId;
   // A class whose trial is not on this device cannot name the show to check.
   if (!showId) throw new ShowEntriesNotSyncedError();
-  if (refresh) await requireShowEntriesSynced(showId);
+  // A function is asked only once the show is known, so a caller can spend a
+  // one-time sync allowance only on a load that can use it.
+  if (typeof refresh === 'function' ? refresh() : refresh) await requireShowEntriesSynced(showId);
   else if (!(await hasShowEntriesSynced(showId))) throw new ShowEntriesNotSyncedError();
 }
 
@@ -54,4 +57,26 @@ export async function whenClassShowSyncSettles(trialId: string | undefined): Pro
     return true;
   }
   return hasShowEntriesSynced(showId);
+}
+
+/** The scope the app-wide replication sync gives `classes` (ReplicationSyncProvider). */
+const APP_WIDE_CLASSES_SCOPE = '';
+
+/**
+ * Has the app-wide classes sync completed on this device (MYK9-1130)?
+ *
+ * A class missing from a classes replica that never synced is "not loaded
+ * yet", not "not found": a wiped device read the empty replica and committed
+ * "Class not found" seconds before the class arrived. Same discriminator as
+ * the entries scope: only a completed sync records the scope's `totalRows`
+ * (`projectScopedMetadata` drops it for a scope that never synced). A failed
+ * metadata read cannot prove the class absent, so it answers false.
+ */
+export async function hasClassesReplicaSynced(): Promise<boolean> {
+  try {
+    const metadata = await replicatedClassesTable.getSyncMetadataOrThrow(APP_WIDE_CLASSES_SCOPE);
+    return metadata?.totalRows !== undefined;
+  } catch {
+    return false;
+  }
 }

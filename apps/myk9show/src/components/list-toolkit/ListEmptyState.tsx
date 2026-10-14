@@ -6,7 +6,11 @@
  */
 
 import type { LucideIcon } from 'lucide-react';
-import { EmptyState, type EmptyStateAction } from '@/components/common/EmptyState';
+import {
+  EmptyState,
+  type EmptyStateAction,
+  type EmptyStateProps,
+} from '@/components/common/EmptyState';
 
 interface ListEmptyStateProps {
   icon: LucideIcon;
@@ -17,6 +21,8 @@ interface ListEmptyStateProps {
   onShowAll: () => void;
   /** The empty list's first step ("Add Club"); ignored while filtered. */
   action: EmptyStateAction | null;
+  /** A second first step beside `action`; ignored while filtered. */
+  secondaryAction?: EmptyStateProps['secondaryAction'];
   description?: string;
 }
 
@@ -26,6 +32,7 @@ export function ListEmptyState({
   filtered,
   onShowAll,
   action,
+  secondaryAction,
   description,
 }: ListEmptyStateProps) {
   const plural = noun[1];
@@ -46,6 +53,7 @@ export function ListEmptyState({
       title={`No ${plural} yet`}
       {...(description ? { description } : {})}
       action={action}
+      secondaryAction={secondaryAction}
     />
   );
 }

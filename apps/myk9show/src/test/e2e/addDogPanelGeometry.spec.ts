@@ -42,7 +42,11 @@ for (const width of WIDTHS) {
     const dialogs = page.getByRole('dialog');
     const callName = dialogs.getByLabel(/Call Name/i);
     await expect(callName).toBeVisible({ timeout: 20000 });
-    // The slide-over's open animation must finish before rects mean anything.
+    // The skip hands focus to Call Name (MYK9-1162), and a focused Input scales to 1.02, which
+    // getBoundingClientRect reports. Measure the field at rest, not its focus emphasis.
+    await callName.blur();
+    // The slide-over's open animation (and the focus scale's transition back) must finish
+    // before rects mean anything.
     await expect(dialogs).toHaveCount(1);
     await page.waitForTimeout(600);
 

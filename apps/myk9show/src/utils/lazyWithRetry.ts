@@ -14,6 +14,7 @@
  *     The exported component is a stable wrapper that reads the current inner lazy at render.
  */
 import { lazy, createElement, type ComponentProps, type ComponentType } from 'react';
+import { recoverFromChunkLoadError } from '@/utils/chunkLoadRecovery';
 
 /** Delays before retry 1 and retry 2; total import attempts = RETRY_DELAYS_MS.length + 1. */
 export const RETRY_DELAYS_MS = [300, 1000] as const;
@@ -48,6 +49,9 @@ export function createResettableLazy<T extends ComponentType<any>>(
     lazy(() =>
       load().catch(error => {
         failed = true;
+        // A failed import stays failed for this document (see chunkLoadRecovery). When a guarded
+        // reload starts, stay suspended so the boundary never flashes before the page reloads.
+        if (recoverFromChunkLoadError(error)) return new Promise<never>(() => undefined);
         throw error;
       })
     );

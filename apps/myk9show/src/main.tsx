@@ -15,6 +15,7 @@ import { QueryProvider } from './providers/QueryProvider';
 import { logger } from '@/services/LoggingService';
 import { initializeSettings } from './store/settingsStore';
 import { setupPwa, applyPwaUpdate } from '@/services/pwa/pwaUpdate';
+import { installPreloadErrorRecovery } from '@/utils/chunkLoadRecovery';
 import { monitoring } from './services/MonitoringService';
 import { setupRouterPageViewTracking } from './services/RouterPageViewTracking';
 import { installSupportErrorCapture } from './features/support/supportDiagnostics';
@@ -28,6 +29,8 @@ import {
 if (typeof window !== 'undefined' && import.meta.env.MODE !== 'test') {
   installSupportErrorCapture();
 }
+
+installPreloadErrorRecovery();
 
 // Initialize settings (applies accent color, theme, etc. from localStorage)
 initializeSettings();

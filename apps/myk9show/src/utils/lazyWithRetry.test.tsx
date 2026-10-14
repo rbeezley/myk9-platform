@@ -17,6 +17,8 @@ function renderRoute(Lazy: React.ComponentType) {
 
 describe('lazyWithRetry', () => {
   beforeEach(() => {
+    // Offline: chunkLoadRecovery must not auto-reload, so the boundary stays under test.
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
   });

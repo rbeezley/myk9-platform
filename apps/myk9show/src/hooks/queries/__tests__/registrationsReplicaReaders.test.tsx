@@ -255,6 +255,13 @@ describe('identity rail decision (railRegistrations)', () => {
     });
   });
 
+  it('keeps an offline copy that local work emptied, instead of falling back to the dog record', () => {
+    expect(railRegistrations({ rows: [], source: 'device', deviceHeldRows: true })).toEqual({
+      registrations: [],
+      offline: true,
+    });
+  });
+
   it('shows an offline copy that has rows, labelled, and a server answer as given', () => {
     const rows = [serverRow({ id: 'r-1' })] as unknown as RegistrationsForDog['rows'];
     expect(railRegistrations({ rows, source: 'device' })).toEqual({

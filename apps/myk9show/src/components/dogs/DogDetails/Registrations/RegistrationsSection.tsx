@@ -62,6 +62,7 @@ export default function RegistrationsSection({ dog, canEdit }: RegistrationsSect
   const {
     registrations: dbRegistrations,
     registrationsSource,
+    registrationsDeviceHeldRows,
     isLoading,
     error,
     refetch,
@@ -70,7 +71,12 @@ export default function RegistrationsSection({ dog, canEdit }: RegistrationsSect
   // Fallback to dog prop registrations if database not available, or use store
   const storeRegistrations = useRegistrationsStore(state => state.registrations);
   const registrations =
-    registrationsToList(registrationsSource, dbRegistrations, dog?.registrations) ||
+    registrationsToList(
+      registrationsSource,
+      dbRegistrations,
+      registrationsDeviceHeldRows,
+      dog?.registrations
+    ) ||
     dog?.registrations ||
     storeRegistrations;
 

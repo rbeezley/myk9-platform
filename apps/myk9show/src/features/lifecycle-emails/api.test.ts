@@ -17,8 +17,12 @@ function createClient(tables: Record<string, unknown[]>): {
   client: LifecycleEmailSupabaseClient;
   calls: Array<{ table: string; action: string; values?: Record<string, unknown> }>;
   inFilters: Array<{ table: string; column: string; count: number }>;
+  orders: Array<{ table: string; column: string }>;
+  ranges: Array<{ table: string; from: number; to: number }>;
 } {
   const inFilters: Array<{ table: string; column: string; count: number }> = [];
+  const orders: Array<{ table: string; column: string }> = [];
+  const ranges: Array<{ table: string; from: number; to: number }> = [];
   const calls: Array<{ table: string; action: string; values?: Record<string, unknown> }> = [];
   const client = fromAny<LifecycleEmailSupabaseClient, unknown>({
     from(table: string) {
@@ -37,6 +41,20 @@ function createClient(tables: Record<string, unknown[]>): {
           rows = rows.filter(row => values.includes((row as Record<string, unknown>)[column]));
           return builder;
         },
+        order(column: string) {
+          orders.push({ table, column });
+          rows = [...rows].sort((a, b) =>
+            String((a as Record<string, unknown>)[column]).localeCompare(
+              String((b as Record<string, unknown>)[column])
+            )
+          );
+          return builder;
+        },
+        range(from: number, to: number) {
+          ranges.push({ table, from, to });
+          rows = rows.slice(from, to + 1);
+          return builder;
+        },
         update(values: Record<string, unknown>) {
           calls.push({ table, action: 'update', values });
           return builder;
@@ -48,7 +66,7 @@ function createClient(tables: Record<string, unknown[]>): {
       return builder;
     },
   });
-  return { client, calls, inFilters };
+  return { client, calls, inFilters, orders, ranges };
 }
 
 describe('lifecycle email api helpers', () => {
@@ -359,8 +377,9 @@ describe('lifecycle email api helpers', () => {
       stepType: 'two_week_reminder',
     });
 
-    expect(jobs.map(job => job.id)).toEqual(['job-ready', 'job-failed']);
-    expect(jobs[1]).toMatchObject({
+    // Paged reads order on id for stable page boundaries, so the list is id-ordered.
+    expect(jobs.map(job => job.id)).toEqual(['job-failed', 'job-ready']);
+    expect(jobs[0]).toMatchObject({
       status: 'failed',
       previewWarnings: ['Previous send failed.'],
     });
@@ -464,5 +483,105 @@ describe('lifecycle email api helpers', () => {
         idempotencyKey: 'idem-duplicate',
       })
     ).rejects.toThrow('duplicate key');
+  });
+
+  describe('paging past the PostgREST 1000-row cap (MYK9-1187)', () => {
+    const jobsFor = (count: number, extra: Record<string, unknown>) =>
+      Array.from({ length: count }, (_, i) => ({
+        id: `job-${String(i).padStart(5, '0')}`,
+        show_id: 'show-1',
+        step_type: 'two_week_reminder',
+        status: 'ready',
+        preview_warnings: null,
+        recipient_email: `r${i}@example.com`,
+        ...extra,
+      }));
+
+    it('counts every job in the summary when a show has more than 1000', async () => {
+      const { client, orders, ranges } = createClient({
+        show_lifecycle_email_steps: [
+          { show_id: 'show-1', step_type: 'two_week_reminder', is_enabled: true },
+        ],
+        show_lifecycle_email_jobs: jobsFor(2300, {}),
+      });
+
+      const summary = await fetchShowLifecycleEmailSummary({ supabase: client, showId: 'show-1' });
+
+      expect(summary.steps.find(step => step.stepType === 'two_week_reminder')?.readyCount).toBe(
+        2300
+      );
+      const jobRanges = ranges.filter(r => r.table === 'show_lifecycle_email_jobs');
+      expect(jobRanges).toEqual([
+        { table: 'show_lifecycle_email_jobs', from: 0, to: 999 },
+        { table: 'show_lifecycle_email_jobs', from: 1000, to: 1999 },
+        { table: 'show_lifecycle_email_jobs', from: 2000, to: 2999 },
+      ]);
+      expect(orders).toContainEqual({ table: 'show_lifecycle_email_jobs', column: 'id' });
+    });
+
+    it('stops after one request when the first page is short', async () => {
+      const { client, ranges } = createClient({
+        show_lifecycle_email_steps: [],
+        show_lifecycle_email_jobs: jobsFor(3, {}),
+      });
+      await fetchShowLifecycleEmailSummary({ supabase: client, showId: 'show-1' });
+      expect(ranges.filter(r => r.table === 'show_lifecycle_email_jobs')).toHaveLength(1);
+    });
+
+    it('requests a further page when a page is exactly full', async () => {
+      const { client, ranges } = createClient({
+        show_lifecycle_email_steps: [],
+        show_lifecycle_email_jobs: jobsFor(1000, {}),
+      });
+      await fetchShowLifecycleEmailSummary({ supabase: client, showId: 'show-1' });
+      expect(ranges.filter(r => r.table === 'show_lifecycle_email_jobs')).toHaveLength(2);
+    });
+
+    it('returns every ready or failed recipient beyond 1000 for the review batch', async () => {
+      const { client, ranges, orders } = createClient({
+        show_lifecycle_email_jobs: [
+          ...jobsFor(1500, { status: 'ready' }),
+          ...jobsFor(500, { status: 'failed' }).map(j => ({
+            ...j,
+            id: j.id.replace('job', 'fjob'),
+          })),
+          ...jobsFor(10, { status: 'sent' }).map(j => ({ ...j, id: j.id.replace('job', 'sjob') })),
+        ],
+      });
+
+      const review = await fetchLifecycleEmailJobsForReview({
+        supabase: client,
+        showId: 'show-1',
+        stepType: 'two_week_reminder',
+      });
+
+      expect(review).toHaveLength(2000);
+      expect(new Set(review.map(job => job.id)).size).toBe(2000);
+      expect(ranges).toEqual([
+        { table: 'show_lifecycle_email_jobs', from: 0, to: 999 },
+        { table: 'show_lifecycle_email_jobs', from: 1000, to: 1999 },
+        { table: 'show_lifecycle_email_jobs', from: 2000, to: 2999 },
+      ]);
+      expect(orders).toContainEqual({ table: 'show_lifecycle_email_jobs', column: 'id' });
+    });
+
+    it('throws a clear error instead of looping past the page bound', async () => {
+      // A client that ignores .range() and always returns a full page would loop forever.
+      const stuck = fromAny<LifecycleEmailSupabaseClient, unknown>({
+        from(table: string) {
+          const builder: Record<string, unknown> = {};
+          for (const m of ['select', 'eq', 'in', 'order', 'range']) builder[m] = () => builder;
+          builder.then = (resolve: (v: unknown) => void) =>
+            resolve({
+              data: table === 'show_lifecycle_email_jobs' ? jobsFor(1000, {}) : [],
+              error: null,
+            });
+          return builder;
+        },
+      });
+      await expect(
+        fetchShowLifecycleEmailSummary({ supabase: stuck, showId: 'show-1' })
+      ).rejects.toThrow(/exceeded 50 pages/);
+    });
   });
 });

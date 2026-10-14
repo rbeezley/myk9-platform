@@ -7,6 +7,7 @@ import {
   type LifecycleEmailJobSummaryRow,
   type LifecycleEmailReceiptLogRow,
 } from './readModel';
+import { fetchAllPages } from './pagedRead';
 import type { LifecycleEmailStepType } from './types';
 
 interface QueryResult<T> {
@@ -18,6 +19,8 @@ interface QueryBuilder<T> extends PromiseLike<QueryResult<T>> {
   select(columns: string): QueryBuilder<T>;
   eq(column: string, value: unknown): QueryBuilder<T>;
   in(column: string, values: readonly unknown[]): QueryBuilder<T>;
+  order(column: string): QueryBuilder<T>;
+  range(from: number, to: number): QueryBuilder<T>;
   update(values: Record<string, unknown>): QueryBuilder<T>;
 }
 
@@ -150,10 +153,14 @@ export async function fetchShowLifecycleEmailSummary(args: {
       .from<StepRow[]>('show_lifecycle_email_steps')
       .select('step_type, is_enabled')
       .eq('show_id', args.showId),
-    args.supabase
-      .from<JobRow[]>('show_lifecycle_email_jobs')
-      .select('step_type, status, preview_warnings')
-      .eq('show_id', args.showId),
+    fetchAllPages<JobRow>((from, to) =>
+      args.supabase
+        .from<JobRow[]>('show_lifecycle_email_jobs')
+        .select('step_type, status, preview_warnings')
+        .eq('show_id', args.showId)
+        .order('id')
+        .range(from, to)
+    ),
     fetchReceiptLogs(args.supabase, receiptRegistrationIds),
   ]);
 
@@ -193,14 +200,18 @@ export async function fetchLifecycleEmailJobsForReview(args: {
   showId: string;
   stepType: LifecycleEmailStepType;
 }): Promise<LifecycleEmailJobReview[]> {
-  const result = (await args.supabase
-    .from<JobReviewRow[]>('show_lifecycle_email_jobs')
-    .select(
-      'id, step_type, status, recipient_email, recipient_name, subject, body, secretary_note, preview_warnings'
-    )
-    .eq('show_id', args.showId)
-    .eq('step_type', args.stepType)
-    .in('status', ['ready', 'failed'])) as QueryResult<JobReviewRow[]>;
+  const result = await fetchAllPages<JobReviewRow>((from, to) =>
+    args.supabase
+      .from<JobReviewRow[]>('show_lifecycle_email_jobs')
+      .select(
+        'id, step_type, status, recipient_email, recipient_name, subject, body, secretary_note, preview_warnings'
+      )
+      .eq('show_id', args.showId)
+      .eq('step_type', args.stepType)
+      .in('status', ['ready', 'failed'])
+      .order('id')
+      .range(from, to)
+  );
 
   if (result.error) {
     throw new Error(result.error.message ?? 'Failed to load lifecycle email recipients');

@@ -46,4 +46,21 @@ describe('isolated Playwright regression workflow', () => {
     );
     expect(regressionScript).not.toContain('test:e2e:regression --');
   });
+
+  it('hands the Stripe test key to staging and both regression passes, never to GITHUB_ENV', () => {
+    const step = (name: string) => {
+      const start = workflow.indexOf(`- name: ${name}\n`);
+      expect(start, name).toBeGreaterThanOrEqual(0);
+      const next = workflow.indexOf('\n      - ', start + 1);
+      return workflow.slice(start, next === -1 ? undefined : next);
+    };
+    const keyLine = 'STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}';
+    expect(step('Prepare isolated Supabase target')).toContain(keyLine);
+    expect(step('Run Playwright Regression')).toContain(keyLine);
+    expect(step('Run Playwright Regression Again')).toContain(keyLine);
+    expect(step('Verify no secrets in artifacts (Playwright regression reports)')).toContain(
+      'MYK9_STRIPE_TEST_KEY_SECRET: ${{ secrets.STRIPE_TEST_SECRET_KEY }}'
+    );
+    expect(workflow).not.toMatch(/GITHUB_ENV.*STRIPE/);
+  });
 });

@@ -32,18 +32,47 @@ export const SUPABASE_CONFIG_FILE = 'supabase/config.toml';
 const SHARED_DIR = '_shared';
 
 /**
- * Test-only secrets for the local edge runtime. The Stripe key is a dummy: the journey never
- * reaches a step that calls Stripe (MYK9-971 leaves the paid leg until a test-mode key exists), and
- * a real key must never be written here.
+ * Test-only secrets for the local edge runtime. `STRIPE_SECRET_KEY` here is the fallback dummy: a
+ * run with no Stripe test-mode key (a PR run, a fork, a laptop) serves the functions with it, and
+ * the journey's paid leg skips. When the workflow supplies `STRIPE_TEST_SECRET_KEY` (a Stripe
+ * sandbox `sk_test_` key), `isolatedFunctionSecrets` swaps it in so the paid leg (MYK9-971) reaches
+ * real test-mode Stripe; any other non-empty value refuses to stage. The key never lands in this
+ * file, the repository or a log: only in the runner's throwaway `functions/.env`.
+ *
+ * The webhook secrets stay local dummies: Stripe cannot reach the runner, so the spec delivers the
+ * real `checkout.session.completed` event to the local `stripe-webhook` signed with this one.
  */
 export const ISOLATED_FUNCTION_SECRETS = {
   CRON_SECRET: 'isolated-e2e-cron-secret',
   PUSH_WEBHOOK_SECRET: 'isolated-e2e-push-webhook-secret',
-  STRIPE_SECRET_KEY: 'sk_test_isolated_e2e_never_called',
-  STRIPE_WEBHOOK_SECRET: 'whsec_isolated_e2e_never_called',
-  STRIPE_CONNECT_WEBHOOK_SECRET: 'whsec_isolated_e2e_connect_never_called',
+  STRIPE_SECRET_KEY: 'sk_test_isolated_e2e_no_stripe_key',
+  STRIPE_WEBHOOK_SECRET: 'whsec_isolated_e2e_local_only',
+  STRIPE_CONNECT_WEBHOOK_SECRET: 'whsec_isolated_e2e_connect_local_only',
   SENTRY_ENVIRONMENT: 'isolated-e2e',
 } as const;
+
+const STRIPE_TEST_KEY_PREFIX = 'sk_test_';
+
+/**
+ * The Stripe key the local functions get: `STRIPE_TEST_SECRET_KEY` when it is a test-mode secret
+ * key, the dummy when it is unset or blank. Anything else (a live key, a restricted key, a typo)
+ * throws, and the message never repeats the value.
+ */
+export function resolveIsolatedStripeSecretKey(env: NodeJS.ProcessEnv): string {
+  const key = env.STRIPE_TEST_SECRET_KEY?.trim();
+  if (!key) return ISOLATED_FUNCTION_SECRETS.STRIPE_SECRET_KEY;
+  if (!key.startsWith(STRIPE_TEST_KEY_PREFIX)) {
+    throw new Error(
+      `STRIPE_TEST_SECRET_KEY must be a Stripe test-mode secret key (${STRIPE_TEST_KEY_PREFIX}...); ` +
+        'refusing to serve the isolated target with any other key.'
+    );
+  }
+  return key;
+}
+
+export function isolatedFunctionSecrets(env: NodeJS.ProcessEnv): Record<string, string> {
+  return { ...ISOLATED_FUNCTION_SECRETS, STRIPE_SECRET_KEY: resolveIsolatedStripeSecretKey(env) };
+}
 
 export interface FunctionStagingPlan {
   /** Whole function directories copied from the app tree. */
@@ -112,8 +141,8 @@ export function noVerifyJwtConfig(existingConfig: string, functionNames: string[
     .join('');
 }
 
-export function functionSecretsEnvFile(): string {
-  return `${Object.entries(ISOLATED_FUNCTION_SECRETS)
+export function functionSecretsEnvFile(env: NodeJS.ProcessEnv = {}): string {
+  return `${Object.entries(isolatedFunctionSecrets(env))
     .map(([key, value]) => `${key}=${value}`)
     .join('\n')}\n`;
 }
@@ -133,6 +162,8 @@ export function stageAppEdgeFunctions(
         'MYK9_ISOLATED_E2E_ALLOW_FUNCTION_STAGING=true to run it in a throwaway clone.'
     );
   }
+  // Resolved first: a non-test Stripe key refuses before anything is copied.
+  const secretsFile = functionSecretsEnvFile(env);
   const plan = planAppFunctionStaging(repoRoot);
   const rootDir = join(repoRoot, ROOT_FUNCTIONS_DIR);
   const appDir = join(repoRoot, APP_FUNCTIONS_DIR);
@@ -149,7 +180,7 @@ export function stageAppEdgeFunctions(
       errorOnExist: true,
     });
   }
-  writeFileSync(join(rootDir, '.env'), functionSecretsEnvFile(), 'utf8');
+  writeFileSync(join(rootDir, '.env'), secretsFile, 'utf8');
   const configPath = join(repoRoot, SUPABASE_CONFIG_FILE);
   const served = listDirs(rootDir).filter(name => name !== SHARED_DIR);
   appendFileSync(configPath, noVerifyJwtConfig(readFileSync(configPath, 'utf8'), served), 'utf8');

@@ -182,6 +182,38 @@ export async function entryStatus(admin: SupabaseClient, entryId: string): Promi
   return row.entry_status as string;
 }
 
+/** The paid leg's "active": the entry's lifecycle and money columns together. */
+export async function entryPayment(
+  admin: SupabaseClient,
+  entryId: string
+): Promise<{ entry_status: string; payment_status: string; payment_method: string | null }> {
+  return must(
+    'read promoted entry payment',
+    admin
+      .from('entries')
+      .select('entry_status, payment_status, payment_method')
+      .eq('id', entryId)
+      .single()
+  );
+}
+
+/** The newest payment link the exhibitor's "Complete payment" made for one promoted entry. */
+export async function paymentLinkFor(
+  admin: SupabaseClient,
+  entryId: string
+): Promise<{ stripe_checkout_session_id: string; status: string }> {
+  return must(
+    'read payment link',
+    admin
+      .from('entry_payment_links')
+      .select('stripe_checkout_session_id, status')
+      .contains('entry_ids', [entryId])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+  );
+}
+
 /** Moves an open offer's deadline into the past, as if the 48 hours had run out. */
 export async function backdateOffer(admin: SupabaseClient, rowId: string): Promise<void> {
   await ok(

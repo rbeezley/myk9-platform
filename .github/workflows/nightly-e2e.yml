@@ -69,6 +69,11 @@ jobs:
           # the run. Safe to land before the secrets exist; without these lines
           # the accounts are skipped even once they do (MYK9-141, MYK9-137).
           E2E_CLUB_ADMIN_PASSWORD: ${{ secrets.E2E_CLUB_ADMIN_PASSWORD }}
+          # MYK9-971: a Stripe sandbox sk_test_ key for the wait-list journey's paid leg. Staging
+          # writes it into the runner's throwaway functions/.env as STRIPE_SECRET_KEY; any value
+          # that is not sk_test_ refuses to stage (scripts/qa/isolated-e2e-functions.ts). Unset
+          # (a fork, or before the secret exists) keeps the dummy and the paid leg skips.
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
 
       # The regression suite spans secretary, admin, judge, and demo-exhibitor
       # journeys, so preflight every role before starting the browser suite.
@@ -113,6 +118,9 @@ jobs:
           # No *_EMAIL companions on purpose — both addresses are hard-coded in the
           # seeds, so an override could only point at an ungranted account.
           E2E_CLUB_ADMIN_PASSWORD: ${{ secrets.E2E_CLUB_ADMIN_PASSWORD }}
+          # The paid leg pays on Stripe's test-mode Checkout and reads the resulting event back
+          # through the Stripe API; without it, that one test skips with a named reason.
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
 
       - name: Preserve first regression report
         if: always()
@@ -148,6 +156,7 @@ jobs:
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
           E2E_CLUB_ADMIN_PASSWORD: ${{ secrets.E2E_CLUB_ADMIN_PASSWORD }}
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
 
       # MYK9-1128: fail the job (and so skip the upload below) if a configured secret is
       # still in the artifact, including inside the HTML report's embedded zip. Prints
@@ -158,6 +167,9 @@ jobs:
         working-directory: apps/myk9show
         run: pnpm exec tsx scripts/verify-artifact-secrets.ts --skip-zip-files playwright-report-ci playwright-report-ci-first
         env:
+          # collectSecrets() picks secrets by env NAME (...SECRET, ...PASSWORD), and
+          # STRIPE_TEST_SECRET_KEY ends in _KEY, so the gate sees the Stripe key under this name.
+          MYK9_STRIPE_TEST_KEY_SECRET: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}

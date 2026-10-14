@@ -53,17 +53,17 @@ export function AtShowAnnouncementFeed({
         <button
           type="button"
           onClick={() => setIsOpen(open => !open)}
-          className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
+          className="flex min-h-11 w-full items-center gap-2 px-4 py-2 text-left text-sm font-medium md:min-h-12 text-muted-foreground hover:text-foreground"
           aria-expanded={isOpen}
         >
-          <Megaphone className="h-3.5 w-3.5" aria-hidden />
+          <Megaphone className="h-4 w-4" aria-hidden />
           <span>Show announcements</span>
           {unreadCount > 0 && (
-            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">
               {unreadCount}
             </span>
           )}
-          <span className="ml-auto text-[10px]">{isOpen ? 'Hide' : 'Show'}</span>
+          <span className="ml-auto text-sm">{isOpen ? 'Hide' : 'Show'}</span>
         </button>
         {isOpen && (
           <div className="max-h-64 overflow-y-auto border-t border-border/50">

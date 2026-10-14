@@ -364,8 +364,8 @@ export function ClubOnboarding() {
           Add your club to <em>myK9Show</em>.
         </h2>
         <p>
-          Adding your club is a quick request, not a migration. Tell us who you are and
-          we'll get you set up, across AKC, UKC, and ASCA.
+          Adding your club is a quick request, not a migration. Tell us who you are and we'll get
+          you set up, across AKC, UKC, and ASCA.
         </p>
         {card}
       </div>

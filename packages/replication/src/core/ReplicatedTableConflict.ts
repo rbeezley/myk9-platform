@@ -76,6 +76,10 @@ export function buildRemoteReplacementRow<T extends { id: string }>({
     baseVersion: undefined,
     serverVersion: remoteServerVersion ?? existingRow?.serverVersion,
     conflict: undefined,
+    // Whose row it is does not change when the server's copy replaces its data.
+    ...(existingRow?.ownerAuthUserId !== undefined && {
+      ownerAuthUserId: existingRow.ownerAuthUserId,
+    }),
   };
 }
 

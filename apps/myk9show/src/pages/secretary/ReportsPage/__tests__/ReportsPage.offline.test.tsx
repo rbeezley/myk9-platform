@@ -28,6 +28,7 @@ import { toScoresheetModel } from '@/lib/reports/toScoresheetModel';
 import type { ReportDataSet } from '@/lib/reports/types';
 import { NOTIFY_DEBOUNCE_MS } from '@myk9/replication';
 import ReportsPage from '../index';
+import { signInReplicatedTable } from '@/test/utils/signedInReplication';
 
 const SHOW_ID = 'show-1';
 const TRIAL_ID = 'trial-1';
@@ -141,9 +142,10 @@ async function seedSyncedReplica(): Promise<void> {
     entry('entry-a', 'dog-a', '101', 1),
     entry('entry-b', 'dog-b', '102', 2),
   ] as never);
+  signInReplicatedTable(replicatedEntriesTable, 'user-test');
   await replicatedEntriesTable.updateSyncMetadata(
     { lastIncrementalSyncAt: Date.now(), totalRows: 3 },
-    { scopeValue: SHOW_ID }
+    { scopeValue: SHOW_ID, scopeSyncedBy: 'user-test' }
   );
   await drainReplicaNotices();
 }

@@ -34,6 +34,7 @@ const { mockTrialsTable, mockShowsTable, mockClassesTable, mockEntriesTable } = 
     getEntriesByClass: vi.fn(),
     getEntriesByShow: vi.fn(),
     getSyncMetadata: vi.fn(),
+    getCurrentAuthUserId: vi.fn(async () => 'user-test'),
   },
 }));
 
@@ -133,7 +134,10 @@ function setupListMocks(
   mockEntriesTable.getAll.mockResolvedValue([makeEntry()]);
   mockEntriesTable.getEntriesByClass.mockResolvedValue([makeEntry()]);
   mockEntriesTable.getEntriesByShow.mockResolvedValue([makeEntry()]);
-  mockEntriesTable.getSyncMetadata.mockResolvedValue({ totalRows: 1 });
+  mockEntriesTable.getSyncMetadata.mockResolvedValue({
+    totalRows: 1,
+    syncedByAuthUserId: 'user-test',
+  });
 }
 
 // ---------------------------------------------------------------------------

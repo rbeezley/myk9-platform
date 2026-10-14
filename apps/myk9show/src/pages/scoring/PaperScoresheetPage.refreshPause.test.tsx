@@ -56,7 +56,8 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
-    getSyncMetadata: vi.fn().mockResolvedValue({ totalRows: 2 }),
+    getCurrentAuthUserId: async () => 'user-test',
+    getSyncMetadata: vi.fn().mockResolvedValue({ totalRows: 2, syncedByAuthUserId: 'user-test' }),
     subscribe: vi.fn(() => () => {}),
   },
 }));

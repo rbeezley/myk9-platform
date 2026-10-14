@@ -41,6 +41,7 @@ export class MutationManager {
   private restoreInFlight: Promise<void> | null = null;
   private uploadInFlight: Promise<SyncResult[]> | null = null;
   private readonly getCurrentUserId: () => Promise<string | null>;
+  private readonly getCachedUserId: () => string | null;
   private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext | null>;
   private readonly acquireQueueMutationLock: (() => () => void) | undefined;
   private readonly acquireQueueMutationLockAsync: (() => Promise<() => void>) | undefined;
@@ -52,6 +53,7 @@ export class MutationManager {
     if (!supabaseClient) throw new Error('[MutationManager] Supabase client is required');
     this.logger = options.logger ?? noopLogger;
     this.getCurrentUserId = options.getCurrentUserId ?? (async () => null);
+    this.getCachedUserId = options.getCachedUserId ?? (() => null);
     this.getCurrentUploadContext = options.getCurrentUploadContext ?? (async () => null);
     this.acquireQueueMutationLock = options.acquireQueueMutationLock;
     this.acquireQueueMutationLockAsync = options.acquireQueueMutationLockAsync;
@@ -71,6 +73,31 @@ export class MutationManager {
       () => this.requireCurrentUploadContext(),
       (tableName, rowId) => this.rowRefetchers.request(tableName, rowId)
     );
+  }
+
+  /**
+   * The current auth user id for comparing replica account stamps (MYK9-1133),
+   * or null when it cannot be settled. The optional cached id (a synchronous
+   * read of the persisted session) answers first: the live lookup refreshes an
+   * expired token and, offline, retries that with backoff for tens of seconds,
+   * which guarded IndexedDB reads must not wait on. The live lookup answers only
+   * when nothing is persisted. For readers that branch on "unresolved" instead
+   * of failing; never for queue ownership, which stays on `requireCurrentUserId`.
+   */
+  async resolveCurrentUserId(): Promise<string | null> {
+    const usable = (id: unknown): id is string => typeof id === 'string' && id.trim().length > 0;
+    try {
+      const cached = this.getCachedUserId();
+      if (usable(cached)) return cached;
+    } catch {
+      // Fall through to the live lookup.
+    }
+    try {
+      const live = await this.getCurrentUserId();
+      return usable(live) ? live : null;
+    } catch {
+      return null;
+    }
   }
 
   private async requireCurrentUserId(): Promise<string> {

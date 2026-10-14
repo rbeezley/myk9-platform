@@ -16,6 +16,13 @@ export interface MutationManagerOptions {
   logger?: Logger;
   /** Resolve the auth identity that owns local queue actions. */
   getCurrentUserId?: () => Promise<string | null>;
+  /**
+   * An offline-durable id for the signed-in account (e.g. read from the
+   * persisted session), used ONLY by `resolveCurrentUserId` when the live
+   * lookup throws or yields no user, to compare replica account stamps. Never
+   * for queue ownership, authorization or uploads.
+   */
+  getCachedUserId?: () => string | null;
   /** Resolve a request client pinned to the same auth session as its owner id. */
   getCurrentUploadContext?: () => Promise<MutationUploadAuthContext | null>;
   /** Acquire a synchronous app-level write slot before queueing a mutation. */

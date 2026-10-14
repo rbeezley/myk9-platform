@@ -45,6 +45,7 @@ vi.mock('@/services/replication', () => ({
     sync: (...args: unknown[]) => mockEntriesSync(...args),
     getEntriesByShow: (...args: unknown[]) => mockEntriesGetByShow(...args),
     getSyncMetadata: (...args: unknown[]) => mockEntriesGetSyncMetadata(...args),
+    getCurrentAuthUserId: async () => 'user-test',
   },
 }));
 
@@ -315,7 +316,10 @@ describe('useJudgeAssignments', () => {
         })
       )
     );
-    mockEntriesGetSyncMetadata.mockResolvedValue({ totalRows: 20 });
+    mockEntriesGetSyncMetadata.mockResolvedValue({
+      totalRows: 20,
+      syncedByAuthUserId: 'user-test',
+    });
   });
 
   it('reads from the replication store first and skips PostgREST when warm', async () => {

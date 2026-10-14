@@ -20,6 +20,7 @@ import {
   replicatedTrialsTable,
   type ReplicatedTrial,
 } from '@/services/replication/ReplicatedTrialsTable';
+import { assertShowEntriesNotForeign } from '@/services/replication/entriesShowSyncState';
 import { buildMapFromArray } from '../_shared/maps';
 import { resolveEntryArmband } from '@/features/_shared/entryArmband';
 import { getTrialTimezone } from '@/features/registries';
@@ -346,6 +347,8 @@ export function toSecretaryEntry(
 }
 
 export async function getReplicatedSecretaryEntriesForShow(showId: string) {
+  // Another account's synced show is not this account's roster (MYK9-1133).
+  await assertShowEntriesNotForeign(showId);
   const [allEntries, syncMetadata] = await Promise.all([
     replicatedEntriesTable.getEntriesByShow(showId),
     replicatedEntriesTable.getSyncMetadata(showId),

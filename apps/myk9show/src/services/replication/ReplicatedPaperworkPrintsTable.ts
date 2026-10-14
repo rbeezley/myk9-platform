@@ -117,6 +117,11 @@ export function rowToPaperworkPrint(row: PaperworkPrintRow): ReplicatedPaperwork
 }
 
 export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPaperworkPrint> {
+  /** Rows are kept per signed-in account: another account's cache is invisible (MYK9-1133). */
+  override usesAccountOwnedRows(): boolean {
+    return true;
+  }
+
   constructor() {
     super('paperwork_prints', { logger });
   }

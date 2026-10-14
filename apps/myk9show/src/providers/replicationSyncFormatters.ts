@@ -119,6 +119,7 @@ export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
 }
 
 const REASON_MAX_LENGTH = 160;
+const NO_DETAIL_REASON = 'the server gave no details.';
 const PERMISSION_ERROR_PATTERN =
   /row-level security|rls policy blocked|permission denied|\b42501\b/i;
 /** What the queue prepends when it stores a failure (mutation-retry.ts); not the reason. */
@@ -135,6 +136,8 @@ export function formatSyncFailureReason(detail: SyncFailedEventDetail): string |
   const first = detail.mutations.find(mutation => mutation.error?.trim());
   const error = first?.error?.trim().replace(QUEUE_PREFIX_PATTERN, '');
   if (!first || !error) return undefined;
+  // Rows stored before MYK9-1146 may hold "[object Object]"; never show it.
+  if (error.includes('[object Object]')) return `Reason: ${NO_DETAIL_REASON}`;
   if (PERMISSION_ERROR_PATTERN.test(error)) {
     return `You don't have permission to change this ${objectLabel(first.tableName)}.`;
   }

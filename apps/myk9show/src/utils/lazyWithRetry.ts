@@ -49,12 +49,15 @@ export function createResettableLazy<T extends ComponentType<any>>(
   let failed = false;
 
   const create = () =>
-    lazy(() =>
-      load().catch(error => {
+    lazy(() => {
+      // The page this load was for. Retries can outlast a navigation; a reload is earned only if
+      // the user is still waiting on that page, never on whatever they moved on to.
+      const startedOn = window.location.pathname;
+      return load().catch(error => {
         failed = true;
         // A failed import stays failed for this document (see chunkLoadRecovery). When a guarded
         // reload starts, stay suspended so the boundary never flashes before the page reloads.
-        if (recoverFromChunkLoadError(error)) {
+        if (window.location.pathname === startedOn && recoverFromChunkLoadError(error)) {
           // If the reload never happens (blocked, or cancelled at a leave prompt), fall back to
           // the boundary rather than a spinner that never ends.
           return new Promise<never>((_, reject) => {
@@ -62,8 +65,8 @@ export function createResettableLazy<T extends ComponentType<any>>(
           });
         }
         throw error;
-      })
-    );
+      });
+    });
 
   let Inner = create();
   resetters.add(() => {

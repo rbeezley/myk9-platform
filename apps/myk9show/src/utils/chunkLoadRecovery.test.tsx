@@ -141,6 +141,24 @@ describe('chunkLoadRecovery', () => {
     expect(await screen.findByText('Failed to load component')).toBeInTheDocument();
   });
 
+  it('lazyWithRetry does not reload a page the user navigated to while the old one was loading', async () => {
+    let fail: (error: Error) => void = () => undefined;
+    const factory = vi.fn(() => new Promise<never>((_, reject) => (fail = reject)));
+    const Lazy = lazyWithRetry(factory);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    render(
+      <SuspenseWrapper>
+        <Lazy />
+      </SuspenseWrapper>
+    );
+    setPath('/dogs');
+    // Every attempt fails after the move.
+    factory.mockRejectedValue(CHUNK_ERROR);
+    fail(CHUNK_ERROR);
+    await act(() => vi.advanceTimersByTimeAsync(5_000));
+    expect(reload).not.toHaveBeenCalled();
+  });
+
   it('lazyWithRetry still shows the boundary on a sensitive route', async () => {
     setPath('/at-show');
     const factory = vi.fn().mockRejectedValue(CHUNK_ERROR);

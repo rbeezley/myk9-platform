@@ -124,6 +124,7 @@ describe('PerformanceStatisticsSection', () => {
     mockStats({ stats: makeStats({ overall: emptyOverall }), unreleasedCount: 2 });
     render(<PerformanceStatisticsSection dogId="dog-1" />);
     expect(screen.queryByText(/no scored results yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument();
     expect(
       screen.getByText(/2 results are waiting for the secretary to release them/i)
     ).toBeInTheDocument();

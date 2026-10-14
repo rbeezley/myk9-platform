@@ -92,6 +92,45 @@ describe('TitleProgressSection', () => {
     expect(screen.getByText('AKC')).toBeInTheDocument();
   });
 
+  it('shows the waiting note above the org groups when progress exists too', () => {
+    const progress: TitleProgressResult = {
+      titleId: 'title-1',
+      abbreviation: 'SCN',
+      fullName: 'Scent Work Container Novice',
+      titleType: 'element',
+      sportTemplateId: 'sport-1',
+      earnedLegs: 2,
+      requiredLegs: 3,
+      percentage: 66,
+      isEarned: false,
+      earnedDate: null,
+      requiredElementTitles: [],
+      earnedElementTitles: [],
+      prerequisiteMet: true,
+      isSuperseded: false,
+      legs: [],
+      sortOrder: 1,
+    };
+    mockTitleProgress({
+      progressBySport: { 'sport-1': [progress] },
+      templates: [
+        {
+          id: 'sport-1',
+          organization: 'AKC',
+          sport_code: 'scent-work',
+          name: 'Scent Work',
+          levels: [],
+        } as unknown as ReturnType<typeof useTitleProgress>['templates'][number],
+      ],
+      unreleasedCount: 2,
+    });
+    render(<TitleProgressSection dogId="dog-1" ownerId="owner-1" />);
+
+    const note = screen.getByText(/2 results are waiting for the secretary to release them/i);
+    const org = screen.getByText('AKC');
+    expect(note.compareDocumentPosition(org) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('tells the exhibitor preliminary results are waiting instead of "No title progress yet"', () => {
     mockTitleProgress({ progressBySport: {}, unreleasedCount: 2 });
     render(<TitleProgressSection dogId="dog-1" ownerId="owner-1" />);

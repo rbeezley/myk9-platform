@@ -352,7 +352,7 @@ describe('AskQ class and trial tools query current base-table columns', () => {
           status: 'confirmed',
         },
       ],
-      entries: [
+      [ENTRY_RESULTS_VIEW]: [
         {
           class_id: 'class-1',
           entry_status: 'confirmed',
@@ -398,7 +398,8 @@ describe('AskQ class and trial tools query current base-table columns', () => {
       '',
       undefined,
       undefined,
-      userContext
+      userContext,
+      client
     );
 
     expect(error).toBeUndefined();
@@ -425,7 +426,7 @@ describe('AskQ class and trial tools query current base-table columns', () => {
       'trials',
       'classes',
       'rpc:get_show_judges',
-      'entries',
+      ENTRY_RESULTS_VIEW,
     ]);
     expect(queries.find(query => query.table === 'classes')!.selected).not.toContain('judge_name');
     expect(queries.find(query => query.table === 'rpc:get_show_judges')!.columns).toEqual([
@@ -439,8 +440,12 @@ describe('AskQ class and trial tools query current base-table columns', () => {
       'element',
       'start_time',
     ]);
-    expect(queries.find(query => query.table === 'entries')!.columns).toContain('deleted_at');
-    expect(queries.find(query => query.table === 'entries')!.columns).toContain('show_id');
+    const entryQuery = queries.find(query => query.table === ENTRY_RESULTS_VIEW)!;
+    expect(entryQuery.columns).toContain('deleted_at');
+    expect(entryQuery.columns).toContain('show_id');
+    expect(selectedColumns(entryQuery.selected).every(c => entryResultsViewColumns().has(c))).toBe(
+      true
+    );
     expect(queries.map(query => query.table)).not.toContain('view_class_summary');
   });
 
@@ -482,7 +487,7 @@ describe('AskQ class and trial tools query current base-table columns', () => {
           start_time: '09:00:00',
         },
       ],
-      entries: [],
+      [ENTRY_RESULTS_VIEW]: [],
     });
 
     const { result } = await executeTool(
@@ -492,12 +497,75 @@ describe('AskQ class and trial tools query current base-table columns', () => {
       '',
       undefined,
       undefined,
-      userContext
+      userContext,
+      client
     );
 
     expect((result as { class_id: string }[]).map(summary => summary.class_id)).toEqual([
       'class-early',
       'class-late',
+    ]);
+  });
+
+  // MYK9-1156: the Q/NQ aggregate leaked unreleased and private results because
+  // it counted `entries` through the service role. It now reads the results
+  // view as the caller, which nulls result_status where the caller may not see it.
+  it('get_class_summary counts through the caller results view, never entries on the service client', async () => {
+    const base = {
+      trials: [
+        {
+          id: 'trial-1',
+          date: '2026-08-01',
+          name: 'Saturday Trial',
+          trial_number: '1',
+          show_id: SHOW_ID,
+        },
+      ],
+      classes: [
+        {
+          id: 'class-1',
+          trial_id: 'trial-1',
+          element: 'Container',
+          level: 'Novice',
+          section: null,
+          status: 'upcoming',
+          start_time: '09:00:00',
+        },
+      ],
+    };
+    const row = (result_status: string | null) => ({
+      class_id: 'class-1',
+      entry_status: 'confirmed',
+      is_scored: true,
+      check_in_status: 'completed',
+      result_status,
+    });
+    // What the service role would have counted, were it still asked.
+    const service = fakeSupabase({
+      ...base,
+      entries: [row('qualified'), row('qualified'), row('nq')],
+    });
+    // What the view returns the caller: unreleased results are nulled.
+    const caller = fakeSupabase({
+      [ENTRY_RESULTS_VIEW]: [row('qualified'), row(null), row(null)],
+    });
+
+    const { result } = await executeTool(
+      'get_class_summary',
+      {},
+      service.client,
+      '',
+      undefined,
+      undefined,
+      userContext,
+      caller.client
+    );
+
+    expect(service.queries.map(q => q.table)).not.toContain('entries');
+    expect(service.queries.map(q => q.table)).not.toContain(ENTRY_RESULTS_VIEW);
+    expect(caller.queries.map(q => q.table)).toEqual([ENTRY_RESULTS_VIEW]);
+    expect(result).toMatchObject([
+      { total_entries: 3, scored_entries: 3, qualified_count: 1, nq_count: 0 },
     ]);
   });
 

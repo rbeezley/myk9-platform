@@ -46,6 +46,13 @@ interface ClassEntryRow {
   result_status: string | null;
 }
 
+/**
+ * Same view the entry tools read (see toolExecutor.ts). The Q/NQ counts are
+ * read through it AS THE CALLER, so unreleased and private results arrive null
+ * and are never counted (MYK9-1156).
+ */
+const ENTRY_RESULTS_VIEW = 'view_authenticated_entry_results';
+
 const IMPOSSIBLE_SHOW_ID = '00000000-0000-0000-0000-000000000000';
 
 function applyTrialScope<Q extends { eq(column: string, value: unknown): Q }>(
@@ -122,7 +129,8 @@ export async function executeGetClassSummary(
     class_status?: string;
   },
   supabase: SupabaseClient,
-  scope: ShowScope
+  scope: ShowScope,
+  resultsClient: SupabaseClient
 ): Promise<{ data: ClassSummary[]; error?: string }> {
   try {
     let trialQuery = supabase
@@ -187,8 +195,8 @@ export async function executeGetClassSummary(
     const judgeNamesByClass = await fetchJudgeNamesByClass(supabase, [
       ...new Set(trials.map(trial => trial.show_id)),
     ]);
-    const entryQuery = supabase
-      .from('entries')
+    const entryQuery = resultsClient
+      .from(ENTRY_RESULTS_VIEW)
       .select('class_id, entry_status, is_scored, check_in_status, result_status, show_id')
       .in('class_id', classIds)
       .is('deleted_at', null);

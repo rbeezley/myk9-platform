@@ -2,6 +2,7 @@
  * Hook for fetching scored results for the current user's dogs.
  * Queries the authenticated result view for own entries that have been scored.
  */
+import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { useDogsQuery } from './useDogsDatabase';
@@ -117,7 +118,7 @@ async function fetchExhibitorResults(dogIds: string[]) {
     totalFaults: row.total_faults as number | null,
     finalPlacement: row.final_placement as number | null,
     scoringCompletedAt: row.scoring_completed_at as string | null,
-    showName: (row.show_name as string) || 'Unknown Show',
+    showName: (row.show_name as string) || SHOW_NOT_PUBLISHED_LABEL,
     // A trial row the viewer cannot read must not blank the date: fall back to
     // the show start date. '' means no date is known at all; date parsers
     // downstream (titles, stats) need a date or '', so the view labels that

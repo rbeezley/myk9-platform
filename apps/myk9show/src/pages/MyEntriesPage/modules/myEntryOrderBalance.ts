@@ -56,7 +56,7 @@ const NON_ONLINE_METHODS = new Set([
 export interface OrderBalanceContext {
   showId: string;
   showName: string;
-  showDate: Date;
+  showDate?: Date | undefined;
   showEndDate?: Date | undefined;
   entryStatus: EntryStatus;
   paymentStatus: PaymentStatus;

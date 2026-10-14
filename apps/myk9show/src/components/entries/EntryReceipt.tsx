@@ -58,7 +58,8 @@ interface EntryReceiptData {
    */
   reference?: string | undefined;
   showName: string;
-  showDate: Date;
+  /** Absent for a show the exhibitor cannot read (MYK9-1147). */
+  showDate?: Date | undefined;
   location: {
     venue: string;
     city: string;
@@ -407,12 +408,14 @@ export function EntryReceipt({
                 <div className="info-label text-xs text-muted-foreground">Show Name</div>
                 <div className="info-value font-medium">{entry.showName}</div>
               </div>
-              <div className="info-item">
-                <div className="info-label text-xs text-muted-foreground">Date</div>
-                <div className="info-value font-medium">
-                  {formatEntryDate(entry.showDate, { style: 'long' })}
+              {entry.showDate && (
+                <div className="info-item">
+                  <div className="info-label text-xs text-muted-foreground">Date</div>
+                  <div className="info-value font-medium">
+                    {formatEntryDate(entry.showDate, { style: 'long' })}
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="info-item col-span-2">
                 <div className="info-label text-xs text-muted-foreground">Location</div>
                 <div className="info-value font-medium">{formatLocation()}</div>

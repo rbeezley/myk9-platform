@@ -8,6 +8,7 @@
  * type assertions via untypedFrom() for .from() calls.
  */
 
+import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
 import {
   JudgeQualification,
   CreateJudgeQualificationData,
@@ -704,7 +705,7 @@ export async function getJudgeUpcomingAssignments(personId: string): Promise<Jud
           invited_at: row.invited_at as string | null,
           confirmed_at: row.confirmed_at as string | null,
           notes: null,
-          show_name: (show?.name as string) || 'Unknown Show',
+          show_name: (show?.name as string) || SHOW_NOT_PUBLISHED_LABEL,
           show_start_date: (show?.start_date as string) || '',
           show_end_date: (show?.end_date as string) || '',
           show_organization: (show?.organization as string) || '',

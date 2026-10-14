@@ -176,11 +176,14 @@ export interface MyEntry {
   registrationId: string | null;
   showId: string;
   showName: string;
+  /** The show row is not readable by this exhibitor (a draft); it has no name or date (MYK9-1147). */
+  isShowUnreadable?: boolean | undefined;
   /** True when the show cascade tombstoned this entry; displayed as cancelled. */
   isShowCancelled?: boolean | undefined;
   /** The secretary closed the show out (`shows.status = 'completed'`, MYK9-778). */
   isShowClosedOut?: boolean | undefined;
-  showDate: Date;
+  /** Absent when the show is unreadable; never a stand-in such as today. */
+  showDate?: Date | undefined;
   /** Final calendar day the show runs; absent for legacy/single-day rows. */
   showEndDate?: Date | undefined;
   location: {

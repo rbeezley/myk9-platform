@@ -262,6 +262,10 @@ export function useMyEntriesFilters({
       // Upcoming entries before completed ones
       if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
       // Within upcoming: soonest first; within completed: most recent first
+      // An undated show (unreadable draft, MYK9-1147) sorts after the dated ones.
+      if (!a.showDate || !b.showDate) {
+        return a.showDate ? -1 : b.showDate ? 1 : 0;
+      }
       return aUpcoming
         ? a.showDate.getTime() - b.showDate.getTime()
         : b.showDate.getTime() - a.showDate.getTime();

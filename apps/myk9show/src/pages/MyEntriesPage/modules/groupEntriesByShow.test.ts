@@ -321,3 +321,38 @@ describe('groupEntriesByShow — same name and date, different shows (Codex, PR 
     expect(groups.map(g => g.dogs.map(d => d.dogName))).toEqual([['Rex'], ['Bo']]);
   });
 });
+
+describe('groupEntriesByShow — a dog’s class rows run in trial-date order (MYK9-1172)', () => {
+  it('lists the earliest trial date first, whatever order the rows arrived in', () => {
+    const dates = ['2026-10-18', '2026-10-14', '2026-10-16'];
+    const rows = dates.map((date, index) =>
+      makeRow({
+        id: `e${index}`,
+        registrationId: 'r1',
+        classes: [
+          makeClass({
+            id: `c${index}`,
+            trialDate: new Date(`${date}T00:00:00`),
+            trialNumber: `Trial ${index + 1}`,
+          }),
+        ],
+      })
+    );
+
+    const [showGroup] = group(rows);
+
+    expect(showGroup.dogs[0].classes.map(cls => cls.id)).toEqual(['c1', 'c2', 'c0']);
+  });
+
+  it('keeps rows with no trial date after dated rows, in their incoming order', () => {
+    const rows = [
+      makeRow({ id: 'e0', classes: [makeClass({ id: 'c0', trialDate: undefined })] }),
+      makeRow({
+        id: 'e1',
+        classes: [makeClass({ id: 'c1', trialDate: new Date('2026-10-16T00:00:00') })],
+      }),
+    ];
+
+    expect(group(rows)[0].dogs[0].classes.map(cls => cls.id)).toEqual(['c1', 'c0']);
+  });
+});

@@ -5,7 +5,7 @@ export const LIFECYCLE_EMAIL_PAGE_SIZE = 1000;
 export const LIFECYCLE_EMAIL_MAX_PAGES = 50;
 
 interface PageResult<T> {
-  data: T[] | null;
+  data: T | null;
   error: { message?: string } | null;
 }
 
@@ -23,7 +23,7 @@ interface PageQuery<T> extends PromiseLike<PageResult<T>> {
  */
 export async function fetchAllPages<T extends { id: string }>(
   buildQuery: () => PageQuery<T[]>
-): Promise<PageResult<T>> {
+): Promise<PageResult<T[]>> {
   const rows: T[] = [];
   let lastId: string | null = null;
   for (let page = 0; page < LIFECYCLE_EMAIL_MAX_PAGES; page += 1) {

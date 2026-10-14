@@ -429,6 +429,13 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
           ? existing?.scopes?.[options.scopeValue]?.syncedByAuthUserId
           : existing?.syncedByAuthUserId;
       const settled = resolveScopeStamp(options?.scopeSyncedBy, storedStamp);
+      if (settled.freezeCursor) {
+        // Not this sync's cursor to move (see ResolvedScopeStamp.freezeCursor).
+        delete atomicUpdates.lastIncrementalSyncAt;
+        delete atomicUpdates.lastFullSyncAt;
+        delete atomicUpdates.totalRows;
+        delete atomicUpdates.expectedRemoteRows;
+      }
       if (settled.recordMarker && options?.scopeValue === undefined) {
         atomicUpdates.totalRows = updates.totalRows ?? existing?.totalRows ?? 0;
       }
@@ -453,15 +460,20 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
 
       if (scopeValue !== undefined) {
         const prevScope = existing?.scopes?.[scopeValue];
-        const rawWatermark = updates.lastIncrementalSyncAt ?? prevScope?.lastIncrementalSyncAt ?? 0;
+        const incomingWatermark = settled.freezeCursor ? undefined : updates.lastIncrementalSyncAt;
+        const rawWatermark = incomingWatermark ?? prevScope?.lastIncrementalSyncAt ?? 0;
         const nextWatermark =
-          advanceWatermarkMonotonically && updates.lastIncrementalSyncAt !== undefined
-            ? Math.max(prevScope?.lastIncrementalSyncAt ?? 0, updates.lastIncrementalSyncAt)
+          advanceWatermarkMonotonically && incomingWatermark !== undefined
+            ? Math.max(prevScope?.lastIncrementalSyncAt ?? 0, incomingWatermark)
             : rawWatermark;
         const nextScope: ScopeSyncState = { lastIncrementalSyncAt: nextWatermark };
         const nextTotalRows =
-          updates.totalRows ?? prevScope?.totalRows ?? (settled.recordMarker ? 0 : undefined);
-        const nextExpectedRemoteRows = updates.expectedRemoteRows ?? prevScope?.expectedRemoteRows;
+          (settled.freezeCursor ? undefined : updates.totalRows) ??
+          prevScope?.totalRows ??
+          (settled.recordMarker ? 0 : undefined);
+        const nextExpectedRemoteRows =
+          (settled.freezeCursor ? undefined : updates.expectedRemoteRows) ??
+          prevScope?.expectedRemoteRows;
         if (nextTotalRows !== undefined) {
           nextScope.totalRows = nextTotalRows;
         }
@@ -483,10 +495,10 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
         // path — getSyncMetadata(scopeValue) — NEVER consults this; it uses
         // scopes[scopeValue] defaulting to 0. So this mirror cannot reintroduce
         // cross-scope row-skipping.
-        if (updates.lastIncrementalSyncAt !== undefined) {
+        if (incomingWatermark !== undefined) {
           atomicUpdates.lastIncrementalSyncAt = Math.max(
             existing?.lastIncrementalSyncAt ?? 0,
-            updates.lastIncrementalSyncAt
+            incomingWatermark
           );
         } else {
           delete atomicUpdates.lastIncrementalSyncAt;
@@ -495,7 +507,11 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
         delete atomicUpdates.totalRows;
         // expectedRemoteRows is also scope-specific — keep it scope-only.
         delete atomicUpdates.expectedRemoteRows;
-      } else if (advanceWatermarkMonotonically && updates.lastIncrementalSyncAt !== undefined) {
+      } else if (
+        advanceWatermarkMonotonically &&
+        !settled.freezeCursor &&
+        updates.lastIncrementalSyncAt !== undefined
+      ) {
         // No scope: advance table-global watermark monotonically.
         const existingWatermark = Number.isFinite(existing?.lastIncrementalSyncAt)
           ? (existing!.lastIncrementalSyncAt as number)

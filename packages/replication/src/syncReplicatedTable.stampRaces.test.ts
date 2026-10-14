@@ -318,6 +318,67 @@ describe('scope stamp races (MYK9-1148)', () => {
     });
   });
 
+  describe("a refused download must not move the stamp holder's cursor (MYK9-1148)", () => {
+    it('an incremental sync by the holder still receives an update made between the two cursors', async () => {
+      let server: RemoteRow[] = [{ ...row('r1', 10), updated_at: 1000 }];
+      const serverAdapter = () =>
+        adapter(() => server, {
+          fetchRemoteRows: vi.fn(async ({ since }) =>
+            server.filter(r => (r.updated_at ?? 0) > since)
+          ),
+        });
+      await sync(serverAdapter());
+      expect(await stampOf()).toBe('user-a');
+
+      // B's download carries an older version of r1 (A holds version 10): refused,
+      // so A's stamp stands, but B's later cursor must not become A's.
+      signInAs('user-b');
+      await settle();
+      server = [{ ...row('r1', 9), updated_at: 5000 }];
+      await sync(serverAdapter());
+      expect(await stampOf()).toBe('user-a');
+
+      // An A-only update that happened between the two cursors.
+      signInAs('user-a');
+      await settle();
+      server = [{ ...row('r1', 11), name: 'renamed', updated_at: 3000 }];
+      await sync(serverAdapter());
+
+      expect((await table.get('r1'))?.name).toBe('renamed');
+    });
+
+    it('on an UNSCOPED table, an incremental sync by the holder still receives an update made between the two cursors', async () => {
+      let server: RemoteRow[] = [{ ...row('r1', 10), updated_at: 1000 }];
+      const serverAdapter = () => {
+        const a = adapter(() => server, {
+          fetchRemoteRows: vi.fn(async ({ since }) =>
+            server.filter(r => (r.updated_at ?? 0) > since)
+          ),
+        });
+        delete a.filterLocalRows;
+        return a;
+      };
+      await syncReplicatedTable(table, serverAdapter(), {});
+      expect((await table.getSyncMetadata())?.syncedByAuthUserId).toBe('user-a');
+
+      // B's download carries an older version of r1 (A holds version 10): refused,
+      // so A's stamp stands, but B's later cursor must not become A's.
+      signInAs('user-b');
+      await settle();
+      server = [{ ...row('r1', 9), updated_at: 5000 }];
+      await syncReplicatedTable(table, serverAdapter(), {});
+      expect((await table.getSyncMetadata())?.syncedByAuthUserId).toBe('user-a');
+
+      // An A-only update that happened between the two cursors.
+      signInAs('user-a');
+      await settle();
+      server = [{ ...row('r1', 11), name: 'renamed', updated_at: 3000 }];
+      await syncReplicatedTable(table, serverAdapter(), {});
+
+      expect((await table.get('r1'))?.name).toBe('renamed');
+    });
+  });
+
   describe('a failed read of the stored stamp', () => {
     it("does not clear the account's own earlier stamp", async () => {
       await sync(adapter(() => [row('r1')]));

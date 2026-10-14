@@ -18,6 +18,12 @@ export interface ResolvedScopeStamp {
   stamp: string | null | undefined;
   /** The scope must read as downloaded-by-someone (so never-synced is ruled out). */
   recordMarker: boolean;
+  /**
+   * The sync kept another account's stamp without having written its rows, so its
+   * cursor and coverage describe a download that account cannot use: they must not
+   * replace the stamp holder's own (its next incremental would skip updates).
+   */
+  freezeCursor: boolean;
 }
 
 /**
@@ -32,11 +38,15 @@ export function resolveScopeStamp(
   stored: string | undefined
 ): ResolvedScopeStamp {
   if (option === undefined || option === null || typeof option === 'string') {
-    return { stamp: option, recordMarker: false };
+    return { stamp: option, recordMarker: false, freezeCursor: false };
   }
-  if (option.whole) return { stamp: option.syncingAuthUserId, recordMarker: false };
-  if (stored === option.syncingAuthUserId || !option.wroteRows) {
-    return { stamp: undefined, recordMarker: false };
+  if (option.whole)
+    return { stamp: option.syncingAuthUserId, recordMarker: false, freezeCursor: false };
+  if (stored === option.syncingAuthUserId) {
+    return { stamp: undefined, recordMarker: false, freezeCursor: false };
   }
-  return { stamp: null, recordMarker: true };
+  if (!option.wroteRows) {
+    return { stamp: undefined, recordMarker: false, freezeCursor: true };
+  }
+  return { stamp: null, recordMarker: true, freezeCursor: false };
 }

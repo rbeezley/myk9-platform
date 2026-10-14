@@ -16,7 +16,10 @@ import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { EmergencyPacketInput } from '@/features/emergency-trial-packet/types';
 import { formatRingLabel } from '@/utils/ringLabel';
 import { formatShowDateRange } from '@/lib/format/dates';
-import { resolveDogIdentityForOrganization } from '@/features/dogs/identity';
+import {
+  isAwaitingRegistrationNumber,
+  resolveDogIdentityForOrganization,
+} from '@/features/dogs/identity';
 import { resolveConfiguredRegistryId } from '@/features/registries';
 import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 import { mapCatalogEntryFields } from '@/lib/reports/catalogFields';
@@ -100,6 +103,21 @@ function mapReportEntry(
     ? resolveDogIdentityForOrganization(dog?.registrations, readTrialRegistryId(trial))
     : null;
   const registrationNumber = dogIdentity?.registrationNumber ?? null;
+  // MYK9-1162: a held entry is kept off the catalog. Unloaded registrations
+  // (`dog.registrations` absent) read as "not held", never as "missing".
+  const awaitingRegistrationNumber =
+    trial != null &&
+    isAwaitingRegistrationNumber(
+      { entryStatus: e.entry_status ?? undefined, deletedAt: e.deleted_at },
+      readTrialRegistryId(trial),
+      dog?.registrationsReadComplete === false ? undefined : dog?.registrations,
+      {
+        trialType: trial.trial_type,
+        className: classData?.name,
+        element: classData?.element,
+        level: classData?.level,
+      }
+    );
   const base = mapDbEntryToReportEntry(
     {
       id: e.id,
@@ -124,6 +142,7 @@ function mapReportEntry(
     ...junior,
     ...mapCatalogEntryFields(e, handlerIdentity, dogIdentity?.registeredName ?? null),
     ...(e.dog_id ? { dogId: e.dog_id } : {}),
+    ...(awaitingRegistrationNumber ? { awaitingRegistrationNumber } : {}),
     ...(e.entry_status ? { entryStatus: e.entry_status } : {}),
     ...(e.withdrawal_reason ? { withdrawalReason: e.withdrawal_reason } : {}),
     ...(e.entry_fee != null ? { entryFee: Number(e.entry_fee) } : {}),
@@ -372,7 +391,9 @@ export function buildEmergencyPacketData(input: {
         distractionCount: (raw.distraction_count as number | null) ?? null,
       };
     }),
-    entries: mappedEntries,
+    // MYK9-1162: the packet and Reports scoresheets never list an entry that is
+    // still awaiting a registration number.
+    entries: mappedEntries.filter(entry => !entry.awaitingRegistrationNumber),
   };
 }
 

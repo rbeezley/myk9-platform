@@ -46,6 +46,7 @@ import { RelatedContextLinks } from '@/components/common/RelatedContextLinks';
 import { buildClassDetailsRelatedLinks } from './classDetailsRelatedLinks';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { getClassDetailHref } from '@/utils/classDetailHref';
+import { getTrialRegistry } from '@/features/registries';
 
 const ClassDetailsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -339,6 +340,7 @@ const ClassDetailsPage: React.FC = () => {
               myEntryIds={myEntryIds}
               dogs={dogs}
               organization={parentShow?.organization ?? null}
+              registryId={parentTrial ? getTrialRegistry(parentTrial).id : null}
               parentShowId={parentShow?.id ?? null}
               classDay={parentTrial?.trialDate ?? null}
             />

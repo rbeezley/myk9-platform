@@ -6,6 +6,7 @@ import { isOnClassRunList } from '@/features/_shared/entryAccounting';
 import { buildShowArmbandMaps, resolveEntryArmband } from '@/features/_shared/entryArmband';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import {
+  isAwaitingRegistrationNumber,
   resolveDogIdentityForOrganization,
   type DogRegistrationLike,
 } from '@/features/dogs/identity';
@@ -27,8 +28,21 @@ export async function loadEntriesWithDogs(classId: string): Promise<ScoringEntry
   const dogs = await Promise.all(uniqueDogIds.map(id => replicatedDogsTable.get(id)));
   const dogsMap = new Map(uniqueDogIds.map((id, i) => [id, dogs[i] ?? null]));
   const registry = await loadClassRegistryForClass(classId);
-  const registeredBreedByDogId = await loadRegisteredBreedsByDogId(uniqueDogIds, registry);
-  return rawEntries.map((e, i) =>
+  const { breeds: registeredBreedByDogId, registrationsByDogId } = await loadRegistrationsAndBreeds(
+    uniqueDogIds,
+    registry
+  );
+  // MYK9-1162: an entry awaiting a registration number is never on a paper
+  // scoresheet. `registrationsByDogId` is empty when no registry is in context
+  // (nothing is verified), so nothing is held then.
+  const listedEntries = rawEntries.filter(
+    e =>
+      !e.dogId ||
+      !registry ||
+      !registrationsByDogId.has(e.dogId) ||
+      !isAwaitingRegistrationNumber(e, registry, registrationsByDogId.get(e.dogId))
+  );
+  return listedEntries.map((e, i) =>
     toScoringEntry(
       e,
       dogsMap.get(e.dogId ?? '') ?? null,
@@ -117,9 +131,27 @@ export async function loadRegisteredBreedsByDogId(
   dogIds: string[],
   organization: string | undefined
 ): Promise<Map<string, string | null>> {
+  return (await loadRegistrationsAndBreeds(dogIds, organization)).breeds;
+}
+
+/**
+ * `loadRegisteredBreedsByDogId` plus the registrations it read, so the caller
+ * can apply the held-entry rule without a second read (MYK9-1162). The map is
+ * empty when no registry is in context, and every requested dog has a key
+ * whenever it is not: a read that could not verify a dog has already thrown.
+ */
+async function loadRegistrationsAndBreeds(
+  dogIds: string[],
+  organization: string | undefined
+): Promise<{
+  breeds: Map<string, string | null>;
+  registrationsByDogId: Map<string, DogRegistrationLike[]>;
+}> {
   // No registry in context means this is not an organization-scoped render, so
   // leave the map empty and let the caller's generic fallback answer.
-  if (!organization || dogIds.length === 0) return new Map();
+  if (!organization || dogIds.length === 0) {
+    return { breeds: new Map(), registrationsByDogId: new Map() };
+  }
 
   const { byDog, serverError, registrationsReadComplete } = await loadDogRegistrations(dogIds);
 
@@ -128,8 +160,10 @@ export async function loadRegisteredBreedsByDogId(
   // to `dogs.breed` / the view's `dog_breed`, which is how a UKC-only dog ended
   // up printing its UKC breed on an AKC scoresheet.
   const breeds = new Map<string, string | null>();
+  const registrationsByDogId = new Map<string, DogRegistrationLike[]>();
   for (const dogId of dogIds) {
     const rows = (byDog.get(dogId) ?? []) as DogRegistrationLike[];
+    registrationsByDogId.set(dogId, rows);
     breeds.set(dogId, resolveDogIdentityForOrganization(rows, organization).breed);
   }
 
@@ -143,5 +177,5 @@ export async function loadRegisteredBreedsByDogId(
     }
   }
 
-  return breeds;
+  return { breeds, registrationsByDogId };
 }

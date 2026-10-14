@@ -11,6 +11,7 @@ import { ResultCatalog } from '@/components/reports/ResultCatalog';
 import { fromAny } from '@total-typescript/shoehorn';
 import { buildShowReportProps, mapScopedReportEntries } from '../reportDataMapping';
 import { reportRegistry } from '@/lib/reports/reportRegistry';
+import { catalogRows } from '@/lib/reports/catalogFields';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { rowToEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReportDbEntry } from '@/lib/reports/types';
@@ -185,5 +186,43 @@ describe('AKC marked catalog fields reach ReportEntry', () => {
     );
     render(<ResultCatalog {...incomplete} entries={entries} />);
     expect(screen.getByRole('alert')).toHaveTextContent('could not be loaded');
+  });
+});
+
+describe('entries awaiting a registration number reach ReportEntry (MYK9-1162)', () => {
+  function withRegistrations(registrations: readonly Record<string, unknown>[]) {
+    const db = hydratedEntry({}, owner, null);
+    return { ...db, dog: { ...db.dog, registrations } } as ReportDbEntry;
+  }
+
+  it('flags a dog with no number for the trial registry, and only that dog', () => {
+    const ukcOnly = withRegistrations([{ organization: 'UKC', registration_number: 'UKC999' }]);
+    expect(mapOne(ukcOnly).awaitingRegistrationNumber).toBe(true);
+    expect(mapOne(hydratedEntry({}, owner, null)).awaitingRegistrationNumber).toBeUndefined();
+  });
+
+  it('does not flag an entry whose registrations were not loaded', () => {
+    const db = hydratedEntry({}, owner, null);
+    const dogWithoutRegistrations = { ...db.dog };
+    delete dogWithoutRegistrations.registrations;
+    const mapped = mapOne({ ...db, dog: dogWithoutRegistrations } as ReportDbEntry);
+    expect(mapped.awaitingRegistrationNumber).toBeUndefined();
+  });
+
+  it('does not flag an entry whose registrations read did not answer, even with an empty list', () => {
+    const db = withRegistrations([]);
+    const unanswered = { ...db, dog: { ...db.dog, registrationsReadComplete: false } };
+    expect(mapOne(unanswered as ReportDbEntry).awaitingRegistrationNumber).toBeUndefined();
+    expect(mapOne(db).awaitingRegistrationNumber).toBe(true);
+  });
+
+  it('drops a held entry from the printed catalog listing but keeps the normal one', () => {
+    const held = { ...withRegistrations([]), id: 'entry-held' } as ReportDbEntry;
+    const normal = { ...hydratedEntry({}, owner, null), id: 'entry-ok' } as ReportDbEntry;
+    const mapped = mapScopedReportEntries([held, normal], [trial], [cls], {
+      kind: 'show',
+      showId: 'show-1',
+    });
+    expect(catalogRows(mapped).map(row => row.id)).toEqual(['entry-ok']);
   });
 });

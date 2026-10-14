@@ -580,6 +580,8 @@ describe('useReportData', () => {
     expect(result.current.isReady).toBe(true);
     expect(result.current.registrationsReadComplete).toBe(false);
     expect(result.current.entries?.[0]?.dog?.registrations).toEqual([]);
+    // MYK9-1162: an unanswered read is unknown, not "none", so no entry reads as held.
+    expect(result.current.entries?.[0]?.dog?.registrationsReadComplete).toBe(false);
   });
 
   describe('dataState', () => {

@@ -10,6 +10,7 @@ import {
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import type { Show } from '@/types/show-types';
 import { loadDogRegistrations } from '@/services/database/dogs/reads';
+import { registrationsFromRead } from '@/features/dogs/identity';
 import { loadEntryHandlerJuniorFlags } from '@/services/database/users/juniorHandlerProfiles';
 import { refreshShowEntriesForRead } from '@/services/database/entries/refreshShowEntriesForRead';
 import type { ReportDbEntry } from '@/lib/reports/types';
@@ -125,17 +126,24 @@ async function hydrateEntryRegistrations(entries: ReportDbEntry[]): Promise<Hydr
     return { entries: withHandlers, registrationsReadComplete: true, catalogProfilesReadComplete };
   }
 
-  const { byDog, registrationsReadComplete } = await loadDogRegistrations(dogIds);
+  const read = await loadDogRegistrations(dogIds);
+  const { byDog, registrationsReadComplete } = read;
 
   return {
     entries: withHandlers.map(entry => {
       if (!entry.dog_id) return entry;
       const dog = entry.dog ?? { id: entry.dog_id };
+      // MYK9-1162: `registrations: []` reads as "loaded, and none" to
+      // `isAwaitingRegistrationNumber`, which would drop the dog from the
+      // catalog. Mark the dogs whose read did not answer so the mapper treats
+      // their registrations as unknown.
+      const known = registrationsFromRead(read, entry.dog_id) !== undefined;
       return {
         ...entry,
         dog: {
           ...dog,
           registrations: byDog.get(entry.dog_id) ?? [],
+          ...(known ? {} : { registrationsReadComplete: false }),
         },
       };
     }),

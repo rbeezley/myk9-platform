@@ -128,13 +128,23 @@ function isDeclined(
 
 /**
  * Rows that were never a dog in this class: moved-up source rows, not-accepted
- * rows, and declined entries.
+ * rows, declined entries, and entries awaiting a registration number (not listed
+ * until the number exists).
  */
 function isNeverInClass(
-  entry: Pick<ReportEntry, 'entryStatus' | 'withdrawalReasonCode' | 'resultText'>
+  entry: Pick<
+    ReportEntry,
+    'entryStatus' | 'withdrawalReasonCode' | 'resultText' | 'awaitingRegistrationNumber'
+  >
 ): boolean {
   const status = normalized(entry.entryStatus);
-  return status === 'moved' || status === 'not_accepted' || isDeclined(entry);
+  return (
+    status === 'moved' ||
+    status === 'not_accepted' ||
+    isDeclined(entry) ||
+    // MYK9-1162: a held entry keeps its capacity place but is never listed.
+    entry.awaitingRegistrationNumber === true
+  );
 }
 
 /** The code the marked catalog prints in the Result column ('' while unscored). */
@@ -183,8 +193,9 @@ export interface CatalogClassCounts {
  *    an entry at all: it is excluded from every count and from the listing.
  *  - entries:    every row that was a dog in this class, less the withdrawn
  *    ones. A dog that was pulled or marked absent was still entered, so it
- *    stays; only moved-up source rows, not-accepted rows and declined
- *    entries (never a dog in this class) are left out. `isOnClassRunList` is deliberately not used here:
+ *    stays; only moved-up source rows, not-accepted rows, declined entries
+ *    (never a dog in this class) and entries awaiting a registration number
+ *    (MYK9-1162, not listed until the number exists) are left out. `isOnClassRunList` is deliberately not used here:
  *    it also drops scratched and absent dogs, which would understate entries.
  *  - competing:  dogs that actually ran: still expected to run (`isExpectedEntry`)
  *    and carrying a run result (Q / NQ / EXC / DQ). An eligible dog that has not

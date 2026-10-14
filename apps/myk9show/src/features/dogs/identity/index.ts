@@ -11,3 +11,13 @@ export type {
   DogRegistrationLike,
   MappedDogRegistrationLike,
 } from './resolveDogIdentity';
+export {
+  isAwaitingRegistrationNumber,
+  isConformationPuppyClass,
+  registrationsFromRead,
+  registrationsIfKnown,
+} from './isAwaitingRegistrationNumber';
+export type {
+  ConformationPuppyContext,
+  DogRegistrationsSource,
+} from './isAwaitingRegistrationNumber';

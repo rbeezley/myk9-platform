@@ -12,6 +12,9 @@ import {
 } from '@/services/database/entries/handlerHydration';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
+import { loadDogRegistrations } from '@/services/database/dogs/reads';
+import { getTrialRegistry } from '@/features/registries';
+import { isAwaitingRegistrationNumber, registrationsFromRead } from '@/features/dogs/identity';
 import { generateRunOrder, generateScoreSheet, generateResults } from './print-service';
 import type { ClassPipelineItem } from '../mission-control-types';
 import type { PrintClassInfo, PrintReportEntry } from './print-types';
@@ -37,6 +40,8 @@ interface DogData {
 
 interface EntryRow {
   id: string;
+  dog_id?: string | null;
+  entry_status?: string | null;
   armband?: string | number | null;
   run_order?: number | null;
   is_scored?: boolean | null;
@@ -68,6 +73,30 @@ function mapEntry(row: EntryRow): PrintReportEntry {
     searchTimeSeconds: row.search_time_seconds ?? null,
     faultCount: row.total_faults ?? null,
   };
+}
+
+/**
+ * MYK9-1162: an entry awaiting a registration number holds its capacity place
+ * but is never printed. With no trial registry, or a registration read that did
+ * not answer for a dog, nothing is held: an unverified class is never emptied.
+ */
+async function withoutHeldEntries(
+  rows: EntryRow[],
+  trial: Parameters<typeof getTrialRegistry>[0]
+): Promise<EntryRow[]> {
+  const dogIds = [...new Set(rows.map(row => row.dog_id).filter((id): id is string => !!id))];
+  if (!trial || dogIds.length === 0) return rows;
+  const registryId = getTrialRegistry(trial).id;
+  const read = await loadDogRegistrations(dogIds);
+  return rows.filter(
+    row =>
+      !row.dog_id ||
+      !isAwaitingRegistrationNumber(
+        { entryStatus: row.entry_status ?? undefined },
+        registryId,
+        registrationsFromRead(read, row.dog_id)
+      )
+  );
 }
 
 export interface UsePipelinePrintReturn {
@@ -105,21 +134,29 @@ export function usePipelinePrint(showId: string, trialId: string): UsePipelinePr
     [showId, trialId, shows, trials]
   );
 
-  const fetchEntries = useCallback(async (classId: string): Promise<PrintReportEntry[]> => {
-    const read = async () => {
-      const { data, error } = await getEntriesByClass(classId);
-      if (error) throw error;
-      return data as unknown as EntryRow[];
-    };
-    // A print is one-shot: it cannot replay when a handler people refresh
-    // that missed its fast window lands later, as Reports does. Wait for it,
-    // then re-read if it changed any cached identity (MYK9-743).
-    const revision = getHandlerPeopleHydrationRevision();
-    let rows = await read();
-    await settleHandlerPeopleHydration();
-    if (getHandlerPeopleHydrationRevision() !== revision) rows = await read();
-    return rows.map(mapEntry);
-  }, []);
+  const fetchEntries = useCallback(
+    async (classId: string): Promise<PrintReportEntry[]> => {
+      const read = async () => {
+        const { data, error } = await getEntriesByClass(classId);
+        if (error) throw error;
+        return data as unknown as EntryRow[];
+      };
+      // A print is one-shot: it cannot replay when a handler people refresh
+      // that missed its fast window lands later, as Reports does. Wait for it,
+      // then re-read if it changed any cached identity (MYK9-743).
+      const revision = getHandlerPeopleHydrationRevision();
+      let rows = await read();
+      await settleHandlerPeopleHydration();
+      if (getHandlerPeopleHydrationRevision() !== revision) rows = await read();
+      return (
+        await withoutHeldEntries(
+          rows,
+          trials.find(t => t.id === trialId)
+        )
+      ).map(mapEntry);
+    },
+    [trialId, trials]
+  );
 
   const makePrintHandler = useCallback(
     (generate: (info: PrintClassInfo, entries: PrintReportEntry[]) => void) =>

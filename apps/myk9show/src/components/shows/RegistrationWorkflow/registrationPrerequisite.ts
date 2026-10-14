@@ -1,5 +1,8 @@
 import type { Registration } from '@/types/dog-types';
-import { resolveDogIdentityForOrganization } from '@/features/dogs/identity';
+import {
+  isConformationPuppyClass,
+  resolveDogIdentityForOrganization,
+} from '@/features/dogs/identity';
 
 interface RegistrationPrerequisiteInput {
   registrations: readonly Registration[] | null | undefined;
@@ -16,22 +19,6 @@ export interface RegistrationPrerequisite {
   message: string | null;
 }
 
-function isProvenConformationPuppyClass(
-  trialType: string | null | undefined,
-  className: string | null | undefined,
-  element: string | null | undefined,
-  level: string | null | undefined
-): boolean {
-  const normalizedTrialType = trialType?.trim().toLowerCase() ?? '';
-  if (!normalizedTrialType.includes('conformation')) return false;
-
-  const classMetadata = [className, element, level]
-    .filter((value): value is string => typeof value === 'string')
-    .join(' ')
-    .toLowerCase();
-  return classMetadata.includes('puppy');
-}
-
 /**
  * Entry-time registration gate. Missing metadata fails closed: the puppy
  * exception applies only when both the sport and class name prove it applies.
@@ -44,7 +31,7 @@ export function getRegistrationPrerequisite({
   element,
   level,
 }: RegistrationPrerequisiteInput): RegistrationPrerequisite {
-  if (isProvenConformationPuppyClass(trialType, className, element, level)) {
+  if (isConformationPuppyClass({ trialType, className, element, level })) {
     return {
       allowed: true,
       puppyException: true,

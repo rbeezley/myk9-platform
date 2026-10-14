@@ -176,6 +176,7 @@ const launchCriticalSqlTests = [
   'myk9_731_restore_show_day_fixture_test.sql',
   'myk9_731_restore_show_day_fixture_containment_test.sql',
   'myk9_1162_registry_identity_taken_test.sql',
+  'myk9_1162_held_entries_packet_test.sql',
 ];
 
 describe('behavioral SQL test harness', () => {

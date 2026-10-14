@@ -86,14 +86,17 @@ describe('paper scoresheet breeds', () => {
   });
 
   it('still refuses to borrow across registries', async () => {
-    // AKC trial, UKC-only dog. Correct answer is blank, and no fallback may
-    // supply 'Mixed Breed' from the dog replica.
+    // AKC trial, dog with an AKC number (no breed on it) and a UKC breed.
+    // Correct answer is blank, and no fallback may supply 'Mixed Breed' from the
+    // dog replica or the UKC breed. (MYK9-1162: a dog with NO AKC number is a
+    // held entry and is left off the sheet instead.)
     mockGetTrialById.mockResolvedValue({ id: 'trial-1', showId: 'show-1', registryId: 'AKC' });
     mockLoadDogRegistrations.mockResolvedValue({
       byDog: new Map([
         [
           'dog-1',
           [
+            { id: 'reg-akc', organization: 'AKC', registration_number: 'SR1' },
             {
               id: 'reg-ukc',
               created_at: '2024-01-01T00:00:00Z',
@@ -124,6 +127,7 @@ describe('paper scoresheet breeds', () => {
               created_at: '2024-01-01T00:00:00Z',
               organization: 'AKC',
               breed: 'Belgian Malinois',
+              registration_number: 'SR1',
             },
           ],
         ],
@@ -166,6 +170,7 @@ describe('paper scoresheet breeds', () => {
       created_at: '2024-01-01T00:00:00Z',
       organization: 'AKC',
       breed: 'Belgian Malinois',
+      registration_number: 'SR1',
     };
 
     beforeEach(() => {
@@ -219,14 +224,17 @@ describe('paper scoresheet breeds', () => {
     });
 
     it('a verified absence still prints blank when the server answered', async () => {
-      // No server error: the blank provably means "this dog has no AKC
-      // registration", which is the correct render, not a refusal.
+      // No server error: the blank provably means "this dog's AKC registration
+      // carries no breed", which is the correct render, not a refusal.
       mockLoadDogRegistrations.mockResolvedValue({
         byDog: new Map([
           ['dog-cached', [akcReg]],
           [
             'dog-other',
-            [{ ...akcReg, id: 'r2', organization: 'UKC', breed: 'Belgian Shepherd Dog' }],
+            [
+              { ...akcReg, id: 'r3', breed: null },
+              { ...akcReg, id: 'r2', organization: 'UKC', breed: 'Belgian Shepherd Dog' },
+            ],
           ],
         ]),
         serverError: null,

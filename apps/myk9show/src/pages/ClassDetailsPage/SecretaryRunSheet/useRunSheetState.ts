@@ -14,6 +14,8 @@ interface UseRunSheetStateProps {
   userId: string;
   dogs: Dog[];
   organization?: string | null | undefined;
+  /** The class's trial registry; absent means nothing can be held (MYK9-1162). */
+  registryId?: string | null | undefined;
 }
 
 interface UseRunSheetStateReturn {
@@ -27,13 +29,14 @@ export function useRunSheetState({
   userId,
   dogs,
   organization,
+  registryId,
 }: UseRunSheetStateProps): UseRunSheetStateReturn {
   const queryClient = useQueryClient();
   const dogLookup = useMemo(() => new Map(dogs.map(dog => [dog.id, dog])), [dogs]);
 
   const sortedEntries = useMemo(
-    () => buildRunSheetEntries(rawEntries, dogLookup, organization),
-    [rawEntries, dogLookup, organization]
+    () => buildRunSheetEntries(rawEntries, dogLookup, organization, registryId),
+    [rawEntries, dogLookup, organization, registryId]
   );
 
   const onCheckInStatus = async (entryId: string, status: CheckInStatus) => {

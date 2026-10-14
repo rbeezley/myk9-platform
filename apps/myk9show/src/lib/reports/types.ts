@@ -100,6 +100,12 @@ export interface ReportEntry {
    * prints a handler only then, as the AKC marked catalog requires.
    */
   handlerDiffersFromOwner?: boolean;
+  /**
+   * MYK9-1162: true when the dog holds no registration number for the trial's
+   * registry (`isAwaitingRegistrationNumber`). Absent otherwise, including when
+   * the registrations were not loaded. The catalog leaves such entries out.
+   */
+  awaitingRegistrationNumber?: boolean;
   /** `entries.withdrawal_reason_code`: `in_season` (AIS) or `judge_change` (AJC). */
   withdrawalReasonCode?: string | null;
   /** `entries.disqualification_reason`: the judge's note on an excused / DQ'd dog. */
@@ -118,6 +124,8 @@ export type ReportDbEntry = DbEntry & {
     /** MYK9-1009: hydrated by `hydrateCatalogDogProfiles`; absent when that read failed. */
     date_of_birth?: string | null;
     registrations?: readonly (DogRegistrationLike | MappedDogRegistrationLike)[];
+    /** MYK9-1162: false when this dog's registrations could not be read; they are then unknown, not empty. */
+    registrationsReadComplete?: boolean;
     owner?: {
       first_name?: string | null;
       last_name?: string | null;

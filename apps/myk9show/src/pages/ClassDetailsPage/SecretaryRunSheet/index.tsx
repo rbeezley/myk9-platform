@@ -16,6 +16,8 @@ interface SecretaryRunSheetProps {
   myEntryIds?: Set<string>;
   dogs: Dog[];
   organization?: string | null;
+  /** The class's trial registry; entries awaiting a number for it are not listed (MYK9-1162). */
+  registryId?: string | null | undefined;
   // When set, the "Set run order" link routes to that show's Show Desk.
   // Omitted in tests / contexts without a resolved parent show.
   parentShowId?: string | null | undefined;
@@ -45,6 +47,7 @@ export function SecretaryRunSheet({
   myEntryIds = new Set(),
   dogs,
   organization,
+  registryId,
   parentShowId,
   classDay,
 }: SecretaryRunSheetProps) {
@@ -61,6 +64,7 @@ export function SecretaryRunSheet({
     userId,
     dogs,
     organization,
+    registryId,
   });
 
   return (

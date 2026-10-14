@@ -16,6 +16,24 @@
     padding-right: 12px;
   }
 }
+/* Narrow phones: tighter buttons and a smaller wordmark so both header buttons fit. */
+@media (max-width: 399px) {
+  .landing-v2 .l-hdr .l-btn {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .landing-v2 .l-brand-logo {
+    width: 96px;
+  }
+}
+/* The smallest phones show only the dog mark at the left of the logo. */
+@media (max-width: 359px) {
+  .landing-v2 .l-brand-logo {
+    width: 40px;
+    object-fit: cover;
+    object-position: left center;
+  }
+}
 
 /* Guests have no app header above the landing header; signed-in onboarding returns do. */
 .landing-v2[data-guest='true'] .l-hdr {

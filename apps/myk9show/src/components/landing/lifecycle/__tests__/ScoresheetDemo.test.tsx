@@ -58,6 +58,22 @@ describe('ScoresheetDemo', () => {
     expect(status()).toHaveTextContent('All 2 synced.');
   });
 
+  it('keeps every offline score past the four rows it shows', () => {
+    render(<ScoresheetDemo syncMs={1000} />);
+    fireEvent.click(sw());
+    for (let i = 0; i < 6; i++) {
+      fireEvent.click(screen.getByRole('button', { name: 'Absent' }));
+      fireEvent.click(save());
+    }
+    expect(screen.getByText('No signal · 6 waiting')).toBeInTheDocument();
+    expect(within(log()).getAllByRole('listitem')).toHaveLength(4);
+    fireEvent.click(sw());
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(status()).toHaveTextContent('All 6 synced.');
+  });
+
   it('saves straight through while online', () => {
     render(<ScoresheetDemo />);
     fireEvent.click(screen.getByRole('button', { name: 'Absent' }));

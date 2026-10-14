@@ -13,6 +13,35 @@ async function openLanding(page: Page) {
   await expect(page.locator('#showday-dot')).toBeAttached({ timeout: 30000 });
 }
 
+async function expectHeaderFits(page: Page) {
+  const buttons = await page.locator('.landing-v2 .l-hdr .l-btn').evaluateAll(els =>
+    els
+      .filter(el => getComputedStyle(el).display !== 'none')
+      .map(el => {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const tops = new Set([...range.getClientRects()].map(rect => Math.round(rect.top)));
+        const box = el.getBoundingClientRect();
+        return {
+          text: (el as HTMLElement).innerText,
+          lines: tops.size,
+          right: box.right,
+          // Rounded: the page's fade-in transform leaves sub-pixel heights like 43.999996.
+          height: Math.round(box.height),
+        };
+      })
+  );
+  expect(buttons.length).toBeGreaterThanOrEqual(2);
+  const width = page.viewportSize()!.width;
+  for (const b of buttons) {
+    expect(b.lines, `"${b.text}" wraps`).toBe(1);
+    expect(b.right, `"${b.text}" overflows`).toBeLessThanOrEqual(width);
+    expect(b.height, `"${b.text}" is under 44px`).toBeGreaterThanOrEqual(44);
+  }
+  const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  expect(scrollWidth, 'page scrolls sideways').toBeLessThanOrEqual(width);
+}
+
 const reachedDots = (page: Page) =>
   page.evaluate(
     ids => ids.map(id => document.getElementById(`${id}-dot`)?.getAttribute('data-reached')),
@@ -221,26 +250,7 @@ for (const vp of VIEWPORTS) {
 
     test('header buttons stay on one line and fit the screen', async ({ page }) => {
       await openLanding(page);
-      const buttons = await page.locator('.landing-v2 .l-hdr .l-btn').evaluateAll(els =>
-        els
-          .filter(el => getComputedStyle(el).display !== 'none')
-          .map(el => {
-            const range = document.createRange();
-            range.selectNodeContents(el);
-            const tops = new Set([...range.getClientRects()].map(rect => Math.round(rect.top)));
-            return {
-              text: (el as HTMLElement).innerText,
-              lines: tops.size,
-              right: el.getBoundingClientRect().right,
-            };
-          })
-      );
-      expect(buttons.length).toBeGreaterThanOrEqual(2);
-      const width = page.viewportSize()!.width;
-      for (const b of buttons) {
-        expect(b.lines, `"${b.text}" wraps`).toBe(1);
-        expect(b.right, `"${b.text}" overflows`).toBeLessThanOrEqual(width);
-      }
+      await expectHeaderFits(page);
     });
 
     test('rendered copy has no em dash, arrow or pre-launch words', async ({ page }) => {
@@ -413,6 +423,14 @@ test.describe('reduced motion', () => {
     // is not the signal; no transition property means nothing animates.
     expect(await motionOf(page)).toEqual({ dot: 'none', fill: 'none' });
   });
+});
+
+test('header fits the narrowest phones', async ({ page }) => {
+  for (const width of [320, 360]) {
+    await page.setViewportSize({ width, height: 740 });
+    await openLanding(page);
+    await expectHeaderFits(page);
+  }
 });
 
 test('og image is a real image', async ({ request }) => {

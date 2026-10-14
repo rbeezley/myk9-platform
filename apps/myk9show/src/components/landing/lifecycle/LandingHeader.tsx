@@ -13,7 +13,7 @@ export function LandingHeader({ signedIn = false }: { signedIn?: boolean }) {
             alt="myK9Show"
             width="2076"
             height="596"
-            className="h-9 w-32 shrink-0 object-contain sm:h-11 sm:w-40 dark:brightness-150 dark:saturate-50"
+            className="l-brand-logo h-9 w-32 shrink-0 object-contain sm:h-11 sm:w-40 dark:brightness-150 dark:saturate-50"
           />
         </a>
         <span className="l-hdr-spacer" />

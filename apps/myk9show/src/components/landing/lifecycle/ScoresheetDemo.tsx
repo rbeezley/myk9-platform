@@ -17,6 +17,9 @@ const RESULT_LABEL: Record<QualifyingResult, string> = {
   EX: 'Excused',
   DQ: 'DQ',
 };
+// Only the newest rows are shown; the queue itself keeps every score, so none is dropped.
+const VISIBLE_ROWS = 4;
+
 type Logged = {
   arm: number;
   name: string;
@@ -86,7 +89,7 @@ export function ScoresheetDemo({ syncMs = 1400 }: { syncMs?: number }) {
       result: RESULT_LABEL[result] + (timed ? ` · ${stopwatch.formatTime(elapsed)}` : ''),
       state: online ? 'synced' : 'waiting',
     };
-    const next = [entry, ...log].slice(0, 4);
+    const next = [entry, ...log];
     setLog(next);
     stopwatch.reset();
     setResult(null);
@@ -186,7 +189,7 @@ export function ScoresheetDemo({ syncMs = 1400 }: { syncMs?: number }) {
       </div>
 
       <ul className="lc-demo-log" aria-label="Scores this session">
-        {log.map((l, i) => (
+        {log.slice(0, VISIBLE_ROWS).map((l, i) => (
           <li key={`${l.arm}-${i}`}>
             <span className="lc-demo-chip" data-state={l.state}>
               {l.state === 'waiting' ? 'Waiting' : 'Synced'}

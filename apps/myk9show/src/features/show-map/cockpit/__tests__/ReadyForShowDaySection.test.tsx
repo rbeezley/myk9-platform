@@ -111,5 +111,7 @@ describe('ReadyForShowDaySection', () => {
   it('never claims ready while entries are unread', () => {
     renderSection('2026-10-19T16:00:00Z', { entryBreakdownByClassId: undefined });
     expect(screen.queryByText('Everything is handled.')).not.toBeInTheDocument();
+    // Paperwork is built from the entries, so it can't pass while they are unread either.
+    expect(screen.getAllByText("Can't check right now")).toHaveLength(2);
   });
 });

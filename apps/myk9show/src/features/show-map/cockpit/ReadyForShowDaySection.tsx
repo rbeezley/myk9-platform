@@ -94,7 +94,8 @@ function ReadyForShowDayContent({
         trials,
         classes,
         byClassId: paperwork.byClassId,
-        available: paperwork.available,
+        // The paperwork map is built from the entries: with them unread it is empty, not printed.
+        available: paperwork.available && entryBreakdownByClassId !== undefined,
       }),
       offline: readiness,
     });
@@ -149,5 +150,7 @@ function ReadyForShowDayContent({
 export function ReadyForShowDaySection({ now, ...rest }: ReadyForShowDaySectionProps) {
   const timeZone = getTrialTimezone(rest.trials[0]);
   if (!isReadyForShowDayWindow({ startDate: rest.show.startDate, now, timeZone })) return null;
-  return <ReadyForShowDayContent {...rest} />;
+  // Keyed by show: the offline probe keeps its last answer until it re-measures, so a reused
+  // instance would show the previous show's readiness.
+  return <ReadyForShowDayContent key={rest.show.id} {...rest} />;
 }

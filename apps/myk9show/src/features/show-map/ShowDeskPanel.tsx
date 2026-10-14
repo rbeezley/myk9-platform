@@ -5,6 +5,7 @@ import { PhaseShell } from '@/features/show-workbench/PhaseShell';
 
 import { SecretaryCockpit } from './cockpit/SecretaryCockpit';
 import { buildSecretaryCockpitSnapshot } from './cockpit/buildSecretaryCockpitSnapshot';
+import { ReadyForShowDaySection } from './cockpit/ReadyForShowDaySection';
 import { useShowClassPaperwork } from './cockpit/useShowClassPaperwork';
 import { ShowDeskToolsSheet, type ShowDeskToolSection } from './ShowDeskToolsSheet';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
@@ -101,7 +102,7 @@ export default function ShowDeskPanel({
   );
   // One class projection for paperwork fingerprints, shared with Reports -- never the camelCase
   // tree rows, which lack the facts a fingerprint includes (time limit, area count).
-  const { byClassId: paperworkByClassId } = useShowClassPaperwork({
+  const { byClassId: paperworkByClassId, available: paperworkAvailable } = useShowClassPaperwork({
     showId: show.id,
     trials: trialRefs,
     classes,
@@ -188,6 +189,16 @@ export default function ShowDeskPanel({
           Show-day work has not started. Setup and entry work remain available from their normal
           pages.
         </div>
+      )}
+      {canManageShow && (
+        <ReadyForShowDaySection
+          show={show}
+          trials={trials}
+          classes={classes}
+          now={effectiveScopeNow}
+          entryBreakdownByClassId={entryBreakdownByClassId}
+          paperwork={{ byClassId: paperworkByClassId, available: paperworkAvailable }}
+        />
       )}
       <SecretaryCockpit
         entryBreakdownByClassId={entryBreakdownByClassId}

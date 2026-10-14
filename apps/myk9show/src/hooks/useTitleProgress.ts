@@ -3,6 +3,7 @@
  */
 import { useMemo } from 'react';
 import { useExhibitorResults } from '@/hooks/queries/useExhibitorResults';
+import { onlyReleasedResults } from '@/hooks/queries/releasedExhibitorResults';
 import { useQualifyingManualResultsQuery } from '@/hooks/queries/useManualResultsDatabase';
 import { useSportTemplatesQuery, useAllSportTitlesQuery } from '@/hooks/queries/useSportTemplates';
 import {
@@ -54,7 +55,7 @@ export function useTitleProgress(dogId: string) {
     if (isLoading || isError) return {};
 
     // Build legs for this specific dog
-    const platformLegs: QualifyingLeg[] = exhibitorResults
+    const platformLegs: QualifyingLeg[] = onlyReleasedResults(exhibitorResults)
       .filter(r => r.dogId === dogId)
       .map(mapExhibitorResultToLeg)
       .filter((leg): leg is QualifyingLeg => leg !== null);

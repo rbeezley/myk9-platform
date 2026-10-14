@@ -4,6 +4,7 @@
  */
 import { useMemo } from 'react';
 import { useExhibitorResults } from '@/hooks/queries/useExhibitorResults';
+import { onlyReleasedResults } from '@/hooks/queries/releasedExhibitorResults';
 import { useManualResultsQuery } from '@/hooks/queries/useManualResultsDatabase';
 import { computePerformanceStats, type PerformanceStats } from '@/services/performanceStatsEngine';
 
@@ -33,7 +34,9 @@ export function usePerformanceStatistics(dogId: string) {
     if (isLoading || isError) return null;
 
     // Filter platform results to this specific dog
-    const dogPlatformResults = allExhibitorResults.filter(r => r.dogId === dogId);
+    const dogPlatformResults = onlyReleasedResults(allExhibitorResults).filter(
+      r => r.dogId === dogId
+    );
 
     return computePerformanceStats(dogPlatformResults, manualResults);
   }, [isLoading, isError, allExhibitorResults, manualResults, dogId]);

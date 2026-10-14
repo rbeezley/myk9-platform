@@ -14,6 +14,12 @@ interface AtShowClassRowProps {
   isExhibitorOnly: boolean;
   onClick: (entry: ClassEntry) => void;
   trialTimeZone: string;
+  /**
+   * "<trial label> · <date>" (`formatAtShowTrialHeading`). Passed only where
+   * cards from several trials share one flat list (Your ring, MYK9-1165), so a
+   * multi-day show's identical class names stay tellable apart.
+   */
+  trialHeading?: string | undefined;
   /** In-ring / next-up preview for this card; omitted when unknown. */
   nextUp?: AtShowNextUpPreview | undefined;
   /**
@@ -75,6 +81,7 @@ export function AtShowClassRow({
   isExhibitorOnly,
   onClick,
   trialTimeZone,
+  trialHeading,
   nextUp,
   entryCountsAvailable,
 }: AtShowClassRowProps) {
@@ -102,6 +109,11 @@ export function AtShowClassRow({
             {entry.is_favorite && <Star size={15} className="shrink-0 fill-primary text-primary" />}
             <span className="truncate font-medium">{entry.class_name}</span>
           </div>
+          {trialHeading && (
+            <div className="mt-0.5 truncate text-sm font-medium text-foreground/80">
+              {trialHeading}
+            </div>
+          )}
           {entry.judge_name && entry.judge_name !== 'No Judge Assigned' && (
             <div className="mt-0.5 flex items-center gap-1 truncate text-sm text-muted-foreground">
               <User size={13} className="shrink-0" />

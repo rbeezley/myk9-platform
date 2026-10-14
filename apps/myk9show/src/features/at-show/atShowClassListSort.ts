@@ -65,6 +65,8 @@ export interface YourRingClass {
   entry: ClassEntry;
   scanPriority: number;
   trialTimeZone: string;
+  /** `formatAtShowTrialHeading` of the owning trial (MYK9-1165). */
+  trialHeading?: string | undefined;
 }
 
 export function sortClassesForYourRing(classes: YourRingClass[]): YourRingClass[] {

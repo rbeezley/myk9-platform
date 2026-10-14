@@ -185,6 +185,32 @@ describe('AtShowClassListPage Your ring', () => {
     expect(screen.queryByTestId('at-show-trial-trial-1')).not.toBeInTheDocument();
   });
 
+  it('names each trial day on Your ring cards so same-name classes are distinguishable (MYK9-1165)', async () => {
+    authState.hasRole = role => role === UserRole.JUDGE;
+    authState.userWithRoles = { databaseUserId: 'judge-1' } as UserWithRoles;
+    authState.user = { is_anonymous: false };
+    vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue([
+      { id: 'trial-1', trialNumber: 1, date: '2026-10-06' },
+      { id: 'trial-2', trialNumber: 1, date: '2026-10-07' },
+    ] as never);
+    vi.mocked(replicatedClassesTable.getClassesByTrial).mockImplementation((async (
+      trialId: string
+    ) => [
+      { ...NOVICE_A, id: trialId === 'trial-1' ? 'day1-a' : 'day2-a', section: '-' },
+    ]) as never);
+    judgeAssignmentData.getActive.mockResolvedValue([
+      { id: 'as-1', personId: 'judge-1', classId: 'day1-a', status: 'confirmed' },
+      { id: 'as-2', personId: 'judge-1', classId: 'day2-a', status: 'confirmed' },
+    ] as never);
+
+    renderPage();
+
+    const yourRing = await screen.findByRole('region', { name: 'Your ring' });
+    expect(within(yourRing).getAllByText(/Container Novice/)).toHaveLength(2);
+    expect(within(yourRing).getByText(/Oct 6, 2026/)).toBeInTheDocument();
+    expect(within(yourRing).getByText(/Oct 7, 2026/)).toBeInTheDocument();
+  });
+
   it('keeps trial sections for broader staff who also judge', async () => {
     authState.hasRole = role => role === UserRole.JUDGE || role === UserRole.SECRETARY;
     authState.userWithRoles = { databaseUserId: 'judge-secretary-1' } as UserWithRoles;

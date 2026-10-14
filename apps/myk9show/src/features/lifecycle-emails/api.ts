@@ -109,6 +109,17 @@ export interface EntryDecisionEmailStatus {
   sentCorrectionJob: EntryDecisionEmailJob | null;
 }
 
+/** A multi-chunk send that failed after some chunks went out; the message is safe to show. */
+export class LifecycleSendPartialError extends Error {
+  constructor(
+    readonly sent: number,
+    readonly total: number
+  ) {
+    super(`Sent ${sent} of ${total} emails; the rest are still waiting. Send again to finish.`);
+    this.name = 'LifecycleSendPartialError';
+  }
+}
+
 export interface LifecycleEmailFunctionsClient {
   functions: {
     invoke: (
@@ -303,7 +314,7 @@ export async function sendLifecycleEmailJobs(args: {
   // Sent jobs leave the ready/failed set the review reads, so sending again resumes safely.
   let sent = 0;
   for (const jobIds of chunk(args.jobIds, ID_CHUNK_SIZE)) {
-    const { error } = await args.supabase.functions.invoke('send-lifecycle-email', {
+    const { data, error } = await args.supabase.functions.invoke('send-lifecycle-email', {
       body: {
         action: 'send',
         show_id: args.showId,
@@ -316,11 +327,11 @@ export async function sendLifecycleEmailJobs(args: {
 
     if (error) {
       if (sent === 0) throw new Error(error.message ?? 'Failed to send lifecycle email');
-      throw new Error(
-        `Sent ${sent} of ${args.jobIds.length} emails; the rest are still waiting. Send again to finish.`
-      );
+      throw new LifecycleSendPartialError(sent, args.jobIds.length);
     }
-    sent += jobIds.length;
+    // The handler answers 200 with { attempted, sent, failed }; count what really went out.
+    const reported = (data as { sent?: unknown } | null | undefined)?.sent;
+    sent += typeof reported === 'number' ? reported : jobIds.length;
   }
 }
 

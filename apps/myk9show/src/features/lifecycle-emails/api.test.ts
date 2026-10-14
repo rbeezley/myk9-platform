@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   fetchLifecycleEmailJobsForReview,
+  LifecycleSendPartialError,
   fetchEntryDecisionEmailStatuses,
   fetchShowLifecycleEmailSummary,
   saveLifecycleEmailJobForLater,
@@ -509,6 +510,27 @@ describe('lifecycle email api helpers', () => {
       expect(bodies).toHaveLength(2);
     });
 
+    it('counts what the handler reports as sent, not the chunk length', async () => {
+      let call = 0;
+      const client: LifecycleEmailFunctionsClient = {
+        functions: {
+          invoke: async () => {
+            call += 1;
+            return call === 1
+              ? { data: { attempted: 100, sent: 95, failed: 5 }, error: null }
+              : { data: null, error: { message: 'edge down' } };
+          },
+        },
+      };
+      const failure = await sendLifecycleEmailJobs({
+        supabase: client,
+        showId: 'show-1',
+        jobIds: ids(250),
+      }).catch((e: unknown) => e);
+      expect(failure).toBeInstanceOf(LifecycleSendPartialError);
+      expect((failure as Error).message).toContain('Sent 95 of 250 emails');
+    });
+
     it('keeps the plain error when the first chunk fails', async () => {
       const { client } = recorder(1);
       await expect(
@@ -604,19 +626,20 @@ describe('lifecycle email api helpers', () => {
         { table: JOBS, order: 'id', gt: null, limit: 1000 },
         { table: JOBS, order: 'id', gt: idOf(999), limit: 1000 },
         { table: JOBS, order: 'id', gt: idOf(1999), limit: 1000 },
+        { table: JOBS, order: 'id', gt: idOf(2299), limit: 1000 },
       ]);
     });
 
-    it('stops after one request when the first page is short', async () => {
+    it('stops on the first empty page, so a short page costs one extra request', async () => {
       const { client, reads } = createClient({
         show_lifecycle_email_steps: [],
         [JOBS]: jobsFor(3),
       });
       await fetchShowLifecycleEmailSummary({ supabase: client, showId: 'show-1' });
-      expect(jobReads(reads)).toHaveLength(1);
+      expect(jobReads(reads)).toHaveLength(2);
     });
 
-    it('makes one extra empty request after exactly 1000 jobs and misses nothing', async () => {
+    it('makes the empty closing request after exactly 1000 jobs and misses nothing', async () => {
       const { client, reads } = createClient({ [JOBS]: jobsFor(1000) });
       const jobs = await review(client);
       expect(jobs).toHaveLength(1000);

@@ -33,7 +33,8 @@ export async function fetchAllPages<T extends { id: string }>(
     if (result.error) return { data: null, error: result.error };
     const data = result.data ?? [];
     rows.push(...data);
-    if (data.length < LIFECYCLE_EMAIL_PAGE_SIZE) return { data: rows, error: null };
+    // Stop only on an EMPTY page: a hosted max_rows below our limit would otherwise read as "short".
+    if (data.length === 0) return { data: rows, error: null };
     lastId = data[data.length - 1].id;
   }
   throw new Error(

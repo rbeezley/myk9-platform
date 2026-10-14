@@ -8,6 +8,7 @@ import {
   skipLifecycleEmailJobsForReview,
   updateLifecycleEmailStepEnabled,
 } from './api';
+import { LifecycleSendPartialError } from './api';
 import { ScheduledLifecycleEmailsPanel } from './ScheduledLifecycleEmailsPanel';
 
 vi.mock('./api', async importOriginal => {
@@ -163,17 +164,36 @@ describe('ScheduledLifecycleEmailsPanel', () => {
     });
   });
 
-  it('shows the send error, including a partial-send count, in the review panel', async () => {
-    mockSendJobs.mockRejectedValue(
-      new Error('Sent 200 of 2300 emails; the rest are still waiting. Send again to finish.')
+  it('shows a partial-send count beside Send and refreshes the review list', async () => {
+    mockSendJobs.mockRejectedValue(new LifecycleSendPartialError(200, 2300));
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    const fetchesBefore = mockFetchJobs.mock.calls.length;
+    const send = screen.getByRole('button', { name: 'Send now' });
+    await user.click(send);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(
+      'Sent 200 of 2300 emails; the rest are still waiting. Send again to finish.'
     );
+    // Same footer container as Send, so it is visible without scrolling the list.
+    expect(alert.parentElement).toBe(send.parentElement?.parentElement);
+    // onError invalidates the review query: the list is fetched again after the failure.
+    await waitFor(() => expect(mockFetchJobs.mock.calls.length).toBeGreaterThan(fetchesBefore));
+    expect(send).toHaveTextContent('Send now');
+  });
+
+  it('shows one calm sentence, never raw error text, for any other send failure', async () => {
+    mockSendJobs.mockRejectedValue(new Error('Edge Function returned a non-2xx status code'));
     const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
     await user.click(await screen.findByRole('button', { name: 'Review' }));
     await screen.findByRole('dialog');
     await user.click(screen.getByRole('button', { name: 'Send now' }));
 
-    expect(await screen.findByText(/Sent 200 of 2300 emails/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Send now' })).toBeEnabled();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent("Couldn't send these emails. Nothing was lost; try again.");
+    expect(alert).not.toHaveTextContent('non-2xx');
   });
 
   it('closes the review slide-out on Escape and returns focus to the Review button', async () => {

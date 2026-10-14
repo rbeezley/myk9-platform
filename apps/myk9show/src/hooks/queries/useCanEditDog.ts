@@ -78,3 +78,30 @@ export function useCanEditDog(dogId: string, knownAllowed: boolean): boolean {
   });
   return canEditFromCheck({ knownAllowed, data: query.data });
 }
+
+/** `null` when the server has no such dog yet (created on this device, not uploaded). */
+async function fetchCanChangeDogOwner(dogId: string): Promise<boolean | null> {
+  const { data, error } = await withTimeout(
+    supabase.rpc('can_change_dog_owner', { p_dog_id: dogId }),
+    CHECK_TIMEOUT_MS,
+    'can_change_dog_owner'
+  );
+  if (error) throw error;
+  return typeof data === 'boolean' ? data : null;
+}
+
+/**
+ * May the viewer change who owns this dog? Asks `can_change_dog_owner()` (MYK9-1158): the
+ * dogs_update rule plus `trg_00_guard_owner_change`, which freezes an account holder's dog's
+ * ownership against everyone but that owner and site admins. Decided like `useCanEditDog`.
+ */
+export function useCanChangeDogOwner(dogId: string, knownAllowed: boolean): boolean {
+  const query = useQuery({
+    queryKey: queryKeys.dogCanChangeOwner(dogId),
+    queryFn: () => fetchCanChangeDogOwner(dogId),
+    enabled: !knownAllowed && Boolean(dogId),
+    staleTime: 60_000,
+    retry: false,
+  });
+  return canEditFromCheck({ knownAllowed, data: query.data });
+}

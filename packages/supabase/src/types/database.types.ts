@@ -12975,6 +12975,7 @@ export type Database = {
         Args: { p_club_id: string; p_livemode?: boolean }
         Returns: boolean
       }
+      can_change_dog_owner: { Args: { p_dog_id: string }; Returns: boolean }
       can_edit_dog: { Args: { p_dog_id: string }; Returns: boolean }
       can_edit_person: { Args: { p_person_id: string }; Returns: boolean }
       can_manage_show: { Args: { check_show_id: string }; Returns: boolean }
@@ -13352,6 +13353,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      dog_has_account_holder: {
+        Args: { p_co_owner_id: string; p_owner_id: string }
+        Returns: boolean
       }
       emergency_packet_input: {
         Args: { p_show_id: string; p_trial_date?: string }

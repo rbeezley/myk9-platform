@@ -1,4 +1,5 @@
--- Behavioral contract for 20261012224900_dogs_update_secretary_created_dogs.sql.
+-- Behavioral contract for 20261012224900_dogs_update_secretary_created_dogs.sql and
+-- 20261014191300_myk9_1158_dog_owner_change_guard.sql (last section).
 --
 -- A secretary may edit a dog she brought in (created_by her, while she still holds a staff
 -- role) or one created from a show she manages (created_from_show_id), on top of the
@@ -174,6 +175,136 @@ BEGIN
   RAISE NOTICE 'PASS dogs_update: a secretary edits the dogs she created or that came from her '
     'shows, not an exhibitor''s untied dog or another club''s; a deactivated secretary loses '
     'hers; the owner keeps all; can_edit_dog() agrees; anon is refused both functions';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- MYK9-1158: once the dog's owner or co-owner has an account, only that owner/co-owner (or
+-- a site admin) can change who owns it, even when another arm lets the caller edit the
+-- dog's details. A mail-in dog (no account on either side) can still have its owner
+-- corrected by the staff who may edit it, including handing it to an account holder.
+-- can_change_dog_owner(), the owner picker's question, agrees cell for cell.
+-- ---------------------------------------------------------------------------
+-- Clear the claims the blocks above left set (transaction-local), so the fixture insert
+-- keeps the supplied created_by as a seed/service write does.
+SELECT set_config('request.jwt.claims', '', true), set_config('request.jwt.claim.sub', '', true);
+
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id) VALUES
+  ('00000000-0000-0000-0000-00000d0e0b04', 'DogEdit', 'MailIn', 'dogedit-mailin@example.test', NULL),
+  ('00000000-0000-0000-0000-00000d0e0b05', 'DogEdit', 'MailInTwo', 'dogedit-mailin2@example.test', NULL);
+
+INSERT INTO public.dogs (id, call_name, breed, owner_id, created_by, created_from_show_id) VALUES
+  ('00000000-0000-0000-0000-00000d0e0d06', 'DogEdit Mail-in', 'Poodle',
+   '00000000-0000-0000-0000-00000d0e0b04', '00000000-0000-0000-0000-00000d0e0101', NULL);
+
+DO $$
+DECLARE
+  secretary  uuid := '00000000-0000-0000-0000-00000d0e0101';
+  owner_user uuid := '00000000-0000-0000-0000-00000d0e0102';
+  created_by_sec uuid := '00000000-0000-0000-0000-00000d0e0d01';  -- account holder's dog
+  untied         uuid := '00000000-0000-0000-0000-00000d0e0d03';
+  mail_in_dog    uuid := '00000000-0000-0000-0000-00000d0e0d06';
+  account_owner  uuid := '00000000-0000-0000-0000-00000d0e0b02';
+  mail_in_owner  uuid := '00000000-0000-0000-0000-00000d0e0b04';
+  mail_in_two    uuid := '00000000-0000-0000-0000-00000d0e0b05';
+  n integer;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', secretary, 'role', 'authenticated')::text, true);
+
+  -- Positive control: the creator arm still lets her correct the account holder's dog.
+  UPDATE public.dogs SET date_of_birth = DATE '2020-02-01' WHERE id = created_by_sec;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL control: the creating secretary could not edit the dog (% rows); '
+      'the ownership refusals below would prove nothing', n;
+  END IF;
+
+  IF public.can_change_dog_owner(created_by_sec) IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FAIL can_change_dog_owner() offers the secretary an account holder''s dog';
+  END IF;
+
+  BEGIN
+    UPDATE public.dogs SET owner_id = mail_in_two WHERE id = created_by_sec;
+    RAISE EXCEPTION 'FAIL a non-owner re-owned an account holder''s dog';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+
+  BEGIN
+    UPDATE public.dogs SET co_owner_id = mail_in_two WHERE id = created_by_sec;
+    RAISE EXCEPTION 'FAIL a non-owner set the co-owner of an account holder''s dog';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+
+  -- A dog she may not edit at all is not offered either.
+  IF public.can_change_dog_owner(untied) IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FAIL can_change_dog_owner() offers a dog the secretary cannot edit';
+  END IF;
+
+  -- Mail-in dog: she may correct its owner, then hand it to an exhibitor with an
+  -- account (Codex #2989: WITH CHECK reads the new row, and the creator arm admits it).
+  IF public.can_change_dog_owner(mail_in_dog) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'FAIL can_change_dog_owner() refuses the secretary her own mail-in dog';
+  END IF;
+  UPDATE public.dogs SET owner_id = mail_in_two WHERE id = mail_in_dog;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL the secretary could not correct a mail-in dog''s owner (% rows)', n;
+  END IF;
+  UPDATE public.dogs SET owner_id = account_owner WHERE id = mail_in_dog;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL the secretary could not hand a mail-in dog to an account holder (% rows)', n;
+  END IF;
+
+  -- From then on the dog is the account holder's: details yes, ownership no.
+  UPDATE public.dogs SET date_of_birth = DATE '2020-02-02' WHERE id = mail_in_dog;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL the secretary lost detail edits after the handoff (% rows)', n;
+  END IF;
+  BEGIN
+    UPDATE public.dogs SET owner_id = mail_in_owner WHERE id = mail_in_dog;
+    RAISE EXCEPTION 'FAIL the secretary took the dog back from the account holder';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+
+  -- Not on the server is unanswered, not "no".
+  IF public.can_change_dog_owner('00000000-0000-0000-0000-00000d0e0dff') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL can_change_dog_owner() of an unknown dog id is not NULL';
+  END IF;
+
+  -- The account holder may change her own dog's ownership.
+  PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', owner_user, 'role', 'authenticated')::text, true);
+  IF public.can_change_dog_owner(created_by_sec) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'FAIL can_change_dog_owner() refuses the owner her own dog';
+  END IF;
+  UPDATE public.dogs SET co_owner_id = mail_in_two WHERE id = created_by_sec;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL the owner could not set her own dog''s co-owner (% rows)', n;
+  END IF;
+
+  RESET ROLE;
+
+  SELECT count(*) INTO n FROM public.dogs
+  WHERE (id = created_by_sec AND owner_id = account_owner AND co_owner_id = mail_in_two)
+     OR (id = mail_in_dog AND owner_id = account_owner);
+  IF n <> 2 THEN
+    RAISE EXCEPTION 'FAIL ownership changed after a refusal (% of 2 rows as expected)', n;
+  END IF;
+
+  SET LOCAL ROLE anon;
+  BEGIN
+    PERFORM public.can_change_dog_owner(untied);
+    RAISE EXCEPTION 'FAIL anon executed can_change_dog_owner()';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RESET ROLE;
+
+  RAISE NOTICE 'PASS MYK9-1158: a non-owner who may edit an account holder''s dog cannot re-own '
+    'it; a mail-in dog''s owner can be corrected and handed to an account holder, after which '
+    'it is frozen; the owner changes her own; can_change_dog_owner() agrees; anon refused';
 END;
 $$;
 

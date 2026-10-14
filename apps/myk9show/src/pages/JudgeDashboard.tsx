@@ -38,7 +38,7 @@ import { StatusBadge, StatusIcon } from '@/components/status';
 const JUDGE_TABS: PrimaryTabDef[] = [
   { id: 'today', label: 'Today', icon: CalendarDays },
   { id: 'upcoming', label: 'Upcoming', icon: Calendar },
-  { id: 'completed', label: 'Completed', icon: CheckCircle },
+  { id: 'completed', label: 'Past', icon: CheckCircle },
 ];
 
 const getStatusBadge = (status: JudgeClass['status']) => {
@@ -50,6 +50,8 @@ const getStatusBadge = (status: JudgeClass['status']) => {
 interface AssignmentRowProps {
   judgeClass: JudgeClass;
   showDate?: boolean;
+  /** Row sits on the Past tab (earlier show day). */
+  isPast?: boolean;
   onStartJudging?: (judgeClass: JudgeClass) => void;
   onViewResults?: (judgeClass: JudgeClass) => void;
 }
@@ -57,12 +59,16 @@ interface AssignmentRowProps {
 const AssignmentRow: React.FC<AssignmentRowProps> = ({
   judgeClass,
   showDate = false,
+  isPast = false,
   onStartJudging,
   onViewResults,
 }) => {
   const ringLabel = formatRingLabel(judgeClass.ringNumber);
   const isCompleted = judgeClass.status === 'completed';
   const entryCountsAvailable = judgeClass.entryCountsAvailable !== false;
+  // A not-started class on a past show day is never offered "Start Judging";
+  // it gets a neutral "Open class" so it stays reachable.
+  const isPastNotStarted = isPast && judgeClass.status === 'pending';
 
   return (
     <div className="group relative overflow-hidden flex items-center justify-between p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]">
@@ -90,14 +96,18 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
             )}
             {/* Render the clock in the trial's zone, not the device's, so a
                 judge on an Eastern device reads a Chicago trial's real time. */}
-            <span>
-              {judgeClass.scheduledTime.toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-                timeZone: judgeClass.trialTimezone,
-              })}
-            </span>
-            <span>&bull;</span>
+            {judgeClass.hasStartTime !== false && (
+              <>
+                <span>
+                  {judgeClass.scheduledTime.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: judgeClass.trialTimezone,
+                  })}
+                </span>
+                <span>&bull;</span>
+              </>
+            )}
             <span>
               {!entryCountsAvailable
                 ? 'Entry totals unavailable'
@@ -110,7 +120,19 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
       </div>
       <div className="relative flex items-center gap-2">
         {getStatusBadge(judgeClass.status)}
-        {!isCompleted && onStartJudging && (
+        {isPastNotStarted && onViewResults && (
+          <Button
+            variant="outline"
+            size="touch"
+            // Opening is not starting: plain navigation, no start_judging audit entry.
+            onClick={() => onViewResults(judgeClass)}
+            className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-300"
+          >
+            Open class
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+        )}
+        {!isCompleted && !isPastNotStarted && onStartJudging && (
           <Button
             size="touch"
             onClick={() => onStartJudging(judgeClass)}
@@ -410,12 +432,13 @@ const JudgeDashboard: React.FC = () => {
 
                   <TabsContent value="completed" className="mt-4 space-y-4">
                     {buckets.completed.map(judgeClass => (
-                      // Past unfinished classes appear here with their true status
-                      // badge and a Continue Judging action, so they stay reachable.
+                      // Past rows stay reachable but never offer "Start Judging": not-started
+                      // gets "Open class", in-progress keeps Continue, completed View Results.
                       <AssignmentRow
                         key={judgeClass.id}
                         judgeClass={judgeClass}
                         showDate
+                        isPast
                         onStartJudging={handleStartJudging}
                         onViewResults={handleViewResults}
                       />
@@ -424,8 +447,8 @@ const JudgeDashboard: React.FC = () => {
                     {buckets.completed.length === 0 && (
                       <TabEmptyState
                         icon={<CheckCircle2 className="h-12 w-12 text-success" />}
-                        title="No Completed Classes"
-                        body="Completed judging assignments will appear here."
+                        title="No Past Classes"
+                        body="Judging assignments from earlier show days will appear here."
                       />
                     )}
                   </TabsContent>

@@ -43,7 +43,7 @@ interface RegistrationsSectionProps {
 }
 
 import { useRegistrationsStore } from '@/store/registrationsStore';
-import { EDIT_REGISTRATION_ATTR } from './useRegistrationModeFocus';
+import { EDIT_REGISTRATION_ATTR } from '@/components/dogs/registrationAttrs';
 
 /**
  * The dog's registrations as a list of cards, with per-row Edit / Delete.

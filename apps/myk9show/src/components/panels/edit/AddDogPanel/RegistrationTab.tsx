@@ -18,11 +18,8 @@ interface RegistrationTabProps {
   flat?: boolean | undefined;
 }
 
-import {
-  ADD_REGISTRATION_ATTR,
-  EDIT_REGISTRATION_ATTR,
-  REGISTRATION_HEADING_ID,
-} from './validationTab';
+import { ADD_REGISTRATION_ATTR, REGISTRATION_HEADING_ID } from './validationTab';
+import { EDIT_REGISTRATION_ATTR } from '@/components/dogs/registrationAttrs';
 
 export const RegistrationTab: React.FC<RegistrationTabProps> = ({
   onRemoveRegistration,

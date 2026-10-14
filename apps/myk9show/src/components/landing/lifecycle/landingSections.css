@@ -1,5 +1,4 @@
-/* The landing header lays out by its own width, not the screen's: on the signed-in
-   onboarding return the app sidebar takes part of a tablet screen. */
+/* The landing header lays out by its own width, not the screen's, like the timeline. */
 .landing-v2 .l-hdr {
   container: lhdr / inline-size;
 }

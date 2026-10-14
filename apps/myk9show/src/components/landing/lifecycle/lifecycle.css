@@ -1,6 +1,6 @@
 /* Show-lifecycle timeline (canvas version D). Tokens from src/styles/landing.css. */
-/* The timeline lays out by the width it actually gets, not the screen: on the signed-in
-   onboarding return the app sidebar takes 240px of a tablet screen. */
+/* The timeline, and the demos nested in its cards, lay out by the width they actually
+   get rather than the screen's, so a breakpoint never assumes the page owns the screen. */
 .landing-v2 .lc {
   container: lc-timeline / inline-size;
   background: var(--ivory-100, #f3efe6);

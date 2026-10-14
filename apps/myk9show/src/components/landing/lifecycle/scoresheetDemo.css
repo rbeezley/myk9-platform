@@ -234,7 +234,7 @@
   font-weight: 600;
   color: var(--ink-900);
 }
-/* Narrow demo (a phone, or a tablet with the app sidebar open): the bezel and inner
+/* Narrow demo (on phones it sits in the show-day card beside the timeline rail): the bezel and inner
    padding shrink, and the clock is sized from the demo's own width (about 4em of
    digits inside ~64px of padding) so it always fits its card. */
 @container lc-demo (max-width: 400px) {

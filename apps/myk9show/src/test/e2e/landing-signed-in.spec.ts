@@ -48,14 +48,16 @@ test.describe('landing for a signed-in secretary', () => {
       .toBeGreaterThanOrEqual(-1);
   });
 
-  // The app sidebar takes 240px beside the landing on tablets, so the timeline, the
-  // practice scoresheet and the header must lay out by the width they get.
-  test('nothing spills beside the app sidebar on a tablet', async ({ page }) => {
+  // Signed in, the landing renders under the app header (no sidebar: `/` sits outside
+  // UnifiedAppLayout) and the landing header drops Sign in. Nothing may spill at tablet
+  // widths, in either audience.
+  test('nothing spills on a signed-in tablet', async ({ page }) => {
     await signInAsSecretary(page, '/');
     for (const width of [768, 1024]) {
       await page.setViewportSize({ width, height: 1024 });
       await page.goto('/?onboarding=true');
       await expect(page.locator('#showday-dot')).toBeAttached({ timeout: 30000 });
+      await expect(page.locator('.landing-v2')).toHaveAttribute('data-guest', 'false');
       await expectHeaderFits(page);
       for (const audience of ['club', 'exhibitor']) {
         if (audience === 'exhibitor') {

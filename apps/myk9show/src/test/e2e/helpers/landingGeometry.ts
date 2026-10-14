@@ -4,7 +4,7 @@ import { expect, type Page } from '@playwright/test';
  * Every in-flow element on the landing page fits inside its parent's content box and the
  * screen. Absolutely positioned decorations and the timeline rail are exempt; a parent that
  * clips (overflow other than visible) owns its own overflow. Shared by the guest and
- * signed-in landing specs, since the signed-in return renders beside the app sidebar.
+ * signed-in landing specs.
  */
 export async function expectNoLandingSpills(page: Page, context: string) {
   const spills = await page.evaluate(() => {
@@ -62,7 +62,12 @@ export async function expectHeaderFits(page: Page) {
         };
       })
   );
-  expect(targets.filter(t => t.isButton).length).toBeGreaterThanOrEqual(2);
+  // How many buttons show depends on sign-in (no Sign in) and header width (no Find a
+  // show when narrow); the primary club action is always there.
+  expect(
+    targets.some(t => t.isButton && t.text === 'Add your club'),
+    'Add your club is missing from the header'
+  ).toBe(true);
   const width = page.viewportSize()!.width;
   for (const t of targets) {
     if (t.isButton) expect(t.lines, `"${t.text}" wraps`).toBe(1);

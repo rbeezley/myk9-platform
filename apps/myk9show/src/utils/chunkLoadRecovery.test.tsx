@@ -5,7 +5,6 @@ import { RELOAD_FALLBACK_MS, lazyWithRetry } from './lazyWithRetry';
 import {
   RECOVERY_STORAGE_KEY,
   RELOAD_WINDOW_MS,
-  __resetChunkRecoveryForTests,
   canRecoverByReload,
   isChunkLoadError,
   recoverFromChunkLoadError,
@@ -28,7 +27,6 @@ async function flushRecovery() {
 describe('chunkLoadRecovery', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    __resetChunkRecoveryForTests();
     window.sessionStorage.clear();
     setPath('/shows');
     setOnline(true);

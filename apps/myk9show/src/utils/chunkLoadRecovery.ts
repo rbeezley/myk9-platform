@@ -37,8 +37,6 @@ export function isChunkLoadError(error: unknown): boolean {
   return CHUNK_ERROR_PATTERNS.some(pattern => pattern.test(error.message));
 }
 
-let reloadedThisDocument = false;
-
 function recentlyReloaded(now: number): boolean {
   try {
     const at = Number(window.sessionStorage.getItem(RECOVERY_STORAGE_KEY));
@@ -61,7 +59,6 @@ function rememberReload(now: number): boolean {
 /** True when an automatic recovery reload is allowed right now for this error. */
 export function canRecoverByReload(error: unknown, now: number = Date.now()): boolean {
   if (!isChunkLoadError(error)) return false;
-  if (reloadedThisDocument) return false;
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
   if (isSensitivePath(window.location.pathname)) return false;
   return !recentlyReloaded(now);
@@ -78,12 +75,6 @@ export function recoverFromChunkLoadError(error: unknown): boolean {
   // Fail closed: without a stamp that survives the reload, a chunk that stays down (a bad
   // deploy, a captive portal) would reload this page forever.
   if (!rememberReload(now)) return false;
-  reloadedThisDocument = true;
   window.location.reload();
   return true;
-}
-
-/** Test seam: forget the in-memory once-per-document flag. */
-export function __resetChunkRecoveryForTests(): void {
-  reloadedThisDocument = false;
 }

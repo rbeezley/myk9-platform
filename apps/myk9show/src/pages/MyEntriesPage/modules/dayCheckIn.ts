@@ -89,9 +89,6 @@ export function isEntryCloseDayPast(
   return calendarDayInZone(now, LAST_ZONE_TO_ROLL_OVER) > closeDay;
 }
 
-/** What a not-yet-open day says about check-in; My Shows and the show page share it. */
-export const CHECK_IN_ON_THE_DAY_LABEL = 'Check in on the day';
-
 /** Is the trial's calendar day still ahead of `now` in the trial's timezone? */
 export function isTrialDayAhead(
   trialDate: Date | undefined,

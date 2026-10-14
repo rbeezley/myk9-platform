@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { WhereToBe } from './WhereToBe';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
+import { getStatusDescriptor } from '@/components/status';
 
 function makeEntry(overrides: Partial<EnrichedShowEntry> = {}): EnrichedShowEntry {
   return {
@@ -487,6 +488,7 @@ describe('WhereToBe', () => {
       const links = screen.getAllByRole('link');
       expect(links[0].getAttribute('aria-label')).toMatch(/next up/i);
       expect(links[1].getAttribute('aria-label')).not.toMatch(/next up|not checked in/i);
+      expect(links[1].getAttribute('aria-label')).not.toMatch(/—\s*$/);
     });
 
     it('keeps a future row that already has a real check-in state', () => {
@@ -507,6 +509,34 @@ describe('WhereToBe', () => {
         />
       );
       expect(screen.queryByText('Check in on the day')).not.toBeInTheDocument();
+      // The real check-in state still shows; the place-in-line claim is still withheld.
+      expect(
+        screen.getByText(getStatusDescriptor('entry', 'checked-in').label)
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/next up/i)).not.toBeInTheDocument();
+    });
+
+    it('keeps the old labels while the trial timezone is unresolved (no zone, no claim)', () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-14T15:00:00Z'));
+      mockTrials.data = [];
+      mockPlaces.map = new Map([['e-unresolved', 1]]);
+      render(
+        <WhereToBe
+          entries={[
+            makeEntry({
+              entryId: 'e-unresolved',
+              queue: { kind: 'waiting-unknown' },
+              checkInStatus: 'no-status',
+              trialDate: '2026-10-16',
+              dayLabel: 'Friday, Oct 16',
+            }),
+          ]}
+          showId={SHOW_ID}
+        />
+      );
+      expect(screen.getByText(/next up/i)).toBeInTheDocument();
+      expect(screen.getByText('Not checked in')).toBeInTheDocument();
     });
 
     it('reckons "future" in the trial timezone, not the device UTC day', () => {

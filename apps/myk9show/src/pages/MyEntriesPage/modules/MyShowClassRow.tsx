@@ -29,7 +29,7 @@ import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { formatTrialLabel } from '@myk9/core';
 import { canLeaveClass } from './leaveClassRow';
 import { deriveClassRowState, type ClassRowKind } from './myShowDogState';
-import { CHECK_IN_ON_THE_DAY_LABEL, type DayCheckInContext } from './dayCheckIn';
+import type { DayCheckInContext } from './dayCheckIn';
 import type { MyShowClass } from './groupEntriesByShow';
 import type { MyEntry } from './my-entries-types';
 
@@ -175,7 +175,7 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
           </button>
         )}
         {state.kind === 'opens-later' && (
-          <span className="text-muted-foreground">{CHECK_IN_ON_THE_DAY_LABEL}</span>
+          <span className="text-muted-foreground">Check in on the day</span>
         )}
         {/* Ahead of the trial day AND not eligible for check-in that day
             either way (pending review, self check-in disabled, unresolved

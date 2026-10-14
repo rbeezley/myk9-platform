@@ -149,7 +149,14 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
     <Link
       to={href}
       className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-3 transition-colors hover:bg-muted/70"
-      aria-label={`${entry.classTitle} — ${entry.dayLabel} ${accessibleTimeLabel} — ${[positionLabel, checkInLabel].filter(Boolean).join(' — ')}`}
+      aria-label={[
+        entry.classTitle,
+        `${entry.dayLabel} ${accessibleTimeLabel}`.trim(),
+        positionLabel,
+        checkInLabel,
+      ]
+        .filter(Boolean)
+        .join(' — ')}
     >
       {(entry.startTime || entry.armband) && (
         <span className="flex w-28 shrink-0 flex-col gap-1">

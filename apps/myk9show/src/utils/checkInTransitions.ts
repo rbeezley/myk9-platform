@@ -4,13 +4,14 @@ import { logger } from '@/services/LoggingService';
 
 /**
  * Transition an entry to "in-ring" status when a scoresheet opens.
- * Sets check-in status + ring_entry_time. No-ops if already completed.
+ * Sets check-in status + ring_entry_time. No-ops if already completed or already in-ring, so
+ * reopening (Resume) keeps the original ring_entry_time and sends no extra write.
  */
 export function transitionToInRing(
   entryId: string,
   currentStatus: CheckInStatus | undefined
 ): void {
-  if (currentStatus === 'completed') return;
+  if (currentStatus === 'completed' || currentStatus === 'in-ring') return;
 
   updateReplicatedCheckInStatus(entryId, 'in-ring', {
     ring_entry_time: new Date().toISOString(),

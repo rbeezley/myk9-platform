@@ -55,7 +55,8 @@ export interface MyShowGroup {
   showId: string;
   showName: string;
   isShowCancelled: boolean;
-  showDate: Date;
+  isShowUnreadable: boolean;
+  showDate?: Date | undefined;
   showEndDate?: Date | undefined;
   location: MyEntry['location'];
   /** Earliest close date across the show's orders, when any carries one. */
@@ -71,8 +72,10 @@ export interface MyShowGroup {
  * rows can arrive without a `showId`, and collapsing them all under `''` would
  * merge unrelated shows into one card group.
  */
-function nameDateKey(entry: MyEntry): string {
-  return `${entry.showName}|${entry.showDate.getTime()}`;
+function nameDateKey(entry: MyEntry): string | undefined {
+  // No date means no bridge: two undated shows (unreadable drafts) must never
+  // be merged on a shared placeholder name (MYK9-1147).
+  return entry.showDate ? `${entry.showName}|${entry.showDate.getTime()}` : undefined;
 }
 
 /**
@@ -89,6 +92,7 @@ function resolveShowKey(entry: MyEntry, byNameDate: Map<string, string>): string
   // degraded-group adoption is handled by the caller.
   if (entry.showId) return entry.showId;
   const nameDate = nameDateKey(entry);
+  if (!nameDate) return `${entry.showName}|${entry.id}`;
   return byNameDate.get(nameDate) ?? nameDate;
 }
 
@@ -124,6 +128,7 @@ function startGroup(order: MyEntry, key: string): ShowAccum {
       showId: order.showId,
       showName: order.showName,
       isShowCancelled: Boolean(order.isShowCancelled),
+      isShowUnreadable: Boolean(order.isShowUnreadable),
       showDate: order.showDate,
       showEndDate: order.showEndDate,
       location: order.location,
@@ -141,6 +146,7 @@ function mergeShowFacts(accum: ShowAccum, order: MyEntry): void {
   group.isShowCancelled ||= Boolean(order.isShowCancelled);
   // A show's own dates/venue are identical across its orders; keep the first
   // non-empty one so a degraded row never blanks a resolved header.
+  group.showDate = group.showDate ?? order.showDate;
   group.showEndDate = group.showEndDate ?? order.showEndDate;
   if (!group.location.venue && order.location.venue) group.location = order.location;
   // The editing window is the show's, so take the EARLIEST close date any order
@@ -177,7 +183,7 @@ export function groupEntriesByShow(orders: MyEntry[]): MyShowGroup[] {
     const nameDate = nameDateKey(order);
     let key = resolveShowKey(order, byNameDate);
     let accum = shows.get(key);
-    if (!accum && order.showId && byNameDate.get(nameDate)?.includes('|')) {
+    if (!accum && order.showId && nameDate && byNameDate.get(nameDate)?.includes('|')) {
       // A degraded group was opened under name+date before this resolved
       // order arrived: adopt it and give it the real show id.
       const degradedKey = byNameDate.get(nameDate)!;
@@ -196,7 +202,7 @@ export function groupEntriesByShow(orders: MyEntry[]): MyShowGroup[] {
     } else {
       mergeShowFacts(accum, order);
     }
-    byNameDate.set(nameDate, key);
+    if (nameDate) byNameDate.set(nameDate, key);
     accum.group.orders.push(order);
 
     for (const orderDog of order.dogs) {
@@ -258,7 +264,8 @@ export function buildShowGroupIndex(orders: MyEntry[]): Map<string, MyShowGroup>
     index.set(group.key, group);
     for (const order of group.orders) {
       if (order.showId) index.set(order.showId, group);
-      index.set(nameDateKey(order), group);
+      const nameDate = nameDateKey(order);
+      if (nameDate) index.set(nameDate, group);
     }
   }
   return index;

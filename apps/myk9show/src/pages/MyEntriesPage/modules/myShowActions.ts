@@ -45,6 +45,12 @@ export interface MyShowActionsFacts {
    * registration wizard would refuse it anyway.
    */
   isPastShow: boolean;
+  /**
+   * The exhibitor cannot read this show (a draft, MYK9-1147). Its page is not
+   * theirs to open, there is no date to put on a calendar, and the wizard would
+   * refuse it, so those three items are dropped; receipts and messaging stay.
+   */
+  isShowUnreadable?: boolean | undefined;
 }
 
 /**
@@ -58,6 +64,7 @@ export interface MyShowActionsFacts {
 export function buildMyShowActions(facts: MyShowActionsFacts): MyShowAction[] {
   const actions: MyShowAction[] = [];
   const hasShow = facts.showId !== '';
+  const isReadable = !facts.isShowUnreadable;
 
   // A LINK to the wizard, never a second registration surface (MYK9-631 Q3).
   //
@@ -70,7 +77,7 @@ export function buildMyShowActions(facts: MyShowActionsFacts): MyShowAction[] {
   // Id is stable on purpose -- it is the action's identity, not its wording, and
   // myShowActions.test.ts asserts on it. Only the label follows the vocabulary
   // rule (docs/reference/ui-vocabulary.md).
-  if (hasShow && facts.hasEditableOrders && !facts.isPastShow) {
+  if (hasShow && isReadable && facts.hasEditableOrders && !facts.isPastShow) {
     actions.push({
       id: 'add-classes',
       label: 'Add entry',
@@ -94,7 +101,7 @@ export function buildMyShowActions(facts: MyShowActionsFacts): MyShowAction[] {
   }
 
   if (hasShow) {
-    actions.push({ id: 'add-to-calendar', label: 'Add to calendar' });
+    if (isReadable) actions.push({ id: 'add-to-calendar', label: 'Add to calendar' });
     // ALWAYS, not only after entries close (the pre-MYK9-631 gate). An
     // exhibitor with a question before the deadline had nowhere to ask it.
     actions.push({
@@ -103,12 +110,14 @@ export function buildMyShowActions(facts: MyShowActionsFacts): MyShowAction[] {
       href: `/messages/${facts.showId}`,
       ariaLabel: `Message the show team about ${facts.showName}`,
     });
-    actions.push({
-      id: 'view-show',
-      label: 'View show page',
-      href: `/shows/${facts.showId}`,
-      ariaLabel: `View the show page for ${facts.showName}`,
-    });
+    if (isReadable) {
+      actions.push({
+        id: 'view-show',
+        label: 'View show page',
+        href: `/shows/${facts.showId}`,
+        ariaLabel: `View the show page for ${facts.showName}`,
+      });
+    }
   }
 
   return actions;

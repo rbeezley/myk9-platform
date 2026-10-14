@@ -1,6 +1,6 @@
 # Landing Page Lifecycle Rebuild Implementation Plan
 
-> **Status:** Active
+> **Status:** Complete
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -12,7 +12,7 @@
 
 **Tech Stack:** React 19 + TypeScript, react-router `Link`, plain CSS scoped under `.landing-v2` (tokens from `src/styles/landing.css` and `src/index.css`), vitest + the custom `render` from `src/test/utils/testUtils.tsx`, Playwright (`src/test/e2e/`).
 
-**Spec:** [`docs/qa/landing-page-ux-audit.md`](qa/landing-page-ux-audit.md) (findings, measured against scroll-craft's taste/feel/verify checklists and [`docs/INTENT.md`](INTENT.md)), plus the owner's canvas review on 2026-10-13 recorded in the decisions below.
+**Spec:** [`docs/qa/landing-page-ux-audit.md`](../qa/landing-page-ux-audit.md) (findings, measured against scroll-craft's taste/feel/verify checklists and [`docs/INTENT.md`](../INTENT.md)), plus the owner's canvas review on 2026-10-13 recorded in the decisions below.
 
 ## Decisions taken
 

@@ -25,7 +25,8 @@ export interface EntryBalanceSource {
   id: string;
   showId: string;
   showName?: string | null;
-  showDate: Date;
+  /** Absent for a show the exhibitor cannot read; such a show is never "past" (MYK9-1147). */
+  showDate?: Date | undefined;
   showEndDate?: Date | undefined;
   /**
    * The show's entry-close day as a bare `YYYY-MM-DD` calendar day, or `null`
@@ -196,7 +197,7 @@ export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanc
     id: row.id,
     showId: show?.id ?? row.show_id ?? '',
     showName: show?.name ?? null,
-    showDate: parseShowDate(show?.start_date) ?? new Date(),
+    showDate: parseShowDate(show?.start_date),
     showEndDate: parseShowDate(show?.end_date),
     entryCloseDay: toEntryCloseDay(show?.entry_close_date),
     showTimezone: resolveShowTimezone(row),
@@ -214,12 +215,14 @@ function startOfLocalDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function showLastDay(entry: EntryBalanceSource): Date {
+function showLastDay(entry: EntryBalanceSource): Date | undefined {
   return entry.showEndDate ?? entry.showDate;
 }
 
 function isPastShowEntry(entry: EntryBalanceSource, now: Date): boolean {
-  return startOfLocalDay(showLastDay(entry)).getTime() < startOfLocalDay(now).getTime();
+  const lastDay = showLastDay(entry);
+  if (!lastDay) return false;
+  return startOfLocalDay(lastDay).getTime() < startOfLocalDay(now).getTime();
 }
 
 /**

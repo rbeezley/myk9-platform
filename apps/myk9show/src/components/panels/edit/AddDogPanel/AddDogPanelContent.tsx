@@ -36,6 +36,8 @@ interface AddDogPanelContentProps {
   /** The identity being typed changed, so a "found" card for the old one is stale. */
   onIdentityEdited: () => void;
   onIdentityDraftChange: (draft: boolean) => void;
+  /** Next was refused because a registration is typed but not saved. */
+  draftBlocked: boolean;
   onUseExistingDog: (dog: Dog) => void;
   onCreateSeparateDog: () => void;
   /**
@@ -63,6 +65,7 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
   onFindDog,
   onIdentityEdited,
   onIdentityDraftChange,
+  draftBlocked,
   onUseExistingDog,
   onCreateSeparateDog,
   onOpenRegistration,
@@ -122,6 +125,19 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
       });
     }
   }
+
+  // Leaving the Registration step unmounts the control that had focus; hand it to Call Name
+  // once Essential has mounted, so keyboard and screen-reader users land on the next field.
+  const focusCallNameRef = React.useRef(false);
+  useEffect(() => {
+    if (activeTab !== 'basic' || !focusCallNameRef.current) return;
+    focusCallNameRef.current = false;
+    document.getElementById('callName')?.focus();
+  }, [activeTab, form]);
+  const goToEssential = () => {
+    focusCallNameRef.current = true;
+    onActiveTabChange('basic');
+  };
 
   if (!form) return null;
 
@@ -186,9 +202,10 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
               onFindDog={onFindDog}
               onIdentityEdited={onIdentityEdited}
               onIdentityDraftChange={onIdentityDraftChange}
+              draftBlocked={draftBlocked}
               onSaveRegistration={handleSaveRegistration}
-              onRegistrationSaved={() => onActiveTabChange('basic')}
-              onSkip={isAdminRole(userRole) ? () => onActiveTabChange('basic') : undefined}
+              onRegistrationSaved={goToEssential}
+              onSkip={isAdminRole(userRole) ? goToEssential : undefined}
               flat={inline}
             />
           </TabsContent>

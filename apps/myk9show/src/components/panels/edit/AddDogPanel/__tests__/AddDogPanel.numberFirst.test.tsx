@@ -294,6 +294,93 @@ describe('AddDogPanel number first (MYK9-1162)', { timeout: JOURNEY_TIMEOUT_MS }
 });
 
 describe(
+  'AddDogPanel identity step edge cases (MYK9-1162 review)',
+  { timeout: JOURNEY_TIMEOUT_MS },
+  () => {
+    it('does not let a late server answer for an earlier number clear the dog found for the newer one', async () => {
+      store.dogs = [
+        dogOnDevice({
+          registrations: [
+            {
+              id: 'r',
+              organization: 'AKC',
+              registrationNumber: 'LOCAL1',
+              registeredName: 'A',
+              breed: 'B',
+              status: 'Active',
+            },
+          ],
+        }),
+      ];
+      let answerFirst: (value: { data: boolean; error: null }) => void = () => undefined;
+      mockSupabase.rpc.mockImplementation(
+        () => new Promise(resolve => (answerFirst = resolve)) as never
+      );
+      const { user } = renderPanel();
+      await typeIdentity(user, 'SERVER1');
+      await findDog(user); // pending: the server has not answered
+
+      const number = document.getElementById('registrationNumber') as HTMLElement;
+      await user.clear(number);
+      await user.click(number);
+      await user.paste('LOCAL1');
+      await findDog(user);
+      expect(await screen.findByText(/This looks like Ace/)).toBeInTheDocument();
+
+      answerFirst({ data: false, error: null });
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      expect(screen.getByText(/This looks like Ace/)).toBeInTheDocument();
+      expect(screen.queryByLabelText(/Registered Name/i)).toBeNull();
+    });
+
+    it('holds a secretary on Registration while a registration is typed but not saved', async () => {
+      mockSupabase.rpc.mockResolvedValue({ data: false, error: null });
+      const { user } = renderPanel(UserRole.SECRETARY);
+      await typeIdentity(user);
+      await findDog(user);
+      await user.click(await screen.findByLabelText(/Registered Name/i));
+      await user.paste('Half Typed');
+
+      await user.click(screen.getByRole('button', { name: /Next: Essential/ }));
+
+      expect(await screen.findByText(/Save this registration to continue/)).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Registration/ })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      );
+      expect(screen.queryByLabelText(/Call Name/i)).toBeNull();
+
+      await user.click(screen.getByRole('tab', { name: /Essential/ }));
+      expect(screen.getByRole('tab', { name: /Registration/ })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      );
+    });
+
+    it('lets a secretary with nothing typed move on without a registration', async () => {
+      const { user } = renderPanel(UserRole.SECRETARY);
+      await user.click(await screen.findByRole('button', { name: /Next: Essential/ }));
+      expect(await screen.findByLabelText(/Call Name/i)).toBeInTheDocument();
+    });
+
+    it('puts focus on Call Name after Save and continue, and after the skip', async () => {
+      mockSupabase.rpc.mockResolvedValue({ data: false, error: null });
+      const first = renderPanel(UserRole.SECRETARY);
+      await addFirstRegistration(first.user);
+      await waitFor(() => expect(document.activeElement).toBe(document.getElementById('callName')));
+      first.unmount();
+
+      const second = renderPanel(UserRole.SECRETARY);
+      await second.user.click(
+        await screen.findByRole('button', { name: /No registration number yet/ })
+      );
+      await waitFor(() => expect(document.activeElement).toBe(document.getElementById('callName')));
+    });
+  }
+);
+
+describe(
   'AddDogPanel who may skip the registration (MYK9-1162)',
   { timeout: JOURNEY_TIMEOUT_MS },
   () => {

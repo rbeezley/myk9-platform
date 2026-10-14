@@ -34,6 +34,8 @@ interface RegistrationIdentityStepProps {
    * form does not hold it yet, so the panel needs telling to ask before Escape drops it.
    */
   onDraftChange: (draft: boolean) => void;
+  /** Next was refused while this draft is unsaved. */
+  draftBlocked: boolean;
   /** Writes the dog's first registration to the unsaved dog's form state. */
   onSaveRegistration: (registration: Registration) => void;
   /** The first registration is recorded: move on to the dog's own details. */
@@ -55,6 +57,7 @@ export const RegistrationIdentityStep: React.FC<RegistrationIdentityStepProps> =
   onFindDog,
   onIdentityEdited,
   onDraftChange,
+  draftBlocked,
   onSaveRegistration,
   onRegistrationSaved,
   onSkip,
@@ -118,6 +121,14 @@ export const RegistrationIdentityStep: React.FC<RegistrationIdentityStepProps> =
         onEnter={phase === 'details' ? undefined : findDog}
       />
 
+      {draftBlocked && (
+        <p role="alert" className="text-sm text-destructive">
+          {onSkip
+            ? 'Save this registration to continue, or choose "No registration number yet".'
+            : 'Save this registration to continue.'}
+        </p>
+      )}
+
       {phase === 'taken' && (
         <Alert className="border-amber-300 bg-amber-50 text-amber-950">
           <AlertCircle className="h-4 w-4 text-amber-700" />
@@ -150,7 +161,7 @@ export const RegistrationIdentityStep: React.FC<RegistrationIdentityStepProps> =
             Find dog
           </Button>
           {onSkip && (
-            <Button type="button" variant="link" size="sm" onClick={onSkip}>
+            <Button type="button" variant="link" size="touch" onClick={onSkip}>
               No registration number yet
             </Button>
           )}

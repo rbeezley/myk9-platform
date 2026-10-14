@@ -45,6 +45,7 @@ function renderTab(formOverrides: Partial<DogFormData> = {}, onSkip?: () => void
         onFindDog={vi.fn().mockResolvedValue({ kind: 'free' })}
         onIdentityEdited={vi.fn()}
         onIdentityDraftChange={vi.fn()}
+        draftBlocked={false}
         onSaveRegistration={vi.fn()}
         onRegistrationSaved={vi.fn()}
         onSkip={onSkip}

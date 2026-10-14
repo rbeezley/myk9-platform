@@ -222,8 +222,10 @@ test.describe('Dogs UI — Create (secretary)', () => {
     await page.getByRole('button', { name: 'Add Dog', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
 
-    // Registration comes first (MYK9-1162): registry and number, Find dog, details.
-    await addFirstRegistration(page, page.getByRole('dialog'));
+    // Dog A stays registration-free: the serial Registrations tests below add its AKC and UKC
+    // registrations through the detail page, and a dog holds one per organization. A secretary
+    // may skip the registration step (MYK9-1162).
+    await page.getByRole('button', { name: 'No registration number yet' }).click();
 
     // Fill Essential tab — Sex and Owner are base-ui Selects, targeted by
     // accessible name so a naming regression fails here (MYK9-88).
@@ -235,9 +237,10 @@ test.describe('Dogs UI — Create (secretary)', () => {
     await selectOwnerIfNeeded(page, TEST_SECRETARY_PERSON_NAME);
 
     // Wait for POST to dogs table before navigating
-    const createResponsePromise = page.waitForResponse(isDogCreateResponse, {
-      timeout: 15000,
-    });
+    const createResponsePromise = page.waitForResponse(
+      r => r.url().includes('/rest/v1/dogs') && r.request().method() === 'POST',
+      { timeout: 15000 }
+    );
 
     // MYK9-931: Add Dog only shows on the last tab; earlier tabs stay clickable.
     await page
@@ -257,18 +260,18 @@ test.describe('Dogs UI — Create (secretary)', () => {
     await page.getByRole('button', { name: 'Add Dog', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
 
-    // A secretary holding a mail-in with no number yet may skip the registration (MYK9-1162).
-    await page.getByRole('button', { name: 'No registration number yet' }).click();
+    // Registration comes first (MYK9-1162): registry and number, Find dog, details.
+    await addFirstRegistration(page, page.getByRole('dialog'));
     await page.getByLabel('Call Name').fill(DOG_B_NAME);
     await selectByAccessibleName(page, /^Sex/, /Female/i);
     await page.getByLabel('Date of Birth').fill('2021-03-20');
 
     await selectOwnerIfNeeded(page, TEST_SECRETARY_PERSON_NAME);
 
-    const createResponsePromise = page.waitForResponse(
-      r => r.url().includes('/rest/v1/dogs') && r.request().method() === 'POST',
-      { timeout: 15000 }
-    );
+    // A dog saved with a registration is created through the RPC, not a dogs POST.
+    const createResponsePromise = page.waitForResponse(isDogCreateResponse, {
+      timeout: 15000,
+    });
     // MYK9-931: Add Dog only shows on the last tab; earlier tabs stay clickable.
     await page
       .getByRole('dialog')

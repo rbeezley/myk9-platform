@@ -16,7 +16,9 @@ import { fromAny } from '@total-typescript/shoehorn';
 function createClient(tables: Record<string, unknown[]>): {
   client: LifecycleEmailSupabaseClient;
   calls: Array<{ table: string; action: string; values?: Record<string, unknown> }>;
+  inFilters: Array<{ table: string; column: string; count: number }>;
 } {
+  const inFilters: Array<{ table: string; column: string; count: number }> = [];
   const calls: Array<{ table: string; action: string; values?: Record<string, unknown> }> = [];
   const client = fromAny<LifecycleEmailSupabaseClient, unknown>({
     from(table: string) {
@@ -31,6 +33,7 @@ function createClient(tables: Record<string, unknown[]>): {
           return builder;
         },
         in(column: string, values: readonly unknown[]) {
+          inFilters.push({ table, column, count: values.length });
           rows = rows.filter(row => values.includes((row as Record<string, unknown>)[column]));
           return builder;
         },
@@ -45,7 +48,7 @@ function createClient(tables: Record<string, unknown[]>): {
       return builder;
     },
   });
-  return { client, calls };
+  return { client, calls, inFilters };
 }
 
 describe('lifecycle email api helpers', () => {
@@ -174,6 +177,59 @@ describe('lifecycle email api helpers', () => {
       id: 'job-correction',
       correctionForJobId: 'job-sent',
     });
+  });
+
+  it('does not carry the entry id list in the status query, and keeps only the requested entries', async () => {
+    const entryIds = Array.from({ length: 500 }, (_, i) => `entry-${i}`);
+    const job = (id: string, entryId: string) => ({
+      id,
+      show_id: 'show-1',
+      entry_id: entryId,
+      step_type: 'accepted',
+      status: 'ready',
+      subject: 's',
+      body: 'b',
+      secretary_note: null,
+      due_at: '2026-07-08T12:00:00Z',
+      prepared_at: '2026-07-08T12:00:00Z',
+      sent_at: null,
+      correction_for_job_id: null,
+    });
+    const { client, inFilters } = createClient({
+      show_lifecycle_email_jobs: [job('job-a', 'entry-3'), job('job-b', 'entry-other')],
+    });
+
+    const statuses = await fetchEntryDecisionEmailStatuses({
+      supabase: client,
+      showId: 'show-1',
+      entryIds,
+    });
+
+    expect(inFilters.some(filter => filter.column === 'entry_id')).toBe(false);
+    expect(Math.max(...inFilters.map(filter => filter.count))).toBeLessThanOrEqual(2);
+    expect(Object.keys(statuses)).toEqual(['entry-3']);
+  });
+
+  it('chunks receipt registration ids and skipped job ids so no in-filter grows with the show', async () => {
+    const ids = Array.from({ length: 450 }, (_, i) => `id-${i}`);
+    const { client, inFilters } = createClient({ email_log: [], show_lifecycle_email_jobs: [] });
+
+    await fetchShowLifecycleEmailSummary({
+      supabase: client,
+      showId: 'show-1',
+      receiptSources: ids.map(id => ({ registrationId: id, paymentMethod: 'online' as const })),
+    });
+    await skipLifecycleEmailJobsForReview({ supabase: client, jobIds: ids });
+
+    const widest = (table: string, column: string) =>
+      Math.max(
+        0,
+        ...inFilters.filter(f => f.table === table && f.column === column).map(f => f.count)
+      );
+    expect(widest('email_log', 'related_id')).toBeLessThanOrEqual(100);
+    expect(widest('show_lifecycle_email_jobs', 'id')).toBeLessThanOrEqual(100);
+    expect(inFilters.filter(f => f.column === 'related_id')).toHaveLength(5);
+    expect(inFilters.filter(f => f.column === 'id')).toHaveLength(5);
   });
 
   it('passes correction ids when saving a ready lifecycle email', async () => {

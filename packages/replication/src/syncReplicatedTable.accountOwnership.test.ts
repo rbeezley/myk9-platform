@@ -393,8 +393,11 @@ describe('account-owned replica rows (MYK9-1133)', () => {
         adapter(() => [], { count: () => 0, verifyEmpty: false })
       );
 
-      expect(await stampOf('show-1')).toBeUndefined();
+      // B wrote nothing, so A's rows are untouched and A's stamp still describes them;
+      // B itself is not stamped, which is what keeps A's rows from B's reads.
+      expect(await stampOf('show-1')).toBe('user-a');
       expect(await everyone()).toEqual(['a1']);
+      expect(await visible()).toEqual([]);
     });
 
     it("a short sync leaves its own account's earlier stamp alone and clears another's", async () => {

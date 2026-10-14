@@ -1,4 +1,5 @@
 import type { ReplicatedTable } from './core/ReplicatedTable';
+import type { ScopeStampDirective } from './core/scopeStamp';
 
 /**
  * Is any of these rows, read whoever owns it, still not owned by `authUserId`?
@@ -19,35 +20,27 @@ export async function anyRowNotOwnedBy<T extends { id: string }>(
 }
 
 /**
- * What a finishing sync writes to the scope stamp: its own account after a whole
- * download. A sync that falls short leaves this account's own earlier stamp alone
- * (its rows are still its own) but clears any other: it may have re-owned some of
- * the rows that stamp vouched for. `stored` is the stamp as it is NOW.
+ * The one request every ending of an account-owned sync makes of the cache to
+ * settle the scope stamp (see {@link ScopeStampDirective}). `wroteRows` is read
+ * after the fact: does this account STILL own a row it wrote? A row another
+ * account has since taken back, or one the bulk write skipped, is not this
+ * sync's to answer for. Stops at the first row found, so the usual cost is one
+ * read.
  */
-export function scopeStampFor(
-  whole: boolean,
-  syncingAuthUserId: string | null,
-  stored: string | undefined
-): string | null | undefined {
-  if (whole) return syncingAuthUserId;
-  return stored === syncingAuthUserId ? undefined : null;
-}
-
-/**
- * A stale sync that re-owned rows another account's stamp vouched for must take
- * that stamp with it: whether the other account then finished a newer sync
- * cannot be told, so the stamp goes (fails toward "not downloaded", never a
- * partial roster).
- */
-export async function dropStampOfRowsTakenOver<T extends { id: string }>(
+export async function scopeStampDirective<T extends { id: string }>(
   table: ReplicatedTable<T>,
-  scopeValue: string | undefined,
+  writtenIds: readonly string[],
   syncingAuthUserId: string | null,
-  takenOverIds: readonly string[]
-): Promise<void> {
-  if (takenOverIds.length === 0) return;
-  const other = await table.getSyncMetadataOrThrow(scopeValue);
-  if (other?.syncedByAuthUserId && other.syncedByAuthUserId !== syncingAuthUserId) {
-    await table.updateSyncMetadata({}, { scopeValue, scopeSyncedBy: null });
+  whole: boolean
+): Promise<ScopeStampDirective | undefined> {
+  if (syncingAuthUserId === null) return undefined;
+  let wroteRows = false;
+  for (const id of writtenIds) {
+    const row = await table.getReplicatedRowIncludingOtherAccounts(id);
+    if (row?.ownerAuthUserId === syncingAuthUserId) {
+      wroteRows = true;
+      break;
+    }
   }
+  return { syncingAuthUserId, whole, wroteRows };
 }

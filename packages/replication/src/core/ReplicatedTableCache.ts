@@ -18,6 +18,7 @@ import type {
 import type { Logger } from '../dependencies';
 import { REPLICATION_STORES } from './DatabaseManager';
 import { NOTIFY_DEBOUNCE_MS } from '../constants';
+import { resolveScopeStamp, type ScopeStampDirective } from './scopeStamp';
 
 export interface ReplicatedTableSubscriptionOptions {
   /**
@@ -409,9 +410,10 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
       advanceWatermarkMonotonically?: boolean;
       /**
        * Scoped writes only. A string stamps the scope as synced by that auth
-       * user, null clears the stamp, undefined keeps the scope's current one.
+       * user, null clears the stamp, undefined keeps the scope's current one. A
+       * {@link ScopeStampDirective} is settled here against the stored stamp.
        */
-      scopeSyncedBy?: string | null;
+      scopeSyncedBy?: string | null | ScopeStampDirective;
     }
   ): Promise<void> {
     const METADATA_TIMEOUT_MS = 5000;
@@ -422,6 +424,14 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
 
       const existing = await tx.store.get(this.tableName);
       const atomicUpdates = { ...updates };
+      const storedStamp =
+        options?.scopeValue !== undefined
+          ? existing?.scopes?.[options.scopeValue]?.syncedByAuthUserId
+          : existing?.syncedByAuthUserId;
+      const settled = resolveScopeStamp(options?.scopeSyncedBy, storedStamp);
+      if (settled.recordMarker && options?.scopeValue === undefined) {
+        atomicUpdates.totalRows = updates.totalRows ?? existing?.totalRows ?? 0;
+      }
 
       // Atomic increment for numeric fields
       if (updates.conflictCount !== undefined && existing) {
@@ -449,7 +459,8 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
             ? Math.max(prevScope?.lastIncrementalSyncAt ?? 0, updates.lastIncrementalSyncAt)
             : rawWatermark;
         const nextScope: ScopeSyncState = { lastIncrementalSyncAt: nextWatermark };
-        const nextTotalRows = updates.totalRows ?? prevScope?.totalRows;
+        const nextTotalRows =
+          updates.totalRows ?? prevScope?.totalRows ?? (settled.recordMarker ? 0 : undefined);
         const nextExpectedRemoteRows = updates.expectedRemoteRows ?? prevScope?.expectedRemoteRows;
         if (nextTotalRows !== undefined) {
           nextScope.totalRows = nextTotalRows;
@@ -458,9 +469,9 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
           nextScope.expectedRemoteRows = nextExpectedRemoteRows;
         }
         const nextSyncedBy =
-          options?.scopeSyncedBy === undefined
+          settled.stamp === undefined
             ? prevScope?.syncedByAuthUserId
-            : (options.scopeSyncedBy ?? undefined);
+            : (settled.stamp ?? undefined);
         if (nextSyncedBy !== undefined) {
           nextScope.syncedByAuthUserId = nextSyncedBy;
         }
@@ -498,8 +509,8 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
       // The table-level stamp (an unscoped sync, or clearCache). Kept across
       // every other update; a scoped write never touches it.
       let tableSyncedBy = existing?.syncedByAuthUserId;
-      if (scopeValue === undefined && options?.scopeSyncedBy !== undefined) {
-        tableSyncedBy = options.scopeSyncedBy ?? undefined;
+      if (scopeValue === undefined && settled.stamp !== undefined) {
+        tableSyncedBy = settled.stamp ?? undefined;
         // An unscoped sync replaces the rows under every scope, so a scoped
         // stamp it supersedes must not outlive it: it would out-rank the newer
         // table stamp and hand one account's rows to another.

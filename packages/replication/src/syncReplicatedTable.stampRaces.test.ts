@@ -154,6 +154,103 @@ describe('scope stamp races (MYK9-1148)', () => {
     });
   });
 
+  describe('one stamp decision for every way a sync that wrote rows can end', () => {
+    it('A: an aborted FIRST download leaves a marker, so the scope reads not-downloaded for the next account', async () => {
+      const aborted = adapter(() => [row('r1')], {
+        afterSuccessfulSync: async () => {
+          signInAs('user-b');
+        },
+      });
+
+      const result = await sync(aborted);
+      expect(result.success).toBe(false);
+
+      const metadata = await table.getSyncMetadata('show-1');
+      // totalRows set + a stamp that is not B's is what getScopeOwnership calls foreign.
+      expect(metadata?.totalRows).toBeDefined();
+      expect(metadata?.syncedByAuthUserId).not.toBe('user-b');
+    });
+
+    it('B: a row the other account wrote between the scan and the bulk write is still taken from it, and its stamp goes', async () => {
+      const bulkWrite = table.batchSet.bind(table);
+      let nested = false;
+      table.batchSet = async (...args: Parameters<typeof bulkWrite>) => {
+        if (!nested) {
+          nested = true;
+          signInAs('user-b');
+          await settle();
+          await sync(adapter(() => [row('r1')]));
+          expect(await stampOf()).toBe('user-b');
+          signInAs('user-a');
+          await settle();
+        }
+        await bulkWrite(...args);
+        signInAs('user-b'); // the account flips before A reaches its stamp write
+      };
+
+      const result = await sync(adapter(() => [row('r1')]));
+
+      expect(result.success).toBe(false);
+      expect((await table.getReplicatedRowIncludingOtherAccounts('r1'))?.ownerAuthUserId).toBe(
+        'user-a'
+      );
+      expect(await stampOf()).toBeUndefined();
+    });
+
+    it('C: a failed read of the stored stamp does not leave the displaced account stamp in place', async () => {
+      signInAs('user-b');
+      await sync(adapter(() => [row('r1', 1)]));
+      expect(await stampOf()).toBe('user-b');
+
+      signInAs('user-a');
+      await settle();
+      table.getSyncMetadataOrThrow = async () => {
+        throw new Error('metadata read timed out');
+      };
+      await sync(adapter(() => [row('r1', 2)]));
+
+      expect(await stampOf()).not.toBe('user-b');
+    });
+
+    it('C: a sync that throws after writing rows still invalidates the displaced stamp', async () => {
+      signInAs('user-b');
+      await sync(adapter(() => [row('r1', 1)]));
+      expect(await stampOf()).toBe('user-b');
+
+      signInAs('user-a');
+      await settle();
+      const result = await sync(
+        adapter(() => [row('r1', 2)], {
+          afterSuccessfulSync: async () => {
+            throw new Error('hook failed');
+          },
+        })
+      );
+
+      expect(result.success).toBe(false);
+      expect(await stampOf()).not.toBe('user-b');
+      expect((await table.getSyncMetadata('show-1'))?.totalRows).toBeDefined();
+    });
+
+    it('positive control: a sync that wrote nothing leaves a newer stamp alone', async () => {
+      signInAs('user-b');
+      await sync(adapter(() => [row('r1', 1)]));
+      signInAs('user-a');
+      await settle();
+      // A downloads r1 at an older version: the write is skipped, nothing is A's.
+      const result = await sync(
+        adapter(() => [row('r1', 0)], {
+          afterSuccessfulSync: async () => {
+            signInAs('user-b');
+          },
+        })
+      );
+
+      expect(result.success).toBe(false);
+      expect(await stampOf()).toBe('user-b');
+    });
+  });
+
   describe('a failed read of the stored stamp', () => {
     it("does not clear the account's own earlier stamp", async () => {
       await sync(adapter(() => [row('r1')]));

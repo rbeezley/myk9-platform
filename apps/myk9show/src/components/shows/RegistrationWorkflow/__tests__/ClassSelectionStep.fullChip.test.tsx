@@ -26,6 +26,7 @@ const REASON = "The judge's Saturday is full. Sunday's Interior Advanced still h
 function renderCard(levels: LevelInfo[], isSingleClass = false) {
   return render(
     <ElementCard
+      dogName="Rex"
       element="Interior"
       levels={levels}
       fee={30}
@@ -121,6 +122,7 @@ describe('ElementCard — a closed class that is already selected (MYK9-516)', (
     const onToggle = vi.fn();
     const { user } = render(
       <ElementCard
+        dogName="Rex"
         element="Interior"
         levels={[{ ...baseLevel, isSelected: true, ...CLOSED }]}
         fee={30}
@@ -137,6 +139,7 @@ describe('ElementCard — a closed class that is already selected (MYK9-516)', (
   it('is still disabled when it is NOT selected', () => {
     render(
       <ElementCard
+        dogName="Rex"
         element="Interior"
         levels={[{ ...baseLevel, isSelected: false, ...CLOSED }]}
         fee={30}

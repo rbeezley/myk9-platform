@@ -25,6 +25,7 @@ const baseLevel: LevelInfo = {
 };
 
 const defaultProps = {
+  dogName: 'Rex',
   element: 'Container',
   levels: [baseLevel],
   fee: 15,
@@ -157,6 +158,7 @@ describe('ElementCard (single-class) — wait list badge', () => {
     const levels: LevelInfo[] = [{ ...singleClassLevel, isFull: true, waitlistCount: 3 }];
     render(
       <ElementCard
+        dogName="Rex"
         element="Detective"
         levels={levels}
         fee={10}
@@ -172,6 +174,7 @@ describe('ElementCard (single-class) — wait list badge', () => {
     const levels: LevelInfo[] = [{ ...singleClassLevel, isFull: false }];
     render(
       <ElementCard
+        dogName="Rex"
         element="Detective"
         levels={levels}
         fee={10}
@@ -186,6 +189,7 @@ describe('ElementCard (single-class) — wait list badge', () => {
     const levels: LevelInfo[] = [{ ...singleClassLevel, isAlreadyEntered: true }];
     render(
       <ElementCard
+        dogName="Rex"
         element="Detective"
         levels={levels}
         fee={10}
@@ -200,6 +204,7 @@ describe('ElementCard (single-class) — wait list badge', () => {
     const levels: LevelInfo[] = [{ ...singleClassLevel, isSelected: true }];
     render(
       <ElementCard
+        dogName="Rex"
         element="Detective"
         levels={levels}
         fee={10}

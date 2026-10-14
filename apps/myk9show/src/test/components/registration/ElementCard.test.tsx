@@ -187,6 +187,7 @@ describe('ElementCard', () => {
     ];
     render(
       <ElementCard
+        dogName="Rex"
         element="Buried"
         levels={singleLevelWithLevel}
         fee={10}

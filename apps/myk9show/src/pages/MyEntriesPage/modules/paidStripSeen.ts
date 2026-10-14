@@ -55,6 +55,11 @@ const PAST_DECISION_KINDS: ReadonlySet<EntryStatusKind> = new Set([
   'in_ring',
   'completed',
   'absent',
+  // Removed rows (incl. a cancelled show, whose kind is forced to withdrawn
+  // while entryStatus stays PENDING): nothing left for the secretary to decide.
+  // Not 'not_accepted': promotion-expired classifies there but stays PENDING.
+  'withdrawn',
+  'scratched',
 ]);
 
 /** UI statuses that still wait on the secretary: pending, waitlisted, move-up requested. */

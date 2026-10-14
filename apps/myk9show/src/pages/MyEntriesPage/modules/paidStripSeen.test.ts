@@ -587,6 +587,13 @@ describe('isAwaitingSecretaryDecision (real raw statuses)', () => {
   const classify = (raw: string, checkIn: string | null = null) =>
     isAwaitingSecretaryDecision(mapEntryStatus(raw), getEntryStatusKindForDisplay(raw, checkIn));
 
+  it('does not count a row whose kind is forced to withdrawn (a cancelled show)', () => {
+    // useMyEntriesData forces entryStatusKind 'withdrawn' on a cancelled show while
+    // entryStatus stays mapEntryStatus(raw) = PENDING.
+    expect(isAwaitingSecretaryDecision(mapEntryStatus('paid'), 'withdrawn')).toBe(false);
+    expect(isAwaitingSecretaryDecision(mapEntryStatus('pending'), 'scratched')).toBe(false);
+  });
+
   it.each(['pending', 'submitted', 'paid', 'promotion-expired', 'waitlist', 'move-up-requested'])(
     'counts %s as awaiting',
     raw => {

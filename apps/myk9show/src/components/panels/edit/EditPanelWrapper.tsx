@@ -306,6 +306,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     }
   }, [open]);
 
+  const hasUnsavedWork = (hasChanges || hasUntrackedInput) && showUnsavedWarning;
   const handleClose = useCallback(() => {
     if (confirmedCloseRef.current) return;
     // The delete dialog is answering for this panel: leaving now would orphan it.
@@ -318,15 +319,10 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     // A save in flight may still fail, and closing now would drop the form it
     // fails back to. Hold still, but say why (MYK9-1125).
     if (isLoading) return askStillSaving();
-    if ((hasChanges || hasUntrackedInput) && showUnsavedWarning) {
-      setShowUnsavedDialog(true);
-      return;
-    }
+    if (hasUnsavedWork) return setShowUnsavedDialog(true);
     closeWithoutRouteGuard();
   }, [
-    hasChanges,
-    hasUntrackedInput,
-    showUnsavedWarning,
+    hasUnsavedWork,
     showUnsavedDialog,
     stillSavingOpen,
     askStillSaving,
@@ -347,7 +343,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
 
   const routeLeaveGuard = (
     <UnsavedChangesRouteGuard
-      isDirty={open && (hasChanges || hasUntrackedInput) && showUnsavedWarning}
+      isDirty={open && hasUnsavedWork}
       subject={title}
       selfNavigationRef={selfNavigationRef}
     />

@@ -12,7 +12,7 @@ describe('checkInTransitions', () => {
   });
 
   it('moves scoring-opened entries to in-ring through the replicated helper', () => {
-    transitionToInRing('entry-1', 'checked-in');
+    transitionToInRing('entry-1', 'checked-in', undefined);
 
     expect(updateReplicatedCheckInStatus).toHaveBeenCalledOnce();
     expect(updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'in-ring', {
@@ -21,13 +21,24 @@ describe('checkInTransitions', () => {
   });
 
   it('does not re-stamp ring_entry_time for an entry already in-ring (Resume)', () => {
-    transitionToInRing('entry-1', 'in-ring');
+    transitionToInRing('entry-1', 'in-ring', '2026-10-14T18:00:00.000Z');
 
     expect(updateReplicatedCheckInStatus).not.toHaveBeenCalled();
   });
 
+  it('stamps ring_entry_time for an entry marked in-ring by hand with no time yet', () => {
+    // The steward's "Mark in ring" writes only check_in_status; the scoresheet
+    // opening is what records when the dog entered the ring.
+    transitionToInRing('entry-1', 'in-ring', undefined);
+
+    expect(updateReplicatedCheckInStatus).toHaveBeenCalledOnce();
+    expect(updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'in-ring', {
+      ring_entry_time: expect.any(String),
+    });
+  });
+
   it('does not reopen a completed entry', () => {
-    transitionToInRing('entry-1', 'completed');
+    transitionToInRing('entry-1', 'completed', undefined);
 
     expect(updateReplicatedCheckInStatus).not.toHaveBeenCalled();
   });

@@ -1,6 +1,5 @@
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
-import type { ShowWorkbenchClassSummary } from './showWorkbenchTypes';
 import { classifyPremiumPublishState, type PremiumPublishStateInput } from './premiumPublishState';
 import {
   isShowListingLive,
@@ -30,10 +29,15 @@ export interface SetupReadinessSignal {
 // publishing controls without reviving a Setup-only destination.
 export const SETUP_PUBLISH_ANCHOR = 'setup-publish';
 
+/** The only class fact the signals read; the full Show Desk class row is assignable to it. */
+export interface SetupReadinessClass {
+  judgeName?: string | undefined;
+}
+
 export interface SetupReadinessInput {
   show: Show;
   trials: SyncableTrial[];
-  classes: ShowWorkbenchClassSummary[];
+  classes: SetupReadinessClass[];
   judges: unknown[];
   /**
    * Fresher premium-publish columns fetched directly (usePublishInfo). The

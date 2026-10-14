@@ -86,9 +86,11 @@ vi.mock('@/components/common/Breadcrumb', () => ({ default: () => <nav /> }));
 const photoButton = () => screen.queryByRole('button', { name: 'Edit dog photo' });
 const statusButton = () => screen.queryByRole('button', { name: /change status/i });
 const pageTarget = () => usePageEditTargetStore.getState().target;
-// MYK9-1155: registration writes follow the same server rule as the dog itself.
+// MYK9-1155: changing or deleting a registration follows the same server rule as the dog;
+// adding a registry the dog lacks stays open to a secretary (mail-in first entry).
 const manageRegistrationsButton = () =>
   screen.queryByRole('button', { name: /manage registrations/i });
+const addRegistrationButton = () => screen.queryByRole('button', { name: /add registration/i });
 
 describe('DogDetailsMain — Edit, Change Photo and Change status follow dogs_update', () => {
   beforeEach(() => {
@@ -110,6 +112,7 @@ describe('DogDetailsMain — Edit, Change Photo and Change status follow dogs_up
     expect(pageTarget()?.canEdit ?? false).toBe(false);
     expect(pageTarget()?.extras ?? []).toEqual([]);
     expect(manageRegistrationsButton()).toBeNull();
+    expect(addRegistrationButton()).not.toBeNull();
   });
 
   it('a secretary the server lets edit (her show, or a dog she created) keeps all three', async () => {

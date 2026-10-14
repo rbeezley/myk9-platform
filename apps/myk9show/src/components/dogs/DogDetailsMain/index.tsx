@@ -81,8 +81,10 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
   // status, so a viewer who may only READ this dog (any secretary, MYK9-854) is never
   // handed a save the server refuses. Owners and site admins are decided locally.
   const canEditDog = useCanEditDog(dog.id, gates.viewerOwnsDog || hasRole(UserRole.SITE_ADMIN));
-  // MYK9-1155: changing or deleting a registration follows the same server rule as the dog.
-  const canManageRegistrations = gates.canManageRegistrations && canEditDog;
+  // MYK9-1155: a secretary may ADD a registry the dog lacks (the server's INSERT policy admits
+  // her, for a mail-in first entry), but changing or deleting one follows the dog's own rule.
+  const canAddRegistration = gates.canManageRegistrations;
+  const canManageRegistrations = canAddRegistration && canEditDog;
 
   // Route-entry focus/scroll (task 3.8, design.md Decision 10): a dog-card
   // click or a Career/Records deep link lands on the main heading; browser
@@ -119,9 +121,9 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
     // The server refuses registration writes to this viewer: drop the param, raise nothing.
     const next = new URLSearchParams(searchParams);
     next.delete('addRegistration');
-    if (canManageRegistrations) setAddRegistrationDogId(dog.id);
+    if (canAddRegistration) setAddRegistrationDogId(dog.id);
     setSearchParams(next, { replace: true });
-  }, [dog.id, searchParams, setSearchParams, canManageRegistrations]);
+  }, [dog.id, searchParams, setSearchParams, canAddRegistration]);
 
   // Owner — try store first, fall back to Supabase query
   const storeOwner: Owner | null = React.useMemo(() => {
@@ -361,7 +363,7 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
             dog={updatedDog}
             owner={owner}
             registrations={railRead?.registrations}
-            onAddRegistration={canManageRegistrations ? openAddRegistration : undefined}
+            onAddRegistration={canAddRegistration ? openAddRegistration : undefined}
             onManageRegistrations={
               canManageRegistrations ? () => setIsManageRegistrationsOpen(true) : undefined
             }
@@ -392,10 +394,10 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
           dog={updatedDog}
         />
       )}
-      {/* Mounted once, for every viewer allowed to change registrations: the rail's Add, the list's per-row Edit
-          and Delete, and the `?addRegistration=true` deep link all raise these,
-          so they must not depend on any list being on screen. */}
-      {canManageRegistrations && (
+      {/* Mounted once, for every viewer allowed to add registrations: the rail's Add, the list's per-row Edit
+          and Delete (only offered under canManageRegistrations), and the `?addRegistration=true` deep link all
+          raise these, so they must not depend on any list being on screen. */}
+      {canAddRegistration && (
         <DogRegistrationDialogs
           dog={updatedDog}
           managePanelOpen={isManageRegistrationsOpen}

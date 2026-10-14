@@ -130,7 +130,7 @@ const JudgeStatsPage: React.FC = () => {
                 <p className="text-sm mt-1">Your stats will appear after your first assignment.</p>
               </div>
             ) : (
-              <div className="flex flex-col items-center">
+              <div className="flex w-full flex-col items-center">
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie

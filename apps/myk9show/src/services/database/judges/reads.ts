@@ -30,6 +30,21 @@ const certificationsTable = () => untypedFrom('judge_certifications');
 const JUDGE_ASSIGNMENT_PUBLIC_SELECT =
   'id, person_id, show_id, trial_id, class_id, status, invited_at, confirmed_at, created_at, updated_at, day_capacity_override, version';
 
+// A judge's assignment counts only while its show (and class, when class-level)
+// is live. PostgREST returns a null embed for a soft-deleted or otherwise
+// unreadable parent, so a null embed and a set deleted_at both mean "not live".
+const LIVE_PARENT_EMBEDS =
+  'shows!judge_assignments_show_id_fkey(deleted_at), classes!judge_assignments_class_id_fkey(deleted_at)';
+
+function hasLiveParent(embed: unknown): boolean {
+  const parent = embed as { deleted_at?: string | null } | null | undefined;
+  return !!parent && !parent.deleted_at;
+}
+
+function hasLiveShowAndClass(row: Record<string, unknown>): boolean {
+  return hasLiveParent(row.shows) && (row.class_id == null || hasLiveParent(row.classes));
+}
+
 type ManagerJudgeAssignmentRpc = {
   data: Array<Record<string, unknown>> | null;
   error: { message: string } | null;
@@ -647,7 +662,7 @@ export async function getJudgeStats(
   const yearEnd = `${targetYear}-12-31T23:59:59Z`;
 
   const { data, error } = await assignmentsTable()
-    .select(JUDGE_ASSIGNMENT_PUBLIC_SELECT)
+    .select(`${JUDGE_ASSIGNMENT_PUBLIC_SELECT}, ${LIVE_PARENT_EMBEDS}`)
     .eq('person_id', personId)
     .gte('created_at', yearStart)
     .lte('created_at', yearEnd);
@@ -656,7 +671,7 @@ export async function getJudgeStats(
     throw new Error(`Failed to fetch judge stats: ${error.message}`);
   }
 
-  const rows = (data || []) as Array<Record<string, unknown>>;
+  const rows = ((data || []) as Array<Record<string, unknown>>).filter(hasLiveShowAndClass);
   const uniqueShows = new Set(rows.map(r => r.show_id as string));
 
   const statusBreakdown: Record<string, number> = {};
@@ -679,7 +694,7 @@ export async function getJudgeStats(
 export async function getJudgeUpcomingAssignments(personId: string): Promise<JudgeAssignmentRow[]> {
   const { data, error } = await assignmentsTable()
     .select(
-      `${JUDGE_ASSIGNMENT_PUBLIC_SELECT}, shows!judge_assignments_show_id_fkey(name, start_date, end_date, organization)`
+      `${JUDGE_ASSIGNMENT_PUBLIC_SELECT}, shows!judge_assignments_show_id_fkey(name, start_date, end_date, organization, deleted_at), classes!judge_assignments_class_id_fkey(deleted_at)`
     )
     .eq('person_id', personId)
     .in('status', [...ACTIVE_JUDGE_ASSIGNMENT_STATUSES])
@@ -693,6 +708,8 @@ export async function getJudgeUpcomingAssignments(personId: string): Promise<Jud
 
   return (
     ((data || []) as Array<Record<string, unknown>>)
+      // A deleted show or class (null embed) is never upcoming work.
+      .filter(hasLiveShowAndClass)
       .map(row => {
         const show = row.shows as Record<string, unknown> | null;
         return {
@@ -712,7 +729,7 @@ export async function getJudgeUpcomingAssignments(personId: string): Promise<Jud
         };
       })
       // Filter out past shows and sort by show date
-      .filter(a => !a.show_end_date || a.show_end_date >= today)
+      .filter(a => !!a.show_end_date && a.show_end_date >= today)
       .sort((a, b) => a.show_start_date.localeCompare(b.show_start_date))
   );
 }

@@ -128,17 +128,30 @@ function paperworkRow(detail: Locator, label: string): Locator {
   return detail.locator('li').filter({ hasText: label }).last();
 }
 
+/** Errors a lazy route's import throws when its chunk could not be fetched. */
+const CHUNK_LOAD_ERROR =
+  /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|ChunkLoadError/i;
+
 /**
- * Open `url` and wait for `ready`, reloading when the route's lazy chunk failed to load.
- * Nightly 38606805596 (MYK9-1161) showed the "Failed to load component" boundary on this
- * step's cold navigation: the chunk import failed all three of its in-app attempts, so the
- * Classes list never mounted. The boundary's own "Reload Page" is what a secretary would press.
+ * Open `url` and wait for `ready`. Nightly 38606805596 (MYK9-1161) showed the lazy-route
+ * "Failed to load component" boundary on this step instead of the Classes list. That boundary
+ * catches any route error, not only a failed chunk fetch, so a reload is earned only when the
+ * error it records (`data-boundary-error`) is a chunk-load failure, which is what its own
+ * "Reload Page" fixes. Any other error fails the step with the error text: a crash at 375px is
+ * a finding, not a flake.
  */
-async function gotoRetryingFailedChunk(page: Page, url: string, ready: Locator) {
-  await expect(async () => {
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
-    await expect(ready).toBeVisible({ timeout: 10_000 });
-  }).toPass({ timeout: 60_000 });
+async function gotoReadyOrChunkReload(page: Page, url: string, ready: Locator) {
+  const boundary = page.locator('[data-boundary-error]');
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  for (let reloads = 0; ; reloads += 1) {
+    await expect(ready.or(boundary).first()).toBeVisible({ timeout: 30_000 });
+    if (await ready.isVisible()) return;
+    const error = (await boundary.first().getAttribute('data-boundary-error')) ?? '';
+    if (!CHUNK_LOAD_ERROR.test(error) || reloads >= 2) {
+      throw new Error(`Route error boundary instead of the page at ${url}: ${error}`);
+    }
+    await page.reload({ waitUntil: 'domcontentloaded' });
+  }
 }
 
 test.describe('Results tab: scored -> verified -> released -> printed -> initialed', () => {
@@ -272,13 +285,13 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
         .getByRole('list', { name: 'Classes' })
         .getByRole('link', { name: new RegExp(CLASS_NAME) })
         .first();
-      await gotoRetryingFailedChunk(
+      await gotoReadyOrChunkReload(
         page,
         `/shows/${encodeURIComponent(showId)}/results?status=all`,
         classLink
       );
       await expectNoHorizontalOverflow(page, 'Results class list at 375px');
-      await gotoRetryingFailedChunk(page, resultsUrl, detail);
+      await gotoReadyOrChunkReload(page, resultsUrl, detail);
       await expectNoHorizontalOverflow(page, 'Results class detail at 375px');
     });
   });

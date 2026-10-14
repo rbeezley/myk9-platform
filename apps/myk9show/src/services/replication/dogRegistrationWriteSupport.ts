@@ -93,18 +93,39 @@ export async function loadDogRegistrationsForEdit(
   };
 }
 
+/** The signed-in account's INSERTs for a row, queued or refused. */
+async function insertIdsFor(
+  queue: MutationManager,
+  tableName: string,
+  rowId: string
+): Promise<string[]> {
+  const [pending, failed] = await Promise.all([
+    queue.getPendingMutationsForRow(tableName, rowId),
+    queue.getFailedMutations(),
+  ]);
+  const failedHere = failed.filter(m => m.tableName === tableName && String(m.rowId) === rowId);
+  return [...pending, ...failedHere].filter(m => m.operation === 'INSERT').map(m => m.id);
+}
+
 /**
- * Work a delete must upload after: the row's own queued mutations
- * (its INSERT, which may replay as a duplicate after a lost acknowledgement)
- * and its dog's (a create still queued). Never out of order after a backoff.
+ * The one dependency rule for a registration DELETE: it waits ONLY for INSERTs
+ * of its own row (an add that may replay as a duplicate after a lost
+ * acknowledgement) and of its dog (a create still queued), pending or refused.
+ * Those are the only writes that can bring the row back. An UPDATE cannot, so
+ * it is never a dependency: queued earlier it uploads first by queue order,
+ * and a dependency on it would strand the DELETE the moment it is refused into
+ * failed_mutations. A refused INSERT holds the DELETE until the person retries
+ * or discards it, so a Retry can never undo a confirmed delete (MYK9-1140).
  */
 export async function queuedWorkBefore(
-  table: { getPendingMutationIdsForRow(rowId: string): Promise<string[]> },
+  table: { getTableName(): string },
+  queue: MutationManager | null,
   row: ReplicatedDogRegistration
 ): Promise<string[]> {
+  if (!queue) return [];
   return [
-    ...(await table.getPendingMutationIdsForRow(row.id)),
-    ...(await replicatedDogsTable.getPendingMutationIdsForRow(row.dogId)),
+    ...(await insertIdsFor(queue, table.getTableName(), row.id)),
+    ...(await insertIdsFor(queue, replicatedDogsTable.getTableName(), row.dogId)),
   ];
 }
 

@@ -26,7 +26,14 @@ vi.mock('../../supabaseClient', () => ({
   supabase: {
     from: (table: string) =>
       table === 'dogs'
-        ? { select: () => ({ is: () => ({ order: () => mockPostgrestAllDogs() }) }) }
+        ? {
+            select: () => ({
+              is: () => ({
+                // showAll pages the list by id, a page at a time.
+                order: () => ({ limit: () => mockPostgrestAllDogs() }),
+              }),
+            }),
+          }
         : {
             select: (columns?: string) => {
               if (table === 'people') return { in: mockPeopleIn };
@@ -284,8 +291,26 @@ describe('loadDogRegistrations', () => {
 });
 
 describe('getAllDogs registration completeness', () => {
+  const embeddedRegistration = {
+    id: 'reg-akc',
+    dog_id: 'dog-1',
+    organization: 'AKC',
+    registration_number: 'DN61191906',
+    breed: 'Belgian Malinois',
+  };
+  const serverDog = {
+    id: 'dog-1',
+    name: 'Ziva',
+    call_name: 'Ziva',
+    owner_id: 'person-1',
+    registrations: [embeddedRegistration],
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
+    // A cold-store flag set by one test must not reach the next (it is not consumed when
+    // the server answers, so the device copy never reads it).
+    mockColdStore.mockReset();
     mockReplicatedGetAllDogs.mockResolvedValue([
       {
         id: 'dog-1',
@@ -297,56 +322,62 @@ describe('getAllDogs registration completeness', () => {
     ]);
     mockPeopleIn.mockResolvedValue({ data: [], error: null });
     mockLocalGet.mockResolvedValue([]);
-    mockPostgrestAllDogs.mockResolvedValue({ data: [], error: null });
+    mockPostgrestAllDogs.mockResolvedValue({ data: [serverDog], error: null });
   });
 
-  it('keeps replicated dogs visible and marks registration data incomplete after a failed read', async () => {
-    mockServerIn.mockResolvedValue({ data: null, error: new Error('offline') });
-
-    const result = await getAllDogs('person-1', true);
-
-    expect(result.error).toBeNull();
-    expect(result.data).toHaveLength(1);
-    expect(result.data?.[0]?.registrations).toEqual([]);
-    expect(result.data?.[0]?.registrations_read_complete).toBe(false);
-  });
-
-  it('keeps partial query results visible but marks registrations incomplete', async () => {
-    const partialRegistration = {
-      id: 'reg-akc',
-      dog_id: 'dog-1',
-      organization: 'AKC',
-      registration_number: 'DN61191906',
-      breed: 'Belgian Malinois',
-    };
-    mockServerIn.mockResolvedValue({
-      data: [partialRegistration],
-      error: new Error('partial read'),
+  // MYK9-1139: the roster reads the server first. The device copy below answers
+  // only when the server cannot be reached.
+  describe('device copy, server unreachable', () => {
+    beforeEach(() => {
+      mockPostgrestAllDogs.mockRejectedValue(new Error('Failed to fetch'));
     });
 
-    const result = await getAllDogs('person-1', true);
+    it('keeps replicated dogs visible and marks registration data incomplete after a failed read', async () => {
+      mockServerIn.mockResolvedValue({ data: null, error: new Error('offline') });
 
-    expect(result.data).toHaveLength(1);
-    expect(result.data?.[0]?.registrations).toEqual([partialRegistration]);
-    expect(result.data?.[0]?.registrations_read_complete).toBe(false);
-  });
+      const result = await getAllDogs('person-1', true);
 
-  it('keeps a successful empty registration read authoritative at the query boundary', async () => {
-    mockServerIn.mockResolvedValue({ data: [], error: null });
-
-    const result = await getAllDogs('person-1', true);
-
-    expect(result.data).toHaveLength(1);
-    expect(result.data?.[0]?.registrations).toEqual([]);
-    expect(result.data?.[0]?.registrations_read_complete).toBe(true);
-  });
-
-  it('reads online rather than reporting an empty roster from a cold local store', async () => {
-    mockColdStore.mockReturnValueOnce(true);
-    mockPostgrestAllDogs.mockResolvedValue({
-      data: [{ id: 'dog-9', name: 'Kilo', owner_id: null }],
-      error: null,
+      expect(result.error).toBeNull();
+      expect(result.data).toHaveLength(1);
+      expect(result.data?.[0]?.registrations).toEqual([]);
+      expect(result.data?.[0]?.registrations_read_complete).toBe(false);
     });
+
+    it('keeps partial query results visible but marks registrations incomplete', async () => {
+      mockServerIn.mockResolvedValue({
+        data: [embeddedRegistration],
+        error: new Error('partial read'),
+      });
+
+      const result = await getAllDogs('person-1', true);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data?.[0]?.registrations).toEqual([embeddedRegistration]);
+      expect(result.data?.[0]?.registrations_read_complete).toBe(false);
+    });
+
+    it('keeps a successful empty registration read authoritative at the query boundary', async () => {
+      mockServerIn.mockResolvedValue({ data: [], error: null });
+
+      const result = await getAllDogs('person-1', true);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data?.[0]?.registrations).toEqual([]);
+      expect(result.data?.[0]?.registrations_read_complete).toBe(true);
+    });
+
+    it('reports an error instead of an empty roster when the store is cold and offline', async () => {
+      mockColdStore.mockReturnValue(true);
+
+      const result = await getAllDogs('person-1', true);
+
+      expect(result.error).not.toBeNull();
+      expect(result.data).toEqual([]);
+    });
+  });
+
+  it('reads the server rather than reporting an empty roster from a cold local store', async () => {
+    mockColdStore.mockReturnValue(true);
     mockServerIn.mockResolvedValue({ data: [], error: null });
 
     const result = await getAllDogs('person-1', true);
@@ -356,43 +387,21 @@ describe('getAllDogs registration completeness', () => {
     expect(result.data).toHaveLength(1);
   });
 
-  it('reports an error instead of an empty roster when the store is cold and offline', async () => {
-    mockColdStore.mockReturnValueOnce(true);
-    mockPostgrestAllDogs.mockRejectedValue(new Error('offline'));
+  it("online, shows the server's registrations with no merge of this device's queue", async () => {
+    mockLocalGet.mockResolvedValue([
+      {
+        id: 'local-reg',
+        dog_id: 'dog-1',
+        organization: 'UKC',
+        registration_number: 'U1',
+        created_at: '2026-10-01T12:00:00.000Z',
+        breed: 'Belgian Shepherd Dog',
+      },
+    ]);
 
     const result = await getAllDogs('person-1', true);
 
-    expect(result.error).not.toBeNull();
-    expect(result.data).toEqual([]);
-  });
-
-  it('preserves registrations when the PostgREST fallback supplies the dog list', async () => {
-    const fallbackRegistration = {
-      id: 'reg-akc',
-      dog_id: 'dog-1',
-      organization: 'AKC',
-      registration_number: 'DN61191906',
-      breed: 'Belgian Malinois',
-    };
-    mockReplicatedGetAllDogs.mockRejectedValue(new Error('replica unavailable'));
-    mockPostgrestAllDogs.mockResolvedValue({
-      data: [
-        {
-          id: 'dog-1',
-          name: 'Ziva',
-          call_name: 'Ziva',
-          owner_id: 'person-1',
-          registrations: [fallbackRegistration],
-        },
-      ],
-      error: null,
-    });
-
-    const result = await getAllDogs('person-1', true);
-
-    expect(mockPostgrestAllDogs).toHaveBeenCalled();
-    expect(result.data).toHaveLength(1);
-    expect(result.data?.[0]?.registrations).toEqual([fallbackRegistration]);
+    expect(result.data?.[0]?.registrations).toEqual([embeddedRegistration]);
   });
 });
 

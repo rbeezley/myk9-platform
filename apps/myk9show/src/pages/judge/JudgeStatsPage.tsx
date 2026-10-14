@@ -9,6 +9,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard, StatCardSkeleton, StatsGrid } from '@myk9/ui';
 import { Badge } from '@/components/ui/badge';
+import { formatShortCalendarDate } from '@/lib/format/dates';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   useMyJudgeStats,
@@ -195,7 +196,7 @@ const JudgeStatsPage: React.FC = () => {
                       <p className="font-medium text-sm">{assignment.show_name}</p>
                       <p className="text-xs text-muted-foreground">
                         {assignment.show_start_date
-                          ? new Date(assignment.show_start_date).toLocaleDateString()
+                          ? formatShortCalendarDate(assignment.show_start_date)
                           : 'Date TBD'}
                         {assignment.fee ? ` — $${assignment.fee}` : ''}
                       </p>

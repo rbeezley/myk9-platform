@@ -60,6 +60,7 @@ import {
   instantFieldsFor,
   mergeNonConflictingServerFields,
 } from '../conflict/detectDirtyRowConflict';
+import type { ScopeStampDirective } from './scopeStamp';
 import { isConflictSurfacingEnabled } from '../conflictConfig';
 import { withQuotaEviction } from '../quota-eviction';
 import {
@@ -1382,7 +1383,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     options?: {
       scopeValue?: string;
       advanceWatermarkMonotonically?: boolean;
-      scopeSyncedBy?: string | null;
+      scopeSyncedBy?: string | null | ScopeStampDirective;
     }
   ): Promise<void> {
     return this.cacheManager.updateSyncMetadata(updates, options);

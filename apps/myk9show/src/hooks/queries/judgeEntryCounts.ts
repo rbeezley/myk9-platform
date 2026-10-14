@@ -1,3 +1,4 @@
+import { countEntryAccounting, expectedEntries } from '@/features/_shared/entryAccounting';
 import type { ReplicatedEntry } from '@/services/replication';
 
 export interface JudgeEntryCounts {
@@ -7,19 +8,22 @@ export interface JudgeEntryCounts {
 }
 
 /**
- * Derive judge-facing progress from the canonical entry rows. Class snapshots
- * are intentionally not used here: they lag behind ringside scoring updates.
+ * Derive judge-facing progress from the entry rows using the same canonical
+ * accounting rule as the ringside class list (`countEntryAccounting`,
+ * MYK9-645): withdrawn, scratched, pulled, moved and soft-deleted entries are
+ * outside the denominator, and a pulled dog is never counted as judged even if
+ * it carries a stale score (MYK9-1166). Class snapshots are intentionally not
+ * used here: they lag behind ringside scoring updates.
  */
 export function deriveJudgeEntryCounts(entries: readonly ReplicatedEntry[]): JudgeEntryCounts {
-  const activeEntries = entries.filter(entry => !entry.deletedAt && !entry.deleted_at);
+  const expected = expectedEntries([...entries]);
+  const { accounted } = countEntryAccounting([...entries]);
   return {
-    totalEntries: activeEntries.length,
-    checkedInEntries: activeEntries.filter(
+    totalEntries: expected.length,
+    checkedInEntries: expected.filter(
       entry => entry.checkInStatus === 'checked-in' || entry.check_in_status === 'checked-in'
     ).length,
-    completedEntries: activeEntries.filter(
-      entry => entry.isScored === true || entry.is_scored === true
-    ).length,
+    completedEntries: accounted,
   };
 }
 

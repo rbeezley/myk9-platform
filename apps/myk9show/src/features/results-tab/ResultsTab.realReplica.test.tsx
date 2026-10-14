@@ -5,8 +5,9 @@
  * `results_released_at` off rows whose mapper omitted it, so every released class read as
  * "Ready to release" and Print all ready stayed disabled.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
+import { configure, getConfig } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 
@@ -65,6 +66,14 @@ vi.mock('@/features/show-map/cockpit/useShowPaperworkPrints', () => ({
   }),
 }));
 vi.mock('./ResultsVisibilitySheet', () => ({ ResultsVisibilitySheet: () => null }));
+
+// Every wait here follows a real IndexedDB write, then a debounced table notice, then an async
+// re-read (MYK9-1160). Under CPU load plus coverage that chain outlasts the 1000ms default and a
+// `toBeDisabled()` waitFor timed out on a button that was about to lock. A budget, not a poll:
+// a passing run still resolves on the first matching render.
+const { asyncUtilTimeout: DEFAULT_ASYNC_TIMEOUT } = getConfig();
+beforeAll(() => configure({ asyncUtilTimeout: 8_000 }));
+afterAll(() => configure({ asyncUtilTimeout: DEFAULT_ASYNC_TIMEOUT }));
 
 beforeEach(async () => {
   prints.data = [];

@@ -43,7 +43,6 @@ const renderTab = (overrides: Partial<DogFormData>, referenceDate?: string) => {
         userRole={UserRole.EXHIBITOR}
         currentUserPersonId="p1"
         onPhotoOpen={vi.fn()}
-        onAddRegistration={vi.fn()}
         referenceDate={referenceDate}
       />
     </EditPanelContext.Provider>

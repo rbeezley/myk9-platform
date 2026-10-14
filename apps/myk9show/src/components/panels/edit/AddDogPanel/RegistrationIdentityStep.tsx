@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,11 @@ interface RegistrationIdentityStepProps {
   onFindDog: (identity: DogRegistrationIdentity) => Promise<RegistrationLookupResult>;
   /** Called when the identity is edited, so the host can drop a stale "found" card. */
   onIdentityEdited: () => void;
+  /**
+   * True once something is typed here and until it is saved or the step goes away. The dog
+   * form does not hold it yet, so the panel needs telling to ask before Escape drops it.
+   */
+  onDraftChange: (draft: boolean) => void;
   /** Writes the dog's first registration to the unsaved dog's form state. */
   onSaveRegistration: (registration: Registration) => void;
   /** The first registration is recorded: move on to the dog's own details. */
@@ -49,6 +54,7 @@ interface RegistrationIdentityStepProps {
 export const RegistrationIdentityStep: React.FC<RegistrationIdentityStepProps> = ({
   onFindDog,
   onIdentityEdited,
+  onDraftChange,
   onSaveRegistration,
   onRegistrationSaved,
   onSkip,
@@ -63,10 +69,13 @@ export const RegistrationIdentityStep: React.FC<RegistrationIdentityStepProps> =
   // Only the newest "Find dog" may answer; an edit while it runs retires it.
   const requestRef = useRef(0);
 
+  useEffect(() => () => onDraftChange(false), [onDraftChange]);
+
   const identityEdited = () => {
     requestRef.current += 1;
     setPhase('identity');
     onIdentityEdited();
+    onDraftChange(true);
   };
 
   const findDog = async () => {

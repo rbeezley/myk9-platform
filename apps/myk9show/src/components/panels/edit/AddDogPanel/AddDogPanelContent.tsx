@@ -35,6 +35,7 @@ interface AddDogPanelContentProps {
   onFindDog: (identity: DogRegistrationIdentity) => Promise<RegistrationLookupResult>;
   /** The identity being typed changed, so a "found" card for the old one is stale. */
   onIdentityEdited: () => void;
+  onIdentityDraftChange: (draft: boolean) => void;
   onUseExistingDog: (dog: Dog) => void;
   onCreateSeparateDog: () => void;
   /**
@@ -61,6 +62,7 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
   registrationMatch,
   onFindDog,
   onIdentityEdited,
+  onIdentityDraftChange,
   onUseExistingDog,
   onCreateSeparateDog,
   onOpenRegistration,
@@ -183,6 +185,7 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
               onAddRegistration={openAddRegistration}
               onFindDog={onFindDog}
               onIdentityEdited={onIdentityEdited}
+              onIdentityDraftChange={onIdentityDraftChange}
               onSaveRegistration={handleSaveRegistration}
               onRegistrationSaved={() => onActiveTabChange('basic')}
               onSkip={isAdminRole(userRole) ? () => onActiveTabChange('basic') : undefined}

@@ -113,6 +113,8 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   const [allowSeparateDog, setAllowSeparateDog] = useState(false);
   // A dog "Find dog" matched by registration number on the Registration step (MYK9-1162).
   const [registrationMatch, setRegistrationMatch] = useState<Dog | null>(null);
+  // Registry and number typed on that step, which the dog form does not hold until it is saved.
+  const [identityDraft, setIdentityDraft] = useState(false);
   // Lives here (not in the content) so a failed Save can move the user to the
   // tab holding the first invalid field (MYK9-885).
   const { activeTab, setActiveTab, handleValidationFail } = usePanelValidationNavigation<TabValue>(
@@ -330,6 +332,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
       schema={isAdminRole(userRole) ? addDogSchema : addDogSchemaRequiringRegistration}
       onSave={handleSave}
       forceHasChanges
+      hasUntrackedInput={identityDraft}
       size="xl"
       saveLabel="Add Dog"
       enableAutoSave={false}
@@ -357,6 +360,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
         registrationMatch={registrationMatch}
         onFindDog={handleFindDog}
         onIdentityEdited={() => setRegistrationMatch(null)}
+        onIdentityDraftChange={setIdentityDraft}
         onUseExistingDog={handleUseExistingDog}
         onCreateSeparateDog={() => {
           setAllowSeparateDog(true);

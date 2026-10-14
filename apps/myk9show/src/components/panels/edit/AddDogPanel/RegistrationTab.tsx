@@ -22,6 +22,7 @@ interface RegistrationTabProps {
    */
   onFindDog: (identity: DogRegistrationIdentity) => Promise<RegistrationLookupResult>;
   onIdentityEdited: () => void;
+  onIdentityDraftChange: (draft: boolean) => void;
   onSaveRegistration: (registration: Registration) => void;
   onRegistrationSaved: () => void;
   /** Show managers only: skip the lookup and add the dog with no registration. */
@@ -39,6 +40,7 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
   onAddRegistration,
   onFindDog,
   onIdentityEdited,
+  onIdentityDraftChange,
   onSaveRegistration,
   onRegistrationSaved,
   onSkip,
@@ -68,6 +70,7 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
           <RegistrationIdentityStep
             onFindDog={onFindDog}
             onIdentityEdited={onIdentityEdited}
+            onDraftChange={onIdentityDraftChange}
             onSaveRegistration={onSaveRegistration}
             onRegistrationSaved={onRegistrationSaved}
             onSkip={onSkip}

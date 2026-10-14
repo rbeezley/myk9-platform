@@ -11,6 +11,7 @@ import { render } from '@/test/utils/testUtils';
 import { UserEditPanel } from '../UserEditPanel';
 import { ClubEditPanel } from '../ClubEditPanel';
 import { AddDogPanel } from '../AddDogPanel';
+import { UserRole } from '@/types/auth-types';
 
 vi.mock('@/hooks/useRBAC', () => ({ useRBAC: () => ({ hasPermission: () => false }) }));
 vi.mock('@/services/database/users', async importOriginal => ({
@@ -125,8 +126,16 @@ describe('Add Club: no skipping ahead', () => {
 });
 
 describe('Add Dog: no skipping ahead', () => {
-  const renderDog = () =>
-    render(<AddDogPanel open onClose={() => {}} onDogCreated={vi.fn()} currentUserPersonId="p1" />);
+  const renderDog = (userRole = UserRole.SECRETARY) =>
+    render(
+      <AddDogPanel
+        open
+        onClose={() => {}}
+        onDogCreated={vi.fn()}
+        currentUserPersonId="p1"
+        userRole={userRole}
+      />
+    );
 
   it('Optional details cannot be reached over an unfinished Essential tab', async () => {
     const user = userEvent.setup();
@@ -138,10 +147,19 @@ describe('Add Dog: no skipping ahead', () => {
     await waitFor(() => expect(document.activeElement).toHaveAttribute('id', 'callName'));
   });
 
-  it('Registration is blocked too while Essential is unfinished, and opens once it passes', async () => {
+  it('Essential is blocked for an exhibitor with no registration yet', async () => {
+    const user = userEvent.setup();
+    renderDog(UserRole.EXHIBITOR);
+    await user.click(await screen.findByRole('tab', { name: /essential/i }));
+    selected(/registration/i);
+    expect(await screen.findByTestId('edit-panel-step-blocked')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add Dog' })).not.toBeInTheDocument();
+  });
+
+  it('a secretary who skips the registration walks Essential to Optional details and back', async () => {
     const user = userEvent.setup();
     renderDog();
-    await user.click(await screen.findByRole('tab', { name: /registration/i }));
+    await user.click(await screen.findByRole('button', { name: /No registration number yet/ }));
     selected(/essential/i);
 
     await user.type(screen.getByLabelText(/Call Name/i), 'Rex');

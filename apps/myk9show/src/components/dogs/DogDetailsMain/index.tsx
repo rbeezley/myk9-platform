@@ -71,7 +71,6 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
   // MYK9-912 / MYK9-935: narrow surface and registration rights come from the one
   // resolved relationship (dogViewerAccess), never from role or ownership checks here.
   const isSecretary = gates.narrowSurface;
-  const canManageRegistrations = gates.canManageRegistrations;
   // Same check as the /people/:id route guard, so the owner is a link only for someone who can open it.
   const canOpenOwnerRecord = hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN);
   // Mirror the soft_delete_dog RPC gate so the Delete action is hidden (not
@@ -82,6 +81,8 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
   // status, so a viewer who may only READ this dog (any secretary, MYK9-854) is never
   // handed a save the server refuses. Owners and site admins are decided locally.
   const canEditDog = useCanEditDog(dog.id, gates.viewerOwnsDog || hasRole(UserRole.SITE_ADMIN));
+  // MYK9-1155: changing or deleting a registration follows the same server rule as the dog.
+  const canManageRegistrations = gates.canManageRegistrations && canEditDog;
 
   // Route-entry focus/scroll (task 3.8, design.md Decision 10): a dog-card
   // click or a Career/Records deep link lands on the main heading; browser

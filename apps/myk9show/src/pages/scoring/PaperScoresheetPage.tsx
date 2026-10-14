@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { classScoringRules } from './classScoringRules';
-import type { ReactNode } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, List, PanelTop } from 'lucide-react';
+import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { ScoresheetLoadingSkeleton } from '@/components/scoring/ScoringLoadingSkeletons';
@@ -21,6 +20,7 @@ import { ShowEntriesNotSyncedError } from '@/services/database/entries/requireSh
 import { REFRESH_FAILED_MESSAGE, refreshEntriesAfterSave } from './paperScoresheetReload';
 import { type ScoresheetSportType } from '@myk9/scoring-ui';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useOptionalReplicationSync } from '@/hooks/useOptionalReplicationSync';
 import {
   calculatePlacements,
   mapSportType,
@@ -31,6 +31,7 @@ import { usePaperScoring } from './hooks/usePaperScoring';
 import { SessionToolbar } from './components/SessionToolbar';
 import { SplitPanelView } from './components/SplitPanelView';
 import { SequentialView } from './components/SequentialView';
+import { ViewModeToggle } from './components/ViewModeToggle';
 import { sortByExhibitorOrder } from './paper-scoring-types';
 import { cn } from '@/lib/utils';
 import type { ScoringEntry } from './types';
@@ -87,6 +88,9 @@ export function PaperScoresheetPage() {
   // (MYK9-774).
   const [freshLoads, setFreshLoads] = useState(0);
   const pendingAdvanceRef = useRef<{ from: string; afterLoad: number } | null>(null);
+  // The current load effect's quiet reload, for signals outside the replicas.
+  const quietReloadRef = useRef<(() => void) | null>(null);
+  const classesSyncStatus = useOptionalReplicationSync()?.status.tablesStatus.classes;
 
   useEffect(() => {
     // A retry or a replica change can overlap an earlier load; only the latest
@@ -116,11 +120,16 @@ export function PaperScoresheetPage() {
         setError(null);
         setRefreshFailed(false);
       }
-      // Only the page's own load and Try again may replace the screen with an
+      // Only the page's own load and Try again may replace a scoresheet with an
       // error; a background reload that fails keeps what is shown (MYK9-1130).
+      // An error screen has no list or draft to protect, so a background
+      // reload's newer answer replaces it.
       const fail = (message: string) => {
         if (refresh) setError(message);
-        else setRefreshFailed(true);
+        else {
+          setError(current => (current === null ? null : message));
+          setRefreshFailed(true);
+        }
       };
       let trialId: string | undefined;
       try {
@@ -207,14 +216,23 @@ export function PaperScoresheetPage() {
     const unsubscribeTrials = replicatedTrialsTable.subscribe(onReplicaChange, {
       emitCurrent: false,
     });
+    quietReloadRef.current = onReplicaChange;
     void load(true);
     return () => {
       disposed = true;
+      quietReloadRef.current = null;
       unsubscribeClasses();
       unsubscribeEntries();
       unsubscribeTrials();
     };
   }, [classId, loadAttempt]);
+
+  // Recording a completed classes sync notifies no replica listener, so a class
+  // the synced replica lacks would stay "not finished loading". The provider
+  // reporting the classes table settled rechecks once (MYK9-1130).
+  useEffect(() => {
+    if (classesSyncStatus === 'success') quietReloadRef.current?.();
+  }, [classesSyncStatus]);
 
   const userId = user?.id ?? 'anonymous';
   const scoring = usePaperScoring(entries, userId);
@@ -426,62 +444,3 @@ export function PaperScoresheetPage() {
 }
 
 export default PaperScoresheetPage;
-
-function ViewModeToggle({
-  mode,
-  onChange,
-}: {
-  mode: PaperScoringMode;
-  onChange: (mode: PaperScoringMode) => void;
-}) {
-  return (
-    <div
-      role="tablist"
-      aria-label="Scoring view"
-      className="flex items-center gap-1 rounded-lg border bg-background p-1"
-    >
-      <ViewModeButton
-        active={mode === 'split'}
-        icon={<List className="h-4 w-4" />}
-        label="List"
-        onClick={() => onChange('split')}
-      />
-      <ViewModeButton
-        active={mode === 'sequential'}
-        icon={<PanelTop className="h-4 w-4" />}
-        label="Card"
-        onClick={() => onChange('sequential')}
-      />
-    </div>
-  );
-}
-
-function ViewModeButton({
-  active,
-  icon,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  icon: ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className={cn(
-        'flex h-9 items-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors',
-        active
-          ? 'bg-accent text-foreground shadow-sm'
-          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-      )}
-    >
-      {icon}
-      <span className="hidden sm:inline">{label}</span>
-    </button>
-  );
-}

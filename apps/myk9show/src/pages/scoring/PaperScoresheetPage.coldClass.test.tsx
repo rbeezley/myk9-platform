@@ -1,7 +1,12 @@
+import { useEffect, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { onlineManager } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@/test/utils/testUtils';
+import {
+  ReplicationSyncContext,
+  type ReplicationSyncContextValue,
+} from '@/context/ReplicationSyncContext';
 import type { ScoringEntry } from './types';
 
 /**
@@ -20,6 +25,7 @@ const replica = vi.hoisted(() => ({
   entriesSynced: false,
   entryListeners: new Set<() => void>(),
   sync: vi.fn(),
+  setClassesSyncStatus: null as ((status: 'syncing' | 'success') => void) | null,
 }));
 
 vi.mock('./useScoringBreadcrumb', () => ({
@@ -94,11 +100,29 @@ const dog = (entryId: string, callName: string, order: number, isScored = false)
     exhibitorOrder: order,
   }) as ScoringEntry;
 
+/** The app-wide sync provider, reduced to the classes table's status. */
+function SyncProvider({ children }: { children: React.ReactNode }) {
+  const [classes, setClasses] = useState<'syncing' | 'success'>('syncing');
+  useEffect(() => {
+    replica.setClassesSyncStatus = setClasses;
+  }, []);
+  const value: ReplicationSyncContextValue = {
+    status: { isSyncing: true, lastSyncAt: null, error: null, tablesStatus: { classes } },
+    triggerSync: async () => undefined,
+    syncTable: async () => undefined,
+  };
+  return (
+    <ReplicationSyncContext.Provider value={value}>{children}</ReplicationSyncContext.Provider>
+  );
+}
+
 function renderPage() {
   return render(
-    <Routes>
-      <Route path="/scoring/classes/:classId/entries" element={<PaperScoresheetPage />} />
-    </Routes>,
+    <SyncProvider>
+      <Routes>
+        <Route path="/scoring/classes/:classId/entries" element={<PaperScoresheetPage />} />
+      </Routes>
+    </SyncProvider>,
     { initialRoute: '/scoring/classes/class-1/entries?mode=split' }
   );
 }
@@ -145,6 +169,33 @@ describe('PaperScoresheetPage — a class that reaches a cold classes replica af
     // The arrival got the cold show its one bounded entries sync.
     await waitFor(() => expect(replica.sync).toHaveBeenCalledTimes(1));
     expect(replica.sync).toHaveBeenCalledWith('show-1');
+  });
+
+  it('a later classes change turns "not finished loading" into "Class not found"', async () => {
+    renderPage();
+    expect(await screen.findByText(/not finished loading on this device/)).toBeInTheDocument();
+
+    // The classes sync completed without the class; something else then changed.
+    replica.classesSynced = true;
+    await act(async () => {
+      for (const listener of [...replica.classListeners]) listener();
+    });
+
+    expect(await screen.findByText('Class not found')).toBeInTheDocument();
+    expect(screen.queryByText(/not finished loading/)).not.toBeInTheDocument();
+  });
+
+  it('says "Class not found" once the classes sync completes without it, with no Try again', async () => {
+    renderPage();
+    expect(await screen.findByText(/not finished loading on this device/)).toBeInTheDocument();
+
+    // Recording the completed sync notifies no replica listener; the provider
+    // reports the classes table settled.
+    replica.classesSynced = true;
+    await act(async () => replica.setClassesSyncStatus?.('success'));
+
+    expect(await screen.findByText('Class not found')).toBeInTheDocument();
+    expect(screen.queryByText(/not finished loading/)).not.toBeInTheDocument();
   });
 
   it('still says "Class not found" when the classes replica has synced without the class', async () => {

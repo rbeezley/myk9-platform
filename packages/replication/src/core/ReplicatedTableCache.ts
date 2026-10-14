@@ -535,6 +535,12 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
         conflictCount: existing?.conflictCount || 0,
         pendingMutations: existing?.pendingMutations || 0,
         ...(scopes !== undefined && { scopes }),
+        // Table-level coverage survives any write that does not set it: a stamp
+        // without its marker would read as never-synced (MYK9-1148).
+        ...(existing?.totalRows !== undefined && { totalRows: existing.totalRows }),
+        ...(existing?.expectedRemoteRows !== undefined && {
+          expectedRemoteRows: existing.expectedRemoteRows,
+        }),
         ...atomicUpdates,
         ...(tableSyncedBy !== undefined && { syncedByAuthUserId: tableSyncedBy }),
       };

@@ -251,6 +251,53 @@ describe('scope stamp races (MYK9-1148)', () => {
     });
   });
 
+  describe('an UNSCOPED table whose stale sync settles the stamp without completing', () => {
+    const unscopedAdapter = (
+      extra: Partial<SyncReplicatedTableAdapter<RemoteRow, LocalRow>> = {}
+    ): SyncReplicatedTableAdapter<RemoteRow, LocalRow> => {
+      const unscoped = adapter(() => [row('r1')], extra);
+      delete unscoped.filterLocalRows;
+      return unscoped;
+    };
+    const tableMetadata = () => table.getSyncMetadata();
+
+    it("keeps the other account's stamp AND its coverage marker, so the table still reads downloaded", async () => {
+      const stale = unscopedAdapter({
+        afterSuccessfulSync: async () => {
+          signInAs('user-b');
+          await settle();
+          expect((await syncReplicatedTable(table, unscopedAdapter(), {})).success).toBe(true);
+          expect((await tableMetadata())?.syncedByAuthUserId).toBe('user-b');
+          expect((await tableMetadata())?.totalRows).toBeDefined();
+        },
+      });
+
+      const result = await syncReplicatedTable(table, stale, {});
+
+      expect(result.success).toBe(false);
+      const metadata = await tableMetadata();
+      expect(metadata?.syncedByAuthUserId).toBe('user-b');
+      expect(metadata?.totalRows).toBeDefined();
+      expect(metadata?.expectedRemoteRows).toBeDefined();
+    });
+
+    it('a third account reads that table as foreign (marker present, stamp not its own)', async () => {
+      const stale = unscopedAdapter({
+        afterSuccessfulSync: async () => {
+          signInAs('user-b');
+          await settle();
+          await syncReplicatedTable(table, unscopedAdapter(), {});
+        },
+      });
+      await syncReplicatedTable(table, stale, {});
+
+      signInAs('user-c');
+      const metadata = await tableMetadata();
+      expect(metadata?.totalRows).toBeDefined();
+      expect(metadata?.syncedByAuthUserId).not.toBe('user-c');
+    });
+  });
+
   describe('a failed read of the stored stamp', () => {
     it("does not clear the account's own earlier stamp", async () => {
       await sync(adapter(() => [row('r1')]));

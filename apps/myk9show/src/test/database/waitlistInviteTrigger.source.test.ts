@@ -2,11 +2,6 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const waitlistFormSource = readFileSync(
-  resolve(__dirname, '../../components/landing/v2/WaitlistFormLanding.tsx'),
-  'utf8'
-);
-
 const inviteFunctionSource = readFileSync(
   resolve(__dirname, '../../../../../supabase/functions/send-waitlist-invite/index.ts'),
   'utf8'
@@ -30,12 +25,6 @@ describe('waitlist invite trigger wiring', () => {
     expect(migrationSource).toContain("'x-myk9-waitlist-invite-secret', invite_secret");
     expect(migrationSource).toContain('after insert on public.platform_waitlist');
     expect(migrationSource).toContain("when (new.role = 'club_official')");
-  });
-
-  it('keeps the browser out of the privileged invite function', () => {
-    expect(waitlistFormSource).not.toContain("functions.invoke('send-waitlist-invite'");
-    expect(waitlistFormSource).toContain('The browser');
-    expect(waitlistFormSource).toContain('WAITLIST_INVITE_SECRET');
   });
 
   it('keeps the edge function protected by the shared secret', () => {

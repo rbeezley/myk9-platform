@@ -84,7 +84,7 @@ describe('myK9Show brand assets', () => {
 
   it('uses the approved vector logo in the public landing header and sign-in card', () => {
     const header = readFileSync(
-      join(appRoot, 'src/components/landing/v2/LandingHeader.tsx'),
+      join(appRoot, 'src/components/landing/lifecycle/LandingHeader.tsx'),
       'utf8'
     );
     const signIn = readFileSync(join(appRoot, 'src/pages/SmartSignInPage.tsx'), 'utf8');

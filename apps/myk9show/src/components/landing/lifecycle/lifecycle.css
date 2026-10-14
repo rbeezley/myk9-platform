@@ -1,0 +1,443 @@
+/* Show-lifecycle timeline (canvas version D). Tokens from src/styles/landing.css. */
+/* The timeline, and the demos nested in its cards, lay out by the width they actually
+   get rather than the screen's, so a breakpoint never assumes the page owns the screen. */
+.landing-v2 .lc {
+  container: lc-timeline / inline-size;
+  background: var(--ivory-100, #f3efe6);
+  padding-block: clamp(3.5rem, 8vw, 6rem);
+}
+.landing-v2 .lc-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 2.5rem;
+}
+.landing-v2 .lc-title {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  line-height: 1.1;
+  margin: 0;
+  text-wrap: balance;
+}
+.landing-v2 .lc-switch {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.landing-v2 .lc-switch button {
+  min-height: 44px;
+  padding: 0 1.125rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--stone-700);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+.landing-v2 .lc-switch button[aria-pressed='true'] {
+  background: var(--terracotta-600);
+  color: #fff;
+}
+.landing-v2 .lc-switch button:focus-visible {
+  outline: 2px solid var(--terracotta-600);
+  outline-offset: 2px;
+}
+
+/* Three-column timeline: main | rail | meanwhile. Phones: rail on the left, columns stack. */
+.landing-v2 .lc-labels,
+.landing-v2 .lc-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) 96px minmax(0, 1fr);
+}
+.landing-v2 .lc-labels {
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--stone-500);
+}
+.landing-v2 .lc-labels span:first-child {
+  color: var(--terracotta-600);
+}
+.landing-v2 .lc-main {
+  padding: 0 1.5rem 2.5rem 0;
+}
+.landing-v2 .lc-meanwhile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 0.375rem 0 2.5rem 1.5rem;
+}
+.landing-v2 .lc-step-title {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  font-size: 1.5rem;
+  line-height: 1.1;
+  margin: 0;
+  color: var(--ink-900);
+}
+.landing-v2 .lc-step-body {
+  margin: 0.5rem 0 1rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--stone-700);
+  max-width: 52ch;
+}
+.landing-v2 .lc-meanwhile-text {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--stone-700);
+  font-style: italic;
+}
+.landing-v2 .lc-lead {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--terracotta-600);
+}
+
+/* Peak: show day on a white panel with the most room. */
+.landing-v2 .lc-row[data-peak='true'] .lc-main {
+  padding: 2.5rem;
+  margin: 2.5rem 1.5rem 6rem 0;
+  background: #fff;
+  border: 1px solid #e8e2d4;
+  border-radius: 24px;
+  box-shadow: 0 40px 80px -48px rgb(60 40 20 / 0.45);
+}
+.landing-v2 .lc-row[data-peak='true'] .lc-meanwhile {
+  padding-top: 5rem;
+  padding-bottom: 6rem;
+}
+.landing-v2 .lc-row[data-peak='true'] .lc-step-title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  color: var(--terracotta-600);
+}
+.landing-v2 .lc-row[data-peak='true'] .lc-step-body {
+  font-size: 1.1875rem;
+  margin-bottom: 1.75rem;
+}
+
+/* Screenshots: width follows capture shape. */
+.landing-v2 .lc-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid #e3dccd;
+  background: #fff;
+  box-shadow: 0 24px 48px -24px rgb(60 40 20 / 0.35);
+}
+.landing-v2 .lc-shot[data-side='main'][data-shape='desktop'] {
+  max-width: 440px;
+}
+.landing-v2 .lc-shot[data-side='main'][data-shape='tablet'] {
+  max-width: 300px;
+}
+.landing-v2 .lc-shot[data-side='main'][data-shape='phone'] {
+  max-width: 220px;
+}
+.landing-v2 .lc-shot[data-side='meanwhile'][data-shape='desktop'] {
+  max-width: 75%;
+}
+.landing-v2 .lc-shot[data-side='meanwhile'][data-shape='tablet'] {
+  max-width: 170px;
+}
+.landing-v2 .lc-shot[data-side='meanwhile'][data-shape='phone'] {
+  max-width: 140px;
+}
+.landing-v2 .lc-row[data-peak='true'] .lc-shot[data-side='meanwhile'][data-shape='desktop'] {
+  max-width: 100%;
+}
+.landing-v2 .lc-row[data-peak='true'] .lc-shot[data-side='meanwhile'][data-shape='tablet'] {
+  max-width: 240px;
+}
+.landing-v2 .lc-row[data-peak='true'] .lc-shot[data-side='meanwhile'][data-shape='phone'] {
+  max-width: 200px;
+}
+
+/* Rail: dot fills when reached; the line below it fills when the NEXT step is reached. */
+.landing-v2 .lc-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.landing-v2 .lc-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 2px solid #b8ae9c;
+  background: #fff;
+  color: var(--ink-900);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transform: scale(0.92);
+  transition:
+    background-color 260ms ease,
+    color 260ms ease,
+    border-color 260ms ease,
+    transform 260ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.landing-v2 .lc-dot[data-reached='true'] {
+  background: var(--terracotta-600);
+  border-color: var(--terracotta-600);
+  color: #fff;
+  transform: scale(1);
+}
+.landing-v2 .lc-row[data-peak='true'] .lc-dot {
+  width: 64px;
+  height: 64px;
+  font-size: 1.375rem;
+  margin-top: 2.5rem;
+}
+.landing-v2 .lc-dot-wrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+/* D10: the scent trail between dots. The SVG stretches to the row; strokes stay crisp
+   (vector-effect: non-scaling-stroke on each path). It fills, by clip-path wipe, when the
+   NEXT step is reached, and pulls back when the reader scrolls up. */
+.landing-v2 .lc-trail {
+  flex: 1 1 auto;
+  width: 96px;
+  margin-top: 4px;
+  overflow: visible;
+}
+.landing-v2 .lc-trail-base {
+  fill: none;
+  stroke: #d9cfbc;
+  stroke-width: 2;
+}
+.landing-v2 .lc-trail-scent {
+  fill: none;
+  stroke: var(--terracotta-600);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 0.5 13;
+  clip-path: inset(0 0 100% 0);
+  transition: clip-path 700ms cubic-bezier(0.45, 0.05, 0.25, 1);
+}
+.landing-v2 .lc-trail[data-after-find='true'] .lc-trail-scent {
+  stroke: #b8ae9c;
+  stroke-width: 2;
+  stroke-dasharray: 3 8;
+  stroke-linecap: butt;
+}
+.landing-v2 .lc-row:has(+ .lc-row .lc-dot[data-reached='true']) .lc-trail-scent {
+  clip-path: inset(0 0 0 0);
+}
+.landing-v2 .lc-alert {
+  position: absolute;
+  left: 100%;
+  top: 6px;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #e3f2e6;
+  color: #1e5b2e;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 8px 18px -10px rgb(0 0 0 / 0.35);
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 400ms ease,
+    transform 400ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.landing-v2 .lc-alert[data-shown='true'] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Reveal once: content rises 20px and fades in; meanwhile follows 140ms later. */
+.landing-v2 .lc-main,
+.landing-v2 .lc-meanwhile {
+  transition:
+    opacity 500ms ease,
+    transform 500ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.landing-v2 .lc-meanwhile {
+  transition-delay: 140ms;
+}
+.landing-v2 .lc-row[data-revealed='false'] .lc-main,
+.landing-v2 .lc-row[data-revealed='false'] .lc-meanwhile {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* Explainer */
+.landing-v2 .lc-explainer {
+  margin: 0;
+}
+.landing-v2 .lc-explainer-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid #e3dccd;
+  background: #fff;
+  box-shadow: 0 30px 60px -28px rgb(60 40 20 / 0.45);
+}
+.landing-v2 .lc-explainer-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.landing-v2 .lc-explainer-box,
+.landing-v2 .lc-explainer-dim {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 280ms ease;
+}
+.landing-v2 .lc-explainer-box {
+  border: 3px solid var(--terracotta-600);
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 9999px rgb(24 20 17 / 0.42),
+    0 0 0 6px rgb(255 255 255 / 0.55);
+}
+.landing-v2 .lc-explainer-dim {
+  inset: 0;
+  background: rgb(24 20 17 / 0.18);
+}
+.landing-v2 [data-explainer-box][data-active='true'] {
+  opacity: 1;
+}
+.landing-v2 .lc-explainer-badge {
+  position: absolute;
+  top: 3%;
+  right: 3%;
+  padding: 0.5rem 0.875rem;
+  border-radius: 999px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  box-shadow: 0 6px 16px -6px rgb(0 0 0 / 0.3);
+}
+.landing-v2 .lc-explainer-badge[data-tone='amber'] {
+  background: #fff1d6;
+  color: #6e4300;
+}
+.landing-v2 .lc-explainer-badge[data-tone='green'] {
+  background: #e3f2e6;
+  color: #1e5b2e;
+}
+.landing-v2 .lc-explainer-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.875rem;
+}
+.landing-v2 .lc-explainer-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 0.625rem;
+  border-radius: 999px;
+  background: var(--terracotta-600);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.landing-v2 .lc-explainer-text {
+  flex: 1 1 200px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--ink-900);
+  line-height: 1.4;
+}
+.landing-v2 .lc-explainer-btn {
+  min-height: 44px;
+  padding: 0 0.875rem;
+  border-radius: 10px;
+  border: 1px solid #d9d3c4;
+  background: #fff;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ink-900);
+  cursor: pointer;
+}
+.landing-v2 .lc-explainer-btn:focus-visible {
+  outline: 2px solid var(--terracotta-600);
+  outline-offset: 2px;
+}
+
+/* Phones: rail on the left, main then meanwhile stacked on the right. */
+@container lc-timeline (max-width: 767px) {
+  .landing-v2 .lc-labels {
+    display: none;
+  }
+  .landing-v2 .lc-row {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+  .landing-v2 .lc-rail {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+  .landing-v2 .lc-main {
+    grid-column: 2;
+    padding: 0 0 1rem;
+  }
+  .landing-v2 .lc-meanwhile {
+    grid-column: 2;
+    padding: 0 0 2.5rem;
+  }
+  .landing-v2 .lc-row[data-peak='true'] .lc-main {
+    margin: 1rem 0 1.5rem;
+    padding: clamp(0.875rem, 4vw, 1.5rem);
+  }
+  .landing-v2 .lc-row[data-peak='true'] .lc-meanwhile {
+    padding-top: 0;
+    padding-bottom: 3rem;
+  }
+  .landing-v2 .lc-row[data-peak='true'] .lc-dot {
+    margin-top: 1rem;
+  }
+  .landing-v2 .lc-alert {
+    left: 50%;
+    top: 100%;
+    margin: 6px 0 0;
+    transform: translate(-50%, 6px);
+  }
+  .landing-v2 .lc-alert[data-shown='true'] {
+    transform: translate(-50%, 0);
+  }
+  .landing-v2 .lc-trail {
+    width: 56px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-v2 .lc-dot,
+  .landing-v2 .lc-trail-scent,
+  .landing-v2 .lc-alert,
+  .landing-v2 .lc-main,
+  .landing-v2 .lc-meanwhile,
+  .landing-v2 .lc-explainer-box,
+  .landing-v2 .lc-explainer-dim,
+  .landing-v2 .lc-switch button {
+    transition: none;
+  }
+}

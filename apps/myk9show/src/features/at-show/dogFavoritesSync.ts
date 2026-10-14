@@ -48,8 +48,8 @@ export interface DogFavoriteRow {
 
 /**
  * `dog_favorites` is newer than the checked-in generated `Database` types, so
- * the client is narrowed structurally here — the same escape hatch
- * `WaitlistFormLanding` uses for `platform_waitlist`. Keeping it in one place
+ * the client is narrowed structurally here — the usual escape
+ * hatch for a table the generated types do not know yet. Keeping it in one place
  * means exactly one cast in the app.
  */
 interface DogFavoritesTable {

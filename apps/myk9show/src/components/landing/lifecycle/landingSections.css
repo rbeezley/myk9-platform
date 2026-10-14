@@ -1,0 +1,100 @@
+/* The landing header lays out by its own width, not the screen's, like the timeline. */
+.landing-v2 .l-hdr {
+  container: lhdr / inline-size;
+}
+.landing-v2 .l-hdr .l-btn {
+  white-space: nowrap;
+}
+/* The logo link keeps a 44px target even when the logo itself is cropped. */
+.landing-v2 .l-hdr .l-brand {
+  min-width: 44px;
+}
+/* .l-btn sets display, so the hide rule needs both classes to win. */
+.landing-v2 .l-btn.l-hdr-desktop {
+  display: none;
+}
+@container lhdr (min-width: 640px) {
+  .landing-v2 .l-btn.l-hdr-desktop {
+    display: inline-flex;
+  }
+}
+@container lhdr (max-width: 768px) {
+  .landing-v2 .l-hdr .l-hdr-inner {
+    gap: 10px;
+  }
+}
+@container lhdr (max-width: 640px) {
+  .landing-v2 .l-hdr .l-hdr-inner {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}
+@container lhdr (max-width: 480px) {
+  .landing-v2 .l-hdr .l-hdr-inner {
+    gap: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .landing-v2 .l-hdr .l-brand {
+    gap: 6px;
+    font-size: 18px;
+  }
+  .landing-v2 .l-hdr .l-btn {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+/* Narrow: tighter buttons and a smaller wordmark so both header buttons fit. */
+@container lhdr (max-width: 399px) {
+  .landing-v2 .l-hdr .l-btn {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .landing-v2 .l-brand-logo {
+    width: 96px;
+  }
+}
+/* Narrowest: only the dog mark at the left of the logo shows. */
+@container lhdr (max-width: 359px) {
+  .landing-v2 .l-brand-logo {
+    width: 34px;
+    object-fit: cover;
+    object-position: left center;
+  }
+}
+
+/* Guests have no app header above the landing header; signed-in onboarding returns do. */
+.landing-v2[data-guest='true'] .l-hdr {
+  top: var(--pwa-banner-height, 0px);
+}
+
+.landing-v2 .lc-hero-photo {
+  display: block;
+  width: 100%;
+  height: clamp(200px, 34vh, 380px);
+  object-fit: cover;
+  object-position: center 35%;
+}
+.landing-v2 .lc-hero-copy {
+  padding-block: clamp(1.5rem, 4vw, 3rem) clamp(2rem, 5vw, 3.5rem);
+}
+.landing-v2 .lc-hero .l-h1 {
+  max-width: 16ch;
+  font-size: clamp(2.25rem, 6vw, 4rem);
+  text-wrap: balance;
+}
+.landing-v2 .lc-hero .l-lede {
+  max-width: 52ch;
+  font-size: clamp(1.0625rem, 1.6vw, 1.25rem);
+}
+.landing-v2 .lc-hero-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+.landing-v2 .lc-hero-registries {
+  margin: 1rem 0 0;
+  font-size: 0.9375rem;
+  color: var(--stone-500);
+}

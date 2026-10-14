@@ -57,6 +57,7 @@ export function LifecycleTimeline({
             lead={PEAK_LEAD[audience]}
             meanwhileLabel={MEANWHILE_LABEL[audience]}
             reached={reached >= i + 1}
+            lineFilled={reached >= i + 2}
             revealed={isRevealed(step.id)}
             isLast={i === story.length - 1}
           />

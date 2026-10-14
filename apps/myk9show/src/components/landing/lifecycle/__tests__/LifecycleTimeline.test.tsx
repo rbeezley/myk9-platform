@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { LifecycleTimeline as ControlledTimeline } from '../LifecycleTimeline';
-import { trailPath } from '../TimelineStep';
 import { DEFAULT_AUDIENCE, STORIES, type Audience } from '../lifecycleStories';
 
 // The page owns the audience (Home); this holds it the same way so the switch works here.
@@ -17,13 +16,6 @@ vi.mock('../useTimelineProgress', () => ({
 }));
 
 const titles = () => screen.getAllByRole('heading', { level: 3 }).map(h => h.textContent);
-
-describe('trailPath', () => {
-  it('starts and ends on the dot axis and mirrors by side', () => {
-    expect(trailPath(1)).toMatch(/^M 48 0 .* 48 100$/);
-    expect(trailPath(1)).not.toBe(trailPath(-1));
-  });
-});
 
 describe('LifecycleTimeline', () => {
   it('opens on the club story', () => {
@@ -63,12 +55,7 @@ describe('LifecycleTimeline', () => {
     expect(document.getElementById('showday')).toBe(showday);
     expect(document.getElementById('before')).toBe(before);
     expect(document.body.contains(showday)).toBe(true);
-    expect(document.getElementById('results')!.querySelector('.lc-trail')).toHaveAttribute(
-      'data-after-find',
-      'true'
-    );
-    expect(before!.querySelector('.lc-trail')).toHaveAttribute('data-after-find', 'false');
-    expect(container.querySelectorAll('svg.lc-trail')).toHaveLength(5);
+    expect(container.querySelectorAll('.lc-line')).toHaveLength(5);
   });
 
   it('fills dots up to the reached step only', () => {
@@ -104,12 +91,15 @@ describe('LifecycleTimeline', () => {
     );
   });
 
-  // D10
-  it('draws a scent trail between every pair of steps, with Alert at Results only', () => {
+  // A plain line joins each pair of steps; it fills only once the next step is reached
+  // (the progress mock reports step 2 reached, so only the 1 -> 2 line is filled).
+  it('draws a line between every pair of steps, filled up to the reached step', () => {
     const { container } = render(<LifecycleTimeline />);
-    expect(container.querySelectorAll('svg.lc-trail')).toHaveLength(5);
-    expect(container.querySelectorAll('.lc-alert')).toHaveLength(1);
-    expect(document.getElementById('results')!.querySelector('.lc-alert')).not.toBeNull();
+    const filled = [...container.querySelectorAll('.lc-line')].map(l =>
+      l.getAttribute('data-filled')
+    );
+    expect(filled).toEqual(['true', 'false', 'false', 'false', 'false']);
+    expect(container.querySelector('svg.lc-trail, .lc-alert')).toBeNull();
   });
 
   // D11

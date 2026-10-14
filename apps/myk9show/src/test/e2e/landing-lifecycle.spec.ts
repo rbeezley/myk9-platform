@@ -175,14 +175,21 @@ for (const vp of VIEWPORTS) {
       await expect(peak.getByText('All synced')).toBeVisible({ timeout: 4000 });
     });
 
-    test('the scent trail follows the reader and marks Alert at Results', async ({ page }) => {
+    test('the line fills down to the reached step and empties going back', async ({
+      page,
+    }, testInfo) => {
       await openLanding(page);
-      const alert = page.locator('#results .lc-alert');
-      await expect(alert).toHaveAttribute('data-shown', 'false');
+      // The line under show day leads to Results; it fills once Results is reached.
+      const line = page.locator('#showday .lc-line');
+      await expect(line).toHaveAttribute('data-filled', 'false');
       await scrollDotToMiddle(page, 'results');
-      await expect(alert).toHaveAttribute('data-shown', 'true');
+      await expect(line).toHaveAttribute('data-filled', 'true');
+      await expect(page.locator('#results .lc-line')).toHaveAttribute('data-filled', 'false');
+      // Evidence for review once the 700ms fill has finished.
+      await page.waitForTimeout(900);
+      await page.screenshot({ path: testInfo.outputPath(`line-${vp.name}.png`) });
       await scrollToTop(page);
-      await expect(alert).toHaveAttribute('data-shown', 'false');
+      await expect(line).toHaveAttribute('data-filled', 'false');
     });
 
     test('night-before card ticks green once revealed', async ({ page }) => {
@@ -323,8 +330,8 @@ for (const vp of VIEWPORTS) {
           '.lc-demo-label, .lc-demo-status, .lc-demo-hint, .lc-demo-meta, .lc-demo-badge, .lc-demo-chip, .lc-demo-remaining',
           // Night-before card.
           '.lc-night-label, .lc-night-sub, .lc-night-summary, .lc-night-when, .lc-night-title, .lc-night-closing, .lc-night-replay',
-          // Explainer count chip and the Alert pill.
-          '.lc-explainer-count, .lc-alert',
+          // Explainer count chip.
+          '.lc-explainer-count',
         ].join(', ');
         const nodes = [...document.querySelectorAll(selector)];
         const rows = nodes.map(el => ({
@@ -366,13 +373,13 @@ for (const vp of VIEWPORTS) {
 const motionOf = (page: Page) =>
   page.evaluate(() => ({
     dot: getComputedStyle(document.querySelector('.lc-dot')!).transitionProperty,
-    fill: getComputedStyle(document.querySelector('.lc-trail-scent')!).transitionProperty,
+    fill: getComputedStyle(document.querySelector('.lc-line-fill')!).transitionProperty,
   }));
 
 test.describe('motion with no preference', () => {
   test.use({ viewport: { width: 390, height: 844 } });
   // Positive control for the reduced-motion test below: these elements do animate by default.
-  test('the dots and the scent line have transitions', async ({ page }) => {
+  test('the dots and the progress line have transitions', async ({ page }) => {
     await openLanding(page);
     const { dot, fill } = await motionOf(page);
     expect(dot).not.toBe('none');

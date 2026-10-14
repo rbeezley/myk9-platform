@@ -1,4 +1,4 @@
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, within } from '@/test/utils/testUtils';
 import { DogEntriesSection } from '../DogEntriesSection';
 import type { DogEntriesGroup } from '@/hooks/useShowEntriesForUser';
 
@@ -105,6 +105,44 @@ describe('DogEntriesSection', () => {
     expect(screen.getByText('0:38.50')).toBeInTheDocument();
     expect(screen.queryByText('Awaiting results')).not.toBeInTheDocument();
   });
+
+  it.each([
+    { qualified: true, chip: 'Qualified' },
+    { qualified: false, chip: 'Not qualified' },
+  ])(
+    'withholds the placement and labels a $chip result preliminary until release',
+    ({ qualified, chip }) => {
+      const renderWith = (isPreliminary: boolean) =>
+        render(
+          <DogEntriesSection
+            group={{
+              ...group,
+              entries: [
+                {
+                  ...group.entries[0],
+                  hasResult: true,
+                  result: { qualified, time: '0:52.40', placement: 1, isPreliminary },
+                },
+              ],
+            }}
+            showId="show-1"
+          />
+        );
+
+      const unreleased = renderWith(true);
+      const badge = screen.getByTestId('entry-result-badge');
+      expect(within(badge).getByText(chip)).toBeInTheDocument();
+      expect(within(badge).getByText('preliminary')).toBeInTheDocument();
+      expect(screen.queryByText(/1st/)).not.toBeInTheDocument();
+      unreleased.unmount();
+
+      renderWith(false);
+      const released = screen.getByTestId('entry-result-badge');
+      expect(within(released).getByText(chip)).toBeInTheDocument();
+      expect(within(released).queryByText('preliminary')).not.toBeInTheDocument();
+      if (qualified) expect(within(released).getByText(/1st/)).toBeInTheDocument();
+    }
+  );
 
   it('uses the canonical pending-review label for an entry awaiting review', () => {
     render(

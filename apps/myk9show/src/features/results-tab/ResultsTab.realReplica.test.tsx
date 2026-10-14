@@ -73,10 +73,11 @@ vi.mock('./ResultsVisibilitySheet', () => ({ ResultsVisibilitySheet: () => null 
 // a passing run still resolves on the first matching render. Tests here chain up to three waits,
 // so the per-test timeout is raised past their sum: a slow wait then fails as itself, with its DOM
 // dump, instead of as "Test timed out" naming only the it().
+// Module top level, as scripts/qa/*.test.ts do: set before this file's tests are collected.
+vi.setConfig({ testTimeout: 30_000 });
 const { asyncUtilTimeout: DEFAULT_ASYNC_TIMEOUT } = getConfig();
 beforeAll(() => {
   configure({ asyncUtilTimeout: 8_000 });
-  vi.setConfig({ testTimeout: 30_000 });
 });
 afterAll(() => {
   configure({ asyncUtilTimeout: DEFAULT_ASYNC_TIMEOUT });

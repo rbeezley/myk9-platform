@@ -23,7 +23,17 @@ export function ScreenshotExplainer({
   const [pausedOverride, setPausedOverride] = useState<boolean | null>(null);
   const paused = pausedOverride ?? reducedMotion;
   const [visible, setVisible] = useState(false);
+  // A background tab must not advance captions the visitor never saw.
+  const [pageVisible, setPageVisible] = useState(
+    () => typeof document === 'undefined' || document.visibilityState !== 'hidden'
+  );
   const ref = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const onChange = () => setPageVisible(document.visibilityState !== 'hidden');
+    document.addEventListener('visibilitychange', onChange);
+    return () => document.removeEventListener('visibilitychange', onChange);
+  }, []);
 
   useEffect(() => {
     const node = ref.current;
@@ -36,10 +46,10 @@ export function ScreenshotExplainer({
   }, []);
 
   useEffect(() => {
-    if (paused || !visible) return;
+    if (paused || !visible || !pageVisible) return;
     const t = window.setInterval(() => setIndex(i => (i + 1) % steps.length), intervalMs);
     return () => window.clearInterval(t);
-  }, [paused, visible, steps.length, intervalMs]);
+  }, [paused, visible, pageVisible, steps.length, intervalMs]);
 
   // Review Focus 7: a parent may swap in a shorter step list; never read past its end.
   const safeIndex = index % steps.length;

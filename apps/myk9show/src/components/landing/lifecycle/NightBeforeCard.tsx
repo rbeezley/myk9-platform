@@ -14,17 +14,17 @@ export const NIGHT_BEFORE_CHECKS: readonly {
   {
     signal: 'show-details-missing',
     label: 'Show details complete',
-    sub: 'Dates, venue and trials in place',
+    sub: 'Name, dates, venue and club filled in',
   },
   {
     signal: 'no-classes',
     label: 'Classes built',
-    sub: 'Every trial has its classes',
+    sub: 'Your classes are set up',
   },
   {
     signal: 'judges-missing',
-    label: 'Judges assigned to every class',
-    sub: 'Nothing waiting on a judge',
+    label: 'Judges added',
+    sub: 'Your judge roster is ready',
   },
   {
     signal: 'show-not-visible',

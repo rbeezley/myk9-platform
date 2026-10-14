@@ -83,6 +83,27 @@ describe('ScreenshotExplainer', () => {
     expect(screen.getByText('1 of 3')).toBeInTheDocument();
   });
 
+  it('pauses while the tab is hidden and resumes when it returns', () => {
+    setReducedMotion(false);
+    let state: DocumentVisibilityState = 'visible';
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => state);
+    const setTab = (next: DocumentVisibilityState) =>
+      act(() => {
+        state = next;
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+    render(<ScreenshotExplainer shot={shot} steps={steps} intervalMs={1000} />);
+    show();
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.getByText('2 of 3')).toBeInTheDocument();
+    setTab('hidden');
+    act(() => vi.advanceTimersByTime(5000));
+    expect(screen.getByText('2 of 3')).toBeInTheDocument();
+    setTab('visible');
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.getByText('3 of 3')).toBeInTheDocument();
+  });
+
   it('stops on Pause and steps on Next', () => {
     setReducedMotion(false);
     render(<ScreenshotExplainer shot={shot} steps={steps} intervalMs={1000} />);

@@ -5,7 +5,8 @@
  * so lazyWithRetry's re-imports never reach the network again (reproduced: 3 `import()` calls of
  * a URL that 404'd once made 1 request and all rejected). A transient failure (service worker
  * installing or updating, a deploy replacing hashed chunks) therefore stays failed until the
- * page reloads. A fresh document, with the stale service worker unregistered, recovers it.
+ * page reloads. A fresh document recovers it. The service worker is left alone: unregistering it
+ * would drop the offline copy of the app, and offline-first is not traded for this recovery.
  *
  * Guards, because a reload is the one thing that can lose work or loop:
  *   - chunk-load errors only (a thrown render error is never a reason to reload);
@@ -19,7 +20,6 @@ import { isSensitivePath } from '@/utils/sensitiveRoutes';
 
 export const RECOVERY_STORAGE_KEY = 'myk9:chunk-recovery-reload-at';
 export const RELOAD_WINDOW_MS = 60_000;
-const UNREGISTER_TIMEOUT_MS = 1500;
 
 const CHUNK_ERROR_PATTERNS: readonly RegExp[] = [
   /Failed to fetch dynamically imported module/i, // Chromium, Edge
@@ -62,20 +62,8 @@ export function canRecoverByReload(error: unknown, now: number = Date.now()): bo
   return !recentlyReloaded(now);
 }
 
-async function unregisterServiceWorkers(): Promise<void> {
-  if (!('serviceWorker' in navigator)) return;
-  const unregister = navigator.serviceWorker
-    .getRegistrations()
-    .then(registrations =>
-      Promise.all(registrations.map(registration => registration.unregister()))
-    )
-    .then(() => undefined);
-  const timeout = new Promise<void>(resolve => setTimeout(resolve, UNREGISTER_TIMEOUT_MS));
-  await Promise.race([unregister, timeout]).catch(() => undefined);
-}
-
 /**
- * Reload once (after dropping the stale service worker) when the guards allow it.
+ * Reload once when the guards allow it.
  * Returns true when a reload was started; the caller should then keep showing its loading
  * state instead of flashing the error boundary.
  */
@@ -84,7 +72,7 @@ export function recoverFromChunkLoadError(error: unknown): boolean {
   if (!canRecoverByReload(error, now)) return false;
   reloadedThisDocument = true;
   rememberReload(now);
-  void unregisterServiceWorkers().then(() => window.location.reload());
+  window.location.reload();
   return true;
 }
 

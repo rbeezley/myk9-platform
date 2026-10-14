@@ -32,3 +32,22 @@ export function scopeStampFor(
   if (whole) return syncingAuthUserId;
   return stored === syncingAuthUserId ? undefined : null;
 }
+
+/**
+ * A stale sync that re-owned rows another account's stamp vouched for must take
+ * that stamp with it: whether the other account then finished a newer sync
+ * cannot be told, so the stamp goes (fails toward "not downloaded", never a
+ * partial roster).
+ */
+export async function dropStampOfRowsTakenOver<T extends { id: string }>(
+  table: ReplicatedTable<T>,
+  scopeValue: string | undefined,
+  syncingAuthUserId: string | null,
+  takenOverIds: readonly string[]
+): Promise<void> {
+  if (takenOverIds.length === 0) return;
+  const other = await table.getSyncMetadataOrThrow(scopeValue);
+  if (other?.syncedByAuthUserId && other.syncedByAuthUserId !== syncingAuthUserId) {
+    await table.updateSyncMetadata({}, { scopeValue, scopeSyncedBy: null });
+  }
+}

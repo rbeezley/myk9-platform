@@ -132,6 +132,46 @@ describe('scope stamp races (MYK9-1148)', () => {
     });
   });
 
+  describe('a stale sync that re-owned rows before it aborted', () => {
+    it("clears the other account's stamp: the rows it vouched for are no longer its own", async () => {
+      signInAs('user-b');
+      await sync(adapter(() => [row('r1', 1)]));
+      expect(await stampOf()).toBe('user-b');
+
+      // A takes over B's r1, then the signed-in account flips back to B before A
+      // reaches the stamp write.
+      signInAs('user-a');
+      await settle();
+      table.getCurrentAuthUserId = async () => {
+        const held = await table.getReplicatedRowIncludingOtherAccounts('r1');
+        if (held?.ownerAuthUserId === 'user-a') who.current = 'user-b';
+        return who.current;
+      };
+      const result = await sync(adapter(() => [row('r1', 2)]));
+
+      expect(result.success).toBe(false);
+      expect(await stampOf()).toBeUndefined();
+    });
+  });
+
+  describe('a failed read of the stored stamp', () => {
+    it("does not clear the account's own earlier stamp", async () => {
+      await sync(adapter(() => [row('r1')]));
+      expect(await stampOf()).toBe('user-a');
+
+      // The non-throwing read reports a failed read as "no metadata" (null).
+      const { getSyncMetadata } = table;
+      table.getSyncMetadata = async () => null;
+      table.getSyncMetadataOrThrow = async () => {
+        throw new Error('metadata read timed out');
+      };
+      await sync(adapter(() => [row('r1')], { getRemoteRowCount: vi.fn(async () => 2) }));
+      table.getSyncMetadata = getSyncMetadata;
+
+      expect(await stampOf()).toBe('user-a');
+    });
+  });
+
   describe('a downloaded row another account still owns', () => {
     it('is not a whole download: the account that could not take the row is not stamped', async () => {
       // A holds r1 at server version 10 (clean). B's download carries version 9,

@@ -2,7 +2,7 @@ import type { ReplicatedTable } from './core/ReplicatedTable';
 import type { SyncOptions, SyncResult } from './types';
 import { repairStuckPendingFlagsOnce } from './core/repairStuckPendingFlags';
 import { reconcileDirtyRemoteRow } from './reconcileDirtyRemoteRow';
-import { anyRowNotOwnedBy, scopeStampFor } from './rowOwnership';
+import { anyRowNotOwnedBy, dropStampOfRowsTakenOver, scopeStampFor } from './rowOwnership';
 import { countCoveredRows, staleCleanupKeepIds, getCoveredRemoteIds } from './replicaCoverage';
 import {
   configureConflictSurfacing as _configureConflictSurfacing,
@@ -396,6 +396,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     const totalRows = (await getLocalRowsForScope()).length;
     if (accountOwned) {
       if ((await table.getCurrentAuthUserId()) !== syncingAuthUserId) {
+        await dropStampOfRowsTakenOver(table, scope.value, syncingAuthUserId, takenOverIds);
         return {
           tableName: table.getTableName(),
           success: false,
@@ -407,7 +408,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
           ...(uploadError ? { uploadError } : {}),
         };
       }
-      const stored = await table.getSyncMetadata(scope.value);
+      const stored = await table.getSyncMetadataOrThrow(scope.value);
       scopeSyncedBy = scopeStampFor(wholeDownload, syncingAuthUserId, stored?.syncedByAuthUserId);
     }
 

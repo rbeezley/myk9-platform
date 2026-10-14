@@ -187,23 +187,29 @@ function EntryResultBadge({ entry }: { entry: EnrichedShowEntry }) {
   const result = entry.result;
   if (!result) return null;
 
-  const { qualified, time, placement } = result;
+  const { qualified, time, placement, isPreliminary } = result;
+  // MYK9-263/MYK9-1179: same gate as the "Where to be & when" rows
+  // (`isPreliminary` comes from deriveResultReleaseDisplay): an unreleased
+  // result is labelled preliminary and its placement is withheld.
+  const preliminarySuffix = isPreliminary ? ' · preliminary' : '';
 
   return (
     <div className="flex items-center gap-1.5 shrink-0">
       {qualified ? (
         <Chip color="green" size="sm" leadingIcon={<CheckCircle2 className="h-3 w-3" />}>
-          Qualified
+          Qualified{preliminarySuffix}
         </Chip>
       ) : (
         <Chip color="red" size="sm" leadingIcon={<XCircle className="h-3 w-3" />}>
-          Not qualified
+          Not qualified{preliminarySuffix}
         </Chip>
       )}
       {qualified && time && (
         <span className="font-mono text-xs font-semibold tabular-nums text-foreground">{time}</span>
       )}
-      {qualified && placement && <PlacementPill placement={placement} size="sm" />}
+      {qualified && !isPreliminary && placement && (
+        <PlacementPill placement={placement} size="sm" />
+      )}
     </div>
   );
 }

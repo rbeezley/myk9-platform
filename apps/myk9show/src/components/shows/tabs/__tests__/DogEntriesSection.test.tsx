@@ -106,6 +106,34 @@ describe('DogEntriesSection', () => {
     expect(screen.queryByText('Awaiting results')).not.toBeInTheDocument();
   });
 
+  it('withholds the placement and labels the result preliminary until the class is released', () => {
+    const renderWith = (isPreliminary: boolean) =>
+      render(
+        <DogEntriesSection
+          group={{
+            ...group,
+            entries: [
+              {
+                ...group.entries[0],
+                hasResult: true,
+                result: { qualified: true, time: '0:52.40', placement: 1, isPreliminary },
+              },
+            ],
+          }}
+          showId="show-1"
+        />
+      );
+
+    const unreleased = renderWith(true);
+    expect(screen.queryByText(/1st/)).not.toBeInTheDocument();
+    expect(screen.getByText(/preliminary/)).toBeInTheDocument();
+    unreleased.unmount();
+
+    renderWith(false);
+    expect(screen.getByText(/1st/)).toBeInTheDocument();
+    expect(screen.queryByText(/preliminary/)).not.toBeInTheDocument();
+  });
+
   it('uses the canonical pending-review label for an entry awaiting review', () => {
     render(
       <DogEntriesSection

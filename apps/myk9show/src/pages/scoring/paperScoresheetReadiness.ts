@@ -33,18 +33,25 @@ export async function requireClassEntriesWhole(
 }
 
 /**
- * When the class's show has a sync still running, settles once it has (true);
- * otherwise false at once. Starts nothing.
+ * Settles once the class's show entries sync has finished (true), or answers
+ * at once: false when no sync ran and the scope is not synced. Starts nothing.
  *
  * The bounded refresh stops waiting after its deadline while the sync runs
  * on. Its rows notify before it records the scope as synced, and recording
  * that notifies nobody, so a page left on "not finished loading" rechecks
- * from here rather than waiting for a change that never comes.
+ * from here rather than waiting for a change that never comes. A sync that
+ * finished while the trial was being looked up has already left the running
+ * set, so the completed scope metadata (account-aware) answers for it
+ * (MYK9-1136).
  */
 export async function whenClassShowSyncSettles(trialId: string | undefined): Promise<boolean> {
   const trial = trialId ? await replicatedTrialsTable.getTrialById(trialId) : null;
-  const running = trial?.showId ? replicatedEntriesTable.whenShowSyncSettles(trial.showId) : null;
-  if (!running) return false;
-  await running;
-  return true;
+  const showId = trial?.showId;
+  if (!showId) return false;
+  const running = replicatedEntriesTable.whenShowSyncSettles(showId);
+  if (running) {
+    await running;
+    return true;
+  }
+  return hasShowEntriesSynced(showId);
 }

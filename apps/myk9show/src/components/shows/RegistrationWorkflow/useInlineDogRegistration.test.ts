@@ -124,6 +124,7 @@ describe('useInlineDogRegistration', () => {
         );
       });
 
+      expect(toastError).toHaveBeenCalledTimes(1);
       expect(toastError).toHaveBeenCalledWith('Registration could not be saved.');
       expect(result.current.registrationDogId).toBe('dog-1');
     });

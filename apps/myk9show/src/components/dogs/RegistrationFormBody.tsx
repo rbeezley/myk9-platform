@@ -91,6 +91,7 @@ export const RegistrationNameField: React.FC<EditorProps> = ({
       id="registeredName"
       value={form.data.registeredName}
       onChange={e => handleFieldChange('registeredName', e.target.value)}
+      onBlur={() => form.touchField('registeredName')}
       placeholder="Full registered name"
       {...form.getFieldProps('registeredName')}
       aria-describedby={`registeredName-hint${form.getError('registeredName') ? ' registeredName-error' : ''}`}
@@ -230,6 +231,7 @@ export const RegistrationNumberField: React.FC<
         form.data.organization ? 'Enter registration number' : 'Select organization first'
       }
       disabled={!form.data.organization}
+      onBlur={() => form.touchField('registrationNumber')}
       {...form.getFieldProps('registrationNumber')}
     />
   </FormField>

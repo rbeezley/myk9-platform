@@ -175,6 +175,15 @@ describe('registration form, database save contract (Dog Details panels)', () =>
     });
   });
 
+  it('Add shows a required-field error when the user leaves Registered Name empty', async () => {
+    const { user } = render(<AddRegistrationPanel open onClose={vi.fn()} onSave={vi.fn()} />);
+
+    await user.click(await screen.findByRole('textbox', { name: /Registered Name/ }));
+    await user.tab();
+
+    expect(await screen.findByText('Please enter a registered name.')).toBeInTheDocument();
+  });
+
   it('Add applies the same number rule as the create flow', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const { user } = render(<AddRegistrationPanel open onClose={vi.fn()} onSave={onSave} />);

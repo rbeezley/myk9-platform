@@ -1,5 +1,6 @@
 /* Working practice scoresheet (plan D9). Scoped under .landing-v2. */
 .landing-v2 .lc-demo {
+  container: lc-demo / inline-size;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -233,9 +234,10 @@
   font-weight: 600;
   color: var(--ink-900);
 }
-/* Phones: the demo sits inside the show-day card beside the timeline rail, so the
-   tablet bezel and inner padding shrink and the clock scales with the screen. */
-@media (max-width: 480px) {
+/* Narrow demo (a phone, or a tablet with the app sidebar open): the bezel and inner
+   padding shrink, and the clock is sized from the demo's own width (about 4em of
+   digits inside ~64px of padding) so it always fits its card. */
+@container lc-demo (max-width: 400px) {
   .landing-v2 .lc-demo-tablet {
     padding: 8px;
     border-radius: 20px;
@@ -247,7 +249,7 @@
     padding: 0.75rem 0.5rem;
   }
   .landing-v2 .lc-demo-clock {
-    font-size: clamp(1.75rem, 9vw, 3rem);
+    font-size: clamp(1.25rem, calc((100cqi - 64px) / 4), 3rem);
     letter-spacing: 0;
   }
 }

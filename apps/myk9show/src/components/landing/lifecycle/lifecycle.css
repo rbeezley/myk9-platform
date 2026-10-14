@@ -1,5 +1,8 @@
 /* Show-lifecycle timeline (canvas version D). Tokens from src/styles/landing.css. */
+/* The timeline lays out by the width it actually gets, not the screen: on the signed-in
+   onboarding return the app sidebar takes 240px of a tablet screen. */
 .landing-v2 .lc {
+  container: lc-timeline / inline-size;
   background: var(--ivory-100, #f3efe6);
   padding-block: clamp(3.5rem, 8vw, 6rem);
 }
@@ -382,7 +385,7 @@
 }
 
 /* Phones: rail on the left, main then meanwhile stacked on the right. */
-@media (max-width: 767px) {
+@container lc-timeline (max-width: 767px) {
   .landing-v2 .lc-labels {
     display: none;
   }

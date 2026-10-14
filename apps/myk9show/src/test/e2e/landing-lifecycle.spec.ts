@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { expectHeaderFits, expectNoLandingSpills } from './helpers/landingGeometry';
 
 const STEPS = ['setup', 'entries', 'before', 'showday', 'results', 'after'];
 const VIEWPORTS = [
@@ -11,35 +12,6 @@ async function openLanding(page: Page) {
   await page.goto('/');
   await expect(page.locator('#top h1')).toBeVisible({ timeout: 30000 });
   await expect(page.locator('#showday-dot')).toBeAttached({ timeout: 30000 });
-}
-
-async function expectHeaderFits(page: Page) {
-  const buttons = await page.locator('.landing-v2 .l-hdr .l-btn').evaluateAll(els =>
-    els
-      .filter(el => getComputedStyle(el).display !== 'none')
-      .map(el => {
-        const range = document.createRange();
-        range.selectNodeContents(el);
-        const tops = new Set([...range.getClientRects()].map(rect => Math.round(rect.top)));
-        const box = el.getBoundingClientRect();
-        return {
-          text: (el as HTMLElement).innerText,
-          lines: tops.size,
-          right: box.right,
-          // Rounded: the page's fade-in transform leaves sub-pixel heights like 43.999996.
-          height: Math.round(box.height),
-        };
-      })
-  );
-  expect(buttons.length).toBeGreaterThanOrEqual(2);
-  const width = page.viewportSize()!.width;
-  for (const b of buttons) {
-    expect(b.lines, `"${b.text}" wraps`).toBe(1);
-    expect(b.right, `"${b.text}" overflows`).toBeLessThanOrEqual(width);
-    expect(b.height, `"${b.text}" is under 44px`).toBeGreaterThanOrEqual(44);
-  }
-  const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
-  expect(scrollWidth, 'page scrolls sideways').toBeLessThanOrEqual(width);
 }
 
 const reachedDots = (page: Page) =>
@@ -433,9 +405,6 @@ test('header fits the narrowest phones', async ({ page }) => {
   }
 });
 
-// Every in-flow element fits inside its parent's content box and the screen, in both
-// audiences. Absolutely positioned decorations and the timeline rail are exempt; a parent
-// that clips (overflow other than visible) owns its own overflow.
 test('nothing spills out of its box on narrow phones', async ({ page }) => {
   for (const width of [320, 360]) {
     await page.setViewportSize({ width, height: 740 });
@@ -444,33 +413,7 @@ test('nothing spills out of its box on narrow phones', async ({ page }) => {
       if (audience === 'exhibitor') {
         await page.getByRole('button', { name: /entering a show/i }).click();
       }
-      const spills = await page.evaluate(() => {
-        const out: string[] = [];
-        const vw = document.documentElement.clientWidth;
-        let checked = 0;
-        for (const el of document.querySelectorAll<HTMLElement>('.landing-v2 *')) {
-          if (el.closest('svg, .lc-rail')) continue;
-          const cs = getComputedStyle(el);
-          if (cs.display === 'none' || cs.position === 'absolute' || cs.position === 'fixed')
-            continue;
-          const r = el.getBoundingClientRect();
-          if (!r.width) continue;
-          checked++;
-          const parent = el.parentElement!;
-          const pcs = getComputedStyle(parent);
-          const pr = parent.getBoundingClientRect();
-          const left = pr.left + parseFloat(pcs.paddingLeft) + parseFloat(pcs.borderLeftWidth);
-          const right = pr.right - parseFloat(pcs.paddingRight) - parseFloat(pcs.borderRightWidth);
-          const clips = pcs.overflowX !== 'visible';
-          const label = `${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]}`;
-          if (r.right > vw + 0.5 || r.left < -0.5) out.push(`${label} leaves the screen`);
-          else if (!clips && (r.right - right > 1.5 || left - r.left > 1.5))
-            out.push(`${label} is ${Math.round(r.width)}px in a ${Math.round(right - left)}px box`);
-        }
-        return { out: [...new Set(out)], checked };
-      });
-      expect(spills.checked, 'measured nothing').toBeGreaterThan(100);
-      expect(spills.out, `${width}px ${audience}`).toEqual([]);
+      await expectNoLandingSpills(page, `${width}px ${audience}`);
     }
   }
 });

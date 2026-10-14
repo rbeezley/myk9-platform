@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { expectHeaderFits, expectNoLandingSpills } from './helpers/landingGeometry';
 import { signInAsSecretary, TEST_USERS } from './helpers/testUsers';
 
 // Signed-in visitors to the landing page: `/` sends them to their dashboard, and the
@@ -45,5 +46,23 @@ test.describe('landing for a signed-in secretary', () => {
         })
       )
       .toBeGreaterThanOrEqual(-1);
+  });
+
+  // The app sidebar takes 240px beside the landing on tablets, so the timeline, the
+  // practice scoresheet and the header must lay out by the width they get.
+  test('nothing spills beside the app sidebar on a tablet', async ({ page }) => {
+    await signInAsSecretary(page, '/');
+    for (const width of [768, 1024]) {
+      await page.setViewportSize({ width, height: 1024 });
+      await page.goto('/?onboarding=true');
+      await expect(page.locator('#showday-dot')).toBeAttached({ timeout: 30000 });
+      await expectHeaderFits(page);
+      for (const audience of ['club', 'exhibitor']) {
+        if (audience === 'exhibitor') {
+          await page.getByRole('button', { name: /entering a show/i }).click();
+        }
+        await expectNoLandingSpills(page, `${width}px signed in, ${audience}`);
+      }
+    }
   });
 });

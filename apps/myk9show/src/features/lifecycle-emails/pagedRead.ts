@@ -9,22 +9,32 @@ interface PageResult<T> {
   error: { message?: string } | null;
 }
 
+interface PageQuery<T> extends PromiseLike<PageResult<T>> {
+  order(column: string): PageQuery<T>;
+  gt(column: string, value: unknown): PageQuery<T>;
+  limit(count: number): PageQuery<T>;
+}
+
 /**
- * Reads every page of a query until a short page comes back. `buildPage` must return a FRESH
- * query ordered on a unique column (`id`) so page boundaries cannot overlap or skip rows under
- * concurrent writes. Returns the first error unthrown, so callers keep their own messages.
+ * Reads every row of a query by keyset paging on `id`: each page is `id > lastId` in id order,
+ * so a row that enters or leaves the filtered set mid-read can neither shift later pages (offset
+ * paging skips or repeats rows) nor be returned twice. `buildQuery` must return a FRESH filtered
+ * query per page. Returns the first error unthrown, so callers keep their own messages.
  */
-export async function fetchAllPages<T>(
-  buildPage: (from: number, to: number) => PromiseLike<PageResult<T>>
+export async function fetchAllPages<T extends { id: string }>(
+  buildQuery: () => PageQuery<T[]>
 ): Promise<PageResult<T>> {
   const rows: T[] = [];
+  let lastId: string | null = null;
   for (let page = 0; page < LIFECYCLE_EMAIL_MAX_PAGES; page += 1) {
-    const from = page * LIFECYCLE_EMAIL_PAGE_SIZE;
-    const result = await buildPage(from, from + LIFECYCLE_EMAIL_PAGE_SIZE - 1);
+    let query = buildQuery().order('id');
+    if (lastId !== null) query = query.gt('id', lastId);
+    const result = await query.limit(LIFECYCLE_EMAIL_PAGE_SIZE);
     if (result.error) return { data: null, error: result.error };
     const data = result.data ?? [];
     rows.push(...data);
     if (data.length < LIFECYCLE_EMAIL_PAGE_SIZE) return { data: rows, error: null };
+    lastId = data[data.length - 1].id;
   }
   throw new Error(
     `Lifecycle email read exceeded ${LIFECYCLE_EMAIL_MAX_PAGES} pages of ${LIFECYCLE_EMAIL_PAGE_SIZE} rows`

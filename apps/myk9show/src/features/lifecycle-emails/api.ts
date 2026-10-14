@@ -20,7 +20,8 @@ interface QueryBuilder<T> extends PromiseLike<QueryResult<T>> {
   eq(column: string, value: unknown): QueryBuilder<T>;
   in(column: string, values: readonly unknown[]): QueryBuilder<T>;
   order(column: string): QueryBuilder<T>;
-  range(from: number, to: number): QueryBuilder<T>;
+  gt(column: string, value: unknown): QueryBuilder<T>;
+  limit(count: number): QueryBuilder<T>;
   update(values: Record<string, unknown>): QueryBuilder<T>;
 }
 
@@ -34,6 +35,7 @@ interface StepRow {
 }
 
 interface JobRow {
+  id: string;
   step_type: LifecycleEmailStepType;
   status: LifecycleEmailJobSummaryRow['status'];
   preview_warnings: string[] | null;
@@ -153,13 +155,11 @@ export async function fetchShowLifecycleEmailSummary(args: {
       .from<StepRow[]>('show_lifecycle_email_steps')
       .select('step_type, is_enabled')
       .eq('show_id', args.showId),
-    fetchAllPages<JobRow>((from, to) =>
+    fetchAllPages<JobRow>(() =>
       args.supabase
         .from<JobRow[]>('show_lifecycle_email_jobs')
-        .select('step_type, status, preview_warnings')
+        .select('id, step_type, status, preview_warnings')
         .eq('show_id', args.showId)
-        .order('id')
-        .range(from, to)
     ),
     fetchReceiptLogs(args.supabase, receiptRegistrationIds),
   ]);
@@ -200,7 +200,7 @@ export async function fetchLifecycleEmailJobsForReview(args: {
   showId: string;
   stepType: LifecycleEmailStepType;
 }): Promise<LifecycleEmailJobReview[]> {
-  const result = await fetchAllPages<JobReviewRow>((from, to) =>
+  const result = await fetchAllPages<JobReviewRow>(() =>
     args.supabase
       .from<JobReviewRow[]>('show_lifecycle_email_jobs')
       .select(
@@ -209,8 +209,6 @@ export async function fetchLifecycleEmailJobsForReview(args: {
       .eq('show_id', args.showId)
       .eq('step_type', args.stepType)
       .in('status', ['ready', 'failed'])
-      .order('id')
-      .range(from, to)
   );
 
   if (result.error) {

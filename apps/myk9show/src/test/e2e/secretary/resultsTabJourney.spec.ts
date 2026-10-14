@@ -128,6 +128,19 @@ function paperworkRow(detail: Locator, label: string): Locator {
   return detail.locator('li').filter({ hasText: label }).last();
 }
 
+/**
+ * Open `url` and wait for `ready`, reloading when the route's lazy chunk failed to load.
+ * Nightly 38606805596 (MYK9-1161) showed the "Failed to load component" boundary on this
+ * step's cold navigation: the chunk import failed all three of its in-app attempts, so the
+ * Classes list never mounted. The boundary's own "Reload Page" is what a secretary would press.
+ */
+async function gotoRetryingFailedChunk(page: Page, url: string, ready: Locator) {
+  await expect(async () => {
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    await expect(ready).toBeVisible({ timeout: 10_000 });
+  }).toPass({ timeout: 60_000 });
+}
+
 test.describe('Results tab: scored -> verified -> released -> printed -> initialed', () => {
   // MYK9-1114: attaches console/network/toast text on failure (traces are not uploaded).
   installBrowserDiagnostics(test);
@@ -255,18 +268,17 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
     await test.step('9. the same class on a 375px phone fits the screen', async () => {
       await page.setViewportSize(PHONE);
       // The class is done now, so the default "Needs me" filter no longer lists it.
-      await page.goto(`/shows/${encodeURIComponent(showId)}/results?status=all`, {
-        waitUntil: 'domcontentloaded',
-      });
-      await expect(
-        page
-          .getByRole('list', { name: 'Classes' })
-          .getByRole('link', { name: new RegExp(CLASS_NAME) })
-          .first()
-      ).toBeVisible({ timeout: 30_000 });
+      const classLink = page
+        .getByRole('list', { name: 'Classes' })
+        .getByRole('link', { name: new RegExp(CLASS_NAME) })
+        .first();
+      await gotoRetryingFailedChunk(
+        page,
+        `/shows/${encodeURIComponent(showId)}/results?status=all`,
+        classLink
+      );
       await expectNoHorizontalOverflow(page, 'Results class list at 375px');
-      await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
-      await expect(detail).toBeVisible({ timeout: 30_000 });
+      await gotoRetryingFailedChunk(page, resultsUrl, detail);
       await expectNoHorizontalOverflow(page, 'Results class detail at 375px');
     });
   });

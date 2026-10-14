@@ -667,7 +667,7 @@ describe('ResultsTab paper check', () => {
     expect(confirm).toBeDisabled();
 
     await tick(user);
-    expect(confirm).toBeEnabled();
+    await waitFor(() => expect(confirm).toBeEnabled());
     expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
 
     await user.click(confirm);
@@ -687,6 +687,9 @@ describe('ResultsTab paper check', () => {
     const ticked = hook.value.rows.find(row => row.id === 'class-ready')!.resultsCanonical;
 
     // The ticks are the only record of what was looked at.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
+    );
     await user.click(screen.getByRole('button', { name: 'Scores match the paper' }));
     expect(verifyMutate).toHaveBeenCalledWith(expect.objectContaining({ canonical: ticked }));
   });
@@ -695,7 +698,9 @@ describe('ResultsTab paper check', () => {
     hook.value = { ...hook.value, rows: unchecked() };
     const { user, rerender } = renderAt('?status=all&classId=class-ready');
     await tick(user);
-    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
+    );
 
     // A download changes a hashed column that is not shown (same visible row, new canonical text).
     hook.value = {
@@ -741,6 +746,9 @@ describe('ResultsTab paper check', () => {
     hook.value = { ...hook.value, rows: unchecked() };
     const { user } = renderAt('?status=all&classId=class-ready');
     await tick(user);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
+    );
     await user.click(screen.getByRole('button', { name: 'Scores match the paper' }));
 
     await waitFor(() =>
@@ -753,6 +761,9 @@ describe('ResultsTab paper check', () => {
     hook.value = { ...hook.value, rows: unchecked() };
     const { user } = renderAt('?status=all&classId=class-ready');
     await tick(user);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
+    );
     await user.click(screen.getByRole('button', { name: 'Scores match the paper' }));
 
     await waitFor(() => expect(verifyMutate).toHaveBeenCalledTimes(1));
@@ -813,7 +824,9 @@ describe('ResultsTab paper check', () => {
     expect(screen.getByText(/already released/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
     await tick(user);
-    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
+    );
     expect(screen.getByRole('link', { name: 'Check scores: Containers Open' })).toBeInTheDocument();
   });
 

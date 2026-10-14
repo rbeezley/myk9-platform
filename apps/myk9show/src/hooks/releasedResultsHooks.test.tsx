@@ -106,6 +106,8 @@ mocks.results = [
   row('prelim-1', 'dog-a', null),
   row('prelim-2', 'dog-a', null),
   row('other-dog', 'dog-b', '2026-10-02T00:00:00Z'),
+  // Another dog's pending result must never count toward dog-a's note.
+  row('other-dog-prelim', 'dog-b', null),
 ];
 
 describe('release gate in the derived hooks (MYK9-1178)', () => {

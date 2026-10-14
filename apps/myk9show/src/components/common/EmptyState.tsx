@@ -38,6 +38,14 @@ export interface EmptyStateProps {
     | {
         label: string;
         onClick: () => void;
+        href?: never;
+        variant?: 'outline' | 'ghost';
+        icon?: LucideIcon;
+      }
+    | {
+        label: string;
+        href: string;
+        onClick?: never;
         variant?: 'outline' | 'ghost';
         icon?: LucideIcon;
       }
@@ -45,6 +53,32 @@ export interface EmptyStateProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
   variant?: 'default' | 'filter';
+}
+
+// The link form of an empty-state action, primary or secondary.
+function actionLinkClass(
+  variant: 'primary' | 'secondary' | 'outline' | 'ghost' | undefined,
+  size: 'sm' | 'md' | 'lg'
+): string {
+  return cn(
+    'inline-flex items-center justify-center gap-2 rounded-md px-4 font-medium transition-all',
+    // An empty state's only action must still be tappable. `sm` rendered a 32px control and
+    // the default 40px, both under the 44px floor PRODUCT.md sets for an audience that is
+    // older, outdoors, and often wearing gloves. `min-h` only grows the control, so nothing
+    // that already cleared the floor moves.
+    'min-h-[44px]',
+    size === 'sm' ? 'h-8 text-sm' : 'h-10 text-sm',
+    variant === 'outline'
+      ? // `border-border/50` and `hover:border-primary/30` emit no CSS: an opacity modifier on
+        // a var()-backed token does not compile, so the outline variant had no visible border
+        // and no hover response at all.
+        'border border-border text-muted-foreground hover:border-primary hover:text-foreground'
+      : variant === 'ghost'
+        ? 'text-muted-foreground hover:bg-muted hover:text-foreground'
+        : variant === 'secondary'
+          ? 'bg-secondary text-secondary-foreground hover:bg-secondary/90'
+          : 'bg-primary text-primary-foreground hover:opacity-90'
+  );
 }
 
 export function EmptyState({
@@ -119,28 +153,7 @@ export function EmptyState({
         <div className="flex flex-col sm:flex-row items-center gap-3 mt-8">
           {action &&
             (action.href !== undefined ? (
-              <Link
-                to={action.href}
-                className={cn(
-                  'inline-flex items-center justify-center gap-2 rounded-md px-4 font-medium transition-all',
-                  // An empty state's only action must still be tappable. `sm`
-                  // rendered a 32px control and the default 40px, both under the
-                  // 44px floor PRODUCT.md sets for an audience that is older,
-                  // outdoors, and often wearing gloves. `min-h` only grows the
-                  // control, so nothing that already cleared the floor moves.
-                  'min-h-[44px]',
-                  size === 'sm' ? 'h-8 text-sm' : 'h-10 text-sm',
-                  action.variant === 'outline'
-                    ? // `border-border/50` and `hover:border-primary/30` emit no
-                      // CSS: an opacity modifier on a var()-backed token does not
-                      // compile, so the outline variant had no visible border and
-                      // no hover response at all.
-                      'border border-border text-muted-foreground hover:border-primary hover:text-foreground'
-                    : action.variant === 'secondary'
-                      ? 'bg-secondary text-secondary-foreground hover:bg-secondary/90'
-                      : 'bg-primary text-primary-foreground hover:opacity-90'
-                )}
-              >
+              <Link to={action.href} className={actionLinkClass(action.variant, size)}>
                 {action.icon && <action.icon className="h-4 w-4" />}
                 {action.label}
               </Link>
@@ -155,7 +168,15 @@ export function EmptyState({
               </PremiumButton>
             ))}
 
-          {secondaryAction && (
+          {secondaryAction?.href !== undefined ? (
+            <Link
+              to={secondaryAction.href}
+              className={actionLinkClass(secondaryAction.variant ?? 'outline', size)}
+            >
+              {secondaryAction.icon && <secondaryAction.icon className="h-4 w-4" />}
+              {secondaryAction.label}
+            </Link>
+          ) : secondaryAction ? (
             <PremiumButton
               variant={secondaryAction.variant || 'outline'}
               onClick={secondaryAction.onClick}
@@ -164,7 +185,7 @@ export function EmptyState({
             >
               {secondaryAction.label}
             </PremiumButton>
-          )}
+          ) : null}
         </div>
       )}
     </div>

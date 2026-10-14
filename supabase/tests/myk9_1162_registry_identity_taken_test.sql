@@ -83,6 +83,27 @@ BEGIN
     RAISE EXCEPTION 'FAIL authenticated lost execute on registry_identity_taken';
   END IF;
 
+  -- 6b. Actually calling it: anon is refused, authenticated gets the real answer past RLS.
+  SET LOCAL ROLE anon;
+  BEGIN
+    PERFORM public.registry_identity_taken('AKC', 'SR11111111');
+    RESET ROLE;
+    RAISE EXCEPTION 'FAIL anon called registry_identity_taken without being refused';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RESET ROLE;
+  END;
+
+  SET LOCAL ROLE authenticated;
+  IF public.registry_identity_taken('AKC', 'SR11111111') IS DISTINCT FROM true THEN
+    RESET ROLE;
+    RAISE EXCEPTION 'FAIL authenticated did not see a taken number (definer path)';
+  END IF;
+  IF public.registry_identity_taken('AKC', 'SR99999999') IS DISTINCT FROM false THEN
+    RESET ROLE;
+    RAISE EXCEPTION 'FAIL authenticated saw a free number as taken';
+  END IF;
+  RESET ROLE;
+
   -- 7. Boolean only.
   IF (SELECT prorettype FROM pg_proc WHERE oid = 'public.registry_identity_taken(text, text)'::regprocedure)
      <> 'boolean'::regtype THEN

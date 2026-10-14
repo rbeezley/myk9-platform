@@ -216,6 +216,8 @@ describe('isUnambiguousSharedStagingRestWrite', () => {
     'get_show_class_judge_day_availability',
     'get_user_roles',
     'get_effective_permissions',
+    // Add Dog's "Find dog" (MYK9-1162); a pure yes/no read.
+    'registry_identity_taken',
   ])('names %s explicitly so removing it from the allowlist fails here', rpc => {
     expect(AUDIT_READ_ONLY_RPCS.has(rpc)).toBe(true);
     expect(

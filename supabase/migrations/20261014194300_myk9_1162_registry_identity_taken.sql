@@ -7,6 +7,10 @@
 -- 20261009194100): normalized organization (blank means AKC) and normalized
 -- number, against registrations of LIVE dogs. An empty normalized number is never
 -- "taken", exactly as that function skips it.
+--
+-- The dog_deleted_at and <> '' predicates restate the WHERE of the partial unique
+-- index dog_registrations_live_org_number_unique (20260707120000) so the planner
+-- can prove it and use that index; d.deleted_at stays as the authoritative check.
 
 BEGIN;
 
@@ -18,7 +22,7 @@ RETURNS boolean
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_catalog
 AS $$
 DECLARE
   v_number text;
@@ -37,7 +41,9 @@ BEGIN
     SELECT 1
     FROM public.dog_registrations dr
     JOIN public.dogs d ON d.id = dr.dog_id
-    WHERE d.deleted_at IS NULL
+    WHERE dr.dog_deleted_at IS NULL
+      AND public.normalize_dog_registration_number(dr.registration_number) <> ''
+      AND d.deleted_at IS NULL
       AND public.normalize_dog_registration_organization(dr.organization) = v_org
       AND public.normalize_dog_registration_number(dr.registration_number) = v_number
   );

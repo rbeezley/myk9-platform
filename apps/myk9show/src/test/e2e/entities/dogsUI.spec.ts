@@ -1,6 +1,7 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { signInAsSecretary, signInAsExhibitor } from '../helpers/testUsers';
 import { chooseAction, openActionsMenu as openHeaderActionsMenu } from '../helpers/actionsMenu';
+import { addFirstRegistration, isDogCreateResponse } from '../helpers/addDogRegistration';
 
 /**
  * UI-driven e2e tests for the Dogs section — secretary role.
@@ -221,6 +222,9 @@ test.describe('Dogs UI — Create (secretary)', () => {
     await page.getByRole('button', { name: 'Add Dog', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
 
+    // Registration comes first (MYK9-1162): registry and number, Find dog, details.
+    await addFirstRegistration(page, page.getByRole('dialog'));
+
     // Fill Essential tab — Sex and Owner are base-ui Selects, targeted by
     // accessible name so a naming regression fails here (MYK9-88).
     await page.getByLabel('Call Name').fill(DOG_A_NAME);
@@ -231,10 +235,9 @@ test.describe('Dogs UI — Create (secretary)', () => {
     await selectOwnerIfNeeded(page, TEST_SECRETARY_PERSON_NAME);
 
     // Wait for POST to dogs table before navigating
-    const createResponsePromise = page.waitForResponse(
-      r => r.url().includes('/rest/v1/dogs') && r.request().method() === 'POST',
-      { timeout: 15000 }
-    );
+    const createResponsePromise = page.waitForResponse(isDogCreateResponse, {
+      timeout: 15000,
+    });
 
     // MYK9-931: Add Dog only shows on the last tab; earlier tabs stay clickable.
     await page
@@ -254,6 +257,8 @@ test.describe('Dogs UI — Create (secretary)', () => {
     await page.getByRole('button', { name: 'Add Dog', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
 
+    // A secretary holding a mail-in with no number yet may skip the registration (MYK9-1162).
+    await page.getByRole('button', { name: 'No registration number yet' }).click();
     await page.getByLabel('Call Name').fill(DOG_B_NAME);
     await selectByAccessibleName(page, /^Sex/, /Female/i);
     await page.getByLabel('Date of Birth').fill('2021-03-20');
@@ -302,14 +307,15 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
     await page.getByRole('button', { name: 'Add Dog' }).click();
     await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
 
+    // An exhibitor cannot skip the registration (MYK9-1162).
+    await addFirstRegistration(page, page.getByRole('dialog'));
     await page.getByLabel('Call Name').fill(EXHIBITOR_DOG_NAME);
     await selectByAccessibleName(page, /^Sex/, /^Female/i);
     await page.getByLabel('Date of Birth').fill('2022-04-12');
 
-    const createResponsePromise = page.waitForResponse(
-      r => r.url().includes('/rest/v1/dogs') && r.request().method() === 'POST',
-      { timeout: 15000 }
-    );
+    const createResponsePromise = page.waitForResponse(isDogCreateResponse, {
+      timeout: 15000,
+    });
     // MYK9-931: Add Dog only shows on the last tab; earlier tabs stay clickable.
     await page
       .getByRole('dialog')

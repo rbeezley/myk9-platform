@@ -3,6 +3,7 @@ import { signInAsSecretary } from '../uat/shared/auth';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 import { installSharedStagingWriteGuard } from '../helpers/sharedStagingWriteGuard';
 import { applyRegistrationClock } from './seedRoster';
+import { addFirstRegistration } from '../helpers/addDogRegistration';
 
 const SHOW_ID = LIVE_REGISTRATION_SHOW_ID;
 const MAIL_IN_PERSON_ID = '11111111-1111-4111-8111-111111111111';
@@ -179,6 +180,11 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   const dogDialog = page.getByRole('dialog', { name: 'Add Dog' });
   await expect(dogDialog).toBeVisible();
 
+  // Registration comes first (MYK9-1162): the number is looked up before any other detail.
+  await addFirstRegistration(page, dogDialog, {
+    number: 'DN12345601',
+    registeredName: 'Mailbox Special Delivery',
+  });
   await dogDialog.getByLabel(/Call Name/i).fill('Stamp');
   await dogDialog.getByRole('combobox').first().click();
   await page.getByRole('option', { name: /Female/i }).click();
@@ -190,27 +196,9 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   await dogDialog.getByRole('tab', { name: /Optional details/i }).click();
   await dogDialog.getByLabel(/Color & Markings/i).fill('Black and tan');
 
+  // The one slide-out holds the registration list too (MYK9-1081).
   await dogDialog.getByRole('tab', { name: /Registration/i }).click();
-  await dogDialog.getByRole('button', { name: 'Add New Registration' }).click();
-  // Still the one slide-out (MYK9-1081): the registration form replaces the dog
-  // form inside it rather than stacking a second panel on top.
-  const registrationDialog = page.getByRole('dialog', { name: 'Add New Registration' });
-  await expect(registrationDialog).toBeVisible();
   await expect(page.locator('.slide-over-panel')).toHaveCount(1);
-
-  await registrationDialog.getByRole('combobox').nth(0).click();
-  await page.getByRole('option', { name: /AKC \(American Kennel Club\)/i }).click();
-  await registrationDialog.getByLabel(/Registered Name/i).fill('Mailbox Special Delivery');
-  await registrationDialog.getByLabel(/Registered Breed/i).click();
-  await page.getByPlaceholder('Search breeds…').fill('Golden Retriever');
-  // MYK9-545: the breed picker is a combobox + listbox now, not a button list.
-  await page
-    .getByRole('listbox', { name: 'Breeds' })
-    .getByRole('option', { name: 'Golden Retriever' })
-    .click();
-  await registrationDialog.getByLabel(/Registration Number/i).fill('DN12345601');
-  await registrationDialog.getByRole('button', { name: 'Save Registration' }).click();
-
   await expect(dogDialog.getByText('Mailbox Special Delivery')).toBeVisible();
   // MYK9-931: Add Dog only shows on the last tab; earlier tabs stay clickable.
   await dogDialog.getByRole('tab', { name: /Optional details/i }).click();

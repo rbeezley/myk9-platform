@@ -4,6 +4,7 @@ import { LIVE_REGISTRATION_SHOW_ID } from './uat/shared/seededShows';
 import { installSharedStagingWriteGuard } from './helpers/sharedStagingWriteGuard';
 import { measureInsidePanel, insidePanelKnownAnswers } from './helpers/insidePanel';
 import { applyRegistrationClock } from './registration/seedRoster';
+import { addFirstRegistration, uniqueRegistrationNumber } from './helpers/addDogRegistration';
 
 /**
  * MYK9-1137: at 320 and 375px Quick Create's "Use This Person" (duplicate prompt), the Dogs Added
@@ -82,24 +83,14 @@ for (const width of WIDTHS) {
     });
     await steps.getByRole('button', { name: 'Add First Dog' }).click();
     const dogDialog = page.getByRole('dialog', { name: 'Add Dog' });
+    await addFirstRegistration(page, dogDialog, {
+      number: uniqueRegistrationNumber('GEO'),
+      registeredName: 'Ziggy Geometry Test',
+    });
     await dogDialog.getByLabel(/Call Name/i).fill('Ziggy');
     await dogDialog.getByRole('combobox').first().click();
     await page.getByRole('option', { name: /Female/i }).click();
     await dogDialog.getByLabel(/Date of Birth/i).fill('2020-01-15');
-    await dogDialog.getByRole('tab', { name: /Registration/i }).click();
-    await dogDialog.getByRole('button', { name: 'Add New Registration' }).click();
-    const reg = page.getByRole('dialog', { name: 'Add New Registration' });
-    await reg.getByRole('combobox').nth(0).click();
-    await page.getByRole('option', { name: /AKC \(American Kennel Club\)/i }).click();
-    await reg.getByLabel(/Registered Name/i).fill('Ziggy Geometry Test');
-    await reg.getByLabel(/Registered Breed/i).click();
-    await page.getByPlaceholder('Search breeds…').fill('Golden Retriever');
-    await page
-      .getByRole('listbox', { name: 'Breeds' })
-      .getByRole('option', { name: 'Golden Retriever' })
-      .click();
-    await reg.getByLabel(/Registration Number/i).fill('DN12345603');
-    await reg.getByRole('button', { name: 'Save Registration' }).click();
     await dogDialog.getByRole('tab', { name: /Optional details/i }).click();
     await dogDialog.getByRole('button', { name: 'Add Dog', exact: true }).click();
     await expect(steps.getByRole('heading', { name: 'Dogs Added (1):' })).toBeVisible({

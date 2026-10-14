@@ -276,6 +276,9 @@ test.describe('People UI — Add Dog with Person as Owner (secretary)', () => {
     await page.getByRole('button', { name: 'Add Dog', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Add Dog' })).toBeVisible();
 
+    // No registration number is part of this check; a secretary may skip it (MYK9-1162).
+    await page.getByRole('button', { name: 'No registration number yet' }).click();
+
     // INTENT (regression guard): when the secretary opens AddDogPanel from a
     // person's profile, currentUserPersonId is that person's id. The panel's
     // Owner field MUST be pre-filled, regardless of the secretary's own

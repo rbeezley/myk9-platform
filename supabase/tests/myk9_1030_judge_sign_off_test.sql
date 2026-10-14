@@ -311,5 +311,66 @@ BEGIN
 END;
 $$;
 
+-- ---------------------------------------------------------------------------
+-- 10. MYK9-1159: a manager cannot write the sign-off columns directly; only the
+--     RPCs can. c2 is signed off (section 5), c4 too (section 7).
+-- ---------------------------------------------------------------------------
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE
+  n integer;
+BEGIN
+  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000103011');
+
+  -- Positive control: the manager's RLS admits a plain write to the same row.
+  UPDATE public.classes SET name = name WHERE id = '00000000-0000-0000-0000-000001030042';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL control: the secretary could not write her own class (% rows)', n;
+  END IF;
+
+  BEGIN
+    UPDATE public.classes
+       SET judge_signed_off_by = '00000000-0000-0000-0000-000000103014'
+     WHERE id = '00000000-0000-0000-0000-000001030042';
+    RAISE EXCEPTION 'FAIL a manager re-attributed a sign-off with a direct UPDATE';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+
+  BEGIN
+    UPDATE public.classes SET judge_signed_off_at = now() + interval '1 day'
+     WHERE id = '00000000-0000-0000-0000-000001030043';
+    RAISE EXCEPTION 'FAIL a manager stamped an incomplete class with a direct UPDATE';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+
+  BEGIN
+    UPDATE public.classes SET judge_signed_off_at = NULL, judge_signed_off_by = NULL
+     WHERE id = '00000000-0000-0000-0000-000001030044';
+    RAISE EXCEPTION 'FAIL a manager cleared a sign-off with a direct UPDATE';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+
+  BEGIN
+    INSERT INTO public.classes (id, trial_id, name, status, judge_signed_off_at)
+    VALUES ('00000000-0000-0000-0000-000001030045', '00000000-0000-0000-0000-000001030003',
+            'Vehicle Novice', 'completed', now());
+    RAISE EXCEPTION 'FAIL a manager inserted a class that arrives signed off';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+
+  -- The RPC path still works under the guard.
+  PERFORM public.clear_class_judge_sign_off('00000000-0000-0000-0000-000001030044');
+  PERFORM public.mark_classes_judge_signed_off(ARRAY['00000000-0000-0000-0000-000001030044'::uuid]);
+  IF NOT EXISTS (SELECT 1 FROM public.classes WHERE id = '00000000-0000-0000-0000-000001030044'
+                 AND judge_signed_off_by = '00000000-0000-0000-0000-000000103011') THEN
+    RAISE EXCEPTION 'FAIL the sign-off RPCs no longer write through the guard';
+  END IF;
+
+  RAISE NOTICE 'PASS 10 direct writes to the sign-off columns are refused; the RPCs still work';
+END;
+$$;
+
 RESET ROLE;
 ROLLBACK;

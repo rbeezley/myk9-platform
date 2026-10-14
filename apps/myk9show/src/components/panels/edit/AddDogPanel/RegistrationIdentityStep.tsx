@@ -14,8 +14,8 @@ import {
 import {
   INITIAL_REGISTRATION_DATA,
   REGISTRATION_NUMBER_PATTERN,
-  useRegistrationEditor,
-} from '@/components/dogs/useRegistrationEditor';
+} from '@/components/dogs/registrationForm';
+import { useRegistrationEditor } from '@/components/dogs/useRegistrationEditor';
 import type { RegistrationLookupResult } from './registrationLookup';
 
 /** Shown for a number held by a dog this user cannot see. Says nothing about that dog. */

@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@/test/utils/testUtils';
 import { RegistrationFormInline } from '@/components/panels/edit/AddDogPanel/RegistrationFormInline';
 import AddRegistrationPanel from '../DogDetails/Registrations/AddRegistrationPanel';
 import EditRegistrationPanel from '../DogDetails/Registrations/EditRegistrationPanel';
+import { fillNewRegistration } from '../DogDetails/Registrations/registrationFormTestHelpers';
 import type { Registration } from '@/types/dog-types';
 
 vi.mock('@/components/ui/dialog', () => ({
@@ -252,5 +253,26 @@ describe('registration form, database save contract (Dog Details panels)', () =>
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(onSave.mock.calls[0]![0]).toMatchObject({ id: 'reg-9', status: 'Pending' });
+  });
+
+  it('cannot be closed with Escape while a save is in flight (the wizard host)', async () => {
+    const onSave = vi.fn(() => new Promise<void>(() => {}));
+    const onClose = vi.fn();
+    const { user } = render(
+      <AddRegistrationPanel open onClose={onClose} onSave={onSave} announceSaved={false} />
+    );
+
+    await fillNewRegistration(user);
+    await user.click(screen.getByRole('button', { name: 'Add Registration' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+
+    await user.keyboard('{Escape}');
+
+    expect(onClose).not.toHaveBeenCalled();
+    // EditPanelWrapper holds still and says why; the panel stays mounted behind it.
+    expect(await screen.findByRole('alertdialog', { name: 'Still saving' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Add Registration', hidden: true })
+    ).toBeInTheDocument();
   });
 });

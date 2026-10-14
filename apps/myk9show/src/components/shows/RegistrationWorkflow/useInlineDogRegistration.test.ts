@@ -16,6 +16,7 @@ vi.mock('@/hooks/translateDogDbError', () => ({
   dogSaveMessage: (error: Error) => error.message,
 }));
 
+import { PanelSaveHandledError } from '@/components/panels/edit/panelSaveErrors';
 import { toDogRegistrationInsert, useInlineDogRegistration } from './useInlineDogRegistration';
 
 describe('toDogRegistrationInsert', () => {
@@ -78,5 +79,53 @@ describe('useInlineDogRegistration', () => {
     expect(result.current.registrationDogId).toBe('dog-1');
     expect(onSaved).not.toHaveBeenCalled();
     expect(toastError).toHaveBeenCalledWith('Registration could not be saved.');
+  });
+
+  describe('saveRegistrationForm (the registration panel contract)', () => {
+    const formData = {
+      id: '',
+      organization: 'AKC (American Kennel Club)',
+      registeredName: 'Official Name',
+      breed: 'Beagle',
+      registrationNumber: 'SR12345',
+      status: 'Active' as const,
+    };
+
+    it('resolves after a save and hands the mutation the form fields with a generated id', async () => {
+      mutateAsync.mockResolvedValueOnce(undefined);
+      const { result } = renderHook(() => useInlineDogRegistration());
+      act(() => result.current.openRegistrationEditor('dog-1'));
+
+      await act(async () => {
+        await expect(result.current.saveRegistrationForm(formData)).resolves.toBeUndefined();
+      });
+
+      expect(mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dog_id: 'dog-1',
+          organization: 'AKC (American Kennel Club)',
+          registered_name: 'Official Name',
+          breed: 'Beagle',
+          registration_number: 'SR12345',
+          status: 'Active',
+        })
+      );
+      expect(result.current.registrationDogId).toBeNull();
+    });
+
+    it('rejects with PanelSaveHandledError when the save fails, keeping the editor open', async () => {
+      mutateAsync.mockRejectedValueOnce(new Error('Registration could not be saved.'));
+      const { result } = renderHook(() => useInlineDogRegistration());
+      act(() => result.current.openRegistrationEditor('dog-1'));
+
+      await act(async () => {
+        await expect(result.current.saveRegistrationForm(formData)).rejects.toBeInstanceOf(
+          PanelSaveHandledError
+        );
+      });
+
+      expect(toastError).toHaveBeenCalledWith('Registration could not be saved.');
+      expect(result.current.registrationDogId).toBe('dog-1');
+    });
   });
 });

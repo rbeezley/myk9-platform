@@ -17,12 +17,6 @@ import {
 } from './registrationForm';
 import { useRegistrationFormFields } from './useRegistrationFormFields';
 
-export {
-  INITIAL_REGISTRATION_DATA,
-  REGISTRATION_NUMBER_PATTERN,
-  REGISTRATION_ORGS,
-} from './registrationForm';
-
 interface UseRegistrationEditorOptions {
   /** The container's open state; the form re-seeds each time it opens. */
   open: boolean;

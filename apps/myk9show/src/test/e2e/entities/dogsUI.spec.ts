@@ -133,7 +133,7 @@ async function selectById(page: Page, triggerId: string, optionText: RegExp | st
     await page.getByPlaceholder('Search breeds…').fill(optionText);
     await page
       .getByRole('listbox', { name: 'Breeds' })
-      .getByRole('option', { name: optionText })
+      .getByRole('option', { name: optionText, exact: true })
       .click();
     await expect(trigger).toContainText(optionText);
     return;

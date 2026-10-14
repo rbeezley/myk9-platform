@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDatabaseError } from '@/services/database/databaseError';
 
 const rowsHolder = vi.hoisted(() => ({ rows: [] as Array<Record<string, unknown>> }));
 
@@ -20,7 +21,7 @@ vi.mock('@/services/replication', () => ({
 vi.mock('../supabaseClient', () => ({
   supabase: {},
   logQuery: vi.fn(),
-  createDatabaseError: (m: string) => new Error(m),
+  createDatabaseError,
 }));
 
 import { getJudgeStats, getJudgeUpcomingAssignments } from './reads';

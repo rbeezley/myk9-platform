@@ -12,32 +12,41 @@ const mocks = vi.hoisted(() => ({
   registrations: vi.fn(),
 }));
 
-vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
-  useDogRegistrationManagement: () => ({
-    registrations: mocks.registrations() ?? [
-      {
-        id: 'registration-1',
-        organization: 'AKC',
-        registeredName: 'CH Test Dog',
-        registrationNumber: 'SR12345',
-        breed: 'Beagle',
-      },
-      {
-        id: 'registration-2',
-        organization: 'UKC',
-        registeredName: 'UCH Test Dog',
-        registrationNumber: 'R67890',
-        breed: 'Beagle',
-      },
-    ],
-    isLoading: false,
-    error: null,
-    createRegistration: mocks.createRegistration,
-    updateRegistration: vi.fn(),
-    deleteRegistration: vi.fn(),
-    refetch: vi.fn(),
-  }),
-}));
+vi.mock('@/hooks/queries/useRegistrationsDatabase', async () => {
+  // The pure helpers stay real; only the hooks are faked.
+  const actual = await vi.importActual<typeof import('@/hooks/queries/useRegistrationsDatabase')>(
+    '@/hooks/queries/useRegistrationsDatabase'
+  );
+  return {
+    registrationsToList: actual.registrationsToList,
+    isEmptyOfflineCopy: actual.isEmptyOfflineCopy,
+    railRegistrations: actual.railRegistrations,
+    useDogRegistrationManagement: () => ({
+      registrations: mocks.registrations() ?? [
+        {
+          id: 'registration-1',
+          organization: 'AKC',
+          registeredName: 'CH Test Dog',
+          registrationNumber: 'SR12345',
+          breed: 'Beagle',
+        },
+        {
+          id: 'registration-2',
+          organization: 'UKC',
+          registeredName: 'UCH Test Dog',
+          registrationNumber: 'R67890',
+          breed: 'Beagle',
+        },
+      ],
+      isLoading: false,
+      error: null,
+      createRegistration: mocks.createRegistration,
+      updateRegistration: vi.fn(),
+      deleteRegistration: vi.fn(),
+      refetch: vi.fn(),
+    }),
+  };
+});
 let capturedOnSave: ((data: Record<string, string>) => Promise<void>) | undefined;
 vi.mock('./AddRegistrationPanel', () => ({
   default: ({ open, onSave }: { open: boolean; onSave: (d: never) => Promise<void> }) => {

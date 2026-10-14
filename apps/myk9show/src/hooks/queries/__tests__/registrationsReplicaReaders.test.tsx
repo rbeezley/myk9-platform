@@ -13,11 +13,12 @@ import {
   railRegistrations,
   useDogRegistrationManagement,
 } from '@/hooks/queries/useRegistrationsDatabase';
+import { useRegistrationsReplicaCacheSync } from '@/providers/useRegistrationsReplicaCacheSync';
 import type { RegistrationsForDog } from '@/services/database/registrations/replicaReads';
 import { loadDogRegistrations } from '@/services/database/dogs/reads';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/RegistrationsSection';
-import type { Dog } from '@/types/dog-types';
+import type { Dog, Registration } from '@/types/dog-types';
 import { serverRow } from '@/services/replication/__tests__/dogRegistrationFixtures';
 
 /** PostgREST `dog_registrations` reads answer `answer`. */
@@ -254,6 +255,13 @@ describe('identity rail decision (railRegistrations)', () => {
     });
   });
 
+  it('keeps an offline copy that local work emptied, instead of falling back to the dog record', () => {
+    expect(railRegistrations({ rows: [], source: 'device', deviceHeldRows: true })).toEqual({
+      registrations: [],
+      offline: true,
+    });
+  });
+
   it('shows an offline copy that has rows, labelled, and a server answer as given', () => {
     const rows = [serverRow({ id: 'r-1' })] as unknown as RegistrationsForDog['rows'];
     expect(railRegistrations({ rows, source: 'device' })).toEqual({
@@ -285,6 +293,48 @@ describe('Registrations section on the real query', () => {
 
     expect(await screen.findByText('No registrations saved on this device')).toBeInTheDocument();
     expect(screen.queryByText('No Registrations Found')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the dog record when the offline copy is empty, as the rail does', async () => {
+    postgrestAnswers(OFFLINE);
+    const dog = {
+      id: 'dog-1',
+      registrations: [
+        {
+          id: 'from-dog-record',
+          organization: 'AKC',
+          registrationNumber: 'DR1',
+          registeredName: 'Dog Record Name',
+        } as unknown as Registration,
+      ],
+    } as Dog;
+
+    render(<RegistrationsSection dog={dog} canEdit={false} />);
+
+    expect(await screen.findByText('Dog Record Name')).toBeInTheDocument();
+    expect(screen.getByText('Offline copy. It may be out of date.')).toBeInTheDocument();
+    expect(screen.queryByText('No registrations saved on this device')).not.toBeInTheDocument();
+  });
+
+  it('reads back from the device offline, then from the server after reconnect', async () => {
+    await replicatedDogRegistrationsTable.applyServerRows([
+      serverRow({ registered_name: 'Saved On Device' }),
+    ]);
+    postgrestAnswers(OFFLINE);
+    function Page() {
+      useRegistrationsReplicaCacheSync();
+      return <RegistrationsSection dog={{ id: 'dog-1' } as Dog} canEdit={false} />;
+    }
+    render(<Page />);
+    expect(await screen.findByText('Saved On Device')).toBeInTheDocument();
+    expect(screen.getByText('Offline copy. It may be out of date.')).toBeInTheDocument();
+
+    postgrestAnswers({ data: [serverRow({ registered_name: 'Renamed On Server' })], error: null });
+    await replicatedDogRegistrationsTable.notifyChanged();
+
+    expect(await screen.findByText('Renamed On Server')).toBeInTheDocument();
+    expect(screen.queryByText('Saved On Device')).not.toBeInTheDocument();
+    expect(screen.queryByText('Offline copy. It may be out of date.')).not.toBeInTheDocument();
   });
 
   it('shows no offline note for a server answer', async () => {

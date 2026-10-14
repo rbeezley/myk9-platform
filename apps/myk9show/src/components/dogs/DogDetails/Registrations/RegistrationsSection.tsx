@@ -6,7 +6,10 @@ import { Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Plus, WifiOff } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
-import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
+import {
+  registrationsToList,
+  useDogRegistrationManagement,
+} from '@/hooks/queries/useRegistrationsDatabase';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 /**
@@ -59,6 +62,7 @@ export default function RegistrationsSection({ dog, canEdit }: RegistrationsSect
   const {
     registrations: dbRegistrations,
     registrationsSource,
+    registrationsDeviceHeldRows,
     isLoading,
     error,
     refetch,
@@ -66,7 +70,15 @@ export default function RegistrationsSection({ dog, canEdit }: RegistrationsSect
 
   // Fallback to dog prop registrations if database not available, or use store
   const storeRegistrations = useRegistrationsStore(state => state.registrations);
-  const registrations = dbRegistrations || dog?.registrations || storeRegistrations;
+  const registrations =
+    registrationsToList(
+      registrationsSource,
+      dbRegistrations,
+      registrationsDeviceHeldRows,
+      dog?.registrations
+    ) ||
+    dog?.registrations ||
+    storeRegistrations;
 
   const setIsEditRegistrationDialogOpen = useRegistrationsStore(
     state => state.setIsEditRegistrationDialogOpen

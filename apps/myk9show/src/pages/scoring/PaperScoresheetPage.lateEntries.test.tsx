@@ -20,6 +20,8 @@ const replica = vi.hoisted(() => ({
   inFlight: null as Promise<void> | null,
   trialPresent: true,
   trialListeners: new Set<() => void>(),
+  trialCalls: 0,
+  holdSecondTrialLookup: null as Promise<void> | null,
 }));
 
 vi.mock('./useScoringBreadcrumb', () => ({
@@ -64,9 +66,11 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
 }));
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: {
-    getTrialById: vi.fn(async () =>
-      replica.trialPresent ? { id: 'trial-1', showId: 'show-1' } : null
-    ),
+    getTrialById: vi.fn(async () => {
+      replica.trialCalls += 1;
+      if (replica.trialCalls === 2) await replica.holdSecondTrialLookup;
+      return replica.trialPresent ? { id: 'trial-1', showId: 'show-1' } : null;
+    }),
     subscribe: vi.fn((listener: () => void) => {
       replica.trialListeners.add(listener);
       return () => replica.trialListeners.delete(listener);
@@ -122,6 +126,8 @@ describe('PaperScoresheetPage — entries that reach the replica after mount (MY
     replica.listeners.clear();
     replica.trialPresent = true;
     replica.trialListeners.clear();
+    replica.trialCalls = 0;
+    replica.holdSecondTrialLookup = null;
     replica.sync.mockResolvedValue({ success: false });
     onlineManager.setOnline(true);
   });
@@ -244,6 +250,28 @@ describe('PaperScoresheetPage — entries that reach the replica after mount (MY
 
     expect(await screen.findByText('0 of 2 scored')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Cooper/ })).toBeInTheDocument();
+  });
+
+  it('lists the dogs when the sync settles while the recheck is still looking up the trial (MYK9-1136)', async () => {
+    // The bounded wait gave up with the sync running. By the time the recheck's
+    // trial lookup returns, the sync has left the in-flight map and recorded
+    // the scope as synced; an empty sync notifies nobody.
+    let releaseLookup!: () => void;
+    replica.holdSecondTrialLookup = new Promise<void>(resolve => {
+      releaseLookup = resolve;
+    });
+    renderPage();
+    await screen.findByText(/not finished loading on this device/);
+    await waitFor(() => expect(replica.trialCalls).toBe(2));
+
+    replica.rows = [dog('e1', 'Willow', 1), dog('e2', 'Cooper', 2)];
+    replica.synced = true;
+    replica.inFlight = null;
+    await act(async () => releaseLookup());
+
+    expect(await screen.findByText('0 of 2 scored')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Cooper/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
   });
 });
 

@@ -126,6 +126,8 @@ describe('derivePaidStrip', () => {
       paymentIds: ['c1'],
       dogNames: ['Rex'],
       amountCents: 4500,
+      classCount: 1,
+      awaitingReview: false,
       date: PAID_AT,
     });
   });
@@ -186,6 +188,8 @@ describe('derivePaidStrip', () => {
       paymentIds: ['c1', 'c2', 'c3'],
       dogNames: ['Rex', 'Scout'],
       amountCents: 10000,
+      classCount: 3,
+      awaitingReview: false,
       date: later,
     });
   });
@@ -361,6 +365,8 @@ describe('derivePaidStrip — reads the row-level ground truth, not the folded d
       paymentIds: ['c-ranger-paid'],
       dogNames: ['Ranger'],
       amountCents: 3000,
+      classCount: 1,
+      awaitingReview: false,
       date: PAID_AT,
     });
   });

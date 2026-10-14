@@ -65,6 +65,14 @@ export interface PaidStrip {
   dogNames: string[];
   /** What was paid across those rows, in cents. */
   amountCents: number;
+  /** How many class rows the payment covers (one row is one dog in one class). */
+  classCount: number;
+  /**
+   * True while any covered row still waits on the secretary's decision. The
+   * strip says "will review it next" only then; once every row is accepted
+   * (or past acceptance: checked in, scored) that sentence would be stale.
+   */
+  awaitingReview: boolean;
   /**
    * When it was paid: the LATEST `submittedAt` among the orders that
    * contributed a fresh row. An online order is paid at checkout, so
@@ -149,6 +157,8 @@ export function derivePaidStrip(
   return {
     paymentIds: fresh.map(payment => payment.cls.id),
     dogNames,
+    classCount: fresh.length,
+    awaitingReview: fresh.some(payment => payment.cls.entryStatusKind === 'pending'),
     amountCents: fresh.reduce((sum, payment) => sum + Math.round(payment.cls.fee * 100), 0),
     date: fresh.reduce(
       (latest, payment) =>

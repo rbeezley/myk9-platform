@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { formatDogNamesPossessive, formatShowHeaderDateRange } from './myShowHeaderFormat';
+import {
+  formatDogNamesPossessive,
+  formatPaidCoverage,
+  formatShowHeaderDateRange,
+} from './myShowHeaderFormat';
 
 /** Local midnight, the shape `parseShowDate` produces for a DATE column. */
 function day(iso: string): Date {
@@ -78,5 +82,24 @@ describe('formatDogNamesPossessive — long lists', () => {
 
   it('still spells out a list of three in full', () => {
     expect(formatDogNamesPossessive(['Juni', 'Scout', 'Willow'])).toBe("Juni, Scout and Willow's");
+  });
+});
+
+describe('formatPaidCoverage', () => {
+  it('names one dog possessively with its class count', () => {
+    expect(formatPaidCoverage(['Willow'], 7)).toBe("Willow's 7 classes");
+    expect(formatPaidCoverage(['Willow'], 1)).toBe("Willow's 1 class");
+  });
+
+  it('lists several dogs after the count', () => {
+    expect(formatPaidCoverage(['Cooper', 'Scout', 'Willow'], 9)).toBe(
+      '9 classes (Cooper, Scout and Willow)'
+    );
+    expect(formatPaidCoverage(['A', 'B', 'C', 'D', 'E'], 9)).toBe(
+      '9 classes (A, B, C and 2 more dogs)'
+    );
+  });
+  it('says "1 more dog" for exactly one dog past three', () => {
+    expect(formatPaidCoverage(['A', 'B', 'C', 'D'], 4)).toBe('4 classes (A, B, C and 1 more dog)');
   });
 });

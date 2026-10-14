@@ -81,3 +81,20 @@ export function formatDogNamesPossessive(names: string[], maxNamed = 3): string 
   }
   return `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}'s`;
 }
+
+/**
+ * What a paid payment covered, for the paid strip: "Willow's 7 classes" for one
+ * dog, "9 classes (Cooper, Scout and Willow)" for several. Names beyond three
+ * collapse to a count, as in `formatDogNamesPossessive`.
+ */
+export function formatPaidCoverage(dogNames: string[], classCount: number): string {
+  const classes = `${classCount} ${classCount === 1 ? 'class' : 'classes'}`;
+  const list = dogNames.filter(name => name.trim().length > 0);
+  if (list.length === 0) return classes;
+  if (list.length === 1) return `${list[0]}'s ${classes}`;
+  const named =
+    list.length > 3
+      ? `${list.slice(0, 3).join(', ')} and ${list.length - 3} more ${list.length - 3 === 1 ? 'dog' : 'dogs'}`
+      : `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`;
+  return `${classes} (${named})`;
+}

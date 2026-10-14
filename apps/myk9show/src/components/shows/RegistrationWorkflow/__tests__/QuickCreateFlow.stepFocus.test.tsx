@@ -15,6 +15,7 @@ import {
 import {
   addPersonThroughForm,
   fillDogBasics,
+  skipRegistration,
   JOURNEY_TIMEOUT_MS,
   panel,
 } from '@/test/quickCreate/quickCreateFlowKit';
@@ -62,8 +63,8 @@ function renderFlow() {
 
 async function addDog(user: User, callName: string) {
   await user.click(await screen.findByRole('button', { name: /Add (First|Another) Dog/ }));
+  await skipRegistration(user);
   await fillDogBasics(user, callName);
-  await user.click(button(/Next: Registration/));
   await user.click(await screen.findByRole('button', { name: /Next: Optional details/ }));
   await user.click(await screen.findByRole('button', { name: 'Add Dog' }));
   // The steps screen is back once the add-dog control reads "Another".

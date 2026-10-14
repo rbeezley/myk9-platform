@@ -79,6 +79,11 @@ export async function fillRegistration(user: User, number = 'DN12345601') {
   await user.click(screen.getByRole('button', { name: 'Save Registration' }));
 }
 
+/** A secretary's way past Add Dog's registration step with no number yet (MYK9-1162). */
+export async function skipRegistration(user: User) {
+  await user.click(await screen.findByRole('button', { name: /No registration number yet/ }));
+}
+
 /**
  * Add Dog's first step (MYK9-1162): registry and number, "Find dog", then the rest of the
  * registration, saved as the dog's first. The panel moves on to Essential afterwards.

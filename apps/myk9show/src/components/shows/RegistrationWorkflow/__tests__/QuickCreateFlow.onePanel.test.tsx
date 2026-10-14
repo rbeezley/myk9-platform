@@ -16,8 +16,10 @@ import {
 import {
   addPersonThroughForm,
   dialogs,
+  addFirstRegistration,
   fillDogBasics,
   fillRegistration,
+  skipRegistration,
   panel,
   JOURNEY_TIMEOUT_MS,
 } from '@/test/quickCreate/quickCreateFlowKit';
@@ -81,10 +83,12 @@ describe('Quick Create is one slide-out (T1)', { timeout: JOURNEY_TIMEOUT_MS }, 
     expect(await within(host).findByRole('heading', { name: 'Add Dog(s)' })).toBeInTheDocument();
     expect(dialogs()[0]).toBe(host);
 
-    // 3. Add First Dog: the dog form renders in the same host.
+    // 3. Add First Dog: the dog form renders in the same host, opening on the registration.
     await user.click(within(host).getByRole('button', { name: 'Add First Dog' }));
-    expect(await within(host).findByLabelText(/Call Name/i)).toBeInTheDocument();
+    expect(await within(host).findByLabelText(/Registration Number/i)).toBeInTheDocument();
     expect(dialogs()[0]).toBe(host);
+    await addFirstRegistration(user);
+    expect(await within(host).findByLabelText(/Call Name/i)).toBeInTheDocument();
 
     // 4. Registration tab, then Add New Registration: still one surface (2 before).
     await fillDogBasics(user, 'Ziggy');
@@ -95,8 +99,10 @@ describe('Quick Create is one slide-out (T1)', { timeout: JOURNEY_TIMEOUT_MS }, 
     expect(dialogs()[0]).toBe(host);
 
     // 5. Save Registration: the dog form comes back with what was typed.
-    await fillRegistration(user);
-    await waitFor(() => expect(within(host).getByText('Mailbox Special Delivery')).toBeVisible());
+    await fillRegistration(user, 'DN22222201');
+    await waitFor(() =>
+      expect(within(host).getByRole('button', { name: /Edit AKC.*DN22222201/ })).toBeVisible()
+    );
     expect(screen.queryByRole('dialog', { name: /registration/i })).toBeNull();
     await user.click(within(host).getByRole('tab', { name: /Essential/ }));
     expect(within(host).getByLabelText(/Call Name/i)).toHaveValue('Ziggy');
@@ -112,8 +118,8 @@ describe('Complete Setup is unchanged (T3)', { timeout: JOURNEY_TIMEOUT_MS }, ()
 
     await addPersonThroughForm(user);
     await user.click(await screen.findByRole('button', { name: 'Add First Dog' }));
+    await skipRegistration(user);
     await fillDogBasics(user);
-    await user.click(screen.getByRole('button', { name: /Next: Registration/ }));
     await user.click(await screen.findByRole('button', { name: /Next: Optional details/ }));
     await user.click(await screen.findByRole('button', { name: 'Add Dog' }));
 

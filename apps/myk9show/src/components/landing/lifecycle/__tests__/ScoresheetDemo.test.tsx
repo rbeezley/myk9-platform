@@ -55,7 +55,7 @@ describe('ScoresheetDemo', () => {
     });
     expect(within(log()).queryByText('Waiting')).toBeNull();
     expect(within(log()).getAllByText('Synced')).toHaveLength(2);
-    expect(status()).toHaveTextContent('All 2 synced, in the order they were scored.');
+    expect(status()).toHaveTextContent('All 2 synced.');
   });
 
   it('saves straight through while online', () => {

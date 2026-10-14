@@ -39,7 +39,6 @@ export function LandingFooter() {
               <li>AKC Scent Work</li>
               <li>UKC Nosework</li>
               <li>ASCA Scent Detection</li>
-              <li className="l-dim">Obedience &amp; agility · 2027</li>
             </ul>
           </div>
           <div>

@@ -49,7 +49,7 @@ describe('useTimelineProgress', () => {
   });
   afterEach(() => {
     vi.unstubAllGlobals();
-    vi.restoreAllMocks(); // the reduced-motion case spies on matchMedia
+    vi.restoreAllMocks();
   });
 
   const reveal = () => observers[0]!;
@@ -123,8 +123,11 @@ describe('useTimelineProgress', () => {
   });
 
   it('reveals everything immediately under reduced motion', () => {
-    vi.spyOn(window, 'matchMedia').mockImplementation(
-      q =>
+    // stubGlobal, not spyOn: the global setup's matchMedia is already a vi.fn, so a spy would
+    // return that same mock and its reduced-motion answer would outlive this test.
+    vi.stubGlobal(
+      'matchMedia',
+      (q: string) =>
         ({
           matches: q.includes('reduce'),
           media: q,

@@ -69,6 +69,10 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
     reason: 'text formatting toggle',
   },
   'components/askq/AskQModeSelector.tsx': { count: 1, reason: 'mode selector' },
+  'components/landing/lifecycle/LifecycleTimeline.tsx': {
+    count: 1,
+    reason: 'landing audience story switch (club / exhibitor), not a list filter',
+  },
   'components/entries/management/PullReconciliationActions.tsx': {
     count: 2,
     reason: 'refund/denied decision, not a filter',

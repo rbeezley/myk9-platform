@@ -41,6 +41,7 @@ export function TimelineStep({
   step,
   number,
   lead,
+  meanwhileLabel,
   reached,
   revealed,
   isLast,
@@ -48,6 +49,7 @@ export function TimelineStep({
   step: StoryStep;
   number: number;
   lead: string;
+  meanwhileLabel: string;
   reached: boolean;
   revealed: boolean;
   isLast: boolean;
@@ -64,7 +66,7 @@ export function TimelineStep({
         <h3 className="lc-step-title">{step.title}</h3>
         <p className="lc-step-body">{step.body}</p>
         {step.shot && step.explainer && (
-          // [ADDED] key by image: a new screenshot starts its explainer from step 1, unpaused.
+          // key by image: a new screenshot starts its explainer from step 1, unpaused.
           <ScreenshotExplainer key={step.shot.src} shot={step.shot} steps={step.explainer} />
         )}
         {step.scoresheetDemo && <ScoresheetDemo />}
@@ -107,7 +109,10 @@ export function TimelineStep({
         )}
       </div>
       <div className="lc-meanwhile">
-        <p className="lc-meanwhile-text">{step.meanwhile}</p>
+        <p className="lc-meanwhile-text">
+          <span className="sr-only">{meanwhileLabel}: </span>
+          {step.meanwhile}
+        </p>
         {step.meanwhileShot && <Screenshot shot={step.meanwhileShot} side="meanwhile" />}
       </div>
     </div>

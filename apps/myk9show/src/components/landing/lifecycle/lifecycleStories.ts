@@ -88,8 +88,11 @@ const tablet = (id: string, alt: string): Shot => ({
 const SHOTS = {
   's-02': desktop('s-02', 'Create Show wizard, first step'),
   's-07': desktop('s-07', 'Entry Management showing entries that need review'),
-  's-12': desktop('s-12', 'Check-in sheet report'),
-  's-20': desktop('s-20', 'Results visibility settings for a show'),
+  's-12': desktop('s-12', 'Reports page with the Check-in Sheet card, ready to print'),
+  's-20': desktop(
+    's-20',
+    'Results tab for Container Novice A, with Released and Needs checking chips and the placement table'
+  ),
   'j-04': tablet('j-04', 'Judge scoresheet on a tablet with the timer running'),
   'e-01': desktop('e-01', 'Upcoming shows list with entry status'),
   'e-02': desktop('e-02', 'Public show page with the Enter this show button'),
@@ -138,7 +141,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
       body: 'Running orders, check-in sheets and armbands come from the entries you already have.',
       shot: SHOTS['s-12'],
       nightBefore: true,
-      meanwhile: 'Exhibitors see their armband and their place in the running order.',
+      meanwhile: 'Exhibitors see their armband number and their classes.',
       meanwhileShot: SHOTS['e-12'],
     },
     {
@@ -173,7 +176,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
     {
       id: 'setup',
       title: 'Find a show',
-      body: 'Browse upcoming scent work shows by registry and date. Every show page has the premium list, classes and judges.',
+      body: 'Browse upcoming scent work shows by registry and date. Open any show to see what the club has published.',
       shot: SHOTS['e-01'],
       meanwhile: 'The club sets up the show, with AKC, UKC or ASCA rules already built in.',
       meanwhileShot: SHOTS['s-02'],
@@ -181,7 +184,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
     {
       id: 'entries',
       title: 'Enter in a few minutes',
-      body: 'Pick your classes and enter online where the club accepts it. Your dogs are saved for next time.',
+      body: 'Pick your classes and enter online where the club accepts it.',
       shot: SHOTS['e-02'],
       explainer: EXHIBITOR_ENTRIES,
       meanwhile: 'Entries arrive in one list, already checked against class limits.',
@@ -190,7 +193,7 @@ export const STORIES: Record<Audience, readonly StoryStep[]> = {
     {
       id: 'before',
       title: 'Know where to be',
-      body: 'See your armband number and where your dog sits in the running order.',
+      body: 'See your armband number and the classes your dog is entered in.',
       shot: SHOTS['e-12'],
       meanwhile: 'Running orders, check-in sheets and armbands come straight from the entries.',
       meanwhileShot: SHOTS['s-12'],

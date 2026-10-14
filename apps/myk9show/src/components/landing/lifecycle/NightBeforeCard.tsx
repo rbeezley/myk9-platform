@@ -92,7 +92,11 @@ export function NightBeforeCard({ active, stepMs = 750 }: { active: boolean; ste
         })}
       </ul>
       <div className="lc-night-foot">
-        <p className="lc-night-closing" data-shown={allSet ? 'true' : 'false'}>
+        <p
+          className="lc-night-closing"
+          data-shown={allSet ? 'true' : 'false'}
+          aria-hidden={!allSet}
+        >
           Everything is handled. See you at the ring.
         </p>
         <button type="button" className="lc-night-replay" onClick={replay}>

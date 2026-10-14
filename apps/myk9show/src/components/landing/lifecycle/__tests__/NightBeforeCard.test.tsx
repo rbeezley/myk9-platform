@@ -49,16 +49,20 @@ describe('NightBeforeCard', () => {
 
   it('ticks each check green and ends with the all-clear line', () => {
     setReducedMotion(false);
-    render(<NightBeforeCard active stepMs={100} />);
+    const { container } = render(<NightBeforeCard active stepMs={100} />);
+    const closing = container.querySelector('.lc-night-closing');
     act(() => {
       vi.advanceTimersByTime(250);
     });
     expect(screen.getByText('2 of 5 checked')).toBeInTheDocument();
+    expect(closing).toHaveAttribute('data-shown', 'false');
+    expect(closing).toHaveAttribute('aria-hidden', 'true');
     act(() => {
       vi.advanceTimersByTime(1000);
     });
     expect(screen.getByText('All set')).toBeInTheDocument();
-    expect(screen.getByText('Everything is handled. See you at the ring.')).toBeVisible();
+    expect(closing).toHaveAttribute('data-shown', 'true');
+    expect(closing).toHaveAttribute('aria-hidden', 'false');
   });
 
   it('replays from the start and ticks again', () => {

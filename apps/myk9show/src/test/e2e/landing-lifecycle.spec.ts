@@ -189,7 +189,7 @@ for (const vp of VIEWPORTS) {
       const card = page.locator('#before .lc-night');
       await card.scrollIntoViewIfNeeded();
       await expect(card.getByText('All set')).toBeVisible({ timeout: 6000 });
-      await expect(card.getByText('Everything is handled. See you at the ring.')).toBeVisible();
+      await expect(card.locator('.lc-night-closing')).toHaveAttribute('data-shown', 'true');
     });
 
     test('exhibitor explainer pauses and steps', async ({ page }) => {
@@ -304,8 +304,22 @@ for (const vp of VIEWPORTS) {
           '<div style="background:#000"><div style="background:rgba(255,255,255,0.5)">' +
             '<span style="color:rgba(0,0,0,0.3)">p</span></div></div>'
         );
-        const selector =
-          '.lc-step-body, .lc-meanwhile-text, .lc-lead, .lc-explainer-text, .lc-switch button, .l-lede, .lc-hero-registries';
+        const selector = [
+          '.lc-step-body, .lc-meanwhile-text, .lc-lead, .lc-explainer-text, .lc-switch button',
+          '.l-lede, .lc-hero-registries',
+          // Header and call-to-action buttons.
+          '.l-hdr .l-btn, .lc-hero-ctas .l-btn, .lc-close .l-btn, .l-onboard .l-btn',
+          // Footer text and links.
+          '.l-footer .l-foot-blurb, .l-footer .l-foot-bot, .l-footer li, .l-footer a',
+          // Club onboarding copy.
+          '.l-onboard .l-lbl, .l-onboard .l-onboard-optional, .l-onboard .l-fineprint, .l-onboard .l-onboard-status, .l-onboard .l-onboard-card p',
+          // Scoresheet demo labels and status.
+          '.lc-demo-label, .lc-demo-status, .lc-demo-hint, .lc-demo-meta, .lc-demo-badge, .lc-demo-chip, .lc-demo-remaining',
+          // Night-before card.
+          '.lc-night-label, .lc-night-sub, .lc-night-summary, .lc-night-when, .lc-night-title, .lc-night-closing, .lc-night-replay',
+          // Explainer count chip and the Alert pill.
+          '.lc-explainer-count, .lc-alert',
+        ].join(', ');
         const nodes = [...document.querySelectorAll(selector)];
         const rows = nodes.map(el => ({
           selector: `${el.className}: ${el.textContent!.trim().slice(0, 30)}`,
@@ -326,7 +340,7 @@ for (const vp of VIEWPORTS) {
       // 30% over that ground), WCAG ratio 1.753.
       expect(result.translucent as number).toBeGreaterThan(1.65);
       expect(result.translucent as number).toBeLessThan(1.85);
-      expect(result.measured, 'selector list matched too few elements').toBeGreaterThan(5);
+      expect(result.measured, 'selector list matched too few elements').toBeGreaterThan(40);
       expect(result.unmeasured, 'colours the harness could not read').toEqual([]);
       expect(result.failures, `minimum ratio observed ${result.min.toFixed(2)}`).toEqual([]);
     });

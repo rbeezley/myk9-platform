@@ -69,7 +69,7 @@ export function ScoresheetDemo({ syncMs = 1400 }: { syncMs?: number }) {
     syncTimer.current = window.setTimeout(() => {
       setLog(cur => cur.map(l => ({ ...l, state: 'synced' })));
       setSyncing(false);
-      setMessage(`All ${n} synced, in the order they were scored.`);
+      setMessage(`All ${n} synced.`);
     }, syncMs);
   };
 

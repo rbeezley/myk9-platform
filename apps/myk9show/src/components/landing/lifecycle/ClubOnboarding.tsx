@@ -11,8 +11,8 @@ import { logger } from '@/services/LoggingService';
 import { buildSignInPathForRedirect, buildSignUpPathForRedirect } from '@/pages/SignInPage.helpers';
 
 // Club-onboarding lead form for the marketing homepage. Restyled onto the
-// editorial l-* system so it reads as one page with the waitlist / feature
-// sections — it reuses the `.l-waitlist` form styles (inputs, labels,
+// editorial l-* system so it reads as one page with the lifecycle landing
+// page. It reuses the `.l-waitlist` form styles (inputs, labels,
 // buttons) and adds only a thin `.l-onboard` section shell in landing.css.
 //
 // A submission writes a `pending` row to `onboarding_requests`; the team

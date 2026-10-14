@@ -41,7 +41,7 @@ export function ScreenshotExplainer({
     return () => window.clearInterval(t);
   }, [paused, visible, steps.length, intervalMs]);
 
-  // [ADDED] Review Focus 7: a parent may swap in a shorter step list; never read past its end.
+  // Review Focus 7: a parent may swap in a shorter step list; never read past its end.
   const safeIndex = index % steps.length;
   const current = steps[safeIndex]!;
   return (

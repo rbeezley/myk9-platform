@@ -14,6 +14,7 @@ Every product claim on the rebuilt landing page needs a KEEP row here with the c
 | Running orders, check-in sheets and armbands come from the entries       | KEEP                  | Reports page (guide shot S-12, Check-in Sheet) and armband/run-order reports under `/shows/:showId/reports`                                                                                                                                                                                                                                                |
 | Judges score at the ring with no signal; scores catch up when it returns | KEEP                  | `/at-show` offline scoring via `@myk9/replication` (INTENT.md § `/at-show`, "Full offline support via IndexedDB replication")                                                                                                                                                                                                                              |
 | Exhibitors check in from their phone                                     | KEEP, **conditional** | Self check-in in My Entries: `apps/myk9show/src/pages/MyEntriesPage/modules/dayCheckIn.ts`. It is gated by the club's self check-in setting (`features/show-workbench/SelfCheckinTool.tsx`), so the copy must say "where the club allows it"                                                                                                               |
+| Exhibitors see their armband number and their classes                    | KEEP                  | My Entries shows each dog's armband and entered classes: `apps/myk9show/src/pages/MyEntriesPage/modules/MyShowDogCard.tsx` and `components/entries/EntryReceipt.tsx`. Replaces "where your dog sits in the running order", which is show-day only.                                                                                                         |
 | Exhibitors follow their classes "even with one bar of signal"            | **DROP**              | The show-day banner reads replicated rows when warm and falls back to an RPC when cold (`features/show-today/accountTodayEntries.ts`). That is not a promise that it works on a weak connection. The exhibitor show-day body becomes: "Check in where the club allows it, and follow your classes from your phone."                                        |
 | Placements are worked out from the scores                                | KEEP                  | Server-side placement ranking: `supabase/migrations/20260817120000_placement_ranking_ignores_soft_deleted_entries.sql`, scoring completion `20260525170000_server_side_scoring_completion.sql`                                                                                                                                                             |
 | The club chooses when results go public                                  | KEEP                  | `/secretary/results-control` (`apps/myk9show/src/routes/secretaryRoutes.tsx:337`, guide shot S-20)                                                                                                                                                                                                                                                         |
@@ -63,8 +64,13 @@ The club show day uses no screenshot: it is the working practice scoresheet (D9)
 
 Measured on `apps/myk9show/public/landing/stages/e-02.png` (1200x750) for the exhibitor "Enter in a few minutes" explainer. Values are percent of image width/height, padded a few pixels around each element.
 
-| Box | Element | Pixels (x-x, y-y) | x | y | w | h |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 | When / where / trials / capacity row | 146-1054, 517-619 | 12 | 68.5 | 76 | 14.5 |
-| 2 | "Enter this show" in the sticky top bar | 930-1054, 60-102 | 77 | 7.5 | 11 | 6.5 |
-| 3 | "Closing in" countdown | 641-1054, 660-704 | 53 | 87.5 | 35 | 7 |
+| Box | Element                                 | Pixels (x-x, y-y) | x   | y    | w   | h    |
+| --- | --------------------------------------- | ----------------- | --- | ---- | --- | ---- |
+| 1   | When / where / trials / capacity row    | 146-1054, 517-619 | 12  | 68.5 | 76  | 14.5 |
+| 2   | "Enter this show" in the sticky top bar | 930-1054, 60-102  | 77  | 7.5  | 11  | 6.5  |
+| 3   | "Closing in" countdown                  | 641-1054, 660-704 | 53  | 87.5 | 35  | 7    |
+
+### Final review claim decisions
+
+- DROP: "in the order they were scored" (no test or code proves queue ordering), the footer "Obedience & agility · 2027" line, "Every show page has the premium list, classes and judges" (the premium list can be unpublished), "where your dog sits in the running order" (show-day only), and "Your dogs are saved for next time" (no code pointer found).
+- Reworded to "Open any show to see what the club has published."

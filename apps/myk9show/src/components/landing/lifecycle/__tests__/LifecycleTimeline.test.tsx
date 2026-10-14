@@ -28,6 +28,15 @@ describe('LifecycleTimeline', () => {
     );
   });
 
+  it('gives every meanwhile line a screen-reader-only label', () => {
+    const { container } = render(<LifecycleTimeline />);
+    const texts = [...container.querySelectorAll('.lc-meanwhile-text')];
+    expect(texts).toHaveLength(STORIES.club.length);
+    for (const t of texts) {
+      expect(t.querySelector('.sr-only')).toHaveTextContent('Meanwhile, your exhibitors:');
+    }
+  });
+
   it('switches every step to the exhibitor story', () => {
     render(<LifecycleTimeline />);
     fireEvent.click(screen.getByRole('button', { name: 'I’m entering a show' }));
@@ -73,7 +82,7 @@ describe('LifecycleTimeline', () => {
     expect(within(peak).getByRole('switch', { name: 'Venue signal' })).toBeInTheDocument();
   });
 
-  // [ADDED] Review Focus 7
+  // Review Focus 7
   it('switching audience mid-demo does not crash; each side shows its own show-day piece', () => {
     render(<LifecycleTimeline />);
     const peak = () => document.getElementById('showday')!;
@@ -88,7 +97,7 @@ describe('LifecycleTimeline', () => {
     );
   });
 
-  // [ADDED] D10
+  // D10
   it('draws a scent trail between every pair of steps, with Alert at Results only', () => {
     const { container } = render(<LifecycleTimeline />);
     expect(container.querySelectorAll('svg.lc-trail')).toHaveLength(5);
@@ -96,7 +105,7 @@ describe('LifecycleTimeline', () => {
     expect(document.getElementById('results')!.querySelector('.lc-alert')).not.toBeNull();
   });
 
-  // [ADDED] D11
+  // D11
   it('shows the night-before card in the club story and the running-order screenshot for exhibitors', () => {
     render(<LifecycleTimeline />);
     const before = () => document.getElementById('before')!;

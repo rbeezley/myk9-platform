@@ -177,6 +177,10 @@ export const AUDIT_READ_ONLY_RPCS: ReadonlySet<string> = new Set([
   // runs against a built preview, and blocking a read would fail the audit for
   // no reason.
   'ringside_claim_generation_current',
+  // 20261014194300_myk9_1162_registry_identity_taken.sql — declared STABLE; Add
+  // Dog's "Find dog" asks it whether a registry number is in use. It returns a
+  // boolean and writes nothing; a failure is read as "could not find out".
+  'registry_identity_taken',
 ]);
 
 /**

@@ -10,7 +10,8 @@ import { friendlySaveMessage } from '@/utils/friendlySaveError';
 import { PanelSaveHandledError } from '../panelSaveErrors';
 import type { AddDogPanelProps, AddDogSubMode, DogFormData } from './types';
 import { createInitialFormData } from './types';
-import { addDogSchema } from './validation';
+import { addDogSchema, addDogSchemaRequiringRegistration } from './validation';
+import { isAdminRole } from '../DogEditPanel.helpers';
 import { locateInvalidField, DOG_STEP_TABS, ADD_REGISTRATION_ATTR } from './validationTab';
 import { EDIT_REGISTRATION_ATTR } from '@/components/dogs/registrationAttrs';
 import { usePanelValidationNavigation } from '../usePanelValidationNavigation';
@@ -21,7 +22,13 @@ import { RegistrationFormInline } from './RegistrationFormInline';
 import { usePanelModeFocus } from '../../usePanelModeFocus';
 import { SlideOverPanel } from '../../SlideOverPanel';
 import { addDogSubModeTitle } from './subModeTitle';
-import { findLikelyDuplicateDogCandidate, type DogIdentityCandidate } from '@/utils/dogIdentity';
+import {
+  findLikelyDuplicateDogCandidate,
+  type DogIdentityCandidate,
+  type DogRegistrationIdentity,
+} from '@/utils/dogIdentity';
+import { isRegistryIdentityTaken } from '@/services/database/registrations';
+import { lookupRegistrationIdentity } from './registrationLookup';
 
 export type { AddDogPanelProps } from './types';
 
@@ -104,10 +111,28 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   const [localSaveError, setLocalSaveError] = useState<string | null>(null);
   const [duplicateCandidate, setDuplicateCandidate] = useState<DogIdentityCandidate | null>(null);
   const [allowSeparateDog, setAllowSeparateDog] = useState(false);
+  // A dog "Find dog" matched by registration number on the Registration step (MYK9-1162).
+  const [registrationMatch, setRegistrationMatch] = useState<Dog | null>(null);
+  // Registry and number typed on that step, which the dog form does not hold until it is saved.
+  const [identityDraft, setIdentityDraft] = useState(false);
+  // Set when Save was refused because that draft is unsaved; cleared once it is saved or gone.
+  const [draftBlocked, setDraftBlocked] = useState(false);
+  const handleIdentityDraftChange = useCallback((draft: boolean) => {
+    setIdentityDraft(draft);
+    if (!draft) setDraftBlocked(false);
+  }, []);
+  // Retires a lookup the user has since edited past, so a late answer cannot overwrite the
+  // newer one's card. Owned here, not in the step, because the card lives in this state.
+  const lookupSeqRef = useRef(0);
+  // The latest roster, read after the server answers: it may have loaded while Find dog waited.
+  const dogsRef = useRef(dogs);
+  useEffect(() => {
+    dogsRef.current = dogs;
+  }, [dogs]);
   // Lives here (not in the content) so a failed Save can move the user to the
   // tab holding the first invalid field (MYK9-885).
   const { activeTab, setActiveTab, handleValidationFail } = usePanelValidationNavigation<TabValue>(
-    'basic',
+    'registration',
     locateInvalidField
   );
 
@@ -128,6 +153,13 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   const handleSave = async (formData: DogFormData, { runSelfNavigation }: EditPanelSaveContext) => {
     setLocalSaveError(null);
     setDuplicateCandidate(null);
+    // A registration typed on the first step but not saved there is not in the form yet. Saving
+    // now would add the dog without it, so go back and say so instead.
+    if (identityDraft) {
+      setActiveTab('registration');
+      setDraftBlocked(true);
+      throw new PanelSaveHandledError();
+    }
     if (!allowSeparateDog) {
       const firstRegistration = formData.registrations[0];
       const candidate = findLikelyDuplicateDogCandidate(dogs, {
@@ -222,6 +254,20 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
     }
   };
 
+  const handleFindDog = async (identity: DogRegistrationIdentity) => {
+    const seq = ++lookupSeqRef.current;
+    const result = await lookupRegistrationIdentity(
+      () => dogsRef.current,
+      identity,
+      ({ organization, registrationNumber }) =>
+        isRegistryIdentityTaken(organization, registrationNumber)
+    );
+    if (seq === lookupSeqRef.current) {
+      setRegistrationMatch(result.kind === 'existing' ? result.dog : null);
+    }
+    return result;
+  };
+
   const handleUseExistingDog = (dog: Dog) => {
     notifications.success(`${dog.callName || dog.name} selected`, {
       description: 'Add the new registry number from the dog profile if needed.',
@@ -288,11 +334,9 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
             `[${EDIT_REGISTRATION_ATTR}="${CSS.escape(editedId)}"]`
           )
         : dogForm?.querySelector<HTMLElement>(`[${ADD_REGISTRATION_ATTR}]`);
-    // The opener can be gone (the Essential tab's shortcut shows only until a registration
-    // exists): the selected tab is still a real control to resume from (MYK9-1116).
-    return (
-      target ?? dogForm?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]') ?? dogForm
-    );
+    // The opener always exists: Add New Registration shows while the dog has a registration,
+    // and an Edit sub-mode only opens from a row that is still there.
+    return target ?? dogForm;
   }, []);
   usePanelModeFocus({
     mode: subMode,
@@ -307,9 +351,10 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
       onClose={onClose}
       title="Add Dog"
       initialData={initialFormData}
-      schema={addDogSchema}
+      schema={isAdminRole(userRole) ? addDogSchema : addDogSchemaRequiringRegistration}
       onSave={handleSave}
       forceHasChanges
+      hasUntrackedInput={identityDraft}
       size="xl"
       saveLabel="Add Dog"
       enableAutoSave={false}
@@ -334,6 +379,14 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
         currentUserPersonId={currentUserPersonId}
         saveError={localSaveError ?? saveError}
         duplicateCandidate={duplicateCandidate}
+        registrationMatch={registrationMatch}
+        onFindDog={handleFindDog}
+        onIdentityEdited={() => {
+          lookupSeqRef.current += 1;
+          setRegistrationMatch(null);
+        }}
+        onIdentityDraftChange={handleIdentityDraftChange}
+        draftBlocked={draftBlocked}
         onUseExistingDog={handleUseExistingDog}
         onCreateSeparateDog={() => {
           setAllowSeparateDog(true);

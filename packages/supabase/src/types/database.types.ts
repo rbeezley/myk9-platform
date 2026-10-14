@@ -14620,6 +14620,10 @@ export type Database = {
           steward: string
         }[]
       }
+      registry_identity_taken: {
+        Args: { p_organization: string; p_registration_number: string }
+        Returns: boolean
+      }
       release_sms_proximity_send: {
         Args: { p_auth_user_id: string; p_entry_id: string }
         Returns: boolean

@@ -83,7 +83,7 @@ describe('inline Add Dog field inset matches inline Add Person (MYK9-1081)', () 
     );
     person.unmount();
 
-    render(
+    const dog = render(
       <div data-testid="host">
         <AddDogPanel
           open
@@ -96,6 +96,8 @@ describe('inline Add Dog field inset matches inline Add Person (MYK9-1081)', () 
       </div>
     );
     const host = screen.getByTestId('host');
+    // Add Dog opens on the Registration step; a secretary may skip it to reach the fields.
+    await dog.user.click(await screen.findByRole('button', { name: /No registration number yet/ }));
     const callNameInset = insetWithin(await screen.findByLabelText(/Call Name/i), host);
     const sexInset = insetWithin(document.getElementById('gender') as HTMLElement, host);
 

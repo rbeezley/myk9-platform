@@ -2,7 +2,6 @@ import React, { useEffect, type MutableRefObject } from 'react';
 import { useEditPanel } from '../useEditPanel';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { AlertCircle } from 'lucide-react';
 import PhotoDialog from '@/components/common/PhotoDialog';
 import type { Dog, Registration } from '@/types/dog-types';
@@ -16,7 +15,10 @@ import { TabNavigation } from './TabNavigation';
 import { BasicInfoTab } from './BasicInfoTab';
 import { RegistrationTab } from './RegistrationTab';
 import { AdditionalInfoTab } from './AdditionalInfoTab';
-import type { DogIdentityCandidate } from '@/utils/dogIdentity';
+import type { DogIdentityCandidate, DogRegistrationIdentity } from '@/utils/dogIdentity';
+import { isAdminRole } from '../DogEditPanel.helpers';
+import { DuplicateDogAlert } from './DuplicateDogAlert';
+import type { RegistrationLookupResult } from './registrationLookup';
 
 /** Inner component rendered within EditPanelWrapper so it can access useEditPanel context */
 interface AddDogPanelContentProps {
@@ -28,6 +30,14 @@ interface AddDogPanelContentProps {
   showStartDate?: string | undefined;
   saveError: string | null;
   duplicateCandidate: DogIdentityCandidate | null;
+  /** A dog the Registration step's "Find dog" matched by number (MYK9-1162). */
+  registrationMatch: Dog | null;
+  onFindDog: (identity: DogRegistrationIdentity) => Promise<RegistrationLookupResult>;
+  /** The identity being typed changed, so a "found" card for the old one is stale. */
+  onIdentityEdited: () => void;
+  onIdentityDraftChange: (draft: boolean) => void;
+  /** Next was refused because a registration is typed but not saved. */
+  draftBlocked: boolean;
   onUseExistingDog: (dog: Dog) => void;
   onCreateSeparateDog: () => void;
   /**
@@ -51,6 +61,11 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
   showStartDate,
   saveError,
   duplicateCandidate,
+  registrationMatch,
+  onFindDog,
+  onIdentityEdited,
+  onIdentityDraftChange,
+  draftBlocked,
   onUseExistingDog,
   onCreateSeparateDog,
   onOpenRegistration,
@@ -111,6 +126,19 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
     }
   }
 
+  // Leaving the Registration step unmounts the control that had focus; hand it to Call Name
+  // once Essential has mounted, so keyboard and screen-reader users land on the next field.
+  const focusCallNameRef = React.useRef(false);
+  useEffect(() => {
+    if (activeTab !== 'basic' || !focusCallNameRef.current) return;
+    focusCallNameRef.current = false;
+    document.getElementById('callName')?.focus();
+  }, [activeTab, form]);
+  const goToEssential = () => {
+    focusCallNameRef.current = true;
+    onActiveTabChange('basic');
+  };
+
   if (!form) return null;
 
   const formData = form.data;
@@ -133,31 +161,23 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
           </Alert>
         )}
 
+        {registrationMatch && (
+          <DuplicateDogAlert
+            dog={registrationMatch}
+            reason="already saved with this registration number"
+            onUseExistingDog={() => runSelfNavigation(() => onUseExistingDog(registrationMatch))}
+          />
+        )}
+
         {duplicateCandidate && (
-          <Alert className="border-amber-300 bg-amber-50 text-amber-950">
-            <AlertCircle className="h-4 w-4 text-amber-700" />
-            <AlertDescription>
-              <div className="space-y-3">
-                <p>
-                  This looks like {duplicateCandidate.dog.callName || duplicateCandidate.dog.name},
-                  already saved for this owner.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      runSelfNavigation(() => onUseExistingDog(duplicateCandidate.dog))
-                    }
-                  >
-                    Use existing dog
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={onCreateSeparateDog}>
-                    Create separate dog
-                  </Button>
-                </div>
-              </div>
-            </AlertDescription>
-          </Alert>
+          <DuplicateDogAlert
+            dog={duplicateCandidate.dog}
+            reason="already saved for this owner"
+            onUseExistingDog={() =>
+              runSelfNavigation(() => onUseExistingDog(duplicateCandidate.dog))
+            }
+            onCreateSeparateDog={onCreateSeparateDog}
+          />
         )}
 
         {/* Tabbed Content */}
@@ -174,6 +194,24 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
             compact={inline}
           />
 
+          {/* keepMounted: a registration typed here but not yet saved survives a move to another
+              step, including the gate's redirect when an earlier step is invalid (MYK9-1162). */}
+          <TabsContent value="registration" keepMounted className="space-y-8 mt-8">
+            <RegistrationTab
+              onRemoveRegistration={handleRemoveRegistration}
+              onEditRegistration={openEditRegistration}
+              onAddRegistration={openAddRegistration}
+              onFindDog={onFindDog}
+              onIdentityEdited={onIdentityEdited}
+              onIdentityDraftChange={onIdentityDraftChange}
+              draftBlocked={draftBlocked}
+              onSaveRegistration={handleSaveRegistration}
+              onRegistrationSaved={goToEssential}
+              onSkip={isAdminRole(userRole) ? goToEssential : undefined}
+              flat={inline}
+            />
+          </TabsContent>
+
           <TabsContent
             value="basic"
             className="space-y-8 mt-8 animate-in slide-in-from-bottom-2 duration-500 ease-apple"
@@ -183,17 +221,7 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
               currentUserPersonId={currentUserPersonId}
               referenceDate={showStartDate}
               onPhotoOpen={() => handlePhotoDialogOpen(true)}
-              onAddRegistration={openAddRegistration}
               showPhoto={showPhoto}
-              flat={inline}
-            />
-          </TabsContent>
-
-          <TabsContent value="registration" className="space-y-8 mt-8">
-            <RegistrationTab
-              onRemoveRegistration={handleRemoveRegistration}
-              onEditRegistration={openEditRegistration}
-              onAddRegistration={openAddRegistration}
               flat={inline}
             />
           </TabsContent>

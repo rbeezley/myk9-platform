@@ -10,6 +10,7 @@ import { render } from '@/test/utils/testUtils';
 import { UserEditPanel } from '../UserEditPanel';
 import { ClubEditPanel } from '../ClubEditPanel';
 import { AddDogPanel } from '../AddDogPanel';
+import { UserRole } from '@/types/auth-types';
 
 vi.mock('@/hooks/useRBAC', () => ({ useRBAC: () => ({ hasPermission: () => false }) }));
 vi.mock('@/services/database/users', async importOriginal => ({
@@ -102,8 +103,14 @@ describe('steps panels reopen on their first tab', () => {
 
   it('Add Dog', async () => {
     const user = userEvent.setup();
-    const props = { onClose: () => {}, onDogCreated: vi.fn() };
-    const { rerender } = render(<AddDogPanel open {...props} currentUserPersonId="p1" />);
+    const props = {
+      onClose: () => {},
+      onDogCreated: vi.fn(),
+      currentUserPersonId: 'p1',
+      userRole: UserRole.SECRETARY,
+    };
+    const { rerender } = render(<AddDogPanel open {...props} />);
+    await user.click(await screen.findByRole('button', { name: /No registration number yet/ }));
     await user.type(await screen.findByLabelText(/Call Name/i), 'Rex');
     await user.click(screen.getByRole('combobox', { name: /^Sex/ }));
     await user.click(await screen.findByRole('option', { name: /^Male/ }));
@@ -111,11 +118,11 @@ describe('steps panels reopen on their first tab', () => {
     await user.click(await screen.findByRole('tab', { name: /optional details/i }));
     expect(await screen.findByRole('button', { name: 'Add Dog' })).toBeInTheDocument();
 
-    rerender(<AddDogPanel open={false} {...props} currentUserPersonId="p1" />);
-    rerender(<AddDogPanel open {...props} currentUserPersonId="p1" />);
+    rerender(<AddDogPanel open={false} {...props} />);
+    rerender(<AddDogPanel open {...props} />);
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /Next: Registration/ })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Next: Essential/ })).toBeInTheDocument()
     );
     expect(screen.queryByRole('button', { name: 'Add Dog' })).not.toBeInTheDocument();
   });

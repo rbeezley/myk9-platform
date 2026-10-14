@@ -8,7 +8,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Heart, User, Camera, Edit, PawPrint, Loader2 } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
@@ -17,7 +16,6 @@ import { usePeopleQuery } from '@/hooks/usePeopleQuery';
 import { FormField } from '@/components/common/FormField';
 import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import { calculateAge } from './validation';
-import { ADD_REGISTRATION_ATTR } from './validationTab';
 import type { DogFormData } from './types';
 import { DobYoungDogWarning } from '../DobYoungDogWarning';
 import { tabCardClasses } from './tabCard';
@@ -41,7 +39,6 @@ interface BasicInfoTabProps {
   /** Show start (`YYYY-MM-DD`) the young-dog warning is judged on; today when absent. */
   referenceDate?: string | undefined;
   onPhotoOpen: () => void;
-  onAddRegistration: () => void;
   /** False inline (MYK9-1081, D4): the photo dialog would stack on the host panel. */
   showPhoto?: boolean | undefined;
   /** Inline: no card chrome of its own (see `tabCardClasses`). */
@@ -53,7 +50,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   currentUserPersonId,
   referenceDate,
   onPhotoOpen,
-  onAddRegistration,
   showPhoto = true,
   flat = false,
 }) => {
@@ -93,25 +89,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         </p>
       </CardHeader>
       <CardContent className={cn('space-y-8 relative', card.content)}>
-        {userRole === UserRole.EXHIBITOR && formData.registrations.length === 0 && (
-          <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-            <p className="text-sm text-foreground">
-              To enter most classes, your dog needs an organization registration. Breed is recorded
-              with that registration, so you only enter it once.
-            </p>
-            {/* Tagged like the Registration tab's button: only the shown tab is mounted, so
-                leaving the registration view finds whichever one opened it (MYK9-1116). */}
-            <Button
-              type="button"
-              variant="outline"
-              size="touch"
-              onClick={onAddRegistration}
-              {...{ [ADD_REGISTRATION_ATTR]: '' }}
-            >
-              Add dog registration
-            </Button>
-          </div>
-        )}
         {/* Photo Section */}
         <div
           className={

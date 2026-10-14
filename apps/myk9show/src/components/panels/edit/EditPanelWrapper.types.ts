@@ -99,6 +99,13 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   forceHasChanges?: boolean;
 
   /**
+   * True while the panel holds input its form does not track (Add Dog's registry
+   * number before the registration is saved, MYK9-1162). Counts as unsaved work
+   * for the discard prompt and the route guard only; it never enables Save.
+   */
+  hasUntrackedInput?: boolean;
+
+  /**
    * The confirmation toast shown once the save succeeds: "‹Name› saved" after
    * an edit, "‹Name› added" after a create (`savedMessage` / `addedMessage`).
    * Owned here so every save path confirms the same way and callers do not

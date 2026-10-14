@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { signInAsExhibitor } from './helpers/testUsers';
 import { chooseAction } from './helpers/actionsMenu';
+import { addFirstRegistration } from './helpers/addDogRegistration';
 
 /**
  * MYK9-88 — the Add/Edit dog sex/gender comboboxes and the Add-dog photo action
@@ -42,6 +43,9 @@ for (const vp of VIEWPORTS) {
         .first()
         .click();
       await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
+      // An exhibitor starts with the registration and cannot skip it (MYK9-1162); the Sex
+      // field is on the Essential step that follows.
+      await addFirstRegistration(page, page.getByRole('dialog'));
 
       const sex = page.getByRole('combobox', { name: /^Sex/ });
       await expect(sex).toMatchAriaSnapshot(`- combobox "Sex (required)"`);

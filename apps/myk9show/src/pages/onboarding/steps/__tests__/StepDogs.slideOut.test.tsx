@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { resetQuickCreateMocks } from '@/test/quickCreate/quickCreateFlowMocks';
-import { dialogs, panel } from '@/test/quickCreate/quickCreateFlowKit';
+import { chooseOption, dialogs, panel } from '@/test/quickCreate/quickCreateFlowKit';
 import { StepDogs } from '../StepDogs';
 
 vi.mock('@/hooks/usePeopleQuery', () => ({
@@ -33,12 +33,13 @@ describe('StepDogs Add Dog', () => {
     );
 
     await user.click(await screen.findByRole('button', { name: /add a dog/i }));
-    await screen.findByLabelText(/Call Name/i);
+    // Add Dog opens on the registration number (MYK9-1162).
+    await screen.findByLabelText(/Registration Number/i);
 
     expect(dialogs()).toHaveLength(1);
     const slideOut = panel() as HTMLElement;
     expect(slideOut).not.toBeNull();
-    expect(within(slideOut).getByLabelText(/Call Name/i)).toBeInTheDocument();
+    expect(within(slideOut).getByLabelText(/Registration Number/i)).toBeInTheDocument();
 
     // The overlay root (the fixed backdrop holding the panel) is the dialog.
     const overlay = dialogs()[0] as HTMLElement;
@@ -51,20 +52,24 @@ describe('StepDogs Add Dog', () => {
 
   // PR #2920 review: Add Dog was a dialog here, where Escape asked before
   // dropping edits; as a slide-out it must ask too, not ignore Escape.
-  it('asks before Escape drops a typed call name, and Discard returns focus to Add a dog', async () => {
+  it('asks before Escape drops a typed registration number, and Discard returns focus to Add a dog', async () => {
     const { user } = render(
       <StepDogs personId="person-1" onNext={vi.fn()} onBack={vi.fn()} onSkip={vi.fn()} />
     );
     const opener = await screen.findByRole('button', { name: /add a dog/i });
     opener.focus();
     await user.click(opener);
-    const callName = await screen.findByLabelText(/Call Name/i);
-    await user.click(callName);
-    await user.paste('Ziggy');
+    await chooseOption(
+      user,
+      await waitFor(() => document.getElementById('organization') as HTMLElement),
+      'AKC (American Kennel Club)'
+    );
+    await user.click(await screen.findByLabelText(/Registration Number/i));
+    await user.paste('DN12345601');
 
     await user.keyboard('{Escape}');
     expect(await screen.findByRole('alertdialog', { name: 'Discard changes?' })).toBeVisible();
-    expect(screen.getByLabelText(/Call Name/i)).toHaveValue('Ziggy');
+    expect(screen.getByLabelText(/Registration Number/i)).toHaveValue('DN12345601');
 
     await user.click(screen.getByRole('button', { name: 'Discard changes' }));
     await waitFor(() => expect(panel()).toBeNull(), { timeout: 2000 });

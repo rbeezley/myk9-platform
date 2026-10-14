@@ -18,6 +18,7 @@ import {
 import {
   addPersonThroughForm,
   fillDogBasics,
+  skipRegistration,
   JOURNEY_TIMEOUT_MS,
 } from '@/test/quickCreate/quickCreateFlowKit';
 
@@ -64,8 +65,8 @@ type Driver = ReturnType<typeof renderFlow>['user'];
 async function reachDogsWithZiggy(user: Driver) {
   await addPersonThroughForm(user);
   await user.click(await screen.findByRole('button', { name: 'Add First Dog' }));
+  await skipRegistration(user);
   await fillDogBasics(user);
-  await user.click(screen.getByRole('button', { name: /Next: Registration/ }));
   await user.click(await screen.findByRole('button', { name: /Next: Optional details/ }));
   await user.click(await screen.findByRole('button', { name: 'Add Dog' }));
   await screen.findByText('Dogs Added (1):');
@@ -244,8 +245,9 @@ describe('Quick Create dog Edit', { timeout: JOURNEY_TIMEOUT_MS }, () => {
     await reachDogsWithZiggy(user);
 
     await user.click(screen.getByRole('button', { name: 'Add Another Dog' }));
-    expect(await screen.findByLabelText(/Call Name/i)).toHaveValue('');
-    expect(screen.getByRole('button', { name: /Next: Registration/ })).toBeInTheDocument();
+    // A blank Add Dog opens on its Registration step (MYK9-1162).
+    expect(await screen.findByLabelText(/Registration Number/i)).toHaveValue('');
+    expect(screen.getByRole('button', { name: /Next: Essential/ })).toBeInTheDocument();
     expect(mocks.updateDog).not.toHaveBeenCalled();
   });
 });

@@ -13,6 +13,7 @@ import {
   resetQuickCreateMocks,
 } from '@/test/quickCreate/quickCreateFlowMocks';
 import {
+  addFirstRegistration,
   dialogs,
   fillDogBasics,
   fillRegistration,
@@ -47,6 +48,12 @@ function renderPanel(onClose = vi.fn()) {
   );
 }
 
+/** Add Dog's two first steps: the first registration, then the Essential fields. */
+async function startDog(user: ReturnType<typeof renderPanel>['user'], callName = 'Ziggy') {
+  await addFirstRegistration(user);
+  await fillDogBasics(user, callName);
+}
+
 async function openAddRegistration(user: ReturnType<typeof renderPanel>['user']) {
   await user.click(screen.getByRole('tab', { name: /Registration/ }));
   await user.click(await screen.findByRole('button', { name: /Add New Registration/ }));
@@ -58,7 +65,7 @@ describe(
   () => {
     it('opens Add New Registration inside the one panel', async () => {
       const { user } = renderPanel();
-      await fillDogBasics(user);
+      await startDog(user);
       await openAddRegistration(user);
 
       expect(await screen.findByLabelText(/Registered Name/i)).toBeInTheDocument();
@@ -68,9 +75,8 @@ describe(
 
     it('opens Edit on an existing registration inside the one panel', async () => {
       const { user } = renderPanel();
-      await fillDogBasics(user);
-      await openAddRegistration(user);
-      await fillRegistration(user);
+      await startDog(user);
+      await user.click(screen.getByRole('tab', { name: /Registration/ }));
       const edit = await screen.findByRole('button', { name: /Edit AKC.*DN12345601/ });
       await user.click(edit);
 
@@ -83,10 +89,12 @@ describe(
 
     it('keeps the dog form values across the sub-mode', async () => {
       const { user } = renderPanel();
-      await fillDogBasics(user, 'Ziggy');
+      await startDog(user, 'Ziggy');
       await openAddRegistration(user);
-      await fillRegistration(user);
-      await waitFor(() => expect(screen.getByText('Mailbox Special Delivery')).toBeVisible());
+      await fillRegistration(user, 'DN22222201');
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /Edit AKC.*DN22222201/ })).toBeVisible()
+      );
       await user.click(screen.getByRole('tab', { name: /Essential|Basic/ }));
 
       expect(screen.getByLabelText(/Call Name/i)).toHaveValue('Ziggy');
@@ -95,7 +103,7 @@ describe(
     it('Escape leaves the sub-mode first and keeps the panel open', async () => {
       const onClose = vi.fn();
       const { user } = renderPanel(onClose);
-      await fillDogBasics(user);
+      await startDog(user);
       await openAddRegistration(user);
       await screen.findByLabelText(/Registered Name/i);
 
@@ -110,7 +118,7 @@ describe(
     it('Back leaves the sub-mode first and keeps the panel open', async () => {
       const onClose = vi.fn();
       const { user } = renderPanel(onClose);
-      await fillDogBasics(user);
+      await startDog(user);
       await openAddRegistration(user);
       await screen.findByLabelText(/Registered Name/i);
 
@@ -123,7 +131,7 @@ describe(
 
     it('focuses the first registration field, then returns to Add New Registration', async () => {
       const { user } = renderPanel();
-      await fillDogBasics(user);
+      await startDog(user);
       await openAddRegistration(user);
       await screen.findByLabelText(/Registered Name/i);
       await waitFor(() =>
@@ -140,9 +148,8 @@ describe(
 
     it('returns focus to the edited row Edit button', async () => {
       const { user } = renderPanel();
-      await fillDogBasics(user);
-      await openAddRegistration(user);
-      await fillRegistration(user);
+      await startDog(user);
+      await user.click(screen.getByRole('tab', { name: /Registration/ }));
       const edit = await screen.findByRole('button', { name: /Edit AKC.*DN12345601/ });
       await user.click(edit);
       await screen.findByLabelText(/Registered Name/i);
@@ -158,9 +165,7 @@ describe(
 
     it('saves the registration with the dog', async () => {
       const { user } = renderPanel();
-      await fillDogBasics(user);
-      await openAddRegistration(user);
-      await fillRegistration(user);
+      await startDog(user);
       await user.click(await screen.findByRole('button', { name: /Next: Optional details/ }));
       await user.click(await screen.findByRole('button', { name: 'Add Dog' }));
 
@@ -194,7 +199,7 @@ describe(
       // Mounted closed, then opened, as every page does: only that transition animates.
       const { user, rerender } = render(panel(false));
       rerender(panel(true));
-      await fillDogBasics(user);
+      await startDog(user);
       await openAddRegistration(user);
       expect(
         await screen.findByRole('heading', { name: 'Add New Registration' })
@@ -209,8 +214,9 @@ describe(
       await waitFor(() => expect(dialogs()).toHaveLength(0));
     });
 
-    it('keeps a gap between the dog photo and the Call Name field', () => {
-      renderPanel();
+    it('keeps a gap between the dog photo and the Call Name field', async () => {
+      const { user } = renderPanel();
+      await user.click(await screen.findByRole('button', { name: /No registration number yet/ }));
       const photo = document.getElementById('dog-photo-button');
       expect(photo).not.toBeNull();
       expect(photo!.parentElement).toHaveClass('gap-4');

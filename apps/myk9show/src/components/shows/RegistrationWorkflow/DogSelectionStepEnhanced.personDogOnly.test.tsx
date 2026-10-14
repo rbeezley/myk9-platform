@@ -24,6 +24,7 @@ import {
   addPersonThroughForm,
   dialogs,
   fillDogBasics,
+  skipRegistration,
   JOURNEY_TIMEOUT_MS,
   panel,
 } from '@/test/quickCreate/quickCreateFlowKit';
@@ -116,12 +117,12 @@ describe('Create New → Dog Only', { timeout: JOURNEY_TIMEOUT_MS }, () => {
 
     await user.click(createNew);
     await user.click(await screen.findByRole('menuitem', { name: /Dog Only/ }));
-    await screen.findByLabelText(/Call Name/i);
+    await screen.findByLabelText(/Registration Number/i);
     await settle();
 
     expect(dialogs()).toHaveLength(1);
     const slideOut = panel() as HTMLElement;
-    expect(within(slideOut).getByLabelText(/Call Name/i)).toBeInTheDocument();
+    expect(within(slideOut).getByLabelText(/Registration Number/i)).toBeInTheDocument();
     expect(slideOut).toContainElement(document.activeElement as HTMLElement);
 
     await user.keyboard('{Escape}');
@@ -145,9 +146,12 @@ describe('Create New → Exhibitor Only', { timeout: JOURNEY_TIMEOUT_MS }, () =>
 
     const peak = await peakDialogs(async () => {
       await addPersonThroughForm(user);
-      await waitFor(() => expect(screen.getByLabelText(/Call Name/i)).toBeInTheDocument(), {
-        timeout: 3000,
-      });
+      await waitFor(
+        () => expect(screen.getByLabelText(/Registration Number/i)).toBeInTheDocument(),
+        {
+          timeout: 3000,
+        }
+      );
       await settle();
     });
 
@@ -158,8 +162,8 @@ describe('Create New → Exhibitor Only', { timeout: JOURNEY_TIMEOUT_MS }, () =>
     expect(panel()).toContainElement(document.activeElement as HTMLElement);
 
     // Add Dog belongs to the person just created.
+    await skipRegistration(user);
     await fillDogBasics(user);
-    await user.click(screen.getByRole('button', { name: /Next: Registration/ }));
     await user.click(await screen.findByRole('button', { name: /Next: Optional details/ }));
     await user.click(await screen.findByRole('button', { name: 'Add Dog' }));
     await waitFor(() =>

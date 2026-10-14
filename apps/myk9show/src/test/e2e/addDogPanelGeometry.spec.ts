@@ -35,11 +35,18 @@ for (const width of WIDTHS) {
     test.setTimeout(90000);
     await page.setViewportSize({ width, height: 800 });
     await openAddDog(page);
+    // Add Dog opens on its Registration step (MYK9-1162). A secretary may skip it, and this
+    // spec measures the Essential fields, so it does that rather than saving a registration.
+    await page.getByRole('button', { name: 'No registration number yet' }).click();
 
     const dialogs = page.getByRole('dialog');
     const callName = dialogs.getByLabel(/Call Name/i);
     await expect(callName).toBeVisible({ timeout: 20000 });
-    // The slide-over's open animation must finish before rects mean anything.
+    // The skip hands focus to Call Name (MYK9-1162), and a focused Input scales to 1.02, which
+    // getBoundingClientRect reports. Measure the field at rest, not its focus emphasis.
+    await callName.blur();
+    // The slide-over's open animation (and the focus scale's transition back) must finish
+    // before rects mean anything.
     await expect(dialogs).toHaveCount(1);
     await page.waitForTimeout(600);
 
@@ -60,6 +67,15 @@ for (const width of WIDTHS) {
 
     // Every tab label sits inside its own tab: no spill, no overlap with a neighbour.
     expect(g.tabs).toHaveLength(3);
+    // Registration first, then Essential, then Optional details (MYK9-1162).
+    expect(
+      g.tabs.map(tab => tab.label),
+      measured
+    ).toEqual([
+      expect.stringContaining('Registration'),
+      expect.stringContaining('Essential'),
+      expect.stringContaining('Optional details'),
+    ]);
     for (const tab of g.tabs) {
       expect(tab.scrollOverflow, `${tab.label}: ${measured}`).toBeLessThanOrEqual(0);
       expect(tab.labelPastLeft, `${tab.label}: ${measured}`).toBeLessThanOrEqual(0);

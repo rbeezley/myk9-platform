@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { SuspenseWrapper } from '@/routes/utils/SuspenseWrapper';
-import { lazyWithRetry } from './lazyWithRetry';
+import { RELOAD_FALLBACK_MS, lazyWithRetry } from './lazyWithRetry';
 import {
   RECOVERY_STORAGE_KEY,
   RELOAD_WINDOW_MS,
   __resetChunkRecoveryForTests,
   canRecoverByReload,
-  installPreloadErrorRecovery,
   isChunkLoadError,
   recoverFromChunkLoadError,
 } from './chunkLoadRecovery';
@@ -68,17 +67,16 @@ describe('chunkLoadRecovery', () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
-  it('does not reload a second time in the same document even when sessionStorage is blocked', async () => {
+  it('never reloads when sessionStorage cannot hold the stamp, so a dead chunk cannot loop', async () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('blocked');
     });
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('blocked');
     });
-    expect(recoverFromChunkLoadError(CHUNK_ERROR)).toBe(true);
     expect(recoverFromChunkLoadError(CHUNK_ERROR)).toBe(false);
     await flushRecovery();
-    expect(reload).toHaveBeenCalledTimes(1);
+    expect(reload).not.toHaveBeenCalled();
   });
 
   it('does not reload again right after a recovery reload (new document, same session)', () => {
@@ -115,17 +113,6 @@ describe('chunkLoadRecovery', () => {
     expect(reload).not.toHaveBeenCalled();
   });
 
-  it('vite:preloadError recovers once and suppresses the throw', async () => {
-    installPreloadErrorRecovery();
-    const event = Object.assign(new Event('vite:preloadError', { cancelable: true }), {
-      payload: CHUNK_ERROR,
-    });
-    window.dispatchEvent(event);
-    expect(event.defaultPrevented).toBe(true);
-    await flushRecovery();
-    expect(reload).toHaveBeenCalledTimes(1);
-  });
-
   it('lazyWithRetry reloads instead of showing the boundary when the chunk stays down', async () => {
     const factory = vi.fn().mockRejectedValue(CHUNK_ERROR);
     const Lazy = lazyWithRetry(factory);
@@ -137,6 +124,23 @@ describe('chunkLoadRecovery', () => {
     await act(() => vi.advanceTimersByTimeAsync(5000));
     expect(reload).toHaveBeenCalledTimes(1);
     expect(screen.queryByText('Failed to load component')).not.toBeInTheDocument();
+  });
+
+  it('lazyWithRetry falls back to the boundary when the started reload never happens', async () => {
+    const factory = vi.fn().mockRejectedValue(CHUNK_ERROR);
+    const Lazy = lazyWithRetry(factory);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    render(
+      <SuspenseWrapper>
+        <Lazy />
+      </SuspenseWrapper>
+    );
+    // Retries (300 + 1000ms), then the reload starts; the mocked reload never navigates.
+    await act(() => vi.advanceTimersByTimeAsync(2_000));
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Failed to load component')).not.toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(RELOAD_FALLBACK_MS + 100));
+    expect(await screen.findByText('Failed to load component')).toBeInTheDocument();
   });
 
   it('lazyWithRetry still shows the boundary on a sensitive route', async () => {

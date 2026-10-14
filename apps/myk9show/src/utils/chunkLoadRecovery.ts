@@ -14,7 +14,10 @@
  *   - never on a sensitive route (scoring, show-day, checkout; INTENT: the existing boundary and
  *     its Try Again / Reload Page buttons stay in the user's hands there);
  *   - at most one automatic reload per RELOAD_WINDOW_MS, remembered in sessionStorage (it
- *     survives the reload itself), plus an in-memory flag for storage-less contexts.
+ *     survives the reload itself); when that stamp cannot be stored, no automatic reload at all;
+ *   - route-level lazies only (lazyWithRetry / createEnhancedLazy, all page components): a page
+ *     whose chunk failed never rendered, so nothing typed on it can be lost. Panels and dialogs
+ *     loaded with plain lazy() inside a page keep the boundary.
  */
 import { isSensitivePath } from '@/utils/sensitiveRoutes';
 
@@ -45,11 +48,13 @@ function recentlyReloaded(now: number): boolean {
   }
 }
 
-function rememberReload(now: number): void {
+/** Stamps the reload; false when the stamp cannot be stored (then no automatic reload may run). */
+function rememberReload(now: number): boolean {
   try {
     window.sessionStorage.setItem(RECOVERY_STORAGE_KEY, String(now));
+    return window.sessionStorage.getItem(RECOVERY_STORAGE_KEY) === String(now);
   } catch {
-    // Storage blocked: the in-memory flag still stops a same-document repeat.
+    return false;
   }
 }
 
@@ -70,18 +75,12 @@ export function canRecoverByReload(error: unknown, now: number = Date.now()): bo
 export function recoverFromChunkLoadError(error: unknown): boolean {
   const now = Date.now();
   if (!canRecoverByReload(error, now)) return false;
+  // Fail closed: without a stamp that survives the reload, a chunk that stays down (a bad
+  // deploy, a captive portal) would reload this page forever.
+  if (!rememberReload(now)) return false;
   reloadedThisDocument = true;
-  rememberReload(now);
   window.location.reload();
   return true;
-}
-
-/** Vite fires `vite:preloadError` when a dynamic import's preloaded dependency fails. */
-export function installPreloadErrorRecovery(): void {
-  window.addEventListener('vite:preloadError', event => {
-    const payload = (event as Event & { payload?: unknown }).payload;
-    if (recoverFromChunkLoadError(payload)) event.preventDefault();
-  });
 }
 
 /** Test seam: forget the in-memory once-per-document flag. */

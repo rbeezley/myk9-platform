@@ -14,6 +14,10 @@
  *     The exported component is a stable wrapper that reads the current inner lazy at render.
  */
 import { lazy, createElement, type ComponentProps, type ComponentType } from 'react';
+import { recoverFromChunkLoadError } from '@/utils/chunkLoadRecovery';
+
+/** How long a started recovery reload may take before the boundary shows instead. */
+export const RELOAD_FALLBACK_MS = 5_000;
 
 /** Delays before retry 1 and retry 2; total import attempts = RETRY_DELAYS_MS.length + 1. */
 export const RETRY_DELAYS_MS = [300, 1000] as const;
@@ -45,12 +49,24 @@ export function createResettableLazy<T extends ComponentType<any>>(
   let failed = false;
 
   const create = () =>
-    lazy(() =>
-      load().catch(error => {
+    lazy(() => {
+      // The page this load was for. Retries can outlast a navigation; a reload is earned only if
+      // the user is still waiting on that page, never on whatever they moved on to.
+      const startedOn = window.location.pathname;
+      return load().catch(error => {
         failed = true;
+        // A failed import stays failed for this document (see chunkLoadRecovery). When a guarded
+        // reload starts, stay suspended so the boundary never flashes before the page reloads.
+        if (window.location.pathname === startedOn && recoverFromChunkLoadError(error)) {
+          // If the reload never happens (blocked, or cancelled at a leave prompt), fall back to
+          // the boundary rather than a spinner that never ends.
+          return new Promise<never>((_, reject) => {
+            setTimeout(() => reject(error), RELOAD_FALLBACK_MS);
+          });
+        }
         throw error;
-      })
-    );
+      });
+    });
 
   let Inner = create();
   resetters.add(() => {

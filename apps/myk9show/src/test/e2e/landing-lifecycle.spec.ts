@@ -175,14 +175,21 @@ for (const vp of VIEWPORTS) {
       await expect(peak.getByText('All synced')).toBeVisible({ timeout: 4000 });
     });
 
-    test('the scent trail follows the reader and marks Alert at Results', async ({ page }) => {
+    test('the line fills down to the reached step and empties going back', async ({
+      page,
+    }, testInfo) => {
       await openLanding(page);
-      const alert = page.locator('#results .lc-alert');
-      await expect(alert).toHaveAttribute('data-shown', 'false');
+      // The line under show day leads to Results; it fills once Results is reached.
+      const line = page.locator('#showday .lc-line');
+      await expect(line).toHaveAttribute('data-filled', 'false');
       await scrollDotToMiddle(page, 'results');
-      await expect(alert).toHaveAttribute('data-shown', 'true');
+      await expect(line).toHaveAttribute('data-filled', 'true');
+      await expect(page.locator('#results .lc-line')).toHaveAttribute('data-filled', 'false');
+      // Evidence for review once the 700ms fill has finished.
+      await page.waitForTimeout(900);
+      await page.screenshot({ path: testInfo.outputPath(`line-${vp.name}.png`) });
       await scrollToTop(page);
-      await expect(alert).toHaveAttribute('data-shown', 'false');
+      await expect(line).toHaveAttribute('data-filled', 'false');
     });
 
     test('night-before card ticks green once revealed', async ({ page }) => {
@@ -323,8 +330,8 @@ for (const vp of VIEWPORTS) {
           '.lc-demo-label, .lc-demo-status, .lc-demo-hint, .lc-demo-meta, .lc-demo-badge, .lc-demo-chip, .lc-demo-remaining',
           // Night-before card.
           '.lc-night-label, .lc-night-sub, .lc-night-summary, .lc-night-when, .lc-night-title, .lc-night-closing, .lc-night-replay',
-          // Explainer count chip and the Alert pill.
-          '.lc-explainer-count, .lc-alert',
+          // Explainer count chip.
+          '.lc-explainer-count',
         ].join(', ');
         const nodes = [...document.querySelectorAll(selector)];
         const rows = nodes.map(el => ({
@@ -366,13 +373,13 @@ for (const vp of VIEWPORTS) {
 const motionOf = (page: Page) =>
   page.evaluate(() => ({
     dot: getComputedStyle(document.querySelector('.lc-dot')!).transitionProperty,
-    fill: getComputedStyle(document.querySelector('.lc-trail-scent')!).transitionProperty,
+    fill: getComputedStyle(document.querySelector('.lc-line-fill')!).transitionProperty,
   }));
 
 test.describe('motion with no preference', () => {
   test.use({ viewport: { width: 390, height: 844 } });
   // Positive control for the reduced-motion test below: these elements do animate by default.
-  test('the dots and the scent line have transitions', async ({ page }) => {
+  test('the dots and the progress line have transitions', async ({ page }) => {
     await openLanding(page);
     const { dot, fill } = await motionOf(page);
     expect(dot).not.toBe('none');
@@ -397,6 +404,52 @@ test.describe('reduced motion', () => {
   });
 });
 
+// Wide screens put the photo beside the copy in a tall frame (both dogs whole, not a short
+// band cropped to their faces); narrower screens keep the full-width band above the copy.
+test('hero: photo beside the copy on wide screens, band above it below 1100px', async ({
+  page,
+}, testInfo) => {
+  const measure = () =>
+    page.evaluate(() => {
+      const box = (sel: string) => document.querySelector(sel)!.getBoundingClientRect();
+      const h1 = document.querySelector<HTMLElement>('#top h1')!;
+      const cta = [...document.querySelectorAll<HTMLElement>('#top a')].find(
+        a => a.innerText === 'Add your club'
+      )!;
+      return {
+        photo: box('#top .lc-hero-photo').toJSON() as DOMRect,
+        h1: h1.getBoundingClientRect().toJSON() as DOMRect,
+        h1Lines: Math.round(
+          h1.getBoundingClientRect().height / parseFloat(getComputedStyle(h1).lineHeight)
+        ),
+        ctaBottom: cta.getBoundingClientRect().bottom,
+      };
+    });
+
+  for (const { width, height } of [
+    { width: 1100, height: 800 },
+    { width: 1440, height: 900 },
+    { width: 1920, height: 1080 },
+  ]) {
+    await page.setViewportSize({ width, height });
+    await openLanding(page);
+    const m = await measure();
+    expect(m.photo.left, `${width}px: photo is not beside the copy`).toBeGreaterThan(m.h1.right);
+    expect(m.photo.height / m.photo.width, `${width}px: photo is a band`).toBeGreaterThan(0.9);
+    expect(m.h1Lines, `${width}px: headline lines`).toBeLessThanOrEqual(2);
+    expect(m.ctaBottom, `${width}px: Add your club below the fold`).toBeLessThanOrEqual(height);
+    // Evidence for review; the page fades in on load, so let it settle first.
+    await page.waitForTimeout(1000);
+    await page.screenshot({ path: testInfo.outputPath(`hero-${width}.png`) });
+  }
+
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await openLanding(page);
+  const m = await measure();
+  expect(m.photo.width, '1024px: photo is not full width').toBeGreaterThan(1000);
+  expect(m.photo.bottom, '1024px: photo is not above the copy').toBeLessThanOrEqual(m.h1.top + 1);
+});
+
 test('header fits the narrowest phones', async ({ page }) => {
   for (const width of [320, 360]) {
     await page.setViewportSize({ width, height: 740 });
@@ -412,6 +465,9 @@ test('nothing spills out of its box on narrow phones', async ({ page }) => {
     for (const audience of ['club', 'exhibitor']) {
       if (audience === 'exhibitor') {
         await page.getByRole('button', { name: /entering a show/i }).click();
+        // The header's primary action becomes Create account; it must still fit.
+        await expect(page.locator('.l-hdr .l-btn-primary')).toHaveText('Create account');
+        await expectHeaderFits(page);
       }
       await expectNoLandingSpills(page, `${width}px ${audience}`);
     }

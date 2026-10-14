@@ -210,63 +210,27 @@
   display: flex;
   justify-content: center;
 }
-/* D10: the scent trail between dots. The SVG stretches to the row; strokes stay crisp
-   (vector-effect: non-scaling-stroke on each path). It fills, by clip-path wipe, when the
-   NEXT step is reached, and pulls back when the reader scrolls up. */
-.landing-v2 .lc-trail {
+/* The line between dots: a plain track that fills top-down once the NEXT step is reached,
+   and empties when the reader scrolls back up. */
+.landing-v2 .lc-line {
+  position: relative;
   flex: 1 1 auto;
-  width: 96px;
-  margin-top: 4px;
-  overflow: visible;
-}
-.landing-v2 .lc-trail-base {
-  fill: none;
-  stroke: #d9cfbc;
-  stroke-width: 2;
-}
-.landing-v2 .lc-trail-scent {
-  fill: none;
-  stroke: var(--terracotta-600);
-  stroke-width: 6;
-  stroke-linecap: round;
-  stroke-dasharray: 0.5 13;
-  clip-path: inset(0 0 100% 0);
-  transition: clip-path 700ms cubic-bezier(0.45, 0.05, 0.25, 1);
-}
-.landing-v2 .lc-trail[data-after-find='true'] .lc-trail-scent {
-  stroke: #b8ae9c;
-  stroke-width: 2;
-  stroke-dasharray: 3 8;
-  stroke-linecap: butt;
-}
-.landing-v2 .lc-row:has(+ .lc-row .lc-dot[data-reached='true']) .lc-trail-scent {
-  clip-path: inset(0 0 0 0);
-}
-.landing-v2 .lc-alert {
-  position: absolute;
-  left: 100%;
-  top: 6px;
-  margin-left: 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  width: 3px;
+  margin-top: 6px;
   border-radius: 999px;
-  background: #e3f2e6;
-  color: #1e5b2e;
-  font-size: 0.9375rem;
-  font-weight: 700;
-  white-space: nowrap;
-  box-shadow: 0 8px 18px -10px rgb(0 0 0 / 0.35);
-  opacity: 0;
-  transform: translateY(6px);
-  transition:
-    opacity 400ms ease,
-    transform 400ms cubic-bezier(0.23, 1, 0.32, 1);
+  background: #ddd3c1;
+  overflow: hidden;
 }
-.landing-v2 .lc-alert[data-shown='true'] {
-  opacity: 1;
-  transform: translateY(0);
+.landing-v2 .lc-line-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--terracotta-600);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 700ms cubic-bezier(0.45, 0.05, 0.25, 1);
+}
+.landing-v2 .lc-line[data-filled='true'] .lc-line-fill {
+  transform: scaleY(1);
 }
 
 /* Reveal once: content rises 20px and fades in; meanwhile follows 140ms later. */
@@ -415,24 +379,11 @@
   .landing-v2 .lc-row[data-peak='true'] .lc-dot {
     margin-top: 1rem;
   }
-  .landing-v2 .lc-alert {
-    left: 50%;
-    top: 100%;
-    margin: 6px 0 0;
-    transform: translate(-50%, 6px);
-  }
-  .landing-v2 .lc-alert[data-shown='true'] {
-    transform: translate(-50%, 0);
-  }
-  .landing-v2 .lc-trail {
-    width: 56px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .landing-v2 .lc-dot,
-  .landing-v2 .lc-trail-scent,
-  .landing-v2 .lc-alert,
+  .landing-v2 .lc-line-fill,
   .landing-v2 .lc-main,
   .landing-v2 .lc-meanwhile,
   .landing-v2 .lc-explainer-box,

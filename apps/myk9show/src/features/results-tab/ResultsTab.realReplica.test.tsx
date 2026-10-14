@@ -70,13 +70,17 @@ vi.mock('./ResultsVisibilitySheet', () => ({ ResultsVisibilitySheet: () => null 
 // Every wait here follows a real IndexedDB write, then a debounced table notice, then an async
 // re-read (MYK9-1160). Under CPU load plus coverage that chain outlasts the 1000ms default and a
 // `toBeDisabled()` waitFor timed out on a button that was about to lock. A budget, not a poll:
-// a passing run still resolves on the first matching render.
+// a passing run still resolves on the first matching render. Tests here chain up to three waits,
+// so the per-test timeout is raised past their sum: a slow wait then fails as itself, with its DOM
+// dump, instead of as "Test timed out" naming only the it().
 const { asyncUtilTimeout: DEFAULT_ASYNC_TIMEOUT } = getConfig();
 beforeAll(() => {
   configure({ asyncUtilTimeout: 8_000 });
+  vi.setConfig({ testTimeout: 30_000 });
 });
 afterAll(() => {
   configure({ asyncUtilTimeout: DEFAULT_ASYNC_TIMEOUT });
+  vi.resetConfig();
 });
 
 beforeEach(async () => {

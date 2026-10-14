@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
-import { BRING_YOUR_CLUB, FIND_A_SHOW } from './landingCtas';
+import { ADD_YOUR_CLUB, FIND_A_SHOW } from './landingCtas';
 
-export function LandingHeader() {
+// Signed-in visitors reach the landing only through the club-onboarding return,
+// where the app header already shows their account, so Sign in is hidden.
+export function LandingHeader({ signedIn = false }: { signedIn?: boolean }) {
   return (
     <header className="l-hdr">
       <div className="l-hdr-inner">
@@ -18,11 +20,13 @@ export function LandingHeader() {
         <Link to={FIND_A_SHOW.to} className="l-btn l-btn-ghost l-hdr-desktop min-h-11">
           {FIND_A_SHOW.label}
         </Link>
-        <Link to="/sign-in" className="l-btn l-btn-ghost min-h-11">
-          Sign in
-        </Link>
-        <a href={BRING_YOUR_CLUB.href} className="l-btn l-btn-primary min-h-11">
-          {BRING_YOUR_CLUB.label}
+        {!signedIn && (
+          <Link to="/sign-in" className="l-btn l-btn-ghost min-h-11">
+            Sign in
+          </Link>
+        )}
+        <a href={ADD_YOUR_CLUB.href} className="l-btn l-btn-primary min-h-11">
+          {ADD_YOUR_CLUB.label}
         </a>
       </div>
     </header>

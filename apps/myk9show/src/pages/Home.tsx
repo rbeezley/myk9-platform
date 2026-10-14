@@ -28,7 +28,7 @@ const Home: React.FC = () => {
 
   return (
     <div className="landing-v2" data-guest={user ? 'false' : 'true'}>
-      <LandingHeader />
+      <LandingHeader signedIn={Boolean(user)} />
       <ShowTodayBanner />
       <LandingHero />
       <LifecycleTimeline />

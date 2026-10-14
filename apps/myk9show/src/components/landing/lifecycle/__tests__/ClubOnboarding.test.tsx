@@ -63,7 +63,7 @@ describe('ClubOnboarding', () => {
   it('leads with the club heading', () => {
     render(<ClubOnboarding />, { initialRoute: '/' });
     expect(
-      screen.getByRole('heading', { level: 2, name: /bring your club to myk9show/i })
+      screen.getByRole('heading', { level: 2, name: /add your club to myk9show/i })
     ).toBeInTheDocument();
   });
 

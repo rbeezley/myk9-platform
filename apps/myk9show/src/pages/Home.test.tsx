@@ -6,7 +6,7 @@ import { BANNED_COPY } from '@/components/landing/lifecycle/lifecycleStories';
 
 vi.mock('@/features/show-today/ShowTodayBanner', () => ({ ShowTodayBanner: () => null }));
 vi.mock('@/components/landing/lifecycle/ClubOnboarding', () => ({
-  ClubOnboarding: () => <section id="get-started" aria-label="Bring your club form" />,
+  ClubOnboarding: () => <section id="get-started" aria-label="Add your club form" />,
 }));
 vi.mock('@/components/landing/lifecycle/useTimelineProgress', () => ({
   useTimelineProgress: () => ({ reached: 0, isRevealed: () => true }),
@@ -30,18 +30,18 @@ describe('Home', () => {
     window.history.replaceState({}, '', '/');
   });
 
-  it('leads the hero with Bring your club, then Find a show, and nothing else', () => {
+  it('leads the hero with Add your club, then Find a show, and nothing else', () => {
     render(<Home />);
     const hero = screen.getByRole('region', { name: /from premium list/i });
-    expect(linkTexts(hero)).toEqual(['Bring your club', 'Find a show']);
+    expect(linkTexts(hero)).toEqual(['Add your club', 'Find a show']);
     expect(hero.querySelector('a[href="#get-started"]')).toHaveClass('l-btn-primary');
     expect(hero.querySelector('a[href="/shows"]')).not.toHaveClass('l-btn-primary');
   });
 
-  it('makes Bring your club the primary button in the header', () => {
+  it('makes Add your club the primary button in the header', () => {
     render(<Home />);
     const header = screen.getByRole('banner');
-    expect(header.querySelector('.l-btn-primary')?.textContent).toBe('Bring your club');
+    expect(header.querySelector('.l-btn-primary')?.textContent).toBe('Add your club');
   });
 
   it('keeps the hero lede to 20 words or fewer', () => {

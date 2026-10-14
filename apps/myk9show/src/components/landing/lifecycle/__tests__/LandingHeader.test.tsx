@@ -14,12 +14,19 @@ describe('LandingHeader', () => {
     expect(find).not.toHaveClass('l-btn-primary');
   });
 
-  it('offers sign-in and Bring your club as the filled primary action', () => {
+  it('offers sign-in and Add your club as the filled primary action', () => {
     render(<LandingHeader />);
 
     expect(screen.getByRole('link', { name: /sign in/i })).toHaveAttribute('href', '/sign-in');
-    const club = screen.getByRole('link', { name: 'Bring your club' });
+    const club = screen.getByRole('link', { name: 'Add your club' });
     expect(club).toHaveAttribute('href', '#get-started');
     expect(club).toHaveClass('l-btn-primary');
+  });
+
+  it('hides Sign in for a signed-in visitor but keeps Add your club', () => {
+    render(<LandingHeader signedIn />);
+
+    expect(screen.queryByRole('link', { name: /sign in/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Add your club' })).toBeInTheDocument();
   });
 });

@@ -60,7 +60,7 @@ for (const vp of VIEWPORTS) {
   test.describe(`landing @ ${vp.name}`, () => {
     test.use({ viewport: { width: vp.width, height: vp.height } });
 
-    test('hero: two-line H1, Bring your club above the fold', async ({ page }) => {
+    test('hero: two-line H1, Add your club above the fold', async ({ page }) => {
       await openLanding(page);
       const h1 = page.getByRole('heading', { level: 1 });
       const lines = await h1.evaluate(el =>
@@ -69,7 +69,7 @@ for (const vp of VIEWPORTS) {
       expect(lines).toBeLessThanOrEqual(2);
       const box = await page
         .locator('#top')
-        .getByRole('link', { name: 'Bring your club' })
+        .getByRole('link', { name: 'Add your club' })
         .boundingBox();
       expect(box!.y + box!.height).toBeLessThanOrEqual(vp.height);
     });
@@ -217,6 +217,30 @@ for (const vp of VIEWPORTS) {
         page.evaluate(sel => document.querySelector(sel)!.getBoundingClientRect().top, selector);
       await expect.poll(top('.landing-v2'), { timeout: 5000 }).toBeLessThanOrEqual(1);
       await expect.poll(top('.landing-v2 .l-hdr'), { timeout: 5000 }).toBeLessThanOrEqual(1);
+    });
+
+    test('header buttons stay on one line and fit the screen', async ({ page }) => {
+      await openLanding(page);
+      const buttons = await page.locator('.landing-v2 .l-hdr .l-btn').evaluateAll(els =>
+        els
+          .filter(el => getComputedStyle(el).display !== 'none')
+          .map(el => {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const tops = new Set([...range.getClientRects()].map(rect => Math.round(rect.top)));
+            return {
+              text: (el as HTMLElement).innerText,
+              lines: tops.size,
+              right: el.getBoundingClientRect().right,
+            };
+          })
+      );
+      expect(buttons.length).toBeGreaterThanOrEqual(2);
+      const width = page.viewportSize()!.width;
+      for (const b of buttons) {
+        expect(b.lines, `"${b.text}" wraps`).toBe(1);
+        expect(b.right, `"${b.text}" overflows`).toBeLessThanOrEqual(width);
+      }
     });
 
     test('rendered copy has no em dash, arrow or pre-launch words', async ({ page }) => {

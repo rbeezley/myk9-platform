@@ -1,9 +1,19 @@
-.landing-v2 .l-hdr-desktop {
+/* .l-btn sets display, so the hide rule needs both classes to win on phones. */
+.landing-v2 .l-btn.l-hdr-desktop {
   display: none;
 }
 @media (min-width: 640px) {
-  .landing-v2 .l-hdr-desktop {
+  .landing-v2 .l-btn.l-hdr-desktop {
     display: inline-flex;
+  }
+}
+.landing-v2 .l-hdr .l-btn {
+  white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .landing-v2 .l-hdr .l-btn {
+    padding-left: 12px;
+    padding-right: 12px;
   }
 }
 

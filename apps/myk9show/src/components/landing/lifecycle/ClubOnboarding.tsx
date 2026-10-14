@@ -361,10 +361,10 @@ export function ClubOnboarding() {
       <div className="l-container">
         <span className="l-eyebrow">For clubs &amp; secretaries</span>
         <h2>
-          Bring your club to <em>myK9Show</em>.
+          Add your club to <em>myK9Show</em>.
         </h2>
         <p>
-          Bringing your club aboard is a quick request, not a migration. Tell us who you are and
+          Adding your club is a quick request, not a migration. Tell us who you are and
           we'll get you set up, across AKC, UKC, and ASCA.
         </p>
         {card}

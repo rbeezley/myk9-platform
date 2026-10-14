@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BRING_YOUR_CLUB, FIND_A_SHOW } from './landingCtas';
+import { ADD_YOUR_CLUB, FIND_A_SHOW } from './landingCtas';
 import './landingSections.css';
 
 export function LandingHero() {
@@ -26,8 +26,8 @@ export function LandingHero() {
           signal, and results.
         </p>
         <div className="lc-hero-ctas">
-          <a href={BRING_YOUR_CLUB.href} className="l-btn l-btn-primary l-btn-lg min-h-11">
-            {BRING_YOUR_CLUB.label}
+          <a href={ADD_YOUR_CLUB.href} className="l-btn l-btn-primary l-btn-lg min-h-11">
+            {ADD_YOUR_CLUB.label}
           </a>
           <Link to={FIND_A_SHOW.to} className="l-btn l-btn-ghost l-btn-lg min-h-11">
             {FIND_A_SHOW.label}

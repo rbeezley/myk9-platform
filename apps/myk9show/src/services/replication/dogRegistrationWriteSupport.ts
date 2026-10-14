@@ -97,14 +97,29 @@ export async function loadDogRegistrationsForEdit(
  * Work a delete must upload after: the row's own queued mutations
  * (its INSERT, which may replay as a duplicate after a lost acknowledgement)
  * and its dog's (a create still queued). Never out of order after a backoff.
+ * A refused (failed) INSERT of the row, or of its dog, counts too: the upload
+ * pass holds the DELETE until the person retries or discards it, so a Retry
+ * can never re-create a confirmed delete (MYK9-1140). A refused UPDATE does
+ * not: it cannot re-create a deleted row, and waiting on it would park the
+ * delete behind an unrelated Retry or Discard.
  */
 export async function queuedWorkBefore(
-  table: { getPendingMutationIdsForRow(rowId: string): Promise<string[]> },
+  table: { getTableName(): string; getPendingMutationIdsForRow(rowId: string): Promise<string[]> },
+  queue: MutationManager | null,
   row: ReplicatedDogRegistration
 ): Promise<string[]> {
+  const failedInserts = queue
+    ? (await queue.getFailedMutations()).filter(
+        m =>
+          m.operation === 'INSERT' &&
+          ((m.tableName === table.getTableName() && String(m.rowId) === row.id) ||
+            (m.tableName === replicatedDogsTable.getTableName() && String(m.rowId) === row.dogId))
+      )
+    : [];
   return [
     ...(await table.getPendingMutationIdsForRow(row.id)),
     ...(await replicatedDogsTable.getPendingMutationIdsForRow(row.dogId)),
+    ...failedInserts.map(m => m.id),
   ];
 }
 

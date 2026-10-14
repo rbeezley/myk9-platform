@@ -71,8 +71,45 @@ export function railRegistrations(result: RegistrationsForDog | undefined): {
 } {
   if (!result) return { registrations: undefined, offline: false };
   const offline = result.source === 'device';
-  if (offline && result.rows.length === 0) return { registrations: undefined, offline };
+  if (isEmptyOfflineCopy(result.source, result.rows, result.deviceHeldRows)) {
+    return { registrations: undefined, offline };
+  }
   return { registrations: result.rows, offline };
+}
+
+/**
+ * An offline device copy that holds nothing for the dog: unknown, not "none"
+ * (see {@link railRegistrations}). A copy emptied by local work (a delete just
+ * hid the last row) holds rows, so it is a real answer: the dog record's
+ * registrations must not bring the deleted card back.
+ */
+export function isEmptyOfflineCopy(
+  source: RegistrationsForDog['source'] | undefined,
+  rows: readonly unknown[] | undefined,
+  deviceHeldRows: boolean | undefined
+): boolean {
+  return source === 'device' && rows?.length === 0 && deviceHeldRows !== true;
+}
+
+/**
+ * The rows the Registrations section lists: the same rule as the rail. An empty
+ * offline copy yields to the registrations the dog record carries; with none
+ * there either, the empty copy stays and the section says nothing is saved.
+ */
+export function registrationsToList<Read, Carried>(
+  source: RegistrationsForDog['source'] | undefined,
+  rows: Read[] | undefined,
+  deviceHeldRows: boolean | undefined,
+  dogRecordRows: Carried[] | undefined
+): Read[] | Carried[] | undefined {
+  if (
+    isEmptyOfflineCopy(source, rows, deviceHeldRows) &&
+    dogRecordRows &&
+    dogRecordRows.length > 0
+  ) {
+    return dogRecordRows;
+  }
+  return rows;
 }
 
 /** One dog's registrations read for the identity rail; shares the query cache. */
@@ -285,6 +322,7 @@ export const useDogRegistrationManagement = (dogId: string) => {
     registrations: dogRegistrationsQuery.data?.rows,
     /** `device`: the server could not be read; the list is the offline copy. */
     registrationsSource: dogRegistrationsQuery.data?.source,
+    registrationsDeviceHeldRows: dogRegistrationsQuery.data?.deviceHeldRows,
     isLoading: dogRegistrationsQuery.isLoading,
     error: dogRegistrationsQuery.error,
 

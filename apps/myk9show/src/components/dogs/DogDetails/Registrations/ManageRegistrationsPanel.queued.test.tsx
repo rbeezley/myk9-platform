@@ -35,7 +35,19 @@ vi.mock('@/lib/notifications', () => ({
 }));
 import DogRegistrationDialogs from './DogRegistrationDialogs';
 
-const dog = { id: 'dog-1', callName: 'Maple' } as unknown as Dog;
+const plainDog = { id: 'dog-1', callName: 'Maple' } as unknown as Dog;
+/** A dog record that is never refetched, still listing the registration the replica holds. */
+const dogRecordSnapshot = {
+  ...plainDog,
+  registrations: [
+    {
+      id: 'reg-1',
+      organization: 'AKC',
+      registrationNumber: 'SR12345601',
+      registeredName: 'CH Old Name',
+    },
+  ],
+} as unknown as Dog;
 
 /** Every PostgREST method the app client was asked for. */
 let postgrestMethods: string[];
@@ -67,7 +79,7 @@ function RefreshListener() {
  * `listener: false` leaves out the replica refresh, so whatever the screen
  * shows comes from the delete itself, never from a refetch (MYK9-1143).
  */
-function Harness({ listener = true }: { listener?: boolean }) {
+function Harness({ listener = true, dog = plainDog }: { listener?: boolean; dog?: Dog }) {
   const [open, setOpen] = useState(true);
   return (
     <>
@@ -191,6 +203,28 @@ describe('Manage registrations, offline', () => {
     expect(rest).toEqual([]);
     expect(deletion).toMatchObject({ operation: 'DELETE', rowId: 'reg-1' });
     noPostgrestWrites();
+  });
+
+  // The dog-record fallback is for a device that holds nothing for the dog,
+  // never for one a delete just emptied: the deleted card must stay gone.
+  it('Delete of the only registration stays deleted though the dog record still lists it', async () => {
+    // The emptied device copy is read again by the coalesced refresh (the
+    // pending delete is held as unsent work): that read is the event to wait for.
+    const held = vi.spyOn(replicatedDogRegistrationsTable, 'getUnsentWorkForDogs');
+    const { user } = render(<Harness dog={dogRecordSnapshot} />);
+    expect(await screen.findByText('CH Old Name')).toBeInTheDocument();
+
+    await confirmDelete(user);
+
+    await waitFor(() => expect(screen.queryByText('CH Old Name')).not.toBeInTheDocument());
+    await queuedOnce();
+    await waitFor(async () => {
+      const reads = await Promise.all(held.mock.results.map(result => result.value));
+      expect(reads.some(rows => rows.length > 0)).toBe(true);
+    });
+    expect(await screen.findByText('No registrations saved on this device')).toBeInTheDocument();
+    expect(screen.queryByText('CH Old Name')).not.toBeInTheDocument();
+    held.mockRestore();
   });
 
   // MYK9-1143: offline the row went only when the replica listener's refetch

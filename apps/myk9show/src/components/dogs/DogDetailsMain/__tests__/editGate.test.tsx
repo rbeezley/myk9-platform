@@ -49,19 +49,28 @@ vi.mock('@/services/LoggingService', () => ({
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: vi.fn(), rpc: (...args: unknown[]) => rpc(...args) },
 }));
-vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
-  useRegistrationsByDogQuery: () => ({ data: [], isLoading: false }),
-  useRailRegistrationsQuery: () => ({
-    data: { registrations: [], offline: false },
-    isLoading: false,
-  }),
-  useDogRegistrationManagement: () => ({
-    registrations: [],
-    isLoading: false,
-    error: null,
-    refetch: vi.fn(),
-  }),
-}));
+vi.mock('@/hooks/queries/useRegistrationsDatabase', async () => {
+  // The pure helpers stay real; only the hooks are faked.
+  const actual = await vi.importActual<typeof import('@/hooks/queries/useRegistrationsDatabase')>(
+    '@/hooks/queries/useRegistrationsDatabase'
+  );
+  return {
+    registrationsToList: actual.registrationsToList,
+    isEmptyOfflineCopy: actual.isEmptyOfflineCopy,
+    railRegistrations: actual.railRegistrations,
+    useRegistrationsByDogQuery: () => ({ data: [], isLoading: false }),
+    useRailRegistrationsQuery: () => ({
+      data: { registrations: [], offline: false },
+      isLoading: false,
+    }),
+    useDogRegistrationManagement: () => ({
+      registrations: [],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    }),
+  };
+});
 vi.mock('@/hooks/useSubscriptionGate', () => ({
   useSubscriptionGate: () => ({ isPremium: true, canAuthorizePremium: true, isLoading: false }),
 }));

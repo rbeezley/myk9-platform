@@ -22,6 +22,7 @@ import {
   REPLICATION_INCREMENTAL_BUFFER_MS,
   REPLICATION_STORES,
   type MutationManager,
+  type ReplicatedRow,
   type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncResult,
@@ -82,6 +83,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   /** Ids whose delete was confirmed while a sync pass was reading (MYK9-1129). */
   private readonly deletionFence = new RegistrationDeletionFence();
   private queue: MutationManager | null = null;
+  private readonly deletions = new Map<string, Promise<void>>();
   private detachUploadListener: (() => void) | undefined;
 
   constructor() {
@@ -334,12 +336,18 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     const seed = asServerBacked(registration);
     await this.set(registration.id, seed, false, undefined, NEW_REGISTRATION_VERSION);
     await this.set(registration.id, registration, true);
-    await this.queueMutation(
-      'INSERT',
-      registration.id,
-      this.toSupabaseRow(registration),
-      dependsOn && dependsOn.length > 0 ? dependsOn : undefined
-    );
+    try {
+      await this.queueMutation(
+        'INSERT',
+        registration.id,
+        this.toSupabaseRow(registration),
+        dependsOn && dependsOn.length > 0 ? dependsOn : undefined
+      );
+    } catch (error) {
+      // No INSERT was queued: the row would be a device-only add nothing sends.
+      await this.delete(registration.id);
+      throw error;
+    }
     return registration;
   }
 
@@ -350,6 +358,21 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
    * not uploaded cancels its INSERT and removes the row: nothing is sent.
    */
   async deleteRegistration(id: string): Promise<void> {
+    // One delete per id at a time: a second call arriving while the first is
+    // still queuing must see its outcome (including a rollback), not the
+    // half-written `_pendingDelete` row.
+    const previous = this.deletions.get(id) ?? Promise.resolve();
+    const run = previous.then(() => this.deleteRegistrationNow(id));
+    const tail = run.catch(() => undefined);
+    this.deletions.set(id, tail);
+    try {
+      await run;
+    } finally {
+      if (this.deletions.get(id) === tail) this.deletions.delete(id);
+    }
+  }
+
+  private async deleteRegistrationNow(id: string): Promise<void> {
     const row = await loadRowForWrite(this, id);
     if (row.data._pendingDelete === true) return;
     if (isPlaceholder(row.data)) throw registrationAwaitsItsDog();
@@ -357,13 +380,36 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       await cancelUnsentAdd(this, this.queue, id);
       return;
     }
-    const dependsOn = await queuedWorkBefore(this, row.data);
+    const dependsOn = await queuedWorkBefore(this, this.queue, row.data);
     await this.set(
       id,
       { ...row.data, _pendingDelete: true, _lastModified: new Date(), _syncStatus: 'pending' },
       true
     );
-    await this.queueMutation('DELETE', id, { id }, dependsOn.length > 0 ? dependsOn : undefined);
+    try {
+      await this.queueMutation('DELETE', id, { id }, dependsOn.length > 0 ? dependsOn : undefined);
+    } catch (error) {
+      // No DELETE was queued: put the row back instead of leaving it hidden
+      // (and a retry returning early on `_pendingDelete`).
+      await this.restoreRowAfterFailedQueue(row);
+      throw error;
+    }
+  }
+
+  /**
+   * Put a row back exactly as it was stored before a write whose mutation
+   * could not be queued, unless something has changed it since. A raw put, not
+   * `set`: a dirty `set` would hold a queue write lock for a mutation that
+   * never comes.
+   */
+  private async restoreRowAfterFailedQueue(
+    before: ReplicatedRow<ReplicatedDogRegistration>
+  ): Promise<void> {
+    const current = await this.getReplicatedRow(before.id);
+    if (current?.data._pendingDelete !== true) return;
+    const db = await this.init();
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, before);
+    await this.notifyListeners();
   }
 
   /** One dog's registrations for Edit dog's fields (`loadDogRegistrationsForEdit`). */

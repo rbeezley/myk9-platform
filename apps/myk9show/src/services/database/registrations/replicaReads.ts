@@ -23,6 +23,12 @@ export interface RegistrationsForDog {
   rows: DogRegistrationReadRow[];
   /** `device`: the server could not be read; this is the offline copy. */
   source: 'server' | 'device';
+  /**
+   * `device` reads only: the replica holds some row for this dog, shown or not
+   * (a pending delete and a resolved placeholder are hidden but held). An empty
+   * `rows` with this true was emptied by local work, not never saved.
+   */
+  deviceHeldRows?: boolean;
 }
 
 /** `registration_date` descending with nulls first, PostgREST's `order(..., { ascending: false })`. */
@@ -56,5 +62,23 @@ export async function readRegistrationsForDog(dogId: string): Promise<Registrati
   const merged = new Map<string, Record<string, unknown>[]>();
   appendRegistrations(merged, rows);
   const forDog = (merged.get(dogId) ?? []) as unknown as DogRegistrationReadRow[];
-  return { rows: [...forDog].sort(byRegistrationDateDesc), source };
+  const sorted = [...forDog].sort(byRegistrationDateDesc);
+  if (source === 'server') return { rows: sorted, source };
+  return { rows: sorted, source, deviceHeldRows: await deviceHoldsRowsFor(dogId, sorted.length) };
+}
+
+/**
+ * Whether the replica holds any row for this dog. Every row hidden from the
+ * device read (a pending delete, a resolved placeholder) is unsent work, so
+ * shown rows plus unsent work cover everything held. When the unsent work
+ * cannot be read, assume rows are held: the safe answer never shows the
+ * dog record's registrations in place of work this device cannot see.
+ */
+async function deviceHoldsRowsFor(dogId: string, shownRows: number): Promise<boolean> {
+  if (shownRows > 0) return true;
+  try {
+    return (await replicatedDogRegistrationsTable.getUnsentWorkForDogs([dogId])).length > 0;
+  } catch {
+    return true;
+  }
 }

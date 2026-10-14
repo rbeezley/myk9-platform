@@ -109,6 +109,56 @@ describe('useRegistrationsReplicaCacheSync', () => {
   });
 });
 
+describe('a burst of replica changes', () => {
+  // Past the shared table's own debounce plus the listener's coalescing window.
+  const SETTLE_MS = NOTIFY_DEBOUNCE_MS + 400;
+  const settle = () => new Promise(resolve => setTimeout(resolve, SETTLE_MS));
+  const FILTERS_PER_REFRESH = 3;
+
+  function spyOnRefreshes() {
+    const queryClient = mountListener();
+    return {
+      queryClient,
+      cancels: vi.spyOn(queryClient, 'cancelQueries'),
+      invalidations: vi.spyOn(queryClient, 'invalidateQueries'),
+    };
+  }
+
+  it('refreshes once, and a later change refreshes again', async () => {
+    const { cancels, invalidations } = spyOnRefreshes();
+
+    await replicatedDogRegistrationsTable.notifyChanged();
+    await replicatedDogRegistrationsTable.notifyChanged();
+    await replicatedDogRegistrationsTable.notifyChanged();
+    await settle();
+
+    expect(cancels).toHaveBeenCalledTimes(FILTERS_PER_REFRESH);
+    await waitFor(() => expect(invalidations).toHaveBeenCalledTimes(FILTERS_PER_REFRESH));
+
+    await replicatedDogRegistrationsTable.notifyChanged();
+    await settle();
+
+    expect(cancels).toHaveBeenCalledTimes(FILTERS_PER_REFRESH * 2);
+    await waitFor(() => expect(invalidations).toHaveBeenCalledTimes(FILTERS_PER_REFRESH * 2));
+  });
+
+  it('is dropped when the listener unmounts first', async () => {
+    const queryClient = createTestQueryClient();
+    const cancels = vi.spyOn(queryClient, 'cancelQueries');
+    const { unmount } = renderHook(() => useRegistrationsReplicaCacheSync(), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      ),
+    });
+
+    await replicatedDogRegistrationsTable.notifyChanged();
+    unmount();
+    await settle();
+
+    expect(cancels).not.toHaveBeenCalled();
+  });
+});
+
 // Codex round 2: invalidating while a cold PostgREST read is in flight
 // dedupes onto it, so its older answer lands after the change it predates.
 describe('a cold read in flight when the replica changes', () => {

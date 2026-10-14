@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { SearchBar } from '@/components/common/SearchBar';
 import { Button } from '@/components/ui/button';
-import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
+import AddRegistrationPanel from '@/components/dogs/DogDetails/Registrations/AddRegistrationPanel';
 import { AddDogPanel } from '@/components/panels/edit';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
 import { resolveRegistrationForShow, type RegistrationForShow } from './dogRegistrationForShow';
@@ -52,8 +52,12 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isAddDogPanelOpen, setIsAddDogPanelOpen] = React.useState(false);
   const { dogs, isLoading, error, refetch } = useDogStoreCompat();
-  const { registrationDogId, openRegistrationEditor, closeRegistrationEditor, saveRegistration } =
-    useInlineDogRegistration(refetch);
+  const {
+    registrationDogId,
+    openRegistrationEditor,
+    closeRegistrationEditor,
+    saveRegistrationForm,
+  } = useInlineDogRegistration(refetch);
   const { getUserRoles } = useAuthContext();
   const currentUserPersonId = useCurrentUserPersonId();
 
@@ -385,10 +389,12 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
         )}
 
         <div className="relative z-[60]">
-          <AddEditRegistrationDialog
+          <AddRegistrationPanel
             open={registrationDogId !== null}
-            onOpenChange={open => !open && closeRegistrationEditor()}
-            onSave={saveRegistration}
+            onClose={closeRegistrationEditor}
+            onSave={saveRegistrationForm}
+            announceSaved={false}
+            dogName={dogs.find(dog => dog.id === registrationDogId)?.callName}
           />
         </div>
       </div>

@@ -56,7 +56,7 @@ export const createdInSessionModule = {
   }),
 };
 
-// The breed picker's popover renders inline, as the AddEditRegistrationDialog
+// The breed picker's popover renders inline, as the registration form
 // tests already do, so jsdom never fights floating-ui. A side effect worth
 // knowing: a mocked popover carries no role="dialog", so counting dialogs stays
 // honest while the breed list is on screen.

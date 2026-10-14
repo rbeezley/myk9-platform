@@ -1,12 +1,11 @@
 /**
- * The registration form an unsaved dog's registrations are edited with: its
- * fields and footer, driven by `useRegistrationEditor` (MYK9-1081). It writes an in-memory
- * `Registration` through `onSave`, never the database, so it is not
- * interchangeable with DogDetails' AddRegistrationPanel / EditRegistrationPanel.
- *
- * Two containers render it: `AddEditRegistrationDialog` (its own slide-out, for
- * a page that opens it directly) and Add Dog's inline registration sub-mode
- * (inside a host panel, never stacked on it).
+ * The one registration form (MYK9-1117): its fields and footer. The fields run
+ * over any form handed in as `editor`, so the same body serves both save
+ * contracts:
+ *  - in memory, for an unsaved dog's registrations: `useRegistrationEditor`
+ *    drives it (Add Dog's inline sub-mode, the entry wizard's slide-out);
+ *  - to the database, on Dog Details: the Add / Edit panels feed it
+ *    EditPanelWrapper's form through `useRegistrationFormFields`.
  */
 import React from 'react';
 import { Button } from '@/components/ui/button';
@@ -23,7 +22,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { registrationNameHint } from './registrationNameHint';
-import { REGISTRATION_ORGS, type RegistrationEditor } from './useRegistrationEditor';
+import { REGISTRATION_ORGS } from './registrationForm';
+import type { RegistrationEditor } from './useRegistrationEditor';
+import type { RegistrationFieldsEditor } from './useRegistrationFormFields';
 
 /** Cancel and Save Registration. */
 export const RegistrationFormFooter: React.FC<{
@@ -40,7 +41,7 @@ export const RegistrationFormFooter: React.FC<{
   </div>
 );
 
-type EditorProps = { editor: RegistrationEditor };
+type EditorProps = { editor: RegistrationFieldsEditor };
 
 /**
  * The field pieces below are exported so Add Dog's identity-first step can show
@@ -252,6 +253,19 @@ export const RegistrationStatusField: React.FC<EditorProps> = ({
   </FormField>
 );
 
+export const RegistrationDateField: React.FC<EditorProps> = ({
+  editor: { form, handleFieldChange },
+}) => (
+  <FormField label="Registration Date" fieldId="registrationDate">
+    <Input
+      id="registrationDate"
+      type="date"
+      value={form.data.registrationDate ?? ''}
+      onChange={e => handleFieldChange('registrationDate', e.target.value)}
+    />
+  </FormField>
+);
+
 /** The registration fields, padded for a panel body. */
 export const RegistrationFormBody: React.FC<EditorProps> = ({ editor }) => (
   <div className="space-y-4 p-6">
@@ -262,5 +276,6 @@ export const RegistrationFormBody: React.FC<EditorProps> = ({ editor }) => (
       <RegistrationNumberField editor={editor} />
       <RegistrationStatusField editor={editor} />
     </div>
+    <RegistrationDateField editor={editor} />
   </div>
 );

@@ -18,7 +18,7 @@ interface RegistrationFormInlineProps {
 
 /**
  * Add Dog's registration form as a sub-mode of the panel hosting Add Dog
- * (MYK9-1081): the same fields as AddEditRegistrationDialog, in the host's body
+ * (MYK9-1081): the one registration form (RegistrationFormBody), in the host's body
  * with a sticky footer, instead of a second slide-out stacked on the host.
  */
 export const RegistrationFormInline: React.FC<RegistrationFormInlineProps> = ({

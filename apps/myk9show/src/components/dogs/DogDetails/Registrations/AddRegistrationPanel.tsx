@@ -1,271 +1,51 @@
-import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
-import { z } from 'zod';
+import { useEffect, useRef, type MutableRefObject } from 'react';
 import { EditPanelWrapper } from '@/components/panels/edit/EditPanelWrapper';
 import type { EditPanelVariant } from '@/components/panels/edit/EditPanelWrapper.types';
 import { addedMessage } from '@/components/panels/edit/panelSaveErrors';
 import { useEditPanel } from '@/components/panels/edit/useEditPanel';
-import { Input } from '@/components/ui/input';
-import { FormField } from '@/components/common/FormField';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText } from 'lucide-react';
-import { getBreedNamesForOrganization, getVarietiesForBreed } from '@/data/breedData';
-import { registrationFormFields } from '@/lib/validation';
-import { getOrgCode } from './registrationUtils';
-import { registrationNameHint } from '@/components/dogs/registrationNameHint';
-
-const addRegistrationFormSchema = z.object(registrationFormFields);
-
-type AddRegistrationFormData = z.infer<typeof addRegistrationFormSchema>;
+  INITIAL_REGISTRATION_DATA,
+  registrationFormSchema,
+  type RegistrationFormData,
+} from '@/components/dogs/registrationForm';
+import { RegistrationPanelFields } from './RegistrationPanelFields';
 
 interface AddRegistrationPanelProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: AddRegistrationFormData) => Promise<void>;
+  onSave: (data: RegistrationFormData) => Promise<void>;
   dogName?: string | undefined;
   /** `inline` renders the form inside a host panel (the Manage registrations panel). */
   variant?: EditPanelVariant;
   closeRequestRef?: MutableRefObject<(() => void) | null>;
+  /**
+   * Whether this panel confirms the save with its own toast. A host whose save
+   * already announces itself (the entry wizard's) passes false.
+   */
+  announceSaved?: boolean;
 }
 
-const INITIAL_FORM_DATA: AddRegistrationFormData = {
-  organization: '',
-  registeredName: '',
-  breed: '',
-  variety: '',
-  registrationNumber: '',
-  status: 'Active',
-  registrationDate: '',
-};
-
-// Inner component that accesses form from EditPanelWrapper context
-function RegistrationFormFields({ open }: { open: boolean }) {
-  const { form } = useEditPanel<AddRegistrationFormData>();
-
-  // This panel is hosted for the life of the page (MYK9-518), so it no longer
-  // unmounts between uses, and EditPanelWrapper's reset compares initialData by
-  // VALUE — which here is the module constant INITIAL_FORM_DATA, so it never
-  // changes and never fires. Without this the panel reopens holding the
-  // registration just saved, with Save enabled by `forceHasChanges`: a
-  // duplicate-row invitation. Reset on the open edge, not on a timer — a
-  // timer races a quick reopen, and remounting on open skips the slide-in.
-  //
-  // Seeded FALSE, not from `open`: SlideOverPanel returns null once
-  // `!open && !isAnimating`, so ~300ms after close THIS subtree unmounts while
-  // EditPanelWrapper's form state survives above it. Seeding from `open` made
-  // a remounted instance start at `wasOpen = true`, so the edge never fired and
-  // the reset never ran — on the exact path it exists for.
+// This panel is hosted for the life of the page (MYK9-518), so it no longer
+// unmounts between uses, and EditPanelWrapper's reset compares initialData by
+// VALUE — which here is the module constant INITIAL_REGISTRATION_DATA, so it
+// never changes and never fires. Without this the panel reopens holding the
+// registration just saved, with Save enabled by `forceHasChanges`: a
+// duplicate-row invitation. Reset on the open edge, not on a timer — a
+// timer races a quick reopen, and remounting on open skips the slide-in.
+//
+// Seeded FALSE, not from `open`: SlideOverPanel returns null once
+// `!open && !isAnimating`, so ~300ms after close THIS subtree unmounts while
+// EditPanelWrapper's form state survives above it. Seeding from `open` made
+// a remounted instance start at `wasOpen = true`, so the edge never fired and
+// the reset never ran — on the exact path it exists for.
+function ResetOnOpen({ open }: { open: boolean }) {
+  const { form } = useEditPanel<RegistrationFormData>();
   const wasOpen = useRef(false);
   useEffect(() => {
-    if (!wasOpen.current && open) form?.reset(INITIAL_FORM_DATA);
+    if (!wasOpen.current && open) form?.reset(INITIAL_REGISTRATION_DATA);
     wasOpen.current = open;
   }, [open, form]);
-
-  const organization = form?.data.organization ?? '';
-  const breed = form?.data.breed ?? '';
-
-  // Get breeds for the selected organization (using org code for lookup)
-  const availableBreeds = useMemo(() => {
-    if (!organization) return [];
-    const orgCode = getOrgCode(organization);
-    return getBreedNamesForOrganization(orgCode);
-  }, [organization]);
-
-  // Get varieties for the selected breed
-  const availableVarieties = useMemo(() => {
-    if (!organization || !breed) return [];
-    const orgCode = getOrgCode(organization);
-    return getVarietiesForBreed(orgCode, breed);
-  }, [organization, breed]);
-
-  if (!form) return null;
-
-  const formData = form.data;
-
-  // Handle organization change - clear breed and variety
-  const handleOrganizationChange = (value: string) => {
-    form.setValues({ organization: value, breed: '', variety: '' });
-    form.touchField('organization');
-  };
-
-  // Handle breed change - clear variety
-  const handleBreedChange = (value: string) => {
-    form.setValues({ breed: value, variety: '' });
-    form.touchField('breed');
-  };
-
-  return (
-    <div className="p-6 space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileText className="h-5 w-5 text-primary" />
-            Registration Details
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Organization */}
-          <FormField
-            label="Organization"
-            fieldId="organization"
-            required
-            error={form.getError('organization')}
-          >
-            <select
-              id="organization"
-              value={formData.organization}
-              onChange={e => handleOrganizationChange(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-[var(--dialog-input-bg)] px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-              {...form.getFieldProps('organization')}
-            >
-              <option value="">Select organization</option>
-              <option value="AKC (American Kennel Club)">AKC (American Kennel Club)</option>
-              <option value="UKC (United Kennel Club)">UKC (United Kennel Club)</option>
-              <option value="CKC (Canadian Kennel Club)">CKC (Canadian Kennel Club)</option>
-              <option value="FCI (Fédération Cynologique Internationale)">
-                FCI (Fédération Cynologique Internationale)
-              </option>
-              <option value="KC (The Kennel Club UK)">KC (The Kennel Club UK)</option>
-              <option value="ILP (Indefinite Listing Privilege)">
-                ILP (Indefinite Listing Privilege)
-              </option>
-              <option value="PAL (Purebred Alternative Listing)">
-                PAL (Purebred Alternative Listing)
-              </option>
-              <option value="Mixed Breed">Mixed Breed</option>
-              <option value="Other">Other</option>
-            </select>
-          </FormField>
-
-          {/* Registered Name */}
-          <FormField
-            label="Registered Name"
-            fieldId="registeredName"
-            required
-            error={form.getError('registeredName')}
-            hint={registrationNameHint}
-            hintClassName="text-base"
-          >
-            <Input
-              id="registeredName"
-              value={formData.registeredName}
-              onChange={e => form.setValue('registeredName', e.target.value)}
-              onBlur={() => form.touchField('registeredName')}
-              placeholder="Full registered name"
-              {...form.getFieldProps('registeredName')}
-              aria-describedby={`registeredName-hint${form.getError('registeredName') ? ' registeredName-error' : ''}`}
-            />
-          </FormField>
-
-          {/* Breed and Variety */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="Breed" fieldId="breed" required error={form.getError('breed')}>
-              <select
-                id="breed"
-                value={formData.breed}
-                onChange={e => handleBreedChange(e.target.value)}
-                disabled={!formData.organization}
-                className="flex h-9 w-full rounded-md border border-input bg-[var(--dialog-input-bg)] px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-                {...form.getFieldProps('breed')}
-              >
-                <option value="">
-                  {formData.organization ? 'Select breed' : 'Select organization first'}
-                </option>
-                {availableBreeds.map(breed => (
-                  <option key={breed} value={breed}>
-                    {breed}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-
-            <FormField label="Variety" fieldId="variety">
-              {availableVarieties.length > 0 ? (
-                <Select
-                  value={formData.variety}
-                  onValueChange={value => form.setValue('variety', value)}
-                >
-                  <SelectTrigger id="variety">
-                    <SelectValue placeholder="Select variety" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableVarieties.map(variety => (
-                      <SelectItem key={variety} value={variety}>
-                        {variety}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  id="variety"
-                  value={formData.variety}
-                  onChange={e => form.setValue('variety', e.target.value)}
-                  placeholder={
-                    formData.breed ? 'No varieties for this breed' : 'Select breed first'
-                  }
-                  disabled={!formData.breed}
-                />
-              )}
-            </FormField>
-          </div>
-
-          {/* Registration Number and Status */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              label="Registration Number"
-              fieldId="registrationNumber"
-              required
-              error={form.getError('registrationNumber')}
-            >
-              <Input
-                id="registrationNumber"
-                value={formData.registrationNumber}
-                onChange={e => form.setValue('registrationNumber', e.target.value)}
-                onBlur={() => form.touchField('registrationNumber')}
-                placeholder="Enter registration number"
-                {...form.getFieldProps('registrationNumber')}
-              />
-            </FormField>
-
-            <FormField label="Status" fieldId="status" required error={form.getError('status')}>
-              <select
-                id="status"
-                value={formData.status}
-                onChange={e => {
-                  form.setValue('status', e.target.value);
-                  form.touchField('status');
-                }}
-                className="flex h-9 w-full rounded-md border border-input bg-[var(--dialog-input-bg)] px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-                {...form.getFieldProps('status')}
-              >
-                <option value="Active">Active</option>
-                <option value="Pending">Pending</option>
-                <option value="Expired">Expired</option>
-                <option value="Under review">Under review</option>
-              </select>
-            </FormField>
-          </div>
-
-          {/* Registration Date */}
-          <FormField label="Registration Date" fieldId="registrationDate">
-            <Input
-              id="registrationDate"
-              type="date"
-              value={formData.registrationDate}
-              onChange={e => form.setValue('registrationDate', e.target.value)}
-            />
-          </FormField>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  return null;
 }
 
 export function AddRegistrationPanel({
@@ -275,6 +55,7 @@ export function AddRegistrationPanel({
   dogName,
   variant,
   closeRequestRef,
+  announceSaved = true,
 }: AddRegistrationPanelProps) {
   return (
     <EditPanelWrapper
@@ -282,18 +63,19 @@ export function AddRegistrationPanel({
       onClose={onClose}
       title="Add Registration"
       subtitle={dogName ? `Add a new registration for ${dogName}` : 'Add a new registration record'}
-      initialData={INITIAL_FORM_DATA}
+      initialData={INITIAL_REGISTRATION_DATA}
       onSave={onSave}
-      schema={addRegistrationFormSchema}
+      schema={registrationFormSchema}
       size="lg"
       {...(variant !== undefined && { variant })}
       {...(closeRequestRef !== undefined && { closeRequestRef })}
       saveLabel="Add Registration"
-      successMessage={addedMessage(undefined, 'Registration')}
+      {...(announceSaved && { successMessage: addedMessage(undefined, 'Registration') })}
       showUnsavedWarning={true}
       forceHasChanges={true}
     >
-      <RegistrationFormFields open={open} />
+      <ResetOnOpen open={open} />
+      <RegistrationPanelFields />
     </EditPanelWrapper>
   );
 }

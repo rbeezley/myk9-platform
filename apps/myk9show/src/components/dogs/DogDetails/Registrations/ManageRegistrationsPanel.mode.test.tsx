@@ -6,6 +6,7 @@ import type { Dog } from '@/types/dog-types';
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import ManageRegistrationsPanel from './ManageRegistrationsPanel';
 import DogRegistrationDialogs from './DogRegistrationDialogs';
+import { fillNewRegistration } from './registrationFormTestHelpers';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 /**
@@ -196,13 +197,7 @@ describe('ManageRegistrationsPanel — Add and Edit are modes of the one panel',
   it('saving an Add sends the same payload as before and returns to the list', async () => {
     const { user } = render(<Harness />);
     await user.click(screen.getByRole('button', { name: /^add$/i }));
-    await user.selectOptions(
-      await screen.findByLabelText(/^organization/i),
-      'AKC (American Kennel Club)'
-    );
-    await user.type(screen.getByLabelText(/registered name/i), 'CH New Dog');
-    await user.selectOptions(screen.getByLabelText(/^breed/i), 'Beagle');
-    await user.type(screen.getByLabelText(/registration number/i), 'SR999');
+    await fillNewRegistration(user);
 
     await user.click(screen.getByRole('button', { name: 'Add Registration' }));
 
@@ -272,7 +267,7 @@ describe('focus stays inside the Manage panel', () => {
   it('Add moves focus to the first field; Edit moves it to the form’s first control', async () => {
     const { user } = render(<Harness />);
     await user.click(screen.getByRole('button', { name: /^add$/i }));
-    await waitFor(() => expect(screen.getByLabelText(/^organization/i)).toHaveFocus());
+    await waitFor(() => expect(screen.getByLabelText(/^registration organization/i)).toHaveFocus());
     await user.click(screen.getByRole('button', { name: /back/i }));
     await screen.findByText('CH Test Dog');
 
@@ -288,13 +283,7 @@ describe('focus stays inside the Manage panel', () => {
   it('after a successful Add save focus lands on the header Add button', async () => {
     const { user } = render(<Harness />);
     await user.click(screen.getByRole('button', { name: /^add$/i }));
-    await user.selectOptions(
-      await screen.findByLabelText(/^organization/i),
-      'AKC (American Kennel Club)'
-    );
-    await user.type(screen.getByLabelText(/registered name/i), 'CH New Dog');
-    await user.selectOptions(screen.getByLabelText(/^breed/i), 'Beagle');
-    await user.type(screen.getByLabelText(/registration number/i), 'SR999');
+    await fillNewRegistration(user);
     await user.click(screen.getByRole('button', { name: 'Add Registration' }));
 
     await screen.findByRole('heading', { name: 'Registrations' });

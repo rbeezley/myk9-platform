@@ -42,6 +42,7 @@ import { parseShowDate } from './myEntriesStats.helpers';
 import { normalizeCheckInStatus } from './myEntriesUtils';
 import { groupEntriesByOrder } from './groupEntriesByOrder';
 import type { MyEntry, EntryClass } from './my-entries-types';
+import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
 import {
   getEntryStatusKindForDisplay,
   type EntryStatusKind,
@@ -352,14 +353,17 @@ export function useMyEntriesData({
       // window while the row's own `show_id` is already present — prefer it, or
       // every show-scoped action (payment cart, show link) loses its target.
       showId: show?.id || entry.show_id || '',
-      showName: show?.name || 'Unknown Show',
+      // MYK9-1147: a show the exhibitor cannot read (draft) has no name and no
+      // date to show. Say so plainly rather than inventing either.
+      showName: show ? show.name || SHOW_NOT_PUBLISHED_LABEL : SHOW_NOT_PUBLISHED_LABEL,
+      isShowUnreadable: !show,
       isShowCancelled,
       // MYK9-778: closeout ends the show for "Leave class", as the server's
       // withdraw_own_entry does. Both read paths carry shows.status.
       isShowClosedOut: isShowClosedOut(show?.status),
       // Date-only DB columns ("YYYY-MM-DD") must be read as local days, not UTC,
       // or a show ending today is misread as yesterday (see parseShowDate).
-      showDate: parseShowDate(show?.start_date) ?? new Date(),
+      showDate: parseShowDate(show?.start_date),
       showEndDate: parseShowDate(show?.end_date),
       location: {
         venue: show?.venue_name || '',

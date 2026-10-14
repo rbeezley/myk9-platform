@@ -223,6 +223,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
           <MyShowActionsMenu
             showId={group.showId}
             showName={group.showName}
+            isShowUnreadable={group.isShowUnreadable}
             hasEditableOrders={editableOrders.length > 0}
             hasOrders={group.orders.length > 0}
             isPastShow={isPastShow}

@@ -106,7 +106,8 @@ export async function buildReplicatedUserEntryRows(
     if (!show && entry.showId && entry.showDeletedAt) {
       row.show = {
         id: entry.showId,
-        name: entry.showName ?? 'Unknown Show',
+        // MYK9-1147: no name offline stays empty; the mapper words it, never a made-up one.
+        name: entry.showName ?? '',
         start_date: entry.showStartDate ?? null,
         end_date: entry.showEndDate ?? null,
         deleted_at: entry.showDeletedAt,

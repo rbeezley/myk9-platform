@@ -4,9 +4,12 @@ import { groupEntriesByOrder } from './groupEntriesByOrder';
 import {
   PAID_STRIP_WINDOW_DAYS,
   derivePaidStrip,
+  isAwaitingSecretaryDecision,
   hasSeenPaidStrip,
   markPaidStripSeen,
 } from './paidStripSeen';
+import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
+import { getEntryStatusKindForDisplay } from '@/services/entryDisplay/entryDisplaySelectors';
 import type { EntryClass, MyEntry } from './my-entries-types';
 import { withFixtureKind } from '@/test/fixtures/entryClassKind';
 
@@ -126,6 +129,8 @@ describe('derivePaidStrip', () => {
       paymentIds: ['c1'],
       dogNames: ['Rex'],
       amountCents: 4500,
+      classCount: 1,
+      awaitingReview: false,
       date: PAID_AT,
     });
   });
@@ -186,6 +191,8 @@ describe('derivePaidStrip', () => {
       paymentIds: ['c1', 'c2', 'c3'],
       dogNames: ['Rex', 'Scout'],
       amountCents: 10000,
+      classCount: 3,
+      awaitingReview: false,
       date: later,
     });
   });
@@ -361,6 +368,8 @@ describe('derivePaidStrip — reads the row-level ground truth, not the folded d
       paymentIds: ['c-ranger-paid'],
       dogNames: ['Ranger'],
       amountCents: 3000,
+      classCount: 1,
+      awaitingReview: false,
       date: PAID_AT,
     });
   });
@@ -571,5 +580,41 @@ describe('derivePaidStrip — the issue scenario (MYK9-804)', () => {
     // exactly why the caller must always pass the FULL set, never a filtered
     // one — see `MyShowGroup.tsx`'s `allOrders` prop.
     expect(derivePaidStrip(rangerOnly, NOW, neverSeen)?.amountCents).toBe(3000);
+  });
+});
+
+describe('isAwaitingSecretaryDecision (real raw statuses)', () => {
+  const classify = (raw: string, checkIn: string | null = null) =>
+    isAwaitingSecretaryDecision(mapEntryStatus(raw), getEntryStatusKindForDisplay(raw, checkIn));
+
+  it('does not count a row whose kind is forced to withdrawn (a cancelled show)', () => {
+    // useMyEntriesData forces entryStatusKind 'withdrawn' on a cancelled show while
+    // entryStatus stays mapEntryStatus(raw) = PENDING.
+    expect(isAwaitingSecretaryDecision(mapEntryStatus('paid'), 'withdrawn')).toBe(false);
+    expect(isAwaitingSecretaryDecision(mapEntryStatus('pending'), 'scratched')).toBe(false);
+  });
+
+  it.each(['pending', 'submitted', 'paid', 'promotion-expired', 'waitlist', 'move-up-requested'])(
+    'counts %s as awaiting',
+    raw => {
+      expect(classify(raw)).toBe(true);
+    }
+  );
+
+  it.each([
+    'confirmed',
+    'accepted',
+    'checked-in',
+    'in-ring',
+    'completed',
+    'withdrawn',
+    'not_accepted',
+    'scratched',
+  ])('does not count %s as awaiting', raw => {
+    expect(classify(raw)).toBe(false);
+  });
+
+  it('does not count a pending entry once its check-in is in the ring', () => {
+    expect(classify('pending', 'in-ring')).toBe(false);
   });
 });

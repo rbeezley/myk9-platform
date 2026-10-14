@@ -4,9 +4,12 @@ import { groupEntriesByOrder } from './groupEntriesByOrder';
 import {
   PAID_STRIP_WINDOW_DAYS,
   derivePaidStrip,
+  isAwaitingSecretaryDecision,
   hasSeenPaidStrip,
   markPaidStripSeen,
 } from './paidStripSeen';
+import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
+import { getEntryStatusKindForDisplay } from '@/services/entryDisplay/entryDisplaySelectors';
 import type { EntryClass, MyEntry } from './my-entries-types';
 import { withFixtureKind } from '@/test/fixtures/entryClassKind';
 
@@ -577,5 +580,34 @@ describe('derivePaidStrip — the issue scenario (MYK9-804)', () => {
     // exactly why the caller must always pass the FULL set, never a filtered
     // one — see `MyShowGroup.tsx`'s `allOrders` prop.
     expect(derivePaidStrip(rangerOnly, NOW, neverSeen)?.amountCents).toBe(3000);
+  });
+});
+
+describe('isAwaitingSecretaryDecision (real raw statuses)', () => {
+  const classify = (raw: string, checkIn: string | null = null) =>
+    isAwaitingSecretaryDecision(mapEntryStatus(raw), getEntryStatusKindForDisplay(raw, checkIn));
+
+  it.each(['pending', 'submitted', 'paid', 'promotion-expired', 'waitlist', 'move-up-requested'])(
+    'counts %s as awaiting',
+    raw => {
+      expect(classify(raw)).toBe(true);
+    }
+  );
+
+  it.each([
+    'confirmed',
+    'accepted',
+    'checked-in',
+    'in-ring',
+    'completed',
+    'withdrawn',
+    'not_accepted',
+    'scratched',
+  ])('does not count %s as awaiting', raw => {
+    expect(classify(raw)).toBe(false);
+  });
+
+  it('does not count a pending entry once its check-in is in the ring', () => {
+    expect(classify('pending', 'in-ring')).toBe(false);
   });
 });

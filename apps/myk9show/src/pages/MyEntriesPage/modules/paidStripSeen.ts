@@ -10,8 +10,9 @@
  * @module MyEntriesPage/modules/paidStripSeen
  */
 
-import { PaymentStatus } from '@/types/show-registration-types';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { isPastShowEntry } from './myEntriesStats.helpers';
+import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
 const PREFIX = 'myk9:paid-strip-seen:';
@@ -47,6 +48,37 @@ export function markPaidStripSeen(paymentId: string): void {
   } catch {
     // Same: the strip is dismissed in memory for this page load either way.
   }
+}
+
+/** Day-of progress kinds: the secretary has already accepted these entries. */
+const PAST_DECISION_KINDS: ReadonlySet<EntryStatusKind> = new Set([
+  'in_ring',
+  'completed',
+  'absent',
+]);
+
+/** UI statuses that still wait on the secretary: pending, waitlisted, move-up requested. */
+const AWAITING_STATUSES: ReadonlySet<EntryStatus> = new Set([
+  EntryStatus.PENDING,
+  EntryStatus.WAITLIST,
+  EntryStatus.MOVE_UP_REQUESTED,
+]);
+
+/**
+ * Whether an entry row still waits on the secretary's decision.
+ *
+ * `entryStatus` is `mapEntryStatus(raw entry_status)`, which keeps `paid` and
+ * `promotion-expired` PENDING (payment is not acceptance); the display kind
+ * alone would call a freshly paid entry accepted. The kind is read only to
+ * rule out day-of progress, which `mapEntryStatus` also buckets as PENDING
+ * (`checked-in`, or a `check_in_status` of in-ring).
+ */
+export function isAwaitingSecretaryDecision(
+  entryStatus: EntryStatus | undefined,
+  kind: EntryStatusKind
+): boolean {
+  if (!entryStatus || !AWAITING_STATUSES.has(entryStatus)) return false;
+  return !PAST_DECISION_KINDS.has(kind);
 }
 
 /**
@@ -158,7 +190,9 @@ export function derivePaidStrip(
     paymentIds: fresh.map(payment => payment.cls.id),
     dogNames,
     classCount: fresh.length,
-    awaitingReview: fresh.some(payment => payment.cls.entryStatusKind === 'pending'),
+    awaitingReview: fresh.some(payment =>
+      isAwaitingSecretaryDecision(payment.cls.entryStatus, payment.cls.entryStatusKind)
+    ),
     amountCents: fresh.reduce((sum, payment) => sum + Math.round(payment.cls.fee * 100), 0),
     date: fresh.reduce(
       (latest, payment) =>

@@ -20,6 +20,8 @@ import {
 import { parseShowDate } from './myEntriesStats.helpers';
 import { MyShowsList, type MyShowsListProps } from './MyShowsList';
 import type { MyEntry } from './my-entries-types';
+import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
+import { getEntryStatusKindForDisplay } from '@/services/entryDisplay/entryDisplaySelectors';
 
 function renderRows(rows: MyEntry[], overrides: Partial<MyShowsListProps> = {}) {
   const props: MyShowsListProps = {
@@ -244,6 +246,50 @@ describe('paid confirmation', () => {
     renderRows([row]);
 
     expect(screen.getByText(/will review it next/)).toBeInTheDocument();
+  });
+
+  // Driven through the REAL raw `entries.entry_status`, classified by the same
+  // two mappers `useMyEntriesData` applies: a freshly paid online entry is
+  // stored as 'paid', which the display kind calls accepted but the app's rule
+  // keeps awaiting the secretary (payment is not acceptance).
+  it.each([
+    ['paid', true],
+    ['promotion-expired', true],
+    ['pending', true],
+    ['waitlist', true],
+    ['move-up-requested', true],
+    ['confirmed', false],
+    ['accepted', false],
+    ['checked-in', false],
+    ['completed', false],
+    ['withdrawn', false],
+  ])('raw entry_status %s: awaiting the secretary is %s', (raw, awaiting) => {
+    renderRows([
+      futureShowRow({
+        id: 'e-raw',
+        dogId: 'dog-willow',
+        dogName: 'Willow',
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        paymentMethod: 'online',
+        submittedAt: new Date('2026-10-22T12:00:00Z'),
+        classes: [
+          makeClass({
+            id: 'c-raw-1',
+            fee: 45,
+            trialDate: day('2026-11-14'),
+            entryStatus: mapEntryStatus(raw),
+            entryStatusKind: getEntryStatusKindForDisplay(raw, null),
+            paymentStatus: PaymentStatus.PAID_ONLINE,
+            rawPaymentStatus: PaymentStatus.PAID_ONLINE,
+            paymentMethod: 'online',
+          }),
+        ],
+      }),
+    ]);
+
+    const review = screen.queryByText(/will review it next/);
+    if (awaiting) expect(review).toBeInTheDocument();
+    else expect(review).not.toBeInTheDocument();
   });
 
   it('retires on Dismiss and stays retired on the next render', async () => {

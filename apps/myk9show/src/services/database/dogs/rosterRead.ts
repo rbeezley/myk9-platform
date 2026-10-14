@@ -43,6 +43,29 @@ interface RosterReadOptions<T> {
   errorData: T;
 }
 
+/** PostgREST's `max_rows`: one response never carries more, however many rows match. */
+export const DOG_READ_PAGE_SIZE = 1000;
+
+/**
+ * Every row of a dogs list, one page at a time. The server's answer is now
+ * authoritative, so a roster larger than one page (a secretary's or admin's
+ * showAll read) must not be cut at `max_rows`. `readPage` runs a fresh, ordered
+ * query for the window, ordered by a unique key so pages never overlap. A failed
+ * page throws: the caller reports an error, never a truncated roster.
+ */
+export async function readAllDogPages<T>(
+  readPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += DOG_READ_PAGE_SIZE) {
+    const { data, error } = await readPage(from, from + DOG_READ_PAGE_SIZE - 1);
+    if (error) throw error;
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < DOG_READ_PAGE_SIZE) return rows;
+  }
+}
+
 export async function readRosterServerFirst<T>({
   server,
   device,
@@ -81,24 +104,34 @@ export async function readRosterServerFirst<T>({
  * The server rows with their registrations replaced by the roster's own read
  * (`loadDogRegistrations`: the server's registrations with this device's unsent
  * add and delete work merged in), so the roster and the dog page resolve the
- * same primary registration. When that read was not complete the embed the
- * server answered with stands: it is the more trustworthy of the two.
+ * same primary registration. The rows' own embedded registrations are handed to
+ * the read: when it cannot reach the registrations table they stand in for the
+ * server's rows, so unsent work is still merged onto them. Completeness follows
+ * the read, so a failed read leaves `registrations_read_complete` false.
  */
 export async function mergeUnsentRegistrations(
   serverRows: DogRow[],
-  load: (dogIds: string[]) => Promise<{
+  load: (
+    dogIds: string[],
+    embedded: DogRow[]
+  ) => Promise<{
     byDog: Map<string, DogRow[]>;
     registrationsReadComplete: boolean;
   }>
 ): Promise<DogRow[]> {
   if (serverRows.length === 0) return serverRows;
   try {
-    const result = await load(serverRows.map(row => String(row.id)));
-    if (!result.registrationsReadComplete) return serverRows;
+    const embedded = serverRows.flatMap(row =>
+      ((row.registrations as DogRow[] | undefined) ?? []).map(reg => ({ dog_id: row.id, ...reg }))
+    );
+    const result = await load(
+      serverRows.map(row => String(row.id)),
+      embedded
+    );
     return serverRows.map(row => ({
       ...row,
       registrations: result.byDog.get(String(row.id)) ?? [],
-      registrations_read_complete: true,
+      registrations_read_complete: result.registrationsReadComplete,
     }));
   } catch {
     return serverRows;
@@ -136,10 +169,11 @@ function mergeDeviceDog(serverRow: DogRow, deviceRow: DogRow): DogRow {
 
 /**
  * The server's rows with this account's unsent dogs laid over them. An unsent
- * dog the server returned replaces the server's version of it (an edit). An
- * unsent dog the server did not return is added only when `inScope` accepts it
- * (an offline create), so it obeys the same ownership or search filter as the
- * server path. `hydrate` maps device dogs to the rows the roster returns.
+ * dog the server returned replaces the server's version of it (an edit), and is
+ * dropped when `inScope` no longer accepts the edited dog. An unsent dog the
+ * server did not return is added only when `inScope` accepts it (an offline
+ * create), so every row obeys the same ownership or search filter as the server
+ * path. `hydrate` maps device dogs to the rows the roster returns.
  */
 export async function overlayUnsentDogs(
   serverRows: DogRow[],
@@ -149,16 +183,30 @@ export async function overlayUnsentDogs(
   const unsent = await readOwnUnsentDogs();
   if (unsent.length === 0) return serverRows;
   try {
-    const serverIds = new Set(serverRows.map(row => String(row.id)));
-    const wanted = unsent.filter(dog => serverIds.has(dog.id) || inScope(dog));
-    if (wanted.length === 0) return serverRows;
+    const serverById = new Map(serverRows.map(row => [String(row.id), row]));
+    // The unsent version is the effective one, so it is what the read's own
+    // filter (owner, co-owner, search term) is re-checked against: a pending
+    // rename or owner change drops a row the server still matches. An older
+    // device row may lack the co-owner, which the server row then supplies.
+    const wanted: ReplicatedDog[] = [];
+    const dropped = new Set<string>();
+    for (const dog of unsent) {
+      const onServer = serverById.get(dog.id);
+      const coOwnerId = dog.coOwnerId ?? (onServer?.co_owner_id as string | null | undefined);
+      const effective = coOwnerId ? { ...dog, coOwnerId } : dog;
+      if (inScope(effective)) wanted.push(dog);
+      else if (onServer) dropped.add(dog.id);
+    }
+    if (wanted.length === 0 && dropped.size === 0) return serverRows;
 
     const deviceRows = new Map((await hydrate(wanted)).map(row => [String(row.id), row]));
-    const merged = serverRows.map(row => {
-      const deviceRow = deviceRows.get(String(row.id));
-      return deviceRow ? mergeDeviceDog(row, deviceRow) : row;
-    });
-    const added = [...deviceRows.values()].filter(row => !serverIds.has(String(row.id)));
+    const merged = serverRows
+      .filter(row => !dropped.has(String(row.id)))
+      .map(row => {
+        const deviceRow = deviceRows.get(String(row.id));
+        return deviceRow ? mergeDeviceDog(row, deviceRow) : row;
+      });
+    const added = [...deviceRows.values()].filter(row => !serverById.has(String(row.id)));
     if (added.length === 0) return merged;
     return [...merged, ...added].sort((a, b) =>
       String(a.name ?? '').localeCompare(String(b.name ?? ''))

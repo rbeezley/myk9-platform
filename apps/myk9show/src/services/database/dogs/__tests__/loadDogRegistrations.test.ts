@@ -26,7 +26,14 @@ vi.mock('../../supabaseClient', () => ({
   supabase: {
     from: (table: string) =>
       table === 'dogs'
-        ? { select: () => ({ is: () => ({ order: () => mockPostgrestAllDogs() }) }) }
+        ? {
+            select: () => ({
+              is: () => ({
+                // name, then id; showAll pages the list through `range`.
+                order: () => ({ order: () => ({ range: () => mockPostgrestAllDogs() }) }),
+              }),
+            }),
+          }
         : {
             select: (columns?: string) => {
               if (table === 'people') return { in: mockPeopleIn };

@@ -10,7 +10,7 @@ import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
  * server's answer; a server that answered with an error is an error.
  */
 
-const { server, mockDogsTable } = vi.hoisted(() => ({
+const { server, mockDogsTable, mockRegistrationsTable } = vi.hoisted(() => ({
   server: {
     /** What the `dogs` list query resolves to. */
     dogs: { data: [], error: null, count: null } as {
@@ -20,7 +20,12 @@ const { server, mockDogsTable } = vi.hoisted(() => ({
     },
     /** Ids the follow-up `dogs ... in(id, ...)` lookup (statistics dedupe) finds. */
     idsOnServer: [] as string[],
+    /** The `dog_registrations` read: rows, or an error that fails it. */
+    registrations: { data: [], error: null } as { data: unknown; error: unknown },
+    /** Every `.range(from, to)` the dogs list read asked for. */
+    ranges: [] as [number, number][],
   },
+  mockRegistrationsTable: { getUnsentWorkForDogs: vi.fn() },
   mockDogsTable: {
     getAllDogsWithStatus: vi.fn(),
     getAllDogs: vi.fn(),
@@ -36,7 +41,8 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
   replicatedDogRegistrationsTable: {
     getRegistrationsForDogs: vi.fn(async () => []),
-    getUnsentWorkForDogs: vi.fn(async () => []),
+    getUnsentWorkForDogs: (...args: unknown[]) =>
+      mockRegistrationsTable.getUnsentWorkForDogs(...args),
   },
 }));
 
@@ -54,8 +60,18 @@ vi.mock('@/services/database/supabaseClient', () => ({
             idFilter = true;
             return chain;
           }
-          // Registrations and owners: nothing.
-          return Promise.resolve({ data: [], error: null });
+          // Registrations (or owners).
+          return Promise.resolve(
+            table === 'dog_registrations' ? server.registrations : { data: [], error: null }
+          );
+        };
+        chain.range = (from: number, to: number) => {
+          server.ranges.push([from, to]);
+          const { data, error } = server.dogs;
+          return Promise.resolve({
+            data: Array.isArray(data) ? data.slice(from, to + 1) : data,
+            error,
+          });
         };
         chain.then = (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
           Promise.resolve(
@@ -127,6 +143,10 @@ describe('dog roster reads, server first (MYK9-1139)', () => {
   beforeEach(() => {
     server.dogs = { data: [], error: null, count: null };
     server.idsOnServer = [];
+    server.registrations = { data: [], error: null };
+    server.ranges = [];
+    mockRegistrationsTable.getUnsentWorkForDogs.mockReset();
+    mockRegistrationsTable.getUnsentWorkForDogs.mockResolvedValue([]);
     for (const fn of Object.values(mockDogsTable)) fn.mockReset();
     // A warm replica holding only account A's dog.
     mockDogsTable.getAllDogsWithStatus.mockResolvedValue({ rows: [FOREIGN_DOG], cold: false });
@@ -321,6 +341,115 @@ describe('dog roster reads, server first (MYK9-1139)', () => {
       expect(mockDogsTable.getDogsByOwner).not.toHaveBeenCalled();
       expect(mockDogsTable.searchDogs).not.toHaveBeenCalled();
       expect(mockDogsTable.getAllDogs).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Codex review of #2969', () => {
+    it('getAllDogs (showAll) reads every page: the server caps one response at 1000 rows', async () => {
+      server.dogs = {
+        data: Array.from({ length: 1005 }, (_, i) =>
+          serverRow(`dog-${String(i).padStart(4, '0')}`, `Dog ${i}`)
+        ),
+        error: null,
+      };
+
+      const { data, error } = await getAllDogs(PERSON, true);
+
+      expect(error).toBeNull();
+      expect(ids(data)).toHaveLength(1005);
+      expect(server.ranges).toEqual([
+        [0, 999],
+        [1000, 1999],
+      ]);
+    });
+
+    it('a failed later page is an error, never a truncated roster', async () => {
+      const rows = Array.from({ length: 1000 }, (_, i) => serverRow(`dog-${i}`, `Dog ${i}`));
+      let calls = 0;
+      server.dogs = {
+        get data() {
+          calls++;
+          return calls === 1 ? rows : null;
+        },
+        get error() {
+          return calls === 1 ? null : { code: '500', message: 'boom' };
+        },
+      } as never;
+
+      const { data, error } = await getAllDogs(PERSON, true);
+
+      expect(error).not.toBeNull();
+      expect(data).toEqual([]);
+    });
+
+    it('keeps unsent registration work when the registrations read fails, and says it is incomplete', async () => {
+      const embedded = {
+        id: 'reg-1',
+        dog_id: 'dog-b',
+        organization: 'AKC',
+        registration_number: 'A1',
+      };
+      server.dogs = {
+        data: [serverRow('dog-b', 'Bree', { registrations: [embedded] })],
+        error: null,
+      };
+      server.registrations = {
+        data: null,
+        error: { code: '500', message: 'registrations failed' },
+      };
+      mockRegistrationsTable.getUnsentWorkForDogs.mockResolvedValue([
+        {
+          id: 'local-ukc',
+          dogId: 'dog-b',
+          organization: 'UKC',
+          registrationNumber: 'U2',
+          breed: 'Beagle',
+          _localOnly: true,
+          _queuedAdd: true,
+        },
+      ]);
+
+      const { data } = await getAllDogs(PERSON);
+
+      const row = (
+        data as { registrations: { id: string }[]; registrations_read_complete: boolean }[]
+      )[0]!;
+      expect(row.registrations.map(r => r.id).sort()).toEqual(['local-ukc', 'reg-1']);
+      expect(row.registrations_read_complete).toBe(false);
+    });
+
+    it('drops a server row whose pending rename no longer matches the search', async () => {
+      server.dogs = { data: [serverRow('dog-b', 'Alpha')], error: null };
+      mockDogsTable.getAllDogs.mockResolvedValue([deviceDog('dog-b', 'Rex', { callName: 'Rex' })]);
+      mockDogsTable.getUnsentRowIds.mockResolvedValue(new Set(['dog-b']));
+
+      expect(ids((await searchDogs('alpha', PERSON)).data)).toEqual([]);
+      expect(ids((await searchDogs('rex', PERSON)).data)).toEqual(['dog-b']);
+    });
+
+    it('drops a server row whose pending edit moved it to another owner (getDogsByOwner)', async () => {
+      server.dogs = { data: [serverRow('dog-b', 'Bree')], error: null };
+      mockDogsTable.getAllDogs.mockResolvedValue([
+        deviceDog('dog-b', 'Bree', { ownerId: 'person-x' }),
+      ]);
+      mockDogsTable.getUnsentRowIds.mockResolvedValue(new Set(['dog-b']));
+
+      expect(ids((await getDogsByOwner(PERSON)).data)).toEqual([]);
+    });
+
+    it('keeps a co-owned dog with a pending edit in the own-dogs roster', async () => {
+      server.dogs = {
+        data: [serverRow('dog-b', 'Bree', { owner_id: 'person-x', co_owner_id: PERSON })],
+        error: null,
+      };
+      mockDogsTable.getAllDogs.mockResolvedValue([
+        deviceDog('dog-b', 'Bree 2', { ownerId: 'person-x' }),
+      ]);
+      mockDogsTable.getUnsentRowIds.mockResolvedValue(new Set(['dog-b']));
+
+      const { data } = await getAllDogs(PERSON);
+
+      expect((data as { name: string }[]).map(r => r.name)).toEqual(['Bree 2']);
     });
   });
 });

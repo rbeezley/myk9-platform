@@ -20,25 +20,34 @@ const mocks = vi.hoisted(() => ({
   deleteRegistration: vi.fn(),
 }));
 
-vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
-  useDogRegistrationManagement: () => ({
-    registrations: [
-      {
-        id: 'registration-1',
-        organization: 'AKC',
-        registeredName: 'CH Test Dog',
-        registrationNumber: 'SR12345',
-        breed: 'Beagle',
-      },
-    ],
-    isLoading: false,
-    error: null,
-    createRegistration: mocks.createRegistration,
-    updateRegistration: mocks.updateRegistration,
-    deleteRegistration: mocks.deleteRegistration,
-    refetch: vi.fn(),
-  }),
-}));
+vi.mock('@/hooks/queries/useRegistrationsDatabase', async () => {
+  // The pure helpers stay real; only the hooks are faked.
+  const actual = await vi.importActual<typeof import('@/hooks/queries/useRegistrationsDatabase')>(
+    '@/hooks/queries/useRegistrationsDatabase'
+  );
+  return {
+    registrationsToList: actual.registrationsToList,
+    isEmptyOfflineCopy: actual.isEmptyOfflineCopy,
+    railRegistrations: actual.railRegistrations,
+    useDogRegistrationManagement: () => ({
+      registrations: [
+        {
+          id: 'registration-1',
+          organization: 'AKC',
+          registeredName: 'CH Test Dog',
+          registrationNumber: 'SR12345',
+          breed: 'Beagle',
+        },
+      ],
+      isLoading: false,
+      error: null,
+      createRegistration: mocks.createRegistration,
+      updateRegistration: mocks.updateRegistration,
+      deleteRegistration: mocks.deleteRegistration,
+      refetch: vi.fn(),
+    }),
+  };
+});
 
 const dog = { id: 'dog-1', callName: 'Maple' } as unknown as Dog;
 

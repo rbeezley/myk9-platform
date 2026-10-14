@@ -208,6 +208,9 @@ describe('Manage registrations, offline', () => {
   // The dog-record fallback is for a device that holds nothing for the dog,
   // never for one a delete just emptied: the deleted card must stay gone.
   it('Delete of the only registration stays deleted though the dog record still lists it', async () => {
+    // The emptied device copy is read again by the coalesced refresh (the
+    // pending delete is held as unsent work): that read is the event to wait for.
+    const held = vi.spyOn(replicatedDogRegistrationsTable, 'getUnsentWorkForDogs');
     const { user } = render(<Harness dog={dogRecordSnapshot} />);
     expect(await screen.findByText('CH Old Name')).toBeInTheDocument();
 
@@ -215,10 +218,13 @@ describe('Manage registrations, offline', () => {
 
     await waitFor(() => expect(screen.queryByText('CH Old Name')).not.toBeInTheDocument());
     await queuedOnce();
-    // The replica notification and the coalesced refresh settle.
-    await new Promise(resolve => setTimeout(resolve, NOTIFY_DEBOUNCE_MS + 400));
-    expect(screen.queryByText('CH Old Name')).not.toBeInTheDocument();
+    await waitFor(async () => {
+      const reads = await Promise.all(held.mock.results.map(result => result.value));
+      expect(reads.some(rows => rows.length > 0)).toBe(true);
+    });
     expect(await screen.findByText('No registrations saved on this device')).toBeInTheDocument();
+    expect(screen.queryByText('CH Old Name')).not.toBeInTheDocument();
+    held.mockRestore();
   });
 
   // MYK9-1143: offline the row went only when the replica listener's refetch

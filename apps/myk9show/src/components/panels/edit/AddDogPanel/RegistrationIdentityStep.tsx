@@ -161,6 +161,10 @@ export const RegistrationIdentityStep: React.FC<RegistrationIdentityStepProps> =
           <RegistrationNameField editor={editor} />
           <RegistrationBreedVarietyFields editor={editor} />
           <RegistrationStatusField editor={editor} />
+        </>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-3">
+        {phase === 'details' ? (
           <Button
             type="button"
             onClick={editor.handleSubmit}
@@ -169,9 +173,7 @@ export const RegistrationIdentityStep: React.FC<RegistrationIdentityStepProps> =
           >
             Save and continue
           </Button>
-        </>
-      ) : (
-        <div className="flex flex-wrap items-center gap-3">
+        ) : (
           <Button
             type="button"
             onClick={findDog}
@@ -180,13 +182,14 @@ export const RegistrationIdentityStep: React.FC<RegistrationIdentityStepProps> =
           >
             Find dog
           </Button>
-          {onSkip && (
-            <Button type="button" variant="link" size="touch" onClick={skip}>
-              No registration number yet
-            </Button>
-          )}
-        </div>
-      )}
+        )}
+        {/* Offered in every phase: the message that refuses a half-typed registration names it. */}
+        {onSkip && (
+          <Button type="button" variant="link" size="touch" onClick={skip}>
+            No registration number yet
+          </Button>
+        )}
+      </div>
     </div>
   );
 };

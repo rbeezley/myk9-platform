@@ -446,6 +446,17 @@ describe(
       JOURNEY_TIMEOUT_MS
     );
 
+    it('still offers No registration number yet after a lookup finds nothing', async () => {
+      mockSupabase.rpc.mockResolvedValue({ data: false, error: null });
+      const { user } = renderPanel(UserRole.SECRETARY);
+      await typeIdentity(user);
+      await findDog(user);
+      expect(await screen.findByLabelText(/Registered Name/i)).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /No registration number yet/ }));
+      expect(await screen.findByLabelText(/Call Name/i)).toBeInTheDocument();
+    });
+
     it('lets a secretary with nothing typed move on without a registration', async () => {
       const { user } = renderPanel(UserRole.SECRETARY);
       await user.click(await screen.findByRole('button', { name: /Next: Essential/ }));

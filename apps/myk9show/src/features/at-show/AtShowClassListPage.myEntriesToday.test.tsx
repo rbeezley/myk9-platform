@@ -271,6 +271,21 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
     });
   });
 
+  // MYK9-1184: the all-days list used to sit under a "Your dogs today" button
+  // and show a permanent "Entry count not loaded yet" on every row.
+  it('heads the exhibitor all-classes list "All classes" with no permanent not-loaded counts', async () => {
+    mockAuthState.hasRole = role => role === UserRole.EXHIBITOR;
+    mockAuthState.user = { id: 'user-1' };
+    seedOwnedEntry();
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'See all classes' }));
+    expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'All classes' })).toBeInTheDocument();
+    expect(screen.queryByText('Entry count not loaded yet')).not.toBeInTheDocument();
+  });
+
   it('explains an unposted running order instead of a contradictory empty state', async () => {
     mockAuthState.hasRole = role => role === UserRole.EXHIBITOR;
     mockAuthState.user = { id: 'user-1' };

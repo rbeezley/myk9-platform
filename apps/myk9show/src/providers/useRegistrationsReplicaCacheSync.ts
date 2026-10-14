@@ -8,6 +8,9 @@ import {
 import { queryKeys } from '@/lib/queryClient';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 
+/** Longer than the replica's own notify debounce (100ms), so both edges of one change land in one window. */
+export const REGISTRATION_REFRESH_COALESCE_MS = 150;
+
 /**
  * Refetch every read built on the registrations replica: each dog's
  * registrations, the dog reads under `['dogs']` (their registrations come from
@@ -43,20 +46,26 @@ export function refreshRegistrationReads(queryClient: QueryClient): void {
 export function useRegistrationsReplicaCacheSync(): void {
   const queryClient = useQueryClient();
   useEffect(() => {
-    const unsubscribe = replicatedDogRegistrationsTable.subscribe(
-      () => {
+    // The replica notifies on a leading and a trailing edge, so one change
+    // arrives twice: coalesce a burst into one trailing refresh.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const scheduleRefresh = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = undefined;
         refreshRegistrationReads(queryClient);
-      },
-      {
-        emitCurrent: false,
-        // A change the device then cannot read back (IndexedDB gone after a
-        // failed mirror) still means the reads are stale: refetch them, and
-        // the readers fall back to the server.
-        onError: () => {
-          refreshRegistrationReads(queryClient);
-        },
-      }
-    );
-    return unsubscribe;
+      }, REGISTRATION_REFRESH_COALESCE_MS);
+    };
+    const unsubscribe = replicatedDogRegistrationsTable.subscribe(scheduleRefresh, {
+      emitCurrent: false,
+      // A change the device then cannot read back (IndexedDB gone after a
+      // failed mirror) still means the reads are stale: refetch them, and
+      // the readers fall back to the server.
+      onError: scheduleRefresh,
+    });
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
   }, [queryClient]);
 }

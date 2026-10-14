@@ -71,8 +71,32 @@ export function railRegistrations(result: RegistrationsForDog | undefined): {
 } {
   if (!result) return { registrations: undefined, offline: false };
   const offline = result.source === 'device';
-  if (offline && result.rows.length === 0) return { registrations: undefined, offline };
+  if (isEmptyOfflineCopy(result.source, result.rows)) return { registrations: undefined, offline };
   return { registrations: result.rows, offline };
+}
+
+/** An offline device copy with no rows: unknown, not "none" (see {@link railRegistrations}). */
+export function isEmptyOfflineCopy(
+  source: RegistrationsForDog['source'] | undefined,
+  rows: readonly unknown[] | undefined
+): boolean {
+  return source === 'device' && rows?.length === 0;
+}
+
+/**
+ * The rows the Registrations section lists: the same rule as the rail. An empty
+ * offline copy yields to the registrations the dog record carries; with none
+ * there either, the empty copy stays and the section says nothing is saved.
+ */
+export function registrationsToList<Read, Carried>(
+  source: RegistrationsForDog['source'] | undefined,
+  rows: Read[] | undefined,
+  dogRecordRows: Carried[] | undefined
+): Read[] | Carried[] | undefined {
+  if (isEmptyOfflineCopy(source, rows) && dogRecordRows && dogRecordRows.length > 0) {
+    return dogRecordRows;
+  }
+  return rows;
 }
 
 /** One dog's registrations read for the identity rail; shares the query cache. */

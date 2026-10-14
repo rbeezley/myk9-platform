@@ -72,8 +72,12 @@ vi.mock('./ResultsVisibilitySheet', () => ({ ResultsVisibilitySheet: () => null 
 // `toBeDisabled()` waitFor timed out on a button that was about to lock. A budget, not a poll:
 // a passing run still resolves on the first matching render.
 const { asyncUtilTimeout: DEFAULT_ASYNC_TIMEOUT } = getConfig();
-beforeAll(() => configure({ asyncUtilTimeout: 8_000 }));
-afterAll(() => configure({ asyncUtilTimeout: DEFAULT_ASYNC_TIMEOUT }));
+beforeAll(() => {
+  configure({ asyncUtilTimeout: 8_000 });
+});
+afterAll(() => {
+  configure({ asyncUtilTimeout: DEFAULT_ASYNC_TIMEOUT });
+});
 
 beforeEach(async () => {
   prints.data = [];

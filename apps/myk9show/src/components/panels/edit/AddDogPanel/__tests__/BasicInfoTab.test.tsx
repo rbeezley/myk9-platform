@@ -174,11 +174,7 @@ describe('BasicInfoTab', () => {
 
       render(
         <EditPanelContext.Provider value={contextValue}>
-          <BasicInfoTab
-            userRole={UserRole.SECRETARY}
-            onPhotoOpen={vi.fn()}
-            onAddRegistration={vi.fn()}
-          />
+          <BasicInfoTab userRole={UserRole.SECRETARY} onPhotoOpen={vi.fn()} />
         </EditPanelContext.Provider>
       );
 

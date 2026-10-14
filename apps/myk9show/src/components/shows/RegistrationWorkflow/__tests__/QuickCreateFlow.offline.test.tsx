@@ -18,7 +18,6 @@ import {
   addPersonThroughForm,
   fillDogBasics,
   addFirstRegistration,
-  fillRegistration,
   JOURNEY_TIMEOUT_MS,
 } from '@/test/quickCreate/quickCreateFlowKit';
 

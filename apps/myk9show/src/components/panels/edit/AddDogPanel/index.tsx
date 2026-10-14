@@ -10,7 +10,8 @@ import { friendlySaveMessage } from '@/utils/friendlySaveError';
 import { PanelSaveHandledError } from '../panelSaveErrors';
 import type { AddDogPanelProps, AddDogSubMode, DogFormData } from './types';
 import { createInitialFormData } from './types';
-import { addDogSchema } from './validation';
+import { addDogSchema, addDogSchemaRequiringRegistration } from './validation';
+import { isAdminRole } from '../DogEditPanel.helpers';
 import { locateInvalidField, DOG_STEP_TABS, ADD_REGISTRATION_ATTR } from './validationTab';
 import { EDIT_REGISTRATION_ATTR } from '@/components/dogs/registrationAttrs';
 import { usePanelValidationNavigation } from '../usePanelValidationNavigation';
@@ -21,7 +22,13 @@ import { RegistrationFormInline } from './RegistrationFormInline';
 import { usePanelModeFocus } from '../../usePanelModeFocus';
 import { SlideOverPanel } from '../../SlideOverPanel';
 import { addDogSubModeTitle } from './subModeTitle';
-import { findLikelyDuplicateDogCandidate, type DogIdentityCandidate } from '@/utils/dogIdentity';
+import {
+  findLikelyDuplicateDogCandidate,
+  type DogIdentityCandidate,
+  type DogRegistrationIdentity,
+} from '@/utils/dogIdentity';
+import { isRegistryIdentityTaken } from '@/services/database/registrations';
+import { lookupRegistrationIdentity } from './registrationLookup';
 
 export type { AddDogPanelProps } from './types';
 
@@ -104,10 +111,12 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   const [localSaveError, setLocalSaveError] = useState<string | null>(null);
   const [duplicateCandidate, setDuplicateCandidate] = useState<DogIdentityCandidate | null>(null);
   const [allowSeparateDog, setAllowSeparateDog] = useState(false);
+  // A dog "Find dog" matched by registration number on the Registration step (MYK9-1162).
+  const [registrationMatch, setRegistrationMatch] = useState<Dog | null>(null);
   // Lives here (not in the content) so a failed Save can move the user to the
   // tab holding the first invalid field (MYK9-885).
   const { activeTab, setActiveTab, handleValidationFail } = usePanelValidationNavigation<TabValue>(
-    'basic',
+    'registration',
     locateInvalidField
   );
 
@@ -222,6 +231,17 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
     }
   };
 
+  const handleFindDog = async (identity: DogRegistrationIdentity) => {
+    const result = await lookupRegistrationIdentity(
+      dogs,
+      identity,
+      ({ organization, registrationNumber }) =>
+        isRegistryIdentityTaken(organization, registrationNumber)
+    );
+    setRegistrationMatch(result.kind === 'existing' ? result.dog : null);
+    return result;
+  };
+
   const handleUseExistingDog = (dog: Dog) => {
     notifications.success(`${dog.callName || dog.name} selected`, {
       description: 'Add the new registry number from the dog profile if needed.',
@@ -307,7 +327,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
       onClose={onClose}
       title="Add Dog"
       initialData={initialFormData}
-      schema={addDogSchema}
+      schema={isAdminRole(userRole) ? addDogSchema : addDogSchemaRequiringRegistration}
       onSave={handleSave}
       forceHasChanges
       size="xl"
@@ -334,6 +354,9 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
         currentUserPersonId={currentUserPersonId}
         saveError={localSaveError ?? saveError}
         duplicateCandidate={duplicateCandidate}
+        registrationMatch={registrationMatch}
+        onFindDog={handleFindDog}
+        onIdentityEdited={() => setRegistrationMatch(null)}
         onUseExistingDog={handleUseExistingDog}
         onCreateSeparateDog={() => {
           setAllowSeparateDog(true);

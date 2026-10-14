@@ -6,8 +6,8 @@ import { cn } from '@/lib/utils';
 interface TabNavigationProps {
   /** The Essential tab holds the only required fields — a check means "done". */
   isBasicValid: boolean;
-  /** Registration is optional; only a *started* (non-empty) registration set
-   *  can be "complete" or "incomplete". Empty = untouched, no indicator. */
+  /** Only a *started* (non-empty) registration set can be "complete" or
+   *  "incomplete". Empty = untouched, no indicator. */
   hasRegistrations: boolean;
   isRegistrationValid: boolean;
   /**
@@ -35,7 +35,7 @@ const COMPACT_TRIGGER = cn(
 );
 // "Registration" is one unbreakable word, so its tab takes its width and the two
 // that can wrap share the rest; equal thirds left it 4px short at 320px.
-const COMPACT_STRIP = 'grid-cols-[1fr_auto_1fr] sm:grid-cols-3';
+const COMPACT_STRIP = 'grid-cols-[auto_1fr_1fr] sm:grid-cols-3';
 const COMPACT_ICON = 'hidden shrink-0 sm:block';
 const COMPACT_CHECK = 'absolute right-0.5 top-0 h-3 w-3 sm:static sm:h-4 sm:w-4';
 
@@ -65,11 +65,6 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
         compact && COMPACT_STRIP
       )}
     >
-      <TabsTrigger value="basic" className={cn(trigger, !isBasicValid && 'text-destructive/80')}>
-        <Heart className={icon} />
-        <span className="font-medium">Essential</span>
-        {isBasicValid && <CheckCircle className={check} />}
-      </TabsTrigger>
       <TabsTrigger
         value="registration"
         className={cn(trigger, showRegistrationError && 'text-destructive/80')}
@@ -77,6 +72,11 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
         <FileText className={icon} />
         <span className="font-medium">Registration</span>
         {showRegistrationCheck && <CheckCircle className={check} />}
+      </TabsTrigger>
+      <TabsTrigger value="basic" className={cn(trigger, !isBasicValid && 'text-destructive/80')}>
+        <Heart className={icon} />
+        <span className="font-medium">Essential</span>
+        {isBasicValid && <CheckCircle className={check} />}
       </TabsTrigger>
       <TabsTrigger value="optional" className={trigger}>
         <Settings className={icon} />

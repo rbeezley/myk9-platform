@@ -15,3 +15,5 @@ export {
   validateRegistrationNumber,
   getRegistrationsByOwner,
 } from './reads';
+
+export { isRegistryIdentityTaken } from './registryIdentityTaken';

@@ -35,7 +35,7 @@ export const locateInvalidField = (field: string): FieldLocation<TabValue> | und
 
 /** Tab order and names for the Add Dog "Next: <tab>" walk (matches TabNavigation). */
 export const DOG_STEP_TABS: ReadonlyArray<{ value: TabValue; label: string }> = [
-  { value: 'basic', label: 'Essential' },
   { value: 'registration', label: 'Registration' },
+  { value: 'basic', label: 'Essential' },
   { value: 'optional', label: 'Optional details' },
 ];

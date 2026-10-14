@@ -34,6 +34,9 @@ export const REGISTRATION_ORGS = [
   'Other',
 ];
 
+/** Letters, numbers, hyphens and slashes: the one shape a registration number may take. */
+export const REGISTRATION_NUMBER_PATTERN = /^[A-Za-z0-9\-/]+$/;
+
 const registrationFormSchema = z.object({
   id: z.string().max(64),
   organization: z.string().min(1, 'Please select an organization.').max(120),
@@ -44,7 +47,7 @@ const registrationFormSchema = z.object({
     .string()
     .min(1, 'Please enter a registration number.')
     .max(64)
-    .regex(/^[A-Za-z0-9\-/]+$/, 'Only letters, numbers, hyphens, and slashes are allowed.'),
+    .regex(REGISTRATION_NUMBER_PATTERN, 'Only letters, numbers, hyphens, and slashes are allowed.'),
   status: z.enum(REGISTRATION_STATUS_VALUES),
   applicationNumber: z.string().max(64).optional(),
   submissionDate: z.string().max(40).optional(),

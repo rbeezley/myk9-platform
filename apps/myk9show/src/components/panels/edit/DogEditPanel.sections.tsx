@@ -32,10 +32,10 @@ import { usePeopleQuery } from '@/hooks/usePeopleQuery';
 // ── Owner Selection Field (admin only) ──────────────────────────────
 
 export const OwnerSelectionField: React.FC = () => {
-  const { isAdmin, people: contextPeople } = useContext(DogEditContext);
+  const { isAdmin, canChangeOwner = true, people: contextPeople } = useContext(DogEditContext);
   const { data, updateData } = useEditPanel<DogFormData>();
 
-  const { data: loadedPeople = [], isLoading } = usePeopleQuery(isAdmin);
+  const { data: loadedPeople = [], isLoading } = usePeopleQuery(isAdmin && canChangeOwner);
 
   if (!isAdmin) return null;
 
@@ -68,14 +68,20 @@ export const OwnerSelectionField: React.FC = () => {
     );
   }
 
-  if (loadedPeople.length === 0) {
+  // MYK9-1158: the dog belongs to an account holder, so only that owner (or a site admin)
+  // can hand it to someone else. Show who owns it, read-only, rather than a refused save.
+  if (!canChangeOwner || loadedPeople.length === 0) {
     return (
       <div className="space-y-2 pt-4 border-t border-border/30">
         <Label className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
           Owner
         </Label>
         <div className="text-sm text-muted-foreground py-2">{displayText}</div>
-        <p className="text-xs text-muted-foreground">No people available to assign as owner</p>
+        <p className="text-xs text-muted-foreground">
+          {canChangeOwner
+            ? 'No people available to assign as owner'
+            : 'Only the owner can change who owns this dog.'}
+        </p>
       </div>
     );
   }

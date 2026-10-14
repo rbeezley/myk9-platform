@@ -154,6 +154,36 @@ describe('OwnerSelectionField', () => {
       expect(screen.queryByText(/admin only/i)).toBeNull();
     });
   });
+
+  // MYK9-1158: staff may edit an account holder's dog but the server refuses re-owning it,
+  // so they see the owner read-only, with the reason, and no picker to submit.
+  it('shows the owner read-only, with the reason, when the viewer cannot change it', async () => {
+    const fromImpl = vi.fn();
+    (supabase.from as ReturnType<typeof vi.fn>).mockImplementation(fromImpl);
+    const owner = { id: 'p1', firstName: 'Alice', lastName: 'Smith' } as PersonType;
+
+    render(
+      <DogEditContext.Provider value={{ isAdmin: true, canChangeOwner: false, people: [owner] }}>
+        <EditPanelWrapper
+          open={true}
+          onClose={vi.fn()}
+          title="Test"
+          initialData={{ ...defaultFormData, ownerId: 'p1' }}
+          onSave={vi.fn()}
+          forceHasChanges
+        >
+          <OwnerSelectionField />
+        </EditPanelWrapper>
+      </DogEditContext.Provider>
+    );
+
+    expect(
+      await screen.findByText('Only the owner can change who owns this dog.')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Alice Smith')).toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(fromImpl).not.toHaveBeenCalledWith('people');
+  });
 });
 
 describe('Edit Dog BasicInfoTab accessible names (MYK9-88)', () => {

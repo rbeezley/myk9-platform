@@ -4,13 +4,18 @@ import { logger } from '@/services/LoggingService';
 
 /**
  * Transition an entry to "in-ring" status when a scoresheet opens.
- * Sets check-in status + ring_entry_time. No-ops if already completed.
+ * Sets check-in status + ring_entry_time. No-ops if already completed, or if already in-ring
+ * with an entry time, so reopening (Resume) keeps the original ring_entry_time and sends no
+ * extra write. A dog marked in-ring by hand has no time yet (that path writes only the
+ * status), so the scoresheet opening still records it.
  */
 export function transitionToInRing(
   entryId: string,
-  currentStatus: CheckInStatus | undefined
+  currentStatus: CheckInStatus | undefined,
+  ringEntryTime: string | null | undefined
 ): void {
   if (currentStatus === 'completed') return;
+  if (currentStatus === 'in-ring' && ringEntryTime) return;
 
   updateReplicatedCheckInStatus(entryId, 'in-ring', {
     ring_entry_time: new Date().toISOString(),

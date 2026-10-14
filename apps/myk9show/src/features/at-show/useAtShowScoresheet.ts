@@ -174,7 +174,7 @@ export function useAtShowScoresheet({
         }
 
         // Auto-set check-in status to in-ring when the scoresheet opens.
-        transitionToInRing(rawEntry.id, rawEntry.checkInStatus);
+        transitionToInRing(rawEntry.id, rawEntry.checkInStatus, rawEntry.ring_entry_time);
 
         const dog = rawEntry.dogId ? await replicatedDogsTable.get(rawEntry.dogId) : null;
         if (cancelled) return;

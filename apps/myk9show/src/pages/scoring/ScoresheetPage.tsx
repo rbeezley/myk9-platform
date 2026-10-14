@@ -114,7 +114,7 @@ export function ScoresheetPage() {
         }
 
         // Auto-set check-in status to in-ring when scoresheet opens
-        transitionToInRing(rawEntry.id, rawEntry.checkInStatus);
+        transitionToInRing(rawEntry.id, rawEntry.checkInStatus, rawEntry.ring_entry_time);
 
         // Load only the needed dog
         const dog = rawEntry.dogId ? await replicatedDogsTable.get(rawEntry.dogId) : null;

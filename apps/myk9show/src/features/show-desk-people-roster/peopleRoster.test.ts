@@ -690,3 +690,68 @@ describe('formatTrialIdentity', () => {
     expect(formatTrialIdentity(null, undefined)).toBeNull();
   });
 });
+
+describe('peopleRoster — a dog’s class rows run in trial-date order (MYK9-1172)', () => {
+  const classInfo = (id: string, trialDate: string, time?: string) => ({
+    id,
+    name: `Class ${id}`,
+    trialDate,
+    ...(time ? { time } : {}),
+  });
+  const entryIn = (id: string, dogId: string, classId: string) =>
+    entry({
+      id,
+      dogId,
+      dogName: dogId,
+      classes: [
+        {
+          id: `row-${id}`,
+          classId,
+          name: `Class ${classId}`,
+          number: '1',
+          fee: 25,
+          status: 'entered',
+          checkInStatus: 'no-status',
+        },
+      ],
+    });
+
+  it('orders one dog’s rows earliest day first, then by start time with untimed last', () => {
+    const roster = buildPeopleRoster({
+      entries: [
+        entryIn('e-oct18', 'willow', 'c-oct18'),
+        entryIn('e-oct14-late', 'willow', 'c-oct14-late'),
+        entryIn('e-oct14-none', 'willow', 'c-oct14-none'),
+        entryIn('e-oct14-early', 'willow', 'c-oct14-early'),
+      ],
+      presence: [],
+      classes: [
+        classInfo('c-oct18', '2026-10-18', '8:00 AM'),
+        classInfo('c-oct14-late', '2026-10-14', '1:00 PM'),
+        classInfo('c-oct14-none', '2026-10-14'),
+        classInfo('c-oct14-early', '2026-10-14', '9:00 AM'),
+      ],
+    });
+
+    expect(roster[0].classRows.map(row => row.entryId)).toEqual([
+      'e-oct14-early',
+      'e-oct14-late',
+      'e-oct14-none',
+      'e-oct18',
+    ]);
+  });
+
+  it('keeps each dog’s rows together, dogs in the order they first appear', () => {
+    const roster = buildPeopleRoster({
+      entries: [
+        entryIn('w-18', 'willow', 'c18'),
+        entryIn('r-14', 'rex', 'c14'),
+        entryIn('w-14', 'willow', 'c14'),
+      ],
+      presence: [],
+      classes: [classInfo('c14', '2026-10-14'), classInfo('c18', '2026-10-18')],
+    });
+
+    expect(roster[0].classRows.map(row => row.entryId)).toEqual(['w-14', 'w-18', 'r-14']);
+  });
+});

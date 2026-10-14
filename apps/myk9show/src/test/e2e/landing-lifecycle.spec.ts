@@ -387,6 +387,18 @@ test.describe('motion with no preference', () => {
   });
 });
 
+for (const width of [390, 1280]) {
+  test(`every step number circle is the same size @ ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openLanding(page);
+    const sizes = await page.$$eval('.lc-dot', dots =>
+      dots.map(d => `${(d as HTMLElement).offsetWidth}x${(d as HTMLElement).offsetHeight}`)
+    );
+    expect(sizes.length, 'steps rendered').toBeGreaterThanOrEqual(STEPS.length);
+    expect(new Set(sizes), `dot sizes: ${sizes.join(', ')}`).toEqual(new Set([sizes[0]]));
+  });
+}
+
 test.describe('reduced motion', () => {
   test.use({ reducedMotion: 'reduce', viewport: { width: 390, height: 844 } });
   test('everything is revealed, explainers start paused, nothing animates', async ({ page }) => {

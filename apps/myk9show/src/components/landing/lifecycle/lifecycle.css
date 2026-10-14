@@ -200,9 +200,6 @@
   transform: scale(1);
 }
 .landing-v2 .lc-row[data-peak='true'] .lc-dot {
-  width: 64px;
-  height: 64px;
-  font-size: 1.375rem;
   margin-top: 2.5rem;
 }
 .landing-v2 .lc-dot-wrap {

@@ -145,6 +145,7 @@ export const AtShowClassListPage: React.FC = () => {
               )
             ),
             trialTimeZone: getTrialTimezone(group.trial),
+            trialHeading: formatAtShowTrialHeading(group.trial),
           }));
         })
       ),
@@ -472,13 +473,14 @@ export const AtShowClassListPage: React.FC = () => {
             </span>
           </div>
           <ul className="space-y-2">
-            {yourRingClasses.map(({ entry, trialTimeZone }) => (
+            {yourRingClasses.map(({ entry, trialTimeZone, trialHeading }) => (
               <AtShowClassRow
                 key={entry.id}
                 entry={entry}
                 isExhibitorOnly={isExhibitorOnly}
                 onClick={handleClassClick}
                 trialTimeZone={trialTimeZone}
+                trialHeading={trialHeading}
                 nextUp={selectNextUpForCard(getClassIds(entry), nextUpByClassId)}
                 entryCountsAvailable={hasTrustedEntryCount(entry)}
               />

@@ -128,6 +128,32 @@ function paperworkRow(detail: Locator, label: string): Locator {
   return detail.locator('li').filter({ hasText: label }).last();
 }
 
+/** Errors a lazy route's import throws when its chunk could not be fetched. */
+const CHUNK_LOAD_ERROR =
+  /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Unable to preload CSS|ChunkLoadError/i;
+
+/**
+ * Open `url` and wait for `ready`. Nightly 38606805596 (MYK9-1161) showed the lazy-route
+ * "Failed to load component" boundary on this step instead of the Classes list. That boundary
+ * catches any route error, not only a failed chunk fetch, so a reload is earned only when the
+ * error it records (`data-boundary-error`) is a chunk-load failure, which is what its own
+ * "Reload Page" fixes. Any other error fails the step with the error text: a crash at 375px is
+ * a finding, not a flake.
+ */
+async function gotoReadyOrChunkReload(page: Page, url: string, ready: Locator) {
+  const boundary = page.locator('[data-boundary-error]');
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  for (let reloads = 0; ; reloads += 1) {
+    await expect(ready.or(boundary).first()).toBeVisible({ timeout: 30_000 });
+    if (await ready.isVisible()) return;
+    const error = (await boundary.first().getAttribute('data-boundary-error')) ?? '';
+    if (!CHUNK_LOAD_ERROR.test(error) || reloads >= 2) {
+      throw new Error(`Route error boundary instead of the page at ${url}: ${error}`);
+    }
+    await page.reload({ waitUntil: 'domcontentloaded' });
+  }
+}
+
 test.describe('Results tab: scored -> verified -> released -> printed -> initialed', () => {
   // MYK9-1114: attaches console/network/toast text on failure (traces are not uploaded).
   installBrowserDiagnostics(test);
@@ -255,18 +281,17 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
     await test.step('9. the same class on a 375px phone fits the screen', async () => {
       await page.setViewportSize(PHONE);
       // The class is done now, so the default "Needs me" filter no longer lists it.
-      await page.goto(`/shows/${encodeURIComponent(showId)}/results?status=all`, {
-        waitUntil: 'domcontentloaded',
-      });
-      await expect(
-        page
-          .getByRole('list', { name: 'Classes' })
-          .getByRole('link', { name: new RegExp(CLASS_NAME) })
-          .first()
-      ).toBeVisible({ timeout: 30_000 });
+      const classLink = page
+        .getByRole('list', { name: 'Classes' })
+        .getByRole('link', { name: new RegExp(CLASS_NAME) })
+        .first();
+      await gotoReadyOrChunkReload(
+        page,
+        `/shows/${encodeURIComponent(showId)}/results?status=all`,
+        classLink
+      );
       await expectNoHorizontalOverflow(page, 'Results class list at 375px');
-      await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
-      await expect(detail).toBeVisible({ timeout: 30_000 });
+      await gotoReadyOrChunkReload(page, resultsUrl, detail);
       await expectNoHorizontalOverflow(page, 'Results class detail at 375px');
     });
   });

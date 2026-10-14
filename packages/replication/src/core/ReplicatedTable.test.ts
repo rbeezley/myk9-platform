@@ -181,31 +181,6 @@ describe('ReplicatedTable', () => {
       });
     });
 
-    describe('getUnsentRowIds (MYK9-1139)', () => {
-      it('names every row with a pending or failed mutation in this table, from one pair of reads', async () => {
-        const getPendingMutationsForTable = vi.fn(async () => [
-          { id: 'p1', rowId: '1' },
-          { id: 'p2', rowId: '3' },
-        ]);
-        const getFailedMutations = vi.fn(async () => [
-          { id: 'f1', tableName: table.getTableName(), rowId: '2' },
-          { id: 'f2', tableName: 'elsewhere', rowId: '9' },
-        ]);
-        table.setMutationManager({
-          getPendingMutationsForTable,
-          getFailedMutations,
-        } as unknown as import('../MutationManager').MutationManager);
-
-        await expect(table.getUnsentRowIds()).resolves.toEqual(new Set(['1', '2', '3']));
-        expect(getPendingMutationsForTable).toHaveBeenCalledWith(table.getTableName());
-        expect(getFailedMutations).toHaveBeenCalledOnce();
-      });
-
-      it('is empty without a mutation manager', async () => {
-        await expect(table.getUnsentRowIds()).resolves.toEqual(new Set());
-      });
-    });
-
     it('holds the write slot from a dirty cache write through queue persistence', async () => {
       const release = vi.fn();
       const manager = {

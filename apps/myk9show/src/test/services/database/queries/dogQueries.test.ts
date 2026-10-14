@@ -95,10 +95,7 @@ describe('Dog Queries', () => {
       const result = await getAllDogs(TEST_PERSON_ID);
       const duration = Date.now() - startTime;
 
-      // The roster merges in the registrations read (MYK9-1139): every server row gains them.
-      expect(result.data).toEqual(
-        mockData.map(dog => ({ ...dog, registrations: [], registrations_read_complete: true }))
-      );
+      expect(result.data).toEqual(mockData);
       expect(result.error).toBeNull();
       expect(duration).toBeLessThan(200);
       expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
@@ -213,10 +210,7 @@ describe('Dog Queries', () => {
 
       const result = await getDogsByOwner(ownerId);
 
-      // The roster merges in the registrations read (MYK9-1139): every server row gains them.
-      expect(result.data).toEqual(
-        mockData.map(dog => ({ ...dog, registrations: [], registrations_read_complete: true }))
-      );
+      expect(result.data).toEqual(mockData);
       expect(result.error).toBeNull();
     });
 
@@ -401,10 +395,7 @@ describe('Dog Queries', () => {
       const result = await searchDogs(searchTerm, TEST_PERSON_ID);
       const duration = Date.now() - startTime;
 
-      // The roster merges in the registrations read (MYK9-1139): every server row gains them.
-      expect(result.data).toEqual(
-        mockData.map(dog => ({ ...dog, registrations: [], registrations_read_complete: true }))
-      );
+      expect(result.data).toEqual(mockData);
       expect(result.error).toBeNull();
       expect(duration).toBeLessThan(200);
     });

@@ -10,7 +10,7 @@ import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
  * server's answer; a server that answered with an error is an error.
  */
 
-const { server, mockDogsTable, mockRegistrationsTable } = vi.hoisted(() => ({
+const { server, mockDogsTable } = vi.hoisted(() => ({
   server: {
     /** What the `dogs` list query resolves to. */
     dogs: { data: [], error: null, count: null } as {
@@ -18,20 +18,19 @@ const { server, mockDogsTable, mockRegistrationsTable } = vi.hoisted(() => ({
       error: unknown;
       count?: number | null;
     },
-    /** Ids the follow-up `dogs ... in(id, ...)` lookup (statistics dedupe) finds. */
-    idsOnServer: [] as string[],
     /** The `dog_registrations` read: rows, or an error that fails it. */
     registrations: { data: [], error: null } as { data: unknown; error: unknown },
-    /** Every `.range(from, to)` the dogs list read asked for. */
-    ranges: [] as [number, number][],
+    /** Every keyset page the dogs list read asked for. */
+    pages: [] as { after: string | undefined; limit: number }[],
+    /** Runs as a page is requested (1-based), before it is answered. */
+    beforePage: undefined as ((pageNumber: number) => void) | undefined,
   },
-  mockRegistrationsTable: { getUnsentWorkForDogs: vi.fn() },
   mockDogsTable: {
     getAllDogsWithStatus: vi.fn(),
     getAllDogs: vi.fn(),
     getDogsByOwner: vi.fn(),
     searchDogs: vi.fn(),
-    getUnsentRowIds: vi.fn(),
+    getUnsentMutationIdsForRow: vi.fn(),
   },
 }));
 
@@ -41,8 +40,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
   replicatedDogRegistrationsTable: {
     getRegistrationsForDogs: vi.fn(async () => []),
-    getUnsentWorkForDogs: (...args: unknown[]) =>
-      mockRegistrationsTable.getUnsentWorkForDogs(...args),
+    getUnsentWorkForDogs: vi.fn(async () => []),
   },
 }));
 
@@ -50,37 +48,55 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: (table: string) => ({
       select: (columns?: string) => {
-        const isIdLookup =
-          table === 'dogs' && columns === 'id' && !String(columns).includes('count');
-        let idFilter = false;
+        let after: string | undefined;
+        let limit: number | undefined;
         const chain: Record<string, unknown> = {};
         for (const method of ['eq', 'or', 'is', 'order', 'ilike']) chain[method] = () => chain;
-        chain.in = (column: string) => {
-          if (table === 'dogs' && column === 'id') {
-            idFilter = true;
-            return chain;
-          }
-          // Registrations (or owners).
-          return Promise.resolve(
-            table === 'dog_registrations' ? server.registrations : { data: [], error: null }
-          );
+        chain.gt = (_column: string, value: string) => {
+          after = value;
+          return chain;
         };
+        chain.limit = (value: number) => {
+          limit = value;
+          return chain;
+        };
+        // Offset window, id order: lets a mutation check run the old offset paging.
         chain.range = (from: number, to: number) => {
-          server.ranges.push([from, to]);
+          server.pages.push({ after: undefined, limit: to - from + 1 });
+          server.beforePage?.(server.pages.length);
           const { data, error } = server.dogs;
+          const sorted = Array.isArray(data)
+            ? [...data].sort((a, b) => String(a.id).localeCompare(String(b.id)))
+            : data;
           return Promise.resolve({
-            data: Array.isArray(data) ? data.slice(from, to + 1) : data,
+            data: Array.isArray(sorted) ? sorted.slice(from, to + 1) : sorted,
             error,
           });
         };
-        chain.then = (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
+        chain.in = () =>
+          // Registrations (or owners).
           Promise.resolve(
-            idFilter && isIdLookup
-              ? { data: server.idsOnServer.map(id => ({ id })), error: null }
-              : table === 'dogs'
-                ? server.dogs
-                : { data: [], error: null }
-          ).then(resolve, reject);
+            table === 'dog_registrations' ? server.registrations : { data: [], error: null }
+          );
+        chain.then = (
+          resolve: (value: unknown) => unknown,
+          reject: (reason: unknown) => unknown
+        ) => {
+          if (table !== 'dogs')
+            return Promise.resolve({ data: [], error: null }).then(resolve, reject);
+          if (limit === undefined) return Promise.resolve(server.dogs).then(resolve, reject);
+          // A keyset page: ids strictly after the cursor, in id order.
+          server.pages.push({ after, limit });
+          server.beforePage?.(server.pages.length);
+          const { data, error } = server.dogs;
+          const page = Array.isArray(data)
+            ? [...data]
+                .sort((a, b) => String(a.id).localeCompare(String(b.id)))
+                .filter(row => after === undefined || String(row.id) > after)
+                .slice(0, limit)
+            : data;
+          return Promise.resolve({ data: page, error }).then(resolve, reject);
+        };
         return chain;
       },
     }),
@@ -144,16 +160,14 @@ describe('dog roster reads, server first (MYK9-1139)', () => {
     server.dogs = { data: [], error: null, count: null };
     server.idsOnServer = [];
     server.registrations = { data: [], error: null };
-    server.ranges = [];
-    mockRegistrationsTable.getUnsentWorkForDogs.mockReset();
-    mockRegistrationsTable.getUnsentWorkForDogs.mockResolvedValue([]);
+    server.pages = [];
+    server.beforePage = undefined;
     for (const fn of Object.values(mockDogsTable)) fn.mockReset();
     // A warm replica holding only account A's dog.
     mockDogsTable.getAllDogsWithStatus.mockResolvedValue({ rows: [FOREIGN_DOG], cold: false });
     mockDogsTable.getAllDogs.mockResolvedValue([FOREIGN_DOG]);
     mockDogsTable.getDogsByOwner.mockResolvedValue([]);
     mockDogsTable.searchDogs.mockResolvedValue([FOREIGN_DOG]);
-    mockDogsTable.getUnsentRowIds.mockResolvedValue(new Set<string>());
   });
 
   afterEach(() => {
@@ -188,93 +202,6 @@ describe('dog roster reads, server first (MYK9-1139)', () => {
       const { data, error } = await getAllDogs(PERSON);
       expect(error).toBeNull();
       expect(data).toEqual([]);
-    });
-  });
-
-  describe("this account's unsent dog work is laid over the server rows", () => {
-    beforeEach(() => {
-      server.dogs = { data: [serverRow('dog-b', 'Bree')], error: null };
-    });
-
-    it('shows an offline-created dog the server has not seen, in name order', async () => {
-      const created = deviceDog('dog-new', 'Abby', { _localOnly: true });
-      mockDogsTable.getAllDogs.mockResolvedValue([FOREIGN_DOG, created]);
-      mockDogsTable.getUnsentRowIds.mockResolvedValue(new Set(['dog-new']));
-
-      const { data, error } = await getAllDogs(PERSON);
-
-      expect(error).toBeNull();
-      expect(ids(data)).toEqual(['dog-new', 'dog-b']);
-    });
-
-    it("replaces the server's version of a dog with the unsent edit, keeping the server's owner", async () => {
-      server.dogs = {
-        data: [serverRow('dog-b', 'Bree', { owner: { id: PERSON, first_name: 'Bo' } })],
-        error: null,
-      };
-      mockDogsTable.getAllDogs.mockResolvedValue([deviceDog('dog-b', 'Bree Renamed')]);
-      mockDogsTable.getUnsentRowIds.mockResolvedValue(new Set(['dog-b']));
-
-      const { data } = await getAllDogs(PERSON);
-
-      const rows = data as { id: string; name: string; owner: { first_name: string } }[];
-      expect(rows).toHaveLength(1);
-      expect(rows[0]?.name).toBe('Bree Renamed');
-      expect(rows[0]?.owner.first_name).toBe('Bo');
-    });
-
-    it('does not add an unsent dog that another owner holds, unless the roster is showAll', async () => {
-      const foreignUnsent = deviceDog('dog-x', 'Xena', { ownerId: 'person-x' });
-      mockDogsTable.getAllDogs.mockResolvedValue([foreignUnsent]);
-      mockDogsTable.getUnsentRowIds.mockResolvedValue(new Set(['dog-x']));
-
-      expect(ids((await getAllDogs(PERSON)).data)).toEqual(['dog-b']);
-      expect(ids((await getAllDogs(PERSON, true)).data)).toEqual(['dog-b', 'dog-x']);
-    });
-
-    it('lists the queue once, not once per replica row', async () => {
-      mockDogsTable.getAllDogs.mockResolvedValue([FOREIGN_DOG, deviceDog('d1', 'D1')]);
-      await getAllDogs(PERSON);
-      expect(mockDogsTable.getUnsentRowIds).toHaveBeenCalledTimes(1);
-    });
-
-    it('getDogsByOwner adds the unsent dog this owner created offline', async () => {
-      mockDogsTable.getAllDogs.mockResolvedValue([deviceDog('dog-new', 'Abby')]);
-      mockDogsTable.getUnsentRowIds.mockResolvedValue(new Set(['dog-new']));
-
-      expect(ids((await getDogsByOwner(PERSON)).data)).toEqual(['dog-new', 'dog-b']);
-    });
-
-    it('searchDogs adds an unsent dog only when it matches the search term', async () => {
-      mockDogsTable.getAllDogs.mockResolvedValue([
-        deviceDog('dog-new', 'Abby'),
-        deviceDog('dog-other', 'Rex'),
-      ]);
-      mockDogsTable.getUnsentRowIds.mockResolvedValue(new Set(['dog-new', 'dog-other']));
-
-      expect(ids((await searchDogs('abb', PERSON)).data)).toEqual(['dog-new', 'dog-b']);
-    });
-
-    it('getDogStatistics counts an unsent create the server does not have, once', async () => {
-      server.dogs = { data: null, error: null, count: 2 };
-      mockDogsTable.getAllDogs.mockResolvedValue([
-        deviceDog('dog-new', 'Abby'),
-        deviceDog('dog-landed', 'Lando'),
-      ]);
-      mockDogsTable.getUnsentRowIds.mockResolvedValue(new Set(['dog-new', 'dog-landed']));
-      // dog-landed's upload already landed, so the server count includes it.
-      server.idsOnServer = ['dog-landed'];
-
-      expect((await getDogStatistics(PERSON)).data).toEqual({ total: 3 });
-    });
-
-    it('an unreadable queue leaves the server rows as they are', async () => {
-      mockDogsTable.getUnsentRowIds.mockRejectedValue(new Error('queue unreadable'));
-
-      const { data, error } = await getAllDogs(PERSON);
-
-      expect(error).toBeNull();
-      expect(ids(data)).toEqual(['dog-b']);
     });
   });
 
@@ -344,112 +271,97 @@ describe('dog roster reads, server first (MYK9-1139)', () => {
     });
   });
 
-  describe('Codex review of #2969', () => {
-    it('getAllDogs (showAll) reads every page: the server caps one response at 1000 rows', async () => {
+  describe('online roster ignores the device queue', () => {
+    it("shows the server's dogs only, whatever this device has queued or holds", async () => {
+      server.dogs = { data: [serverRow('dog-b', 'Bree')], error: null };
+      // An offline-created dog, a renamed one: neither is on the server yet.
+      mockDogsTable.getAllDogs.mockResolvedValue([
+        deviceDog('dog-new', 'Abby', { _localOnly: true }),
+        deviceDog('dog-b', 'Bree Renamed'),
+      ]);
+
+      for (const read of reads.filter(r => r.name !== 'getDogStatistics')) {
+        const { data } = await read.run();
+        expect(
+          (data as { id: string; name: string }[]).map(r => `${r.id}:${r.name}`),
+          read.name
+        ).toEqual(['dog-b:Bree']);
+      }
+      expect(mockDogsTable.getAllDogs).not.toHaveBeenCalled();
+      expect(mockDogsTable.getUnsentMutationIdsForRow).not.toHaveBeenCalled();
+    });
+
+    it("uses the server's embedded registrations, not a merge with this device's queue", async () => {
+      const embedded = { id: 'reg-1', dog_id: 'dog-b', organization: 'AKC' };
       server.dogs = {
-        data: Array.from({ length: 1005 }, (_, i) =>
-          serverRow(`dog-${String(i).padStart(4, '0')}`, `Dog ${i}`)
-        ),
+        data: [serverRow('dog-b', 'Bree', { registrations: [embedded] })],
         error: null,
+      };
+
+      const { data } = await getAllDogs(PERSON);
+
+      expect((data as { registrations: unknown[] }[])[0]?.registrations).toEqual([embedded]);
+    });
+  });
+
+  describe('a roster larger than one response (showAll)', () => {
+    const idOf = (i: number) => `dog-${String(i).padStart(5, '0')}`;
+    const bigRoster = (count: number) =>
+      Array.from({ length: count }, (_, i) => serverRow(idOf(i), `Dog ${i}`));
+
+    it('reads every page, by keyset on id', async () => {
+      server.dogs = { data: bigRoster(2005), error: null };
+
+      const { data, error } = await getAllDogs(PERSON, true);
+
+      expect(error).toBeNull();
+      expect(ids(data)).toHaveLength(2005);
+      expect(new Set(ids(data)).size).toBe(2005);
+      expect(server.pages.map(page => page.after)).toEqual([undefined, idOf(999), idOf(1999)]);
+    });
+
+    it('returns the roster in name order', async () => {
+      server.dogs = { data: [serverRow('b', 'Zeus'), serverRow('a', 'Abby')], error: null };
+      expect((await getAllDogs(PERSON, true)).data).toEqual([
+        expect.objectContaining({ name: 'Abby' }),
+        expect.objectContaining({ name: 'Zeus' }),
+      ]);
+    });
+
+    it('a dog deleted and a dog inserted between pages neither skips nor repeats a row', async () => {
+      const rows = bigRoster(1500);
+      const initialIds = rows.map(r => r.id);
+      server.dogs = { data: rows, error: null };
+      server.beforePage = pageNumber => {
+        if (pageNumber !== 2) return;
+        // After page 1 was read: delete one early dog and insert two before the cursor (offset
+        // paging would then repeat or skip a row at the page boundary).
+        const all = server.dogs.data as { id: string }[];
+        all.splice(5, 1);
+        all.push(serverRow('dog-00000a', 'Inserted early') as never);
+        all.push(serverRow('dog-00000b', 'Inserted early 2') as never);
       };
 
       const { data, error } = await getAllDogs(PERSON, true);
 
       expect(error).toBeNull();
-      expect(ids(data)).toHaveLength(1005);
-      expect(server.ranges).toEqual([
-        [0, 999],
-        [1000, 1999],
-      ]);
+      const got = ids(data);
+      expect(new Set(got).size).toBe(got.length);
+      // Every dog that stayed on the server through the read is present.
+      const stable = initialIds.filter(id => id !== idOf(5));
+      for (const id of stable) expect(got).toContain(id);
     });
 
     it('a failed later page is an error, never a truncated roster', async () => {
-      const rows = Array.from({ length: 1000 }, (_, i) => serverRow(`dog-${i}`, `Dog ${i}`));
-      let calls = 0;
-      server.dogs = {
-        get data() {
-          calls++;
-          return calls === 1 ? rows : null;
-        },
-        get error() {
-          return calls === 1 ? null : { code: '500', message: 'boom' };
-        },
-      } as never;
+      server.dogs = { data: bigRoster(1500), error: null };
+      server.beforePage = pageNumber => {
+        if (pageNumber === 2) server.dogs = { data: null, error: { code: '500', message: 'boom' } };
+      };
 
       const { data, error } = await getAllDogs(PERSON, true);
 
       expect(error).not.toBeNull();
       expect(data).toEqual([]);
-    });
-
-    it('keeps unsent registration work when the registrations read fails, and says it is incomplete', async () => {
-      const embedded = {
-        id: 'reg-1',
-        dog_id: 'dog-b',
-        organization: 'AKC',
-        registration_number: 'A1',
-      };
-      server.dogs = {
-        data: [serverRow('dog-b', 'Bree', { registrations: [embedded] })],
-        error: null,
-      };
-      server.registrations = {
-        data: null,
-        error: { code: '500', message: 'registrations failed' },
-      };
-      mockRegistrationsTable.getUnsentWorkForDogs.mockResolvedValue([
-        {
-          id: 'local-ukc',
-          dogId: 'dog-b',
-          organization: 'UKC',
-          registrationNumber: 'U2',
-          breed: 'Beagle',
-          _localOnly: true,
-          _queuedAdd: true,
-        },
-      ]);
-
-      const { data } = await getAllDogs(PERSON);
-
-      const row = (
-        data as { registrations: { id: string }[]; registrations_read_complete: boolean }[]
-      )[0]!;
-      expect(row.registrations.map(r => r.id).sort()).toEqual(['local-ukc', 'reg-1']);
-      expect(row.registrations_read_complete).toBe(false);
-    });
-
-    it('drops a server row whose pending rename no longer matches the search', async () => {
-      server.dogs = { data: [serverRow('dog-b', 'Alpha')], error: null };
-      mockDogsTable.getAllDogs.mockResolvedValue([deviceDog('dog-b', 'Rex', { callName: 'Rex' })]);
-      mockDogsTable.getUnsentRowIds.mockResolvedValue(new Set(['dog-b']));
-
-      expect(ids((await searchDogs('alpha', PERSON)).data)).toEqual([]);
-      expect(ids((await searchDogs('rex', PERSON)).data)).toEqual(['dog-b']);
-    });
-
-    it('drops a server row whose pending edit moved it to another owner (getDogsByOwner)', async () => {
-      server.dogs = { data: [serverRow('dog-b', 'Bree')], error: null };
-      mockDogsTable.getAllDogs.mockResolvedValue([
-        deviceDog('dog-b', 'Bree', { ownerId: 'person-x' }),
-      ]);
-      mockDogsTable.getUnsentRowIds.mockResolvedValue(new Set(['dog-b']));
-
-      expect(ids((await getDogsByOwner(PERSON)).data)).toEqual([]);
-    });
-
-    it('keeps a co-owned dog with a pending edit in the own-dogs roster', async () => {
-      server.dogs = {
-        data: [serverRow('dog-b', 'Bree', { owner_id: 'person-x', co_owner_id: PERSON })],
-        error: null,
-      };
-      mockDogsTable.getAllDogs.mockResolvedValue([
-        deviceDog('dog-b', 'Bree 2', { ownerId: 'person-x' }),
-      ]);
-      mockDogsTable.getUnsentRowIds.mockResolvedValue(new Set(['dog-b']));
-
-      const { data } = await getAllDogs(PERSON);
-
-      expect((data as { name: string }[]).map(r => r.name)).toEqual(['Bree 2']);
     });
   });
 });

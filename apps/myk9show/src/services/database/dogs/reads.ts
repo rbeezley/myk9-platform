@@ -23,13 +23,7 @@ import {
 } from '@/services/replication/dogRegistrationRows';
 import { mergeUnsentWork } from '@/services/replication/dogRegistrationMerge';
 import { parseRestoreDogResult } from './restoreDogResult';
-import {
-  readAllDogPages,
-  readRosterServerFirst,
-  mergeUnsentRegistrations,
-  overlayUnsentDogs,
-  overlayUnsentDogCount,
-} from './rosterRead';
+import { DOG_READ_PAGE_SIZE, readAllDogPages, readRosterServerFirst } from './rosterRead';
 import { serverUnreachable } from '../registrations/serverUnreachable';
 import { unsentWorkProvenByServer } from '../registrations/unsentWork';
 
@@ -227,15 +221,7 @@ async function readServerRegistrations(dogIds: string[]): Promise<{
   }
 }
 
-export async function loadDogRegistrations(
-  dogIds: string[],
-  /**
-   * Registrations the dogs read itself returned. When the registrations read
-   * fails, these stand in for the server's rows, so this device's unsent work is
-   * still merged onto them; the read stays incomplete.
-   */
-  embedded?: Record<string, unknown>[]
-): Promise<DogRegistrationsResult> {
+export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistrationsResult> {
   if (dogIds.length === 0) {
     return {
       byDog: new Map(),
@@ -245,11 +231,7 @@ export async function loadDogRegistrations(
     };
   }
   const map = new Map<string, Record<string, unknown>[]>();
-  const read = await readServerRegistrations(dogIds);
-  const embeddedStands = embedded !== undefined && read.error !== null && read.error !== undefined;
-  const serverResult = embeddedStands
-    ? { ...read, data: embedded, answered: dogIds.length, unreachableDogIds: [] as string[] }
-    : read;
+  const serverResult = await readServerRegistrations(dogIds);
   // The device copy answers only when the server could not be reached. A
   // server that answered with an error stays a server read: unsent work is
   // merged, `serverError` is set and the read is not complete.
@@ -345,16 +327,25 @@ async function postgrestGetAllDogs(personId: string, showAll = false) {
     `
       )
       .is('deleted_at', null)
-      // `id` breaks name ties, so a page boundary never repeats or skips a dog.
-      .order('name', { ascending: true })
-      .order('id', { ascending: true });
+      .order(showAll ? 'id' : 'name', { ascending: true });
     return showAll ? query : query.or(ownedByPerson(personId));
   };
 
   if (showAll) {
-    // A secretary's or admin's roster can pass the server's per-response row cap.
-    const data = await readAllDogPages((from, to) => buildQuery().range(from, to));
-    return { data, error: null };
+    // A secretary's or admin's roster can pass the server's per-response row cap:
+    // keyset pages on `id`, then the roster's name order.
+    const rows = await readAllDogPages(afterId => {
+      let page = buildQuery().limit(DOG_READ_PAGE_SIZE);
+      if (afterId !== undefined) page = page.gt('id', afterId);
+      return page;
+    });
+    return {
+      data: sortedCopy(
+        rows,
+        compareStringAsc(dog => dog.name)
+      ),
+      error: null,
+    };
   }
   const { data, error } = await buildQuery();
   if (error) throw createDatabaseError(error, 'dog', 'select_all');
@@ -454,31 +445,6 @@ async function hydrateWithRegistrations(dogs: ReplicatedDog[]): Promise<Record<s
   );
 }
 
-/** The server's roster with this device's unsent registrations and dogs laid over it. */
-async function overlayRoster(
-  serverRows: Record<string, unknown>[],
-  inScope: (dog: ReplicatedDog) => boolean,
-  hydrate: (dogs: ReplicatedDog[]) => Promise<Record<string, unknown>[]>
-) {
-  const rows = await mergeUnsentRegistrations(serverRows, loadDogRegistrations);
-  return overlayUnsentDogs(rows, inScope, hydrate);
-}
-
-/** The server's own-dogs filter: the dog's owner or co-owner. */
-function ownsOrCoOwns(dog: ReplicatedDog, personId: string): boolean {
-  return dog.ownerId === personId || dog.coOwnerId === personId;
-}
-
-/** The device replica's search match: name, call name or breed. */
-function matchesSearch(dog: ReplicatedDog, searchTerm: string): boolean {
-  const lower = searchTerm.toLowerCase();
-  return (
-    dog.name.toLowerCase().includes(lower) ||
-    !!dog.callName?.toLowerCase().includes(lower) ||
-    dog.breed.toLowerCase().includes(lower)
-  );
-}
-
 // Get all dogs visible to the current user.
 // showAll=true: skip ownership filter (for secretary/admin roles — RLS handles scoping).
 // showAll=false (default): filter to own dogs (for exhibitor role).
@@ -514,7 +480,6 @@ export const getAllDogs = async (personId: string, showAll = false) => {
       );
       return { data: await hydrate(sortedDogs) };
     },
-    overlay: rows => overlayRoster(rows, dog => showAll || ownsOrCoOwns(dog, personId), hydrate),
     table: 'dog',
     operation: 'select_all_with_owners',
     errorData: [],
@@ -528,12 +493,6 @@ export const getDogsByOwner = async (ownerId: string) => {
     device: async () => ({
       data: await hydrateWithRegistrations(await replicatedDogsTable.getDogsByOwner(ownerId)),
     }),
-    overlay: rows =>
-      overlayRoster(
-        rows,
-        dog => filterByOwnership([dog], ownerId).length > 0,
-        hydrateWithRegistrations
-      ),
     table: 'dog',
     operation: 'select_by_owner',
     errorData: [],
@@ -855,12 +814,6 @@ export const searchDogs = async (searchTerm: string, personId: string) => {
       // would render "Breed not set".
       return { data: await hydrateWithRegistrations(filterByOwnership(results, personId)) };
     },
-    overlay: rows =>
-      overlayRoster(
-        rows,
-        dog => ownsOrCoOwns(dog, personId) && matchesSearch(dog, searchTerm),
-        hydrateWithRegistrations
-      ),
     table: 'dog',
     operation: 'search',
     errorData: [],
@@ -875,12 +828,6 @@ export const getDogStatistics = async (personId: string) => {
       const allDogs = await replicatedDogsTable.getAllDogs();
       return { data: { total: filterByOwnership(allDogs, personId).length } };
     },
-    overlay: async stats =>
-      stats
-        ? {
-            total: await overlayUnsentDogCount(stats.total, dog => ownsOrCoOwns(dog, personId)),
-          }
-        : stats,
     table: 'dog',
     operation: 'statistics',
     errorData: null,

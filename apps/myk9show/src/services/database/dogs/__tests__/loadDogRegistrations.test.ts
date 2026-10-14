@@ -29,8 +29,8 @@ vi.mock('../../supabaseClient', () => ({
         ? {
             select: () => ({
               is: () => ({
-                // name, then id; showAll pages the list through `range`.
-                order: () => ({ order: () => ({ range: () => mockPostgrestAllDogs() }) }),
+                // showAll pages the list by id, a page at a time.
+                order: () => ({ limit: () => mockPostgrestAllDogs() }),
               }),
             }),
           }
@@ -387,17 +387,7 @@ describe('getAllDogs registration completeness', () => {
     expect(result.data).toHaveLength(1);
   });
 
-  it('keeps the dog list registrations when the registrations read fails', async () => {
-    mockServerIn.mockResolvedValue({ data: null, error: new Error('server said no') });
-
-    const result = await getAllDogs('person-1', true);
-
-    expect(result.error).toBeNull();
-    expect(result.data?.[0]?.registrations).toEqual([embeddedRegistration]);
-  });
-
-  it('shows the registrations read, with this device unsent work, over the embedded ones', async () => {
-    mockServerIn.mockResolvedValue({ data: [embeddedRegistration], error: null });
+  it("online, shows the server's registrations with no merge of this device's queue", async () => {
     mockLocalGet.mockResolvedValue([
       {
         id: 'local-reg',
@@ -411,18 +401,7 @@ describe('getAllDogs registration completeness', () => {
 
     const result = await getAllDogs('person-1', true);
 
-    const ids = (result.data?.[0]?.registrations as { id: string }[]).map(reg => reg.id);
-    expect(ids).toEqual(expect.arrayContaining(['reg-akc', 'local-reg']));
-    expect(result.data?.[0]?.registrations_read_complete).toBe(true);
-  });
-
-  it('an empty registrations read is authoritative over a stale embed', async () => {
-    mockServerIn.mockResolvedValue({ data: [], error: null });
-
-    const result = await getAllDogs('person-1', true);
-
-    expect(result.data?.[0]?.registrations).toEqual([]);
-    expect(result.data?.[0]?.registrations_read_complete).toBe(true);
+    expect(result.data?.[0]?.registrations).toEqual([embeddedRegistration]);
   });
 });
 

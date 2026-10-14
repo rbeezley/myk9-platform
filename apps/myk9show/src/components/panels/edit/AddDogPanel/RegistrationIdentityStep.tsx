@@ -12,6 +12,7 @@ import {
   RegistrationStatusField,
 } from '@/components/dogs/RegistrationFormBody';
 import {
+  INITIAL_REGISTRATION_DATA,
   REGISTRATION_NUMBER_PATTERN,
   useRegistrationEditor,
 } from '@/components/dogs/useRegistrationEditor';
@@ -72,13 +73,32 @@ export const RegistrationIdentityStep: React.FC<RegistrationIdentityStepProps> =
   // Only the newest "Find dog" may answer; an edit while it runs retires it.
   const requestRef = useRef(0);
 
+  // A draft is what is actually filled in, not "was ever edited": clearing the fields, or the
+  // skip below, leaves nothing for Save to refuse over.
+  const { data } = form;
+  // A registry picked with nothing else entered loses nothing if dropped, so it is not one.
+  const hasDraft = Boolean(
+    data.registrationNumber.trim() || data.registeredName.trim() || data.breed
+  );
+  useEffect(() => {
+    onDraftChange(hasDraft);
+  }, [hasDraft, onDraftChange]);
   useEffect(() => () => onDraftChange(false), [onDraftChange]);
 
   const identityEdited = () => {
     requestRef.current += 1;
     setPhase('identity');
     onIdentityEdited();
-    onDraftChange(true);
+  };
+
+  // The explicit way on without a registration: whatever was typed here is dropped, so it can
+  // neither linger on this (still mounted) step nor hold Save back later.
+  const skip = () => {
+    requestRef.current += 1;
+    form.reset(INITIAL_REGISTRATION_DATA);
+    setPhase('identity');
+    onIdentityEdited();
+    onSkip?.();
   };
 
   const findDog = async () => {
@@ -161,7 +181,7 @@ export const RegistrationIdentityStep: React.FC<RegistrationIdentityStepProps> =
             Find dog
           </Button>
           {onSkip && (
-            <Button type="button" variant="link" size="touch" onClick={onSkip}>
+            <Button type="button" variant="link" size="touch" onClick={skip}>
               No registration number yet
             </Button>
           )}

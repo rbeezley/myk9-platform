@@ -57,7 +57,7 @@ const registrationFormSchema = z.object({
 
 type RegistrationFormData = z.infer<typeof registrationFormSchema>;
 
-const INITIAL_REGISTRATION_DATA: RegistrationFormData = {
+export const INITIAL_REGISTRATION_DATA: RegistrationFormData = {
   id: '',
   organization: '',
   registeredName: '',

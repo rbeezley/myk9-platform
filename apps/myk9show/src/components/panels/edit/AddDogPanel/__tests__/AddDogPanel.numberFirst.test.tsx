@@ -406,6 +406,46 @@ describe(
       expect(screen.queryByText(TAKEN_MESSAGE)).toBeNull();
     });
 
+    it(
+      'drops a typed registration when a secretary chooses No registration number yet, and adds the dog',
+      async () => {
+        const { user } = renderPanel(UserRole.SECRETARY);
+        await typeIdentity(user);
+        await user.click(screen.getByRole('button', { name: /No registration number yet/ }));
+        await fillDogBasics(user);
+        await user.click(await screen.findByRole('button', { name: /Next: Optional details/ }));
+        await user.click(await screen.findByRole('button', { name: 'Add Dog' }));
+
+        await waitFor(() =>
+          expect(mocks.addDog.mock.calls.length + mocks.addDogOfflineFirst.mock.calls.length).toBe(
+            1
+          )
+        );
+        expect(screen.queryByText(/Save this registration before adding the dog/)).toBeNull();
+      },
+      JOURNEY_TIMEOUT_MS
+    );
+
+    it(
+      'lets a secretary add the dog after clearing a number they had typed',
+      async () => {
+        const { user } = renderPanel(UserRole.SECRETARY);
+        await typeIdentity(user);
+        await user.clear(document.getElementById('registrationNumber') as HTMLElement);
+        await user.click(screen.getByRole('button', { name: /Next: Essential/ }));
+        await fillDogBasics(user);
+        await user.click(await screen.findByRole('button', { name: /Next: Optional details/ }));
+        await user.click(await screen.findByRole('button', { name: 'Add Dog' }));
+
+        await waitFor(() =>
+          expect(mocks.addDog.mock.calls.length + mocks.addDogOfflineFirst.mock.calls.length).toBe(
+            1
+          )
+        );
+      },
+      JOURNEY_TIMEOUT_MS
+    );
+
     it('lets a secretary with nothing typed move on without a registration', async () => {
       const { user } = renderPanel(UserRole.SECRETARY);
       await user.click(await screen.findByRole('button', { name: /Next: Essential/ }));

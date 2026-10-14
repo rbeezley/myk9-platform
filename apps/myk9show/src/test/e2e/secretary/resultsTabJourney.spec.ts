@@ -130,7 +130,7 @@ function paperworkRow(detail: Locator, label: string): Locator {
 
 /** Errors a lazy route's import throws when its chunk could not be fetched. */
 const CHUNK_LOAD_ERROR =
-  /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|ChunkLoadError/i;
+  /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Unable to preload CSS|ChunkLoadError/i;
 
 /**
  * Open `url` and wait for `ready`. Nightly 38606805596 (MYK9-1161) showed the lazy-route

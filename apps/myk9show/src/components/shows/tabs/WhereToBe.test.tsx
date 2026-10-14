@@ -43,6 +43,11 @@ vi.mock('@/hooks/queries/useMyEntryQueuePlaces', () => ({
   useMyEntryQueuePlaces: () => mockPlaces.map,
 }));
 
+const mockSelfCheckin = vi.hoisted(() => ({ map: {} as Record<string, boolean> }));
+vi.mock('@/hooks/queries/useSelfCheckinEnabled', () => ({
+  useSelfCheckinMap: () => mockSelfCheckin.map,
+}));
+
 describe('WhereToBe', () => {
   it('renders nothing when entries are empty', () => {
     const { container } = render(<WhereToBe entries={[]} showId={SHOW_ID} />);
@@ -452,6 +457,7 @@ describe('WhereToBe', () => {
       vi.useRealTimers();
       mockTrials.data = [];
       mockPlaces.map = new Map();
+      mockSelfCheckin.map = {};
     });
 
     const days = [
@@ -508,6 +514,60 @@ describe('WhereToBe', () => {
         />
       );
       expect(screen.queryByText('Check in on the day')).not.toBeInTheDocument();
+    });
+
+    const renderFuture = (overrides: Partial<EnrichedShowEntry>, zone = true) => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-14T15:00:00Z'));
+      mockTrials.data = zone ? [{ id: 't1', timezone: 'America/Chicago' }] : [];
+      mockPlaces.map = new Map([['e1', 1]]);
+      render(
+        <WhereToBe
+          entries={[
+            makeEntry({
+              queue: { kind: 'waiting-unknown' },
+              checkInStatus: 'no-status',
+              trialDate: '2026-10-15',
+              dayLabel: 'Thursday, Oct 15',
+              ...overrides,
+            }),
+          ]}
+          showId={SHOW_ID}
+        />
+      );
+    };
+
+    // Same eligibility My Shows applies (isClassCheckInEligibleAnyDay): where
+    // check-in never will be offered, the row promises nothing.
+    it('promises nothing on a future row whose entry is still pending review', () => {
+      renderFuture({ entryStatus: 'pending' as EnrichedShowEntry['entryStatus'] });
+      expect(screen.getByRole('link')).toBeInTheDocument();
+      expect(screen.queryByText('Check in on the day')).not.toBeInTheDocument();
+      expect(screen.queryByText(/next up/i)).not.toBeInTheDocument();
+    });
+
+    it('promises nothing on a future row whose class has self check-in disabled', () => {
+      mockSelfCheckin.map = { c1: false };
+      renderFuture({});
+      expect(screen.queryByText('Check in on the day')).not.toBeInTheDocument();
+      expect(screen.queryByText(/next up/i)).not.toBeInTheDocument();
+    });
+
+    it('offers "Check in on the day" on an eligible future row', () => {
+      mockSelfCheckin.map = { c1: true };
+      renderFuture({});
+      expect(screen.getByText('Check in on the day')).toBeInTheDocument();
+      expect(screen.queryByText(/next up/i)).not.toBeInTheDocument();
+    });
+
+    // Deliberate fallback, same as neverRan: with no resolved trial zone the
+    // row cannot tell a future day from today, so it keeps the old label until
+    // the trials load.
+    it('keeps the old label while the trial timezone is unresolved', () => {
+      renderFuture({}, false);
+      expect(screen.getByText('Not checked in')).toBeInTheDocument();
+      expect(screen.queryByText('Check in on the day')).not.toBeInTheDocument();
+      expect(screen.getByText(/next up/i)).toBeInTheDocument();
     });
 
     it('reckons "future" in the trial timezone, not the device UTC day', () => {

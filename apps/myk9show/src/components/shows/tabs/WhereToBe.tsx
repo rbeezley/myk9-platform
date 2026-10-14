@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, CheckCircle2, Clock, Hash, MapPin, XCircle } from 'lucide-react';
 import { Chip } from '@/components/base/Chip';
@@ -5,6 +6,8 @@ import { PersonAvatar } from '@/components/common/PersonAvatar';
 import { formatRunQueueState } from '@myk9/ringside/run-queue';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
 import { useMyEntryQueuePlaces, type QueuePlaces } from '@/hooks/queries/useMyEntryQueuePlaces';
+import { useSelfCheckinMap } from '@/hooks/queries/useSelfCheckinEnabled';
+import { isScheduleRowCheckInEligible } from './whereToBeCheckIn';
 import { useShowTrials } from '@/hooks/queries/useShowTrials';
 import {
   CHECK_IN_ON_THE_DAY_LABEL,
@@ -36,6 +39,8 @@ export function WhereToBe({ entries, showId }: WhereToBeProps) {
     scheduleEntries.filter(entry => entry.queue?.kind === 'waiting-unknown').map(e => e.entryId)
   );
   const { data: trials } = useShowTrials(showId);
+  const classIds = useMemo(() => [...new Set(entries.map(entry => entry.classId))], [entries]);
+  const selfCheckinByClassId = useSelfCheckinMap(classIds);
   if (scheduleEntries.length === 0) return null;
   // Validated through the registries helper; a trial not loaded yet has no
   // entry, and an unresolved zone makes no "past day" claim (see neverRan).
@@ -76,6 +81,7 @@ export function WhereToBe({ entries, showId }: WhereToBeProps) {
                 showId={showId}
                 places={places}
                 trialTimezone={timezoneByTrialId.get(entry.trialId)}
+                selfCheckinByClassId={selfCheckinByClassId}
               />
             ))}
           </div>
@@ -90,6 +96,7 @@ interface TimelineRowProps {
   showId: string;
   places: QueuePlaces;
   trialTimezone: string | undefined;
+  selfCheckinByClassId: Record<string, boolean>;
 }
 
 /**
@@ -119,7 +126,13 @@ function isFutureDay(entry: EnrichedShowEntry, trialTimezone: string | undefined
   return isTrialDayAhead(parseLocalDateString(entry.trialDate), trialTimezone, new Date());
 }
 
-function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps) {
+function TimelineRow({
+  entry,
+  showId,
+  places,
+  trialTimezone,
+  selfCheckinByClassId,
+}: TimelineRowProps) {
   const href = `/shows/${showId}/trials/${entry.trialId}/classes/${entry.classId}`;
   const accessibleTimeLabel = entry.startTime || 'schedule details pending';
   // MYK9-992: place in line or the dog's state, never the stored run number.
@@ -141,7 +154,9 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
     : entry.checkInStatus
       ? entry.checkInStatus === 'no-status'
         ? futureDay
-          ? CHECK_IN_ON_THE_DAY_LABEL
+          ? isScheduleRowCheckInEligible(entry, selfCheckinByClassId)
+            ? CHECK_IN_ON_THE_DAY_LABEL
+            : null
           : 'Not checked in'
         : getStatusDescriptor('entry', entry.checkInStatus).label
       : 'Check-in pending';

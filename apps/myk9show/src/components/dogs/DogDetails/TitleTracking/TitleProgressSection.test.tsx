@@ -20,6 +20,7 @@ function mockTitleProgress(overrides: Partial<ReturnType<typeof useTitleProgress
     isError: false,
     refetch: vi.fn(),
     earnedAbbreviations: [],
+    unreleasedCount: 0,
     ...overrides,
   });
 }
@@ -89,5 +90,20 @@ describe('TitleProgressSection', () => {
     render(<TitleProgressSection dogId="dog-1" ownerId="owner-1" />);
 
     expect(screen.getByText('AKC')).toBeInTheDocument();
+  });
+
+  it('tells the exhibitor preliminary results are waiting instead of "No title progress yet"', () => {
+    mockTitleProgress({ progressBySport: {}, unreleasedCount: 2 });
+    render(<TitleProgressSection dogId="dog-1" ownerId="owner-1" />);
+    expect(screen.queryByText(/no title progress yet/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/2 results are waiting for the secretary to release them/i)
+    ).toBeInTheDocument();
+  });
+
+  it('shows no waiting line when nothing is preliminary', () => {
+    mockTitleProgress({ progressBySport: {}, unreleasedCount: 0 });
+    render(<TitleProgressSection dogId="dog-1" ownerId="owner-1" />);
+    expect(screen.queryByText(/waiting for the secretary/i)).not.toBeInTheDocument();
   });
 });

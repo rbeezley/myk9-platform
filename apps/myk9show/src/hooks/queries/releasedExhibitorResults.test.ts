@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ExhibitorResult } from './useExhibitorResults';
-import { onlyReleasedResults } from './releasedExhibitorResults';
+import { countUnreleased, onlyReleasedResults } from './releasedExhibitorResults';
 import { computePerformanceStats } from '@/services/performanceStatsEngine';
 import { mapExhibitorResultToLeg } from '@/services/titleEngine';
 
@@ -34,6 +34,11 @@ describe('onlyReleasedResults (MYK9-1178)', () => {
     row('prelim-1', null),
     row('prelim-2', null),
   ];
+
+  it('counts exactly the rows the released gate drops', () => {
+    expect(countUnreleased(rows)).toBe(2);
+    expect(countUnreleased(rows.slice(0, 1))).toBe(0);
+  });
 
   it('keeps released rows and drops unreleased ones', () => {
     expect(onlyReleasedResults(rows).map(r => r.id)).toEqual(['released']);

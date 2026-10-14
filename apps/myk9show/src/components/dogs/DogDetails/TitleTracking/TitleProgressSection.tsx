@@ -6,6 +6,7 @@ import SportTitleGroup from './SportTitleGroup';
 import LogManualResultPanel from '@/components/panels/edit/LogManualResultPanel';
 import type { SportTemplateRow } from '@/types/sport-template-types';
 import type { TitleProgressResult } from '@/services/titleEngine';
+import PendingReleaseNote from '../PendingReleaseNote';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 interface TitleProgressSectionProps {
@@ -19,7 +20,8 @@ interface OrgGroup {
 }
 
 const TitleProgressSection: React.FC<TitleProgressSectionProps> = ({ dogId, ownerId }) => {
-  const { progressBySport, templates, isLoading, isError, refetch } = useTitleProgress(dogId);
+  const { progressBySport, templates, unreleasedCount, isLoading, isError, refetch } =
+    useTitleProgress(dogId);
   const [panelOpen, setPanelOpen] = useState(false);
 
   const header = (
@@ -104,7 +106,12 @@ const TitleProgressSection: React.FC<TitleProgressSectionProps> = ({ dogId, owne
         <div className="bg-background rounded-xl border p-6">
           {header}
 
-          {sportIds.length === 0 ? (
+          {sportIds.length === 0 && unreleasedCount > 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+              <Trophy className="w-10 h-10 opacity-40" />
+              <PendingReleaseNote count={unreleasedCount} />
+            </div>
+          ) : sportIds.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
               <Trophy className="w-10 h-10 opacity-40" />
               <p className="text-sm text-center">
@@ -114,6 +121,7 @@ const TitleProgressSection: React.FC<TitleProgressSectionProps> = ({ dogId, owne
             </div>
           ) : (
             <div className="space-y-3">
+              <PendingReleaseNote count={unreleasedCount} />
               {orgGroups.map(group => (
                 <OrgSection key={group.organization} group={group} />
               ))}

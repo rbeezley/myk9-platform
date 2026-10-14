@@ -58,6 +58,11 @@ function ResultDate() {
   return <p>{isError ? 'error' : data ? data[0]?.showDate || 'no-date' : 'loading'}</p>;
 }
 
+function ResultOrder() {
+  const { data } = useExhibitorResults('dog-a');
+  return <p>{data ? `order: ${data.map(r => r.id).join(',')}` : 'loading'}</p>;
+}
+
 function ResultsState() {
   const { isLoading, isError, retry } = useExhibitorResults('dog-a');
   return (
@@ -88,6 +93,38 @@ describe('exhibitor scored-result query scope', () => {
     render(<Results />);
     await screen.findByText('results: 0');
     expect(mocks.isFilter).toHaveBeenCalledWith('deleted_at', null);
+  });
+
+  it('breaks equal trial dates by scoring time, newest first, and sorts undated rows last', async () => {
+    mocks.range.mockResolvedValueOnce({
+      data: [
+        {
+          id: 'undated',
+          dog_id: 'dog-a',
+          trial_id: null,
+          scoring_completed_at: '2026-10-09T00:00:00Z',
+        },
+        {
+          id: 'early',
+          dog_id: 'dog-a',
+          trial_id: 't1',
+          scoring_completed_at: '2026-09-26T09:00:00Z',
+        },
+        {
+          id: 'late',
+          dog_id: 'dog-a',
+          trial_id: 't1',
+          scoring_completed_at: '2026-09-26T15:00:00Z',
+        },
+      ],
+      error: null,
+    });
+    mocks.trialDates.mockResolvedValueOnce({
+      data: [{ id: 't1', date: '2026-09-26' }],
+      error: null,
+    });
+    render(<ResultOrder />);
+    await screen.findByText('order: late,early,undated');
   });
 
   it('lists the newest trial date first, not scoring order (MYK9-1177)', async () => {

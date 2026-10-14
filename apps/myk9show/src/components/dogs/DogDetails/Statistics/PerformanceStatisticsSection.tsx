@@ -9,6 +9,7 @@ import {
   JudgePerformanceChart,
   ProgressTimelineChart,
 } from './charts';
+import PendingReleaseNote from '../PendingReleaseNote';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 interface PerformanceStatisticsSectionProps {
@@ -16,7 +17,7 @@ interface PerformanceStatisticsSectionProps {
 }
 
 const PerformanceStatisticsSection: React.FC<PerformanceStatisticsSectionProps> = ({ dogId }) => {
-  const { stats, isLoading, isError, refetch } = usePerformanceStatistics(dogId);
+  const { stats, unreleasedCount, isLoading, isError, refetch } = usePerformanceStatistics(dogId);
 
   if (isLoading) {
     return (
@@ -53,6 +54,21 @@ const PerformanceStatisticsSection: React.FC<PerformanceStatisticsSectionProps> 
   }
 
   if (!stats || stats.overall.total === 0) {
+    if (unreleasedCount > 0) {
+      return (
+        <div className="bg-background rounded-xl shadow-sm p-6 border">
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <BarChart3 className="h-12 w-12 text-muted-foreground/40 mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-1">
+              Results waiting for release
+            </h3>
+            <div className="max-w-sm">
+              <PendingReleaseNote count={unreleasedCount} />
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="bg-background rounded-xl shadow-sm p-6 border">
         <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -69,6 +85,7 @@ const PerformanceStatisticsSection: React.FC<PerformanceStatisticsSectionProps> 
 
   return (
     <div className="space-y-6">
+      <PendingReleaseNote count={unreleasedCount} />
       <StatsSummaryCards summary={stats.summary} overall={stats.overall} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

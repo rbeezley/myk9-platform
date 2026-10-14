@@ -9,3 +9,8 @@ import type { ExhibitorResult } from './useExhibitorResults';
 export function onlyReleasedResults(results: ExhibitorResult[]): ExhibitorResult[] {
   return results.filter(r => !!r.resultsReleasedAt);
 }
+
+/** How many of these rows `onlyReleasedResults` drops: the results still waiting on release. */
+export function countUnreleased(results: ExhibitorResult[]): number {
+  return results.length - onlyReleasedResults(results).length;
+}

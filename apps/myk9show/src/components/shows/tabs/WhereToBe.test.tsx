@@ -38,6 +38,11 @@ vi.mock('@/hooks/queries/useShowTrials', () => ({
   useShowTrials: () => ({ data: mockTrials.data }),
 }));
 
+const mockPlaces = vi.hoisted(() => ({ map: new Map<string, number>() }));
+vi.mock('@/hooks/queries/useMyEntryQueuePlaces', () => ({
+  useMyEntryQueuePlaces: () => mockPlaces.map,
+}));
+
 describe('WhereToBe', () => {
   it('renders nothing when entries are empty', () => {
     const { container } = render(<WhereToBe entries={[]} showId={SHOW_ID} />);
@@ -437,6 +442,93 @@ describe('WhereToBe', () => {
       );
       expect(screen.getByText(/Q · 00:38\.2/)).toBeInTheDocument();
       expect(screen.queryByText('Not run')).not.toBeInTheDocument();
+    });
+  });
+
+  // MYK9-1173: "Next up" is a claim about right now. A dog that is run 1 on
+  // every day of a multi-day show is next up only on today's row.
+  describe('future trial days', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      mockTrials.data = [];
+      mockPlaces.map = new Map();
+    });
+
+    const days = [
+      { id: 'e-today', trialDate: '2026-10-14', dayLabel: 'Wednesday, Oct 14' },
+      { id: 'e-thu', trialDate: '2026-10-15', dayLabel: 'Thursday, Oct 15' },
+      { id: 'e-fri', trialDate: '2026-10-16', dayLabel: 'Friday, Oct 16' },
+    ];
+
+    it('says "Next up" only on today and "Check in on the day" on future days', () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-14T15:00:00Z'));
+      mockTrials.data = [{ id: 't1', timezone: 'America/Chicago' }];
+      mockPlaces.map = new Map(days.map(d => [d.id, 1]));
+      render(
+        <WhereToBe
+          entries={days.map(d =>
+            makeEntry({
+              entryId: d.id,
+              classId: `c-${d.id}`,
+              queue: { kind: 'waiting-unknown' },
+              checkInStatus: 'no-status',
+              trialDate: d.trialDate,
+              dayLabel: d.dayLabel,
+            })
+          )}
+          showId={SHOW_ID}
+        />
+      );
+      expect(screen.getAllByText(/next up/i)).toHaveLength(1);
+      expect(screen.getAllByText('Check in on the day')).toHaveLength(2);
+      // Today keeps its check-in state; future rows do not claim "Not checked in".
+      expect(screen.getAllByText('Not checked in')).toHaveLength(1);
+      const links = screen.getAllByRole('link');
+      expect(links[0].getAttribute('aria-label')).toMatch(/next up/i);
+      expect(links[1].getAttribute('aria-label')).not.toMatch(/next up|not checked in/i);
+      expect(links[1].getAttribute('aria-label')).toMatch(/check in on the day/i);
+    });
+
+    it('keeps a future row that already has a real check-in state', () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-14T15:00:00Z'));
+      mockTrials.data = [{ id: 't1', timezone: 'America/Chicago' }];
+      render(
+        <WhereToBe
+          entries={[
+            makeEntry({
+              queue: { kind: 'waiting-unknown' },
+              checkInStatus: 'checked-in',
+              trialDate: '2026-10-15',
+              dayLabel: 'Thursday, Oct 15',
+            }),
+          ]}
+          showId={SHOW_ID}
+        />
+      );
+      expect(screen.queryByText('Check in on the day')).not.toBeInTheDocument();
+    });
+
+    it('reckons "future" in the trial timezone, not the device UTC day', () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      // 02:00 UTC Oct 15 is still Oct 14 in Chicago: Oct 15 is a future day.
+      vi.setSystemTime(new Date('2026-10-15T02:00:00Z'));
+      mockTrials.data = [{ id: 't1', timezone: 'America/Chicago' }];
+      render(
+        <WhereToBe
+          entries={[
+            makeEntry({
+              queue: { kind: 'waiting-unknown' },
+              checkInStatus: 'no-status',
+              trialDate: '2026-10-15',
+              dayLabel: 'Thursday, Oct 15',
+            }),
+          ]}
+          showId={SHOW_ID}
+        />
+      );
+      expect(screen.getByText('Check in on the day')).toBeInTheDocument();
     });
   });
 });

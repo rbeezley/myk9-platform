@@ -179,7 +179,7 @@ describe('lifecycle email api helpers', () => {
     });
   });
 
-  it('does not carry the entry id list in the status query, and keeps only the requested entries', async () => {
+  it('chunks the status query by entry id, so neither the URL nor the row count grows with the show', async () => {
     const entryIds = Array.from({ length: 500 }, (_, i) => `entry-${i}`);
     const job = (id: string, entryId: string) => ({
       id,
@@ -205,8 +205,10 @@ describe('lifecycle email api helpers', () => {
       entryIds,
     });
 
-    expect(inFilters.some(filter => filter.column === 'entry_id')).toBe(false);
-    expect(Math.max(...inFilters.map(filter => filter.count))).toBeLessThanOrEqual(2);
+    const entryFilters = inFilters.filter(filter => filter.column === 'entry_id');
+    expect(entryFilters).toHaveLength(5);
+    expect(Math.max(...entryFilters.map(filter => filter.count))).toBeLessThanOrEqual(100);
+    expect(entryFilters.reduce((sum, filter) => sum + filter.count, 0)).toBe(500);
     expect(Object.keys(statuses)).toEqual(['entry-3']);
   });
 

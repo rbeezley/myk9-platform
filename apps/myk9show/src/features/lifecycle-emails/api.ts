@@ -226,24 +226,30 @@ export async function fetchEntryDecisionEmailStatuses(args: {
 }): Promise<Record<string, EntryDecisionEmailStatus>> {
   if (args.entryIds.length === 0) return {};
 
-  // Scoped by show, not by entry id: an `entry_id in (…)` list grows with the
-  // show and overflows the request URL. The show scope already bounds the rows.
-  const result = (await args.supabase
-    .from<EntryDecisionJobRow[]>('show_lifecycle_email_jobs')
-    .select(
-      'id, entry_id, step_type, status, subject, body, secretary_note, due_at, prepared_at, sent_at, correction_for_job_id'
+  // Chunked: an `entry_id in (…)` list rides in the URL and grows with the show, so one list
+  // for a large show overflowed the request (MYK9-1186). Not show-wide instead: PostgREST caps
+  // a read at max_rows (1000) without saying so, which a large show's jobs could exceed.
+  const results = (await Promise.all(
+    chunk(args.entryIds, ID_CHUNK_SIZE).map(ids =>
+      args.supabase
+        .from<EntryDecisionJobRow[]>('show_lifecycle_email_jobs')
+        .select(
+          'id, entry_id, step_type, status, subject, body, secretary_note, due_at, prepared_at, sent_at, correction_for_job_id'
+        )
+        .eq('show_id', args.showId)
+        .in('entry_id', ids)
+        .in('step_type', ['accepted', 'waitlisted'])
     )
-    .eq('show_id', args.showId)
-    .in('step_type', ['accepted', 'waitlisted'])) as QueryResult<EntryDecisionJobRow[]>;
+  )) as QueryResult<EntryDecisionJobRow[]>[];
 
-  if (result.error) {
-    throw new Error(result.error.message ?? 'Failed to load entry decision email status');
+  const failed = results.find(result => result.error);
+  if (failed?.error) {
+    throw new Error(failed.error.message ?? 'Failed to load entry decision email status');
   }
 
-  const requestedEntryIds = new Set(args.entryIds);
   const statuses: Record<string, EntryDecisionEmailStatus> = {};
-  for (const row of result.data ?? []) {
-    if (!row.entry_id || !requestedEntryIds.has(row.entry_id)) continue;
+  for (const row of results.flatMap(result => result.data ?? [])) {
+    if (!row.entry_id) continue;
     const job = mapEntryDecisionJob(row, row.entry_id);
     const status = (statuses[row.entry_id] ??= {
       entryId: row.entry_id,

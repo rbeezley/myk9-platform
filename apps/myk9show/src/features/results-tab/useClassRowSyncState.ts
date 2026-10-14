@@ -101,7 +101,7 @@ export function classRowSyncBlockedReason(state: ClassRowSyncState | null): stri
   // Unknown is pending, not settled: the first read has not landed (or the queue was unreadable).
   if (state === null) return 'Checking this class…';
   if (state === 'unreadable') {
-    return "Can't read this device's saved changes. Reload the page; if it keeps happening, the check can be saved from another device.";
+    return 'Still checking this class. If this message stays, reload the page.';
   }
   if (state === 'conflict') {
     // The notice can be closed, and a reload raises it again, so say so: never a dead end.

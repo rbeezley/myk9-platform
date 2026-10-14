@@ -16,7 +16,7 @@ describe('classRowSyncBlockedReason', () => {
 
   it('says honestly when the queue cannot be read', () => {
     expect(classRowSyncBlockedReason('unreadable')).toMatch(
-      /Can't read this device's saved changes/
+      /Still checking this class. If this message stays, reload the page./
     );
   });
 

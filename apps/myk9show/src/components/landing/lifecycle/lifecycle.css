@@ -403,7 +403,7 @@
   }
   .landing-v2 .lc-row[data-peak='true'] .lc-main {
     margin: 1rem 0 1.5rem;
-    padding: 1.5rem;
+    padding: clamp(0.875rem, 4vw, 1.5rem);
   }
   .landing-v2 .lc-row[data-peak='true'] .lc-meanwhile {
     padding-top: 0;

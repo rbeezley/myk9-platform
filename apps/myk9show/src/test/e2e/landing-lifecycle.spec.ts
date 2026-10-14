@@ -433,6 +433,48 @@ test('header fits the narrowest phones', async ({ page }) => {
   }
 });
 
+// Every in-flow element fits inside its parent's content box and the screen, in both
+// audiences. Absolutely positioned decorations and the timeline rail are exempt; a parent
+// that clips (overflow other than visible) owns its own overflow.
+test('nothing spills out of its box on narrow phones', async ({ page }) => {
+  for (const width of [320, 360]) {
+    await page.setViewportSize({ width, height: 740 });
+    await openLanding(page);
+    for (const audience of ['club', 'exhibitor']) {
+      if (audience === 'exhibitor') {
+        await page.getByRole('button', { name: /entering a show/i }).click();
+      }
+      const spills = await page.evaluate(() => {
+        const out: string[] = [];
+        const vw = document.documentElement.clientWidth;
+        let checked = 0;
+        for (const el of document.querySelectorAll<HTMLElement>('.landing-v2 *')) {
+          if (el.closest('svg, .lc-rail')) continue;
+          const cs = getComputedStyle(el);
+          if (cs.display === 'none' || cs.position === 'absolute' || cs.position === 'fixed')
+            continue;
+          const r = el.getBoundingClientRect();
+          if (!r.width) continue;
+          checked++;
+          const parent = el.parentElement!;
+          const pcs = getComputedStyle(parent);
+          const pr = parent.getBoundingClientRect();
+          const left = pr.left + parseFloat(pcs.paddingLeft) + parseFloat(pcs.borderLeftWidth);
+          const right = pr.right - parseFloat(pcs.paddingRight) - parseFloat(pcs.borderRightWidth);
+          const clips = pcs.overflowX !== 'visible';
+          const label = `${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]}`;
+          if (r.right > vw + 0.5 || r.left < -0.5) out.push(`${label} leaves the screen`);
+          else if (!clips && (r.right - right > 1.5 || left - r.left > 1.5))
+            out.push(`${label} is ${Math.round(r.width)}px in a ${Math.round(right - left)}px box`);
+        }
+        return { out: [...new Set(out)], checked };
+      });
+      expect(spills.checked, 'measured nothing').toBeGreaterThan(100);
+      expect(spills.out, `${width}px ${audience}`).toEqual([]);
+    }
+  }
+});
+
 test('og image is a real image', async ({ request }) => {
   const res = await request.get('/og-image.jpg');
   expect(res.status()).toBe(200);

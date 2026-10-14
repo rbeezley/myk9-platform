@@ -73,6 +73,7 @@
 }
 .landing-v2 .lc-demo-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
@@ -167,7 +168,7 @@
 }
 .landing-v2 .lc-demo-start {
   min-height: 60px;
-  min-width: 190px;
+  width: min(190px, 100%);
   padding: 0 1.75rem;
   border: 0;
   border-radius: 999px;
@@ -231,6 +232,24 @@
   font-size: 1.0625rem;
   font-weight: 600;
   color: var(--ink-900);
+}
+/* Phones: the demo sits inside the show-day card beside the timeline rail, so the
+   tablet bezel and inner padding shrink and the clock scales with the screen. */
+@media (max-width: 480px) {
+  .landing-v2 .lc-demo-tablet {
+    padding: 8px;
+    border-radius: 20px;
+  }
+  .landing-v2 .lc-demo-screen {
+    padding: 0.75rem;
+  }
+  .landing-v2 .lc-demo-timer {
+    padding: 0.75rem 0.5rem;
+  }
+  .landing-v2 .lc-demo-clock {
+    font-size: clamp(1.75rem, 9vw, 3rem);
+    letter-spacing: 0;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .landing-v2 .lc-demo-switch,

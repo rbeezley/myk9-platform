@@ -47,7 +47,7 @@ vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: (table: string) => ({
-      select: (columns?: string) => {
+      select: () => {
         let after: string | undefined;
         let limit: number | undefined;
         const chain: Record<string, unknown> = {};
@@ -158,7 +158,6 @@ describe('dog roster reads, server first (MYK9-1139)', () => {
 
   beforeEach(() => {
     server.dogs = { data: [], error: null, count: null };
-    server.idsOnServer = [];
     server.registrations = { data: [], error: null };
     server.pages = [];
     server.beforePage = undefined;

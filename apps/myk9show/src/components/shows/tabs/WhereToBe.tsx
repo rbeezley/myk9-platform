@@ -6,11 +6,7 @@ import { formatRunQueueState } from '@myk9/ringside/run-queue';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
 import { useMyEntryQueuePlaces, type QueuePlaces } from '@/hooks/queries/useMyEntryQueuePlaces';
 import { useShowTrials } from '@/hooks/queries/useShowTrials';
-import {
-  CHECK_IN_ON_THE_DAY_LABEL,
-  isTrialDayAhead,
-  isTrialDayPast,
-} from '@/pages/MyEntriesPage/modules/dayCheckIn';
+import { isTrialDayAhead, isTrialDayPast } from '@/pages/MyEntriesPage/modules/dayCheckIn';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { withServerPlace } from '@/utils/showEntryRunQueue';
 import { formatFaultCount } from '@/features/_shared/faultLabel';
@@ -140,8 +136,11 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
     ? null
     : entry.checkInStatus
       ? entry.checkInStatus === 'no-status'
-        ? futureDay
-          ? CHECK_IN_ON_THE_DAY_LABEL
+        ? // MYK9-1173: a future day makes no claim at all. Whether check-in will
+          // be offered (status, self check-in) is My Shows' call, so saying
+          // "Check in on the day" here could contradict it.
+          futureDay
+          ? null
           : 'Not checked in'
         : getStatusDescriptor('entry', entry.checkInStatus).label
       : 'Check-in pending';

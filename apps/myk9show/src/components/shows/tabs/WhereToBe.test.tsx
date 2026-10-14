@@ -460,7 +460,7 @@ describe('WhereToBe', () => {
       { id: 'e-fri', trialDate: '2026-10-16', dayLabel: 'Friday, Oct 16' },
     ];
 
-    it('says "Next up" only on today and "Check in on the day" on future days', () => {
+    it('says "Next up" only on today and makes no claim on future days', () => {
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(new Date('2026-10-14T15:00:00Z'));
       mockTrials.data = [{ id: 't1', timezone: 'America/Chicago' }];
@@ -481,13 +481,12 @@ describe('WhereToBe', () => {
         />
       );
       expect(screen.getAllByText(/next up/i)).toHaveLength(1);
-      expect(screen.getAllByText('Check in on the day')).toHaveLength(2);
-      // Today keeps its check-in state; future rows do not claim "Not checked in".
+      expect(screen.queryByText('Check in on the day')).not.toBeInTheDocument();
+      // Today keeps its check-in state; future rows make no check-in claim.
       expect(screen.getAllByText('Not checked in')).toHaveLength(1);
       const links = screen.getAllByRole('link');
       expect(links[0].getAttribute('aria-label')).toMatch(/next up/i);
       expect(links[1].getAttribute('aria-label')).not.toMatch(/next up|not checked in/i);
-      expect(links[1].getAttribute('aria-label')).toMatch(/check in on the day/i);
     });
 
     it('keeps a future row that already has a real check-in state', () => {
@@ -528,7 +527,8 @@ describe('WhereToBe', () => {
           showId={SHOW_ID}
         />
       );
-      expect(screen.getByText('Check in on the day')).toBeInTheDocument();
+      expect(screen.queryByText(/next up/i)).not.toBeInTheDocument();
+      expect(screen.queryByText('Not checked in')).not.toBeInTheDocument();
     });
   });
 });

@@ -76,8 +76,8 @@ export function useRegistrationNumberNeededEmail({
   const stepEnabled = summaryQuery.data !== undefined && isStepOn(summaryQuery.data.steps);
 
   const countsKey = useMemo(() => ['registration-number-needed-jobs', showId ?? 'none'], [showId]);
-  // One read for the whole list. While it is pending or offline every row reads as the first
-  // email; the send recounts before saving, so the idempotency key is still right.
+  // One read for the whole list, used only for the button label. While it is pending or
+  // offline every row reads "Email exhibitor"; the server decides what each send is.
   const countsQuery = useQuery({
     queryKey: countsKey,
     queryFn: () =>

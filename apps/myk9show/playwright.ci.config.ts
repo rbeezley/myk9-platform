@@ -154,6 +154,12 @@ const REGRESSION_SPECS = [
   // dedupe). Stateful and local-only: it calls the real cron-waitlist-expiration function on the
   // isolated target's edge runtime and restores the seed's full-class fixture in afterAll.
   '**/secretary/waitlistJourney.spec.ts',
+  // MYK9-1162: number-first Add Dog (an existing dog found by its number, a no-number dog entered
+  // as a held entry listed under Registration number needed, kept off the run sheet, released by
+  // adding its number) and the exhibitor's phone-width "number belongs to another owner" message.
+  // Stateful and local-only: skips unless MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true, service-role
+  // setup refuses any non-local host, and its dogs and entries are removed in afterAll.
+  '**/secretary/numberFirstAddDogJourney.spec.ts',
   // MYK9-1120: the only end-to-end proof of mail-in create (Add Person, Add Dog, Add New
   // Registration, Review, Complete in the one Quick Create slide-out). Every person, dog and
   // registration write is answered by the spec's own route mocks, so nothing persists and the

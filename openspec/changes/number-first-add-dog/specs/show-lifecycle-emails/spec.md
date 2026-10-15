@@ -20,6 +20,11 @@ The system SHALL provide a "Registration number needed" lifecycle step. It SHALL
 - **WHEN** the secretary chooses "Send reminder" on a row that already has an email
 - **THEN** a new previewed email for that entry is prepared and sent on confirmation, and its delivery is recorded in lifecycle email history
 
+#### Scenario: A retried send is the same email
+
+- **WHEN** the secretary presses Send again in the same preview because the first response never arrived
+- **THEN** no second email is delivered: an email already sent answers as sent, and one still waiting or failed is sent as itself
+
 #### Scenario: No email address on file
 
 - **WHEN** the entry's exhibitor has no email address

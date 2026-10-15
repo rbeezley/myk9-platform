@@ -9,8 +9,9 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
  * "Registration number needed" view (MYK9-1162).
  *
  * Reads only what the cockpit and the device already hold: the page's loaded
- * entries, the show's trials, and the replica-backed dog roster with each dog's
- * registrations. No read of its own, so it works offline. `count` is undefined
+ * entries (each carrying the server's held flag), the show's trials (for the
+ * registry to name) and the replica-backed dog roster (for the Add registration
+ * action). No read of its own, so it works offline. `count` is undefined
  * until the trials and roster have both loaded, so the menu shows no badge
  * rather than a confident 0.
  */

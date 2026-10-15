@@ -11,20 +11,25 @@
  *
  * `null` until the first read for THIS class and when the queue cannot be read: unknown is not
  * "settled". `classRowSyncBlockedReason(null)` keeps Verify disabled with quiet "Checking this
- * class…" copy, and a failed read re-checks on the same timer as a waiting class (never a dead end).
+ * class…" copy, and an unknown class re-checks on the same timer as a waiting class (never a dead end), and after
+ * UNREADABLE_AFTER_MS without a successful read (rejected or hung) the copy says why.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /** How often a class waiting to sync is re-read; see the effect below. */
 const WAITING_RECHECK_MS = 1_500;
 
 import { replicatedClassesTable } from '@/services/replication';
 
-/** `'unreadable'`: the queue read has failed repeatedly; it is still re-checked on a timer. */
+/** `'unreadable'`: no read has succeeded for a while (failed or hung); it is still re-checked on a timer. */
 export type ClassRowSyncState = 'settled' | 'waiting' | 'conflict' | 'unreadable';
 
-/** Consecutive failed reads of one class before the copy stops saying "Checking" and says why. */
-const UNREADABLE_AFTER_FAILURES = 3;
+/**
+ * How long a class may go without a successful read before the copy stops saying "Checking" and
+ * says why. Time, not failure count: a read that never settles (IndexedDB blocked by a stalled
+ * upgrade or another tab) never rejects, so a count would never reach it (MYK9-1190).
+ */
+const UNREADABLE_AFTER_MS = 5_000;
 
 export async function readClassRowSyncState(
   classId: string
@@ -35,63 +40,90 @@ export async function readClassRowSyncState(
 }
 
 export function useClassRowSyncState(classId: string | null): ClassRowSyncState | null {
-  // `value` null means the last read threw; `failures` counts consecutive throws for this class
-  // and a successful read resets it.
+  // `value` null means the last read threw; it is set only by a read that settled.
   const [state, setState] = useState<{
     classId: string;
     value: Exclude<ClassRowSyncState, 'unreadable'> | null;
-    failures: number;
   } | null>(null);
   const [notices, setNotices] = useState(0);
+  // The class whose reads have gone UNREADABLE_AFTER_MS without succeeding. Reset on class change.
+  const [stalledId, setStalledId] = useState<string | null>(null);
+  const [prevClassId, setPrevClassId] = useState(classId);
+  if (prevClassId !== classId) {
+    setPrevClassId(classId);
+    setStalledId(null);
+  }
+  // Reads are keyed by class, not by effect run, so a re-run never discards a pending read for
+  // the same class, and a read for a previous class never applies.
+  const classIdRef = useRef(classId);
+  const inFlightRef = useRef<string | null>(null);
+  const rerunRef = useRef(false);
+
+  useEffect(() => {
+    classIdRef.current = classId;
+  }, [classId]);
 
   useEffect(
     () =>
-      replicatedClassesTable.subscribe(() => setNotices(count => count + 1), {
-        emitCurrent: false,
-      }),
+      replicatedClassesTable.subscribe(
+        () => {
+          // A change notice while a read hangs must not be lost: re-read once that read ends.
+          if (inFlightRef.current) rerunRef.current = true;
+          setNotices(count => count + 1);
+        },
+        { emitCurrent: false }
+      ),
     []
   );
 
   useEffect(() => {
-    if (!classId) return;
-    let cancelled = false;
+    // One read at a time per class: a hung read must not pile up behind the re-check timer.
+    if (!classId || inFlightRef.current === classId) return;
+    inFlightRef.current = classId;
     void (async () => {
       try {
         const value = await readClassRowSyncState(classId);
-        if (!cancelled) setState({ classId, value, failures: 0 });
+        if (classIdRef.current === classId) {
+          setState({ classId, value });
+          setStalledId(null);
+        }
       } catch {
-        if (!cancelled) {
-          setState(prev => ({
-            classId,
-            value: null,
-            failures: prev?.classId === classId ? prev.failures + 1 : 1,
-          }));
+        if (classIdRef.current === classId) setState({ classId, value: null });
+      } finally {
+        if (inFlightRef.current === classId) inFlightRef.current = null;
+        if (rerunRef.current && classIdRef.current === classId) {
+          rerunRef.current = false;
+          setNotices(count => count + 1);
         }
       }
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [classId, notices]);
 
   // Keyed by class id so a read for the previous class can never stand in for this one.
   const current = classId && state?.classId === classId ? state : null;
-  const failed = (current?.failures ?? 0) > 0;
+  const known = current?.value ?? null;
+
+  // Escalate by elapsed time while the class has no successful read, whether reads reject or hang.
+  useEffect(() => {
+    if (!classId || known !== null) return;
+    const timer = setTimeout(() => setStalledId(classId), UNREADABLE_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, [classId, known]);
+
   const value: ClassRowSyncState | null =
-    current && current.failures >= UNREADABLE_AFTER_FAILURES
-      ? 'unreadable'
-      : (current?.value ?? null);
+    known === null && classId && stalledId === classId ? 'unreadable' : known;
 
   // Some transitions empty this class's queue without a classes-table notice: Take theirs
   // discards the queued write after its replace has notified, and an upload ack marks the row
   // synced with a raw write. Event-driven alone, Verify could stay on "waiting" for a change
   // that will never sync, so re-read on a short timer while, and only while, the class waits.
-  // A failed read re-checks the same way, so an unreadable queue is retried, not left stuck.
+  // An unknown class re-checks the same way, so an unreadable queue is retried, not left stuck.
+  const recheck = !!classId && (known === null || known === 'waiting');
   useEffect(() => {
-    if (value !== 'waiting' && !failed) return;
+    if (!recheck) return;
     const timer = setTimeout(() => setNotices(count => count + 1), WAITING_RECHECK_MS);
     return () => clearTimeout(timer);
-  }, [value, failed, notices]);
+  }, [recheck, notices]);
 
   return value;
 }

@@ -21,7 +21,11 @@ import { databaseManager, REPLICATION_STORES, type PendingMutation } from '@myk9
 
 interface FakeSession {
   access_token: string;
-  user: { id: string; is_anonymous?: boolean };
+  user: {
+    id: string;
+    is_anonymous?: boolean;
+    app_metadata?: { kind: string; show_id: string; ringside_role: string };
+  };
 }
 
 interface RpcCall {
@@ -61,9 +65,15 @@ vi.mock('@/services/LoggingService', () => ({
 
 vi.mock('@/services/database/persistedAuthUserId', () => ({
   readPersistedAuthUserId: () => fake.persistedUserId,
+  // The persisted session is the live fake one: that is what supabase-js stores.
+  readPersistedAuthIsAnonymous: (authUserId: string) => {
+    const user = (fake.session as FakeSession | null)?.user;
+    return user?.id === authUserId && user.is_anonymous === true;
+  },
 }));
 
 import { mutationManager } from '../sharedMutationManager';
+import { adoptHeldRingsideScores, countHeldRingsideScores } from '../heldRingsideScores';
 import { setDeviceOnline } from './registrationQueueHarness';
 
 let tokenCounter = 0;
@@ -72,11 +82,23 @@ const nextToken = (): string => `token-${++tokenCounter}`;
 const JWT_EXPIRED = { code: 'PGRST301', message: 'JWT expired', details: null, hint: null };
 const SCORE_RPC = { name: 'ringside_update_entry', fields: { result_status: 'qualified' } };
 
-function signIn(userId: string, options: { anonymous?: boolean } = {}): string {
+function signIn(userId: string, options: { anonymous?: boolean; claimShow?: string } = {}): string {
   const token = nextToken();
   const session: FakeSession = {
     access_token: token,
-    user: { id: userId, ...(options.anonymous ? { is_anonymous: true } : {}) },
+    user: {
+      id: userId,
+      ...(options.anonymous ? { is_anonymous: true } : {}),
+      ...(options.claimShow
+        ? {
+            app_metadata: {
+              kind: 'ringside_passcode',
+              show_id: options.claimShow,
+              ringside_role: 'judge',
+            },
+          }
+        : {}),
+    },
   };
   fake.session = session;
   fake.sessionError = null;
@@ -95,7 +117,7 @@ function refreshFails(): void {
   fake.sessionError = new Error('AuthRetryableFetchError');
 }
 
-async function queueScore(entryId: string): Promise<string> {
+async function queueScore(entryId: string, showId = 'show-x'): Promise<string> {
   return mutationManager.queueMutation(
     'entries',
     'UPDATE',
@@ -104,7 +126,9 @@ async function queueScore(entryId: string): Promise<string> {
     undefined,
     undefined,
     SCORE_RPC,
-    false
+    false,
+    undefined,
+    showId
   );
 }
 
@@ -364,14 +388,15 @@ describe('D. passcode ringside (anonymous session with a show claim)', () => {
   });
 
   // An anonymous user cannot be signed back in: passcode re-entry mints a NEW
-  // user (`signInAnonymously` in pages/ringsideAnonSession.ts), so the old
-  // user's queue is held for good. It is kept and counted, never sent as anon-2.
+  // user (`signInAnonymously` in pages/ringsideAnonSession.ts). Owner isolation
+  // holds the old user's queue; it is kept and counted, never sent as anon-2,
+  // until the owner says yes to adopting it (MYK9-1205, below).
   it('holds scores queued under a dead anonymous user when the passcode is re-entered as a new one', async () => {
-    signIn('anon-1', { anonymous: true });
+    signIn('anon-1', { anonymous: true, claimShow: 'show-x' });
     await queueScore('e1');
 
     signOutSession();
-    const token = signIn('anon-2', { anonymous: true });
+    const token = signIn('anon-2', { anonymous: true, claimShow: 'show-x' });
     // Positive control: anon-2's own score goes out on this same setup.
     await queueScore('e2');
     await mutationManager.uploadPendingMutations();
@@ -381,5 +406,127 @@ describe('D. passcode ringside (anonymous session with a show claim)', () => {
     expect(await pending()).toMatchObject([{ rowId: 'e1', authUserId: 'anon-1', retries: 0 }]);
     expect(await mutationManager.getPendingCount()).toBe(1);
     expect(await mutationManager.getFailedMutations()).toEqual([]);
+  });
+});
+
+describe('E. a fresh passcode session adopts held scores for the same show, after a yes (MYK9-1205)', () => {
+  /** anon-1 (show-x claim) queues e1 + e2 (show-x) and e3 (show-y); a signed-in judge queues e4 (show-x). */
+  async function strandQueueThenReenterPasscode(claimShow = 'show-x'): Promise<string> {
+    signIn('anon-1', { anonymous: true, claimShow: 'show-x' });
+    await queueScore('e1');
+    await queueScore('e2');
+    await queueScore('e3', 'show-y');
+    signOutSession();
+    signIn('judge-1');
+    await queueScore('e4');
+    signOutSession();
+    return signIn('anon-2', { anonymous: true, claimShow });
+  }
+  const ownerOf = async () =>
+    Object.fromEntries((await pending()).map(row => [row.rowId, row.authUserId]));
+
+  it('counts only anonymous-owned scores for the claimed show, and sends nothing before a yes', async () => {
+    await strandQueueThenReenterPasscode();
+
+    expect(await countHeldRingsideScores()).toBe(2);
+    await mutationManager.uploadPendingMutations();
+
+    expect(fake.rpcCalls).toEqual([]);
+    expect(await ownerOf()).toEqual({ e1: 'anon-1', e2: 'anon-1', e3: 'anon-1', e4: 'judge-1' });
+    expect(await mutationManager.getPendingCount()).toBe(4);
+  });
+
+  it('uploads the adopted scores on the NEW token after a yes; other shows and signed-in owners stay held', async () => {
+    const token = await strandQueueThenReenterPasscode();
+
+    expect(await adoptHeldRingsideScores()).toBe(2);
+    await mutationManager.uploadPendingMutations();
+
+    expect(sentTo(fake.rpcCalls)).toEqual([
+      [token, 'e1'],
+      [token, 'e2'],
+    ]);
+    expect(await ownerOf()).toEqual({ e3: 'anon-1', e4: 'judge-1' });
+    expect(await countHeldRingsideScores()).toBe(0);
+    expect(await failed()).toEqual([]);
+  });
+
+  it('leaves everything held and counted after a no, and can still be offered later', async () => {
+    await strandQueueThenReenterPasscode();
+
+    // No adopt call: that is "Not now". Held, visible, and still offerable.
+    await mutationManager.uploadPendingMutations();
+    expect(fake.rpcCalls).toEqual([]);
+    expect(await countHeldRingsideScores()).toBe(2);
+    expect(await ownerOf()).toEqual({ e1: 'anon-1', e2: 'anon-1', e3: 'anon-1', e4: 'judge-1' });
+
+    // Changing their mind later (the banner's Review) still works.
+    expect(await adoptHeldRingsideScores()).toBe(2);
+  });
+
+  it('adopts for the show the NEW claim covers, never another', async () => {
+    const token = await strandQueueThenReenterPasscode('show-y');
+
+    expect(await countHeldRingsideScores()).toBe(1);
+    expect(await adoptHeldRingsideScores()).toBe(1);
+    await mutationManager.uploadPendingMutations();
+
+    expect(sentTo(fake.rpcCalls)).toEqual([[token, 'e3']]);
+    expect(await ownerOf()).toEqual({ e1: 'anon-1', e2: 'anon-1', e4: 'judge-1' });
+  });
+
+  it('adopts nothing for a signed-in account, even one holding the same show', async () => {
+    await strandQueueThenReenterPasscode();
+    signOutSession();
+    signIn('judge-2');
+
+    expect(await countHeldRingsideScores()).toBe(0);
+    expect(await adoptHeldRingsideScores()).toBe(0);
+    expect(await ownerOf()).toEqual({ e1: 'anon-1', e2: 'anon-1', e3: 'anon-1', e4: 'judge-1' });
+  });
+
+  it('never adopts a row queued before the stamps existed, a dead letter, or a non-ringside mutation', async () => {
+    const token = await strandQueueThenReenterPasscode();
+    const db = await databaseManager.getDatabase('MutationManager');
+    const [e1, e2] = await pending();
+    // e1 predates the stamps; e2 is a direct (non-RPC) write.
+    const { ownerIsAnonymous: _o, showId: _s, ...legacy } = e1;
+    void _o;
+    void _s;
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, legacy);
+    const { rpc: _r, ...direct } = e2;
+    void _r;
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, direct);
+    await db.put(REPLICATION_STORES.FAILED_MUTATIONS, {
+      ...e1,
+      id: 'dead-letter',
+      status: 'failed',
+      ownerIsAnonymous: true,
+      showId: 'show-x',
+    });
+
+    expect(await adoptHeldRingsideScores()).toBe(0);
+    expect(fake.rpcCalls.filter(call => call.token === token)).toEqual([]);
+    expect((await failed()).map(row => [row.id, row.authUserId])).toEqual([
+      ['dead-letter', 'anon-1'],
+    ]);
+  });
+
+  it("does not count the new session's own scores, a different RPC, or a row not in the pending state", async () => {
+    await strandQueueThenReenterPasscode();
+    await queueScore('own');
+    const db = await databaseManager.getDatabase('MutationManager');
+    const rows = await pending();
+    const e1 = rows.find(row => row.rowId === 'e1') as PendingMutation;
+    const e2 = rows.find(row => row.rowId === 'e2') as PendingMutation;
+    // e1 is a ringside-looking write to some OTHER function; e2 is not in the pending state.
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
+      ...e1,
+      rpc: { name: 'mark_classes_judge_signed_off', args: {} },
+    });
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, { ...e2, status: 'failed' });
+
+    expect(await countHeldRingsideScores()).toBe(0);
+    expect(await adoptHeldRingsideScores()).toBe(0);
   });
 });

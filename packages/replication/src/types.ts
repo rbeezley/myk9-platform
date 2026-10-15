@@ -154,6 +154,13 @@ export interface PendingMutation {
   /** Auth user that created this durable write. Optional only for legacy rows
    *  persisted before owner isolation shipped; new mutations require it. */
   authUserId?: string;
+  /** True when `authUserId` was a passcode (anonymous) session at enqueue time
+   *  (MYK9-1205). Only such rows can be adopted by a later anonymous session for
+   *  the same show. Absent on rows queued before the stamp existed: never adoptable. */
+  ownerIsAnonymous?: boolean;
+  /** The show a ringside RPC mutation belongs to, stamped at enqueue (MYK9-1205).
+   *  Scopes adoption to the show a fresh passcode claim covers. Absent: never adoptable. */
+  showId?: string;
   tableName: string;
   operation: MutationOperation;
   rowId: string; // ID of affected row

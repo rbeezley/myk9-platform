@@ -46,3 +46,33 @@ export function readPersistedAuthUserId(
     return null;
   }
 }
+
+/**
+ * Whether the persisted session is for `authUserId` AND that user is anonymous
+ * (a passcode session), for the queue's anonymous-owner stamp (MYK9-1205). False
+ * on any doubt: an unreadable store, another account's session, a missing flag.
+ */
+export function readPersistedAuthIsAnonymous(
+  authUserId: string,
+  storage: ReadableStorage | undefined = typeof window === 'undefined'
+    ? undefined
+    : window.localStorage,
+  storageKey?: string
+): boolean {
+  try {
+    const key = storageKey ?? deriveDefaultAuthStorageKey(import.meta.env.VITE_SUPABASE_URL || '');
+    const raw = storage?.getItem(key);
+    if (!raw) return false;
+    const parsed: unknown = JSON.parse(raw);
+    const user =
+      (parsed as { user?: unknown; currentSession?: { user?: unknown } } | null)?.user ??
+      (parsed as { currentSession?: { user?: unknown } } | null)?.currentSession?.user;
+    const { id, is_anonymous: isAnonymous } = (user ?? {}) as {
+      id?: unknown;
+      is_anonymous?: unknown;
+    };
+    return id === authUserId && isAnonymous === true;
+  } catch {
+    return false;
+  }
+}

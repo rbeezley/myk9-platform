@@ -182,6 +182,7 @@ export { describeError, UNKNOWN_ERROR_MESSAGE } from './error-message';
 // MutationManager
 export { MutationManager } from './MutationManager';
 export type { MutationManagerOptions, MutationUploadAuthContext } from './MutationManager';
+export type { AdoptHeldMutationsOptions } from './mutation-adopt';
 
 // Perf instrumentation
 export { markPerf, measurePerf } from './perf';

@@ -284,6 +284,26 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * The show a ringside RPC mutation on this row belongs to, stamped at enqueue
+   * so a fresh passcode session can adopt it (MYK9-1205). Defaults to the stored
+   * row's own show id; tables whose rows reach a show another way override it.
+   * Undefined means the mutation is never adoptable, the safe default.
+   */
+  protected async resolveMutationShowId(rowId: string): Promise<string | undefined> {
+    try {
+      const db = await databaseManager.getDatabase(this.tableName);
+      const row = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+        this.tableName,
+        String(rowId),
+      ])) as ReplicatedRow<Record<string, unknown>> | undefined;
+      const showId = row?.data?.showId ?? row?.data?.show_id;
+      return typeof showId === 'string' && showId.length > 0 ? showId : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
    * Queue a mutation for upload to Supabase.
    * Subclasses call this after set() with the Supabase-format payload.
    */
@@ -345,7 +365,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
         serverVersion,
         rpc,
         !deferUpload,
-        rowRevision
+        rowRevision,
+        rpc ? await this.resolveMutationShowId(rowId) : undefined
       );
       queueSucceeded = true;
       return mutationId;

@@ -128,7 +128,8 @@ export class MutationQueueStore {
     dependsOn?: string[],
     serverVersion?: number,
     rpc?: PendingMutation['rpc'],
-    rowRevision?: number
+    rowRevision?: number,
+    adoption: Pick<PendingMutation, 'ownerIsAnonymous' | 'showId'> = {}
   ): Promise<string> {
     const db = await databaseManager.getDatabase('MutationManager');
     const sequenceNumber = await this.nextSequenceNumber(db);
@@ -136,6 +137,8 @@ export class MutationQueueStore {
     const mutation: PendingMutation = {
       id,
       authUserId,
+      ...(adoption.ownerIsAnonymous === true && { ownerIsAnonymous: true }),
+      ...(adoption.showId !== undefined && { showId: adoption.showId }),
       tableName,
       operation,
       rowId,

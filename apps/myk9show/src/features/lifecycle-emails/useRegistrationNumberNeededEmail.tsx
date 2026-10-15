@@ -5,18 +5,11 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { LifecycleEmailPreviewDialog } from './LifecycleEmailPreviewDialog';
-import {
-  fetchShowLifecycleEmailSummary,
-  saveLifecycleEmailJobForLater,
-  sendLifecycleEmailJobs,
-  skipLifecycleEmailJobsForReview,
-  type LifecycleEmailSupabaseClient,
-} from './api';
+import { fetchShowLifecycleEmailSummary, type LifecycleEmailSupabaseClient } from './api';
 import {
   REGISTRATION_NUMBER_NEEDED_STEP,
-  buildRegistrationNumberNeededIdempotencyKey,
-  readRegistrationNumberNeededHistory,
   fetchRegistrationNumberNeededJobCounts,
+  sendRegistrationNumberNeededEmail,
 } from './registrationNumberNeeded';
 
 /** An entry awaiting a registration number, with the registry the number is for. */
@@ -52,12 +45,11 @@ export const hasContactEmail = (entry: Pick<EntryManagementEntry, 'ownerEmail'>)
   Boolean(entry.ownerEmail?.trim());
 
 /**
- * The "registration number needed" email (MYK9-1162), on the
- * `useEntryDecisionLifecycleEmails` pattern and the same preview dialog: the
- * secretary reads the email, then sends or skips it. Closing a preview whose job
- * was already saved marks that job skipped, so no stale ready job can be batch-sent
- * later. Sending is online-only, like every lifecycle send; the edge function
- * re-checks that the entry is still held.
+ * The "registration number needed" email (MYK9-1162): the same preview dialog as the
+ * decision emails, but the preview is text only. Send hands the reviewed text to ONE
+ * server action that decides everything else (authorization, the step switch, whether the
+ * entry is still held, the owner's current address, replacing an earlier unsent email).
+ * Skip and close save nothing and call nothing. Sending is online-only.
  */
 export function useRegistrationNumberNeededEmail({
   showId,
@@ -95,50 +87,31 @@ export function useRegistrationNumberNeededEmail({
   const nextIdRef = useRef(0);
   // A synchronous guard per prompt: two quick Send clicks must not both pass the state check.
   const sendingIdsRef = useRef(new Set<number>());
-  // The job a prompt already saved. A retry after a failed send re-sends THIS job: saving
-  // again would add a second sendable job under a new reminder key.
-  const savedJobIdsRef = useRef(new Map<number, string>());
   const current = queue[0] ?? null;
-  const toPrompt = (target: RegistrationNumberNeededTarget): Prompt => {
-    nextIdRef.current += 1;
-    return { id: nextIdRef.current, target };
-  };
-  const closePrompt = (id: number) => {
-    savedJobIdsRef.current.delete(id);
+  const closePrompt = (id: number) =>
     setQueue(previous => previous.filter(prompt => prompt.id !== id));
+  // Skip and close. The preview holds no saved job, so there is nothing to withdraw; while a
+  // send is in flight it is ignored (the send finishes and closes its own preview).
+  const dismissPrompt = (id: number) => {
+    if (sendingIdsRef.current.has(id)) return;
+    closePrompt(id);
   };
-  // Skip and dismiss. A job this prompt already saved but did not deliver is marked skipped
-  // first, so it cannot be batch-sent later from Scheduled emails. If that fails the preview
-  // stays open and says so: dropping it would leave the sendable job behind unnoticed.
-  // Every read of these jobs: the row's label, the Scheduled emails summary and its
-  // Review list (whose cache would otherwise show a replaced or skipped email).
+  // Every read of these jobs: the row's label, the Scheduled emails summary and its Review
+  // list (whose cache would otherwise show a replaced or skipped email).
   const invalidateJobReads = () => {
     void queryClient.invalidateQueries({ queryKey: summaryKey });
     void queryClient.invalidateQueries({ queryKey: countsKey });
     void queryClient.invalidateQueries({ queryKey: ['show-lifecycle-email-review', showId] });
   };
 
-  const dismissPrompt = async (id: number) => {
-    // Never mid-send: withdrawing the job while its send is in flight would race the
-    // send for the job's final state. The send finishes (and closes it) first.
-    if (sendingIdsRef.current.has(id)) return;
-    const savedJobId = savedJobIdsRef.current.get(id);
-    if (savedJobId) {
-      try {
-        await skipLifecycleEmailJobsForReview({ supabase: lifecycleClient, jobIds: [savedJobId] });
-      } catch {
-        toast.error("The saved email couldn't be withdrawn. Try Skip again.");
-        return;
-      }
-      invalidateJobReads();
-    }
-    closePrompt(id);
-  };
-
   const openEmail = (target: RegistrationNumberNeededTarget) => {
     if (!stepEnabled || !hasContactEmail(target.entry)) return;
-    // One preview at a time: the open one may hold a saved job that Skip must withdraw first.
-    setQueue(previous => (previous.length > 0 ? previous : [toPrompt(target)]));
+    // One preview at a time.
+    setQueue(previous => {
+      if (previous.length > 0) return previous;
+      nextIdRef.current += 1;
+      return [{ id: nextIdRef.current, target }];
+    });
   };
 
   const send = async (
@@ -150,66 +123,34 @@ export function useRegistrationNumberNeededEmail({
     setSendingId(id);
     const { entry } = target;
     try {
-      let jobId = savedJobIdsRef.current.get(id) ?? null;
-      if (!jobId) {
-        const historyArgs = { supabase: lifecycleClient, showId: entry.showId, entryId: entry.id };
-        const history = await readRegistrationNumberNeededHistory(historyArgs);
-        // The database allows ONE waiting or failed email per entry. If one exists it
-        // is the email to send: re-sending it is safe from double delivery, because
-        // every send carries the job's own idempotency key to the provider.
-        jobId = history.outstandingJobIds[0] ?? null;
-        if (!jobId) {
-          try {
-            jobId = await saveLifecycleEmailJobForLater({
-              supabase,
-              showId: entry.showId,
-              stepType: REGISTRATION_NUMBER_NEEDED_STEP,
-              recipientScope: 'entry',
-              entryId: entry.id,
-              recipientEmail: entry.ownerEmail,
-              recipientName: entry.ownerName,
-              subject: values.subject,
-              body: values.body,
-              secretaryNote: values.secretaryNote,
-              idempotencyKey: buildRegistrationNumberNeededIdempotencyKey({
-                showId: entry.showId,
-                entryId: entry.id,
-                priorCount: history.count,
-              }),
-            });
-          } catch (error) {
-            // Another tab or visit saved one first: the index refused ours. Use theirs.
-            const after = await readRegistrationNumberNeededHistory(historyArgs);
-            jobId = after.outstandingJobIds[0] ?? null;
-            if (!jobId) throw error;
-          }
-        }
-        if (!jobId) throw new Error('Lifecycle email job was not created');
-        savedJobIdsRef.current.set(id, jobId);
-      }
-      const result = await sendLifecycleEmailJobs({
+      const outcome = await sendRegistrationNumberNeededEmail({
         supabase,
         showId: entry.showId,
-        jobIds: [jobId],
+        entryId: entry.id,
         subject: values.subject,
         body: values.body,
         secretaryNote: values.secretaryNote,
       });
-      if (result.skipped) {
-        // The server skips when the entry is no longer held OR when it could not check;
-        // say only what is certain.
-        toast.info(
-          `No email was sent for ${entry.dogName}. Check the list: the number may already be on file.`
-        );
-      } else if (result.failed > 0) {
-        toast.error("The email couldn't be sent. It's still on the Scheduled emails list.");
-      } else {
+      if (outcome.status === 'sent') {
         toast.success('Registration number email sent');
+      } else if (outcome.status === 'failed') {
+        toast.error("The email couldn't be sent. Press Send reminder to try again.");
+      } else if (outcome.status === 'busy') {
+        toast.info(`An email for ${entry.dogName} is already being sent.`);
+      } else if (outcome.reason === 'not_held') {
+        toast.info(`No email was sent for ${entry.dogName}: the registration number is on file.`);
+      } else if (outcome.reason === 'unverified') {
+        toast.error(
+          `No email was sent for ${entry.dogName}: the registration number couldn't be checked. Try again.`
+        );
+      } else {
+        toast.info(`No email on file for ${entry.dogName}. Contact them by phone.`);
       }
       invalidateJobReads();
       closePrompt(id);
     } catch {
       toast.error('The email did not send. Try again.');
+      invalidateJobReads();
     } finally {
       sendingIdsRef.current.delete(id);
       setSendingId(previous => (previous === id ? null : previous));
@@ -221,7 +162,7 @@ export function useRegistrationNumberNeededEmail({
       key={current.id}
       open={true}
       onOpenChange={open => {
-        if (!open) void dismissPrompt(current.id);
+        if (!open) dismissPrompt(current.id);
       }}
       stepType={REGISTRATION_NUMBER_NEEDED_STEP}
       notNowLabel="Skip"
@@ -233,7 +174,7 @@ export function useRegistrationNumberNeededEmail({
         className: current.target.entry.classes[0]?.name ?? null,
         registryName: current.target.registryId ?? null,
       }}
-      onNotNow={() => void dismissPrompt(current.id)}
+      onNotNow={() => dismissPrompt(current.id)}
       onSend={values => send(current, values)}
     />
   ) : null;

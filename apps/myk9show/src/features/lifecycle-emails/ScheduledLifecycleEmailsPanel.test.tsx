@@ -147,9 +147,9 @@ describe('ScheduledLifecycleEmailsPanel', () => {
         {
           stepType: 'registration_number_needed',
           isEnabled: true,
-          readyCount: 0,
+          readyCount: 2,
           sentCount: 1,
-          failedCount: 0,
+          failedCount: 1,
           skippedCount: 0,
           dismissedCount: 0,
           warningCount: 0,
@@ -160,6 +160,9 @@ describe('ScheduledLifecycleEmailsPanel', () => {
 
     expect(await screen.findByText('Registration number needed')).toBeInTheDocument();
     expect(screen.getAllByRole('switch')).toHaveLength(3);
+    // Send-on-demand: the other steps (accepted: ready + failed jobs) offer Review, this one
+    // never does, even with ready and failed jobs of its own.
+    expect(screen.getAllByRole('button', { name: 'Review' })).toHaveLength(1);
 
     await user.click(screen.getByRole('switch', { name: /registration number needed enabled/i }));
 

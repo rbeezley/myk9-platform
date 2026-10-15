@@ -24,7 +24,7 @@ Both problems hit secretaries during entry season, so they matter for fall 2026 
   - is left out of the catalog, run order, printed judge sheets and the emergency trial packet until a number is added;
   - leaves that state on its own once the number is added, because nothing is stored to clear.
 - **"Registration number needed" lifecycle email.** A new per-show lifecycle step:
-  - sent from the Exceptions row with "Email exhibitor", previewed by the secretary like the accepted and waitlisted emails, and sent again with "Send reminder";
+  - sent from the Exceptions row with "Email exhibitor", previewed by the secretary like the accepted and waitlisted emails, and sent again with "Send reminder" (send on demand, one server step, never a Scheduled emails batch);
   - the row reads "No email on file. Contact by phone." when there is no address;
   - never sent once the number exists.
 - **Secretary guide.** Card 5 ("Add a mail-in entry") is updated to describe number-first Add Dog and held entries.

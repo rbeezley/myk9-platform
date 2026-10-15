@@ -155,3 +155,233 @@ describe('send-lifecycle-email registration_number_needed', () => {
     expect(supabase.rpc).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * The one-step action (MYK9-1162): the browser sends only the reviewed text; the server
+ * authorizes, checks the step switch and the held verdict, resolves the CURRENT recipient,
+ * replaces any earlier sendable email, inserts one job and sends it.
+ */
+describe('send_registration_number_needed action', () => {
+  const stepRow = { id: 'step-rn', show_id: 'show-1', step_type: 'registration_number_needed' };
+
+  function arrange(
+    options: {
+      held?: unknown;
+      jobs?: Array<Record<string, unknown>>;
+      step?: Record<string, unknown> | null;
+      people?: Array<Record<string, unknown>>;
+      userRoles?: Array<Record<string, unknown>>;
+      jobInsertError?: { code: string; message: string };
+    } = {}
+  ) {
+    const fetch = vi.fn(async () => ({ ok: true, json: async () => ({ id: 'resend-1' }) }));
+    const base = baseTables({
+      show_lifecycle_email_jobs: options.jobs ?? [],
+      show_lifecycle_email_steps: options.step === null ? [] : [options.step ?? stepRow],
+      entries: [entryRow],
+      ...(options.people ? { people: options.people } : {}),
+      ...(options.userRoles ? { user_roles: options.userRoles } : {}),
+    });
+    const { supabase, calls } = makeSupabase(
+      base,
+      { entry_awaiting_registration_number: options.held === undefined ? true : options.held },
+      options.jobInsertError
+    );
+    const handler = createSendLifecycleEmailHandler({
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      resendApiKey: 'resend-key',
+    });
+    const run = (userId = 'secretary-1') =>
+      handler({
+        body: {
+          action: 'send_registration_number_needed',
+          show_id: 'show-1',
+          entry_id: 'entry-1',
+          subject: 'Registration number needed for Willow',
+          body: 'Please send the number.',
+          secretary_note: 'Thanks',
+          // A client-supplied key must be ignored.
+          idempotency_key: 'client-key',
+        },
+        user: { id: userId },
+        supabase: supabase as Parameters<typeof handler>[0]['supabase'],
+      });
+    return { fetch, supabase, calls, run };
+  }
+
+  const jobCalls = (calls: Array<{ table: string; action: string; value?: unknown }>) =>
+    calls.filter(call => call.table === 'show_lifecycle_email_jobs');
+
+  it('sends once to the owner, as a first email on the plain server-built key', async () => {
+    const { fetch, calls, run } = arrange();
+
+    const result = await run();
+
+    expect(result).toEqual({ status: 'sent', jobId: 'inserted-job-1' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const insert = jobCalls(calls).find(call => call.action === 'insert');
+    expect(insert?.value).toMatchObject({
+      step_type: 'registration_number_needed',
+      status: 'ready',
+      recipient_scope: 'entry',
+      entry_id: 'entry-1',
+      recipient_email: 'jamie@example.com',
+      idempotency_key:
+        'show-lifecycle-email:show-1:registration_number_needed:entry:single:entry-1:original',
+    });
+  });
+
+  it('sequences the key from every earlier job of the entry, whatever its status', async () => {
+    const earlier = (id: string, status: string) => ({
+      id,
+      show_id: 'show-1',
+      step_type: 'registration_number_needed',
+      entry_id: 'entry-1',
+      status,
+    });
+    const { calls, run } = arrange({
+      jobs: [earlier('a', 'sent'), earlier('b', 'failed'), earlier('c', 'skipped')],
+    });
+
+    await run();
+
+    const insert = jobCalls(calls).find(call => call.action === 'insert');
+    expect((insert?.value as { idempotency_key: string }).idempotency_key).toBe(
+      'show-lifecycle-email:show-1:registration_number_needed:entry:reminder-3:entry-1:original'
+    );
+  });
+
+  it('marks the earlier failed job skipped BEFORE inserting the new one', async () => {
+    const { calls, run } = arrange({
+      jobs: [
+        {
+          id: 'old',
+          show_id: 'show-1',
+          step_type: 'registration_number_needed',
+          entry_id: 'entry-1',
+          status: 'failed',
+        },
+      ],
+    });
+
+    await run();
+
+    const actions = jobCalls(calls)
+      .filter(call => call.action !== 'rpc')
+      .map(call => call.action);
+    expect(actions.indexOf('update')).toBeGreaterThanOrEqual(0);
+    expect(actions.indexOf('update')).toBeLessThan(actions.indexOf('insert'));
+    expect(jobCalls(calls).find(call => call.action === 'update')?.value).toMatchObject({
+      status: 'skipped',
+      skipped_at: expect.any(String),
+      updated_by: 'secretary-1',
+    });
+  });
+
+  it('answers busy, cancelling nothing, while another send of this entry is in flight', async () => {
+    // A READY job of this step is a send in progress: cancelling it would let both
+    // near-simultaneous sends deliver.
+    const { fetch, calls, run } = arrange({
+      jobs: [
+        {
+          id: 'in-flight',
+          show_id: 'show-1',
+          step_type: 'registration_number_needed',
+          entry_id: 'entry-1',
+          status: 'ready',
+          created_at: new Date().toISOString(),
+        },
+      ],
+    });
+
+    await expect(run()).resolves.toEqual({ status: 'busy' });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(jobCalls(calls).some(call => call.action === 'update')).toBe(false);
+    expect(jobCalls(calls).some(call => call.action === 'insert')).toBe(false);
+  });
+
+  it('replaces a ready job left behind by a send that died (older than the stale window)', async () => {
+    const { calls, run } = arrange({
+      jobs: [
+        {
+          id: 'stuck',
+          show_id: 'show-1',
+          step_type: 'registration_number_needed',
+          entry_id: 'entry-1',
+          status: 'ready',
+          created_at: new Date(Date.now() - 11 * 60 * 1000).toISOString(),
+        },
+      ],
+    });
+
+    await expect(run()).resolves.toMatchObject({ status: 'sent' });
+    const actions = jobCalls(calls).map(call => call.action);
+    expect(actions.indexOf('update')).toBeLessThan(actions.indexOf('insert'));
+  });
+
+  it('answers busy, with no Resend call, when another send holds the entry (23505)', async () => {
+    const { fetch, run } = arrange({
+      jobInsertError: { code: '23505', message: 'duplicate key value' },
+    });
+
+    await expect(run()).resolves.toEqual({ status: 'busy' });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('tells not_held (number on file) from unverified (could not check), creating no job', async () => {
+    const notHeld = arrange({ held: false });
+    await expect(notHeld.run()).resolves.toEqual({ status: 'skipped', reason: 'not_held' });
+    expect(notHeld.fetch).not.toHaveBeenCalled();
+    expect(jobCalls(notHeld.calls).some(call => call.action === 'insert')).toBe(false);
+
+    const unverified = arrange({ held: { error: { message: 'boom' } } });
+    await expect(unverified.run()).resolves.toEqual({ status: 'skipped', reason: 'unverified' });
+    expect(unverified.fetch).not.toHaveBeenCalled();
+    expect(jobCalls(unverified.calls).some(call => call.action === 'insert')).toBe(false);
+  });
+
+  it('skips with no_email, creating no job and leaving earlier jobs alone', async () => {
+    const { fetch, calls, run } = arrange({
+      people: [{ id: 'person-1', first_name: 'Jamie', last_name: 'Handler', email: '  ' }],
+    });
+
+    await expect(run()).resolves.toEqual({ status: 'skipped', reason: 'no_email' });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(jobCalls(calls)).toEqual([]);
+  });
+
+  it("sends to the owner's CURRENT email, not a value from the request or an old job", async () => {
+    const { fetch, calls, run } = arrange({
+      people: [
+        { id: 'person-1', first_name: 'Jamie', last_name: 'Handler', email: 'new@example.com' },
+      ],
+    });
+
+    await run();
+
+    const insert = jobCalls(calls).find(call => call.action === 'insert');
+    expect(insert?.value).toMatchObject({ recipient_email: 'new@example.com' });
+    const body = JSON.parse(
+      (fetch.mock.calls[0] as unknown as [string, { body: string }])[1].body
+    ) as { to: string };
+    expect(body.to).toBe('new@example.com');
+  });
+
+  it('refuses an unauthorized caller before the step, the entry or Resend are touched', async () => {
+    const { fetch, supabase, run } = arrange({ userRoles: [] });
+
+    await expect(run('user-1')).rejects.toThrow('Forbidden: show official role required');
+    expect(fetch).not.toHaveBeenCalled();
+    expect(supabase.rpc).not.toHaveBeenCalled();
+    expect(supabase.from).not.toHaveBeenCalledWith('show_lifecycle_email_steps');
+  });
+
+  it('refuses when the club turned the step off, before any entry read or job write', async () => {
+    const { fetch, supabase, calls, run } = arrange({ step: { ...stepRow, is_enabled: false } });
+
+    await expect(run()).rejects.toThrow('turned off');
+    expect(fetch).not.toHaveBeenCalled();
+    expect(supabase.rpc).not.toHaveBeenCalled();
+    expect(jobCalls(calls)).toEqual([]);
+  });
+});

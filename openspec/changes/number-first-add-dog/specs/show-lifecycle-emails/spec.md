@@ -27,8 +27,13 @@ The system SHALL provide a "Registration number needed" lifecycle step. It SHALL
 
 #### Scenario: Number arrives before sending
 
-- **WHEN** a prepared "Registration number needed" email is still unsent and the dog's registration is added
-- **THEN** the email is not sent
+- **WHEN** the dog's registration is added before the secretary presses Send
+- **THEN** the server skips the send and nothing is emailed, and the secretary is told the number is on file
+
+#### Scenario: Send on demand only
+
+- **WHEN** the club views Scheduled emails
+- **THEN** the step has an on/off toggle but no batch review or batch send
 
 #### Scenario: Disabled step sends nothing
 

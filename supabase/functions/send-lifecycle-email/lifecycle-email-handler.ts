@@ -4,7 +4,7 @@ import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { requireEmailLogWrite } from '../_shared/emailLog.ts';
 
 export interface SendLifecycleEmailPayload {
-  action?: 'preview' | 'save_ready' | 'send';
+  action?: 'preview' | 'save_ready' | 'send' | 'send_registration_number_needed';
   show_id?: string;
   job_ids?: string[];
   step_type?: string;
@@ -95,7 +95,12 @@ interface LifecycleEmailJobRow {
   entry_id: string | null;
 }
 
+/** A registration_number_needed send still READY after this long died mid-way. */
+const NUMBER_NEEDED_STALE_SEND_MS = 10 * 60 * 1000;
+
 interface HeldEntryRow {
+  id?: string;
+  handler?: string | null;
   show_id: string | null;
   dog_id: string | null;
   class_id: string | null;
@@ -128,7 +133,8 @@ export function createSendLifecycleEmailHandler(deps: SendLifecycleEmailDeps) {
     if (
       payload.action !== 'preview' &&
       payload.action !== 'save_ready' &&
-      payload.action !== 'send'
+      payload.action !== 'send' &&
+      payload.action !== 'send_registration_number_needed'
     ) {
       throw new HttpError(400, 'Unsupported lifecycle email action');
     }
@@ -139,6 +145,11 @@ export function createSendLifecycleEmailHandler(deps: SendLifecycleEmailDeps) {
 
     if (payload.action === 'save_ready') {
       return saveReadyJob({ payload, supabase, userId: user.id });
+    }
+
+    if (payload.action === 'send_registration_number_needed') {
+      if (!deps.resendApiKey) throw new HttpError(503, 'Email service not configured');
+      return sendRegistrationNumberNeeded({ deps, payload, supabase, userId: user.id });
     }
 
     if (!payload.job_ids?.length) throw new HttpError(400, 'job_ids are required');
@@ -385,18 +396,35 @@ async function fetchJobs(
  * A missing entry, one in another show, or a lookup that fails all count as not
  * held: the email is skipped, never sent on a guess. Send reminder re-creates it.
  */
-async function isEntryStillHeld(
+type HeldVerdict = 'held' | 'not_held' | 'unverified';
+
+const NO_ROWS_CODE = 'PGRST116';
+
+function errorCode(error: unknown): string | null {
+  return error && typeof error === 'object' && 'code' in error
+    ? String((error as { code?: unknown }).code)
+    : null;
+}
+
+/**
+ * The server's verdict on whether an entry still awaits a registration number, read with
+ * the entry's own facts through `entry_awaiting_registration_number`. A lookup or rpc
+ * ERROR is `unverified` (never a guess in either direction); an entry that is gone or
+ * belongs to another show is `not_held`.
+ */
+async function loadHeldEntry(
   supabase: LifecycleEmailSupabaseClient,
-  job: LifecycleEmailJobRow
-): Promise<boolean> {
-  if (!job.entry_id) return false;
+  showId: string,
+  entryId: string
+): Promise<{ verdict: HeldVerdict; entry: HeldEntryRow | null }> {
   const { data: entry, error } = (await supabase
     .from('entries')
-    .select('show_id, dog_id, class_id, entry_status, deleted_at')
-    .eq('id', job.entry_id)
+    .select('id, show_id, dog_id, class_id, entry_status, deleted_at, handler')
+    .eq('id', entryId)
     .single()) as QueryResult<HeldEntryRow>;
-  if (error || !entry || entry.show_id !== job.show_id || !entry.dog_id || !entry.class_id) {
-    return false;
+  if (error && errorCode(error) !== NO_ROWS_CODE) return { verdict: 'unverified', entry: null };
+  if (!entry || entry.show_id !== showId || !entry.dog_id || !entry.class_id) {
+    return { verdict: 'not_held', entry: null };
   }
   const { data: held, error: heldError } = await supabase.rpc(
     'entry_awaiting_registration_number',
@@ -407,8 +435,154 @@ async function isEntryStillHeld(
       p_deleted_at: entry.deleted_at,
     }
   );
-  if (heldError) return false;
-  return held === true;
+  if (heldError) return { verdict: 'unverified', entry };
+  return { verdict: held === true ? 'held' : 'not_held', entry };
+}
+
+async function isEntryStillHeld(
+  supabase: LifecycleEmailSupabaseClient,
+  job: LifecycleEmailJobRow
+): Promise<boolean> {
+  if (!job.entry_id) return false;
+  return (await loadHeldEntry(supabase, job.show_id, job.entry_id)).verdict === 'held';
+}
+
+/** Same rule as the client used to carry: plain for the first email, `reminder-N` after. */
+function buildNumberNeededIdempotencyKey(showId: string, entryId: string, priorCount: number) {
+  const batch = priorCount > 0 ? `reminder-${priorCount}` : 'single';
+  return `show-lifecycle-email:${showId}:registration_number_needed:entry:${batch}:${entryId}:original`;
+}
+
+type NumberNeededOutcome =
+  | { status: 'sent' | 'failed'; jobId: string }
+  | { status: 'skipped'; reason: 'not_held' | 'unverified' | 'no_email' }
+  | { status: 'busy' };
+
+/**
+ * One server-side step for "Registration number needed" (MYK9-1162): the browser sends only
+ * the reviewed text. Authorization, the step switch, the held check and the recipient are all
+ * decided here, at send time, so nothing stale from a browser can reach an exhibitor.
+ */
+async function sendRegistrationNumberNeeded(args: {
+  deps: SendLifecycleEmailDeps;
+  payload: SendLifecycleEmailPayload;
+  supabase: LifecycleEmailSupabaseClient;
+  userId: string;
+}): Promise<NumberNeededOutcome> {
+  const { payload, supabase, userId } = args;
+  const showId = payload.show_id as string;
+  if (!payload.entry_id) throw new HttpError(400, 'entry_id is required');
+  const entryId = payload.entry_id;
+
+  const { data: step, error: stepError } = (await supabase
+    .from('show_lifecycle_email_steps')
+    .select('id, is_enabled')
+    .eq('show_id', showId)
+    .eq('step_type', 'registration_number_needed')
+    .single()) as QueryResult<{ id: string; is_enabled?: boolean | null }>;
+  if (stepError) throw new HttpError(500, 'Failed to load lifecycle email step');
+  if (!step) throw new HttpError(404, 'Lifecycle email step not found');
+  if (step.is_enabled === false) {
+    throw new HttpError(409, 'Registration number emails are turned off for this show');
+  }
+
+  const { verdict, entry } = await loadHeldEntry(supabase, showId, entryId);
+  if (verdict !== 'held' || !entry) {
+    return { status: 'skipped', reason: verdict === 'unverified' ? 'unverified' : 'not_held' };
+  }
+
+  const owner = entry.dog_id ? await fetchDogOwner(supabase, entry.dog_id) : null;
+  const recipientEmail = owner?.email?.trim() || null;
+  if (!recipientEmail) return { status: 'skipped', reason: 'no_email' };
+  const recipientName = formatPersonName(owner) ?? entry.handler ?? null;
+
+  // At most one sendable email per entry (a partial unique index backs this). This
+  // step's jobs are created and sent in one call, so a READY job is a send in
+  // flight: answer busy rather than cancel it, or two near-simultaneous sends would
+  // each cancel the other and both deliver. A ready job older than the stale window
+  // is a send that died mid-way, and is replaced. A FAILED job is replaced.
+  const { data: outstanding, error: outstandingError } = (await supabase
+    .from('show_lifecycle_email_jobs')
+    .select('id, status, created_at')
+    .eq('show_id', showId)
+    .eq('step_type', 'registration_number_needed')
+    .eq('entry_id', entryId)
+    .in('status', ['ready', 'failed'])) as QueryResult<
+    Array<{ id: string; status: string; created_at: string | null }>
+  >;
+  if (outstandingError) throw new HttpError(500, 'Failed to read the earlier email');
+  const staleBefore = Date.now() - NUMBER_NEEDED_STALE_SEND_MS;
+  const isStale = (row: { created_at: string | null }) =>
+    !row.created_at || Date.parse(row.created_at) < staleBefore;
+  if ((outstanding ?? []).some(row => row.status === 'ready' && !isStale(row))) {
+    return { status: 'busy' };
+  }
+  const supersede = (outstanding ?? []).map(row => row.id);
+  if (supersede.length > 0) {
+    const { error: supersedeError } = (await supabase
+      .from('show_lifecycle_email_jobs')
+      .update({ status: 'skipped', skipped_at: new Date().toISOString(), updated_by: userId })
+      .in('id', supersede)) as QueryResult;
+    if (supersedeError) throw new HttpError(500, 'Failed to replace the earlier email');
+  }
+
+  const { data: earlier, error: countError } = (await supabase
+    .from('show_lifecycle_email_jobs')
+    .select('id')
+    .eq('show_id', showId)
+    .eq('step_type', 'registration_number_needed')
+    .eq('entry_id', entryId)) as QueryResult<Array<{ id: string }>>;
+  if (countError) throw new HttpError(500, 'Failed to read earlier emails');
+
+  const subject = payload.subject?.trim() || 'Registration number needed';
+  const values = {
+    show_id: showId,
+    step_id: step.id,
+    step_type: 'registration_number_needed',
+    status: 'ready',
+    recipient_scope: 'entry',
+    entry_id: entryId,
+    recipient_email: recipientEmail,
+    recipient_name: recipientName,
+    subject,
+    body: payload.body ?? null,
+    secretary_note: payload.secretary_note ?? null,
+    idempotency_key: buildNumberNeededIdempotencyKey(showId, entryId, earlier?.length ?? 0),
+    due_at: new Date().toISOString(),
+    created_by: userId,
+    updated_by: userId,
+  };
+  const { data: inserted, error: insertError } = (await supabase
+    .from('show_lifecycle_email_jobs')
+    .insert(values)
+    .select('id')
+    .single()) as QueryResult<{ id: string }>;
+  if (insertError) {
+    // Another send for this entry is in flight (its job, or its key, is already there).
+    if (isUniqueViolation(insertError)) return { status: 'busy' };
+    throw new HttpError(500, getErrorMessage(insertError) ?? 'Failed to save lifecycle email');
+  }
+  if (!inserted?.id) throw new HttpError(500, 'Failed to save lifecycle email');
+
+  const job: LifecycleEmailJobRow = {
+    id: inserted.id,
+    show_id: showId,
+    step_type: 'registration_number_needed',
+    status: 'ready',
+    recipient_email: recipientEmail,
+    recipient_name: recipientName,
+    subject,
+    body: values.body,
+    secretary_note: values.secretary_note,
+    rendered_subject: null,
+    rendered_body: null,
+    rendered_secretary_note: null,
+    email_log_id: null,
+    idempotency_key: values.idempotency_key,
+    entry_id: entryId,
+  };
+  const sent = await sendOneJob({ deps: args.deps, job, payload, supabase, userId });
+  return { status: sent.status, jobId: job.id };
 }
 
 async function skipJobNoLongerHeld(args: {

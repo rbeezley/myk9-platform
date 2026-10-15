@@ -5,14 +5,10 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { Dog } from '@/types/dog-types';
 import type { RegistrationNeededRow } from '../management/registrationNeeded';
 import { RegistrationNeededPane } from '../RegistrationNeededPane';
+import { fetchShowLifecycleEmailSummary } from '@/features/lifecycle-emails/api';
 import {
-  fetchShowLifecycleEmailSummary,
-  saveLifecycleEmailJobForLater,
-  sendLifecycleEmailJobs,
-} from '@/features/lifecycle-emails/api';
-import {
-  readRegistrationNumberNeededHistory,
   fetchRegistrationNumberNeededJobCounts,
+  sendRegistrationNumberNeededEmail,
 } from '@/features/lifecycle-emails/registrationNumberNeeded';
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
@@ -33,15 +29,13 @@ vi.mock('@/features/lifecycle-emails/LifecycleEmailPreviewDialog', () => ({
 vi.mock('@/features/lifecycle-emails/api', async importOriginal => ({
   ...(await importOriginal<typeof import('@/features/lifecycle-emails/api')>()),
   fetchShowLifecycleEmailSummary: vi.fn(),
-  saveLifecycleEmailJobForLater: vi.fn(),
-  sendLifecycleEmailJobs: vi.fn(),
 }));
 vi.mock('@/features/lifecycle-emails/registrationNumberNeeded', async importOriginal => ({
   ...(await importOriginal<
     typeof import('@/features/lifecycle-emails/registrationNumberNeeded')
   >()),
-  readRegistrationNumberNeededHistory: vi.fn(),
   fetchRegistrationNumberNeededJobCounts: vi.fn(),
+  sendRegistrationNumberNeededEmail: vi.fn(),
 }));
 
 const summary = (isEnabled: boolean) => ({
@@ -93,12 +87,10 @@ describe('RegistrationNeededPane email button', () => {
     vi.clearAllMocks();
     vi.mocked(fetchShowLifecycleEmailSummary).mockResolvedValue(summary(true));
     vi.mocked(fetchRegistrationNumberNeededJobCounts).mockResolvedValue({});
-    vi.mocked(readRegistrationNumberNeededHistory).mockResolvedValue({
-      count: 0,
-      outstandingJobIds: [],
+    vi.mocked(sendRegistrationNumberNeededEmail).mockResolvedValue({
+      status: 'sent',
+      jobId: 'job-1',
     });
-    vi.mocked(saveLifecycleEmailJobForLater).mockResolvedValue('job-1');
-    vi.mocked(sendLifecycleEmailJobs).mockResolvedValue({ sent: 1, failed: 0, total: 1 });
   });
 
   it('reads Email exhibitor with no prior job and Send reminder with one, from one read', async () => {

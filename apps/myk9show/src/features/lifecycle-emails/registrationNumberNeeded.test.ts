@@ -4,9 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   LIFECYCLE_EMAIL_STEP_TYPES,
   buildLifecycleEmailPreview,
-  buildRegistrationNumberNeededIdempotencyKey,
-  readRegistrationNumberNeededHistory,
   fetchRegistrationNumberNeededJobCounts,
+  sendRegistrationNumberNeededEmail,
   type LifecycleEmailSupabaseClient,
 } from './index';
 
@@ -70,52 +69,52 @@ describe('registration_number_needed draft', () => {
   });
 });
 
-describe('registration number needed idempotency', () => {
-  const base = { showId: 'show-1', entryId: 'entry-1' };
+describe('sendRegistrationNumberNeededEmail', () => {
+  const run = (data: unknown, error: { message?: string } | null = null) => {
+    const invoke = vi.fn(async () => ({ data, error }));
+    const promise = sendRegistrationNumberNeededEmail({
+      supabase: { functions: { invoke } },
+      showId: 'show-1',
+      entryId: 'entry-1',
+      subject: 'S',
+      body: 'B',
+      secretaryNote: 'N',
+    });
+    return { invoke, promise };
+  };
 
-  it('keeps the first email on the plain key and sequences every reminder', () => {
-    const first = buildRegistrationNumberNeededIdempotencyKey({ ...base, priorCount: 0 });
-    const reminder = buildRegistrationNumberNeededIdempotencyKey({ ...base, priorCount: 1 });
-    const second = buildRegistrationNumberNeededIdempotencyKey({ ...base, priorCount: 2 });
-    expect(first).toBe(
-      'show-lifecycle-email:show-1:registration_number_needed:entry:single:entry-1:original'
-    );
-    expect(reminder).toBe(
-      'show-lifecycle-email:show-1:registration_number_needed:entry:reminder-1:entry-1:original'
-    );
-    expect(new Set([first, reminder, second]).size).toBe(3);
+  it('sends only the entry and the reviewed text, never a key, recipient or job', async () => {
+    const { invoke, promise } = run({ status: 'sent', jobId: 'job-1' });
+
+    await expect(promise).resolves.toEqual({ status: 'sent', jobId: 'job-1' });
+    expect(invoke).toHaveBeenCalledWith('send-lifecycle-email', {
+      body: {
+        action: 'send_registration_number_needed',
+        show_id: 'show-1',
+        entry_id: 'entry-1',
+        subject: 'S',
+        body: 'B',
+        secretary_note: 'N',
+      },
+    });
   });
 
-  it("reads the entry's earlier jobs: all of them count, ready and failed ones are outstanding", async () => {
-    const calls: Array<[string, unknown]> = [];
-    const builder = {
-      select: vi.fn(() => builder),
-      eq: vi.fn((column: string, value: unknown) => {
-        calls.push([column, value]);
-        return builder;
-      }),
-      then: (resolve: (value: unknown) => unknown) =>
-        Promise.resolve({
-          data: [
-            { id: 'a', status: 'sent' },
-            { id: 'b', status: 'failed' },
-            { id: 'c', status: 'ready' },
-            { id: 'd', status: 'skipped' },
-          ],
-          error: null,
-        }).then(resolve),
-    };
-    const supabase = { from: vi.fn(() => builder) } as unknown as LifecycleEmailSupabaseClient;
+  it('passes through every outcome the server can answer', async () => {
+    for (const outcome of [
+      { status: 'failed', jobId: 'j' },
+      { status: 'busy' },
+      { status: 'skipped', reason: 'not_held' },
+      { status: 'skipped', reason: 'unverified' },
+      { status: 'skipped', reason: 'no_email' },
+    ]) {
+      await expect(run(outcome).promise).resolves.toEqual(outcome);
+    }
+  });
 
-    await expect(
-      readRegistrationNumberNeededHistory({ supabase, showId: 'show-1', entryId: 'entry-1' })
-    ).resolves.toEqual({ count: 4, outstandingJobIds: ['b', 'c'] });
-    expect(supabase.from).toHaveBeenCalledWith('show_lifecycle_email_jobs');
-    expect(calls).toEqual([
-      ['show_id', 'show-1'],
-      ['step_type', 'registration_number_needed'],
-      ['entry_id', 'entry-1'],
-    ]);
+  it('throws on a transport error or an answer it does not recognize', async () => {
+    await expect(run(null, { message: 'boom' }).promise).rejects.toThrow('boom');
+    await expect(run({ status: 'weird' }).promise).rejects.toThrow('Unexpected response');
+    await expect(run(null).promise).rejects.toThrow('Unexpected response');
   });
 });
 

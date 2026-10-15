@@ -1,63 +1,47 @@
-import type { LifecycleEmailSupabaseClient } from './api';
+import type { LifecycleEmailFunctionsClient, LifecycleEmailSupabaseClient } from './api';
 import { fetchAllPages } from './pagedRead';
-import { buildLifecycleEmailIdempotencyKey } from './types';
 
 export const REGISTRATION_NUMBER_NEEDED_STEP = 'registration_number_needed' as const;
 
+/** What the server did with one "Email exhibitor" / "Send reminder" press. */
+export type RegistrationNumberNeededOutcome =
+  | { status: 'sent'; jobId: string }
+  | { status: 'failed'; jobId: string }
+  | { status: 'skipped'; reason: 'not_held' | 'unverified' | 'no_email' }
+  | { status: 'busy' };
+
 /**
- * Idempotency key for one "registration number needed" email about one entry.
- * The first email uses the plain key; every later one (a reminder) carries its
- * sequence, so a reminder is never deduplicated against the first send.
+ * Sends the reviewed text in one server-side step. The server alone authorizes, checks the
+ * step switch and that the entry is still held, resolves the owner's current address,
+ * replaces any earlier unsent email and builds the idempotency key; none of that is sent
+ * from the browser.
  */
-export function buildRegistrationNumberNeededIdempotencyKey(input: {
+export async function sendRegistrationNumberNeededEmail(args: {
+  supabase: LifecycleEmailFunctionsClient;
   showId: string;
   entryId: string;
-  /** How many of these emails already exist for the entry (0 for the first). */
-  priorCount: number;
-}): string {
-  return buildLifecycleEmailIdempotencyKey({
-    showId: input.showId,
-    stepType: REGISTRATION_NUMBER_NEEDED_STEP,
-    recipientScope: 'entry',
-    entryId: input.entryId,
-    batchKey: input.priorCount > 0 ? `reminder-${input.priorCount}` : null,
+  subject: string;
+  body: string;
+  secretaryNote: string;
+}): Promise<RegistrationNumberNeededOutcome> {
+  const { data, error } = await args.supabase.functions.invoke('send-lifecycle-email', {
+    body: {
+      action: 'send_registration_number_needed',
+      show_id: args.showId,
+      entry_id: args.entryId,
+      subject: args.subject,
+      body: args.body,
+      secretary_note: args.secretaryNote,
+    },
   });
-}
-
-/** An entry's "registration number needed" email history, as the next send needs it. */
-export interface RegistrationNumberNeededHistory {
-  /** Every job for the entry, whatever its status: the next reminder's sequence. */
-  count: number;
-  /** The waiting or failed job, if any: at most one, by the database's index. */
-  outstandingJobIds: string[];
-}
-
-/**
- * The entry's "registration number needed" jobs. The database allows at most ONE
- * waiting or failed one per entry (a partial unique index); when it exists it is the
- * email to send, so Send reminder never creates a second sendable copy.
- */
-export async function readRegistrationNumberNeededHistory(args: {
-  supabase: LifecycleEmailSupabaseClient;
-  showId: string;
-  entryId: string;
-}): Promise<RegistrationNumberNeededHistory> {
-  const result = await args.supabase
-    .from<Array<{ id: string; status: string | null }>>('show_lifecycle_email_jobs')
-    .select('id, status')
-    .eq('show_id', args.showId)
-    .eq('step_type', REGISTRATION_NUMBER_NEEDED_STEP)
-    .eq('entry_id', args.entryId);
-  if (result.error) {
-    throw new Error(result.error.message ?? 'Failed to read earlier registration number emails');
+  if (error) throw new Error(error.message ?? 'Failed to send the registration number email');
+  const outcome = data as Partial<RegistrationNumberNeededOutcome> | null | undefined;
+  if (outcome?.status === 'sent' || outcome?.status === 'failed') {
+    return outcome as RegistrationNumberNeededOutcome;
   }
-  const rows = result.data ?? [];
-  return {
-    count: rows.length,
-    outstandingJobIds: rows
-      .filter(row => row.status === 'ready' || row.status === 'failed')
-      .map(row => row.id),
-  };
+  if (outcome?.status === 'busy') return { status: 'busy' };
+  if (outcome?.status === 'skipped') return outcome as RegistrationNumberNeededOutcome;
+  throw new Error('Unexpected response from the registration number email');
 }
 
 /**

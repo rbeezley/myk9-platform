@@ -54,6 +54,8 @@ describe('ExhibitorClassCallout on a future trial day', () => {
     expect(screen.queryByText('Next up')).not.toBeInTheDocument();
     expect(screen.queryByText(/3rd up|in line|ahead/)).not.toBeInTheDocument();
     expect(screen.queryByText('Waiting')).not.toBeInTheDocument();
+    // No place is read for a future day: the RPC is never called.
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("still shows the place in line on the trial's own day", async () => {
@@ -61,6 +63,7 @@ describe('ExhibitorClassCallout on a future trial day', () => {
     setup({ trialDate: '2026-10-18', trialTimezone: 'America/Chicago' });
     expect(await screen.findByText('3rd up')).toBeInTheDocument();
     expect(screen.getByText('2 dogs ahead')).toBeInTheDocument();
+    expect(rpc).toHaveBeenCalled();
   });
 
   it('uses the trial zone: 04:30Z Oct 15 is still Oct 14 in Chicago, so Oct 15 is a future day', async () => {
@@ -68,6 +71,7 @@ describe('ExhibitorClassCallout on a future trial day', () => {
     setup({ trialDate: '2026-10-15', trialTimezone: 'America/Chicago' });
     await Promise.resolve();
     expect(screen.queryByText(/up$|ahead|Waiting/)).not.toBeInTheDocument();
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it('counter-check: in New York the same instant is already Oct 15, so the place shows', async () => {

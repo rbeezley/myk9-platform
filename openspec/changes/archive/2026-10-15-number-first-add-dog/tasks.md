@@ -67,9 +67,9 @@
 
 ## 4. Batch 4: integration (PR 4)
 
-- [ ] 4.1 Update secretary guide card 5 with the number-first Add Dog steps (and refresh the AskQ guide assets). Add an isolated-target e2e journey: a secretary adds a dog number-first (existing-dog hit, then a no-number skip), enters it, sees it under Registration number needed, and confirms it is absent from the class run sheet; then adds the number and sees it leave the pane and appear on the run sheet. Add an exhibitor phone-width Add Dog that hits the foreign-number message. Verify it passes on the Nightly target and fails if the trigger relaxation is reverted.
+- [x] 4.1 Update secretary guide card 5 with the number-first Add Dog steps (and refresh the AskQ guide assets). Add an isolated-target e2e journey: a secretary adds a dog number-first (existing-dog hit, then a no-number skip), enters it, sees it under Registration number needed, and confirms it is absent from the class run sheet; then adds the number and sees it leave the pane and appear on the run sheet. Add an exhibitor phone-width Add Dog that hits the foreign-number message. Verify it passes on the Nightly target and fails if the trigger relaxation is reverted.
 - [x] 4.2 Run `opsx:verify` against the integrated tree and fix CRITICAL findings in this PR. Verify the report has no CRITICAL findings.
-- [ ] 4.3 Ship batch 4 with the review tier the diff reports; watcher green, then squash-merge.
+- [x] 4.3 Ship batch 4 with the review tier the diff reports; watcher green, then squash-merge.
 
 ## Workflow follow-up
 

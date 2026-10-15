@@ -16,7 +16,10 @@ import type { LifecycleEmailStepType } from './types';
 interface LifecycleEmailPreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  stepType: Extract<LifecycleEmailStepType, 'accepted' | 'waitlisted'>;
+  stepType: Extract<
+    LifecycleEmailStepType,
+    'accepted' | 'waitlisted' | 'registration_number_needed'
+  >;
   show: LifecycleEmailShowContext;
   recipient: { name?: string | null; email?: string | null };
   entry: LifecycleEmailEntryContext;
@@ -37,6 +40,7 @@ interface LifecycleEmailPreviewDialogProps {
 const TITLE_BY_STEP: Record<LifecycleEmailPreviewDialogProps['stepType'], string> = {
   accepted: 'Review acceptance email',
   waitlisted: 'Review waitlist email',
+  registration_number_needed: 'Review registration number email',
 };
 
 export function LifecycleEmailPreviewDialog({

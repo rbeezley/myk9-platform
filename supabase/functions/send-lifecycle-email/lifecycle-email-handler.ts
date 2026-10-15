@@ -38,6 +38,7 @@ interface Query<T = unknown> extends PromiseLike<QueryResult<T>> {
 
 export interface LifecycleEmailSupabaseClient {
   from(table: string): Query;
+  rpc(fn: string, args: Record<string, unknown>): PromiseLike<QueryResult<unknown>>;
 }
 
 interface ShowRow {
@@ -91,6 +92,15 @@ interface LifecycleEmailJobRow {
   rendered_secretary_note: string | null;
   email_log_id: string | null;
   idempotency_key: string;
+  entry_id: string | null;
+}
+
+interface HeldEntryRow {
+  show_id: string | null;
+  dog_id: string | null;
+  class_id: string | null;
+  entry_status: string | null;
+  deleted_at: string | null;
 }
 
 interface EmailLogRow {
@@ -153,6 +163,13 @@ export function createSendLifecycleEmailHandler(deps: SendLifecycleEmailDeps) {
     const results = [];
 
     for (const job of jobs) {
+      if (
+        job.step_type === 'registration_number_needed' &&
+        !(await isEntryStillHeld(supabase, job))
+      ) {
+        results.push(await skipJobNoLongerHeld({ job, supabase, userId: user.id }));
+        continue;
+      }
       results.push(await sendOneJob({ deps, job, payload, supabase, userId: user.id }));
     }
 
@@ -160,6 +177,7 @@ export function createSendLifecycleEmailHandler(deps: SendLifecycleEmailDeps) {
       attempted: results.length,
       sent: results.filter(result => result.status === 'sent').length,
       failed: results.filter(result => result.status === 'failed').length,
+      skipped: results.filter(result => result.status === 'skipped').length,
       results,
     };
   };
@@ -347,12 +365,66 @@ async function fetchJobs(
   const { data, error } = (await supabase
     .from('show_lifecycle_email_jobs')
     .select(
-      'id, show_id, step_type, status, recipient_email, recipient_name, subject, body, secretary_note, rendered_subject, rendered_body, rendered_secretary_note, email_log_id, idempotency_key'
+      'id, show_id, step_type, status, recipient_email, recipient_name, subject, body, secretary_note, rendered_subject, rendered_body, rendered_secretary_note, email_log_id, idempotency_key, entry_id'
     )
     .eq('show_id', showId)
     .in('id', jobIds)) as QueryResult<LifecycleEmailJobRow[]>;
   if (error) throw new HttpError(500, 'Failed to load lifecycle email jobs');
   return (data ?? []).filter(job => job.status === 'ready' || job.status === 'failed');
+}
+
+/**
+ * "Registration number needed" must never reach an exhibitor after the number is on
+ * file. "Held" is the server's verdict: `entry_awaiting_registration_number`, the one
+ * SQL definition the entry-results views and the score guard use. It is asked
+ * directly, with the entry's own facts, because this handler runs with the
+ * service-role client: the entry-results views gate rows on the CALLER
+ * (`auth.uid()`), which a service-role read does not have, so through a view every
+ * entry would look missing and every email would be skipped.
+ *
+ * A missing entry, one in another show, or a lookup that fails all count as not
+ * held: the email is skipped, never sent on a guess. Send reminder re-creates it.
+ */
+async function isEntryStillHeld(
+  supabase: LifecycleEmailSupabaseClient,
+  job: LifecycleEmailJobRow
+): Promise<boolean> {
+  if (!job.entry_id) return false;
+  const { data: entry, error } = (await supabase
+    .from('entries')
+    .select('show_id, dog_id, class_id, entry_status, deleted_at')
+    .eq('id', job.entry_id)
+    .single()) as QueryResult<HeldEntryRow>;
+  if (error || !entry || entry.show_id !== job.show_id || !entry.dog_id || !entry.class_id) {
+    return false;
+  }
+  const { data: held, error: heldError } = await supabase.rpc(
+    'entry_awaiting_registration_number',
+    {
+      p_dog_id: entry.dog_id,
+      p_class_id: entry.class_id,
+      p_entry_status: entry.entry_status,
+      p_deleted_at: entry.deleted_at,
+    }
+  );
+  if (heldError) return false;
+  return held === true;
+}
+
+async function skipJobNoLongerHeld(args: {
+  job: LifecycleEmailJobRow;
+  supabase: LifecycleEmailSupabaseClient;
+  userId: string;
+}): Promise<{ jobId: string; status: 'skipped' }> {
+  await args.supabase
+    .from('show_lifecycle_email_jobs')
+    .update({
+      status: 'skipped',
+      skipped_at: new Date().toISOString(),
+      updated_by: args.userId,
+    })
+    .eq('id', args.job.id);
+  return { jobId: args.job.id, status: 'skipped' };
 }
 
 async function sendOneJob(args: {

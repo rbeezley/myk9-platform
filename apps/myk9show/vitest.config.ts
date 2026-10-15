@@ -66,6 +66,7 @@ export default defineConfig({
       // config, so the glob closes that gap.
       '../../supabase/functions/send-confirmation-email/*.test.ts',
       '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.test.ts',
+      '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.registrationNeeded.test.ts',
       '../../supabase/functions/send-results/authz.test.ts',
       '../../supabase/functions/send-email/authz.test.ts',
       '../../supabase/functions/send-email/recipientResolution.test.ts',

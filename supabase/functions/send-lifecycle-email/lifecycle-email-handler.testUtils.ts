@@ -61,12 +61,24 @@ function makeQuery(
   return query;
 }
 
-export function makeSupabase(tables: Record<string, Row[]>) {
+export function makeSupabase(
+  tables: Record<string, Row[]>,
+  /** RPC results by function name: a value, or `{ error }` to fail the call. */
+  rpcResults: Record<string, unknown> = {}
+) {
   const calls: Array<{ table: string; action: string; value?: unknown }> = [];
   return {
     calls,
     supabase: {
       from: vi.fn((table: string) => makeQuery(table, tables[table] ?? [], calls)),
+      rpc: vi.fn(async (fn: string, args: Record<string, unknown>) => {
+        calls.push({ table: fn, action: 'rpc', value: args });
+        const result = rpcResults[fn];
+        if (result && typeof result === 'object' && 'error' in result) {
+          return { data: null, error: (result as { error: unknown }).error };
+        }
+        return { data: result ?? null, error: null };
+      }),
     },
   };
 }

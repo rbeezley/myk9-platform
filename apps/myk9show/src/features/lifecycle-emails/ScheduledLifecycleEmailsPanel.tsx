@@ -32,6 +32,7 @@ const STEP_LABELS: Record<LifecycleEmailStepSummary['stepType'], string> = {
   two_week_reminder: 'Two-week reminder',
   day_before_reminder: 'Day-before reminder',
   results_available: 'Results available',
+  registration_number_needed: 'Registration number needed',
 };
 
 // Reminder/results batches remain deferred until a producer exists (MYK9-318;
@@ -40,6 +41,7 @@ const STEP_LABELS: Record<LifecycleEmailStepSummary['stepType'], string> = {
 const PRODUCER_BACKED_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
   'accepted',
   'waitlisted',
+  'registration_number_needed',
 ]);
 
 const queryKey = (showId: string) => ['show-lifecycle-emails', showId] as const;

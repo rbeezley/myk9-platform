@@ -169,4 +169,57 @@ describe('RegistrationNeededTab', () => {
 
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
+  it('offers Send reminder per row and hands that row to the handler', async () => {
+    const onSendReminder = vi.fn();
+    const rows = [row('e1', 'Scout'), row('e2', 'Juni')];
+    rows.forEach(r => {
+      (r.entry as { ownerEmail: string }).ownerEmail = 'pat@example.com';
+    });
+    const { user } = render(
+      <RegistrationNeededTab
+        rows={rows}
+        loading={false}
+        unknown={false}
+        onOpenEntry={noop}
+        onSendReminder={onSendReminder}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Send reminder for Juni' }));
+
+    expect(onSendReminder).toHaveBeenCalledTimes(1);
+    expect(onSendReminder).toHaveBeenCalledWith(rows[1]);
+    expect(screen.queryByText('No email on file. Contact by phone.')).toBeNull();
+  });
+
+  it('says no email is on file, and offers no reminder, when the exhibitor has none', () => {
+    const noEmail = row('e1', 'Scout');
+    (noEmail.entry as { ownerEmail: string }).ownerEmail = '  ';
+    render(
+      <RegistrationNeededTab
+        rows={[noEmail]}
+        loading={false}
+        unknown={false}
+        onOpenEntry={noop}
+        onSendReminder={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('No email on file. Contact by phone.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send reminder for Scout' })).toBeNull();
+  });
+
+  it('offers no reminder and no email notice while the step is off', () => {
+    render(
+      <RegistrationNeededTab
+        rows={[row('e1', 'Scout')]}
+        loading={false}
+        unknown={false}
+        onOpenEntry={noop}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: /Send reminder/ })).toBeNull();
+    expect(screen.queryByText('No email on file. Contact by phone.')).toBeNull();
+  });
 });

@@ -8,3 +8,5 @@ export * from './readModel';
 export * from './schedule';
 export * from './types';
 export * from './useEntryDecisionLifecycleEmails';
+export * from './registrationNumberNeeded';
+export * from './useRegistrationNumberNeededEmail';

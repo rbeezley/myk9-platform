@@ -13,9 +13,7 @@ import { isAccountSession } from '@/hooks/guestServerRead';
 import { UserRole } from '@/types/auth-types';
 import { SHOWS_LIST_DEFAULT_PX, showsPaneFolds } from './showsPaneFold';
 
-// 'folded' is the default: folded where the rule folds, beside the show elsewhere. 'open' keeps the
-// list beside the show even where it would fold; 'hidden' folds it even where it would fit.
-const PANE_MODES = ['open', 'folded', 'hidden'] as const;
+const PANE_MODES = ['open', 'folded'] as const;
 type PaneMode = (typeof PANE_MODES)[number];
 
 // The people who run shows. An exhibitor or judge would only get the Find Shows list twice, side by
@@ -48,11 +46,12 @@ const PANE_TOP_INSET = { '--app-top-inset': '0px' } as CSSProperties;
  *   (`showsPaneFolds`, measured on this page's own width): the list beside whatever the route
  *   renders (Find Shows, or the open show).
  * - Narrower than that: the same split on `/shows`; with a show open the list folds away behind a
- *   "Shows" button, so the show keeps its full width. The rule is the same on every show tab, so
- *   switching tabs never moves the list.
- * - With a show open, the list always offers Hide (a list dragged wide can leave the cockpit
- *   stacked at any width), and the viewer's choice is remembered (docs/plan-sidebar-browse-pane.md,
- *   phase 2).
+ *   "Shows" button, so the show keeps its full width, and the viewer's open/folded choice is
+ *   remembered. The rule is the same on every show tab, so switching tabs never moves the list.
+ *   Where the list fits there is no Hide: a list dragged wider than its default narrows the show,
+ *   and the cockpit stacks rather than squeeze until it is dragged back. A remembered "hide even
+ *   where it fits" was tried and removed in review: it overrode this rule on every other screen
+ *   (docs/plan-sidebar-browse-pane.md, phase 2).
  *
  * The route always renders in the same tree position, so folding, unfolding and crossing the fold
  * width never remount the open show (its forms, scroll and reads survive).
@@ -77,8 +76,8 @@ function ShowsPaneSplit({ showId }: { showId: string | undefined }) {
   const [paneMode, setPaneMode] = useViewPreference<PaneMode>('shows-pane', 'folded', PANE_MODES);
   const focusAfterToggle = useRef<'list' | 'shows-button' | null>(null);
 
-  const autoFolds = showsPaneFolds(splitWidth);
-  const folded = !!showId && (paneMode === 'hidden' || (paneMode === 'folded' && autoFolds));
+  const canFold = !!showId && showsPaneFolds(splitWidth);
+  const folded = canFold && paneMode === 'folded';
 
   // The control that was clicked unmounts on toggle; put focus where the reader now is.
   useEffect(() => {
@@ -98,8 +97,8 @@ function ShowsPaneSplit({ showId }: { showId: string | undefined }) {
     setPaneMode(next);
   };
 
-  const hideButton = showId ? (
-    <Button variant="ghost" aria-label="Hide shows list" onClick={() => toggle('hidden')}>
+  const hideButton = canFold ? (
+    <Button variant="ghost" aria-label="Hide shows list" onClick={() => toggle('folded')}>
       <PanelLeftClose className="mr-1.5 h-4 w-4" aria-hidden="true" />
       Hide
     </Button>

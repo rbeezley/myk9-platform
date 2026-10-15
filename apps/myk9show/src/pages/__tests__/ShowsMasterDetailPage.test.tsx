@@ -97,22 +97,11 @@ describe('ShowsMasterDetailPage', () => {
     );
     expect(screen.getByRole('region', { name: 'Show' })).toHaveTextContent('show page (in pane)');
     // 1304 - 320 - 33 = 951px for the cockpit, past its 868px split; nothing folds the list.
+    // Where the list fits, nothing folds it: no Hide, no Shows button.
+    expect(screen.queryByRole('button', { name: /Hide shows list/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Shows' })).not.toBeInTheDocument();
     // Measured on the box around the split, which folding never resizes.
     expect(split.ref.current).toBe(screen.getByTestId('master-detail-layout').parentElement);
-  });
-
-  it('offers Hide beside a wide show too, and remembers it, since a dragged list can stack the cockpit', async () => {
-    const user = userEvent.setup();
-    setWindow(1440);
-    renderAt('/shows/show-1');
-
-    await user.click(screen.getByRole('button', { name: 'Hide shows list' }));
-    expect(screen.queryByRole('region', { name: 'Shows list' })).not.toBeInTheDocument();
-    expect(window.localStorage.getItem('view-pref-shows-pane')).toBe('hidden');
-
-    await user.click(screen.getByRole('button', { name: 'Shows' }));
-    expect(screen.getByRole('region', { name: 'Shows list' })).toBeInTheDocument();
   });
 
   it('pins the show page sticky offsets to the pane top', () => {

@@ -82,7 +82,13 @@ function BeforeEntryRow({
   // exhibitor's own dogs, so it cannot count a place in line itself. MYK9-995:
   // the server counts it; until that answer is in (or when offline) the dog's
   // state shows, and nothing at all until the secretary has set an order.
-  const queue = futureDay ? null : withServerPlace(entry.queue, places.get(entry.entryId));
+  // A future day drops only the place-in-line claim (waiting states); a withdrawn
+  // or pulled dog still shows that it is (MYK9-1195).
+  const queue = futureDay
+    ? isWaitingState(entry.queue)
+      ? null
+      : entry.queue
+    : withServerPlace(entry.queue, places.get(entry.entryId));
   const dogsAhead = queue?.kind === 'waiting' && queue.place > 1 ? queue.place - 1 : 0;
 
   return (
@@ -189,4 +195,8 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
       <p className="text-2xl font-bold text-foreground">{children}</p>
     </div>
   );
+}
+
+function isWaitingState(queue: MyClassEntry['queue']): boolean {
+  return queue?.kind === 'waiting' || queue?.kind === 'waiting-unknown';
 }

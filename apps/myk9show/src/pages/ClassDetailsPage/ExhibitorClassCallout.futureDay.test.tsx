@@ -19,6 +19,7 @@ vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => true }));
 vi.mock('./useMyEntriesInClass', () => ({ useMyEntriesInClass: vi.fn() }));
 
 import { useMyEntriesInClass } from './useMyEntriesInClass';
+import { formatRunQueueState } from '@myk9/ringside/run-queue';
 
 const entry: MyClassEntry = {
   entryId: 'e1',
@@ -30,8 +31,14 @@ const entry: MyClassEntry = {
   hasResult: false,
 };
 
-function setup(props: { trialDate?: string; trialTimezone?: string }) {
-  vi.mocked(useMyEntriesInClass).mockReturnValue({ myEntries: [entry], isAfterClass: false });
+function setup(
+  props: { trialDate?: string; trialTimezone?: string },
+  queue: MyClassEntry['queue'] = entry.queue
+) {
+  vi.mocked(useMyEntriesInClass).mockReturnValue({
+    myEntries: [{ ...entry, queue }],
+    isAfterClass: false,
+  });
   rpc.mockResolvedValue({ data: [{ entry_id: 'e1', place: 3 }], error: null });
   render(<ExhibitorClassCallout classId="c1" {...props} />);
 }
@@ -55,6 +62,13 @@ describe('ExhibitorClassCallout on a future trial day', () => {
     expect(screen.queryByText(/3rd up|in line|ahead/)).not.toBeInTheDocument();
     expect(screen.queryByText('Waiting')).not.toBeInTheDocument();
     // No place is read for a future day: the RPC is never called.
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('still shows a withdrawn dog as withdrawn on a future day', async () => {
+    vi.setSystemTime(new Date('2026-10-17T15:00:00Z')); // Saturday
+    setup({ trialDate: '2026-10-18', trialTimezone: 'America/Chicago' }, { kind: 'withdrawn' });
+    expect(screen.getByText(formatRunQueueState({ kind: 'withdrawn' }))).toBeInTheDocument();
     expect(rpc).not.toHaveBeenCalled();
   });
 

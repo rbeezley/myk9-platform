@@ -205,7 +205,7 @@ describe('A. the session dies with scores queued: the queue is kept', () => {
       await mutationManager.uploadPendingMutations();
     }
 
-    // Three 401s dead-letter the score (it is NOT deleted): it sits in
+    // Three "JWT expired" (PGRST301) answers, retried as transient, dead-letter the score (it is NOT deleted): it sits in
     // failed_mutations, owned by judge-1, until a person retries it.
     expect(await pending()).toEqual([]);
     expect(await failed()).toMatchObject([
@@ -355,11 +355,13 @@ describe('D. passcode ringside (anonymous session with a show claim)', () => {
     await queueScore('e1');
 
     signOutSession();
-    signIn('anon-2', { anonymous: true });
+    const token = signIn('anon-2', { anonymous: true });
+    // Positive control: anon-2's own score goes out on this same setup.
+    await queueScore('e2');
     await mutationManager.uploadPendingMutations();
     await mutationManager.uploadPendingMutations();
 
-    expect(fake.rpcCalls).toEqual([]);
+    expect(sentTo(fake.rpcCalls)).toEqual([[token, 'e2']]);
     expect(await pending()).toMatchObject([{ rowId: 'e1', authUserId: 'anon-1', retries: 0 }]);
     expect(await mutationManager.getPendingCount()).toBe(1);
     expect(await mutationManager.getFailedMutations()).toEqual([]);

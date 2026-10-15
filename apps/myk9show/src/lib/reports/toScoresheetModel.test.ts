@@ -389,32 +389,26 @@ describe('check-in sheet Order after the armband sort (MYK9-992)', () => {
 describe('toScoresheetModel entries awaiting a registration number (MYK9-1162)', () => {
   const trial = trialFixture('trial-1');
   const classData = classFixture('class-1', trial.id);
-  const withDog = (id: string, armband: number, registrations?: unknown[]): DbEntry =>
+  const withDog = (id: string, armband: number, held?: boolean): DbEntry =>
     ({
       ...entryFixture(id, classData.id, armband, armband),
       entry_status: 'confirmed',
       dog_id: `dog-${id}`,
-      dog: {
-        call_name: id,
-        breed: 'Beagle',
-        ...(registrations ? { registrations } : {}),
-      },
+      ...(held === undefined ? {} : { awaiting_registration_number: held }),
+      dog: { call_name: id, breed: 'Beagle' },
     }) as unknown as DbEntry;
   const listed = (entries: DbEntry[]) =>
     toScoresheetModel({ show, pages: [{ trial, classData, entries }] }, 'run-order')
       .pages.filter(page => page.kind === 'check-in')
       .flatMap(page => page.entries.map(entry => entry.callName));
 
-  it('leaves a held entry off the check-in and score sheets and keeps a registered one', () => {
-    expect(
-      listed([
-        withDog('registered', 1, [{ organization: 'AKC', registration_number: 'SR1' }]),
-        withDog('held', 2, []),
-      ])
-    ).toEqual(['registered']);
+  it('leaves an entry the server marks as held off the check-in and score sheets', () => {
+    expect(listed([withDog('registered', 1, false), withDog('held', 2, true)])).toEqual([
+      'registered',
+    ]);
   });
 
-  it('does not drop an entry whose registrations were never loaded', () => {
-    expect(listed([withDog('unloaded', 1)])).toEqual(['unloaded']);
+  it('does not drop an entry that carries no held flag', () => {
+    expect(listed([withDog('unflagged', 1)])).toEqual(['unflagged']);
   });
 });

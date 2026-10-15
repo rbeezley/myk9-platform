@@ -1,11 +1,7 @@
 import { isCheckInStatus, type CheckInStatus } from '@myk9/core';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { isOnClassRunList } from '@/features/_shared/entryAccounting';
-import {
-  isAwaitingRegistrationNumber,
-  registrationsIfKnown,
-  type ConformationPuppyContext,
-} from '@/features/dogs/identity';
+import { isHeldEntry } from '@/features/dogs/identity';
 import type { Dog } from '@/types/dog-types';
 import type { RunOutcome, RunSheetEntry, RunSheetResult } from './types';
 import { formatSearchTime } from './types';
@@ -104,28 +100,19 @@ function rawToEntry(
 export function buildRunSheetEntries(
   rows: RawEntryRow[],
   dogLookup: Map<string, Dog> = new Map(),
-  organization?: string | null,
-  registryId?: string | null,
-  puppyContext?: ConformationPuppyContext
+  organization?: string | null
 ): RunSheetEntry[] {
   // Withdrawn, scratched, moved and not-accepted entries are not on the run
-  // sheet (MYK9-976); the one rule lives in `entryAccounting`. An entry
-  // awaiting a registration number is left off too (MYK9-1162). A dog whose
-  // registrations are not loaded is decided by the row's own server held flag.
+  // sheet (MYK9-976); the one rule lives in `entryAccounting`. An entry the
+  // server marks as awaiting a registration number is left off too (MYK9-1162).
   return rows
     .filter(row => isOnClassRunList({ entryStatus: row.entry_status ?? undefined }))
     .filter(
       row =>
-        !isAwaitingRegistrationNumber(
-          {
-            entryStatus: row.entry_status ?? undefined,
-            awaiting_registration_number: row.awaiting_registration_number,
-          },
-          registryId,
-          // With no trial registry the registrations prove nothing either way.
-          registryId == null ? undefined : registrationsIfKnown(dogLookup.get(row.dog_id)),
-          puppyContext
-        )
+        !isHeldEntry({
+          entryStatus: row.entry_status ?? undefined,
+          awaiting_registration_number: row.awaiting_registration_number,
+        })
     )
     .map(row => rawToEntry(row, dogLookup, organization))
     .sort((a, b) => a.runOrder - b.runOrder);

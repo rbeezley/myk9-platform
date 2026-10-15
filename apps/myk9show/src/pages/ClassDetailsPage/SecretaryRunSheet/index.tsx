@@ -2,7 +2,6 @@ import type { ClassData } from '@/components/classes/types/classTypes';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
 import type { Dog } from '@/types/dog-types';
-import { useMemo } from 'react';
 import { ListTree } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { RunSheetRow } from './RunSheetRow';
@@ -17,10 +16,6 @@ interface SecretaryRunSheetProps {
   myEntryIds?: Set<string>;
   dogs: Dog[];
   organization?: string | null;
-  /** The class's trial registry; entries awaiting a number for it are not listed (MYK9-1162). */
-  registryId?: string | null | undefined;
-  /** The class's trial type, for the conformation-puppy carve-out (MYK9-1162). */
-  trialType?: string | null | undefined;
   // When set, the "Set run order" link routes to that show's Show Desk.
   // Omitted in tests / contexts without a resolved parent show.
   parentShowId?: string | null | undefined;
@@ -50,8 +45,6 @@ export function SecretaryRunSheet({
   myEntryIds = new Set(),
   dogs,
   organization,
-  registryId,
-  trialType,
   parentShowId,
   classDay,
 }: SecretaryRunSheetProps) {
@@ -62,23 +55,12 @@ export function SecretaryRunSheet({
   // and the write it guards is destructive, so normalize rather than assume.
   const runOrderDay = classDay ? toLocalDateOnly(classDay) : null;
   const navigate = useNavigate();
-  const puppyContext = useMemo(
-    () => ({
-      trialType,
-      className: currentClass.className,
-      element: currentClass.element,
-      level: currentClass.level,
-    }),
-    [trialType, currentClass.className, currentClass.element, currentClass.level]
-  );
   const { sortedEntries, onCheckInStatus } = useRunSheetState({
     rawEntries: dbRawEntries,
     classId: currentClass.id,
     userId,
     dogs,
     organization,
-    registryId,
-    puppyContext,
   });
 
   return (

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildRunSheetEntries } from './buildRunSheetEntries';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
-import type { Dog } from '@/types/dog-types';
 
 function makeRow(overrides: Partial<RawEntryRow> = {}): RawEntryRow {
   return {
@@ -281,93 +280,22 @@ describe('buildRunSheetEntries', () => {
 });
 
 describe('buildRunSheetEntries entries awaiting a registration number (MYK9-1162)', () => {
-  const dogWith = (id: string, registrations: Dog['registrations'], extra: Partial<Dog> = {}) =>
-    [id, { id, registrations, ...extra } as Dog] as const;
-  const akc = [
-    { organization: 'AKC', registrationNumber: 'SR1' },
-  ] as unknown as Dog['registrations'];
-  const rows = [
-    makeRow({ id: 'registered', dog_id: 'd-reg', run_order: 1, entry_status: 'confirmed' }),
-    makeRow({ id: 'held', dog_id: 'd-held', run_order: 2, entry_status: 'confirmed' }),
-  ];
-
-  it('leaves a held entry off the run sheet and keeps a registered one', () => {
-    const lookup = new Map([dogWith('d-reg', akc), dogWith('d-held', [])]);
-    expect(buildRunSheetEntries(rows, lookup, 'AKC', 'AKC').map(e => e.id)).toEqual(['registered']);
-  });
-
-  it('holds nothing when the registrations are not loaded, so a class is never silently emptied', () => {
-    const noRegistrations = new Map([dogWith('d-reg', undefined), dogWith('d-held', undefined)]);
-    expect(buildRunSheetEntries(rows, noRegistrations, 'AKC', 'AKC')).toHaveLength(2);
-    expect(buildRunSheetEntries(rows, new Map(), 'AKC', 'AKC')).toHaveLength(2);
-  });
-
-  it("holds nothing when a dog's registration read was incomplete", () => {
-    const lookup = new Map([
-      dogWith('d-reg', akc),
-      dogWith('d-held', [], { registrationsReadComplete: false }),
-    ]);
-    expect(buildRunSheetEntries(rows, lookup, 'AKC', 'AKC')).toHaveLength(2);
-  });
-
-  it('holds nothing when the trial registry is unknown', () => {
-    const lookup = new Map([dogWith('d-reg', akc), dogWith('d-held', [])]);
-    expect(buildRunSheetEntries(rows, lookup, 'AKC')).toHaveLength(2);
-  });
-
-  it("falls back to the server's held flag when the registrations are not loaded (offline)", () => {
-    const flagged = [
-      rows[0],
+  it('leaves off an entry the server marks as held and keeps the rest', () => {
+    const rows = [
+      makeRow({ id: 'registered', run_order: 1, entry_status: 'confirmed' }),
       makeRow({
         id: 'held',
-        dog_id: 'd-held',
         run_order: 2,
         entry_status: 'confirmed',
         awaiting_registration_number: true,
       }),
+      makeRow({
+        id: 'released',
+        run_order: 3,
+        entry_status: 'confirmed',
+        awaiting_registration_number: false,
+      }),
     ];
-    const noRegistrations = new Map([dogWith('d-reg', undefined), dogWith('d-held', undefined)]);
-    expect(buildRunSheetEntries(flagged, noRegistrations, 'AKC', 'AKC').map(e => e.id)).toEqual([
-      'registered',
-    ]);
-    const incomplete = new Map([
-      dogWith('d-reg', akc),
-      dogWith('d-held', [], { registrationsReadComplete: false }),
-    ]);
-    expect(buildRunSheetEntries(flagged, incomplete, 'AKC', 'AKC').map(e => e.id)).toEqual([
-      'registered',
-    ]);
-  });
-
-  it('trusts the registrations it can read over a stale server flag', () => {
-    const flagged = rows.map(row => ({ ...row, awaiting_registration_number: true }));
-    const lookup = new Map([dogWith('d-reg', akc), dogWith('d-held', [])]);
-    expect(buildRunSheetEntries(flagged, lookup, 'AKC', 'AKC').map(e => e.id)).toEqual([
-      'registered',
-    ]);
-  });
-
-  it('reads the trial registry: an AKC number does not release a UKC entry', () => {
-    const lookup = new Map([dogWith('d-reg', akc), dogWith('d-held', akc)]);
-    expect(buildRunSheetEntries(rows, lookup, 'UKC', 'UKC')).toHaveLength(0);
-  });
-
-  it('never holds a conformation puppy: the carve-out matches the entry rule', () => {
-    const lookup = new Map([dogWith('d-reg', akc), dogWith('d-held', [])]);
-    const puppy = {
-      trialType: 'Conformation',
-      className: 'Puppy 6-9 Months',
-      element: undefined,
-      level: undefined,
-    };
-    expect(buildRunSheetEntries(rows, lookup, 'AKC', 'AKC', puppy).map(e => e.id)).toEqual([
-      'registered',
-      'held',
-    ]);
-    expect(
-      buildRunSheetEntries(rows, lookup, 'AKC', 'AKC', { ...puppy, trialType: 'Scent Work' }).map(
-        e => e.id
-      )
-    ).toEqual(['registered']);
+    expect(buildRunSheetEntries(rows).map(e => e.id)).toEqual(['registered', 'released']);
   });
 });

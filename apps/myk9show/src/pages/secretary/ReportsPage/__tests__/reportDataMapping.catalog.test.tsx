@@ -190,69 +190,34 @@ describe('AKC marked catalog fields reach ReportEntry', () => {
 });
 
 describe('entries awaiting a registration number reach ReportEntry (MYK9-1162)', () => {
-  function withRegistrations(registrations: readonly Record<string, unknown>[]) {
+  function serverHeld(held: boolean | undefined, id = 'entry-1') {
     const db = hydratedEntry({}, owner, null);
-    return { ...db, dog: { ...db.dog, registrations } } as ReportDbEntry;
+    return {
+      ...db,
+      id,
+      ...(held === undefined ? {} : { awaiting_registration_number: held }),
+    } as unknown as ReportDbEntry;
   }
 
-  it('flags a dog with no number for the trial registry, and only that dog', () => {
-    const ukcOnly = withRegistrations([{ organization: 'UKC', registration_number: 'UKC999' }]);
-    expect(mapOne(ukcOnly).awaitingRegistrationNumber).toBe(true);
-    expect(mapOne(hydratedEntry({}, owner, null)).awaitingRegistrationNumber).toBeUndefined();
+  it('flags exactly the entries the server marks as held', () => {
+    expect(mapOne(serverHeld(true)).awaitingRegistrationNumber).toBe(true);
+    expect(mapOne(serverHeld(false)).awaitingRegistrationNumber).toBeUndefined();
+    expect(mapOne(serverHeld(undefined)).awaitingRegistrationNumber).toBeUndefined();
   });
 
-  it('does not flag an entry whose registrations were not loaded', () => {
-    const db = hydratedEntry({}, owner, null);
-    const dogWithoutRegistrations = { ...db.dog };
-    delete dogWithoutRegistrations.registrations;
-    const mapped = mapOne({ ...db, dog: dogWithoutRegistrations } as ReportDbEntry);
-    expect(mapped.awaitingRegistrationNumber).toBeUndefined();
-  });
-
-  it('does not flag an entry whose registrations read did not answer, even with an empty list', () => {
-    const db = withRegistrations([]);
-    const unanswered = { ...db, dog: { ...db.dog, registrationsReadComplete: false } };
-    expect(mapOne(unanswered as ReportDbEntry).awaitingRegistrationNumber).toBeUndefined();
-    expect(mapOne(db).awaitingRegistrationNumber).toBe(true);
-  });
-
-  it('falls back to the server flag when the registrations cannot be read (offline)', () => {
-    const db = hydratedEntry({}, owner, null);
-    const dogWithoutRegistrations = { ...db.dog };
-    delete dogWithoutRegistrations.registrations;
-    const serverHeld = {
-      ...db,
-      dog: dogWithoutRegistrations,
-      awaiting_registration_number: true,
-    } as unknown as ReportDbEntry;
-    expect(mapOne(serverHeld).awaitingRegistrationNumber).toBe(true);
-
-    const unansweredRead = {
-      ...withRegistrations([]),
-      awaiting_registration_number: true,
-    } as unknown as ReportDbEntry;
-    const incomplete = {
-      ...unansweredRead,
-      dog: { ...unansweredRead.dog, registrationsReadComplete: false },
-    } as ReportDbEntry;
-    expect(mapOne(incomplete).awaitingRegistrationNumber).toBe(true);
-  });
-
-  it('trusts the registrations it can read over a stale server flag', () => {
-    const registered = {
-      ...withRegistrations([{ organization: 'AKC', registration_number: 'SN123' }]),
-      awaiting_registration_number: true,
-    } as unknown as ReportDbEntry;
-    expect(mapOne(registered).awaitingRegistrationNumber).toBeUndefined();
+  it("never rederives it from the device's registrations, partial or not", () => {
+    const db = serverHeld(false);
+    const noNumberOnDevice = { ...db, dog: { ...db.dog, registrations: [] } } as ReportDbEntry;
+    expect(mapOne(noNumberOnDevice).awaitingRegistrationNumber).toBeUndefined();
   });
 
   it('drops a held entry from the printed catalog listing but keeps the normal one', () => {
-    const held = { ...withRegistrations([]), id: 'entry-held' } as ReportDbEntry;
-    const normal = { ...hydratedEntry({}, owner, null), id: 'entry-ok' } as ReportDbEntry;
-    const mapped = mapScopedReportEntries([held, normal], [trial], [cls], {
-      kind: 'show',
-      showId: 'show-1',
-    });
+    const mapped = mapScopedReportEntries(
+      [serverHeld(true, 'entry-held'), serverHeld(undefined, 'entry-ok')],
+      [trial],
+      [cls],
+      { kind: 'show', showId: 'show-1' }
+    );
     expect(catalogRows(mapped).map(row => row.id)).toEqual(['entry-ok']);
   });
 });

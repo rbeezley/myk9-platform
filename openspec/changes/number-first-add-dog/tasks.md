@@ -23,7 +23,7 @@
 ## 2. Batch 2: held entries (PR 2, independent review)
 
 - [x] 2.1 Add migration `<ts>_myk9_1162_entries_registration_manager_exception.sql`. It copies `entries_require_dog_registration()` from `20260828210000`, adds `IF public.can_manage_trial(<trial id>) THEN RETURN NEW; END IF;` after class and trial resolution, and updates the header comment. Extend the behavioral SQL test: a manager insert without a number passes, an exhibitor insert fails, and the puppy carve-out is unchanged. Verify the migration-auditor reports no blocking findings.
-- [x] 2.2 Add `isAwaitingRegistrationNumber(entry, trialRegistry, dogRegistrations)` in `features/dogs/identity/`. It treats unknown registrations as not held and exempts conformation puppies. Verify known-answer tests mirror the SQL test cases.
+- [x] 2.2 Expose the server's held verdict (`awaiting_registration_number` on both entry-results views) and read it through `isHeldEntry` in `features/dogs/identity/`; the client never rederives it (design D4, owner decision 2026-10-14).
 - [x] 2.3 Exclude held entries from:
   - `catalogRows` and `countCatalogClass`;
   - `buildRunSheetEntries` and the run-order source;

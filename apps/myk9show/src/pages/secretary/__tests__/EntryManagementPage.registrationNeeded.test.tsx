@@ -12,8 +12,9 @@ import type { Dog } from '@/types/dog-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import EntryManagementPage from '../EntryManagementPage';
 
-function entry(id: string, dogId: string, dogName: string): EntryManagementEntry {
+function entry(id: string, dogId: string, dogName: string, held = false): EntryManagementEntry {
   return {
+    ...(held && { awaitingRegistrationNumber: true }),
     id,
     registrationId: `registration-${id}`,
     entryNumber: id,
@@ -154,9 +155,10 @@ describe('EntryManagementPage registration number needed (MYK9-1162)', () => {
   beforeEach(() => {
     state.dogsReady = true;
     state.trialsFailed = false;
+    // The server marks e1 and e2 as held (MYK9-1162); the pane never rederives it.
     state.entries = [
-      entry('e1', 'd1', 'Scout'),
-      entry('e2', 'd2', 'Juni'),
+      entry('e1', 'd1', 'Scout', true),
+      entry('e2', 'd2', 'Juni', true),
       entry('e3', 'd3', 'Ok'),
     ];
     state.dogs = [dog('d1', []), dog('d2', [{ ...akc, organization: 'UKC' }]), dog('d3', [akc])];
@@ -189,11 +191,12 @@ describe('EntryManagementPage registration number needed (MYK9-1162)', () => {
     );
   });
 
-  it('removes a row and drops the count once the dog has the number', async () => {
+  it('removes a row and drops the count once the server clears the hold', async () => {
     const view = render(page(), { initialRoute: PANE });
     await screen.findByText('Scout');
 
-    state.dogs = [dog('d1', [akc]), ...state.dogs.slice(1)];
+    // The number was added: the entry re-syncs with the server's new verdict.
+    state.entries = [entry('e1', 'd1', 'Scout'), ...state.entries.slice(1)];
     view.rerender(page());
 
     await waitFor(() => expect(screen.queryByText('Scout')).toBeNull());

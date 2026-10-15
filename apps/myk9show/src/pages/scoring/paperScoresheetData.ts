@@ -6,9 +6,8 @@ import { isOnClassRunList } from '@/features/_shared/entryAccounting';
 import { buildShowArmbandMaps, resolveEntryArmband } from '@/features/_shared/entryArmband';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import {
-  isAwaitingRegistrationNumber,
+  isHeldEntry,
   resolveDogIdentityForOrganization,
-  type ConformationPuppyContext,
   type DogRegistrationLike,
 } from '@/features/dogs/identity';
 import { getTrialRegistry } from '@/features/registries';
@@ -20,28 +19,20 @@ import type { ScoringEntry } from './types';
 export async function loadEntriesWithDogs(classId: string): Promise<ScoringEntry[]> {
   // Withdrawn, scratched, moved and not-accepted rows are not on the scoring
   // list, so they are not in "n of m scored" either (MYK9-976). A pending
-  // (not yet accepted) entry stays listed, as it always has.
+  // (not yet accepted) entry stays listed, as it always has. An entry the
+  // server marks as awaiting a registration number is never on a paper
+  // scoresheet (MYK9-1162), and it leaves BEFORE the breed check below: a held
+  // dog has no registration to read a breed from, and must not fail the class.
   const classEntries = (await replicatedEntriesTable.getEntriesByClass(classId)).filter(
-    isOnClassRunList
+    entry => isOnClassRunList(entry) && !isHeldEntry(entry)
   );
   const rawEntries = await withShowArmbands(classEntries);
   const uniqueDogIds = [...new Set(rawEntries.map(e => e.dogId).filter(Boolean))] as string[];
   const dogs = await Promise.all(uniqueDogIds.map(id => replicatedDogsTable.get(id)));
   const dogsMap = new Map(uniqueDogIds.map((id, i) => [id, dogs[i] ?? null]));
-  const { registry, puppyContext } = await loadClassHeldContext(classId);
-  const { breeds: registeredBreedByDogId, registrationsByDogId } = await loadRegistrationsAndBreeds(
-    uniqueDogIds,
-    registry
-  );
-  // MYK9-1162: an entry awaiting a registration number is never on a paper
-  // scoresheet. A dog whose registrations were not read (none are when no
-  // registry is in context) is decided by the replicated row's own held flag.
-  const listedEntries = rawEntries.filter(
-    e =>
-      !e.dogId ||
-      !isAwaitingRegistrationNumber(e, registry, registrationsByDogId.get(e.dogId), puppyContext)
-  );
-  return listedEntries.map((e, i) =>
+  const registry = await loadClassRegistryForClass(classId);
+  const registeredBreedByDogId = await loadRegisteredBreedsByDogId(uniqueDogIds, registry);
+  return rawEntries.map((e, i) =>
     toScoringEntry(
       e,
       dogsMap.get(e.dogId ?? '') ?? null,
@@ -90,30 +81,11 @@ async function withShowArmbands<
  * rule already applied in `useEntryEligibility`.
  */
 export async function loadClassRegistryForClass(classId: string): Promise<string | undefined> {
-  return (await loadClassHeldContext(classId)).registry;
-}
-
-/**
- * The class's trial registry plus the trial and class facts the
- * conformation-puppy carve-out reads (MYK9-1162), from one pair of replica reads.
- */
-async function loadClassHeldContext(
-  classId: string
-): Promise<{ registry: string | undefined; puppyContext: ConformationPuppyContext | undefined }> {
-  const none = { registry: undefined, puppyContext: undefined };
   const cls = await replicatedClassesTable.getClassById(classId);
-  if (!cls?.trialId) return none;
+  if (!cls?.trialId) return undefined;
   const trial = await replicatedTrialsTable.getTrialById(cls.trialId);
-  if (!trial) return none;
-  return {
-    registry: getTrialRegistry(trial).id,
-    puppyContext: {
-      trialType: trial.trialType,
-      className: cls.name,
-      element: cls.element,
-      level: cls.level,
-    },
-  };
+  if (!trial) return undefined;
+  return getTrialRegistry(trial).id;
 }
 
 /**
@@ -149,27 +121,9 @@ export async function loadRegisteredBreedsByDogId(
   dogIds: string[],
   organization: string | undefined
 ): Promise<Map<string, string | null>> {
-  return (await loadRegistrationsAndBreeds(dogIds, organization)).breeds;
-}
-
-/**
- * `loadRegisteredBreedsByDogId` plus the registrations it read, so the caller
- * can apply the held-entry rule without a second read (MYK9-1162). The map is
- * empty when no registry is in context, and every requested dog has a key
- * whenever it is not: a read that could not verify a dog has already thrown.
- */
-async function loadRegistrationsAndBreeds(
-  dogIds: string[],
-  organization: string | undefined
-): Promise<{
-  breeds: Map<string, string | null>;
-  registrationsByDogId: Map<string, DogRegistrationLike[]>;
-}> {
   // No registry in context means this is not an organization-scoped render, so
   // leave the map empty and let the caller's generic fallback answer.
-  if (!organization || dogIds.length === 0) {
-    return { breeds: new Map(), registrationsByDogId: new Map() };
-  }
+  if (!organization || dogIds.length === 0) return new Map();
 
   const { byDog, serverError, registrationsReadComplete } = await loadDogRegistrations(dogIds);
 
@@ -178,10 +132,8 @@ async function loadRegistrationsAndBreeds(
   // to `dogs.breed` / the view's `dog_breed`, which is how a UKC-only dog ended
   // up printing its UKC breed on an AKC scoresheet.
   const breeds = new Map<string, string | null>();
-  const registrationsByDogId = new Map<string, DogRegistrationLike[]>();
   for (const dogId of dogIds) {
     const rows = (byDog.get(dogId) ?? []) as DogRegistrationLike[];
-    registrationsByDogId.set(dogId, rows);
     breeds.set(dogId, resolveDogIdentityForOrganization(rows, organization).breed);
   }
 
@@ -195,5 +147,5 @@ async function loadRegistrationsAndBreeds(
     }
   }
 
-  return { breeds, registrationsByDogId };
+  return breeds;
 }

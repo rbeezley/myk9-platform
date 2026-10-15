@@ -4,9 +4,6 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { Dog } from '@/types/dog-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
-const akc = { id: 'r', organization: 'AKC', registrationNumber: 'SR1' } as never;
-const ukc = { id: 'u', organization: 'UKC', registrationNumber: 'P1' } as never;
-
 function dog(id: string, extra: Partial<Dog> = {}): Dog {
   return { id, name: id, callName: id, breed: 'Beagle', registrations: [], ...extra } as Dog;
 }
@@ -53,88 +50,59 @@ function entry(
 const trials = [{ id: 'trial-1', registry_id: 'AKC' }];
 const ids = (rows: { entry: { id: string } }[]) => rows.map(row => row.entry.id);
 
-// Known answers mirror supabase/tests/entry_requires_dog_registration_test.sql.
+// MYK9-1162: the server decides who is held; the pane only lists and resolves.
 describe('findEntriesAwaitingRegistrationNumber', () => {
-  it('lists an entry whose dog has no number for the trial registry, with that registry', () => {
+  const held = { awaitingRegistrationNumber: true };
+
+  it('lists the entries the server marks as held, with the trial registry and the dog', () => {
     const rows = findEntriesAwaitingRegistrationNumber({
-      entries: [entry('held', 'd1'), entry('ok', 'd2')],
+      entries: [entry('held', 'd1', held), entry('ok', 'd2')],
       trials,
-      dogs: [dog('d1'), dog('d2', { registrations: [akc] })],
+      dogs: [dog('d1'), dog('d2')],
     });
     expect(ids(rows)).toEqual(['held']);
-    expect(rows[0]).toMatchObject({ registryId: 'AKC', dog: { id: 'd1' } });
+    expect(rows[0]?.registryId).toBe('AKC');
+    expect(rows[0]?.dog?.id).toBe('d1');
   });
 
-  it('reads the registry per trial: an AKC number does not release a UKC trial entry', () => {
+  it("never rederives it from the device's registrations", () => {
+    // d1 holds no number on this device, but the server has not marked it held.
     const rows = findEntriesAwaitingRegistrationNumber({
-      entries: [entry('a', 'd1', {}, { trialId: 'trial-ukc' })],
-      trials: [{ id: 'trial-ukc', registry_id: 'UKC' }],
-      dogs: [dog('d1', { registrations: [akc] })],
+      entries: [entry('unflagged', 'd1')],
+      trials,
+      dogs: [dog('d1')],
     });
-    expect(ids(rows)).toEqual(['a']);
+    expect(rows).toEqual([]);
+  });
+
+  it('still lists a held entry when the dog is not in the roster, without a dog to add to', () => {
+    const rows = findEntriesAwaitingRegistrationNumber({
+      entries: [entry('held', 'd-missing', held)],
+      trials,
+      dogs: [],
+    });
+    expect(ids(rows)).toEqual(['held']);
+    expect(rows[0]?.dog).toBeUndefined();
+  });
+
+  it("names the registry of the entry's own trial", () => {
+    const rows = findEntriesAwaitingRegistrationNumber({
+      entries: [entry('held', 'd1', held, { trialId: 'trial-ukc' })],
+      trials: [...trials, { id: 'trial-ukc', registry_id: 'UKC' }],
+      dogs: [dog('d1')],
+    });
     expect(rows[0]?.registryId).toBe('UKC');
   });
 
-  it('holds a UKC-only dog in an AKC trial, and releases it once the AKC number exists', () => {
-    const held = { entries: [entry('a', 'd1')], trials };
-    expect(
-      ids(
-        findEntriesAwaitingRegistrationNumber({
-          ...held,
-          dogs: [dog('d1', { registrations: [ukc] })],
-        })
-      )
-    ).toEqual(['a']);
-    expect(
-      findEntriesAwaitingRegistrationNumber({
-        ...held,
-        dogs: [dog('d1', { registrations: [ukc, akc] })],
-      })
-    ).toEqual([]);
-  });
-
-  it('treats an unknown trial, dog or registration read as not held', () => {
-    const base = { entries: [entry('a', 'd1')] };
-    expect(
-      findEntriesAwaitingRegistrationNumber({ ...base, trials: [], dogs: [dog('d1')] })
-    ).toEqual([]);
-    expect(findEntriesAwaitingRegistrationNumber({ ...base, trials, dogs: [] })).toEqual([]);
-    expect(
-      findEntriesAwaitingRegistrationNumber({
-        ...base,
-        trials,
-        dogs: [dog('d1', { registrationsReadComplete: false })],
-      })
-    ).toEqual([]);
-    expect(
-      findEntriesAwaitingRegistrationNumber({
-        ...base,
-        trials,
-        dogs: [dog('d1', { registrations: undefined })],
-      })
-    ).toEqual([]);
-  });
-
-  it.each(['withdrawn', 'scratched', 'absent', 'moved', 'not_accepted'])(
-    'leaves a %s entry out: only live entries are held',
-    status => {
-      expect(
-        findEntriesAwaitingRegistrationNumber({
-          entries: [entry('a', 'd1', { rawEntryStatus: status })],
-          trials,
-          dogs: [dog('d1')],
-        })
-      ).toEqual([]);
-    }
-  );
-
-  it('keeps the conformation-puppy carve-out', () => {
-    expect(
-      findEntriesAwaitingRegistrationNumber({
-        entries: [entry('a', 'd1', {}, { trialType: 'Conformation', name: 'Puppy 6-9 Months' })],
-        trials,
-        dogs: [dog('d1')],
-      })
-    ).toEqual([]);
+  it('leaves out a held entry whose trial is not loaded, and one that is withdrawn', () => {
+    const rows = findEntriesAwaitingRegistrationNumber({
+      entries: [
+        entry('no-trial', 'd1', held, { trialId: 'trial-unknown' }),
+        entry('withdrawn', 'd2', { ...held, rawEntryStatus: 'withdrawn' }),
+      ],
+      trials,
+      dogs: [dog('d1'), dog('d2')],
+    });
+    expect(rows).toEqual([]);
   });
 });

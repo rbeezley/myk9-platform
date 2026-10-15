@@ -101,9 +101,9 @@ export interface ReportEntry {
    */
   handlerDiffersFromOwner?: boolean;
   /**
-   * MYK9-1162: true when the dog holds no registration number for the trial's
-   * registry (`isAwaitingRegistrationNumber`). Absent otherwise, including when
-   * the registrations were not loaded. The catalog leaves such entries out.
+   * MYK9-1162: true when the server marks the entry as awaiting a registration
+   * number (`awaiting_registration_number`, read through `isHeldEntry`). Absent
+   * otherwise. The catalog leaves such entries out.
    */
   awaitingRegistrationNumber?: boolean;
   /** `entries.withdrawal_reason_code`: `in_season` (AIS) or `judge_change` (AJC). */

@@ -21,13 +21,14 @@ const classes = [
   { id: 'class-1', trial_id: 'trial-1', element: 'Buried', level: 'Novice', section: '' },
 ] as DbClass[];
 
-function entry(id: string, registrations: unknown[]) {
+function entry(id: string, held: boolean) {
   return fromAny<DbEntry, unknown>({
     id,
     class_id: 'class-1',
     dog_id: `dog-${id}`,
     entry_status: 'confirmed',
-    dog: { id: `dog-${id}`, call_name: id, breed: 'Beagle', registrations },
+    awaiting_registration_number: held,
+    dog: { id: `dog-${id}`, call_name: id, breed: 'Beagle' },
   });
 }
 
@@ -38,10 +39,7 @@ describe('ResultLabelsReport entries awaiting a registration number', () => {
         show={{ id: 'show-1', name: 'Show' } as Show}
         trials={trials}
         classes={classes}
-        entries={[
-          entry('ok', [{ organization: 'AKC', registration_number: 'SR1' }]),
-          entry('held', []),
-        ]}
+        entries={[entry('ok', false), entry('held', true)]}
         scope={{ kind: 'show', showId: 'show-1' }}
         sortOrder="armband"
       />

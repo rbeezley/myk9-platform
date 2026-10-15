@@ -57,20 +57,18 @@ const cls = fromAny<DbClass, unknown>({
   level: 'Novice',
 });
 
-function entry(id: string, registrations: unknown[]): ReportDbEntry {
+function entry(id: string, held: boolean): ReportDbEntry {
   return fromAny<ReportDbEntry, unknown>({
     id,
     class_id: 'class-1',
     dog_id: `dog-${id}`,
     entry_status: 'confirmed',
     armband: id,
-    dog: { id: `dog-${id}`, call_name: id, breed: 'Beagle', registrations },
+    awaiting_registration_number: held,
+    dog: { id: `dog-${id}`, call_name: id, breed: 'Beagle' },
   });
 }
-const entries = [
-  entry('ok', [{ organization: 'AKC', registration_number: 'SR1' }]),
-  entry('held', []),
-];
+const entries = [entry('ok', false), entry('held', true)];
 const ids = (list: Array<{ id: string }> | undefined) => (list ?? []).map(e => e.id);
 
 describe('registry flags', () => {

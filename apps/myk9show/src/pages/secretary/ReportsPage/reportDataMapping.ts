@@ -101,8 +101,7 @@ function mapReportEntry(
     ? resolveDogIdentityForOrganization(dog?.registrations, readTrialRegistryId(trial))
     : null;
   const registrationNumber = dogIdentity?.registrationNumber ?? null;
-  const awaitingRegistrationNumber =
-    trial != null && isReportEntryHeld(e, readTrialRegistryId(trial), trial, classData);
+  const awaitingRegistrationNumber = isReportEntryHeld(e);
   const base = mapDbEntryToReportEntry(
     {
       id: e.id,

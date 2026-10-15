@@ -125,7 +125,8 @@ export const RegistrationNeededTab: React.FC<RegistrationNeededTabProps> = ({
                     <Button
                       size="sm"
                       className="min-h-11"
-                      onClick={() => requestAdd(dog)}
+                      disabled={!dog}
+                      onClick={() => dog && requestAdd(dog)}
                       aria-label={`Add registration for ${entry.dogName}`}
                     >
                       Add registration

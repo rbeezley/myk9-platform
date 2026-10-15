@@ -5,7 +5,6 @@ import type { CheckInStatus } from '@myk9/core';
 import { useEntryStore } from '@/store/entryStore';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import type { Dog } from '@/types/dog-types';
-import type { ConformationPuppyContext } from '@/features/dogs/identity';
 import { buildRunSheetEntries } from './buildRunSheetEntries';
 import type { RunSheetEntry } from './types';
 
@@ -15,10 +14,6 @@ interface UseRunSheetStateProps {
   userId: string;
   dogs: Dog[];
   organization?: string | null | undefined;
-  /** The class's trial registry; absent means nothing can be held (MYK9-1162). */
-  registryId?: string | null | undefined;
-  /** Trial type and class names for the conformation-puppy carve-out (MYK9-1162). */
-  puppyContext?: ConformationPuppyContext | undefined;
 }
 
 interface UseRunSheetStateReturn {
@@ -32,15 +27,13 @@ export function useRunSheetState({
   userId,
   dogs,
   organization,
-  registryId,
-  puppyContext,
 }: UseRunSheetStateProps): UseRunSheetStateReturn {
   const queryClient = useQueryClient();
   const dogLookup = useMemo(() => new Map(dogs.map(dog => [dog.id, dog])), [dogs]);
 
   const sortedEntries = useMemo(
-    () => buildRunSheetEntries(rawEntries, dogLookup, organization, registryId, puppyContext),
-    [rawEntries, dogLookup, organization, registryId, puppyContext]
+    () => buildRunSheetEntries(rawEntries, dogLookup, organization),
+    [rawEntries, dogLookup, organization]
   );
 
   const onCheckInStatus = async (entryId: string, status: CheckInStatus) => {

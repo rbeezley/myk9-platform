@@ -11,14 +11,5 @@ export type {
   DogRegistrationLike,
   MappedDogRegistrationLike,
 } from './resolveDogIdentity';
-export {
-  isAwaitingRegistrationNumber,
-  isConformationPuppyClass,
-  registrationsFromRead,
-  registrationsIfKnown,
-} from './isAwaitingRegistrationNumber';
-export type {
-  ConformationPuppyContext,
-  DogRegistrationsSource,
-  ServerHeldFlag,
-} from './isAwaitingRegistrationNumber';
+export { isConformationPuppyClass, isHeldEntry } from './heldEntry';
+export type { ConformationPuppyContext, ServerHeldFlag } from './heldEntry';

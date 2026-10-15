@@ -1,4 +1,5 @@
 import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
+import { stampServerHeldFlags } from './serverHeldFlags';
 import { isMoveUpLinkSchemaUnavailable } from '@/features/payments/pullRefundSchemaCompatibility';
 import { projectPostgrestEntryHandlerIdentity } from './entryHandlerReadBoundary';
 import type { SecretaryEntry } from './secretaryTypes';
@@ -176,7 +177,8 @@ export async function postgrestGetSecretaryEntriesForShow(
     entry.refund_decided_at = meta.refund_decided_at;
   }
 
-  return { data: entries, error: null };
+  // MYK9-1162: the held verdict, read apart so a database without the column fails open.
+  return { data: await stampServerHeldFlags(entries), error: null };
 }
 
 /**

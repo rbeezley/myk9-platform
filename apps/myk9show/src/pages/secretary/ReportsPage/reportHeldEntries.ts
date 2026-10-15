@@ -1,6 +1,5 @@
-import { isAwaitingRegistrationNumber, type ServerHeldFlag } from '@/features/dogs/identity';
+import { isHeldEntry, type ServerHeldFlag } from '@/features/dogs/identity';
 import type { ReportDbEntry } from '@/lib/reports/types';
-import type { DbClass, DbTrial } from '@/types/database-mappings';
 
 /**
  * MYK9-1162: reports that list who runs leave out entries awaiting a
@@ -17,31 +16,13 @@ export function omitHeldEntries<T extends { awaitingRegistrationNumber?: boolean
 }
 
 /**
- * MYK9-1162: a held entry is kept off the catalog. Registrations this device
- * could not read completely are unknown, and the shared predicate then answers
- * from the replicated row's own `awaiting_registration_number`.
+ * MYK9-1162: a held entry is kept off the catalog. The server decides, through
+ * the entry row's own `awaiting_registration_number` (see `isHeldEntry`).
  */
-export function isReportEntryHeld(
-  e: ReportDbEntry,
-  registryId: string,
-  trial: DbTrial,
-  classData: DbClass | undefined
-): boolean {
-  const dog = e.dog;
-  const registrationsKnown = dog?.registrationsReadComplete !== false;
-  return isAwaitingRegistrationNumber(
-    {
-      entryStatus: e.entry_status ?? undefined,
-      deletedAt: e.deleted_at,
-      awaiting_registration_number: (e as ServerHeldFlag).awaiting_registration_number,
-    },
-    registryId,
-    registrationsKnown ? dog?.registrations : undefined,
-    {
-      trialType: trial.trial_type,
-      className: classData?.name,
-      element: classData?.element,
-      level: classData?.level,
-    }
-  );
+export function isReportEntryHeld(e: ReportDbEntry): boolean {
+  return isHeldEntry({
+    entryStatus: e.entry_status ?? undefined,
+    deletedAt: e.deleted_at,
+    awaiting_registration_number: (e as ServerHeldFlag).awaiting_registration_number,
+  });
 }

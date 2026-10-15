@@ -6,15 +6,13 @@
 import { useState, useCallback, useRef } from 'react';
 import { notifications } from '@/lib/notifications';
 import { getEntriesByClass } from '@/services/database/entries';
+import { isHeldEntry } from '@/features/dogs/identity';
 import {
   getHandlerPeopleHydrationRevision,
   settleHandlerPeopleHydration,
 } from '@/services/database/entries/handlerHydration';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
-import { loadDogRegistrations } from '@/services/database/dogs/reads';
-import { getTrialRegistry } from '@/features/registries';
-import { isAwaitingRegistrationNumber, registrationsFromRead } from '@/features/dogs/identity';
 import { generateRunOrder, generateScoreSheet, generateResults } from './print-service';
 import type { ClassPipelineItem } from '../mission-control-types';
 import type { PrintClassInfo, PrintReportEntry } from './print-types';
@@ -40,10 +38,6 @@ interface DogData {
 
 interface EntryRow {
   id: string;
-  dog_id?: string | null;
-  entry_status?: string | null;
-  /** The server's held verdict (MYK9-1162), present on replica-sourced rows. */
-  awaiting_registration_number?: boolean | null;
   armband?: string | number | null;
   run_order?: number | null;
   is_scored?: boolean | null;
@@ -53,6 +47,17 @@ interface EntryRow {
   total_faults?: number | null;
   dog?: DogData | null;
   handler_identity?: ProjectedEntryHandler | null;
+  entry_status?: string | null;
+  /** The server's verdict that this entry awaits a registration number (MYK9-1162). */
+  awaiting_registration_number?: boolean | null;
+}
+
+/** MYK9-1162: an entry awaiting a registration number holds its place but is never printed. */
+function isPrintable(row: EntryRow): boolean {
+  return !isHeldEntry({
+    entryStatus: row.entry_status ?? undefined,
+    awaiting_registration_number: row.awaiting_registration_number,
+  });
 }
 
 function mapEntry(row: EntryRow): PrintReportEntry {
@@ -75,35 +80,6 @@ function mapEntry(row: EntryRow): PrintReportEntry {
     searchTimeSeconds: row.search_time_seconds ?? null,
     faultCount: row.total_faults ?? null,
   };
-}
-
-/**
- * MYK9-1162: an entry awaiting a registration number holds its capacity place
- * but is never printed. A registration read that did not answer for a dog falls
- * back to the row's own server held flag; with neither, nothing is held.
- */
-async function withoutHeldEntries(
-  rows: EntryRow[],
-  trial: (Parameters<typeof getTrialRegistry>[0] & { trialType?: string | undefined }) | undefined,
-  className: string
-): Promise<EntryRow[]> {
-  const dogIds = [...new Set(rows.map(row => row.dog_id).filter((id): id is string => !!id))];
-  if (!trial || dogIds.length === 0) return rows;
-  const registryId = getTrialRegistry(trial).id;
-  const read = await loadDogRegistrations(dogIds);
-  return rows.filter(
-    row =>
-      !row.dog_id ||
-      !isAwaitingRegistrationNumber(
-        {
-          entryStatus: row.entry_status ?? undefined,
-          awaiting_registration_number: row.awaiting_registration_number,
-        },
-        registryId,
-        registrationsFromRead(read, row.dog_id),
-        { trialType: trial.trialType, className, element: null, level: null }
-      )
-  );
 }
 
 export interface UsePipelinePrintReturn {
@@ -141,30 +117,21 @@ export function usePipelinePrint(showId: string, trialId: string): UsePipelinePr
     [showId, trialId, shows, trials]
   );
 
-  const fetchEntries = useCallback(
-    async (classId: string, className: string): Promise<PrintReportEntry[]> => {
-      const read = async () => {
-        const { data, error } = await getEntriesByClass(classId);
-        if (error) throw error;
-        return data as unknown as EntryRow[];
-      };
-      // A print is one-shot: it cannot replay when a handler people refresh
-      // that missed its fast window lands later, as Reports does. Wait for it,
-      // then re-read if it changed any cached identity (MYK9-743).
-      const revision = getHandlerPeopleHydrationRevision();
-      let rows = await read();
-      await settleHandlerPeopleHydration();
-      if (getHandlerPeopleHydrationRevision() !== revision) rows = await read();
-      return (
-        await withoutHeldEntries(
-          rows,
-          trials.find(t => t.id === trialId),
-          className
-        )
-      ).map(mapEntry);
-    },
-    [trialId, trials]
-  );
+  const fetchEntries = useCallback(async (classId: string): Promise<PrintReportEntry[]> => {
+    const read = async () => {
+      const { data, error } = await getEntriesByClass(classId);
+      if (error) throw error;
+      return data as unknown as EntryRow[];
+    };
+    // A print is one-shot: it cannot replay when a handler people refresh
+    // that missed its fast window lands later, as Reports does. Wait for it,
+    // then re-read if it changed any cached identity (MYK9-743).
+    const revision = getHandlerPeopleHydrationRevision();
+    let rows = await read();
+    await settleHandlerPeopleHydration();
+    if (getHandlerPeopleHydrationRevision() !== revision) rows = await read();
+    return rows.filter(isPrintable).map(mapEntry);
+  }, []);
 
   const makePrintHandler = useCallback(
     (generate: (info: PrintClassInfo, entries: PrintReportEntry[]) => void) =>
@@ -173,7 +140,7 @@ export function usePipelinePrint(showId: string, trialId: string): UsePipelinePr
         isPrintingRef.current = true;
         setIsPrinting(true);
         try {
-          const entries = await fetchEntries(item.id, item.name);
+          const entries = await fetchEntries(item.id);
           if (entries.length === 0) {
             notifications.warning('No entries found for this class');
             return;

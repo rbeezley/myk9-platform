@@ -29,85 +29,48 @@ vi.mock('@/services/database/dogs/reads', () => ({
 
 import { loadEntriesWithDogs } from '../paperScoresheetData';
 
-const entry = (id: string, dogId: string) => ({
+const entry = (id: string, dogId: string, held: boolean) => ({
   id,
   classId: 'class-1',
   showId: 'show-1',
   dogId,
   armband: id,
   entryStatus: 'confirmed',
+  awaitingRegistrationNumber: held,
 });
-const akc = (breed = 'Beagle') => ({
-  organization: 'AKC',
-  registration_number: 'SR1',
-  breed,
-});
+const akc = { organization: 'AKC', registration_number: 'SR1', breed: 'Beagle' };
 
-// MYK9-1162: a held entry keeps its capacity place but is not on paper.
+// MYK9-1162: an entry the server marks as held keeps its place but is not on paper.
 describe('paper scoring list leaves out entries awaiting a registration number', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetClassById.mockResolvedValue({ id: 'class-1', trialId: 'trial-1' });
     mockGetTrialById.mockResolvedValue({ id: 'trial-1', registryId: 'AKC' });
-    mockGetEntriesByClass.mockResolvedValue([entry('1', 'dog-reg'), entry('2', 'dog-held')]);
+    mockGetEntriesByClass.mockResolvedValue([
+      entry('1', 'dog-reg', false),
+      entry('2', 'dog-held', true),
+    ]);
   });
 
-  it('lists the registered dog and omits the held one, with a verified read', async () => {
+  it('omits the held entry and lists the rest', async () => {
     mockLoadRegistrations.mockResolvedValue({
-      byDog: new Map([['dog-reg', [akc()]]]),
+      byDog: new Map([['dog-reg', [akc]]]),
       serverError: null,
       registrationsReadComplete: true,
     });
 
-    const entries = await loadEntriesWithDogs('class-1');
-
-    expect(entries.map(e => e.entryId)).toEqual(['1']);
+    expect((await loadEntriesWithDogs('class-1')).map(e => e.entryId)).toEqual(['1']);
   });
 
-  it('holds nothing when no registry is in context: an unverified class is never emptied', async () => {
-    mockGetClassById.mockResolvedValue({ id: 'class-1' });
+  it('offline, a held dog with no breed to verify does not fail the whole class', async () => {
     mockLoadRegistrations.mockResolvedValue({
-      byDog: new Map(),
-      serverError: null,
-      registrationsReadComplete: true,
-    });
-
-    const entries = await loadEntriesWithDogs('class-1');
-
-    expect(entries.map(e => e.entryId)).toEqual(['1', '2']);
-  });
-
-  it('keeps refusing an unverifiable read rather than printing a partly-verified sheet', async () => {
-    mockLoadRegistrations.mockResolvedValue({
-      byDog: new Map([['dog-reg', [akc()]]]),
+      byDog: new Map([['dog-reg', [akc]]]),
       serverError: new Error('offline'),
       registrationsReadComplete: false,
     });
 
-    await expect(loadEntriesWithDogs('class-1')).rejects.toThrow(/Could not verify registrations/);
-  });
-
-  it('never holds a conformation puppy: the class and trial carve-out is threaded in', async () => {
-    mockGetClassById.mockResolvedValue({
-      id: 'class-1',
-      trialId: 'trial-1',
-      name: 'Puppy 6-9 Months',
-      element: 'Puppy',
-      level: 'Puppy',
-    });
-    mockGetTrialById.mockResolvedValue({
-      id: 'trial-1',
-      registryId: 'AKC',
-      trialType: 'Conformation',
-    });
-    mockLoadRegistrations.mockResolvedValue({
-      byDog: new Map([['dog-reg', [akc()]]]),
-      serverError: null,
-      registrationsReadComplete: true,
-    });
-
-    const entries = await loadEntriesWithDogs('class-1');
-
-    expect(entries.map(e => e.entryId)).toEqual(['1', '2']);
+    expect((await loadEntriesWithDogs('class-1')).map(e => e.entryId)).toEqual(['1']);
+    // The held dog is never asked about at all.
+    expect(mockLoadRegistrations).toHaveBeenCalledWith(['dog-reg']);
   });
 });

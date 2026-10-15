@@ -1,41 +1,63 @@
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-const runner = resolve(import.meta.dirname, 'run-sql-local.sh');
+const repositoryRoot = resolve(import.meta.dirname, '../..');
+const runner = resolve(repositoryRoot, 'scripts/qa/run-sql-local.sh');
 const tempDirs: string[] = [];
 
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-// A stand-in CLI that logs every invocation to $CALLS, reports `version`, then
-// runs each `rules` line (bash) before exiting 0. Lets the test watch exactly
-// what the runner asks the CLI to do without starting a real stack.
-const failStart = '[ "$1" = start ] && exit 7';
-const destroyFindsNothing =
-  '[ "$1" = stack ] && { echo \'No managed stack named "qa-sql-local" was found\'; exit 1; }';
-const destroyErrors = '[ "$1" = stack ] && { echo boom >&2; exit 1; }';
-// The first destroy (the leftover sweep) finds nothing; the teardown one errors.
-const onlyTeardownDestroyErrors =
-  '[ "$1" = stack ] && [ "$(grep -c "^stack" "$CALLS")" = 2 ] && { echo boom >&2; exit 1; }';
+// A stand-in CLI that logs every invocation and keeps one piece of state: whether
+// the qa-sql-local stack exists (a marker file). `start` creates it, `stack
+// destroy` removes it, and `stack list` prints the JSON shape CLI 2.121.0
+// prints. Lets the test watch exactly what the runner asks the CLI to do
+// without starting a real stack.
+interface FakeCli {
+  version?: string;
+  leftoverStack?: boolean;
+  failStart?: boolean;
+  destroyFails?: boolean;
+  listGarbage?: boolean;
+}
 
-function runWithFakeCli(version: string, rules: string[] = []) {
+function runWithFakeCli(options: FakeCli = {}) {
+  const { version = '2.121.0', leftoverStack, failStart, destroyFails, listGarbage } = options;
   const dir = mkdtempSync(join(tmpdir(), 'sql-local-'));
   tempDirs.push(dir);
   const log = join(dir, 'calls.log');
+  const marker = join(dir, 'stack-up');
+  if (leftoverStack) writeFileSync(marker, '');
+  const entry = JSON.stringify({
+    id: '74352c92bd39',
+    project_root: repositoryRoot,
+    name: 'qa-sql-local',
+    branch_context: 'refs/heads/test',
+    runtime: 'native',
+    owner: 'reachable',
+  });
   const bin = join(dir, 'supabase');
   writeFileSync(
     bin,
     [
       '#!/usr/bin/env bash',
-      `CALLS='${log}'`,
-      'echo "$*" >> "$CALLS"',
+      `echo "$*" >> '${log}'`,
       `if [ "$1" = "--version" ]; then echo '${version}'; exit 0; fi`,
-      ...rules,
+      'if [ "$1 $2" = "stack list" ]; then',
+      listGarbage ? "  echo 'not json'; exit 0" : '  :',
+      `  if [ -e '${marker}' ]; then echo '{"stacks":[${entry}],"message":""}';`,
+      `  else echo '{"stacks":[],"message":""}'; fi; exit 0`,
+      'fi',
+      'if [ "$1 $2" = "stack destroy" ]; then',
+      destroyFails ? '  echo boom >&2; exit 1' : '  :',
+      `  rm -f '${marker}'; exit 0`,
+      'fi',
+      `if [ "$1" = start ]; then touch '${marker}'; ${failStart ? 'exit 7' : 'exit 0'}; fi`,
       'exit 0',
       '',
     ].join('\n')
@@ -46,12 +68,13 @@ function runWithFakeCli(version: string, rules: string[] = []) {
     env: { ...process.env, SUPABASE_BIN: bin },
   });
   const calls = readFileSync(log, 'utf8').trim().split('\n');
-  return { ...result, calls };
+  const started = calls.some(call => call.startsWith('start'));
+  return { ...result, calls, started, stackLeft: existsSync(marker) };
 }
 
 describe('run-sql-local.sh', () => {
   it('refuses a CLI older than 2.121.0 before starting anything', () => {
-    const result = runWithFakeCli('2.117.0');
+    const result = runWithFakeCli({ version: '2.117.0' });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('2.117.0 is too old');
     expect(result.stderr).toContain('>= 2.121.0');
@@ -59,55 +82,64 @@ describe('run-sql-local.sh', () => {
   });
 
   it('compares versions numerically, not as strings', () => {
-    const result = runWithFakeCli('2.99.0');
+    const result = runWithFakeCli({ version: '2.99.0' });
     expect(result.status).toBe(1);
     expect(result.calls).toEqual(['--version']);
   });
 
-  it('rebuilds a fresh dedicated stack and destroys it when a step fails', () => {
-    const result = runWithFakeCli('2.121.0', [failStart]);
+  // Every case below fails `start` (or stops before it), so the run never
+  // reaches the real SQL test scripts.
+  it('starts a fresh dedicated stack and destroys it when a step fails', () => {
+    const result = runWithFakeCli({ failStart: true });
     expect(result.status).toBe(7);
-    expect(result.calls[1]).toMatch(/^stack destroy --workdir .+ --stack qa-sql-local --yes$/);
-    expect(result.calls[2]).toMatch(
-      /^start --workdir .+ --stack qa-sql-local --runtime native --exclude /
+    expect(result.calls).toContainEqual(
+      expect.stringMatching(/^start --workdir .+ --stack qa-sql-local --runtime native --exclude /)
     );
-    expect(result.calls.at(-1)).toBe(result.calls[1]);
+    expect(result.calls.at(-1)).toMatch(/^stack destroy --workdir .+ --stack qa-sql-local --yes$/);
+    expect(result.stackLeft).toBe(false);
   });
 
   // A worktree's default stack may hold someone's development data; only the
-  // named qa-sql-local stack is ever started, reset or destroyed.
+  // named qa-sql-local stack is ever started or destroyed.
   it('never touches the default project stack', () => {
-    const { calls } = runWithFakeCli('2.121.0', [failStart]);
-    for (const call of calls.slice(1)) {
+    const { calls } = runWithFakeCli({ leftoverStack: true, failStart: true });
+    for (const call of calls.filter(c => /^(start|stack destroy)/.test(c))) {
       expect(call).toMatch(/--stack qa-sql-local/);
     }
   });
 
-  it('treats an absent leftover stack as clean', () => {
-    const result = runWithFakeCli('2.121.0', [destroyFindsNothing, failStart]);
-    expect(result.status).toBe(7);
-    expect(result.calls[2]).toMatch(/^start /);
-    expect(result.stderr).not.toContain('stack destroy failed');
+  it('removes a leftover stack before starting, so the schema is rebuilt', () => {
+    const { calls } = runWithFakeCli({ leftoverStack: true, failStart: true });
+    const destroyAt = calls.findIndex(c => c.startsWith('stack destroy'));
+    const startAt = calls.findIndex(c => c.startsWith('start'));
+    expect(destroyAt).toBeGreaterThan(-1);
+    expect(destroyAt).toBeLessThan(startAt);
   });
 
   // A surviving leftover would be resumed with its old schema and could PASS
   // without the migrations ever being rebuilt.
   it('aborts before start when a leftover stack cannot be removed', () => {
-    const result = runWithFakeCli('2.121.0', [destroyErrors]);
+    const result = runWithFakeCli({ leftoverStack: true, destroyFails: true });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("could not remove a leftover 'qa-sql-local' stack");
-    expect(result.calls.some(call => call.startsWith('start'))).toBe(false);
+    expect(result.started).toBe(false);
+  });
+
+  it('aborts before start when the stack list cannot be read', () => {
+    const result = runWithFakeCli({ listGarbage: true });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('could not read');
+    expect(result.started).toBe(false);
   });
 
   it('fails the run when the teardown destroy fails', () => {
-    // `start` fails too, so the run stops before the real SQL test scripts.
-    const result = runWithFakeCli('2.121.0', [onlyTeardownDestroyErrors, failStart]);
+    const result = runWithFakeCli({ failStart: true, destroyFails: true });
     expect(result.status).toBe(7);
     expect(result.stderr).toContain('stack destroy failed');
   });
 
   it('never targets the linked project', () => {
-    const { calls } = runWithFakeCli('2.121.0', [failStart]);
+    const { calls } = runWithFakeCli({ leftoverStack: true, failStart: true });
     for (const call of calls) {
       expect(call).not.toMatch(/--linked|\bpush\b|--db-url|--project-ref/);
     }

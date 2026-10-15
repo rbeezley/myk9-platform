@@ -2,12 +2,6 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAtShowScoresheet } from './useAtShowScoresheet';
 
-interface SubmitOptions {
-  classId: string;
-  onSuccess?: () => void;
-  onError?: (error: Error) => void;
-}
-
 const mocks = vi.hoisted(() => ({
   submitScoreOptimistically: vi.fn(),
   getClassById: vi.fn(),

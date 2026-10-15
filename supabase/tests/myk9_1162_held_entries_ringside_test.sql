@@ -255,9 +255,16 @@ begin
   update public.entries set check_in_status = 'checked-in'
    where id = '00000000-0000-0000-0000-000001162047';
   raise notice 'PASS D a non-score write to an entry scored before it became held passes';
+end $$;
 
-  -- A correction to any score-bearing column (faults, an area time) is still a
-  -- score write, even though is_scored, result_status and the time are unchanged.
+-- A correction to any score-bearing column (faults, an area time) is still a
+-- score write, even though is_scored, result_status and the time are unchanged.
+-- `authenticated` holds no column grant on these (ringside writes them through
+-- the owner-run ringside_update_entry), so the corrections run as the owner: the
+-- guard is a trigger and refuses every writer alike.
+reset role;
+do $$
+begin
   begin
     update public.entries set total_faults = coalesce(total_faults, 0) + 1
      where id = '00000000-0000-0000-0000-000001162047';
@@ -274,7 +281,12 @@ begin
     if sqlerrm not like 'Registration number needed%' then raise; end if;
     raise notice 'PASS D an area-time correction is refused for a held entry';
   end;
+end $$;
 
+set local role authenticated;
+select pg_temp.as_account('00000000-0000-0000-0000-000001162101');
+do $$
+begin
   -- A reset (not scored, pending, zero time) clears a result, so it passes for
   -- an entry that became held after it was scored; a new score is still refused.
   update public.entries

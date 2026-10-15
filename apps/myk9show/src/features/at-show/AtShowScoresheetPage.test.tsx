@@ -240,6 +240,8 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     vi.clearAllMocks();
     vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('pending');
     vi.mocked(replicatedEntriesTable.readScoreFromServer).mockResolvedValue(null);
+    // A test may capture the replica listener; every other test gets a no-op.
+    vi.mocked(replicatedEntriesTable.subscribe).mockImplementation(() => () => undefined);
     mockRoles = [UserRole.JUDGE];
     mockPersonId = 'judge-1';
     mockIsAnonymous = false;
@@ -1035,31 +1037,31 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     });
   });
 
-  // MYK9-1162: a held entry cannot be scored. The sheet is replaced by a notice,
-  // and opening it must not move the dog in-ring.
+  // MYK9-1162: a held entry cannot be scored. The notice covers the sheet, which
+  // stays mounted but inert, and opening it must not move the dog in-ring.
+  const heldRow = {
+    id: 'entry-1',
+    armband: 105,
+    dogId: 'dog-1',
+    checkInStatus: 'no-status',
+    awaitingRegistrationNumber: true,
+  };
+
   it('locks the scoresheet for an entry awaiting a registration number', async () => {
-    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([
-      {
-        id: 'entry-1',
-        armband: 105,
-        dogId: 'dog-1',
-        checkInStatus: 'no-status',
-        awaitingRegistrationNumber: true,
-      },
-    ] as never);
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([heldRow] as never);
+    vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue(heldRow as never);
 
     renderPage();
 
     expect(await screen.findByText('Registration number needed')).toBeInTheDocument();
     expect(screen.getByText('See the secretary')).toBeInTheDocument();
-    expect(screen.queryByTestId('live-scoresheet')).not.toBeInTheDocument();
+    expect(screen.getByTestId('live-scoresheet').closest('[inert]')).not.toBeNull();
     expect(transitionToInRing).not.toHaveBeenCalled();
   });
 
   it('still lets the judge record a held dog absent, with nothing timed', async () => {
-    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([
-      { id: 'entry-1', armband: 105, dogId: 'dog-1', awaitingRegistrationNumber: true },
-    ] as never);
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([heldRow] as never);
+    vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue(heldRow as never);
 
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Mark absent' }));
@@ -1070,6 +1072,33 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       searchTime: '0.00',
       nonQualifyingReason: 'Absent',
     });
+  });
+
+  it('locks an open sheet when sync brings in a hold, and unlocks it again, keeping the sheet', async () => {
+    let notify: () => void = () => undefined;
+    vi.mocked(replicatedEntriesTable.subscribe).mockImplementation(listener => {
+      notify = listener as () => void;
+      return () => undefined;
+    });
+    renderPage();
+    const sheet = await screen.findByTestId('live-scoresheet');
+    expect(sheet.closest('[inert]')).toBeNull();
+
+    vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue(heldRow as never);
+    notify();
+    expect(await screen.findByText('Registration number needed')).toBeInTheDocument();
+    // The same sheet, still mounted: nothing the judge had on it is lost.
+    expect(screen.getByTestId('live-scoresheet')).toBe(sheet);
+    expect(sheet.closest('[inert]')).not.toBeNull();
+
+    vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue({
+      ...heldRow,
+      awaitingRegistrationNumber: false,
+    } as never);
+    notify();
+    await waitFor(() => expect(screen.queryByText('Registration number needed')).toBeNull());
+    expect(screen.getByTestId('live-scoresheet')).toBe(sheet);
+    expect(sheet.closest('[inert]')).toBeNull();
   });
 
   it('opens the scoresheet when the flag is unknown (an older replica row)', async () => {

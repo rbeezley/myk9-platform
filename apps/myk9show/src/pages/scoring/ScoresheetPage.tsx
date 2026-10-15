@@ -43,6 +43,9 @@ import {
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { useScoringBreadcrumb } from './useScoringBreadcrumb';
 import { MaxTimeNotSetNotice } from '@/features/at-show/MaxTimeNotSetNotice';
+import { HeldEntryGate, submitUnlessHeld } from '@/features/at-show/HeldEntryNotice';
+import { useEntryHeld } from '@/features/at-show/useEntryHeld';
+import { isHeldEntry } from '@/features/dogs/identity';
 
 /**
  * Main scoresheet page - routes to correct scoresheet component
@@ -59,6 +62,9 @@ export function ScoresheetPage() {
     submitError,
     clearSubmitError,
   } = useOptimisticScoring();
+  // MYK9-1162: the same live gate as ringside, so a paper score is never keyed
+  // for a dog awaiting its registration number.
+  const held = useEntryHeld(entryId);
 
   const [entry, setEntry] = useState<ScoringEntry | null>(null);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
@@ -113,8 +119,11 @@ export function ScoresheetPage() {
           return;
         }
 
-        // Auto-set check-in status to in-ring when scoresheet opens
-        transitionToInRing(rawEntry.id, rawEntry.checkInStatus, rawEntry.ring_entry_time);
+        // Auto-set check-in status to in-ring when scoresheet opens; never for a
+        // held entry, which cannot be scored (MYK9-1162).
+        if (!isHeldEntry(rawEntry)) {
+          transitionToInRing(rawEntry.id, rawEntry.checkInStatus, rawEntry.ring_entry_time);
+        }
 
         // Load only the needed dog
         const dog = rawEntry.dogId ? await replicatedDogsTable.get(rawEntry.dogId) : null;
@@ -286,14 +295,23 @@ export function ScoresheetPage() {
           )}
         </div>
       )}
-      <MaxTimeNotSetNotice maxTimeSeconds={rules.maxTimeSeconds} registryKey={registryKey} />
-      <LiveScoresheet
-        entry={toScoresheetEntry(entry, classInfo)}
-        classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
-        rules={rules}
-        onSubmit={handleSubmit}
+      <HeldEntryGate
+        held={held}
         onBack={handleBack}
-      />
+        submit={handleSubmit}
+        // The page's own banner above already shows the hook's submit error.
+        submitError={null}
+        onDismissError={clearSubmitError}
+      >
+        <MaxTimeNotSetNotice maxTimeSeconds={rules.maxTimeSeconds} registryKey={registryKey} />
+        <LiveScoresheet
+          entry={toScoresheetEntry(entry, classInfo)}
+          classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
+          rules={rules}
+          onSubmit={submitUnlessHeld(held, handleSubmit)}
+          onBack={handleBack}
+        />
+      </HeldEntryGate>
     </>
   );
 }

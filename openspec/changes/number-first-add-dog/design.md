@@ -108,7 +108,7 @@ _Why not derive it on the device:_ the first version did. A pure helper took the
 - **Paper scoring:** `paperScoresheetData.loadEntriesWithDogs`, which drops held entries before its breed check.
 - **Pipeline print:** `usePipelinePrint` (run order, scoresheets).
 - **Armband labels:** the held lookup in `useArmbandLabelData`.
-- **Ringside:** the held notice and the score lock.
+- **Scoresheets:** ringside and the secretary's paper-score sheet sit behind one `HeldEntryGate`, fed by `useEntryHeld`, which follows the replica in both directions. The sheet stays mounted but inert while held, so a hold that arrives or clears mid-entry never discards a draft; Mark absent stays available. The server's score guard is the authority either way.
 
 **Online reads.** The online fallbacks read `public.entries`, which cannot carry a view-computed column, so `stampServerHeldFlags` asks the view for the held ids of those shows. A failed lookup, including one against a database the column has not reached, holds nothing: a class is never emptied on a failed read.
 

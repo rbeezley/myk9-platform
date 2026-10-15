@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ArrowLeft, ShieldAlert } from 'lucide-react';
 import type { ScoreData } from '@myk9/scoring-ui';
 import { Button } from '@/components/ui/button';
@@ -75,4 +75,43 @@ export function HeldEntryNotice({
       </div>
     </div>
   );
+}
+
+/** The refusal a held sheet gives a score it is not offering (the server's own copy). */
+export const HELD_SCORE_REFUSAL = 'Registration number needed. See the secretary.';
+
+interface HeldEntryGateProps extends HeldEntryNoticeProps {
+  /** Live from `useEntryHeld`: changes in both directions while the sheet is open. */
+  held: boolean;
+  children: ReactNode;
+}
+
+/**
+ * MYK9-1162: the one gate every scoresheet sits behind. While the entry is held
+ * the notice shows (with Mark absent) and the sheet below is inert: no timer, no
+ * result, no submit. The sheet stays MOUNTED either way, so a hold that arrives
+ * mid-entry, or clears, never discards what was already on it.
+ */
+export function HeldEntryGate({ held, children, ...notice }: HeldEntryGateProps) {
+  return (
+    <>
+      {held && <HeldEntryNotice {...notice} />}
+      <div
+        inert={held}
+        aria-hidden={held || undefined}
+        data-held={held || undefined}
+        className={held ? 'pointer-events-none opacity-40' : undefined}
+      >
+        {children}
+      </div>
+    </>
+  );
+}
+
+/** A sheet's submit that refuses while held, for anything that reaches it past `inert`. */
+export function submitUnlessHeld(
+  held: boolean,
+  submit: (scoreData: ScoreData) => Promise<void>
+): (scoreData: ScoreData) => Promise<void> {
+  return scoreData => (held ? Promise.reject(new Error(HELD_SCORE_REFUSAL)) : submit(scoreData));
 }

@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { isHeldEntry } from '@/features/dogs/identity';
 import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
@@ -54,11 +55,6 @@ export interface UseAtShowScoresheetResult {
   trialNumber: string | undefined;
   trialName: string | undefined;
   isLoading: boolean;
-  /**
-   * MYK9-1162: the server says this entry's dog has no registration number, so
-   * the sheet is locked. No in-ring write is made for it either.
-   */
-  awaitingRegistrationNumber: boolean;
   error: string | null;
   loadedClassId: string | null;
   loadedEntryId: string | null;
@@ -91,7 +87,6 @@ export function useAtShowScoresheet({
   const [trialNumber, setTrialNumber] = useState<string | undefined>(undefined);
   const [trialName, setTrialName] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
-  const [awaitingRegistrationNumber, setAwaitingRegistrationNumber] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadedClassId, setLoadedClassId] = useState<string | null>(null);
   const [loadedEntryId, setLoadedEntryId] = useState<string | null>(null);
@@ -109,7 +104,6 @@ export function useAtShowScoresheet({
 
     async function loadData() {
       setEntry(null);
-      setAwaitingRegistrationNumber(false);
       setClassInfo(null);
       setRules(null);
       setTrialSportType(undefined);
@@ -181,12 +175,9 @@ export function useAtShowScoresheet({
         }
 
         // MYK9-1162: a held entry cannot be scored, so opening its sheet must not
-        // move it in-ring. Unknown (an older replica row) reads as not held.
-        const held =
-          (rawEntry.awaitingRegistrationNumber ?? rawEntry.awaiting_registration_number) === true;
-        setAwaitingRegistrationNumber(held);
+        // move it in-ring. The sheet's lock itself is live (`useEntryHeld`).
         // Auto-set check-in status to in-ring when the scoresheet opens.
-        if (!held) {
+        if (!isHeldEntry(rawEntry)) {
           transitionToInRing(rawEntry.id, rawEntry.checkInStatus, rawEntry.ring_entry_time);
         }
 
@@ -232,28 +223,6 @@ export function useAtShowScoresheet({
       cancelled = true;
     };
   }, [showId, classId, entryId, loadAttempt, reloadCount]);
-
-  // MYK9-1162: a held sheet unlocks itself. When the secretary adds the number,
-  // sync brings the entry back with the hold cleared; re-read it on every replica
-  // change while held and reload once it is. A held sheet has no score in
-  // progress, so the reload never replaces the judge's work.
-  useEffect(() => {
-    if (!awaitingRegistrationNumber || !classId || !entryId) return;
-    let active = true;
-    const unsubscribe = replicatedEntriesTable.subscribe(() => {
-      void replicatedEntriesTable.getEntriesByClass(classId).then(rows => {
-        const row = rows.find(candidate => candidate.id === entryId);
-        if (!active || !row) return;
-        if ((row.awaitingRegistrationNumber ?? row.awaiting_registration_number) !== true) {
-          setReloadCount(count => count + 1);
-        }
-      });
-    });
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [awaitingRegistrationNumber, classId, entryId]);
 
   const submit = async (scoreData: ScoreData): Promise<void> => {
     if (!entry || !classInfo) return;
@@ -316,7 +285,6 @@ export function useAtShowScoresheet({
     trialNumber,
     trialName,
     isLoading,
-    awaitingRegistrationNumber,
     error,
     loadedClassId,
     loadedEntryId,

@@ -46,7 +46,8 @@ import { useAtShowScoresheet } from './useAtShowScoresheet';
 import { useAtShowStoragePersistence } from './useAtShowStoragePersistence';
 import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { MaxTimeNotSetNotice } from './MaxTimeNotSetNotice';
-import { HeldEntryNotice } from './HeldEntryNotice';
+import { HeldEntryGate, submitUnlessHeld } from './HeldEntryNotice';
+import { useEntryHeld } from './useEntryHeld';
 import { ScoreSubmitErrorBanner } from './ScoreSubmitErrorBanner';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';
@@ -288,7 +289,6 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     trialNumber,
     trialName,
     isLoading,
-    awaitingRegistrationNumber,
     error,
     loadedClassId,
     loadedEntryId,
@@ -300,6 +300,8 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     submitError,
     clearSubmitError,
   } = useAtShowScoresheet({ showId, classId, entryId, onScored: handleScored });
+  // MYK9-1162: live, both directions; the sheet stays mounted behind the gate.
+  const held = useEntryHeld(entryId);
   const handleCorrectScore = useCallback(() => {
     setSavedEntryId(null);
     // Same URL is a no-op in React Router, so re-read the row instead.
@@ -372,16 +374,6 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     );
   }
 
-  if (awaitingRegistrationNumber) {
-    return (
-      <HeldEntryNotice
-        onBack={onBack}
-        submit={submit}
-        submitError={submitError}
-        onDismissError={clearSubmitError}
-      />
-    );
-  }
   // Resolve sport type from the trial (preferred) or class name (fallback).
   const { organization, sportType } = trialSportType
     ? mapSportType(trialSportType)
@@ -449,40 +441,49 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
       {/* `LiveScoresheet` is a stable registry lookup (getScoresheetComponent by
           a fixed sport key), not a component created during render — same
           dispatch pattern as the secretary ScoresheetPage. */}
-      <MaxTimeNotSetNotice maxTimeSeconds={rules.maxTimeSeconds} registryKey={registryKey} />
-      {/* eslint-disable-next-line react-hooks/static-components */}
-      <LiveScoresheet
-        entry={toScoresheetEntry(entry, classInfo, registryKey)}
-        classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
-        rules={rules}
-        onSubmit={submit}
+      <HeldEntryGate
+        held={held}
         onBack={onBack}
-        onWarningChime={audio.playWarning}
-        onVoiceAnnouncement={handleVoiceAnnouncement}
-        enableVoiceAnnouncements={!audioMuted}
-        headerActions={
-          <>
-            <button
-              type="button"
-              onClick={leaveRingside.leave}
-              aria-label={leaveRingside.label}
-              title={leaveRingside.label}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
-            >
-              <House className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={toggleAudioMuted}
-              aria-label={audioMuted ? 'Unmute timer sounds' : 'Mute timer sounds'}
-              aria-pressed={audioMuted}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
-            >
-              {audioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            </button>
-          </>
-        }
-      />
+        submit={submit}
+        // The page's own banner above already shows the hook's submit error.
+        submitError={null}
+        onDismissError={clearSubmitError}
+      >
+        <MaxTimeNotSetNotice maxTimeSeconds={rules.maxTimeSeconds} registryKey={registryKey} />
+        {/* eslint-disable-next-line react-hooks/static-components */}
+        <LiveScoresheet
+          entry={toScoresheetEntry(entry, classInfo, registryKey)}
+          classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
+          rules={rules}
+          onSubmit={submitUnlessHeld(held, submit)}
+          onBack={onBack}
+          onWarningChime={audio.playWarning}
+          onVoiceAnnouncement={handleVoiceAnnouncement}
+          enableVoiceAnnouncements={!audioMuted}
+          headerActions={
+            <>
+              <button
+                type="button"
+                onClick={leaveRingside.leave}
+                aria-label={leaveRingside.label}
+                title={leaveRingside.label}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
+              >
+                <House className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={toggleAudioMuted}
+                aria-label={audioMuted ? 'Unmute timer sounds' : 'Mute timer sounds'}
+                aria-pressed={audioMuted}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
+              >
+                {audioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              </button>
+            </>
+          }
+        />
+      </HeldEntryGate>
     </div>
   );
 };

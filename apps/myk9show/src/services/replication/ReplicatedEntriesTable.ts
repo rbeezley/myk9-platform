@@ -650,8 +650,19 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       _syncStatus: 'pending',
     };
 
+    // Durable-first (MYK9-1206): queue before the dirty write, as updateEntry does,
+    // so a rejected queue leaves no dirty row without a mutation. deferUpload keeps
+    // the upload from flushing before the dirty row exists; requestUpload follows.
+    const mutationId = await this.queueMutation(
+      'UPDATE',
+      entryId,
+      entryToSupabaseRow(updated),
+      undefined,
+      undefined,
+      /* deferUpload */ true
+    );
     this.reportSetResult(entryId, await this.set(entryId, updated, true));
-    const mutationId = await this.queueMutation('UPDATE', entryId, entryToSupabaseRow(updated));
+    this.requestUpload();
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId} status to ${status}`);
     return mutationId;
@@ -674,7 +685,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       _syncStatus: 'pending',
     };
 
-    this.reportSetResult(entryId, await this.set(entryId, updated, true));
+    // Durable-first (MYK9-1206): see updateEntryStatus.
     const mutationId = await this.queueMutation(
       'UPDATE',
       entryId,
@@ -686,8 +697,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       undefined,
       // check_in_status is ringside-whitelisted; route through the RPC so judges/
       // stewards can persist check-ins (updated_at is auto-managed, not intent).
-      { name: RINGSIDE_RPC_FUNCTION, fields: { check_in_status: status } }
+      { name: RINGSIDE_RPC_FUNCTION, fields: { check_in_status: status } },
+      /* deferUpload */ true
     );
+    this.reportSetResult(entryId, await this.set(entryId, updated, true));
+    this.requestUpload();
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId} check-in status to ${status}`);
     return mutationId;

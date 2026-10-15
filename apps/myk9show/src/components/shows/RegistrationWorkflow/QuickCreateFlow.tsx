@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { usePanelModeFocus } from '@/components/panels/usePanelModeFocus';
 import { Badge } from '@/components/ui/badge';
-import { CreateExhibitorDialog } from './CreateExhibitorDialog';
+import { CreatePersonForm } from './CreatePersonForm';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { AddDogSubMode } from '@/components/panels/edit/AddDogPanel/types';
 import { User, Dog } from '@/types/dog-types';
@@ -157,7 +157,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   };
 
   const handleCompleteFlow = () => {
-    if (flowState.exhibitor && flowState.dogs.length > 0) {
+    if (flowState.exhibitor) {
       const updatedExhibitor: User = {
         ...flowState.exhibitor,
         dogs: flowState.dogs.map(dog => dog.id),
@@ -240,7 +240,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
       ) : (
         <div ref={formRef} tabIndex={-1} className="h-full outline-none">
           {view === 'person-form' ? (
-            <CreateExhibitorDialog
+            <CreatePersonForm
               open
               variant="inline"
               closeRequestRef={closeFormRef}

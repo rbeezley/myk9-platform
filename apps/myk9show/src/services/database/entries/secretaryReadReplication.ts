@@ -276,6 +276,9 @@ export function toSecretaryEntry(
     moved_from_entry_id: stringFrom(
       replicatedField(entry, 'movedFromEntryId', 'moved_from_entry_id')
     ),
+    awaiting_registration_number: booleanFrom(
+      replicatedField(entry, 'awaitingRegistrationNumber', 'awaiting_registration_number')
+    ),
     comped: booleanFrom(replicatedField(entry, 'comped', 'comped')),
     comped_reason: stringFrom(replicatedField(entry, 'compedReason', 'comped_reason')),
     refund_decision: pullMetadata?.refund_decision ?? null,

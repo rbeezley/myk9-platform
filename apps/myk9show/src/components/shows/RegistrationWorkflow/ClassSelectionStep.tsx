@@ -628,6 +628,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                     className: l.className,
                                     element: group.element,
                                     level: l.level,
+                                    managerExemption: isStaff,
                                   });
                                   // Anyone but this show's own staff cannot re-enter a class the
                                   // dog withdrew from (MYK9-982). Staff add it by hand;

@@ -1,14 +1,14 @@
 /**
- * MYK9-1081 (PR B): the wizard's "Create New → Exhibitor Only" and "→ Dog Only"
- * are right slide-outs opened from the page, never a centred dialog
+ * MYK9-1081 (PR B): the wizard's "Create New → Dog Only"
+ * is a right slide-out opened from the page, never a centred dialog
  * (docs/INTENT.md, "Dialog or Slide-Out"). Rendered the way the wizard mounts
  * this step (`WorkflowStepContent` only mounts it with `advancedSearch`), with
  * the real Base UI menu, Person form and Dog form; only persistence is mocked.
  *
- * - Each slide-out takes focus, even though the menu hands focus back to its
+ * - The slide-out takes focus, even though the menu hands focus back to its
  *   "Create New" trigger as it closes (aria-modal: focus behind is a trap).
- * - After Exhibitor Only saves, Add Dog opens for THAT person, and only once the
- *   person slide-out has left the screen: one slide-out at any moment.
+ * - There is no Exhibitor Only item: Quick Create is the one way to make a
+ *   person (MYK9-1119).
  * - Closing returns focus to "Create New", never to <body>.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -16,18 +16,8 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { useUserStore } from '@/store/userStore';
-import {
-  quickCreateMocks as mocks,
-  resetQuickCreateMocks,
-} from '@/test/quickCreate/quickCreateFlowMocks';
-import {
-  addPersonThroughForm,
-  dialogs,
-  fillDogBasics,
-  skipRegistration,
-  JOURNEY_TIMEOUT_MS,
-  panel,
-} from '@/test/quickCreate/quickCreateFlowKit';
+import { resetQuickCreateMocks } from '@/test/quickCreate/quickCreateFlowMocks';
+import { dialogs, JOURNEY_TIMEOUT_MS, panel } from '@/test/quickCreate/quickCreateFlowKit';
 import { DogSelectionStepEnhanced } from './DogSelectionStepEnhanced';
 
 const listed = vi.hoisted(() => ({ dogs: [] as unknown[] }));
@@ -78,21 +68,6 @@ const ACE = {
 /** Past SlideOverPanel's 300ms open/close animation and its focus ticks. */
 const settle = () => new Promise(resolve => setTimeout(resolve, 450));
 
-/** The most `[role="dialog"]` elements seen at once while `run` executes. */
-async function peakDialogs(run: () => Promise<void>) {
-  let peak = dialogs().length;
-  const observer = new MutationObserver(() => {
-    peak = Math.max(peak, dialogs().length);
-  });
-  observer.observe(document.body, { childList: true, subtree: true, attributes: true });
-  try {
-    await run();
-  } finally {
-    observer.disconnect();
-  }
-  return Math.max(peak, dialogs().length);
-}
-
 function renderStep() {
   const rendered = render(
     <DogSelectionStepEnhanced selectedDogs={[]} onSelectionChange={vi.fn()} />
@@ -132,49 +107,14 @@ describe('Create New → Dog Only', { timeout: JOURNEY_TIMEOUT_MS }, () => {
   });
 });
 
-describe('Create New → Exhibitor Only', { timeout: JOURNEY_TIMEOUT_MS }, () => {
-  it('hands over to one Add Dog slide-out for that person; focus stays modal and returns to Create New', async () => {
+describe('Create New menu', { timeout: JOURNEY_TIMEOUT_MS }, () => {
+  it('has one way to make a person (Exhibitor & Dog(s)) and no Exhibitor Only', async () => {
     const { user, createNew } = renderStep();
 
     await user.click(createNew);
-    await user.click(await screen.findByRole('menuitem', { name: /Exhibitor Only/ }));
-    await screen.findByLabelText(/First Name/i);
-    await settle();
-    expect(dialogs()).toHaveLength(1);
-    expect(within(panel() as HTMLElement).getByLabelText(/First Name/i)).toBeInTheDocument();
-    expect(panel()).toContainElement(document.activeElement as HTMLElement);
+    await screen.findByRole('menuitem', { name: /Exhibitor & Dog/ });
 
-    const peak = await peakDialogs(async () => {
-      await addPersonThroughForm(user);
-      await waitFor(
-        () => expect(screen.getByLabelText(/Registration Number/i)).toBeInTheDocument(),
-        {
-          timeout: 3000,
-        }
-      );
-      await settle();
-    });
-
-    // The person panel left before the dog panel arrived: never two at once.
-    expect(peak).toBe(1);
-    expect(dialogs()).toHaveLength(1);
-    expect(screen.queryByLabelText(/First Name/i)).toBeNull();
-    expect(panel()).toContainElement(document.activeElement as HTMLElement);
-
-    // Add Dog belongs to the person just created.
-    await skipRegistration(user);
-    await fillDogBasics(user);
-    await user.click(await screen.findByRole('button', { name: /Next: Optional details/ }));
-    await user.click(await screen.findByRole('button', { name: 'Add Dog' }));
-    await waitFor(() =>
-      expect(mocks.addDog).toHaveBeenCalledWith(
-        expect.objectContaining({ ownerId: 'person-1' }),
-        expect.anything()
-      )
-    );
-
-    await waitFor(() => expect(dialogs()).toHaveLength(0), { timeout: 2000 });
-    await settle();
-    expect(document.activeElement).toBe(createNew);
+    expect(screen.getByRole('menuitem', { name: /Dog Only/ })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Exhibitor Only/ })).toBeNull();
   });
 });

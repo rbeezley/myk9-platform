@@ -22,6 +22,7 @@ import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 import { mapCatalogEntryFields } from '@/lib/reports/catalogFields';
 import { computeDayTrialNumber } from './dayTrialNumber';
 import { resolveHandlerJunior } from './reportHandlerJunior';
+import { isReportEntryHeld, omitHeldEntries } from './reportHeldEntries';
 
 export function mapReportEntries(
   dbEntries: ReportDbEntry[],
@@ -100,6 +101,7 @@ function mapReportEntry(
     ? resolveDogIdentityForOrganization(dog?.registrations, readTrialRegistryId(trial))
     : null;
   const registrationNumber = dogIdentity?.registrationNumber ?? null;
+  const awaitingRegistrationNumber = isReportEntryHeld(e);
   const base = mapDbEntryToReportEntry(
     {
       id: e.id,
@@ -124,6 +126,7 @@ function mapReportEntry(
     ...junior,
     ...mapCatalogEntryFields(e, handlerIdentity, dogIdentity?.registeredName ?? null),
     ...(e.dog_id ? { dogId: e.dog_id } : {}),
+    ...(awaitingRegistrationNumber ? { awaitingRegistrationNumber } : {}),
     ...(e.entry_status ? { entryStatus: e.entry_status } : {}),
     ...(e.withdrawal_reason ? { withdrawalReason: e.withdrawal_reason } : {}),
     ...(e.entry_fee != null ? { entryFee: Number(e.entry_fee) } : {}),
@@ -217,6 +220,8 @@ export function buildTrialReportProps(input: {
   entries: ReportDbEntry[] | null | undefined;
   scope: Extract<ReportScope, { kind: 'show' | 'trial' }>;
   sortOrder: string;
+  /** The report's `excludesHeldEntries` flag (MYK9-1162). */
+  omitHeldEntries?: boolean;
 }): ReportProps[] {
   const { show, trials, classes, entries, scope, sortOrder } = input;
   const allShowTrials = trials ?? [];
@@ -256,7 +261,7 @@ export function buildTrialReportProps(input: {
         ...(dayTrialNumber !== undefined ? { dayTrialNumber } : {}),
       },
       allClasses: allClasses.filter(c => c.trialId === trial.id),
-      entries: enriched,
+      entries: omitHeldEntries(enriched, input.omitHeldEntries),
       sortOrder,
       organization: show.organization ?? undefined,
       clubName: show.clubName ?? undefined,
@@ -271,6 +276,8 @@ export function buildClassReportProps(input: {
   entries: ReportDbEntry[] | null | undefined;
   scope: Extract<ReportScope, { kind: 'class' }>;
   sortOrder: string;
+  /** The report's `excludesHeldEntries` flag (MYK9-1162). */
+  omitHeldEntries?: boolean;
 }): ReportProps | null {
   const { show, trials, classes, entries, scope, sortOrder } = input;
 
@@ -300,7 +307,10 @@ export function buildClassReportProps(input: {
       hidesText: classData.num_hides ? String(classData.num_hides) : null,
       distractionsText: classData.distraction_count ? String(classData.distraction_count) : null,
     },
-    entries: mapReportEntries(classEntries, trial, classData, show.assignedJudges ?? []),
+    entries: omitHeldEntries(
+      mapReportEntries(classEntries, trial, classData, show.assignedJudges ?? []),
+      input.omitHeldEntries
+    ),
     sortOrder,
     organization: show.organization ?? undefined,
     clubName: show.clubName ?? undefined,
@@ -372,7 +382,9 @@ export function buildEmergencyPacketData(input: {
         distractionCount: (raw.distraction_count as number | null) ?? null,
       };
     }),
-    entries: mappedEntries,
+    // MYK9-1162: the packet and Reports scoresheets never list an entry that is
+    // still awaiting a registration number.
+    entries: mappedEntries.filter(entry => !entry.awaitingRegistrationNumber),
   };
 }
 
@@ -450,7 +462,7 @@ export function buildShowReportProps({
   return {
     showId: show.id,
     showName: show.name ?? '',
-    entries: allEntriesEnriched,
+    entries: omitHeldEntries(allEntriesEnriched, report.excludesHeldEntries),
     sortOrder,
     allTrials,
     allClasses,

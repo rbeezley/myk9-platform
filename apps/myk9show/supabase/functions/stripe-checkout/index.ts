@@ -19,6 +19,11 @@ import {
 } from '../_shared/priorCheckoutSession.ts';
 import { showOnlineEntryRefusal } from '../_shared/showOnlineEntryGate.ts';
 import {
+  calendarDateInTimeZone,
+  showTimeZoneFromTrials,
+  type ShowTrialZoneRow,
+} from '../_shared/showTimeZone.ts';
+import {
   cartOwnerAddressRefusal,
   type OwnerAddressGateLine,
 } from '../_shared/cartOwnerAddressGate.ts';
@@ -590,7 +595,8 @@ async function checkoutUnderLease(
     .from('shows')
     .select(
       `name, pre_entry_fee, day_of_show_fee, junior_handler_fee, organization, start_date, status,
-        entry_open_date, entry_close_date, club_id, online_entries_enabled`
+        entry_open_date, entry_close_date, club_id, online_entries_enabled,
+        trials(id, date, timezone)`
     )
     .eq('id', cart.show_id)
     .single();
@@ -624,28 +630,16 @@ async function checkoutUnderLease(
   // of the local close day — matching the cart gate (CartSummary) and the
   // submit_show_entries RPC guard. Parsing the timestamptz as a UTC instant
   // (`new Date(...).getTime()`) previously closed entries ~a day early for shows
-  // west of UTC.
-  const { data: tzRow } = await supabase
-    .from('trials')
-    .select('timezone')
-    .eq('show_id', cart.show_id)
-    .order('date', { ascending: true, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
-  const showTz = tzRow?.timezone || 'America/New_York';
-  const calendarDateInTz = (instant: Date, tz: string): string =>
-    new Intl.DateTimeFormat('en-CA', {
-      timeZone: tz,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(instant);
-  const todayLocal = calendarDateInTz(new Date(), showTz);
+  // west of UTC. MYK9-1198: the same zone prices the day-of tier below, read
+  // with the show (so a failed read fails the whole lookup, never a silent
+  // fallback) and chosen by the RPC's first-trial rule.
+  const showTz = showTimeZoneFromTrials(showFees.trials as ShowTrialZoneRow[] | null);
+  const todayLocal = calendarDateInTimeZone(new Date(), showTz);
   const openDay = showFees.entry_open_date
-    ? calendarDateInTz(new Date(showFees.entry_open_date as string), 'UTC')
+    ? calendarDateInTimeZone(new Date(showFees.entry_open_date as string), 'UTC')
     : null;
   const closeDay = showFees.entry_close_date
-    ? calendarDateInTz(new Date(showFees.entry_close_date as string), 'UTC')
+    ? calendarDateInTimeZone(new Date(showFees.entry_close_date as string), 'UTC')
     : null;
   if (openDay && todayLocal < openDay) {
     return corsResponse(
@@ -755,7 +749,12 @@ async function checkoutUnderLease(
       500
     );
   }
-  const authoritativeByItem = priceCartItems(showFees, pricingItems, storedJunior, nowIso);
+  const authoritativeByItem = priceCartItems(
+    { ...showFees, timezone: showTz },
+    pricingItems,
+    storedJunior,
+    nowIso
+  );
   const itemsWithAuthoritativeFee = pricingItems.map(item => ({
     item,
     authoritativeCents: authoritativeByItem.get(item.id) ?? 0,

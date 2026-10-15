@@ -20,7 +20,7 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 
 import { logger } from '@/services/LoggingService';
-import { transitionToInRing, transitionToCompleted } from '@/utils/checkInTransitions';
+import { transitionToCompleted, transitionToInRing } from '@/utils/checkInTransitions';
 import { getScoresheetComponent } from '@myk9/scoring-ui';
 import { classScoringRules } from './classScoringRules';
 import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
@@ -43,6 +43,8 @@ import {
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { useScoringBreadcrumb } from './useScoringBreadcrumb';
 import { MaxTimeNotSetNotice } from '@/features/at-show/MaxTimeNotSetNotice';
+import { HeldEntryNotice } from '@/features/at-show/HeldEntryNotice';
+import { isHeldEntry } from '@/features/dogs/identity';
 
 /**
  * Main scoresheet page - routes to correct scoresheet component
@@ -68,6 +70,10 @@ export function ScoresheetPage() {
   const [trialNumber, setTrialNumber] = useState<string | undefined>(undefined);
   const [trialName, setTrialName] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+  // MYK9-1162: held when the sheet loaded (the same rule as ringside), so no
+  // paper score is keyed for a dog awaiting its registration number.
+  const [awaitingRegistrationNumber, setAwaitingRegistrationNumber] = useState(false);
+  const [reloadCount, setReloadCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -113,8 +119,13 @@ export function ScoresheetPage() {
           return;
         }
 
-        // Auto-set check-in status to in-ring when scoresheet opens
-        transitionToInRing(rawEntry.id, rawEntry.checkInStatus, rawEntry.ring_entry_time);
+        const held = isHeldEntry(rawEntry);
+        setAwaitingRegistrationNumber(held);
+        // Auto-set check-in status to in-ring when the scoresheet opens; never
+        // for a held dog.
+        if (!held) {
+          transitionToInRing(rawEntry.id, rawEntry.checkInStatus, rawEntry.ring_entry_time);
+        }
 
         // Load only the needed dog
         const dog = rawEntry.dogId ? await replicatedDogsTable.get(rawEntry.dogId) : null;
@@ -140,7 +151,7 @@ export function ScoresheetPage() {
     }
 
     loadData();
-  }, [classId, entryId]);
+  }, [classId, entryId, reloadCount]);
 
   // Submit handler — passes full ScoreData through to optimistic scoring
   const handleSubmit = async (scoreData: ScoreData) => {
@@ -185,6 +196,18 @@ export function ScoresheetPage() {
           Back to Entry List
         </Button>
       </div>
+    );
+  }
+
+  if (awaitingRegistrationNumber) {
+    return (
+      <HeldEntryNotice
+        onBack={handleBack}
+        submit={handleSubmit}
+        submitError={submitError?.message ?? null}
+        onDismissError={clearSubmitError}
+        onCheckAgain={() => setReloadCount(count => count + 1)}
+      />
     );
   }
 

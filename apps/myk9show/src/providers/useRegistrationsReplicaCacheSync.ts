@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
+import { ARMBAND_LABEL_HELD_ENTRIES_KEY } from '@/hooks/queries/useArmbandLabelData';
 
 /** Longer than the replica's own notify debounce (100ms), so both edges of one change land in one window. */
 export const REGISTRATION_REFRESH_COALESCE_MS = 150;
@@ -14,13 +15,17 @@ export const REGISTRATION_REFRESH_COALESCE_MS = 150;
 /**
  * Refetch every read built on the registrations replica: each dog's
  * registrations, the dog reads under `['dogs']` (their registrations come from
- * `loadDogRegistrations`), and every owner's dogs under `['users', id, 'dogs']`.
+ * `loadDogRegistrations`), every owner's dogs under `['users', id, 'dogs']`, and
+ * the armband-label held-entry lookup (MYK9-1162).
  */
 export function refreshRegistrationReads(queryClient: QueryClient): void {
   const filters: QueryFilters[] = [
     { queryKey: queryKeys.registrationsByDogAll },
     { queryKey: queryKeys.dogs },
     { predicate: (query: Query) => query.queryKey[0] === 'users' && query.queryKey[2] === 'dogs' },
+    // MYK9-1162: adding or removing a number releases or holds an entry, so the
+    // armband-label held lookup must not print from the earlier answer.
+    { queryKey: ARMBAND_LABEL_HELD_ENTRIES_KEY },
   ];
   // Cancel first: invalidating dedupes onto a read already in flight, and a
   // cold PostgREST read that started before this change can land after it

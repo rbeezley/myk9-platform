@@ -46,6 +46,8 @@ import { useAtShowScoresheet } from './useAtShowScoresheet';
 import { useAtShowStoragePersistence } from './useAtShowStoragePersistence';
 import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { MaxTimeNotSetNotice } from './MaxTimeNotSetNotice';
+import { HeldEntryNotice } from './HeldEntryNotice';
+import { ScoreSubmitErrorBanner } from './ScoreSubmitErrorBanner';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';
 import { useAtShowAudioMute } from './useAtShowAudioMute';
@@ -264,7 +266,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     (nextEntryId: string, nextClassId: string) => {
       setSavedEntryId(null);
       // The normal scoresheet route, so the picked dog goes through the same
-      // load + `transitionToInRing` path as a tap from the entry list.
+      // load + in-ring path as a tap from the entry list.
       // A chip from the other section opens under ITS class, keeping the pair.
       navigate(
         buildAtShowScoreSheetRoute(
@@ -286,6 +288,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     trialNumber,
     trialName,
     isLoading,
+    awaitingRegistrationNumber,
     error,
     loadedClassId,
     loadedEntryId,
@@ -369,6 +372,21 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     );
   }
 
+  // MYK9-1162: held when the sheet loaded, so it is locked. A hold that arrives
+  // later leaves the sheet working; the server refuses that save and the banner
+  // above shows why.
+  if (awaitingRegistrationNumber) {
+    return (
+      <HeldEntryNotice
+        onBack={onBack}
+        submit={submit}
+        submitError={submitError}
+        onDismissError={clearSubmitError}
+        onCheckAgain={reload}
+      />
+    );
+  }
+
   // Resolve sport type from the trial (preferred) or class name (fallback).
   const { organization, sportType } = trialSportType
     ? mapSportType(trialSportType)
@@ -406,27 +424,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           onDismiss={dismissNudge}
         />
       )}
-      {submitError && (
-        // A genuine "score not saved" failure — the durable queue write threw or
-        // returned no mutation id. Unlike the calm offline indicator, this is an
-        // error the judge MUST act on: the score is NOT saved and they stayed on
-        // the sheet to retry. Alarm tone is intentional here.
-        <div
-          role="alert"
-          aria-live="assertive"
-          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-destructive px-4 py-2 text-center text-sm font-medium text-destructive-foreground"
-        >
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{submitError}</span>
-          <button
-            type="button"
-            onClick={clearSubmitError}
-            className="ml-2 underline underline-offset-2"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
+      {submitError && <ScoreSubmitErrorBanner message={submitError} onDismiss={clearSubmitError} />}
       {(isSyncing || hasSyncError) && (
         <div
           role="status"

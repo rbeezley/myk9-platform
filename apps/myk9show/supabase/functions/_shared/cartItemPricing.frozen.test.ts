@@ -19,6 +19,7 @@ const show = {
   day_of_show_fee: 45,
   start_date: '2026-10-10',
   junior_handler_fee: 15,
+  timezone: 'America/New_York',
 };
 const NOW = '2026-10-01T12:00:00Z';
 

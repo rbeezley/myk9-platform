@@ -141,7 +141,14 @@ const StubLiveScoresheet = ({
     <header>{headerActions}</header>
     <div data-testid="live-scoresheet">Live scoresheet for #{entry.armband}</div>
     <div data-testid="voice-announcements-enabled">{String(enableVoiceAnnouncements)}</div>
-    <button onClick={() => onSubmit({ resultText: 'Qualified', searchTime: '0:30.00' })}>
+    {/* Like the real sheet, a refused save is caught (and shown) by the sheet. */}
+    <button
+      onClick={() =>
+        void Promise.resolve(onSubmit({ resultText: 'Qualified', searchTime: '0:30.00' })).catch(
+          () => undefined
+        )
+      }
+    >
       Submit Score
     </button>
     <button onClick={onBack}>Back</button>
@@ -240,6 +247,8 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     vi.clearAllMocks();
     vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('pending');
     vi.mocked(replicatedEntriesTable.readScoreFromServer).mockResolvedValue(null);
+    // A test may capture the replica listener; every other test gets a no-op.
+    vi.mocked(replicatedEntriesTable.subscribe).mockImplementation(() => () => undefined);
     mockRoles = [UserRole.JUDGE];
     mockPersonId = 'judge-1';
     mockIsAnonymous = false;
@@ -1033,5 +1042,70 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       await screen.findByTestId('live-scoresheet');
       expect(screen.getByTestId('voice-announcements-enabled')).toHaveTextContent('false');
     });
+  });
+
+  // MYK9-1162: a dog held when its sheet loads cannot be scored. The notice
+  // replaces the sheet, and opening it does not move the dog in-ring.
+  const heldRow = {
+    id: 'entry-1',
+    armband: 105,
+    dogId: 'dog-1',
+    checkInStatus: 'no-status',
+    awaitingRegistrationNumber: true,
+  };
+
+  it('locks the scoresheet for an entry awaiting a registration number', async () => {
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([heldRow] as never);
+
+    renderPage();
+
+    expect(await screen.findByText('Registration number needed')).toBeInTheDocument();
+    expect(screen.getByText('See the secretary')).toBeInTheDocument();
+    expect(screen.queryByTestId('live-scoresheet')).not.toBeInTheDocument();
+    expect(transitionToInRing).not.toHaveBeenCalled();
+  });
+
+  it('still lets the judge record a held dog absent, with nothing timed', async () => {
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([heldRow] as never);
+
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark absent' }));
+
+    await waitFor(() => expect(submitScoreOptimistically).toHaveBeenCalledTimes(1));
+    expect(submitScoreOptimistically.mock.calls[0]?.[0].scoreData).toMatchObject({
+      resultText: 'ABS',
+      searchTime: '0.00',
+      nonQualifyingReason: 'Absent',
+    });
+  });
+
+  it('Check again re-reads the sheet: once the number is added, the dog opens and goes in-ring', async () => {
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([heldRow] as never);
+    renderPage();
+    const checkAgain = await screen.findByRole('button', { name: 'Check again' });
+    expect(transitionToInRing).not.toHaveBeenCalled();
+
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([
+      { ...heldRow, awaitingRegistrationNumber: false },
+    ] as never);
+    fireEvent.click(checkAgain);
+
+    expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+    expect(transitionToInRing).toHaveBeenCalledWith('entry-1', 'no-status', undefined);
+  });
+
+  it('moves an unheld dog in-ring when its sheet opens', async () => {
+    renderPage();
+
+    await screen.findByTestId('live-scoresheet');
+    await waitFor(() => expect(transitionToInRing).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(transitionToInRing).mock.calls[0]?.[0]).toBe('entry-1');
+  });
+
+  it('opens the scoresheet when the flag is unknown (an older replica row)', async () => {
+    renderPage();
+
+    expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+    expect(screen.queryByText('Registration number needed')).not.toBeInTheDocument();
   });
 });

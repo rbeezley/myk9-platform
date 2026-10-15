@@ -6,6 +6,7 @@ import { isOnClassRunList } from '@/features/_shared/entryAccounting';
 import { buildShowArmbandMaps, resolveEntryArmband } from '@/features/_shared/entryArmband';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import {
+  isHeldEntry,
   resolveDogIdentityForOrganization,
   type DogRegistrationLike,
 } from '@/features/dogs/identity';
@@ -18,9 +19,12 @@ import type { ScoringEntry } from './types';
 export async function loadEntriesWithDogs(classId: string): Promise<ScoringEntry[]> {
   // Withdrawn, scratched, moved and not-accepted rows are not on the scoring
   // list, so they are not in "n of m scored" either (MYK9-976). A pending
-  // (not yet accepted) entry stays listed, as it always has.
+  // (not yet accepted) entry stays listed, as it always has. An entry the
+  // server marks as awaiting a registration number is never on a paper
+  // scoresheet (MYK9-1162), and it leaves BEFORE the breed check below: a held
+  // dog has no registration to read a breed from, and must not fail the class.
   const classEntries = (await replicatedEntriesTable.getEntriesByClass(classId)).filter(
-    isOnClassRunList
+    entry => isOnClassRunList(entry) && !isHeldEntry(entry)
   );
   const rawEntries = await withShowArmbands(classEntries);
   const uniqueDogIds = [...new Set(rawEntries.map(e => e.dogId).filter(Boolean))] as string[];

@@ -130,7 +130,10 @@ describe('result_text on every results view reads DQ for a disqualified entry', 
 
   it('view_authenticated_entry_results keeps owner-run and gains the DQ arm', () => {
     const view = latestViewDefinition('view_authenticated_entry_results');
-    expect(view.file).toBe('20261011003700_myk9_1011_disqualified_result.sql');
+    // MYK9-1162 re-emitted this view (appending awaiting_registration_number)
+    // from the 1011 body, so the DQ arm below must survive that rebuild.
+    expect(view.file).toBe('20261014214300_myk9_1162_held_entries.sql');
+    expect(view.body).toContain('AS awaiting_registration_number');
     expect(view.body).toContain(
       "(access.can_view_scores OR vis.qualification_visible) AND e.is_scored = true AND e.result_status = 'disqualified' THEN 'DQ'"
     );

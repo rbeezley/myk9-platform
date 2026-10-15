@@ -78,11 +78,19 @@ vi.mock('@/services/database/entries/handlerHydration', () => ({
 const defaultOnlineRow = { id: 'entry-online-1', class: { id: 'c1' } };
 let onlineRows: Array<Record<string, unknown>> = [defaultOnlineRow];
 let onlineCallCount = 0;
+/** MYK9-1162: the ids the held lookup on `view_authenticated_entry_results` returns. */
+let heldIds: Array<{ id: string }> = [];
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: () => ({
       select: () => ({
+        // MYK9-1162: the held lookup (see serverHeldFlags.ts).
+        in: () => ({
+          filter: () => ({
+            order: () => ({ range: () => Promise.resolve({ data: heldIds, error: null }) }),
+          }),
+        }),
         eq: () => ({
           is: () => ({
             // MYK9-767: the online read pages by id (see entryPagedRead.ts).
@@ -143,6 +151,7 @@ describe('getEntriesByClass — cold local replica verifies online', () => {
   beforeEach(() => {
     onlineRows = [defaultOnlineRow];
     onlineCallCount = 0;
+    heldIds = [];
     mockLoadHandlerPeople.mockReset();
     mockLoadHandlerPeople.mockResolvedValue(new Map());
   });
@@ -375,5 +384,38 @@ describe('getEntriesByTrial — cold local replica verifies online', () => {
     const result = await getEntriesByTrial('t1');
 
     expect(result.data).toHaveLength(0);
+  });
+});
+
+describe('online fallbacks carry the server held verdict (MYK9-1162)', () => {
+  beforeEach(() => {
+    onlineCallCount = 0;
+    mockLoadHandlerPeople.mockReset();
+    mockLoadHandlerPeople.mockResolvedValue(new Map());
+    onlineRows = [
+      { id: 'entry-ok', show_id: 's1', class: { id: 'c1' } },
+      { id: 'entry-held', show_id: 's1', class: { id: 'c1' } },
+    ];
+    heldIds = [{ id: 'entry-held' }];
+    mockEntriesTable.getEntriesByClass.mockResolvedValue([]);
+  });
+
+  const heldFlags = (data: unknown[]) =>
+    Object.fromEntries(
+      (data as Array<Record<string, unknown>>).map(row => [
+        row.id,
+        row.awaiting_registration_number === true,
+      ])
+    );
+
+  it('getEntriesByClass', async () => {
+    const result = await getEntriesByClass('c1');
+    expect(heldFlags(result.data)).toEqual({ 'entry-ok': false, 'entry-held': true });
+  });
+
+  it('getEntriesByTrial', async () => {
+    mockClassesTable.getClassesByTrial.mockResolvedValue([]);
+    const result = await getEntriesByTrial('t1');
+    expect(heldFlags(result.data)).toEqual({ 'entry-ok': false, 'entry-held': true });
   });
 });

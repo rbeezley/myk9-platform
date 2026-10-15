@@ -11,6 +11,7 @@ import { ResultCatalog } from '@/components/reports/ResultCatalog';
 import { fromAny } from '@total-typescript/shoehorn';
 import { buildShowReportProps, mapScopedReportEntries } from '../reportDataMapping';
 import { reportRegistry } from '@/lib/reports/reportRegistry';
+import { catalogRows } from '@/lib/reports/catalogFields';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { rowToEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReportDbEntry } from '@/lib/reports/types';
@@ -185,5 +186,38 @@ describe('AKC marked catalog fields reach ReportEntry', () => {
     );
     render(<ResultCatalog {...incomplete} entries={entries} />);
     expect(screen.getByRole('alert')).toHaveTextContent('could not be loaded');
+  });
+});
+
+describe('entries awaiting a registration number reach ReportEntry (MYK9-1162)', () => {
+  function serverHeld(held: boolean | undefined, id = 'entry-1') {
+    const db = hydratedEntry({}, owner, null);
+    return {
+      ...db,
+      id,
+      ...(held === undefined ? {} : { awaiting_registration_number: held }),
+    } as unknown as ReportDbEntry;
+  }
+
+  it('flags exactly the entries the server marks as held', () => {
+    expect(mapOne(serverHeld(true)).awaitingRegistrationNumber).toBe(true);
+    expect(mapOne(serverHeld(false)).awaitingRegistrationNumber).toBeUndefined();
+    expect(mapOne(serverHeld(undefined)).awaitingRegistrationNumber).toBeUndefined();
+  });
+
+  it("never rederives it from the device's registrations, partial or not", () => {
+    const db = serverHeld(false);
+    const noNumberOnDevice = { ...db, dog: { ...db.dog, registrations: [] } } as ReportDbEntry;
+    expect(mapOne(noNumberOnDevice).awaitingRegistrationNumber).toBeUndefined();
+  });
+
+  it('drops a held entry from the printed catalog listing but keeps the normal one', () => {
+    const mapped = mapScopedReportEntries(
+      [serverHeld(true, 'entry-held'), serverHeld(undefined, 'entry-ok')],
+      [trial],
+      [cls],
+      { kind: 'show', showId: 'show-1' }
+    );
+    expect(catalogRows(mapped).map(row => row.id)).toEqual(['entry-ok']);
   });
 });

@@ -13,9 +13,11 @@ const { server, mockDogsTable } = vi.hoisted(() => ({
   server: {
     online: true,
     dogs: [] as unknown[],
-    userId: 'user-1',
+    userId: 'user-1' as string | null,
     /** Signs a different account in while the dogs read is in flight. */
     switchToDuringRead: null as string | null,
+    /** Signs the account out while the dogs read is in flight. */
+    signOutDuringRead: false,
     /** Overrides the people read's error (an answered server error, not an outage). */
     peopleError: null as { message: string } | null,
   },
@@ -52,6 +54,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
           );
         chain.then = (resolve: (v: unknown) => unknown, reject: (r: unknown) => unknown) => {
           if (server.switchToDuringRead) server.userId = server.switchToDuringRead;
+          if (server.signOutDuringRead) server.userId = null;
           return Promise.resolve(
             table === 'dogs' && server.online
               ? { data: server.dogs, error: null }
@@ -111,6 +114,7 @@ describe('offline dogs list owners (MYK9-1189)', () => {
     server.dogs = [];
     server.userId = 'user-1';
     server.switchToDuringRead = null;
+    server.signOutDuringRead = false;
     server.peopleError = null;
     mockDogsTable.getAllDogsWithStatus.mockReset();
   });
@@ -166,13 +170,28 @@ describe('offline dogs list owners (MYK9-1189)', () => {
     expect(stored).not.toMatch(/private@example|555-0100|Main St/);
   });
 
-  it('a read that lands after an account switch stays under the account that made it', async () => {
+  it('a read that lands after an account switch is dropped, not stored under either account', async () => {
+    // MYK9-1202: the late response used to be written under the account that
+    // started it (user-1). Writing only while that account is still signed in
+    // drops it instead, so user-1's key holds nothing new and user-2 has none.
     server.dogs = [serverRow('dog-1', 'owner-1', 'Ada', 'Lovelace')];
     server.switchToDuringRead = 'user-2';
     await getAllDogs('p', true);
 
     expect(window.localStorage.getItem('myk9.dogOwnerNames.v1:user-2')).toBeNull();
-    expect(window.localStorage.getItem('myk9.dogOwnerNames.v1:user-1')).toContain('Lovelace');
+    expect(window.localStorage.getItem('myk9.dogOwnerNames.v1:user-1')).toBeNull();
+  });
+
+  it('a read that lands after sign-out leaves no owner-name key on the device (MYK9-1202)', async () => {
+    server.dogs = [serverRow('dog-1', 'owner-1', 'Ada', 'Lovelace')];
+    server.signOutDuringRead = true;
+    await getAllDogs('p', true);
+
+    const keys = Array.from({ length: window.localStorage.length }, (_, i) =>
+      window.localStorage.key(i)
+    );
+    const leftover = keys.filter(k => k?.startsWith('myk9.dogOwnerNames.v1:'));
+    expect(leftover).toEqual([]);
   });
 
   it('offline, an owner the device never saw is marked unavailable, not blank', async () => {

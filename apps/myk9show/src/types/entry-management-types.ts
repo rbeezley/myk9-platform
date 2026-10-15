@@ -68,6 +68,8 @@ export interface EntryManagementEntry {
    * count and total here resolves it via `@/features/financial/moneyRoot`.
    */
   movedFromEntryId?: string | null | undefined;
+  /** MYK9-1162: the server's verdict that this entry awaits a registration number. */
+  awaitingRegistrationNumber?: boolean | undefined;
   /**
    * MYK9-639: the entry this row's money was read FROM, stamped once by
    * `withEntryManagementMoneyRoots`. Equal to `id` for everything that was never

@@ -1,6 +1,6 @@
 /**
- * The seven views in the Entries tab's Show: menu (MYK9-795; `EntryManagementShowMenu`): the four
- * registration queues, which can be checked together, and the three exception lists.
+ * The eight views in the Entries tab's Show: menu (MYK9-795; `EntryManagementShowMenu`): the four
+ * registration queues, which can be checked together, and the four exception lists.
  *
  * The four registration queues carry a live count from `useEntryManagementCockpit`
  * (`cockpit.queueCounts`) — unchanged data, just surfaced on the new tabs.
@@ -19,6 +19,11 @@ export interface EntryManagementViewCounts {
   moveUps: number | undefined;
   /** Omitted (no numeric badge) when not cheaply available — see module doc. */
   waitlist?: number;
+  /**
+   * Entries awaiting a registration number (MYK9-1162). Omitted (no numeric badge) while the
+   * trials or dogs it derives from are still loading, rather than a confident 0.
+   */
+  registrationNeeded?: number | undefined;
 }
 
 export function buildEntryManagementViews(counts: EntryManagementViewCounts): ListView[] {
@@ -41,6 +46,11 @@ export function buildEntryManagementViews(counts: EntryManagementViewCounts): Li
       id: 'move-ups',
       label: 'Move-ups',
       ...(counts.moveUps !== undefined ? { count: counts.moveUps } : {}),
+    },
+    {
+      id: 'registration-needed',
+      label: 'Registration number needed',
+      ...(counts.registrationNeeded !== undefined ? { count: counts.registrationNeeded } : {}),
     },
   ];
 }

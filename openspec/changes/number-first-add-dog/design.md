@@ -92,25 +92,32 @@ IF public.can_manage_trial(v_trial_id) THEN RETURN NEW; END IF;
 
 _Alternative rejected:_ keying on `submission_source`. It is not a column on `entries`, and replication inserts carry no source.
 
-### D4. One derived predicate: `isAwaitingRegistrationNumber`
+### D4. One held verdict, computed by the server: `awaiting_registration_number`
 
-The predicate is a pure helper in `features/dogs/identity/`, next to `resolveDogIdentityForOrganization`. It takes the entry, its trial's registry and the dog's registrations. It is true when the entry is live, is not conformation-puppy exempt, and the dog has no registration whose normalized organization matches the trial registry. It mirrors the SQL rule; known-answer tests run the same fixtures as the trigger's cases.
+The server computes whether an entry is held. `entry_awaiting_registration_number` (SQL) is true when the entry is live, is not conformation-puppy exempt, and the dog has no registration with a non-blank number whose normalized organization matches the trial registry (blank registry means AKC). Both entry-results views expose it as `awaiting_registration_number`, so every replicated entry row carries it. `trg_dog_registrations_touch_entries` bumps the dog's entries when a registration changes, and the replication view's `updated_at` includes the trial's, so a number added or removed, or a trial registry changed, reaches every device on its next sync.
+
+The client never rederives it. `isHeldEntry` (`features/dogs/identity/heldEntry.ts`) reads the row's flag, and only for an entry still on the run list.
+
+_Why not derive it on the device:_ the first version did. A pure helper took the entry, the trial registry and the dog's registrations, and every builder loaded registrations to feed it. Offline those registrations are often partial (the device copy is never reported complete, and it can hold a dog's UKC row without its AKC one). Review rounds 2 to 4 each found another surface or partial-data case where the device guessed wrong: a held dog printed, a registered dog dropped, or a whole paper-scoring class failed on a held dog's missing breed. Owner decision 2026-10-14: read the server's verdict everywhere. Trade-off accepted: a number added while offline leaves the dog held on that device until it syncs; the ringside score lock is server-enforced either way.
 
 **Consumers:**
 
-- **Cockpit:** the Exceptions count and pane.
-- **Catalog:** `catalogRows` and `countCatalogClass`. The catalog count is a "listed" count, so held entries leave it.
-- **Run sheet and run order:** `buildRunSheetEntries` and the show-map run-order source.
-- **Paper scoring:** `paperScoresheetData.loadEntriesWithDogs`.
+- **Cockpit:** the Exceptions count and pane, via `EntryManagementEntry.awaitingRegistrationNumber`.
+- **Catalog and reports:** `catalogRows`, `countCatalogClass` and every report flagged `excludesHeldEntries`. The catalog count is a "listed" count, so held entries leave it.
+- **Run sheet:** `buildRunSheetEntries`.
+- **Paper scoring:** `paperScoresheetData.loadEntriesWithDogs`, which drops held entries before its breed check.
 - **Pipeline print:** `usePipelinePrint` (run order, scoresheets).
+- **Armband labels:** the replica's held flags, plus the online held lookup for anything newer, so a lookup that fails offline never erases a hold the device knows.
+- **Entries keyed in offline:** a row created on the device has no server verdict yet, so `loadProvisionalHolds` marks it held when the device sees no number for the trial's registry (and it is not a conformation puppy). It leans to held when it cannot tell; the server's verdict replaces it on sync. Never uploaded.
+- **Scoresheets:** ringside and the secretary's paper-score sheet decide in their own loader, once the class and the entry are confirmed. A dog held when its sheet loads gets the notice in place of the sheet (Mark absent and Check again stay available) and is not moved in-ring. A hold that arrives after the sheet opened changes nothing on screen; the server's score guard refuses that save and the sheet's error banner says why, keeping the draft. Owner decision 2026-10-15, after a live client-side check drew findings in five review rounds: the server's guard is the authority and the client never tracks holds mid-sheet.
 
-Each builder already loads, or can load from the replica, the dog's registrations: the run sheet and paper scoring already resolve the registered breed per organization. Where registrations are not loaded, the builder loads them. The predicate never treats "registrations unknown" as "missing". An unloaded set means "not held", and a test pins each builder so an unloaded fixture cannot silently empty a class.
+**Online reads.** The online fallbacks read `public.entries`, which cannot carry a view-computed column, so `stampServerHeldFlags` asks the view for the held ids of those shows. A failed lookup, including one against a database the column has not reached, holds nothing: a class is never emptied on a failed read.
 
 Capacity is untouched: held entries are still entries.
 
 **SQL.** `emergency_packet_input`'s entry filter gains the same condition. It already joins registrations per `registry_key`; copy from its latest definition, `20260922220537`.
 
-_Alternative rejected:_ a stored `registration_pending` flag. It would need a trigger on `dog_registrations` to clear it and could drift. Derivation clears itself when the number arrives.
+_Alternative rejected:_ a stored `registration_pending` column. It would need a trigger on `dog_registrations` to keep it right and could drift; the view computes it from current rows.
 
 ### D5. Exceptions pane
 
@@ -149,7 +156,7 @@ The data is the cockpit's already-loaded entries plus the dogs' registrations. T
 ### D7. Batching (one PR per batch, per the orchestrate rules)
 
 1. **Batch 1:** the `registry_identity_taken` RPC and number-first Add Dog. Tier: independent.
-2. **Batch 2:** the trigger relaxation, `isAwaitingRegistrationNumber`, paperwork exclusions (client and packet SQL), and the Exceptions pane. Tier: independent.
+2. **Batch 2:** the trigger relaxation, the server held verdict (`awaiting_registration_number`, read via `isHeldEntry`), paperwork exclusions (client and packet SQL), and the Exceptions pane. Tier: independent.
 3. **Batch 3:** the lifecycle step (migration, client, edge function). Tier: independent.
 4. **Batch 4:** secretary guide card 5, and an e2e test of a held mail-in end to end on the isolated Nightly target.
 

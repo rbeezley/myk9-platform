@@ -25,6 +25,8 @@ export interface RawEntryRow {
    * fallback. Show-wide surfaces can resolve the link directly (MYK9-639).
    */
   moved_from_entry_id?: string | null | undefined;
+  /** The server's held verdict (MYK9-1162), present on replica-sourced rows. */
+  awaiting_registration_number?: boolean | null | undefined;
   registration?: { payment_status?: string | null } | null;
   handler_id: string | null;
   armband: string | null;

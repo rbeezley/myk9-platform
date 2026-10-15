@@ -96,7 +96,7 @@ export interface SortableEntryCardProps {
 
 export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
   entry,
-  scoringDisabled = false,
+  scoringDisabled: scoringDisabledByRow = false,
   isDragMode,
   showContext,
   classInfo,
@@ -117,6 +117,14 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
   DogCard,
 }) => {
   const isInRing = entry.inRing || entry.status === 'in-ring';
+  // MYK9-1162: a held entry (no registration number for the trial's registry)
+  // keeps its run-order place but cannot be timed or scored until the secretary
+  // adds the number. The card stays tappable: the scoresheet route explains the
+  // lock and still lets the judge record the dog ABSENT, which the server
+  // allows. The server decides (`awaitingRegistrationNumber`); unknown is not
+  // held, and the server refuses a locked write regardless.
+  const awaitingRegistration = entry.awaitingRegistrationNumber === true && !entry.isScored;
+  const scoringDisabled = scoringDisabledByRow;
   const longPressTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPressRef = React.useRef(false);
   const [isLongPressing, setIsLongPressing] = React.useState(false);
@@ -246,7 +254,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
       onMouseDown={stopCardGesture}
       onTouchStart={stopCardGesture}
     >
-      Score {entry.callName}
+      {awaitingRegistration ? 'Open' : 'Score'} {entry.callName}
     </button>
   );
   const actionPill = (label: string) => (
@@ -260,7 +268,21 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
       {label}
     </span>
   );
-  const trailing =
+  const registrationNotice = awaitingRegistration && (
+    <span
+      role="note"
+      className={cn(
+        'inline-flex flex-col rounded-lg border px-2 py-1 text-xs font-semibold leading-tight',
+        variant === 'hero'
+          ? 'border-white/60 bg-white/10 text-white'
+          : 'border-warning/40 bg-warning/10 text-warning'
+      )}
+    >
+      <span>Registration number needed</span>
+      <span className="font-normal">See the secretary</span>
+    </span>
+  );
+  const baseTrailing =
     variant === 'hero' ? (
       <>
         {/* The ring steward can still correct an in-ring dog's status from here. */}
@@ -270,7 +292,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
           onClick={handleStatusBadgeClick}
           inverse
         />
-        {scoringAllowed && actionPill('Resume')}
+        {scoringAllowed && !awaitingRegistration && actionPill('Resume')}
         {keyboardScoreButton}
       </>
     ) : variant === 'next' ? (
@@ -281,7 +303,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
           onClick={handleStatusBadgeClick}
         />
         {isOwnEntry && <OwnDogQueuePill dogsAhead={dogsAhead} />}
-        {scoringAllowed && actionPill('Time')}
+        {scoringAllowed && !awaitingRegistration && actionPill('Time')}
         {keyboardScoreButton}
       </>
     ) : showStatus ? (
@@ -302,6 +324,14 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
         {scoringAllowed && <ResetButton onClick={handleResetClick} callName={entry.callName} />}
       </>
     );
+  const trailing = awaitingRegistration ? (
+    <>
+      {registrationNotice}
+      {baseTrailing}
+    </>
+  ) : (
+    baseTrailing
+  );
 
   return (
     <div

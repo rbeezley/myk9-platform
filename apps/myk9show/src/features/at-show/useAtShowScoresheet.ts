@@ -20,7 +20,8 @@ import { replicatedClassesTable } from '@/services/replication/ReplicatedClasses
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { logger } from '@/services/LoggingService';
-import { transitionToInRing, transitionToCompleted } from '@/utils/checkInTransitions';
+import { transitionToCompleted, transitionToInRing } from '@/utils/checkInTransitions';
+import { isHeldEntry } from '@/features/dogs/identity';
 import { classScoringRules } from '@/pages/scoring/classScoringRules';
 import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
 import type { ScoringEntry, ClassInfo } from '@/pages/scoring/types';
@@ -54,6 +55,13 @@ export interface UseAtShowScoresheetResult {
   trialNumber: string | undefined;
   trialName: string | undefined;
   isLoading: boolean;
+  /**
+   * MYK9-1162: the dog was awaiting a registration number when this sheet
+   * loaded, so the sheet is locked and the dog is not moved in-ring. Decided by
+   * the loader, after it has the class and the entry: a hold that arrives later
+   * leaves the sheet working and the server refuses the save.
+   */
+  awaitingRegistrationNumber: boolean;
   error: string | null;
   loadedClassId: string | null;
   loadedEntryId: string | null;
@@ -86,6 +94,7 @@ export function useAtShowScoresheet({
   const [trialNumber, setTrialNumber] = useState<string | undefined>(undefined);
   const [trialName, setTrialName] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+  const [awaitingRegistrationNumber, setAwaitingRegistrationNumber] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadedClassId, setLoadedClassId] = useState<string | null>(null);
   const [loadedEntryId, setLoadedEntryId] = useState<string | null>(null);
@@ -109,6 +118,7 @@ export function useAtShowScoresheet({
       setTrialDate(undefined);
       setTrialNumber(undefined);
       setTrialName(undefined);
+      setAwaitingRegistrationNumber(false);
       setLoadedClassId(null);
       setLoadedEntryId(null);
 
@@ -173,8 +183,14 @@ export function useAtShowScoresheet({
           return;
         }
 
+        // MYK9-1162: decided here, once the class and the entry are confirmed. A
+        // held dog's sheet is locked and the dog is not moved in-ring.
+        const held = isHeldEntry(rawEntry);
+        setAwaitingRegistrationNumber(held);
         // Auto-set check-in status to in-ring when the scoresheet opens.
-        transitionToInRing(rawEntry.id, rawEntry.checkInStatus, rawEntry.ring_entry_time);
+        if (!held) {
+          transitionToInRing(rawEntry.id, rawEntry.checkInStatus, rawEntry.ring_entry_time);
+        }
 
         const dog = rawEntry.dogId ? await replicatedDogsTable.get(rawEntry.dogId) : null;
         if (cancelled) return;
@@ -280,6 +296,7 @@ export function useAtShowScoresheet({
     trialNumber,
     trialName,
     isLoading,
+    awaitingRegistrationNumber,
     error,
     loadedClassId,
     loadedEntryId,

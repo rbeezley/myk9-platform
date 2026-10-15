@@ -8,7 +8,7 @@ import { render, screen, userEvent, waitFor } from '@/test/utils/testUtils';
 import { fromAny } from '@total-typescript/shoehorn';
 import { createUser } from '@/services/database/users';
 import { useUserStore } from '@/store/userStore';
-import { CreateExhibitorDialog } from '../CreateExhibitorDialog';
+import { CreatePersonForm } from '../CreatePersonForm';
 import {
   userFormSchema,
   userCreateFormSchema,
@@ -40,7 +40,7 @@ async function addPerson(
   offlineFirst = false
 ) {
   render(
-    <CreateExhibitorDialog
+    <CreatePersonForm
       open
       onOpenChange={vi.fn()}
       onExhibitorCreated={vi.fn()}

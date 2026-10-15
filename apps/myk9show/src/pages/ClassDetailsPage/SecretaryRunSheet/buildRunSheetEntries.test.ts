@@ -278,3 +278,24 @@ describe('buildRunSheetEntries', () => {
     expect(e.isScratched).toBe(true);
   });
 });
+
+describe('buildRunSheetEntries entries awaiting a registration number (MYK9-1162)', () => {
+  it('leaves off an entry the server marks as held and keeps the rest', () => {
+    const rows = [
+      makeRow({ id: 'registered', run_order: 1, entry_status: 'confirmed' }),
+      makeRow({
+        id: 'held',
+        run_order: 2,
+        entry_status: 'confirmed',
+        awaiting_registration_number: true,
+      }),
+      makeRow({
+        id: 'released',
+        run_order: 3,
+        entry_status: 'confirmed',
+        awaiting_registration_number: false,
+      }),
+    ];
+    expect(buildRunSheetEntries(rows).map(e => e.id)).toEqual(['registered', 'released']);
+  });
+});

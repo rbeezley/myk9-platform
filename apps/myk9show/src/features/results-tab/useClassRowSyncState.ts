@@ -58,6 +58,14 @@ export function useClassRowSyncState(classId: string | null): ClassRowSyncState 
   const classIdRef = useRef(classId);
   const inFlightRef = useRef<string | null>(null);
   const rerunRef = useRef(false);
+  // A read can settle after this unmounts (navigation, test teardown): never set state then (MYK9-1203).
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     classIdRef.current = classId;
@@ -83,15 +91,17 @@ export function useClassRowSyncState(classId: string | null): ClassRowSyncState 
     void (async () => {
       try {
         const value = await readClassRowSyncState(classId);
-        if (classIdRef.current === classId) {
+        if (mountedRef.current && classIdRef.current === classId) {
           setState({ classId, value });
           setStalledId(null);
         }
       } catch {
-        if (classIdRef.current === classId) setState({ classId, value: null });
+        if (mountedRef.current && classIdRef.current === classId) {
+          setState({ classId, value: null });
+        }
       } finally {
         if (inFlightRef.current === classId) inFlightRef.current = null;
-        if (rerunRef.current && classIdRef.current === classId) {
+        if (mountedRef.current && rerunRef.current && classIdRef.current === classId) {
           rerunRef.current = false;
           setNotices(count => count + 1);
         }

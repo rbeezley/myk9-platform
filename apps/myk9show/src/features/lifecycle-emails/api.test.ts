@@ -531,6 +531,20 @@ describe('lifecycle email api helpers', () => {
       expect((failure as Error).message).toContain('Sent 95 of 250 emails');
     });
 
+    it('returns sent, failed and total summed across chunks', async () => {
+      const client: LifecycleEmailFunctionsClient = {
+        functions: {
+          invoke: async () => ({ data: { attempted: 100, sent: 95, failed: 5 }, error: null }),
+        },
+      };
+      const result = await sendLifecycleEmailJobs({
+        supabase: client,
+        showId: 'show-1',
+        jobIds: ids(200),
+      });
+      expect(result).toEqual({ sent: 190, failed: 10, total: 200 });
+    });
+
     it('keeps the plain error when the first chunk fails', async () => {
       const { client } = recorder(1);
       await expect(

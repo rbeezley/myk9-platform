@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -9,25 +9,20 @@ import {
   fetchShowLifecycleEmailSummary,
   saveLifecycleEmailJobForLater,
   sendLifecycleEmailJobs,
+  skipLifecycleEmailJobsForReview,
   type LifecycleEmailSupabaseClient,
 } from './api';
 import {
   REGISTRATION_NUMBER_NEEDED_STEP,
   buildRegistrationNumberNeededIdempotencyKey,
   countRegistrationNumberNeededJobs,
+  fetchRegistrationNumberNeededJobCounts,
 } from './registrationNumberNeeded';
 
 /** An entry awaiting a registration number, with the registry the number is for. */
 export interface RegistrationNumberNeededTarget {
   entry: EntryManagementEntry;
   registryId?: string | null | undefined;
-}
-
-export interface RegistrationNumberNeededOfferResult {
-  /** The club turned this step off for the show: nothing was offered. */
-  disabled: boolean;
-  /** Entries whose exhibitor has no email address: no email was prepared for them. */
-  noEmail: RegistrationNumberNeededTarget[];
 }
 
 interface UseRegistrationNumberNeededEmailArgs {
@@ -38,12 +33,10 @@ interface UseRegistrationNumberNeededEmailArgs {
 interface UseRegistrationNumberNeededEmailResult {
   /** True once the show's step settings are known and the step is on. Online-only. */
   stepEnabled: boolean;
-  /** Offers the preview for each target in turn (secretary save). Nothing is sent unasked. */
-  offer: (
-    targets: RegistrationNumberNeededTarget[]
-  ) => Promise<RegistrationNumberNeededOfferResult>;
-  /** Opens a fresh preview for one entry (Send reminder on the Exceptions row). */
-  sendReminder: (target: RegistrationNumberNeededTarget) => void;
+  /** True once an email job exists for the entry (any status): the row offers Send reminder. */
+  hasEmailed: (entryId: string) => boolean;
+  /** Opens the preview for one entry (Email exhibitor, or Send reminder on a later one). */
+  openEmail: (target: RegistrationNumberNeededTarget) => void;
   dialog: ReactNode;
 }
 
@@ -61,9 +54,10 @@ export const hasContactEmail = (entry: Pick<EntryManagementEntry, 'ownerEmail'>)
 /**
  * The "registration number needed" email (MYK9-1162), on the
  * `useEntryDecisionLifecycleEmails` pattern and the same preview dialog: the
- * secretary reads the email, then sends or skips it. Skip saves nothing, so no
- * stale ready job can reach the exhibitor later. Sending is online-only, like
- * every lifecycle send; the edge function re-checks that the entry is still held.
+ * secretary reads the email, then sends or skips it. Closing a preview whose job
+ * was already saved marks that job skipped, so no stale ready job can be batch-sent
+ * later. Sending is online-only, like every lifecycle send; the edge function
+ * re-checks that the entry is still held.
  */
 export function useRegistrationNumberNeededEmail({
   showId,
@@ -81,6 +75,18 @@ export function useRegistrationNumberNeededEmail({
     staleTime: 30_000,
   });
   const stepEnabled = summaryQuery.data !== undefined && isStepOn(summaryQuery.data.steps);
+
+  const countsKey = useMemo(() => ['registration-number-needed-jobs', showId ?? 'none'], [showId]);
+  // One read for the whole list. While it is pending or offline every row reads as the first
+  // email; the send recounts before saving, so the idempotency key is still right.
+  const countsQuery = useQuery({
+    queryKey: countsKey,
+    queryFn: () =>
+      fetchRegistrationNumberNeededJobCounts({ supabase: lifecycleClient, showId: showId ?? '' }),
+    enabled: Boolean(showId),
+    staleTime: 15_000,
+  });
+  const hasEmailed = (entryId: string) => (countsQuery.data?.[entryId] ?? 0) > 0;
 
   // Each open preview is a prompt with its own id, so a send that finishes later removes
   // only the prompt that started it, never a newer one the secretary opened meanwhile.
@@ -101,28 +107,30 @@ export function useRegistrationNumberNeededEmail({
     savedJobIdsRef.current.delete(id);
     setQueue(previous => previous.filter(prompt => prompt.id !== id));
   };
+  // Skip and dismiss. A job this prompt already saved but did not deliver is marked skipped
+  // first, so it cannot be batch-sent later from Scheduled emails. If that fails the preview
+  // stays open and says so: dropping it would leave the sendable job behind unnoticed.
+  const dismissPrompt = async (id: number) => {
+    // Never mid-send: withdrawing the job while its send is in flight would race the
+    // send for the job's final state. The send finishes (and closes it) first.
+    if (sendingIdsRef.current.has(id)) return;
+    const savedJobId = savedJobIdsRef.current.get(id);
+    if (savedJobId) {
+      try {
+        await skipLifecycleEmailJobsForReview({ supabase: lifecycleClient, jobIds: [savedJobId] });
+      } catch {
+        toast.error("The saved email couldn't be withdrawn. Try Skip again.");
+        return;
+      }
+      void queryClient.invalidateQueries({ queryKey: summaryKey });
+    }
+    closePrompt(id);
+  };
 
-  const offer = useCallback(
-    async (
-      targets: RegistrationNumberNeededTarget[]
-    ): Promise<RegistrationNumberNeededOfferResult> => {
-      if (!showId || targets.length === 0) return { disabled: false, noEmail: [] };
-      const summary = await queryClient.fetchQuery({
-        queryKey: summaryKey,
-        queryFn: () => fetchShowLifecycleEmailSummary({ supabase: lifecycleClient, showId }),
-        staleTime: 30_000,
-      });
-      if (!isStepOn(summary.steps)) return { disabled: true, noEmail: [] };
-      const reachable = targets.filter(target => hasContactEmail(target.entry));
-      setQueue(previous => [...previous, ...reachable.map(toPrompt)]);
-      return { disabled: false, noEmail: targets.filter(target => !hasContactEmail(target.entry)) };
-    },
-    [lifecycleClient, queryClient, showId, summaryKey]
-  );
-
-  const sendReminder = (target: RegistrationNumberNeededTarget) => {
+  const openEmail = (target: RegistrationNumberNeededTarget) => {
     if (!stepEnabled || !hasContactEmail(target.entry)) return;
-    setQueue([toPrompt(target)]);
+    // One preview at a time: the open one may hold a saved job that Skip must withdraw first.
+    setQueue(previous => (previous.length > 0 ? previous : [toPrompt(target)]));
   };
 
   const send = async (
@@ -177,9 +185,10 @@ export function useRegistrationNumberNeededEmail({
         toast.success('Registration number email sent');
       }
       void queryClient.invalidateQueries({ queryKey: summaryKey });
+      void queryClient.invalidateQueries({ queryKey: countsKey });
       closePrompt(id);
     } catch {
-      toast.error('The email did not send. Try Send reminder again.');
+      toast.error('The email did not send. Try again.');
     } finally {
       sendingIdsRef.current.delete(id);
       setSendingId(previous => (previous === id ? null : previous));
@@ -191,7 +200,7 @@ export function useRegistrationNumberNeededEmail({
       key={current.id}
       open={true}
       onOpenChange={open => {
-        if (!open) closePrompt(current.id);
+        if (!open) void dismissPrompt(current.id);
       }}
       stepType={REGISTRATION_NUMBER_NEEDED_STEP}
       notNowLabel="Skip"
@@ -203,10 +212,10 @@ export function useRegistrationNumberNeededEmail({
         className: current.target.entry.classes[0]?.name ?? null,
         registryName: current.target.registryId ?? null,
       }}
-      onNotNow={() => closePrompt(current.id)}
+      onNotNow={() => void dismissPrompt(current.id)}
       onSend={values => send(current, values)}
     />
   ) : null;
 
-  return { stepEnabled, offer, sendReminder, dialog };
+  return { stepEnabled, hasEmailed, openEmail, dialog };
 }

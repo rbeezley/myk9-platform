@@ -127,9 +127,9 @@ Each row shows the dog, exhibitor and registry, with three actions:
 
 - **Add registration:** opens the dog's existing registration form.
 - **Pull / Withdraw:** the existing entry actions.
-- **Send reminder:** see D6.
+- **Email exhibitor / Send reminder:** see D6.
 
-The data is the cockpit's already-loaded entries plus the dogs' registrations. The secretary's replica holds them, so the pane works offline. Reminders queue only online, like other lifecycle sends.
+The data is the cockpit's already-loaded entries plus the dogs' registrations. The secretary's replica holds them, so the pane works offline. The email button works only online, like other lifecycle sends.
 
 ### D6. Lifecycle step `registration_number_needed`
 
@@ -145,11 +145,11 @@ The data is the cockpit's already-loaded entries plus the dogs' registrations. T
 - add a draft case in `render.ts` covering dog, show, registry, "your entry is held until we have the registration number", and how to supply it (add it on the dog in myK9Show, or reply to the secretary);
 - add a toggle in `ScheduledLifecycleEmailsPanel`.
 
-**Prompt on save.** The secretary registration submit path follows the `useEntryDecisionLifecycleEmails` pattern: after a successful save whose created entries include held ones, it offers the existing preview dialog. Send, edit and skip are as for decision emails, with no new dialog.
+**No automatic post-save offer.** The Exceptions list is the one place this email is sent. An earlier version offered the preview right after a secretary save, but the save screen cannot know which new entries are held without guessing from the device (the held verdict is the server's), and the offer drew review findings in two rounds. Owner decision 2026-10-15: remove it.
 
-**Send reminder** prepares a fresh `save_ready` job for the entry and opens the same preview. Idempotency keys include a reminder sequence, so a reminder is not deduplicated against the first send.
+**Email exhibitor / Send reminder.** Each row has one button. It reads **Email exhibitor** while no `registration_number_needed` job exists for the entry, and **Send reminder** once one does (any status). The list reads the per-entry job counts for the show in one query; while that read is pending or offline the button reads Email exhibitor, since the send recounts before saving. Both open the existing preview dialog. Send saves a fresh `save_ready` job and sends it. Idempotency keys include a reminder sequence (plain for the first, `reminder-N` after), so a later email is not deduplicated against the first. A retry after a failed send re-sends the saved job. Skip or dismiss on a preview whose job was already saved marks that job skipped so it cannot be batch-sent later; if that fails the preview stays open.
 
-**No email.** If the exhibitor has no email, no job is prepared and the row shows "No email on file — contact by phone".
+**No email.** If the exhibitor has no email, no job is prepared and the row shows "No email on file. Contact by phone." and has no button.
 
 **Never after the number.** `send-lifecycle-email`'s `send` action re-checks, server-side, that a `registration_number_needed` job's entry is still held, using the trigger's own registry resolution. If not, it marks the job skipped instead of sending.
 

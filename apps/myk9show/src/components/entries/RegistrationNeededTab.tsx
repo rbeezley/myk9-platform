@@ -33,10 +33,12 @@ interface RegistrationNeededTabProps {
   /** Re-reads what this list derives from; offered on the error state when set. */
   onRetry?: (() => void) | undefined;
   /**
-   * Prepares a fresh "registration number needed" email for the row. Set only while the
-   * club has that email step on; when unset the rows offer no reminder and no email notice.
+   * Opens the "registration number needed" email preview for the row. Set only while the
+   * club has that email step on; when unset the rows offer no email button and no notice.
    */
-  onSendReminder?: ((row: RegistrationNeededRow) => void) | undefined;
+  onEmailExhibitor?: ((row: RegistrationNeededRow) => void) | undefined;
+  /** True once an email job exists for the entry: the button then reads Send reminder. */
+  hasEmailed?: ((entryId: string) => boolean) | undefined;
 }
 
 function classLine(entry: EntryManagementEntry): string {
@@ -65,7 +67,8 @@ export const RegistrationNeededTab: React.FC<RegistrationNeededTabProps> = ({
   unknown,
   onOpenEntry,
   onRetry,
-  onSendReminder,
+  onEmailExhibitor,
+  hasEmailed,
 }) => {
   const [addFor, setAddFor] = useState<Dog | null>(null);
   const [openRequested, setOpenRequested] = useState(false);
@@ -142,7 +145,7 @@ export const RegistrationNeededTab: React.FC<RegistrationNeededTabProps> = ({
                       </div>
                       <p className="text-sm text-muted-foreground">{entry.ownerName}</p>
                       <p className="text-sm text-muted-foreground">{classLine(entry)}</p>
-                      {onSendReminder && !entry.ownerEmail?.trim() && (
+                      {onEmailExhibitor && !entry.ownerEmail?.trim() && (
                         <p className="text-sm text-muted-foreground">
                           No email on file. Contact by phone.
                         </p>
@@ -158,15 +161,15 @@ export const RegistrationNeededTab: React.FC<RegistrationNeededTabProps> = ({
                       >
                         Add registration
                       </Button>
-                      {onSendReminder && entry.ownerEmail?.trim() && (
+                      {onEmailExhibitor && entry.ownerEmail?.trim() && (
                         <Button
                           size="sm"
                           variant="outline"
                           className="min-h-11"
-                          onClick={() => onSendReminder(row)}
-                          aria-label={`Send reminder for ${entry.dogName}`}
+                          onClick={() => onEmailExhibitor(row)}
+                          aria-label={`${hasEmailed?.(entry.id) ? 'Send reminder' : 'Email exhibitor'} for ${entry.dogName}`}
                         >
-                          Send reminder
+                          {hasEmailed?.(entry.id) ? 'Send reminder' : 'Email exhibitor'}
                         </Button>
                       )}
                       <Button

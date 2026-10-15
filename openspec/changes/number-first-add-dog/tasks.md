@@ -60,7 +60,7 @@
 
   Verify render tests (dog, show, registry, instructions; escaped content) and toggle tests.
 
-- [x] 3.3 Offer the preview after a secretary save that created held entries, following the `useEntryDecisionLifecycleEmails` pattern and the existing preview dialog. Add **Send reminder** on the Exceptions row, preparing a fresh `save_ready` job with a reminder-sequenced idempotency key, and "No email on file — contact by phone" when there is no address. Verify hook and pane tests, including the disabled step (no offer, no reminder).
+- [x] 3.3 The Exceptions row is the one place to send the email (no automatic post-save offer; the save screen cannot know which entries are held without guessing from the device). Each row's button reads **Email exhibitor** until a `registration_number_needed` job exists for the entry, then **Send reminder**, opening the existing preview; the idempotency key is plain for the first email and reminder-sequenced after. Show "No email on file. Contact by phone." when there is no address. Skip on a preview with a saved unsent job marks that job skipped. Verify hook and pane tests, including the disabled step (no button).
 - [x] 3.4 `send-lifecycle-email`: before sending a `registration_number_needed` job, re-check server-side that its entry is still held, and mark the job skipped if not. Verify handler tests under `// @vitest-environment node`: still held → sent, number added → skipped, unauthorized → refused.
 - [x] 3.5 Update secretary guide section 9 ("Email your exhibitors") with the new step. Run the shuffled affected tests, typecheck, lint and the ratchet; verify green.
 - [ ] 3.6 Ship batch 3 as in 1.7. The PR lists the owner-pending `db push` and the `send-lifecycle-email` deploy.

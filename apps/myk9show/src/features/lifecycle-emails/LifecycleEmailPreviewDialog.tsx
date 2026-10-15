@@ -85,12 +85,20 @@ export function LifecycleEmailPreviewDialog({
     <div className="contents">
       <SlideOverPanel
         open={open}
-        onClose={() => onOpenChange(false)}
+        // Not while sending: the send settles the email's state first.
+        onClose={() => {
+          if (!isSending) onOpenChange(false);
+        }}
         title={title ?? TITLE_BY_STEP[stepType]}
         size="lg"
         footer={
           <div className="flex justify-between gap-2">
-            <Button type="button" variant="outline" onClick={() => onNotNow(values)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onNotNow(values)}
+              disabled={isSending}
+            >
               {notNowLabel}
             </Button>
             <Button type="button" onClick={() => onSend(values)} disabled={isSending}>

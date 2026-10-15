@@ -6,6 +6,7 @@ import {
   buildLifecycleEmailPreview,
   buildRegistrationNumberNeededIdempotencyKey,
   countRegistrationNumberNeededJobs,
+  fetchRegistrationNumberNeededJobCounts,
   type LifecycleEmailSupabaseClient,
 } from './index';
 
@@ -123,5 +124,44 @@ describe('step list parity with the database', () => {
     for (const stepType of LIFECYCLE_EMAIL_STEP_TYPES) {
       expect(sql.split(`'${stepType}'`).length - 1, stepType).toBeGreaterThanOrEqual(3);
     }
+  });
+});
+
+describe('fetchRegistrationNumberNeededJobCounts', () => {
+  it('counts jobs per entry from one show-wide read, whatever the status', async () => {
+    const filters: Array<[string, unknown]> = [];
+    const builder = {
+      select: vi.fn(() => builder),
+      eq: vi.fn((column: string, value: unknown) => {
+        filters.push([column, value]);
+        return builder;
+      }),
+      order: vi.fn(() => builder),
+      gt: vi.fn(() => builder),
+      limit: vi.fn(() => builder),
+      then: vi.fn(),
+    };
+    let page = 0;
+    builder.then.mockImplementation((resolve: (value: unknown) => unknown) => {
+      page += 1;
+      const data =
+        page === 1
+          ? [
+              { id: 'j1', entry_id: 'e1' },
+              { id: 'j2', entry_id: 'e1' },
+              { id: 'j3', entry_id: 'e2' },
+              { id: 'j4', entry_id: null },
+            ]
+          : [];
+      return Promise.resolve({ data, error: null }).then(resolve);
+    });
+    const supabase = { from: vi.fn(() => builder) } as unknown as LifecycleEmailSupabaseClient;
+
+    await expect(
+      fetchRegistrationNumberNeededJobCounts({ supabase, showId: 'show-1' })
+    ).resolves.toEqual({ e1: 2, e2: 1 });
+    expect(supabase.from).toHaveBeenCalledWith('show_lifecycle_email_jobs');
+    expect(filters).toContainEqual(['show_id', 'show-1']);
+    expect(filters).toContainEqual(['step_type', 'registration_number_needed']);
   });
 });

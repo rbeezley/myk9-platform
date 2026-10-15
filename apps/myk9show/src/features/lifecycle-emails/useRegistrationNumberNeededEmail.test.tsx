@@ -12,8 +12,12 @@ import {
   fetchShowLifecycleEmailSummary,
   saveLifecycleEmailJobForLater,
   sendLifecycleEmailJobs,
+  skipLifecycleEmailJobsForReview,
 } from './api';
-import { countRegistrationNumberNeededJobs } from './registrationNumberNeeded';
+import {
+  countRegistrationNumberNeededJobs,
+  fetchRegistrationNumberNeededJobCounts,
+} from './registrationNumberNeeded';
 import type { LifecycleEmailScheduledSummary } from './readModel';
 
 interface DialogProps {
@@ -39,10 +43,12 @@ vi.mock('./api', async importOriginal => ({
   fetchShowLifecycleEmailSummary: vi.fn(),
   saveLifecycleEmailJobForLater: vi.fn(),
   sendLifecycleEmailJobs: vi.fn(),
+  skipLifecycleEmailJobsForReview: vi.fn(),
 }));
 vi.mock('./registrationNumberNeeded', async importOriginal => ({
   ...(await importOriginal<typeof import('./registrationNumberNeeded')>()),
   countRegistrationNumberNeededJobs: vi.fn(),
+  fetchRegistrationNumberNeededJobCounts: vi.fn(),
 }));
 
 const summary = (isEnabled: boolean): LifecycleEmailScheduledSummary => ({
@@ -95,14 +101,21 @@ function mountHook() {
 
 const values = { subject: 's', body: 'b', secretaryNote: '' };
 
+async function openFor(api: { current: Hook | null }, t: RegistrationNumberNeededTarget) {
+  await waitFor(() => expect(api.current?.stepEnabled).toBe(true));
+  act(() => api.current?.openEmail(t));
+}
+
 describe('useRegistrationNumberNeededEmail', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     dialog.current = null;
     vi.mocked(fetchShowLifecycleEmailSummary).mockResolvedValue(summary(true));
+    vi.mocked(fetchRegistrationNumberNeededJobCounts).mockResolvedValue({});
     vi.mocked(countRegistrationNumberNeededJobs).mockResolvedValue(0);
     vi.mocked(saveLifecycleEmailJobForLater).mockResolvedValue('job-1');
     vi.mocked(sendLifecycleEmailJobs).mockResolvedValue({ sent: 1, failed: 0, total: 1 });
+    vi.mocked(skipLifecycleEmailJobsForReview).mockResolvedValue(undefined);
   });
 
   it('is enabled only once the show settings say the step is on', async () => {
@@ -116,51 +129,54 @@ describe('useRegistrationNumberNeededEmail', () => {
     expect(off.api.current?.stepEnabled).toBe(false);
   });
 
-  it('offers the preview for a held entry with an email, and reports the one without', async () => {
-    const { api, view } = mountHook();
-    let result: Awaited<ReturnType<Hook['offer']>> | undefined;
-    await act(async () => {
-      result = await api.current?.offer([target('e1', 'pat@example.com'), target('e2', '')]);
-    });
+  it('reads the per-entry job counts in ONE query and flags only entries that have a job', async () => {
+    vi.mocked(fetchRegistrationNumberNeededJobCounts).mockResolvedValue({ e1: 2 });
+    const { api } = mountHook();
+    await waitFor(() => expect(api.current?.hasEmailed('e1')).toBe(true));
 
-    expect(view.getByTestId('preview')).toBeInTheDocument();
-    expect(dialog.current?.entry).toMatchObject({ dogName: 'Dog e1', registryName: 'AKC' });
-    expect(result?.disabled).toBe(false);
-    expect(result?.noEmail.map(item => item.entry.id)).toEqual(['e2']);
+    expect(api.current?.hasEmailed('e2')).toBe(false);
+    expect(fetchRegistrationNumberNeededJobCounts).toHaveBeenCalledTimes(1);
+    expect(fetchRegistrationNumberNeededJobCounts).toHaveBeenCalledWith(
+      expect.objectContaining({ showId: 'show-1' })
+    );
   });
 
-  it('offers nothing when the club turned the step off', async () => {
-    vi.mocked(fetchShowLifecycleEmailSummary).mockResolvedValue(summary(false));
-    const { api, view } = mountHook();
-    let result: Awaited<ReturnType<Hook['offer']>> | undefined;
-    await act(async () => {
-      result = await api.current?.offer([target('e1', 'pat@example.com')]);
-    });
+  it('reads as not yet emailed while the counts are pending or failed', async () => {
+    vi.mocked(fetchRegistrationNumberNeededJobCounts).mockRejectedValue(new Error('offline'));
+    const { api } = mountHook();
+    await waitFor(() => expect(fetchRegistrationNumberNeededJobCounts).toHaveBeenCalled());
 
-    expect(view.queryByTestId('preview')).toBeNull();
-    expect(result).toEqual({ disabled: true, noEmail: [] });
+    expect(api.current?.hasEmailed('e1')).toBe(false);
   });
 
-  it('sends no reminder while the step is off or the exhibitor has no email', async () => {
+  it('opens no preview while the step is off or the exhibitor has no email', async () => {
     vi.mocked(fetchShowLifecycleEmailSummary).mockResolvedValue(summary(false));
     const off = mountHook();
     await waitFor(() => expect(fetchShowLifecycleEmailSummary).toHaveBeenCalled());
-    act(() => off.api.current?.sendReminder(target('e1', 'pat@example.com')));
+    act(() => off.api.current?.openEmail(target('e1', 'pat@example.com')));
     expect(off.view.queryByTestId('preview')).toBeNull();
     off.view.unmount();
 
     vi.mocked(fetchShowLifecycleEmailSummary).mockResolvedValue(summary(true));
     const on = mountHook();
-    await waitFor(() => expect(on.api.current?.stepEnabled).toBe(true));
-    act(() => on.api.current?.sendReminder(target('e2', '  ')));
+    await openFor(on.api, target('e2', '  '));
     expect(on.view.queryByTestId('preview')).toBeNull();
   });
 
-  it('sends the first email on the plain key, as an entry-scoped job', async () => {
+  it('opens the preview for a held entry with the dog, class and registry', async () => {
+    const { api, view } = mountHook();
+    await openFor(api, target('e1', 'pat@example.com'));
+
+    expect(view.getByTestId('preview')).toBeInTheDocument();
+    expect(dialog.current?.entry).toMatchObject({ dogName: 'Dog e1', registryName: 'AKC' });
+    expect(dialog.current?.notNowLabel).toBe('Skip');
+  });
+
+  it('sends the first email on the plain key, as an entry-scoped job, and refreshes the counts', async () => {
     const { api } = mountHook();
-    await act(async () => {
-      await api.current?.offer([target('e1', 'pat@example.com')]);
-    });
+    await openFor(api, target('e1', 'pat@example.com'));
+    await waitFor(() => expect(fetchRegistrationNumberNeededJobCounts).toHaveBeenCalledTimes(1));
+    vi.mocked(fetchRegistrationNumberNeededJobCounts).mockResolvedValue({ e1: 1 });
     await act(async () => {
       await dialog.current?.onSend(values);
     });
@@ -180,13 +196,14 @@ describe('useRegistrationNumberNeededEmail', () => {
       expect.objectContaining({ showId: 'show-1', jobIds: ['job-1'] })
     );
     expect(toast.success).toHaveBeenCalledWith('Registration number email sent');
+    // The row's label flips: the counts are read again after the send.
+    await waitFor(() => expect(api.current?.hasEmailed('e1')).toBe(true));
   });
 
-  it('prepares a fresh reminder with a sequenced key after an earlier email', async () => {
+  it('prepares a fresh email with a sequenced key after an earlier one', async () => {
     vi.mocked(countRegistrationNumberNeededJobs).mockResolvedValue(1);
     const { api } = mountHook();
-    await waitFor(() => expect(api.current?.stepEnabled).toBe(true));
-    act(() => api.current?.sendReminder(target('e1', 'pat@example.com')));
+    await openFor(api, target('e1', 'pat@example.com'));
     await act(async () => {
       await dialog.current?.onSend(values);
     });
@@ -207,9 +224,7 @@ describe('useRegistrationNumberNeededEmail', () => {
       total: 1,
     });
     const { api } = mountHook();
-    await act(async () => {
-      await api.current?.offer([target('e1', 'pat@example.com')]);
-    });
+    await openFor(api, target('e1', 'pat@example.com'));
     await act(async () => {
       await dialog.current?.onSend(values);
     });
@@ -223,9 +238,7 @@ describe('useRegistrationNumberNeededEmail', () => {
   it('reports a failed delivery and a thrown error without claiming success', async () => {
     vi.mocked(sendLifecycleEmailJobs).mockResolvedValueOnce({ sent: 0, failed: 1, total: 1 });
     const { api } = mountHook();
-    await act(async () => {
-      await api.current?.offer([target('e1', 'pat@example.com')]);
-    });
+    await openFor(api, target('e1', 'pat@example.com'));
     await act(async () => {
       await dialog.current?.onSend(values);
     });
@@ -233,40 +246,70 @@ describe('useRegistrationNumberNeededEmail', () => {
       "The email couldn't be sent. It's still on the Scheduled emails list."
     );
 
+    act(() => api.current?.openEmail(target('e1', 'pat@example.com')));
     vi.mocked(saveLifecycleEmailJobForLater).mockRejectedValueOnce(new Error('409'));
     await act(async () => {
       await dialog.current?.onSend(values);
     });
-    expect(toast.error).toHaveBeenCalledWith('The email did not send. Try Send reminder again.');
+    expect(toast.error).toHaveBeenCalledWith('The email did not send. Try again.');
     expect(toast.success).not.toHaveBeenCalled();
   });
 
-  it('Skip saves nothing and moves on to the next entry', async () => {
-    const { api } = mountHook();
-    await act(async () => {
-      await api.current?.offer([target('e1', 'a@example.com'), target('e2', 'b@example.com')]);
-    });
-    expect(dialog.current?.entry.dogName).toBe('Dog e1');
-    expect(dialog.current?.notNowLabel).toBe('Skip');
+  it('Skip before anything was saved closes the preview and saves nothing', async () => {
+    const { api, view } = mountHook();
+    await openFor(api, target('e1', 'a@example.com'));
 
-    act(() => dialog.current?.onNotNow(values));
+    await act(async () => dialog.current?.onNotNow(values));
 
-    expect(dialog.current?.entry.dogName).toBe('Dog e2');
+    expect(view.queryByTestId('preview')).toBeNull();
     expect(saveLifecycleEmailJobForLater).not.toHaveBeenCalled();
+    expect(skipLifecycleEmailJobsForReview).not.toHaveBeenCalled();
   });
+
+  it('Skip after a send that failed marks the SAVED job skipped before closing', async () => {
+    vi.mocked(sendLifecycleEmailJobs).mockRejectedValueOnce(new Error('network'));
+    const { api, view } = mountHook();
+    await openFor(api, target('e1', 'a@example.com'));
+    await act(async () => {
+      await dialog.current?.onSend(values);
+    });
+    expect(view.getByTestId('preview')).toBeInTheDocument();
+
+    await act(async () => dialog.current?.onNotNow(values));
+
+    expect(skipLifecycleEmailJobsForReview).toHaveBeenCalledWith(
+      expect.objectContaining({ jobIds: ['job-1'] })
+    );
+    expect(view.queryByTestId('preview')).toBeNull();
+  });
+
+  it('keeps the preview open and says so when the saved job cannot be withdrawn', async () => {
+    vi.mocked(sendLifecycleEmailJobs).mockRejectedValueOnce(new Error('network'));
+    vi.mocked(skipLifecycleEmailJobsForReview).mockRejectedValueOnce(new Error('rls'));
+    const { api, view } = mountHook();
+    await openFor(api, target('e1', 'a@example.com'));
+    await act(async () => {
+      await dialog.current?.onSend(values);
+    });
+
+    await act(async () => dialog.current?.onOpenChange(false));
+
+    expect(view.getByTestId('preview')).toBeInTheDocument();
+    expect(toast.error).toHaveBeenCalledWith(
+      "The saved email couldn't be withdrawn. Try Skip again."
+    );
+  });
+
   it('retries a failed send on the SAME saved job, with no second save or new key', async () => {
     vi.mocked(sendLifecycleEmailJobs)
       .mockRejectedValueOnce(new Error('network'))
       .mockResolvedValueOnce({ sent: 1, failed: 0, total: 1 });
     const { api } = mountHook();
-    await act(async () => {
-      await api.current?.offer([target('e1', 'pat@example.com')]);
-    });
+    await openFor(api, target('e1', 'pat@example.com'));
 
     await act(async () => {
       await dialog.current?.onSend(values);
     });
-    expect(toast.error).toHaveBeenCalledWith('The email did not send. Try Send reminder again.');
     expect(screen.getByTestId('preview')).toBeInTheDocument();
 
     await act(async () => {
@@ -282,7 +325,7 @@ describe('useRegistrationNumberNeededEmail', () => {
     expect(toast.success).toHaveBeenCalledWith('Registration number email sent');
   });
 
-  it('a send that finishes after the preview was replaced leaves the newer preview open', async () => {
+  it('ignores Skip and close while its send is in flight, then closes when the send lands', async () => {
     let finishFirst: (value: { sent: number; failed: number; total: number }) => void = () =>
       undefined;
     vi.mocked(sendLifecycleEmailJobs).mockImplementationOnce(
@@ -292,45 +335,28 @@ describe('useRegistrationNumberNeededEmail', () => {
         })
     );
     const { api } = mountHook();
-    await waitFor(() => expect(api.current?.stepEnabled).toBe(true));
-    act(() => api.current?.sendReminder(target('e1', 'a@example.com')));
+    await openFor(api, target('e1', 'a@example.com'));
     let firstSend: Promise<void> | undefined;
     await act(async () => {
       firstSend = dialog.current?.onSend(values);
       await Promise.resolve();
     });
 
-    act(() => dialog.current?.onOpenChange(false));
-    act(() => api.current?.sendReminder(target('e2', 'b@example.com')));
-    expect(dialog.current?.entry.dogName).toBe('Dog e2');
+    // Withdrawing the job now would race the send for its final state.
+    await act(async () => dialog.current?.onNotNow(values));
+    await act(async () => dialog.current?.onOpenChange(false));
+    expect(skipLifecycleEmailJobsForReview).not.toHaveBeenCalled();
+    expect(screen.getByTestId('preview')).toBeInTheDocument();
+    // Nor can another preview replace it mid-send.
+    act(() => api.current?.openEmail(target('e2', 'b@example.com')));
+    expect(dialog.current?.entry.dogName).toBe('Dog e1');
 
     await act(async () => {
       finishFirst({ sent: 1, failed: 0, total: 1 });
       await firstSend;
     });
 
-    expect(screen.getByTestId('preview')).toBeInTheDocument();
-    expect(dialog.current?.entry.dogName).toBe('Dog e2');
-  });
-
-  it('lets the newer preview send while an earlier send is still in flight', async () => {
-    vi.mocked(sendLifecycleEmailJobs).mockImplementationOnce(() => new Promise(() => undefined));
-    const { api } = mountHook();
-    await waitFor(() => expect(api.current?.stepEnabled).toBe(true));
-    act(() => api.current?.sendReminder(target('e1', 'a@example.com')));
-    await act(async () => {
-      void dialog.current?.onSend(values);
-      await Promise.resolve();
-    });
-    act(() => dialog.current?.onOpenChange(false));
-    act(() => api.current?.sendReminder(target('e2', 'b@example.com')));
-    await act(async () => {
-      await dialog.current?.onSend(values);
-    });
-
-    expect(vi.mocked(saveLifecycleEmailJobForLater).mock.calls.map(c => c[0].entryId)).toEqual([
-      'e1',
-      'e2',
-    ]);
+    expect(screen.queryByTestId('preview')).toBeNull();
+    expect(toast.success).toHaveBeenCalledWith('Registration number email sent');
   });
 });

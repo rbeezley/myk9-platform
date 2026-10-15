@@ -36,11 +36,12 @@ export function RegistrationNeededPane({
         unknown={unknown}
         onRetry={onRetry}
         onOpenEntry={onOpenEntry}
-        onSendReminder={
+        onEmailExhibitor={
           emails.stepEnabled
-            ? ({ entry, registryId }) => emails.sendReminder({ entry, registryId })
+            ? ({ entry, registryId }) => emails.openEmail({ entry, registryId })
             : undefined
         }
+        hasEmailed={emails.hasEmailed}
       />
       {emails.dialog}
     </>

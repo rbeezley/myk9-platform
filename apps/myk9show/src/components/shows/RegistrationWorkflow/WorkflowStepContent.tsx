@@ -7,7 +7,6 @@ import { ClassSelectionStep } from './ClassSelectionStep';
 import { PaymentStep } from './PaymentStep';
 import type { JuniorHandlerDeclaration } from './PaymentStep/JuniorHandlerDeclaration';
 import { ConfirmationStep } from './ConfirmationStep';
-import { RegistrationNumberNeededOffer } from './RegistrationNumberNeededOffer';
 import { HandlerAssignmentStep } from './HandlerAssignmentStep';
 import { SearchErrorBoundary, PaymentErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useShowStore } from '@/store/showStore';
@@ -466,15 +465,6 @@ export function WorkflowStepContent({
             blockedClassIds={blockedClassIds}
           />
         </PaymentErrorBoundary>
-      )}
-
-      {/* Mounted here, not in either receipt, so it runs whichever one renders. */}
-      {currentStepId === 'confirmation' && currentWorkflowMode !== 'exhibitor' && (
-        <RegistrationNumberNeededOffer
-          showId={showId}
-          {...(currentShow?.name ? { showName: currentShow.name } : {})}
-          classSelections={receiptClassSelections}
-        />
       )}
 
       {currentStepId === 'confirmation' &&

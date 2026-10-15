@@ -1,4 +1,32 @@
-# Batch 2 show-day verification — read-only preparation
+# Batch 2 show-day verification
+
+## Isolated verification and closure — 2026-10-15
+
+**MYK9-1204 and MYK9-992 are verified and Done.** The owner explicitly requested isolated verification without changing shared data and closure if every criterion passed. This replaces the earlier shared/deployed fixture gate. The historical read-only preparation below is retained as history.
+
+[Proof run 38815521555](https://github.com/rbeezley/myk9-platform/actions/runs/38815521555) executed and passed both actual Chromium tests with no skips or retries. Tested source/build: `58ae5c5fc5e586edb31ccdaa35349129d539bcbf`. [Synthetic screenshots and JSON](https://github.com/rbeezley/myk9-platform/actions/runs/38815521555/artifacts/12014086941) have seven-day GitHub retention; a local copy is preserved outside the worktree. [Detailed archived verification](../../openspec/changes/archive/2026-10-15-verify-batch2-show-day-reliability/verification.md) retains the failure history, exact acceptance mapping and CLI provenance.
+
+| MYK9-992 case              | Actual SQL / browser / replica result                                                                                                                       |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| NULL, checked-in, unscored | Cold exhibitor: “Position pending: running order not posted yet”; secretary/judge Checked-in. SQL NULL maps to the established optional undefined runOrder. |
+| Gapped stored 31 / 101     | Cooper before Willow in secretary/judge; exhibitor “2nd up”; actual hand-placement positions 1 / 2; no raw 101.                                             |
+| In ring                    | Each role's own Willow row shows In Ring, without queue position; manual placement is read-only.                                                            |
+| Pulled                     | Staff Pulled; exhibitor “I won't be running this class”; no queue position or move controls.                                                                |
+| Completed                  | Completed / Q retained, without queue position or move controls.                                                                                            |
+
+Every case used fresh role contexts and SQL plus judge IndexedDB readback. SQL business/version fields remained unchanged during the UI-read comparisons. Existing surface/guide sweep and converted display/print evidence from #2727/#2824/#3047 remain part of acceptance.
+
+**MYK9-1204:** the real judge browser stayed offline from 22:17:59.535 to 23:19:00.192 UTC, monotonic **3,660,657 ms** (61 real minutes). Persisted expiry1792106278 was past before scoring; account unchanged. Online socket positive control passed (8 frames); zero received frames during offline. Q / 61.23 seconds saved through the real UI within 15 seconds, with two durable mutations owned by the original judge. Server remained exactly the unscored baseline at version10. Reconnect refreshed the same account (expiry1792109961); scoring RPC HTTP200 without409; final SQL qualified / 61.23 / completed / version12, clean replica serverVersion12, empty target-entry queue. Cold exhibitor Q / 61.2s and secretary Qualified readback passed.
+
+**Delivery:** [#3049](https://github.com/rbeezley/myk9-platform/pull/3049) merged as `a21694dd70a551c0d93e8b51cdfa74fdd7da47ea`, final head `905248bdb00fdd8f76b58bdd930aa1710c260ef5`. Only documentation differs from the passing source; [independent Claude review](https://github.com/rbeezley/myk9-platform/pull/3049#issuecomment-6204473116) confirmed that relationship and all recorded acceptance. [Final standard CI](https://github.com/rbeezley/myk9-platform/actions/runs/38824067757) passed; pinned-head watcher EXIT0. Both issues received full evidence comments and were verified Done after merge. An automatic non-required repeat38824067545 is preserved but was still running at closure; it is not the evidence used to close the issues.
+
+**Other checks:** full app shuffled 2,997 files / 29,127 tests, root typecheck/lint, proof graph typecheck and exact Node22.12 discovery, 16 isolation guards and 25 artifact contracts passed. Prior preparation ran 5 files / 76 and 13 files / 217 (overlap; do not sum), queue-owner3 and canonical queue56.
+
+**Isolation and cleanup:** all fixture/scoring writes used guarded loopback Supabase on a disposable VM, matching loopback build, runner-only credentials and blocked external application traffic. Credential scan, artifact upload and stop --no-backup passed. Owned browser contexts closed. No shared show fixture, payment, notification, migration push or deployment changed. This proves an already-loaded signed-in judge page; offline cold boot and dead-passcode identity adoption are separate scopes.
+
+**Separate finding:** [QA-TIME-DISPLAY-001](findings.md#qa-time-display-001) remains open: secretary displays1:01.22 for stored61.23 because of fractional truncation; judge/storage retain61.23 and exhibitor intentionally shows61.2s. Queue/state parity and score persistence passed; exact centisecond display parity is not claimed. The P3 finding is report-only pending approved Linear triage. CLI2.121.0 is reconstructed from exact setup action and unchanged registry metadata, not a directly retained executable-version line; future latest-based runs may use a different infrastructure version.
+
+## Historical read-only preparation — 2026-10-15
 
 Date: 2026-10-15. Main baseline `7e73c5fa1848efd1d734544a0c8f89fdc10b0c7d`; served build independently read from myk9show.com as `28c1cb1acc4d086e47277052827866b01ce1f65c`.
 

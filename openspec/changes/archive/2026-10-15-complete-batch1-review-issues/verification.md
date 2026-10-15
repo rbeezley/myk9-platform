@@ -1,5 +1,7 @@
 # Verification evidence
 
+**Final status (2026-10-15):** Implementation PR #3003 merged, required migrations applied, production commit `9936b9b22b53c64a13d943830d6d0cffd9fbf290` verified, and all four issues Done. Earlier sections below are chronological history; the final acceptance section supersedes their pending states and failed runs.
+
 ## Artifact coverage: 90/100 → 100/100
 
 Added explicit offline placeholder/reload, atomic invalid-date failure, release commit identity, counter unit and fixture cleanup coverage after the initial plan audit. Implementation verification and live closure remain pending.
@@ -59,3 +61,36 @@ Final deployed proof and completion verification will be recorded here before ar
 - Whole app suite shuffled with four workers: 29,025 tests passed, 11 skipped, one todo, exit 0 (1025.78 seconds). No source edits landed during the run; only OpenSpec prose changed. This supersedes the earlier non-green broad attempts.
 - Unmocked final local browser parity: Upcoming 24/24, Completed 11/11, All 35/35, Pending 4/4, Accepted 25/25, Any status 35/35. Draft card says Show not published yet, Paid and Willow, with two unpublished classes and no date. My Shows and People at show both list trials 1–7 chronologically. Existing-registration edit displays its optional date and organization; an explicit UKC choice works without saving. Owned sessions closed.
 - Migration dry run succeeded and names exactly registry_identity_taken, held_entries and this batch's registration_date migration, with no seeds or role changes. Nothing applied before merge.
+
+## Merged and applied evidence
+
+- Implementation PR #3003 merged as 9936b9b22b53c64a13d943830d6d0cffd9fbf290 after exact-head review of d23737c4f4737b4474715882a70a5117d29836d8. Claude's all-severity verdict was No actionable defects found; review evidence comment 6195489479 records the prior finding addressed. PR CI run 38758094358 and the pinned-head checker both passed, with nothing outstanding.
+- From the clean linked worktree on merged main, the second dry run named exactly the three expected migrations. Applied 20261014194300, 20261014214300 and 20261015030017 successfully with vault changes explicitly skipped and no seeds/roles.
+- Against the applied function: authenticated owner date readback, empty date, invalid-date rejection and ACL checks passed; transaction ROLLBACK confirmed. Follow-up catalog check confirms zero people/auth/dog fixtures remain. Table ACL, column ACL, function ACL, security_definer and empty search_path match the pre-migration baseline exactly. The lookup is executable by authenticated and not anon; the required held view column exists.
+- Regenerated types from the applied database: two awaiting_registration_number view fields and entry_awaiting_registration_number function are new; PostgrestVersion metadata changed from14.5 to14.1 and is retained as generated. Supabase build and its two package tests passed. All26 monorepo typecheck tasks passed with force/cache disabled against the generated types.
+- Complete read-only local browser proof after application passed all checks: actual authenticated registry lookup returned200/false, optional create date accepted2026-09-23, Registered Breed field exists, edit displays the stored organization/breed and empty date, counts/draft card and both real seven-day lists pass. Wrapper cleanup timed out; the exact owned session was explicitly closed successfully afterward. No browser save or persistent fixture was made.
+- Merging automatically marked MYK9-1117 Done; restored it to In Progress because the authorized production evidence gate is still pending. All four issues remain In Progress until deployed verification passes.
+
+## Final production acceptance and implementation verification
+
+Deployment [38761764368](https://github.com/rbeezley/myk9-platform/actions/runs/38761764368) succeeded after green merge-commit CI [38759935095](https://github.com/rbeezley/myk9-platform/actions/runs/38759935095). Selected and served SHA: 9936b9b22b53c64a13d943830d6d0cffd9fbf290. The workflow metadata head is the newer1c17f5305; its build checkout, stamp and independent domain read confirm the requested9936b9b22 was deployed.
+
+Unmocked deployed browser (configured exhibitor/secretary) passed: Upcoming24/24, Completed11/11, All35/35, Pending4/4, Accepted25/25, Any35/35; phone390×844 draft card says Show not published yet/Paid/Willow with two Class not published yet rows and no date; My Shows and People list trials1–7 chronologically. Actual authenticated lookup returned200/false; create date2026-09-23 is optional, and edit displays stored organization/breed/empty date. No browser save was made. The applied authenticated RPC/readback and real save/reload/offline regression tests provide the persistence proof.
+
+Fresh deployed read-only controlled responses passed9AM→10AM→untimed on My Shows and the show schedule; People lists Willow trials2(09:00),1(10:00),3(untimed), with another dog's row separately. Rewrites never add missing projected fields and were installed before sign-in/initial replication. Both production scripts exited0 and their owned sessions closed. Console errors were only intentionally blocked analytics_events writes; the unrelated hero preload warning was also observed. No persistent shared fixtures remain.
+
+All four full Linear issues were re-read against their criteria, received sanitized production evidence/CI/deploy comments, and were moved to Done: MYK9-1117, MYK9-1172, MYK9-1193, MYK9-1147. Screenshot upload to Linear was rejected by automatic approval review because of possible sensitive production data. No image was exported; local screenshots/logs are preserved and the issues contain sanitized proof and release links.
+
+| Dimension    | Result                       | Evidence                                                                                                                                                           |
+| ------------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Completeness | 15/15 tasks,4/4 requirements | Merged implementation, applied migrations/types comparison, deployed proof and tracker closure complete                                                            |
+| Correctness  | 7/7 scenarios covered        | Real form/DB/offline/reload tests, rolled-back applied SQL, rendered count parity, unpublished phone card, real days and controlled times                          |
+| Coherence    | Pass                         | One form/schema and ordering rule, existing mutation/replication paths, owner-approved raw status/strict numbers/optionC, no duplicated surfaces or new draft read |
+
+No critical, warning or suggestion remains for the scoped implementation. Prior failed runs and review findings above are superseded by the complete passing run and final exact-head review; they are retained as evidence history. Post-verification lifecycle is spec sync/archive, the immediate generated-types/evidence PR, and cleanup.
+
+The follow-up in-flight scan initially stopped on the user's unrelated dirty primary audit-boundary.md. The documented warning-mode scan was inspected rather than treated as a clean gate: its actionable inventory hits are already-merged local branches. The batch source tip exactly equals PR3003's merged head; worktree-myk9-1134 tip e3f090d6 exactly equals merged PR2958's upstream head. Its old type snapshot lacks functions already present on main. No open PR or active worktree overlaps these follow-up paths; unrelated primary edits remain untouched.
+
+## Repository lifecycle completion
+
+The immediate follow-up carries generated declarations and verification/spec records only; the implemented code was already reviewed and merged in PR #3003. This docs/planning archive is therefore based on that merged implementation rather than the housekeeping branch. All 15 tasks and four planning artifacts are complete. Four requirements/seven scenarios were synced into the three main specs, preserving all pre-existing text. Ordinary validation passes all three; strict validation flags only pre-existing long requirements in count/legibility specs. The change is archived as `2026-10-15-complete-batch1-review-issues`. After integrating main `1c17f5305`, all 26 typecheck tasks, lint and code-quality ratchet passed again. The follow-up changes no application runtime or migrations and requires no additional frontend deployment.

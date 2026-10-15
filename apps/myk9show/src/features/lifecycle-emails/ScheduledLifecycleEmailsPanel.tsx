@@ -106,10 +106,6 @@ export function ScheduledLifecycleEmailsPanel({ showId }: ScheduledLifecycleEmai
           onOpenChange={open => {
             if (!open) setReviewStep(null);
           }}
-          onSent={() => {
-            setReviewStep(null);
-            void queryClient.invalidateQueries({ queryKey: queryKey(showId) });
-          }}
         />
       ) : null}
     </section>
@@ -165,19 +161,17 @@ function ScheduledEmailStepRow({
 
 function unsentMessage({ sent, failed, total }: LifecycleSendResult): string {
   const [verb, pronoun] = failed === 1 ? ['is', 'it'] : ['are', 'them'];
-  return `Sent ${sent} of ${total} emails. ${failed} couldn't be sent and ${verb} still on the list. Send again to retry ${pronoun}.`;
+  return `Sent ${sent} of ${total} ${total === 1 ? 'email' : 'emails'}. ${failed} couldn't be sent and ${verb} still on the list. Send again to retry ${pronoun}.`;
 }
 
 function LifecycleBatchReviewDialog({
   showId,
   stepType,
   onOpenChange,
-  onSent,
 }: {
   showId: string;
   stepType: LifecycleEmailStepType;
   onOpenChange: (open: boolean) => void;
-  onSent: () => void;
 }) {
   const lifecycleClient = supabase as unknown as LifecycleEmailSupabaseClient;
   const queryClient = useQueryClient();
@@ -218,13 +212,15 @@ function LifecycleBatchReviewDialog({
         secretaryNote,
       });
     },
-    // Per-job failures arrive inside a 200: stay open and say so rather than closing as a success.
-    onSuccess: result => {
-      if (result && result.failed > 0) refreshReviewList();
-      else onSent();
+    // Hook-level callbacks outlive the panel that started the send (the mutation outlives its
+    // observer), so they only refresh data. Closing is decided at the mutate call below, which
+    // TanStack drops once this panel unmounts, so a late send never closes a later panel.
+    // Any ending, full or partial or failed, may have sent some: refresh the list (what went out
+    // drops off it) and the step summary counts.
+    onSettled: () => {
+      void refreshReviewList();
+      void queryClient.invalidateQueries({ queryKey: queryKey(showId) });
     },
-    // A partly sent batch: refresh the list so what already went out drops off it.
-    onError: refreshReviewList,
     // The send is resumable ("Send again"); an automatic retry would restart at chunk 1 and
     // scramble the sent count (MYK9-1191).
     retry: false,
@@ -282,7 +278,18 @@ function LifecycleBatchReviewDialog({
             <Button
               type="button"
               disabled={sending || (selectedJobs.length === 0 && skippedJobIds.length === 0)}
-              onClick={() => sendMutation.mutate({ sendJobs: selectedJobs, skippedJobIds })}
+              onClick={() =>
+                sendMutation.mutate(
+                  { sendJobs: selectedJobs, skippedJobIds },
+                  {
+                    // Per-job failures arrive inside a 200: stay open and say so rather than
+                    // closing as a success.
+                    onSuccess: result => {
+                      if (!(result && result.failed > 0)) onOpenChange(false);
+                    },
+                  }
+                )
+              }
             >
               {sending ? 'Sending...' : 'Send now'}
             </Button>

@@ -202,6 +202,30 @@ describe('ScheduledLifecycleEmailsPanel', () => {
     await waitFor(() => expect(mockFetchJobs.mock.calls.length).toBeGreaterThan(fetchesBefore));
   });
 
+  it('names a single unsent email in the singular', async () => {
+    mockSendJobs.mockResolvedValue({ sent: 0, failed: 1, total: 1 });
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    await user.click(screen.getByRole('button', { name: 'Send now' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Sent 0 of 1 email. 1 couldn't be sent and is still on the list. Send again to retry it."
+    );
+  });
+
+  it('keeps the plural total when one of many fails', async () => {
+    mockSendJobs.mockResolvedValue({ sent: 99, failed: 1, total: 100 });
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    await user.click(screen.getByRole('button', { name: 'Send now' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Sent 99 of 100 emails. 1 couldn't be sent and is still on the list. Send again to retry it."
+    );
+  });
+
   it('closes after an all-success send', async () => {
     const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
     await user.click(await screen.findByRole('button', { name: 'Review' }));
@@ -268,6 +292,36 @@ describe('ScheduledLifecycleEmailsPanel', () => {
 
     finish(new Error('boom'));
     expect(await screen.findByRole('button', { name: 'Send now' })).toBeEnabled();
+  });
+
+  it('a send that outlives its panel never closes or clears a panel opened later', async () => {
+    let finish: (result: { sent: number; failed: number; total: number }) => void = () => {};
+    mockSendJobs.mockReturnValue(
+      new Promise(resolve => {
+        finish = resolve;
+      })
+    );
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    await user.click(screen.getByRole('button', { name: 'Send now' }));
+    await screen.findByRole('button', { name: 'Sending...' });
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    const subject = await screen.findByLabelText('Subject');
+    await user.type(subject, '!');
+    expect(subject).toHaveValue('Entry accepted!');
+
+    const fetchesBefore = mockFetchSummary.mock.calls.length;
+    finish({ sent: 1, failed: 0, total: 1 });
+    // The old send's refresh still runs (summary is fetched again) ...
+    await waitFor(() => expect(mockFetchSummary.mock.calls.length).toBeGreaterThan(fetchesBefore));
+    // ... but the panel the secretary is editing now stays open with its edit intact.
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByLabelText('Subject')).toHaveValue('Entry accepted!');
   });
 
   it('shows one calm sentence, never raw error text, for any other send failure', async () => {

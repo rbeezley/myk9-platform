@@ -1,6 +1,6 @@
 # Supabase native local dev (no Docker) — spike findings
 
-> **Status:** Active
+> **Status:** Complete
 
 Spike run 2026-10-15 on the dev Mac (macOS 27.0.1, Apple silicon) in worktree
 `nostalgic-lovelace-30a976`. Question: can the Supabase CLI's Docker-free
@@ -103,6 +103,36 @@ functions, studio, mail, analytics, pooler`. The spike used
    non-loopback hosts and add a known-answer test for it.
 4. Mention it in CLAUDE.md's "No Docker here" LESSON and the `/commit`
    high-risk ladder for migration changes.
+
+## Adopted: `pnpm qa:sql-local` (2026-10-15)
+
+Step 2 above shipped as an **optional** pre-push check for migration changes;
+CI's `sql-tests` job stays the authoritative gate.
+`scripts/qa/run-sql-local.sh`:
+
+- refuses a CLI older than 2.121.0 with an upgrade message (`SUPABASE_BIN`
+  points it at a CLI that is not on `PATH`, such as a downloaded release);
+- starts a native stack for the worktree (`SUPABASE_EXPERIMENTAL_STACK=1`,
+  `--runtime native`, the native exclude list), then `db reset --local --no-seed`;
+- runs CI's steps by calling the same scripts: `run-behavioral-sql-tests.sh`,
+  `class-absent-mutation.ts`, `run-financial-sql-tests.sh`;
+- runs `stack destroy --yes` on success, failure or Ctrl-C, and fails the run
+  if that teardown fails (a leaked stack holds port 54322);
+- never passes `--linked`, `db push` or a remote URL.
+  `scripts/qa/run-sql-local.test.ts` pins the version gate, the teardown and
+  the absence of linked-project flags against a stub CLI.
+
+Evidence on the dev Mac with the v2.121.0 release: green on `main`
+(693 migrations, 153 behavioral files, mutation proof, financial assertions)
+in 49 s with a warm download cache, and red when a scratch migration dropped
+`trg_enforce_show_publish_gate` (`show_publish_gate_trigger_test.sql` failed,
+stack destroyed, exit non-zero).
+
+Not done, deliberately: steps 3 and 4 and the two-worktrees-at-once test. The
+stack uses the fixed `config.toml` ports because the runners accept only
+`127.0.0.1:54322`, so a second worktree's run fails fast at `supabase start`
+with a message naming the worktree that holds the port. Relaxing that guard is
+a separate change.
 
 ## Testing phase
 

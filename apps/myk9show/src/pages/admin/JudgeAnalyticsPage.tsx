@@ -10,6 +10,7 @@ import {
   useJudgeAssignmentTrends,
 } from '@/hooks/queries/useJudgeAnalyticsQuery';
 import { exportToCSV } from '@/lib/export';
+import { getTodayLocal } from '@/utils/dateLocal';
 import type { JudgeUtilizationRow } from '@/services/database/judges';
 import type { JudgeQualification } from '@/types/judge-management';
 import {
@@ -314,8 +315,10 @@ const JudgeAnalyticsPage: React.FC = () => {
                       people: { first_name: string; last_name: string } | null;
                     }
                   ) => {
+                    // A DATE: expired once its calendar day has passed here (MYK9-1198).
                     const isExpired =
-                      alert.expiration_date && new Date(alert.expiration_date) < new Date();
+                      !!alert.expiration_date &&
+                      alert.expiration_date.slice(0, 10) < getTodayLocal();
                     const isSuspended = !!alert.suspension_date;
                     return (
                       <div

@@ -7,12 +7,14 @@ import { resetQuickCreateMocks } from '@/test/quickCreate/quickCreateFlowMocks';
 import { dialogs, JOURNEY_TIMEOUT_MS, panel } from '@/test/quickCreate/quickCreateFlowKit';
 import { DogSelectionStepEnhanced } from './DogSelectionStepEnhanced';
 
-// MYK9-1081: the wizard's "Add Person & Dog(s)" opens ONE slide-out with the
+// MYK9-1081: the wizard's Create New → "Exhibitor & Dog(s)" opens ONE slide-out with the
 // Person form inside it. QuickCreateFlow is deliberately NOT mocked here, unlike
 // the other DogSelectionStepEnhanced render files, so this pins the real chain.
-vi.mock('@/hooks/useDogStoreCompat', () => ({
-  useDogStoreCompat: () => ({ dogs: [], isLoading: false }),
-}));
+vi.mock('@/hooks/useDogStoreCompat', () => {
+  // One stable array: a fresh `dogs` every render loops the step's effects.
+  const dogs: unknown[] = [];
+  return { useDogStoreCompat: () => ({ dogs, isLoading: false }) };
+});
 vi.mock('@/hooks/useRegistrationPermissions', () => ({
   useRegistrationPermissions: () => ({
     user: { id: 'u1' },
@@ -24,7 +26,7 @@ vi.mock('@/hooks/useRegistrationPermissions', () => ({
 }));
 vi.mock('@/hooks/useRegistrationContext', () => ({
   useRegistrationContext: () => ({
-    workflowConfig: { features: { advancedSearch: false, createNew: true } },
+    workflowConfig: { features: { advancedSearch: true, createNew: true } },
   }),
 }));
 vi.mock('@/hooks/useRBAC', () => ({ useRBAC: () => ({ hasPermission: () => false }) }));
@@ -39,13 +41,14 @@ beforeEach(() => {
   useUserStore.setState({ people: [], users: [] });
 });
 
-describe('DogSelectionStepEnhanced Add Person & Dog(s)', { timeout: JOURNEY_TIMEOUT_MS }, () => {
+describe('DogSelectionStepEnhanced Exhibitor & Dog(s)', { timeout: JOURNEY_TIMEOUT_MS }, () => {
   it('opens one slide-out with the Person form inside it', async () => {
     const { user } = render(
       <DogSelectionStepEnhanced selectedDogs={[]} onSelectionChange={vi.fn()} />
     );
 
-    await user.click(screen.getByRole('button', { name: /Add Person & Dog\(s\)/ }));
+    await user.click(screen.getByRole('button', { name: /Create New/ }));
+    await user.click(await screen.findByRole('menuitem', { name: /Exhibitor & Dog/ }));
     await screen.findByLabelText(/First Name/i);
 
     expect(dialogs()).toHaveLength(1);

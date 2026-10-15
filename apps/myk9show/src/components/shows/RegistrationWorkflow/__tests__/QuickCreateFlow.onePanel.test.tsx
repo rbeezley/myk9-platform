@@ -134,4 +134,21 @@ describe('Complete Setup is unchanged (T3)', { timeout: JOURNEY_TIMEOUT_MS }, ()
     expect(mocks.recordOwnerCreated).toHaveBeenCalledTimes(1);
     expect(mocks.recordDogCreated).toHaveBeenCalledTimes(1);
   });
+
+  it('finishes with a person and no dogs (replaces the old Exhibitor Only path, MYK9-1119)', async () => {
+    const onFlowCompleted = vi.fn();
+    const onOpenChange = vi.fn();
+    const { user } = renderFlow(onFlowCompleted, onOpenChange);
+
+    await addPersonThroughForm(user);
+    await user.click(await screen.findByRole('button', { name: 'Finish Without Dogs' }));
+
+    expect(onFlowCompleted).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'person-1', dogs: [] }),
+      []
+    );
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(mocks.recordOwnerCreated).toHaveBeenCalledTimes(1);
+    expect(mocks.recordDogCreated).not.toHaveBeenCalled();
+  });
 });

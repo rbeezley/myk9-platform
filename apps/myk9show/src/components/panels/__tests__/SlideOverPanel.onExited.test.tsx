@@ -1,6 +1,6 @@
 /**
  * MYK9-1081: `onExited` lets a caller open the next slide-out only once this
- * one has left the screen (DSE's Add Person Only, then Add Dog), so two are
+ * one has left the screen (a caller that chains one slide-out into the next), so two are
  * never shown at once.
  */
 import { useState } from 'react';

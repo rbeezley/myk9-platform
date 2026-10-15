@@ -28,8 +28,8 @@ vi.mock('@/components/shows/RegistrationWorkflow/QuickCreateFlow', () => ({
   QuickCreateFlow: () => null,
 }));
 
-vi.mock('@/components/shows/RegistrationWorkflow/CreateExhibitorDialog', () => ({
-  CreateExhibitorDialog: () => null,
+vi.mock('@/components/shows/RegistrationWorkflow/CreatePersonForm', () => ({
+  CreatePersonForm: () => null,
 }));
 
 vi.mock('@/components/panels/edit', () => ({

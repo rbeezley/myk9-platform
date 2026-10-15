@@ -4,7 +4,7 @@ import { render, userEvent } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { createUser } from '@/services/database/users';
 import { useUserStore } from '@/store/userStore';
-import { CreateExhibitorDialog } from '../CreateExhibitorDialog';
+import { CreatePersonForm } from '../CreatePersonForm';
 import { fromAny } from '@total-typescript/shoehorn';
 
 const { mockCreatePerson, mockGetPendingPersonMutationIdsForRow } = vi.hoisted(() => ({
@@ -32,7 +32,7 @@ async function toContact(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
 }
 
-describe('CreateExhibitorDialog', () => {
+describe('CreatePersonForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useUserStore.setState({ people: [], users: [] });
@@ -73,7 +73,7 @@ describe('CreateExhibitorDialog', () => {
     const user = userEvent.setup();
 
     render(
-      <CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={onExhibitorCreated} />
+      <CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={onExhibitorCreated} />
     );
 
     await user.type(screen.getByLabelText(/First Name/i), 'Molly');
@@ -136,7 +136,7 @@ describe('CreateExhibitorDialog', () => {
     const user = userEvent.setup();
 
     render(
-      <CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={onExhibitorCreated} />
+      <CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={onExhibitorCreated} />
     );
 
     await user.type(screen.getByLabelText(/First Name/i), 'Pat');
@@ -197,7 +197,7 @@ describe('CreateExhibitorDialog', () => {
     const user = userEvent.setup();
 
     render(
-      <CreateExhibitorDialog
+      <CreatePersonForm
         open
         onOpenChange={vi.fn()}
         onExhibitorCreated={vi.fn()}
@@ -228,7 +228,7 @@ describe('CreateExhibitorDialog', () => {
     const user = userEvent.setup();
 
     render(
-      <CreateExhibitorDialog
+      <CreatePersonForm
         open
         onOpenChange={vi.fn()}
         onExhibitorCreated={onExhibitorCreated}
@@ -276,10 +276,10 @@ describe('CreateExhibitorDialog', () => {
   });
 });
 
-describe('CreateExhibitorDialog wording', () => {
+describe('CreatePersonForm wording', () => {
   it('is titled and submitted as "Add Person"', async () => {
     const user = userEvent.setup();
-    render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+    render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Add Person' })).toBeInTheDocument();
     await user.type(screen.getByLabelText(/First Name/i), 'Pat');
     await user.type(screen.getByLabelText(/Last Name/i), 'Paperform');

@@ -3,7 +3,7 @@ import { render, screen, userEvent, waitFor } from '@/test/utils/testUtils';
 import { fromAny } from '@total-typescript/shoehorn';
 import { createUser } from '@/services/database/users';
 import { useUserStore } from '@/store/userStore';
-import { CreateExhibitorDialog } from '../CreateExhibitorDialog';
+import { CreatePersonForm } from '../CreatePersonForm';
 
 const mocks = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('@/lib/notifications', () => ({
@@ -33,7 +33,7 @@ async function fillName(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText(/Last Name/i), 'Mailbox');
 }
 
-describe('CreateExhibitorDialog feedback (entry-flow Add Person)', () => {
+describe('CreatePersonForm feedback (entry-flow Add Person)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useUserStore.setState({ people: [], users: [] });
@@ -42,7 +42,7 @@ describe('CreateExhibitorDialog feedback (entry-flow Add Person)', () => {
   it('prompts before Cancel throws away typed details', async () => {
     const onOpenChange = vi.fn();
     const user = userEvent.setup();
-    render(<CreateExhibitorDialog open onOpenChange={onOpenChange} onExhibitorCreated={vi.fn()} />);
+    render(<CreatePersonForm open onOpenChange={onOpenChange} onExhibitorCreated={vi.fn()} />);
 
     await fillName(user);
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -61,7 +61,7 @@ describe('CreateExhibitorDialog feedback (entry-flow Add Person)', () => {
   it('closes without a prompt when nothing was typed', async () => {
     const onOpenChange = vi.fn();
     const user = userEvent.setup();
-    render(<CreateExhibitorDialog open onOpenChange={onOpenChange} onExhibitorCreated={vi.fn()} />);
+    render(<CreatePersonForm open onOpenChange={onOpenChange} onExhibitorCreated={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
@@ -77,7 +77,7 @@ describe('CreateExhibitorDialog feedback (entry-flow Add Person)', () => {
       })
     );
     const user = userEvent.setup();
-    render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+    render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
 
     await fillName(user);
     await toContact(user);
@@ -94,7 +94,7 @@ describe('CreateExhibitorDialog feedback (entry-flow Add Person)', () => {
       })
     );
     const user = userEvent.setup();
-    render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+    render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
 
     await fillName(user);
     await toContact(user);
@@ -120,7 +120,7 @@ describe('CreateExhibitorDialog feedback (entry-flow Add Person)', () => {
       })
     );
     const user = userEvent.setup();
-    render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+    render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
 
     await fillName(user);
     await toContact(user);
@@ -143,7 +143,7 @@ describe('CreateExhibitorDialog feedback (entry-flow Add Person)', () => {
     );
     const onOpenChange = vi.fn();
     const user = userEvent.setup();
-    render(<CreateExhibitorDialog open onOpenChange={onOpenChange} onExhibitorCreated={vi.fn()} />);
+    render(<CreatePersonForm open onOpenChange={onOpenChange} onExhibitorCreated={vi.fn()} />);
 
     await fillName(user);
     await toContact(user);
@@ -164,7 +164,7 @@ describe('CreateExhibitorDialog feedback (entry-flow Add Person)', () => {
   it('uses the one pending label, Saving...', async () => {
     createUserMock.mockReturnValue(new Promise(() => {}));
     const user = userEvent.setup();
-    render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+    render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
 
     await fillName(user);
     await toContact(user);

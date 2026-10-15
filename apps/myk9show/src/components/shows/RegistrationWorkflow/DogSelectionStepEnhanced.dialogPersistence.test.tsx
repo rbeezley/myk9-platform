@@ -29,8 +29,8 @@ vi.mock('@/components/shows/RegistrationWorkflow/QuickCreateFlow', () => ({
   QuickCreateFlow: () => null,
 }));
 
-vi.mock('@/components/shows/RegistrationWorkflow/CreateExhibitorDialog', () => ({
-  CreateExhibitorDialog: () => null,
+vi.mock('@/components/shows/RegistrationWorkflow/CreatePersonForm', () => ({
+  CreatePersonForm: () => null,
 }));
 
 vi.mock('@/components/panels/edit', () => ({
@@ -81,7 +81,7 @@ describe('DogSelectionStepEnhanced dialog persistence', () => {
       getMaxDogsPerRegistration: () => 50,
     });
     mockUseRegistrationContext.mockReturnValue({
-      workflowConfig: { features: { advancedSearch: false, createNew: true } },
+      workflowConfig: { features: { advancedSearch: true, createNew: true } },
     });
   });
 

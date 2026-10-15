@@ -15,7 +15,7 @@ import { render } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { useUserStore } from '@/store/userStore';
 import { resetQuickCreateMocks } from '@/test/quickCreate/quickCreateFlowMocks';
-import { CreateExhibitorDialog } from '@/components/shows/RegistrationWorkflow/CreateExhibitorDialog';
+import { CreatePersonForm } from '@/components/shows/RegistrationWorkflow/CreatePersonForm';
 import { AddDogPanel } from '../index';
 
 vi.mock('@/hooks/useRBAC', () => ({ useRBAC: () => ({ hasPermission: () => false }) }));
@@ -69,7 +69,7 @@ describe('inline Add Dog field inset matches inline Add Person (MYK9-1081)', () 
   it('insets Call Name and Sex by the same 24px as First Name', async () => {
     const person = render(
       <div data-testid="host">
-        <CreateExhibitorDialog
+        <CreatePersonForm
           open
           onOpenChange={vi.fn()}
           onExhibitorCreated={vi.fn()}

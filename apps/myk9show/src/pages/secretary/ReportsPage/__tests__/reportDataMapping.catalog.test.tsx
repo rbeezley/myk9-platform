@@ -216,6 +216,36 @@ describe('entries awaiting a registration number reach ReportEntry (MYK9-1162)',
     expect(mapOne(db).awaitingRegistrationNumber).toBe(true);
   });
 
+  it('falls back to the server flag when the registrations cannot be read (offline)', () => {
+    const db = hydratedEntry({}, owner, null);
+    const dogWithoutRegistrations = { ...db.dog };
+    delete dogWithoutRegistrations.registrations;
+    const serverHeld = {
+      ...db,
+      dog: dogWithoutRegistrations,
+      awaiting_registration_number: true,
+    } as unknown as ReportDbEntry;
+    expect(mapOne(serverHeld).awaitingRegistrationNumber).toBe(true);
+
+    const unansweredRead = {
+      ...withRegistrations([]),
+      awaiting_registration_number: true,
+    } as unknown as ReportDbEntry;
+    const incomplete = {
+      ...unansweredRead,
+      dog: { ...unansweredRead.dog, registrationsReadComplete: false },
+    } as ReportDbEntry;
+    expect(mapOne(incomplete).awaitingRegistrationNumber).toBe(true);
+  });
+
+  it('trusts the registrations it can read over a stale server flag', () => {
+    const registered = {
+      ...withRegistrations([{ organization: 'AKC', registration_number: 'SN123' }]),
+      awaiting_registration_number: true,
+    } as unknown as ReportDbEntry;
+    expect(mapOne(registered).awaitingRegistrationNumber).toBeUndefined();
+  });
+
   it('drops a held entry from the printed catalog listing but keeps the normal one', () => {
     const held = { ...withRegistrations([]), id: 'entry-held' } as ReportDbEntry;
     const normal = { ...hydratedEntry({}, owner, null), id: 'entry-ok' } as ReportDbEntry;

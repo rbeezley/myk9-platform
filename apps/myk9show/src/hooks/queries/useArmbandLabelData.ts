@@ -6,6 +6,9 @@ import { formatReportDate } from '@/lib/reports/reportUtils';
 import { useShowVenueWifi } from './useShowVenueWifi';
 
 /** Exported for unit testing — pure function, no hooks */
+
+/** Query-key prefix of the held-entry lookup; registration changes invalidate it (MYK9-1162). */
+export const ARMBAND_LABEL_HELD_ENTRIES_KEY = ['armband-label-held-entries'] as const;
 export function mapEntryToArmbandLabelEntry(
   raw: Record<string, unknown>
 ): ArmbandLabelEntry | null {
@@ -64,7 +67,7 @@ export function useArmbandLabelData(showId: string | undefined): ArmbandLabelDat
   // computed server-side in the entry-results view; if that read fails (or the
   // view predates the column) nothing is excluded, so labels are never withheld.
   const { data: heldEntryIds, isPending: heldQueryPending } = useQuery({
-    queryKey: ['armband-label-held-entries', showId],
+    queryKey: [...ARMBAND_LABEL_HELD_ENTRIES_KEY, showId],
     queryFn: async () => {
       if (!showId) return [];
       const { data, error } = await supabase
@@ -75,7 +78,11 @@ export function useArmbandLabelData(showId: string | undefined): ArmbandLabelDat
       return error ? [] : (data ?? []).map(row => String(row.id));
     },
     enabled: !!showId,
-    staleTime: 2 * 60 * 1000,
+    // Always re-asked when labels open: a number added or removed since the last
+    // look changes which labels may print. Registration changes also invalidate it
+    // (refreshRegistrationReads).
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   // A disabled query (no show yet) is pending forever; it holds nothing back.

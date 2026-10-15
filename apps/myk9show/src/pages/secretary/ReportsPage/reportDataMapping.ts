@@ -105,20 +105,28 @@ function mapReportEntry(
     : null;
   const registrationNumber = dogIdentity?.registrationNumber ?? null;
   // MYK9-1162: a held entry is kept off the catalog. Unloaded registrations
-  // (`dog.registrations` absent) read as "not held", never as "missing".
-  const awaitingRegistrationNumber =
-    trial != null &&
-    isAwaitingRegistrationNumber(
-      { entryStatus: e.entry_status ?? undefined, deletedAt: e.deleted_at },
-      readTrialRegistryId(trial),
-      dog?.registrationsReadComplete === false ? undefined : dog?.registrations,
-      {
-        trialType: trial.trial_type,
-        className: classData?.name,
-        element: classData?.element,
-        level: classData?.level,
-      }
-    );
+  // (`dog.registrations` absent) read as "not held", never as "missing" — unless
+  // the server already said so: the replicated row's `awaiting_registration_number`
+  // is the answer to fall back on when this device cannot see the registrations.
+  const registrationsKnown = dog?.registrationsReadComplete !== false && dog?.registrations != null;
+  const serverSaysHeld =
+    (e as { awaiting_registration_number?: boolean | null }).awaiting_registration_number === true;
+  let awaitingRegistrationNumber = false;
+  if (trial != null) {
+    awaitingRegistrationNumber = registrationsKnown
+      ? isAwaitingRegistrationNumber(
+          { entryStatus: e.entry_status ?? undefined, deletedAt: e.deleted_at },
+          readTrialRegistryId(trial),
+          dog?.registrations,
+          {
+            trialType: trial.trial_type,
+            className: classData?.name,
+            element: classData?.element,
+            level: classData?.level,
+          }
+        )
+      : serverSaysHeld;
+  }
   const base = mapDbEntryToReportEntry(
     {
       id: e.id,

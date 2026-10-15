@@ -251,6 +251,25 @@ begin
    where id = '00000000-0000-0000-0000-000001162047';
   raise notice 'PASS D a non-score write to an entry scored before it became held passes';
 
+  -- A correction to any score-bearing column (faults, an area time) is still a
+  -- score write, even though is_scored, result_status and the time are unchanged.
+  begin
+    update public.entries set total_faults = coalesce(total_faults, 0) + 1
+     where id = '00000000-0000-0000-0000-000001162047';
+    raise exception 'FAIL D a fault-only correction was accepted for a held entry';
+  exception when check_violation then
+    if sqlerrm not like 'Registration number needed%' then raise; end if;
+    raise notice 'PASS D a fault-only correction is refused for a held entry';
+  end;
+  begin
+    update public.entries set area1_time_seconds = coalesce(area1_time_seconds, 0) + 5
+     where id = '00000000-0000-0000-0000-000001162047';
+    raise exception 'FAIL D an area-time correction was accepted for a held entry';
+  exception when check_violation then
+    if sqlerrm not like 'Registration number needed%' then raise; end if;
+    raise notice 'PASS D an area-time correction is refused for a held entry';
+  end;
+
   -- A reset (not scored, pending, zero time) clears a result, so it passes for
   -- an entry that became held after it was scored; a new score is still refused.
   update public.entries

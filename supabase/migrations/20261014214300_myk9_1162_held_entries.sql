@@ -392,9 +392,9 @@ COMMENT ON FUNCTION public.entry_awaiting_registration_number(uuid, uuid, text, 
 -- Scoring guard. Every score write reaches public.entries: ringside_update_entry
 -- (judges, stewards, passcode sessions) runs a dynamic UPDATE, and a manager's
 -- paper entry is a direct UPDATE. One BEFORE UPDATE trigger therefore covers
--- both, and any future score-writing path. It fires only when a result is being
--- recorded (marked scored, a result status other than pending, a search time, a
--- scoring start), so check-in, run-order, withdraw and reset-score writes pass.
+-- both, and any future score-writing path. It fires only when a score-bearing
+-- column changes (the full scoring set ringside_update_entry writes), so
+-- check-in, run-order, withdraw, notes and reset-score writes pass.
 -- 23514 is a permanent error to the replication outbox, so a score queued
 -- offline for a dog that is held at upload time dead-letters into the existing
 -- refused-write Retry/Discard UX instead of being dropped or retried forever.
@@ -407,7 +407,48 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO ''
 AS $$
+DECLARE
+  -- Every column that carries a result: ringside_update_entry's v_scoring_cols
+  -- (20260925143700) minus what is not a score (judge notes and signature,
+  -- video review, and final_placement, which the server's placement pass
+  -- writes). Watching the whole set, not a few of its members, is what keeps a
+  -- fault-only or area-time correction from slipping past.
+  v_score_cols constant text[] := ARRAY[
+    'is_scored', 'result_status',
+    'search_time_seconds',
+    'area1_time_seconds', 'area2_time_seconds', 'area3_time_seconds', 'area4_time_seconds',
+    'total_correct_finds', 'total_incorrect_finds', 'total_faults', 'no_finish_count',
+    'area1_correct', 'area1_incorrect', 'area1_faults',
+    'area2_correct', 'area2_incorrect', 'area2_faults',
+    'area3_correct', 'area3_incorrect', 'area3_faults',
+    'total_score', 'points_earned', 'points_possible',
+    'bonus_points', 'penalty_points',
+    'time_over_limit', 'time_limit_exceeded_seconds',
+    'disqualification_reason',
+    'scoring_started_at', 'scoring_completed_at'
+  ];
+  v_new jsonb := to_jsonb(NEW);
+  v_old jsonb := to_jsonb(OLD);
+  v_changed boolean;
 BEGIN
+  SELECT bool_or((v_new -> k) IS DISTINCT FROM (v_old -> k))
+    INTO v_changed
+    FROM unnest(v_score_cols) AS k;
+  IF v_changed IS NOT TRUE THEN
+    RETURN NEW;
+  END IF;
+
+  -- A reset clears a result rather than recording one: not scored, no result,
+  -- no time, and no new scoring start. Allowed even when the entry became held after it
+  -- was scored, so a judge can take an old result off.
+  IF NEW.is_scored IS NOT TRUE
+     AND (NEW.result_status IS NULL OR NEW.result_status = 'pending')
+     AND coalesce(NEW.search_time_seconds, 0) = 0
+     AND (NEW.scoring_started_at IS NULL
+          OR NEW.scoring_started_at IS NOT DISTINCT FROM OLD.scoring_started_at) THEN
+    RETURN NEW;
+  END IF;
+
   -- Recording a dog ABSENT needs no registration number: the live scoresheet's
   -- Absent chip writes a zero time and no scoring start. Anything timed, and
   -- every other result (qualified, NQ, excused, disqualified), stays locked.
@@ -417,30 +458,10 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- A reset (is_scored false, result pending, a zero time, no new scoring start)
-  -- clears a result instead of recording one, so it is allowed even when the
-  -- entry became held after it was scored.
-  IF NEW.is_scored IS NOT TRUE
-     AND (NEW.result_status IS NULL OR NEW.result_status = 'pending')
-     AND coalesce(NEW.search_time_seconds, 0) = 0
-     AND (NEW.scoring_started_at IS NULL
-          OR NEW.scoring_started_at IS NOT DISTINCT FROM OLD.scoring_started_at) THEN
-    RETURN NEW;
-  END IF;
-
-  IF (NEW.is_scored IS TRUE AND OLD.is_scored IS DISTINCT FROM TRUE)
-     OR (NEW.result_status IS DISTINCT FROM OLD.result_status
-         AND NEW.result_status IS NOT NULL AND NEW.result_status <> 'pending')
-     OR (NEW.search_time_seconds IS DISTINCT FROM OLD.search_time_seconds
-         AND NEW.search_time_seconds IS NOT NULL)
-     OR (NEW.scoring_started_at IS DISTINCT FROM OLD.scoring_started_at
-         AND NEW.scoring_started_at IS NOT NULL)
-  THEN
-    IF public.entry_awaiting_registration_number(
-         NEW.dog_id, NEW.class_id, NEW.entry_status, NEW.deleted_at) THEN
-      RAISE EXCEPTION 'Registration number needed. See the secretary.'
-        USING ERRCODE = '23514', HINT = 'registration_number_needed';
-    END IF;
+  IF public.entry_awaiting_registration_number(
+       NEW.dog_id, NEW.class_id, NEW.entry_status, NEW.deleted_at) THEN
+    RAISE EXCEPTION 'Registration number needed. See the secretary.'
+      USING ERRCODE = '23514', HINT = 'registration_number_needed';
   END IF;
   RETURN NEW;
 END;

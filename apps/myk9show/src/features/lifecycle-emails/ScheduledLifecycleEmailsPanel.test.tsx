@@ -1,3 +1,4 @@
+import { onlineManager } from '@tanstack/react-query';
 import { waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAppQueryClient } from '@/lib/queryClient';
@@ -222,6 +223,26 @@ describe('ScheduledLifecycleEmailsPanel', () => {
     await screen.findByRole('alert', undefined, { timeout: 4000 });
     await new Promise(resolve => setTimeout(resolve, 1500));
     expect(mockSendJobs).toHaveBeenCalledTimes(1);
+  });
+
+  it('never traps the secretary offline: the send fails fast and Close works', async () => {
+    // The app's real defaults park an online-only mutation while offline, which kept the
+    // panel unclosable with Send stuck on "Sending..." (MYK9-1191 review).
+    mockSendJobs.mockRejectedValue(new Error('Failed to fetch'));
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />, {
+      queryClient: createAppQueryClient(),
+    });
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    await screen.findByRole('button', { name: 'Send now' });
+    onlineManager.setOnline(false);
+    try {
+      await user.click(screen.getByRole('button', { name: 'Send now' }));
+      expect(await screen.findByRole('alert', undefined, { timeout: 4000 })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Close' })).toBeEnabled();
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it('blocks Close, the X and Escape while a send is in flight, then re-enables them', async () => {

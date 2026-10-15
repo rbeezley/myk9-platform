@@ -223,6 +223,9 @@ function LifecycleBatchReviewDialog({
     // The send is resumable ("Send again"); an automatic retry would restart at chunk 1 and
     // scramble the sent count (MYK9-1191).
     retry: false,
+    // Run even offline so it fails fast into onError; a paused mutation stays pending and
+    // would leave the panel unclosable (preventClose) until the network returns.
+    networkMode: 'always',
   });
   const unsent = sendMutation.data && sendMutation.data.failed > 0 ? sendMutation.data : null;
   const jobs = jobsQuery.data ?? [];

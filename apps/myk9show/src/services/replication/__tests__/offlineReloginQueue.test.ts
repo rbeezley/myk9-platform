@@ -511,6 +511,32 @@ describe("E. a fresh passcode session adopts this device's held scores for its s
     expect(await adoptHeldRingsideScoresForLiveClaim()).toBe(0);
   });
 
+  it('adopts once for two rapid triggers (sign-in, auth init, reconnect) and still uploads on the new token', async () => {
+    const token = await strandQueueThenReenterPasscode();
+    const adopt = vi.spyOn(mutationManager, 'adoptHeldMutations');
+
+    const results = await Promise.all([
+      adoptHeldRingsideScoresForLiveClaim(),
+      adoptHeldRingsideScoresForLiveClaim(),
+    ]);
+    await mutationManager.uploadPendingMutations();
+    const adoptCalls = adopt.mock.calls.length;
+    adopt.mockRestore();
+
+    expect(adoptCalls).toBe(1);
+    expect(results).toEqual([2, 2]);
+    expect(sentTo(fake.rpcCalls)).toEqual([
+      [token, 'e1'],
+      [token, 'e2'],
+    ]);
+  });
+
+  it('is a no-op once nothing is held, so a later reconnect trigger does nothing', async () => {
+    await strandQueueThenReenterPasscode();
+    expect(await adoptHeldRingsideScoresForLiveClaim()).toBe(2);
+    expect(await adoptHeldRingsideScoresForLiveClaim()).toBe(0);
+  });
+
   it('never throws when adopting fails: it warns and the scores stay held', async () => {
     await strandQueueThenReenterPasscode();
     const adopt = vi

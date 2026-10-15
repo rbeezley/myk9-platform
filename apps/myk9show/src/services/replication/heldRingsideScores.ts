@@ -29,23 +29,36 @@ function readPasscodeClaim(session: Session | null): { userId: string; showId: s
   return claim.show_id ? { userId: user.id, showId: claim.show_id } : null;
 }
 
+/** One adoption per claim at a time: overlapping triggers (sign-in, auth init, reconnect) share it. */
+const inFlight = new Map<string, Promise<number>>();
+
 /**
  * Adopt this device's held scores for the live passcode claim's show, then
- * request an upload. Call it, without awaiting, right after a passcode validated
- * online. A pure service call: it needs no component, so it survives the page
- * that started it unmounting. Never throws; a failure only warns, and the scores
- * stay held for the next passcode entry.
+ * request an upload. Called without awaiting after a passcode validated online,
+ * and again whenever an anonymous passcode session is active and online (auth
+ * init, reconnect), so a one-shot failure retries on its own. A pure service
+ * call: it needs no component, so it survives the page that started it
+ * unmounting. Idempotent and guarded: it adopts 0 when nothing is held, when the
+ * session is not an anonymous passcode one, or when there is no live claim.
+ * Never throws; a failure only warns, and the scores stay held for the next try.
  */
 export async function adoptHeldRingsideScoresForLiveClaim(): Promise<number> {
   try {
     const { data } = await supabase.auth.getSession();
     const claim = readPasscodeClaim(data.session);
     if (!claim) return 0;
-    return await mutationManager.adoptHeldMutations({
-      showId: claim.showId,
-      toAuthUserId: claim.userId,
-      rpcNames: ADOPTABLE_RPCS,
-    });
+    const key = `${claim.userId}:${claim.showId}`;
+    const running = inFlight.get(key);
+    if (running) return await running;
+    const work = mutationManager
+      .adoptHeldMutations({
+        showId: claim.showId,
+        toAuthUserId: claim.userId,
+        rpcNames: ADOPTABLE_RPCS,
+      })
+      .finally(() => inFlight.delete(key));
+    inFlight.set(key, work);
+    return await work;
   } catch (error) {
     logger.warn('[ringside] adopting held scores failed', 'replication', { error: String(error) });
     return 0;

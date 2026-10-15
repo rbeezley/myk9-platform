@@ -11,6 +11,7 @@
  * Uses @myk9/replication package for offline-first data sync.
  */
 
+import { adoptHeldRingsideScoresForLiveClaim } from '@/services/replication/heldRingsideScores';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -495,6 +496,14 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     }
     return undefined;
   }, [autoSync, isOnline]);
+
+  // An anonymous passcode session that is active and online takes over this
+  // device's held ringside scores for its show (MYK9-1205). Runs on auth init
+  // (reload) and on reconnect, so a one-shot adoption that failed retries by
+  // itself. Idempotent and guarded inside the service; never blocks or throws.
+  useEffect(() => {
+    if (isAuthenticated && isOnline) void adoptHeldRingsideScoresForLiveClaim();
+  }, [isAuthenticated, isOnline]);
 
   // Sync when coming back online + restore localStorage backup
   useEffect(() => {

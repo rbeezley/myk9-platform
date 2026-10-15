@@ -412,6 +412,30 @@ describe('useShowEntriesForUser', () => {
     expect(dates[2]).toBe('2026-05-11');
   });
 
+  it('lists 9:00 AM before 10:00 AM on one day and untimed classes last (MYK9-1193)', () => {
+    const classes = [
+      makeClass({ id: 'c-untimed', startTime: '' }),
+      makeClass({ id: 'c-ten', startTime: '10:00 AM' }),
+      makeClass({ id: 'c-nine', startTime: '9:00 AM' }),
+    ];
+    setMocks({
+      classes,
+      entries: classes.map(c => makeEntry({ id: `e-${c.id}`, classId: c.id })),
+    });
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+    const order = ['classId'] as const;
+    expect(result.current.allEntries.map(e => e[order[0]])).toEqual([
+      'c-nine',
+      'c-ten',
+      'c-untimed',
+    ]);
+    expect(result.current.dogGroups[0].entries.map(e => e.classId)).toEqual([
+      'c-nine',
+      'c-ten',
+      'c-untimed',
+    ]);
+  });
+
   it('computes dogsAhead correctly', () => {
     // entry has runOrder 3; two other unscored entries in same class with orders 1 and 2
     const otherEntry1 = makeEntry({

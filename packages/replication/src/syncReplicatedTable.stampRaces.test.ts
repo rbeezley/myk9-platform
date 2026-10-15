@@ -142,14 +142,20 @@ describe('scope stamp races (MYK9-1148)', () => {
       // reaches the stamp write.
       signInAs('user-a');
       await settle();
+      // The flip lives on this table alone, never on the shared `who`: the table's
+      // debounced listener notification can fire after this test ends and call the
+      // override again, which would otherwise sign the NEXT test's account out
+      // from under it (MYK9-1197).
+      let flipped = false;
       table.getCurrentAuthUserId = async () => {
         const held = await table.getReplicatedRowIncludingOtherAccounts('r1');
-        if (held?.ownerAuthUserId === 'user-a') who.current = 'user-b';
-        return who.current;
+        if (held?.ownerAuthUserId === 'user-a') flipped = true;
+        return flipped ? 'user-b' : who.current;
       };
       const result = await sync(adapter(() => [row('r1', 2)]));
 
       expect(result.success).toBe(false);
+      expect(who.current).toBe('user-a');
       expect(await stampOf()).toBeUndefined();
     });
   });

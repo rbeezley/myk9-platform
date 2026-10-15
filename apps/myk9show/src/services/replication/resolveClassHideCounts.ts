@@ -1,6 +1,7 @@
 import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/utils/logger';
 import { getTrialRegistry } from '@/features/registries';
+import { readNow, type ShareRead } from '@/services/database/_shared/shareInFlight';
 
 interface HideCountClassRow {
   id: string;
@@ -55,7 +56,8 @@ function ruleOrganization(rule: PublicHideCountRuleRow): string | null {
  * break class replication or discard the other safe result.
  */
 export async function resolveHideCountsForClassRows(
-  rows: ReadonlyArray<HideCountClassRow>
+  rows: ReadonlyArray<HideCountClassRow>,
+  shareRead: ShareRead = readNow
 ): Promise<Map<string, number>> {
   const byClassId = new Map<string, number>();
 
@@ -132,9 +134,9 @@ export async function resolveHideCountsForClassRows(
 
   await Promise.all(
     showIds.map(async showId => {
-      const { data, error } = await supabase.rpc('get_show_class_hide_counts', {
-        p_show_id: showId,
-      });
+      const { data, error } = await shareRead(`hide-counts:${showId}`, async () =>
+        supabase.rpc('get_show_class_hide_counts', { p_show_id: showId })
+      );
 
       if (error) {
         logger.warn(

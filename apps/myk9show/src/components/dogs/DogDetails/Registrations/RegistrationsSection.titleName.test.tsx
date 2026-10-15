@@ -107,6 +107,20 @@ describe('registration name editing', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing UKC: UCH Test Dog');
   });
 
+  it('gives a registration stored as a full label its friendly subtitle (MYK9-1207)', () => {
+    mocks.registrations.mockReturnValue([
+      {
+        id: 'registration-9',
+        organization: 'AKC (American Kennel Club)',
+        registeredName: 'CH Label Dog',
+        registrationNumber: 'SR1',
+        breed: 'Beagle',
+      },
+    ]);
+    render(<RegistrationsSection dog={{ id: 'dog-1', callName: 'Test Dog' } as Dog} canEdit />);
+    expect(screen.getByText('American Kennel Club')).toBeInTheDocument();
+  });
+
   // registrationsStore is module-global and DogRegistrationDialogs is mounted on
   // every dog page. Left un-reset, Back-ing out of an open Edit on dog A and
   // opening dog B re-opens that panel holding A's registration under B's name —

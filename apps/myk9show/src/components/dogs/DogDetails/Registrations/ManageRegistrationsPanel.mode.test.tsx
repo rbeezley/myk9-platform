@@ -235,7 +235,8 @@ describe('ManageRegistrationsPanel — Add and Edit are modes of the one panel',
         {
           id: 'registration-1',
           updates: {
-            organization: 'AKC',
+            // The stored short code `AKC` is normalized to the full label on save (MYK9-1207).
+            organization: 'AKC (American Kennel Club)',
             registered_name: 'CH Test Dog II',
             breed: 'Beagle',
             variety: null,

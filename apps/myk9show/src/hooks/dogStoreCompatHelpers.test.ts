@@ -108,6 +108,18 @@ describe('syncDogRegistrations, server reachable', () => {
     });
   });
 
+  it('adds a registration with no organization as the full AKC label, never the bare code (MYK9-1207)', async () => {
+    installRegistrationsServer(newServer({ rows: [] }));
+
+    await expect(
+      syncDogRegistrations('dog-1', [{ registeredName: 'No Org Name', number: 'N1' }])
+    ).resolves.toBe(true);
+
+    expect((await queue.pending()).find(m => m.operation === 'INSERT')).toMatchObject({
+      data: { dog_id: 'dog-1', organization: 'AKC (American Kennel Club)' },
+    });
+  });
+
   it('adds when the server has no row, even with a stale cached copy on the device', async () => {
     // Deleted on another device; this device still holds the clean copy.
     await replicatedDogRegistrationsTable.applyServerRows([AKC_ROW]);

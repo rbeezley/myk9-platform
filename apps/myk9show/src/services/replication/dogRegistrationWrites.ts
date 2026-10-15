@@ -7,6 +7,7 @@ import type { DogInput } from '@/store/dogStore';
 import type { DbDogRegistrationInsert } from '@/types/database-mappings';
 import { FriendlySaveError } from '@/utils/friendlySaveError';
 import { REGISTRATION_UPDATE_COLUMNS, type ReplicatedDogRegistration } from './dogRegistrationRows';
+import { DEFAULT_REGISTRATION_ORG } from '@/components/dogs/registrationForm';
 
 /** The refusal for a write whose registrations this device does not hold (plan §1 "Cold replica"). */
 export const REGISTRATIONS_NEED_CONNECTION = "Reconnect to load this dog's registrations";
@@ -116,7 +117,7 @@ export function normalizeRegistration(
   createdAt: string
 ): Omit<ReplicatedDogRegistration, 'id' | 'dogId'> {
   return {
-    organization: input.organization || 'AKC',
+    organization: input.organization || DEFAULT_REGISTRATION_ORG,
     registrationNumber: input.number || '',
     registeredName: input.registeredName || null,
     breed: input.type || null,
@@ -155,7 +156,7 @@ export function draftToRegistration(
   createdAt: string
 ): Omit<ReplicatedDogRegistration, 'id' | 'dogId'> {
   return {
-    organization: draft.organization || 'AKC',
+    organization: draft.organization || DEFAULT_REGISTRATION_ORG,
     registrationNumber: draft.registration_number || '',
     registeredName: draft.registered_name || null,
     breed: draft.breed || null,

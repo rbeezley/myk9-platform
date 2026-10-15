@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip/tooltip';
+import { normalizeOrganization } from '@/features/dogs/identity';
 import type { Registration } from '@/types/dog-types';
 
 interface DogInfoTooltipProps {
@@ -39,7 +40,8 @@ function RegistrationDetails({ registration }: { registration: Registration }) {
 export const DogInfoTooltip: React.FC<DogInfoTooltipProps> = ({ dogName, registrations }) => {
   // Scent Work is typically AKC, so prefer AKC registration if available
   const dogRegistration =
-    registrations?.find(reg => reg.organization === 'AKC') || registrations?.[0]; // fallback to first registration
+    registrations?.find(reg => normalizeOrganization(reg.organization) === 'AKC') ||
+    registrations?.[0]; // fallback to first registration
 
   return (
     <Tooltip>

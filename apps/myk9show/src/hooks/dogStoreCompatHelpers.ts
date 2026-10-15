@@ -8,6 +8,7 @@ import {
 import { saveRegistrationEditOnline } from '@/services/database/registrations/editGuard';
 import type { EditableRegistration } from '@/services/replication/dogRegistrationWriteSupport';
 import { logger } from '@/services/LoggingService';
+import { DEFAULT_REGISTRATION_ORG } from '@/components/dogs/registrationForm';
 import { normalizeDogRegistrationOrganization } from '@/utils/dogIdentity';
 
 interface RegistrationInput {
@@ -84,7 +85,7 @@ export async function syncDogRegistrations(
 
     const added = await replicatedDogRegistrationsTable.addRegistration({
       dog_id: dogId,
-      organization: inputReg.organization || 'AKC',
+      organization: inputReg.organization || DEFAULT_REGISTRATION_ORG,
       registered_name: inputReg.registeredName ?? null,
       registration_number: inputReg.number || '',
       breed: inputReg.type || null,
@@ -93,7 +94,7 @@ export async function syncDogRegistrations(
     logger.debug('Added registration', 'dogs', {
       registrationId: added.id,
       registeredName: inputReg.registeredName,
-      organization: inputReg.organization || 'AKC',
+      organization: inputReg.organization || DEFAULT_REGISTRATION_ORG,
     });
   }
 

@@ -47,6 +47,7 @@ interface RegistrationsSectionProps {
 
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import { EDIT_REGISTRATION_ATTR } from '@/components/dogs/registrationAttrs';
+import { normalizeOrganization } from '@/features/dogs/identity';
 
 /**
  * The dog's registrations as a list of cards, with per-row Edit / Delete.
@@ -199,9 +200,9 @@ export default function RegistrationsSection({ dog, canEdit }: RegistrationsSect
           <div className="flex flex-col gap-2">
             <div className="font-semibold text-base mb-0.5">{reg.organization} Registration</div>
             <div className="text-xs text-muted-foreground mb-0.5">
-              {reg.organization === 'AKC'
+              {normalizeOrganization(reg.organization) === 'AKC'
                 ? 'American Kennel Club'
-                : reg.organization === 'UKC'
+                : normalizeOrganization(reg.organization) === 'UKC'
                   ? 'United Kennel Club'
                   : reg.organization}
             </div>

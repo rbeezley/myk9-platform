@@ -35,6 +35,7 @@ const fake = vi.hoisted(() => ({
   sessionError: null as Error | null,
   rpcCalls: [] as Array<{ token: string; name: string; args: Record<string, unknown> }>,
   rpcAnswer: null as null | (() => { data: unknown; error: unknown }),
+  persistedUserId: null as string | null,
 }));
 
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -59,7 +60,7 @@ vi.mock('@/services/LoggingService', () => ({
 }));
 
 vi.mock('@/services/database/persistedAuthUserId', () => ({
-  readPersistedAuthUserId: () => null,
+  readPersistedAuthUserId: () => fake.persistedUserId,
 }));
 
 import { mutationManager } from '../sharedMutationManager';
@@ -136,6 +137,7 @@ beforeEach(async () => {
   fake.sessionError = null;
   fake.rpcCalls = [];
   fake.rpcAnswer = null;
+  fake.persistedUserId = null;
   setDeviceOnline(true);
 });
 
@@ -162,11 +164,25 @@ describe('A. the session dies with scores queued: the queue is kept', () => {
     expect(fake.rpcCalls).toEqual([]);
   });
 
-  // Pins today's behaviour for the NEXT score, not the queued ones: queue
-  // ownership needs a resolved live session, so with the token expired and no
-  // network the write is refused (MYK9-1133 made only replica stamps
-  // offline-durable). Reported to MYK9-1053 as a concern, not asserted as safe.
-  it('refuses to queue a NEW score while the session cannot resolve, leaving the queued ones intact', async () => {
+  // The NEXT score, with the token expired and no network (MYK9-1204): queue
+  // ownership falls back to the persisted account's id, so it is taken. Only
+  // with no account persisted is it refused. Upload still needs a live session.
+  it('queues a NEW score under the persisted account while the session cannot resolve', async () => {
+    signIn('judge-1');
+    await queueScore('e1');
+
+    refreshFails();
+    fake.persistedUserId = 'judge-1';
+    await queueScore('e2');
+
+    expect((await pending()).map(row => [row.rowId, row.authUserId])).toEqual([
+      ['e1', 'judge-1'],
+      ['e2', 'judge-1'],
+    ]);
+    expect(fake.rpcCalls).toEqual([]);
+  });
+
+  it('refuses to queue a NEW score only when no account is persisted, leaving the queued ones intact', async () => {
     signIn('judge-1');
     await queueScore('e1');
 

@@ -10,6 +10,16 @@ export const MASTER_DETAIL_QUERY = '(min-width: 1024px)';
 
 const PANEL_IDS = ['list', 'detail'];
 
+/** The list pane's starting width and drag limits, in any unit the panels accept ("38%", "320px"). */
+export interface MasterDetailListSize {
+  default: string;
+  min: string;
+  max: string;
+}
+
+const DEFAULT_LIST_SIZE: MasterDetailListSize = { default: '38%', min: '26%', max: '55%' };
+const DEFAULT_SPLIT_HEIGHT = 'h-[calc(100dvh-14rem)] min-h-[32rem]';
+
 // localStorage can throw (private window, blocked site data); a lost layout is only cosmetic.
 const layoutStorage = {
   getItem(key: string): string | null {
@@ -39,6 +49,9 @@ interface MasterDetailLayoutProps {
   detail: ReactNode | null;
   listLabel: string;
   detailLabel: string;
+  listSize?: MasterDetailListSize;
+  /** Height of the split; each pane scrolls on its own inside it. */
+  heightClassName?: string;
 }
 
 /**
@@ -55,6 +68,8 @@ export function MasterDetailLayout({
   detail,
   listLabel,
   detailLabel,
+  listSize = DEFAULT_LIST_SIZE,
+  heightClassName = DEFAULT_SPLIT_HEIGHT,
 }: MasterDetailLayoutProps) {
   const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
   const defaultLayout = useDefaultLayout({
@@ -76,9 +91,14 @@ export function MasterDetailLayout({
   return (
     // The group sets an inline `height: 100%`, which beats a height class on it, so the fixed
     // height lives on this wrapper. Each pane then scrolls on its own inside it.
-    <div className="h-[calc(100dvh-14rem)] min-h-[32rem]" data-testid="master-detail-layout">
+    <div className={heightClassName} data-testid="master-detail-layout">
       <ResizablePanelGroup orientation="horizontal" {...defaultLayout}>
-        <ResizablePanel id="list" defaultSize="38%" minSize="26%" maxSize="55%">
+        <ResizablePanel
+          id="list"
+          defaultSize={listSize.default}
+          minSize={listSize.min}
+          maxSize={listSize.max}
+        >
           <div role="region" aria-label={listLabel} className="flex h-full flex-col pr-1">
             {listHeader && <div className="shrink-0 pb-3">{listHeader}</div>}
             <div className="min-h-0 flex-1 overflow-y-auto">{list}</div>

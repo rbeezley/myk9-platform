@@ -23,6 +23,8 @@ export interface MyShowsBuckets {
   attentionNeeded: AttentionItem[];
 }
 
+// Sibling rule: `showsPaneGroupFor` (components/shows/browse/showsPaneGroups.ts) buckets the Shows
+// list on the show's own calendar day; this one uses the viewer's. Keep the status rules in step.
 function toPhase(show: Show, now: Date): ShowPhase {
   if (show.status === 'draft') return 'draft';
   // Terminal statuses win over the date range: a show a secretary has marked

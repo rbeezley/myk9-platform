@@ -56,13 +56,13 @@ Each phase ships on its own; stopping after any phase leaves a coherent app.
      | ---------------------------------------------- | ------ | ---- |
      | Exhibitor only                                 | 5      | 5    |
      | Judge only                                     | 3      | 3    |
-     | Secretary + exhibitor                          | 8      | 8    |
+     | Secretary + exhibitor                          | 8      | 7    |
      | Club admin + exhibitor                         | 8      | 5    |
-     | Secretary + club admin + exhibitor             | 12     | 9    |
+     | Secretary + club admin + exhibitor             | 12     | 8    |
      | Site admin only                                | 10     | 1    |
-     | Site admin + secretary, club admin, judge, exh | 22     | 10   |
+     | Site admin + secretary, club admin, judge, exh | 22     | 9    |
 
-     Renamed in the rail only (the drawer and the accessible name keep the full title): "Show Management" → **Manage** ("Management" was 21px wider than the rail), and the current show's name → **Today's show / Next show / Draft show**. Phase 3 removes the four Browse items, leaving 5 and 6 for the two largest rows.
+     Renamed in the rail only (the drawer and the accessible name keep the full title): "Show Management" → **Manage** ("Management" was 21px wider than the rail). The counts include phase 2's removal of the next-show item (it was "Today's show / Next show / Draft show"). Phase 3 removes the four Browse items, leaving 4 and 5 for the two largest rows.
 
 2. **Shows list with a detail pane.** _Requires phase 1 (rail); the decision below assumes it._ `/shows` list on the left, `/shows/:id` on the right from `lg`. Today / Upcoming / Past grouping, managed shows pinned. Replace the single `nextShow` sidebar link once the list covers it.
    - **[ADDED] Spike first.** In the browser at 1024, 1280 and 1440px, open every show management tab (Overview cockpit, Entries, Schedule, Results) inside the detail pane and record whether the cockpit split, pinned header and sticky entry pane still work. Write the result and the (a)/(b) decision into this plan before building.
@@ -79,6 +79,7 @@ Each phase ships on its own; stopping after any phase leaves a coherent app.
      The cockpit picks its split from the window width (`isSplitViewport`), not the width it is given, so at 1280 it splits at its 360px minimum focus column. That is usable but is the floor.
 
    - **Decision: (a) from 1280, (b) below it.** From a 1280px window the show page sits in the detail pane beside the list. Between 1024 and 1279 the list pane folds away automatically while a show is open, with a visible "Shows" button to bring it back, so the show keeps today's width there. The rule is the window width, matching the cockpit's own breakpoint, so the two never disagree. Follow-up, not in this phase: make the cockpit split on its container width instead of the window.
+   - **Built (MYK9-1213).** `ShowsMasterDetailPage` is one layout route around `/shows` and `/shows/:id/*`, so the list stays mounted (scroll, search) while shows open. For signed-in accounts from `lg`: the list (`ShowsPaneList`, 320px, draggable 260 to 440) sits beside the route, which is Find Shows on `/shows` (kept whole: cards, table, calendar, map) and the show on `/shows/:id`. Between `lg` and 1280, with a show open, the list folds behind a "Shows" button and the viewer's open or folded choice is remembered (`view-pref-shows-pane`). Signed-out visitors and windows under `lg` see no change. The list reads `useBrowseShowsList`, the shows half of `useBrowseShowsData` split out so a second caller adds none of Find Shows' entry and relationship side effects; it is the shows replica for an account, so it lists offline. Inside the pane the show page's sticky offsets read `--app-top-inset: 0px`, so the pinned header and tab strip pin to the pane's top. Groups are Today / Upcoming / Past on the show's own calendar day (its first trial's zone, `showsPaneGroups.ts`), shows the viewer is club staff for first, tagged "Managing"; a site admin manages everything, so nothing is singled out. The `nextShow` rail item is gone: today's show is the top of the Today group, one click after Shows. Real-data check (2026-10-15, 10 live shows): Today holds the Heartland week running Oct 14 to 20 (a Chicago show stored as UTC-midnight dates, read as its own calendar days); four in Past and five in Upcoming before RLS narrows them per viewer.
 3. **One browse pane.** Shows / Dogs / People / Clubs tabs over a shared list pane; Clubs moves to a detail pane too. Remove the Shows, Dogs, People and Clubs items from the rail.
 
 4. **Exhibitor-only users.** Two tabs, My Shows and My Dogs (exhibitors never see People or Clubs). My Shows lists the shows they entered, grouped Upcoming / Past; the detail pane is their entries for that show (dogs, classes, run order, receipts, withdraw). A "Find a show" button at the top of the list replaces the separate Find Shows item. Rail: My Shows, My Dogs, Payments, Show Day, Help, account.

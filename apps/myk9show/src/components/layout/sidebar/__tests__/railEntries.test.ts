@@ -6,10 +6,9 @@ import { buildUnifiedSidebarConfig } from '../unifiedSidebarConfig';
 import type { NavGroup } from '../types';
 
 const CLUB = { clubId: 'club-1', clubName: 'Heartland Club' };
-const NEXT_SHOW = { id: 'show-1', name: 'Heartland Scent Work Week', phase: 'today' as const };
 
 function railCount(roles: UserRole[]): number {
-  const config = buildUnifiedSidebarConfig(roles, CLUB, NEXT_SHOW, 'Jamie');
+  const config = buildUnifiedSidebarConfig(roles, CLUB, 'Jamie');
   return buildRailEntries(config.groups).length;
 }
 
@@ -70,12 +69,12 @@ describe('buildRailEntries', () => {
   it.each([
     ['exhibitor only', [UserRole.EXHIBITOR], 5],
     ['judge only', [UserRole.JUDGE], 3],
-    ['secretary + exhibitor', [UserRole.SECRETARY, UserRole.EXHIBITOR], 8],
+    ['secretary + exhibitor', [UserRole.SECRETARY, UserRole.EXHIBITOR], 7],
     ['club admin + exhibitor', [UserRole.CLUB_ADMIN, UserRole.EXHIBITOR], 5],
     [
       'secretary + club admin + exhibitor',
       [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.EXHIBITOR],
-      9,
+      8,
     ],
     ['site admin only', [UserRole.SITE_ADMIN], 1],
     [
@@ -87,7 +86,7 @@ describe('buildRailEntries', () => {
         UserRole.JUDGE,
         UserRole.EXHIBITOR,
       ],
-      10,
+      9,
     ],
   ])('a %s rail (%j) has %i items', (_label, roles, expected) => {
     expect(railCount(roles)).toBe(expected);
@@ -95,25 +94,12 @@ describe('buildRailEntries', () => {
 });
 
 describe('rail labels', () => {
-  it("shortens the next-show item to its phase and keeps the show's name in its accessible name", () => {
-    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, NEXT_SHOW);
-    const item = config.groups.flatMap(g => g.items).find(i => i.href === '/shows/show-1');
+  it('shortens Show Management to "Manage" and keeps the full title as its accessible name', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
+    const item = config.groups.flatMap(g => g.items).find(i => i.href === '/secretary/dashboard');
 
-    expect(item && railLabel(item)).toBe("Today's show");
-    expect(item && railAccessibleName(item)).toBe("Today's show: Heartland Scent Work Week");
-  });
-
-  it.each([
-    ['upcoming', 'Next show'],
-    ['draft', 'Draft show'],
-  ] as const)('labels a %s next show "%s"', (phase, label) => {
-    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, {
-      ...NEXT_SHOW,
-      phase,
-    });
-    const item = config.groups.flatMap(g => g.items).find(i => i.href === '/shows/show-1');
-
-    expect(item && railLabel(item)).toBe(label);
+    expect(item && railLabel(item)).toBe('Manage');
+    expect(item && railAccessibleName(item)).toBe('Manage: Show Management');
   });
 
   it('uses the title unchanged when no rail title is set', () => {

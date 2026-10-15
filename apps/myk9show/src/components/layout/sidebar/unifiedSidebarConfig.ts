@@ -22,9 +22,7 @@ import {
   Heart,
   Users,
   Building2,
-  ClipboardCheck,
   FileText,
-  List,
   Shield,
   ShieldCheck,
   Search,
@@ -45,12 +43,6 @@ import type { SidebarConfig, NavGroup, NavItem, NavRailMenu } from './types';
 export interface ClubContext {
   clubId: string;
   clubName: string;
-}
-
-export interface NextShowContext {
-  id: string;
-  name: string;
-  phase: 'today' | 'upcoming' | 'draft';
 }
 
 /**
@@ -77,12 +69,6 @@ function hasAnyRole(userRoles: readonly UserRole[], required: readonly UserRole[
   return required.some(r => userRoles.includes(r));
 }
 
-function nextShowRailTitle(phase: NextShowContext['phase']): string {
-  if (phase === 'today') return "Today's show";
-  if (phase === 'draft') return 'Draft show';
-  return 'Next show';
-}
-
 // The rail folds the two longest sections into one labeled item each, so a
 // secretary who is also club admin sees 9 rail items instead of 12, and a
 // site admin 10 instead of 22 (docs/plan-sidebar-browse-pane.md, phase 1).
@@ -90,16 +76,9 @@ const ADMIN_RAIL_MENU: NavRailMenu = { id: 'admin', title: 'Admin', icon: Shield
 // Flag, not Building2: Building2 is already the Clubs browse item's icon.
 const CLUB_RAIL_MENU: NavRailMenu = { id: 'club', title: 'My Club', icon: Flag };
 
-function nextShowDescription(phase: NextShowContext['phase']): string {
-  if (phase === 'today') return 'Live today';
-  if (phase === 'draft') return 'Draft · finish setup';
-  return 'Setup & scheduling';
-}
-
 export function buildUnifiedSidebarConfig(
   userRoles: readonly UserRole[],
   clubContext?: ClubContext,
-  nextShow?: NextShowContext,
   firstName?: string | null
 ): SidebarConfig {
   const groups: NavGroup[] = [];
@@ -215,30 +194,20 @@ export function buildUnifiedSidebarConfig(
 
     // 2. Manage section (secretary)
     if (hasSecretaryRole) {
-      const manageItems: NavItem[] = [
-        {
-          title: 'Show Management',
-          // "Management" is wider than the rail; renamed there, never cut.
-          railTitle: 'Manage',
-          href: '/secretary/dashboard',
-          icon: LayoutDashboard,
-        },
-      ];
-
-      if (nextShow) {
-        manageItems.push({
-          title: nextShow.name,
-          railTitle: nextShowRailTitle(nextShow.phase),
-          // Not `/setup`: that route only redirects to the show Overview now
-          // (decision 4, docs/plan-secretary-show-actions.md), so linking there
-          // made the sidebar's own destination a bounce.
-          href: `/shows/${nextShow.id}`,
-          icon: nextShow.phase === 'today' ? ClipboardCheck : List,
-          description: nextShowDescription(nextShow.phase),
-        });
-      }
-
-      groups.push({ title: 'Manage', items: manageItems });
+      // One item: the secretary's shows (today's first) are the Shows list's Today group, not a
+      // single next-show link here (docs/plan-sidebar-browse-pane.md, phase 2).
+      groups.push({
+        title: 'Manage',
+        items: [
+          {
+            title: 'Show Management',
+            // "Management" is wider than the rail; renamed there, never cut.
+            railTitle: 'Manage',
+            href: '/secretary/dashboard',
+            icon: LayoutDashboard,
+          },
+        ],
+      });
     }
 
     // 2b. Show Day — the always-available Ringside entry. Placed high (right

@@ -62,7 +62,10 @@ describe('NON_SHOW_ID_SEGMENTS vs the real route tree', () => {
  * `SHELL_MOUNTED_CHILD_SEGMENTS` to have kept up.
  */
 function showRouteShape() {
-  const roots = createRoutesFromChildren(PublicRoutes());
+  // Pathless layout routes (the Shows list, MYK9-1213) add no segment: read through them.
+  const roots = createRoutesFromChildren(PublicRoutes()).flatMap(route =>
+    route.path ? [route] : (route.children ?? [])
+  );
   const showRoute = roots.find(route => route.path === '/shows/:id');
   const nested: string[] = [];
   const walk = (routes: RouteObject[], prefix: string) => {

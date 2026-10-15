@@ -15,7 +15,6 @@ function renderClubAdminRail(initialRoute = '/dogs') {
   const config = buildUnifiedSidebarConfig(
     [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.EXHIBITOR],
     CLUB,
-    undefined,
     'Jordan'
   );
   return render(<RoleSidebar config={config} variant="rail" />, { initialRoute });
@@ -69,7 +68,7 @@ describe('RailNav', () => {
 
   it('puts the admin pages and Resources in one Admin panel with section headings', async () => {
     const user = userEvent.setup();
-    const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN], undefined, undefined, 'Jamie');
+    const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN], undefined, 'Jamie');
     render(<RoleSidebar config={config} variant="rail" />, { initialRoute: '/admin/dashboard' });
 
     await user.click(screen.getByRole('button', { name: 'Admin' }));

@@ -24,6 +24,7 @@ import {
 import { mergeUnsentWork } from '@/services/replication/dogRegistrationMerge';
 import { parseRestoreDogResult } from './restoreDogResult';
 import { DOG_READ_PAGE_SIZE, readAllDogPages, readRosterServerFirst } from './rosterRead';
+import { recallOwnerNames, rememberOwnerNames } from './ownerNameCache';
 import { serverUnreachable } from '../registrations/serverUnreachable';
 import { unsentWorkProvenByServer } from '../registrations/unsentWork';
 
@@ -61,20 +62,47 @@ interface OwnerRow {
 // embed below) so an AKC entry can be blocked in the wizard until it is
 // complete. Inlined, not a constant: peopleJuniorHandlerPiiContract audits
 // every people column list.
-async function loadOwnersMap(ownerIds: string[]): Promise<Map<string, OwnerRow>> {
-  if (ownerIds.length === 0) return new Map();
-  const uniqueIds = [...new Set(ownerIds)];
-  const { data } = await supabase
-    .from('people')
-    .select('id, first_name, last_name, email, phone, street_address, city, state, zip_code')
-    .in('id', uniqueIds);
+async function loadOwnersMap(
+  ownerIds: string[]
+): Promise<{ map: Map<string, OwnerRow>; readFailed: boolean }> {
   const map = new Map<string, OwnerRow>();
-  if (data) {
-    for (const row of data) {
-      map.set(row.id, row as OwnerRow);
+  if (ownerIds.length === 0) return { map, readFailed: false };
+  const uniqueIds = [...new Set(ownerIds)];
+  let data: OwnerRow[] | null = null;
+  let readFailed = serverUnreachable(null);
+  if (!readFailed) {
+    try {
+      const result = await supabase
+        .from('people')
+        .select('id, first_name, last_name, email, phone, street_address, city, state, zip_code')
+        .in('id', uniqueIds);
+      data = result.data as OwnerRow[] | null;
+      readFailed = !!result.error;
+    } catch {
+      readFailed = true;
     }
   }
-  return map;
+  if (data) {
+    for (const row of data) map.set(row.id, row);
+    rememberOwnerNames(data);
+  }
+  if (readFailed) {
+    // MYK9-1189: no signal, so the owner names the list showed online come from the device.
+    for (const [id, owner] of recallOwnerNames(uniqueIds)) {
+      if (!map.has(id)) {
+        map.set(id, {
+          ...owner,
+          email: null,
+          phone: null,
+          street_address: null,
+          city: null,
+          state: null,
+          zip_code: null,
+        });
+      }
+    }
+  }
+  return { map, readFailed };
 }
 
 export function appendRegistrations(
@@ -288,7 +316,8 @@ function mapDogsWithOwners(
   dogs: ReplicatedDog[],
   ownersMap: Map<string, OwnerRow>,
   registrationsMap: Map<string, Record<string, unknown>[]>,
-  registrationsReadComplete: boolean
+  registrationsReadComplete: boolean,
+  ownersReadFailed = false
 ): Record<string, unknown>[] {
   return dogs.map(dog => {
     const owner = dog.ownerId ? (ownersMap.get(dog.ownerId) ?? null) : null;
@@ -297,6 +326,8 @@ function mapDogsWithOwners(
       owner: owner as Record<string, unknown> | null,
       registrations,
       registrationsReadComplete,
+      // An owner that could not be read and was never remembered is said so, not left blank.
+      ...(ownersReadFailed && dog.ownerId && !owner ? { ownerUnavailableOffline: true } : {}),
     });
   });
 }
@@ -453,19 +484,27 @@ export const getAllDogs = async (personId: string, showAll = false) => {
     // Batch-load owner and registration data from PostgREST (not replicated)
     const dogIds = sortedDogs.map(d => d.id);
     const ownerIds = sortedDogs.map(d => d.ownerId).filter((id): id is string => !!id);
-    const [ownersMap, registrationsResult] = await Promise.all([
+    const [owners, registrationsResult] = await Promise.all([
       loadOwnersMap(ownerIds),
       loadDogRegistrations(dogIds),
     ]);
     return mapDogsWithOwners(
       sortedDogs,
-      ownersMap,
+      owners.map,
       registrationsResult.byDog,
-      registrationsResult.registrationsReadComplete
+      registrationsResult.registrationsReadComplete,
+      owners.readFailed
     );
   };
   return readRosterServerFirst<Record<string, unknown>[]>({
-    server: () => postgrestGetAllDogs(personId, showAll),
+    server: async () => {
+      const result = await postgrestGetAllDogs(personId, showAll);
+      // MYK9-1189: keep the owner names this list shows, for the offline read.
+      rememberOwnerNames(
+        result.data.map(row => row.owner).filter((o): o is NonNullable<typeof o> => !!o)
+      );
+      return result;
+    },
     device: async () => {
       // A cold or unreadable local store returns zero rows with no error, which
       // downstream reads as "this user owns no dogs". Throw instead, so an

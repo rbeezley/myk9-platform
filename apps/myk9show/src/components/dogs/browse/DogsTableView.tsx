@@ -6,6 +6,7 @@ import { type ColumnDef, type DisplayColumnDef } from '@tanstack/react-table';
 import { getDogDisplayName, getDogBreedLabel, type Dog, type DogStatus } from '@/types/dog-types';
 import { DataTable, type DataTableColumnMeta } from '@/components/ui/data-table';
 import { DOG_STATUS_BADGES } from '@/components/dogs/common/dogStatusBadges';
+import { OWNER_UNAVAILABLE_OFFLINE_LABEL } from './dogCardFacts';
 
 /** Minimal selection surface (a subset of `useBulkSelection`) for the select column —
  * mirrors `EntriesTableSelection` (design.md decision D2: DataTable opt-in bridged
@@ -227,7 +228,10 @@ function buildColumns(hasLeadColumn: boolean): ColumnDef<Dog>[] {
       header: 'Owner',
 
       cell: ({ row }) => (
-        <span className="text-muted-foreground truncate">{row.original.ownerName || '—'}</span>
+        <span className="text-muted-foreground truncate">
+          {row.original.ownerName ||
+            (row.original.ownerUnavailableOffline ? OWNER_UNAVAILABLE_OFFLINE_LABEL : '—')}
+        </span>
       ),
     },
     {

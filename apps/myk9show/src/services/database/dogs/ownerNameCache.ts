@@ -59,10 +59,12 @@ export function rememberOwnerNames(
 }
 
 /** The remembered names for these owner ids; ids never remembered are absent. */
-export function recallOwnerNames(ownerIds: readonly string[]): Map<string, CachedOwnerName> {
+export function recallOwnerNames(
+  ownerIds: readonly string[],
+  key: string | null
+): Map<string, CachedOwnerName> {
   const found = new Map<string, CachedOwnerName>();
   if (typeof window === 'undefined') return found;
-  const key = ownerNameCacheKey();
   if (!key) return found;
   const map = readMap(key);
   for (const id of ownerIds) {

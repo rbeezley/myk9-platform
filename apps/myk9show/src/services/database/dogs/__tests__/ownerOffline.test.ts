@@ -16,6 +16,8 @@ const { server, mockDogsTable } = vi.hoisted(() => ({
     userId: 'user-1',
     /** Signs a different account in while the dogs read is in flight. */
     switchToDuringRead: null as string | null,
+    /** Overrides the people read's error (an answered server error, not an outage). */
+    peopleError: null as { message: string } | null,
   },
   mockDogsTable: { getAllDogsWithStatus: vi.fn() },
 }));
@@ -42,7 +44,11 @@ vi.mock('@/services/database/supabaseClient', () => ({
         const failure = { message: 'Failed to fetch' };
         chain.in = () =>
           Promise.resolve(
-            server.online ? { data: [], error: null } : { data: null, error: failure }
+            server.peopleError
+              ? { data: null, error: server.peopleError }
+              : server.online
+                ? { data: [], error: null }
+                : { data: null, error: failure }
           );
         chain.then = (resolve: (v: unknown) => unknown, reject: (r: unknown) => unknown) => {
           if (server.switchToDuringRead) server.userId = server.switchToDuringRead;
@@ -61,6 +67,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 }));
 
 import { getAllDogs } from '@/services/database/dogs';
+import { mapDatabaseToDog } from '@/services/mappers/dogMappers';
 import { clearOwnerNameCache } from '@/services/database/dogs/ownerNameCache';
 
 const serverRow = (id: string, ownerId: string, first: string, last: string) => ({
@@ -103,6 +110,7 @@ describe('offline dogs list owners (MYK9-1189)', () => {
     server.dogs = [];
     server.userId = 'user-1';
     server.switchToDuringRead = null;
+    server.peopleError = null;
     mockDogsTable.getAllDogsWithStatus.mockReset();
   });
 
@@ -153,6 +161,29 @@ describe('offline dogs list owners (MYK9-1189)', () => {
     const row = (data as Row[])[0]!;
     expect(row.owner).toBeNull();
     expect(row.owner_unavailable_offline).toBe(true);
+    // The last hop to what the list renders.
+    expect(mapDatabaseToDog(row).ownerUnavailableOffline).toBe(true);
+  });
+
+  it('an answered server error on the owners read is not offline: no cached names, no label', async () => {
+    server.dogs = [serverRow('dog-1', 'owner-1', 'Ada', 'Lovelace')];
+    await getAllDogs('p', true);
+
+    server.online = false;
+    server.peopleError = { message: 'permission denied for table people' };
+    mockDogsTable.getAllDogsWithStatus.mockResolvedValue({
+      rows: [deviceDog('dog-1', 'owner-1')],
+      cold: false,
+    });
+    vi.stubGlobal('navigator', { ...navigator, onLine: true });
+    try {
+      const { data } = await getAllDogs('p', true);
+      const row = (data as Row[])[0]!;
+      expect(row.owner).toBeNull();
+      expect(row.owner_unavailable_offline).toBeUndefined();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('a dog with no owner id is not flagged as unavailable', async () => {

@@ -90,7 +90,7 @@ async function loadOwnersMap(
   }
   if (readFailed) {
     // MYK9-1189: no signal, so the owner names the list showed online come from the device.
-    for (const [id, owner] of recallOwnerNames(uniqueIds)) {
+    for (const [id, owner] of recallOwnerNames(uniqueIds, cacheKey)) {
       if (!map.has(id)) {
         map.set(id, {
           ...owner,

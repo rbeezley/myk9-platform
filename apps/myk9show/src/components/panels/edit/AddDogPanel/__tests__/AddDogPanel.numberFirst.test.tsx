@@ -5,7 +5,7 @@
  * the dog store, the people query and the Supabase client are faked.
  */
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { onlineManager } from '@tanstack/react-query';
 import { fromAny } from '@total-typescript/shoehorn';
 import { render } from '@/test/utils/testUtils';
@@ -135,6 +135,7 @@ describe('AddDogPanel number first (MYK9-1162)', { timeout: JOURNEY_TIMEOUT_MS }
 
     expect(await screen.findByLabelText(/Registered Name/i)).toBeInTheDocument();
     expect(document.getElementById('breed')).not.toBeNull();
+    expect(screen.getByLabelText('Registration Date')).toHaveAttribute('type', 'date');
     expect(mockSupabase.rpc).toHaveBeenCalledWith('registry_identity_taken', {
       p_organization: AKC,
       p_registration_number: 'DN12345601',
@@ -161,6 +162,32 @@ describe('AddDogPanel number first (MYK9-1162)', { timeout: JOURNEY_TIMEOUT_MS }
               status: 'Active',
             },
           ],
+        }),
+        {}
+      )
+    );
+  });
+
+  it('carries the optional date from the first registration into the dog create (MYK9-1117)', async () => {
+    mockSupabase.rpc.mockResolvedValue({ data: false, error: null });
+    const { user } = renderPanel();
+    await typeIdentity(user);
+    await findDog(user);
+    const date = await screen.findByLabelText('Registration Date');
+    fireEvent.change(date, { target: { value: '2026-09-23' } });
+    await user.type(screen.getByLabelText(/Registered Name/i), 'Mailbox Special Delivery');
+    fireEvent.change(screen.getByPlaceholderText(/search breeds/i), {
+      target: { value: 'golden' },
+    });
+    fireEvent.click(screen.getByRole('option', { name: 'Golden Retriever' }));
+    await user.click(screen.getByRole('button', { name: 'Save and continue' }));
+    await fillDogBasics(user);
+    await user.click(await screen.findByRole('button', { name: /Next: Optional details/ }));
+    await user.click(await screen.findByRole('button', { name: 'Add Dog' }));
+    await waitFor(() =>
+      expect(mocks.addDog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          registrations: [expect.objectContaining({ registrationDate: '2026-09-23' })],
         }),
         {}
       )

@@ -10,6 +10,7 @@ import {
   RegistrationNumberField,
   RegistrationOrganizationField,
   RegistrationStatusField,
+  RegistrationDateField,
 } from '@/components/dogs/RegistrationFormBody';
 import {
   INITIAL_REGISTRATION_DATA,
@@ -161,6 +162,7 @@ export const RegistrationIdentityStep: React.FC<RegistrationIdentityStepProps> =
           <RegistrationNameField editor={editor} />
           <RegistrationBreedVarietyFields editor={editor} />
           <RegistrationStatusField editor={editor} />
+          <RegistrationDateField editor={editor} />
         </>
       ) : null}
       <div className="flex flex-wrap items-center gap-3">

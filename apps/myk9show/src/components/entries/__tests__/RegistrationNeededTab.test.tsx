@@ -6,19 +6,30 @@ import type { Dog } from '@/types/dog-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
 // The host is the dog's real Add registration panel; this test pins what the pane asks of it.
-const host = vi.hoisted(() => ({ calls: [] as Array<{ dogId?: string; open: boolean }> }));
+const host = vi.hoisted(() => ({
+  calls: [] as Array<{ dogId?: string; open: boolean; editId?: string }>,
+}));
 vi.mock('@/components/dogs/DogDetails/Registrations/DogRegistrationDialogs', () => ({
   default: ({
     dog,
     autoOpenAddDialog,
     onAddRequestConsumed,
+    autoOpenEditRegistration,
+    onEditRequestConsumed,
   }: {
     dog?: Dog;
     autoOpenAddDialog?: boolean;
     onAddRequestConsumed?: () => void;
+    autoOpenEditRegistration?: { id: string } | null;
+    onEditRequestConsumed?: () => void;
   }) => {
-    host.calls.push({ ...(dog ? { dogId: dog.id } : {}), open: Boolean(autoOpenAddDialog) });
+    host.calls.push({
+      ...(dog ? { dogId: dog.id } : {}),
+      open: Boolean(autoOpenAddDialog),
+      ...(autoOpenEditRegistration ? { editId: autoOpenEditRegistration.id } : {}),
+    });
     if (autoOpenAddDialog) onAddRequestConsumed?.();
+    if (autoOpenEditRegistration) onEditRequestConsumed?.();
     return (
       <output data-testid="add-host">
         {dog ? `${dog.id}:${String(autoOpenAddDialog)}` : 'none'}
@@ -85,6 +96,26 @@ describe('RegistrationNeededTab', () => {
 
     expect(host.calls.some(call => call.dogId === 'dog-e2' && call.open)).toBe(true);
     expect(screen.getByTestId('add-host')).toHaveTextContent('dog-e2');
+  });
+
+  it('opens Edit, not Add, on a registration for that registry that exists with no number', async () => {
+    host.calls.length = 0;
+    const blank = row('e3', 'Biscuit');
+    blank.dog = {
+      ...blank.dog,
+      registrations: [
+        { id: 'reg-ukc', organization: 'UKC (United Kennel Club)', registrationNumber: 'P1' },
+        { id: 'reg-akc-blank', organization: 'AKC (American Kennel Club)', registrationNumber: '' },
+      ],
+    } as unknown as Dog;
+    const { user } = render(
+      <RegistrationNeededTab rows={[blank]} loading={false} unknown={false} onOpenEntry={noop} />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Add registration for Biscuit' }));
+
+    expect(host.calls.some(call => call.editId === 'reg-akc-blank')).toBe(true);
+    expect(host.calls.some(call => call.open)).toBe(false);
   });
 
   it('Pull / Withdraw hands that row’s entry to the entry form, and changes nothing itself', async () => {

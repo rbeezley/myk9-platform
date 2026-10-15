@@ -17,7 +17,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import DogRegistrationDialogs from '@/components/dogs/DogDetails/Registrations/DogRegistrationDialogs';
-import type { Dog } from '@/types/dog-types';
+import { registrationMatchesOrganization, toDogRegistrationLike } from '@/features/dogs/identity';
+import type { Dog, Registration } from '@/types/dog-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { RegistrationNeededRow } from './management/registrationNeeded';
 
@@ -45,6 +46,14 @@ function classLine(entry: EntryManagementEntry): string {
   return [trial, entryClass.name].filter(Boolean).join(' · ');
 }
 
+/** The dog's registration for this registry that has no number yet, if it has one. */
+function blankNumberRegistration(dog: Dog, registryId: string): Registration | undefined {
+  return dog.registrations?.find(registration => {
+    const row = toDogRegistrationLike(registration);
+    return registrationMatchesOrganization(row, registryId) && !row.registration_number?.trim();
+  });
+}
+
 export const RegistrationNeededTab: React.FC<RegistrationNeededTabProps> = ({
   rows,
   loading,
@@ -54,10 +63,15 @@ export const RegistrationNeededTab: React.FC<RegistrationNeededTabProps> = ({
 }) => {
   const [addFor, setAddFor] = useState<Dog | null>(null);
   const [openRequested, setOpenRequested] = useState(false);
+  const [editRequested, setEditRequested] = useState<Registration | null>(null);
 
-  const requestAdd = (dog: Dog) => {
+  // A registration that exists with a blank number is completed by editing it;
+  // Add would insert a second one for the registry, which the database refuses.
+  const requestNumber = (dog: Dog, registryId: string) => {
     setAddFor(dog);
-    setOpenRequested(true);
+    const blank = blankNumberRegistration(dog, registryId);
+    if (blank) setEditRequested(blank);
+    else setOpenRequested(true);
   };
 
   return (
@@ -126,7 +140,7 @@ export const RegistrationNeededTab: React.FC<RegistrationNeededTabProps> = ({
                       size="sm"
                       className="min-h-11"
                       disabled={!dog}
-                      onClick={() => dog && requestAdd(dog)}
+                      onClick={() => dog && requestNumber(dog, registryId)}
                       aria-label={`Add registration for ${entry.dogName}`}
                     >
                       Add registration
@@ -154,6 +168,8 @@ export const RegistrationNeededTab: React.FC<RegistrationNeededTabProps> = ({
         dog={addFor ?? undefined}
         autoOpenAddDialog={openRequested}
         onAddRequestConsumed={() => setOpenRequested(false)}
+        autoOpenEditRegistration={editRequested}
+        onEditRequestConsumed={() => setEditRequested(null)}
       />
     </div>
   );

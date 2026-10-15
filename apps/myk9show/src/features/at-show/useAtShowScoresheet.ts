@@ -233,6 +233,28 @@ export function useAtShowScoresheet({
     };
   }, [showId, classId, entryId, loadAttempt, reloadCount]);
 
+  // MYK9-1162: a held sheet unlocks itself. When the secretary adds the number,
+  // sync brings the entry back with the hold cleared; re-read it on every replica
+  // change while held and reload once it is. A held sheet has no score in
+  // progress, so the reload never replaces the judge's work.
+  useEffect(() => {
+    if (!awaitingRegistrationNumber || !classId || !entryId) return;
+    let active = true;
+    const unsubscribe = replicatedEntriesTable.subscribe(() => {
+      void replicatedEntriesTable.getEntriesByClass(classId).then(rows => {
+        const row = rows.find(candidate => candidate.id === entryId);
+        if (!active || !row) return;
+        if ((row.awaitingRegistrationNumber ?? row.awaiting_registration_number) !== true) {
+          setReloadCount(count => count + 1);
+        }
+      });
+    });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [awaitingRegistrationNumber, classId, entryId]);
+
   const submit = async (scoreData: ScoreData): Promise<void> => {
     if (!entry || !classInfo) return;
     // Clear any prior failure before this attempt.

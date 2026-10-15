@@ -143,6 +143,9 @@ function RegistrationFormFields() {
                   AKC (American Kennel Club)
                 </SelectItem>
                 <SelectItem value="UKC (United Kennel Club)">UKC (United Kennel Club)</SelectItem>
+                <SelectItem value="ASCA (Australian Shepherd Club of America)">
+                  ASCA (Australian Shepherd Club of America)
+                </SelectItem>
                 <SelectItem value="CKC (Canadian Kennel Club)">
                   CKC (Canadian Kennel Club)
                 </SelectItem>

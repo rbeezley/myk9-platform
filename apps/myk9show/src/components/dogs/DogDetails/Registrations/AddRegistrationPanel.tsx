@@ -127,6 +127,9 @@ function RegistrationFormFields({ open }: { open: boolean }) {
               <option value="">Select organization</option>
               <option value="AKC (American Kennel Club)">AKC (American Kennel Club)</option>
               <option value="UKC (United Kennel Club)">UKC (United Kennel Club)</option>
+              <option value="ASCA (Australian Shepherd Club of America)">
+                ASCA (Australian Shepherd Club of America)
+              </option>
               <option value="CKC (Canadian Kennel Club)">CKC (Canadian Kennel Club)</option>
               <option value="FCI (Fédération Cynologique Internationale)">
                 FCI (Fédération Cynologique Internationale)

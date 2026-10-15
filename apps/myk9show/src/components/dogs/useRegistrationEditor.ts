@@ -13,6 +13,9 @@ import { toast } from 'sonner';
 const ORG_CODE_MAP: Record<string, string> = {
   'AKC (American Kennel Club)': 'AKC',
   'UKC (United Kennel Club)': 'UKC',
+  // ASCA trials need an ASCA number (MYK9-1162); ASCA has no breed list of its
+  // own here, so the breed picker falls back to the AKC list.
+  'ASCA (Australian Shepherd Club of America)': 'ASCA',
   'CKC (Canadian Kennel Club)': 'CKC',
   'FCI (Fédération Cynologique Internationale)': 'FCI',
   'KC (The Kennel Club UK)': 'KC',
@@ -25,6 +28,7 @@ const ORG_CODE_MAP: Record<string, string> = {
 export const REGISTRATION_ORGS = [
   'AKC (American Kennel Club)',
   'UKC (United Kennel Club)',
+  'ASCA (Australian Shepherd Club of America)',
   'CKC (Canadian Kennel Club)',
   'FCI (Fédération Cynologique Internationale)',
   'KC (The Kennel Club UK)',

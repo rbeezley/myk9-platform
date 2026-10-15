@@ -158,7 +158,7 @@ describe('loadDogRegistrations', () => {
 
     const { byDog, registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
     expect(mockServerSelect).toHaveBeenCalledWith(
-      'dog_id, id, created_at, is_primary, registered_name, registration_number, organization, variety, breed, status'
+      'dog_id, id, created_at, is_primary, registered_name, registration_number, registration_date, organization, variety, breed, status'
     );
     expect(resolveDogIdentity(byDog.get('dog-1')!).breed).toBe('Belgian Malinois');
     expect(registrationsReadComplete).toBe(true);

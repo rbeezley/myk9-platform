@@ -107,3 +107,17 @@ describe('DogStripCard', () => {
     expect(screen.getByText('SWN, SWA')).toBeInTheDocument();
   });
 });
+
+it('distinguishes unpublished entries from the upcoming schedule (MYK9-1147)', () => {
+  render(
+    <DogStripCard
+      dogId="d1"
+      dogName="Willow"
+      registrations={sameBreed}
+      upcomingClassCount={8}
+      unpublishedClassCount={2}
+    />
+  );
+  expect(screen.getByText('8 upcoming classes')).toBeInTheDocument();
+  expect(screen.getByText('2 classes in unpublished shows')).toBeInTheDocument();
+});

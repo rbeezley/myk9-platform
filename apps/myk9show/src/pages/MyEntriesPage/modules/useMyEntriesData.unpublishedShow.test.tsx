@@ -42,7 +42,7 @@ function unreadableShowRow(id: string, dogName: string) {
     registration_id: null,
     dog: { id: `dog-${id}`, name: dogName, call_name: dogName },
     show: null,
-    class: { id: `class-${id}`, name: 'Interior Advanced', class_number: '1' },
+    class: null,
   };
 }
 
@@ -98,7 +98,8 @@ describe('My Shows: an entry in a show the exhibitor cannot read (MYK9-1147)', (
     ).toBeInTheDocument();
     expect(screen.getByText('Juni')).toBeInTheDocument();
     expect(screen.getByText('Paid')).toBeInTheDocument();
-    expect(document.body.textContent).not.toMatch(/Unknown Show/);
+    expect(screen.getByText('Class not published yet')).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/Unknown Show|Unknown Class/);
     // A date line is "Weekday, Mon D"; none may render for this show.
     const today = new Date().toLocaleDateString('en-US', {
       weekday: 'short',

@@ -349,6 +349,9 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
       ...(regCreatedAt(reg) != null ? { createdAt: regCreatedAt(reg) as string } : {}),
       ...(regIsPrimary(reg) != null ? { isPrimary: regIsPrimary(reg) as boolean } : {}),
       registrationNumber: regNumber(reg),
+      ...((reg.registration_date ?? reg.registrationDate)
+        ? { registrationDate: (reg.registration_date ?? reg.registrationDate) as string }
+        : {}),
       status: (reg.status as string) || 'active',
     })),
     registrationsReadComplete:

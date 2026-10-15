@@ -202,7 +202,7 @@ async function readServerRegistrations(dogIds: string[]): Promise<{
         // Keep this list narrow: this read hydrates the dog roster and only
         // needs identity/order fields plus the display metadata.
         .select(
-          'dog_id, id, created_at, is_primary, registered_name, registration_number, organization, variety, breed, status'
+          'dog_id, id, created_at, is_primary, registered_name, registration_number, registration_date, organization, variety, breed, status'
         )
         .in('dog_id', batch);
       // Keep going after a failed batch, and return the rows that did
@@ -362,7 +362,7 @@ async function postgrestGetDogsByOwner(ownerId: string) {
     // organization scoping at all. `is_primary` is live and selected so the
     // generic resolver can honor the owner's primary registration.
     .select(
-      '*, registrations:dog_registrations(id,created_at,is_primary,breed,variety,registered_name,registration_number,organization,status)'
+      '*, registrations:dog_registrations(id,created_at,is_primary,breed,variety,registered_name,registration_number,registration_date,organization,status)'
     )
     .eq('owner_id', ownerId)
     .is('deleted_at', null)

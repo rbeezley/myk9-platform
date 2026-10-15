@@ -210,6 +210,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
         organization: reg.organization,
         number: reg.registrationNumber,
         registeredName: reg.registeredName,
+        registrationDate: reg.registrationDate,
         type: reg.breed,
         status: reg.status || 'Active',
       })),

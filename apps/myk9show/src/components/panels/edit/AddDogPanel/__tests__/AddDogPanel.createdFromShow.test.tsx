@@ -3,6 +3,8 @@ import { act } from '@testing-library/react';
 import { fromAny } from '@total-typescript/shoehorn';
 import { render } from '@/test/utils/testUtils';
 import { AddDogPanel } from '../index';
+import { createInitialFormData } from '../types';
+import type { DogFormData } from '../types';
 import type { EditPanelSaveContext } from '../../EditPanelWrapper';
 
 // MYK9-1059: the panel hands the store the show whose add-entry flow opened it.
@@ -34,7 +36,8 @@ vi.mock('@/hooks/useDogStoreCompat', () => ({
   }),
 }));
 
-const formData = {
+const formData: DogFormData = {
+  ...createInitialFormData(),
   callName: 'Liddle',
   gender: 'Female',
   dateOfBirth: '2020-01-01',
@@ -43,10 +46,10 @@ const formData = {
   registrations: [],
 };
 
-async function save() {
+async function save(data = formData) {
   const run = captured.onSave as (d: typeof formData, c: EditPanelSaveContext) => Promise<void>;
   await act(async () => {
-    await run(formData, { runSelfNavigation: fn => fn() });
+    await run(data, { runSelfNavigation: fn => fn() });
   });
 }
 
@@ -92,5 +95,35 @@ describe('AddDogPanel created_from_show_id (MYK9-1059)', () => {
     render(<AddDogPanel open onClose={vi.fn()} onDogCreated={vi.fn()} offlineFirst />);
     await save();
     expect(addDogOfflineFirst).toHaveBeenCalledWith(expect.anything(), {});
+  });
+});
+
+describe('registration date at the panel boundary (MYK9-1117)', () => {
+  it.each([false, true])('preserves the date with offlineFirst=%s', async offlineFirst => {
+    render(
+      <AddDogPanel open onClose={vi.fn()} onDogCreated={vi.fn()} offlineFirst={offlineFirst} />
+    );
+    await save({
+      ...formData,
+      registrations: [
+        {
+          id: 'reg-1',
+          organization: 'AKC',
+          registeredName: 'Liddle Bit',
+          registrationNumber: 'N123',
+          breed: 'Border Collie',
+          status: 'Pending',
+          registrationDate: '2026-09-23',
+        },
+      ],
+    });
+    expect(offlineFirst ? addDogOfflineFirst : addDog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        registrations: [
+          expect.objectContaining({ registrationDate: '2026-09-23', status: 'Pending' }),
+        ],
+      }),
+      {}
+    );
   });
 });

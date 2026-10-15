@@ -119,6 +119,7 @@ export const useDogStoreCompat = () => {
           registration_number: r.number || '',
           breed: r.type || null,
           status: r.status || 'pending',
+          registration_date: r.registrationDate || null,
           created_at: createdAts[index]!,
         }));
 
@@ -215,6 +216,7 @@ export const useDogStoreCompat = () => {
         registration_number: registration.number || '',
         breed: registration.type || null,
         status: registration.status || 'pending',
+        registration_date: registration.registrationDate || null,
         created_at: createdAts[index] ?? null,
       }));
       // The dog is written dirty and queued BEFORE its placeholders exist, so

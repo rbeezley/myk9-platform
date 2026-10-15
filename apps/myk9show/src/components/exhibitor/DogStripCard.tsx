@@ -34,6 +34,7 @@ interface DogStripCardProps {
   dateOfBirth?: string | null | undefined;
   registrations: DogCardRegistration[];
   upcomingClassCount: number;
+  unpublishedClassCount?: number;
 }
 
 export const DogStripCard: React.FC<DogStripCardProps> = ({
@@ -43,6 +44,7 @@ export const DogStripCard: React.FC<DogStripCardProps> = ({
   dateOfBirth,
   registrations,
   upcomingClassCount,
+  unpublishedClassCount = 0,
 }) => {
   const navigate = useNavigate();
   const cardRef = useRef<HTMLButtonElement>(null);
@@ -93,6 +95,12 @@ export const DogStripCard: React.FC<DogStripCardProps> = ({
               </span>
             )}
           </div>
+          {unpublishedClassCount > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {unpublishedClassCount} {unpublishedClassCount === 1 ? 'class' : 'classes'} in
+              unpublished shows
+            </p>
+          )}
         </div>
       </div>
 

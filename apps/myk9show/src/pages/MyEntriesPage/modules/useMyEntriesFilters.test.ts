@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 function makeEntry(overrides: Partial<MyEntry>): MyEntry {
-  return {
+  const entry: MyEntry = {
     id: 'entry',
     registrationId: 'reg',
     showId: 'show',
@@ -41,6 +41,32 @@ function makeEntry(overrides: Partial<MyEntry>): MyEntry {
     lastUpdated: new Date(2026, 4, 1),
     ...overrides,
   };
+  // Counters now describe the actual rendered class rows, so fixtures must
+  // carry the dog/class shape the real mapper and grouping always provide.
+  if (entry.classes.length === 0) {
+    entry.classes = [
+      {
+        ...makeClass(
+          entry.id,
+          entry.entryStatus === EntryStatus.COMPLETED || entry.entryStatusKind === 'completed'
+        ),
+        entryStatus: entry.entryStatus,
+        ...(entry.entryStatusKind && { entryStatusKind: entry.entryStatusKind }),
+      },
+    ];
+  }
+  if (entry.dogs.length === 0) {
+    entry.dogs = [
+      {
+        id: entry.id,
+        dogId: entry.dogId,
+        dogName: entry.dogName,
+        classes: entry.classes,
+        entryStatus: entry.entryStatus,
+      },
+    ];
+  }
+  return entry;
 }
 
 // A multi-day show that started before today but is still running (ends in the
@@ -358,7 +384,7 @@ describe('Completed tab agrees with the "Scored" card badge', () => {
     const { result } = renderFilters({ entries: [partiallyScored] });
 
     expect(result.current.tabCounts.completed).toBe(0);
-    expect(result.current.tabCounts.upcoming).toBe(1);
+    expect(result.current.tabCounts.upcoming).toBe(2);
 
     act(() => result.current.setSelectedTab('upcoming'));
     expect(result.current.filteredEntries.map(e => e.id)).toEqual(['partially-scored']);
@@ -377,7 +403,7 @@ describe('Completed tab agrees with the "Scored" card badge', () => {
 
     const { result } = renderFilters({ entries: [fullyScored] });
 
-    expect(result.current.tabCounts.completed).toBe(1);
+    expect(result.current.tabCounts.completed).toBe(2);
     expect(result.current.tabCounts.upcoming).toBe(0);
   });
 
@@ -395,7 +421,7 @@ describe('Completed tab agrees with the "Scored" card badge', () => {
 
     const { result } = renderFilters({ entries: [scratchedSibling] });
 
-    expect(result.current.tabCounts.completed).toBe(1);
+    expect(result.current.tabCounts.completed).toBe(2);
   });
 
   // No runnable classes left at all — the exhibitor withdrew from everything,
@@ -413,7 +439,7 @@ describe('Completed tab agrees with the "Scored" card badge', () => {
 
     const { result } = renderFilters({ entries: [allScratched] });
 
-    expect(result.current.tabCounts.completed).toBe(1);
+    expect(result.current.tabCounts.completed).toBe(2);
     expect(result.current.tabCounts.upcoming).toBe(0);
   });
 });

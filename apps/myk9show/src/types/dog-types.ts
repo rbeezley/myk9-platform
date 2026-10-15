@@ -265,6 +265,7 @@ export interface DogInput {
     | Array<{
         organization: string;
         number: string;
+        registrationDate?: string | undefined;
         type: string;
         status: string;
       }>

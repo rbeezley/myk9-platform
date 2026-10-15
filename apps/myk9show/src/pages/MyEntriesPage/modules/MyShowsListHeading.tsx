@@ -1,5 +1,5 @@
 /**
- * The "All entries" heading above the My Shows filters and list.
+ * The "Class entries" heading above the My Shows filters and list.
  *
  * A real heading, not a styled <p>: this and "My Dogs" were the page's two
  * section labels and neither was reachable by heading navigation, so a

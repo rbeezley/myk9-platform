@@ -12,6 +12,8 @@
  */
 
 import React from 'react';
+import { countUpcomingClassesByDog, countUnpublishedClassesByDog } from './myEntriesStats.helpers';
+import type { MyEntry } from './my-entries-types';
 import type { NavigateFunction } from 'react-router-dom';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
 import { DogStrip, type DogStripDog } from '@/components/exhibitor/DogStrip';
@@ -40,7 +42,8 @@ interface MyEntriesOverviewProps {
   currentFeesHref: string;
   onNavigate: NavigateFunction;
   dogs: OverviewDog[];
-  upcomingClassCountByDog: Record<string, number>;
+  entries?: MyEntry[];
+  upcomingClassCountByDog?: Record<string, number>;
   onAddDog: () => void;
 }
 
@@ -53,7 +56,8 @@ export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
   currentFeesHref,
   onNavigate,
   dogs,
-  upcomingClassCountByDog,
+  entries = [],
+  upcomingClassCountByDog = countUpcomingClassesByDog(entries),
   onAddDog,
 }) => (
   <>
@@ -79,7 +83,12 @@ export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
       On desktop every sibling is order-0, so source order keeps the balance and
       dog strip above the entries. */}
     <div className="max-[720px]:order-3">
-      <DogStrip dogs={dogs} upcomingClassCountByDog={upcomingClassCountByDog} onAddDog={onAddDog} />
+      <DogStrip
+        dogs={dogs}
+        upcomingClassCountByDog={upcomingClassCountByDog}
+        unpublishedClassCountByDog={countUnpublishedClassesByDog(entries)}
+        onAddDog={onAddDog}
+      />
     </div>
   </>
 );

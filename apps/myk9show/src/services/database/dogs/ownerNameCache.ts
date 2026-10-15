@@ -24,7 +24,8 @@ export interface CachedOwnerName {
 
 type NameMap = Record<string, [string, string]>;
 
-function storageKey(): string | null {
+/** The signed-in account's key. Capture it before an await so a late response cannot land under the next account. */
+export function ownerNameCacheKey(): string | null {
   const userId = readPersistedAuthUserId();
   return userId ? `${KEY_PREFIX}${userId}` : null;
 }
@@ -40,10 +41,10 @@ function readMap(key: string): NameMap {
 
 /** Merge these owners' names into the signed-in account's device copy. Best effort. */
 export function rememberOwnerNames(
-  owners: ReadonlyArray<{ id: string; first_name?: string | null; last_name?: string | null }>
+  owners: ReadonlyArray<{ id: string; first_name?: string | null; last_name?: string | null }>,
+  key: string | null
 ): void {
   if (typeof window === 'undefined') return;
-  const key = storageKey();
   if (!key || owners.length === 0) return;
   try {
     const map = readMap(key);
@@ -61,7 +62,7 @@ export function rememberOwnerNames(
 export function recallOwnerNames(ownerIds: readonly string[]): Map<string, CachedOwnerName> {
   const found = new Map<string, CachedOwnerName>();
   if (typeof window === 'undefined') return found;
-  const key = storageKey();
+  const key = ownerNameCacheKey();
   if (!key) return found;
   const map = readMap(key);
   for (const id of ownerIds) {

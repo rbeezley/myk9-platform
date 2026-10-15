@@ -111,6 +111,11 @@ describe('dog export columns', () => {
     expect(dogExportRows([dog], true)[0]).toEqual(['Rex', 'Lab', 'male', 'Ann', 'active']);
     expect(dogExportRows([dog], false)[0]).toEqual(['Rex', 'Lab', 'male', 'active']);
   });
+
+  it('writes the offline owner label, not a blank, for an owner the device never saw (MYK9-1189)', () => {
+    const offline = { ...dog, ownerName: '', ownerUnavailableOffline: true } as Dog;
+    expect(dogExportRows([offline], true)[0]?.[3]).toBe('Owner unavailable offline');
+  });
 });
 
 describe('downloadCsv cleanup', () => {

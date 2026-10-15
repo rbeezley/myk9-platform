@@ -24,7 +24,7 @@ import {
 import { mergeUnsentWork } from '@/services/replication/dogRegistrationMerge';
 import { parseRestoreDogResult } from './restoreDogResult';
 import { DOG_READ_PAGE_SIZE, readAllDogPages, readRosterServerFirst } from './rosterRead';
-import { recallOwnerNames, rememberOwnerNames } from './ownerNameCache';
+import { ownerNameCacheKey, recallOwnerNames, rememberOwnerNames } from './ownerNameCache';
 import { serverUnreachable } from '../registrations/serverUnreachable';
 import { unsentWorkProvenByServer } from '../registrations/unsentWork';
 
@@ -67,6 +67,7 @@ async function loadOwnersMap(
 ): Promise<{ map: Map<string, OwnerRow>; readFailed: boolean }> {
   const map = new Map<string, OwnerRow>();
   if (ownerIds.length === 0) return { map, readFailed: false };
+  const cacheKey = ownerNameCacheKey();
   const uniqueIds = [...new Set(ownerIds)];
   let data: OwnerRow[] | null = null;
   let readFailed = serverUnreachable(null);
@@ -84,7 +85,7 @@ async function loadOwnersMap(
   }
   if (data) {
     for (const row of data) map.set(row.id, row);
-    rememberOwnerNames(data);
+    rememberOwnerNames(data, cacheKey);
   }
   if (readFailed) {
     // MYK9-1189: no signal, so the owner names the list showed online come from the device.
@@ -498,10 +499,12 @@ export const getAllDogs = async (personId: string, showAll = false) => {
   };
   return readRosterServerFirst<Record<string, unknown>[]>({
     server: async () => {
+      const cacheKey = ownerNameCacheKey();
       const result = await postgrestGetAllDogs(personId, showAll);
       // MYK9-1189: keep the owner names this list shows, for the offline read.
       rememberOwnerNames(
-        result.data.map(row => row.owner).filter((o): o is NonNullable<typeof o> => !!o)
+        result.data.map(row => row.owner).filter((o): o is NonNullable<typeof o> => !!o),
+        cacheKey
       );
       return result;
     },

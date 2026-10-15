@@ -9,20 +9,20 @@
 
 ## 2. MYK9-992 actual isolated browser/SQL matrix
 
-- [ ] 2.1 Provision canonical seeded local Supabase and prove loopback target/build identity before any fixture mutation.
-- [ ] 2.2 Verify NULL and high/gapped queue states across secretary, judge and cold exhibitor against actual SQL/replica; preserve screenshots/values and existing surface/print regression evidence.
-- [ ] 2.3 Verify in-ring, pulled and completed state-only controls on actual local rows; record each role’s result and restore local fixture for the expiry case.
+- [x] 2.1 Provision canonical seeded local Supabase and prove loopback target/build identity before any fixture mutation.
+- [x] 2.2 Verify NULL and high/gapped queue states across secretary, judge and cold exhibitor against actual SQL/replica; preserve screenshots/values and existing surface/print regression evidence.
+- [x] 2.3 Verify in-ring, pulled and completed state-only controls on actual local rows; record each role’s result and restore local fixture for the expiry case.
 
 ## 3. MYK9-1204 natural offline expiry
 
-- [ ] 3.1 Preload actual judge scoresheet and confirm clean queue; record identity, expiry, exact source and server baseline before going offline.
-- [ ] 3.2 Wait61 real minutes with navigator offline and expired persisted token, score through UI, and prove prompt local save/owned durable queue plus unchanged server values.
-- [ ] 3.3 Reconnect as the same judge; prove final score/check-in/version, empty queue and cross-role readback with actual RPC statuses. Retain different-owner/no-owner engine controls.
+- [x] 3.1 Preload actual judge scoresheet and confirm clean queue; record identity, expiry, exact source and server baseline before going offline.
+- [x] 3.2 Wait61 real minutes with navigator offline and expired persisted token, score through UI, and prove prompt local save/owned durable queue plus unchanged server values.
+- [x] 3.3 Reconnect as the same judge; prove final score/check-in/version, empty queue and cross-role readback with actual RPC statuses. Retain different-owner/no-owner engine controls.
 
 ## 4. Evidence, delivery and closure
 
-- [ ] 4.1 Stop the disposable backend and close owned browsers; verify scrubbed synthetic artifacts and no shared target calls/mutations.
-- [ ] 4.2 Verify completeness/correctness/coherence against both full issues and record an honest final report; fix any reproduced defect with assertion-first coverage.
+- [x] 4.1 Stop the disposable backend and close owned browsers; verify scrubbed synthetic artifacts and no shared target calls/mutations.
+- [x] 4.2 Verify completeness/correctness/coherence against both full issues and record an honest final report; fix any reproduced defect with assertion-first coverage.
 - [ ] 4.3 Ship the final harness/evidence through independent review, green CI and merge; verify the exact merged head.
 - [ ] 4.4 Re-read both full descriptions, post acceptance/evidence/PR links and close only passing issues.
 

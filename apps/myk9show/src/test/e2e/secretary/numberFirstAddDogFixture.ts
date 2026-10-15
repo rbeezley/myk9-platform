@@ -109,6 +109,11 @@ export async function createJourneyExhibitor(
         first_name: 'Held',
         last_name: lastName,
         email: `held-owner-${suffix.toLowerCase()}@example.test`,
+        // AKC classes refuse an owner without a full address (MYK9-1010).
+        street_address: '12 Kennel Lane',
+        city: 'Topeka',
+        state: 'KS',
+        zip_code: '66603',
       })
       .select('id')
       .single()

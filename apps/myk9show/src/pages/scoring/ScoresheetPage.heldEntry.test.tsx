@@ -1,16 +1,15 @@
 /**
- * MYK9-1162: the secretary's paper-score sheet sits behind the same live hold
- * gate as ringside. A score keyed here for a held dog would show as saved and
+ * MYK9-1162: the secretary's paper-score sheet makes the same load-time hold
+ * check as ringside. A score keyed here for a held dog would show as saved and
  * then be refused by the server, so it is never offered, and opening the sheet
  * does not move the dog in-ring.
  */
 import { Routes, Route } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { render, screen } from '@/test/utils/testUtils';
 
 const mocks = vi.hoisted(() => ({
   getEntriesByClass: vi.fn(),
-  getEntryById: vi.fn(),
   submitScoreOptimistically: vi.fn(),
   transitionToInRing: vi.fn(),
 }));
@@ -60,7 +59,6 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
     getEntriesByClass: mocks.getEntriesByClass,
-    getEntryById: mocks.getEntryById,
     subscribe: () => () => undefined,
   },
 }));
@@ -89,27 +87,23 @@ describe('ScoresheetPage held entry (MYK9-1162)', () => {
     vi.clearAllMocks();
   });
 
-  it('locks the sheet behind the notice and never moves the dog in-ring', async () => {
+  it('shows the notice in place of the sheet and never moves the dog in-ring', async () => {
     mocks.getEntriesByClass.mockResolvedValue([heldRow]);
-    mocks.getEntryById.mockResolvedValue(heldRow);
 
     renderSheet();
 
     expect(await screen.findByText('Registration number needed')).toBeInTheDocument();
-    expect(screen.getByTestId('live-scoresheet').closest('[inert]')).not.toBeNull();
+    expect(screen.queryByTestId('live-scoresheet')).toBeNull();
     expect(mocks.transitionToInRing).not.toHaveBeenCalled();
   });
 
   it('offers the sheet for a dog that is not held', async () => {
     const row = { ...heldRow, awaitingRegistrationNumber: false };
     mocks.getEntriesByClass.mockResolvedValue([row]);
-    mocks.getEntryById.mockResolvedValue(row);
 
     renderSheet();
 
-    const sheet = await screen.findByTestId('live-scoresheet');
-    await waitFor(() => expect(mocks.getEntryById).toHaveBeenCalled());
-    expect(sheet.closest('[inert]')).toBeNull();
+    await screen.findByTestId('live-scoresheet');
     expect(screen.queryByText('Registration number needed')).toBeNull();
     expect(mocks.transitionToInRing).toHaveBeenCalledTimes(1);
   });

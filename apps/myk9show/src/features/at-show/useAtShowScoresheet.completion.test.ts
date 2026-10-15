@@ -227,8 +227,25 @@ describe('useAtShowScoresheet completion wiring', () => {
     expect(result.current.entry?.entryId).toBe('entry-1');
     expect(mocks.syncTrials).toHaveBeenCalledWith('show-1');
     expect(mocks.syncEntries).toHaveBeenCalledWith('show-1');
-    // The in-ring move is the live hold check's, not the loader's (MYK9-1162):
-    // see useEntryHeld.test.ts and moveInRing.test.ts.
+    expect(mocks.transitionToInRing).toHaveBeenCalledOnce();
+  });
+
+  it("passes the entry's own status and ring entry time to the in-ring transition (MYK9-1169)", async () => {
+    mocks.getEntriesByClass.mockResolvedValue([
+      {
+        id: 'entry-1',
+        dogId: 'dog-1',
+        checkInStatus: 'in-ring',
+        ring_entry_time: '2026-10-14T18:00:00.000Z',
+      },
+    ]);
+    const { result } = renderScoresheet(vi.fn());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(mocks.transitionToInRing).toHaveBeenCalledWith(
+      'entry-1',
+      'in-ring',
+      '2026-10-14T18:00:00.000Z'
+    );
   });
 
   it('does not record completion, transition, or navigate when score submission fails', async () => {

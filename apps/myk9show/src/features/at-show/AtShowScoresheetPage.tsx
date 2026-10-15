@@ -10,10 +10,10 @@
  * at-show entry cards already navigate to (`buildScoreSheetRoute`).
  *
  * Authorization: the outer component is a thin `canScore` gate. The scoring
- * engine (`useAtShowScoresheet`, `useEntryHeld`) lives in `ScoresheetContent`, which only mounts
+ * engine (`useAtShowScoresheet`) lives in `ScoresheetContent`, which only mounts
  * when scoring is allowed — so a denied role runs NONE of the scoring-flow side
- * effects (notably the in-ring move `useEntryHeld` makes once the dog is free
- * to run). The block is structural, not a hidden submit button.
+ * effects (notably `transitionToInRing`, which auto-advances an entry to in-ring
+ * on load). The block is structural, not a hidden submit button.
  */
 
 import { useCallback, useMemo, useState } from 'react';
@@ -46,9 +46,7 @@ import { useAtShowScoresheet } from './useAtShowScoresheet';
 import { useAtShowStoragePersistence } from './useAtShowStoragePersistence';
 import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { MaxTimeNotSetNotice } from './MaxTimeNotSetNotice';
-import { HeldEntryGate, submitUnlessHeld } from './HeldEntryNotice';
-import { useEntryHeld } from './useEntryHeld';
-import { moveInRing } from './moveInRing';
+import { HeldEntryNotice } from './HeldEntryNotice';
 import { ScoreSubmitErrorBanner } from './ScoreSubmitErrorBanner';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';
@@ -137,7 +135,7 @@ export const AtShowScoresheetPage: React.FC = () => {
   const assignmentCheck = useJudgeAssignedToClass({ showRole, isAnonymous, classId });
 
   // Gate BEFORE mounting the scoring engine: an unauthorized role must never run
-  // `useAtShowScoresheet` or `useEntryHeld` (which moves the dog in-ring), so the
+  // `useAtShowScoresheet` (whose load effect calls `transitionToInRing`), so the
   // denial blocks every side effect, not just the final submit.
   if (!hasPermission('canScore')) {
     return (
@@ -248,7 +246,7 @@ function AtShowScoresheetSkeleton() {
 
 /**
  * The authorized scoresheet body. Mounted only when `canScore` is true, so its
- * engine (`useAtShowScoresheet` data load + submit, `useEntryHeld` in-ring move) runs
+ * `useAtShowScoresheet` engine (data load + `transitionToInRing` + submit) runs
  * exclusively for roles allowed to score.
  */
 const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
@@ -290,6 +288,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     trialNumber,
     trialName,
     isLoading,
+    awaitingRegistrationNumber,
     error,
     loadedClassId,
     loadedEntryId,
@@ -301,10 +300,6 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     submitError,
     clearSubmitError,
   } = useAtShowScoresheet({ showId, classId, entryId, onScored: handleScored });
-  // MYK9-1162: live, both directions; the sheet stays mounted behind the gate.
-  // In-ring once the dog is free to run: on open, or when a hold clears. Only
-  // this engine (mounted past the scoring gate) calls it, as before.
-  const hold = useEntryHeld(entryId, moveInRing);
   const handleCorrectScore = useCallback(() => {
     setSavedEntryId(null);
     // Same URL is a no-op in React Router, so re-read the row instead.
@@ -377,6 +372,21 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     );
   }
 
+  // MYK9-1162: held when the sheet loaded, so it is locked. A hold that arrives
+  // later leaves the sheet working; the server refuses that save and the banner
+  // above shows why.
+  if (awaitingRegistrationNumber) {
+    return (
+      <HeldEntryNotice
+        onBack={onBack}
+        submit={submit}
+        submitError={submitError}
+        onDismissError={clearSubmitError}
+        onCheckAgain={reload}
+      />
+    );
+  }
+
   // Resolve sport type from the trial (preferred) or class name (fallback).
   const { organization, sportType } = trialSportType
     ? mapSportType(trialSportType)
@@ -444,49 +454,40 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
       {/* `LiveScoresheet` is a stable registry lookup (getScoresheetComponent by
           a fixed sport key), not a component created during render — same
           dispatch pattern as the secretary ScoresheetPage. */}
-      <HeldEntryGate
-        hold={hold}
+      <MaxTimeNotSetNotice maxTimeSeconds={rules.maxTimeSeconds} registryKey={registryKey} />
+      {/* eslint-disable-next-line react-hooks/static-components */}
+      <LiveScoresheet
+        entry={toScoresheetEntry(entry, classInfo, registryKey)}
+        classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
+        rules={rules}
+        onSubmit={submit}
         onBack={onBack}
-        submit={submit}
-        // The page's own banner above already shows the hook's submit error.
-        submitError={null}
-        onDismissError={clearSubmitError}
-      >
-        <MaxTimeNotSetNotice maxTimeSeconds={rules.maxTimeSeconds} registryKey={registryKey} />
-        {/* eslint-disable-next-line react-hooks/static-components */}
-        <LiveScoresheet
-          entry={toScoresheetEntry(entry, classInfo, registryKey)}
-          classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
-          rules={rules}
-          onSubmit={submitUnlessHeld(hold.held, submit)}
-          onBack={onBack}
-          onWarningChime={audio.playWarning}
-          onVoiceAnnouncement={handleVoiceAnnouncement}
-          enableVoiceAnnouncements={!audioMuted}
-          headerActions={
-            <>
-              <button
-                type="button"
-                onClick={leaveRingside.leave}
-                aria-label={leaveRingside.label}
-                title={leaveRingside.label}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
-              >
-                <House className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={toggleAudioMuted}
-                aria-label={audioMuted ? 'Unmute timer sounds' : 'Mute timer sounds'}
-                aria-pressed={audioMuted}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
-              >
-                {audioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-              </button>
-            </>
-          }
-        />
-      </HeldEntryGate>
+        onWarningChime={audio.playWarning}
+        onVoiceAnnouncement={handleVoiceAnnouncement}
+        enableVoiceAnnouncements={!audioMuted}
+        headerActions={
+          <>
+            <button
+              type="button"
+              onClick={leaveRingside.leave}
+              aria-label={leaveRingside.label}
+              title={leaveRingside.label}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
+            >
+              <House className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={toggleAudioMuted}
+              aria-label={audioMuted ? 'Unmute timer sounds' : 'Mute timer sounds'}
+              aria-pressed={audioMuted}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
+            >
+              {audioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            </button>
+          </>
+        }
+      />
     </div>
   );
 };

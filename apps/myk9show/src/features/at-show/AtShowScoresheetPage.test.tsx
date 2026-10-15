@@ -1044,8 +1044,8 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     });
   });
 
-  // MYK9-1162: a held entry cannot be scored. The notice covers the sheet, which
-  // stays mounted but inert, and opening it must not move the dog in-ring.
+  // MYK9-1162: a dog held when its sheet loads cannot be scored. The notice
+  // replaces the sheet, and opening it does not move the dog in-ring.
   const heldRow = {
     id: 'entry-1',
     armband: 105,
@@ -1056,19 +1056,17 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
   it('locks the scoresheet for an entry awaiting a registration number', async () => {
     vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([heldRow] as never);
-    vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue(heldRow as never);
 
     renderPage();
 
     expect(await screen.findByText('Registration number needed')).toBeInTheDocument();
     expect(screen.getByText('See the secretary')).toBeInTheDocument();
-    expect(screen.getByTestId('live-scoresheet').closest('[inert]')).not.toBeNull();
+    expect(screen.queryByTestId('live-scoresheet')).not.toBeInTheDocument();
     expect(transitionToInRing).not.toHaveBeenCalled();
   });
 
   it('still lets the judge record a held dog absent, with nothing timed', async () => {
     vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([heldRow] as never);
-    vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue(heldRow as never);
 
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Mark absent' }));
@@ -1081,59 +1079,19 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     });
   });
 
-  it('a hold that arrives on an open sheet warns and refuses the save, but never freezes the run', async () => {
-    let notify: () => void = () => undefined;
-    vi.mocked(replicatedEntriesTable.subscribe).mockImplementation(listener => {
-      notify = listener as () => void;
-      return () => undefined;
-    });
-    renderPage();
-    const sheet = await screen.findByTestId('live-scoresheet');
-
-    vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue(heldRow as never);
-    notify();
-    expect(await screen.findByTestId('held-mid-sheet-banner')).toHaveTextContent(
-      'Registration number needed'
-    );
-    // The same sheet, still usable: the judge can stop the clock mid run.
-    expect(screen.getByTestId('live-scoresheet')).toBe(sheet);
-    expect(sheet.closest('[inert]')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Mark absent' })).toBeNull();
-    // The save itself is refused while held.
-    fireEvent.click(screen.getByRole('button', { name: 'Submit Score' }));
-    await new Promise(resolve => setTimeout(resolve, 20));
-    expect(submitScoreOptimistically).not.toHaveBeenCalled();
-
-    vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue({
-      ...heldRow,
-      awaitingRegistrationNumber: false,
-    } as never);
-    notify();
-    await waitFor(() => expect(screen.queryByTestId('held-mid-sheet-banner')).toBeNull());
-    expect(screen.getByTestId('live-scoresheet')).toBe(sheet);
-  });
-
-  it('moves a dog in-ring when its hold clears on the open sheet, and not before', async () => {
-    let notify: () => void = () => undefined;
-    vi.mocked(replicatedEntriesTable.subscribe).mockImplementation(listener => {
-      notify = listener as () => void;
-      return () => undefined;
-    });
+  it('Check again re-reads the sheet: once the number is added, the dog opens and goes in-ring', async () => {
     vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([heldRow] as never);
-    vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue(heldRow as never);
     renderPage();
-    expect(await screen.findByText('Registration number needed')).toBeInTheDocument();
+    const checkAgain = await screen.findByRole('button', { name: 'Check again' });
     expect(transitionToInRing).not.toHaveBeenCalled();
 
-    vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue({
-      ...heldRow,
-      awaitingRegistrationNumber: false,
-    } as never);
-    notify();
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([
+      { ...heldRow, awaitingRegistrationNumber: false },
+    ] as never);
+    fireEvent.click(checkAgain);
 
-    await waitFor(() =>
-      expect(transitionToInRing).toHaveBeenCalledWith('entry-1', 'no-status', undefined)
-    );
+    expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+    expect(transitionToInRing).toHaveBeenCalledWith('entry-1', 'no-status', undefined);
   });
 
   it('moves an unheld dog in-ring when its sheet opens', async () => {

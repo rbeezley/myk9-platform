@@ -70,9 +70,11 @@ export async function loadProvisionalHolds(
     ) {
       return false;
     }
-    // An unreadable registrations table proves nothing: held.
-    if (registrationRows === null) return true;
-    const registry = trial ? getTrialRegistry(trial).id : 'AKC';
+    // An unreadable registrations table, or a trial this device cannot read (so
+    // no registry to check against), proves nothing: held. Only a KNOWN trial's
+    // blank registry reads as AKC.
+    if (registrationRows === null || !trial) return true;
+    const registry = getTrialRegistry(trial).id;
     return !(registrationsByDog.get(dogId) ?? []).some(
       registration =>
         (registration.registration_number?.trim() ?? '') !== '' &&

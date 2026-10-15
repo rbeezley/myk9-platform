@@ -738,6 +738,14 @@ describe('submitOfflineLateEntry', () => {
       expect(created().awaitingRegistrationNumber).toBeUndefined();
     });
 
+    it('holds when the trial cannot be read: an AKC number proves nothing for an unknown registry', async () => {
+      getTrialByIdMock.mockResolvedValue(null);
+
+      await submitOne();
+
+      expect(created()).toMatchObject({ awaitingRegistrationNumber: true });
+    });
+
     it('holds when the registrations cannot be read, and still saves the entry', async () => {
       getRegistrationsForDogsMock.mockRejectedValue(new Error('IndexedDB closed'));
 

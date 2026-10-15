@@ -362,11 +362,11 @@ describe('groupEntriesByShow — a dog’s class rows run in trial-date order (M
       makeRow({ id: 'e0', classes: [makeClass({ id: 'c0', trialDate: day })] }),
       makeRow({
         id: 'e1',
-        classes: [makeClass({ id: 'c1', trialDate: day, startTime: '10:00 AM' })],
+        classes: [makeClass({ id: 'c1', trialDate: day, startTime: '10:00:00' })],
       }),
       makeRow({
         id: 'e2',
-        classes: [makeClass({ id: 'c2', trialDate: day, startTime: '9:00 AM' })],
+        classes: [makeClass({ id: 'c2', trialDate: day, startTime: '09:00:00' })],
       }),
     ];
 

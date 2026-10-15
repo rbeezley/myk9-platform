@@ -493,6 +493,27 @@ describe('buildResultsClassRows', () => {
   });
 });
 
+describe('class start-time order (replica shape "h:mm AM")', () => {
+  it('lists a 9:00 AM class before a 10:00 AM one and untimed classes last', () => {
+    const rows = buildResultsClassRows({
+      trials: [trial],
+      trialClasses: {
+        'trial-1': [
+          trialClass('untimed', { startTime: '' }),
+          trialClass('ten', { startTime: '10:00 AM' }),
+          trialClass('one-pm', { startTime: '1:00 PM' }),
+          trialClass('nine', { startTime: '9:00 AM' }),
+        ],
+      },
+      releasedAtByClassId: new Map(),
+      paperworkByClassId: new Map(),
+      entries: [],
+    });
+
+    expect(rows.map(row => row.id)).toEqual(['nine', 'ten', 'one-pm', 'untimed']);
+  });
+});
+
 describe('results paperwork helpers', () => {
   it('keeps only the results sheet and ribbon labels', () => {
     const items = [

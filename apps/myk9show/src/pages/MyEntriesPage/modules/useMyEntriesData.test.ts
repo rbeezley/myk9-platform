@@ -183,6 +183,22 @@ describe('useMyEntriesData — trial timezone lands on the class row', () => {
 
     expect(result.current.entries[0]?.classes[0]?.trialTimezone).toBeUndefined();
   });
+
+  // The same-day sort keys on this; a dropped embed column or mapping silently
+  // falls back to incoming order (MYK9-1193).
+  it("carries the class's PostgREST start_time onto the class row", async () => {
+    const row = { ...entryRow(), class: { ...entryRow().class, start_time: '09:30:00' } };
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      source: 'confirmed',
+      data: [row],
+      error: null,
+    });
+
+    const { result } = renderData();
+    await waitFor(() => expect(result.current.entries).toHaveLength(1));
+
+    expect(result.current.entries[0]?.classes[0]?.startTime).toBe('09:30:00');
+  });
 });
 
 describe('useMyEntriesData — move-up lineage reaches card-level money math', () => {

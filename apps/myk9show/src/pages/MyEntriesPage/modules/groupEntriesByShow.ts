@@ -20,6 +20,8 @@
 
 import type { EntryStatus } from '@/types/show-registration-types';
 import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
+import { compareClassSchedule } from '@/features/_shared/classScheduleOrder';
+import { calendarDayOf } from './dayCheckIn';
 import { dominantStatus, dominantStatusKind } from './groupEntriesByOrder';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
@@ -159,6 +161,19 @@ function mergeShowFacts(accum: ShowAccum, order: MyEntry): void {
   }
 }
 
+/**
+ * A dog's class rows in trial-date then start-time order (MYK9-1172, 1193), the
+ * same rule People at show uses. `trialDate` is a local-midnight `Date`, so the
+ * calendar day is read with `calendarDayOf`, never through a UTC conversion.
+ * Rows that tie keep their incoming order (stable sort).
+ */
+function compareClassRows(a: MyShowClass, b: MyShowClass): number {
+  return compareClassSchedule(
+    { day: a.trialDate ? calendarDayOf(a.trialDate) : null, time: a.startTime },
+    { day: b.trialDate ? calendarDayOf(b.trialDate) : null, time: b.startTime }
+  );
+}
+
 function toShowClasses(order: MyEntry, classes: EntryClass[]): MyShowClass[] {
   return classes.map(cls => ({
     ...cls,
@@ -241,6 +256,7 @@ export function groupEntriesByShow(orders: MyEntry[]): MyShowGroup[] {
   return showOrder.map(key => {
     const accum = shows.get(key)!;
     accum.group.dogs = accum.dogOrder.map(dogId => accum.dogsByDogId.get(dogId)!).sort(compareDogs);
+    for (const dog of accum.group.dogs) dog.classes.sort(compareClassRows);
     return accum.group;
   });
 }

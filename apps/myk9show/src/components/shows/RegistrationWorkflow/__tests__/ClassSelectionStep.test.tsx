@@ -25,6 +25,7 @@ const baseLevel: LevelInfo = {
 };
 
 const defaultProps = {
+  dogName: 'Rex',
   element: 'Container',
   levels: [baseLevel],
   fee: 15,
@@ -157,6 +158,7 @@ describe('ElementCard (single-class) — wait list badge', () => {
     const levels: LevelInfo[] = [{ ...singleClassLevel, isFull: true, waitlistCount: 3 }];
     render(
       <ElementCard
+        dogName="Rex"
         element="Detective"
         levels={levels}
         fee={10}
@@ -172,6 +174,7 @@ describe('ElementCard (single-class) — wait list badge', () => {
     const levels: LevelInfo[] = [{ ...singleClassLevel, isFull: false }];
     render(
       <ElementCard
+        dogName="Rex"
         element="Detective"
         levels={levels}
         fee={10}
@@ -186,6 +189,7 @@ describe('ElementCard (single-class) — wait list badge', () => {
     const levels: LevelInfo[] = [{ ...singleClassLevel, isAlreadyEntered: true }];
     render(
       <ElementCard
+        dogName="Rex"
         element="Detective"
         levels={levels}
         fee={10}
@@ -200,6 +204,7 @@ describe('ElementCard (single-class) — wait list badge', () => {
     const levels: LevelInfo[] = [{ ...singleClassLevel, isSelected: true }];
     render(
       <ElementCard
+        dogName="Rex"
         element="Detective"
         levels={levels}
         fee={10}
@@ -881,7 +886,9 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
   it('(a) renders the already-entered class as a disabled checkbox labeled "Already entered"', async () => {
     renderAddOnlyStep();
 
-    const entered = await screen.findByRole('checkbox', { name: /already entered:.*novice a/i });
+    const entered = await screen.findByRole('checkbox', {
+      name: /Rex is already entered in .*novice a/i,
+    });
     expect(entered).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getAllByText('Already entered').length).toBeGreaterThan(0);
   });
@@ -889,7 +896,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
   it('(b) renders a newly-available class as a selectable, enabled checkbox', async () => {
     renderAddOnlyStep();
 
-    const selectable = await screen.findByRole('checkbox', { name: /select novice a/i });
+    const selectable = await screen.findByRole('checkbox', { name: /enter rex in .*novice a/i });
     expect(selectable).not.toHaveAttribute('aria-disabled', 'true');
   });
 
@@ -912,7 +919,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
       />
     );
 
-    const selectable = await screen.findByRole('checkbox', { name: /select novice a/i });
+    const selectable = await screen.findByRole('checkbox', { name: /enter rex in .*novice a/i });
     await user.click(selectable);
 
     expect(onSelectionChange).toHaveBeenCalled();
@@ -1016,7 +1023,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
       />
     );
 
-    const chip = await screen.findByRole('checkbox', { name: /select novice a/i });
+    const chip = await screen.findByRole('checkbox', { name: /enter rex in .*novice a/i });
     expect(chip).toHaveAttribute('aria-disabled', 'true');
     await waitFor(() => expect(screen.queryAllByText(/loading your cart/i)).toEqual([]));
     // ...and it still says WHY, so the chip is not silently inert either.
@@ -1036,7 +1043,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
       />
     );
 
-    await screen.findByRole('checkbox', { name: /select novice a/i });
+    await screen.findByRole('checkbox', { name: /enter rex in .*novice a/i });
     expect(screen.getAllByText(/loading your cart/i).length).toBeGreaterThan(0);
     expect(screen.queryAllByText(/could not be opened/i)).toEqual([]);
   });
@@ -1058,7 +1065,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
       />
     );
 
-    const selectable = await screen.findByRole('checkbox', { name: /select novice a/i });
+    const selectable = await screen.findByRole('checkbox', { name: /enter rex in .*novice a/i });
     await user.click(selectable);
 
     expect(failingAddItem).toHaveBeenCalled();
@@ -1066,7 +1073,9 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
     // and the wizard must not close/crash — the checkbox is still present
     // and still unchecked, ready to retry.
     expect(onSelectionChange).not.toHaveBeenCalled();
-    expect(await screen.findByRole('checkbox', { name: /select novice a/i })).not.toBeChecked();
+    expect(
+      await screen.findByRole('checkbox', { name: /enter rex in .*novice a/i })
+    ).not.toBeChecked();
   });
 
   it('(g) before this show\u2019s cart has loaded the chip is disabled and mutates nothing (MYK9-542)', async () => {
@@ -1082,7 +1091,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
       />
     );
 
-    const chip = await screen.findByRole('checkbox', { name: /select novice a/i });
+    const chip = await screen.findByRole('checkbox', { name: /enter rex in .*novice a/i });
     expect(chip).toHaveAttribute('aria-disabled', 'true');
     // Every disabled chip says why, the same way a full or started one does.
     expect(screen.getAllByText(/loading your cart/i).length).toBeGreaterThan(0);
@@ -1109,7 +1118,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
       />
     );
 
-    await user.click(await screen.findByRole('checkbox', { name: /select novice a/i }));
+    await user.click(await screen.findByRole('checkbox', { name: /enter rex in .*novice a/i }));
 
     expect(addItem).not.toHaveBeenCalled();
     expect(onSelectionChange).not.toHaveBeenCalled();
@@ -1128,7 +1137,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
       />
     );
 
-    const chip = await screen.findByRole('checkbox', { name: /select novice a/i });
+    const chip = await screen.findByRole('checkbox', { name: /enter rex in .*novice a/i });
     expect(chip).not.toHaveAttribute('aria-disabled', 'true');
 
     await user.click(chip);

@@ -20,6 +20,8 @@ import {
 import { parseShowDate } from './myEntriesStats.helpers';
 import { MyShowsList, type MyShowsListProps } from './MyShowsList';
 import type { MyEntry } from './my-entries-types';
+import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
+import { getEntryStatusKindForDisplay } from '@/services/entryDisplay/entryDisplaySelectors';
 
 function renderRows(rows: MyEntry[], overrides: Partial<MyShowsListProps> = {}) {
   const props: MyShowsListProps = {
@@ -172,12 +174,17 @@ describe('unassigned armband', () => {
 });
 
 describe('paid confirmation', () => {
-  const paidRows = [
-    futureShowRow({
+  function paidRow(
+    classCount: number,
+    entryStatus: EntryStatus,
+    overrides: Partial<MyEntry> = {}
+  ): MyEntry {
+    return futureShowRow({
       id: 'e-paid',
       dogId: 'dog-willow',
       dogName: 'Willow',
-      totalFee: 45,
+      totalFee: 45 * classCount,
+      entryStatus,
       paymentStatus: PaymentStatus.PAID_ONLINE,
       paymentMethod: 'online',
       // Paid (submitted) two days before NOW, inside the 14-day confirmation
@@ -185,25 +192,104 @@ describe('paid confirmation', () => {
       // checkout moment, and a later unrelated write must not matter.
       submittedAt: new Date('2026-10-22T12:00:00Z'),
       lastUpdated: new Date('2026-09-02T00:00:00Z'),
-      classes: [
+      classes: Array.from({ length: classCount }, (_, i) =>
         makeClass({
-          id: 'c-paid-1',
+          id: `c-paid-${i + 1}`,
           fee: 45,
           trialDate: day('2026-11-14'),
+          entryStatus,
           paymentStatus: PaymentStatus.PAID_ONLINE,
           paymentMethod: 'online',
-        }),
-      ],
-    }),
-  ];
+        })
+      ),
+      ...overrides,
+    });
+  }
+  const paidRows = [paidRow(1, EntryStatus.PENDING)];
 
-  it('shows one green strip with the dog, amount and date', () => {
+  it('shows one green strip with the dog, amount and date, and says the secretary is next', () => {
     renderRows(paidRows);
 
-    expect(screen.getByText(/Willow's entry is paid — \$45\.00 on/)).toBeInTheDocument();
+    expect(screen.getByText(/Paid \$45\.00 for Willow's 1 class on/)).toBeInTheDocument();
     expect(
       screen.getByText('The secretary will review it next. Receipt sent to your email.')
     ).toBeInTheDocument();
+  });
+
+  it('counts the classes the payment covers, not "entry"', () => {
+    renderRows([paidRow(7, EntryStatus.PENDING)]);
+
+    expect(screen.getByText(/Paid \$315\.00 for Willow's 7 classes on/)).toBeInTheDocument();
+  });
+
+  it('drops "will review it next" once every covered entry is accepted', () => {
+    renderRows([paidRow(7, EntryStatus.ACCEPTED)]);
+
+    expect(screen.getByText(/Paid \$315\.00 for Willow's 7 classes on/)).toBeInTheDocument();
+    expect(screen.getByText('Receipt sent to your email.')).toBeInTheDocument();
+    expect(screen.queryByText(/will review it next/)).not.toBeInTheDocument();
+  });
+
+  it('keeps "will review it next" while any covered entry is still pending', () => {
+    const row = paidRow(2, EntryStatus.ACCEPTED);
+    row.classes = [
+      row.classes[0],
+      makeClass({
+        id: 'c-paid-2',
+        fee: 45,
+        trialDate: day('2026-11-14'),
+        entryStatus: EntryStatus.PENDING,
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        paymentMethod: 'online',
+      }),
+    ];
+    renderRows([row]);
+
+    expect(screen.getByText(/will review it next/)).toBeInTheDocument();
+  });
+
+  // Driven through the REAL raw `entries.entry_status`, classified by the same
+  // two mappers `useMyEntriesData` applies: a freshly paid online entry is
+  // stored as 'paid', which the display kind calls accepted but the app's rule
+  // keeps awaiting the secretary (payment is not acceptance).
+  it.each([
+    ['paid', true],
+    ['promotion-expired', true],
+    ['pending', true],
+    ['waitlist', true],
+    ['move-up-requested', true],
+    ['confirmed', false],
+    ['accepted', false],
+    ['checked-in', false],
+    ['completed', false],
+    ['withdrawn', false],
+  ])('raw entry_status %s: awaiting the secretary is %s', (raw, awaiting) => {
+    renderRows([
+      futureShowRow({
+        id: 'e-raw',
+        dogId: 'dog-willow',
+        dogName: 'Willow',
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        paymentMethod: 'online',
+        submittedAt: new Date('2026-10-22T12:00:00Z'),
+        classes: [
+          makeClass({
+            id: 'c-raw-1',
+            fee: 45,
+            trialDate: day('2026-11-14'),
+            entryStatus: mapEntryStatus(raw),
+            entryStatusKind: getEntryStatusKindForDisplay(raw, null),
+            paymentStatus: PaymentStatus.PAID_ONLINE,
+            rawPaymentStatus: PaymentStatus.PAID_ONLINE,
+            paymentMethod: 'online',
+          }),
+        ],
+      }),
+    ]);
+
+    const review = screen.queryByText(/will review it next/);
+    if (awaiting) expect(review).toBeInTheDocument();
+    else expect(review).not.toBeInTheDocument();
   });
 
   it('retires on Dismiss and stays retired on the next render', async () => {
@@ -211,11 +297,11 @@ describe('paid confirmation', () => {
     const { unmount } = renderRows(paidRows);
 
     await user.click(screen.getByRole('button', { name: 'Dismiss' }));
-    expect(screen.queryByText(/entry is paid/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Paid .* for Willow's 1 class/)).not.toBeInTheDocument();
 
     unmount();
     renderRows(paidRows);
-    expect(screen.queryByText(/entry is paid/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Paid .* for Willow's 1 class/)).not.toBeInTheDocument();
   });
 });
 

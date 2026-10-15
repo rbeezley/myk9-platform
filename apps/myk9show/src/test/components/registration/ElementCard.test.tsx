@@ -48,6 +48,7 @@ const baseLevels: LevelInfo[] = [
 describe('ElementCard', () => {
   const defaultProps = {
     element: 'Handler Discrimination',
+    dogName: 'Rex',
     levels: baseLevels,
     fee: 10,
     isSingleClass: false,
@@ -78,7 +79,9 @@ describe('ElementCard', () => {
 
   it('gives each class checkbox an explicit accessible name', () => {
     render(<ElementCard {...defaultProps} />);
-    expect(screen.getByRole('checkbox', { name: 'Select Advanced' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('checkbox', { name: 'Enter Rex in Handler Discrimination Advanced' })
+    ).toBeInTheDocument();
   });
 
   it('shows selected chip with accent styling', () => {
@@ -111,6 +114,7 @@ describe('ElementCard', () => {
     render(
       <ElementCard
         element="Detective"
+        dogName="Rex"
         levels={singleLevel}
         fee={10}
         isSingleClass={true}
@@ -135,13 +139,14 @@ describe('ElementCard', () => {
     render(
       <ElementCard
         element="Detective"
+        dogName="Rex"
         levels={singleLevel}
         fee={10}
         isSingleClass={true}
         onToggle={vi.fn()}
       />
     );
-    expect(screen.getByRole('checkbox', { name: 'Select Detective' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Enter Rex in Detective' })).toBeInTheDocument();
   });
 
   it('renders fee as "$10" (not "$10/class") for single-class elements', () => {
@@ -158,6 +163,7 @@ describe('ElementCard', () => {
     render(
       <ElementCard
         element="Detective"
+        dogName="Rex"
         levels={singleLevel}
         fee={10}
         isSingleClass={true}
@@ -181,6 +187,7 @@ describe('ElementCard', () => {
     ];
     render(
       <ElementCard
+        dogName="Rex"
         element="Buried"
         levels={singleLevelWithLevel}
         fee={10}

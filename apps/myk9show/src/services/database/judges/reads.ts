@@ -9,6 +9,7 @@
  */
 
 import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
+import { showDateRangeStatus } from '@/utils/date-format';
 import {
   JudgeQualification,
   CreateJudgeQualificationData,
@@ -704,7 +705,7 @@ export async function getJudgeUpcomingAssignments(personId: string): Promise<Jud
     throw new Error(`Failed to fetch upcoming assignments: ${error.message}`);
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
 
   return (
     ((data || []) as Array<Record<string, unknown>>)
@@ -728,8 +729,12 @@ export async function getJudgeUpcomingAssignments(personId: string): Promise<Jud
           show_organization: (show?.organization as string) || '',
         };
       })
-      // Filter out past shows and sort by show date
-      .filter(a => !!a.show_end_date && a.show_end_date >= today)
+      // Filter out past shows (local calendar day, end date inclusive) and sort by show date
+      .filter(
+        a =>
+          !!a.show_end_date &&
+          showDateRangeStatus(a.show_start_date, a.show_end_date, now) !== 'past'
+      )
       .sort((a, b) => a.show_start_date.localeCompare(b.show_start_date))
   );
 }

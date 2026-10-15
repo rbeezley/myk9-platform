@@ -3,6 +3,7 @@
  */
 import { useMemo } from 'react';
 import { useExhibitorResults } from '@/hooks/queries/useExhibitorResults';
+import { countUnreleased, onlyReleasedResults } from '@/hooks/queries/releasedExhibitorResults';
 import { useQualifyingManualResultsQuery } from '@/hooks/queries/useManualResultsDatabase';
 import { useSportTemplatesQuery, useAllSportTitlesQuery } from '@/hooks/queries/useSportTemplates';
 import {
@@ -54,7 +55,7 @@ export function useTitleProgress(dogId: string) {
     if (isLoading || isError) return {};
 
     // Build legs for this specific dog
-    const platformLegs: QualifyingLeg[] = exhibitorResults
+    const platformLegs: QualifyingLeg[] = onlyReleasedResults(exhibitorResults)
       .filter(r => r.dogId === dogId)
       .map(mapExhibitorResultToLeg)
       .filter((leg): leg is QualifyingLeg => leg !== null);
@@ -91,6 +92,11 @@ export function useTitleProgress(dogId: string) {
     return result;
   }, [isLoading, isError, exhibitorResults, manualResults, templates, allTitles, dogId]);
 
+  const unreleasedCount = useMemo(
+    () => countUnreleased(exhibitorResults.filter(r => r.dogId === dogId)),
+    [exhibitorResults, dogId]
+  );
+
   const earnedAbbreviations = useMemo(
     () =>
       Object.values(progressBySport)
@@ -108,5 +114,6 @@ export function useTitleProgress(dogId: string) {
     isError,
     refetch,
     earnedAbbreviations,
+    unreleasedCount,
   };
 }

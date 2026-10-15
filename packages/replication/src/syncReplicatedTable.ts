@@ -409,7 +409,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         {},
         {
           scopeValue: scope.value,
-          scopeSyncedBy: await scopeStampDirective(table, writtenIds, syncingAuthUserId, false),
+          scopeSyncedBy: scopeStampDirective(writtenIds, syncingAuthUserId, false),
         }
       );
       return failed(
@@ -418,7 +418,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       );
     }
     const scopeSyncedBy = accountOwned
-      ? await scopeStampDirective(table, writtenIds, syncingAuthUserId, wholeDownload)
+      ? scopeStampDirective(writtenIds, syncingAuthUserId, wholeDownload)
       : undefined;
 
     await table.updateSyncMetadata(
@@ -481,9 +481,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
   } catch (error) {
     const message = describeError(error);
     const stampOnFailure = accountOwned
-      ? await scopeStampDirective(table, writtenIds, syncingAuthUserId, false).catch(
-          () => undefined
-        )
+      ? scopeStampDirective(writtenIds, syncingAuthUserId, false)
       : undefined;
     await table.updateSyncMetadata(
       { syncStatus: 'error', errorMessage: message },

@@ -294,11 +294,20 @@ describe('account-owned replica rows (MYK9-1133)', () => {
       const slowA = new Promise<RemoteRow[]>(resolve => {
         release = resolve;
       });
+      // The download is only called after the sync captured the account it runs
+      // under, so waiting for it (not a timer) makes the switch to B deterministic.
+      let downloadStarted: () => void = () => {};
+      const aDownloadStarted = new Promise<void>(resolve => {
+        downloadStarted = resolve;
+      });
       const aSync = sync(
         table,
-        adapter(() => slowA)
+        adapter(() => {
+          downloadStarted();
+          return slowA;
+        })
       );
-      await settle();
+      await aDownloadStarted;
       signInAs('user-b');
       await sync(
         table,

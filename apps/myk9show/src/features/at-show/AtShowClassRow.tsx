@@ -145,23 +145,30 @@ export function AtShowClassRow({
             empty and finished; before the show's entry replica has been read
             that claim is simply unfounded (MYK9-637).
           */}
-          <span className="text-xs text-muted-foreground">
-            {entryCountsAvailable ? (
-              <>
-                <span aria-hidden>
-                  {entry.completed_count} / {entry.entry_count}
-                </span>
-                <span className="sr-only">
-                  {entry.completed_count} of {entry.entry_count} scored
-                </span>
-              </>
-            ) : (
-              <>
-                <span aria-hidden>—</span>
-                <span className="sr-only">Entry count not loaded yet</span>
-              </>
-            )}
-          </span>
+          {/*
+            MYK9-1184: an exhibitor's replica never holds every entry in a
+            class (RLS admits only their own), so for them the count can never
+            load and "not loaded" would be permanent. Omit the line instead.
+          */}
+          {(entryCountsAvailable || !isExhibitorOnly) && (
+            <span className="text-xs text-muted-foreground">
+              {entryCountsAvailable ? (
+                <>
+                  <span aria-hidden>
+                    {entry.completed_count} / {entry.entry_count}
+                  </span>
+                  <span className="sr-only">
+                    {entry.completed_count} of {entry.entry_count} scored
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span aria-hidden>—</span>
+                  <span className="sr-only">Entry count not loaded yet</span>
+                </>
+              )}
+            </span>
+          )}
         </div>
         <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
       </button>

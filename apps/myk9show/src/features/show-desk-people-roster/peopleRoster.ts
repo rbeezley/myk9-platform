@@ -8,6 +8,7 @@ import {
   buildClassDisambiguatorsByGroup,
   buildFullClassLabel,
 } from '@/features/_shared/classLabel';
+import { compareClassSchedule } from '@/features/_shared/classScheduleOrder';
 import { isTrialDateToday } from '@/features/_shared/trialDateEligibility';
 
 export type PeopleRosterFilter = 'all' | 'needs-check-in' | 'online';
@@ -282,7 +283,7 @@ function buildClassRows(
   currentDate: Date | null | undefined
 ): PeopleRosterClassRow[] {
   const labelOf = classLabelResolver([...classesById.values()]);
-  return entries.flatMap(entry =>
+  const rows = entries.flatMap(entry =>
     entry.classes.map(cls => {
       const classId = cls.classId ?? cls.id;
       const info = classesById.get(classId);
@@ -306,6 +307,22 @@ function buildClassRows(
         sourceClass: cls,
       };
     })
+  );
+  // MYK9-1172: each dog's rows run in trial-date, then start-time order (the
+  // rule My Shows uses), so today's row is easy to find on a multi-day show.
+  // Dogs stay in the order they first appear; ties keep their incoming order.
+  const dogRank = new Map<string, number>();
+  for (const row of rows) {
+    if (!dogRank.has(row.sourceEntry.dogId)) dogRank.set(row.sourceEntry.dogId, dogRank.size);
+  }
+  const scheduleOf = (row: PeopleRosterClassRow): { day?: string; time?: string } => {
+    const info = classesById.get(row.sourceClass.classId ?? row.sourceClass.id);
+    return { ...(info?.trialDate ? { day: info.trialDate } : {}), time: row.time ?? '' };
+  };
+  return rows.sort(
+    (a, b) =>
+      dogRank.get(a.sourceEntry.dogId)! - dogRank.get(b.sourceEntry.dogId)! ||
+      compareClassSchedule(scheduleOf(a), scheduleOf(b))
   );
 }
 

@@ -14,6 +14,7 @@ import {
   buildClassDisambiguatorsByGroup,
   buildFullClassLabel,
 } from '@/features/_shared/classLabel';
+import { compareClassSchedule } from '@/features/_shared/classScheduleOrder';
 import { isExpectedEntry } from '@/features/_shared/entryAccounting';
 import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
 import { getTrialRegistry } from '@/features/registries';
@@ -281,7 +282,7 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
     const registryId = getTrialRegistry(trial).id;
     const classes = [...(input.trialClasses[trial.id] ?? [])].sort(
       (a, b) =>
-        (a.startTime || '').localeCompare(b.startTime || '') ||
+        compareClassSchedule({ time: a.startTime }, { time: b.startTime }) ||
         compareClassesByProgression(
           { element: a.element ?? '', level: a.level ?? '', section: a.section || null },
           { element: b.element ?? '', level: b.level ?? '', section: b.section || null },

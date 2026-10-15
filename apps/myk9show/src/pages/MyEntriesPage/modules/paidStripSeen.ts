@@ -10,8 +10,9 @@
  * @module MyEntriesPage/modules/paidStripSeen
  */
 
-import { PaymentStatus } from '@/types/show-registration-types';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { isPastShowEntry } from './myEntriesStats.helpers';
+import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
 const PREFIX = 'myk9:paid-strip-seen:';
@@ -49,6 +50,42 @@ export function markPaidStripSeen(paymentId: string): void {
   }
 }
 
+/** Day-of progress kinds: the secretary has already accepted these entries. */
+const PAST_DECISION_KINDS: ReadonlySet<EntryStatusKind> = new Set([
+  'in_ring',
+  'completed',
+  'absent',
+  // Removed rows (incl. a cancelled show, whose kind is forced to withdrawn
+  // while entryStatus stays PENDING): nothing left for the secretary to decide.
+  // Not 'not_accepted': promotion-expired classifies there but stays PENDING.
+  'withdrawn',
+  'scratched',
+]);
+
+/** UI statuses that still wait on the secretary: pending, waitlisted, move-up requested. */
+const AWAITING_STATUSES: ReadonlySet<EntryStatus> = new Set([
+  EntryStatus.PENDING,
+  EntryStatus.WAITLIST,
+  EntryStatus.MOVE_UP_REQUESTED,
+]);
+
+/**
+ * Whether an entry row still waits on the secretary's decision.
+ *
+ * `entryStatus` is `mapEntryStatus(raw entry_status)`, which keeps `paid` and
+ * `promotion-expired` PENDING (payment is not acceptance); the display kind
+ * alone would call a freshly paid entry accepted. The kind is read only to
+ * rule out day-of progress, which `mapEntryStatus` also buckets as PENDING
+ * (`checked-in`, or a `check_in_status` of in-ring).
+ */
+export function isAwaitingSecretaryDecision(
+  entryStatus: EntryStatus | undefined,
+  kind: EntryStatusKind
+): boolean {
+  if (!entryStatus || !AWAITING_STATUSES.has(entryStatus)) return false;
+  return !PAST_DECISION_KINDS.has(kind);
+}
+
 /**
  * ONE strip per show, folding every recently paid, not-yet-dismissed PAYMENT
  * (class row) at that show together. One strip per ORDER was the first cut,
@@ -65,6 +102,14 @@ export interface PaidStrip {
   dogNames: string[];
   /** What was paid across those rows, in cents. */
   amountCents: number;
+  /** How many class rows the payment covers (one row is one dog in one class). */
+  classCount: number;
+  /**
+   * True while any covered row still waits on the secretary's decision. The
+   * strip says "will review it next" only then; once every row is accepted
+   * (or past acceptance: checked in, scored) that sentence would be stale.
+   */
+  awaitingReview: boolean;
   /**
    * When it was paid: the LATEST `submittedAt` among the orders that
    * contributed a fresh row. An online order is paid at checkout, so
@@ -149,6 +194,10 @@ export function derivePaidStrip(
   return {
     paymentIds: fresh.map(payment => payment.cls.id),
     dogNames,
+    classCount: fresh.length,
+    awaitingReview: fresh.some(payment =>
+      isAwaitingSecretaryDecision(payment.cls.entryStatus, payment.cls.entryStatusKind)
+    ),
     amountCents: fresh.reduce((sum, payment) => sum + Math.round(payment.cls.fee * 100), 0),
     date: fresh.reduce(
       (latest, payment) =>

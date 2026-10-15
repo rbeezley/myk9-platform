@@ -13,6 +13,7 @@ import {
   Hash,
   ArrowUpRight,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Chip } from '@/components/base/Chip';
 import { PlacementPill } from '@/components/base/PlacementPill';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
@@ -187,10 +188,21 @@ function EntryResultBadge({ entry }: { entry: EnrichedShowEntry }) {
   const result = entry.result;
   if (!result) return null;
 
-  const { qualified, time, placement } = result;
+  const { qualified, time, placement, isPreliminary } = result;
+  // MYK9-263/MYK9-1179: same gate as the "Where to be & when" rows
+  // (`isPreliminary` comes from deriveResultReleaseDisplay): an unreleased
+  // result is labelled preliminary and its placement is withheld.
 
   return (
-    <div className="flex items-center gap-1.5 shrink-0">
+    <div
+      className={cn(
+        'flex shrink-0 items-center gap-1.5',
+        // Phone width: stack the chip, time and "preliminary" so the class
+        // title keeps its room (MYK9-1179). Released results stay one row.
+        isPreliminary && 'flex-col items-end gap-0.5 sm:flex-row sm:items-center sm:gap-1.5'
+      )}
+      data-testid="entry-result-badge"
+    >
       {qualified ? (
         <Chip color="green" size="sm" leadingIcon={<CheckCircle2 className="h-3 w-3" />}>
           Qualified
@@ -203,7 +215,10 @@ function EntryResultBadge({ entry }: { entry: EnrichedShowEntry }) {
       {qualified && time && (
         <span className="font-mono text-xs font-semibold tabular-nums text-foreground">{time}</span>
       )}
-      {qualified && placement && <PlacementPill placement={placement} size="sm" />}
+      {qualified && !isPreliminary && placement && (
+        <PlacementPill placement={placement} size="sm" />
+      )}
+      {isPreliminary && <span className="text-xs text-muted-foreground">preliminary</span>}
     </div>
   );
 }

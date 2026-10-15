@@ -4,6 +4,7 @@
  */
 import { useMemo } from 'react';
 import { useExhibitorResults } from '@/hooks/queries/useExhibitorResults';
+import { countUnreleased, onlyReleasedResults } from '@/hooks/queries/releasedExhibitorResults';
 import { useManualResultsQuery } from '@/hooks/queries/useManualResultsDatabase';
 import { computePerformanceStats, type PerformanceStats } from '@/services/performanceStatsEngine';
 
@@ -29,14 +30,21 @@ export function usePerformanceStatistics(dogId: string) {
     void refetchManual();
   };
 
+  const unreleasedCount = useMemo(
+    () => countUnreleased(allExhibitorResults.filter(r => r.dogId === dogId)),
+    [allExhibitorResults, dogId]
+  );
+
   const stats = useMemo<PerformanceStats | null>(() => {
     if (isLoading || isError) return null;
 
     // Filter platform results to this specific dog
-    const dogPlatformResults = allExhibitorResults.filter(r => r.dogId === dogId);
+    const dogPlatformResults = onlyReleasedResults(allExhibitorResults).filter(
+      r => r.dogId === dogId
+    );
 
     return computePerformanceStats(dogPlatformResults, manualResults);
   }, [isLoading, isError, allExhibitorResults, manualResults, dogId]);
 
-  return { stats, isLoading, isError, refetch };
+  return { stats, unreleasedCount, isLoading, isError, refetch };
 }

@@ -31,6 +31,7 @@ import {
 } from './ClassStates';
 import { resolveEntryToRemove } from './resolveEntryToRemove';
 import { DeleteObjectDialog, classDeleteDetail, entryDeleteDetail } from '@/features/delete';
+import { getTrialTimezone } from '@/features/registries';
 import { ExhibitorClassCallout } from './ExhibitorClassCallout';
 import { SecretaryRunSheet } from './SecretaryRunSheet';
 import { ClassReadinessStrip } from './ClassReadinessStrip';
@@ -309,7 +310,12 @@ const ClassDetailsPage: React.FC = () => {
         <RelatedContextLinks items={relatedLinks} />
 
         {!isStaff && (
-          <ExhibitorClassCallout classId={classId} releasedRows={releasedResults.rawEntries} />
+          <ExhibitorClassCallout
+            classId={classId}
+            releasedRows={releasedResults.rawEntries}
+            trialDate={parentTrial?.trialDate}
+            trialTimezone={parentTrial ? getTrialTimezone(parentTrial) : undefined}
+          />
         )}
 
         {isStaff && (

@@ -1,5 +1,6 @@
 import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/utils/logger';
+import { readNow, type ShareRead } from '@/services/database/_shared/shareInFlight';
 import {
   fetchShowJudgeNameParts,
   type JudgeNameParts,
@@ -32,7 +33,8 @@ interface JudgeNameClassRow {
  * failure must never break class replication.
  */
 export async function resolveJudgeNamesForClassRows(
-  rows: ReadonlyArray<JudgeNameClassRow>
+  rows: ReadonlyArray<JudgeNameClassRow>,
+  shareRead: ShareRead = readNow
 ): Promise<Map<string, JudgeNameParts | null>> {
   const byClassId = new Map<string, JudgeNameParts | null>();
 
@@ -57,7 +59,7 @@ export async function resolveJudgeNamesForClassRows(
   const partsByShowId = new Map<string, Map<string, JudgeNameParts>>();
   await Promise.all(
     [...new Set(showIdByTrialId.values())].map(async showId => {
-      const parts = await fetchShowJudgeNameParts(showId);
+      const parts = await shareRead(`judges:${showId}`, () => fetchShowJudgeNameParts(showId));
       // null = the RPC failed. Leave the show out, so its classes stay ABSENT from the result
       // and every reader keeps whatever it already had.
       if (parts) partsByShowId.set(showId, parts);

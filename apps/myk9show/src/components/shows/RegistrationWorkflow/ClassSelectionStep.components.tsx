@@ -158,6 +158,11 @@ interface ElementCardProps {
   fee: number;
   isSingleClass: boolean;
   /**
+   * The dog these checkboxes enter. Named in every checkbox so a screen-reader
+   * user hears which dog and which class, not just "Select Novice" (MYK9-1181).
+   */
+  dogName: string;
+  /**
    * Why no chip here may be toggled, as the caption the exhibitor reads, or
    * null when they may (MYK9-542). A string, not a boolean, because "still
    * opening" and "could not be opened" are different sentences and only the
@@ -175,6 +180,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
   levels,
   fee,
   isSingleClass,
+  dogName,
   cartBlockedReason = null,
   onToggle,
   onAddRegistration,
@@ -208,7 +214,9 @@ export const ElementCard: React.FC<ElementCardProps> = ({
                 (cls.isFull && cls.allowsWaitlist === false)
               }
               aria-label={
-                cls.isAlreadyEntered ? `${element} (already entered)` : `Select ${element}`
+                cls.isAlreadyEntered
+                  ? `${dogName} is already entered in ${element}`
+                  : `Enter ${dogName} in ${element}`
               }
               {...(singleDescription ? { 'aria-describedby': `single-reason-${cls.classId}` } : {})}
               onCheckedChange={() =>
@@ -225,7 +233,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
                 cls.isAlreadyEntered && 'text-success'
               )}
             >
-              <span className="sr-only">Select</span> {element}
+              <span className="sr-only">Enter {dogName} in</span> {element}
             </Label>
             {cls.isAlreadyEntered && (
               <Badge variant="secondary" className="h-5 gap-1 text-xs text-success">
@@ -293,6 +301,11 @@ export const ElementCard: React.FC<ElementCardProps> = ({
           <LevelChip
             key={cls.classId}
             classId={cls.classId}
+            namePrefix={
+              cls.isAlreadyEntered
+                ? `${dogName} is already entered in ${element}`
+                : `Enter ${dogName} in ${element}`
+            }
             displayLabel={cls.displayLabel}
             isSelected={cls.isSelected}
             isAlreadyEntered={cls.isAlreadyEntered}
@@ -345,6 +358,8 @@ const WaitlistBadge: React.FC<WaitlistBadgeProps> = ({ waitlistCount }) => (
 
 interface LevelChipProps {
   classId: string;
+  /** Screen-reader-only words that precede the level: dog, action and element. */
+  namePrefix: string;
   displayLabel: string;
   isSelected: boolean;
   isAlreadyEntered: boolean;
@@ -363,6 +378,7 @@ interface LevelChipProps {
 
 const LevelChip: React.FC<LevelChipProps> = ({
   classId,
+  namePrefix,
   displayLabel,
   isSelected,
   isAlreadyEntered,
@@ -430,7 +446,7 @@ const LevelChip: React.FC<LevelChipProps> = ({
         {/* The wrapping <label> is the checkbox's single naming source. Do NOT add
             an aria-label here too — it stacks with the label text and doubles the
             accessible name (e.g. "Select Advanced Select Advanced"). */}
-        <span className="sr-only">{isAlreadyEntered ? 'Already entered:' : 'Select'}</span>{' '}
+        <span className="sr-only">{namePrefix}</span>{' '}
         <span className="text-xs">{displayLabel}</span>
       </label>
       {description && (

@@ -50,7 +50,7 @@ export function ShowTodayBanner() {
     return (
       <section className={bannerClassName} aria-label="Show today">
         <div className="flex items-center justify-between gap-4 px-4 py-3 max-[720px]:flex-col max-[720px]:items-start">
-          <div className="flex min-w-0 items-center gap-3 max-[720px]:items-start">
+          <div className="flex min-w-0 items-center gap-3 max-[720px]:w-full max-[720px]:items-start">
             <span className={iconClassName} aria-hidden="true">
               <CalendarDays size={20} />
             </span>
@@ -65,7 +65,7 @@ export function ShowTodayBanner() {
                   ·
                 </span>
                 <span
-                  className={`min-w-0 truncate text-lg font-semibold leading-tight ${bannerTitleClassName}`}
+                  className={`min-w-0 break-words text-lg font-semibold leading-tight ${bannerTitleClassName}`}
                 >
                   {singleItem.showName}
                 </span>

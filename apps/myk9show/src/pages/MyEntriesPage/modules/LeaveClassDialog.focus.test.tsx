@@ -206,7 +206,7 @@ describe('Leaving a class keeps focus in THAT show (MYK9-658)', () => {
     );
     expect(anchors()).toHaveLength(0);
 
-    const heading = screen.getByRole('heading', { name: /All entries/ });
+    const heading = screen.getByRole('heading', { name: /Class entries/ });
     await waitFor(() => expect(heading).toHaveFocus());
     expect(document.activeElement).not.toBe(document.body);
   });

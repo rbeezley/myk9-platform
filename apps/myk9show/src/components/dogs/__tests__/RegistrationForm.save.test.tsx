@@ -252,7 +252,11 @@ describe('registration form, database save contract (Dog Details panels)', () =>
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
-    expect(onSave.mock.calls[0]![0]).toMatchObject({ id: 'reg-9', status: 'Pending' });
+    expect(onSave.mock.calls[0]![0]).toMatchObject({
+      id: 'reg-9',
+      status: 'Pending',
+      originalStatus: 'pending',
+    });
   });
 
   it('cannot be closed with Escape while a save is in flight (the wizard host)', async () => {
@@ -275,4 +279,25 @@ describe('registration form, database save contract (Dog Details panels)', () =>
       screen.getByRole('heading', { name: 'Add Registration', hidden: true })
     ).toBeInTheDocument();
   });
+});
+
+it('shows a stored legacy organization without replacing its identity', () => {
+  render(
+    <EditRegistrationPanel
+      open
+      onClose={vi.fn()}
+      onSave={vi.fn()}
+      registration={{
+        id: 'asca-1',
+        organization: 'ASCA (Australian Shepherd Club of America)',
+        registered_name: 'ASCA Dog',
+        registration_number: 'E123',
+        breed: 'Beagle',
+        status: 'Active',
+      }}
+    />
+  );
+  expect(screen.getByRole('combobox', { name: /Registration Organization/i })).toHaveTextContent(
+    'ASCA (Australian Shepherd Club of America)'
+  );
 });

@@ -394,6 +394,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
             onClose={closeRegistrationEditor}
             onSave={saveRegistrationForm}
             announceSaved={false}
+            className="md:max-w-2xl lg:max-w-3xl"
             dogName={dogs.find(dog => dog.id === registrationDogId)?.callName}
           />
         </div>

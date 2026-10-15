@@ -30,7 +30,7 @@ Added explicit offline placeholder/reload, atomic invalid-date failure, release 
 - Local browser My Shows: Upcoming 24=24 class rows, Completed 11=11, All 35=35. Unpublished card has Paid/Willow, two Class not published yet labels and no date; Willow strip separates 8 scheduled +2 unpublished classes.
 - Local secretary browser People-at-show DOM assertion: Willow trials 1,2,3,4,5,6,7; Ranger trial 1 separately. Existing show-page schedule lists Oct14–20 in order.
 - Local initial form screenshot confirms native optional date input and Registered Breed. Registry lookup was stubbed for this UI-only check because its merged dependency migration is not yet deployed.
-- Disposable same-day live fixture prepared but NOT applied: automatic approval review rejected the shared-data fixture write. Explicit approval requested; no fixture rows were written.
+- No shared-data fixtures were written. Verification now uses rollback-only authenticated SQL and read-only browser response fixtures; no fixture approval is needed.
 
 Final deployed proof and completion verification will be recorded here before archive.
 
@@ -39,3 +39,10 @@ Final deployed proof and completion verification will be recorded here before ar
 - Integrated shuffled suite: 2,958 files / 28,831 tests passed, two failures in ManageRegistrationsPanel.mode. The Add journey exceeded 10 seconds; its unfinished SR999 typing leaked into the next Edit input (`CH Test DogS RI9I99`), explaining the second failure.
 - Save-contract helpers now click/clear/paste whole values and wait for picker closure (organization return focus, breed aria-expanded=false). These tests verify payloads; separate tests retain typing/keyboard accessibility coverage. All 30 affected journey tests pass shuffled in 6.12 seconds. CI remains required for the final head; local broad runs are not claimed wholly green.
 - Final source typecheck: all 26 monorepo tasks passed after main integration.
+
+## Review corrections and current checks
+
+- Independent Claude attempt returned ten findings but no recognized verdict contract (wrapper exit 2); it is not counted as gate evidence. Verified fixes cover mixed-status class rows/counts, explicit Class entries label, draft-only warning, existing registry/status preservation, wizard width and repeated grouping. Strict registration numbers remain as expressly owner-approved; all 85 live registrations were surveyed, with zero nonempty invalid numbers.
+- Reviewed focused suite: 10 files / 143 tests passed. App typecheck completed through API checks; lint has zero errors / 36 existing warnings and quality ratchet passed.
+- Full shuffled reviewed suite: 2,952 files / 28,823 tests passed, 11 failed tests and one worker startup timeout. Two obsolete All entries assertions were corrected to Class entries. All nine failed/worker files then passed shuffled: 101 tests. The broad run is not claimed wholly green; final-head CI remains required.
+- Authenticated owner RPC/date readback, blank date, invalid-date rejection and ACL controls passed in a rolled-back transaction. No persistent records or migration were applied by this proof.

@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { CLASS_NOT_PUBLISHED_LABEL, CLASS_DETAILS_UNAVAILABLE_LABEL } from './myShowsCopy';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import type { PersonIdentityState } from '@/context/authContextTypes';
@@ -303,7 +304,8 @@ export function useMyEntriesData({
         // Money flows through even when the class join hasn't replicated yet,
         // but class-scoped actions (check-in) must not — see EntryClass.unresolved.
         unresolved: !classData,
-        name: classData?.name || (show ? 'Class details unavailable' : 'Class not published yet'),
+        name:
+          classData?.name || (show ? CLASS_DETAILS_UNAVAILABLE_LABEL : CLASS_NOT_PUBLISHED_LABEL),
         number: classData?.class_number || '',
         fee: (entry.entry_fee as number) || 0,
         trialDate,

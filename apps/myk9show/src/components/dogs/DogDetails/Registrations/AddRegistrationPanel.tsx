@@ -15,6 +15,7 @@ interface AddRegistrationPanelProps {
   onClose: () => void;
   onSave: (data: RegistrationFormData) => Promise<void>;
   dogName?: string | undefined;
+  className?: string | undefined;
   /** `inline` renders the form inside a host panel (the Manage registrations panel). */
   variant?: EditPanelVariant;
   closeRequestRef?: MutableRefObject<(() => void) | null>;
@@ -53,6 +54,7 @@ export function AddRegistrationPanel({
   onClose,
   onSave,
   dogName,
+  className,
   variant,
   closeRequestRef,
   announceSaved = true,
@@ -67,6 +69,7 @@ export function AddRegistrationPanel({
       onSave={onSave}
       schema={registrationFormSchema}
       size="lg"
+      {...(className !== undefined && { className })}
       {...(variant !== undefined && { variant })}
       {...(closeRequestRef !== undefined && { closeRequestRef })}
       saveLabel="Add Registration"

@@ -121,3 +121,17 @@ it('distinguishes unpublished entries from the upcoming schedule (MYK9-1147)', (
   expect(screen.getByText('8 upcoming classes')).toBeInTheDocument();
   expect(screen.getByText('2 classes in unpublished shows')).toBeInTheDocument();
 });
+
+it('does not claim no upcoming classes when all entries are unpublished', () => {
+  render(
+    <DogStripCard
+      dogId="d1"
+      dogName="Willow"
+      registrations={[]}
+      upcomingClassCount={0}
+      unpublishedClassCount={2}
+    />
+  );
+  expect(screen.queryByText('No upcoming classes')).not.toBeInTheDocument();
+  expect(screen.getByText('2 classes in unpublished shows')).toBeInTheDocument();
+});

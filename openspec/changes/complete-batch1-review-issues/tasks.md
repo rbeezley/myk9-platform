@@ -20,7 +20,7 @@
 
 - [ ] 3.1 From merged linked worktree, dry-run and apply only this batch's migration; verify function/ACLs and behavioral date readback; compare generated types.
 - [ ] 3.2 Deploy a green main commit containing the batch via Deploy myK9Show; record selected and served commit.
-- [ ] 3.3 Browser verify create/edit date persistence after reload and offline contract; verify draft card, count scope and chronological My Shows/People/show schedule. Use disposable owned fixtures and cleanup.
+- [ ] 3.3 Verify deployed shared create/edit form, date persistence via rollback-only authenticated RPC/readback plus real save/reload projection tests and offline payload contract; verify draft card/count scope and chronological My Shows/People/show schedule with read-only response fixtures. Confirm no persistent fixture rows or browser sessions remain.
 - [ ] 3.4 Re-read all four full issues, record acceptance evidence and close only passing issues.
 - [ ] 3.5 Verify OpenSpec completeness/correctness/coherence, sync delta specs, archive with PR/deploy evidence, and finish repository cleanup without altering unrelated work.
 

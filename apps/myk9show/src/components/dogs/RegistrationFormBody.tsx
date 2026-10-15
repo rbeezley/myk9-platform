@@ -3,8 +3,8 @@
  * over any form handed in as `editor`, so the same body serves both save
  * contracts:
  *  - in memory, for an unsaved dog's registrations: `useRegistrationEditor`
- *    drives it (Add Dog's inline sub-mode, the entry wizard's slide-out);
- *  - to the database, on Dog Details: the Add / Edit panels feed it
+ *    drives Add Dog's inline sub-mode;
+ *  - to the database, on Dog Details and the entry wizard: the Add / Edit panels feed it
  *    EditPanelWrapper's form through `useRegistrationFormFields`.
  */
 import React from 'react';
@@ -66,6 +66,9 @@ export const RegistrationOrganizationField: React.FC<
         <SelectValue placeholder="Select organization" />
       </SelectTrigger>
       <SelectContent>
+        {form.data.organization && !REGISTRATION_ORGS.includes(form.data.organization) && (
+          <SelectItem value={form.data.organization}>{form.data.organization}</SelectItem>
+        )}
         {REGISTRATION_ORGS.map(org => (
           <SelectItem key={org} value={org}>
             {org}

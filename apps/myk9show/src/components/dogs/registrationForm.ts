@@ -2,8 +2,8 @@
  * The one registration form's schema, shapes and mappers (MYK9-1117).
  *
  * Every host of the form validates against `registrationFormSchema`, whether it
- * writes an in-memory `Registration` for an unsaved dog (Add Dog, the entry
- * wizard) or saves to the database (the Dog Details Add / Edit panels).
+ * writes an in-memory `Registration` for an unsaved dog (Add Dog) or saves to
+ * the database (Dog Details and the entry wizard).
  */
 import { z } from 'zod';
 import { Registration, REGISTRATION_STATUS_VALUES } from '@/types/dog-types';
@@ -34,7 +34,9 @@ export const REGISTRATION_ORGS = [
 
 /** The breed-list code for a registration organization. */
 export function registrationOrgCode(organization: string): string {
-  return ORG_CODE_MAP[organization] || 'AKC';
+  return (
+    ORG_CODE_MAP[organization] || /^([A-Za-z0-9]+)(?:\s*\(|$)/.exec(organization)?.[1] || 'AKC'
+  );
 }
 
 /** Letters, numbers, hyphens and slashes: the one shape a registration number may take. */
@@ -52,6 +54,7 @@ export const registrationFormSchema = z.object({
     .max(64)
     .regex(REGISTRATION_NUMBER_PATTERN, 'Only letters, numbers, hyphens, and slashes are allowed.'),
   status: z.enum(REGISTRATION_STATUS_VALUES),
+  originalStatus: z.string().max(120).optional(),
   applicationNumber: z.string().max(64).optional(),
   submissionDate: z.string().max(40).optional(),
   registrationDate: z.string().max(40).optional(),
@@ -87,11 +90,20 @@ export function registrationToFormData(reg: Registration): RegistrationFormData 
     variety: reg.variety,
     registrationNumber: reg.registrationNumber,
     status,
+    originalStatus: reg.status,
     applicationNumber: reg.applicationNumber,
     submissionDate: reg.submissionDate,
     registrationDate: reg.registrationDate,
     certificate: reg.certificate,
   };
+}
+
+/** Preserve an untouched stored status exactly; a deliberate choice saves the new value. */
+export function registrationStatusForSave(data: RegistrationFormData): string {
+  return data.originalStatus !== undefined &&
+    normalizeRegistrationStatus(data.originalStatus) === data.status
+    ? data.originalStatus
+    : data.status;
 }
 
 function generateRegistrationId(): string {
@@ -109,7 +121,7 @@ export function formDataToRegistration(data: RegistrationFormData): Registration
     registeredName: data.registeredName,
     breed: data.breed,
     registrationNumber: data.registrationNumber,
-    status: data.status,
+    status: registrationStatusForSave(data),
     ...(data.variety != null && { variety: data.variety }),
     ...(data.applicationNumber != null && { applicationNumber: data.applicationNumber }),
     ...(data.submissionDate != null && { submissionDate: data.submissionDate }),

@@ -18,7 +18,7 @@
 
 import { ENTRY_STATUS_FILTER_DEFS, ENTRY_TAB_DEFS, TAB_PREDICATES } from './entryTabDefs';
 import { orderMatchesStatusFilter, narrowDogsToStatus } from './statusFilterPredicate';
-import { groupEntriesByShow } from './groupEntriesByShow';
+import { groupEntriesByShow, type MyShowGroup } from './groupEntriesByShow';
 import { resolveWaitlistSurface, type WaitlistSurface } from './waitlistSurface';
 import type { EntryStatusFilter, EntryTabFilter, MyEntry } from './my-entries-types';
 
@@ -27,7 +27,11 @@ export function countVisibleClassEntries(
   entries: MyEntry[],
   status: EntryStatusFilter = 'any'
 ): number {
-  return narrowDogsToStatus(groupEntriesByShow(entries), status).reduce(
+  return countGroupedClassEntries(groupEntriesByShow(entries), status);
+}
+
+function countGroupedClassEntries(groups: MyShowGroup[], status: EntryStatusFilter): number {
+  return narrowDogsToStatus(groups, status).reduce(
     (count, group) => count + group.dogs.reduce((sum, dog) => sum + dog.classes.length, 0),
     0
   );
@@ -55,7 +59,8 @@ export function deriveStatusCounts(
   positions: WaitlistPositionFacts
 ): { counts: Record<EntryStatusFilter, number>; surface: WaitlistSurface } {
   const inTab = entries.filter(entry => TAB_PREDICATES[tab](entry, now));
-  const waitlistEntries = countVisibleClassEntries(inTab, 'waitlist');
+  const groups = groupEntriesByShow(inTab);
+  const waitlistEntries = countGroupedClassEntries(groups, 'waitlist');
   const surface = resolveWaitlistSurface({
     waitlistEntryCount: waitlistEntries,
     ...positions,
@@ -64,9 +69,9 @@ export function deriveStatusCounts(
   });
   return {
     counts: {
-      any: countVisibleClassEntries(inTab) + (surface.chipCount - waitlistEntries),
-      pending: countVisibleClassEntries(inTab, 'pending'),
-      accepted: countVisibleClassEntries(inTab, 'accepted'),
+      any: countGroupedClassEntries(groups, 'any') + (surface.chipCount - waitlistEntries),
+      pending: countGroupedClassEntries(groups, 'pending'),
+      accepted: countGroupedClassEntries(groups, 'accepted'),
       waitlist: surface.chipCount,
     },
     surface,

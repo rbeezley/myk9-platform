@@ -14,6 +14,9 @@ SELECT public.create_dog_with_registrations(
 SELECT public.create_dog_with_registrations(
  '{"id":"00000000-0000-0000-0000-000001117202","owner_id":"00000000-0000-0000-0000-000001117011","call_name":"MYK9-1117 Empty","breed":"Border Collie"}',
  '[{"organization":"AKC","registered_name":"MYK9-1117 Empty","registration_number":"MYK9-1117-EMPTY","registration_date":""}]');
+-- The exception block is the statement savepoint. PostgreSQL functions cannot
+-- commit independently: an uncaught cast error rolls the entire call back. The
+-- explicit FAIL below also catches a function that swallows the cast error.
 DO $$
 BEGIN
  BEGIN
@@ -25,6 +28,14 @@ BEGIN
  END;
 END;
 $$;
+DO $$
+BEGIN
+ IF (SELECT registration_date FROM public.dog_registrations WHERE dog_id='00000000-0000-0000-0000-000001117201') IS DISTINCT FROM DATE '2026-09-23' THEN
+  RAISE EXCEPTION 'FAIL authenticated owner cannot read the persisted date';
+ END IF;
+ RAISE NOTICE 'PASS authenticated owner date readback';
+END;
+$$;
 RESET ROLE;
 DO $$
 BEGIN
@@ -34,13 +45,10 @@ BEGIN
  IF (SELECT registration_date FROM public.dog_registrations WHERE dog_id='00000000-0000-0000-0000-000001117202') IS NOT NULL THEN
   RAISE EXCEPTION 'FAIL blank registration date was invented';
  END IF;
- IF EXISTS (SELECT 1 FROM public.dogs WHERE id='00000000-0000-0000-0000-000001117203') THEN
-  RAISE EXCEPTION 'FAIL invalid date left a partial dog';
- END IF;
  IF has_function_privilege('anon','public.create_dog_with_registrations(jsonb,jsonb)','EXECUTE') THEN
   RAISE EXCEPTION 'FAIL anonymous RPC access expanded';
  END IF;
- RAISE NOTICE 'PASS MYK9-1117 date, blank, atomic failure and ACL controls';
+ RAISE NOTICE 'PASS MYK9-1117 date, blank, invalid-date rejection and ACL controls';
 END;
 $$;
 ROLLBACK;

@@ -14,7 +14,10 @@ export const CURRENT_ENTRIES_LABEL = 'Current entries';
 export const CURRENT_ENTRIES_QUALIFIER = 'Upcoming + in review';
 
 /** Entries-section eyebrow label — the all-time, all-status count. */
-export const ALL_ENTRIES_LABEL = 'All entries';
+export const ALL_ENTRIES_LABEL = 'Class entries';
+
+export const CLASS_NOT_PUBLISHED_LABEL = 'Class not published yet';
+export const CLASS_DETAILS_UNAVAILABLE_LABEL = 'Class details unavailable';
 
 /** One-line note distinguishing the "All entries" scope from "Current entries". */
 export const ALL_ENTRIES_SCOPE_NOTE = 'Includes past shows';

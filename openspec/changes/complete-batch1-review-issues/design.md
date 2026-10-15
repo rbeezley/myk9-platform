@@ -31,3 +31,7 @@ Choose a unique timestamp against origin/main, open PR migration names and the l
 - Risk: high
 - Validation: full
 - Rationale: migration and online/offline registration data flow plus shared exhibitor counters.
+
+## Verification method refinement
+
+Persistent demo fixtures are unnecessary. Automatic approval review declined them; use isolated read-only browser response fixtures for 9 AM / 10 AM / untimed ordering, and an authenticated live RPC plus owned-row date readback in a single rolled-back transaction. Real shared-form save contracts and roster/detail reload projections are covered by tests. This preserves the acceptance requirements while avoiding new shared records; no fixture authorization is pending.

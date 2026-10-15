@@ -89,11 +89,11 @@ export const DogStripCard: React.FC<DogStripCardProps> = ({
               <span className="inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-md bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
                 {upcomingClassCount} upcoming {upcomingClassCount === 1 ? 'class' : 'classes'}
               </span>
-            ) : (
+            ) : unpublishedClassCount === 0 ? (
               <span className="inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-md bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
                 No upcoming classes
               </span>
-            )}
+            ) : null}
           </div>
           {unpublishedClassCount > 0 && (
             <p className="text-xs text-muted-foreground">

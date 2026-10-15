@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { createSendLifecycleEmailHandler } from './lifecycle-email-handler';
+import { makeStatefulSupabase } from './lifecycle-email-handler.statefulSupabase';
 import { baseTables, makeSupabase, readyJob } from './lifecycle-email-handler.testUtils';
 
 const numberNeededJob = {
@@ -491,5 +492,90 @@ describe('send_registration_number_needed action', () => {
     expect(fetch).not.toHaveBeenCalled();
     expect(supabase.rpc).not.toHaveBeenCalled();
     expect(jobCalls(calls)).toEqual([]);
+  });
+
+  describe('a retry after a lost response (stateful)', () => {
+    const earlierJob = {
+      ...readyJob,
+      id: 'earlier',
+      show_id: 'show-1',
+      step_type: 'registration_number_needed',
+      entry_id: 'entry-1',
+      status: 'failed',
+      recipient_email: 'jamie@example.com',
+      idempotency_key: 'earlier-key',
+    };
+
+    function arrangeStateful(job: Record<string, unknown>, ownerEmail: string) {
+      const fetch = vi.fn(async () => ({ ok: true, json: async () => ({ id: 'resend-1' }) }));
+      const { supabase, tables } = makeStatefulSupabase(
+        baseTables({
+          show_lifecycle_email_jobs: [job],
+          show_lifecycle_email_steps: [stepRow],
+          entries: [entryRow],
+          people: [
+            { id: 'person-1', first_name: 'Jamie', last_name: 'Handler', email: ownerEmail },
+          ],
+        }),
+        { entry_awaiting_registration_number: true }
+      );
+      const handler = createSendLifecycleEmailHandler({
+        fetch: fetch as unknown as typeof globalThis.fetch,
+        resendApiKey: 'resend-key',
+      });
+      const run = () =>
+        handler({
+          body: {
+            action: 'send_registration_number_needed',
+            show_id: 'show-1',
+            entry_id: 'entry-1',
+            subject: 'Registration number needed for Willow',
+            request_id: REQUEST_ID,
+          },
+          user: { id: 'secretary-1' },
+          supabase: supabase as unknown as Parameters<typeof handler>[0]['supabase'],
+        });
+      const recipients = () =>
+        fetch.mock.calls.map(
+          call =>
+            (JSON.parse((call as unknown as [string, { body: string }])[1].body) as { to: string })
+              .to
+        );
+      return { fetch, tables, run, recipients };
+    }
+
+    it("a retry of a request that RECOVERED an earlier job answers that job's outcome, with no second email", async () => {
+      const { fetch, run } = arrangeStateful(earlierJob, 'jamie@example.com');
+
+      await expect(run()).resolves.toEqual({ status: 'sent', jobId: 'earlier', recovered: true });
+      // The response was lost; the browser retries the same preview.
+      const retry = await run();
+
+      expect(retry).toMatchObject({ status: 'sent', jobId: 'earlier' });
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("a retry of the preview's own job goes to the owner's CURRENT address, replacing the obsolete one", async () => {
+      const { fetch, tables, run, recipients } = arrangeStateful(
+        {
+          ...earlierJob,
+          id: 'mine',
+          idempotency_key: REQUEST_KEY,
+          recipient_email: 'old@example.com',
+        },
+        'new@example.com'
+      );
+
+      const result = await run();
+
+      expect(result).toMatchObject({ status: 'sent' });
+      expect(recipients()).toEqual(['new@example.com']);
+      expect(tables.show_lifecycle_email_jobs.find(row => row.id === 'mine')?.status).toBe(
+        'skipped'
+      );
+      // And a lost response to THAT retry is still one email, not two.
+      await run();
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
   });
 });

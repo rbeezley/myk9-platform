@@ -12,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/common/FormField';
+import { formatDateLocal } from '@/utils/dateLocal';
 import type { DogStatus } from '@/types/dog-types';
 
 interface DogStatusDialogProps {
@@ -103,7 +104,7 @@ function StatusForm({
                 type="date"
                 value={deceasedDate}
                 onChange={e => setDeceasedDate(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
+                max={formatDateLocal(new Date())}
               />
             </FormField>
           </div>

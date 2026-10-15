@@ -7,12 +7,12 @@ VALUES ('00000000-0000-0000-0000-000001151011', 'MYK9-1151', 'Owner', 'myk91151-
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, is_super_admin, is_sso_user, is_anonymous)
 VALUES ('00000000-0000-0000-0000-000001151101', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk91151-owner@example.test', '', now(), now(), now(), '{}', '{}', false, false, false);
 -- Dog D holds AKC SW1. Dog E (another dog) holds ASCA TAKEN. Dog F holds AKC SW2.
-INSERT INTO public.dogs (id, name, call_name, owner_id)
-VALUES ('00000000-0000-0000-0000-000001151201', 'D', 'D', '00000000-0000-0000-0000-000001151011'),
-       ('00000000-0000-0000-0000-000001151202', 'E', 'E', '00000000-0000-0000-0000-000001151011'),
-       ('00000000-0000-0000-0000-000001151203', 'F', 'F', '00000000-0000-0000-0000-000001151011'),
-       ('00000000-0000-0000-0000-000001151204', 'G', 'G', '00000000-0000-0000-0000-000001151011'),
-       ('00000000-0000-0000-0000-000001151205', 'H', 'H', '00000000-0000-0000-0000-000001151011');
+INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
+VALUES ('00000000-0000-0000-0000-000001151201', 'D', 'D', 'Beagle', '00000000-0000-0000-0000-000001151011'),
+       ('00000000-0000-0000-0000-000001151202', 'E', 'E', 'Beagle', '00000000-0000-0000-0000-000001151011'),
+       ('00000000-0000-0000-0000-000001151203', 'F', 'F', 'Beagle', '00000000-0000-0000-0000-000001151011'),
+       ('00000000-0000-0000-0000-000001151204', 'G', 'G', 'Beagle', '00000000-0000-0000-0000-000001151011'),
+       ('00000000-0000-0000-0000-000001151205', 'H', 'H', 'Beagle', '00000000-0000-0000-0000-000001151011');
 INSERT INTO public.dog_registrations (dog_id, organization, registration_number, status)
 VALUES ('00000000-0000-0000-0000-000001151201', 'AKC', 'MYK91151SW1', 'active'),
        ('00000000-0000-0000-0000-000001151202', 'ASCA', 'MYK91151TAKEN', 'active'),

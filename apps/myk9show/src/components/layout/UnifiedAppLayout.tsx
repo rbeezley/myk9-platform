@@ -13,6 +13,7 @@ import { Outlet } from 'react-router-dom';
 import { SidebarLayout } from '@/components/layout/SidebarLayout';
 import { RoleSidebar } from '@/components/layout/sidebar';
 import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClubStore } from '@/store/clubStore';
 import { useShowStore } from '@/store/showStore';
@@ -22,6 +23,11 @@ import type { ClubContext, NextShowContext } from './sidebar/unifiedSidebarConfi
 import { useMyShows } from '@/hooks/useMyShows';
 import { useCurrentValidatedClubContext } from '@/hooks/useValidatedClubContext';
 import { filterManagedShows, managedClubIds } from '@/utils/roleScopes';
+
+// Desktop shows the labeled icon rail; below `md` the same config opens as the
+// full-width drawer (docs/plan-sidebar-browse-pane.md, phase 1).
+const RAIL_WIDTH_PX = 88;
+const DRAWER_WIDTH_PX = 240;
 
 export const UnifiedAppLayout: React.FC = () => {
   const { user, getUserRoles, firstName, isAdmin, userWithRoles } = useAuthContext();
@@ -70,6 +76,7 @@ export const UnifiedAppLayout: React.FC = () => {
     [roles, clubContext, nextShow, firstName]
   );
   const { mobileOpen, setMobileOpen } = useSidebarLayoutState();
+  const isDesktop = useMediaQuery('(min-width: 768px)');
   const openMobileNav = useCallback(() => setMobileOpen(true), [setMobileOpen]);
   useRegisterAppShellMobileNav(openMobileNav, mobileOpen);
 
@@ -80,8 +87,8 @@ export const UnifiedAppLayout: React.FC = () => {
 
   return (
     <SidebarLayout
-      sidebar={<RoleSidebar config={sidebarConfig} />}
-      sidebarWidth={240}
+      sidebar={<RoleSidebar config={sidebarConfig} variant={isDesktop ? 'rail' : 'drawer'} />}
+      sidebarWidth={isDesktop ? RAIL_WIDTH_PX : DRAWER_WIDTH_PX}
       mobileMenuLabel="Navigation"
       showMobileMenuButton={false}
       mobileOpen={mobileOpen}

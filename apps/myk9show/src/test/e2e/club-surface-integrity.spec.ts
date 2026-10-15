@@ -100,6 +100,9 @@ test.describe('club surface integrity — read-only', () => {
       timeout: 30_000,
     });
 
+    // On desktop the My Club pages sit in the rail's My Club panel (MYK9-1214).
+    const myClubButton = page.getByRole('button', { name: 'My Club' });
+    if (await myClubButton.isVisible().catch(() => false)) await myClubButton.click();
     const profileLink = page.getByRole('link', { name: 'Club Profile' });
     if (await profileLink.isVisible().catch(() => false)) {
       await expect(profileLink).toHaveAttribute('href', `/clubs/${SEEDED_CLUB_ID}`);

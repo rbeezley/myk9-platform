@@ -28,16 +28,33 @@ describe('RoleSidebar', () => {
     expect(screen.queryByLabelText('Access level')).not.toBeInTheDocument();
   });
 
-  it('gives collapsed icon-only links accessible names', () => {
+  it('gives every rail link a visible label that is its accessible name', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
 
-    render(<RoleSidebar config={config} isCollapsed />, { initialRoute: '/secretary/dashboard' });
+    render(<RoleSidebar config={config} variant="rail" />, {
+      initialRoute: '/secretary/dashboard',
+    });
 
-    expect(screen.getByRole('link', { name: 'Show Management' })).toHaveAttribute(
-      'href',
-      '/secretary/dashboard'
-    );
+    for (const link of screen.getAllByRole('link')) {
+      const name = link.getAttribute('aria-label') ?? '';
+      expect(name.startsWith(link.textContent ?? '\u0000')).toBe(true);
+      expect(link).not.toHaveAttribute('title');
+    }
+
+    const manage = screen.getByRole('link', { name: 'Manage: Show Management' });
+    expect(manage).toHaveTextContent(/^Manage$/);
+    expect(manage).toHaveAttribute('href', '/secretary/dashboard');
     expect(screen.getByRole('link', { name: 'Shows' })).toHaveAttribute('href', '/shows');
+  });
+
+  it('keeps the full Show Management title in the mobile drawer', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
+
+    render(<RoleSidebar config={config} />, { initialRoute: '/secretary/dashboard' });
+
+    expect(screen.getByRole('link', { name: 'Show Management' })).toHaveTextContent(
+      'Show Management'
+    );
   });
 
   it('keeps expanded link names concise and renders descriptions in full', () => {
@@ -114,14 +131,13 @@ describe('RoleSidebar', () => {
     expect(screen.getByRole('link', { name: /Dashboard/ })).toHaveClass('min-h-11');
   });
 
-  it('keeps the collapsed account control available to assistive technology', () => {
+  it('shows the first name under the avatar in the rail account control', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN], undefined, undefined, 'Jamie');
 
-    render(<RoleSidebar config={config} isCollapsed />, { initialRoute: '/admin/dashboard' });
+    render(<RoleSidebar config={config} variant="rail" />, { initialRoute: '/admin/dashboard' });
 
-    expect(
-      screen.getByRole('button', { name: 'Account menu for Jamie, Site Admin' })
-    ).toBeInTheDocument();
-    expect(screen.queryByText('Jamie')).not.toBeInTheDocument();
+    const account = screen.getByRole('button', { name: 'Account menu for Jamie, Site Admin' });
+    expect(account).toHaveTextContent('Jamie');
+    expect(account).not.toHaveTextContent('Site Admin');
   });
 });

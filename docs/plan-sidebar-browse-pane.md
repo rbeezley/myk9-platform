@@ -50,6 +50,19 @@ Each phase ships on its own; stopping after any phase leaves a coherent app.
 1. **Labeled icon rail.** _[REORDERED 2026-10-15: was phase 3.]_ Every sidebar item renders as icon plus label at about 64px. The Browse items (Shows, Dogs, People, Clubs) stay as rail items until phase 3 merges them into tabs. Admin's long list may need a grouped "Admin" rail item that opens its own sub-list; decide when the item count is measured.
    - **[EXPANDED] Labels.** Each rail label is one or two short words (for example "Payments", not "My Payments"); a label that does not fit in two lines is renamed, never truncated. Count the rail per role combination before building: if any combination exceeds about eight items, group the lowest-use ones (the Admin pages first) under one item.
    - **Why first.** The spike measured the end state (64px rail + 320px list replacing the 240px sidebar). Shipped before the rail, the Shows list would sit beside the full sidebar and leave the show 880px at a 1440 window and 720px at 1280, where the cockpit still splits and the schedule gets about 340px. The rail first gives every page 176px back and lets the Shows list land at the measured widths.
+   - **Built (MYK9-1214).** The rail is 88px, not 64: labels use `text-xs`, the app's 14px floor (`docs/INTENT.md`), and words like "Ringside" need that width at 14px. It returns 152px to every page (1440 window: 1200 → 1352px of content). The panels cap their height at the space available and scroll (all ten Admin destinations reachable at 1280×600). The phase 2 spike widths assumed a 64px rail; with 88px the show in the pane is 24px narrower than measured, still above the cockpit's split floor at 1280. Two groups fold into a labeled panel that opens on click: **My Club** (Our Shows, Members, Payments, Club Profile) and **Admin** (the admin pages plus Resources). Rail item counts, pinned in `railEntries.test.ts`:
+
+     | Roles                                          | Before | Rail |
+     | ---------------------------------------------- | ------ | ---- |
+     | Exhibitor only                                 | 5      | 5    |
+     | Judge only                                     | 3      | 3    |
+     | Secretary + exhibitor                          | 8      | 8    |
+     | Club admin + exhibitor                         | 8      | 5    |
+     | Secretary + club admin + exhibitor             | 12     | 9    |
+     | Site admin only                                | 10     | 1    |
+     | Site admin + secretary, club admin, judge, exh | 22     | 10   |
+
+     Renamed in the rail only (the drawer and the accessible name keep the full title): "Show Management" → **Manage** ("Management" was 21px wider than the rail), and the current show's name → **Today's show / Next show / Draft show**. Phase 3 removes the four Browse items, leaving 5 and 6 for the two largest rows.
 
 2. **Shows list with a detail pane.** _Requires phase 1 (rail); the decision below assumes it._ `/shows` list on the left, `/shows/:id` on the right from `lg`. Today / Upcoming / Past grouping, managed shows pinned. Replace the single `nextShow` sidebar link once the list covers it.
    - **[ADDED] Spike first.** In the browser at 1024, 1280 and 1440px, open every show management tab (Overview cockpit, Entries, Schedule, Results) inside the detail pane and record whether the cockpit split, pinned header and sticky entry pane still work. Write the result and the (a)/(b) decision into this plan before building.

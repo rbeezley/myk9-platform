@@ -108,6 +108,13 @@ async function scoreFromPaper(page: Page, classId: string) {
 async function printFromResults(page: Page, detail: Locator, label: string, reportId: string) {
   const row = paperworkRow(detail, label);
   await expect(row.getByText('Not confirmed printed')).toBeVisible({ timeout: 20_000 });
+  // MYK9-1215: the bottom-right toasts ("Scores marked...", "Results released") dock on top of
+  // this row's Print link at 1280x720. A click that lands as they shift hits the toast, which
+  // hover-pauses and expands the stack, so the link never fires and the toasts never leave
+  // (both failing runs' screenshots show the stack still up 15s later). Click only once clear,
+  // with the pointer parked off the stack first: a hovered stack pauses its own timers.
+  await page.mouse.move(0, 0);
+  await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 15_000 });
   await row.getByRole('link', { name: /Print/ }).click();
   await expect(page).toHaveURL(new RegExp(`/reports\\?.*report=${reportId}`));
   const printButton = page.getByRole('button', { name: 'Print', exact: true });

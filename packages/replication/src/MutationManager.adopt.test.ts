@@ -146,4 +146,66 @@ describe('MutationManager adoption (MYK9-1205)', () => {
     );
     expect(schedule).toHaveBeenCalledTimes(1);
   });
+
+  it('waits for an in-flight backup restore, then adopts the restored scores', async () => {
+    let finishRestore!: () => void;
+    const internals = manager as unknown as { backupStore: { restore(): Promise<void> } };
+    vi.spyOn(internals.backupStore, 'restore').mockImplementation(async () => {
+      await new Promise<void>(resolve => {
+        finishRestore = resolve;
+      });
+      // The restore is what puts the score back into the queue, under the dead session.
+      user = 'anon-1';
+      await queue('e1', 'show-x');
+      user = 'anon-2';
+    });
+    const restoring = manager.restoreMutationsFromLocalStorage();
+    user = 'anon-2';
+
+    const adopting = manager.adoptHeldMutations({
+      showId: 'show-x',
+      toAuthUserId: 'anon-2',
+      rpcNames: RPCS,
+    });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    finishRestore();
+    await restoring;
+
+    await expect(adopting).resolves.toBe(1);
+    expect((await pending()).map(row => row.authUserId)).toEqual(['anon-2']);
+  });
+
+  it('adopts the restored scores when the restore is itself waiting on an upload in flight', async () => {
+    const internals = manager as unknown as {
+      backupStore: { restore(): Promise<void> };
+      uploadInFlight: Promise<never[]> | null;
+      uploadRunner: { runExclusive(w: () => Promise<void>): Promise<void> };
+    };
+    vi.spyOn(internals.backupStore, 'restore').mockImplementation(async () => {
+      user = 'anon-1';
+      await queue('e1', 'show-x');
+      user = 'anon-2';
+    });
+    // An upload pass: holds the lock and is visible as uploadInFlight.
+    let finishUpload!: () => void;
+    const gate = new Promise<void>(resolve => (finishUpload = resolve));
+    const upload = internals.uploadRunner.runExclusive(() => gate).then(() => []);
+    internals.uploadInFlight = upload;
+
+    const restoring = manager.restoreMutationsFromLocalStorage();
+    user = 'anon-2';
+    const adopting = manager.adoptHeldMutations({
+      showId: 'show-x',
+      toAuthUserId: 'anon-2',
+      rpcNames: RPCS,
+    });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    finishUpload();
+    await upload;
+    internals.uploadInFlight = null;
+    await restoring;
+
+    await expect(adopting).resolves.toBe(1);
+    expect((await pending()).map(row => row.authUserId)).toEqual(['anon-2']);
+  });
 });

@@ -165,6 +165,8 @@ test('canonical queue positions and state-only controls agree across roles (MYK9
             await expect(placement).not.toContainText(/\b101\b/);
             await screenshot(secretary.page, info, scenario.name + '-hand-placement');
           }
+          for (const role of [secretary, judge, exhibitor])
+            expect(role.nonLocalSocketUrls).toEqual([]);
           expect(await row(client, f.willowId)).toEqual(stored);
           await screenshot(exhibitor.page, info, scenario.name + '-exhibitor');
           await screenshot(judge.page, info, scenario.name + '-judge');
@@ -219,6 +221,9 @@ test('expired token after 61 real minutes offline still queues and uploads the s
     // Opening a sheet really marks the dog in-ring; finish that online write first.
     await expect.poll(async () => (await row(client, f.willowId)).check_in_status).toBe('in-ring');
     await expect.poll(async () => (await replica(judge.page, f.willowId)).pending.length).toBe(0);
+    await expect.poll(() => judge.socketUrls.length).toBeGreaterThan(0);
+    await expect.poll(() => judge.receivedSocketFrames()).toBeGreaterThan(0);
+    expect(judge.nonLocalSocketUrls).toEqual([]);
     const buildResponse = await judge.page.request.get('/build-sha.txt');
     expect(buildResponse.ok()).toBe(true);
     const testedBuild = (await buildResponse.text()).trim();
@@ -249,6 +254,7 @@ test('expired token after 61 real minutes offline still queues and uploads the s
     }
     expect(performance.now() - monotonicStart).toBeGreaterThanOrEqual(61 * 60_000);
     expect(judge.receivedSocketFrames()).toBe(offlineReceivedFrames);
+    expect(judge.nonLocalSocketUrls).toEqual([]);
     const expired = await sessionIdentity(judge.page);
     expect(expired.userId).toBe(initial.userId);
     expect(expired.expiresAt * 1000).toBeLessThan(Date.now());
@@ -319,6 +325,7 @@ test('expired token after 61 real minutes offline still queues and uploads the s
         '61.2s'
       );
       await expect(secretaryRow(secretary.page, 'Willow')).toContainText('Qualified');
+      for (const role of [judge, exhibitor, secretary]) expect(role.nonLocalSocketUrls).toEqual([]);
       await screenshot(exhibitor.page, info, 'uploaded-exhibitor');
       await screenshot(secretary.page, info, 'uploaded-secretary');
       await evidence(info, 'upload-confirmed', {

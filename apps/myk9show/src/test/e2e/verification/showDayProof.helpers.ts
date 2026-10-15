@@ -127,16 +127,23 @@ export async function rolePage(
   const page = await context.newPage();
   let receivedFrames = 0;
   const socketUrls: string[] = [];
+  const nonLocalSocketUrls: string[] = [];
   page.on('websocket', socket => {
     const url = new URL(socket.url());
     socketUrls.push(url.origin + url.pathname);
-    expect(loopback(socket.url())).toBe(true);
+    if (!loopback(socket.url())) nonLocalSocketUrls.push(url.origin + url.pathname);
     socket.on('framereceived', () => receivedFrames++);
   });
   const account = TEST_USERS[role];
   if (!account) throw new Error('Missing role');
   await signIn(page, account.email, account.password, path, { reuseSession: false });
-  return { context, page, socketUrls, receivedSocketFrames: () => receivedFrames };
+  return {
+    context,
+    page,
+    socketUrls,
+    nonLocalSocketUrls,
+    receivedSocketFrames: () => receivedFrames,
+  };
 }
 export function classPath(f: Fixture) {
   return `/at-show/${f.showId}/class/${f.classId}`;

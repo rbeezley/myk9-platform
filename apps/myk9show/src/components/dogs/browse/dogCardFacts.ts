@@ -34,7 +34,13 @@ export interface DogCardFactOptions {
  * cannot drift from what the formatters actually read.
  */
 export type DogCardFactSource = Parameters<typeof getDogBreedLabel>[0] &
-  Parameters<typeof formatDogAge>[0] & { ownerName?: string | null | undefined };
+  Parameters<typeof formatDogAge>[0] & {
+    ownerName?: string | null | undefined;
+    ownerUnavailableOffline?: boolean | undefined;
+  };
+
+/** Shown in place of an owner the device could not read offline and never saw online (MYK9-1189). */
+export const OWNER_UNAVAILABLE_OFFLINE_LABEL = 'Owner unavailable offline';
 
 export function getDogCardFacts(
   dog: DogCardFactSource,
@@ -53,6 +59,8 @@ export function getDogCardFacts(
   if (age) facts.push({ kind: 'age', text: age });
 
   if (showOwner && dog.ownerName) facts.push({ kind: 'owner', text: dog.ownerName });
+  else if (showOwner && dog.ownerUnavailableOffline)
+    facts.push({ kind: 'owner', text: OWNER_UNAVAILABLE_OFFLINE_LABEL });
 
   return facts;
 }

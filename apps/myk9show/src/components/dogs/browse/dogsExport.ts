@@ -1,4 +1,5 @@
 import { getDogDisplayName, type Dog } from '@/types/dog-types';
+import { OWNER_UNAVAILABLE_OFFLINE_LABEL } from './dogCardFacts';
 
 /**
  * The Dogs list's CSV columns, shared by the whole-list "Export CSV" page action and the bulk
@@ -13,7 +14,9 @@ export function dogExportRows(dogs: readonly Dog[], includeOwner: boolean): stri
     getDogDisplayName(dog),
     dog.breed ?? '',
     dog.sex ?? '',
-    ...(includeOwner ? [dog.ownerName ?? ''] : []),
+    ...(includeOwner
+      ? [dog.ownerName || (dog.ownerUnavailableOffline ? OWNER_UNAVAILABLE_OFFLINE_LABEL : '')]
+      : []),
     dog.status ?? 'active',
   ]);
 }

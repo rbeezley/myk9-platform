@@ -6,7 +6,7 @@
  * labels rather than exploring icons (docs/plan-sidebar-browse-pane.md).
  */
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -107,6 +107,7 @@ interface RailMenuProps {
 
 function RailMenu({ title, icon: Icon, sections, isActive }: RailMenuProps) {
   const [open, setOpen] = useState(false);
+  const headingId = useId();
   const active = sections.some(section => section.items.some(item => isActive(item.href)));
   const showSectionTitles = sections.length > 1;
 
@@ -127,9 +128,12 @@ function RailMenu({ title, icon: Icon, sections, isActive }: RailMenuProps) {
         side="right"
         align="start"
         sideOffset={8}
+        aria-labelledby={headingId}
         className="max-h-[var(--available-height)] w-72 overflow-y-auto p-2"
       >
-        <p className="px-2 pb-1 pt-1 text-sm font-semibold text-foreground">{title}</p>
+        <p id={headingId} className="px-2 pb-1 pt-1 text-sm font-semibold text-foreground">
+          {title}
+        </p>
         {sections.map(section => (
           <div key={section.title} className="pt-1">
             {showSectionTitles && (

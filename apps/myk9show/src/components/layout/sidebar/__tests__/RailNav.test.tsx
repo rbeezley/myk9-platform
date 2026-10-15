@@ -35,7 +35,7 @@ describe('RailNav', () => {
 
     await user.click(screen.getByRole('button', { name: 'My Club' }));
 
-    const panel = await screen.findByRole('dialog');
+    const panel = await screen.findByRole('dialog', { name: 'My Club' });
     for (const title of ['Our Shows', 'Members', 'Payments', 'Club Profile']) {
       expect(panel).toHaveTextContent(title);
     }
@@ -74,7 +74,7 @@ describe('RailNav', () => {
 
     await user.click(screen.getByRole('button', { name: 'Admin' }));
 
-    const panel = await screen.findByRole('dialog');
+    const panel = await screen.findByRole('dialog', { name: 'Admin' });
     expect(panel).toHaveTextContent('Resources');
     expect(panel).toHaveTextContent('System Health');
     expect(panel).toHaveTextContent('Help');

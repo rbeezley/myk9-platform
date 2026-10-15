@@ -161,6 +161,9 @@ describe('send-lifecycle-email registration_number_needed', () => {
  * authorizes, checks the step switch and the held verdict, resolves the CURRENT recipient,
  * replaces any earlier sendable email, inserts one job and sends it.
  */
+const REQUEST_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const REQUEST_KEY = `show-lifecycle-email:show-1:registration_number_needed:entry:request-${REQUEST_ID}:entry-1`;
+
 describe('send_registration_number_needed action', () => {
   const stepRow = { id: 'step-rn', show_id: 'show-1', step_type: 'registration_number_needed' };
 
@@ -200,8 +203,9 @@ describe('send_registration_number_needed action', () => {
           subject: 'Registration number needed for Willow',
           body: 'Please send the number.',
           secretary_note: 'Thanks',
-          // A client-supplied key must be ignored.
+          // A client-supplied key must be ignored; the request id names the email.
           idempotency_key: 'client-key',
+          request_id: REQUEST_ID,
         },
         user: { id: userId },
         supabase: supabase as Parameters<typeof handler>[0]['supabase'],
@@ -226,29 +230,78 @@ describe('send_registration_number_needed action', () => {
       recipient_scope: 'entry',
       entry_id: 'entry-1',
       recipient_email: 'jamie@example.com',
-      idempotency_key:
-        'show-lifecycle-email:show-1:registration_number_needed:entry:single:entry-1:original',
+      idempotency_key: REQUEST_KEY,
     });
   });
 
-  it('sequences the key from every earlier job of the entry, whatever its status', async () => {
-    const earlier = (id: string, status: string) => ({
-      id,
-      show_id: 'show-1',
-      step_type: 'registration_number_needed',
-      entry_id: 'entry-1',
-      status,
-    });
-    const { calls, run } = arrange({
-      jobs: [earlier('a', 'sent'), earlier('b', 'failed'), earlier('c', 'skipped')],
+  it('a retry of the same preview whose email already went out answers sent, with no second delivery', async () => {
+    const { fetch, calls, run } = arrange({
+      jobs: [
+        {
+          ...readyJob,
+          id: 'mine',
+          show_id: 'show-1',
+          step_type: 'registration_number_needed',
+          entry_id: 'entry-1',
+          status: 'sent',
+          idempotency_key: REQUEST_KEY,
+        },
+      ],
     });
 
-    await run();
+    await expect(run()).resolves.toEqual({ status: 'sent', jobId: 'mine' });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(jobCalls(calls).some(call => call.action === 'insert')).toBe(false);
+  });
 
-    const insert = jobCalls(calls).find(call => call.action === 'insert');
-    expect((insert?.value as { idempotency_key: string }).idempotency_key).toBe(
-      'show-lifecycle-email:show-1:registration_number_needed:entry:reminder-3:entry-1:original'
-    );
+  it('a retry of the same preview whose send failed re-sends that email with its stored text', async () => {
+    const { fetch, calls, run } = arrange({
+      jobs: [
+        {
+          ...readyJob,
+          id: 'mine',
+          show_id: 'show-1',
+          step_type: 'registration_number_needed',
+          entry_id: 'entry-1',
+          status: 'failed',
+          subject: 'Stored subject',
+          recipient_email: 'jamie@example.com',
+          idempotency_key: REQUEST_KEY,
+        },
+      ],
+    });
+
+    await expect(run()).resolves.toEqual({ status: 'sent', jobId: 'mine' });
+    expect(jobCalls(calls).some(call => call.action === 'insert')).toBe(false);
+    const request = (
+      fetch.mock.calls[0] as unknown as [string, { headers: Record<string, string>; body: string }]
+    )[1];
+    expect(request.headers['Idempotency-Key']).toBe(REQUEST_KEY);
+    expect(JSON.parse(request.body).subject).toBe('Stored subject');
+  });
+
+  it('refuses a request with no request id', async () => {
+    const { supabase, handler } = (() => {
+      const fetch = vi.fn();
+      const { supabase } = makeSupabase(baseTables({ show_lifecycle_email_steps: [stepRow] }), {
+        entry_awaiting_registration_number: true,
+      });
+      return {
+        supabase,
+        handler: createSendLifecycleEmailHandler({
+          fetch: fetch as unknown as typeof globalThis.fetch,
+          resendApiKey: 'resend-key',
+        }),
+      };
+    })();
+
+    await expect(
+      handler({
+        body: { action: 'send_registration_number_needed', show_id: 'show-1', entry_id: 'entry-1' },
+        user: { id: 'secretary-1' },
+        supabase,
+      })
+    ).rejects.toThrow('request_id is required');
   });
 
   it('marks the earlier failed job skipped BEFORE inserting the new one', async () => {
@@ -341,12 +394,17 @@ describe('send_registration_number_needed action', () => {
         ],
       });
 
-      await expect(run()).resolves.toMatchObject({ status: 'sent', jobId: 'earlier' });
+      await expect(run()).resolves.toEqual({ status: 'sent', jobId: 'earlier', recovered: true });
       expect(jobCalls(calls).some(call => call.action === 'insert')).toBe(false);
       const headers = (
         fetch.mock.calls[0] as unknown as [string, { headers: Record<string, string> }]
       )[1].headers;
       expect(headers['Idempotency-Key']).toBe('earlier-key');
+      // Replayed exactly: the provider refuses a changed payload under a seen key.
+      const sentBody = JSON.parse(
+        (fetch.mock.calls[0] as unknown as [string, { body: string }])[1].body
+      ) as { subject: string };
+      expect(sentBody.subject).toBe(readyJob.subject);
     }
   );
 

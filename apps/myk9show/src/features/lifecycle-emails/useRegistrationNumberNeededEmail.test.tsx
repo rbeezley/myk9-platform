@@ -321,4 +321,47 @@ describe('useRegistrationNumberNeededEmail', () => {
     expect(sendRegistrationNumberNeededEmail).toHaveBeenCalledTimes(1);
     expect(screen.queryByTestId('preview')).toBeNull();
   });
+
+  it('a retry in the same preview reuses its request id; a new preview gets a new one', async () => {
+    vi.mocked(sendRegistrationNumberNeededEmail).mockRejectedValueOnce(new Error('network'));
+    const { api } = mountHook();
+    await openFor(api, target('e1', 'a@example.com'));
+
+    await act(async () => {
+      await dialog.current?.onSend(values);
+    });
+    await act(async () => {
+      await dialog.current?.onSend(values);
+    });
+    await openFor(api, target('e1', 'a@example.com'));
+    await act(async () => {
+      await dialog.current?.onSend(values);
+    });
+
+    const ids = vi
+      .mocked(sendRegistrationNumberNeededEmail)
+      .mock.calls.map(([args]) => (args as { requestId: string }).requestId);
+    expect(ids).toHaveLength(3);
+    expect(ids[0]).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(ids[1]).toBe(ids[0]);
+    expect(ids[2]).not.toBe(ids[0]);
+  });
+
+  it('says the earlier email went out when the server recovered it instead', async () => {
+    vi.mocked(sendRegistrationNumberNeededEmail).mockResolvedValueOnce({
+      status: 'sent',
+      jobId: 'earlier',
+      recovered: true,
+    });
+    const { api } = mountHook();
+    await openFor(api, target('e1', 'a@example.com'));
+
+    await act(async () => {
+      await dialog.current?.onSend(values);
+    });
+
+    expect(toast.success).toHaveBeenCalledWith(
+      "The earlier email to Dog e1's owner has been sent. Send a reminder if you changed the text."
+    );
+  });
 });

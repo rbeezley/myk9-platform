@@ -5,8 +5,9 @@ export const REGISTRATION_NUMBER_NEEDED_STEP = 'registration_number_needed' as c
 
 /** What the server did with one "Email exhibitor" / "Send reminder" press. */
 export type RegistrationNumberNeededOutcome =
-  | { status: 'sent'; jobId: string }
-  | { status: 'failed'; jobId: string }
+  /** `recovered`: an earlier email (as it was saved) went out instead of this text. */
+  | { status: 'sent'; jobId: string; recovered?: true }
+  | { status: 'failed'; jobId: string; recovered?: true }
   | { status: 'skipped'; reason: 'not_held' | 'unverified' | 'no_email' }
   | { status: 'busy' };
 
@@ -20,6 +21,8 @@ export async function sendRegistrationNumberNeededEmail(args: {
   supabase: LifecycleEmailFunctionsClient;
   showId: string;
   entryId: string;
+  /** One per preview, the same on every retry of it: the server's dedupe key. */
+  requestId: string;
   subject: string;
   body: string;
   secretaryNote: string;
@@ -29,6 +32,7 @@ export async function sendRegistrationNumberNeededEmail(args: {
       action: 'send_registration_number_needed',
       show_id: args.showId,
       entry_id: args.entryId,
+      request_id: args.requestId,
       subject: args.subject,
       body: args.body,
       secretary_note: args.secretaryNote,

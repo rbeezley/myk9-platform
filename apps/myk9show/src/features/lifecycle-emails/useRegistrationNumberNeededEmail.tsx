@@ -1,3 +1,4 @@
+import { generateUUID } from '@/utils/idUtils';
 import { useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -39,6 +40,12 @@ const isStepOn = (steps: ReadonlyArray<{ stepType: string; isEnabled: boolean }>
 interface Prompt {
   id: number;
   target: RegistrationNumberNeededTarget;
+  /**
+   * Names this preview's email to the server. Every Send press in the preview reuses
+   * it, so a response that never arrived cannot turn into a second email; a new
+   * Send reminder click opens a new preview and a new email.
+   */
+  requestId: string;
 }
 
 export const hasContactEmail = (entry: Pick<EntryManagementEntry, 'ownerEmail'>): boolean =>
@@ -110,12 +117,12 @@ export function useRegistrationNumberNeededEmail({
     setQueue(previous => {
       if (previous.length > 0) return previous;
       nextIdRef.current += 1;
-      return [{ id: nextIdRef.current, target }];
+      return [{ id: nextIdRef.current, target, requestId: generateUUID() }];
     });
   };
 
   const send = async (
-    { id, target }: Prompt,
+    { id, target, requestId }: Prompt,
     values: { subject: string; body: string; secretaryNote: string }
   ) => {
     if (sendingIdsRef.current.has(id)) return;
@@ -127,11 +134,16 @@ export function useRegistrationNumberNeededEmail({
         supabase,
         showId: entry.showId,
         entryId: entry.id,
+        requestId,
         subject: values.subject,
         body: values.body,
         secretaryNote: values.secretaryNote,
       });
-      if (outcome.status === 'sent') {
+      if (outcome.status === 'sent' && outcome.recovered) {
+        toast.success(
+          `The earlier email to ${entry.dogName}'s owner has been sent. Send a reminder if you changed the text.`
+        );
+      } else if (outcome.status === 'sent') {
         toast.success('Registration number email sent');
       } else if (outcome.status === 'failed') {
         toast.error("The email couldn't be sent. Press Send reminder to try again.");

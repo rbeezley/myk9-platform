@@ -76,6 +76,7 @@ describe('sendRegistrationNumberNeededEmail', () => {
       supabase: { functions: { invoke } },
       showId: 'show-1',
       entryId: 'entry-1',
+      requestId: 'req-1',
       subject: 'S',
       body: 'B',
       secretaryNote: 'N',
@@ -83,7 +84,7 @@ describe('sendRegistrationNumberNeededEmail', () => {
     return { invoke, promise };
   };
 
-  it('sends only the entry and the reviewed text, never a key, recipient or job', async () => {
+  it("sends only the entry, the preview's request id and the reviewed text, never a key, recipient or job", async () => {
     const { invoke, promise } = run({ status: 'sent', jobId: 'job-1' });
 
     await expect(promise).resolves.toEqual({ status: 'sent', jobId: 'job-1' });
@@ -92,6 +93,7 @@ describe('sendRegistrationNumberNeededEmail', () => {
         action: 'send_registration_number_needed',
         show_id: 'show-1',
         entry_id: 'entry-1',
+        request_id: 'req-1',
         subject: 'S',
         body: 'B',
         secretary_note: 'N',

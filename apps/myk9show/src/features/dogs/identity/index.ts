@@ -11,3 +11,5 @@ export type {
   DogRegistrationLike,
   MappedDogRegistrationLike,
 } from './resolveDogIdentity';
+export { isConformationPuppyClass, isHeldEntry } from './heldEntry';
+export type { ConformationPuppyContext, ServerHeldFlag } from './heldEntry';

@@ -15,6 +15,7 @@ import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/Reg
 import type { Dog } from '@/types/dog-types';
 import { serverRow } from '@/services/replication/__tests__/dogRegistrationFixtures';
 import { useRegistrationsByDogQuery } from '@/hooks/queries/useRegistrationsDatabase';
+import { ARMBAND_LABEL_HELD_ENTRIES_KEY } from '@/hooks/queries/useArmbandLabelData';
 import { useRegistrationsReplicaCacheSync } from '../useRegistrationsReplicaCacheSync';
 
 const READER_KEYS = [
@@ -22,6 +23,8 @@ const READER_KEYS = [
   queryKeys.dogs,
   queryKeys.dogRegistrations('dog-1'),
   queryKeys.personDogs('owner-1'),
+  // MYK9-1162: a number added or removed changes which armband labels may print.
+  [...ARMBAND_LABEL_HELD_ENTRIES_KEY, 'show-1'],
 ] as const;
 
 function mountListener(): QueryClient {
@@ -65,7 +68,7 @@ describe('useRegistrationsReplicaCacheSync', () => {
     try {
       await replicatedDogRegistrationsTable.notifyChanged();
 
-      await waitFor(() => expect(invalidated(queryClient)).toEqual([true, true, true, true]));
+      await waitFor(() => expect(invalidated(queryClient)).toEqual(READER_KEYS.map(() => true)));
     } finally {
       cache.getAllData = read;
     }
@@ -76,7 +79,7 @@ describe('useRegistrationsReplicaCacheSync', () => {
 
     await replicatedDogRegistrationsTable.applyServerRows([serverRow()]);
 
-    await waitFor(() => expect(invalidated(queryClient)).toEqual([true, true, true, true]));
+    await waitFor(() => expect(invalidated(queryClient)).toEqual(READER_KEYS.map(() => true)));
   });
 
   it('refetches the reader keys on a local write', async () => {
@@ -86,7 +89,7 @@ describe('useRegistrationsReplicaCacheSync', () => {
 
     await replicatedDogRegistrationsTable.set('reg-1', { ...row!, registeredName: 'Edit' }, true);
 
-    await waitFor(() => expect(invalidated(queryClient)).toEqual([true, true, true, true]));
+    await waitFor(() => expect(invalidated(queryClient)).toEqual(READER_KEYS.map(() => true)));
   });
 
   it('refetches the reader keys when a row is removed', async () => {
@@ -95,7 +98,7 @@ describe('useRegistrationsReplicaCacheSync', () => {
 
     await replicatedDogRegistrationsTable.delete('reg-1');
 
-    await waitFor(() => expect(invalidated(queryClient)).toEqual([true, true, true, true]));
+    await waitFor(() => expect(invalidated(queryClient)).toEqual(READER_KEYS.map(() => true)));
   });
 
   it('leaves unrelated reads alone', async () => {
@@ -113,7 +116,7 @@ describe('a burst of replica changes', () => {
   // Past the shared table's own debounce plus the listener's coalescing window.
   const SETTLE_MS = NOTIFY_DEBOUNCE_MS + 400;
   const settle = () => new Promise(resolve => setTimeout(resolve, SETTLE_MS));
-  const FILTERS_PER_REFRESH = 3;
+  const FILTERS_PER_REFRESH = 4;
 
   function spyOnRefreshes() {
     const queryClient = mountListener();

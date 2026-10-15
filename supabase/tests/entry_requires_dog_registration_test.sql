@@ -16,6 +16,12 @@
 --      matches registry 'AKC'. An exact-string match would reject most real rows.
 --   5. The conformation-puppy exception still applies.
 --   6. A blank/whitespace registration number does not count as a number.
+--   7. MYK9-1162: a secretary appointed to the trial's club may enter a dog with
+--      no number (the entry is then "held"), including a UKC-only dog and a blank
+--      number; the same insert is still refused for an authenticated non-manager
+--      and for a secretary of ANOTHER club. The conformation-puppy carve-out is
+--      covered by case 5 and is not manager-dependent; INSERT-only scope is not
+--      re-tested here.
 --
 -- Run against a database where all migrations are applied:
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
@@ -137,6 +143,101 @@ BEGIN
   END IF;
 
   RAISE NOTICE 'PASS registration required per trial registry, naming drift tolerated, conformation puppy exempt, blank number rejected';
+END;
+$$;
+
+-- 7. MYK9-1162: trial managers may enter a dog with no registration number.
+INSERT INTO public.roles (id, name, description, is_system)
+VALUES ('00000000-0000-0000-0000-000000116201', 'secretary', 'MYK9-1162 fixture', true)
+ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO public.clubs (id, name)
+VALUES ('00000000-0000-0000-0000-00000000dc02', 'Other Club (MYK9-1162)');
+
+INSERT INTO public.people (id, first_name, last_name, auth_user_id)
+VALUES
+  ('00000000-0000-0000-0000-000000116251', 'Own Club', 'Secretary',
+   '00000000-0000-0000-0000-000000116351'),
+  ('00000000-0000-0000-0000-000000116252', 'Other Club', 'Secretary',
+   '00000000-0000-0000-0000-000000116352'),
+  ('00000000-0000-0000-0000-000000116253', 'Plain', 'Exhibitor',
+   '00000000-0000-0000-0000-000000116353');
+
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000000116251', id, '00000000-0000-0000-0000-00000000dc01',
+  true, '00000000-0000-0000-0000-000000116351'
+FROM public.roles WHERE name = 'secretary';
+
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000000116252', id, '00000000-0000-0000-0000-00000000dc02',
+  true, '00000000-0000-0000-0000-000000116352'
+FROM public.roles WHERE name = 'secretary';
+
+-- The insert runs as the fixture owner (RLS bypassed) with a caller JWT, so the
+-- trigger alone decides; auth.uid() inside the SECURITY DEFINER function is the
+-- caller either way.
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000116353', true);
+SELECT set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000116353","role":"authenticated","app_metadata":{}}', true);
+
+DO $$
+DECLARE
+  rejected boolean := false;
+BEGIN
+  BEGIN
+    INSERT INTO public.entries (dog_id, class_id, show_id, trial_id, entry_status)
+    VALUES ('00000000-0000-0000-0000-00000000d541', '00000000-0000-0000-0000-00000000d530',
+      '00000000-0000-0000-0000-00000000d510', '00000000-0000-0000-0000-00000000d520',
+      'confirmed');
+  EXCEPTION WHEN check_violation THEN
+    rejected := true;
+  END;
+  IF NOT rejected THEN
+    RAISE EXCEPTION 'FAIL a non-manager entered a dog with no registration number';
+  END IF;
+END;
+$$;
+
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000116352', true);
+SELECT set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000116352","role":"authenticated","app_metadata":{}}', true);
+
+DO $$
+DECLARE
+  rejected boolean := false;
+BEGIN
+  BEGIN
+    INSERT INTO public.entries (dog_id, class_id, show_id, trial_id, entry_status)
+    VALUES ('00000000-0000-0000-0000-00000000d541', '00000000-0000-0000-0000-00000000d530',
+      '00000000-0000-0000-0000-00000000d510', '00000000-0000-0000-0000-00000000d520',
+      'confirmed');
+  EXCEPTION WHEN check_violation THEN
+    rejected := true;
+  END;
+  IF NOT rejected THEN
+    RAISE EXCEPTION 'FAIL another club''s secretary entered a dog with no registration number';
+  END IF;
+END;
+$$;
+
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000116351', true);
+SELECT set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000116351","role":"authenticated","app_metadata":{}}', true);
+
+DO $$
+BEGIN
+  -- The trial's own secretary: an unregistered dog, a UKC-only dog and a blank
+  -- number are all accepted (held), not refused.
+  INSERT INTO public.entries (dog_id, class_id, show_id, trial_id, entry_status)
+  VALUES
+    ('00000000-0000-0000-0000-00000000d541', '00000000-0000-0000-0000-00000000d530',
+     '00000000-0000-0000-0000-00000000d510', '00000000-0000-0000-0000-00000000d520', 'confirmed'),
+    ('00000000-0000-0000-0000-00000000d543', '00000000-0000-0000-0000-00000000d530',
+     '00000000-0000-0000-0000-00000000d510', '00000000-0000-0000-0000-00000000d520', 'confirmed'),
+    ('00000000-0000-0000-0000-00000000d545', '00000000-0000-0000-0000-00000000d530',
+     '00000000-0000-0000-0000-00000000d510', '00000000-0000-0000-0000-00000000d520', 'confirmed');
+
+  RAISE NOTICE 'PASS trial manager may enter a held dog; non-manager and other-club secretary are still refused';
 END;
 $$;
 

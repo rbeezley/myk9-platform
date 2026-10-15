@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import WaitlistManagementPage from './WaitlistManagementPage/index';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -27,13 +26,12 @@ import { ArmbandDialog, CompEntryDialog } from '@/components/entries/management'
 import { EntryManagementCockpit } from '@/components/entries/management/EntryManagementCockpit';
 import { EntryManagementViewToolbar } from '@/components/entries/management/EntryManagementViewToolbar';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
-import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
-import { PullManagementTab } from '@/components/entries/PullManagementTab';
 import { classifyEntryRemoval, isExhibitorRemoval } from '@/features/payments/pullReconciliation';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
   getCockpitNormalizationContext,
   normalizeEntryManagementCockpitParams,
+  writeCockpitFocus,
   writeCockpitScope,
   writeCockpitSearch,
   writeCockpitView,
@@ -43,6 +41,8 @@ import { groupEntriesByShowRegistration } from '@/components/entries/management/
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { EntryManagementUnresolvedShow } from './EntryManagementUnresolvedShow';
+import { EntryManagementExceptionPanes } from './EntryManagementExceptionPanes';
+import { useRegistrationNeededEntries } from '@/hooks/useRegistrationNeededEntries';
 import { registerCommandMenuContext } from '@/features/command-menu/commandMenuContextStore';
 
 const EntryManagementPage: React.FC = () => {
@@ -179,6 +179,16 @@ const EntryManagementPage: React.FC = () => {
   const trialScopePending = trialIds.length > 0 && isLoadingClasses;
   const { count: moveUpRequestsCount, refetch: refetchMoveUpRequestsCount } =
     useMoveUpRequestsCount(selectedShowId || null);
+  // MYK9-1162: derived from the loaded entries, so the count and the pane agree.
+  const registrationNeeded = useRegistrationNeededEntries(selectedShowId, entries);
+  // Pull / Withdraw on a held entry is the registration's own entry form (one concern,
+  // one page): focus it in the All view rather than re-implement those actions here.
+  const openEntryForm = (entry: EntryManagementEntry) => {
+    const key = getCockpitNormalizationContext(registrationGroups).entryToRegistration?.get(
+      entry.id
+    );
+    setSearchParams(writeCockpitFocus(writeCockpitView(new URLSearchParams(), 'all'), key ?? null));
+  };
 
   const handleClearEntryFilters = () => {
     setSearchParams(
@@ -410,7 +420,11 @@ const EntryManagementPage: React.FC = () => {
       {selectedShowId && (
         <EntryManagementViewToolbar
           cockpit={cockpit}
-          exceptionCounts={{ pulls: pulledEntries.length, moveUps: moveUpRequestsCount }}
+          exceptionCounts={{
+            pulls: pulledEntries.length,
+            moveUps: moveUpRequestsCount,
+            registrationNeeded: registrationNeeded.count,
+          }}
           trials={trials}
           trialsLoaded={trialsLoaded}
           classes={trialClassScope}
@@ -528,46 +542,22 @@ const EntryManagementPage: React.FC = () => {
         </>
       )}
 
-      {selectedShowId &&
-        cockpitUrl.state.tab === 'exceptions' &&
-        cockpitUrl.state.exception === 'move-ups' && (
-          <div className="mt-6">
-            <Card>
-              <CardContent className="pt-6">
-                <MoveUpRequestsTab
-                  showId={selectedShowId}
-                  onRefresh={() => {
-                    loadEntries(selectedShowId);
-                    refetchMoveUpRequestsCount();
-                  }}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        )}
-      {selectedShowId &&
-        cockpitUrl.state.tab === 'exceptions' &&
-        cockpitUrl.state.exception === 'pulls' && (
-          <div className="mt-6">
-            <Card>
-              <CardContent className="pt-6">
-                <PullManagementTab
-                  processedEntries={pulledEntries}
-                  processedEntriesUnknown={Boolean(loadError)}
-                  processedEntriesLoading={isLoading}
-                  onRefresh={() => loadEntries(selectedShowId)}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        )}
-      {selectedShowId &&
-        cockpitUrl.state.tab === 'exceptions' &&
-        cockpitUrl.state.exception === 'waitlist' && (
-          <div className="mt-6">
-            <WaitlistManagementPage showId={selectedShowId} />
-          </div>
-        )}
+      {selectedShowId && cockpitUrl.state.tab === 'exceptions' && (
+        <EntryManagementExceptionPanes
+          showId={selectedShowId}
+          exception={cockpitUrl.state.exception}
+          pulledEntries={pulledEntries}
+          entriesUnknown={Boolean(loadError)}
+          entriesLoading={isLoading}
+          registrationNeeded={registrationNeeded}
+          onRefreshEntries={() => loadEntries(selectedShowId)}
+          onMoveUpsChanged={() => {
+            loadEntries(selectedShowId);
+            refetchMoveUpRequestsCount();
+          }}
+          onOpenEntry={openEntryForm}
+        />
+      )}
 
       {/* Armband Assignment Dialog */}
       <ArmbandDialog

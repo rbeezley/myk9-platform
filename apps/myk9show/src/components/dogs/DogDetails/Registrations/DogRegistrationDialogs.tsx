@@ -14,7 +14,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import type { Dog } from '@/types/dog-types';
+import type { Dog, Registration } from '@/types/dog-types';
 import AddRegistrationPanel from './AddRegistrationPanel';
 import EditRegistrationPanel from './EditRegistrationPanel';
 import ConfirmDeleteRegistrationDialog from './ConfirmDeleteRegistrationDialog';
@@ -35,6 +35,13 @@ interface DogRegistrationDialogsProps {
   autoOpenAddDialog?: boolean;
   onAddRequestConsumed?: (() => void) | undefined;
   /**
+   * One-shot request to open Edit on this registration (MYK9-1162: a dog whose
+   * registration for the trial's registry exists with a blank number is fixed
+   * by editing it; Add would insert a duplicate the database refuses).
+   */
+  autoOpenEditRegistration?: Registration | null | undefined;
+  onEditRequestConsumed?: (() => void) | undefined;
+  /**
    * The Manage registrations panel is open. Add and Edit are then a mode INSIDE
    * it (MYK9-1089), so this host stands down rather than stack a second
    * slide-out. Delete stays here: a destructive confirm is a dialog by design.
@@ -46,6 +53,8 @@ export default function DogRegistrationDialogs({
   dog,
   autoOpenAddDialog = false,
   onAddRequestConsumed,
+  autoOpenEditRegistration = null,
+  onEditRequestConsumed,
   managePanelOpen = false,
 }: DogRegistrationDialogsProps) {
   const { createRegistration, updateRegistration, deleteRegistration } =
@@ -79,6 +88,20 @@ export default function DogRegistrationDialogs({
     setIsAddOpen(true);
     onAddRequestConsumed?.();
   }, [autoOpenAddDialog, onAddRequestConsumed, setIsAddOpen]);
+
+  // The Edit twin of the latched Add request above.
+  const handledEditRequest = useRef(false);
+  useEffect(() => {
+    if (!autoOpenEditRegistration) {
+      handledEditRequest.current = false;
+      return;
+    }
+    if (handledEditRequest.current) return;
+    handledEditRequest.current = true;
+    setSelectedRegistration(autoOpenEditRegistration);
+    setIsEditOpen(true);
+    onEditRequestConsumed?.();
+  }, [autoOpenEditRegistration, onEditRequestConsumed, setIsEditOpen, setSelectedRegistration]);
 
   // registrationsStore is module-global and this host is mounted on every dog
   // page. Without this, Back-ing out of an open Edit on dog A and opening dog B

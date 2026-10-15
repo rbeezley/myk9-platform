@@ -363,6 +363,7 @@ describe('secretary entry read replication', () => {
         finalPlacement: '1',
         judgeNotes: 'Clean search',
         scoringCompletedAt: '2026-06-01T10:45:00.000Z',
+        awaitingRegistrationNumber: true,
         jumpHeight: '12',
         runOrder: 7,
         specialRequests: 'Crate near ring',
@@ -578,6 +579,12 @@ describe('secretary entry read replication', () => {
         scoring_completed_at: '2026-06-01T10:45:00.000Z',
       })
     );
+  });
+
+  it("carries the server's held verdict from the replica (MYK9-1162)", async () => {
+    const result = await getEntriesForShow('show-1');
+
+    expect(result.data?.[0]?.awaiting_registration_number).toBe(true);
   });
 
   it('merges online pull timing and saved refund decisions into replicated entries', async () => {

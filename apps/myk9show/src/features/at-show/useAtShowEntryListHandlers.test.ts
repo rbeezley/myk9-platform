@@ -252,6 +252,22 @@ describe('useAtShowEntryListHandlers — entry-card view intent', () => {
   });
 });
 
+describe('useAtShowEntryListHandlers — entry awaiting a registration number (MYK9-1162)', () => {
+  it('still opens the scoresheet route, where the lock is explained and absent is allowed', () => {
+    toastInfo.mockClear();
+    const held = makeEntry({ id: 'entry-1', callName: 'Rex', awaitingRegistrationNumber: true });
+    const actions = makeActions();
+    const { result } = renderHandlers([held], actions);
+
+    act(() => {
+      result.current.handleEntryClick(held);
+    });
+
+    expect(toastInfo).not.toHaveBeenCalled();
+    expect(actions.handleMarkInRing).not.toHaveBeenCalled();
+  });
+});
+
 describe('useAtShowEntryListHandlers — placement recompute RPC', () => {
   let actions: EntryListActions;
 

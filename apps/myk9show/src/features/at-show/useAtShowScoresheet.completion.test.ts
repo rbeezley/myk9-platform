@@ -220,6 +220,16 @@ describe('useAtShowScoresheet completion wiring', () => {
     expect(mocks.syncTrials).toHaveBeenCalledTimes(1);
   });
 
+  it('hydrates a missing entry before opening instead of treating a partial cache as complete', async () => {
+    mocks.getEntriesByClass.mockResolvedValueOnce([]);
+    const { result } = renderScoresheet(vi.fn());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.entry?.entryId).toBe('entry-1');
+    expect(mocks.syncTrials).toHaveBeenCalledWith('show-1');
+    expect(mocks.syncEntries).toHaveBeenCalledWith('show-1');
+    expect(mocks.transitionToInRing).toHaveBeenCalledOnce();
+  });
+
   it("passes the entry's own status and ring entry time to the in-ring transition (MYK9-1169)", async () => {
     mocks.getEntriesByClass.mockResolvedValue([
       {
@@ -236,16 +246,6 @@ describe('useAtShowScoresheet completion wiring', () => {
       'in-ring',
       '2026-10-14T18:00:00.000Z'
     );
-  });
-
-  it('hydrates a missing entry before opening instead of treating a partial cache as complete', async () => {
-    mocks.getEntriesByClass.mockResolvedValueOnce([]);
-    const { result } = renderScoresheet(vi.fn());
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.entry?.entryId).toBe('entry-1');
-    expect(mocks.syncTrials).toHaveBeenCalledWith('show-1');
-    expect(mocks.syncEntries).toHaveBeenCalledWith('show-1');
-    expect(mocks.transitionToInRing).toHaveBeenCalledOnce();
   });
 
   it('does not record completion, transition, or navigate when score submission fails', async () => {

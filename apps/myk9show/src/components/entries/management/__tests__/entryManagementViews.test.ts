@@ -11,6 +11,7 @@ describe('buildEntryManagementViews', () => {
     },
     pulls: 4,
     moveUps: 5,
+    registrationNeeded: 2,
   };
 
   it('surfaces the four registration-queue counts and the two exception counts already available', () => {
@@ -23,6 +24,7 @@ describe('buildEntryManagementViews', () => {
       ['waitlist', undefined],
       ['pulls', 4],
       ['move-ups', 5],
+      ['registration-needed', 2],
     ]);
   });
 
@@ -47,6 +49,17 @@ describe('buildEntryManagementViews', () => {
     expect('count' in (moveUpsView ?? {})).toBe(false);
   });
 
+  it('labels the held-entry view and omits its count while it is unknown, never a fake 0', () => {
+    const labelled = buildEntryManagementViews(counts).find(
+      view => view.id === 'registration-needed'
+    );
+    expect(labelled?.label).toBe('Registration number needed');
+    const unknown = buildEntryManagementViews({ ...counts, registrationNeeded: undefined }).find(
+      view => view.id === 'registration-needed'
+    );
+    expect('count' in (unknown ?? {})).toBe(false);
+  });
+
   it('gives every view a non-empty href-free (in-page) entry, in the approved order', () => {
     const views = buildEntryManagementViews(counts);
     expect(views.map(view => view.id)).toEqual([
@@ -57,6 +70,7 @@ describe('buildEntryManagementViews', () => {
       'waitlist',
       'pulls',
       'move-ups',
+      'registration-needed',
     ]);
     expect(views.every(view => view.href === undefined)).toBe(true);
   });

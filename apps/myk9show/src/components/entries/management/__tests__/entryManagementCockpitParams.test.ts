@@ -76,6 +76,12 @@ describe('normalizeEntryManagementCockpitParams', () => {
       { queues: ['needs-review'], tab: 'exceptions', exception: 'waitlist' },
       'tab=exceptions&exception=waitlist',
     ],
+    // MYK9-1162: the Registration number needed pane is URL state like the others.
+    [
+      'tab=exceptions&exception=registration-needed',
+      { queues: ['needs-review'], tab: 'exceptions', exception: 'registration-needed' },
+      'tab=exceptions&exception=registration-needed',
+    ],
     [
       'attention=pending&person=Poppy',
       { queues: ['needs-review'], tab: 'registrations', exception: 'move-ups', search: 'Poppy' },
@@ -152,6 +158,13 @@ describe('normalizeEntryManagementCockpitParams', () => {
     expect(exceptions.toString()).toBe('tab=exceptions&exception=waitlist');
 
     expect(writeCockpitTab(exceptions, 'registrations').toString()).toBe('');
+
+    expect(writeCockpitException(scoped, 'registration-needed').toString()).toBe(
+      'tab=exceptions&exception=registration-needed'
+    );
+    expect(writeCockpitView(params('queue=all'), 'registration-needed').toString()).toBe(
+      'tab=exceptions&exception=registration-needed'
+    );
   });
 
   // MYK9-906: the Payment status filter was cut; a stale link must not narrow the list.

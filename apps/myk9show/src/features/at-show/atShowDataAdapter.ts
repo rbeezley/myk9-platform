@@ -288,6 +288,10 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
     ...(timeLimit2 != null && { timeLimit2 }),
     ...(timeLimit3 != null && { timeLimit3 }),
     ...(areas != null && { areas }),
+    // MYK9-1162: server-computed; absent or unknown reads as not held.
+    ...((re.awaitingRegistrationNumber ?? re.awaiting_registration_number) === true && {
+      awaitingRegistrationNumber: true,
+    }),
   };
 }
 

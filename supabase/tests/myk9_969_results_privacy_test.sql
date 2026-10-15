@@ -648,6 +648,9 @@ BEGIN
   WHERE class_id = '00000000-0000-0000-0000-000000969004';
   UPDATE public.classes SET updated_at = '2000-01-01'
   WHERE id = '00000000-0000-0000-0000-000000969004';
+  -- MYK9-1162: the trial is a GREATEST input (its registry decides held).
+  UPDATE public.trials SET updated_at = '2000-01-01'
+  WHERE id = '00000000-0000-0000-0000-000000969003';
   UPDATE public.shows SET updated_at = '2000-01-01'
   WHERE id = '00000000-0000-0000-0000-000000969002';
   UPDATE public.show_visibility_settings SET updated_at = '2000-01-01'
@@ -765,6 +768,14 @@ BEGIN
 END;
 $$;
 SELECT pg_temp.assert_moved('00000000-0000-0000-0000-000000969042', 'migration epoch');
+
+-- i. MYK9-1162: a trial edit moves its entries' rows. A registry change flips
+--    awaiting_registration_number for every entry in the trial, and it reaches
+--    the replica through this same trials.updated_at input.
+SELECT pg_temp.backdate();
+UPDATE public.trials SET name = 'MYK9-969 Trial (edited)'
+WHERE id = '00000000-0000-0000-0000-000000969003';
+SELECT pg_temp.assert_moved('00000000-0000-0000-0000-000000969042', 'trial edited');
 
 -- The epoch table is unreachable by app roles.
 DO $$

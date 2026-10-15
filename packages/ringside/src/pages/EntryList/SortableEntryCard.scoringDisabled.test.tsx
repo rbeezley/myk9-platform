@@ -143,3 +143,30 @@ describe('SortableEntryCard — scoringDisabled (MYK9-645)', () => {
     );
   });
 });
+
+// MYK9-1162: a held entry keeps its run-order place and says why. It cannot be
+// timed or scored, but the card still opens its scoresheet route, where the
+// judge can record the dog absent.
+describe('SortableEntryCard: awaiting a registration number (MYK9-1162)', () => {
+  it('shows the label and keeps the card tappable, with no Score wording', () => {
+    const handleEntryClick = renderCard(false, vi.fn(), { awaitingRegistrationNumber: true });
+
+    expect(screen.getByText('Registration number needed')).toBeInTheDocument();
+    expect(screen.getByText('See the secretary')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Score Willow' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Willow' })).toBeInTheDocument();
+    screen.getByTestId('dog-card').click();
+    expect(handleEntryClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the status chip so the dog stays in the existing check-in flow', () => {
+    renderCard(false, vi.fn(), { awaitingRegistrationNumber: true });
+    expect(screen.getByTitle('Change check-in')).toBeInTheDocument();
+  });
+
+  it('is unchanged when the flag is absent or false (unknown is not held)', () => {
+    renderCard(false);
+    expect(screen.queryByText('Registration number needed')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Score Willow' })).toBeInTheDocument();
+  });
+});

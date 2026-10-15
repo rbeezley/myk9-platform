@@ -27,3 +27,9 @@ Run38797380231 at caf2a4f61 prepared/seeded the local target, verified isolation
 Independent Claude review recorded three findings. The RPC success/conflict assertion now filters scoring payloads after the online baseline; the workflow checks out and verifies the exact PR head. The midnight concern was checked against migration20261006014300: the canonical seed supplies seven consecutive days, so selecting today's class survives a preparation midnight crossing. Its date query is retained with an explanatory comment. The corrected head still needs a fresh independent verdict and actual browser proof.
 
 Corrected-harness validation: exact Node22.12 discovers both tests in the dedicated project, proof typecheck EXIT0, artifact contracts25 passed, root lint EXIT0 (36 existing warnings), ratchet/format/strict OpenSpec pass. Whole-app shuffled rerun:2,996 files /29,123 tests passed, EXIT0;2 skipped files,11 skipped tests,1 todo.
+
+## Approved redesign
+
+Owner approved the simpler proof design. Native loopback WebSockets replace the proxy; only credential-free socket origins/paths and frame counts are recorded. The endurance proof requires no received frames during offline time. Every role assertion is scoped to Willow's row; the actual hand-placement list verifies gapped 1/2 positions and terminal read-only controls. Concurrency is keyed by source SHA with cancellation disabled. Main #3048 is integrated.
+
+Validation after redesign: proof typecheck and exact Node22.12 discovery of2 tests passed;16 isolation tests,25 artifact contracts, full root typecheck/lint, format, ratchet and strict OpenSpec passed. Whole-app shuffled run:2,997 files /29,127 tests passed, EXIT0 (2 skipped files,11 skipped tests,1 todo). Natural browser acceptance remains pending.

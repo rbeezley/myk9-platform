@@ -13,8 +13,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: isolated-show-day-${{ github.ref }}
-  cancel-in-progress: true
+  group: isolated-show-day-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
 
 jobs:
   proof:

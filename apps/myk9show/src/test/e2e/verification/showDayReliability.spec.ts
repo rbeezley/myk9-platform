@@ -5,6 +5,8 @@ import {
   evidence,
   fixture,
   isolatedClient,
+  judgeRow,
+  secretaryRow,
   replica,
   reset,
   rolePage,
@@ -73,39 +75,96 @@ test('canonical queue positions and state-only controls agree across roles (MYK9
         const judge = await rolePage(browser, 'JUDGE', classPath(f));
         const exhibitor = await rolePage(browser, 'DEMO_EXHIBITOR', `/at-show/${f.showId}`);
         try {
-          await expect(secretary.page.getByText('Willow', { exact: true }).first()).toBeVisible();
-          await expect(exhibitor.page.getByText('Willow', { exact: true }).first()).toBeVisible();
-          await expect(exhibitor.page.locator('body')).toContainText(scenario.exhibitor);
-          const exhibitorText = await exhibitor.page.locator('body').innerText();
-          if (['in-ring', 'pulled', 'completed'].includes(scenario.name))
-            expect(exhibitorText).not.toMatch(
-              /\b(?:[0-9]+(?:st|nd|rd|th) up|Next up|position pending|not posted)\b/i
-            );
-          expect(exhibitorText).not.toMatch(/\b101(?:st|th)?(?: up)?\b/);
-          if (scenario.name === 'gapped') {
-            await expect(judge.page.getByText('Cooper', { exact: true }).first()).toBeVisible();
-            await expect(judge.page.getByText('Willow', { exact: true }).first()).toBeVisible();
-            const judgeText = await judge.page.locator('body').innerText();
-            expect(judgeText.indexOf('Cooper')).toBeLessThan(judgeText.indexOf('Willow'));
-            await expect
-              .poll(async () => (await replica(judge.page, f.willowId)).row?.data?.runOrder)
-              .toBe(101);
-            await secretary.page.getByRole('link', { name: 'Set run order', exact: true }).click();
-            await expect(secretary.page.getByText('Can move up', { exact: true })).toBeVisible();
-            const panel = await secretary.page
-              .getByRole('heading', { name: 'Can move up', exact: true })
-              .locator('..')
-              .innerText();
-            expect(panel.indexOf('Cooper')).toBeLessThan(panel.indexOf('Willow'));
-            expect(panel).not.toMatch(/\b101\b/);
+          const secRow = secretaryRow(secretary.page, 'Willow');
+          const ringRow = judgeRow(judge.page, 'Willow');
+          const ownRow = exhibitor.page.getByTestId(`at-show-my-entry-${f.willowId}`);
+          if (scenario.name === 'completed')
+            await judge.page.getByRole('button', { name: /^Completed/ }).click();
+          for (const entryRow of [secRow, ringRow, ownRow]) {
+            await expect(entryRow).toHaveCount(1);
+            await expect(entryRow).toBeVisible();
+            await expect(entryRow).not.toContainText(/\b101(?:st|th)?(?: up)?\b/);
           }
+          const status = scenario.fields.check_in_status;
+          const statusLabel =
+            status === 'checked-in'
+              ? /checked[- ]in/i
+              : status === 'in-ring'
+                ? /in ring/i
+                : new RegExp(status, 'i');
+          await expect(secRow.getByRole('combobox')).toContainText(statusLabel);
+          await expect(ownRow).toContainText(scenario.exhibitor);
           if (scenario.name === 'completed') {
-            const completed = judge.page.getByRole('tab', { name: /Completed/ });
-            if (await completed.count()) await completed.click();
-            else await judge.page.getByRole('button', { name: /^Completed/ }).click();
-            await expect(judge.page.getByText('Willow', { exact: true }).first()).toBeVisible();
+            await expect(secRow.getByText('Qualified', { exact: true })).toBeVisible();
+            await expect(ringRow.getByText('Q', { exact: true })).toBeVisible();
+            await expect(ownRow.getByText('Completed', { exact: true })).toBeVisible();
           } else
-            await expect(judge.page.getByText('Willow', { exact: true }).first()).toBeVisible();
+            await expect(ringRow.getByTestId('check-in-button')).toHaveAttribute(
+              'aria-label',
+              statusLabel
+            );
+          const terminal = ['in-ring', 'pulled', 'completed'].includes(scenario.name);
+          if (terminal) {
+            await expect(ownRow.getByTestId('at-show-my-entry-place')).toHaveCount(0);
+            for (const entryRow of [secRow, ringRow, ownRow])
+              await expect(entryRow).not.toContainText(
+                /\b(?:[0-9]+(?:st|nd|rd|th) up|Next up|position pending|not posted)\b/i
+              );
+          } else
+            await expect(ownRow.getByTestId('at-show-my-entry-place')).toContainText(
+              scenario.exhibitor
+            );
+          await expect
+            .poll(async () => (await replica(judge.page, f.willowId)).row?.data)
+            .toMatchObject({
+              runOrder: scenario.fields.run_order,
+              checkInStatus: status,
+              isScored: scenario.fields.is_scored,
+            });
+          const exhibitorText = await ownRow.innerText();
+          const secretaryText = await secRow.innerText();
+          const judgeText = await ringRow.innerText();
+          if (scenario.name === 'gapped') {
+            const sheetNames = await secretary.page
+              .getByTestId('secretary-run-sheet')
+              .getByText(/^(Cooper|Willow)$/)
+              .allTextContents();
+            expect(sheetNames).toEqual(['Cooper', 'Willow']);
+            const ringNames = await judge.page
+              .getByTestId('dog-card')
+              .getByRole('heading')
+              .allTextContents();
+            expect(ringNames).toEqual(['Cooper', 'Willow']);
+          }
+          if (scenario.name !== 'null') {
+            await secretary.page.getByRole('link', { name: 'Set run order', exact: true }).click();
+            await secretary.page.getByRole('button', { name: /^Run order for / }).click();
+            await secretary.page.getByRole('menuitem', { name: 'Reorder manually...' }).click();
+            const placement = secretary.page.getByRole('region', { name: 'Place a dog by hand' });
+            const waitingList = placement.getByRole('list', { name: 'Run order', exact: true });
+            const cooper = waitingList.getByRole('listitem').filter({ hasText: 'Cooper' });
+            await expect(cooper.locator(':scope > span')).toHaveText('1');
+            if (!terminal) {
+              const willow = waitingList.getByRole('listitem').filter({ hasText: 'Willow' });
+              await expect(willow.locator(':scope > span')).toHaveText('2');
+              await expect(waitingList.getByRole('listitem')).toHaveCount(2);
+            } else {
+              await expect(waitingList.getByRole('listitem')).toHaveCount(1);
+              const readonlyList = placement.getByRole('list', {
+                name: scenario.name === 'in-ring' ? 'In the ring' : 'Completed',
+                exact: true,
+              });
+              const willow = readonlyList.getByRole('listitem').filter({ hasText: 'Willow' });
+              await expect(willow).toBeVisible();
+              await expect(willow.getByRole('combobox')).toHaveCount(0);
+              await expect(willow.getByRole('button')).toHaveCount(0);
+              await expect(willow.locator(':scope > span')).toHaveCount(0);
+              if (scenario.name === 'pulled') await expect(willow).toContainText('Pulled');
+            }
+            await expect(placement).not.toContainText(/\b101\b/);
+            await screenshot(secretary.page, info, scenario.name + '-hand-placement');
+          }
+          expect(await row(client, f.willowId)).toEqual(stored);
           await screenshot(exhibitor.page, info, scenario.name + '-exhibitor');
           await screenshot(judge.page, info, scenario.name + '-judge');
           await screenshot(secretary.page, info, scenario.name + '-secretary');
@@ -113,6 +172,8 @@ test('canonical queue positions and state-only controls agree across roles (MYK9
             build: testedBuild,
             sql: stored,
             exhibitor: exhibitorText,
+            secretary: secretaryText,
+            judge: judgeText,
             judgeReplica: await replica(judge.page, f.willowId),
           });
         } finally {
@@ -169,12 +230,15 @@ test('expired token after 61 real minutes offline still queues and uploads the s
     const monotonicStart = performance.now();
     await judge.context.setOffline(true);
     expect(await judge.page.evaluate(() => navigator.onLine)).toBe(false);
+    const offlineReceivedFrames = judge.receivedSocketFrames();
     await evidence(info, 'offline-start', {
       build: testedBuild,
       wallStart,
       expiresAt: initial.expiresAt,
       userId: initial.userId,
       baseline,
+      socketUrls: judge.socketUrls,
+      offlineReceivedFrames,
     });
     for (let minute = 1; minute <= 61; minute++) {
       await new Promise(resolve => setTimeout(resolve, 60_000));
@@ -183,6 +247,7 @@ test('expired token after 61 real minutes offline still queues and uploads the s
       );
     }
     expect(performance.now() - monotonicStart).toBeGreaterThanOrEqual(61 * 60_000);
+    expect(judge.receivedSocketFrames()).toBe(offlineReceivedFrames);
     const expired = await sessionIdentity(judge.page);
     expect(expired.userId).toBe(initial.userId);
     expect(expired.expiresAt * 1000).toBeLessThan(Date.now());
@@ -205,6 +270,7 @@ test('expired token after 61 real minutes offline still queues and uploads the s
     await evidence(info, 'offline-score', {
       wallEnd: Date.now(),
       elapsedMs: performance.now() - monotonicStart,
+      receivedFramesWhileOffline: judge.receivedSocketFrames() - offlineReceivedFrames,
       expired,
       local,
       serverStill: baseline,
@@ -245,15 +311,13 @@ test('expired token after 61 real minutes offline still queues and uploads the s
     const exhibitor = await rolePage(browser, 'DEMO_EXHIBITOR', `/at-show/${f.showId}`);
     const secretary = await rolePage(browser, 'SECRETARY', secretaryPath(f));
     try {
-      await expect(exhibitor.page.getByText('Willow', { exact: true }).first()).toBeVisible();
-      await expect(
-        exhibitor.page.getByRole('group', { name: 'Result', exact: true })
-      ).toContainText(/Q/);
-      await expect(
-        exhibitor.page.getByRole('group', { name: 'Result', exact: true })
-      ).toContainText('61.2s');
-      await expect(secretary.page.getByText('Willow', { exact: true }).first()).toBeVisible();
-      await expect(secretary.page.getByTestId('secretary-run-sheet')).toContainText('Qualified');
+      const ownRow = exhibitor.page.getByTestId(`at-show-my-entry-${f.willowId}`);
+      await expect(ownRow).toBeVisible();
+      await expect(ownRow.getByRole('group', { name: 'Result', exact: true })).toContainText(/Q/);
+      await expect(ownRow.getByRole('group', { name: 'Result', exact: true })).toContainText(
+        '61.2s'
+      );
+      await expect(secretaryRow(secretary.page, 'Willow')).toContainText('Qualified');
       await screenshot(exhibitor.page, info, 'uploaded-exhibitor');
       await screenshot(secretary.page, info, 'uploaded-secretary');
       await evidence(info, 'upload-confirmed', {

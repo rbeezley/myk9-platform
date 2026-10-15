@@ -8,6 +8,8 @@ Read-only preparation decision: “Prepare checks without shared-data writes.”
 
 Current direction: **“Verify MYK9-1204 and MYK9-992 in an isolated test environment without changing shared data, then close them if all acceptance criteria pass.”**
 
+Approved redesign decision (verbatim): **“Approve the simpler proof design (Recommended)”** — native loopback browser connections, row-scoped role assertions and proof runs preserved per source SHA.
+
 ## Why
 
 The fixes for both issues are merged and deployed. The remaining browser/SQL evidence needs a mutable fixture, while shared data must remain unchanged. A disposable GitHub Actions Supabase instance supplies real auth, RLS, database, replication and browser behavior with no shared target.

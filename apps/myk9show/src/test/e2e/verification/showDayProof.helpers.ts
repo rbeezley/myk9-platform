@@ -3,6 +3,7 @@ import {
   type Browser,
   type BrowserContext,
   type Page,
+  type Locator,
   type TestInfo,
 } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
@@ -115,10 +116,6 @@ export async function guardedContext(browser: Browser): Promise<BrowserContext> 
   await context.route('**/*', route =>
     loopback(route.request().url()) ? route.continue() : route.abort('blockedbyclient')
   );
-  await context.routeWebSocket('**/*', socket => {
-    if (loopback(socket.url())) socket.connectToServer();
-    else socket.close();
-  });
   return context;
 }
 export async function rolePage(
@@ -128,10 +125,18 @@ export async function rolePage(
 ) {
   const context = await guardedContext(browser);
   const page = await context.newPage();
+  let receivedFrames = 0;
+  const socketUrls: string[] = [];
+  page.on('websocket', socket => {
+    const url = new URL(socket.url());
+    socketUrls.push(url.origin + url.pathname);
+    expect(loopback(socket.url())).toBe(true);
+    socket.on('framereceived', () => receivedFrames++);
+  });
   const account = TEST_USERS[role];
   if (!account) throw new Error('Missing role');
   await signIn(page, account.email, account.password, path, { reuseSession: false });
-  return { context, page };
+  return { context, page, socketUrls, receivedSocketFrames: () => receivedFrames };
 }
 export function classPath(f: Fixture) {
   return `/at-show/${f.showId}/class/${f.classId}`;
@@ -199,4 +204,17 @@ export async function screenshot(page: Page, info: TestInfo, name: string) {
     body: await page.screenshot({ fullPage: true }),
     contentType: 'image/png',
   });
+}
+
+/** Existing row boundaries; never let tabs or another dog's copy satisfy an assertion. */
+export function judgeRow(page: Page, dog: string): Locator {
+  return page
+    .getByTestId('dog-card')
+    .filter({ has: page.getByRole('heading', { name: dog, exact: true }) });
+}
+export function secretaryRow(page: Page, dog: string): Locator {
+  return page
+    .getByTestId('secretary-run-sheet')
+    .getByText(dog, { exact: true })
+    .locator('xpath=ancestor::div[.//*[@role="combobox"]][1]');
 }

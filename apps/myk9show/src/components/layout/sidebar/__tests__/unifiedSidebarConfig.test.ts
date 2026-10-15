@@ -390,7 +390,7 @@ describe('buildUnifiedSidebarConfig — account identity', () => {
   });
 
   it('falls back to "myK9" when firstName is null', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, undefined, null);
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, null);
     expect(config.accountName).toBe('myK9');
   });
 
@@ -400,7 +400,7 @@ describe('buildUnifiedSidebarConfig — account identity', () => {
   });
 
   it('falls back to "myK9" when firstName is empty/whitespace', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, undefined, '   ');
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, '   ');
     expect(config.accountName).toBe('myK9');
   });
 

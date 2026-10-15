@@ -16,6 +16,8 @@
 --   H. a registration DELETE advances the entry's updated_at (replicas re-read)
 --   I. grants: authenticated may execute the predicate (the views need it), anon
 --      may not, and anon has no SELECT on either entry-results view
+--   J. a held entry still counts toward capacity: it is in the class's entry count,
+--      the class reads full at that limit, and releasing the hold changes no count
 --
 -- Fixtures roll back.
 
@@ -402,6 +404,77 @@ begin
     raise exception 'FAIL I anon can read an entry-results view';
   end if;
   raise notice 'PASS I authenticated may execute the predicate, anon may not, and anon cannot read the entry-results views';
+end $$;
+
+-- J. capacity still counts a held entry
+reset role;
+insert into public.dogs (id, name, call_name, breed) values
+  ('00000000-0000-0000-0000-000001162039', 'MYK9-1162 Capacity Held', 'Cap', 'Beagle');
+alter table public.entries disable trigger trg_entries_require_dog_registration;
+insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, armband, run_order, check_in_status) values
+  ('00000000-0000-0000-0000-000001162049', '00000000-0000-0000-0000-000001162039',
+   '00000000-0000-0000-0000-000001162023', '00000000-0000-0000-0000-000001162021',
+   '00000000-0000-0000-0000-000001162022', 'confirmed', '9', 9, 'no-status');
+alter table public.entries enable trigger trg_entries_require_dog_registration;
+
+set local role authenticated;
+select pg_temp.as_account('00000000-0000-0000-0000-000001162101');
+do $$
+declare
+  r record;
+  held boolean;
+begin
+  select awaiting_registration_number into held
+    from public.view_authenticated_entry_results_replication
+   where id = '00000000-0000-0000-0000-000001162049';
+  if held is distinct from true then
+    raise exception 'FIXTURE J the capacity entry is not held (%)', held;
+  end if;
+  select * into r from public.get_show_class_availability('00000000-0000-0000-0000-000001162021')
+   where class_id = '00000000-0000-0000-0000-000001162023';
+  if r is null or r.entry_count < 1 then
+    raise exception 'FAIL J no availability row for the class';
+  end if;
+  insert into myk9_1162 (step, value) values ('j_count', r.entry_count::text);
+end $$;
+
+reset role;
+update public.classes
+   set max_entries = (select value::int from myk9_1162 where step = 'j_count')
+ where id = '00000000-0000-0000-0000-000001162023';
+
+set local role authenticated;
+select pg_temp.as_account('00000000-0000-0000-0000-000001162101');
+do $$
+declare
+  r record;
+  v_with_held int := (select value::int from myk9_1162 where step = 'j_count');
+begin
+  select * into r from public.get_show_class_availability('00000000-0000-0000-0000-000001162021')
+   where class_id = '00000000-0000-0000-0000-000001162023';
+  if not r.class_full then
+    raise exception 'FAIL J a class at its limit with a held entry did not read full (count %, max %)',
+      r.entry_count, v_with_held;
+  end if;
+  raise notice 'PASS J a held entry fills its place: the class reads full at its limit';
+end $$;
+
+-- Releasing the hold changes no count: the held entry was counted all along.
+reset role;
+insert into public.dog_registrations (dog_id, organization, registration_number, is_primary)
+values ('00000000-0000-0000-0000-000001162039', 'AKC', 'SR1162099', true);
+set local role authenticated;
+select pg_temp.as_account('00000000-0000-0000-0000-000001162101');
+do $$
+declare r record;
+begin
+  select * into r from public.get_show_class_availability('00000000-0000-0000-0000-000001162021')
+   where class_id = '00000000-0000-0000-0000-000001162023';
+  if r.entry_count <> (select value::int from myk9_1162 where step = 'j_count') then
+    raise exception 'FAIL J releasing the hold changed the class count (% -> %)',
+      (select value from myk9_1162 where step = 'j_count'), r.entry_count;
+  end if;
+  raise notice 'PASS J releasing the hold changes no count';
 end $$;
 
 rollback;

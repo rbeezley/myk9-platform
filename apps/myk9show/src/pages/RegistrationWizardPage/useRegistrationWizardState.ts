@@ -296,7 +296,6 @@ export function useRegistrationWizardState() {
   const [handlerAssignments, setHandlerAssignments] = useState<Record<string, HandlerInfo>>({});
   const [registrationId, setRegistrationId] = useState<string | undefined>();
   const [registrationNumber, setRegistrationNumber] = useState<string | undefined>();
-  const [isCreatingRegistration, setIsCreatingRegistration] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(PaymentStatus.PENDING);
   const [entryStatus, setEntryStatus] = useState<EntryStatus>(EntryStatus.PENDING);
   const [armbandAssignments, setArmbandAssignments] = useState<ArmbandAssignment[]>([]);
@@ -653,8 +652,6 @@ export function useRegistrationWizardState() {
     setRegistrationId,
     registrationNumber,
     setRegistrationNumber,
-    isCreatingRegistration,
-    setIsCreatingRegistration,
     paymentStatus,
     setPaymentStatus,
     setEntryStatus,

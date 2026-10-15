@@ -56,7 +56,7 @@ export function waitlistAdmin(): SupabaseClient {
   return createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 }
 
-async function must<T>(
+export async function must<T>(
   label: string,
   query: PromiseLike<{ data: T; error: { message: string } | null }>
 ): Promise<NonNullable<T>> {
@@ -67,7 +67,7 @@ async function must<T>(
 }
 
 /** A write: only the error matters (no `.select()`, so `data` is null). */
-async function ok(label: string, query: PromiseLike<{ error: { message: string } | null }>) {
+export async function ok(label: string, query: PromiseLike<{ error: { message: string } | null }>) {
   const { error } = await query;
   if (error) throw new Error(`${label}: ${error.message}`);
 }

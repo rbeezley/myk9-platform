@@ -319,6 +319,56 @@ describe('send_registration_number_needed action', () => {
     expect(actions.indexOf('update')).toBeLessThan(actions.indexOf('insert'));
   });
 
+  it.each([
+    ['a send that died after the provider accepted it (stale ready)', 'ready', 11],
+    ['a failed delivery', 'failed', 0],
+  ])(
+    'recovers %s with its OWN key when the address is unchanged, so it cannot deliver twice',
+    async (_label, status, ageMinutes) => {
+      const { fetch, calls, run } = arrange({
+        jobs: [
+          {
+            ...readyJob,
+            id: 'earlier',
+            show_id: 'show-1',
+            step_type: 'registration_number_needed',
+            entry_id: 'entry-1',
+            status,
+            recipient_email: 'jamie@example.com',
+            idempotency_key: 'earlier-key',
+            created_at: new Date(Date.now() - ageMinutes * 60 * 1000).toISOString(),
+          },
+        ],
+      });
+
+      await expect(run()).resolves.toMatchObject({ status: 'sent', jobId: 'earlier' });
+      expect(jobCalls(calls).some(call => call.action === 'insert')).toBe(false);
+      const headers = (
+        fetch.mock.calls[0] as unknown as [string, { headers: Record<string, string> }]
+      )[1].headers;
+      expect(headers['Idempotency-Key']).toBe('earlier-key');
+    }
+  );
+
+  it('replaces the earlier email with a fresh one when the address has changed since', async () => {
+    const { calls, run } = arrange({
+      jobs: [
+        {
+          id: 'old-address',
+          show_id: 'show-1',
+          step_type: 'registration_number_needed',
+          entry_id: 'entry-1',
+          status: 'failed',
+          recipient_email: 'old@example.com',
+        },
+      ],
+    });
+
+    await expect(run()).resolves.toMatchObject({ status: 'sent', jobId: 'inserted-job-1' });
+    const actions = jobCalls(calls).map(call => call.action);
+    expect(actions.indexOf('update')).toBeLessThan(actions.indexOf('insert'));
+  });
+
   it('answers busy, with no Resend call, when another send holds the entry (23505)', async () => {
     const { fetch, run } = arrange({
       jobInsertError: { code: '23505', message: 'duplicate key value' },

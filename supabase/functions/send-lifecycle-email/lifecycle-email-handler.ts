@@ -503,12 +503,17 @@ async function sendRegistrationNumberNeeded(args: {
   // is a send that died mid-way, and is replaced. A FAILED job is replaced.
   const { data: outstanding, error: outstandingError } = (await supabase
     .from('show_lifecycle_email_jobs')
-    .select('id, status, created_at')
+    .select('id, status, created_at, recipient_email')
     .eq('show_id', showId)
     .eq('step_type', 'registration_number_needed')
     .eq('entry_id', entryId)
     .in('status', ['ready', 'failed'])) as QueryResult<
-    Array<{ id: string; status: string; created_at: string | null }>
+    Array<{
+      id: string;
+      status: string;
+      created_at: string | null;
+      recipient_email: string | null;
+    }>
   >;
   if (outstandingError) throw new HttpError(500, 'Failed to read the earlier email');
   const staleBefore = Date.now() - NUMBER_NEEDED_STALE_SEND_MS;
@@ -517,6 +522,21 @@ async function sendRegistrationNumberNeeded(args: {
   if ((outstanding ?? []).some(row => row.status === 'ready' && !isStale(row))) {
     return { status: 'busy' };
   }
+  // Recover, never duplicate: a failed or stuck email whose address is still current
+  // is re-sent AS ITSELF, with its own provider Idempotency-Key, so an attempt the
+  // provider already accepted (but this handler never recorded) is not delivered
+  // twice. Only an address that changed since gets a fresh email.
+  const sameAddress = (outstanding ?? []).find(
+    row => row.recipient_email?.trim().toLowerCase() === recipientEmail.toLowerCase()
+  );
+  if (sameAddress) {
+    const [job] = await fetchJobs(supabase, showId, [sameAddress.id]);
+    if (job) {
+      const resent = await sendOneJob({ deps: args.deps, job, payload, supabase, userId });
+      return { status: resent.status, jobId: job.id };
+    }
+  }
+
   const supersede = (outstanding ?? []).map(row => row.id);
   if (supersede.length > 0) {
     const { error: supersedeError } = (await supabase

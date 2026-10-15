@@ -2,7 +2,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RowRefetchAdapter } from '@myk9/replication';
 
-const { mockFrom, mockRpc } = vi.hoisted(() => ({ mockFrom: vi.fn(), mockRpc: vi.fn() }));
+const { mockFrom, mockRpc, session } = vi.hoisted(() => ({
+  mockFrom: vi.fn(),
+  mockRpc: vi.fn(),
+  session: { userId: 'user-a' as string | null },
+}));
+
+vi.mock('@/services/database/persistedAuthUserId', () => ({
+  readPersistedAuthUserId: () => session.userId,
+}));
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: mockFrom, rpc: mockRpc },
@@ -41,6 +49,7 @@ function rpcCalls(name: string): unknown[][] {
 describe('per-show enrichment RPCs across a per-trial class sync (MYK9-1170)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    session.userId = 'user-a';
     mockFrom.mockImplementation((table: string) => {
       if (table === 'classes') {
         return {
@@ -123,6 +132,31 @@ describe('per-show enrichment RPCs across a per-trial class sync (MYK9-1170)', (
     await syncEveryTrial(table);
 
     expect(rpcCalls('get_show_judges')).toHaveLength(2);
+    expect(rpcCalls('get_show_class_hide_counts')).toHaveLength(2);
+  });
+
+  it('never shares a read across an account switch: both RPCs answer per caller', async () => {
+    // Hold every RPC on the wire until released, so account B's sync overlaps account A's read.
+    const answer = mockRpc.getMockImplementation()!;
+    let release: () => void = () => {};
+    const wire = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    mockRpc.mockImplementation(async (...args: unknown[]) => {
+      await wire;
+      return answer(...args);
+    });
+    const table = new ReplicatedClassesTable();
+    const accountA = syncEveryTrial(table);
+    // Hide counts are read first; hold them on the wire while the account switches.
+    await vi.waitFor(() => expect(rpcCalls('get_show_class_hide_counts')).toHaveLength(1));
+    session.userId = 'user-b';
+    const accountB = syncEveryTrial(table);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    release();
+    await Promise.all([accountA, accountB]);
+
+    // B started its hide-counts read while A's was on the wire, under a different account.
     expect(rpcCalls('get_show_class_hide_counts')).toHaveLength(2);
   });
 });

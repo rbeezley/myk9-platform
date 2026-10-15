@@ -25,7 +25,8 @@ import {
   resolveVisibilityForClassRows,
   type ResolvedClassVisibility,
 } from './resolveClassVisibility';
-import { createInFlightSharer } from '@/services/database/_shared/shareInFlight';
+import { createInFlightSharer, type ShareRead } from '@/services/database/_shared/shareInFlight';
+import { readPersistedAuthUserId } from '@/services/database/persistedAuthUserId';
 import { resolveHideCountsForClassRows } from './resolveClassHideCounts';
 import { resolveJudgeNamesForClassRows } from './resolveClassJudgeNames';
 import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeFields';
@@ -594,9 +595,13 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
 
   /**
    * MYK9-1170: a show syncs one trial at a time, and each trial's enrichment asks the same
-   * per-show RPCs. Overlapping asks share one round trip; see `createInFlightSharer`.
+   * per-show RPCs. Overlapping asks share one round trip; see `createInFlightSharer`. Both
+   * RPCs answer per caller, so the key carries the signed-in account: a sync that starts after
+   * an account switch never joins the previous account's read.
    */
-  private readonly shareShowRead = createInFlightSharer();
+  private readonly sharedShowReads = createInFlightSharer();
+  private readonly shareShowRead: ShareRead = (key, read) =>
+    this.sharedShowReads(`${readPersistedAuthUserId() ?? 'anon'}:${key}`, read);
 
   /** Server-derived values a class row carries offline (visibility, hides, judge). */
   private async enrichClassRows(rows: ClassRow[]): Promise<EnrichedClassRow[]> {

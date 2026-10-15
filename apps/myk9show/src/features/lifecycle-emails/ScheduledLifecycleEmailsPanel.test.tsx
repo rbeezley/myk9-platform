@@ -226,8 +226,8 @@ describe('ScheduledLifecycleEmailsPanel', () => {
   });
 
   it('never traps the secretary offline: the send fails fast and Close works', async () => {
-    // The app's real defaults park an online-only mutation while offline, which kept the
-    // panel unclosable with Send stuck on "Sending..." (MYK9-1191 review).
+    // The app's real defaults park an online-only mutation while offline: Send would sit on
+    // "Sending..." and then fire on its own when the network returns (MYK9-1191 review).
     mockSendJobs.mockRejectedValue(new Error('Failed to fetch'));
     const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />, {
       queryClient: createAppQueryClient(),
@@ -245,7 +245,7 @@ describe('ScheduledLifecycleEmailsPanel', () => {
     }
   });
 
-  it('blocks Close, the X and Escape while a send is in flight, then re-enables them', async () => {
+  it('lets the secretary close mid-send, and a reopened panel still shows the send in flight', async () => {
     let finish: (error: Error) => void = () => {};
     mockSendJobs.mockReturnValue(
       new Promise((_resolve, reject) => {
@@ -256,16 +256,18 @@ describe('ScheduledLifecycleEmailsPanel', () => {
     await user.click(await screen.findByRole('button', { name: 'Review' }));
     await screen.findByRole('dialog');
     await user.click(screen.getByRole('button', { name: 'Send now' }));
+    await screen.findByRole('button', { name: 'Sending...' });
 
-    const close = await screen.findByRole('button', { name: 'Close' });
-    expect(close).toBeDisabled();
-    expect(screen.queryByRole('button', { name: 'Close panel' })).not.toBeInTheDocument();
-    await user.keyboard('{Escape}');
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    expect(await screen.findByRole('button', { name: 'Sending...' })).toBeDisabled();
+    expect(mockSendJobs).toHaveBeenCalledTimes(1);
 
     finish(new Error('boom'));
-    await screen.findByRole('alert');
-    expect(screen.getByRole('button', { name: 'Close' })).toBeEnabled();
+    expect(await screen.findByRole('button', { name: 'Send now' })).toBeEnabled();
   });
 
   it('shows one calm sentence, never raw error text, for any other send failure', async () => {

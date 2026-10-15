@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarClock } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -194,7 +194,12 @@ function LifecycleBatchReviewDialog({
     queryClient.invalidateQueries({
       queryKey: ['show-lifecycle-email-review', showId, stepType],
     });
+  // Keyed so a reopened panel still sees a send that outlived the one that started it: a second
+  // Send racing an in-flight chunked send doubles up email_log rows (MYK9-1191).
+  const sendKey = ['lifecycle-send', showId, stepType];
+  const sending = useIsMutating({ mutationKey: sendKey }) > 0;
   const sendMutation = useMutation({
+    mutationKey: sendKey,
     mutationFn: async (input: { sendJobs: LifecycleEmailJobReview[]; skippedJobIds: string[] }) => {
       await skipLifecycleEmailJobsForReview({
         supabase: lifecycleClient,
@@ -223,8 +228,8 @@ function LifecycleBatchReviewDialog({
     // The send is resumable ("Send again"); an automatic retry would restart at chunk 1 and
     // scramble the sent count (MYK9-1191).
     retry: false,
-    // Run even offline so it fails fast into onError; a paused mutation stays pending and
-    // would leave the panel unclosable (preventClose) until the network returns.
+    // Run even offline so it fails fast into onError; a paused mutation would sit on "Sending..."
+    // and then fire on its own when the network returns.
     networkMode: 'always',
   });
   const unsent = sendMutation.data && sendMutation.data.failed > 0 ? sendMutation.data : null;
@@ -248,8 +253,6 @@ function LifecycleBatchReviewDialog({
     <SlideOverPanel
       open={true}
       onClose={() => onOpenChange(false)}
-      // A second Send racing an in-flight chunked send doubles up email_log rows (MYK9-1191).
-      preventClose={sendMutation.isPending}
       title={`${STEP_LABELS[stepType]} review`}
       size="lg"
       footer={
@@ -273,22 +276,15 @@ function LifecycleBatchReviewDialog({
             </p>
           ) : null}
           <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={sendMutation.isPending}
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Close
             </Button>
             <Button
               type="button"
-              disabled={
-                sendMutation.isPending || (selectedJobs.length === 0 && skippedJobIds.length === 0)
-              }
+              disabled={sending || (selectedJobs.length === 0 && skippedJobIds.length === 0)}
               onClick={() => sendMutation.mutate({ sendJobs: selectedJobs, skippedJobIds })}
             >
-              {sendMutation.isPending ? 'Sending...' : 'Send now'}
+              {sending ? 'Sending...' : 'Send now'}
             </Button>
           </div>
         </div>

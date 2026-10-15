@@ -47,15 +47,30 @@ Does this duplicate an existing page? No. It removes the "Browse" sidebar group 
 
 Each phase ships on its own; stopping after any phase leaves a coherent app.
 
-1. **Shows list with a detail pane.** `/shows` list on the left, `/shows/:id` on the right from `lg`. Today / Upcoming / Past grouping, managed shows pinned. Replace the single `nextShow` sidebar link once the list covers it.
-   - **[ADDED] Spike first.** In the browser at 1024, 1280 and 1440px, open every show management tab (Overview cockpit, Entries, Schedule, Results) inside the detail pane and record whether the cockpit split, pinned header and sticky entry pane still work. Write the result and the (a)/(b) decision into this plan before building.
-2. **One browse pane.** Shows / Dogs / People / Clubs tabs over a shared list pane; Clubs moves to a detail pane too. Delete the sidebar "Browse" group.
-3. **Labeled icon rail.** The remaining sidebar items (Show Management, Ringside, My Entries, My Club items, Admin, Help, account) render as icon plus label at about 64px. Admin's long list may need a grouped "Admin" rail item that opens its own sub-list; decide when the item count is measured.
+1. **Labeled icon rail.** _[REORDERED 2026-10-15: was phase 3.]_ Every sidebar item renders as icon plus label at about 64px. The Browse items (Shows, Dogs, People, Clubs) stay as rail items until phase 3 merges them into tabs. Admin's long list may need a grouped "Admin" rail item that opens its own sub-list; decide when the item count is measured.
    - **[EXPANDED] Labels.** Each rail label is one or two short words (for example "Payments", not "My Payments"); a label that does not fit in two lines is renamed, never truncated. Count the rail per role combination before building: if any combination exceeds about eight items, group the lowest-use ones (the Admin pages first) under one item.
+   - **Why first.** The spike measured the end state (64px rail + 320px list replacing the 240px sidebar). Shipped before the rail, the Shows list would sit beside the full sidebar and leave the show 880px at a 1440 window and 720px at 1280, where the cockpit still splits and the schedule gets about 340px. The rail first gives every page 176px back and lets the Shows list land at the measured widths.
+
+2. **Shows list with a detail pane.** _Requires phase 1 (rail); the decision below assumes it._ `/shows` list on the left, `/shows/:id` on the right from `lg`. Today / Upcoming / Past grouping, managed shows pinned. Replace the single `nextShow` sidebar link once the list covers it.
+   - **[ADDED] Spike first.** In the browser at 1024, 1280 and 1440px, open every show management tab (Overview cockpit, Entries, Schedule, Results) inside the detail pane and record whether the cockpit split, pinned header and sticky entry pane still work. Write the result and the (a)/(b) decision into this plan before building.
+   - **Spike result (2026-10-15, MYK9-1213).** Measured with Playwright as `secretary@myk9t.com` on Heartland Scent Work Week, every tab (Overview, Entry Forms, Results, Reports), with the main column narrowed by 384px (64px rail + 320px list) against today's 240px sidebar. A known-answer check (today's layout at 1440px must split) passed.
+
+     | Window | Show width today | Show width in pane | Overview cockpit (schedule / focus) | Entry Forms two columns |
+     | ------ | ---------------- | ------------------ | ----------------------------------- | ----------------------- |
+     | 1440   | 1200             | 1056               | split, 671/481 → 588/420            | yes → yes               |
+     | 1280   | 1040             | 896                | split, 579/413 → 488/360 (minimum)  | no → no                 |
+     | 1024   | 784              | 640                | one column → one column             | no → no                 |
+
+     No tab scrolled sideways at any width, and the pinned show header and tab strip stayed pinned after scrolling in every case. The pane costs only 144px, because the rail plus list replaces a 240px sidebar: at 1440 the show in the pane is about as wide as today's show at 1280. At 1024 the pane leaves 640px; nothing breaks, but the show header wraps to three rows, the title truncates and the entry-form table truncates its column headings.
+
+     The cockpit picks its split from the window width (`isSplitViewport`), not the width it is given, so at 1280 it splits at its 360px minimum focus column. That is usable but is the floor.
+
+   - **Decision: (a) from 1280, (b) below it.** From a 1280px window the show page sits in the detail pane beside the list. Between 1024 and 1279 the list pane folds away automatically while a show is open, with a visible "Shows" button to bring it back, so the show keeps today's width there. The rule is the window width, matching the cockpit's own breakpoint, so the two never disagree. Follow-up, not in this phase: make the cockpit split on its container width instead of the window.
+3. **One browse pane.** Shows / Dogs / People / Clubs tabs over a shared list pane; Clubs moves to a detail pane too. Remove the Shows, Dogs, People and Clubs items from the rail.
 
 4. **Exhibitor-only users.** Two tabs, My Shows and My Dogs (exhibitors never see People or Clubs). My Shows lists the shows they entered, grouped Upcoming / Past; the detail pane is their entries for that show (dogs, classes, run order, receipts, withdraw). A "Find a show" button at the top of the list replaces the separate Find Shows item. Rail: My Shows, My Dogs, Payments, Show Day, Help, account.
    - **Duplication:** `/exhibitor/entries` (My Shows today) already groups entries by show. This phase _replaces_ that page's layout with the list and detail panes; it must not add a second copy. Carry over the Show Today banner, receipts and payment status, and keep the route so links and bookmarks still land.
-   - Ships after phase 1 so the entries-page merge gets its own review. Mobile stays as it is today (menu drawer, full-page taps); most exhibitors are on phones, so this is mainly a desktop change.
+   - Ships after phase 2 so the entries-page merge gets its own review. Mobile stays as it is today (menu drawer, full-page taps); most exhibitors are on phones, so this is mainly a desktop change.
 
 ## Testing
 

@@ -29,7 +29,8 @@ function railItemStateClass(active: boolean): string {
 }
 
 /** Wraps at spaces only; a word too wide for the rail is renamed, never cut. */
-const RAIL_LABEL_CLASS = 'max-w-full text-[11px] font-medium leading-tight';
+// text-xs is the app's 14px caption step, the INTENT.md floor for any text.
+const RAIL_LABEL_CLASS = 'max-w-full text-xs font-medium leading-tight';
 
 interface RailNavProps {
   groups: NavGroup[];
@@ -80,7 +81,7 @@ function RailLink({ item, active }: { item: NavItem; active: boolean }) {
       <span className="relative">
         <Icon className="h-5 w-5" aria-hidden="true" />
         {item.badge && (
-          <span className="absolute -right-2.5 -top-1.5 rounded-full bg-primary px-1 text-[10px] font-semibold leading-4 text-primary-foreground">
+          <span className="absolute -right-2.5 -top-1.5 rounded-full bg-primary px-1 text-xs font-semibold leading-4 text-primary-foreground">
             {item.badge}
           </span>
         )}
@@ -110,7 +111,12 @@ function RailMenu({ title, icon: Icon, sections, isActive }: RailMenuProps) {
           <span className={RAIL_LABEL_CLASS}>{title}</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent side="right" align="start" sideOffset={8} className="w-72 p-2">
+      <PopoverContent
+        side="right"
+        align="start"
+        sideOffset={8}
+        className="max-h-[var(--available-height)] w-72 overflow-y-auto p-2"
+      >
         <p className="px-2 pb-1 pt-1 text-sm font-semibold text-foreground">{title}</p>
         {sections.map(section => (
           <div key={section.title} className="pt-1">

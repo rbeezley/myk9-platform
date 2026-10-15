@@ -75,7 +75,7 @@ export function AccountMenu({
             </Avatar>
 
             {isSidebar && rail && (
-              <span className="max-w-full break-words text-[11px] font-medium leading-tight text-foreground">
+              <span className="max-w-full break-words text-xs font-medium leading-tight text-foreground">
                 {resolvedName}
               </span>
             )}

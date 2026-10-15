@@ -26,7 +26,7 @@ import { filterManagedShows, managedClubIds } from '@/utils/roleScopes';
 
 // Desktop shows the labeled icon rail; below `md` the same config opens as the
 // full-width drawer (docs/plan-sidebar-browse-pane.md, phase 1).
-const RAIL_WIDTH_PX = 76;
+const RAIL_WIDTH_PX = 88;
 const DRAWER_WIDTH_PX = 240;
 
 export const UnifiedAppLayout: React.FC = () => {

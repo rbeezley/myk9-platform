@@ -30,6 +30,7 @@ import { useDogReplicaForEdit } from '@/hooks/useDogReplicaForEdit';
 import { queryKeys } from '@/lib/queryClient';
 import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompatUtils';
 import { syncDogRegistrations } from '@/hooks/dogStoreCompatHelpers';
+import { DEFAULT_REGISTRATION_ORG } from '@/components/dogs/registrationForm';
 import { mirrorServerDogRegistrations } from '@/services/database/registrations/replicaMirror';
 import { rethrownDogDbError } from '@/hooks/translateDogDbError';
 import { FriendlySaveError } from '@/utils/friendlySaveError';
@@ -114,7 +115,7 @@ export const useDogStoreCompat = () => {
         const registrationsToCreate = dogData.registrations.filter(r => r.registeredName);
         const createdAts = createRegistrationTimestamps(registrationsToCreate.length);
         const registrationsPayload = registrationsToCreate.map((r, index) => ({
-          organization: r.organization || 'AKC',
+          organization: r.organization || DEFAULT_REGISTRATION_ORG,
           registered_name: r.registeredName,
           registration_number: r.number || '',
           breed: r.type || null,
@@ -211,7 +212,7 @@ export const useDogStoreCompat = () => {
       // decided by a random UUID (MYK9-90 review round 4).
       const createdAts = createRegistrationTimestamps(dogData.registrations.length);
       const registrationRows = dogData.registrations.map((registration, index) => ({
-        organization: registration.organization || 'AKC',
+        organization: registration.organization || DEFAULT_REGISTRATION_ORG,
         registered_name: registration.registeredName || null,
         registration_number: registration.number || '',
         breed: registration.type || null,

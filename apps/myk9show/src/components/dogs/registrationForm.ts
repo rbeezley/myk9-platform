@@ -44,6 +44,33 @@ export function registrationOrgCode(organization: string): string {
   );
 }
 
+/**
+ * The select's full label for a stored organization. A bare short code (`AKC`,
+ * matched case-insensitively) becomes its full label so the select shows it
+ * selected and a save writes the label (MYK9-1207); anything else is unchanged.
+ */
+export function registrationOrgLabel(organization: string): string {
+  if (REGISTRATION_ORGS.includes(organization)) return organization;
+  const code = organization.trim().toLowerCase();
+  if (!code) return organization;
+  // A stored value may be the label in another case, a breed-list code (`AKC`),
+  // a label's leading word (`PAL`, `ILP`) or its spelled-out name ("American
+  // Kennel Club"). The breed-list code is tried before the leading word so that
+  // `AKC` lands on the AKC label, not on ILP or PAL, which share that code.
+  const shortName = (label: string) => label.split(' (')[0]?.toLowerCase();
+  const longName = (label: string) => /\(([^)]+)\)$/.exec(label)?.[1]?.toLowerCase();
+  return (
+    REGISTRATION_ORGS.find(label => label.toLowerCase() === code) ??
+    REGISTRATION_ORGS.find(label => ORG_CODE_MAP[label]?.toLowerCase() === code) ??
+    REGISTRATION_ORGS.find(label => shortName(label) === code) ??
+    REGISTRATION_ORGS.find(label => longName(label) === code) ??
+    organization
+  );
+}
+
+/** What a registration saves under when the form left its organization empty: the full AKC label. */
+export const DEFAULT_REGISTRATION_ORG = registrationOrgLabel('AKC');
+
 /** Letters, numbers, hyphens and slashes: the one shape a registration number may take. */
 export const REGISTRATION_NUMBER_PATTERN = /^[A-Za-z0-9\-/]+$/;
 
@@ -81,7 +108,7 @@ export const INITIAL_REGISTRATION_DATA: RegistrationFormData = {
 export function registrationToFormData(reg: Registration): RegistrationFormData {
   return {
     id: reg.id,
-    organization: reg.organization,
+    organization: registrationOrgLabel(reg.organization),
     registeredName: reg.registeredName,
     breed: reg.breed,
     variety: reg.variety,

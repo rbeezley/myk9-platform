@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   registrationFormSchema,
   registrationOrgCode,
+  registrationOrgLabel,
   registrationToFormData,
   formDataToRegistration,
 } from './registrationForm';
@@ -43,3 +44,32 @@ it.each(['pending', 'approved', 'suspended', 'rejected'])(
     expect(formDataToRegistration({ ...data, status: 'Active' }).status).toBe('Active');
   }
 );
+
+describe('stored short organization codes (MYK9-1207)', () => {
+  it.each([
+    ['AKC', 'AKC (American Kennel Club)'],
+    ['akc', 'AKC (American Kennel Club)'],
+    ['UKC', 'UKC (United Kennel Club)'],
+    ['ASCA', 'ASCA (Australian Shepherd Club of America)'],
+    [' AKC ', 'AKC (American Kennel Club)'],
+    ['akc (american kennel club)', 'AKC (American Kennel Club)'],
+    ['American Kennel Club', 'AKC (American Kennel Club)'],
+    ['other', 'Other'],
+    ['PAL', 'PAL (Purebred Alternative Listing)'],
+    ['ilp', 'ILP (Indefinite Listing Privilege)'],
+  ])('loads %s as the full label %s', (stored, label) => {
+    expect(registrationToFormData({ ...registration, organization: stored }).organization).toBe(
+      label
+    );
+  });
+
+  it('leaves an unrecognized or empty value as stored', () => {
+    expect(registrationOrgLabel('NACSW')).toBe('NACSW');
+    expect(registrationOrgLabel('')).toBe('');
+  });
+
+  it('saves the full label for a registration stored as a short code', () => {
+    const data = registrationToFormData({ ...registration, organization: 'AKC' });
+    expect(formDataToRegistration(data).organization).toBe('AKC (American Kennel Club)');
+  });
+});

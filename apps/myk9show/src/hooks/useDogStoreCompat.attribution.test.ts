@@ -184,3 +184,38 @@ describe('registration date transport (MYK9-1117)', () => {
     );
   });
 });
+
+describe('empty-organization fallback (MYK9-1207)', () => {
+  const noOrg: DogInput = {
+    ...withReg,
+    registrations: [
+      { organization: '', registeredName: 'Liddle Bit', number: 'N1', type: 'Mixed', status: 'a' },
+    ],
+  };
+  const FULL = 'AKC (American Kennel Club)';
+
+  it('online: the create RPC saves the full AKC label, never the bare code', async () => {
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper });
+    await act(async () => {
+      await result.current.addDog(noOrg);
+    });
+    expect(mockSupabase.rpc).toHaveBeenCalledWith(
+      'create_dog_with_registrations',
+      expect.objectContaining({
+        p_registrations: [expect.objectContaining({ organization: FULL })],
+      })
+    );
+  });
+
+  it('offline: the queued RPC rows save the full AKC label, never the bare code', async () => {
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper });
+    await act(async () => {
+      await result.current.addDogOfflineFirst(noOrg);
+    });
+    expect(dogsTable.createDogWithRegistrationsRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      [expect.objectContaining({ organization: FULL })],
+      {}
+    );
+  });
+});

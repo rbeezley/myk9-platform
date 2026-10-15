@@ -18,7 +18,8 @@ async function cockpitGeometry(page: Page) {
   const grid = page.locator('[data-cockpit-layout]');
   await expect(grid).toBeVisible({ timeout: 20_000 });
   return grid.evaluate(element => ({
-    width: element.getBoundingClientRect().width,
+    // Rounded as `useElementWidth` rounds it, so the two agree at fractional widths.
+    width: Math.round(element.getBoundingClientRect().width),
     layout: element.getAttribute('data-cockpit-layout'),
     focus:
       element.querySelector('[data-testid="cockpit-split-focus"]')?.getBoundingClientRect().width ??
@@ -26,20 +27,46 @@ async function cockpitGeometry(page: Page) {
   }));
 }
 
-/** The cockpit splits exactly when it is 868px or wider, and then gives the focus 360px or more. */
-async function expectCockpitFollowsItsWidth(page: Page, expected: 'split' | 'stacked') {
-  const geometry = await cockpitGeometry(page);
-  expect(geometry.layout, `cockpit ${geometry.width}px wide`).toBe(
-    geometry.width >= 868 ? 'split' : 'stacked'
-  );
-  expect(geometry.layout).toBe(expected);
-  if (expected === 'split') expect(geometry.focus).toBeGreaterThanOrEqual(360);
+/**
+ * The cockpit splits exactly when it is 868px or wider, and then gives the focus 360px or more.
+ * `expected` pins the layout where the width is far enough from 868 that a classic scrollbar
+ * (hidden in headless Chromium, 17px elsewhere) cannot change it.
+ */
+async function expectCockpitFollowsItsWidth(page: Page, expected?: 'split' | 'stacked') {
+  await expect(page.getByTestId('secretary-cockpit')).toBeVisible({ timeout: 20_000 });
+  // The width changes on the frame the list opens or folds; the layout follows once the
+  // ResizeObserver reports it, so read until the two settle.
+  await expect(async () => {
+    const geometry = await cockpitGeometry(page);
+    expect(geometry.layout, `cockpit ${geometry.width}px wide`).toBe(
+      geometry.width >= 868 ? 'split' : 'stacked'
+    );
+    if (expected) expect(geometry.layout).toBe(expected);
+    if (geometry.layout === 'split') {
+      expect(geometry.focus, 'the split cockpit has a focused class column').not.toBeNull();
+      expect(geometry.focus).toBeGreaterThanOrEqual(360);
+    }
+  }).toPass({ timeout: 5_000 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true
   );
 }
 
-async function openFirstShow(page: Page, group: 'Today' | 'Upcoming' | 'Past'): Promise<string> {
+type ShowGroup = 'Today' | 'Upcoming' | 'Past';
+
+/** Opens the first show of the first of `groups` that lists one (staging dates move on). */
+async function openShowFrom(page: Page, groups: readonly ShowGroup[]): Promise<string> {
+  await expect(showsList(page).getByRole('link').first()).toBeVisible({ timeout: 20_000 });
+  for (const group of groups) {
+    const rows = showsList(page)
+      .getByRole('list', { name: `${group} shows` })
+      .getByRole('link');
+    if ((await rows.count()) > 0) return openFirstShow(page, group);
+  }
+  throw new Error(`Expected the secretary to have a show in one of: ${groups.join(', ')}`);
+}
+
+async function openFirstShow(page: Page, group: ShowGroup): Promise<string> {
   const row = showsList(page)
     .getByRole('list', { name: `${group} shows` })
     .getByRole('link')
@@ -79,19 +106,23 @@ test.describe('Shows list with a detail pane', () => {
     await expectCockpitFollowsItsWidth(page, 'split');
   });
 
-  // The cockpit decides from the width it is given: full page at 1024 and 1280 it splits; beside
-  // the list there (the viewer's own choice) it stacks rather than squeezing its schedule.
-  for (const width of [1024, 1280]) {
-    test(`at ${width} the list folds from an open show, whose cockpit splits full width`, async ({
+  // The cockpit decides from the width it is given. Full page at 1280 it splits (1140px); at 1024
+  // it is 884px here and about 867 with a classic scrollbar, so only the rule is asserted. Beside
+  // the list (the viewer's own choice) it stacks at both rather than squeezing its schedule.
+  for (const [width, fullPage] of [
+    [1024, undefined],
+    [1280, 'split'],
+  ] as const) {
+    test(`at ${width} the list folds from an open show, whose cockpit follows its width`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 800 });
       await signInAsSecretary(page, '/shows');
       await page.evaluate(() => window.localStorage.removeItem('view-pref-shows-pane'));
-      await openFirstShow(page, 'Today');
+      await openShowFrom(page, ['Today', 'Upcoming']);
 
       await expect(showsList(page)).toHaveCount(0);
-      await expectCockpitFollowsItsWidth(page, 'split');
+      await expectCockpitFollowsItsWidth(page, fullPage);
 
       await page.getByRole('button', { name: 'Shows', exact: true }).click();
       await expect(showsList(page)).toBeVisible();

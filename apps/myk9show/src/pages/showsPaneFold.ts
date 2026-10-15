@@ -5,11 +5,15 @@ export const SHOWS_LIST_DEFAULT_PX = 320;
 
 /**
  * Width inside the split that is neither the list nor the cockpit: the 12px drag handle and the
- * detail pane's 4px left padding (`MasterDetailLayout`); the show page adds no side padding of its
- * own in the pane. Measured in the browser (2026-10-15: a 1144px split, 320px list, 808px cockpit)
- * and pinned by `showsListPane.spec.ts`, which reads the real widths at 1024, 1280 and 1440.
+ * detail pane's 4px left padding (`MasterDetailLayout`), plus 17px for the detail pane's own
+ * scrollbar where the platform draws a classic one (Windows, or macOS set to always show them;
+ * the cockpit nearly always overflows the pane). The show page adds no side padding in the pane.
+ * Measured in headless Chromium, which hides scrollbars (2026-10-15: a 1144px split, 320px list,
+ * 808px cockpit), and pinned by `showsListPane.spec.ts`.
  */
-export const SHOWS_PANE_CHROME_PX = 16;
+const HANDLE_AND_PADDING_PX = 16;
+const CLASSIC_SCROLLBAR_PX = 17;
+export const SHOWS_PANE_CHROME_PX = HANDLE_AND_PADDING_PX + CLASSIC_SCROLLBAR_PX;
 
 /**
  * Whether the Shows list folds away while a show is open, given the width the split has

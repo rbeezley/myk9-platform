@@ -14,12 +14,15 @@ const auth = {
 };
 let showPageMounts = 0;
 // jsdom has no layout: the split's measured width, inside the 88px rail and the page padding.
-const split = vi.hoisted(() => ({ width: null as number | null }));
+const split = vi.hoisted(() => ({
+  width: null as number | null,
+  ref: { current: null as HTMLElement | null },
+}));
 const RAIL_AND_PADDING_PX = 136;
 const listState = { crash: false };
 
 vi.mock('@/hooks/useElementWidth', () => ({
-  useElementWidth: () => ({ ref: { current: null }, width: split.width }),
+  useElementWidth: () => ({ ref: split.ref, width: split.width }),
 }));
 
 /** A window this wide: `lg` from the media query, the split's width from the measured box. */
@@ -93,8 +96,23 @@ describe('ShowsMasterDetailPage', () => {
       'shows list (open: show-1)'
     );
     expect(screen.getByRole('region', { name: 'Show' })).toHaveTextContent('show page (in pane)');
-    // 1304 - 320 - 16 = 968px for the cockpit, past its 868px split; nothing folds the list.
-    expect(screen.queryByRole('button', { name: /Hide shows list/ })).not.toBeInTheDocument();
+    // 1304 - 320 - 33 = 951px for the cockpit, past its 868px split; nothing folds the list.
+    expect(screen.queryByRole('button', { name: 'Shows' })).not.toBeInTheDocument();
+    // Measured on the box around the split, which folding never resizes.
+    expect(split.ref.current).toBe(screen.getByTestId('master-detail-layout').parentElement);
+  });
+
+  it('offers Hide beside a wide show too, and remembers it, since a dragged list can stack the cockpit', async () => {
+    const user = userEvent.setup();
+    setWindow(1440);
+    renderAt('/shows/show-1');
+
+    await user.click(screen.getByRole('button', { name: 'Hide shows list' }));
+    expect(screen.queryByRole('region', { name: 'Shows list' })).not.toBeInTheDocument();
+    expect(window.localStorage.getItem('view-pref-shows-pane')).toBe('hidden');
+
+    await user.click(screen.getByRole('button', { name: 'Shows' }));
+    expect(screen.getByRole('region', { name: 'Shows list' })).toBeInTheDocument();
   });
 
   it('pins the show page sticky offsets to the pane top', () => {

@@ -66,6 +66,9 @@ export function SecretaryCockpit({
   // The split follows the width the cockpit is given (full page, or beside the Shows list), not
   // the window: see cockpitSplit.ts.
   const { ref: gridRef, width: gridWidth } = useElementWidth<HTMLDivElement>();
+  // Unmeasured on the first commit, so a split cockpit renders stacked once and moves the focused
+  // panel to its column in the layout effect, before paint. The panel remounts then; the editor
+  // it would lose is held here (useFocusedClassSetupActions), and nothing is visible in between.
   const isSplit = isCockpitSplit(gridWidth);
   const model = buildSecretaryCockpitModel(snapshot, state);
   const focusedId = model.focusedClass?.id;

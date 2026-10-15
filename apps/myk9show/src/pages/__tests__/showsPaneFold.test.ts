@@ -9,7 +9,8 @@ const cockpitBesideList = (splitWidth: number) =>
 
 describe('when the Shows list folds away from an open show', () => {
   it('matches the browser: a 1144px split put the cockpit at 808px beside the list', () => {
-    expect(cockpitBesideList(1144)).toBe(808);
+    // Headless Chromium hides scrollbars; a classic one takes 17px more.
+    expect(cockpitBesideList(1144) + 17).toBe(808);
   });
 
   it('keeps the list only where the cockpit beside it still splits', () => {
@@ -24,6 +25,9 @@ describe('when the Shows list folds away from an open show', () => {
     // Split widths measured with the 88px rail: 1024, 1280 and 1440px windows.
     [888, true],
     [1144, true],
+    // 1221px is the first split whose cockpit keeps 868px beside a list and a classic scrollbar.
+    [1220, true],
+    [1221, false],
     [1304, false],
   ])('a %ipx split folds: %s', (splitWidth, folds) => {
     expect(showsPaneFolds(splitWidth)).toBe(folds);

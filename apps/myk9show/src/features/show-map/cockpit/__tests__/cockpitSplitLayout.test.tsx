@@ -7,10 +7,11 @@ import { COCKPIT_SPLIT_COLUMNS, COCKPIT_SPLIT_MIN_WIDTH } from '../cockpitSplit'
 import type { SecretaryCockpitSnapshot } from '../secretaryCockpitTypes';
 
 // jsdom has no layout: feed the cockpit the width it would measure.
-const cockpit = vi.hoisted(() => ({ width: 700 }));
+// One ref object, as the real hook's is stable, so the tests can see what it is attached to.
+const cockpit = vi.hoisted(() => ({ width: 700, ref: { current: null as HTMLElement | null } }));
 
 vi.mock('@/hooks/useElementWidth', () => ({
-  useElementWidth: () => ({ ref: { current: null }, width: cockpit.width }),
+  useElementWidth: () => ({ ref: cockpit.ref, width: cockpit.width }),
 }));
 vi.mock('@/components/shows/tabs/setupClassSnapshot', () => ({
   resolveSetupClass: vi.fn(async (id: string) => ({ id, judgeId: null })),
@@ -83,6 +84,8 @@ describe('the class editor survives the split/stack switch', () => {
       .getByTestId('secretary-cockpit')
       .querySelector<HTMLElement>('[data-cockpit-layout]');
     expect(grid).toHaveAttribute('data-cockpit-layout', layout);
+    // The width that decides the layout is the grid's own.
+    expect(cockpit.ref.current).toBe(grid);
     if (layout === 'split') {
       expect(grid?.style.gridTemplateColumns).toBe(COCKPIT_SPLIT_COLUMNS);
       expect(screen.getByTestId('cockpit-split-focus')).toBeInTheDocument();

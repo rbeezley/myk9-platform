@@ -55,8 +55,16 @@ describe('RailNav', () => {
   it('marks the My Club button current while one of its pages is open', () => {
     renderClubAdminRail('/club-admin/members');
 
-    expect(screen.getByRole('button', { name: 'My Club' })).toHaveClass('bg-primary/10');
+    const myClub = screen.getByRole('button', { name: 'My Club' });
+    expect(myClub).toHaveAttribute('aria-current', 'true');
+    expect(myClub).toHaveClass('bg-primary/10');
     expect(screen.getByRole('link', { name: 'Dogs' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('does not mark the My Club button current on a page outside it', () => {
+    renderClubAdminRail('/dogs');
+
+    expect(screen.getByRole('button', { name: 'My Club' })).not.toHaveAttribute('aria-current');
   });
 
   it('puts the admin pages and Resources in one Admin panel with section headings', async () => {

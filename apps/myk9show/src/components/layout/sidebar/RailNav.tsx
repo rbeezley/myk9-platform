@@ -113,7 +113,12 @@ function RailMenu({ title, icon: Icon, sections, isActive }: RailMenuProps) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button type="button" className={cn(RAIL_ITEM_CLASS, railItemStateClass(active))}>
+        <button
+          type="button"
+          // "true", not "page": the trigger holds the current page, it is not it.
+          aria-current={active ? 'true' : undefined}
+          className={cn(RAIL_ITEM_CLASS, railItemStateClass(active))}
+        >
           <Icon className={railIconClass(active)} aria-hidden="true" />
           <span className={RAIL_LABEL_CLASS}>{title}</span>
         </button>

@@ -319,4 +319,23 @@ describe('buildRunSheetEntries entries awaiting a registration number (MYK9-1162
     const lookup = new Map([dogWith('d-reg', akc), dogWith('d-held', akc)]);
     expect(buildRunSheetEntries(rows, lookup, 'UKC', 'UKC')).toHaveLength(0);
   });
+
+  it('never holds a conformation puppy: the carve-out matches the entry rule', () => {
+    const lookup = new Map([dogWith('d-reg', akc), dogWith('d-held', [])]);
+    const puppy = {
+      trialType: 'Conformation',
+      className: 'Puppy 6-9 Months',
+      element: undefined,
+      level: undefined,
+    };
+    expect(buildRunSheetEntries(rows, lookup, 'AKC', 'AKC', puppy).map(e => e.id)).toEqual([
+      'registered',
+      'held',
+    ]);
+    expect(
+      buildRunSheetEntries(rows, lookup, 'AKC', 'AKC', { ...puppy, trialType: 'Scent Work' }).map(
+        e => e.id
+      )
+    ).toEqual(['registered']);
+  });
 });

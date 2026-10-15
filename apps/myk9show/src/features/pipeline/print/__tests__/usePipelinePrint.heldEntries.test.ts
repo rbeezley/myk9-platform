@@ -89,4 +89,22 @@ describe('usePipelinePrint entries awaiting a registration number', () => {
     expect(await printedCallNames()).toEqual(['dog-reg', 'dog-held']);
     expect(mocks.loadDogRegistrations).not.toHaveBeenCalled();
   });
+
+  it('never holds a conformation puppy class', async () => {
+    mocks.trials = [{ id: 'trial-1', registryId: 'AKC', trialType: 'Conformation' }];
+    mocks.loadDogRegistrations.mockResolvedValue({
+      byDog: new Map([['dog-reg', akc]]),
+      registrationsReadComplete: true,
+      source: 'server',
+    });
+    const { result } = renderHook(() => usePipelinePrint('show-1', 'trial-1'));
+    await act(async () => {
+      await result.current.printRunOrder({
+        ...item,
+        name: 'Puppy 6-9 Months',
+      } as ClassPipelineItem);
+    });
+    const entries = mocks.generateRunOrder.mock.calls[0]?.[1] as Array<{ callName: string }>;
+    expect(entries.map(entry => entry.callName)).toEqual(['dog-reg', 'dog-held']);
+  });
 });

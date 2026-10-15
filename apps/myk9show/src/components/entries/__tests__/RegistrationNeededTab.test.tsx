@@ -121,4 +121,21 @@ describe('RegistrationNeededTab', () => {
     expect(screen.queryByText('No entries need a registration number')).toBeNull();
     expect(screen.getByText("Couldn't load this show's entries")).toBeInTheDocument();
   });
+
+  it('offers a Retry on the error state when it can, and calls it', async () => {
+    const onRetry = vi.fn();
+    const { user } = render(
+      <RegistrationNeededTab
+        rows={[]}
+        loading={false}
+        unknown={true}
+        onOpenEntry={noop}
+        onRetry={onRetry}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
 });

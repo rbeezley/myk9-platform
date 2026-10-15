@@ -19,7 +19,7 @@ export function useRegistrationNeededEntries(
   entries: readonly EntryManagementEntry[]
 ) {
   const trialsQuery = useShowTrials(showId);
-  const { dogs, isReady: dogsReady } = useDogStoreCompat();
+  const { dogs, isReady: dogsReady, rosterError, refetch: refetchDogs } = useDogStoreCompat();
   // The trials read is untyped rows; narrow to the two fields the rule reads.
   const trials = useMemo(
     () =>
@@ -36,6 +36,13 @@ export function useRegistrationNeededEntries(
     [dogs, dogsReady, entries, trials]
   );
   const isReady = Boolean(trials) && dogsReady;
+  // A failed prerequisite is its own state, never "still loading": the pane shows
+  // its error card with a Retry instead of a skeleton that never ends.
+  const isError = !isReady && (trialsQuery.isError || Boolean(rosterError));
+  const retry = () => {
+    void trialsQuery.refetch();
+    void refetchDogs();
+  };
 
-  return { rows, isReady, count: isReady ? rows.length : undefined };
+  return { rows, isReady, isError, retry, count: isReady ? rows.length : undefined };
 }

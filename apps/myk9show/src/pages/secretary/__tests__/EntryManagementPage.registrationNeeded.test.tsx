@@ -45,6 +45,7 @@ function entry(id: string, dogId: string, dogName: string): EntryManagementEntry
 }
 
 const state = vi.hoisted(() => ({
+  trialsFailed: false,
   entries: [] as EntryManagementEntry[],
   dogs: [] as Dog[],
   dogsReady: true,
@@ -77,10 +78,19 @@ vi.mock('@/hooks/useEntryManagementData', () => ({
   }),
 }));
 vi.mock('@/hooks/queries/useShowTrials', () => ({
-  useShowTrials: () => ({ data: [{ id: 'trial-1', registry_id: 'AKC' }] }),
+  useShowTrials: () => ({
+    data: state.trialsFailed ? undefined : [{ id: 'trial-1', registry_id: 'AKC' }],
+    isError: state.trialsFailed,
+    refetch: vi.fn(),
+  }),
 }));
 vi.mock('@/hooks/useDogStoreCompat', () => ({
-  useDogStoreCompat: () => ({ dogs: state.dogs, isReady: state.dogsReady }),
+  useDogStoreCompat: () => ({
+    dogs: state.dogs,
+    isReady: state.dogsReady,
+    rosterError: null,
+    refetch: vi.fn(),
+  }),
 }));
 vi.mock('@/hooks/useMoveUpRequestsCount', () => ({
   useMoveUpRequestsCount: () => ({ count: 0, refetch: vi.fn() }),
@@ -143,6 +153,7 @@ function page() {
 describe('EntryManagementPage registration number needed (MYK9-1162)', () => {
   beforeEach(() => {
     state.dogsReady = true;
+    state.trialsFailed = false;
     state.entries = [
       entry('e1', 'd1', 'Scout'),
       entry('e2', 'd2', 'Juni'),
@@ -217,5 +228,14 @@ describe('EntryManagementPage registration number needed (MYK9-1162)', () => {
         '?queue=all&registration=registration-e2'
       )
     );
+  });
+
+  it('says it could not load, with a Retry, when the trials read fails: never an endless skeleton', async () => {
+    state.trialsFailed = true;
+    render(page(), { initialRoute: PANE });
+
+    expect(await screen.findByText("Couldn't load this show's entries")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: /Loading entries awaiting/ })).toBeNull();
   });
 });

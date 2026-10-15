@@ -82,7 +82,8 @@ function mapEntry(row: EntryRow): PrintReportEntry {
  */
 async function withoutHeldEntries(
   rows: EntryRow[],
-  trial: Parameters<typeof getTrialRegistry>[0]
+  trial: (Parameters<typeof getTrialRegistry>[0] & { trialType?: string | undefined }) | undefined,
+  className: string
 ): Promise<EntryRow[]> {
   const dogIds = [...new Set(rows.map(row => row.dog_id).filter((id): id is string => !!id))];
   if (!trial || dogIds.length === 0) return rows;
@@ -94,7 +95,8 @@ async function withoutHeldEntries(
       !isAwaitingRegistrationNumber(
         { entryStatus: row.entry_status ?? undefined },
         registryId,
-        registrationsFromRead(read, row.dog_id)
+        registrationsFromRead(read, row.dog_id),
+        { trialType: trial.trialType, className, element: null, level: null }
       )
   );
 }
@@ -135,7 +137,7 @@ export function usePipelinePrint(showId: string, trialId: string): UsePipelinePr
   );
 
   const fetchEntries = useCallback(
-    async (classId: string): Promise<PrintReportEntry[]> => {
+    async (classId: string, className: string): Promise<PrintReportEntry[]> => {
       const read = async () => {
         const { data, error } = await getEntriesByClass(classId);
         if (error) throw error;
@@ -151,7 +153,8 @@ export function usePipelinePrint(showId: string, trialId: string): UsePipelinePr
       return (
         await withoutHeldEntries(
           rows,
-          trials.find(t => t.id === trialId)
+          trials.find(t => t.id === trialId),
+          className
         )
       ).map(mapEntry);
     },
@@ -165,7 +168,7 @@ export function usePipelinePrint(showId: string, trialId: string): UsePipelinePr
         isPrintingRef.current = true;
         setIsPrinting(true);
         try {
-          const entries = await fetchEntries(item.id);
+          const entries = await fetchEntries(item.id, item.name);
           if (entries.length === 0) {
             notifications.warning('No entries found for this class');
             return;

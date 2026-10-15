@@ -14,7 +14,12 @@ interface EntryManagementExceptionPanesProps {
   /** The entries read failed: every list derived from it is unknown, not empty. */
   entriesUnknown: boolean;
   entriesLoading: boolean;
-  registrationNeeded: { rows: readonly RegistrationNeededRow[]; isReady: boolean };
+  registrationNeeded: {
+    rows: readonly RegistrationNeededRow[];
+    isReady: boolean;
+    isError: boolean;
+    retry: () => void;
+  };
   onRefreshEntries: () => void;
   onMoveUpsChanged: () => void;
   onOpenEntry: (entry: EntryManagementEntry) => void;
@@ -63,8 +68,11 @@ export function EntryManagementExceptionPanes({
           <CardContent className="pt-6">
             <RegistrationNeededTab
               rows={registrationNeeded.rows}
-              loading={entriesLoading || !registrationNeeded.isReady}
-              unknown={entriesUnknown}
+              loading={
+                entriesLoading || (!registrationNeeded.isReady && !registrationNeeded.isError)
+              }
+              unknown={entriesUnknown || registrationNeeded.isError}
+              onRetry={registrationNeeded.isError ? registrationNeeded.retry : undefined}
               onOpenEntry={onOpenEntry}
             />
           </CardContent>

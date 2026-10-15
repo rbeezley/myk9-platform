@@ -10,6 +10,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const state = vi.hoisted(() => ({
   held: { data: [] as Array<{ id: string }> | null, error: null as unknown },
+  // When set, the held lookup does not answer until this promise resolves.
+  heldGate: null as Promise<void> | null,
 }));
 
 const entryRows = [
@@ -25,7 +27,13 @@ vi.mock('@/lib/supabase', () => ({
       for (const method of ['select', 'eq', 'is', 'not', 'filter']) {
         chain[method] = () => chain;
       }
-      chain.then = (resolve: (value: unknown) => unknown) => resolve(result);
+      chain.then = (
+        resolve: (value: unknown) => unknown,
+        reject?: (reason: unknown) => unknown
+      ) => {
+        const gate = table === 'entries' ? null : state.heldGate;
+        return (gate ?? Promise.resolve()).then(() => resolve(result), reject);
+      };
       return chain;
     },
   },
@@ -53,6 +61,7 @@ async function labelIds(): Promise<string[]> {
 describe('useArmbandLabelData entries awaiting a registration number', () => {
   beforeEach(() => {
     state.held = { data: [], error: null };
+    state.heldGate = null;
   });
 
   it('leaves the held entry out and keeps the others', async () => {
@@ -63,5 +72,23 @@ describe('useArmbandLabelData entries awaiting a registration number', () => {
   it('withholds nothing when the flag cannot be read', async () => {
     state.held = { data: null, error: { message: 'column does not exist' } };
     expect(await labelIds()).toEqual(['ok', 'held']);
+  });
+
+  it('prints no label while the held lookup is still pending, then drops the held one', async () => {
+    state.held = { data: [{ id: 'held' }], error: null };
+    let release: () => void = () => undefined;
+    state.heldGate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const { result } = renderHook(() => useArmbandLabelData('show-1'), { wrapper });
+
+    // The label read finishes first; labels must not be built from it yet.
+    await new Promise(resolve => setTimeout(resolve, 30));
+    expect(result.current.entries).toEqual([]);
+    expect(result.current.isLoading).toBe(true);
+
+    release();
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.entries.map(entry => entry.id)).toEqual(['ok']);
   });
 });

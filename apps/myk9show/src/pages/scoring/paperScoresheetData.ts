@@ -8,6 +8,7 @@ import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTa
 import {
   isAwaitingRegistrationNumber,
   resolveDogIdentityForOrganization,
+  type ConformationPuppyContext,
   type DogRegistrationLike,
 } from '@/features/dogs/identity';
 import { getTrialRegistry } from '@/features/registries';
@@ -27,7 +28,7 @@ export async function loadEntriesWithDogs(classId: string): Promise<ScoringEntry
   const uniqueDogIds = [...new Set(rawEntries.map(e => e.dogId).filter(Boolean))] as string[];
   const dogs = await Promise.all(uniqueDogIds.map(id => replicatedDogsTable.get(id)));
   const dogsMap = new Map(uniqueDogIds.map((id, i) => [id, dogs[i] ?? null]));
-  const registry = await loadClassRegistryForClass(classId);
+  const { registry, puppyContext } = await loadClassHeldContext(classId);
   const { breeds: registeredBreedByDogId, registrationsByDogId } = await loadRegistrationsAndBreeds(
     uniqueDogIds,
     registry
@@ -40,7 +41,7 @@ export async function loadEntriesWithDogs(classId: string): Promise<ScoringEntry
       !e.dogId ||
       !registry ||
       !registrationsByDogId.has(e.dogId) ||
-      !isAwaitingRegistrationNumber(e, registry, registrationsByDogId.get(e.dogId))
+      !isAwaitingRegistrationNumber(e, registry, registrationsByDogId.get(e.dogId), puppyContext)
   );
   return listedEntries.map((e, i) =>
     toScoringEntry(
@@ -91,11 +92,30 @@ async function withShowArmbands<
  * rule already applied in `useEntryEligibility`.
  */
 export async function loadClassRegistryForClass(classId: string): Promise<string | undefined> {
+  return (await loadClassHeldContext(classId)).registry;
+}
+
+/**
+ * The class's trial registry plus the trial and class facts the
+ * conformation-puppy carve-out reads (MYK9-1162), from one pair of replica reads.
+ */
+async function loadClassHeldContext(
+  classId: string
+): Promise<{ registry: string | undefined; puppyContext: ConformationPuppyContext | undefined }> {
+  const none = { registry: undefined, puppyContext: undefined };
   const cls = await replicatedClassesTable.getClassById(classId);
-  if (!cls?.trialId) return undefined;
+  if (!cls?.trialId) return none;
   const trial = await replicatedTrialsTable.getTrialById(cls.trialId);
-  if (!trial) return undefined;
-  return getTrialRegistry(trial).id;
+  if (!trial) return none;
+  return {
+    registry: getTrialRegistry(trial).id,
+    puppyContext: {
+      trialType: trial.trialType,
+      className: cls.name,
+      element: cls.element,
+      level: cls.level,
+    },
+  };
 }
 
 /**

@@ -14,8 +14,8 @@
 --      other result stay refused
 --   G. conformation puppies are never held; a UKC trial with only an AKC number is
 --   H. a registration DELETE advances the entry's updated_at (replicas re-read)
---   I. grants: no EXECUTE on the predicate for anon or authenticated, and anon
---      has no SELECT on either entry-results view
+--   I. grants: authenticated may execute the predicate (the views need it), anon
+--      may not, and anon has no SELECT on either entry-results view
 --
 -- Fixtures roll back.
 
@@ -129,6 +129,16 @@ select pg_temp.as_account('00000000-0000-0000-0000-000001162101');
 do $$
 declare held boolean; reg boolean;
 begin
+  -- Regression: PostgreSQL checks EXECUTE on the predicate against the QUERYING
+  -- role even through an owner-run view, so these reads fail with "permission
+  -- denied for function" unless authenticated may execute it. Both views, as a
+  -- real authenticated session.
+  select awaiting_registration_number into held
+    from public.view_authenticated_entry_results
+   where id = '00000000-0000-0000-0000-000001162041';
+  if held is distinct from true then
+    raise exception 'FAIL A the inner view did not flag the held entry (%)', held;
+  end if;
   select awaiting_registration_number into held
     from public.view_authenticated_entry_results_replication
    where id = '00000000-0000-0000-0000-000001162041';
@@ -152,6 +162,12 @@ begin
   select count(*) into seen
     from public.dog_registrations
    where dog_id = '00000000-0000-0000-0000-000001162032';
+  select awaiting_registration_number into held
+    from public.view_authenticated_entry_results
+   where id = '00000000-0000-0000-0000-000001162041';
+  if held is distinct from true then
+    raise exception 'FAIL B the passcode session did not see the flag on the inner view (%)', held;
+  end if;
   select awaiting_registration_number into held
     from public.view_authenticated_entry_results_replication
    where id = '00000000-0000-0000-0000-000001162041';
@@ -234,6 +250,21 @@ begin
   update public.entries set check_in_status = 'checked-in'
    where id = '00000000-0000-0000-0000-000001162047';
   raise notice 'PASS D a non-score write to an entry scored before it became held passes';
+
+  -- A reset (not scored, pending, zero time) clears a result, so it passes for
+  -- an entry that became held after it was scored; a new score is still refused.
+  update public.entries
+     set is_scored = false, result_status = 'pending', search_time_seconds = 0
+   where id = '00000000-0000-0000-0000-000001162047';
+  raise notice 'PASS D a score reset passes for an entry that became held after scoring';
+  begin
+    update public.entries
+       set is_scored = true, result_status = 'qualified', search_time_seconds = 30
+     where id = '00000000-0000-0000-0000-000001162047';
+    raise exception 'FAIL D a new score was accepted after the reset';
+  exception when check_violation then
+    raise notice 'PASS D a new score is refused after the reset';
+  end;
 end $$;
 
 -- E. add the registration; the flag clears and the score is accepted
@@ -324,14 +355,17 @@ end $$;
 do $$
 declare fn text := 'public.entry_awaiting_registration_number(uuid, uuid, text, timestamptz)';
 begin
-  if has_function_privilege('anon', fn, 'EXECUTE') or has_function_privilege('authenticated', fn, 'EXECUTE') then
-    raise exception 'FAIL I a client role can execute the held predicate';
+  if has_function_privilege('anon', fn, 'EXECUTE') then
+    raise exception 'FAIL I anon can execute the held predicate';
+  end if;
+  if not has_function_privilege('authenticated', fn, 'EXECUTE') then
+    raise exception 'FAIL I authenticated cannot execute the held predicate, so the entry-results views fail';
   end if;
   if has_table_privilege('anon', 'public.view_authenticated_entry_results', 'SELECT')
      or has_table_privilege('anon', 'public.view_authenticated_entry_results_replication', 'SELECT') then
     raise exception 'FAIL I anon can read an entry-results view';
   end if;
-  raise notice 'PASS I the predicate is internal and anon cannot read the entry-results views';
+  raise notice 'PASS I authenticated may execute the predicate, anon may not, and anon cannot read the entry-results views';
 end $$;
 
 rollback;

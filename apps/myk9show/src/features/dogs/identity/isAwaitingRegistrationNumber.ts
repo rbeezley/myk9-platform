@@ -100,16 +100,16 @@ export interface RegistrationsRead {
 /**
  * A dog's registrations out of a `loadDogRegistrations` result, or `undefined`
  * when the read did not answer for that dog. A complete read answers for every
- * dog (no rows means none). An incomplete read answers only for dogs it
- * returned rows for, or wholesale from a non-empty device read: the secretary's
- * device copy is never reported complete, yet it is authoritative offline.
+ * dog (no rows means none). An incomplete read, including the offline device
+ * copy (never reported complete), answers only for the dogs it returned rows
+ * for: "no rows" is not evidence of "no registrations" there, so a registered
+ * dog is never dropped as held because its rows did not arrive.
  */
 export function registrationsFromRead(
   read: RegistrationsRead,
   dogId: string
 ): readonly DogRegistrationLike[] | undefined {
   const rows = read.byDog.get(dogId) as readonly DogRegistrationLike[] | undefined;
-  const deviceAnswered = read.source === 'device' && read.byDog.size > 0;
-  if (read.registrationsReadComplete || deviceAnswered || rows !== undefined) return rows ?? [];
+  if (read.registrationsReadComplete || rows !== undefined) return rows ?? [];
   return undefined;
 }

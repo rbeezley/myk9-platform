@@ -1,7 +1,11 @@
 import { isCheckInStatus, type CheckInStatus } from '@myk9/core';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { isOnClassRunList } from '@/features/_shared/entryAccounting';
-import { isAwaitingRegistrationNumber, registrationsIfKnown } from '@/features/dogs/identity';
+import {
+  isAwaitingRegistrationNumber,
+  registrationsIfKnown,
+  type ConformationPuppyContext,
+} from '@/features/dogs/identity';
 import type { Dog } from '@/types/dog-types';
 import type { RunOutcome, RunSheetEntry, RunSheetResult } from './types';
 import { formatSearchTime } from './types';
@@ -101,7 +105,8 @@ export function buildRunSheetEntries(
   rows: RawEntryRow[],
   dogLookup: Map<string, Dog> = new Map(),
   organization?: string | null,
-  registryId?: string | null
+  registryId?: string | null,
+  puppyContext?: ConformationPuppyContext
 ): RunSheetEntry[] {
   // Withdrawn, scratched, moved and not-accepted entries are not on the run
   // sheet (MYK9-976); the one rule lives in `entryAccounting`. An entry
@@ -115,7 +120,8 @@ export function buildRunSheetEntries(
         !isAwaitingRegistrationNumber(
           { entryStatus: row.entry_status ?? undefined },
           registryId,
-          registrationsIfKnown(dogLookup.get(row.dog_id))
+          registrationsIfKnown(dogLookup.get(row.dog_id)),
+          puppyContext
         )
     )
     .map(row => rawToEntry(row, dogLookup, organization))

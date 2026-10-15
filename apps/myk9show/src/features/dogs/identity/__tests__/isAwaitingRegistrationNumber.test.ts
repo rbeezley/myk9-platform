@@ -135,13 +135,15 @@ describe('registrationsFromRead', () => {
     expect(registrationsFromRead(read, 'd2')).toBeUndefined();
   });
 
-  it('treats a non-empty device read as authoritative, but an empty one as unknown', () => {
-    const answered = {
-      byDog: new Map([['d1', rows]]),
-      registrationsReadComplete: false,
-      source: 'device' as const,
-    };
-    expect(registrationsFromRead(answered, 'd2')).toEqual([]);
+  it('never reads a missing dog as "none" from an incomplete read, device or server', () => {
+    // Dog d1 has rows, d2 has none: only a COMPLETE read can say d2 has none.
+    // The offline device read is never reported complete, so d2 is unknown (not
+    // held) rather than a registered dog silently dropped from paperwork.
+    for (const source of ['device', 'server'] as const) {
+      const read = { byDog: new Map([['d1', rows]]), registrationsReadComplete: false, source };
+      expect(registrationsFromRead(read, 'd1')).toBe(rows);
+      expect(registrationsFromRead(read, 'd2')).toBeUndefined();
+    }
     const empty = { byDog: new Map(), registrationsReadComplete: false, source: 'device' as const };
     expect(registrationsFromRead(empty, 'd2')).toBeUndefined();
   });

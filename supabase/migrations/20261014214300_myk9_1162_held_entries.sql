@@ -334,8 +334,10 @@ GRANT EXECUTE ON FUNCTION public.emergency_packet_input(uuid, date) TO service_r
 -- client's isOnClassRunList) whose dog has no non-blank registration number for
 -- the trial's registry (normalize_registry_organization, blank registry means
 -- AKC), outside the conformation-puppy carve-out. An unknown class is not held.
--- Internal: EXECUTE is revoked from every client role; the owner-run views and
--- the SECURITY DEFINER trigger below reach it.
+-- EXECUTE is revoked from PUBLIC and anon and granted to authenticated, which the
+-- entry-results views need (see the GRANT below). It returns one boolean about a
+-- (dog, class) pair: the same fact the view already exposes for the rows a caller
+-- can see.
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.entry_awaiting_registration_number(
   p_dog_id uuid,
@@ -373,10 +375,19 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.entry_awaiting_registration_number(uuid, uuid, text, timestamptz)
-  FROM PUBLIC, anon, authenticated;
+  FROM PUBLIC, anon;
+-- authenticated MUST be able to execute it. PostgreSQL checks a function's
+-- EXECUTE privilege against the user querying the view, even for an owner-run
+-- (security_invoker = false) view, so revoking it made every read projecting
+-- awaiting_registration_number fail with "permission denied for function".
+-- Ringside passcode sessions are Supabase anonymous sign-ins, which use the
+-- authenticated role. The function stays SECURITY DEFINER so it reads
+-- dog_registrations past RLS.
+GRANT EXECUTE ON FUNCTION public.entry_awaiting_registration_number(uuid, uuid, text, timestamptz)
+  TO authenticated;
 
 COMMENT ON FUNCTION public.entry_awaiting_registration_number(uuid, uuid, text, timestamptz) IS
-  'True for a live entry whose dog has no registration number for the trial''s registry (a held entry, MYK9-1162). The single SQL definition of "held" for the entry-results views and the scoring guard; same rule as entries_require_dog_registration() and emergency_packet_input.';
+  'True for a live entry whose dog has no registration number for the trial''s registry (a held entry, MYK9-1162). The single SQL definition of "held" for the entry-results views and the scoring guard; same rule as entries_require_dog_registration() and emergency_packet_input. SECURITY DEFINER to read dog_registrations past RLS; EXECUTE is granted to authenticated because PostgreSQL checks it against the querying user even through an owner-run view. It returns only a boolean about a (dog, class) pair, the fact the view already exposes for visible rows.';
 
 -- Scoring guard. Every score write reaches public.entries: ringside_update_entry
 -- (judges, stewards, passcode sessions) runs a dynamic UPDATE, and a manager's
@@ -403,6 +414,17 @@ BEGIN
   IF NEW.result_status = 'absent'
      AND coalesce(NEW.search_time_seconds, 0) = 0
      AND NEW.scoring_started_at IS NOT DISTINCT FROM OLD.scoring_started_at THEN
+    RETURN NEW;
+  END IF;
+
+  -- A reset (is_scored false, result pending, a zero time, no new scoring start)
+  -- clears a result instead of recording one, so it is allowed even when the
+  -- entry became held after it was scored.
+  IF NEW.is_scored IS NOT TRUE
+     AND (NEW.result_status IS NULL OR NEW.result_status = 'pending')
+     AND coalesce(NEW.search_time_seconds, 0) = 0
+     AND (NEW.scoring_started_at IS NULL
+          OR NEW.scoring_started_at IS NOT DISTINCT FROM OLD.scoring_started_at) THEN
     RETURN NEW;
   END IF;
 

@@ -29,6 +29,8 @@ interface RegistrationNeededTabProps {
   unknown: boolean;
   /** Opens the entry's form in the Registrations view, where Pull and Withdraw live. */
   onOpenEntry: (entry: EntryManagementEntry) => void;
+  /** Re-reads what this list derives from; offered on the error state when set. */
+  onRetry?: (() => void) | undefined;
 }
 
 function classLine(entry: EntryManagementEntry): string {
@@ -48,6 +50,7 @@ export const RegistrationNeededTab: React.FC<RegistrationNeededTabProps> = ({
   loading,
   unknown,
   onOpenEntry,
+  onRetry,
 }) => {
   const [addFor, setAddFor] = useState<Dog | null>(null);
   const [openRequested, setOpenRequested] = useState(false);
@@ -85,8 +88,14 @@ export const RegistrationNeededTab: React.FC<RegistrationNeededTabProps> = ({
             <AlertCircle className="mx-auto mb-4 h-12 w-12 text-destructive" aria-hidden />
             <p className="text-lg font-medium">Couldn&apos;t load this show&apos;s entries</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              We don&apos;t know which entries need a registration number. Retry from the All view.
+              We don&apos;t know which entries need a registration number.
+              {onRetry ? '' : ' Retry from the All view.'}
             </p>
+            {onRetry && (
+              <Button className="mt-4 min-h-11" onClick={onRetry}>
+                Retry
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : rows.length === 0 ? (

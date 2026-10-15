@@ -341,6 +341,7 @@ const ClassDetailsPage: React.FC = () => {
               dogs={dogs}
               organization={parentShow?.organization ?? null}
               registryId={parentTrial ? getTrialRegistry(parentTrial).id : null}
+              trialType={parentTrial?.trialType}
               parentShowId={parentShow?.id ?? null}
               classDay={parentTrial?.trialDate ?? null}
             />

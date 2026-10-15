@@ -86,4 +86,28 @@ describe('paper scoring list leaves out entries awaiting a registration number',
 
     await expect(loadEntriesWithDogs('class-1')).rejects.toThrow(/Could not verify registrations/);
   });
+
+  it('never holds a conformation puppy: the class and trial carve-out is threaded in', async () => {
+    mockGetClassById.mockResolvedValue({
+      id: 'class-1',
+      trialId: 'trial-1',
+      name: 'Puppy 6-9 Months',
+      element: 'Puppy',
+      level: 'Puppy',
+    });
+    mockGetTrialById.mockResolvedValue({
+      id: 'trial-1',
+      registryId: 'AKC',
+      trialType: 'Conformation',
+    });
+    mockLoadRegistrations.mockResolvedValue({
+      byDog: new Map([['dog-reg', [akc()]]]),
+      serverError: null,
+      registrationsReadComplete: true,
+    });
+
+    const entries = await loadEntriesWithDogs('class-1');
+
+    expect(entries.map(e => e.entryId)).toEqual(['1', '2']);
+  });
 });

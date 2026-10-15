@@ -18,11 +18,13 @@
 
 ## 3. Authorized release and closure
 
-- [ ] 3.1 From merged linked worktree, dry-run and apply only this batch's migration; verify function/ACLs and behavioral date readback; compare generated types.
+- [ ] 3.1 From merged linked worktree, dry-run and apply this batch's registration-date migration plus the already-merged registry-lookup and held-view dependencies required by the selected release; verify function/ACLs and behavioral date readback; compare generated types.
 - [ ] 3.2 Deploy a green main commit containing the batch via Deploy myK9Show; record selected and served commit.
 - [ ] 3.3 Verify deployed shared create/edit form, date persistence via rollback-only authenticated RPC/readback plus real save/reload projection tests and offline payload contract; verify draft card/count scope and chronological My Shows/People/show schedule with read-only response fixtures. Confirm no persistent fixture rows or browser sessions remain.
 - [ ] 3.4 Re-read all four full issues, record acceptance evidence and close only passing issues.
-- [ ] 3.5 Verify OpenSpec completeness/correctness/coherence, sync delta specs, archive with PR/deploy evidence, and finish repository cleanup without altering unrelated work.
+- [ ] 3.5 Verify OpenSpec implementation completeness/correctness/coherence and preserve the acceptance evidence.
+
+Post-verification lifecycle: sync delta specs, archive after the implementation PR merges and release evidence passes, then finish repository cleanup without altering unrelated work.
 
 ## Validation Profile
 

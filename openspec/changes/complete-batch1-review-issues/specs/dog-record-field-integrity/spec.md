@@ -14,3 +14,9 @@ The single registration form SHALL preserve an optional registration calendar da
 - **WHEN** a registration date is omitted
 - **THEN** dog creation succeeds without inventing a date
 - **AND** an invalid date that reaches storage fails the atomic creation rather than partially saving
+
+#### Scenario: Explicit status choice on a legacy registration
+
+- **WHEN** a stored registration has a legacy status and the user edits another field
+- **THEN** the form displays and saves the stored status unchanged
+- **AND** explicitly choosing Active replaces that stored status with Active in both save contracts

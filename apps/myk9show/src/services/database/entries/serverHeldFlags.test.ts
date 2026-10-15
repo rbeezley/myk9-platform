@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const state = vi.hoisted(() => ({
   result: { data: [] as Array<{ id: string }> | null, error: null as unknown },
+  /** When set, each page is answered from this list in turn (keyset paging). */
+  pages: null as Array<Array<{ id: string }>> | null,
   throws: false,
   calls: [] as Array<[string, unknown[]]>,
 }));
@@ -12,19 +14,27 @@ vi.mock('../supabaseClient', () => ({
       if (state.throws) throw new Error('network down');
       state.calls.push(['from', [table]]);
       const chain: Record<string, unknown> = {};
-      for (const method of ['select', 'in', 'filter']) {
+      for (const method of ['select', 'in', 'filter', 'order', 'lt']) {
         chain[method] = (...args: unknown[]) => {
           state.calls.push([method, args]);
           return chain;
         };
       }
-      chain.then = (resolve: (value: unknown) => unknown) => resolve(state.result);
+      chain.range = (...args: unknown[]) => {
+        state.calls.push(['range', args]);
+        const page = state.pages && state.pages.length > 0 ? state.pages.shift() : undefined;
+        return Promise.resolve(page ? { data: page, error: null } : state.result);
+      };
       return chain;
     },
   },
 }));
 
-import { stampServerHeldFlags, withServerHeldFlags } from './serverHeldFlags';
+import {
+  loadServerHeldEntryIds,
+  stampServerHeldFlags,
+  withServerHeldFlags,
+} from './serverHeldFlags';
 
 const rows = [
   { id: 'e1', show_id: 'show-1' },
@@ -34,6 +44,7 @@ const rows = [
 describe('stampServerHeldFlags (MYK9-1162)', () => {
   beforeEach(() => {
     state.result = { data: [], error: null };
+    state.pages = null;
     state.throws = false;
     state.calls = [];
   });
@@ -49,6 +60,8 @@ describe('stampServerHeldFlags (MYK9-1162)', () => {
       ['select', ['id']],
       ['in', ['show_id', ['show-1']]],
       ['filter', ['awaiting_registration_number', 'eq', true]],
+      ['order', ['id', { ascending: false }]],
+      ['range', [0, 999]],
     ]);
   });
 
@@ -73,5 +86,25 @@ describe('stampServerHeldFlags (MYK9-1162)', () => {
     const empty = await withServerHeldFlags(Promise.resolve({ data: [], error: null }));
     expect(empty).toEqual({ data: [], error: null });
     expect(state.calls.filter(([name]) => name === 'from')).toHaveLength(1);
+  });
+
+  it('reads every page past max_rows, so no held entry passes as not held', async () => {
+    const firstPage = Array.from({ length: 1000 }, (_, i) => ({ id: `held-${String(1999 - i)}` }));
+    state.pages = [firstPage, [{ id: 'held-0999' }]];
+
+    const held = await loadServerHeldEntryIds(['show-1']);
+
+    expect(held.size).toBe(1001);
+    expect(held.has('held-0999')).toBe(true);
+    expect(state.calls).toContainEqual(['lt', ['id', 'held-1000']]);
+  });
+
+  it('holds nothing when a later page fails, never a partial set', async () => {
+    const firstPage = Array.from({ length: 1000 }, (_, i) => ({ id: `held-${String(1999 - i)}` }));
+    state.pages = [firstPage];
+    // The second page is past `pages`, so it answers with this error.
+    state.result = { data: null, error: { message: 'timeout' } };
+
+    expect(await loadServerHeldEntryIds(['show-1'])).toEqual(new Set());
   });
 });

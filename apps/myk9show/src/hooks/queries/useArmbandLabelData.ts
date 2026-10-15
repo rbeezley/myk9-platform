@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import type { ArmbandLabelEntry } from '@/lib/labels/armbandLabelTypes';
 import { formatReportDate } from '@/lib/reports/reportUtils';
 import { useShowVenueWifi } from './useShowVenueWifi';
+import { loadServerHeldEntryIds } from '@/services/database/entries/serverHeldFlags';
 
 /** Exported for unit testing — pure function, no hooks */
 
@@ -64,23 +65,15 @@ export function useArmbandLabelData(showId: string | undefined): ArmbandLabelDat
   });
 
   // MYK9-1162: no label for an entry awaiting a registration number. The flag is
-  // computed server-side in the entry-results view; if that read fails (or the
-  // view predates the column) nothing is excluded, so labels are never withheld.
+  // computed server-side in the entry-results view and read every page at a time;
+  // if that read fails (or the view predates the column) nothing is excluded.
   const {
     data: heldEntryIds,
     isPending: heldQueryPending,
     isFetching: heldQueryFetching,
   } = useQuery({
     queryKey: [...ARMBAND_LABEL_HELD_ENTRIES_KEY, showId],
-    queryFn: async () => {
-      if (!showId) return [];
-      const { data, error } = await supabase
-        .from('view_authenticated_entry_results')
-        .select('id')
-        .eq('show_id', showId)
-        .filter('awaiting_registration_number', 'eq', true);
-      return error ? [] : (data ?? []).map(row => String(row.id));
-    },
+    queryFn: async () => (showId ? [...(await loadServerHeldEntryIds([showId]))] : []),
     enabled: !!showId,
     // Always re-asked when labels open: a number added or removed since the last
     // look changes which labels may print. Registration changes also invalidate it

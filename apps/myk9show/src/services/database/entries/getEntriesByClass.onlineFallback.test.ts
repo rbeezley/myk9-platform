@@ -86,7 +86,11 @@ vi.mock('@/services/database/supabaseClient', () => ({
     from: () => ({
       select: () => ({
         // MYK9-1162: the held lookup (see serverHeldFlags.ts).
-        in: () => ({ filter: () => Promise.resolve({ data: heldIds, error: null }) }),
+        in: () => ({
+          filter: () => ({
+            order: () => ({ range: () => Promise.resolve({ data: heldIds, error: null }) }),
+          }),
+        }),
         eq: () => ({
           is: () => ({
             // MYK9-767: the online read pages by id (see entryPagedRead.ts).

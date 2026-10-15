@@ -197,23 +197,25 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
           heldLookup = true;
           return query;
         }),
+        // The held lookup pages (order, then range); the entries read ends at order.
         order: vi.fn(() =>
-          Promise.resolve(
-            relation === 'view_authenticated_entry_results'
-              ? {
-                  data: [
-                    { id: 'entry-ok', show_id: 'show-1' },
-                    { id: 'entry-held', show_id: 'show-1' },
-                  ],
-                  error: null,
-                }
-              : { data: [], error: null }
-          )
+          heldLookup
+            ? query
+            : Promise.resolve(
+                relation === 'view_authenticated_entry_results'
+                  ? {
+                      data: [
+                        { id: 'entry-ok', show_id: 'show-1' },
+                        { id: 'entry-held', show_id: 'show-1' },
+                      ],
+                      error: null,
+                    }
+                  : { data: [], error: null }
+              )
         ),
+        range: vi.fn(() => Promise.resolve({ data: [{ id: 'entry-held' }], error: null })),
         then: (resolve: (value: unknown) => unknown) =>
-          Promise.resolve(
-            heldLookup ? { data: [{ id: 'entry-held' }], error: null } : { data: [], error: null }
-          ).then(resolve),
+          Promise.resolve({ data: [], error: null }).then(resolve),
       };
       return query;
     });

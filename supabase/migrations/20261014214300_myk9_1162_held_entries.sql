@@ -1014,6 +1014,15 @@ REVOKE INSERT, UPDATE, DELETE ON public.view_authenticated_entry_results_replica
 COMMENT ON VIEW public.view_authenticated_entry_results_replication IS
   'Replication feed wrapping view_authenticated_entry_results, adding the shows join needed to replicate soft-deleted shows (MYK9-291). Owner-run (security_invoker = false) like the view it wraps; the score/payment gating is inherited from that inner view body, and the shows columns are reachable only for entries the inner view already admitted. Advisor security_definer_view ERROR accepted by design 2026-09-09 (docs/improve-audit-2026-07-11/009-advisor-disposition-sweep.md, Verdict 1). Any rebuild MUST carry WITH (security_invoker = false) inline -- CREATE OR REPLACE VIEW resets reloptions. The select list is explicit (MYK9-632): `entries.*` re-expanded on every rebuild and would have reordered the columns the moment the inner view gained one. moved_from_entry_id (MYK9-639) is appended after it. registration_confirmation_number (MYK9-659) is appended after that, so the offline receipt prints the same order reference as the online one -- guarded by the inner view''s can_view_admin alone (see that view''s comment), which is the entry''s access, not the enrollment''s. results_private (MYK9-969) is appended last and carried from the inner view, whose privacy mask already NULLed the result columns, so a replica on another exhibitor''s device never holds a private result. awaiting_registration_number (MYK9-1162) is appended after it, carried from the inner view, so a ringside device knows a held entry without reading dog_registrations.';
 
+-- Warm replicas pull the new column once. A device that synced before this file
+-- holds every entry row WITHOUT awaiting_registration_number, and nothing about
+-- an existing no-number entry changed, so an incremental sync (cursor on
+-- updated_at, id) would skip it until the next full refresh: it would stay
+-- printable and look scoreable while the score guard refuses it. The MYK9-969
+-- epoch is already a GREATEST input of updated_at on both views, so stamping it
+-- now lifts every row past every saved cursor, exactly as that migration did.
+UPDATE private.results_privacy_epoch SET updated_at = now();
+
 NOTIFY pgrst, 'reload schema';
 
 COMMIT;

@@ -21,21 +21,23 @@ const entryRows = [
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
-    from: (table: string) => {
-      const result = table === 'entries' ? { data: entryRows, error: null } : state.held;
+    from: () => {
       const chain: Record<string, unknown> = {};
       for (const method of ['select', 'eq', 'is', 'not', 'filter']) {
         chain[method] = () => chain;
       }
-      chain.then = (
-        resolve: (value: unknown) => unknown,
-        reject?: (reason: unknown) => unknown
-      ) => {
-        const gate = table === 'entries' ? null : state.heldGate;
-        return (gate ?? Promise.resolve()).then(() => resolve(result), reject);
-      };
+      chain.then = (resolve: (value: unknown) => unknown) =>
+        Promise.resolve({ data: entryRows, error: null }).then(resolve);
       return chain;
     },
+  },
+}));
+// The held lookup itself (paged, fail-open) is pinned in serverHeldFlags.test.ts;
+// here it answers as that function does: the held ids, or none when it failed.
+vi.mock('@/services/database/entries/serverHeldFlags', () => ({
+  loadServerHeldEntryIds: async () => {
+    await (state.heldGate ?? Promise.resolve());
+    return new Set(state.held.error ? [] : (state.held.data ?? []).map(row => row.id));
   },
 }));
 vi.mock('../useShowVenueWifi', () => ({

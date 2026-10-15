@@ -16,16 +16,13 @@ import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { EmergencyPacketInput } from '@/features/emergency-trial-packet/types';
 import { formatRingLabel } from '@/utils/ringLabel';
 import { formatShowDateRange } from '@/lib/format/dates';
-import {
-  isAwaitingRegistrationNumber,
-  resolveDogIdentityForOrganization,
-} from '@/features/dogs/identity';
+import { resolveDogIdentityForOrganization } from '@/features/dogs/identity';
 import { resolveConfiguredRegistryId } from '@/features/registries';
 import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 import { mapCatalogEntryFields } from '@/lib/reports/catalogFields';
 import { computeDayTrialNumber } from './dayTrialNumber';
 import { resolveHandlerJunior } from './reportHandlerJunior';
-import { omitHeldEntries } from './reportHeldEntries';
+import { isReportEntryHeld, omitHeldEntries } from './reportHeldEntries';
 
 export function mapReportEntries(
   dbEntries: ReportDbEntry[],
@@ -104,29 +101,8 @@ function mapReportEntry(
     ? resolveDogIdentityForOrganization(dog?.registrations, readTrialRegistryId(trial))
     : null;
   const registrationNumber = dogIdentity?.registrationNumber ?? null;
-  // MYK9-1162: a held entry is kept off the catalog. Unloaded registrations
-  // (`dog.registrations` absent) read as "not held", never as "missing" — unless
-  // the server already said so: the replicated row's `awaiting_registration_number`
-  // is the answer to fall back on when this device cannot see the registrations.
-  const registrationsKnown = dog?.registrationsReadComplete !== false && dog?.registrations != null;
-  const serverSaysHeld =
-    (e as { awaiting_registration_number?: boolean | null }).awaiting_registration_number === true;
-  let awaitingRegistrationNumber = false;
-  if (trial != null) {
-    awaitingRegistrationNumber = registrationsKnown
-      ? isAwaitingRegistrationNumber(
-          { entryStatus: e.entry_status ?? undefined, deletedAt: e.deleted_at },
-          readTrialRegistryId(trial),
-          dog?.registrations,
-          {
-            trialType: trial.trial_type,
-            className: classData?.name,
-            element: classData?.element,
-            level: classData?.level,
-          }
-        )
-      : serverSaysHeld;
-  }
+  const awaitingRegistrationNumber =
+    trial != null && isReportEntryHeld(e, readTrialRegistryId(trial), trial, classData);
   const base = mapDbEntryToReportEntry(
     {
       id: e.id,

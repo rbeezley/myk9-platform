@@ -1,37 +1,32 @@
 # Tasks
 
-## 1. Scope and existing implementation
+## 1. Authorized isolation and existing regression proof
 
-Owner boundary: “Prepare checks without shared-data writes” (2026-10-15). Tasks 2/3 and full-batch closure are blocked under this boundary. Read-only preparation can ship independently.
+- [x] 1.1 Read both full issues and comments; retain #3047 read-only evidence and prior converted-surface sweep.
+- [x] 1.2 Record current user request authorizing isolated proof only; select existing disposable Supabase lifecycle and inspect target refusal guards.
+- [x] 1.3 Run existing isolation target/lifecycle tests (16 passed); discover exactly two new manual browser tests and compile the actual proof graph.
+- [x] 1.4 Resolve all intended-path overlap checks, run risk-appropriate type/lint/format/ratchet and whole-app shuffled validation before pushing new tests; record actual exit codes.
 
-- [x] 1.1 Read all six In Review issues/comments, select coherent show-day pair and confirm merged fix SHAs and served build with GitHub/curl evidence.
-- [ ] 1.2 Blocked live prerequisite: obtain explicit fixture/browser approval before shared-data writes. The current owner chose read-only preparation; in-flight/manual path checks are already complete.
-- [x] 1.3 Re-run existing expired-session and at-show queue/parity regressions; five files/76 tests pass. Package queue-owner 3/3 and canonical queue 56/56 tests also pass; original converted app/print surface tests pass 13 files / 217 tests. Retain results before live proof.
+## 2. MYK9-992 actual isolated browser/SQL matrix
 
-- [x] 1.4 Record the owner’s read-only boundary, prepare the exact resume procedure, walk existing secretary/judge/exhibitor views with writes blocked, compare SQL/replica, and preserve the evidence report.
+- [ ] 2.1 Provision canonical seeded local Supabase and prove loopback target/build identity before any fixture mutation.
+- [ ] 2.2 Verify NULL and high/gapped queue states across secretary, judge and cold exhibitor against actual SQL/replica; preserve screenshots/values and existing surface/print regression evidence.
+- [ ] 2.3 Verify in-ring, pulled and completed state-only controls on actual local rows; record each role’s result and restore local fixture for the expiry case.
 
-## 2. MYK9-992 deployed queue verification
+## 3. MYK9-1204 natural offline expiry
 
-- [ ] 2.1 Create exactly one approved unpaid Ranger entry through existing secretary UI; record ID and all original class-row baselines, with SQL confirmation.
-- [ ] 2.2 Verify checked-in unscored NULL and high/gapped order on secretary, judge and cold exhibitor; capture SQL/replica and visible pending/place text. Run canonical helper/run-sheet regression coverage and preserve original surface sweep.
-- [ ] 2.3 Verify in-ring, pulled and completed state-only controls for the disposable entry; record role-specific rendered evidence and preserve unchanged baseline controls.
+- [ ] 3.1 Preload actual judge scoresheet and confirm clean queue; record identity, expiry, exact source and server baseline before going offline.
+- [ ] 3.2 Wait61 real minutes with navigator offline and expired persisted token, score through UI, and prove prompt local save/owned durable queue plus unchanged server values.
+- [ ] 3.3 Reconnect as the same judge; prove final score/check-in/version, empty queue and cross-role readback with actual RPC statuses. Retain different-owner/no-owner engine controls.
 
-## 3. MYK9-1204 real offline expiry
+## 4. Evidence, delivery and closure
 
-- [ ] 3.1 Preload the disposable entry/scoresheet in an owned judge session; record served build, same judge identity, expiry and genuine offline start.
-- [ ] 3.2 After at least 61 real minutes offline and token expiry, check in and score; record prompt local save, real IndexedDB queue owner/payload and unchanged SQL server values.
-- [ ] 3.3 Reconnect/re-authenticate as the same judge; verify exact score/check-in server values, accepted versions, no duplicate entry, no pending mutation and cross-role readback. Record request statuses and errors truthfully.
-
-## 4. Teardown and shipping
-
-- [x] 4.1 Read-only run teardown: no disposable entry was created; SQL confirms Ranger count 0 and unchanged original business/version fields. Close each owned browser and verify inventory. Future live proof must still teardown its own fixture.
-- [x] 4.2 Verify completeness/correctness/coherence against both full issue descriptions, explicitly report blocked live proof, and write sanitized evidence with OpenSpec/diff/format checks. No product defect reproduced in the read-only scope.
-- [ ] 4.3 After the authorized live proof passes, commit/push the final batch evidence or correction PR; finish required review/CI, merge from primary and confirm exact merge SHA.
-- [ ] 4.4 Re-read both full issues, post passing acceptance/release/PR evidence and mark Done only when every criterion passes.
+- [ ] 4.1 Stop the disposable backend and close owned browsers; verify scrubbed synthetic artifacts and no shared target calls/mutations.
+- [ ] 4.2 Verify completeness/correctness/coherence against both full issues and record an honest final report; fix any reproduced defect with assertion-first coverage.
+- [ ] 4.3 Ship the final harness/evidence through independent review, green CI and merge; verify the exact merged head.
+- [ ] 4.4 Re-read both full descriptions, post acceptance/evidence/PR links and close only passing issues.
 
 ## Workflow follow-up
 
-- Ship the read-only preparation PR through review/CI/merge; this does not fulfill the blocked full-batch delivery/closure tasks 4.3/4.4.
-
-- Keep this change active after the read-only preparation PR merges. Archive only after the blocked live tasks 2/3 and full delivery/closure tasks 4.3/4.4 pass, or after a specific owner-approved replacement acceptance is completed. No capability sync is needed unless a real implementation correction added a delta.
-- Preserve local screenshots/logs, stop only owned processes, and retain unrelated primary/worktree edits.
+- Archive only after the isolated proof, review/CI/merge and tracker closure pass. No capability sync is needed unless a real product correction adds deltas.
+- Preserve local evidence and unrelated primary edits; keep or clean the owned worktree according to the repository cleanup rules.

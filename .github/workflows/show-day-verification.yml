@@ -1,0 +1,96 @@
+name: Isolated show-day verification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/show-day-verification.yml'
+      - 'apps/myk9show/playwright.show-day.config.ts'
+      - 'apps/myk9show/tsconfig.show-day.json'
+      - 'apps/myk9show/src/test/e2e/verification/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: isolated-show-day-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proof:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
+      MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
+      MYK9_E2E_APPROVED_PROJECT_REFS: local
+      MYK9_E2E_SUPABASE_PROJECT_REF: local
+    steps:
+      - uses: actions/checkout@v7
+      - uses: supabase/setup-cli@v3
+        with:
+          version: latest
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate runner-only account passwords
+        shell: bash
+        run: |
+          set -euo pipefail
+          password="Proof-$(openssl rand -hex 24)!"
+          echo "::add-mask::$password"
+          for name in E2E_ADMIN_PASSWORD E2E_SECRETARY_PASSWORD E2E_JUDGE_PASSWORD E2E_DEMO_EXHIBITOR_PASSWORD; do
+            echo "$name=$password" >> "$GITHUB_ENV"
+          done
+      # The VM is disposable. Docker pulls use the host, while container requests
+      # to any public address (including shared Supabase/email/Stripe) are denied.
+      - name: Restrict containers to local networks
+        run: |
+          sudo iptables -N DOCKER-USER 2>/dev/null || true
+          sudo iptables -I DOCKER-USER 1 -d 10.0.0.0/8 -j RETURN
+          sudo iptables -I DOCKER-USER 2 -d 172.16.0.0/12 -j RETURN
+          sudo iptables -I DOCKER-USER 3 -d 192.168.0.0/16 -j RETURN
+          sudo iptables -I DOCKER-USER 4 -j DROP
+      - name: Prepare disposable local Supabase
+        run: pnpm qa:isolated-e2e:prepare
+      - name: Verify isolated target
+        run: pnpm exec tsx scripts/qa/verify-isolated-e2e-target.ts
+      - name: Stamp tested source
+        run: git rev-parse HEAD > apps/myk9show/public/build-sha.txt
+      - name: Build current app and packages
+        run: pnpm build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+      - name: Install Chromium
+        run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
+      - name: Compile proof tests
+        working-directory: apps/myk9show
+        run: pnpm exec tsc --noEmit -p tsconfig.show-day.json
+      - name: Queue matrix then natural offline expiry
+        working-directory: apps/myk9show
+        run: pnpm exec playwright test --config=playwright.show-day.config.ts --workers=1 --retries=0 --fail-on-flaky-tests
+        env:
+          CI: 'true'
+      - name: Verify reports contain no credentials
+        id: verify-artifacts
+        if: always()
+        working-directory: apps/myk9show
+        run: pnpm exec tsx scripts/verify-artifact-secrets.ts --skip-zip-files playwright-report-ci test-results
+      - name: Preserve isolated evidence
+        if: ${{ always() && steps.verify-artifacts.outcome != 'failure' && steps.verify-artifacts.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: isolated-show-day-proof
+          path: |
+            apps/myk9show/playwright-report-ci/
+            apps/myk9show/test-results/
+            !apps/myk9show/playwright-report-ci/**/*.zip
+            !apps/myk9show/test-results/**/*.zip
+          retention-days: 7
+      - name: Stop disposable target
+        if: always()
+        run: pnpm qa:isolated-e2e:stop

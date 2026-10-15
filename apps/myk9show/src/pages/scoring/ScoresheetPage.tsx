@@ -65,7 +65,7 @@ export function ScoresheetPage() {
   // MYK9-1162: the same live gate as ringside, so a paper score is never keyed
   // for a dog awaiting its registration number.
   // The dog goes in-ring once it is free to run: on open, or when a hold clears.
-  const held = useEntryHeld(entryId, moveInRing);
+  const hold = useEntryHeld(entryId, moveInRing);
 
   const [entry, setEntry] = useState<ScoringEntry | null>(null);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
@@ -291,7 +291,7 @@ export function ScoresheetPage() {
         </div>
       )}
       <HeldEntryGate
-        held={held}
+        hold={hold}
         onBack={handleBack}
         submit={handleSubmit}
         // The page's own banner above already shows the hook's submit error.
@@ -303,7 +303,7 @@ export function ScoresheetPage() {
           entry={toScoresheetEntry(entry, classInfo)}
           classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
           rules={rules}
-          onSubmit={submitUnlessHeld(held, handleSubmit)}
+          onSubmit={submitUnlessHeld(hold.held, handleSubmit)}
           onBack={handleBack}
         />
       </HeldEntryGate>

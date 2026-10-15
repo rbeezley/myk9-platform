@@ -29,6 +29,7 @@ import { makeHandlerKey } from '@/types/show-registration-types';
 import { generateUUID } from '@/utils/idUtils';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import { loadOfflineCapacityOverrides } from './offlineCapacityOverride';
+import { loadProvisionalHolds } from './provisionalHold';
 import { assertReceivedMethodChosen, secretaryReceivedMethod } from './secretaryReceivedPayment';
 
 /**
@@ -196,10 +197,17 @@ export async function submitOfflineLateEntry({
       classId: selectedClass.classId,
     }))
   );
-  const [cachedShow, showArmbands, capacityOverrides] = await Promise.all([
+  const [cachedShow, showArmbands, capacityOverrides, isProvisionallyHeld] = await Promise.all([
     replicatedShowsTable.getShowById(showId),
     replicatedArmbandsTable.getByShow(showId),
     loadOfflineCapacityOverrides(showId, capacitySelections),
+    loadProvisionalHolds(
+      classSelections.map(selection => ({
+        dogId: selection.dogId,
+        trialId: selection.trialId,
+        classIds: selection.selectedClasses.map(selectedClass => selectedClass.classId),
+      }))
+    ),
   ]);
   // Read AFTER the capacity check: it runs the show-entries sync guard, which
   // fills a cold or partial replica. A snapshot taken alongside it could miss
@@ -266,6 +274,8 @@ export async function submitOfflineLateEntry({
         capacityOverrides[makeHandlerKey(selection.dogId, selectedClass.classId)] === true;
       const submittedAt = new Date().toISOString();
       const runOrder = nextRunOrder.get(selectedClass.classId);
+      // MYK9-1162: no server verdict yet for a row made on this device.
+      const held = isProvisionallyHeld(selection.dogId, selection.trialId, selectedClass.classId);
       if (runOrder !== undefined) nextRunOrder.set(selectedClass.classId, runOrder + 1);
       const entry: ReplicatedEntry = {
         id: generateUUID(),
@@ -302,6 +312,9 @@ export async function submitOfflineLateEntry({
         payment_notes: paymentDetails?.paymentNotes ?? null,
         submittedAt,
         updated_at: submittedAt,
+        // View-only: never uploaded (`entryToSupabaseRow`); the server's verdict
+        // replaces it on the next sync.
+        ...(held ? { awaitingRegistrationNumber: true, awaiting_registration_number: true } : {}),
       };
 
       const createdEntry = await replicatedEntriesTable.createEntry(entry, dependencyIds);

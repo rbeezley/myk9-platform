@@ -304,7 +304,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   // MYK9-1162: live, both directions; the sheet stays mounted behind the gate.
   // In-ring once the dog is free to run: on open, or when a hold clears. Only
   // this engine (mounted past the scoring gate) calls it, as before.
-  const held = useEntryHeld(entryId, moveInRing);
+  const hold = useEntryHeld(entryId, moveInRing);
   const handleCorrectScore = useCallback(() => {
     setSavedEntryId(null);
     // Same URL is a no-op in React Router, so re-read the row instead.
@@ -445,7 +445,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           a fixed sport key), not a component created during render — same
           dispatch pattern as the secretary ScoresheetPage. */}
       <HeldEntryGate
-        held={held}
+        hold={hold}
         onBack={onBack}
         submit={submit}
         // The page's own banner above already shows the hook's submit error.
@@ -458,7 +458,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           entry={toScoresheetEntry(entry, classInfo, registryKey)}
           classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
           rules={rules}
-          onSubmit={submitUnlessHeld(held, submit)}
+          onSubmit={submitUnlessHeld(hold.held, submit)}
           onBack={onBack}
           onWarningChime={audio.playWarning}
           onVoiceAnnouncement={handleVoiceAnnouncement}

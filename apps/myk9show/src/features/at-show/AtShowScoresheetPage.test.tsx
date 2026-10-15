@@ -141,7 +141,14 @@ const StubLiveScoresheet = ({
     <header>{headerActions}</header>
     <div data-testid="live-scoresheet">Live scoresheet for #{entry.armband}</div>
     <div data-testid="voice-announcements-enabled">{String(enableVoiceAnnouncements)}</div>
-    <button onClick={() => onSubmit({ resultText: 'Qualified', searchTime: '0:30.00' })}>
+    {/* Like the real sheet, a refused save is caught (and shown) by the sheet. */}
+    <button
+      onClick={() =>
+        void Promise.resolve(onSubmit({ resultText: 'Qualified', searchTime: '0:30.00' })).catch(
+          () => undefined
+        )
+      }
+    >
       Submit Score
     </button>
     <button onClick={onBack}>Back</button>
@@ -1074,7 +1081,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     });
   });
 
-  it('locks an open sheet when sync brings in a hold, and unlocks it again, keeping the sheet', async () => {
+  it('a hold that arrives on an open sheet warns and refuses the save, but never freezes the run', async () => {
     let notify: () => void = () => undefined;
     vi.mocked(replicatedEntriesTable.subscribe).mockImplementation(listener => {
       notify = listener as () => void;
@@ -1082,23 +1089,28 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     });
     renderPage();
     const sheet = await screen.findByTestId('live-scoresheet');
-    expect(sheet.closest('[inert]')).toBeNull();
 
     vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue(heldRow as never);
     notify();
-    expect(await screen.findByText('Registration number needed')).toBeInTheDocument();
-    // The same sheet, still mounted: nothing the judge had on it is lost.
+    expect(await screen.findByTestId('held-mid-sheet-banner')).toHaveTextContent(
+      'Registration number needed'
+    );
+    // The same sheet, still usable: the judge can stop the clock mid run.
     expect(screen.getByTestId('live-scoresheet')).toBe(sheet);
-    expect(sheet.closest('[inert]')).not.toBeNull();
+    expect(sheet.closest('[inert]')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mark absent' })).toBeNull();
+    // The save itself is refused while held.
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Score' }));
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(submitScoreOptimistically).not.toHaveBeenCalled();
 
     vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue({
       ...heldRow,
       awaitingRegistrationNumber: false,
     } as never);
     notify();
-    await waitFor(() => expect(screen.queryByText('Registration number needed')).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId('held-mid-sheet-banner')).toBeNull());
     expect(screen.getByTestId('live-scoresheet')).toBe(sheet);
-    expect(sheet.closest('[inert]')).toBeNull();
   });
 
   it('moves a dog in-ring when its hold clears on the open sheet, and not before', async () => {

@@ -12,6 +12,12 @@ const state = vi.hoisted(() => ({
   held: { data: [] as Array<{ id: string }> | null, error: null as unknown },
   // When set, the held lookup does not answer until this promise resolves.
   heldGate: null as Promise<void> | null,
+  /** The device's replicated entry rows, each carrying the server's held verdict. */
+  replicaRows: [] as Array<{
+    id: string;
+    entryStatus: string;
+    awaitingRegistrationNumber?: boolean;
+  }>,
 }));
 
 const entryRows = [
@@ -34,6 +40,9 @@ vi.mock('@/lib/supabase', () => ({
 }));
 // The held lookup itself (paged, fail-open) is pinned in serverHeldFlags.test.ts;
 // here it answers as that function does: the held ids, or none when it failed.
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: { getEntriesByShow: async () => state.replicaRows },
+}));
 vi.mock('@/services/database/entries/serverHeldFlags', () => ({
   loadServerHeldEntryIds: async () => {
     await (state.heldGate ?? Promise.resolve());
@@ -64,6 +73,7 @@ describe('useArmbandLabelData entries awaiting a registration number', () => {
   beforeEach(() => {
     state.held = { data: [], error: null };
     state.heldGate = null;
+    state.replicaRows = [];
   });
 
   afterEach(() => {
@@ -80,6 +90,14 @@ describe('useArmbandLabelData entries awaiting a registration number', () => {
 
   it('leaves the held entry out and keeps the others', async () => {
     state.held = { data: [{ id: 'held' }], error: null };
+    expect(await labelIds()).toEqual(['ok']);
+  });
+
+  it('keeps a hold the device knows when the online lookup fails (offline)', async () => {
+    state.held = { data: null, error: { message: 'Failed to fetch' } };
+    state.replicaRows = [
+      { id: 'held', entryStatus: 'confirmed', awaitingRegistrationNumber: true },
+    ];
     expect(await labelIds()).toEqual(['ok']);
   });
 

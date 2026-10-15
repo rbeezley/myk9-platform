@@ -38,15 +38,15 @@ describe('useEntryHeld', () => {
     mocks.getEntryById.mockResolvedValue(row(false));
     const { result } = renderHook(() => useEntryHeld('entry-1'));
     await waitFor(() => expect(mocks.getEntryById).toHaveBeenCalled());
-    expect(result.current).toBe(false);
+    expect(result.current.held).toBe(false);
 
     mocks.getEntryById.mockResolvedValue(row(true));
     act(() => notify());
-    await waitFor(() => expect(result.current).toBe(true));
+    await waitFor(() => expect(result.current.held).toBe(true));
 
     mocks.getEntryById.mockResolvedValue(row(false));
     act(() => notify());
-    await waitFor(() => expect(result.current).toBe(false));
+    await waitFor(() => expect(result.current.held).toBe(false));
   });
 
   it('is not held for a withdrawn entry, a missing row or a failed read', async () => {
@@ -55,17 +55,17 @@ describe('useEntryHeld', () => {
       initialProps: { id: 'entry-1' },
     });
     await waitFor(() => expect(mocks.getEntryById).toHaveBeenCalled());
-    expect(result.current).toBe(false);
+    expect(result.current.held).toBe(false);
 
     mocks.getEntryById.mockResolvedValue(null);
     rerender({ id: 'entry-2' });
     await waitFor(() => expect(mocks.getEntryById).toHaveBeenCalledWith('entry-2'));
-    expect(result.current).toBe(false);
+    expect(result.current.held).toBe(false);
 
     mocks.getEntryById.mockRejectedValue(new Error('IndexedDB closed'));
     rerender({ id: 'entry-3' });
     await waitFor(() => expect(mocks.getEntryById).toHaveBeenCalledWith('entry-3'));
-    expect(result.current).toBe(false);
+    expect(result.current.held).toBe(false);
   });
 
   it("never reports one entry's hold for the next", async () => {
@@ -75,10 +75,10 @@ describe('useEntryHeld', () => {
     const { result, rerender } = renderHook(({ id }) => useEntryHeld(id), {
       initialProps: { id: 'entry-1' },
     });
-    await waitFor(() => expect(result.current).toBe(true));
+    await waitFor(() => expect(result.current.held).toBe(true));
 
     rerender({ id: 'entry-2' });
-    expect(result.current).toBe(false);
+    expect(result.current.held).toBe(false);
   });
 
   it('stops listening when the sheet closes', () => {
@@ -92,7 +92,7 @@ describe('useEntryHeld', () => {
     const onPlayable = vi.fn();
     mocks.getEntryById.mockResolvedValue(row(true));
     const { result } = renderHook(() => useEntryHeld('entry-1', onPlayable));
-    await waitFor(() => expect(result.current).toBe(true));
+    await waitFor(() => expect(result.current.held).toBe(true));
     expect(onPlayable).not.toHaveBeenCalled();
 
     mocks.getEntryById.mockResolvedValue(row(false));
@@ -124,5 +124,30 @@ describe('useEntryHeld', () => {
 
     rerender({ id: 'entry-2' });
     await waitFor(() => expect(onPlayable).toHaveBeenCalledTimes(2));
+  });
+
+  it('locks only a hold present when the sheet opens; a later hold never freezes the sheet', async () => {
+    mocks.getEntryById.mockResolvedValue(row(true));
+    const { result } = renderHook(() => useEntryHeld('entry-1'));
+    await waitFor(() => expect(result.current).toEqual({ held: true, locked: true }));
+
+    mocks.getEntryById.mockResolvedValue(row(false));
+    act(() => notify());
+    await waitFor(() => expect(result.current).toEqual({ held: false, locked: false }));
+
+    // Held again after it cleared: the sheet may be mid run, so warn, never lock.
+    mocks.getEntryById.mockResolvedValue(row(true));
+    act(() => notify());
+    await waitFor(() => expect(result.current).toEqual({ held: true, locked: false }));
+  });
+
+  it('warns but does not lock when a hold arrives on a sheet opened unheld', async () => {
+    mocks.getEntryById.mockResolvedValue(row(false));
+    const { result } = renderHook(() => useEntryHeld('entry-1'));
+    await waitFor(() => expect(mocks.getEntryById).toHaveBeenCalled());
+
+    mocks.getEntryById.mockResolvedValue(row(true));
+    act(() => notify());
+    await waitFor(() => expect(result.current).toEqual({ held: true, locked: false }));
   });
 });

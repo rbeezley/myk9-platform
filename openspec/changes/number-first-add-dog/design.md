@@ -107,8 +107,9 @@ _Why not derive it on the device:_ the first version did. A pure helper took the
 - **Run sheet:** `buildRunSheetEntries`.
 - **Paper scoring:** `paperScoresheetData.loadEntriesWithDogs`, which drops held entries before its breed check.
 - **Pipeline print:** `usePipelinePrint` (run order, scoresheets).
-- **Armband labels:** the held lookup in `useArmbandLabelData`.
-- **Scoresheets:** ringside and the secretary's paper-score sheet sit behind one `HeldEntryGate`, fed by `useEntryHeld`, which follows the replica in both directions. The sheet stays mounted but inert while held, so a hold that arrives or clears mid-entry never discards a draft; Mark absent stays available. The server's score guard is the authority either way.
+- **Armband labels:** the replica's held flags, plus the online held lookup for anything newer, so a lookup that fails offline never erases a hold the device knows.
+- **Entries keyed in offline:** a row created on the device has no server verdict yet, so `loadProvisionalHolds` marks it held when the device sees no number for the trial's registry (and it is not a conformation puppy). It leans to held when it cannot tell; the server's verdict replaces it on sync. Never uploaded.
+- **Scoresheets:** ringside and the secretary's paper-score sheet sit behind one `HeldEntryGate`, fed by `useEntryHeld`, which follows the replica in both directions. A dog held when its sheet opens is locked: the notice shows (Mark absent stays available) and the sheet is inert, so no run starts. A hold that arrives on a sheet already open never freezes it: a judge mid run can still stop the clock, a banner says the score cannot be saved yet, and only the save is refused. The sheet stays mounted throughout, so no draft is lost. The dog moves in-ring once it is free to run (on open, or when a hold clears). Owner decision 2026-10-15. The server's score guard is the authority either way.
 
 **Online reads.** The online fallbacks read `public.entries`, which cannot carry a view-computed column, so `stampServerHeldFlags` asks the view for the held ids of those shows. A failed lookup, including one against a database the column has not reached, holds nothing: a class is never emptied on a failed read.
 

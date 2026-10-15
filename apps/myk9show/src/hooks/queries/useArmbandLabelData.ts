@@ -5,6 +5,8 @@ import type { ArmbandLabelEntry } from '@/lib/labels/armbandLabelTypes';
 import { formatReportDate } from '@/lib/reports/reportUtils';
 import { useShowVenueWifi } from './useShowVenueWifi';
 import { loadServerHeldEntryIds } from '@/services/database/entries/serverHeldFlags';
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { isHeldEntry } from '@/features/dogs/identity';
 
 /** Exported for unit testing — pure function, no hooks */
 
@@ -73,7 +75,19 @@ export function useArmbandLabelData(showId: string | undefined): ArmbandLabelDat
     isFetching: heldQueryFetching,
   } = useQuery({
     queryKey: [...ARMBAND_LABEL_HELD_ENTRIES_KEY, showId],
-    queryFn: async () => (showId ? [...(await loadServerHeldEntryIds([showId]))] : []),
+    // The replica's held verdicts first, so a lookup that fails offline can never
+    // erase holds this device already knows; the online lookup adds any newer one.
+    queryFn: async () => {
+      if (!showId) return [];
+      const [held, replicaRows] = await Promise.all([
+        loadServerHeldEntryIds([showId]),
+        Promise.resolve()
+          .then(() => replicatedEntriesTable.getEntriesByShow(showId))
+          .catch(() => []),
+      ]);
+      for (const row of replicaRows) if (isHeldEntry(row)) held.add(row.id);
+      return [...held];
+    },
     enabled: !!showId,
     // Always re-asked when labels open: a number added or removed since the last
     // look changes which labels may print. Registration changes also invalidate it

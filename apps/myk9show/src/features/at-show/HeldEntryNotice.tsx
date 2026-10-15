@@ -3,6 +3,7 @@ import { ArrowLeft, ShieldAlert } from 'lucide-react';
 import type { ScoreData } from '@myk9/scoring-ui';
 import { Button } from '@/components/ui/button';
 import { ScoreSubmitErrorBanner } from './ScoreSubmitErrorBanner';
+import type { EntryHoldState } from './useEntryHeld';
 
 /**
  * What the live scoresheet submits for its Absent chip: a zero time and the
@@ -81,26 +82,48 @@ export function HeldEntryNotice({
 export const HELD_SCORE_REFUSAL = 'Registration number needed. See the secretary.';
 
 interface HeldEntryGateProps extends HeldEntryNoticeProps {
-  /** Live from `useEntryHeld`: changes in both directions while the sheet is open. */
-  held: boolean;
+  /** Live from `useEntryHeld`. */
+  hold: EntryHoldState;
   children: ReactNode;
 }
 
 /**
- * MYK9-1162: the one gate every scoresheet sits behind. While the entry is held
- * the notice shows (with Mark absent) and the sheet below is inert: no timer, no
- * result, no submit. The sheet stays MOUNTED either way, so a hold that arrives
- * mid-entry, or clears, never discards what was already on it.
+ * MYK9-1162: the one gate every scoresheet sits behind.
+ *
+ * Held when the sheet opened (`locked`): the notice shows, with Mark absent, and
+ * the sheet below is inert, so no run can start. Held only after it opened: the
+ * sheet keeps working, so a judge mid run can stop the clock, and a banner says
+ * the score cannot be saved yet; the submit itself is refused by
+ * `submitUnlessHeld`. The sheet stays MOUNTED throughout, so nothing on it is lost
+ * when a hold arrives or clears.
  */
-export function HeldEntryGate({ held, children, ...notice }: HeldEntryGateProps) {
+export function HeldEntryGate({ hold, children, ...notice }: HeldEntryGateProps) {
+  const { held, locked } = hold;
   return (
     <>
-      {held && <HeldEntryNotice {...notice} />}
+      {locked && <HeldEntryNotice {...notice} />}
+      {held && !locked && (
+        <div
+          role="alert"
+          className="ringside-root mx-auto max-w-2xl px-4 pt-4"
+          data-testid="held-mid-sheet-banner"
+        >
+          <div className="flex items-start gap-3 rounded-xl border border-warning bg-warning/10 p-4">
+            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden />
+            <div>
+              <p className="font-medium">Registration number needed</p>
+              <p className="text-sm text-muted-foreground">
+                Finish this run. The score can be saved once the secretary adds the number.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       <div
-        inert={held}
-        aria-hidden={held || undefined}
-        data-held={held || undefined}
-        className={held ? 'pointer-events-none opacity-40' : undefined}
+        inert={locked}
+        aria-hidden={locked || undefined}
+        data-held={locked || undefined}
+        className={locked ? 'pointer-events-none opacity-40' : undefined}
       >
         {children}
       </div>

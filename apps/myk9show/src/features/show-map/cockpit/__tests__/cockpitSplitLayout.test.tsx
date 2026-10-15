@@ -104,6 +104,30 @@ describe('the class editor survives the split/stack switch', () => {
     }
   });
 
+  it('spends a returning anchor once measured, even when it measured stacked', () => {
+    const scrollIntoView = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      cockpit.width = null;
+      const { rerender } = render(
+        <SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />,
+        { initialRoute: '/shows/show-1?focus=class-1&anchor=class-1' }
+      );
+      cockpit.width = 700;
+      rerender(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />);
+      const afterMeasure = scrollIntoView.mock.calls.length;
+
+      // A tablet rotated to landscape later, untouched: the page stays where it is.
+      cockpit.width = 1000;
+      rerender(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />);
+      expect(screen.getByTestId('cockpit-split-focus')).toBeInTheDocument();
+      expect(scrollIntoView).toHaveBeenCalledTimes(afterMeasure);
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+
   it.each([
     [COCKPIT_SPLIT_MIN_WIDTH, 'split'],
     [COCKPIT_SPLIT_MIN_WIDTH - 1, 'stacked'],

@@ -87,14 +87,10 @@ export function useBrowseShowsList(): BrowseShowsList {
   let showsError = storeErrorMsg ? new Error(storeErrorMsg) : null;
   if (guestRead?.kind === 'error') showsError = new Error("Couldn't load shows");
   if (showsOffline) showsError = new Error('Offline');
-  const { status: syncStatus } = useReplicationSync();
-  // A first sync that failed on an empty replica (a cold offline boot) is not "no shows".
-  if (
-    !showsError &&
-    readsReplica &&
-    shows.length === 0 &&
-    syncStatus.tablesStatus.shows === 'error'
-  ) {
+  const { status: syncStatus, syncTable } = useReplicationSync();
+  const showsSyncFailed = readsReplica && syncStatus.tablesStatus.shows === 'error';
+  // A shows sync that failed while the replica is still empty is not "no shows".
+  if (!showsError && showsSyncFailed && shows.length === 0) {
     showsError = new Error("Couldn't load shows");
   }
 
@@ -116,9 +112,14 @@ export function useBrowseShowsList(): BrowseShowsList {
 
   const retryShows = useCallback(async () => {
     if (isGuest) await refetchGuestShows();
+    // Re-reading an empty replica changes nothing after a failed sync: sync the table first.
+    else if (showsSyncFailed) {
+      await syncTable('shows');
+      await loadShows();
+    }
     // An account's list is the shows replica; a failed device read stays failed until re-read.
     else if (readsReplica) await loadShows();
-  }, [isGuest, readsReplica, refetchGuestShows, loadShows]);
+  }, [isGuest, showsSyncFailed, syncTable, readsReplica, refetchGuestShows, loadShows]);
 
   return { shows, isGuest, isLoading, showsError, showsOffline, retryShows };
 }

@@ -81,8 +81,17 @@ const ShowsMasterDetailPage: React.FC = () => {
     setPaneMode(next);
   };
 
+  // Roles are null only until RBAC first loads (refreshes keep them), so a cold open of a show URL
+  // mounts the show once more when the list arrives; after that the tree position is fixed.
   const runsShows = (userWithRoles?.roles ?? []).some(role => PANE_ROLES.has(role));
   if (!isAccountSession(user) || !runsShows || !isWide) return <Outlet />;
+
+  const hideButton = canFold ? (
+    <Button variant="ghost" aria-label="Hide shows list" onClick={() => toggle('folded')}>
+      <PanelLeftClose className="mr-1.5 h-4 w-4" aria-hidden="true" />
+      Hide
+    </Button>
+  ) : null;
 
   return (
     <div ref={rootRef} className="px-[var(--app-shell-page-padding,1rem)] py-4 sm:px-6">
@@ -104,22 +113,17 @@ const ShowsMasterDetailPage: React.FC = () => {
         listHidden={folded}
         list={
           // A list that fails to render must never take the open show down with it.
-          <ErrorBoundary level="component" context="Shows list">
-            <ShowsPaneList
-              selectedId={showId}
-              headerAction={
-                canFold ? (
-                  <Button
-                    variant="ghost"
-                    aria-label="Hide shows list"
-                    onClick={() => toggle('folded')}
-                  >
-                    <PanelLeftClose className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                    Hide
-                  </Button>
-                ) : null
-              }
-            />
+          <ErrorBoundary
+            level="component"
+            context="Shows list"
+            fallback={() => (
+              <div role="alert" className="space-y-3 rounded-lg border bg-card p-4 text-sm">
+                <p>The shows list couldn&apos;t be shown.</p>
+                {hideButton}
+              </div>
+            )}
+          >
+            <ShowsPaneList selectedId={showId} headerAction={hideButton} />
           </ErrorBoundary>
         }
         detail={

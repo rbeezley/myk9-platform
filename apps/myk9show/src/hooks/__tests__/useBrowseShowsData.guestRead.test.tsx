@@ -24,6 +24,7 @@ const auth = vi.hoisted(() => ({
 const replica = vi.hoisted(() => ({ shows: [] as Show[], reads: 0 }));
 const getPublicShows = vi.hoisted(() => vi.fn());
 const sync = vi.hoisted(() => ({ shows: 'synced' }));
+const syncTable = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => auth.value }));
 
@@ -55,7 +56,7 @@ vi.mock('@/store/entryStore', () => {
 });
 
 vi.mock('@/hooks/useReplicationSync', () => ({
-  useReplicationSync: () => ({ status: { tablesStatus: { shows: sync.shows } } }),
+  useReplicationSync: () => ({ status: { tablesStatus: { shows: sync.shows } }, syncTable }),
 }));
 
 vi.mock('@/hooks/useEntriesPersonId', () => ({ useEntriesPersonId: () => null }));
@@ -251,6 +252,17 @@ describe('useBrowseShowsData when the first shows sync failed (MYK9-1213)', () =
     const { result } = renderBrowse();
     expect(result.current.hasError).toBe(true);
     expect(result.current.isLoading).toBe(false);
+  });
+
+  it('Retry after a failed sync syncs the shows table again, not just the same empty replica', async () => {
+    replica.shows = [];
+    sync.shows = 'error';
+    syncTable.mockClear();
+    const { result } = renderBrowse();
+    await act(async () => {
+      await result.current.handleRetry();
+    });
+    expect(syncTable).toHaveBeenCalledWith('shows');
   });
 
   it('a replica that already holds shows keeps listing them after a failed sync', () => {

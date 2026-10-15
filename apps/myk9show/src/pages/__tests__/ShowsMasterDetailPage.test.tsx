@@ -13,6 +13,7 @@ const auth = {
   userWithRoles: SECRETARY as { id: string; roles: string[] } | null,
 };
 let showPageMounts = 0;
+const listState = { crash: false };
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => auth,
@@ -25,12 +26,15 @@ vi.mock('@/components/shows/browse/ShowsPaneList', () => ({
   }: {
     selectedId?: string;
     headerAction?: React.ReactNode;
-  }) => (
-    <div>
-      <p>shows list (open: {selectedId ?? 'none'})</p>
-      {headerAction}
-    </div>
-  ),
+  }) => {
+    if (listState.crash) throw new Error('bad replica row');
+    return (
+      <div>
+        <p>shows list (open: {selectedId ?? 'none'})</p>
+        {headerAction}
+      </div>
+    );
+  },
 }));
 
 function Page({ name }: { name: string }) {
@@ -64,6 +68,7 @@ describe('ShowsMasterDetailPage', () => {
     auth.user = { id: 'auth-1', is_anonymous: false };
     auth.userWithRoles = SECRETARY;
     showPageMounts = 0;
+    listState.crash = false;
   });
 
   it('puts the open show beside the list from a 1280px window', () => {
@@ -123,6 +128,16 @@ describe('ShowsMasterDetailPage', () => {
     await user.click(screen.getByRole('button', { name: 'Shows' }));
     await user.click(screen.getByRole('button', { name: 'Hide shows list' }));
     expect(showPageMounts).toBe(1);
+  });
+
+  it('keeps the open show working when the list itself fails to render', () => {
+    listState.crash = true;
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockViewportWidth(1440);
+    renderAt('/shows/show-1');
+    expect(screen.getByRole('alert')).toHaveTextContent("The shows list couldn't be shown.");
+    expect(screen.getByText('show page (in pane)')).toBeInTheDocument();
+    quiet.mockRestore();
   });
 
   it('gives exhibitors and judges no list: Find Shows is already their list', () => {

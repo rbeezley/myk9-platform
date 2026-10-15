@@ -14,7 +14,7 @@
 
 - [x] 1.5 Gate the step: exhibitors cannot pass Registration with zero registrations (a step-scoped schema issue via `locateInvalidField`), and managers (`isAdminRole(userRole)`) get **No registration number yet**, which skips the lookup. Verify tests for each role, including the `QuickCreateFlow` (secretary) and `StepDogs` (exhibitor) callers.
 - [x] 1.6 Run the affected AddDogPanel, dogIdentity, registration and onboarding test directories shuffled, plus `pnpm typecheck`, `pnpm lint` and `pnpm qa:code-quality-ratchet` in the worktree. Verify all are green.
-- [ ] 1.7 Ship batch 1:
+- [x] 1.7 Ship batch 1:
   - PR referencing MYK9-1162;
   - `pnpm qa:review-tier`, then `pnpm qa:codex-review --post`, with findings fixed;
   - watcher green, then squash-merge;
@@ -22,9 +22,9 @@
 
 ## 2. Batch 2: held entries (PR 2, independent review)
 
-- [ ] 2.1 Add migration `<ts>_myk9_1162_entries_registration_manager_exception.sql`. It copies `entries_require_dog_registration()` from `20260828210000`, adds `IF public.can_manage_trial(<trial id>) THEN RETURN NEW; END IF;` after class and trial resolution, and updates the header comment. Extend the behavioral SQL test: a manager insert without a number passes, an exhibitor insert fails, and the puppy carve-out is unchanged. Verify the migration-auditor reports no blocking findings.
-- [ ] 2.2 Add `isAwaitingRegistrationNumber(entry, trialRegistry, dogRegistrations)` in `features/dogs/identity/`. It treats unknown registrations as not held and exempts conformation puppies. Verify known-answer tests mirror the SQL test cases.
-- [ ] 2.3 Exclude held entries from:
+- [x] 2.1 Add migration `<ts>_myk9_1162_entries_registration_manager_exception.sql`. It copies `entries_require_dog_registration()` from `20260828210000`, adds `IF public.can_manage_trial(<trial id>) THEN RETURN NEW; END IF;` after class and trial resolution, and updates the header comment. Extend the behavioral SQL test: a manager insert without a number passes, an exhibitor insert fails, and the puppy carve-out is unchanged. Verify the migration-auditor reports no blocking findings.
+- [x] 2.2 Add `isAwaitingRegistrationNumber(entry, trialRegistry, dogRegistrations)` in `features/dogs/identity/`. It treats unknown registrations as not held and exempts conformation puppies. Verify known-answer tests mirror the SQL test cases.
+- [x] 2.3 Exclude held entries from:
   - `catalogRows` and `countCatalogClass`;
   - `buildRunSheetEntries` and the run-order source;
   - `paperScoresheetData.loadEntriesWithDogs`;
@@ -32,16 +32,16 @@
 
   Load registrations where a builder lacks them. Verify each builder has a test with one held and one normal entry, and a test showing that unloaded registrations exclude nothing.
 
-- [ ] 2.4 Update `emergency_packet_input` (copy from `20260922220537`) to exclude held entries using its existing per-registry registration join. Verify an extended behavioral SQL test.
-- [ ] 2.5 Add the `'registration-needed'` exception:
+- [x] 2.4 Update `emergency_packet_input` (copy from `20260922220537`) to exclude held entries using its existing per-registry registration join. Verify an extended behavioral SQL test.
+- [x] 2.5 Add the `'registration-needed'` exception:
   - params, views and count;
   - the pane in `EntryManagementPage`;
   - rows with Add registration and the existing Pull / Withdraw actions.
 
   Verify tests for the count, the row actions, URL round-trip and removal after a number is added.
 
-- [ ] 2.6 Update secretary guide card 5 (`docs/user-guides/secretary-guide.md:103-119`): replace the "save is refused" callout with held-entry behavior and the Exceptions pane. Verify `pnpm format:check:changed` passes and the callout matches the behavior.
-- [ ] 2.7 Run the shuffled affected test directories, typecheck, lint and the ratchet. Verify green; then grep for any other run-list or catalog consumer not covered and list the result in the PR.
+- [x] 2.6 Update secretary guide card 5 (`docs/user-guides/secretary-guide.md:103-119`): replace the "save is refused" callout with held-entry behavior and the Exceptions pane. Verify `pnpm format:check:changed` passes and the callout matches the behavior.
+- [x] 2.7 Run the shuffled affected test directories, typecheck, lint and the ratchet. Verify green; then grep for any other run-list or catalog consumer not covered and list the result in the PR.
 - [ ] 2.8 Ship batch 2 as in 1.7.
 
 ## 3. Batch 3: "Registration number needed" email (PR 3, independent review)

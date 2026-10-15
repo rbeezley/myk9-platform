@@ -96,7 +96,7 @@ describe('useClassRowSyncState', () => {
     expect(spy).toHaveBeenCalledTimes(3);
   });
 
-  it('after 3 failed reads says so, keeps re-checking, and settles on a later success', async () => {
+  it('after 5s of failed reads says so, keeps re-checking, and settles on a later success', async () => {
     vi.useFakeTimers();
     let fail = true;
     const spy = vi
@@ -109,24 +109,20 @@ describe('useClassRowSyncState', () => {
     const { result } = renderHook(() => useClassRowSyncState('class-a'));
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(4_500);
     });
     expect(result.current).toBeNull();
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(1_500);
+      await vi.advanceTimersByTimeAsync(600);
     });
-    expect(result.current).toBeNull();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1_500);
-    });
-    expect(spy).toHaveBeenCalledTimes(3);
     expect(result.current).toBe('unreadable');
 
     // Still re-checking, still one read per interval.
+    const before = spy.mock.calls.length;
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1_500);
     });
-    expect(spy).toHaveBeenCalledTimes(4);
+    expect(spy).toHaveBeenCalledTimes(before + 1);
     expect(result.current).toBe('unreadable');
 
     fail = false;
@@ -134,5 +130,93 @@ describe('useClassRowSyncState', () => {
       await vi.advanceTimersByTimeAsync(1_500);
     });
     expect(result.current).toBe('settled');
+  });
+
+  it('a read that never settles reaches the reload copy by time, with exactly one read', async () => {
+    vi.useFakeTimers();
+    const spy = vi
+      .spyOn(replicatedClassesTable, 'getReplicatedRow')
+      .mockImplementation(() => new Promise(() => {}));
+    vi.spyOn(replicatedClassesTable, 'hasUnsyncedLocalWork').mockResolvedValue(false);
+    const { result } = renderHook(() => useClassRowSyncState('class-a'));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_500);
+    });
+    expect(result.current).toBeNull();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600);
+    });
+    expect(result.current).toBe('unreadable');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(result.current).toBe('unreadable');
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('a hung read that later succeeds clears the reload copy and settles', async () => {
+    vi.useFakeTimers();
+    let release!: () => void;
+    vi.spyOn(replicatedClassesTable, 'getReplicatedRow').mockImplementation(async () => {
+      await new Promise<void>(resolve => (release = resolve));
+      return null;
+    });
+    vi.spyOn(replicatedClassesTable, 'hasUnsyncedLocalWork').mockResolvedValue(false);
+    const { result } = renderHook(() => useClassRowSyncState('class-a'));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_100);
+    });
+    expect(result.current).toBe('unreadable');
+    await act(async () => release());
+    expect(result.current).toBe('settled');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(result.current).toBe('settled');
+  });
+
+  it('switching class resets the clock', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(replicatedClassesTable, 'getReplicatedRow').mockImplementation(
+      () => new Promise(() => {})
+    );
+    const { result, rerender } = renderHook(({ id }) => useClassRowSyncState(id), {
+      initialProps: { id: 'class-a' },
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_000);
+    });
+    rerender({ id: 'class-b' });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_000);
+    });
+    expect(result.current).toBeNull();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_100);
+    });
+    expect(result.current).toBe('unreadable');
+    rerender({ id: 'class-a' });
+    expect(result.current).toBeNull();
+  });
+
+  it('a waiting class still re-checks every 1.5s and never escalates', async () => {
+    vi.useFakeTimers();
+    const spy = vi.spyOn(replicatedClassesTable, 'getReplicatedRow').mockResolvedValue(null);
+    vi.spyOn(replicatedClassesTable, 'hasUnsyncedLocalWork').mockResolvedValue(true);
+    const { result } = renderHook(() => useClassRowSyncState('class-a'));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+    expect(result.current).toBe('waiting');
+    // One interval per act: effects re-arm the timer only once the act flushes.
+    for (let i = 0; i < 6; i++) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_500);
+      });
+    }
+    expect(result.current).toBe('waiting');
+    expect(spy).toHaveBeenCalledTimes(7);
   });
 });

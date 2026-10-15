@@ -85,6 +85,11 @@ describe('a registration edit', () => {
   });
 
   it('of an add that has not been confirmed, is refused even online', async () => {
+    // addRegistration arms the manager's 100ms auto-upload. Once the device is
+    // online that timer would upload (confirm) the INSERT, and on a slow run it
+    // fires before the assertions: the add is then no longer unconfirmed. The
+    // test needs the INSERT to stay queued, so the upload is held off.
+    vi.spyOn(queue.manager, 'uploadPendingMutations').mockResolvedValue([]);
     setDeviceOnline(false);
     const added = await table.addRegistration({ dog_id: 'dog-1', registration_number: 'N1' });
     setDeviceOnline(true);

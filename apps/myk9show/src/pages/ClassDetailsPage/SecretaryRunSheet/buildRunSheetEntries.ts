@@ -122,7 +122,8 @@ export function buildRunSheetEntries(
             awaiting_registration_number: row.awaiting_registration_number,
           },
           registryId,
-          registrationsIfKnown(dogLookup.get(row.dog_id)),
+          // With no trial registry the registrations prove nothing either way.
+          registryId == null ? undefined : registrationsIfKnown(dogLookup.get(row.dog_id)),
           puppyContext
         )
     )

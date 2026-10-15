@@ -315,6 +315,38 @@ describe('buildRunSheetEntries entries awaiting a registration number (MYK9-1162
     expect(buildRunSheetEntries(rows, lookup, 'AKC')).toHaveLength(2);
   });
 
+  it("falls back to the server's held flag when the registrations are not loaded (offline)", () => {
+    const flagged = [
+      rows[0],
+      makeRow({
+        id: 'held',
+        dog_id: 'd-held',
+        run_order: 2,
+        entry_status: 'confirmed',
+        awaiting_registration_number: true,
+      }),
+    ];
+    const noRegistrations = new Map([dogWith('d-reg', undefined), dogWith('d-held', undefined)]);
+    expect(buildRunSheetEntries(flagged, noRegistrations, 'AKC', 'AKC').map(e => e.id)).toEqual([
+      'registered',
+    ]);
+    const incomplete = new Map([
+      dogWith('d-reg', akc),
+      dogWith('d-held', [], { registrationsReadComplete: false }),
+    ]);
+    expect(buildRunSheetEntries(flagged, incomplete, 'AKC', 'AKC').map(e => e.id)).toEqual([
+      'registered',
+    ]);
+  });
+
+  it('trusts the registrations it can read over a stale server flag', () => {
+    const flagged = rows.map(row => ({ ...row, awaiting_registration_number: true }));
+    const lookup = new Map([dogWith('d-reg', akc), dogWith('d-held', [])]);
+    expect(buildRunSheetEntries(flagged, lookup, 'AKC', 'AKC').map(e => e.id)).toEqual([
+      'registered',
+    ]);
+  });
+
   it('reads the trial registry: an AKC number does not release a UKC entry', () => {
     const lookup = new Map([dogWith('d-reg', akc), dogWith('d-held', akc)]);
     expect(buildRunSheetEntries(rows, lookup, 'UKC', 'UKC')).toHaveLength(0);

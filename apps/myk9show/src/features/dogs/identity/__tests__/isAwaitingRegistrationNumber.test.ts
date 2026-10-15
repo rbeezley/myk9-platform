@@ -85,6 +85,38 @@ describe('isAwaitingRegistrationNumber', () => {
     expect(isAwaitingRegistrationNumber(live, 'AKC', null)).toBe(false);
   });
 
+  it("answers from the row's server flag when the registrations are unknown", () => {
+    expect(
+      isAwaitingRegistrationNumber(
+        { ...live, awaiting_registration_number: true },
+        'AKC',
+        undefined
+      )
+    ).toBe(true);
+    expect(
+      isAwaitingRegistrationNumber({ ...live, awaitingRegistrationNumber: true }, 'AKC', null)
+    ).toBe(true);
+    expect(
+      isAwaitingRegistrationNumber({ ...live, awaitingRegistrationNumber: false }, 'AKC', null)
+    ).toBe(false);
+    // A withdrawn entry is never held, whatever the flag says.
+    expect(
+      isAwaitingRegistrationNumber(
+        { entryStatus: 'withdrawn', awaiting_registration_number: true },
+        'AKC',
+        undefined
+      )
+    ).toBe(false);
+  });
+
+  it('trusts loaded registrations over the server flag', () => {
+    expect(
+      isAwaitingRegistrationNumber({ ...live, awaitingRegistrationNumber: true }, 'AKC', [
+        akc('SR1', 'AKC'),
+      ])
+    ).toBe(false);
+  });
+
   it.each(['withdrawn', 'scratched', 'absent', 'moved', 'not_accepted'])(
     'is not live, so not held, when the entry is %s',
     entryStatus => {

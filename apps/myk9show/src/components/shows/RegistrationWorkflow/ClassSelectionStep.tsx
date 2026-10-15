@@ -614,6 +614,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                 element={group.element}
                                 fee={group.fee}
                                 isSingleClass={group.isSingleClass}
+                                dogName={dog?.callName || dog?.name || 'this dog'}
                                 levels={group.levels.map(l => {
                                   const avail = availabilityMap.get(l.classId);
                                   const prerequisite = getRegistrationPrerequisite({

@@ -1,5 +1,7 @@
+import { onlineManager } from '@tanstack/react-query';
 import { waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createAppQueryClient } from '@/lib/queryClient';
 import { render, screen } from '@/test/utils/testUtils';
 import {
   fetchLifecycleEmailJobsForReview,
@@ -8,6 +10,7 @@ import {
   skipLifecycleEmailJobsForReview,
   updateLifecycleEmailStepEnabled,
 } from './api';
+import { LifecycleSendPartialError } from './api';
 import { ScheduledLifecycleEmailsPanel } from './ScheduledLifecycleEmailsPanel';
 
 vi.mock('./api', async importOriginal => {
@@ -102,7 +105,7 @@ describe('ScheduledLifecycleEmailsPanel', () => {
         previewWarnings: [],
       },
     ]);
-    mockSendJobs.mockResolvedValue(undefined);
+    mockSendJobs.mockResolvedValue({ sent: 1, failed: 0, total: 1 });
     mockSkipJobs.mockResolvedValue(undefined);
     mockUpdateStep.mockResolvedValue(undefined);
   });
@@ -161,6 +164,176 @@ describe('ScheduledLifecycleEmailsPanel', () => {
         })
       );
     });
+  });
+
+  it('shows a partial-send count beside Send and refreshes the review list', async () => {
+    mockSendJobs.mockRejectedValue(new LifecycleSendPartialError(200, 2300));
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    const fetchesBefore = mockFetchJobs.mock.calls.length;
+    const send = screen.getByRole('button', { name: 'Send now' });
+    await user.click(send);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(
+      'Sent 200 of 2300 emails; the rest are still waiting. Send again to finish.'
+    );
+    // Same footer container as Send, so it is visible without scrolling the list.
+    expect(alert.parentElement).toBe(send.parentElement?.parentElement);
+    // onError invalidates the review query: the list is fetched again after the failure.
+    await waitFor(() => expect(mockFetchJobs.mock.calls.length).toBeGreaterThan(fetchesBefore));
+    expect(send).toHaveTextContent('Send now');
+  });
+
+  it('does not close as a success when some recipients failed inside a 200', async () => {
+    mockSendJobs.mockResolvedValue({ sent: 95, failed: 5, total: 100 });
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    const fetchesBefore = mockFetchJobs.mock.calls.length;
+    await user.click(screen.getByRole('button', { name: 'Send now' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(
+      "Sent 95 of 100 emails. 5 couldn't be sent and are still on the list. Send again to retry them."
+    );
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await waitFor(() => expect(mockFetchJobs.mock.calls.length).toBeGreaterThan(fetchesBefore));
+  });
+
+  it('names a single unsent email in the singular', async () => {
+    mockSendJobs.mockResolvedValue({ sent: 0, failed: 1, total: 1 });
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    await user.click(screen.getByRole('button', { name: 'Send now' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Sent 0 of 1 email. 1 couldn't be sent and is still on the list. Send again to retry it."
+    );
+  });
+
+  it('keeps the plural total when one of many fails', async () => {
+    mockSendJobs.mockResolvedValue({ sent: 99, failed: 1, total: 100 });
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    await user.click(screen.getByRole('button', { name: 'Send now' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Sent 99 of 100 emails. 1 couldn't be sent and is still on the list. Send again to retry it."
+    );
+  });
+
+  it('closes after an all-success send', async () => {
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    await user.click(screen.getByRole('button', { name: 'Send now' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('does not retry a failed send automatically', async () => {
+    mockSendJobs.mockRejectedValue(new Error('boom'));
+    // The app's real defaults retry a mutation once after 1s; the shared test client does not.
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />, {
+      queryClient: createAppQueryClient(),
+    });
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    await user.click(screen.getByRole('button', { name: 'Send now' }));
+    await screen.findByRole('alert', undefined, { timeout: 4000 });
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    expect(mockSendJobs).toHaveBeenCalledTimes(1);
+  });
+
+  it('never traps the secretary offline: the send fails fast and Close works', async () => {
+    // The app's real defaults park an online-only mutation while offline: Send would sit on
+    // "Sending..." and then fire on its own when the network returns (MYK9-1191 review).
+    mockSendJobs.mockRejectedValue(new Error('Failed to fetch'));
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />, {
+      queryClient: createAppQueryClient(),
+    });
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    await screen.findByRole('button', { name: 'Send now' });
+    onlineManager.setOnline(false);
+    try {
+      await user.click(screen.getByRole('button', { name: 'Send now' }));
+      expect(await screen.findByRole('alert', undefined, { timeout: 4000 })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Close' })).toBeEnabled();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
+  it('lets the secretary close mid-send, and a reopened panel still shows the send in flight', async () => {
+    let finish: (error: Error) => void = () => {};
+    mockSendJobs.mockReturnValue(
+      new Promise((_resolve, reject) => {
+        finish = reject;
+      })
+    );
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    await user.click(screen.getByRole('button', { name: 'Send now' }));
+    await screen.findByRole('button', { name: 'Sending...' });
+
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    expect(await screen.findByRole('button', { name: 'Sending...' })).toBeDisabled();
+    expect(mockSendJobs).toHaveBeenCalledTimes(1);
+
+    finish(new Error('boom'));
+    expect(await screen.findByRole('button', { name: 'Send now' })).toBeEnabled();
+  });
+
+  it('a send that outlives its panel never closes or clears a panel opened later', async () => {
+    let finish: (result: { sent: number; failed: number; total: number }) => void = () => {};
+    mockSendJobs.mockReturnValue(
+      new Promise(resolve => {
+        finish = resolve;
+      })
+    );
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    await user.click(screen.getByRole('button', { name: 'Send now' }));
+    await screen.findByRole('button', { name: 'Sending...' });
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    const subject = await screen.findByLabelText('Subject');
+    await user.type(subject, '!');
+    expect(subject).toHaveValue('Entry accepted!');
+
+    const fetchesBefore = mockFetchSummary.mock.calls.length;
+    finish({ sent: 1, failed: 0, total: 1 });
+    // The old send's refresh still runs (summary is fetched again) ...
+    await waitFor(() => expect(mockFetchSummary.mock.calls.length).toBeGreaterThan(fetchesBefore));
+    // ... but the panel the secretary is editing now stays open with its edit intact.
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByLabelText('Subject')).toHaveValue('Entry accepted!');
+  });
+
+  it('shows one calm sentence, never raw error text, for any other send failure', async () => {
+    mockSendJobs.mockRejectedValue(new Error('Edge Function returned a non-2xx status code'));
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByRole('dialog');
+    await user.click(screen.getByRole('button', { name: 'Send now' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent("Couldn't send these emails. Nothing was lost; try again.");
+    expect(alert).not.toHaveTextContent('non-2xx');
   });
 
   it('closes the review slide-out on Escape and returns focus to the Review button', async () => {

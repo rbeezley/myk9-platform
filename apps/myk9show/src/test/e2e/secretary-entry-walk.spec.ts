@@ -205,7 +205,10 @@ test.describe('Secretary Entry Walk', () => {
       .filter({ hasText: 'Container' })
       .first();
     await expect(containerCard).toBeVisible({ timeout: 10000 });
-    await containerCard.getByRole('checkbox', { name: 'Select Novice A' }).first().click();
+    await containerCard
+      .getByRole('checkbox', { name: /Enter .* in Container Novice A/ })
+      .first()
+      .click();
     await expect(page.getByText(/1 selected/).first()).toBeVisible();
 
     // Click Next to step 3 (Handlers)

@@ -13,6 +13,7 @@ import {
 import { reconcileEntryPaymentUpdateOutcome } from '../_shared/entryPaymentUpdateReconcile.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
 import { loadStoredEntryJunior, priceCartItems } from '../_shared/cartItemPricing.ts';
+import { showTimeZoneFromTrials, type ShowTrialZoneRow } from '../_shared/showTimeZone.ts';
 import { recordChargedEntryFee, recordChargedFeesForStamped } from '../_shared/entryFeeRecord.ts';
 import {
   calculatePlatformFeeCents,
@@ -1152,7 +1153,10 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
 
   const { data: showFees, error: showFeesError } = await supabase
     .from('shows')
-    .select('pre_entry_fee, day_of_show_fee, junior_handler_fee, organization, start_date')
+    // MYK9-1198: the trials carry the show's zone, which decides the day-of tier.
+    .select(
+      'pre_entry_fee, day_of_show_fee, junior_handler_fee, organization, start_date, trials(id, date, timezone)'
+    )
     .eq('id', cart.show_id)
     .single();
 
@@ -1247,7 +1251,15 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     );
     return;
   }
-  const authoritativeByItem = priceCartItems(showFees, pricingItems, storedJunior, nowIso);
+  const authoritativeByItem = priceCartItems(
+    {
+      ...showFees,
+      timezone: showTimeZoneFromTrials(showFees.trials as ShowTrialZoneRow[] | null),
+    },
+    pricingItems,
+    storedJunior,
+    nowIso
+  );
   const authoritativeSubtotal = pricingItems.reduce(
     (sum, i) => sum + (authoritativeByItem.get(i.id) ?? 0),
     0

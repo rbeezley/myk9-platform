@@ -7,6 +7,7 @@ import {
   type LifecycleEmailJobSummaryRow,
   type LifecycleEmailReceiptLogRow,
 } from './readModel';
+import { fetchAllPages } from './pagedRead';
 import type { LifecycleEmailStepType } from './types';
 
 interface QueryResult<T> {
@@ -18,6 +19,9 @@ interface QueryBuilder<T> extends PromiseLike<QueryResult<T>> {
   select(columns: string): QueryBuilder<T>;
   eq(column: string, value: unknown): QueryBuilder<T>;
   in(column: string, values: readonly unknown[]): QueryBuilder<T>;
+  order(column: string): QueryBuilder<T>;
+  gt(column: string, value: unknown): QueryBuilder<T>;
+  limit(count: number): QueryBuilder<T>;
   update(values: Record<string, unknown>): QueryBuilder<T>;
 }
 
@@ -31,6 +35,7 @@ interface StepRow {
 }
 
 interface JobRow {
+  id: string;
   step_type: LifecycleEmailStepType;
   status: LifecycleEmailJobSummaryRow['status'];
   preview_warnings: string[] | null;
@@ -104,6 +109,24 @@ export interface EntryDecisionEmailStatus {
   sentCorrectionJob: EntryDecisionEmailJob | null;
 }
 
+/** A multi-chunk send that failed after some chunks went out; the message is safe to show. */
+export class LifecycleSendPartialError extends Error {
+  constructor(
+    readonly sent: number,
+    readonly total: number
+  ) {
+    super(`Sent ${sent} of ${total} emails; the rest are still waiting. Send again to finish.`);
+    this.name = 'LifecycleSendPartialError';
+  }
+}
+
+/** What a completed send really did: `failed` jobs stay on the list for another try. */
+export interface LifecycleSendResult {
+  sent: number;
+  failed: number;
+  total: number;
+}
+
 export interface LifecycleEmailFunctionsClient {
   functions: {
     invoke: (
@@ -150,10 +173,12 @@ export async function fetchShowLifecycleEmailSummary(args: {
       .from<StepRow[]>('show_lifecycle_email_steps')
       .select('step_type, is_enabled')
       .eq('show_id', args.showId),
-    args.supabase
-      .from<JobRow[]>('show_lifecycle_email_jobs')
-      .select('step_type, status, preview_warnings')
-      .eq('show_id', args.showId),
+    fetchAllPages<JobRow>(() =>
+      args.supabase
+        .from<JobRow[]>('show_lifecycle_email_jobs')
+        .select('id, step_type, status, preview_warnings')
+        .eq('show_id', args.showId)
+    ),
     fetchReceiptLogs(args.supabase, receiptRegistrationIds),
   ]);
 
@@ -193,14 +218,16 @@ export async function fetchLifecycleEmailJobsForReview(args: {
   showId: string;
   stepType: LifecycleEmailStepType;
 }): Promise<LifecycleEmailJobReview[]> {
-  const result = (await args.supabase
-    .from<JobReviewRow[]>('show_lifecycle_email_jobs')
-    .select(
-      'id, step_type, status, recipient_email, recipient_name, subject, body, secretary_note, preview_warnings'
-    )
-    .eq('show_id', args.showId)
-    .eq('step_type', args.stepType)
-    .in('status', ['ready', 'failed'])) as QueryResult<JobReviewRow[]>;
+  const result = await fetchAllPages<JobReviewRow>(() =>
+    args.supabase
+      .from<JobReviewRow[]>('show_lifecycle_email_jobs')
+      .select(
+        'id, step_type, status, recipient_email, recipient_name, subject, body, secretary_note, preview_warnings'
+      )
+      .eq('show_id', args.showId)
+      .eq('step_type', args.stepType)
+      .in('status', ['ready', 'failed'])
+  );
 
   if (result.error) {
     throw new Error(result.error.message ?? 'Failed to load lifecycle email recipients');
@@ -288,21 +315,34 @@ export async function sendLifecycleEmailJobs(args: {
   subject?: string | null;
   body?: string | null;
   secretaryNote?: string | null;
-}): Promise<void> {
-  const { error } = await args.supabase.functions.invoke('send-lifecycle-email', {
-    body: {
-      action: 'send',
-      show_id: args.showId,
-      job_ids: args.jobIds,
-      ...(args.subject == null ? {} : { subject: args.subject }),
-      ...(args.body == null ? {} : { body: args.body }),
-      ...(args.secretaryNote == null ? {} : { secretary_note: args.secretaryNote }),
-    },
-  });
+}): Promise<LifecycleSendResult> {
+  // The edge function reads its job ids unpaged, so one call would be capped at max_rows (1000)
+  // and silently send only part of a large batch; chunk it like the skip path (MYK9-1187).
+  // Sent jobs leave the ready/failed set the review reads, so sending again resumes safely.
+  let sent = 0;
+  let failed = 0;
+  for (const jobIds of chunk(args.jobIds, ID_CHUNK_SIZE)) {
+    const { data, error } = await args.supabase.functions.invoke('send-lifecycle-email', {
+      body: {
+        action: 'send',
+        show_id: args.showId,
+        job_ids: jobIds,
+        ...(args.subject == null ? {} : { subject: args.subject }),
+        ...(args.body == null ? {} : { body: args.body }),
+        ...(args.secretaryNote == null ? {} : { secretary_note: args.secretaryNote }),
+      },
+    });
 
-  if (error) {
-    throw new Error(error.message ?? 'Failed to send lifecycle email');
+    if (error) {
+      if (sent === 0) throw new Error(error.message ?? 'Failed to send lifecycle email');
+      throw new LifecycleSendPartialError(sent, args.jobIds.length);
+    }
+    // The handler answers 200 with { attempted, sent, failed }; count what really went out.
+    const reported = data as { sent?: unknown; failed?: unknown } | null | undefined;
+    sent += typeof reported?.sent === 'number' ? reported.sent : jobIds.length;
+    if (typeof reported?.failed === 'number') failed += reported.failed;
   }
+  return { sent, failed, total: args.jobIds.length };
 }
 
 export async function updateReadyLifecycleEmailJob(args: {

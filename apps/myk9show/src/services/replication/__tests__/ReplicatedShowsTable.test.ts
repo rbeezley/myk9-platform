@@ -12,6 +12,7 @@
  * - Error handling and validation
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { formatDateLocal } from '@/utils/dateLocal';
 import {
   ReplicatedShowsTable,
   type ReplicatedShow,
@@ -470,14 +471,13 @@ describe('ReplicatedShowsTable', () => {
     });
 
     describe('getUpcomingShows', () => {
-      it('should return only future shows', async () => {
+      it('should return only shows starting today or later on this device (MYK9-1198)', async () => {
         const results = await table.getUpcomingShows();
-        const now = Date.now();
+        const today = formatDateLocal(new Date());
 
         expect(results.length).toBeGreaterThan(0);
         results.forEach(show => {
-          const startTime = new Date(show.startDate).getTime();
-          expect(startTime).toBeGreaterThanOrEqual(now);
+          expect(show.startDate.slice(0, 10) >= today).toBe(true);
         });
       });
 

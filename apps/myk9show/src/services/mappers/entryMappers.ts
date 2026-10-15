@@ -194,6 +194,7 @@ export const mapReplicatedClassToEntryRow = (cls: ReplicatedClass): Record<strin
     max_entries: 'maxEntries',
     description: 'description',
     trial_id: 'trialId',
+    start_time: 'startTime',
   }),
   class_number: null, // class_number is not on ReplicatedClass
   jump_height: cls.jumpHeights?.[0] ?? null,

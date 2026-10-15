@@ -37,6 +37,7 @@ describe('ElementCard — a started class (MYK9-516)', () => {
     ];
     render(
       <ElementCard
+        dogName="Rex"
         element="Interior"
         levels={levels}
         fee={30}
@@ -55,6 +56,7 @@ describe('ElementCard — a started class (MYK9-516)', () => {
     ];
     render(
       <ElementCard
+        dogName="Rex"
         element="Interior"
         levels={levels}
         fee={30}
@@ -75,6 +77,7 @@ describe('ElementCard — a started class (MYK9-516)', () => {
     ];
     const { user } = render(
       <ElementCard
+        dogName="Rex"
         element="Interior"
         levels={levels}
         fee={30}
@@ -100,6 +103,7 @@ describe('ElementCard — a started class (MYK9-516)', () => {
     ];
     render(
       <ElementCard
+        dogName="Rex"
         element="Interior"
         levels={levels}
         fee={30}
@@ -127,6 +131,7 @@ describe('ElementCard — a started class (MYK9-516)', () => {
     ];
     render(
       <ElementCard
+        dogName="Rex"
         element="Detective"
         levels={levels}
         fee={30}

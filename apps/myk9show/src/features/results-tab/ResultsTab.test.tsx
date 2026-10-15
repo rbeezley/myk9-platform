@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 
+import { replicatedClassesTable } from '@/services/replication';
 import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import type { SecretaryCockpitPaperwork } from '@/features/show-map/cockpit/secretaryCockpitTypes';
 import type { SecretaryEntry } from '@/services/database/entries';
@@ -666,7 +667,7 @@ describe('ResultsTab paper check', () => {
     expect(confirm).toBeDisabled();
 
     await tick(user);
-    expect(confirm).toBeEnabled();
+    await waitFor(() => expect(confirm).toBeEnabled());
     expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
 
     await user.click(confirm);
@@ -686,6 +687,9 @@ describe('ResultsTab paper check', () => {
     const ticked = hook.value.rows.find(row => row.id === 'class-ready')!.resultsCanonical;
 
     // The ticks are the only record of what was looked at.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
+    );
     await user.click(screen.getByRole('button', { name: 'Scores match the paper' }));
     expect(verifyMutate).toHaveBeenCalledWith(expect.objectContaining({ canonical: ticked }));
   });
@@ -694,7 +698,9 @@ describe('ResultsTab paper check', () => {
     hook.value = { ...hook.value, rows: unchecked() };
     const { user, rerender } = renderAt('?status=all&classId=class-ready');
     await tick(user);
-    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
+    );
 
     // A download changes a hashed column that is not shown (same visible row, new canonical text).
     hook.value = {
@@ -740,6 +746,9 @@ describe('ResultsTab paper check', () => {
     hook.value = { ...hook.value, rows: unchecked() };
     const { user } = renderAt('?status=all&classId=class-ready');
     await tick(user);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
+    );
     await user.click(screen.getByRole('button', { name: 'Scores match the paper' }));
 
     await waitFor(() =>
@@ -752,6 +761,9 @@ describe('ResultsTab paper check', () => {
     hook.value = { ...hook.value, rows: unchecked() };
     const { user } = renderAt('?status=all&classId=class-ready');
     await tick(user);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
+    );
     await user.click(screen.getByRole('button', { name: 'Scores match the paper' }));
 
     await waitFor(() => expect(verifyMutate).toHaveBeenCalledTimes(1));
@@ -812,7 +824,9 @@ describe('ResultsTab paper check', () => {
     expect(screen.getByText(/already released/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
     await tick(user);
-    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
+    );
     expect(screen.getByRole('link', { name: 'Check scores: Containers Open' })).toBeInTheDocument();
   });
 
@@ -959,5 +973,39 @@ describe('ResultsTab toolbar', () => {
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Containers Open')).toBeInTheDocument();
     expect(within(dialog).queryByText('Containers Advanced')).not.toBeInTheDocument();
+  });
+});
+
+describe('ResultsTab paper check while the class sync state is unknown (MYK9-1175)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const tickAll = (user: { click: (el: Element) => Promise<void> }) =>
+    user.click(screen.getByRole('checkbox', { name: 'Rex matches the paper' }));
+
+  it('keeps Scores match the paper disabled, with quiet copy, until the first read lands', async () => {
+    vi.spyOn(replicatedClassesTable, 'getReplicatedRow').mockReturnValue(new Promise(() => {}));
+    vi.spyOn(replicatedClassesTable, 'hasUnsyncedLocalWork').mockReturnValue(new Promise(() => {}));
+    hook.value = { ...hook.value, rows: buildRows({ checked: false }) };
+    const { user } = renderAt('?status=all&classId=class-ready');
+
+    await tickAll(user);
+
+    // No waitFor: the button must already be disabled the moment every dog is ticked.
+    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeDisabled();
+    expect(screen.getByText('Checking this class…')).toBeInTheDocument();
+  });
+
+  it('enables the same ticked class once the read resolves settled', async () => {
+    hook.value = { ...hook.value, rows: buildRows({ checked: false }) };
+    const { user } = renderAt('?status=all&classId=class-ready');
+
+    await tickAll(user);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
+    );
+    expect(screen.queryByText('Checking this class…')).not.toBeInTheDocument();
   });
 });

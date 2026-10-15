@@ -76,6 +76,10 @@ async function fetchExhibitorResults(dogIds: string[]) {
       )
       .in('dog_id', dogIds)
       .eq('is_scored', true)
+      // MYK9-1177: the view keeps an owner's own soft-deleted entries. Deleting a
+      // show or class tombstones its entries (soft_delete_show / soft_delete_class),
+      // so this one filter also hides history from deleted shows and classes.
+      .is('deleted_at', null)
       .order('scoring_completed_at', { ascending: false })
       .order('id', { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
@@ -101,7 +105,7 @@ async function fetchExhibitorResults(dogIds: string[]) {
     for (const trial of data ?? []) trialDates.set(trial.id, trial.date);
   }
 
-  return rows.map((row: Record<string, unknown>): ExhibitorResult => ({
+  const mapped = rows.map((row: Record<string, unknown>): ExhibitorResult => ({
     id: row.id as string,
     dogId: row.dog_id as string,
     dogName: row.dog_name as string,
@@ -129,6 +133,14 @@ async function fetchExhibitorResults(dogIds: string[]) {
       '',
     resultsReleasedAt: (row.class_results_released_at as string | null) ?? null,
   }));
+
+  // Newest trial date first (scoring order can disagree with it); undated rows
+  // last, scoring time breaking ties.
+  return mapped.sort(
+    (a, b) =>
+      (b.showDate || '').localeCompare(a.showDate || '') ||
+      (b.scoringCompletedAt || '').localeCompare(a.scoringCompletedAt || '')
+  );
 }
 
 /**

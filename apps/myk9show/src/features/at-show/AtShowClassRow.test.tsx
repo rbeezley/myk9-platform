@@ -30,12 +30,17 @@ const preview: AtShowNextUpPreview = {
   total: 4,
 };
 
-function renderRow(entry: ClassEntry, nextUp?: AtShowNextUpPreview, entryCountsAvailable = true) {
+function renderRow(
+  entry: ClassEntry,
+  nextUp?: AtShowNextUpPreview,
+  entryCountsAvailable = true,
+  isExhibitorOnly = false
+) {
   return render(
     <ul>
       <AtShowClassRow
         entry={entry}
-        isExhibitorOnly={false}
+        isExhibitorOnly={isExhibitorOnly}
         onClick={() => {}}
         trialTimeZone="America/New_York"
         nextUp={nextUp}
@@ -63,6 +68,19 @@ describe('AtShowClassRow entry counter', () => {
     expect(screen.queryByText('0 / 0')).not.toBeInTheDocument();
     expect(screen.queryByText('0 of 0 scored')).not.toBeInTheDocument();
     expect(screen.getByText('Entry count not loaded yet')).toBeInTheDocument();
+  });
+});
+
+// MYK9-1184: an exhibitor's replica never holds every entry in a class, so the
+// count can never load for them. A permanent "not loaded" is noise; the line is
+// omitted for that viewer while staff keep the honest loading state above.
+describe('AtShowClassRow entry counter for an exhibitor', () => {
+  it('omits the count line when it cannot load, rather than saying not loaded', () => {
+    renderRow(classEntry({ entry_count: 0, completed_count: 0 }), undefined, false, true);
+
+    expect(screen.queryByText('Entry count not loaded yet')).not.toBeInTheDocument();
+    expect(screen.queryByText('0 / 0')).not.toBeInTheDocument();
+    expect(screen.queryByText('0 of 0 scored')).not.toBeInTheDocument();
   });
 });
 

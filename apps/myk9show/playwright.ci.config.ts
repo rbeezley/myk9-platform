@@ -139,6 +139,9 @@ const REGRESSION_SPECS = [
   // trail. Secretary-authed and read-only; finds its target live and skips as
   // data-absent (fails under MYK9_PLAYWRIGHT_REGRESSION_ENABLED) without one.
   '**/class-breadcrumb-fits.spec.ts',
+  // MYK9-1192: exhibitor show page at 390px must not pan sideways. Read-only,
+  // exhibitor-authed against the staging demo show.
+  '**/show-page-no-sideways-scroll.spec.ts',
   // MYK9-1068: known-answer checks for the shared overflow helper every
   // geometry spec imports. setContent only: no sign-in, no data, ~1s.
   '**/horizontalOverflow.selftest.spec.ts',

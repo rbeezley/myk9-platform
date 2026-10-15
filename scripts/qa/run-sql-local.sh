@@ -10,6 +10,8 @@
 # NEVER touches the linked project: no `db push`, no `--linked`. Every step
 # targets the local stack, the test runners refuse any database URL that is not
 # loopback, and the stack is destroyed on success, failure or Ctrl-C.
+# The run owns a dedicated stack named `qa-sql-local`, never the worktree's
+# default stack, so a development stack you started yourself is left alone.
 #
 # Ports: each worktree gets its own db/api port pair, so two worktrees can run
 # this at once. SUPABASE_DB_PORT / SUPABASE_API_PORT pick them explicitly;
@@ -25,6 +27,7 @@ set -Eeuo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SUPABASE="${SUPABASE_BIN:-supabase}"
 MIN_VERSION="2.121.0"
+STACK="qa-sql-local"
 export SUPABASE_EXPERIMENTAL_STACK=1
 
 if ! command -v "$SUPABASE" >/dev/null 2>&1; then
@@ -44,10 +47,6 @@ fi
 
 cd "$REPO_ROOT"
 
-port_in_use() {
-  (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null
-}
-
 usable_port() {
   [[ "$1" =~ ^[0-9]{4,5}$ ]] && [ "$1" -ge 1024 ] && [ "$1" -le 65535 ]
 }
@@ -57,6 +56,41 @@ for port in "${SUPABASE_DB_PORT:-}" "${SUPABASE_API_PORT:-}"; do
     exit 1
   fi
 done
+
+destroy_stack() {
+  "$SUPABASE" stack destroy --workdir "$REPO_ROOT" --stack "$STACK" --yes >/dev/null 2>&1
+}
+
+stack_started=0
+cleanup() {
+  local status=$?
+  trap - EXIT INT TERM
+  if [ "$stack_started" = "1" ]; then
+    echo "==> Destroying the local stack"
+    # A leaked stack keeps its ports and blocks the next run, so a failed
+    # teardown fails the run even when every test passed.
+    if ! destroy_stack; then
+      echo "FAIL: stack destroy failed; find it with 'SUPABASE_EXPERIMENTAL_STACK=1 $SUPABASE stack list'." >&2
+      [ "$status" = "0" ] && status=1
+    fi
+  fi
+  if [ "$status" = "0" ]; then
+    echo "PASS: local SQL checks green (CI's sql-tests job is still the gate)."
+  else
+    echo "FAIL: local SQL checks failed (exit $status)." >&2
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+# A `qa-sql-local` stack left by a killed run would be resumed, not rebuilt.
+destroy_stack || true
+
+port_in_use() {
+  (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null
+}
 
 if [ -n "${SUPABASE_DB_PORT:-}" ]; then
   db_port="$SUPABASE_DB_PORT"
@@ -83,39 +117,19 @@ fi
 export SUPABASE_DB_PORT="$db_port" SUPABASE_API_PORT="$api_port"
 LOCAL_DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:$db_port/postgres"
 
-stack_started=0
-cleanup() {
-  local status=$?
-  trap - EXIT INT TERM
-  if [ "$stack_started" = "1" ]; then
-    echo "==> Destroying the local stack"
-    # A leaked stack keeps its ports and blocks the next run, so a failed
-    # teardown fails the run even when every test passed.
-    if ! "$SUPABASE" stack destroy --workdir "$REPO_ROOT" --yes >/dev/null 2>&1; then
-      echo "FAIL: stack destroy failed; find it with 'SUPABASE_EXPERIMENTAL_STACK=1 $SUPABASE stack list'." >&2
-      [ "$status" = "0" ] && status=1
-    fi
-  fi
-  if [ "$status" = "0" ]; then
-    echo "PASS: local SQL checks green (CI's sql-tests job is still the gate)."
-  else
-    echo "FAIL: local SQL checks failed (exit $status)." >&2
-  fi
-  exit "$status"
-}
-trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
-
-echo "==> Starting a native Supabase stack for this worktree (CLI $version, db port $db_port, api port $api_port)"
+# The steps below mirror .github/workflows/ci.yml `sql-tests`; keep them in step.
+# A new stack applies every migration on start, and the repo has no seed.sql,
+# so this is CI's `start` + `db reset --no-seed`. (`db reset` has no --stack
+# flag, so it is not used here.)
+if [ -e supabase/seed.sql ] || grep -q '^sql_paths' supabase/config.toml; then
+  echo "FAIL: a seed is now configured, which 'start' would apply; CI runs with --no-seed." >&2
+  exit 1
+fi
+echo "==> Starting a fresh native stack and applying all migrations (CLI $version, db port $db_port, api port $api_port)"
 # Set before `start`: a half-started stack still holds the port.
 stack_started=1
-"$SUPABASE" start --workdir "$REPO_ROOT" --runtime native \
+"$SUPABASE" start --workdir "$REPO_ROOT" --stack "$STACK" --runtime native \
   --exclude functions,studio,mail,analytics,pooler
-
-# The steps below mirror .github/workflows/ci.yml `sql-tests`; keep them in step.
-echo "==> Applying all migrations from scratch"
-"$SUPABASE" db reset --workdir "$REPO_ROOT" --local --no-seed
 
 export MYK9_BEHAVIORAL_SQL_DATABASE_URL="$LOCAL_DATABASE_URL"
 

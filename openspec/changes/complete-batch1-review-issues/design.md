@@ -35,3 +35,7 @@ Choose a unique timestamp against origin/main, open PR migration names and the l
 ## Verification method refinement
 
 Persistent demo fixtures are unnecessary. Automatic approval review declined them; use isolated read-only browser response fixtures for 9 AM / 10 AM / untimed ordering, and an authenticated live RPC plus owned-row date readback in a single rolled-back transaction. Real shared-form save contracts and roster/detail reload projections are covered by tests. This preserves the acceptance requirements while avoiding new shared records; no fixture authorization is pending.
+
+## Approved status restructure (2026-10-15)
+
+The owner approved one raw status value instead of normalization and originalStatus bookkeeping after the second independent review found that choosing Active could preserve an unfamiliar old value. The shared schema now accepts bounded nonempty status text, matching storage. The picker includes the stored value and standard choices. Both save contracts emit that one value directly: untouched legacy values remain truthful, and explicit choices replace them. No new form or state-tracking surface is added.

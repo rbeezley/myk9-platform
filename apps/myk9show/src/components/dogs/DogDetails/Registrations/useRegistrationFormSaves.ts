@@ -1,9 +1,6 @@
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import { dogSaveFailure } from '@/hooks/translateDogDbError';
-import {
-  registrationStatusForSave,
-  type RegistrationFormData,
-} from '@/components/dogs/registrationForm';
+import type { RegistrationFormData } from '@/components/dogs/registrationForm';
 import type { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
 
 function toDbRegistration(data: RegistrationFormData) {
@@ -13,7 +10,7 @@ function toDbRegistration(data: RegistrationFormData) {
     breed: data.breed,
     variety: data.variety || null,
     registration_number: data.registrationNumber,
-    status: registrationStatusForSave(data),
+    status: data.status,
     registration_date: data.registrationDate || null,
   };
 }

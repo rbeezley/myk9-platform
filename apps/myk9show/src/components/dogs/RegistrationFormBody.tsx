@@ -8,6 +8,7 @@
  *    EditPanelWrapper's form through `useRegistrationFormFields`.
  */
 import React from 'react';
+import { REGISTRATION_STATUS_VALUES } from '@/types/dog-types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/common/FormField';
@@ -247,10 +248,15 @@ export const RegistrationStatusField: React.FC<EditorProps> = ({
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="Active">Active</SelectItem>
-        <SelectItem value="Pending">Pending</SelectItem>
-        <SelectItem value="Expired">Expired</SelectItem>
-        <SelectItem value="Under review">Under review</SelectItem>
+        {REGISTRATION_STATUS_VALUES.map(status => (
+          <SelectItem key={status} value={status}>
+            {status}
+          </SelectItem>
+        ))}
+        {form.data.status &&
+          !REGISTRATION_STATUS_VALUES.some(status => status === form.data.status) && (
+            <p className="px-2 py-1.5 text-sm text-muted-foreground">Current: {form.data.status}</p>
+          )}
       </SelectContent>
     </Select>
   </FormField>

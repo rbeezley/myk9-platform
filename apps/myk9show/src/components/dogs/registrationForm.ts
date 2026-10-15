@@ -6,7 +6,7 @@
  * the database (Dog Details and the entry wizard).
  */
 import { z } from 'zod';
-import { Registration, REGISTRATION_STATUS_VALUES } from '@/types/dog-types';
+import type { Registration } from '@/types/dog-types';
 
 const ORG_CODE_MAP: Record<string, string> = {
   'AKC (American Kennel Club)': 'AKC',
@@ -58,8 +58,7 @@ export const registrationFormSchema = z.object({
     .min(1, 'Please enter a registration number.')
     .max(64)
     .regex(REGISTRATION_NUMBER_PATTERN, 'Only letters, numbers, hyphens, and slashes are allowed.'),
-  status: z.enum(REGISTRATION_STATUS_VALUES),
-  originalStatus: z.string().max(120).optional(),
+  status: z.string().min(1, 'Please select a status.').max(120),
   applicationNumber: z.string().max(64).optional(),
   submissionDate: z.string().max(40).optional(),
   registrationDate: z.string().max(40).optional(),
@@ -78,15 +77,8 @@ export const INITIAL_REGISTRATION_DATA: RegistrationFormData = {
   status: 'Active',
 };
 
-/** Matches a stored status to an allowed one ignoring case; only a value matching none reads as Active. */
-function normalizeRegistrationStatus(status: string): RegistrationFormData['status'] {
-  const wanted = status.trim().toLowerCase();
-  return REGISTRATION_STATUS_VALUES.find(v => v.toLowerCase() === wanted) ?? 'Active';
-}
-
 /** A stored registration as the form's data. */
 export function registrationToFormData(reg: Registration): RegistrationFormData {
-  const status = normalizeRegistrationStatus(reg.status);
   return {
     id: reg.id,
     organization: reg.organization,
@@ -94,21 +86,12 @@ export function registrationToFormData(reg: Registration): RegistrationFormData 
     breed: reg.breed,
     variety: reg.variety,
     registrationNumber: reg.registrationNumber,
-    status,
-    originalStatus: reg.status,
+    status: reg.status,
     applicationNumber: reg.applicationNumber,
     submissionDate: reg.submissionDate,
     registrationDate: reg.registrationDate,
     certificate: reg.certificate,
   };
-}
-
-/** Preserve an untouched stored status exactly; a deliberate choice saves the new value. */
-export function registrationStatusForSave(data: RegistrationFormData): string {
-  return data.originalStatus !== undefined &&
-    normalizeRegistrationStatus(data.originalStatus) === data.status
-    ? data.originalStatus
-    : data.status;
 }
 
 function generateRegistrationId(): string {
@@ -126,7 +109,7 @@ export function formDataToRegistration(data: RegistrationFormData): Registration
     registeredName: data.registeredName,
     breed: data.breed,
     registrationNumber: data.registrationNumber,
-    status: registrationStatusForSave(data),
+    status: data.status,
     ...(data.variety != null && { variety: data.variety }),
     ...(data.applicationNumber != null && { applicationNumber: data.applicationNumber }),
     ...(data.submissionDate != null && { submissionDate: data.submissionDate }),

@@ -46,3 +46,10 @@ Final deployed proof and completion verification will be recorded here before ar
 - Reviewed focused suite: 10 files / 143 tests passed. App typecheck completed through API checks; lint has zero errors / 36 existing warnings and quality ratchet passed.
 - Full shuffled reviewed suite: 2,952 files / 28,823 tests passed, 11 failed tests and one worker startup timeout. Two obsolete All entries assertions were corrected to Class entries. All nine failed/worker files then passed shuffled: 101 tests. The broad run is not claimed wholly green; final-head CI remains required.
 - Authenticated owner RPC/date readback, blank date, invalid-date rejection and ACL controls passed in a rolled-back transaction. No persistent records or migration were applied by this proof.
+
+## Owner-approved status restructure
+
+- Owner approved the raw-status design and continuation after the identified picker-context correction (2026-10-15, chat and Linear comment). Removed originalStatus metadata, normalization and save-time branching. A single bounded nonempty status now goes directly through both save contracts. The trigger shows the raw current value; a plain popup note describes a legacy value while the four standard options remain fixed.
+- Assertion-first: 11 old-behavior failures reproduced. Final focused result: 6 files / 63 tests passed shuffled, including pending/approved/suspended/rejected, explicit Active selection, exact DB payload, breed accessibility, and offline registration journeys. The five failed correction attempts are not counted as passing; owner explicitly authorized the identified final fix.
+- Final monorepo typecheck: all 26 tasks passed. Lint: zero errors. Code-quality ratchet passed. Fresh whole-app shuffled run is pending. Prior remote-head CI passed; its review gate was withdrawn for the P3 and is not evidence for this redesign.
+- Live dependency survey: registry_identity_taken is absent, held-entry replication view column is absent, latest applied migration is 20261014191300. The release requires the two already-merged dependency migrations plus this batch's registration-date migration.

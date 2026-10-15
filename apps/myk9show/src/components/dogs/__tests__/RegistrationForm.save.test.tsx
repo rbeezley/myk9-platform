@@ -6,6 +6,8 @@ import AddRegistrationPanel from '../DogDetails/Registrations/AddRegistrationPan
 import EditRegistrationPanel from '../DogDetails/Registrations/EditRegistrationPanel';
 import { fillNewRegistration } from '../DogDetails/Registrations/registrationFormTestHelpers';
 import type { Registration } from '@/types/dog-types';
+import { RegistrationStatusField } from '../RegistrationFormBody';
+import { useRegistrationEditor } from '../useRegistrationEditor';
 
 vi.mock('@/components/ui/dialog', () => ({
   Dialog: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
@@ -245,7 +247,7 @@ describe('registration form, database save contract (Dog Details panels)', () =>
       />
     );
 
-    expect(document.getElementById('registrationStatus')).toHaveTextContent('Pending');
+    expect(document.getElementById('registrationStatus')).toHaveTextContent('pending');
     fireEvent.change(screen.getByDisplayValue('Ch Snake Dog'), {
       target: { value: 'Ch Snake Dog II' },
     });
@@ -254,8 +256,7 @@ describe('registration form, database save contract (Dog Details panels)', () =>
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(onSave.mock.calls[0]![0]).toMatchObject({
       id: 'reg-9',
-      status: 'Pending',
-      originalStatus: 'pending',
+      status: 'pending',
     });
   });
 
@@ -301,3 +302,34 @@ it('shows a stored legacy organization without replacing its identity', () => {
     'ASCA (Australian Shepherd Club of America)'
   );
 });
+
+it.each(['approved', 'suspended', 'rejected'])(
+  'shows the stored %s status and deliberately changes it to Active in memory',
+  async status => {
+    const onSave = vi.fn();
+    const initialData = { ...registration, status };
+    function StatusSaveHarness() {
+      const editor = useRegistrationEditor({
+        open: true,
+        initialData,
+        onSave,
+        onSaved: vi.fn(),
+      });
+      return (
+        <>
+          <RegistrationStatusField editor={editor} />
+          <button onClick={editor.handleSubmit}>Save registration</button>
+        </>
+      );
+    }
+    const { user } = render(<StatusSaveHarness />);
+    const picker = screen.getByRole('combobox', { name: 'Status' });
+    expect(picker).toHaveTextContent(status);
+    await user.click(picker);
+    await user.click(await screen.findByRole('option', { name: 'Active' }));
+    await user.click(screen.getByRole('button', { name: /save registration/i }));
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ status: 'Active' }))
+    );
+  }
+);

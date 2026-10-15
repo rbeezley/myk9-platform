@@ -34,3 +34,35 @@ it('editing only the date sends the exact lowercase stored status to the databas
   );
   updateRegistration.mock.calls[0]?.[1]?.onSuccess?.();
 });
+
+it.each(['approved', 'suspended', 'rejected'])(
+  'deliberately choosing Active replaces stored %s at the database boundary',
+  async status => {
+    const updateRegistration = vi.fn();
+    const createRegistration = vi.fn();
+    const data = {
+      ...registrationToFormData({
+        id: 'registration-legacy',
+        organization: 'AKC',
+        registeredName: 'CH Legacy Dog',
+        registrationNumber: 'SR777',
+        breed: 'Beagle',
+        status,
+      }),
+      status: 'Active',
+    };
+    function SaveHarness() {
+      const { handleUpdate } = useRegistrationFormSaves({ createRegistration, updateRegistration });
+      return <button onClick={() => void handleUpdate(data)}>Save status</button>;
+    }
+    const { user } = render(<SaveHarness />);
+    await user.click(screen.getByRole('button', { name: 'Save status' }));
+    await waitFor(() =>
+      expect(updateRegistration).toHaveBeenCalledWith(
+        { id: 'registration-legacy', updates: expect.objectContaining({ status: 'Active' }) },
+        expect.any(Object)
+      )
+    );
+    updateRegistration.mock.calls[0]?.[1]?.onSuccess?.();
+  }
+);

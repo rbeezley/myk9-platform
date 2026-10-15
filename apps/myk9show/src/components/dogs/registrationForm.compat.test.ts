@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  registrationFormSchema,
   registrationOrgCode,
   registrationToFormData,
   formDataToRegistration,
@@ -32,3 +33,13 @@ it('preserves an unfamiliar stored status on an unrelated edit, but saves delibe
   );
   expect(formDataToRegistration({ ...data, status: 'Pending' }).status).toBe('Pending');
 });
+
+it.each(['pending', 'approved', 'suspended', 'rejected'])(
+  'keeps %s as the actual form value and accepts it in the shared schema',
+  status => {
+    const data = registrationToFormData({ ...registration, status });
+    expect(data.status).toBe(status);
+    expect(registrationFormSchema.safeParse(data).success).toBe(true);
+    expect(formDataToRegistration({ ...data, status: 'Active' }).status).toBe('Active');
+  }
+);

@@ -184,4 +184,47 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
       },
     });
   });
+
+  it("stamps the server's held verdict on the rows it reads (MYK9-1162)", async () => {
+    mocks.from.mockImplementation((relation: string) => {
+      let heldLookup = false;
+      const query = {
+        select: vi.fn(() => query),
+        eq: vi.fn(() => query),
+        is: vi.fn(() => query),
+        in: vi.fn(() => query),
+        filter: vi.fn(() => {
+          heldLookup = true;
+          return query;
+        }),
+        order: vi.fn(() =>
+          Promise.resolve(
+            relation === 'view_authenticated_entry_results'
+              ? {
+                  data: [
+                    { id: 'entry-ok', show_id: 'show-1' },
+                    { id: 'entry-held', show_id: 'show-1' },
+                  ],
+                  error: null,
+                }
+              : { data: [], error: null }
+          )
+        ),
+        then: (resolve: (value: unknown) => unknown) =>
+          Promise.resolve(
+            heldLookup ? { data: [{ id: 'entry-held' }], error: null } : { data: [], error: null }
+          ).then(resolve),
+      };
+      return query;
+    });
+
+    const result = await postgrestGetSecretaryEntriesForShow('show-1', Date.now(), 'test');
+
+    expect(
+      result.data.map(entry => [entry.id, entry.awaiting_registration_number === true])
+    ).toEqual([
+      ['entry-ok', false],
+      ['entry-held', true],
+    ]);
+  });
 });

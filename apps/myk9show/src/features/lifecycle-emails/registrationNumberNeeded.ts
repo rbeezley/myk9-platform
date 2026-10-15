@@ -24,22 +24,40 @@ export function buildRegistrationNumberNeededIdempotencyKey(input: {
   });
 }
 
-/** How many "registration number needed" jobs exist for the entry, whatever their status. */
-export async function countRegistrationNumberNeededJobs(args: {
+/** An entry's "registration number needed" email history, as the next send needs it. */
+export interface RegistrationNumberNeededHistory {
+  /** Every job for the entry, whatever its status: the next reminder's sequence. */
+  count: number;
+  /** Jobs that could still be sent (ready or failed), which a new email supersedes. */
+  outstandingJobIds: string[];
+}
+
+/**
+ * The entry's "registration number needed" jobs. An entry has at most ONE sendable
+ * email: before a new one is saved, the outstanding ones are withdrawn, so a failed
+ * or abandoned earlier email can never be batch-sent beside the new one.
+ */
+export async function readRegistrationNumberNeededHistory(args: {
   supabase: LifecycleEmailSupabaseClient;
   showId: string;
   entryId: string;
-}): Promise<number> {
+}): Promise<RegistrationNumberNeededHistory> {
   const result = await args.supabase
-    .from<Array<{ id: string }>>('show_lifecycle_email_jobs')
-    .select('id')
+    .from<Array<{ id: string; status: string | null }>>('show_lifecycle_email_jobs')
+    .select('id, status')
     .eq('show_id', args.showId)
     .eq('step_type', REGISTRATION_NUMBER_NEEDED_STEP)
     .eq('entry_id', args.entryId);
   if (result.error) {
     throw new Error(result.error.message ?? 'Failed to read earlier registration number emails');
   }
-  return result.data?.length ?? 0;
+  const rows = result.data ?? [];
+  return {
+    count: rows.length,
+    outstandingJobIds: rows
+      .filter(row => row.status === 'ready' || row.status === 'failed')
+      .map(row => row.id),
+  };
 }
 
 /**

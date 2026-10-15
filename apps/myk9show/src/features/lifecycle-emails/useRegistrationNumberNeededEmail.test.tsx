@@ -15,7 +15,7 @@ import {
   skipLifecycleEmailJobsForReview,
 } from './api';
 import {
-  countRegistrationNumberNeededJobs,
+  readRegistrationNumberNeededHistory,
   fetchRegistrationNumberNeededJobCounts,
 } from './registrationNumberNeeded';
 import type { LifecycleEmailScheduledSummary } from './readModel';
@@ -47,7 +47,7 @@ vi.mock('./api', async importOriginal => ({
 }));
 vi.mock('./registrationNumberNeeded', async importOriginal => ({
   ...(await importOriginal<typeof import('./registrationNumberNeeded')>()),
-  countRegistrationNumberNeededJobs: vi.fn(),
+  readRegistrationNumberNeededHistory: vi.fn(),
   fetchRegistrationNumberNeededJobCounts: vi.fn(),
 }));
 
@@ -112,7 +112,10 @@ describe('useRegistrationNumberNeededEmail', () => {
     dialog.current = null;
     vi.mocked(fetchShowLifecycleEmailSummary).mockResolvedValue(summary(true));
     vi.mocked(fetchRegistrationNumberNeededJobCounts).mockResolvedValue({});
-    vi.mocked(countRegistrationNumberNeededJobs).mockResolvedValue(0);
+    vi.mocked(readRegistrationNumberNeededHistory).mockResolvedValue({
+      count: 0,
+      outstandingJobIds: [],
+    });
     vi.mocked(saveLifecycleEmailJobForLater).mockResolvedValue('job-1');
     vi.mocked(sendLifecycleEmailJobs).mockResolvedValue({ sent: 1, failed: 0, total: 1 });
     vi.mocked(skipLifecycleEmailJobsForReview).mockResolvedValue(undefined);
@@ -201,7 +204,10 @@ describe('useRegistrationNumberNeededEmail', () => {
   });
 
   it('prepares a fresh email with a sequenced key after an earlier one', async () => {
-    vi.mocked(countRegistrationNumberNeededJobs).mockResolvedValue(1);
+    vi.mocked(readRegistrationNumberNeededHistory).mockResolvedValue({
+      count: 1,
+      outstandingJobIds: [],
+    });
     const { api } = mountHook();
     await openFor(api, target('e1', 'pat@example.com'));
     await act(async () => {
@@ -231,7 +237,7 @@ describe('useRegistrationNumberNeededEmail', () => {
 
     expect(toast.success).not.toHaveBeenCalled();
     expect(toast.info).toHaveBeenCalledWith(
-      'Dog e1 now has a registration number, so no email was sent.'
+      'No email was sent for Dog e1. Check the list: the number may already be on file.'
     );
   });
 
@@ -317,12 +323,51 @@ describe('useRegistrationNumberNeededEmail', () => {
     });
 
     expect(saveLifecycleEmailJobForLater).toHaveBeenCalledTimes(1);
-    expect(countRegistrationNumberNeededJobs).toHaveBeenCalledTimes(1);
+    expect(readRegistrationNumberNeededHistory).toHaveBeenCalledTimes(1);
     expect(sendLifecycleEmailJobs).toHaveBeenCalledTimes(2);
     expect(vi.mocked(sendLifecycleEmailJobs).mock.calls[1]![0]).toMatchObject({
       jobIds: ['job-1'],
     });
     expect(toast.success).toHaveBeenCalledWith('Registration number email sent');
+  });
+
+  it('withdraws an earlier unsent email before saving a new one, so only one can be sent', async () => {
+    vi.mocked(readRegistrationNumberNeededHistory).mockResolvedValue({
+      count: 2,
+      outstandingJobIds: ['job-failed'],
+    });
+    const { api } = mountHook();
+    await openFor(api, target('e1', 'a@example.com'));
+
+    await act(async () => {
+      await dialog.current?.onSend(values);
+    });
+
+    expect(skipLifecycleEmailJobsForReview).toHaveBeenCalledWith(
+      expect.objectContaining({ jobIds: ['job-failed'] })
+    );
+    expect(vi.mocked(skipLifecycleEmailJobsForReview).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(saveLifecycleEmailJobForLater).mock.invocationCallOrder[0]!
+    );
+  });
+
+  it('says only what is certain when the server skips the email', async () => {
+    vi.mocked(sendLifecycleEmailJobs).mockResolvedValueOnce({
+      sent: 0,
+      failed: 0,
+      total: 1,
+      skipped: 1,
+    });
+    const { api } = mountHook();
+    await openFor(api, target('e1', 'a@example.com'));
+
+    await act(async () => {
+      await dialog.current?.onSend(values);
+    });
+
+    const message = vi.mocked(toast.info).mock.calls.at(-1)?.[0] as string;
+    expect(message).toContain('No email was sent');
+    expect(message).not.toMatch(/now has a registration number/);
   });
 
   it('ignores Skip and close while its send is in flight, then closes when the send lands', async () => {

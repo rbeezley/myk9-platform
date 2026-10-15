@@ -11,7 +11,7 @@ import {
   sendLifecycleEmailJobs,
 } from '@/features/lifecycle-emails/api';
 import {
-  countRegistrationNumberNeededJobs,
+  readRegistrationNumberNeededHistory,
   fetchRegistrationNumberNeededJobCounts,
 } from '@/features/lifecycle-emails/registrationNumberNeeded';
 
@@ -40,7 +40,7 @@ vi.mock('@/features/lifecycle-emails/registrationNumberNeeded', async importOrig
   ...(await importOriginal<
     typeof import('@/features/lifecycle-emails/registrationNumberNeeded')
   >()),
-  countRegistrationNumberNeededJobs: vi.fn(),
+  readRegistrationNumberNeededHistory: vi.fn(),
   fetchRegistrationNumberNeededJobCounts: vi.fn(),
 }));
 
@@ -93,7 +93,10 @@ describe('RegistrationNeededPane email button', () => {
     vi.clearAllMocks();
     vi.mocked(fetchShowLifecycleEmailSummary).mockResolvedValue(summary(true));
     vi.mocked(fetchRegistrationNumberNeededJobCounts).mockResolvedValue({});
-    vi.mocked(countRegistrationNumberNeededJobs).mockResolvedValue(0);
+    vi.mocked(readRegistrationNumberNeededHistory).mockResolvedValue({
+      count: 0,
+      outstandingJobIds: [],
+    });
     vi.mocked(saveLifecycleEmailJobForLater).mockResolvedValue('job-1');
     vi.mocked(sendLifecycleEmailJobs).mockResolvedValue({ sent: 1, failed: 0, total: 1 });
   });

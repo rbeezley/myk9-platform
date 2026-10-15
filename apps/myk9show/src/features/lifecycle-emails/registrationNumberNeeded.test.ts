@@ -5,7 +5,7 @@ import {
   LIFECYCLE_EMAIL_STEP_TYPES,
   buildLifecycleEmailPreview,
   buildRegistrationNumberNeededIdempotencyKey,
-  countRegistrationNumberNeededJobs,
+  readRegistrationNumberNeededHistory,
   fetchRegistrationNumberNeededJobCounts,
   type LifecycleEmailSupabaseClient,
 } from './index';
@@ -86,7 +86,7 @@ describe('registration number needed idempotency', () => {
     expect(new Set([first, reminder, second]).size).toBe(3);
   });
 
-  it("counts the entry's earlier jobs of this step whatever their status", async () => {
+  it("reads the entry's earlier jobs: all of them count, ready and failed ones are outstanding", async () => {
     const calls: Array<[string, unknown]> = [];
     const builder = {
       select: vi.fn(() => builder),
@@ -95,13 +95,21 @@ describe('registration number needed idempotency', () => {
         return builder;
       }),
       then: (resolve: (value: unknown) => unknown) =>
-        Promise.resolve({ data: [{ id: 'a' }, { id: 'b' }], error: null }).then(resolve),
+        Promise.resolve({
+          data: [
+            { id: 'a', status: 'sent' },
+            { id: 'b', status: 'failed' },
+            { id: 'c', status: 'ready' },
+            { id: 'd', status: 'skipped' },
+          ],
+          error: null,
+        }).then(resolve),
     };
     const supabase = { from: vi.fn(() => builder) } as unknown as LifecycleEmailSupabaseClient;
 
     await expect(
-      countRegistrationNumberNeededJobs({ supabase, showId: 'show-1', entryId: 'entry-1' })
-    ).resolves.toBe(2);
+      readRegistrationNumberNeededHistory({ supabase, showId: 'show-1', entryId: 'entry-1' })
+    ).resolves.toEqual({ count: 4, outstandingJobIds: ['b', 'c'] });
     expect(supabase.from).toHaveBeenCalledWith('show_lifecycle_email_jobs');
     expect(calls).toEqual([
       ['show_id', 'show-1'],

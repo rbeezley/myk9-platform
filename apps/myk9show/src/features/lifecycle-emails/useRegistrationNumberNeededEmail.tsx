@@ -15,7 +15,7 @@ import {
 import {
   REGISTRATION_NUMBER_NEEDED_STEP,
   buildRegistrationNumberNeededIdempotencyKey,
-  countRegistrationNumberNeededJobs,
+  readRegistrationNumberNeededHistory,
   fetchRegistrationNumberNeededJobCounts,
 } from './registrationNumberNeeded';
 
@@ -144,11 +144,20 @@ export function useRegistrationNumberNeededEmail({
     try {
       let jobId = savedJobIdsRef.current.get(id) ?? null;
       if (!jobId) {
-        const priorCount = await countRegistrationNumberNeededJobs({
+        const history = await readRegistrationNumberNeededHistory({
           supabase: lifecycleClient,
           showId: entry.showId,
           entryId: entry.id,
         });
+        // At most one sendable email per entry: an earlier one that failed or was
+        // never sent is withdrawn first, so no batch retry can send it as well.
+        if (history.outstandingJobIds.length > 0) {
+          await skipLifecycleEmailJobsForReview({
+            supabase: lifecycleClient,
+            jobIds: history.outstandingJobIds,
+          });
+        }
+        const priorCount = history.count;
         jobId = await saveLifecycleEmailJobForLater({
           supabase,
           showId: entry.showId,
@@ -178,7 +187,11 @@ export function useRegistrationNumberNeededEmail({
         secretaryNote: values.secretaryNote,
       });
       if (result.skipped) {
-        toast.info(`${entry.dogName} now has a registration number, so no email was sent.`);
+        // The server skips when the entry is no longer held OR when it could not check;
+        // say only what is certain.
+        toast.info(
+          `No email was sent for ${entry.dogName}. Check the list: the number may already be on file.`
+        );
       } else if (result.failed > 0) {
         toast.error("The email couldn't be sent. It's still on the Scheduled emails list.");
       } else {

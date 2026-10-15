@@ -508,7 +508,7 @@ describe('send_registration_number_needed action', () => {
 
     function arrangeStateful(job: Record<string, unknown>, ownerEmail: string) {
       const fetch = vi.fn(async () => ({ ok: true, json: async () => ({ id: 'resend-1' }) }));
-      const { supabase, tables } = makeStatefulSupabase(
+      const { supabase, tables, failNext } = makeStatefulSupabase(
         baseTables({
           show_lifecycle_email_jobs: [job],
           show_lifecycle_email_steps: [stepRow],
@@ -541,7 +541,7 @@ describe('send_registration_number_needed action', () => {
             (JSON.parse((call as unknown as [string, { body: string }])[1].body) as { to: string })
               .to
         );
-      return { fetch, tables, run, recipients };
+      return { fetch, tables, run, recipients, failNext };
     }
 
     it("a retry of a request that RECOVERED an earlier job answers that job's outcome, with no second email", async () => {
@@ -576,6 +576,42 @@ describe('send_registration_number_needed action', () => {
       // And a lost response to THAT retry is still one email, not two.
       await run();
       expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    const staleJob = {
+      ...earlierJob,
+      id: 'mine',
+      idempotency_key: REQUEST_KEY,
+      recipient_email: 'old@example.com',
+    };
+    const statusOf = (tables: Record<string, Array<Record<string, unknown>>>, id: string) =>
+      tables.show_lifecycle_email_jobs.find(row => row.id === id)?.status;
+
+    it('a replacement insert that fails partway does not strand the request: the retry sends to the new address', async () => {
+      const { fetch, tables, run, recipients, failNext } = arrangeStateful(
+        staleJob,
+        'new@example.com'
+      );
+      failNext('show_lifecycle_email_jobs', 'insert');
+
+      await expect(run()).rejects.toThrow();
+      expect(fetch).not.toHaveBeenCalled();
+
+      await expect(run()).resolves.toMatchObject({ status: 'sent' });
+      expect(recipients()).toEqual(['new@example.com']);
+      expect(statusOf(tables, 'mine')).toBe('skipped');
+    });
+
+    it('a failed replacement send is retried as the same one replacement, never a second job', async () => {
+      const { fetch, tables, run, recipients } = arrangeStateful(staleJob, 'new@example.com');
+      fetch.mockImplementationOnce(async () => ({ ok: false, json: async () => ({}) }) as never);
+
+      await expect(run()).resolves.toMatchObject({ status: 'failed' });
+      await expect(run()).resolves.toMatchObject({ status: 'sent' });
+
+      expect(recipients()).toEqual(['new@example.com', 'new@example.com']);
+      expect(tables.show_lifecycle_email_jobs).toHaveLength(2);
+      expect(statusOf(tables, 'mine')).toBe('skipped');
     });
   });
 });

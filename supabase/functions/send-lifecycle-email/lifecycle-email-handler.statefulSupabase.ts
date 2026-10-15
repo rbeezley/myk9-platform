@@ -16,6 +16,8 @@ export function makeStatefulSupabase(
     Object.entries(initial).map(([name, rows]) => [name, rows.map(row => ({ ...row }))])
   );
   let nextId = 0;
+  /** Writes to fail once, in order: `{ table, mode }` matches the next such write. */
+  const failures: Array<{ table: string; mode: 'insert' | 'update' }> = [];
 
   function from(table: string) {
     tables[table] ??= [];
@@ -25,6 +27,11 @@ export function makeStatefulSupabase(
     const matching = () => tables[table].filter(row => filters.every(filter => filter(row)));
 
     const run = () => {
+      const failAt = failures.findIndex(f => f.table === table && f.mode === mode);
+      if (failAt >= 0) {
+        failures.splice(failAt, 1);
+        return { data: null, error: { message: 'injected failure' } };
+      }
       if (mode === 'update') {
         const rows = matching();
         for (const row of rows) Object.assign(row, payload);
@@ -80,6 +87,7 @@ export function makeStatefulSupabase(
 
   return {
     tables,
+    failNext: (table: string, mode: 'insert' | 'update') => failures.push({ table, mode }),
     supabase: {
       from: vi.fn(from),
       rpc: vi.fn(async (fn: string) => ({ data: rpcResults[fn] ?? null, error: null })),

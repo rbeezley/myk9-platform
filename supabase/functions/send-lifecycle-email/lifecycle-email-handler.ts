@@ -461,6 +461,9 @@ function buildNumberNeededIdempotencyKey(showId: string, entryId: string, reques
   return `show-lifecycle-email:${showId}:registration_number_needed:entry:request-${requestId.toLowerCase()}:${entryId}`;
 }
 
+const isSameAddress = (stored: string | null, current: string) =>
+  stored?.trim().toLowerCase() === current.toLowerCase();
+
 type NumberNeededOutcome =
   | { status: 'sent' | 'failed'; jobId: string; recovered?: true }
   | { status: 'skipped'; reason: 'not_held' | 'unverified' | 'no_email' }
@@ -530,19 +533,49 @@ async function sendRegistrationNumberNeeded(args: {
       : { status: result.status, jobId: job.id };
   };
 
-  // 1. A retry of THIS preview's request (its response was lost): the same email.
-  const { data: own, error: ownError } = (await supabase
-    .from('show_lifecycle_email_jobs')
-    .select('id, status')
-    .eq('show_id', showId)
-    .eq('idempotency_key', requestKey)) as QueryResult<Array<{ id: string; status: string }>>;
-  if (ownError) throw new HttpError(500, 'Failed to read the earlier email');
-  const ownJob = own?.[0];
+  // 1. A retry of THIS preview's request (its response was lost): the same email. A job is
+  // tied to a request by its own key, or by `batch_key` (unused by this step otherwise):
+  // the request that RECOVERED an earlier job, or replaced one at a new address, stamps
+  // its key there so the retry finds that job and not a reason to send another.
+  const readOwn = async (column: 'idempotency_key' | 'batch_key') => {
+    const { data, error } = (await supabase
+      .from('show_lifecycle_email_jobs')
+      .select('id, status, recipient_email')
+      .eq('show_id', showId)
+      .eq(column, requestKey)) as QueryResult<
+      Array<{ id: string; status: string; recipient_email: string | null }>
+    >;
+    if (error) throw new HttpError(500, 'Failed to read the earlier email');
+    return data ?? [];
+  };
+  const supersede = async (jobIds: string[]) => {
+    if (jobIds.length === 0) return;
+    const { error } = (await supabase
+      .from('show_lifecycle_email_jobs')
+      .update({ status: 'skipped', skipped_at: new Date().toISOString(), updated_by: userId })
+      .in('id', jobIds)) as QueryResult;
+    if (error) throw new HttpError(500, 'Failed to replace the earlier email');
+  };
+  const own = [...(await readOwn('idempotency_key')), ...(await readOwn('batch_key'))];
+  // The newest job of this request is the live one; superseded ones stay as history.
+  const ownJob = own.find(row => row.status !== 'skipped') ?? own[0];
+  let insertKey = requestKey;
   if (ownJob) {
     if (ownJob.status === 'sent') return { status: 'sent', jobId: ownJob.id };
-    if (ownJob.status === 'ready' || ownJob.status === 'failed') return send(ownJob.id, false);
-    // Replaced since by a newer request: nothing of this one is left to send.
-    return { status: 'busy' };
+    if (ownJob.status !== 'ready' && ownJob.status !== 'failed') {
+      // Replaced since by a newer request: nothing of this one is left to send.
+      return { status: 'busy' };
+    }
+    // The owner's address may have been corrected since the first attempt: replay only
+    // to the current one. Otherwise replace it, under a key derived from the old job
+    // (the old job holds this request's own key; a retry still finds the replacement
+    // through batch_key).
+    if (!isSameAddress(ownJob.recipient_email, recipientEmail)) {
+      await supersede([ownJob.id]);
+      insertKey = `${requestKey}:replaces-${ownJob.id}`;
+    } else {
+      return send(ownJob.id, false);
+    }
   }
 
   // 2. Another request's email still outstanding. At most one per entry (a partial
@@ -573,19 +606,21 @@ async function sendRegistrationNumberNeeded(args: {
   if ((outstanding ?? []).some(row => row.status === 'ready' && !isStale(row))) {
     return { status: 'busy' };
   }
-  const sameAddress = (outstanding ?? []).find(
-    row => row.recipient_email?.trim().toLowerCase() === recipientEmail.toLowerCase()
+  const sameAddress = (outstanding ?? []).find(row =>
+    isSameAddress(row.recipient_email, recipientEmail)
   );
-  if (sameAddress) return send(sameAddress.id, true);
-
-  const supersede = (outstanding ?? []).map(row => row.id);
-  if (supersede.length > 0) {
-    const { error: supersedeError } = (await supabase
+  if (sameAddress) {
+    // Tie this request to the recovered job BEFORE replaying it: if the response is
+    // lost, the retry finds it here instead of inserting a second email.
+    const { error: tieError } = (await supabase
       .from('show_lifecycle_email_jobs')
-      .update({ status: 'skipped', skipped_at: new Date().toISOString(), updated_by: userId })
-      .in('id', supersede)) as QueryResult;
-    if (supersedeError) throw new HttpError(500, 'Failed to replace the earlier email');
+      .update({ batch_key: requestKey, updated_by: userId })
+      .eq('id', sameAddress.id)) as QueryResult;
+    if (tieError) throw new HttpError(500, 'Failed to record the earlier email');
+    return send(sameAddress.id, true);
   }
+
+  await supersede((outstanding ?? []).map(row => row.id));
 
   // 3. A new email for this request.
   const subject = payload.subject?.trim() || 'Registration number needed';
@@ -605,7 +640,8 @@ async function sendRegistrationNumberNeeded(args: {
       subject,
       body,
       secretary_note: secretaryNote,
-      idempotency_key: requestKey,
+      idempotency_key: insertKey,
+      batch_key: requestKey,
       due_at: new Date().toISOString(),
       created_by: userId,
       updated_by: userId,
@@ -632,7 +668,7 @@ async function sendRegistrationNumberNeeded(args: {
     rendered_body: null,
     rendered_secretary_note: null,
     email_log_id: null,
-    idempotency_key: requestKey,
+    idempotency_key: insertKey,
     entry_id: entryId,
   };
   const sent = await sendOneJob({ deps: args.deps, job, payload: storedText, supabase, userId });

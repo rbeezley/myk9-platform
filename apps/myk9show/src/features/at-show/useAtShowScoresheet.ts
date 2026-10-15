@@ -14,14 +14,13 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { isHeldEntry } from '@/features/dogs/identity';
 import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { logger } from '@/services/LoggingService';
-import { transitionToInRing, transitionToCompleted } from '@/utils/checkInTransitions';
+import { transitionToCompleted } from '@/utils/checkInTransitions';
 import { classScoringRules } from '@/pages/scoring/classScoringRules';
 import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
 import type { ScoringEntry, ClassInfo } from '@/pages/scoring/types';
@@ -172,13 +171,6 @@ export function useAtShowScoresheet({
           setError('Entry not found');
           setIsLoading(false);
           return;
-        }
-
-        // MYK9-1162: a held entry cannot be scored, so opening its sheet must not
-        // move it in-ring. The sheet's lock itself is live (`useEntryHeld`).
-        // Auto-set check-in status to in-ring when the scoresheet opens.
-        if (!isHeldEntry(rawEntry)) {
-          transitionToInRing(rawEntry.id, rawEntry.checkInStatus, rawEntry.ring_entry_time);
         }
 
         const dog = rawEntry.dogId ? await replicatedDogsTable.get(rawEntry.dogId) : null;

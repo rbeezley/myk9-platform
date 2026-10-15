@@ -1101,6 +1101,37 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     expect(sheet.closest('[inert]')).toBeNull();
   });
 
+  it('moves a dog in-ring when its hold clears on the open sheet, and not before', async () => {
+    let notify: () => void = () => undefined;
+    vi.mocked(replicatedEntriesTable.subscribe).mockImplementation(listener => {
+      notify = listener as () => void;
+      return () => undefined;
+    });
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([heldRow] as never);
+    vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue(heldRow as never);
+    renderPage();
+    expect(await screen.findByText('Registration number needed')).toBeInTheDocument();
+    expect(transitionToInRing).not.toHaveBeenCalled();
+
+    vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue({
+      ...heldRow,
+      awaitingRegistrationNumber: false,
+    } as never);
+    notify();
+
+    await waitFor(() =>
+      expect(transitionToInRing).toHaveBeenCalledWith('entry-1', 'no-status', undefined)
+    );
+  });
+
+  it('moves an unheld dog in-ring when its sheet opens', async () => {
+    renderPage();
+
+    await screen.findByTestId('live-scoresheet');
+    await waitFor(() => expect(transitionToInRing).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(transitionToInRing).mock.calls[0]?.[0]).toBe('entry-1');
+  });
+
   it('opens the scoresheet when the flag is unknown (an older replica row)', async () => {
     renderPage();
 

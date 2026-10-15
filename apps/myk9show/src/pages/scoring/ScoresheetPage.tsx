@@ -20,7 +20,7 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 
 import { logger } from '@/services/LoggingService';
-import { transitionToInRing, transitionToCompleted } from '@/utils/checkInTransitions';
+import { transitionToCompleted } from '@/utils/checkInTransitions';
 import { getScoresheetComponent } from '@myk9/scoring-ui';
 import { classScoringRules } from './classScoringRules';
 import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
@@ -45,7 +45,7 @@ import { useScoringBreadcrumb } from './useScoringBreadcrumb';
 import { MaxTimeNotSetNotice } from '@/features/at-show/MaxTimeNotSetNotice';
 import { HeldEntryGate, submitUnlessHeld } from '@/features/at-show/HeldEntryNotice';
 import { useEntryHeld } from '@/features/at-show/useEntryHeld';
-import { isHeldEntry } from '@/features/dogs/identity';
+import { moveInRing } from '@/features/at-show/moveInRing';
 
 /**
  * Main scoresheet page - routes to correct scoresheet component
@@ -64,7 +64,8 @@ export function ScoresheetPage() {
   } = useOptimisticScoring();
   // MYK9-1162: the same live gate as ringside, so a paper score is never keyed
   // for a dog awaiting its registration number.
-  const held = useEntryHeld(entryId);
+  // The dog goes in-ring once it is free to run: on open, or when a hold clears.
+  const held = useEntryHeld(entryId, moveInRing);
 
   const [entry, setEntry] = useState<ScoringEntry | null>(null);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
@@ -117,12 +118,6 @@ export function ScoresheetPage() {
         if (!rawEntry) {
           setError('Entry not found');
           return;
-        }
-
-        // Auto-set check-in status to in-ring when scoresheet opens; never for a
-        // held entry, which cannot be scored (MYK9-1162).
-        if (!isHeldEntry(rawEntry)) {
-          transitionToInRing(rawEntry.id, rawEntry.checkInStatus, rawEntry.ring_entry_time);
         }
 
         // Load only the needed dog

@@ -10,10 +10,10 @@
  * at-show entry cards already navigate to (`buildScoreSheetRoute`).
  *
  * Authorization: the outer component is a thin `canScore` gate. The scoring
- * engine (`useAtShowScoresheet`) lives in `ScoresheetContent`, which only mounts
+ * engine (`useAtShowScoresheet`, `useEntryHeld`) lives in `ScoresheetContent`, which only mounts
  * when scoring is allowed — so a denied role runs NONE of the scoring-flow side
- * effects (notably `transitionToInRing`, which auto-advances an entry to in-ring
- * on load). The block is structural, not a hidden submit button.
+ * effects (notably the in-ring move `useEntryHeld` makes once the dog is free
+ * to run). The block is structural, not a hidden submit button.
  */
 
 import { useCallback, useMemo, useState } from 'react';
@@ -48,6 +48,7 @@ import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { MaxTimeNotSetNotice } from './MaxTimeNotSetNotice';
 import { HeldEntryGate, submitUnlessHeld } from './HeldEntryNotice';
 import { useEntryHeld } from './useEntryHeld';
+import { moveInRing } from './moveInRing';
 import { ScoreSubmitErrorBanner } from './ScoreSubmitErrorBanner';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';
@@ -136,7 +137,7 @@ export const AtShowScoresheetPage: React.FC = () => {
   const assignmentCheck = useJudgeAssignedToClass({ showRole, isAnonymous, classId });
 
   // Gate BEFORE mounting the scoring engine: an unauthorized role must never run
-  // `useAtShowScoresheet` (whose load effect calls `transitionToInRing`), so the
+  // `useAtShowScoresheet` or `useEntryHeld` (which moves the dog in-ring), so the
   // denial blocks every side effect, not just the final submit.
   if (!hasPermission('canScore')) {
     return (
@@ -247,7 +248,7 @@ function AtShowScoresheetSkeleton() {
 
 /**
  * The authorized scoresheet body. Mounted only when `canScore` is true, so its
- * `useAtShowScoresheet` engine (data load + `transitionToInRing` + submit) runs
+ * engine (`useAtShowScoresheet` data load + submit, `useEntryHeld` in-ring move) runs
  * exclusively for roles allowed to score.
  */
 const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
@@ -267,7 +268,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     (nextEntryId: string, nextClassId: string) => {
       setSavedEntryId(null);
       // The normal scoresheet route, so the picked dog goes through the same
-      // load + `transitionToInRing` path as a tap from the entry list.
+      // load + in-ring path as a tap from the entry list.
       // A chip from the other section opens under ITS class, keeping the pair.
       navigate(
         buildAtShowScoreSheetRoute(
@@ -301,7 +302,9 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     clearSubmitError,
   } = useAtShowScoresheet({ showId, classId, entryId, onScored: handleScored });
   // MYK9-1162: live, both directions; the sheet stays mounted behind the gate.
-  const held = useEntryHeld(entryId);
+  // In-ring once the dog is free to run: on open, or when a hold clears. Only
+  // this engine (mounted past the scoring gate) calls it, as before.
+  const held = useEntryHeld(entryId, moveInRing);
   const handleCorrectScore = useCallback(() => {
     setSavedEntryId(null);
     // Same URL is a no-op in React Router, so re-read the row instead.

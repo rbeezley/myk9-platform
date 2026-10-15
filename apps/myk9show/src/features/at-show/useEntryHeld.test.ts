@@ -87,4 +87,42 @@ describe('useEntryHeld', () => {
     unmount();
     expect(mocks.unsubscribe).toHaveBeenCalledTimes(1);
   });
+
+  it('moves the dog in-ring once it is free to run: on open, or when a hold clears', async () => {
+    const onPlayable = vi.fn();
+    mocks.getEntryById.mockResolvedValue(row(true));
+    const { result } = renderHook(() => useEntryHeld('entry-1', onPlayable));
+    await waitFor(() => expect(result.current).toBe(true));
+    expect(onPlayable).not.toHaveBeenCalled();
+
+    mocks.getEntryById.mockResolvedValue(row(false));
+    act(() => notify());
+    await waitFor(() => expect(onPlayable).toHaveBeenCalledTimes(1));
+    expect(onPlayable).toHaveBeenCalledWith(expect.objectContaining({ id: 'entry-1' }));
+
+    // Later replica changes never repeat it, so a manual status change made
+    // while the sheet is open is not overwritten.
+    act(() => notify());
+    act(() => notify());
+    await waitFor(() => expect(mocks.getEntryById).toHaveBeenCalledTimes(4));
+    expect(onPlayable).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves an unheld dog in-ring on open, and never a missing row', async () => {
+    const onPlayable = vi.fn();
+    mocks.getEntryById.mockResolvedValue(null);
+    const { rerender } = renderHook(({ id }) => useEntryHeld(id, onPlayable), {
+      initialProps: { id: 'entry-1' },
+    });
+    await waitFor(() => expect(mocks.getEntryById).toHaveBeenCalledWith('entry-1'));
+    expect(onPlayable).not.toHaveBeenCalled();
+
+    // A cold cache: the row arrives with the first sync.
+    mocks.getEntryById.mockResolvedValue(row(false));
+    act(() => notify());
+    await waitFor(() => expect(onPlayable).toHaveBeenCalledTimes(1));
+
+    rerender({ id: 'entry-2' });
+    await waitFor(() => expect(onPlayable).toHaveBeenCalledTimes(2));
+  });
 });

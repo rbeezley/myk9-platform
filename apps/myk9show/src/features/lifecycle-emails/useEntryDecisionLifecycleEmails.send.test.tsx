@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render } from '@testing-library/react';
+import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -44,18 +45,23 @@ async function sendDecisionEmail() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   let openPrompt: ReturnType<typeof useEntryDecisionLifecycleEmails>['openDecisionPrompt'] | null =
     null;
-  function Harness() {
+  type OpenPrompt = ReturnType<typeof useEntryDecisionLifecycleEmails>['openDecisionPrompt'];
+  function Harness({ onReady }: { onReady: (open: OpenPrompt) => void }) {
     const hook = useEntryDecisionLifecycleEmails({
       showId: 'show-1',
       showName: 'Show',
       entries: [entry],
     });
-    openPrompt = hook.openDecisionPrompt;
+    useEffect(() => onReady(hook.openDecisionPrompt));
     return <>{hook.dialog}</>;
   }
   render(
     <QueryClientProvider client={queryClient}>
-      <Harness />
+      <Harness
+        onReady={open => {
+          openPrompt = open;
+        }}
+      />
     </QueryClientProvider>
   );
   act(() => openPrompt?.(entry, 'accepted'));

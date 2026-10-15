@@ -26,7 +26,7 @@ export const RegistrationFormInline: React.FC<RegistrationFormInlineProps> = ({
   onSave,
   onDone,
 }) => {
-  const editor = useRegistrationEditor({ open: true, onSave, initialData, onSaved: onDone });
+  const editor = useRegistrationEditor({ onSave, initialData, onSaved: onDone });
   const actionBarRef = useRegisterActionBar<HTMLDivElement>();
   return (
     <EditPanelInlineShell

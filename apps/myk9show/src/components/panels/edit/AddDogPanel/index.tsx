@@ -414,6 +414,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
       {registration && (
         <div ref={registrationFormRef} tabIndex={-1} className="h-full outline-none">
           <RegistrationFormInline
+            key={registration.editing?.id ?? 'new-registration'}
             initialData={registration.editing}
             onSave={reg => saveRegistrationRef.current?.(reg)}
             onDone={leaveRegistration}

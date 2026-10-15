@@ -65,7 +65,6 @@ export const RegistrationIdentityStep: React.FC<RegistrationIdentityStepProps> =
   onSkip,
 }) => {
   const editor = useRegistrationEditor({
-    open: true,
     onSave: onSaveRegistration,
     onSaved: onRegistrationSaved,
   });

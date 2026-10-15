@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { rbacService } from '@/services/rbac/RBACService';
 import { captureAuthEmailRequestFailure } from '@/services/observability/sentry';
 import { clearAppearanceCache } from '@/context/themeClasses';
+import { clearOwnerNameCache } from '@/services/database/dogs/ownerNameCache';
 import { replicatedClassesTable } from '@/services/replication';
 import { ringsideClaimMatchesUser } from '@/features/at-show/ringsideClaimCache';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
@@ -177,6 +178,7 @@ export function useAuth() {
       // different account or an unbound legacy claim must be invalidated.
       if (_event === 'SIGNED_OUT') {
         clearAppearanceCache();
+        clearOwnerNameCache();
         useRingsideGrantStore.getState().clearGrant();
       }
       if (

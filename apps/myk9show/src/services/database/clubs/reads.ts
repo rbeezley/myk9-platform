@@ -1,5 +1,6 @@
 // Club-related database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
+import { formatDateLocal } from '@/utils/dateLocal';
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import type { DbClubInsert, DbClubUpdate } from '../../../types/database-mappings';
 import type { Json } from '@/types/supabase';
@@ -432,7 +433,7 @@ export const checkClubNameExists = async (name: string, excludeId?: string) => {
  * columns the role may not read even when head:true returns no values.
  */
 export const countUpcomingClubShows = async (clubId: string): Promise<number> => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = formatDateLocal(new Date());
 
   const { count, error } = await supabase
     .from('shows')

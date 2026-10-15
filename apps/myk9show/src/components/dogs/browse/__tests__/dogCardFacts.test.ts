@@ -27,6 +27,20 @@ describe('getDogCardFacts', () => {
     expect(facts.find(f => f.kind === 'owner')?.text).toBe('Exhibitor Exhibitor');
   });
 
+  // MYK9-1189: offline, an owner the device never saw says so instead of a blank.
+  it('says the owner is unavailable offline when the read could not supply one', () => {
+    const facts = getDogCardFacts(
+      { ...registered, ownerName: '', ownerUnavailableOffline: true },
+      { showOwner: true, now: NOW }
+    );
+    expect(facts.find(f => f.kind === 'owner')?.text).toBe('Owner unavailable offline');
+    const hidden = getDogCardFacts(
+      { ...registered, ownerName: '', ownerUnavailableOffline: true },
+      { showOwner: false, now: NOW }
+    );
+    expect(hidden.some(f => f.kind === 'owner')).toBe(false);
+  });
+
   it('drops the owner line when no owner is recorded, even for a secretary', () => {
     const facts = getDogCardFacts(
       { ...registered, ownerName: undefined },

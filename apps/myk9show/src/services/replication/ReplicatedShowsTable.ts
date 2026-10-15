@@ -31,6 +31,7 @@ import type { Database } from '@/types/supabase';
 import { withStoredDays, withTypedDays } from './showCalendarDays';
 import { rowToShow } from './showRowMapping';
 import { mapShowStatusToDb } from './showStatusMapping';
+import { formatDateLocal } from '@/utils/dateLocal';
 
 /**
  * Database row type from Supabase schema
@@ -329,10 +330,12 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    */
   async getUpcomingShows(): Promise<ReplicatedShow[]> {
     const allShows = await this.getAllOrThrow();
-    const now = Date.now();
+    // A DATE compared as a calendar day on this device: `new Date('YYYY-MM-DD')` is UTC
+    // midnight, which dropped a show starting today (MYK9-1198; matches the PostgREST read).
+    const today = formatDateLocal(new Date());
 
     return allShows
-      .filter(show => new Date(show.startDate).getTime() >= now)
+      .filter(show => (show.startDate ?? '').slice(0, 10) >= today)
       .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
   }
 

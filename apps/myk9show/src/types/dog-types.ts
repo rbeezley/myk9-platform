@@ -165,6 +165,8 @@ export interface Dog {
   /** Co-owner person id (`dogs.co_owner_id`). Carried through the offline replica too; devices that already synced pick it up on the 24h full sync. */
   coOwnerId?: string | undefined;
   ownerName?: string | undefined; // Owner name for easier display
+  /** The owner could not be read offline and was never remembered on this device (MYK9-1189). */
+  ownerUnavailableOffline?: boolean | undefined;
   owner?: Owner | undefined; // Owner object (can be populated later)
   description?: string | undefined;
   // Fields from LegacyDog

@@ -10,6 +10,7 @@
 
 import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
 import { showDateRangeStatus } from '@/utils/date-format';
+import { formatDateLocal } from '@/utils/dateLocal';
 import {
   JudgeQualification,
   CreateJudgeQualificationData,
@@ -26,6 +27,12 @@ import { ACTIVE_JUDGE_ASSIGNMENT_STATUSES } from './assignmentStatus';
 import { diffShowJudges } from './showJudgeChanges';
 
 // Helper to access tables not in generated types
+/** The device's local calendar day shifted by `days`, as YYYY-MM-DD (never the UTC date). */
+const localDayOffset = (days: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return formatDateLocal(d);
+};
 const qualificationsTable = () => untypedFrom('judge_qualifications');
 const certificationsTable = () => untypedFrom('judge_certifications');
 const JUDGE_ASSIGNMENT_PUBLIC_SELECT =
@@ -180,11 +187,9 @@ export async function getJudgeQualificationsByJudgeId(
     }
   }
   if (filters?.expiring_within_days) {
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + filters.expiring_within_days);
     query = query
       .not('expiration_date', 'is', null)
-      .lte('expiration_date', futureDate.toISOString().split('T')[0]);
+      .lte('expiration_date', localDayOffset(filters.expiring_within_days));
   }
 
   query = query.order('date_obtained', { ascending: false });
@@ -285,20 +290,21 @@ export async function getJudgeQualificationSummary(
   const qualifications = await getJudgeQualificationsByJudgeId(judgeId);
 
   const activeQualifications = qualifications.filter(q => q.is_active);
-  const expiredQualifications = qualifications.filter(
-    q => q.expiration_date && new Date(q.expiration_date) < new Date()
-  );
+  // expiration_date is a DATE: compare calendar days, as the expiry-window reads do (MYK9-1198).
+  const today = localDayOffset(0);
+  const in30Days = localDayOffset(30);
+  const expiresOn = (q: { expiration_date?: string | null }) => q.expiration_date?.slice(0, 10);
+  const expiredQualifications = qualifications.filter(q => {
+    const day = expiresOn(q);
+    return !!day && day < today;
+  });
   const suspendedQualifications = qualifications.filter(q => q.suspension_date);
 
   // Check for expiring qualifications (within 30 days)
-  const thirtyDaysFromNow = new Date();
-  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-  const expiringSoon = qualifications.filter(
-    q =>
-      q.expiration_date &&
-      new Date(q.expiration_date) <= thirtyDaysFromNow &&
-      new Date(q.expiration_date) >= new Date()
-  );
+  const expiringSoon = qualifications.filter(q => {
+    const day = expiresOn(q);
+    return !!day && day >= today && day <= in30Days;
+  });
 
   const summary: JudgeQualificationSummary = {
     total_qualifications: qualifications.length,
@@ -487,8 +493,6 @@ export interface RosterSummary {
 
 /** Roster overview stats for admin/secretary */
 export async function getJudgeRosterSummary(): Promise<RosterSummary> {
-  const thirtyDaysFromNow = new Date();
-  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
@@ -502,8 +506,8 @@ export async function getJudgeRosterSummary(): Promise<RosterSummary> {
       qualificationsTable()
         .select('*', { count: 'exact', head: true })
         .not('expiration_date', 'is', null)
-        .lte('expiration_date', thirtyDaysFromNow.toISOString().split('T')[0])
-        .gte('expiration_date', new Date().toISOString().split('T')[0]),
+        .lte('expiration_date', localDayOffset(30))
+        .gte('expiration_date', localDayOffset(0)),
       assignmentsTable()
         .select('id', { count: 'exact', head: true })
         .gte('created_at', monthStart.toISOString()),
@@ -626,16 +630,14 @@ export async function getJudgeUtilizationStats(
 
 /** Qualification alerts for admin/secretary */
 export async function getJudgeQualificationAlerts(withinDays: number = 30) {
-  const futureDate = new Date();
-  futureDate.setDate(futureDate.getDate() + withinDays);
+  const futureDay = localDayOffset(withinDays);
   // Only show recently expired (within 90 days), not ancient ones
-  const lowerBound = new Date();
-  lowerBound.setDate(lowerBound.getDate() - 90);
+  const lowerBoundDay = localDayOffset(-90);
 
   const { data, error } = await qualificationsTable()
     .select('*, people!judge_qualifications_person_id_fkey(first_name, last_name)')
     .or(
-      `and(expiration_date.not.is.null,expiration_date.lte.${futureDate.toISOString().split('T')[0]},expiration_date.gte.${lowerBound.toISOString().split('T')[0]}),suspension_date.not.is.null`
+      `and(expiration_date.not.is.null,expiration_date.lte.${futureDay},expiration_date.gte.${lowerBoundDay}),suspension_date.not.is.null`
     )
     .order('expiration_date', { ascending: true });
 

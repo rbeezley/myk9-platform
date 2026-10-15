@@ -53,3 +53,9 @@ Final deployed proof and completion verification will be recorded here before ar
 - Assertion-first: 11 old-behavior failures reproduced. Final focused result: 6 files / 63 tests passed shuffled, including pending/approved/suspended/rejected, explicit Active selection, exact DB payload, breed accessibility, and offline registration journeys. The five failed correction attempts are not counted as passing; owner explicitly authorized the identified final fix.
 - Final monorepo typecheck: all 26 tasks passed. Lint: zero errors. Code-quality ratchet passed. Fresh whole-app shuffled run is pending. Prior remote-head CI passed; its review gate was withdrawn for the P3 and is not evidence for this redesign.
 - Live dependency survey: registry_identity_taken is absent, held-entry replication view column is absent, latest applied migration is 20261014191300. The release requires the two already-merged dependency migrations plus this batch's registration-date migration.
+
+## Final local validation
+
+- Whole app suite shuffled with four workers: 29,025 tests passed, 11 skipped, one todo, exit 0 (1025.78 seconds). No source edits landed during the run; only OpenSpec prose changed. This supersedes the earlier non-green broad attempts.
+- Unmocked final local browser parity: Upcoming 24/24, Completed 11/11, All 35/35, Pending 4/4, Accepted 25/25, Any status 35/35. Draft card says Show not published yet, Paid and Willow, with two unpublished classes and no date. My Shows and People at show both list trials 1–7 chronologically. Existing-registration edit displays its optional date and organization; an explicit UKC choice works without saving. Owned sessions closed.
+- Migration dry run succeeded and names exactly registry_identity_taken, held_entries and this batch's registration_date migration, with no seeds or role changes. Nothing applied before merge.

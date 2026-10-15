@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   graphql_public: {
     Tables: {
@@ -11449,6 +11449,7 @@ export type Database = {
           area3_time_seconds: number | null
           area4_time_seconds: number | null
           armband: string | null
+          awaiting_registration_number: boolean | null
           bonus_points: number | null
           check_in_status: string | null
           class_element: string | null
@@ -11767,6 +11768,7 @@ export type Database = {
           area3_time_seconds: number | null
           area4_time_seconds: number | null
           armband: string | null
+          awaiting_registration_number: boolean | null
           bonus_points: number | null
           check_in_status: string | null
           class_element: string | null
@@ -13390,6 +13392,15 @@ export type Database = {
       ensure_show_lifecycle_email_steps: {
         Args: { p_show_id: string }
         Returns: undefined
+      }
+      entry_awaiting_registration_number: {
+        Args: {
+          p_class_id: string
+          p_deleted_at: string
+          p_dog_id: string
+          p_entry_status: string
+        }
+        Returns: boolean
       }
       entry_enrollment_select_show_ids: { Args: never; Returns: string[] }
       evaluate_entry_capacity: {

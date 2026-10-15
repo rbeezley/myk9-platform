@@ -409,6 +409,7 @@ describe('useDogStoreCompat.addDog — local-first', () => {
       {
         organization: 'AKC',
         registered_name: 'Beacon Hill Fast Lane',
+        registration_date: null,
         registration_number: 'SW123456',
         breed: 'Border Collie',
         status: 'pending',

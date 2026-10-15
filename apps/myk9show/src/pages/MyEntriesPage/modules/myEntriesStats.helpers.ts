@@ -310,7 +310,18 @@ export function countUpcomingClassesByDog(
   now: Date = new Date()
 ): Record<string, number> {
   return entries.reduce<Record<string, number>>((counts, entry) => {
-    if (isPastShowEntry(entry, now)) return counts;
+    if (!showLastDay(entry) || isPastShowEntry(entry, now)) return counts;
+    for (const dog of entry.dogs) {
+      counts[dog.dogId] = (counts[dog.dogId] ?? 0) + outstandingClasses(dog.classes).length;
+    }
+    return counts;
+  }, {});
+}
+
+/** Entries with an unpublished schedule remain visible without promising a class date. */
+export function countUnpublishedClassesByDog(entries: MyEntry[]): Record<string, number> {
+  return entries.reduce<Record<string, number>>((counts, entry) => {
+    if (!entry.isShowUnreadable) return counts;
     for (const dog of entry.dogs) {
       counts[dog.dogId] = (counts[dog.dogId] ?? 0) + outstandingClasses(dog.classes).length;
     }

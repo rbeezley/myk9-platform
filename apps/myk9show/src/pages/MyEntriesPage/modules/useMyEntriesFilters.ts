@@ -16,7 +16,7 @@ import {
   isEntryTabFilter,
   legacyTabAsStatusFilter,
 } from './entryTabDefs';
-import { deriveStatusCounts, deriveTabCounts } from './entryFilterCounts';
+import { countVisibleClassEntries, deriveStatusCounts, deriveTabCounts } from './entryFilterCounts';
 import {
   applyEntryScope,
   clearEntryScopeParams,
@@ -43,7 +43,7 @@ function describeFilteredResults(
   isLoadingPositions: boolean
 ): string {
   const parts: string[] = [];
-  if (entryCount > 0) parts.push(`${entryCount} ${entryCount === 1 ? 'entry' : 'entries'}`);
+  if (entryCount > 0) parts.push(`${entryCount} class ${entryCount === 1 ? 'entry' : 'entries'}`);
   if (positionCount > 0)
     parts.push(`${positionCount} wait list ${positionCount === 1 ? 'position' : 'positions'}`);
   if (offerUpdateCount > 0)
@@ -51,7 +51,7 @@ function describeFilteredResults(
       `${offerUpdateCount} wait list offer ${offerUpdateCount === 1 ? 'update' : 'updates'}`
     );
   if (isLoadingPositions) parts.push('Checking wait list positions');
-  return parts.join(' and ') || '0 entries';
+  return parts.join(' and ') || '0 class entries';
 }
 
 interface UseMyEntriesFiltersProps {
@@ -403,7 +403,7 @@ export function useMyEntriesFilters({
     ? Math.max(0, displayedWaitlistPositionCount - activeWaitlistPositionCount)
     : 0;
   const filteredResultAnnouncement = describeFilteredResults(
-    filteredEntries.length,
+    countVisibleClassEntries(filteredEntries, selectedStatus),
     visibleActivePositions,
     visibleOfferUpdates,
     waitlistSurface.showPositions && waitlistPositionsLoading

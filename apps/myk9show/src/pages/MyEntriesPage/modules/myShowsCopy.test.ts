@@ -18,7 +18,7 @@ describe('myShowsCopy pinned strings', () => {
   });
 
   it('pins the all-entries label', () => {
-    expect(ALL_ENTRIES_LABEL).toBe('All entries');
+    expect(ALL_ENTRIES_LABEL).toBe('Class entries');
   });
 
   it('pins the all-entries scope note', () => {

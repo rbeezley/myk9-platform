@@ -34,6 +34,7 @@ vi.mock('@/lib/notifications', () => ({
   },
 }));
 import DogRegistrationDialogs from './DogRegistrationDialogs';
+import { fillNewRegistration } from './registrationFormTestHelpers';
 
 const plainDog = { id: 'dog-1', callName: 'Maple' } as unknown as Dog;
 /** A dog record that is never refetched, still listing the registration the replica holds. */
@@ -144,13 +145,7 @@ describe('Manage registrations, offline', () => {
     expect(await screen.findByText('CH Old Name')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^add$/i }));
-    await user.selectOptions(
-      await screen.findByLabelText(/^organization/i),
-      'AKC (American Kennel Club)'
-    );
-    await user.type(screen.getByLabelText(/registered name/i), 'CH New Dog');
-    await user.selectOptions(screen.getByLabelText(/^breed/i), 'Beagle');
-    await user.type(screen.getByLabelText(/registration number/i), 'SR999');
+    await fillNewRegistration(user);
     await user.click(screen.getByRole('button', { name: 'Add Registration' }));
 
     expect(await screen.findByText('CH New Dog')).toBeInTheDocument();

@@ -6,6 +6,8 @@
  * pairs, not either axis alone.
  */
 import { describe, it, expect } from 'vitest';
+import { groupEntriesByShow } from './groupEntriesByShow';
+import { narrowDogsToStatus } from './statusFilterPredicate';
 import { EntryStatus } from '@/types/show-registration-types';
 import { day, makeClass, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtures';
 import {
@@ -153,4 +155,82 @@ describe('describeFilterScope — the relationship, stated on screen', () => {
       'Status counts are for upcoming shows only. When counts are for accepted entries only.'
     );
   });
+});
+
+describe('class-entry counts match grouped visible rows (MYK9-1147)', () => {
+  it('counts every dog and class across orders, including an unpublished show', () => {
+    const orders = toOrders([
+      makeRow({
+        id: 'a',
+        registrationId: 'order-1',
+        dogId: 'dog-a',
+        classes: [makeClass({ id: 'class-a' })],
+      }),
+      makeRow({
+        id: 'b',
+        registrationId: 'order-1',
+        dogId: 'dog-b',
+        classes: [makeClass({ id: 'class-b' })],
+      }),
+      makeRow({
+        id: 'c',
+        registrationId: 'order-2',
+        dogId: 'dog-a',
+        classes: [makeClass({ id: 'class-c' })],
+      }),
+      makeRow({
+        id: 'd',
+        registrationId: null,
+        dogId: 'dog-d',
+        showId: 'unpublished',
+        showName: 'Show not published yet',
+        showDate: undefined,
+        showEndDate: undefined,
+        isShowUnreadable: true,
+        classes: [makeClass({ id: 'class-d', trialDate: undefined, unresolved: true })],
+      }),
+    ]);
+    expect(deriveTabCounts(orders, 'any', NOW, 0)).toEqual({ all: 4, upcoming: 4, completed: 0 });
+    expect(deriveStatusCounts(orders, 'upcoming', 'any', NOW, NO_POSITIONS).counts).toEqual({
+      any: 4,
+      accepted: 4,
+      pending: 0,
+      waitlist: 0,
+    });
+  });
+});
+
+it('counts and renders only matching class rows when one dog has mixed statuses', () => {
+  const orders = toOrders([
+    makeRow({
+      id: 'p',
+      registrationId: 'mix',
+      dogId: 'same-dog',
+      entryStatus: EntryStatus.PENDING,
+      classes: [makeClass({ id: 'pending-class', entryStatus: EntryStatus.PENDING })],
+    }),
+    makeRow({
+      id: 'a1',
+      registrationId: 'mix',
+      dogId: 'same-dog',
+      classes: [makeClass({ id: 'accepted-1' })],
+    }),
+    makeRow({
+      id: 'a2',
+      registrationId: 'mix',
+      dogId: 'same-dog',
+      classes: [makeClass({ id: 'accepted-2' })],
+    }),
+  ]);
+  expect(deriveStatusCounts(orders, 'all', 'any', NOW, NO_POSITIONS).counts).toEqual({
+    any: 3,
+    pending: 1,
+    accepted: 2,
+    waitlist: 0,
+  });
+  const groups = groupEntriesByShow(orders);
+  expect(narrowDogsToStatus(groups, 'pending')[0]?.dogs[0]?.classes.map(cls => cls.id)).toEqual([
+    'pending-class',
+  ]);
+  expect(narrowDogsToStatus(groups, 'accepted')[0]?.dogs[0]?.classes).toHaveLength(2);
 });

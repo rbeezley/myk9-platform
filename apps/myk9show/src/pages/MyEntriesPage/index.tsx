@@ -9,7 +9,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
-import { countUpcomingClassesByDog } from './modules/myEntriesStats.helpers';
 import { deriveMyEntriesDogState } from './modules/myEntriesDogState';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
@@ -171,7 +170,6 @@ const MyEntriesPage: React.FC = () => {
   //   - settled     → the real answer
   // `undefined` is deliberately distinct from `false` so FirstRunZeroState never
   // commits to the no-dogs branch before ownership is known.
-  const upcomingClassCountByDog = useMemo(() => countUpcomingClassesByDog(entries), [entries]);
 
   const isInitialEntriesSyncing =
     entries.length === 0 &&
@@ -402,7 +400,7 @@ const MyEntriesPage: React.FC = () => {
                     currentFeesHref={currentFeesHref}
                     onNavigate={navigate}
                     dogs={visibleDogs as OverviewDog[]}
-                    upcomingClassCountByDog={upcomingClassCountByDog}
+                    entries={entries}
                     onAddDog={dialogs.openAddDog}
                   />
                 )}

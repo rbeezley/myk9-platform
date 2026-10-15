@@ -46,7 +46,7 @@ import { AlreadyEnteredNotice } from './AlreadyEnteredNotice';
 import { resolveConfiguredRegistryId } from '@/features/registries';
 import { getRegistrationPrerequisite } from './registrationPrerequisite';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
-import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
+import AddRegistrationPanel from '@/components/dogs/DogDetails/Registrations/AddRegistrationPanel';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
 import { getOwnerAddressPrerequisite, prerequisiteLevelFields } from './ownerAddressPrerequisite';
 import { OwnerAddressAction } from './OwnerAddressFix';
@@ -104,8 +104,12 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
    * Nothing renders from it, so no state is needed.
    */
   const addingItemRef = useRef<string | null>(null);
-  const { registrationDogId, openRegistrationEditor, closeRegistrationEditor, saveRegistration } =
-    useInlineDogRegistration(refetch);
+  const {
+    registrationDogId,
+    openRegistrationEditor,
+    closeRegistrationEditor,
+    saveRegistrationForm,
+  } = useInlineDogRegistration(refetch);
   // MYK9-1010: the dog whose owner's missing address parts staff are filling.
   const [addressTarget, setAddressTarget] = useState<OwnerAddressFillTarget | null>(null);
   const isOwnAddress = (workflowMode ?? 'exhibitor') === 'exhibitor';
@@ -701,10 +705,13 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
       )}
 
       <div className="relative z-[60]">
-        <AddEditRegistrationDialog
+        <AddRegistrationPanel
           open={registrationDogId !== null}
-          onOpenChange={open => !open && closeRegistrationEditor()}
-          onSave={saveRegistration}
+          onClose={closeRegistrationEditor}
+          onSave={saveRegistrationForm}
+          announceSaved={false}
+          className="md:max-w-2xl lg:max-w-3xl"
+          dogName={dogs.find(dog => dog.id === registrationDogId)?.callName}
         />
       </div>
       <OwnerAddressFillDialog

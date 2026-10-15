@@ -121,6 +121,7 @@ export function normalizeRegistration(
     registeredName: input.registeredName || null,
     breed: input.type || null,
     status: input.status || 'pending',
+    registrationDate: input.registrationDate || null,
     verified: false,
     // Stamped at construction, NOT left for the server default. The identity
     // resolver orders by `created_at`, so without it a dog created offline with

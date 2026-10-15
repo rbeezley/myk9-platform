@@ -1,14 +1,14 @@
 /**
- * The registration form an unsaved dog's registrations are edited with: its
- * fields and footer, driven by `useRegistrationEditor` (MYK9-1081). It writes an in-memory
- * `Registration` through `onSave`, never the database, so it is not
- * interchangeable with DogDetails' AddRegistrationPanel / EditRegistrationPanel.
- *
- * Two containers render it: `AddEditRegistrationDialog` (its own slide-out, for
- * a page that opens it directly) and Add Dog's inline registration sub-mode
- * (inside a host panel, never stacked on it).
+ * The one registration form (MYK9-1117): its fields and footer. The fields run
+ * over any form handed in as `editor`, so the same body serves both save
+ * contracts:
+ *  - in memory, for an unsaved dog's registrations: `useRegistrationEditor`
+ *    drives Add Dog's inline sub-mode;
+ *  - to the database, on Dog Details and the entry wizard: the Add / Edit panels feed it
+ *    EditPanelWrapper's form through `useRegistrationFormFields`.
  */
 import React from 'react';
+import { REGISTRATION_STATUS_VALUES } from '@/types/dog-types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/common/FormField';
@@ -23,7 +23,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { registrationNameHint } from './registrationNameHint';
-import { REGISTRATION_ORGS, type RegistrationEditor } from './useRegistrationEditor';
+import { REGISTRATION_ORGS } from './registrationForm';
+import type { RegistrationEditor } from './useRegistrationEditor';
+import type { RegistrationFieldsEditor } from './useRegistrationFormFields';
 
 /** Cancel and Save Registration. */
 export const RegistrationFormFooter: React.FC<{
@@ -40,7 +42,7 @@ export const RegistrationFormFooter: React.FC<{
   </div>
 );
 
-type EditorProps = { editor: RegistrationEditor };
+type EditorProps = { editor: RegistrationFieldsEditor };
 
 /**
  * The field pieces below are exported so Add Dog's identity-first step can show
@@ -65,6 +67,9 @@ export const RegistrationOrganizationField: React.FC<
         <SelectValue placeholder="Select organization" />
       </SelectTrigger>
       <SelectContent>
+        {form.data.organization && !REGISTRATION_ORGS.includes(form.data.organization) && (
+          <SelectItem value={form.data.organization}>{form.data.organization}</SelectItem>
+        )}
         {REGISTRATION_ORGS.map(org => (
           <SelectItem key={org} value={org}>
             {org}
@@ -243,12 +248,30 @@ export const RegistrationStatusField: React.FC<EditorProps> = ({
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="Active">Active</SelectItem>
-        <SelectItem value="Pending">Pending</SelectItem>
-        <SelectItem value="Expired">Expired</SelectItem>
-        <SelectItem value="Under review">Under review</SelectItem>
+        {REGISTRATION_STATUS_VALUES.map(status => (
+          <SelectItem key={status} value={status}>
+            {status}
+          </SelectItem>
+        ))}
+        {form.data.status &&
+          !REGISTRATION_STATUS_VALUES.some(status => status === form.data.status) && (
+            <p className="px-2 py-1.5 text-sm text-muted-foreground">Current: {form.data.status}</p>
+          )}
       </SelectContent>
     </Select>
+  </FormField>
+);
+
+export const RegistrationDateField: React.FC<EditorProps> = ({
+  editor: { form, handleFieldChange },
+}) => (
+  <FormField label="Registration Date" fieldId="registrationDate">
+    <Input
+      id="registrationDate"
+      type="date"
+      value={form.data.registrationDate ?? ''}
+      onChange={e => handleFieldChange('registrationDate', e.target.value)}
+    />
   </FormField>
 );
 
@@ -262,5 +285,6 @@ export const RegistrationFormBody: React.FC<EditorProps> = ({ editor }) => (
       <RegistrationNumberField editor={editor} />
       <RegistrationStatusField editor={editor} />
     </div>
+    <RegistrationDateField editor={editor} />
   </div>
 );

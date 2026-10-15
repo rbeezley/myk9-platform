@@ -125,9 +125,17 @@ async function selectById(page: Page, triggerId: string, optionText: RegExp | st
   }
 
   if (triggerId === 'breed') {
-    await page.keyboard.press('Home');
-    await page.keyboard.press('Enter');
-    await expect(trigger).not.toContainText('Select breed');
+    // The registration form's breed is a searchable combobox (MYK9-422): search,
+    // then pick the option from its listbox.
+    if (typeof optionText !== 'string') {
+      throw new Error(`Breed search requires a string option: ${optionText.toString()}`);
+    }
+    await page.getByPlaceholder('Search breeds…').fill(optionText);
+    await page
+      .getByRole('listbox', { name: 'Breeds' })
+      .getByRole('option', { name: optionText, exact: true })
+      .click();
+    await expect(trigger).toContainText(optionText);
     return;
   }
 

@@ -381,7 +381,7 @@ describe('DogSelectionStep', () => {
 
     await user.click(screen.getByRole('button', { name: /add registration/i }));
 
-    expect(await screen.findByText('Add New Registration')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Add Registration' })).toBeInTheDocument();
     expect(onSelectionChange).not.toHaveBeenCalled();
     expect(screen.getByRole('checkbox', { name: 'Select Max' })).toBeChecked();
   });

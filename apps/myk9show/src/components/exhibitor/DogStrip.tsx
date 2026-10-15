@@ -29,12 +29,14 @@ export type DogStripDog = {
 interface DogStripProps {
   dogs: DogStripDog[];
   upcomingClassCountByDog?: Record<string, number>;
+  unpublishedClassCountByDog?: Record<string, number>;
   onAddDog?: () => void;
 }
 
 export const DogStrip: React.FC<DogStripProps> = ({
   dogs,
   upcomingClassCountByDog = {},
+  unpublishedClassCountByDog = {},
   onAddDog,
 }) => {
   const navigate = useNavigate();
@@ -81,6 +83,7 @@ export const DogStrip: React.FC<DogStripProps> = ({
             dateOfBirth={dog.date_of_birth}
             registrations={dog.registrations ?? []}
             upcomingClassCount={upcomingClassCountByDog[dog.id] ?? 0}
+            unpublishedClassCount={unpublishedClassCountByDog[dog.id] ?? 0}
           />
         ))}
       </div>

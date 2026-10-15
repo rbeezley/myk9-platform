@@ -505,8 +505,8 @@ describe('MyEntriesPage UI Improvements', () => {
 
       await screen.findByRole('radiogroup', { name: /filter by time/i });
 
-      // The "All entries" label anchors the entries section wrapper.
-      const entriesWrapper = screen.getByText('All entries').closest('div');
+      // The "Class entries" label anchors the entries section wrapper.
+      const entriesWrapper = screen.getByText('Class entries').closest('div');
       expect(entriesWrapper).not.toBeNull();
       expect(entriesWrapper).toHaveClass('max-[720px]:order-1');
 
@@ -980,7 +980,7 @@ describe('MyEntriesPage UI Improvements', () => {
 
       renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?resultEntryId=entry-1');
 
-      expect(await screen.findByText('All entries')).toBeInTheDocument();
+      expect(await screen.findByText('Class entries')).toBeInTheDocument();
       expect(screen.queryByRole('dialog', { name: /New result/i })).not.toBeInTheDocument();
     });
   });

@@ -11,11 +11,16 @@ import AddRegistrationPanel from './AddRegistrationPanel';
  */
 describe('AddRegistrationPanel ASCA', () => {
   it('offers ASCA, and its value normalizes to the ASCA registry', async () => {
-    render(<AddRegistrationPanel open={true} onClose={vi.fn()} onSave={vi.fn()} dogName="Maple" />);
+    const { user } = render(
+      <AddRegistrationPanel open={true} onClose={vi.fn()} onSave={vi.fn()} dogName="Maple" />
+    );
 
+    // The shared registration form (MYK9-1117) uses a Base UI select: its options render
+    // once the menu opens, and an option's label is the value it saves.
+    await user.click(await screen.findByRole('combobox', { name: /organization/i }));
     const option = await screen.findByRole('option', {
       name: 'ASCA (Australian Shepherd Club of America)',
     });
-    expect(normalizeOrganization(option.getAttribute('value'))).toBe('ASCA');
+    expect(normalizeOrganization(option.textContent)).toBe('ASCA');
   });
 });

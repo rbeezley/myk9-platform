@@ -10,12 +10,13 @@ import {
   RegistrationNumberField,
   RegistrationOrganizationField,
   RegistrationStatusField,
+  RegistrationDateField,
 } from '@/components/dogs/RegistrationFormBody';
 import {
   INITIAL_REGISTRATION_DATA,
   REGISTRATION_NUMBER_PATTERN,
-  useRegistrationEditor,
-} from '@/components/dogs/useRegistrationEditor';
+} from '@/components/dogs/registrationForm';
+import { useRegistrationEditor } from '@/components/dogs/useRegistrationEditor';
 import type { RegistrationLookupResult } from './registrationLookup';
 
 /** Shown for a number held by a dog this user cannot see. Says nothing about that dog. */
@@ -161,6 +162,7 @@ export const RegistrationIdentityStep: React.FC<RegistrationIdentityStepProps> =
           <RegistrationNameField editor={editor} />
           <RegistrationBreedVarietyFields editor={editor} />
           <RegistrationStatusField editor={editor} />
+          <RegistrationDateField editor={editor} />
         </>
       ) : null}
       <div className="flex flex-wrap items-center gap-3">

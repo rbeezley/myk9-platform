@@ -1,16 +1,7 @@
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import { dogSaveFailure } from '@/hooks/translateDogDbError';
+import type { RegistrationFormData } from '@/components/dogs/registrationForm';
 import type { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
-
-export interface RegistrationFormData {
-  organization: string;
-  registeredName: string;
-  breed: string;
-  variety: string;
-  registrationNumber: string;
-  status: string;
-  registrationDate: string;
-}
 
 function toDbRegistration(data: RegistrationFormData) {
   return {
@@ -55,7 +46,7 @@ export function useRegistrationFormSaves({ createRegistration, updateRegistratio
       });
     });
 
-  const handleUpdate = (data: RegistrationFormData & { id: string }) =>
+  const handleUpdate = (data: RegistrationFormData) =>
     new Promise<void>((resolve, reject) => {
       updateRegistration(
         { id: data.id, updates: toDbRegistration(data) },

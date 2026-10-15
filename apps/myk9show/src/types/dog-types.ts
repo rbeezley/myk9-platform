@@ -10,7 +10,7 @@ export type DogStatus = 'active' | 'retired' | 'deceased';
 
 /**
  * Registration statuses accepted by the Zod schema and UI.
- * Shared between `AddEditRegistrationDialog` and `AddDogPanel/validation`
+ * Shared between `registrationFormSchema` and `AddDogPanel/validation`
  * so the form, validator, and type stay in lockstep.
  */
 export const REGISTRATION_STATUS_VALUES = ['Active', 'Pending', 'Expired', 'Under review'] as const;
@@ -267,6 +267,7 @@ export interface DogInput {
     | Array<{
         organization: string;
         number: string;
+        registrationDate?: string | undefined;
         type: string;
         status: string;
       }>

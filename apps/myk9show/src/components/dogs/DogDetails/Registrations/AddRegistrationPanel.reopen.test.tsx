@@ -20,6 +20,9 @@ describe('AddRegistrationPanel reopen', () => {
       <AddRegistrationPanel open={true} onClose={vi.fn()} onSave={vi.fn()} dogName="Maple" />
     );
     const number = await screen.findByLabelText(/registration number/i);
+    // The number is gated on the organization, as in every host of the form.
+    await user.click(await screen.findByRole('combobox', { name: /registration organization/i }));
+    await user.click(await screen.findByRole('option', { name: /AKC \(American Kennel Club\)/ }));
     await user.type(number, 'SR999');
     expect(number).toHaveValue('SR999');
 
@@ -39,5 +42,8 @@ describe('AddRegistrationPanel reopen', () => {
     );
 
     expect(await screen.findByLabelText(/registration number/i)).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: /registration organization/i })).toHaveTextContent(
+      /select organization/i
+    );
   });
 });

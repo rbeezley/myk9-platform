@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { AddEditRegistrationDialog } from '../AddEditRegistrationDialog';
+import { render, screen, fireEvent } from '@/test/utils/testUtils';
+import { RegistrationFormInline } from '@/components/panels/edit/AddDogPanel/RegistrationFormInline';
 import { getBreedNamesForOrganization } from '@/data/breedData';
 import type { Registration } from '@/types/dog-types';
 
@@ -31,31 +31,28 @@ const akcRegistration: Registration = {
   status: 'Active',
 };
 
-function renderDialog(initialData?: Registration) {
+// The in-memory host; the Dog Details panels render the same body (see
+// RegistrationForm.save.test.tsx for their breed coverage).
+function renderForm(initialData?: Registration) {
   return render(
-    <AddEditRegistrationDialog
-      open
-      onOpenChange={vi.fn()}
-      onSave={vi.fn()}
-      initialData={initialData}
-    />
+    <RegistrationFormInline initialData={initialData} onSave={vi.fn()} onDone={vi.fn()} />
   );
 }
 
-describe('AddEditRegistrationDialog breed picker (4.E — searchable)', () => {
+describe('registration form breed picker (4.E — searchable)', () => {
   it('disables the breed control until an organization is chosen', () => {
-    renderDialog(); // no initialData → organization empty
+    renderForm(); // no initialData → organization empty
     const breedControl = screen.getByText(/select organization first/i).closest('button');
     expect(breedControl).toBeDisabled();
   });
 
   it('exposes a visible search input once an organization is selected', () => {
-    renderDialog(akcRegistration);
+    renderForm(akcRegistration);
     expect(screen.getByPlaceholderText(/search breeds/i)).toBeInTheDocument();
   });
 
   it('filters the breed list as the user types', () => {
-    renderDialog(akcRegistration);
+    renderForm(akcRegistration);
     // Unfiltered: unrelated breeds are present.
     expect(screen.getByText('Beagle')).toBeInTheDocument();
 
@@ -69,7 +66,7 @@ describe('AddEditRegistrationDialog breed picker (4.E — searchable)', () => {
   });
 
   it('shows an empty message when nothing matches', () => {
-    renderDialog(akcRegistration);
+    renderForm(akcRegistration);
     fireEvent.change(screen.getByPlaceholderText(/search breeds/i), {
       target: { value: 'zzzzznotarealbreed' },
     });
@@ -80,7 +77,7 @@ describe('AddEditRegistrationDialog breed picker (4.E — searchable)', () => {
     // akcRegistration has an empty breed; submitting surfaces the breed error,
     // which must stay wired to the control via aria-invalid / aria-describedby
     // (parity with the native SelectTrigger it replaced).
-    renderDialog(akcRegistration);
+    renderForm(akcRegistration);
     fireEvent.click(screen.getByRole('button', { name: /save registration/i }));
 
     const trigger = document.getElementById('breed');
@@ -92,7 +89,7 @@ describe('AddEditRegistrationDialog breed picker (4.E — searchable)', () => {
   });
 
   it('exposes each filtered breed as a listbox option (MYK9-422)', () => {
-    renderDialog(akcRegistration);
+    renderForm(akcRegistration);
     fireEvent.change(screen.getByPlaceholderText(/search breeds/i), {
       target: { value: 'labrador' },
     });
@@ -102,7 +99,7 @@ describe('AddEditRegistrationDialog breed picker (4.E — searchable)', () => {
   });
 
   it('selecting a breed updates the trigger label', () => {
-    renderDialog(akcRegistration);
+    renderForm(akcRegistration);
     fireEvent.change(screen.getByPlaceholderText(/search breeds/i), {
       target: { value: 'golden' },
     });
@@ -115,7 +112,7 @@ describe('AddEditRegistrationDialog breed picker (4.E — searchable)', () => {
   });
 
   it('typing an initial letter lists breeds starting with it first, Golden Retriever included (MYK9-883)', () => {
-    renderDialog(akcRegistration);
+    renderForm(akcRegistration);
     fireEvent.change(screen.getByPlaceholderText(/search breeds/i), { target: { value: 'G' } });
 
     const names = screen.getAllByRole('option').map(o => o.textContent?.trim() ?? '');
@@ -125,7 +122,7 @@ describe('AddEditRegistrationDialog breed picker (4.E — searchable)', () => {
   });
 
   it('selecting a breed after typing an initial letter sets the breed (MYK9-883)', () => {
-    renderDialog(akcRegistration);
+    renderForm(akcRegistration);
     fireEvent.change(screen.getByPlaceholderText(/search breeds/i), { target: { value: 'G' } });
     fireEvent.click(screen.getByRole('option', { name: 'Golden Retriever' }));
 
@@ -135,7 +132,7 @@ describe('AddEditRegistrationDialog breed picker (4.E — searchable)', () => {
   });
 
   it('Enter chooses the first G-breed for "G", not an earlier substring match (MYK9-883)', () => {
-    renderDialog(akcRegistration);
+    renderForm(akcRegistration);
     const search = screen.getByPlaceholderText(/search breeds/i);
     const expected = getBreedNamesForOrganization('AKC').find(b => b.startsWith('G'));
     expect(expected).toBeDefined();
@@ -151,9 +148,9 @@ describe('AddEditRegistrationDialog breed picker (4.E — searchable)', () => {
 // registry, then hit a validation error for a field whose format depends on
 // the registry. The organization-first rule already governed the breed picker;
 // these pin it to the number field too, so the sequence is one consistent rule.
-describe('AddEditRegistrationDialog registration number gating', () => {
+describe('registration form registration number gating', () => {
   it('disables the registration number until an organization is chosen', () => {
-    renderDialog();
+    renderForm();
 
     const input = document.getElementById('registrationNumber');
     expect(input).toBeDisabled();
@@ -161,10 +158,17 @@ describe('AddEditRegistrationDialog registration number gating', () => {
   });
 
   it('enables the registration number once an organization is chosen', () => {
-    renderDialog(akcRegistration);
+    renderForm(akcRegistration);
 
     const input = document.getElementById('registrationNumber');
     expect(input).toBeEnabled();
     expect(input).toHaveAttribute('placeholder', 'Enter registration number');
+  });
+});
+
+describe('registration form edits a stored short registry code', () => {
+  it('offers UKC-only breeds when the stored organization is "UKC"', () => {
+    renderForm({ ...akcRegistration, organization: 'UKC' });
+    expect(screen.getByText('Belgian Shepherd Dog')).toBeInTheDocument();
   });
 });

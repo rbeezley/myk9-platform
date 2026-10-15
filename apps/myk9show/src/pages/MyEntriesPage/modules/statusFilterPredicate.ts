@@ -16,6 +16,8 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { isPendingEntry, isWaitlistEntry } from '@/utils/entryPredicates';
 import type { EntryStatusFilter, MyEntry } from './my-entries-types';
+import { dominantStatus, dominantStatusKind } from './groupEntriesByOrder';
+import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
 import type { MyShowGroup } from './groupEntriesByShow';
 
 export interface StatusFilterRow {
@@ -81,8 +83,7 @@ function dogMatchesStatusFilter(
  * accepted dog must survive "Pending", or the pending dog can never render
  * there (Codex review on PR #2198). The list then narrows the surviving order
  * to the matching dogs with `narrowDogsToStatus`, and the strip's counts ask
- * this same question, so a chip's number is the number of orders that will
- * show something when clicked.
+ * the same class predicate, so each visible class entry counts once.
  */
 export function orderMatchesStatusFilter(
   order: MyEntry,
@@ -94,9 +95,8 @@ export function orderMatchesStatusFilter(
 }
 
 /**
- * The status filter, applied a second time at DOG level, after grouping by
- * show. A dog stays when any of its class rows matches; a show with no
- * matching dog is not rendered.
+ * After show grouping, retain matching class rows and their dog cards.
+ * A show with no matching dog is not rendered.
  */
 export function narrowDogsToStatus(
   groups: MyShowGroup[],
@@ -106,8 +106,8 @@ export function narrowDogsToStatus(
   const narrowed: MyShowGroup[] = [];
   for (const group of groups) {
     const ordersById = new Map(group.orders.map(order => [order.id, order]));
-    const dogs = group.dogs.filter(dog =>
-      dog.classes.some(cls =>
+    const dogs = group.dogs.flatMap(dog => {
+      const classes = dog.classes.filter(cls =>
         matchesEntryStatusFilter(
           {
             entryStatus: cls.entryStatus ?? dog.entryStatus,
@@ -118,8 +118,23 @@ export function narrowDogsToStatus(
           },
           selectedStatus
         )
-      )
-    );
+      );
+      const [first, ...rest] = classes;
+      if (!first) return [];
+      let entryStatus = first.entryStatus ?? dog.entryStatus;
+      let entryStatusKind: EntryStatusKind | undefined = first.entryStatusKind;
+      for (const cls of rest) {
+        const next = cls.entryStatus ?? dog.entryStatus;
+        entryStatusKind = dominantStatusKind(
+          entryStatus,
+          entryStatusKind,
+          next,
+          cls.entryStatusKind
+        );
+        entryStatus = dominantStatus(entryStatus, next);
+      }
+      return [{ ...dog, classes, entryStatus, entryStatusKind }];
+    });
     if (dogs.length > 0) narrowed.push({ ...group, dogs });
   }
   return narrowed;

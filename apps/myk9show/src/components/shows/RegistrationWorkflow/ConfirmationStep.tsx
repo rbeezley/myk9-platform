@@ -42,7 +42,6 @@ import { RegistrationManagementPanel } from './RegistrationManagementPanel';
 import { sendRegistrationConfirmationEmail } from './sendRegistrationConfirmationEmail';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import { EntrySubmissionOutcomeAlert } from './EntrySubmissionOutcomeAlert';
-import { RegistrationNumberNeededOffer } from './RegistrationNumberNeededOffer';
 import {
   filterClassSelectionsToCreatedOutcomes,
   getCreatedOutcomeTotalFees,
@@ -306,14 +305,6 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
       </div>
 
       <EntrySubmissionOutcomeAlert outcomes={entryOutcomes} />
-
-      {workflowMode !== 'exhibitor' && (
-        <RegistrationNumberNeededOffer
-          showId={showId}
-          {...(show?.name ? { showName: show.name } : {})}
-          classSelections={receiptClassSelections}
-        />
-      )}
 
       {/* Waitlist Summary */}
       {waitlistEntries && waitlistEntries.length > 0 && (

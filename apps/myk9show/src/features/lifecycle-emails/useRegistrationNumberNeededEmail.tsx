@@ -50,6 +50,11 @@ interface UseRegistrationNumberNeededEmailResult {
 const isStepOn = (steps: ReadonlyArray<{ stepType: string; isEnabled: boolean }> | undefined) =>
   steps?.find(step => step.stepType === REGISTRATION_NUMBER_NEEDED_STEP)?.isEnabled !== false;
 
+interface Prompt {
+  id: number;
+  target: RegistrationNumberNeededTarget;
+}
+
 export const hasContactEmail = (entry: Pick<EntryManagementEntry, 'ownerEmail'>): boolean =>
   Boolean(entry.ownerEmail?.trim());
 
@@ -77,12 +82,25 @@ export function useRegistrationNumberNeededEmail({
   });
   const stepEnabled = summaryQuery.data !== undefined && isStepOn(summaryQuery.data.steps);
 
-  const [queue, setQueue] = useState<RegistrationNumberNeededTarget[]>([]);
-  const [isSending, setIsSending] = useState(false);
-  // A synchronous guard: two quick Send clicks must not both pass the state check.
-  const sendingRef = useRef(false);
+  // Each open preview is a prompt with its own id, so a send that finishes later removes
+  // only the prompt that started it, never a newer one the secretary opened meanwhile.
+  const [queue, setQueue] = useState<Prompt[]>([]);
+  const [sendingId, setSendingId] = useState<number | null>(null);
+  const nextIdRef = useRef(0);
+  // A synchronous guard per prompt: two quick Send clicks must not both pass the state check.
+  const sendingIdsRef = useRef(new Set<number>());
+  // The job a prompt already saved. A retry after a failed send re-sends THIS job: saving
+  // again would add a second sendable job under a new reminder key.
+  const savedJobIdsRef = useRef(new Map<number, string>());
   const current = queue[0] ?? null;
-  const closeCurrent = () => setQueue(previous => previous.slice(1));
+  const toPrompt = (target: RegistrationNumberNeededTarget): Prompt => {
+    nextIdRef.current += 1;
+    return { id: nextIdRef.current, target };
+  };
+  const closePrompt = (id: number) => {
+    savedJobIdsRef.current.delete(id);
+    setQueue(previous => previous.filter(prompt => prompt.id !== id));
+  };
 
   const offer = useCallback(
     async (
@@ -96,7 +114,7 @@ export function useRegistrationNumberNeededEmail({
       });
       if (!isStepOn(summary.steps)) return { disabled: true, noEmail: [] };
       const reachable = targets.filter(target => hasContactEmail(target.entry));
-      setQueue(previous => [...previous, ...reachable]);
+      setQueue(previous => [...previous, ...reachable.map(toPrompt)]);
       return { disabled: false, noEmail: targets.filter(target => !hasContactEmail(target.entry)) };
     },
     [lifecycleClient, queryClient, showId, summaryKey]
@@ -104,41 +122,45 @@ export function useRegistrationNumberNeededEmail({
 
   const sendReminder = (target: RegistrationNumberNeededTarget) => {
     if (!stepEnabled || !hasContactEmail(target.entry)) return;
-    setQueue([target]);
+    setQueue([toPrompt(target)]);
   };
 
   const send = async (
-    target: RegistrationNumberNeededTarget,
+    { id, target }: Prompt,
     values: { subject: string; body: string; secretaryNote: string }
   ) => {
-    if (sendingRef.current) return;
-    sendingRef.current = true;
-    setIsSending(true);
+    if (sendingIdsRef.current.has(id)) return;
+    sendingIdsRef.current.add(id);
+    setSendingId(id);
     const { entry } = target;
     try {
-      const priorCount = await countRegistrationNumberNeededJobs({
-        supabase: lifecycleClient,
-        showId: entry.showId,
-        entryId: entry.id,
-      });
-      const jobId = await saveLifecycleEmailJobForLater({
-        supabase,
-        showId: entry.showId,
-        stepType: REGISTRATION_NUMBER_NEEDED_STEP,
-        recipientScope: 'entry',
-        entryId: entry.id,
-        recipientEmail: entry.ownerEmail,
-        recipientName: entry.ownerName,
-        subject: values.subject,
-        body: values.body,
-        secretaryNote: values.secretaryNote,
-        idempotencyKey: buildRegistrationNumberNeededIdempotencyKey({
+      let jobId = savedJobIdsRef.current.get(id) ?? null;
+      if (!jobId) {
+        const priorCount = await countRegistrationNumberNeededJobs({
+          supabase: lifecycleClient,
           showId: entry.showId,
           entryId: entry.id,
-          priorCount,
-        }),
-      });
-      if (!jobId) throw new Error('Lifecycle email job was not created');
+        });
+        jobId = await saveLifecycleEmailJobForLater({
+          supabase,
+          showId: entry.showId,
+          stepType: REGISTRATION_NUMBER_NEEDED_STEP,
+          recipientScope: 'entry',
+          entryId: entry.id,
+          recipientEmail: entry.ownerEmail,
+          recipientName: entry.ownerName,
+          subject: values.subject,
+          body: values.body,
+          secretaryNote: values.secretaryNote,
+          idempotencyKey: buildRegistrationNumberNeededIdempotencyKey({
+            showId: entry.showId,
+            entryId: entry.id,
+            priorCount,
+          }),
+        });
+        if (!jobId) throw new Error('Lifecycle email job was not created');
+        savedJobIdsRef.current.set(id, jobId);
+      }
       const result = await sendLifecycleEmailJobs({
         supabase,
         showId: entry.showId,
@@ -155,33 +177,33 @@ export function useRegistrationNumberNeededEmail({
         toast.success('Registration number email sent');
       }
       void queryClient.invalidateQueries({ queryKey: summaryKey });
-      closeCurrent();
+      closePrompt(id);
     } catch {
       toast.error('The email did not send. Try Send reminder again.');
     } finally {
-      sendingRef.current = false;
-      setIsSending(false);
+      sendingIdsRef.current.delete(id);
+      setSendingId(previous => (previous === id ? null : previous));
     }
   };
 
   const dialog = current ? (
     <LifecycleEmailPreviewDialog
-      key={current.entry.id}
+      key={current.id}
       open={true}
       onOpenChange={open => {
-        if (!open) closeCurrent();
+        if (!open) closePrompt(current.id);
       }}
       stepType={REGISTRATION_NUMBER_NEEDED_STEP}
       notNowLabel="Skip"
-      isSending={isSending}
+      isSending={sendingId === current.id}
       show={{ name: showName ?? 'this show' }}
-      recipient={{ name: current.entry.ownerName, email: current.entry.ownerEmail }}
+      recipient={{ name: current.target.entry.ownerName, email: current.target.entry.ownerEmail }}
       entry={{
-        dogName: current.entry.dogName,
-        className: current.entry.classes[0]?.name ?? null,
-        registryName: current.registryId ?? null,
+        dogName: current.target.entry.dogName,
+        className: current.target.entry.classes[0]?.name ?? null,
+        registryName: current.target.registryId ?? null,
       }}
-      onNotNow={closeCurrent}
+      onNotNow={() => closePrompt(current.id)}
       onSend={values => send(current, values)}
     />
   ) : null;

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -17,6 +17,8 @@ import { countRegistrationNumberNeededJobs } from './registrationNumberNeeded';
 import type { LifecycleEmailScheduledSummary } from './readModel';
 
 interface DialogProps {
+  onOpenChange: (open: boolean) => void;
+  initialSubject?: string | null;
   entry: { dogName?: string | null; registryName?: string | null };
   notNowLabel: string;
   onNotNow: (values: { subject: string; body: string; secretaryNote: string }) => void;
@@ -251,5 +253,84 @@ describe('useRegistrationNumberNeededEmail', () => {
 
     expect(dialog.current?.entry.dogName).toBe('Dog e2');
     expect(saveLifecycleEmailJobForLater).not.toHaveBeenCalled();
+  });
+  it('retries a failed send on the SAME saved job, with no second save or new key', async () => {
+    vi.mocked(sendLifecycleEmailJobs)
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce({ sent: 1, failed: 0, total: 1 });
+    const { api } = mountHook();
+    await act(async () => {
+      await api.current?.offer([target('e1', 'pat@example.com')]);
+    });
+
+    await act(async () => {
+      await dialog.current?.onSend(values);
+    });
+    expect(toast.error).toHaveBeenCalledWith('The email did not send. Try Send reminder again.');
+    expect(screen.getByTestId('preview')).toBeInTheDocument();
+
+    await act(async () => {
+      await dialog.current?.onSend(values);
+    });
+
+    expect(saveLifecycleEmailJobForLater).toHaveBeenCalledTimes(1);
+    expect(countRegistrationNumberNeededJobs).toHaveBeenCalledTimes(1);
+    expect(sendLifecycleEmailJobs).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(sendLifecycleEmailJobs).mock.calls[1]![0]).toMatchObject({
+      jobIds: ['job-1'],
+    });
+    expect(toast.success).toHaveBeenCalledWith('Registration number email sent');
+  });
+
+  it('a send that finishes after the preview was replaced leaves the newer preview open', async () => {
+    let finishFirst: (value: { sent: number; failed: number; total: number }) => void = () =>
+      undefined;
+    vi.mocked(sendLifecycleEmailJobs).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finishFirst = resolve;
+        })
+    );
+    const { api } = mountHook();
+    await waitFor(() => expect(api.current?.stepEnabled).toBe(true));
+    act(() => api.current?.sendReminder(target('e1', 'a@example.com')));
+    let firstSend: Promise<void> | undefined;
+    await act(async () => {
+      firstSend = dialog.current?.onSend(values);
+      await Promise.resolve();
+    });
+
+    act(() => dialog.current?.onOpenChange(false));
+    act(() => api.current?.sendReminder(target('e2', 'b@example.com')));
+    expect(dialog.current?.entry.dogName).toBe('Dog e2');
+
+    await act(async () => {
+      finishFirst({ sent: 1, failed: 0, total: 1 });
+      await firstSend;
+    });
+
+    expect(screen.getByTestId('preview')).toBeInTheDocument();
+    expect(dialog.current?.entry.dogName).toBe('Dog e2');
+  });
+
+  it('lets the newer preview send while an earlier send is still in flight', async () => {
+    vi.mocked(sendLifecycleEmailJobs).mockImplementationOnce(() => new Promise(() => undefined));
+    const { api } = mountHook();
+    await waitFor(() => expect(api.current?.stepEnabled).toBe(true));
+    act(() => api.current?.sendReminder(target('e1', 'a@example.com')));
+    await act(async () => {
+      void dialog.current?.onSend(values);
+      await Promise.resolve();
+    });
+    act(() => dialog.current?.onOpenChange(false));
+    act(() => api.current?.sendReminder(target('e2', 'b@example.com')));
+    await act(async () => {
+      await dialog.current?.onSend(values);
+    });
+
+    expect(vi.mocked(saveLifecycleEmailJobForLater).mock.calls.map(c => c[0].entryId)).toEqual([
+      'e1',
+      'e2',
+    ]);
   });
 });

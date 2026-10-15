@@ -45,6 +45,18 @@ vi.mock('@react-pdf/renderer', () => ({
   },
 }));
 
+vi.mock('../RegistrationNumberNeededOffer', () => ({
+  RegistrationNumberNeededOffer: ({
+    classSelections,
+  }: {
+    classSelections: Array<{ dogId: string }>;
+  }) => (
+    <output data-testid="registration-number-offer">
+      {classSelections.map(selection => selection.dogId).join(',')}
+    </output>
+  ),
+}));
+
 import { WorkflowStepContent } from '../WorkflowStepContent';
 
 const workflowConfig: WorkflowConfig = {
@@ -162,10 +174,12 @@ beforeEach(() => {
   ];
 
   mockUseShowStore.mockImplementation(
-    (selector: (state: { shows: Array<typeof show> }) => unknown) => selector({ shows: [show] })
+    (selector?: (state: { shows: Array<typeof show> }) => unknown) =>
+      selector ? selector({ shows: [show] }) : { shows: [show] }
   );
-  mockUseTrialStore.mockImplementation((selector: (state: { trials: typeof trials }) => unknown) =>
-    selector({ trials })
+  mockUseTrialStore.mockImplementation(
+    (selector?: (state: { trials: typeof trials }) => unknown) =>
+      selector ? selector({ trials }) : { trials }
   );
   mockUseDogStoreCompat.mockImplementation(() => ({ dogs }));
   mockUseClassStoreCompat.mockImplementation(() => ({ classes }));
@@ -187,7 +201,10 @@ function createdOutcome(dogId: string, classId: string, entryId: string): EntryS
   };
 }
 
-function renderConfirmation(outcomes: EntrySubmissionOutcome[]) {
+function renderConfirmation(
+  outcomes: EntrySubmissionOutcome[],
+  mode: 'secretary_new' | 'exhibitor' = 'secretary_new'
+) {
   const selections = [
     { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
     { dogId: 'dog-2', trialId: 'trial-1', selectedClasses: [{ classId: 'class-2' }] },
@@ -198,7 +215,7 @@ function renderConfirmation(outcomes: EntrySubmissionOutcome[]) {
       paymentResolution={makePaymentResolution()}
       currentStepId="confirmation"
       currentWorkflowConfig={workflowConfig}
-      currentWorkflowMode="secretary_new"
+      currentWorkflowMode={mode}
       registrationData={{
         selectedDogs: ['dog-1', 'dog-2'],
         entries: [],
@@ -239,6 +256,30 @@ function renderConfirmation(outcomes: EntrySubmissionOutcome[]) {
     />
   );
 }
+
+describe('WorkflowStepContent registration number offer', () => {
+  it('mounts on the styled receipt after a secretary save, for the dogs actually created', () => {
+    renderConfirmation([createdOutcome('dog-2', 'class-2', 'entry-2')]);
+
+    // The styled receipt branch is the one rendered (not ConfirmationStep).
+    expect(screen.queryByText(/Payment Summary/)).toBeNull();
+    expect(screen.getByTestId('registration-number-offer')).toHaveTextContent('dog-2');
+  });
+
+  it('mounts exactly once on the ConfirmationStep branch', () => {
+    renderConfirmation([
+      { ...createdOutcome('dog-2', 'class-2', 'entry-2'), outcome: 'waitlisted', entryId: null },
+    ]);
+
+    expect(screen.getAllByTestId('registration-number-offer')).toHaveLength(1);
+  });
+
+  it('never mounts for an exhibitor saving their own entries', () => {
+    renderConfirmation([createdOutcome('dog-2', 'class-2', 'entry-2')], 'exhibitor');
+
+    expect(screen.queryByTestId('registration-number-offer')).toBeNull();
+  });
+});
 
 describe('WorkflowStepContent entry blanks', () => {
   it('shows the missing-registration warning before mounting PDF generation', async () => {

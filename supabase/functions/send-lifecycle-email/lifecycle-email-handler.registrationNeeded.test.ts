@@ -604,7 +604,9 @@ describe('send_registration_number_needed action', () => {
 
     it('a failed replacement send is retried as the same one replacement, never a second job', async () => {
       const { fetch, tables, run, recipients } = arrangeStateful(staleJob, 'new@example.com');
-      fetch.mockImplementationOnce(async () => ({ ok: false, json: async () => ({}) }) as never);
+      fetch.mockImplementationOnce(
+        async () => ({ ok: false, status: 500, text: async () => '' }) as never
+      );
 
       await expect(run()).resolves.toMatchObject({ status: 'failed' });
       await expect(run()).resolves.toMatchObject({ status: 'sent' });

@@ -534,48 +534,71 @@ async function sendRegistrationNumberNeeded(args: {
   };
 
   // 1. A retry of THIS preview's request (its response was lost): the same email. A job is
-  // tied to a request by its own key, or by `batch_key` (unused by this step otherwise):
-  // the request that RECOVERED an earlier job, or replaced one at a new address, stamps
-  // its key there so the retry finds that job and not a reason to send another.
-  const readOwn = async (column: 'idempotency_key' | 'batch_key') => {
+  // tied to a request by its own key, or by `batch_key` (otherwise unused: no writer
+  // before MYK9-1212, so a future batching feature must not assume it is free): the request
+  // that RECOVERED an earlier job, or replaced one at a new address, stamps its key there so
+  // the retry finds that job and not a reason to send another. A job superseded by a
+  // replacement carries `<requestKey>:replaced` instead, so a replacement that never got
+  // inserted (the two writes are separate) is still owed on the retry.
+  const replacedMark = `${requestKey}:replaced`;
+  type OwnRow = {
+    id: string;
+    status: string;
+    recipient_email: string | null;
+    idempotency_key: string;
+  };
+  const readOwn = async (column: 'idempotency_key' | 'batch_key', value: string) => {
     const { data, error } = (await supabase
       .from('show_lifecycle_email_jobs')
-      .select('id, status, recipient_email')
+      .select('id, status, recipient_email, idempotency_key')
       .eq('show_id', showId)
-      .eq(column, requestKey)) as QueryResult<
-      Array<{ id: string; status: string; recipient_email: string | null }>
-    >;
+      .eq(column, value)) as QueryResult<OwnRow[]>;
     if (error) throw new HttpError(500, 'Failed to read the earlier email');
     return data ?? [];
   };
-  const supersede = async (jobIds: string[]) => {
+  const supersede = async (jobIds: string[], extra: Record<string, unknown> = {}) => {
     if (jobIds.length === 0) return;
     const { error } = (await supabase
       .from('show_lifecycle_email_jobs')
-      .update({ status: 'skipped', skipped_at: new Date().toISOString(), updated_by: userId })
+      .update({
+        status: 'skipped',
+        skipped_at: new Date().toISOString(),
+        updated_by: userId,
+        ...extra,
+      })
       .in('id', jobIds)) as QueryResult;
     if (error) throw new HttpError(500, 'Failed to replace the earlier email');
   };
-  const own = [...(await readOwn('idempotency_key')), ...(await readOwn('batch_key'))];
-  // The newest job of this request is the live one; superseded ones stay as history.
-  const ownJob = own.find(row => row.status !== 'skipped') ?? own[0];
+  // Replacements and recoveries (batch_key) first, then the request's own key.
+  const own = [
+    ...(await readOwn('batch_key', requestKey)),
+    ...(await readOwn('idempotency_key', requestKey)),
+  ];
+  const replaced = await readOwn('batch_key', replacedMark);
+  const ownJob = own.find(row => row.status !== 'skipped');
   let insertKey = requestKey;
   if (ownJob) {
     if (ownJob.status === 'sent') return { status: 'sent', jobId: ownJob.id };
     if (ownJob.status !== 'ready' && ownJob.status !== 'failed') {
-      // Replaced since by a newer request: nothing of this one is left to send.
       return { status: 'busy' };
     }
     // The owner's address may have been corrected since the first attempt: replay only
-    // to the current one. Otherwise replace it, under a key derived from the old job
-    // (the old job holds this request's own key; a retry still finds the replacement
-    // through batch_key).
-    if (!isSameAddress(ownJob.recipient_email, recipientEmail)) {
-      await supersede([ownJob.id]);
-      insertKey = `${requestKey}:replaces-${ownJob.id}`;
-    } else {
-      return send(ownJob.id, false);
-    }
+    // to the current one. Otherwise retire it and send a fresh email below, under a key
+    // derived from the old job (it holds this request's own key).
+    if (isSameAddress(ownJob.recipient_email, recipientEmail)) return send(ownJob.id, false);
+    await supersede([ownJob.id], { batch_key: replacedMark });
+    insertKey = `${requestKey}:replaces-${ownJob.id}`;
+  } else if (own.length > 0) {
+    // Only superseded jobs. Either a replacement is still owed (we retired the job, then
+    // the insert never happened) or a newer request replaced this one.
+    const owed = [...own, ...replaced].find(
+      row =>
+        row.status === 'skipped' &&
+        replaced.some(marked => marked.id === row.id) &&
+        ![...own, ...replaced].some(r => r.idempotency_key === `${requestKey}:replaces-${row.id}`)
+    );
+    if (!owed) return { status: 'busy' };
+    insertKey = `${requestKey}:replaces-${owed.id}`;
   }
 
   // 2. Another request's email still outstanding. At most one per entry (a partial

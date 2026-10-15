@@ -78,7 +78,8 @@ async function loadOwnersMap(
         .select('id, first_name, last_name, email, phone, street_address, city, state, zip_code')
         .in('id', uniqueIds);
       data = result.data as OwnerRow[] | null;
-      readFailed = !!result.error;
+      // Only an unreachable server reads as offline; an answered error is not "offline".
+      readFailed = serverUnreachable(result.error);
     } catch {
       readFailed = true;
     }

@@ -13,6 +13,9 @@ const { server, mockDogsTable } = vi.hoisted(() => ({
   server: {
     online: true,
     dogs: [] as unknown[],
+    userId: 'user-1',
+    /** Signs a different account in while the dogs read is in flight. */
+    switchToDuringRead: null as string | null,
   },
   mockDogsTable: { getAllDogsWithStatus: vi.fn() },
 }));
@@ -27,7 +30,7 @@ vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
   },
 }));
 vi.mock('@/services/database/persistedAuthUserId', () => ({
-  readPersistedAuthUserId: () => 'user-1',
+  readPersistedAuthUserId: () => server.userId,
 }));
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -41,12 +44,14 @@ vi.mock('@/services/database/supabaseClient', () => ({
           Promise.resolve(
             server.online ? { data: [], error: null } : { data: null, error: failure }
           );
-        chain.then = (resolve: (v: unknown) => unknown, reject: (r: unknown) => unknown) =>
-          Promise.resolve(
+        chain.then = (resolve: (v: unknown) => unknown, reject: (r: unknown) => unknown) => {
+          if (server.switchToDuringRead) server.userId = server.switchToDuringRead;
+          return Promise.resolve(
             table === 'dogs' && server.online
               ? { data: server.dogs, error: null }
               : { data: null, error: failure }
           ).then(resolve, reject);
+        };
         return chain;
       },
     }),
@@ -96,6 +101,8 @@ describe('offline dogs list owners (MYK9-1189)', () => {
     clearOwnerNameCache();
     server.online = true;
     server.dogs = [];
+    server.userId = 'user-1';
+    server.switchToDuringRead = null;
     mockDogsTable.getAllDogsWithStatus.mockReset();
   });
 
@@ -124,6 +131,15 @@ describe('offline dogs list owners (MYK9-1189)', () => {
     const stored = window.localStorage.getItem('myk9.dogOwnerNames.v1:user-1') ?? '';
     expect(stored).toContain('Lovelace');
     expect(stored).not.toMatch(/private@example|555-0100|Main St/);
+  });
+
+  it('a read that lands after an account switch stays under the account that made it', async () => {
+    server.dogs = [serverRow('dog-1', 'owner-1', 'Ada', 'Lovelace')];
+    server.switchToDuringRead = 'user-2';
+    await getAllDogs('p', true);
+
+    expect(window.localStorage.getItem('myk9.dogOwnerNames.v1:user-2')).toBeNull();
+    expect(window.localStorage.getItem('myk9.dogOwnerNames.v1:user-1')).toContain('Lovelace');
   });
 
   it('offline, an owner the device never saw is marked unavailable, not blank', async () => {

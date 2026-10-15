@@ -91,7 +91,70 @@ export async function createForeignDog(
   return dog.id as string;
 }
 
-/** The spec's rows go: its entries and their enrollment, armbands, registrations, then the dog. */
+/**
+ * An exhibitor that exists only for one run, so the secretary's entry opens an enrollment the
+ * journey owns. Filing it under a seeded exhibitor would add to that exhibitor's shared enrollment
+ * (totals, payment method, payment rows) and leave the fixture's money altered for later journeys.
+ */
+export async function createJourneyExhibitor(
+  admin: SupabaseClient,
+  suffix: string
+): Promise<{ id: string; fullName: string }> {
+  const lastName = `Owner ${suffix}`;
+  const row = await must(
+    'create journey exhibitor',
+    admin
+      .from('people')
+      .insert({
+        first_name: 'Held',
+        last_name: lastName,
+        email: `held-owner-${suffix.toLowerCase()}@example.test`,
+      })
+      .select('id')
+      .single()
+  );
+  return { id: row.id as string, fullName: `Held ${lastName}` };
+}
+
+/**
+ * Removes the journey exhibitor and everything filed under them: payment rows and orders on their
+ * enrollments, the dogs' entries, armbands and registrations, the enrollments, then the person.
+ * Every row here belongs to this run; nothing seeded is touched.
+ */
+export async function removeJourneyExhibitor(
+  admin: SupabaseClient,
+  personId: string,
+  dogCallNames: string[]
+): Promise<void> {
+  const enrollments = await must(
+    'read journey enrollments',
+    admin.from('enrollments').select('id').eq('handler_id', personId)
+  );
+  const enrollmentIds = enrollments.map(e => e.id as string);
+  if (enrollmentIds.length > 0) {
+    await ok(
+      'delete journey payments',
+      admin.from('show_payments').delete().in('enrollment_id', enrollmentIds)
+    );
+    await ok(
+      'delete journey orders',
+      admin.from('stripe_orders').delete().in('enrollment_id', enrollmentIds)
+    );
+  }
+  await removeDogsNamed(admin, dogCallNames);
+  if (enrollmentIds.length > 0) {
+    await ok(
+      'delete journey enrollments',
+      admin.from('enrollments').delete().in('id', enrollmentIds)
+    );
+  }
+  await ok('delete journey exhibitor', admin.from('people').delete().eq('id', personId));
+}
+
+/**
+ * The spec's dogs go: their entries, armbands, registrations, then the dog. Enrollments are left
+ * to `removeJourneyExhibitor`, which owns them; this never deletes an enrollment it did not create.
+ */
 export async function removeDogsNamed(admin: SupabaseClient, callNames: string[]): Promise<void> {
   const dogs = await must(
     'find journey dogs',
@@ -100,10 +163,9 @@ export async function removeDogsNamed(admin: SupabaseClient, callNames: string[]
   for (const { id } of dogs) {
     const entries = await must(
       'read journey entries',
-      admin.from('entries').select('id, registration_id').eq('dog_id', id)
+      admin.from('entries').select('id').eq('dog_id', id)
     );
     const ids = entries.map(e => e.id as string);
-    const enrollments = entries.map(e => e.registration_id).filter((v): v is string => !!v);
     if (ids.length > 0) {
       const { error } = await admin.from('entries').delete().in('id', ids);
       // A history or message row may still reference an entry; then retire it instead.
@@ -113,9 +175,6 @@ export async function removeDogsNamed(admin: SupabaseClient, callNames: string[]
           admin.from('entries').update({ deleted_at: new Date().toISOString() }).in('id', ids)
         );
       }
-    }
-    if (enrollments.length > 0) {
-      await admin.from('enrollments').delete().in('id', enrollments);
     }
     await ok('delete journey armbands', admin.from('armbands').delete().eq('dog_id', id));
     await ok(

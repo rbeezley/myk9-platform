@@ -12,8 +12,10 @@ import {
   CLASS_ID,
   COOPER_ID,
   createForeignDog,
+  createJourneyExhibitor,
   personByEmail,
   removeDogsNamed,
+  removeJourneyExhibitor,
   SEEDED_RUN_SHEET_DOG,
   SHOW_ID,
   TRIAL_ID,
@@ -39,9 +41,10 @@ import { waitlistAdmin } from './waitlistJourneyFixture';
  * Exhibitor at 390px: an AKC number held by a dog the exhibitor cannot see shows only the
  * "already registered" message, with no other detail about the dog.
  *
- * Cleanup: the dogs this file creates, with their entries, enrollment, armbands and
- * registrations, are removed in `afterAll`; the isolated target is also reset between the two
- * Nightly passes. Seeded rows are only read, never changed.
+ * Cleanup: the secretary journey files its entry under an exhibitor it creates, so the enrollment
+ * and payment rows are its own; `afterAll` removes them with the dogs, entries, armbands and
+ * registrations. The isolated target is also reset between the two Nightly passes. Seeded rows
+ * are only read, never changed.
  */
 
 const TAKEN_MESSAGE =
@@ -83,13 +86,16 @@ test.describe('Number-first Add Dog: a held entry is listed, kept off the run sh
 
   let admin: SupabaseClient;
   const heldDog = uniqueCallName('Held');
+  let owner: { id: string; fullName: string } | undefined;
 
-  test.beforeAll(() => {
+  test.beforeAll(async () => {
     admin = waitlistAdmin();
+    // Created before sign-in, so the secretary's people list has them on first load.
+    owner = await createJourneyExhibitor(admin, Date.now().toString(36));
   });
 
   test.afterAll(async () => {
-    if (admin) await removeDogsNamed(admin, [heldDog]);
+    if (admin && owner) await removeJourneyExhibitor(admin, owner.id, [heldDog]);
   });
 
   test('a secretary finds an existing dog by its number, then enters a no-number dog that is held until its number is added (MYK9-1162)', async ({
@@ -112,7 +118,8 @@ test.describe('Number-first Add Dog: a held entry is listed, kept off the run sh
     );
 
     const cooperNumber = await akcNumberOf(admin, COOPER_ID);
-    const owner = await personByEmail(admin, TEST_USERS.DEMO_EXHIBITOR.email);
+    if (!owner) throw new Error('The journey exhibitor was not created');
+    const journeyOwner = owner;
     const heldRegistration = uniqueRegistrationNumber('HELD');
     const row = () =>
       page.getByRole('listitem').filter({ has: page.getByText(heldDog, { exact: true }) });
@@ -148,7 +155,11 @@ test.describe('Number-first Add Dog: a held entry is listed, kept off the run sh
       await page.getByRole('option', { name: /^Male/ }).first().click();
       await dialog.getByLabel(/Date of Birth/i).fill('2020-01-15');
       await dialog.getByRole('combobox', { name: /^Owner/ }).click();
-      await page.getByRole('listbox').getByRole('option', { name: owner.fullName }).first().click();
+      await page
+        .getByRole('listbox')
+        .getByRole('option', { name: journeyOwner.fullName })
+        .first()
+        .click();
       // Add Dog only shows on the last tab; earlier tabs stay clickable.
       await dialog.getByRole('tab', { name: /Optional details/i }).click();
       await dialog.getByRole('button', { name: 'Add Dog', exact: true }).click();

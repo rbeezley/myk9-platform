@@ -1,16 +1,6 @@
 import { useCallback, useRef, useState, type MouseEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  AlertCircle,
-  AlertTriangle,
-  Bell,
-  CheckCheck,
-  Inbox,
-  Megaphone,
-  MessageSquare,
-  Plus,
-  X,
-} from 'lucide-react';
+import { CheckCheck, Inbox, MessageSquare, Plus, X } from 'lucide-react';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Button } from '@/components/ui/button';
 import { useNotificationStore, type AlertEntry } from '@/store/notificationStore';
@@ -19,9 +9,10 @@ import { useMessageStore } from '@/store/messageStore';
 import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { acknowledgeAccountNotifications } from '@/services/notifications/accountNotificationAcks';
-import type { NotificationType, NotificationPriority } from '@myk9/notifications';
 import { formatRelativeTime } from '@/lib/timeUtils';
 import { PRIORITY_BORDER } from './notification-styles';
+import { PriorityIcon } from './MessageCenterPriorityIcon';
+import { MESSAGE_CENTER_TABS, pickOpenTab, type MessageCenterTab } from './messageCenterTabs';
 import { AnnouncementItem } from '@/components/announcements/AnnouncementItem';
 import { getAnnouncementAuthor } from '@/types/announcement-types';
 import { usePanelModeFocus } from '@/components/panels/usePanelModeFocus';
@@ -32,43 +23,6 @@ import type {
   MessageShowDeliveryLane,
   MessageShowRecipientType,
 } from '@/features/show-workbench/messageShow';
-
-type MessageCenterTab = 'notifications' | 'showMessages';
-
-function PriorityIcon({
-  priority,
-  type,
-}: {
-  priority: NotificationPriority;
-  type: NotificationType;
-}) {
-  if (type === 'announcement') {
-    return (
-      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-purple-500/15">
-        <Megaphone className="h-4 w-4 text-purple-400" />
-      </div>
-    );
-  }
-  if (priority === 'urgent') {
-    return (
-      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-red-500/15">
-        <AlertCircle className="h-4 w-4 text-red-400" />
-      </div>
-    );
-  }
-  if (priority === 'high') {
-    return (
-      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-amber-500/15">
-        <AlertTriangle className="h-4 w-4 text-amber-400" />
-      </div>
-    );
-  }
-  return (
-    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-blue-500/15">
-      <Inbox className="h-4 w-4 text-blue-400" />
-    </div>
-  );
-}
 
 function NotificationItem({
   entry,
@@ -140,13 +94,13 @@ function EmptyPanelState({
 }: {
   icon: typeof Inbox;
   title: string;
-  body: string;
+  body?: string | undefined;
 }) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
       <Icon className="mb-3 h-8 w-8 text-muted-foreground/30" />
       <p className="text-sm text-muted-foreground">{title}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{body}</p>
+      {body && <p className="mt-1 text-xs text-muted-foreground">{body}</p>}
     </div>
   );
 }
@@ -179,7 +133,8 @@ export function MessageCenterPanel() {
   const author = getAnnouncementAuthor(user, userWithRoles);
   const shows = useShowStore(s => s.shows);
   const showsLoading = useShowStore(s => s.isLoading);
-  const [activeTab, setActiveTab] = useState<MessageCenterTab>('notifications');
+  // null while closed; set on open to the first tab holding unread items (MYK9-1180).
+  const [activeTab, setActiveTab] = useState<MessageCenterTab | null>(null);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [isComposing, setIsComposing] = useState(false);
   const composeBarRef = useRef<HTMLDivElement>(null);
@@ -228,7 +183,14 @@ export function MessageCenterPanel() {
       : judged.status === 'unavailable'
         ? "The shows you're judging aren't on this device yet. Connect to the internet to load them."
         : 'There are no shows you can post to.';
-  const totalUnread = notificationUnread + announcementUnread + messageUnread;
+  const tabUnread = {
+    notifications: notificationUnread,
+    showMessages: announcementUnread + messageUnread,
+  };
+  const totalUnread = tabUnread.notifications + tabUnread.showMessages;
+  if (!isCenterOpen && activeTab !== null) setActiveTab(null);
+  if (isCenterOpen && activeTab === null) setActiveTab(pickOpenTab(tabUnread));
+  const selectedTab = activeTab ?? pickOpenTab(tabUnread);
 
   function handleMarkAllRead() {
     acknowledgeAccountNotifications(
@@ -287,7 +249,13 @@ export function MessageCenterPanel() {
         <EmptyPanelState
           icon={Inbox}
           title="No notifications yet"
-          body={unreadOnly ? 'No unread notifications' : "You're all caught up"}
+          body={
+            unreadOnly
+              ? 'No unread notifications'
+              : totalUnread > 0
+                ? undefined
+                : "You're all caught up"
+          }
         />
       );
     }
@@ -458,26 +426,28 @@ export function MessageCenterPanel() {
             </div>
           )}
           <div className="flex border-b border-border/50 px-4" role="tablist">
-            {[
-              { key: 'notifications' as const, label: 'Notifications', icon: Bell },
-              { key: 'showMessages' as const, label: 'Show messages', icon: MessageSquare },
-            ].map(tab => (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium ${
-                  activeTab === tab.key
-                    ? 'border-b-2 border-orange-500 text-orange-500'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <tab.icon className="h-3 w-3" />
-                {tab.label}
-              </button>
-            ))}
+            {MESSAGE_CENTER_TABS.map(tab => {
+              const count = tabUnread[tab.key];
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={selectedTab === tab.key}
+                  aria-label={count > 0 ? `${tab.label}, ${count} unread` : undefined}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium ${
+                    selectedTab === tab.key
+                      ? 'border-b-2 border-orange-500 text-orange-500'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <tab.icon className="h-3 w-3" />
+                  {tab.label}
+                  {count > 0 && <span aria-hidden="true">({count})</span>}
+                </button>
+              );
+            })}
             <div className="flex-1" />
             <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground">
               <input
@@ -490,8 +460,8 @@ export function MessageCenterPanel() {
               Unread only
             </label>
           </div>
-          {activeTab === 'notifications' && renderNotificationsTab()}
-          {activeTab === 'showMessages' && renderShowMessagesTab()}
+          {selectedTab === 'notifications' && renderNotificationsTab()}
+          {selectedTab === 'showMessages' && renderShowMessagesTab()}
         </>
       )}
     </SlideOverPanel>

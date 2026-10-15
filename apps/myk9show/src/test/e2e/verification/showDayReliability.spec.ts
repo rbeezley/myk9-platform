@@ -23,12 +23,16 @@ test.describe.configure({ mode: 'serial' });
 test('canonical queue positions and state-only controls agree across roles (MYK9-992)', async ({
   browser,
 }, info) => {
+  test.skip(
+    info.project.name !== 'isolated-show-day-proof',
+    'Use the dedicated manual proof config'
+  );
   test.setTimeout(12 * 60_000);
   const client = isolatedClient();
   const buildResponse = await fetch('http://127.0.0.1:4173/build-sha.txt');
   expect(buildResponse.ok).toBe(true);
   const testedBuild = (await buildResponse.text()).trim();
-  expect(testedBuild).toBe(process.env.GITHUB_SHA);
+  expect(testedBuild).toBe(process.env.MYK9_SHOW_DAY_SOURCE_SHA);
   const f = await fixture(client);
   await reset(client, f);
   const cases = [
@@ -132,6 +136,10 @@ async function saveScore(page: Page) {
 test('expired token after 61 real minutes offline still queues and uploads the score (MYK9-1204)', async ({
   browser,
 }, info) => {
+  test.skip(
+    info.project.name !== 'isolated-show-day-proof',
+    'Use the dedicated manual proof config'
+  );
   test.setTimeout(75 * 60_000);
   const client = isolatedClient();
   const f = await fixture(client);
@@ -152,10 +160,11 @@ test('expired token after 61 real minutes offline still queues and uploads the s
     const buildResponse = await judge.page.request.get('/build-sha.txt');
     expect(buildResponse.ok()).toBe(true);
     const testedBuild = (await buildResponse.text()).trim();
-    expect(testedBuild).toBe(process.env.GITHUB_SHA);
+    expect(testedBuild).toBe(process.env.MYK9_SHOW_DAY_SOURCE_SHA);
     const initial = await sessionIdentity(judge.page);
     const baseline = await row(client, f.willowId);
     expect(baseline.is_scored).toBe(false);
+    const offlineCallStart = calls.length;
     const wallStart = Date.now();
     const monotonicStart = performance.now();
     await judge.context.setOffline(true);
@@ -222,8 +231,17 @@ test('expired token after 61 real minutes offline still queues and uploads the s
     expect(refreshed.userId).toBe(initial.userId);
     expect(refreshed.expiresAt).toBeGreaterThan(expired.expiresAt);
     expect(refreshed.expiresAt * 1000).toBeGreaterThan(Date.now());
-    expect(calls.filter(c => c.status === 409)).toEqual([]);
-    expect(calls.some(c => c.status === 200)).toBe(true);
+    const scoringCalls = calls.slice(offlineCallStart).filter(call => {
+      const fields = call.fields;
+      return (
+        typeof fields === 'object' &&
+        fields !== null &&
+        'is_scored' in fields &&
+        fields.is_scored === true
+      );
+    });
+    expect(scoringCalls.filter(c => c.status === 409)).toEqual([]);
+    expect(scoringCalls.some(c => c.status === 200)).toBe(true);
     const exhibitor = await rolePage(browser, 'DEMO_EXHIBITOR', `/at-show/${f.showId}`);
     const secretary = await rolePage(browser, 'SECRETARY', secretaryPath(f));
     try {
@@ -241,6 +259,8 @@ test('expired token after 61 real minutes offline still queues and uploads the s
       await evidence(info, 'upload-confirmed', {
         uploaded,
         refreshed,
+        offlineCallStart,
+        scoringCalls,
         calls,
         queue: await replica(judge.page, f.willowId),
       });

@@ -7,8 +7,12 @@ import {
 } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@myk9/supabase';
-import { resolveIsolatedE2eTarget } from '../../../../../../scripts/qa/isolated-e2e-target';
+import { createRequire } from 'node:module';
 import { signIn, TEST_USERS } from '../helpers/testUsers';
+// Root tooling is CommonJS; the app is ESM. Use the runtime's CJS loader on Node 22.12.
+const { resolveIsolatedE2eTarget } = createRequire(import.meta.url)(
+  '../../../../../../scripts/qa/isolated-e2e-target.ts'
+) as typeof import('../../../../../../scripts/qa/isolated-e2e-target');
 
 export function isolatedClient() {
   const target = resolveIsolatedE2eTarget(process.env);
@@ -27,6 +31,8 @@ export interface Fixture {
   cooperId: string;
 }
 export async function fixture(client: Client): Promise<Fixture> {
+  // The canonical seed creates seven consecutive days. Selecting today's class
+  // also works when preparation crosses midnight into the next seeded day.
   const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date());
   const { data: cls, error } = await client
     .from('classes')

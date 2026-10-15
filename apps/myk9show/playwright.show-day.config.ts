@@ -4,6 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './src/test/e2e/verification',
   testMatch: '**/showDayReliability.spec.ts',
+  projects: [{ name: 'isolated-show-day-proof' }],
   fullyParallel: false,
   workers: 1,
   retries: 0,

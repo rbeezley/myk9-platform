@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -6,7 +7,12 @@ import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 import { useEmbeddedDetail } from '@/components/layout/embeddedDetail';
 import ShowsMasterDetailPage from '../ShowsMasterDetailPage';
 
-const auth = { user: { id: 'auth-1', is_anonymous: false } as unknown };
+const SECRETARY = { id: 'auth-1', roles: ['secretary'] };
+const auth = {
+  user: { id: 'auth-1', is_anonymous: false } as unknown,
+  userWithRoles: SECRETARY as { id: string; roles: string[] } | null,
+};
+let showPageMounts = 0;
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => auth,
@@ -28,6 +34,9 @@ vi.mock('@/components/shows/browse/ShowsPaneList', () => ({
 }));
 
 function Page({ name }: { name: string }) {
+  useEffect(() => {
+    if (name === 'show page') showPageMounts += 1;
+  }, [name]);
   return (
     <p>
       {name} {useEmbeddedDetail() ? '(in pane)' : '(full page)'}
@@ -53,6 +62,8 @@ describe('ShowsMasterDetailPage', () => {
   beforeEach(() => {
     window.localStorage.clear();
     auth.user = { id: 'auth-1', is_anonymous: false };
+    auth.userWithRoles = SECRETARY;
+    showPageMounts = 0;
   });
 
   it('puts the open show beside the list from a 1280px window', () => {
@@ -89,17 +100,37 @@ describe('ShowsMasterDetailPage', () => {
     mockViewportWidth(1100);
     renderAt('/shows/show-1');
 
-    expect(screen.queryByTestId('master-detail-layout')).not.toBeInTheDocument();
-    expect(screen.getByText('show page (full page)')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Shows list' })).not.toBeInTheDocument();
+    expect(screen.getByText('show page (in pane)')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Shows' }));
-    expect(screen.getByTestId('master-detail-layout')).toBeInTheDocument();
-    expect(screen.getByText('show page (in pane)')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Shows list' })).toBeInTheDocument();
     expect(window.localStorage.getItem('view-pref-shows-pane')).toBe('open');
+    // Focus follows the reader into the list rather than dropping to the page.
+    expect(screen.getByRole('button', { name: 'Hide shows list' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Hide shows list' }));
-    expect(screen.queryByTestId('master-detail-layout')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Shows' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Shows list' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Shows' })).toHaveFocus();
+  });
+
+  it('never remounts the open show when the list folds or unfolds', async () => {
+    const user = userEvent.setup();
+    mockViewportWidth(1100);
+    renderAt('/shows/show-1');
+    expect(showPageMounts).toBe(1);
+
+    await user.click(screen.getByRole('button', { name: 'Shows' }));
+    await user.click(screen.getByRole('button', { name: 'Hide shows list' }));
+    expect(showPageMounts).toBe(1);
+  });
+
+  it('gives exhibitors and judges no list: Find Shows is already their list', () => {
+    auth.userWithRoles = { id: 'auth-1', roles: ['exhibitor', 'judge'] };
+    mockViewportWidth(1440);
+    renderAt('/shows');
+    expect(screen.getByText('find shows (full page)')).toBeInTheDocument();
+    expect(screen.queryByText(/shows list/)).not.toBeInTheDocument();
   });
 
   it('remembers an opened list between visits below 1280', () => {

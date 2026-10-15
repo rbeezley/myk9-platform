@@ -1,7 +1,8 @@
-import React, { type CSSProperties } from 'react';
+import React, { useEffect, useRef, type CSSProperties } from 'react';
 import { Outlet, useMatch } from 'react-router-dom';
 import { List, PanelLeftClose } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { MasterDetailLayout, MASTER_DETAIL_QUERY } from '@/components/layout/MasterDetailLayout';
 import { ShowsPaneList } from '@/components/shows/browse/ShowsPaneList';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -9,14 +10,27 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useViewPreference } from '@/hooks/useViewPreference';
 import { isAccountSession } from '@/hooks/guestServerRead';
 import { COCKPIT_SPLIT_VIEWPORT_QUERY } from '@/features/show-map/cockpit/splitViewport';
+import { UserRole } from '@/types/auth-types';
 
 const PANE_MODES = ['open', 'folded'] as const;
 type PaneMode = (typeof PANE_MODES)[number];
 
+// The people who run shows. An exhibitor or judge would only get the Find Shows list twice, side by
+// side; their own shows list is phase 4 (docs/plan-sidebar-browse-pane.md).
+const PANE_ROLES: ReadonlySet<string> = new Set([
+  UserRole.SECRETARY,
+  UserRole.CLUB_ADMIN,
+  UserRole.CHAIRMAN,
+  UserRole.STEWARD,
+  UserRole.SITE_ADMIN,
+]);
+
 // The spike measured a 320px list; dragging stays within a range that leaves the show its width.
 const SHOWS_LIST_SIZE = { default: '320px', min: '260px', max: '440px' };
-// The fixed header and page padding are the only chrome; each pane scrolls on its own.
+// The fixed header and page padding are the only chrome; each pane scrolls on its own. Folded,
+// the "Shows" button row (2.75rem button + 0.75rem gap) comes off the height too.
 const SPLIT_HEIGHT = 'h-[calc(100dvh-var(--app-top-inset,3rem)-2rem)] min-h-[28rem]';
+const FOLDED_HEIGHT = 'h-[calc(100dvh-var(--app-top-inset,3rem)-5.5rem)] min-h-[28rem]';
 // Inside a pane, the show page's sticky header and tab strip pin to the pane's top, not under the
 // app header: every sticky offset there is written against `--app-top-inset`.
 const PANE_TOP_INSET = { '--app-top-inset': '0px' } as CSSProperties;
@@ -25,63 +39,88 @@ const PANE_TOP_INSET = { '--app-top-inset': '0px' } as CSSProperties;
  * The layout route around `/shows` and `/shows/:id/*`. One element for both, so the list stays
  * mounted (scroll, search) while shows open and close.
  *
- * - Signed-out visitors and windows under `lg`: no list, exactly as before (a row tap is a page hop).
+ * - Signed-out visitors, exhibitors and judges, and windows under `lg`: no list, exactly as before
+ *   (a row tap is a page hop).
  * - From 1280px (the cockpit's own split width): the list beside whatever the route renders
  *   (Find Shows, or the open show). Below it the cockpit would collapse anyway, so the show keeps
  *   its full width (docs/plan-sidebar-browse-pane.md, phase 2, decision (a) from 1280, (b) below).
  * - Between `lg` and 1280px: the same split on `/shows`; with a show open the list folds away
  *   behind a "Shows" button, and the viewer's open/folded choice is remembered.
+ *
+ * The route always renders in the same tree position, so folding, unfolding and crossing 1280
+ * never remount the open show (its forms, scroll and reads survive).
  */
 const ShowsMasterDetailPage: React.FC = () => {
-  const { user } = useAuthContext();
+  const { user, userWithRoles } = useAuthContext();
   const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
   const isSplitWindow = useMediaQuery(COCKPIT_SPLIT_VIEWPORT_QUERY);
   const showMatch = useMatch('/shows/:id/*');
   const showId = showMatch?.params.id;
   const [paneMode, setPaneMode] = useViewPreference<PaneMode>('shows-pane', 'folded', PANE_MODES);
-
-  if (!isAccountSession(user) || !isWide) return <Outlet />;
+  const rootRef = useRef<HTMLDivElement>(null);
+  const focusAfterToggle = useRef<'list' | 'shows-button' | null>(null);
 
   const canFold = !isSplitWindow && !!showId;
-  if (canFold && paneMode === 'folded') {
-    return (
-      <>
-        <div className="px-[var(--app-shell-page-padding,1rem)] pt-3 sm:px-6">
-          <Button variant="outline" size="sm" onClick={() => setPaneMode('open')}>
+  const folded = canFold && paneMode === 'folded';
+
+  // The control that was clicked unmounts on toggle; put focus where the reader now is.
+  useEffect(() => {
+    const target = focusAfterToggle.current;
+    focusAfterToggle.current = null;
+    const root = rootRef.current;
+    if (!target || !root) return;
+    const selector =
+      target === 'shows-button'
+        ? '[data-shows-pane-toggle]'
+        : '[aria-label="Shows list"] a[aria-current="page"], [aria-label="Search the shows list"]';
+    root.querySelector<HTMLElement>(selector)?.focus();
+  }, [folded]);
+
+  const toggle = (next: PaneMode) => {
+    focusAfterToggle.current = next === 'open' ? 'list' : 'shows-button';
+    setPaneMode(next);
+  };
+
+  const runsShows = (userWithRoles?.roles ?? []).some(role => PANE_ROLES.has(role));
+  if (!isAccountSession(user) || !runsShows || !isWide) return <Outlet />;
+
+  return (
+    <div ref={rootRef} className="px-[var(--app-shell-page-padding,1rem)] py-4 sm:px-6">
+      {/* A fixed slot ahead of the split, so showing the button never shifts the split's position. */}
+      <div className={folded ? 'pb-3' : 'hidden'}>
+        {folded && (
+          <Button variant="outline" data-shows-pane-toggle onClick={() => toggle('open')}>
             <List className="mr-2 h-4 w-4" aria-hidden="true" />
             Shows
           </Button>
-        </div>
-        <Outlet />
-      </>
-    );
-  }
-
-  return (
-    <div className="px-[var(--app-shell-page-padding,1rem)] py-4 sm:px-6">
+        )}
+      </div>
       <MasterDetailLayout
         id="shows"
         listLabel="Shows list"
         detailLabel={showId ? 'Show' : 'Find Shows'}
         listSize={SHOWS_LIST_SIZE}
-        heightClassName={SPLIT_HEIGHT}
+        heightClassName={folded ? FOLDED_HEIGHT : SPLIT_HEIGHT}
+        listHidden={folded}
         list={
-          <ShowsPaneList
-            selectedId={showId}
-            headerAction={
-              canFold ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label="Hide shows list"
-                  onClick={() => setPaneMode('folded')}
-                >
-                  <PanelLeftClose className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                  Hide
-                </Button>
-              ) : null
-            }
-          />
+          // A list that fails to render must never take the open show down with it.
+          <ErrorBoundary level="component" context="Shows list">
+            <ShowsPaneList
+              selectedId={showId}
+              headerAction={
+                canFold ? (
+                  <Button
+                    variant="ghost"
+                    aria-label="Hide shows list"
+                    onClick={() => toggle('folded')}
+                  >
+                    <PanelLeftClose className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                    Hide
+                  </Button>
+                ) : null
+              }
+            />
+          </ErrorBoundary>
         }
         detail={
           <div style={PANE_TOP_INSET}>

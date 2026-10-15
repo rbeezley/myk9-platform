@@ -88,6 +88,15 @@ export function useBrowseShowsList(): BrowseShowsList {
   if (guestRead?.kind === 'error') showsError = new Error("Couldn't load shows");
   if (showsOffline) showsError = new Error('Offline');
   const { status: syncStatus } = useReplicationSync();
+  // A first sync that failed on an empty replica (a cold offline boot) is not "no shows".
+  if (
+    !showsError &&
+    readsReplica &&
+    shows.length === 0 &&
+    syncStatus.tablesStatus.shows === 'error'
+  ) {
+    showsError = new Error("Couldn't load shows");
+  }
 
   // The auth-gated initial sync only fires once authLoading flips to false
   // and a session is available, so for signed-in users there's a window where

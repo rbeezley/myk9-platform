@@ -236,6 +236,31 @@ describe('useBrowseShowsData for a signed-in viewer (MYK9-780)', () => {
 // Owner decision: a ringside passcode session (an anonymous auth user scoped
 // to one show) is a guest on Find Shows. On a shared device the replica still
 // holds a previous secretary's drafts and shows deleted since.
+describe('useBrowseShowsData when the first shows sync failed (MYK9-1213)', () => {
+  beforeEach(() => {
+    auth.value = {
+      user: { id: 'auth-1' },
+      userWithRoles: { id: 'auth-1', roles: ['secretary'] },
+      loading: false,
+    };
+  });
+
+  it('an empty replica after a failed sync is an error, not "no shows"', () => {
+    replica.shows = [];
+    sync.shows = 'error';
+    const { result } = renderBrowse();
+    expect(result.current.hasError).toBe(true);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('a replica that already holds shows keeps listing them after a failed sync', () => {
+    sync.shows = 'error';
+    const { result } = renderBrowse();
+    expect(result.current.hasError).toBe(false);
+    expect(ids(result.current.shows)).toEqual(['show-draft', 'show-del']);
+  });
+});
+
 describe('useBrowseShowsData for a ringside passcode session', () => {
   beforeEach(() => {
     auth.value = {

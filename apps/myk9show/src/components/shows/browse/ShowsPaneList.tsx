@@ -7,7 +7,7 @@ import { CompactRecordList } from '@/components/layout/CompactRecordList';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useBrowseShowsList } from '@/hooks/useBrowseShowsList';
 import { ShowPermissionValidator } from '@/utils/permissionValidation';
-import { managedClubIds } from '@/utils/roleScopes';
+import { getUserManagedShows } from '@/utils/show-relationships';
 import { formatShowDateRange } from '@/lib/format/dates';
 import type { Show } from '@/types/show-types';
 import { groupShowsForPane } from './showsPaneGroups';
@@ -45,16 +45,18 @@ export const ShowsPaneList: React.FC<ShowsPaneListProps> = ({ selectedId, header
     return () => clearInterval(id);
   }, []);
 
-  // The same rule that decided the old "Today's show" rail link: a show is the viewer's when they
-  // are staff of its club. A site admin manages every show, so nothing is singled out for them.
-  const managed = useMemo(
-    () => managedClubIds({ isAdmin, userWithRoles }),
-    [isAdmin, userWithRoles]
-  );
-  const isManaged = useCallback(
-    (show: Show) => managed !== null && !!show.clubId && managed.has(show.clubId),
-    [managed]
-  );
+  // "Managing" means what Find Shows' Managing tab means, so the two panes never disagree.
+  // A site admin manages every show, so nothing is singled out for them.
+  const managedIds = useMemo(() => {
+    if (isAdmin || !userWithRoles) return new Set<string>();
+    const userId = userWithRoles.databaseUserId ?? userWithRoles.id;
+    return new Set(
+      getUserManagedShows(userId, shows, userWithRoles.roles ?? [], userWithRoles.scopes ?? []).map(
+        show => show.id
+      )
+    );
+  }, [isAdmin, userWithRoles, shows]);
+  const isManaged = useCallback((show: Show) => managedIds.has(show.id), [managedIds]);
 
   const visibleShows = useMemo(
     () => ShowPermissionValidator.filterShows(shows, userWithRoles),
@@ -81,8 +83,8 @@ export const ShowsPaneList: React.FC<ShowsPaneListProps> = ({ selectedId, header
     body = (
       <div role="alert" className="rounded-lg border bg-card p-4 text-sm">
         <p className="font-medium">Couldn&apos;t load your shows.</p>
-        <p className="mt-1 text-muted-foreground">The open show still works.</p>
-        <Button className="mt-3" variant="outline" size="sm" onClick={() => void retryShows()}>
+        {selectedId && <p className="mt-1 text-muted-foreground">The open show still works.</p>}
+        <Button className="mt-3" variant="outline" onClick={() => void retryShows()}>
           Retry
         </Button>
       </div>
@@ -105,7 +107,7 @@ export const ShowsPaneList: React.FC<ShowsPaneListProps> = ({ selectedId, header
     body = (
       <div className="rounded-lg border bg-card p-4 text-sm text-muted-foreground">
         <p>No shows match &ldquo;{search.trim()}&rdquo;.</p>
-        <Button className="mt-2 px-0" variant="link" size="sm" onClick={() => setSearch('')}>
+        <Button className="mt-2 px-0" variant="link" onClick={() => setSearch('')}>
           Show all shows
         </Button>
       </div>
@@ -117,7 +119,7 @@ export const ShowsPaneList: React.FC<ShowsPaneListProps> = ({ selectedId, header
           <section key={group.id} aria-labelledby={`shows-pane-${group.id}`}>
             <h2
               id={`shows-pane-${group.id}`}
-              className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              className="mb-1.5 px-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground"
             >
               {group.label}
             </h2>

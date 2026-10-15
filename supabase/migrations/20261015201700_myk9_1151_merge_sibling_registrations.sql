@@ -32,6 +32,7 @@ DECLARE
   v_sibling jsonb;
   v_sibling_org text;
   v_sibling_number text;
+  v_sibling_constraint text;
 BEGIN
   v_caller_auth := auth.uid();
   IF v_caller_auth IS NULL THEN
@@ -160,18 +161,36 @@ BEGIN
               CONTINUE;
             END IF;
 
-            INSERT INTO public.dog_registrations (
-              dog_id, organization, registered_name, registration_number, breed, status, registration_date, created_at
-            ) VALUES (
-              v_existing_dog_id,
-              v_sibling_org,
-              NULLIF(v_sibling->>'registered_name', ''),
-              v_sibling_number,
-              NULLIF(v_sibling->>'breed', ''),
-              COALESCE(NULLIF(v_sibling->>'status', ''), 'pending'),
-              NULLIF(v_sibling->>'registration_date', '')::date,
-              COALESCE(NULLIF(v_sibling->>'created_at', '')::timestamptz, NOW())
-            );
+            -- The EXISTS checks above race a concurrent merge onto the same dog:
+            -- both can pass before either insert commits. Each sibling insert is
+            -- its own subtransaction, so the loser of that race skips just this
+            -- sibling (as if the check had seen it) instead of failing the whole
+            -- create, which the mutation queue would treat as permanent. Only the
+            -- three uniqueness constraints the checks stand in for are absorbed;
+            -- any other error, including other unique violations, re-raises.
+            BEGIN
+              INSERT INTO public.dog_registrations (
+                dog_id, organization, registered_name, registration_number, breed, status, registration_date, created_at
+              ) VALUES (
+                v_existing_dog_id,
+                v_sibling_org,
+                NULLIF(v_sibling->>'registered_name', ''),
+                v_sibling_number,
+                NULLIF(v_sibling->>'breed', ''),
+                COALESCE(NULLIF(v_sibling->>'status', ''), 'pending'),
+                NULLIF(v_sibling->>'registration_date', '')::date,
+                COALESCE(NULLIF(v_sibling->>'created_at', '')::timestamptz, NOW())
+              );
+            EXCEPTION WHEN unique_violation THEN
+              GET STACKED DIAGNOSTICS v_sibling_constraint = CONSTRAINT_NAME;
+              IF v_sibling_constraint NOT IN (
+                'dog_registrations_live_org_number_unique',
+                'dog_registrations_live_dog_org_unique',
+                'dog_registrations_dog_id_organization_key'
+              ) THEN
+                RAISE;
+              END IF;
+            END;
           END LOOP;
 
         END IF;

@@ -420,15 +420,31 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
 
     const updatePromise = (async () => {
       const db = await this.getDb();
-      const tx = db.transaction(REPLICATION_STORES.SYNC_METADATA, 'readwrite');
+      // Rows and metadata share ONE transaction so the stamp is settled against
+      // the ownership of the rows as they are at the moment it is written (MYK9-1149).
+      const tx = db.transaction(
+        [REPLICATION_STORES.SYNC_METADATA, REPLICATION_STORES.REPLICATED_TABLES],
+        'readwrite'
+      );
+      const metadataStore = tx.objectStore(REPLICATION_STORES.SYNC_METADATA);
 
-      const existing = await tx.store.get(this.tableName);
+      const existing = await metadataStore.get(this.tableName);
       const atomicUpdates = { ...updates };
       const storedStamp =
         options?.scopeValue !== undefined
           ? existing?.scopes?.[options.scopeValue]?.syncedByAuthUserId
           : existing?.syncedByAuthUserId;
-      const settled = resolveScopeStamp(options?.scopeSyncedBy, storedStamp);
+      const settled = await resolveScopeStamp(options?.scopeSyncedBy, storedStamp, async () => {
+        const directive = options?.scopeSyncedBy;
+        if (typeof directive !== 'object' || directive === null) return false;
+        const rows = tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES);
+        for (const id of directive.writtenIds) {
+          const owned = (await rows.get([this.tableName, String(id)])) as
+            { ownerAuthUserId?: string } | undefined;
+          if (owned?.ownerAuthUserId === directive.syncingAuthUserId) return true;
+        }
+        return false;
+      });
       if (settled.freezeCursor) {
         // Not this sync's cursor to move (see ResolvedScopeStamp.freezeCursor).
         delete atomicUpdates.lastIncrementalSyncAt;
@@ -561,7 +577,7 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
         ...(tableSyncedBy !== undefined && { syncedByAuthUserId: tableSyncedBy }),
       };
 
-      await tx.store.put(metadata);
+      await metadataStore.put(metadata);
       await tx.done;
     })();
 

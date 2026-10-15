@@ -355,4 +355,21 @@ describe('groupEntriesByShow — a dog’s class rows run in trial-date order (M
 
     expect(group(rows)[0].dogs[0].classes.map(cls => cls.id)).toEqual(['c1', 'c0']);
   });
+
+  it('orders same-day classes by start time, 9:00 AM before 10:00 AM, untimed last (MYK9-1193)', () => {
+    const day = new Date('2026-10-16T00:00:00');
+    const rows = [
+      makeRow({ id: 'e0', classes: [makeClass({ id: 'c0', trialDate: day })] }),
+      makeRow({
+        id: 'e1',
+        classes: [makeClass({ id: 'c1', trialDate: day, startTime: '10:00:00' })],
+      }),
+      makeRow({
+        id: 'e2',
+        classes: [makeClass({ id: 'c2', trialDate: day, startTime: '09:00:00' })],
+      }),
+    ];
+
+    expect(group(rows)[0].dogs[0].classes.map(cls => cls.id)).toEqual(['c2', 'c1', 'c0']);
+  });
 });

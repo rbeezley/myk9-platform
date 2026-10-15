@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDatabaseError } from '@/services/database/databaseError';
 
 const rowsHolder = vi.hoisted(() => ({ rows: [] as Array<Record<string, unknown>> }));
@@ -72,5 +72,41 @@ describe('judge stats ignore deleted shows and classes', () => {
     expect(stats.classesJudged).toBe(2);
     expect(stats.showsJudged).toBe(2);
     expect(stats.statusBreakdown).toEqual({ confirmed: 2 });
+  });
+});
+
+describe('upcoming assignments use the local calendar day, not the UTC date', () => {
+  const originalTz = process.env.TZ;
+
+  beforeEach(() => {
+    process.env.TZ = 'America/Chicago';
+    vi.useFakeTimers({ toFake: ['Date'] });
+    // 2026-11-09 19:00 in Chicago (CST) is already 2026-11-10 in UTC.
+    vi.setSystemTime(new Date('2026-11-10T01:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    if (originalTz === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTz;
+  });
+
+  const showEnding = (end: string) => ({
+    name: 'S',
+    start_date: '2026-11-07',
+    end_date: end,
+    organization: 'AKC',
+    deleted_at: null,
+  });
+
+  it('keeps a show on its final local evening even though UTC is already tomorrow', async () => {
+    rowsHolder.rows = [row('last-day', { shows: showEnding('2026-11-09') })];
+    const result = await getJudgeUpcomingAssignments('p1');
+    expect(result.map(a => a.id)).toEqual(['last-day']);
+  });
+
+  it('drops a show that ended the previous local day', async () => {
+    rowsHolder.rows = [row('yesterday', { shows: showEnding('2026-11-08') })];
+    expect(await getJudgeUpcomingAssignments('p1')).toEqual([]);
   });
 });

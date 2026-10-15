@@ -1,5 +1,6 @@
 import { CLASS_STATUS, normalizeClassStatus } from '@myk9/core';
 import type { ClassStatusValue } from '@myk9/core';
+import { compareClassSchedule } from '@/features/_shared/classScheduleOrder';
 import { compareLevels } from '@/utils/schedule-summary';
 import type {
   DayTimelineData,
@@ -35,12 +36,14 @@ export function formatStartTime(time: string | null): string | null {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-/** Compare elements by startTime, nulls last. */
+/** Minutes after midnight; null (untimed or unreadable) sorts after every timed value. */
+function compareStartTimes(a: string | null, b: string | null): number {
+  return compareClassSchedule({ time: a }, { time: b });
+}
+
+/** Compare elements by clock time (replica text is "9:00 AM", not sortable as a string), untimed last. */
 function compareByStartTime(a: { startTime: string | null }, b: { startTime: string | null }) {
-  if (a.startTime === null && b.startTime === null) return 0;
-  if (a.startTime === null) return 1;
-  if (b.startTime === null) return -1;
-  return a.startTime.localeCompare(b.startTime);
+  return compareStartTimes(a.startTime, b.startTime);
 }
 
 // ---------------------------------------------------------------------------
@@ -160,7 +163,7 @@ function buildElementSummary(elementName: string, classes: ClassRowLike[]): Elem
 
   // Earliest start time (O(n) reduce instead of sort)
   const earliestStartTime = classes.reduce<string | null>(
-    (min, c) => (!c.startTime ? min : !min || c.startTime < min ? c.startTime : min),
+    (min, c) => (compareStartTimes(c.startTime, min) < 0 ? c.startTime : min),
     null
   );
 

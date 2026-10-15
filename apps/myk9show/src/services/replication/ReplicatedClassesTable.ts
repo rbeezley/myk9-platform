@@ -25,6 +25,8 @@ import {
   resolveVisibilityForClassRows,
   type ResolvedClassVisibility,
 } from './resolveClassVisibility';
+import { createInFlightSharer, type ShareRead } from '@/services/database/_shared/shareInFlight';
+import { readPersistedAuthUserId } from '@/services/database/persistedAuthUserId';
 import { resolveHideCountsForClassRows } from './resolveClassHideCounts';
 import { resolveJudgeNamesForClassRows } from './resolveClassJudgeNames';
 import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeFields';
@@ -591,6 +593,16 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     };
   }
 
+  /**
+   * MYK9-1170: a show syncs one trial at a time, and each trial's enrichment asks the same
+   * per-show RPCs. Overlapping asks share one round trip; see `createInFlightSharer`. Both
+   * RPCs answer per caller, so the key carries the signed-in account: a sync that starts after
+   * an account switch never joins the previous account's read.
+   */
+  private readonly sharedShowReads = createInFlightSharer();
+  private readonly shareShowRead: ShareRead = (key, read) =>
+    this.sharedShowReads(`${readPersistedAuthUserId() ?? 'anon'}:${key}`, read);
+
   /** Server-derived values a class row carries offline (visibility, hides, judge). */
   private async enrichClassRows(rows: ClassRow[]): Promise<EnrichedClassRow[]> {
     // Phase 1h: resolve visibility-cascade values so the at-show
@@ -610,13 +622,15 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     // totals are derived from registry rules; protected judge-set totals are
     // returned only by the show-scoped official RPC. Both are merged here so
     // the caller keeps the count they are entitled to while offline.
-    const hideCountByClassId = await resolveHideCountsForClassRows(rows).catch(() => {
-      logger.warn(
-        `[${this.getTableName()}] Hide-count resolve failed; scoring may fall back to the rule band`,
-        'replication'
-      );
-      return new Map<string, number>();
-    });
+    const hideCountByClassId = await resolveHideCountsForClassRows(rows, this.shareShowRead).catch(
+      () => {
+        logger.warn(
+          `[${this.getTableName()}] Hide-count resolve failed; scoring may fall back to the rule band`,
+          'replication'
+        );
+        return new Map<string, number>();
+      }
+    );
 
     // MYK9-1086: the max-time rule the ringside Set Max Time dialog checks offline.
     // A failed lookup must not read as "no rule": carry the rule already on this
@@ -630,13 +644,15 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     // MYK9-494: names cannot come from a `people` embed — an exhibitor cannot read
     // another person's row, so the embed (or `people!inner`) yields nothing and every
     // schedule row reads `Judge TBD`. get_show_judges is the authorized source.
-    const judgeByClassId = await resolveJudgeNamesForClassRows(rows).catch(() => {
-      logger.warn(
-        `[${this.getTableName()}] Judge-name resolve failed; cached names are retained`,
-        'replication'
-      );
-      return new Map<string, JudgeNameParts | null>();
-    });
+    const judgeByClassId = await resolveJudgeNamesForClassRows(rows, this.shareShowRead).catch(
+      () => {
+        logger.warn(
+          `[${this.getTableName()}] Judge-name resolve failed; cached names are retained`,
+          'replication'
+        );
+        return new Map<string, JudgeNameParts | null>();
+      }
+    );
 
     return rows.map(row => ({
       ...row,

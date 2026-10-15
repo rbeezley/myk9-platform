@@ -124,6 +124,8 @@ export class LifecycleSendPartialError extends Error {
 export interface LifecycleSendResult {
   sent: number;
   failed: number;
+  /** Jobs the server withdrew instead of sending (a registration number arrived first). */
+  skipped?: number;
   total: number;
 }
 
@@ -321,6 +323,7 @@ export async function sendLifecycleEmailJobs(args: {
   // Sent jobs leave the ready/failed set the review reads, so sending again resumes safely.
   let sent = 0;
   let failed = 0;
+  let skipped = 0;
   for (const jobIds of chunk(args.jobIds, ID_CHUNK_SIZE)) {
     const { data, error } = await args.supabase.functions.invoke('send-lifecycle-email', {
       body: {
@@ -338,11 +341,13 @@ export async function sendLifecycleEmailJobs(args: {
       throw new LifecycleSendPartialError(sent, args.jobIds.length);
     }
     // The handler answers 200 with { attempted, sent, failed }; count what really went out.
-    const reported = data as { sent?: unknown; failed?: unknown } | null | undefined;
+    const reported = data as
+      { sent?: unknown; failed?: unknown; skipped?: unknown } | null | undefined;
     sent += typeof reported?.sent === 'number' ? reported.sent : jobIds.length;
     if (typeof reported?.failed === 'number') failed += reported.failed;
+    if (typeof reported?.skipped === 'number') skipped += reported.skipped;
   }
-  return { sent, failed, total: args.jobIds.length };
+  return { sent, failed, ...(skipped > 0 ? { skipped } : {}), total: args.jobIds.length };
 }
 
 export async function updateReadyLifecycleEmailJob(args: {

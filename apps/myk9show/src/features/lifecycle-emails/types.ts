@@ -4,6 +4,7 @@ export const LIFECYCLE_EMAIL_STEP_TYPES = [
   'two_week_reminder',
   'day_before_reminder',
   'results_available',
+  'registration_number_needed',
 ] as const;
 
 export type LifecycleEmailStepType = (typeof LIFECYCLE_EMAIL_STEP_TYPES)[number];

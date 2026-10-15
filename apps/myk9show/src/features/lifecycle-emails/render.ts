@@ -17,6 +17,8 @@ export interface LifecycleEmailEntryContext {
   dogName?: string | null;
   className?: string | null;
   armbandNumber?: string | null;
+  /** The trial registry whose number is missing (registration_number_needed). */
+  registryName?: string | null;
   paymentStatus?: string | null;
   amountDue?: number | null;
 }
@@ -162,6 +164,27 @@ export function buildLifecycleEmailDraft(input: LifecycleEmailPreviewInput): {
           'Please contact the show secretary with questions.',
         ]),
       };
+    case 'registration_number_needed': {
+      const dogName = input.entry?.dogName?.trim() || 'your dog';
+      const registry = input.entry?.registryName?.trim();
+      const number = registry ? `${registry} registration number` : 'registration number';
+      return {
+        subject: `Registration number needed for ${dogName} - ${showName}`,
+        body: joinLines([
+          greeting,
+          '',
+          `Your entry for ${dogName} at ${showName} is held, but we need ${dogName}'s ${number}.`,
+          input.entry?.className ? `Class: ${input.entry.className}` : null,
+          showLine,
+          '',
+          'To add it, either:',
+          `- open ${dogName} in myK9Show and add the number under Registrations, or`,
+          '- send the number to the show secretary and they will add it for you.',
+          '',
+          `${dogName} keeps its place in the class. Once the number is on file the entry is complete and you do not need to do anything else.`,
+        ]),
+      };
+    }
   }
 }
 

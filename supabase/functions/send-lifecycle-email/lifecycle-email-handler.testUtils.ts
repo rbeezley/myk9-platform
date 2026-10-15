@@ -5,7 +5,8 @@ type Row = Record<string, unknown>;
 function makeQuery(
   table: string,
   rows: Row[],
-  calls: Array<{ table: string; action: string; value?: unknown }>
+  calls: Array<{ table: string; action: string; value?: unknown }>,
+  jobInsertError?: { code: string; message: string }
 ) {
   let resultRows = [...rows];
   let inserted: unknown;
@@ -41,6 +42,7 @@ function makeQuery(
     single: vi.fn(async () => {
       if (table === 'email_log' && inserted) return { data: { id: 'email-log-1' }, error: null };
       if (table === 'show_lifecycle_email_jobs' && inserted) {
+        if (jobInsertError) return { data: null, error: jobInsertError };
         if ((inserted as Row).idempotency_key === 'duplicate') {
           return { data: null, error: { message: 'duplicate key value', code: '23505' } };
         }
@@ -61,12 +63,26 @@ function makeQuery(
   return query;
 }
 
-export function makeSupabase(tables: Record<string, Row[]>) {
+export function makeSupabase(
+  tables: Record<string, Row[]>,
+  /** RPC results by function name: a value, or `{ error }` to fail the call. */
+  rpcResults: Record<string, unknown> = {},
+  /** Makes every insert into show_lifecycle_email_jobs fail with this error. */
+  jobInsertError?: { code: string; message: string }
+) {
   const calls: Array<{ table: string; action: string; value?: unknown }> = [];
   return {
     calls,
     supabase: {
-      from: vi.fn((table: string) => makeQuery(table, tables[table] ?? [], calls)),
+      from: vi.fn((table: string) => makeQuery(table, tables[table] ?? [], calls, jobInsertError)),
+      rpc: vi.fn(async (fn: string, args: Record<string, unknown>) => {
+        calls.push({ table: fn, action: 'rpc', value: args });
+        const result = rpcResults[fn];
+        if (result && typeof result === 'object' && 'error' in result) {
+          return { data: null, error: (result as { error: unknown }).error };
+        }
+        return { data: result ?? null, error: null };
+      }),
     },
   };
 }

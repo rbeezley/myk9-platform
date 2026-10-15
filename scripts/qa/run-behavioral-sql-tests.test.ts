@@ -180,6 +180,7 @@ const launchCriticalSqlTests = [
   'myk9_1162_registry_identity_taken_test.sql',
   'myk9_1162_held_entries_packet_test.sql',
   'myk9_1162_held_entries_ringside_test.sql',
+  'myk9_1162_lifecycle_registration_number_needed_test.sql',
 ];
 
 describe('behavioral SQL test harness', () => {

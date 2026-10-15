@@ -138,6 +138,45 @@ describe('ScheduledLifecycleEmailsPanel', () => {
     });
   });
 
+  it('offers the registration number needed step beside the decision steps and toggles it', async () => {
+    const current = await mockFetchSummary({ supabase: {} as never, showId: 'show-1' });
+    mockFetchSummary.mockResolvedValue({
+      ...current,
+      steps: [
+        ...current.steps,
+        {
+          stepType: 'registration_number_needed',
+          isEnabled: true,
+          readyCount: 2,
+          sentCount: 1,
+          failedCount: 1,
+          skippedCount: 0,
+          dismissedCount: 0,
+          warningCount: 0,
+        },
+      ],
+    });
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+
+    expect(await screen.findByText('Registration number needed')).toBeInTheDocument();
+    expect(screen.getAllByRole('switch')).toHaveLength(3);
+    // Send-on-demand: the other steps (accepted: ready + failed jobs) offer Review, this one
+    // never does, even with ready and failed jobs of its own.
+    expect(screen.getAllByRole('button', { name: 'Review' })).toHaveLength(1);
+
+    await user.click(screen.getByRole('switch', { name: /registration number needed enabled/i }));
+
+    await waitFor(() => {
+      expect(mockUpdateStep).toHaveBeenCalledWith(
+        expect.objectContaining({
+          showId: 'show-1',
+          stepType: 'registration_number_needed',
+          isEnabled: false,
+        })
+      );
+    });
+  });
+
   it('keeps producer-backed review available for accepted entries', async () => {
     const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
 

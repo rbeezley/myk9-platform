@@ -46,23 +46,23 @@
 
 ## 3. Batch 3: "Registration number needed" email (PR 3, independent review)
 
-- [ ] 3.1 Add migration `<ts>_myk9_1162_lifecycle_registration_number_needed.sql`:
+- [x] 3.1 Add migration `<ts>_myk9_1162_lifecycle_registration_number_needed.sql`:
   - drop and re-add the `step_type` CHECK on both `show_lifecycle_email_steps` and `show_lifecycle_email_jobs` with `registration_number_needed`;
   - update `ensure_show_lifecycle_email_steps` (copy from its latest definition);
   - backfill existing shows.
 
   Verify a migration test for the CHECK and the backfill, and that the migration-auditor reports no blocking findings.
 
-- [ ] 3.2 Client side:
+- [x] 3.2 Client side:
   - add the step to `LIFECYCLE_EMAIL_STEP_TYPES`;
   - add its draft in `render.ts`;
   - add its toggle in `ScheduledLifecycleEmailsPanel`.
 
   Verify render tests (dog, show, registry, instructions; escaped content) and toggle tests.
 
-- [ ] 3.3 Offer the preview after a secretary save that created held entries, following the `useEntryDecisionLifecycleEmails` pattern and the existing preview dialog. Add **Send reminder** on the Exceptions row, preparing a fresh `save_ready` job with a reminder-sequenced idempotency key, and "No email on file — contact by phone" when there is no address. Verify hook and pane tests, including the disabled step (no offer, no reminder).
-- [ ] 3.4 `send-lifecycle-email`: before sending a `registration_number_needed` job, re-check server-side that its entry is still held, and mark the job skipped if not. Verify handler tests under `// @vitest-environment node`: still held → sent, number added → skipped, unauthorized → refused.
-- [ ] 3.5 Update secretary guide section 9 ("Email your exhibitors") with the new step. Run the shuffled affected tests, typecheck, lint and the ratchet; verify green.
+- [x] 3.3 The Exceptions row is the one place to send the email (no automatic post-save offer; the save screen cannot know which entries are held without guessing from the device). Each row's button reads **Email exhibitor** until a `registration_number_needed` job exists for the entry, then **Send reminder**, opening the existing text-only preview; Send calls the single server action `send_registration_number_needed` (3.4). Show "No email on file. Contact by phone." when there is no address. Skip and close save and call nothing. The step is send-on-demand: its toggle stays in Scheduled emails, with no batch review or send. Verify hook and pane tests, including the disabled step (no button).
+- [x] 3.4 `send-lifecycle-email`: add the action `send_registration_number_needed`. Server-side, in order: authorize, check the step is enabled, check the entry is still held (`not_held` vs `unverified` skips, no job), resolve the owner's current email (`no_email` skips, no job), skip any earlier ready or failed job, insert one job with a server-built idempotency key (`busy` on 23505), and send it with `sendOneJob`. The `send` action keeps its held re-check for this step. Verify handler tests under `// @vitest-environment node`: sent, supersede-before-insert, busy, not_held vs unverified, no_email, current email, unauthorized and step-disabled refused.
+- [x] 3.5 Update secretary guide section 9 ("Email your exhibitors") with the new step. Run the shuffled affected tests, typecheck, lint and the ratchet; verify green.
 - [ ] 3.6 Ship batch 3 as in 1.7. The PR lists the owner-pending `db push` and the `send-lifecycle-email` deploy.
 
 ## 4. Batch 4: integration (PR 4)

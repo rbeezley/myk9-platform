@@ -16,7 +16,10 @@ import type { LifecycleEmailStepType } from './types';
 interface LifecycleEmailPreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  stepType: Extract<LifecycleEmailStepType, 'accepted' | 'waitlisted'>;
+  stepType: Extract<
+    LifecycleEmailStepType,
+    'accepted' | 'waitlisted' | 'registration_number_needed'
+  >;
   show: LifecycleEmailShowContext;
   recipient: { name?: string | null; email?: string | null };
   entry: LifecycleEmailEntryContext;
@@ -37,6 +40,7 @@ interface LifecycleEmailPreviewDialogProps {
 const TITLE_BY_STEP: Record<LifecycleEmailPreviewDialogProps['stepType'], string> = {
   accepted: 'Review acceptance email',
   waitlisted: 'Review waitlist email',
+  registration_number_needed: 'Review registration number email',
 };
 
 export function LifecycleEmailPreviewDialog({
@@ -81,12 +85,20 @@ export function LifecycleEmailPreviewDialog({
     <div className="contents">
       <SlideOverPanel
         open={open}
-        onClose={() => onOpenChange(false)}
+        // Not while sending: the send settles the email's state first.
+        onClose={() => {
+          if (!isSending) onOpenChange(false);
+        }}
         title={title ?? TITLE_BY_STEP[stepType]}
         size="lg"
         footer={
           <div className="flex justify-between gap-2">
-            <Button type="button" variant="outline" onClick={() => onNotNow(values)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onNotNow(values)}
+              disabled={isSending}
+            >
               {notNowLabel}
             </Button>
             <Button type="button" onClick={() => onSend(values)} disabled={isSending}>

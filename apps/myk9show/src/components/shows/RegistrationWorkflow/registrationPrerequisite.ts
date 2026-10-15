@@ -11,6 +11,12 @@ interface RegistrationPrerequisiteInput {
   className: string | null | undefined;
   element: string | null | undefined;
   level: string | null | undefined;
+  /**
+   * MYK9-1162: this show's own staff may enter a dog with no number yet. The
+   * entry holds its place until the number is added; the database exempts trial
+   * managers the same way. An exhibitor is never exempt.
+   */
+  managerExemption?: boolean | undefined;
 }
 
 export interface RegistrationPrerequisite {
@@ -30,6 +36,7 @@ export function getRegistrationPrerequisite({
   className,
   element,
   level,
+  managerExemption = false,
 }: RegistrationPrerequisiteInput): RegistrationPrerequisite {
   if (isConformationPuppyClass({ trialType, className, element, level })) {
     return {
@@ -45,6 +52,13 @@ export function getRegistrationPrerequisite({
   }
 
   const registryName = registryId?.trim() || 'the sanctioning organization';
+  if (managerExemption) {
+    return {
+      allowed: true,
+      puppyException: false,
+      message: `No ${registryName} registration number yet. The entry holds its place until the number is added.`,
+    };
+  }
   return {
     allowed: false,
     puppyException: false,

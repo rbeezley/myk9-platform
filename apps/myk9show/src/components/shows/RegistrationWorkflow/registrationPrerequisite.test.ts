@@ -35,6 +35,24 @@ describe('getRegistrationPrerequisite', () => {
     });
   });
 
+  it("lets this show's staff enter a dog with no number yet, saying the entry is held (MYK9-1162)", () => {
+    const result = getRegistrationPrerequisite({
+      ...baseInput,
+      registrations: [],
+      managerExemption: true,
+    });
+    expect(result).toMatchObject({ allowed: true, puppyException: false });
+    expect(result.message).toBe(
+      'No AKC registration number yet. The entry holds its place until the number is added.'
+    );
+  });
+
+  it('never exempts an exhibitor: no number still blocks the class', () => {
+    expect(
+      getRegistrationPrerequisite({ ...baseInput, registrations: [], managerExemption: false })
+    ).toMatchObject({ allowed: false });
+  });
+
   it('does not accept a registration from a different organization', () => {
     expect(getRegistrationPrerequisite({ ...baseInput, registryId: 'UKC' })).toMatchObject({
       allowed: false,

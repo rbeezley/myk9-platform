@@ -120,6 +120,13 @@ export class LifecycleSendPartialError extends Error {
   }
 }
 
+/** What a completed send really did: `failed` jobs stay on the list for another try. */
+export interface LifecycleSendResult {
+  sent: number;
+  failed: number;
+  total: number;
+}
+
 export interface LifecycleEmailFunctionsClient {
   functions: {
     invoke: (
@@ -308,11 +315,12 @@ export async function sendLifecycleEmailJobs(args: {
   subject?: string | null;
   body?: string | null;
   secretaryNote?: string | null;
-}): Promise<void> {
+}): Promise<LifecycleSendResult> {
   // The edge function reads its job ids unpaged, so one call would be capped at max_rows (1000)
   // and silently send only part of a large batch; chunk it like the skip path (MYK9-1187).
   // Sent jobs leave the ready/failed set the review reads, so sending again resumes safely.
   let sent = 0;
+  let failed = 0;
   for (const jobIds of chunk(args.jobIds, ID_CHUNK_SIZE)) {
     const { data, error } = await args.supabase.functions.invoke('send-lifecycle-email', {
       body: {
@@ -330,9 +338,11 @@ export async function sendLifecycleEmailJobs(args: {
       throw new LifecycleSendPartialError(sent, args.jobIds.length);
     }
     // The handler answers 200 with { attempted, sent, failed }; count what really went out.
-    const reported = (data as { sent?: unknown } | null | undefined)?.sent;
-    sent += typeof reported === 'number' ? reported : jobIds.length;
+    const reported = data as { sent?: unknown; failed?: unknown } | null | undefined;
+    sent += typeof reported?.sent === 'number' ? reported.sent : jobIds.length;
+    if (typeof reported?.failed === 'number') failed += reported.failed;
   }
+  return { sent, failed, total: args.jobIds.length };
 }
 
 export async function updateReadyLifecycleEmailJob(args: {

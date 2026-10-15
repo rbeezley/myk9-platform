@@ -46,8 +46,14 @@ fi
 
 cd "$REPO_ROOT"
 
+# Succeeds when the stack is gone afterwards: destroyed now, or confirmed absent.
+# Any other error fails, so a surviving stack is never resumed or leaked.
 destroy_stack() {
-  "$SUPABASE" stack destroy --workdir "$REPO_ROOT" --stack "$STACK" --yes >/dev/null 2>&1
+  local output
+  output="$("$SUPABASE" stack destroy --workdir "$REPO_ROOT" --stack "$STACK" --yes 2>&1)" && return 0
+  [[ "$output" == *"No managed stack named \"$STACK\""* ]] && return 0
+  echo "$output" >&2
+  return 1
 }
 
 stack_started=0
@@ -75,7 +81,10 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 # A `qa-sql-local` stack left by a killed run would be resumed, not rebuilt.
-destroy_stack || true
+if ! destroy_stack; then
+  echo "FAIL: could not remove a leftover '$STACK' stack; it would be resumed instead of rebuilt." >&2
+  exit 1
+fi
 
 # The steps below mirror .github/workflows/ci.yml `sql-tests`; keep them in step.
 # A new stack applies every migration on start, and the repo has no seed.sql,

@@ -162,15 +162,15 @@ function mergeShowFacts(accum: ShowAccum, order: MyEntry): void {
 }
 
 /**
- * A dog's class rows in trial-date order (MYK9-1172), the same rule People at
- * show uses. `trialDate` is a local-midnight `Date`, so the calendar day is
- * read with `calendarDayOf`, never through a UTC conversion. This read has no
- * class start time, so same-day rows keep their incoming order (stable sort).
+ * A dog's class rows in trial-date then start-time order (MYK9-1172, 1193), the
+ * same rule People at show uses. `trialDate` is a local-midnight `Date`, so the
+ * calendar day is read with `calendarDayOf`, never through a UTC conversion.
+ * Rows that tie keep their incoming order (stable sort).
  */
 function compareClassRows(a: MyShowClass, b: MyShowClass): number {
   return compareClassSchedule(
-    { day: a.trialDate ? calendarDayOf(a.trialDate) : null },
-    { day: b.trialDate ? calendarDayOf(b.trialDate) : null }
+    { day: a.trialDate ? calendarDayOf(a.trialDate) : null, time: a.startTime },
+    { day: b.trialDate ? calendarDayOf(b.trialDate) : null, time: b.startTime }
   );
 }
 

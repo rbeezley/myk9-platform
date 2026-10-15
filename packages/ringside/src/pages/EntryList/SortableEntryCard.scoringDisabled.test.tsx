@@ -143,3 +143,27 @@ describe('SortableEntryCard — scoringDisabled (MYK9-645)', () => {
     );
   });
 });
+
+// MYK9-1162: a held entry keeps its run-order place, says why, and cannot be scored.
+describe('SortableEntryCard: awaiting a registration number (MYK9-1162)', () => {
+  it('shows the label and offers no way to score, even with scoring permitted', () => {
+    const handleEntryClick = renderCard(false, vi.fn(), { awaitingRegistrationNumber: true });
+
+    expect(screen.getByText('Registration number needed')).toBeInTheDocument();
+    expect(screen.getByText('See the secretary')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Score Willow' })).not.toBeInTheDocument();
+    screen.getByTestId('dog-card').click();
+    expect(handleEntryClick).not.toHaveBeenCalled();
+  });
+
+  it('keeps the status chip so the dog stays in the existing check-in flow', () => {
+    renderCard(false, vi.fn(), { awaitingRegistrationNumber: true });
+    expect(screen.getByTitle('Change check-in')).toBeInTheDocument();
+  });
+
+  it('is unchanged when the flag is absent or false (unknown is not held)', () => {
+    renderCard(false);
+    expect(screen.queryByText('Registration number needed')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Score Willow' })).toBeInTheDocument();
+  });
+});

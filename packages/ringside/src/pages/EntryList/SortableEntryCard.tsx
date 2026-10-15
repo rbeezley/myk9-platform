@@ -96,7 +96,7 @@ export interface SortableEntryCardProps {
 
 export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
   entry,
-  scoringDisabled = false,
+  scoringDisabled: scoringDisabledByRow = false,
   isDragMode,
   showContext,
   classInfo,
@@ -117,6 +117,12 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
   DogCard,
 }) => {
   const isInRing = entry.inRing || entry.status === 'in-ring';
+  // MYK9-1162: a held entry (no registration number for the trial's registry)
+  // keeps its run-order place but cannot be scored until the secretary adds the
+  // number. The server decides (`awaitingRegistrationNumber`); unknown is not
+  // held, and the server refuses the write regardless.
+  const awaitingRegistration = entry.awaitingRegistrationNumber === true && !entry.isScored;
+  const scoringDisabled = scoringDisabledByRow || awaitingRegistration;
   const longPressTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPressRef = React.useRef(false);
   const [isLongPressing, setIsLongPressing] = React.useState(false);
@@ -260,7 +266,21 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
       {label}
     </span>
   );
-  const trailing =
+  const registrationNotice = awaitingRegistration && (
+    <span
+      role="note"
+      className={cn(
+        'inline-flex flex-col rounded-lg border px-2 py-1 text-xs font-semibold leading-tight',
+        variant === 'hero'
+          ? 'border-white/60 bg-white/10 text-white'
+          : 'border-warning/40 bg-warning/10 text-warning'
+      )}
+    >
+      <span>Registration number needed</span>
+      <span className="font-normal">See the secretary</span>
+    </span>
+  );
+  const baseTrailing =
     variant === 'hero' ? (
       <>
         {/* The ring steward can still correct an in-ring dog's status from here. */}
@@ -302,6 +322,14 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
         {scoringAllowed && <ResetButton onClick={handleResetClick} callName={entry.callName} />}
       </>
     );
+  const trailing = awaitingRegistration ? (
+    <>
+      {registrationNotice}
+      {baseTrailing}
+    </>
+  ) : (
+    baseTrailing
+  );
 
   return (
     <div

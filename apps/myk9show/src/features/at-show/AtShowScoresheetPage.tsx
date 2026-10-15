@@ -46,6 +46,7 @@ import { useAtShowScoresheet } from './useAtShowScoresheet';
 import { useAtShowStoragePersistence } from './useAtShowStoragePersistence';
 import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { MaxTimeNotSetNotice } from './MaxTimeNotSetNotice';
+import { RegistrationNumberNeededNotice } from './RegistrationNumberNeededNotice';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';
 import { useAtShowAudioMute } from './useAtShowAudioMute';
@@ -286,6 +287,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     trialNumber,
     trialName,
     isLoading,
+    awaitingRegistrationNumber,
     error,
     loadedClassId,
     loadedEntryId,
@@ -369,6 +371,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     );
   }
 
+  if (awaitingRegistrationNumber) return <RegistrationNumberNeededNotice onBack={onBack} />;
   // Resolve sport type from the trial (preferred) or class name (fallback).
   const { organization, sportType } = trialSportType
     ? mapSportType(trialSportType)

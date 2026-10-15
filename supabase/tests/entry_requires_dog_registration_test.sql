@@ -17,9 +17,11 @@
 --   5. The conformation-puppy exception still applies.
 --   6. A blank/whitespace registration number does not count as a number.
 --   7. MYK9-1162: a secretary appointed to the trial's club may enter a dog with
---      no number (the entry is then "held"); the same insert is still refused
---      for an authenticated non-manager, and for a secretary of ANOTHER club.
---      The puppy carve-out and INSERT-only scope are unchanged.
+--      no number (the entry is then "held"), including a UKC-only dog and a blank
+--      number; the same insert is still refused for an authenticated non-manager
+--      and for a secretary of ANOTHER club. The conformation-puppy carve-out is
+--      covered by case 5 and is not manager-dependent; INSERT-only scope is not
+--      re-tested here.
 --
 -- Run against a database where all migrations are applied:
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \

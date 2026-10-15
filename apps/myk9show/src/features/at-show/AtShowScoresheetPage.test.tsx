@@ -1034,4 +1034,32 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       expect(screen.getByTestId('voice-announcements-enabled')).toHaveTextContent('false');
     });
   });
+
+  // MYK9-1162: a held entry cannot be scored. The sheet is replaced by a notice,
+  // and opening it must not move the dog in-ring.
+  it('locks the scoresheet for an entry awaiting a registration number', async () => {
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([
+      {
+        id: 'entry-1',
+        armband: 105,
+        dogId: 'dog-1',
+        checkInStatus: 'no-status',
+        awaitingRegistrationNumber: true,
+      },
+    ] as never);
+
+    renderPage();
+
+    expect(await screen.findByText('Registration number needed')).toBeInTheDocument();
+    expect(screen.getByText('See the secretary')).toBeInTheDocument();
+    expect(screen.queryByTestId('live-scoresheet')).not.toBeInTheDocument();
+    expect(transitionToInRing).not.toHaveBeenCalled();
+  });
+
+  it('opens the scoresheet when the flag is unknown (an older replica row)', async () => {
+    renderPage();
+
+    expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+    expect(screen.queryByText('Registration number needed')).not.toBeInTheDocument();
+  });
 });

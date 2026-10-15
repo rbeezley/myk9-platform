@@ -118,6 +118,9 @@ The view tabs across the top — _Needs review_, _Missing info_, _Payment due_, 
 > supply a number, choose **Pull / Withdraw** to open the entry and decide. Nothing is
 > pulled or withdrawn for you, even on show day.
 >
+> At the ring, a held dog keeps its place in the run order but shows **Registration
+> number needed, see the secretary**, and it cannot be scored until the number is added.
+>
 > Exhibitors entering their own dogs still need the number first.
 >
 > **One exception:** conformation puppy classes. AKC allows a puppy to be entered while

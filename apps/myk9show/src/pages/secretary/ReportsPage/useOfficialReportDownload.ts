@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 
 import { useUKCTrialReportContext } from '@/hooks/queries/useUKCTrialReportContext';
 import { buildClassReportProps, buildTrialReportProps } from './reportDataMapping';
+import { getReportById } from '@/lib/reports/reportRegistry';
 import { useAKCOfficialPdfAction } from './useAKCOfficialPdfAction';
 
 const UKC_TRIAL_REPORT_TYPES = new Set(['ukc-nosework-trial-report', 'trial-secretary-report']);
@@ -43,6 +44,8 @@ export function useOfficialReportDownload(input: {
     UKC_TRIAL_REPORT_TYPES.has(reportType) && selectedTrialIsUKC
   );
 
+  const omitHeldEntries = getReportById(reportType)?.excludesHeldEntries === true;
+
   const officialPdfProps = useMemo(() => {
     if (!show || trialId === 'all') return null;
     const props = buildTrialReportProps({
@@ -55,10 +58,20 @@ export function useOfficialReportDownload(input: {
           ? { kind: 'show', showId: show.id }
           : { kind: 'trial', showId: show.id, trialId },
       sortOrder,
+      omitHeldEntries,
     })[0];
     if (!props) return null;
     return { ...props, ukcTrialReportContext: ukcTrialReportContextQuery.data ?? null };
-  }, [show, trials, classes, entries, trialId, sortOrder, ukcTrialReportContextQuery.data]);
+  }, [
+    show,
+    trials,
+    classes,
+    entries,
+    trialId,
+    sortOrder,
+    omitHeldEntries,
+    ukcTrialReportContextQuery.data,
+  ]);
 
   const officialClassPdfProps = useMemo(() => {
     if (!show || trialId === 'all' || classId === 'all') return null;
@@ -69,8 +82,9 @@ export function useOfficialReportDownload(input: {
       entries,
       scope: { kind: 'class', showId: show.id, trialId, classId },
       sortOrder,
+      omitHeldEntries,
     });
-  }, [show, trials, classes, entries, trialId, classId, sortOrder]);
+  }, [show, trials, classes, entries, trialId, classId, sortOrder, omitHeldEntries]);
 
   return useAKCOfficialPdfAction({
     reportType,

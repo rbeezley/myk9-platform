@@ -60,14 +60,33 @@ export function useArmbandLabelData(showId: string | undefined): ArmbandLabelDat
     staleTime: 2 * 60 * 1000,
   });
 
+  // MYK9-1162: no label for an entry awaiting a registration number. The flag is
+  // computed server-side in the entry-results view; if that read fails (or the
+  // view predates the column) nothing is excluded, so labels are never withheld.
+  const { data: heldEntryIds } = useQuery({
+    queryKey: ['armband-label-held-entries', showId],
+    queryFn: async () => {
+      if (!showId) return [];
+      const { data, error } = await supabase
+        .from('view_authenticated_entry_results')
+        .select('id')
+        .eq('show_id', showId)
+        .filter('awaiting_registration_number', 'eq', true);
+      return error ? [] : (data ?? []).map(row => String(row.id));
+    },
+    enabled: !!showId,
+    staleTime: 2 * 60 * 1000,
+  });
+
   const { data: venueWifi, isLoading: wifiLoading } = useShowVenueWifi(showId ?? null);
 
   const entries = useMemo(
     () =>
       (entriesRaw ?? [])
         .map(e => mapEntryToArmbandLabelEntry(e as Record<string, unknown>))
-        .filter((e): e is ArmbandLabelEntry => e !== null),
-    [entriesRaw]
+        .filter((e): e is ArmbandLabelEntry => e !== null)
+        .filter(e => !heldEntryIds?.includes(e.id)),
+    [entriesRaw, heldEntryIds]
   );
 
   return {

@@ -54,6 +54,11 @@ export interface UseAtShowScoresheetResult {
   trialNumber: string | undefined;
   trialName: string | undefined;
   isLoading: boolean;
+  /**
+   * MYK9-1162: the server says this entry's dog has no registration number, so
+   * the sheet is locked. No in-ring write is made for it either.
+   */
+  awaitingRegistrationNumber: boolean;
   error: string | null;
   loadedClassId: string | null;
   loadedEntryId: string | null;
@@ -86,6 +91,7 @@ export function useAtShowScoresheet({
   const [trialNumber, setTrialNumber] = useState<string | undefined>(undefined);
   const [trialName, setTrialName] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+  const [awaitingRegistrationNumber, setAwaitingRegistrationNumber] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadedClassId, setLoadedClassId] = useState<string | null>(null);
   const [loadedEntryId, setLoadedEntryId] = useState<string | null>(null);
@@ -103,6 +109,7 @@ export function useAtShowScoresheet({
 
     async function loadData() {
       setEntry(null);
+      setAwaitingRegistrationNumber(false);
       setClassInfo(null);
       setRules(null);
       setTrialSportType(undefined);
@@ -173,8 +180,15 @@ export function useAtShowScoresheet({
           return;
         }
 
+        // MYK9-1162: a held entry cannot be scored, so opening its sheet must not
+        // move it in-ring. Unknown (an older replica row) reads as not held.
+        const held =
+          (rawEntry.awaitingRegistrationNumber ?? rawEntry.awaiting_registration_number) === true;
+        setAwaitingRegistrationNumber(held);
         // Auto-set check-in status to in-ring when the scoresheet opens.
-        transitionToInRing(rawEntry.id, rawEntry.checkInStatus, rawEntry.ring_entry_time);
+        if (!held) {
+          transitionToInRing(rawEntry.id, rawEntry.checkInStatus, rawEntry.ring_entry_time);
+        }
 
         const dog = rawEntry.dogId ? await replicatedDogsTable.get(rawEntry.dogId) : null;
         if (cancelled) return;
@@ -280,6 +294,7 @@ export function useAtShowScoresheet({
     trialNumber,
     trialName,
     isLoading,
+    awaitingRegistrationNumber,
     error,
     loadedClassId,
     loadedEntryId,

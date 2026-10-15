@@ -41,6 +41,7 @@ export const reportRegistry: ReportDefinition[] = [
   // Phase 1 — enabled
   {
     id: 'check-in-sheet',
+    excludesHeldEntries: true,
     name: 'Check-in Sheet',
     phase: 'during',
     scopes: ['trial', 'class'],
@@ -60,6 +61,7 @@ export const reportRegistry: ReportDefinition[] = [
   },
   {
     id: 'scoresheet',
+    excludesHeldEntries: true,
     name: 'Score Sheet',
     phase: 'during',
     scopes: ['trial', 'class'],
@@ -77,6 +79,7 @@ export const reportRegistry: ReportDefinition[] = [
   },
   {
     id: 'results-sheet',
+    excludesHeldEntries: true,
     name: 'Results Sheet',
     phase: 'after',
     scopes: ['trial', 'class'],
@@ -175,6 +178,7 @@ export const reportRegistry: ReportDefinition[] = [
   },
   {
     id: 'ukc-nosework-judges-book-element',
+    excludesHeldEntries: true,
     name: 'UKC Nosework Judges Book: Element Trial',
     phase: 'during',
     scopes: ['trial'],
@@ -187,6 +191,7 @@ export const reportRegistry: ReportDefinition[] = [
   },
   {
     id: 'ukc-nosework-judges-book-handler-discrimination',
+    excludesHeldEntries: true,
     name: 'UKC Nosework Judges Book: Handler Discrimination',
     phase: 'during',
     scopes: ['trial'],
@@ -199,6 +204,7 @@ export const reportRegistry: ReportDefinition[] = [
   },
   {
     id: 'ukc-nosework-trial-score-sheet',
+    excludesHeldEntries: true,
     name: 'UKC Nosework Trial Score Sheet',
     phase: 'during',
     scopes: ['trial', 'class'],
@@ -247,6 +253,7 @@ export const reportRegistry: ReportDefinition[] = [
   },
   {
     id: 'asca-scent-detection-trial-roster',
+    excludesHeldEntries: true,
     name: 'ASCA Scent Detection Trial Roster',
     phase: 'during',
     scopes: ['trial'],
@@ -259,6 +266,7 @@ export const reportRegistry: ReportDefinition[] = [
   },
   {
     id: 'asca-scent-detection-score-sheet',
+    excludesHeldEntries: true,
     name: 'ASCA Scent Detection Score Sheet',
     phase: 'during',
     scopes: ['trial', 'class'],
@@ -296,6 +304,7 @@ export const reportRegistry: ReportDefinition[] = [
 
   {
     id: 'armband-labels',
+    excludesHeldEntries: true,
     name: 'Armband Labels',
     phase: 'before',
     scopes: ['show', 'trial', 'class'],
@@ -308,6 +317,7 @@ export const reportRegistry: ReportDefinition[] = [
   // Phase 2 — enabled
   {
     id: 'show-catalog',
+    excludesHeldEntries: true,
     name: 'Show Catalog',
     phase: 'before',
     scopes: ['show', 'trial'],
@@ -322,6 +332,7 @@ export const reportRegistry: ReportDefinition[] = [
   },
   {
     id: 'result-catalog',
+    excludesHeldEntries: true,
     name: 'Result Catalog',
     phase: 'after',
     scopes: ['show', 'trial', 'class'],
@@ -451,6 +462,7 @@ export const reportRegistry: ReportDefinition[] = [
   },
   {
     id: 'steward-report',
+    excludesHeldEntries: true,
     name: "Steward's Report",
     phase: 'during',
     scopes: ['trial'],
@@ -461,6 +473,7 @@ export const reportRegistry: ReportDefinition[] = [
   },
   {
     id: 'result-labels',
+    excludesHeldEntries: true,
     name: 'Result Labels',
     phase: 'after',
     scopes: ['trial', 'class'],
@@ -474,6 +487,7 @@ export const reportRegistry: ReportDefinition[] = [
   },
   {
     id: 'akc-judge-report',
+    excludesHeldEntries: true,
     name: "AKC Judge's Report",
     phase: 'after',
     scopes: ['trial'],

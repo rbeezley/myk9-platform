@@ -175,6 +175,11 @@ export function useAtShowEntryListHandlers(
         toast.error('You do not have permission to score entries.');
         return;
       }
+      if (entry.awaitingRegistrationNumber) {
+        // MYK9-1162: held entries are locked; the secretary adds the number.
+        toast.info(`${entry.callName} needs a registration number. See the secretary.`);
+        return;
+      }
       if (gateEntryClick?.()) return;
       // INTENT: A card tap is a view/navigation intent. It must not enqueue a
       // ringside status mutation; explicit in-ring controls own that write.

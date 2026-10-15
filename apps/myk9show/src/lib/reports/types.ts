@@ -360,6 +360,13 @@ export interface ReportDefinition {
   registryId?: RegistryId;
   supportsDogFilter?: boolean;
   /**
+   * MYK9-1162: true for reports that list who runs (catalogs, run and score
+   * sheets, judge books, rosters, labels). They leave out entries awaiting a
+   * registration number. Count and financial reports leave it unset: a held
+   * entry still counts toward capacity and still owes its fee.
+   */
+  excludesHeldEntries?: boolean;
+  /**
    * Present on the two reports that must also render server-side (check-in
    * sheet, scoresheet). When set, ReportsPage renders this PDF instead of
    * `component`, so the paper is byte-identical to the trial packet's.

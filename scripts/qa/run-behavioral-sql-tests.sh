@@ -183,6 +183,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_731_restore_show_day_fixture_containment_test.sql"
   "$TEST_DIR/myk9_1162_registry_identity_taken_test.sql"
   "$TEST_DIR/myk9_1162_held_entries_packet_test.sql"
+  "$TEST_DIR/myk9_1162_held_entries_ringside_test.sql"
 )
 
 for test_file in "${TEST_FILES[@]}"; do

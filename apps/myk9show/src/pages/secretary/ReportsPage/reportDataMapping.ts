@@ -25,6 +25,7 @@ import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 import { mapCatalogEntryFields } from '@/lib/reports/catalogFields';
 import { computeDayTrialNumber } from './dayTrialNumber';
 import { resolveHandlerJunior } from './reportHandlerJunior';
+import { omitHeldEntries } from './reportHeldEntries';
 
 export function mapReportEntries(
   dbEntries: ReportDbEntry[],
@@ -236,6 +237,8 @@ export function buildTrialReportProps(input: {
   entries: ReportDbEntry[] | null | undefined;
   scope: Extract<ReportScope, { kind: 'show' | 'trial' }>;
   sortOrder: string;
+  /** The report's `excludesHeldEntries` flag (MYK9-1162). */
+  omitHeldEntries?: boolean;
 }): ReportProps[] {
   const { show, trials, classes, entries, scope, sortOrder } = input;
   const allShowTrials = trials ?? [];
@@ -275,7 +278,7 @@ export function buildTrialReportProps(input: {
         ...(dayTrialNumber !== undefined ? { dayTrialNumber } : {}),
       },
       allClasses: allClasses.filter(c => c.trialId === trial.id),
-      entries: enriched,
+      entries: omitHeldEntries(enriched, input.omitHeldEntries),
       sortOrder,
       organization: show.organization ?? undefined,
       clubName: show.clubName ?? undefined,
@@ -290,6 +293,8 @@ export function buildClassReportProps(input: {
   entries: ReportDbEntry[] | null | undefined;
   scope: Extract<ReportScope, { kind: 'class' }>;
   sortOrder: string;
+  /** The report's `excludesHeldEntries` flag (MYK9-1162). */
+  omitHeldEntries?: boolean;
 }): ReportProps | null {
   const { show, trials, classes, entries, scope, sortOrder } = input;
 
@@ -319,7 +324,10 @@ export function buildClassReportProps(input: {
       hidesText: classData.num_hides ? String(classData.num_hides) : null,
       distractionsText: classData.distraction_count ? String(classData.distraction_count) : null,
     },
-    entries: mapReportEntries(classEntries, trial, classData, show.assignedJudges ?? []),
+    entries: omitHeldEntries(
+      mapReportEntries(classEntries, trial, classData, show.assignedJudges ?? []),
+      input.omitHeldEntries
+    ),
     sortOrder,
     organization: show.organization ?? undefined,
     clubName: show.clubName ?? undefined,
@@ -471,7 +479,7 @@ export function buildShowReportProps({
   return {
     showId: show.id,
     showName: show.name ?? '',
-    entries: allEntriesEnriched,
+    entries: omitHeldEntries(allEntriesEnriched, report.excludesHeldEntries),
     sortOrder,
     allTrials,
     allClasses,

@@ -252,6 +252,24 @@ describe('useAtShowEntryListHandlers — entry-card view intent', () => {
   });
 });
 
+describe('useAtShowEntryListHandlers — entry awaiting a registration number (MYK9-1162)', () => {
+  it('says why instead of opening the scoresheet, and writes nothing', () => {
+    toastInfo.mockClear();
+    const held = makeEntry({ id: 'entry-1', callName: 'Rex', awaitingRegistrationNumber: true });
+    const actions = makeActions();
+    const { result } = renderHandlers([held], actions);
+
+    act(() => {
+      result.current.handleEntryClick(held);
+    });
+
+    expect(toastInfo).toHaveBeenCalledTimes(1);
+    expect(toastInfo.mock.calls[0]?.[0]).toMatch(/registration number/i);
+    expect(toastInfo.mock.calls[0]?.[0]).toMatch(/see the secretary/i);
+    expect(actions.handleMarkInRing).not.toHaveBeenCalled();
+  });
+});
+
 describe('useAtShowEntryListHandlers — placement recompute RPC', () => {
   let actions: EntryListActions;
 

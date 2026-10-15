@@ -16,18 +16,8 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { useUserStore } from '@/store/userStore';
-import {
-  quickCreateMocks as mocks,
-  resetQuickCreateMocks,
-} from '@/test/quickCreate/quickCreateFlowMocks';
-import {
-  addPersonThroughForm,
-  dialogs,
-  fillDogBasics,
-  skipRegistration,
-  JOURNEY_TIMEOUT_MS,
-  panel,
-} from '@/test/quickCreate/quickCreateFlowKit';
+import { resetQuickCreateMocks } from '@/test/quickCreate/quickCreateFlowMocks';
+import { dialogs, JOURNEY_TIMEOUT_MS, panel } from '@/test/quickCreate/quickCreateFlowKit';
 import { DogSelectionStepEnhanced } from './DogSelectionStepEnhanced';
 
 const listed = vi.hoisted(() => ({ dogs: [] as unknown[] }));

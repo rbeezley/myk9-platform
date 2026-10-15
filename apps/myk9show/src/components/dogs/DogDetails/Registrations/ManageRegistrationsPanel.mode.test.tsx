@@ -6,7 +6,7 @@ import type { Dog } from '@/types/dog-types';
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import ManageRegistrationsPanel from './ManageRegistrationsPanel';
 import DogRegistrationDialogs from './DogRegistrationDialogs';
-import { fillNewRegistration } from './registrationFormTestHelpers';
+import { enterRegistrationText, fillNewRegistration } from './registrationFormTestHelpers';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 /**
@@ -181,7 +181,7 @@ describe('ManageRegistrationsPanel — Add and Edit are modes of the one panel',
   ])('a dirty form asks before %s discards it', async (_label, leave) => {
     const { user } = render(<Harness />);
     await user.click(screen.getByRole('button', { name: /^add$/i }));
-    await user.type(await screen.findByLabelText(/registered name/i), 'CH New');
+    await enterRegistrationText(user, await screen.findByLabelText(/registered name/i), 'CH New');
 
     await leave(user);
 
@@ -222,7 +222,11 @@ describe('ManageRegistrationsPanel — Add and Edit are modes of the one panel',
   it('saving an Edit sends the same payload as before and returns to the list', async () => {
     const { user } = render(<Harness />);
     await user.click(editButton());
-    await user.type(await screen.findByDisplayValue('CH Test Dog'), ' II');
+    await enterRegistrationText(
+      user,
+      await screen.findByDisplayValue('CH Test Dog'),
+      'CH Test Dog II'
+    );
 
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
@@ -253,7 +257,11 @@ describe('ManageRegistrationsPanel — Add and Edit are modes of the one panel',
     );
     const { user } = render(<Harness />);
     await user.click(editButton());
-    await user.type(await screen.findByDisplayValue('CH Test Dog'), ' II');
+    await enterRegistrationText(
+      user,
+      await screen.findByDisplayValue('CH Test Dog'),
+      'CH Test Dog II'
+    );
 
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
@@ -293,7 +301,11 @@ describe('focus stays inside the Manage panel', () => {
   it('after a successful Edit save focus lands on that row’s Edit control', async () => {
     const { user } = render(<Harness />);
     await user.click(editButton());
-    await user.type(await screen.findByDisplayValue('CH Test Dog'), ' II');
+    await enterRegistrationText(
+      user,
+      await screen.findByDisplayValue('CH Test Dog'),
+      'CH Test Dog II'
+    );
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     await screen.findByRole('heading', { name: 'Registrations' });

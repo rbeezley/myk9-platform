@@ -33,3 +33,9 @@ Added explicit offline placeholder/reload, atomic invalid-date failure, release 
 - Disposable same-day live fixture prepared but NOT applied: automatic approval review rejected the shared-data fixture write. Explicit approval requested; no fixture rows were written.
 
 Final deployed proof and completion verification will be recorded here before archive.
+
+## Integrated run and final test stabilization
+
+- Integrated shuffled suite: 2,958 files / 28,831 tests passed, two failures in ManageRegistrationsPanel.mode. The Add journey exceeded 10 seconds; its unfinished SR999 typing leaked into the next Edit input (`CH Test DogS RI9I99`), explaining the second failure.
+- Save-contract helpers now click/clear/paste whole values and wait for picker closure (organization return focus, breed aria-expanded=false). These tests verify payloads; separate tests retain typing/keyboard accessibility coverage. All 30 affected journey tests pass shuffled in 6.12 seconds. CI remains required for the final head; local broad runs are not claimed wholly green.
+- Final source typecheck: all 26 monorepo tasks passed after main integration.

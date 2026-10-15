@@ -142,6 +142,23 @@ async function seedSyncedReplica(): Promise<void> {
     entry('entry-a', 'dog-a', '101', 1),
     entry('entry-b', 'dog-b', '102', 2),
   ] as never);
+  // MYK9-1162: an entry whose dog has no number for the trial's registry is held
+  // and left off the sheet, so the online read must answer with real numbers.
+  const defaultFrom = mockSupabase.from.getMockImplementation();
+  mockSupabase.from.mockImplementation(((table: string) =>
+    table === 'dog_registrations'
+      ? createChainableQuery({
+          data: ['dog-a', 'dog-b', 'dog-c'].map(dogId => ({
+            dog_id: dogId,
+            id: `reg-${dogId}`,
+            organization: 'AKC',
+            registration_number: `SR-${dogId}`,
+            is_primary: true,
+            created_at: '2026-01-01T00:00:00Z',
+          })),
+          error: null,
+        })
+      : defaultFrom?.(table)) as never);
   signInReplicatedTable(replicatedEntriesTable, 'user-test');
   await replicatedEntriesTable.updateSyncMetadata(
     { lastIncrementalSyncAt: Date.now(), totalRows: 3 },

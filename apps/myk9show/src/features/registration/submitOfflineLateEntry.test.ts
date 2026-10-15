@@ -14,6 +14,9 @@ const {
   getAllClassesMock,
   getTrialsByShowMock,
   getJudgeAssignmentsByShowMock,
+  getRegistrationsForDogsMock,
+  getTrialByIdMock,
+  getClassByIdMock,
 } = vi.hoisted(() => ({
   createEntryMock: vi.fn(),
   getPendingMutationIdsForRowMock: vi.fn(),
@@ -26,6 +29,9 @@ const {
   getAllClassesMock: vi.fn(),
   getTrialsByShowMock: vi.fn(),
   getJudgeAssignmentsByShowMock: vi.fn(),
+  getRegistrationsForDogsMock: vi.fn(),
+  getTrialByIdMock: vi.fn(),
+  getClassByIdMock: vi.fn(),
 }));
 
 // This show has completed a scoped entries sync on this device (MYK9-761).
@@ -72,11 +78,13 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedDogRegistrationsTable: {
     getPendingMutationIdsForDog: getPendingRegistrationMutationIdsForDogMock,
+    getRegistrationsForDogs: getRegistrationsForDogsMock,
   },
   replicatedShowsTable: {
     getShowById: getShowByIdMock,
   },
   replicatedClassesTable: {
+    getClassById: getClassByIdMock,
     getAll: getAllClassesMock,
     getAllOrThrow: getAllClassesMock,
     getAllWithStatus: async () => ({
@@ -86,6 +94,7 @@ vi.mock('@/services/replication', () => ({
     }),
   },
   replicatedTrialsTable: {
+    getTrialById: getTrialByIdMock,
     getTrialsByShow: getTrialsByShowMock,
     getByShowWithStatus: async () => ({
       ok: true,
@@ -130,6 +139,21 @@ describe('submitOfflineLateEntry', () => {
     ]);
     getTrialsByShowMock.mockResolvedValue([{ id: 'trial-1', date: '2026-07-13' }]);
     getJudgeAssignmentsByShowMock.mockResolvedValue([]);
+    // Every dog holds an AKC number unless a test says otherwise (MYK9-1162).
+    getRegistrationsForDogsMock.mockImplementation(async (dogIds: string[]) =>
+      dogIds.map(dogId => ({ dog_id: dogId, organization: 'AKC', registration_number: 'SR1' }))
+    );
+    getTrialByIdMock.mockImplementation(async (id: string) => ({
+      id,
+      registryId: 'AKC',
+      trialType: 'Scent Work',
+    }));
+    getClassByIdMock.mockImplementation(async (id: string) => ({
+      id,
+      name: 'Container Novice',
+      element: 'Container',
+      level: 'Novice',
+    }));
     getArmbandsByShowMock.mockResolvedValue([{ id: 'existing-armband', armbandNumber: '12' }]);
     upsertAssignedArmbandMock.mockResolvedValue('armband-mutation-1');
     getPendingArmbandMutationIdsForRowMock.mockResolvedValue([]);
@@ -658,5 +682,76 @@ describe('submitOfflineLateEntry', () => {
       expect.objectContaining({ paymentStatus: 'pending', payment_received_on: null }),
       expect.anything()
     );
+  });
+
+  // MYK9-1162: a row made on this device has no server verdict yet, so it is
+  // held provisionally when the device sees no number for the trial's registry.
+  describe('provisional hold for a no-number dog', () => {
+    const submitOne = () =>
+      submitOfflineLateEntry({
+        showId: 'show-1',
+        classSelections: [
+          { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+        ],
+        handlerAssignments: {},
+        classes: [{ id: 'class-1', entryFee: 25 }],
+        paymentMethod: 'waived',
+        showFeeInfo: {} as never,
+      });
+    const created = () => createEntryMock.mock.calls[0]?.[0] as Record<string, unknown>;
+
+    it('holds the entry when the dog has no number for the trial registry', async () => {
+      getRegistrationsForDogsMock.mockResolvedValue([
+        { dog_id: 'dog-1', organization: 'UKC', registration_number: 'P1' },
+      ]);
+
+      await submitOne();
+
+      expect(created()).toMatchObject({
+        awaitingRegistrationNumber: true,
+        awaiting_registration_number: true,
+      });
+    });
+
+    it('does not hold a dog with a number for the registry', async () => {
+      await submitOne();
+
+      expect(created().awaitingRegistrationNumber).toBeUndefined();
+    });
+
+    it('never holds a conformation puppy', async () => {
+      getRegistrationsForDogsMock.mockResolvedValue([]);
+      getTrialByIdMock.mockResolvedValue({
+        id: 'trial-1',
+        registryId: 'AKC',
+        trialType: 'Conformation',
+      });
+      getClassByIdMock.mockResolvedValue({
+        id: 'class-1',
+        name: 'Puppy 6-9 Months',
+        element: 'Puppy',
+        level: 'Puppy',
+      });
+
+      await submitOne();
+
+      expect(created().awaitingRegistrationNumber).toBeUndefined();
+    });
+
+    it('holds when the trial cannot be read: an AKC number proves nothing for an unknown registry', async () => {
+      getTrialByIdMock.mockResolvedValue(null);
+
+      await submitOne();
+
+      expect(created()).toMatchObject({ awaitingRegistrationNumber: true });
+    });
+
+    it('holds when the registrations cannot be read, and still saves the entry', async () => {
+      getRegistrationsForDogsMock.mockRejectedValue(new Error('IndexedDB closed'));
+
+      await submitOne();
+
+      expect(created()).toMatchObject({ awaitingRegistrationNumber: true });
+    });
   });
 });

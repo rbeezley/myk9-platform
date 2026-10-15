@@ -9,6 +9,16 @@ function resultsPrivateColumn(row: unknown): boolean | undefined {
 }
 
 /**
+ * `awaiting_registration_number` (MYK9-1162) from a view row, or undefined when
+ * the view lacks it. Undefined reads as "not held": a row cached before the
+ * migration, or a read from a view without the column, never locks scoring.
+ */
+function awaitingRegistrationNumberColumn(row: unknown): boolean | undefined {
+  const value = (row as Record<string, unknown>).awaiting_registration_number;
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+/**
  * Database row type from Supabase schema.
  */
 
@@ -126,6 +136,16 @@ export interface ReplicatedEntry {
    */
   resultsPrivate?: boolean | undefined;
   results_private?: boolean | undefined;
+  /**
+   * MYK9-1162: the server says this live entry's dog has no registration number
+   * for the trial's registry, so scoring is locked until one is added. Computed
+   * in the entry-results views so a ringside device that cannot read
+   * dog_registrations still knows. View-only: never projected back in
+   * `entryToSupabaseRow`. Absent (undefined) on rows cached before migration
+   * 20261014214300, which reads as not held.
+   */
+  awaitingRegistrationNumber?: boolean | undefined;
+  awaiting_registration_number?: boolean | undefined;
   trialId?: string | undefined;
   trial_id?: string | undefined;
 
@@ -436,6 +456,8 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     // until the migration is pushed, which reads as "not private".
     resultsPrivate: resultsPrivateColumn(row),
     results_private: resultsPrivateColumn(row),
+    awaitingRegistrationNumber: awaitingRegistrationNumberColumn(row),
+    awaiting_registration_number: awaitingRegistrationNumberColumn(row),
     trialId: row.trial_id ?? undefined,
     trial_id: row.trial_id ?? undefined,
     refundAmount: row.refund_amount ?? undefined,

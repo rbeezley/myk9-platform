@@ -82,16 +82,12 @@ export class MutationManager {
    * expired token and, offline, retries that with backoff for tens of seconds,
    * which guarded IndexedDB reads must not wait on. The live lookup answers only
    * when nothing is persisted. For readers that branch on "unresolved" instead
-   * of failing; never for queue ownership, which stays on `requireCurrentUserId`.
+   * of failing. Queue ownership uses `requireQueueOwnerUserId` (MYK9-1204).
    */
   async resolveCurrentUserId(): Promise<string | null> {
     const usable = (id: unknown): id is string => typeof id === 'string' && id.trim().length > 0;
-    try {
-      const cached = this.getCachedUserId();
-      if (usable(cached)) return cached;
-    } catch {
-      // Fall through to the live lookup.
-    }
+    const cached = this.readCachedUserId();
+    if (cached) return cached;
     try {
       const live = await this.getCurrentUserId();
       return usable(live) ? live : null;
@@ -106,6 +102,44 @@ export class MutationManager {
       throw new Error('[MutationManager] Cannot operate without an authenticated user identity');
     }
     return authUserId;
+  }
+
+  /**
+   * Owner stamp for a NEW queue entry (MYK9-1204). Offline past jwt_expiry the
+   * live lookup throws, which would refuse a ringside write (or, after its dirty
+   * local write, strand it unqueued). A throw falls back to the persisted
+   * account; the stamp is only a label, since upload still needs a live session
+   * for that same id, so a different sign-in holds the entry. No persisted
+   * account rethrows the live error.
+   */
+  private async requireQueueOwnerUserId(): Promise<string> {
+    // Offline, the live lookup can only fail, and only after its refresh retries
+    // back off for tens of seconds: a judge must not wait on that to score.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      const persisted = this.readCachedUserId();
+      if (persisted) return persisted;
+    }
+    try {
+      return await this.requireCurrentUserId();
+    } catch (liveError) {
+      const cached = this.readCachedUserId();
+      if (cached) return cached;
+      throw liveError;
+    }
+  }
+
+  /**
+   * The persisted session's user id, or null. Never throws: a blocked storage
+   * getter (browser privacy settings) must fall through to the live session,
+   * which Supabase can still hold in memory.
+   */
+  private readCachedUserId(): string | null {
+    try {
+      const cached = this.getCachedUserId();
+      return typeof cached === 'string' && cached.trim().length > 0 ? cached : null;
+    } catch {
+      return null;
+    }
   }
 
   private async requireSameCurrentUserId(expectedAuthUserId: string): Promise<void> {
@@ -162,7 +196,7 @@ export class MutationManager {
   ): Promise<string> {
     const releaseQueueLock = this.acquireQueueMutationLock?.();
     try {
-      const authUserId = await this.requireCurrentUserId();
+      const authUserId = await this.requireQueueOwnerUserId();
       // Queue overflow protection
       const pendingCount = await this.getPendingCount();
       const capacity = getMutationQueueCapacity(pendingCount);

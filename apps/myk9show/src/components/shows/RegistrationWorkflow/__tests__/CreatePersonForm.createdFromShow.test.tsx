@@ -4,7 +4,7 @@ import { screen, waitFor } from '@/test/utils/testUtils';
 import { render, userEvent } from '@/test/utils/testUtils';
 import { createUser } from '@/services/database/users';
 import { useUserStore } from '@/store/userStore';
-import { CreateExhibitorDialog } from '../CreateExhibitorDialog';
+import { CreatePersonForm } from '../CreatePersonForm';
 
 // MYK9-1059: a person added from the add-entry flow records the show; a person
 // added anywhere else does not.
@@ -29,9 +29,7 @@ vi.mock('@/services/replication/ReplicatedShowDeskPeopleTable', () => ({
 
 async function addPerson(props: { offlineFirst?: boolean; createdFromShowId?: string }) {
   const user = userEvent.setup();
-  render(
-    <CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} {...props} />
-  );
+  render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} {...props} />);
   await user.type(screen.getByLabelText(/First Name/i), 'Molly');
   await user.type(screen.getByLabelText(/Last Name/i), 'Mailbox');
   await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
@@ -52,7 +50,7 @@ beforeEach(() => {
   );
 });
 
-describe('CreateExhibitorDialog created_from_show_id (MYK9-1059)', () => {
+describe('CreatePersonForm created_from_show_id (MYK9-1059)', () => {
   it('online: createUser receives the show id', async () => {
     await addPerson({ createdFromShowId: SHOW_ID });
     await waitFor(() =>

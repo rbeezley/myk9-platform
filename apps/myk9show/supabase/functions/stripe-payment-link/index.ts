@@ -3,6 +3,7 @@ import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { calculatePlatformFeeCents, resolvePlatformFeeRates } from '../_shared/platformFee.ts';
 import { priceExistingEntryCents } from '../_shared/cartItemPricing.ts';
+import { showTimeZoneFromTrials, type ShowTrialZoneRow } from '../_shared/showTimeZone.ts';
 import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import {
@@ -122,6 +123,8 @@ interface EntryRow {
     day_of_show_fee: number | string | null;
     junior_handler_fee: number | string | null;
     start_date: string | null;
+    /** MYK9-1198: the show's trials carry its zone, which decides the day-of tier. */
+    trials: ShowTrialZoneRow[] | null;
   } | null;
 }
 
@@ -189,7 +192,7 @@ Deno.serve(async req => {
         junior_fee_override_by,
         dog:dog_id(call_name),
         class:class_id(name, entry_fee),
-        show:show_id(id, club_id, name, organization, pre_entry_fee, day_of_show_fee, junior_handler_fee, start_date)
+        show:show_id(id, club_id, name, organization, pre_entry_fee, day_of_show_fee, junior_handler_fee, start_date, trials(id, date, timezone))
       `
       )
       .in('id', entry_ids);
@@ -352,11 +355,17 @@ Deno.serve(async req => {
 
     // Recompute each fee from the authority chain — never trust a client value.
     const nowIso = new Date().toISOString();
+    const pricingShow = { ...show, timezone: showTimeZoneFromTrials(show.trials) };
     const linkEntries = entries.map(e => ({
       entryId: e.id,
       // MYK9-879: an existing entry's junior fee was fixed when it was created, so
       // the link reads that stored record; it never re-derives junior status.
-      authoritativeFeeCents: priceExistingEntryCents(show, e, e.class?.entry_fee ?? null, nowIso),
+      authoritativeFeeCents: priceExistingEntryCents(
+        pricingShow,
+        e,
+        e.class?.entry_fee ?? null,
+        nowIso
+      ),
       dogName: e.dog?.call_name || 'Dog',
       className: e.class?.name || 'Class',
       showName: show.name || 'Show Entry',

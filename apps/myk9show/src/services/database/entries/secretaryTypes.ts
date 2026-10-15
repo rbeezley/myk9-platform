@@ -65,6 +65,8 @@ export interface SecretaryEntry {
    * where 20260918193300 has not been applied returns no such column.
    */
   moved_from_entry_id?: string | null;
+  /** MYK9-1162: the server's verdict that this entry awaits a registration number. */
+  awaiting_registration_number?: boolean | null;
   registration: {
     id: string;
     confirmation_number: string;

@@ -65,6 +65,7 @@ function show(juniorHandlerFee: string | null): { client: ShowFeeInfo; server: P
       start_date: '2099-05-01',
       junior_handler_fee: juniorHandlerFee,
       organization: 'AKC',
+      timezone: 'UTC',
     },
   };
 }

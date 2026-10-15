@@ -40,7 +40,7 @@ function renderToolbar(
   const view = render(
     <EntryManagementViewToolbar
       cockpit={cockpit}
-      exceptionCounts={{ pulls: 2, moveUps: 1 }}
+      exceptionCounts={{ pulls: 2, moveUps: 1, registrationNeeded: 0 }}
       trials={[{ id: 't1', name: 'Saturday', date: null, trial_number: 1 }]}
       trialsLoaded
       classes={{

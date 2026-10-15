@@ -165,3 +165,10 @@ describe('registration form registration number gating', () => {
     expect(input).toHaveAttribute('placeholder', 'Enter registration number');
   });
 });
+
+describe('registration form edits a stored short registry code', () => {
+  it('offers UKC-only breeds when the stored organization is "UKC"', () => {
+    renderForm({ ...akcRegistration, organization: 'UKC' });
+    expect(screen.getByText('Belgian Shepherd Dog')).toBeInTheDocument();
+  });
+});

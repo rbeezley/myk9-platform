@@ -10,9 +10,14 @@
 //      started, else pre-entry fee.
 //   2. Class-level entry_fee (explicit 0 respected — free classes exist).
 //   3. $25 default.
-// Dates compare as calendar days in UTC; the client compares in local time,
-// so a user right at the tier boundary may see the server pick the (higher)
-// day-of fee — conservative in the platform's favor, never the reverse.
+// "Has the show started" compares calendar days in the SHOW's time zone (owner
+// decision 2026-10-15, MYK9-1198): the fee switches at midnight where the show
+// is held, the same for every exhibitor, as `submit_show_entries` decides it.
+// `shows.start_date` is a timestamptz at midnight UTC, so its first ten
+// characters are the show's calendar day. The zone comes from the show's first
+// trial (`showTimeZoneFromTrials`); missing or invalid is America/New_York.
+
+import { calendarDateInTimeZone, resolveShowTimeZone } from './showTimeZone.ts';
 
 export interface AuthoritativeFeeInput {
   /** shows.pre_entry_fee — DECIMAL dollars (number or numeric string) */
@@ -25,6 +30,11 @@ export interface AuthoritativeFeeInput {
   classEntryFee: number | string | null;
   /** evaluation clock, ISO — injected so the function stays pure/testable */
   nowIso: string;
+  /**
+   * IANA zone of the show (its first trial's, `showTimeZoneFromTrials`). The
+   * day-of tier starts at midnight here. Missing or invalid = America/New_York.
+   */
+  showTimeZone?: string | null | undefined;
   /** shows.junior_handler_fee — DECIMAL dollars. NULL or 0 = no junior tier. */
   showJuniorHandlerFee?: number | string | null | undefined;
   /**
@@ -67,7 +77,10 @@ function normalEntryFeeCents(input: AuthoritativeFeeInput): number {
 
   if (input.showStartDate) {
     const startDay = input.showStartDate.slice(0, 10);
-    const nowDay = input.nowIso.slice(0, 10);
+    const nowDay = calendarDateInTimeZone(
+      new Date(input.nowIso),
+      resolveShowTimeZone(input.showTimeZone)
+    );
     if (nowDay >= startDay && day != null) {
       return Math.round(day * 100);
     }

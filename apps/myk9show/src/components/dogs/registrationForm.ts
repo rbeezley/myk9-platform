@@ -11,6 +11,9 @@ import { Registration, REGISTRATION_STATUS_VALUES } from '@/types/dog-types';
 const ORG_CODE_MAP: Record<string, string> = {
   'AKC (American Kennel Club)': 'AKC',
   'UKC (United Kennel Club)': 'UKC',
+  // ASCA trials need an ASCA number (MYK9-1162); ASCA has no breed list of its
+  // own here, so the breed picker falls back to the AKC list.
+  'ASCA (Australian Shepherd Club of America)': 'ASCA',
   'CKC (Canadian Kennel Club)': 'CKC',
   'FCI (Fédération Cynologique Internationale)': 'FCI',
   'KC (The Kennel Club UK)': 'KC',
@@ -23,6 +26,7 @@ const ORG_CODE_MAP: Record<string, string> = {
 export const REGISTRATION_ORGS = [
   'AKC (American Kennel Club)',
   'UKC (United Kennel Club)',
+  'ASCA (Australian Shepherd Club of America)',
   'CKC (Canadian Kennel Club)',
   'FCI (Fédération Cynologique Internationale)',
   'KC (The Kennel Club UK)',
@@ -32,10 +36,11 @@ export const REGISTRATION_ORGS = [
   'Other',
 ];
 
-/** The breed-list code for a registration organization. */
+/** The breed-list code for a registration organization: its full label or a stored short code. */
 export function registrationOrgCode(organization: string): string {
   return (
-    ORG_CODE_MAP[organization] || /^([A-Za-z0-9]+)(?:\s*\(|$)/.exec(organization)?.[1] || 'AKC'
+    ORG_CODE_MAP[organization] ||
+    (Object.values(ORG_CODE_MAP).includes(organization) ? organization : 'AKC')
   );
 }
 

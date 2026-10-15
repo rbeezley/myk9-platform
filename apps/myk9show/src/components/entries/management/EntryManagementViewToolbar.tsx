@@ -38,7 +38,11 @@ interface EntryManagementViewToolbarProps {
     | 'setScope'
     | 'setSearch'
   >;
-  exceptionCounts: { pulls: number; moveUps: number | undefined };
+  exceptionCounts: {
+    pulls: number;
+    moveUps: number | undefined;
+    registrationNeeded: number | undefined;
+  };
   trials: readonly EntryManagementTrial[];
   trialsLoaded: boolean;
   classes: Pick<

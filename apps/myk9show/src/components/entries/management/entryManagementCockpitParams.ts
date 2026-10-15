@@ -8,12 +8,17 @@ import {
 export const ENTRY_MANAGEMENT_COCKPIT_TABS = ['registrations', 'exceptions'] as const;
 export type EntryManagementCockpitTab = (typeof ENTRY_MANAGEMENT_COCKPIT_TABS)[number];
 
-export const ENTRY_MANAGEMENT_EXCEPTIONS = ['move-ups', 'pulls', 'waitlist'] as const;
+export const ENTRY_MANAGEMENT_EXCEPTIONS = [
+  'move-ups',
+  'pulls',
+  'waitlist',
+  'registration-needed',
+] as const;
 export type EntryManagementException = (typeof ENTRY_MANAGEMENT_EXCEPTIONS)[number];
 
 /**
  * Every id the Show: menu (`EntryManagementShowMenu`) can select
- * (MYK9-795): the four registration queues plus the three exception panes.
+ * (MYK9-795): the four registration queues plus the four exception panes.
  * The two id spaces are disjoint, so one `activeId` can describe either.
  */
 export type EntryManagementViewId = ShowRegistrationQueue | EntryManagementException;

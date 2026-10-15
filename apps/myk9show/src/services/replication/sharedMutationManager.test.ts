@@ -91,8 +91,9 @@ describe('sharedMutationManager auth identity', () => {
 
   // MYK9-1133: getSession() errors once the token expires offline, which would
   // leave every stamped replica scope reading as another account's. The stamp
-  // check may fall back to the persisted session's user id; uploads and queue
-  // ownership may not.
+  // check may fall back to the persisted session's user id; uploads may not. A
+  // NEW queue entry takes it as its owner stamp only (MYK9-1204), never as proof
+  // of a session: the upload still needs a live session for that same id.
   describe('offline-durable identity for replica stamps', () => {
     const storageKey = 'sb-test-auth-token';
 

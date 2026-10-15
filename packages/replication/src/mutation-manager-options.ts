@@ -18,9 +18,9 @@ export interface MutationManagerOptions {
   getCurrentUserId?: () => Promise<string | null>;
   /**
    * An offline-durable id for the signed-in account (e.g. read from the
-   * persisted session), used ONLY by `resolveCurrentUserId` when the live
-   * lookup throws or yields no user, to compare replica account stamps. Never
-   * for queue ownership, authorization or uploads.
+   * persisted session). Used by `resolveCurrentUserId` to compare replica
+   * account stamps, and (MYK9-1204) as the owner stamp of a NEW queue entry
+   * when the live lookup throws. Never for authorization or uploads.
    */
   getCachedUserId?: () => string | null;
   /** Resolve a request client pinned to the same auth session as its owner id. */

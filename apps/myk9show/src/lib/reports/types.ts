@@ -100,6 +100,12 @@ export interface ReportEntry {
    * prints a handler only then, as the AKC marked catalog requires.
    */
   handlerDiffersFromOwner?: boolean;
+  /**
+   * MYK9-1162: true when the server marks the entry as awaiting a registration
+   * number (`awaiting_registration_number`, read through `isHeldEntry`). Absent
+   * otherwise. The catalog leaves such entries out.
+   */
+  awaitingRegistrationNumber?: boolean;
   /** `entries.withdrawal_reason_code`: `in_season` (AIS) or `judge_change` (AJC). */
   withdrawalReasonCode?: string | null;
   /** `entries.disqualification_reason`: the judge's note on an excused / DQ'd dog. */
@@ -118,6 +124,8 @@ export type ReportDbEntry = DbEntry & {
     /** MYK9-1009: hydrated by `hydrateCatalogDogProfiles`; absent when that read failed. */
     date_of_birth?: string | null;
     registrations?: readonly (DogRegistrationLike | MappedDogRegistrationLike)[];
+    /** MYK9-1162: false when this dog's registrations could not be read; they are then unknown, not empty. */
+    registrationsReadComplete?: boolean;
     owner?: {
       first_name?: string | null;
       last_name?: string | null;
@@ -351,6 +359,13 @@ export interface ReportDefinition {
    */
   registryId?: RegistryId;
   supportsDogFilter?: boolean;
+  /**
+   * MYK9-1162: true for reports that list who runs (catalogs, run and score
+   * sheets, judge books, rosters, labels). They leave out entries awaiting a
+   * registration number. Count and financial reports leave it unset: a held
+   * entry still counts toward capacity and still owes its fee.
+   */
+  excludesHeldEntries?: boolean;
   /**
    * Present on the two reports that must also render server-side (check-in
    * sheet, scoresheet). When set, ReportsPage renders this PDF instead of

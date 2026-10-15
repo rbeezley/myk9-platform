@@ -16,7 +16,7 @@ import {
 } from '@/utils/personIdentity';
 import { replicatedShowDeskPeopleTable } from '@/services/replication/ReplicatedShowDeskPeopleTable';
 
-interface CreateExhibitorDialogProps {
+interface CreatePersonFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onExhibitorCreated: (
@@ -38,8 +38,6 @@ interface CreateExhibitorDialogProps {
   createdFromShowId?: string | undefined;
   /** `inline` inside Quick Create's one slide-out (MYK9-1081); a slide-out everywhere else. */
   variant?: EditPanelVariant;
-  /** `panel` only: the slide-out has finished closing and left the screen. */
-  onExited?: (() => void) | undefined;
   /** `inline` only: the host's Back / Escape / X route through the form's close request. */
   closeRequestRef?: React.MutableRefObject<(() => void) | null> | undefined;
 }
@@ -75,12 +73,14 @@ function nameFromSearch(searchQuery: string): Partial<PersonRecord> {
 }
 
 /**
- * The entry flow's Add Person. There is ONE Person create form (MYK9-931,
- * decision 3): this is the same `UserEditPanel` the People page opens, with the entry flow's two extras layered on: a possible-duplicate check
- * before the save, and offline-first persistence through the show-desk queue.
- * Email is optional (mail-in entrants have none, MYK9-832).
+ * The entry flow's Add Person form, hosted inline in Quick Create's slide-out
+ * (it renders no dialog of its own). There is ONE Person create form
+ * (MYK9-931, decision 3): this is the same `UserEditPanel` the People page
+ * opens, with the entry flow's two extras layered on: a possible-duplicate
+ * check before the save, and offline-first persistence through the show-desk
+ * queue. Email is optional (mail-in entrants have none, MYK9-832).
  */
-export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
+export const CreatePersonForm: React.FC<CreatePersonFormProps> = ({
   open,
   onOpenChange,
   onExhibitorCreated,
@@ -90,7 +90,6 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   createdFromShowId,
   variant = 'panel',
   closeRequestRef,
-  onExited,
 }) => {
   const { people, loadUsers } = useUserStore();
   // The candidates and the "add anyway" answer belong to ONE identity (name and
@@ -266,7 +265,6 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
       onSave={handleSave}
       variant={variant}
       closeRequestRef={closeRequestRef}
-      onExited={onExited}
       notice={notice}
       onDataChange={handleDataChange}
       onBeforeNext={data => !holdForDuplicate(data)}

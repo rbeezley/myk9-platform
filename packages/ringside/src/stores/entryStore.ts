@@ -59,6 +59,12 @@ export interface Entry {
   showQualification?: boolean;
   showTime?: boolean;
   showFaults?: boolean;
+  /**
+   * MYK9-1162: the server says this entry's dog has no registration number for
+   * the trial's registry. The dog keeps its run-order place but cannot be scored
+   * until the secretary adds the number. Absent means not held.
+   */
+  awaitingRegistrationNumber?: boolean;
   /** Scoring/ring timestamps used by the class-completion elapsed-time summary. */
   scoredAt?: string;
   ringEntryTime?: string;

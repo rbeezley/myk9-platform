@@ -13,6 +13,7 @@ import {
   mapReportTrialFields,
 } from './reportDataMapping';
 import { getReportRenderingMode } from './reportRenderingMode';
+import { omitHeldEntries } from './reportHeldEntries';
 import { isStaticOfficialPdfReport } from '@/features/organization-forms/officialPdfReports';
 import { NO_HOSTED_REPORT_DATA, type HostedReportData } from './useHostedReportData';
 import { releasePdfFrame, writeMarkupIntoFrame } from './reportPreviewFrame';
@@ -201,6 +202,7 @@ export function ReportPreview({
         entries,
         scope: { kind: 'show', showId: show.id },
         sortOrder,
+        ...(report.excludesHeldEntries ? { omitHeldEntries: true } : {}),
       })
         .map(props => {
           const ReportComponent = report.component;
@@ -233,7 +235,10 @@ export function ReportPreview({
                 ? String(classData.distraction_count)
                 : null,
             },
-            entries: mapReportEntries(pageEntries, trial, classData, show.assignedJudges ?? []),
+            entries: omitHeldEntries(
+              mapReportEntries(pageEntries, trial, classData, show.assignedJudges ?? []),
+              report.excludesHeldEntries
+            ),
             sortOrder,
             organization: show.organization ?? undefined,
             ...(dogId !== 'all' ? { dogId } : {}),

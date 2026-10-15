@@ -306,7 +306,7 @@ export const QuickCreateSteps: React.FC<QuickCreateStepsProps> = ({
             <CheckCircle className="h-4 w-4" />
             <AlertDescription>
               {/* MYK9-832 #6: the person and dog(s) are already saved by this
-                        point (CreateExhibitorDialog / AddDogPanel write on their own
+                        point (CreatePersonForm / AddDogPanel write on their own
                         Save) — Complete Setup only carries them into this
                         registration, and Cancel does NOT remove the saved rows. */}
               The person and {flowState.dogs.length === 1 ? 'dog have' : 'dogs have'} already been

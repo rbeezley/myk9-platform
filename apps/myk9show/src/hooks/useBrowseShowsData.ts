@@ -1,19 +1,7 @@
 import { useMemo, useCallback, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import {
-  GUEST_READ_QUERY_OPTIONS,
-  isAccountSession,
-  isPublicGuest,
-  resolveGuestRead,
-  useQueryOnlineStatus,
-} from '@/hooks/guestServerRead';
-import { useReplicationSync } from '@/hooks/useReplicationSync';
+import { useBrowseShowsList } from '@/hooks/useBrowseShowsList';
 import { useEntryStore, type SyncableShowEntry } from '@/store/entryStore';
-import { useShowStore } from '@/store/showStore';
-import { useTrialStore } from '@/store/trialStore';
-import { getPublicShows } from '@/services/database/shows';
-import { mapDatabaseShowsArray } from '@/services/mappers/showMappers';
 import { logger } from '@/services/LoggingService';
 import type { Show } from '@/types/show-types';
 import type { UserShowContext, ShowRelationship } from '@/types/unified-shows-types';
@@ -29,14 +17,11 @@ import {
 } from '@/utils/show-management-tracking';
 import { ShowPermissionValidator } from '@/utils/permissionValidation';
 import { userHasEntriesForShow } from '@/utils/entryStatusUtils';
-import { withEntryWindowTimeZones } from '@/utils/entryWindowZones';
 import { mergeAccountEnteredShowStubs } from '@/utils/browseShowsUtils';
 import { useAccountEnteredShowIds } from '@/hooks/queries/useAccountEnteredShowIds';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 
-export const PUBLIC_SHOWS_QUERY_KEY = ['shows', 'public'] as const;
-
-const NO_STORE_SHOWS: Show[] = [];
+export { PUBLIC_SHOWS_QUERY_KEY } from '@/hooks/useBrowseShowsList';
 
 /**
  * Enhanced show with relationship metadata
@@ -100,60 +85,20 @@ export function useBrowseShowsData({
   selectedTab,
 }: UseBrowseShowsDataProps): UseBrowseShowsDataReturn {
   const navigate = useNavigate();
-  const { user: sessionUser, userWithRoles: user, loading: authLoading } = useAuthContext();
-  // A guest is signed out or a ringside passcode session (isPublicGuest);
-  // only a real account reads the replica (INTENT below). Guest status keys on
-  // the raw session, not userWithRoles: a signed-in session whose roles have
-  // not loaded (or failed to) is still not a guest, and offline it keeps its
-  // replica list. userWithRoles stays the input for role-dependent behavior only.
-  const readsReplica = isAccountSession(sessionUser);
-  const isGuest = isPublicGuest(sessionUser, authLoading);
-  const rawStoreShows = useShowStore(s => (readsReplica ? s.shows : NO_STORE_SHOWS));
-  // Store shows carry no trials, so stamp each with its entry-window zone
-  // from the trial store: every Browse surface (cards, table, scrubber, map,
-  // filters) judges entry status in the show's own zone (MYK9-714).
-  const storeTrials = useTrialStore(s => s.trials);
-  const storeShows = useMemo(
-    () => withEntryWindowTimeZones(rawStoreShows, storeTrials),
-    [rawStoreShows, storeTrials]
-  );
-  const showsLoading = useShowStore(s => readsReplica && s.isLoading);
-
-  // INTENT: MYK9-780, same owner decision as MYK9-747/768: public, signed-out
-  // surfaces read online and never read the shared replica, and a ringside
-  // passcode session is a guest here too. The shows replica holds whatever an
-  // earlier signed-in session on this device could see (a secretary's drafts,
-  // shows soft-deleted on the server since), so a guest's list and its stats are shows_select's answer for anon, never a
-  // cached row, not even offline or after a failed read (guestServerRead.ts).
-  const guestQuery = useQuery({
-    queryKey: PUBLIC_SHOWS_QUERY_KEY,
-    queryFn: async () => {
-      const { data, error } = await getPublicShows();
-      if (error) throw error;
-      return mapDatabaseShowsArray(data ?? []);
-    },
-    enabled: isGuest,
-    ...GUEST_READ_QUERY_OPTIONS,
-  });
-  const isOnline = useQueryOnlineStatus();
-  const guestRead = isGuest ? resolveGuestRead(guestQuery, isOnline) : null;
-  const refetchGuestShows = guestQuery.refetch;
-
-  let shows: Show[] = NO_STORE_SHOWS;
-  if (readsReplica) shows = storeShows;
-  else if (guestRead?.kind === 'ready') shows = guestRead.data;
-  const showsOffline = guestRead?.kind === 'offline';
-  const storeErrorMsg = useShowStore(s => (readsReplica ? s.error : null));
-  let showsError = storeErrorMsg ? new Error(storeErrorMsg) : null;
-  if (guestRead?.kind === 'error') showsError = new Error("Couldn't load shows");
-  if (showsOffline) showsError = new Error('Offline');
+  const { userWithRoles: user } = useAuthContext();
+  const {
+    shows,
+    isLoading: showsLoading,
+    showsError,
+    showsOffline,
+    retryShows,
+  } = useBrowseShowsList();
   const {
     entries: storeEntries,
     isLoading: entriesLoading,
     error: entriesError,
     loadEntries,
   } = useEntryStore();
-  const { status: syncStatus } = useReplicationSync();
 
   // "Entered as exhibitor" count integrity: the local per-show entryStore is
   // empty for a show the exhibitor hasn't opened this session, so merge in the
@@ -191,23 +136,7 @@ export function useBrowseShowsData({
     return ids;
   }, [derivedUserId, entries]);
 
-  // The auth-gated initial sync only fires once authLoading flips to false
-  // and a session is available, so for signed-in users there's a window where
-  // the store is empty but shows haven't been downloaded yet. Treat that
-  // window as loading so the skeleton stays up instead of the empty-state
-  // flash that previously required a hard refresh to clear. Skip for guests
-  // because sync never runs without a session — otherwise the skeleton would
-  // be stuck forever.
-  const showsSyncPending =
-    readsReplica &&
-    (syncStatus.tablesStatus.shows === 'idle' || syncStatus.tablesStatus.shows === 'syncing');
-  const isLoading =
-    authLoading ||
-    showsLoading ||
-    entriesLoading ||
-    accountEnteredShowIds.isLoading ||
-    (shows.length === 0 && showsSyncPending) ||
-    guestRead?.kind === 'loading';
+  const isLoading = showsLoading || entriesLoading || accountEnteredShowIds.isLoading;
   const hasError = !!(showsError || entriesError || accountEnteredShowIds.isError);
 
   // Get user show context for filtering with caching
@@ -362,7 +291,7 @@ export function useBrowseShowsData({
     try {
       const startTime = performance.now();
 
-      if (isGuest) await refetchGuestShows();
+      await retryShows();
       await loadEntries();
 
       // Re-sync relationships after successful data reload
@@ -378,7 +307,7 @@ export function useBrowseShowsData({
     } catch (error) {
       logger.error('Retry failed', 'shows', {}, error as Error);
     }
-  }, [isGuest, refetchGuestShows, loadEntries, user, shows]);
+  }, [retryShows, loadEntries, user, shows]);
 
   return {
     user,

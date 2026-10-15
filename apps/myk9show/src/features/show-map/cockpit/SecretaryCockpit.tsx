@@ -7,6 +7,7 @@ import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClass
 import { Button } from '@/components/ui/button';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { COCKPIT_SPLIT_VIEWPORT_QUERY } from './splitViewport';
 
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import { ALL_DAYS, buildSecretaryCockpitModel } from './secretaryCockpitModel';
@@ -61,7 +62,7 @@ export function SecretaryCockpit({
     </>
   );
   const pendingAnchor = useRef(state.anchor);
-  const isSplitViewport = useMediaQuery('(min-width: 1280px)');
+  const isSplitViewport = useMediaQuery(COCKPIT_SPLIT_VIEWPORT_QUERY);
   const model = buildSecretaryCockpitModel(snapshot, state);
   const focusedId = model.focusedClass?.id;
   const sourceClass = snapshot.classes.find(classItem => classItem.id === focusedId) ?? null;

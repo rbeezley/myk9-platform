@@ -8,8 +8,13 @@
 #         SUPABASE_BIN=/path/to/supabase pnpm qa:sql-local   (CLI not on PATH)
 #
 # NEVER touches the linked project: no `db push`, no `--linked`. Every step
-# targets the local stack, the test runners refuse any database URL other than
-# 127.0.0.1:54322, and the stack is destroyed on success, failure or Ctrl-C.
+# targets the local stack, the test runners refuse any database URL that is not
+# loopback, and the stack is destroyed on success, failure or Ctrl-C.
+#
+# Ports: each worktree gets its own db/api port pair, so two worktrees can run
+# this at once. SUPABASE_DB_PORT / SUPABASE_API_PORT pick them explicitly;
+# otherwise a pair is derived from the worktree path and stepped past any port
+# already listening. config.toml's 54321/54322 are left for `supabase start`.
 #
 # Native runtime: macOS 14+ Apple silicon or Linux glibc 2.35+, CLI >= 2.121.0
 # (earlier versions fail native pg_cron jobs on macOS). Findings behind it:
@@ -20,10 +25,6 @@ set -Eeuo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SUPABASE="${SUPABASE_BIN:-supabase}"
 MIN_VERSION="2.121.0"
-# The test runners accept only this exact URL, so the stack must use the
-# config.toml ports; clear any per-shell override.
-LOCAL_DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
-unset SUPABASE_DB_PORT SUPABASE_API_PORT
 export SUPABASE_EXPERIMENTAL_STACK=1
 
 if ! command -v "$SUPABASE" >/dev/null 2>&1; then
@@ -43,13 +44,52 @@ fi
 
 cd "$REPO_ROOT"
 
+port_in_use() {
+  (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null
+}
+
+usable_port() {
+  [[ "$1" =~ ^[0-9]{4,5}$ ]] && [ "$1" -ge 1024 ] && [ "$1" -le 65535 ]
+}
+for port in "${SUPABASE_DB_PORT:-}" "${SUPABASE_API_PORT:-}"; do
+  if [ -n "$port" ] && ! usable_port "$port"; then
+    echo "FAIL: '$port' is not a usable port (SUPABASE_DB_PORT / SUPABASE_API_PORT)." >&2
+    exit 1
+  fi
+done
+
+if [ -n "${SUPABASE_DB_PORT:-}" ]; then
+  db_port="$SUPABASE_DB_PORT"
+  api_port="${SUPABASE_API_PORT:-$((10#$db_port - 1))}"
+else
+  # A stable slot per worktree path, in 40000-41999 (clear of config.toml's
+  # 543xx and the CLI's dynamic 20000-32767), stepped on if something listens.
+  slot=$(($(printf '%s' "$REPO_ROOT" | cksum | cut -d' ' -f1) % 1000))
+  for _ in $(seq 1 50); do
+    api_port=$((40000 + 2 * slot))
+    db_port=$((api_port + 1))
+    if ! port_in_use "$api_port" && ! port_in_use "$db_port"; then break; fi
+    slot=$(((slot + 1) % 1000))
+  done
+fi
+if [ "$db_port" = "$api_port" ] || ! usable_port "$api_port"; then
+  echo "FAIL: db port $db_port and api port $api_port must be two different usable ports." >&2
+  exit 1
+fi
+if port_in_use "$db_port" || port_in_use "$api_port"; then
+  echo "FAIL: port $db_port or $api_port is already in use; set SUPABASE_DB_PORT / SUPABASE_API_PORT." >&2
+  exit 1
+fi
+export SUPABASE_DB_PORT="$db_port" SUPABASE_API_PORT="$api_port"
+LOCAL_DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:$db_port/postgres"
+
 stack_started=0
 cleanup() {
   local status=$?
   trap - EXIT INT TERM
   if [ "$stack_started" = "1" ]; then
     echo "==> Destroying the local stack"
-    # A leaked stack keeps port 54322 and blocks the next run, so a failed
+    # A leaked stack keeps its ports and blocks the next run, so a failed
     # teardown fails the run even when every test passed.
     if ! "$SUPABASE" stack destroy --workdir "$REPO_ROOT" --yes >/dev/null 2>&1; then
       echo "FAIL: stack destroy failed; find it with 'SUPABASE_EXPERIMENTAL_STACK=1 $SUPABASE stack list'." >&2
@@ -67,7 +107,7 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-echo "==> Starting a native Supabase stack for this worktree (CLI $version)"
+echo "==> Starting a native Supabase stack for this worktree (CLI $version, db port $db_port, api port $api_port)"
 # Set before `start`: a half-started stack still holds the port.
 stack_started=1
 "$SUPABASE" start --workdir "$REPO_ROOT" --runtime native \

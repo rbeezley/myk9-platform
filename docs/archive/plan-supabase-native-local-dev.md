@@ -128,11 +128,24 @@ in 49 s with a warm download cache, and red when a scratch migration dropped
 `trg_enforce_show_publish_gate` (`show_publish_gate_trigger_test.sql` failed,
 stack destroyed, exit non-zero).
 
-Not done, deliberately: steps 3 and 4 and the two-worktrees-at-once test. The
-stack uses the fixed `config.toml` ports because the runners accept only
-`127.0.0.1:54322`, so a second worktree's run fails fast at `supabase start`
-with a message naming the worktree that holds the port. Relaxing that guard is
-a separate change.
+Not done, deliberately: step 4.
+
+## Adopted: two worktrees at once (2026-10-15)
+
+Step 3 above. The behavioral runner and `class-absent-mutation.ts` now accept
+`postgresql://postgres:postgres@{127.0.0.1|localhost}:<port>/postgres` for any
+port, still anchored with no query string, so a non-loopback host and a libpq
+`?host=` / `?hostaddr=` override are both refused (known-answer cases in
+`run-behavioral-sql-tests.test.ts`). `run-sql-local.sh` gives each worktree its
+own port pair: `SUPABASE_DB_PORT` / `SUPABASE_API_PORT` when set, otherwise a
+slot in 40000-41999 derived from the worktree path and stepped past any port
+already listening. config.toml's 54321/54322 stay as they are for plain
+`supabase start`.
+
+Evidence on the dev Mac with the v2.121.0 release: two worktrees ran
+`run-sql-local.sh` at the same moment (db ports 41211 and 41145), both green
+(153 behavioral files, mutation proof, financial assertions) in 84 s, and
+`stack list` was empty afterwards.
 
 ## Testing phase
 

@@ -32,6 +32,13 @@ interface RegistrationNeededTabProps {
   onOpenEntry: (entry: EntryManagementEntry) => void;
   /** Re-reads what this list derives from; offered on the error state when set. */
   onRetry?: (() => void) | undefined;
+  /**
+   * Opens the "registration number needed" email preview for the row. Set only while the
+   * club has that email step on; when unset the rows offer no email button and no notice.
+   */
+  onEmailExhibitor?: ((row: RegistrationNeededRow) => void) | undefined;
+  /** True once an email job exists for the entry: the button then reads Send reminder. */
+  hasEmailed?: ((entryId: string) => boolean) | undefined;
 }
 
 function classLine(entry: EntryManagementEntry): string {
@@ -60,6 +67,8 @@ export const RegistrationNeededTab: React.FC<RegistrationNeededTabProps> = ({
   unknown,
   onOpenEntry,
   onRetry,
+  onEmailExhibitor,
+  hasEmailed,
 }) => {
   const [addFor, setAddFor] = useState<Dog | null>(null);
   const [openRequested, setOpenRequested] = useState(false);
@@ -123,42 +132,61 @@ export const RegistrationNeededTab: React.FC<RegistrationNeededTabProps> = ({
         </Card>
       ) : (
         <ul className="space-y-3">
-          {rows.map(({ entry, registryId, dog }) => (
-            <li key={entry.id}>
-              <Card>
-                <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold">{entry.dogName}</span>
-                      <Badge variant="outline">{registryId} number missing</Badge>
+          {rows.map(row => {
+            const { entry, registryId, dog } = row;
+            return (
+              <li key={entry.id}>
+                <Card>
+                  <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold">{entry.dogName}</span>
+                        <Badge variant="outline">{registryId} number missing</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{entry.ownerName}</p>
+                      <p className="text-sm text-muted-foreground">{classLine(entry)}</p>
+                      {onEmailExhibitor && !entry.ownerEmail?.trim() && (
+                        <p className="text-sm text-muted-foreground">
+                          No email on file. Contact by phone.
+                        </p>
+                      )}
                     </div>
-                    <p className="text-sm text-muted-foreground">{entry.ownerName}</p>
-                    <p className="text-sm text-muted-foreground">{classLine(entry)}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      className="min-h-11"
-                      disabled={!dog}
-                      onClick={() => dog && requestNumber(dog, registryId)}
-                      aria-label={`Add registration for ${entry.dogName}`}
-                    >
-                      Add registration
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="min-h-11"
-                      onClick={() => onOpenEntry(entry)}
-                      aria-label={`Pull or withdraw ${entry.dogName}`}
-                    >
-                      Pull / Withdraw
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </li>
-          ))}
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        className="min-h-11"
+                        disabled={!dog}
+                        onClick={() => dog && requestNumber(dog, registryId)}
+                        aria-label={`Add registration for ${entry.dogName}`}
+                      >
+                        Add registration
+                      </Button>
+                      {onEmailExhibitor && entry.ownerEmail?.trim() && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="min-h-11"
+                          onClick={() => onEmailExhibitor(row)}
+                          aria-label={`${hasEmailed?.(entry.id) ? 'Send reminder' : 'Email exhibitor'} for ${entry.dogName}`}
+                        >
+                          {hasEmailed?.(entry.id) ? 'Send reminder' : 'Email exhibitor'}
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="min-h-11"
+                        onClick={() => onOpenEntry(entry)}
+                        aria-label={`Pull or withdraw ${entry.dogName}`}
+                      >
+                        Pull / Withdraw
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </li>
+            );
+          })}
         </ul>
       )}
 

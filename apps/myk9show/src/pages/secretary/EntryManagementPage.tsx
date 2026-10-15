@@ -545,6 +545,7 @@ const EntryManagementPage: React.FC = () => {
       {selectedShowId && cockpitUrl.state.tab === 'exceptions' && (
         <EntryManagementExceptionPanes
           showId={selectedShowId}
+          {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
           exception={cockpitUrl.state.exception}
           pulledEntries={pulledEntries}
           entriesUnknown={Boolean(loadError)}

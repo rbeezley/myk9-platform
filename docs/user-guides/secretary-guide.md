@@ -188,6 +188,8 @@ Pending and pulled entries sit together. Each pulled entry shows one of:
 2. Write the message and choose who it goes to — the whole show, or a class. When you open it from a show's pages, that show is already picked.
 3. Send the message.
 
+> **Registration number needed email.** An entry saved for a dog with no registration number is held. To tell the exhibitor, open **Entries → Show: Registration number needed** and choose **Email exhibitor** on the row. The email names the dog, the show and the registry, says the entry is held, and explains how to add the number: on the dog in myK9Show, or by sending it to you. Read it, then **Send** or **Skip**; nothing goes out until you send it, and it goes in one step. If the send fails, myK9Show says so at once; press **Send reminder** on the row to try again. Once an email has been sent the button reads **Send reminder**. If the exhibitor has no email on file the row reads "No email on file. Contact by phone." and has no button. Once the number is added, no further emails go out, and a send started just after is stopped. This email is not part of the **Scheduled emails** batches: your club can turn it on or off there, but it is always sent from the list, one entry at a time.
+
 ## 10 · Payments
 
 Payment status shows on every registration row in **Entries**; **Entries → Payment due** lists the ones still owing.

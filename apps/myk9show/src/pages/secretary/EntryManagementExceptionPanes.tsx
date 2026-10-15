@@ -1,7 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
 import { PullManagementTab } from '@/components/entries/PullManagementTab';
-import { RegistrationNeededTab } from '@/components/entries/RegistrationNeededTab';
+import { RegistrationNeededPane } from '@/components/entries/RegistrationNeededPane';
 import type { RegistrationNeededRow } from '@/components/entries/management/registrationNeeded';
 import type { EntryManagementException } from '@/components/entries/management/entryManagementCockpitParams';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -9,6 +9,7 @@ import WaitlistManagementPage from './WaitlistManagementPage/index';
 
 interface EntryManagementExceptionPanesProps {
   showId: string;
+  showName?: string | undefined;
   exception: EntryManagementException;
   pulledEntries: EntryManagementEntry[];
   /** The entries read failed: every list derived from it is unknown, not empty. */
@@ -32,6 +33,7 @@ interface EntryManagementExceptionPanesProps {
  */
 export function EntryManagementExceptionPanes({
   showId,
+  showName,
   exception,
   pulledEntries,
   entriesUnknown,
@@ -66,7 +68,9 @@ export function EntryManagementExceptionPanes({
       {exception === 'registration-needed' && (
         <Card>
           <CardContent className="pt-6">
-            <RegistrationNeededTab
+            <RegistrationNeededPane
+              showId={showId}
+              showName={showName}
               rows={registrationNeeded.rows}
               loading={
                 entriesLoading || (!registrationNeeded.isReady && !registrationNeeded.isError)

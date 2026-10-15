@@ -169,4 +169,82 @@ describe('RegistrationNeededTab', () => {
 
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
+  it('reads Email exhibitor with no earlier job and Send reminder once one exists', async () => {
+    const onEmailExhibitor = vi.fn();
+    const rows = [row('e1', 'Scout'), row('e2', 'Juni')];
+    rows.forEach(r => {
+      (r.entry as { ownerEmail: string }).ownerEmail = 'pat@example.com';
+    });
+    const { user } = render(
+      <RegistrationNeededTab
+        rows={rows}
+        loading={false}
+        unknown={false}
+        onOpenEntry={noop}
+        onEmailExhibitor={onEmailExhibitor}
+        hasEmailed={id => id === 'e2'}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Email exhibitor for Scout' })).toHaveTextContent(
+      'Email exhibitor'
+    );
+    expect(screen.getByRole('button', { name: 'Send reminder for Juni' })).toHaveTextContent(
+      'Send reminder'
+    );
+    expect(screen.queryByRole('button', { name: 'Send reminder for Scout' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Send reminder for Juni' }));
+
+    expect(onEmailExhibitor).toHaveBeenCalledTimes(1);
+    expect(onEmailExhibitor).toHaveBeenCalledWith(rows[1]);
+    expect(screen.queryByText('No email on file. Contact by phone.')).toBeNull();
+  });
+
+  it('reads Email exhibitor on every row when no job lookup is available', () => {
+    const only = row('e1', 'Scout');
+    (only.entry as { ownerEmail: string }).ownerEmail = 'pat@example.com';
+    render(
+      <RegistrationNeededTab
+        rows={[only]}
+        loading={false}
+        unknown={false}
+        onOpenEntry={noop}
+        onEmailExhibitor={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Email exhibitor for Scout' })).toBeInTheDocument();
+  });
+
+  it('says no email is on file, and offers no reminder, when the exhibitor has none', () => {
+    const noEmail = row('e1', 'Scout');
+    (noEmail.entry as { ownerEmail: string }).ownerEmail = '  ';
+    render(
+      <RegistrationNeededTab
+        rows={[noEmail]}
+        loading={false}
+        unknown={false}
+        onOpenEntry={noop}
+        onEmailExhibitor={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('No email on file. Contact by phone.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Send reminder|Email exhibitor/ })).toBeNull();
+  });
+
+  it('offers no reminder and no email notice while the step is off', () => {
+    render(
+      <RegistrationNeededTab
+        rows={[row('e1', 'Scout')]}
+        loading={false}
+        unknown={false}
+        onOpenEntry={noop}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: /Send reminder|Email exhibitor/ })).toBeNull();
+    expect(screen.queryByText('No email on file. Contact by phone.')).toBeNull();
+  });
 });

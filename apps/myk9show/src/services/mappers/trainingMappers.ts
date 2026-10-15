@@ -1,4 +1,5 @@
 // Training journal data mappers - transform between database and application types
+import { formatDateLocal } from '@/utils/dateLocal';
 import type {
   DbTrainingJournalEntry,
   DbTrainingJournalEntryInsert,
@@ -227,7 +228,7 @@ export const calculateTrainingStatistics = (
       .map(e => e.date)
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatDateLocal(new Date());
     const uniqueDates = Array.from(new Set(sortedDates));
 
     if (uniqueDates[0] === today || uniqueDates[0] === getPreviousDate(today)) {
@@ -255,6 +256,6 @@ export const calculateTrainingStatistics = (
 
 function getPreviousDate(dateStr: string): string {
   const d = new Date(dateStr);
-  d.setDate(d.getDate() - 1);
+  d.setUTCDate(d.getUTCDate() - 1);
   return d.toISOString().split('T')[0];
 }

@@ -4,9 +4,9 @@
  * predates the column) nothing is excluded, so labels are never withheld.
  */
 import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const state = vi.hoisted(() => ({
   held: { data: [] as Array<{ id: string }> | null, error: null as unknown },
@@ -64,6 +64,18 @@ describe('useArmbandLabelData entries awaiting a registration number', () => {
   beforeEach(() => {
     state.held = { data: [], error: null };
     state.heldGate = null;
+  });
+
+  afterEach(() => {
+    onlineManager.setOnline(true);
+  });
+
+  it('never waits forever when opened offline: the lookup runs and settles', async () => {
+    onlineManager.setOnline(false);
+    const { result } = renderHook(() => useArmbandLabelData('show-1'), { wrapper });
+
+    // The entries read is online-only and pauses; the held lookup must not.
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
 
   it('leaves the held entry out and keeps the others', async () => {

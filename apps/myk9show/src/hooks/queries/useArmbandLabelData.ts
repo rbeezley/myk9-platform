@@ -80,6 +80,10 @@ export function useArmbandLabelData(showId: string | undefined): ArmbandLabelDat
     // (refreshRegistrationReads).
     staleTime: 0,
     refetchOnMount: 'always',
+    // The lookup fails open on its own (no network: nothing held), so it must be
+    // allowed to run offline. The default 'online' mode pauses it without calling
+    // it, `isPending` never clears, and the labels wait on it forever.
+    networkMode: 'always',
   });
 
   // A disabled query (no show yet) is pending forever; it holds nothing back.

@@ -36,9 +36,12 @@ export const REGISTRATION_ORGS = [
   'Other',
 ];
 
-/** The breed-list code for a registration organization. */
+/** The breed-list code for a registration organization: its full label or a stored short code. */
 export function registrationOrgCode(organization: string): string {
-  return ORG_CODE_MAP[organization] || 'AKC';
+  return (
+    ORG_CODE_MAP[organization] ||
+    (Object.values(ORG_CODE_MAP).includes(organization) ? organization : 'AKC')
+  );
 }
 
 /** Letters, numbers, hyphens and slashes: the one shape a registration number may take. */

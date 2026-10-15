@@ -22,12 +22,17 @@ import { groupEntriesByShow } from './groupEntriesByShow';
 import { resolveWaitlistSurface, type WaitlistSurface } from './waitlistSurface';
 import type { EntryStatusFilter, EntryTabFilter, MyEntry } from './my-entries-types';
 
-/** Count the class-entry rows the grouped list actually renders (MYK9-1147). */
+/**
+ * Count the class-entry rows the grouped list actually renders (MYK9-1147).
+ * Orders are filtered first, as the list does, so a dog's class in an order the
+ * filter drops is not counted.
+ */
 export function countVisibleClassEntries(
   entries: MyEntry[],
   status: EntryStatusFilter = 'any'
 ): number {
-  return narrowDogsToStatus(groupEntriesByShow(entries), status).reduce(
+  const kept = entries.filter(entry => orderMatchesStatusFilter(entry, status));
+  return narrowDogsToStatus(groupEntriesByShow(kept), status).reduce(
     (count, group) => count + group.dogs.reduce((sum, dog) => sum + dog.classes.length, 0),
     0
   );

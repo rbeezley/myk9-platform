@@ -13,7 +13,7 @@ No new product defect was reproduced in this read-only scope. Do not reimplement
 
 ## Tests executed
 
-All commands exited0. No tests or application source were edited.
+All commands exited 0. No tests or application source were edited.
 
 From `apps/myk9show`:
 
@@ -21,13 +21,13 @@ From `apps/myk9show`:
 pnpm vitest run src/services/replication/__tests__/offlineExpiredScoreQueue.test.ts src/features/at-show/AtShowMyEntriesToday.queue.test.tsx src/features/at-show/runQueuePlacementParity.test.ts src/features/at-show/myAtShowEntryDetails.helpers.test.ts src/utils/runQueueStatusTable.test.ts
 ```
 
-Result:5 files / 76 tests. Covers expired-session queueing, same-owner upload, different-owner hold, no-owner refusal, prompt offline queueing, null/gapped display and state-only controls.
+Result: 5 files / 76 tests. Covers expired-session queueing, same-owner upload, different-owner hold, no-owner refusal, prompt offline queueing, null/gapped display and state-only controls.
 
 ```bash
 pnpm vitest run src/components/shows/tabs/WhereToBe.test.tsx src/components/shows/tabs/__tests__/DogEntriesSection.test.tsx src/components/shows/tabs/__tests__/MyEntriesTab.scheduleMessage.test.tsx src/features/_shared/__tests__/entryAccountingGrid.test.ts src/features/at-show/replicatedRunQueue.test.ts src/features/at-show/runQueuePlacementParity.test.ts src/features/emergency-trial-packet/emergencyTrialPacket.test.ts src/hooks/useShowEntriesForUser.test.ts src/lib/reports/toScoresheetModel.test.ts src/pages/ClassDetailsPage/ExhibitorClassCallout.test.tsx src/pages/ClassDetailsPage/useMyEntriesInClass.replicated.test.ts src/pages/ClassDetailsPage/useMyEntriesInClass.test.ts src/utils/runQueueStatusTable.test.ts
 ```
 
-Result:13 files / 217 tests, including the converted display/print models. Some overlap with the first run; do not sum these as a unique-test total.
+Result: 13 files / 217 tests, including the converted display/print models. Some overlap with the first run; do not sum these as a unique-test total.
 
 From `packages/replication`:
 
@@ -35,7 +35,7 @@ From `packages/replication`:
 pnpm vitest run src/MutationManager.queueOwner.test.ts
 ```
 
-Result:1 file / 3 tests, including blocked-storage fallback.
+Result: 1 file / 3 tests, including blocked-storage fallback.
 
 From `packages/ringside`:
 
@@ -43,7 +43,7 @@ From `packages/ringside`:
 pnpm vitest run src/pages/EntryList/runQueue.test.ts src/pages/EntryList/runQueue.imports.test.ts
 ```
 
-Result:2 files / 56 tests. Root `pnpm qa:dist-fresh` passed. Strict OpenSpec validation and diff/format checks passed. Broad CI remains the PR merge gate; no unrelated full local suite was repeated for this prose-only preparation.
+Result: 2 files / 56 tests. Root `pnpm qa:dist-fresh` passed. Strict OpenSpec validation and diff/format checks passed. Broad CI remains the PR merge gate; no unrelated full local suite was repeated for this prose-only preparation.
 
 ## Deployed baseline proof
 

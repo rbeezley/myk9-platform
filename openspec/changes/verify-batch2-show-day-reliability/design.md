@@ -13,7 +13,7 @@ Main baseline `7e73c5fa1`; production independently read as `28c1cb1ac` on 2026-
 ## Decisions
 
 1. Use existing production UI and established replication mutations. No new persistence path or copied scoring implementation. The evidence PR changes prose/tooling unless verification reproduces a defect.
-2. Use today’s existing Heartland demo show `dededede-0000-0000-0731-47330ec0b729`, trial `dededede-0000-0000-0731-154792ee5e03`, class `dededede-0000-0000-0731-4b5f7ece1a4e`. Read-only survey found Willow/Cooper unchanged and no Ranger entry. Owner approval is pending for exactly one disposable unpaid Ranger entry and fixture-only NULL/101 run order setup. Record its ID immediately.
+2. Use today’s existing Heartland demo show `dededede-0000-0000-0731-47330ec0b729`, trial `dededede-0000-0000-0731-154792ee5e03`, class `dededede-0000-0000-0731-4b5f7ece1a4e`. Read-only survey found Willow/Cooper unchanged and no Ranger entry. Approval was requested for one disposable unpaid Ranger entry and fixture-only NULL/101 run order setup. The owner declined those writes and selected read-only preparation. Do not create an entry under the current boundary; a future authorized run must record its ID immediately.
 3. Compare secretary, judge and fresh exhibitor context against SQL and actual replica values: checked-in unscored NULL means pending; gapped/high stored order means canonical place (never 101); in-ring/pulled/completed means state-only. Preserve prior full surface sweep and repeat focused regression tests, including run-sheet helper tests.
 4. Keep an owned judge browser genuinely offline for at least 61 minutes. Record wall-clock start/end, persisted session expiry and online state without tokens. Only after expiry, check in and score the disposable entry. Prove local IndexedDB row plus owned queue entries, unchanged server while offline, then same-user re-auth/reconnect and exact server readback with empty queue. Do not replace an auth failure with mocked success. Use distinct scoring time as a sentinel, track RPC statuses and accepted versions.
 5. Run teardown on all exits: secretary delete if permitted, otherwise pull only the disposable entry. Record any residue explicitly; compare every original Willow/Cooper field before/after and never repair unrelated rows silently. If unexpected concurrent change occurs, stop that assertion and report it.
@@ -28,7 +28,7 @@ Main baseline `7e73c5fa1`; production independently read as `28c1cb1ac` on 2026-
 
 ## Migration Plan
 
-No migration or deployment is currently needed. If a correction becomes necessary, merge a reviewed/green PR before any authorized deployment; keep issues In Progress until deployed verification passes. Commit the report and artifacts; independent review/CI/merge provide durable evidence. Archive after merge, then keep unrelated work and owned-browser cleanup intact.
+No migration or deployment is currently needed. If a correction becomes necessary, merge a reviewed/green PR before any authorized deployment; keep issues In Progress until deployed verification passes. Commit the report and artifacts; independent review/CI/merge provide durable evidence. Merging the read-only preparation PR does not permit archive. Keep the change active until all live proof and full delivery/closure tasks pass, or a specific owner-approved acceptance replacement is completed; only then archive and perform owned cleanup.
 
 ## Owner boundary — 2026-10-15
 

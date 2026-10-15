@@ -5,8 +5,8 @@
 Owner boundary: “Prepare checks without shared-data writes” (2026-10-15). Tasks 2/3 and full-batch closure are blocked under this boundary. Read-only preparation can ship independently.
 
 - [x] 1.1 Read all six In Review issues/comments, select coherent show-day pair and confirm merged fix SHAs and served build with GitHub/curl evidence.
-- [ ] 1.2 Resolve in-flight gate/manual Linear survey and record exact owner approval for disposable fixture and delegated 61-minute browser proof before shared-data writes.
-- [x] 1.3 Re-run existing expired-session and at-show queue/parity regressions; five files/76 tests pass. Package queue-owner 3/3 and canonical queue 56/56 tests also pass; original converted app/print surface tests pass13 files / 217 tests. Retain results before live proof.
+- [ ] 1.2 Blocked live prerequisite: obtain explicit fixture/browser approval before shared-data writes. The current owner chose read-only preparation; in-flight/manual path checks are already complete.
+- [x] 1.3 Re-run existing expired-session and at-show queue/parity regressions; five files/76 tests pass. Package queue-owner 3/3 and canonical queue 56/56 tests also pass; original converted app/print surface tests pass 13 files / 217 tests. Retain results before live proof.
 
 - [x] 1.4 Record the owner’s read-only boundary, prepare the exact resume procedure, walk existing secretary/judge/exhibitor views with writes blocked, compare SQL/replica, and preserve the evidence report.
 
@@ -26,12 +26,12 @@ Owner boundary: “Prepare checks without shared-data writes” (2026-10-15). Ta
 
 - [x] 4.1 Read-only run teardown: no disposable entry was created; SQL confirms Ranger count 0 and unchanged original business/version fields. Close each owned browser and verify inventory. Future live proof must still teardown its own fixture.
 - [x] 4.2 Verify completeness/correctness/coherence against both full issue descriptions, explicitly report blocked live proof, and write sanitized evidence with OpenSpec/diff/format checks. No product defect reproduced in the read-only scope.
-- [ ] 4.3 Commit/push one evidence or implementation PR; finish required review/CI, merge from primary and confirm exact merge SHA.
+- [ ] 4.3 After the authorized live proof passes, commit/push the final batch evidence or correction PR; finish required review/CI, merge from primary and confirm exact merge SHA.
 - [ ] 4.4 Re-read both full issues, post passing acceptance/release/PR evidence and mark Done only when every criterion passes.
 
 ## Workflow follow-up
 
 - Ship the read-only preparation PR through review/CI/merge; this does not fulfill the blocked full-batch delivery/closure tasks 4.3/4.4.
 
-- Archive this evidence-only change after its PR merges; no capability sync is needed unless a real implementation correction added a delta.
+- Keep this change active after the read-only preparation PR merges. Archive only after the blocked live tasks 2/3 and full delivery/closure tasks 4.3/4.4 pass, or after a specific owner-approved replacement acceptance is completed. No capability sync is needed unless a real implementation correction added a delta.
 - Preserve local screenshots/logs, stop only owned processes, and retain unrelated primary/worktree edits.

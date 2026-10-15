@@ -108,6 +108,30 @@ export class MutationManager {
     return authUserId;
   }
 
+  /**
+   * Owner stamp for a NEW queue entry (MYK9-1204). Offline past jwt_expiry the
+   * live lookup throws, which would refuse a ringside write (or, after its dirty
+   * local write, strand it unqueued). A throw falls back to the persisted
+   * account; the stamp is only a label, since upload still needs a live session
+   * for that same id, so a different sign-in holds the entry. No persisted
+   * account rethrows the live error.
+   */
+  private async requireQueueOwnerUserId(): Promise<string> {
+    // Offline, the live lookup can only fail, and only after its refresh retries
+    // back off for tens of seconds: a judge must not wait on that to score.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      const persisted = this.getCachedUserId();
+      if (typeof persisted === 'string' && persisted.trim().length > 0) return persisted;
+    }
+    try {
+      return await this.requireCurrentUserId();
+    } catch (liveError) {
+      const cached = this.getCachedUserId();
+      if (typeof cached === 'string' && cached.trim().length > 0) return cached;
+      throw liveError;
+    }
+  }
+
   private async requireSameCurrentUserId(expectedAuthUserId: string): Promise<void> {
     if ((await this.requireCurrentUserId()) !== expectedAuthUserId) {
       throw new Error('[MutationManager] Authenticated user changed during queue operation');
@@ -162,7 +186,7 @@ export class MutationManager {
   ): Promise<string> {
     const releaseQueueLock = this.acquireQueueMutationLock?.();
     try {
-      const authUserId = await this.requireCurrentUserId();
+      const authUserId = await this.requireQueueOwnerUserId();
       // Queue overflow protection
       const pendingCount = await this.getPendingCount();
       const capacity = getMutationQueueCapacity(pendingCount);

@@ -52,10 +52,18 @@ export function registrationOrgCode(organization: string): string {
 export function registrationOrgLabel(organization: string): string {
   if (REGISTRATION_ORGS.includes(organization)) return organization;
   const code = organization.trim().toLowerCase();
-  // A bare code is either a breed-list code (`AKC`) or a label's leading word (`PAL`, `ILP`).
+  if (!code) return organization;
+  // A stored value may be the label in another case, a breed-list code (`AKC`),
+  // a label's leading word (`PAL`, `ILP`) or its spelled-out name ("American
+  // Kennel Club"). The breed-list code is tried before the leading word so that
+  // `AKC` lands on the AKC label, not on ILP or PAL, which share that code.
+  const shortName = (label: string) => label.split(' (')[0]?.toLowerCase();
+  const longName = (label: string) => /\(([^)]+)\)$/.exec(label)?.[1]?.toLowerCase();
   return (
+    REGISTRATION_ORGS.find(label => label.toLowerCase() === code) ??
     REGISTRATION_ORGS.find(label => ORG_CODE_MAP[label]?.toLowerCase() === code) ??
-    REGISTRATION_ORGS.find(label => label.split(' (')[0]?.toLowerCase() === code) ??
+    REGISTRATION_ORGS.find(label => shortName(label) === code) ??
+    REGISTRATION_ORGS.find(label => longName(label) === code) ??
     organization
   );
 }

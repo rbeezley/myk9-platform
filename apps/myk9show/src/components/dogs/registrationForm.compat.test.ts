@@ -51,7 +51,10 @@ describe('stored short organization codes (MYK9-1207)', () => {
     ['akc', 'AKC (American Kennel Club)'],
     ['UKC', 'UKC (United Kennel Club)'],
     ['ASCA', 'ASCA (Australian Shepherd Club of America)'],
-    ['Other', 'Other'],
+    [' AKC ', 'AKC (American Kennel Club)'],
+    ['akc (american kennel club)', 'AKC (American Kennel Club)'],
+    ['American Kennel Club', 'AKC (American Kennel Club)'],
+    ['other', 'Other'],
     ['PAL', 'PAL (Purebred Alternative Listing)'],
     ['ilp', 'ILP (Indefinite Listing Privilege)'],
   ])('loads %s as the full label %s', (stored, label) => {
@@ -60,9 +63,9 @@ describe('stored short organization codes (MYK9-1207)', () => {
     );
   });
 
-  it('leaves a full label and an unrecognized value as stored', () => {
-    expect(registrationOrgLabel('Mixed Breed')).toBe('Mixed Breed');
+  it('leaves an unrecognized or empty value as stored', () => {
     expect(registrationOrgLabel('NACSW')).toBe('NACSW');
+    expect(registrationOrgLabel('')).toBe('');
   });
 
   it('saves the full label for a registration stored as a short code', () => {

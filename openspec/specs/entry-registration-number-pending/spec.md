@@ -1,6 +1,7 @@
 # entry-registration-number-pending Specification
 
 ## Purpose
+
 An entry a show's organizer makes for a dog that has no registration number for the trial's registry holds its capacity place, is surfaced for follow-up, and is kept off official show paperwork until a number exists.
 
 ## Requirements

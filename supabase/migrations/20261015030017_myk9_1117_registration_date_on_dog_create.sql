@@ -1,38 +1,9 @@
--- MYK9-1117: preserve the optional registration calendar date in atomic dog creation.
--- Same authorization, duplicate identity behavior, creation attribution and function ACL.
--- MYK9-1059: create_dog_with_registrations records the add-entry show.
---
--- WHY
---
---   20261009174300 added dogs.created_from_show_id (client-set on INSERT; the
---   BEFORE INSERT trigger private.guard_creation_attribution keeps it only when
---   public.can_manage_show(id) is true for the caller, otherwise NULLs it) and
---   dogs.created_by (stamped by that trigger from auth.uid()). The add-entry
---   flow now sends created_from_show_id inside p_dog, but this RPC's dogs
---   INSERT names its columns explicitly, so the key was silently ignored and a
---   dog created through the RPC never recorded its show.
---
--- WHAT CHANGES
---
---   Only the dogs INSERT: created_from_show_id is added to the column list with
---   NULLIF(p_dog->>'created_from_show_id', '')::uuid, parsed the same way as
---   p_dog's id and owner_id (a malformed uuid raises 22P02, as those do; the
---   app only ever sends a show id or nothing). An absent or empty key is NULL.
---   No validation here: the trigger already drops a show the caller cannot
---   manage, and auth.uid() inside this SECURITY DEFINER function still reads
---   the caller's JWT (asserted for created_by in
---   supabase/tests/myk9_1059_creation_attribution_test.sql). created_by is
---   deliberately NOT written here; the trigger stamps it.
---
---   Everything else is copied verbatim from the latest definition
---   (20261002191547_myk9_946_create_dog_ownership_fail_closed, identical to
---   live pg_get_functiondef on 2026-10-09 apart from whitespace): the
---   signature, SECURITY DEFINER, the empty search_path, the MYK9-946
---   fail-closed authorization, the 22023/42501/23505 error codes, the
---   duplicate-registration lookup and the registrations INSERT.
---
---   The ACL is restated as live (proacl: postgres, authenticated,
---   service_role): signed-in callers and service_role, never anon or PUBLIC.
+-- MYK9-1117: preserve optional Registration Date during atomic dog creation.
+-- Based on 20261009194100 (MYK9-1059), the latest accepted function definition.
+-- Only the registration INSERT changes: NULLIF(..., '')::date preserves the
+-- supplied calendar date, maps omitted/blank input to NULL, and rejects invalid
+-- input inside the same transaction. Authorization, duplicate identity handling,
+-- creation attribution, signature, SECURITY DEFINER and ACL remain unchanged.
 
 BEGIN;
 

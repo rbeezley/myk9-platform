@@ -40,10 +40,15 @@ insert into public.classes (id, trial_id, name, status, element, level, section)
 insert into public.show_passcodes (show_id, role, passcode_hash, created_at) values
   ('00000000-0000-0000-0000-000001162021', 'judge', 'myk9-1162-judge', '2026-10-10T00:00:00Z');
 
+-- A show never mixes registries (enforce_show_registry_on_trial), so the UKC
+-- trial gets its own UKC show.
+insert into public.shows (id, name, organization, start_date, end_date, club_id, status) values
+  ('00000000-0000-0000-0000-000001162026', 'MYK9-1162 UKC Show', 'UKC', current_date, current_date,
+   '00000000-0000-0000-0000-000001162020', 'published');
 insert into public.trials (id, show_id, name, date, registry_id, trial_type) values
   ('00000000-0000-0000-0000-000001162052', '00000000-0000-0000-0000-000001162021',
    'MYK9-1162 Conformation Trial', current_date, 'AKC', 'Conformation'),
-  ('00000000-0000-0000-0000-000001162062', '00000000-0000-0000-0000-000001162021',
+  ('00000000-0000-0000-0000-000001162062', '00000000-0000-0000-0000-000001162026',
    'MYK9-1162 UKC Trial', current_date, 'UKC', 'Scent Work');
 insert into public.classes (id, trial_id, name, status, element, level, section) values
   ('00000000-0000-0000-0000-000001162053', '00000000-0000-0000-0000-000001162052',
@@ -86,7 +91,7 @@ insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_statu
    '00000000-0000-0000-0000-000001162053', '00000000-0000-0000-0000-000001162021',
    '00000000-0000-0000-0000-000001162052', 'confirmed', '5', 1, 'no-status'),
   ('00000000-0000-0000-0000-000001162046', '00000000-0000-0000-0000-000001162036',
-   '00000000-0000-0000-0000-000001162063', '00000000-0000-0000-0000-000001162021',
+   '00000000-0000-0000-0000-000001162063', '00000000-0000-0000-0000-000001162026',
    '00000000-0000-0000-0000-000001162062', 'confirmed', '6', 1, 'no-status'),
   ('00000000-0000-0000-0000-000001162047', '00000000-0000-0000-0000-000001162037',
    '00000000-0000-0000-0000-000001162023', '00000000-0000-0000-0000-000001162021',

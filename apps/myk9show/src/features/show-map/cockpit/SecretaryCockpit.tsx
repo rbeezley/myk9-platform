@@ -63,6 +63,8 @@ export function SecretaryCockpit({
     </>
   );
   const pendingAnchor = useRef(state.anchor);
+  // Which layout the anchor was last scrolled in (null: not yet).
+  const anchorScrolledSplit = useRef<boolean | null>(null);
   // The split follows the width the cockpit is given (full page, or beside the Shows list), not
   // the window: see cockpitSplit.ts.
   const { ref: gridRef, width: gridWidth } = useElementWidth<HTMLDivElement>();
@@ -139,14 +141,18 @@ export function SecretaryCockpit({
     return () => events.forEach(name => window.removeEventListener(name, cancel, options));
   }, []);
 
+  // The first commit is unmeasured (stacked); a split cockpit re-lays out right after it, which
+  // moves the row. So the anchor stays pending until the scroll has run in the measured layout,
+  // and scrolls again if the layout changed under it.
   useEffect(() => {
     const anchor = pendingAnchor.current;
-    if (!anchor) return;
+    if (!anchor || anchorScrolledSplit.current === isSplit) return;
     const target = document.getElementById(getCockpitAnchorElementId(anchor));
     if (!target) return;
-    pendingAnchor.current = undefined;
+    anchorScrolledSplit.current = isSplit;
+    if (gridWidth !== null) pendingAnchor.current = undefined;
     target.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-  }, [model.trialGroups]);
+  }, [model.trialGroups, isSplit, gridWidth]);
 
   return (
     <div className="space-y-5" data-testid="secretary-cockpit">

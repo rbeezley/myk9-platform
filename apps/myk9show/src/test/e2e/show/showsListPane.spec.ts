@@ -101,8 +101,8 @@ test.describe('Shows list with a detail pane', () => {
     );
     await expect(page.getByRole('region', { name: 'Show', exact: true })).toBeVisible();
 
-    // Today's show is one click away in the list, and its cockpit keeps the split beside it.
-    await openFirstShow(page, 'Today');
+    // A current show is one click away in the list, and its cockpit keeps the split beside it.
+    await openShowFrom(page, ['Today', 'Upcoming']);
     await expectCockpitFollowsItsWidth(page, 'split');
   });
 

@@ -8,7 +8,10 @@ import type { SecretaryCockpitSnapshot } from '../secretaryCockpitTypes';
 
 // jsdom has no layout: feed the cockpit the width it would measure.
 // One ref object, as the real hook's is stable, so the tests can see what it is attached to.
-const cockpit = vi.hoisted(() => ({ width: 700, ref: { current: null as HTMLElement | null } }));
+const cockpit = vi.hoisted(() => ({
+  width: 700 as number | null,
+  ref: { current: null as HTMLElement | null },
+}));
 
 vi.mock('@/hooks/useElementWidth', () => ({
   useElementWidth: () => ({ ref: cockpit.ref, width: cockpit.width }),
@@ -70,6 +73,35 @@ describe('the class editor survives the split/stack switch', () => {
 
     expect(screen.getByTestId('class-editor')).toHaveTextContent('edit');
     expect(screen.getByTestId('cockpit-split-focus')).toBeInTheDocument();
+  });
+
+  it('scrolls a returning anchor again once the measured layout splits', () => {
+    const scrollIntoView = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      cockpit.width = null;
+      const route = '/shows/show-1?focus=class-1&anchor=class-1';
+      const { rerender } = render(
+        <SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />,
+        { initialRoute: route }
+      );
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+      // The layout effect measures the grid: split now, and the row has moved.
+      cockpit.width = 1000;
+      rerender(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />);
+      expect(screen.getByTestId('cockpit-split-focus')).toBeInTheDocument();
+      expect(scrollIntoView).toHaveBeenCalledTimes(2);
+
+      // Measured and scrolled: later renders leave the page where the secretary is.
+      rerender(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />);
+      cockpit.width = 700;
+      rerender(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />);
+      expect(scrollIntoView).toHaveBeenCalledTimes(2);
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
   });
 
   it.each([

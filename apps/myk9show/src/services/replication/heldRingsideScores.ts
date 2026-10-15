@@ -3,8 +3,9 @@
  *
  * A passcode judge whose anonymous session cannot be resumed re-enters the
  * passcode and becomes a NEW anonymous user; owner isolation then holds the old
- * user's queued scores. With the owner's yes, the new session adopts them for the
- * show its validated claim covers (rules in packages/replication mutation-adopt.ts).
+ * user's queued scores. Once the new passcode has validated online, this device's
+ * scores for that show are adopted silently, so they upload under the re-validated
+ * claim (rules in packages/replication mutation-adopt.ts).
  *
  * The show and the new owner come from the LIVE session's server-stamped claim,
  * never from a caller, so there is no way to ask for another show's scores. The
@@ -12,6 +13,7 @@
  */
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/services/database/supabaseClient';
+import { logger } from '@/utils/logger';
 import { mutationManager } from './sharedMutationManager';
 import { RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
 import { RINGSIDE_CLASS_RPC_FUNCTION } from './ringsideClassRpc';
@@ -27,48 +29,25 @@ function readPasscodeClaim(session: Session | null): { userId: string; showId: s
   return claim.show_id ? { userId: user.id, showId: claim.show_id } : null;
 }
 
-async function currentClaim(): Promise<{ userId: string; showId: string } | null> {
+/**
+ * Adopt this device's held scores for the live passcode claim's show, then
+ * request an upload. Call it, without awaiting, right after a passcode validated
+ * online. A pure service call: it needs no component, so it survives the page
+ * that started it unmounting. Never throws; a failure only warns, and the scores
+ * stay held for the next passcode entry.
+ */
+export async function adoptHeldRingsideScoresForLiveClaim(): Promise<number> {
   try {
     const { data } = await supabase.auth.getSession();
-    return readPasscodeClaim(data.session);
-  } catch {
-    return null;
-  }
-}
-
-/** Held scores the live claim's show could adopt, with that show, or null when there is none. */
-export async function getHeldRingsideScores(): Promise<{ count: number; showId: string } | null> {
-  const claim = await currentClaim();
-  if (!claim) return null;
-  try {
-    const count = await mutationManager.countAdoptableHeldMutations({
+    const claim = readPasscodeClaim(data.session);
+    if (!claim) return 0;
+    return await mutationManager.adoptHeldMutations({
       showId: claim.showId,
       toAuthUserId: claim.userId,
       rpcNames: ADOPTABLE_RPCS,
     });
-    return { count, showId: claim.showId };
-  } catch {
-    return null;
+  } catch (error) {
+    logger.warn('[ringside] adopting held scores failed', 'replication', { error: String(error) });
+    return 0;
   }
-}
-
-/** How many held scores from an earlier session this device could adopt right now. */
-export async function countHeldRingsideScores(): Promise<number> {
-  return (await getHeldRingsideScores())?.count ?? 0;
-}
-
-/**
- * Adopt them and request an upload. Returns how many moved; throws on failure.
- * `offeredShowId` is the show the owner agreed to: if the live claim has moved to
- * another show since (another tab validated a different passcode), nothing is
- * adopted, so scores outside the consented show never upload.
- */
-export async function adoptHeldRingsideScores(offeredShowId: string): Promise<number> {
-  const claim = await currentClaim();
-  if (!claim || claim.showId !== offeredShowId) return 0;
-  return mutationManager.adoptHeldMutations({
-    showId: claim.showId,
-    toAuthUserId: claim.userId,
-    rpcNames: ADOPTABLE_RPCS,
-  });
 }

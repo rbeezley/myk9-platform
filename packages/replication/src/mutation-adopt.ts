@@ -1,5 +1,5 @@
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
-import type { PendingMutation, ReplicatedRow, ReplicationConflictSnapshot } from './types';
+import type { PendingMutation } from './types';
 
 /**
  * Adoption of held ringside scores by a fresh anonymous (passcode) session
@@ -16,8 +16,8 @@ import type { PendingMutation, ReplicatedRow, ReplicationConflictSnapshot } from
  *  - stamped `ownerIsAnonymous` at enqueue: a signed-in account's work, and rows
  *    queued before the stamp existed, are never adoptable;
  *  - stamped with the SAME `showId` the new claim covers;
- *  - the replica rows those mutations target move with them (see
- *    adoptHeldMutationsInStore);
+ *  - the replica rows those mutations target move with them, through their
+ *    tables (MutationManager.adoptHeldMutations);
  *  - only the named ringside RPCs, which the server authorizes per row against
  *    the claim. Adoption changes the label on a row, nothing the server checks:
  *    show claim and OCC version still decide every upload.
@@ -46,50 +46,34 @@ export function isAdoptableHeldMutation(
   );
 }
 
-export async function countAdoptableHeldMutations(
+/** The held mutations this session may adopt right now, read from the queue. */
+export async function findAdoptableHeldMutations(
   options: AdoptHeldMutationsOptions
-): Promise<number> {
+): Promise<PendingMutation[]> {
   const db = await databaseManager.getDatabase('MutationManager');
   const pending = (await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)) as PendingMutation[];
-  return pending.filter(mutation => isAdoptableHeldMutation(mutation, options)).length;
+  return pending.filter(mutation => isAdoptableHeldMutation(mutation, options));
 }
 
 /**
- * Re-owns the adoptable queue rows AND the replica rows they target, in ONE
- * transaction across both stores (they share a database). Returns how many
- * mutations moved, and the conflict snapshots of the rows that moved so the caller
- * can re-surface them (the auth-time scan ran while they were invisible).
- *
- * Account-owned replica rows are read by owner: a row left with the dead session
- * would be invisible to the new one, including a conflicted row (its conflict
- * snapshot is never cleared here), and an upload that hit a conflict could not be
- * resolved. Only the rows the adopted mutations name move, and only when the row
- * is owned by the SAME dead anonymous owner as the mutation.
+ * Re-owns the queue rows `ids` in ONE transaction, each only if it is still
+ * adoptable (a row that drained or changed since it was found is skipped).
+ * Returns how many moved. The replica rows they target are moved BEFORE this, by
+ * their tables (see OwnerTransferRegistry and MutationManager.adoptHeldMutations).
  */
 export async function adoptHeldMutationsInStore(
-  options: AdoptHeldMutationsOptions
-): Promise<{ adopted: number; conflicts: ReplicationConflictSnapshot[] }> {
+  options: AdoptHeldMutationsOptions,
+  ids: ReadonlySet<string>
+): Promise<number> {
   const db = await databaseManager.getDatabase('MutationManager');
-  const tx = db.transaction(
-    [REPLICATION_STORES.PENDING_MUTATIONS, REPLICATION_STORES.REPLICATED_TABLES],
-    'readwrite'
-  );
-  const queue = tx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS);
-  const replica = tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES);
-  const rows = (await queue.getAll()) as PendingMutation[];
+  const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
+  const rows = (await tx.store.getAll()) as PendingMutation[];
   let adopted = 0;
-  const conflicts: ReplicationConflictSnapshot[] = [];
   for (const row of rows) {
-    if (!isAdoptableHeldMutation(row, options)) continue;
-    const replicaRow = (await replica.get([row.tableName, row.rowId])) as
-      ReplicatedRow<unknown> | undefined;
-    if (replicaRow && replicaRow.ownerAuthUserId === row.authUserId) {
-      await replica.put({ ...replicaRow, ownerAuthUserId: options.toAuthUserId });
-      if (replicaRow.conflict) conflicts.push(replicaRow.conflict as ReplicationConflictSnapshot);
-    }
-    await queue.put({ ...row, authUserId: options.toAuthUserId });
+    if (!ids.has(row.id) || !isAdoptableHeldMutation(row, options)) continue;
+    await tx.store.put({ ...row, authUserId: options.toAuthUserId });
     adopted++;
   }
   await tx.done;
-  return { adopted, conflicts };
+  return adopted;
 }

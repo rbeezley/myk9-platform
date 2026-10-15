@@ -73,7 +73,7 @@ vi.mock('@/services/database/persistedAuthUserId', () => ({
 }));
 
 import { mutationManager } from '../sharedMutationManager';
-import { adoptHeldRingsideScores, countHeldRingsideScores } from '../heldRingsideScores';
+import { adoptHeldRingsideScoresForLiveClaim } from '../heldRingsideScores';
 import { setDeviceOnline } from './registrationQueueHarness';
 
 let tokenCounter = 0;
@@ -409,7 +409,7 @@ describe('D. passcode ringside (anonymous session with a show claim)', () => {
   });
 });
 
-describe('E. a fresh passcode session adopts held scores for the same show, after a yes (MYK9-1205)', () => {
+describe("E. a fresh passcode session adopts this device's held scores for its show, silently (MYK9-1205)", () => {
   /** anon-1 (show-x claim) queues e1 + e2 (show-x) and e3 (show-y); a signed-in judge queues e4 (show-x). */
   async function strandQueueThenReenterPasscode(claimShow = 'show-x'): Promise<string> {
     signIn('anon-1', { anonymous: true, claimShow: 'show-x' });
@@ -424,22 +424,21 @@ describe('E. a fresh passcode session adopts held scores for the same show, afte
   }
   const ownerOf = async () =>
     Object.fromEntries((await pending()).map(row => [row.rowId, row.authUserId]));
+  const allHeld = { e1: 'anon-1', e2: 'anon-1', e3: 'anon-1', e4: 'judge-1' };
 
-  it('counts only anonymous-owned scores for the claimed show, and sends nothing before a yes', async () => {
+  it('holds everything until the passcode has validated (nothing is adopted by signing in alone)', async () => {
     await strandQueueThenReenterPasscode();
-
-    expect(await countHeldRingsideScores()).toBe(2);
     await mutationManager.uploadPendingMutations();
 
     expect(fake.rpcCalls).toEqual([]);
-    expect(await ownerOf()).toEqual({ e1: 'anon-1', e2: 'anon-1', e3: 'anon-1', e4: 'judge-1' });
+    expect(await ownerOf()).toEqual(allHeld);
     expect(await mutationManager.getPendingCount()).toBe(4);
   });
 
-  it('uploads the adopted scores on the NEW token after a yes; other shows and signed-in owners stay held', async () => {
+  it('uploads anon-1 show scores on the NEW token with no user action; other shows and signed-in owners stay held', async () => {
     const token = await strandQueueThenReenterPasscode();
 
-    expect(await adoptHeldRingsideScores('show-x')).toBe(2);
+    expect(await adoptHeldRingsideScoresForLiveClaim()).toBe(2);
     await mutationManager.uploadPendingMutations();
 
     expect(sentTo(fake.rpcCalls)).toEqual([
@@ -447,56 +446,26 @@ describe('E. a fresh passcode session adopts held scores for the same show, afte
       [token, 'e2'],
     ]);
     expect(await ownerOf()).toEqual({ e3: 'anon-1', e4: 'judge-1' });
-    expect(await countHeldRingsideScores()).toBe(0);
     expect(await failed()).toEqual([]);
   });
 
-  it('leaves everything held and counted after a no, and can still be offered later', async () => {
-    await strandQueueThenReenterPasscode();
-
-    // No adopt call: that is "Not now". Held, visible, and still offerable.
-    await mutationManager.uploadPendingMutations();
-    expect(fake.rpcCalls).toEqual([]);
-    expect(await countHeldRingsideScores()).toBe(2);
-    expect(await ownerOf()).toEqual({ e1: 'anon-1', e2: 'anon-1', e3: 'anon-1', e4: 'judge-1' });
-
-    // Changing their mind later (the banner's Review) still works.
-    expect(await adoptHeldRingsideScores('show-x')).toBe(2);
-  });
-
-  it('adopts for the show the NEW claim covers, never another', async () => {
+  it('adopts for the show the LIVE claim covers, never another', async () => {
     const token = await strandQueueThenReenterPasscode('show-y');
 
-    expect(await countHeldRingsideScores()).toBe(1);
-    expect(await adoptHeldRingsideScores('show-y')).toBe(1);
+    expect(await adoptHeldRingsideScoresForLiveClaim()).toBe(1);
     await mutationManager.uploadPendingMutations();
 
     expect(sentTo(fake.rpcCalls)).toEqual([[token, 'e3']]);
     expect(await ownerOf()).toEqual({ e1: 'anon-1', e2: 'anon-1', e4: 'judge-1' });
   });
 
-  it('adopts nothing outside the show the owner agreed to, if the live claim moved on meanwhile', async () => {
-    await strandQueueThenReenterPasscode();
-    expect(await countHeldRingsideScores()).toBe(2);
-    // Another tab validates show-y's passcode while the question for show-x is open.
-    signOutSession();
-    signIn('anon-2', { anonymous: true, claimShow: 'show-y' });
-
-    expect(await adoptHeldRingsideScores('show-x')).toBe(0);
-    await mutationManager.uploadPendingMutations();
-
-    expect(fake.rpcCalls).toEqual([]);
-    expect(await ownerOf()).toEqual({ e1: 'anon-1', e2: 'anon-1', e3: 'anon-1', e4: 'judge-1' });
-  });
-
-  it('adopts nothing for a signed-in account, even one holding the same show', async () => {
+  it('adopts nothing for a signed-in account, or with no live session', async () => {
     await strandQueueThenReenterPasscode();
     signOutSession();
+    expect(await adoptHeldRingsideScoresForLiveClaim()).toBe(0);
     signIn('judge-2');
-
-    expect(await countHeldRingsideScores()).toBe(0);
-    expect(await adoptHeldRingsideScores('show-x')).toBe(0);
-    expect(await ownerOf()).toEqual({ e1: 'anon-1', e2: 'anon-1', e3: 'anon-1', e4: 'judge-1' });
+    expect(await adoptHeldRingsideScoresForLiveClaim()).toBe(0);
+    expect(await ownerOf()).toEqual(allHeld);
   });
 
   it('never adopts a row queued before the stamps existed, a dead letter, or a non-ringside mutation', async () => {
@@ -519,28 +488,38 @@ describe('E. a fresh passcode session adopts held scores for the same show, afte
       showId: 'show-x',
     });
 
-    expect(await adoptHeldRingsideScores('show-x')).toBe(0);
+    expect(await adoptHeldRingsideScoresForLiveClaim()).toBe(0);
     expect(fake.rpcCalls.filter(call => call.token === token)).toEqual([]);
     expect((await failed()).map(row => [row.id, row.authUserId])).toEqual([
       ['dead-letter', 'anon-1'],
     ]);
   });
 
-  it("does not count the new session's own scores, a different RPC, or a row not in the pending state", async () => {
+  it("does not take the new session's own scores, a different RPC, or a row not in the pending state", async () => {
     await strandQueueThenReenterPasscode();
     await queueScore('own');
     const db = await databaseManager.getDatabase('MutationManager');
     const rows = await pending();
     const e1 = rows.find(row => row.rowId === 'e1') as PendingMutation;
     const e2 = rows.find(row => row.rowId === 'e2') as PendingMutation;
-    // e1 is a ringside-looking write to some OTHER function; e2 is not in the pending state.
     await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
       ...e1,
       rpc: { name: 'mark_classes_judge_signed_off', args: {} },
     });
     await db.put(REPLICATION_STORES.PENDING_MUTATIONS, { ...e2, status: 'failed' });
 
-    expect(await countHeldRingsideScores()).toBe(0);
-    expect(await adoptHeldRingsideScores('show-x')).toBe(0);
+    expect(await adoptHeldRingsideScoresForLiveClaim()).toBe(0);
+  });
+
+  it('never throws when adopting fails: it warns and the scores stay held', async () => {
+    await strandQueueThenReenterPasscode();
+    const adopt = vi
+      .spyOn(mutationManager, 'adoptHeldMutations')
+      .mockRejectedValueOnce(new Error('Authenticated user changed during queue operation'));
+
+    await expect(adoptHeldRingsideScoresForLiveClaim()).resolves.toBe(0);
+
+    adopt.mockRestore();
+    expect(await ownerOf()).toEqual(allHeld);
   });
 });

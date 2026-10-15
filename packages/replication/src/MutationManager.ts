@@ -25,10 +25,11 @@ import { DiscardRevertRegistry } from './mutation-discard-revert';
 import { RowRefetchRegistry } from './mutation-row-refetch';
 import {
   adoptHeldMutationsInStore,
-  countAdoptableHeldMutations,
+  findAdoptableHeldMutations,
   type AdoptHeldMutationsOptions,
 } from './mutation-adopt';
-import { type PendingMutation, type SyncResult } from './types';
+import { OwnerTransferRegistry } from './mutation-owner-transfer';
+import { type PendingMutation, type ReplicationConflictSnapshot, type SyncResult } from './types';
 import type { MutationManagerOptions, MutationUploadAuthContext } from './mutation-manager-options';
 export type { MutationManagerOptions, MutationUploadAuthContext } from './mutation-manager-options';
 
@@ -53,6 +54,8 @@ export class MutationManager {
   /** Per-table hooks: re-fetch on a stale OCC token (MYK9-771), revert on Discard (MYK9-1076). */
   readonly rowRefetchers: RowRefetchRegistry;
   readonly discardReverters: DiscardRevertRegistry;
+  /** Per-table replica-row ownership transfer for adoption (MYK9-1205). */
+  readonly ownerTransfers = new OwnerTransferRegistry();
 
   constructor(supabaseClient: SupabaseClient, options: MutationManagerOptions = {}) {
     if (!supabaseClient) throw new Error('[MutationManager] Supabase client is required');
@@ -240,12 +243,6 @@ export class MutationManager {
     return this.queueStore.getPendingCount();
   }
 
-  /** Held ringside scores the current session could adopt for this show (MYK9-1205). */
-  async countAdoptableHeldMutations(options: AdoptHeldMutationsOptions): Promise<number> {
-    await this.requireSameCurrentUserId(options.toAuthUserId);
-    return countAdoptableHeldMutations(options);
-  }
-
   /**
    * Re-own anonymous-owned pending ringside scores for one show to the current
    * (anonymous) session, then upload. Narrow rules: see mutation-adopt.ts.
@@ -258,7 +255,7 @@ export class MutationManager {
     // INSIDE it, immediately before ownership is rewritten.
     const { adopted, conflicts } = await this.uploadRunner.runExclusive(async () => {
       await this.requireSameCurrentUserId(options.toAuthUserId);
-      return adoptHeldMutationsInStore(options);
+      return this.adoptUnderLock(options);
     });
     if (adopted === 0) return 0;
     // Conflicted rows were invisible to this owner when the auth-time scan ran:
@@ -284,6 +281,35 @@ export class MutationManager {
     }
     this.scheduleUpload();
     return adopted;
+  }
+
+  /**
+   * Replica rows first, then the queue. A crash or failure between the two leaves
+   * rows the new owner can see while their mutations stay held: nothing uploads,
+   * the score is still shown, and a retry converges because both steps are
+   * idempotent (a row already moved is no longer the dead owner's; the queue step
+   * re-checks each mutation). The other order could let a mutation upload while
+   * its row stayed invisible to its owner.
+   */
+  private async adoptUnderLock(
+    options: AdoptHeldMutationsOptions
+  ): Promise<{ adopted: number; conflicts: ReplicationConflictSnapshot[] }> {
+    const targets = await findAdoptableHeldMutations(options);
+    const byTableAndOwner = new Map<string, { table: string; from: string; ids: string[] }>();
+    for (const mutation of targets) {
+      const from = mutation.authUserId as string;
+      const key = `${mutation.tableName}\u0000${from}`;
+      const group = byTableAndOwner.get(key) ?? { table: mutation.tableName, from, ids: [] };
+      group.ids.push(mutation.rowId);
+      byTableAndOwner.set(key, group);
+    }
+    const conflicts: ReplicationConflictSnapshot[] = [];
+    for (const { table, from, ids } of byTableAndOwner.values()) {
+      const transfer = this.ownerTransfers.get(table);
+      if (transfer) conflicts.push(...(await transfer(ids, from, options.toAuthUserId)));
+    }
+    const adopted = await adoptHeldMutationsInStore(options, new Set(targets.map(m => m.id)));
+    return { adopted, conflicts };
   }
 
   /** This user's queued mutations for one row, or (ForTable, MYK9-762) a whole table. */

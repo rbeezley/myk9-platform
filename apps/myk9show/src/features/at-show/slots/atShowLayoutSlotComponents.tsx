@@ -26,7 +26,6 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useReplicationContainment } from '@/hooks/useReplicationContainment';
 import { cn } from '@/lib/utils';
-import { HeldRingsideScoresBanner } from '../HeldRingsideScores';
 import { badgeClass, getSyncLabel, getSyncTier } from './atShowChrome.helpers';
 
 export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ backNavigation, className }) => {
@@ -317,7 +316,6 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
 export const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, className }) => (
   <div className={cn('at-show-pull-to-refresh', className)}>
     <ContainmentBanner className="mb-2" />
-    <HeldRingsideScoresBanner className="mb-2" />
     {children}
   </div>
 );

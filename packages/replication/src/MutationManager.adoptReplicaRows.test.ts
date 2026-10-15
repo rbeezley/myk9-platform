@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ReplicatedTable } from './core/ReplicatedTable';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
+import { NOTIFY_DEBOUNCE_MS } from './constants';
 import { MutationManager } from './MutationManager';
 import type { ReplicationConflictSnapshot, SyncResult } from './types';
 
@@ -166,5 +167,47 @@ describe('adoption moves the replica rows with the queue (MYK9-1205)', () => {
       .filter(event => event.type === 'replication:conflict');
     expect(conflictEvents.map(event => event.detail.rowId)).toEqual(['conflicted']);
     expect(conflictEvents[0]?.detail).toMatchObject({ fields: ['name'], remoteServerVersion: 3 });
+  });
+
+  it('tells a mounted table subscriber about the adopted rows, offline, so the list shows them', async () => {
+    await queue('plain');
+    user = 'anon-2';
+    // Let earlier writes' debounced notifications settle, so only adoption can notify now.
+    await new Promise(resolve => setTimeout(resolve, NOTIFY_DEBOUNCE_MS + 100));
+    const seen: string[][] = [];
+    const unsubscribe = table.subscribe(rows => seen.push(rows.map(r => r.id).sort()));
+    try {
+      await vi.waitFor(() => expect(seen.length).toBeGreaterThan(0));
+      expect(seen.at(-1)).not.toContain('plain');
+      const before = seen.length;
+
+      await manager.adoptHeldMutations({
+        showId: 'show-x',
+        toAuthUserId: 'anon-2',
+        rpcNames: RPCS,
+      });
+
+      await vi.waitFor(() => expect(seen.length).toBeGreaterThan(before));
+      expect(seen.at(-1)).toContain('plain');
+      expect(seen.at(-1)).not.toContain('theirs');
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it('is idempotent across a half-finished adoption: moved rows stay moved, the queue converges', async () => {
+    await queue('plain');
+    user = 'anon-2';
+    // Replica step ran, queue step never did (crash between the two).
+    await table.transferRowOwnership(['plain'], 'anon-1', 'anon-2');
+
+    await manager.adoptHeldMutations({ showId: 'show-x', toAuthUserId: 'anon-2', rpcNames: RPCS });
+
+    const row = await table.getReplicatedRowIncludingOtherAccounts('plain');
+    expect(row?.ownerAuthUserId).toBe('anon-2');
+    const db = await databaseManager.getDatabase('MutationManager');
+    expect((await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).map(m => m.authUserId)).toEqual([
+      'anon-2',
+    ]);
   });
 });

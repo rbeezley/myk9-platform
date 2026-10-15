@@ -57,6 +57,12 @@ vi.mock('./ringsideAnonSession', () => ({
   startAnonymousRingsideSession: (...args: unknown[]) => startAnonymousRingsideSessionMock(...args),
 }));
 
+// Held-score adoption (MYK9-1205) is a fire-and-forget service call.
+const adoptHeldScoresMock = vi.fn<() => Promise<number>>();
+vi.mock('@/services/replication/heldRingsideScores', () => ({
+  adoptHeldRingsideScoresForLiveClaim: () => adoptHeldScoresMock(),
+}));
+
 let mockUser: { id: string; is_anonymous?: boolean } | null = null;
 const signInMock = vi.fn();
 const signInWithGoogleMock = vi.fn();
@@ -76,6 +82,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
 describe('SmartSignInPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    adoptHeldScoresMock.mockResolvedValue(0);
     mockUser = null;
     signInMock.mockReset();
     signInWithGoogleMock.mockReset();
@@ -265,6 +272,32 @@ describe('SmartSignInPage', () => {
     await user.click(screen.getByRole('button', { name: /continue with apple/i }));
 
     expect(signInWithAppleMock).toHaveBeenCalledWith('/shows/show-1/register');
+  });
+
+  it.each([
+    { name: 'adopts held scores for the new claim', adopt: () => Promise.resolve(2) },
+    { name: 'never waits on a slow adoption', adopt: () => new Promise<number>(() => {}) },
+    {
+      name: 'is not blocked by a failing adoption',
+      adopt: () => Promise.reject(new Error('boom')),
+    },
+  ])('anonymous passcode $name and still routes straight to ringside', async ({ adopt }) => {
+    adoptHeldScoresMock.mockImplementation(adopt);
+    startAnonymousRingsideSessionMock.mockResolvedValue({
+      ok: true,
+      role: 'judge',
+      showId: 'show-x',
+      showName: 'Spring Trial',
+    });
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    await user.type(screen.getByTestId('credential-input'), 'j9f3b');
+    await user.click(screen.getByTestId('continue-button'));
+    await user.click(screen.getByTestId('passcode-continue-button'));
+
+    await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-x'));
+    expect(adoptHeldScoresMock).toHaveBeenCalledTimes(1);
   });
 
   it('anonymous passcode validates and routes straight to ringside', async () => {

@@ -31,6 +31,7 @@ import type {
 } from '@/features/exhibitor-entry/submittedEntryProjection';
 import { isCheckInStatus, type CheckInStatus } from '@myk9/core';
 import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
+import { compareClassSchedule } from '@/features/_shared/classScheduleOrder';
 
 export interface EnrichedShowEntry {
   entryId: string;
@@ -227,8 +228,10 @@ export function mergeCanonicalEntry(
 }
 
 function compareByTime(a: EnrichedShowEntry, b: EnrichedShowEntry): number {
-  if (a.trialDate !== b.trialDate) return a.trialDate.localeCompare(b.trialDate);
-  return a.startTime.localeCompare(b.startTime);
+  return compareClassSchedule(
+    { day: a.trialDate, time: a.startTime },
+    { day: b.trialDate, time: b.startTime }
+  );
 }
 
 interface ClassNameFields {

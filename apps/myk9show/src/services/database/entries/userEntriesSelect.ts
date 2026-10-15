@@ -72,6 +72,7 @@ const USER_ENTRIES_SELECT_BASE = `
         id,
         name,
         class_number,
+        start_time,
         trial:trial_id (
           id,
           name,

@@ -244,6 +244,7 @@ export function useMyEntriesData({
       id: string;
       name: string;
       class_number?: string;
+      start_time?: string | null;
       trial?: EntryRowTrial | null;
     } | null;
     // Discipline gates the jump-height field. Prefer entries.trial_id, but fall
@@ -306,6 +307,7 @@ export function useMyEntriesData({
         number: classData?.class_number || '',
         fee: (entry.entry_fee as number) || 0,
         trialDate,
+        startTime: classData?.start_time || undefined,
         trialName,
         trialNumber,
         trialTimezone,

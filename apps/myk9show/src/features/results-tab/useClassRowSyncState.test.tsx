@@ -219,4 +219,35 @@ describe('useClassRowSyncState', () => {
     expect(result.current).toBe('waiting');
     expect(spy).toHaveBeenCalledTimes(7);
   });
+
+  it('a read that settles after unmount sets no state (MYK9-1203)', async () => {
+    let settle: (value: null) => void = () => {};
+    vi.spyOn(replicatedClassesTable, 'getReplicatedRow').mockImplementation(
+      () =>
+        new Promise(resolve => {
+          settle = resolve;
+        })
+    );
+    vi.spyOn(replicatedClassesTable, 'hasUnsyncedLocalWork').mockResolvedValue(false);
+    const rejections: unknown[] = [];
+    const onRejection = (reason: unknown) => {
+      rejections.push(reason);
+    };
+    process.on('unhandledRejection', onRejection);
+    try {
+      const { unmount } = renderHook(() => useClassRowSyncState('class-a'));
+      await waitFor(() => expect(replicatedClassesTable.getReplicatedRow).toHaveBeenCalled());
+      unmount();
+
+      // CI tears jsdom down before a late read settles; any setState then throws.
+      vi.stubGlobal('window', undefined);
+      settle(null);
+      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 0));
+    } finally {
+      vi.unstubAllGlobals();
+      process.off('unhandledRejection', onRejection);
+    }
+    expect(rejections).toEqual([]);
+  });
 });

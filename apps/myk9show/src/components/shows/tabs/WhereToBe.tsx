@@ -6,7 +6,7 @@ import { formatRunQueueState } from '@myk9/ringside/run-queue';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
 import { useMyEntryQueuePlaces, type QueuePlaces } from '@/hooks/queries/useMyEntryQueuePlaces';
 import { useShowTrials } from '@/hooks/queries/useShowTrials';
-import { isTrialDayPast } from '@/pages/MyEntriesPage/modules/dayCheckIn';
+import { isTrialDayAhead, isTrialDayPast } from '@/pages/MyEntriesPage/modules/dayCheckIn';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { withServerPlace } from '@/utils/showEntryRunQueue';
 import { formatFaultCount } from '@/features/_shared/faultLabel';
@@ -105,25 +105,43 @@ function neverRan(entry: EnrichedShowEntry, trialTimezone: string | undefined): 
   return isTrialDayPast(parseLocalDateString(entry.trialDate), trialTimezone, new Date());
 }
 
+/**
+ * MYK9-1173: a trial day still ahead in the trial's own zone makes no
+ * place-in-line claim ("Next up" is about right now). Same zone rule as
+ * `neverRan`: no resolved zone, no claim.
+ */
+function isFutureDay(entry: EnrichedShowEntry, trialTimezone: string | undefined): boolean {
+  if (!trialTimezone) return false;
+  return isTrialDayAhead(parseLocalDateString(entry.trialDate), trialTimezone, new Date());
+}
+
 function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps) {
   const href = `/shows/${showId}/trials/${entry.trialId}/classes/${entry.classId}`;
   const accessibleTimeLabel = entry.startTime || 'schedule details pending';
   // MYK9-992: place in line or the dog's state, never the stored run number.
   // MYK9-995: the place is the server's count; offline it stays the state.
-  const queue = withServerPlace(entry.queue, places.get(entry.entryId));
   const didNotRun = neverRan(entry, trialTimezone);
+  const futureDay = !didNotRun && isFutureDay(entry, trialTimezone);
+  const queue = futureDay ? undefined : withServerPlace(entry.queue, places.get(entry.entryId));
   const positionLabel = didNotRun
     ? 'Not run'
-    : queue
-      ? formatRunQueueState(queue)
-      : isRunnableScheduleStatus(entry.entryStatus)
-        ? 'Order not set yet'
-        : null;
+    : futureDay
+      ? null
+      : queue
+        ? formatRunQueueState(queue)
+        : isRunnableScheduleStatus(entry.entryStatus)
+          ? 'Order not set yet'
+          : null;
   const checkInLabel = didNotRun
     ? null
     : entry.checkInStatus
       ? entry.checkInStatus === 'no-status'
-        ? 'Not checked in'
+        ? // MYK9-1173: a future day makes no claim at all. Whether check-in will
+          // be offered (status, self check-in) is My Shows' call, so saying
+          // "Check in on the day" here could contradict it.
+          futureDay
+          ? null
+          : 'Not checked in'
         : getStatusDescriptor('entry', entry.checkInStatus).label
       : 'Check-in pending';
 
@@ -131,7 +149,14 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
     <Link
       to={href}
       className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-3 transition-colors hover:bg-muted/70"
-      aria-label={`${entry.classTitle} — ${entry.dayLabel} ${accessibleTimeLabel} — ${[positionLabel, checkInLabel].filter(Boolean).join(' — ')}`}
+      aria-label={[
+        entry.classTitle,
+        `${entry.dayLabel} ${accessibleTimeLabel}`.trim(),
+        positionLabel,
+        checkInLabel,
+      ]
+        .filter(Boolean)
+        .join(' — ')}
     >
       {(entry.startTime || entry.armband) && (
         <span className="flex w-28 shrink-0 flex-col gap-1">

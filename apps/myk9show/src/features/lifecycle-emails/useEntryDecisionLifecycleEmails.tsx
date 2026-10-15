@@ -275,7 +275,7 @@ export function useEntryDecisionLifecycleEmails({
         try {
           const jobId = prompt.jobId ?? (await saveReadyJob(prompt, values));
           if (!jobId) throw new Error('Lifecycle email job was not created');
-          await sendLifecycleEmailJobs({
+          const result = await sendLifecycleEmailJobs({
             supabase,
             showId: prompt.entry.showId,
             jobIds: [jobId],
@@ -283,9 +283,16 @@ export function useEntryDecisionLifecycleEmails({
             body: values.body,
             secretaryNote: values.secretaryNote,
           });
-          toast.success(
-            prompt.correctionForJobId ? 'Correction email sent' : 'Decision email sent'
-          );
+          // The send handler answers 200 even when delivery fails; the job stays on the list.
+          if (result.failed > 0) {
+            toast.error(
+              "The decision email couldn't be sent. It's still on the list to send again."
+            );
+          } else {
+            toast.success(
+              prompt.correctionForJobId ? 'Correction email sent' : 'Decision email sent'
+            );
+          }
           invalidateLifecycleEmailQueries();
           setPrompt(null);
         } catch {

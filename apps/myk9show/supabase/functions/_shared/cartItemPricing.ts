@@ -19,6 +19,12 @@ export interface PricingShow {
   junior_handler_fee: number | string | null;
   /** shows.organization; a declaration is honored on no ASCA show. */
   organization?: string | null | undefined;
+  /**
+   * The show's IANA zone (MYK9-1198), from `showTimeZoneFromTrials` over the
+   * show's trials. Required so no caller can price on a UTC day by omission;
+   * null falls back to America/New_York.
+   */
+  timezone: string | null;
 }
 
 export interface CartItemForPricing {
@@ -106,6 +112,7 @@ export function priceExistingEntryCents(
       classEntryFee,
       showJuniorHandlerFee: show.junior_handler_fee,
       showOrganization: show.organization,
+      showTimeZone: show.timezone,
       juniorDeclared: storedEntryJuniorFlag(entry),
       nowIso,
     })
@@ -140,6 +147,7 @@ export function priceCartItems(
         classEntryFee: item.class_entry_fee,
         showJuniorHandlerFee: show.junior_handler_fee,
         showOrganization: show.organization,
+        showTimeZone: show.timezone,
         juniorDeclared: cartItemJuniorFlag(item, stored),
         nowIso,
       })

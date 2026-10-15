@@ -24,8 +24,9 @@ describe('stripe-checkout entry-window gate', () => {
   });
 
   it('compares calendar days in the show timezone', () => {
-    expect(source).toContain('calendarDateInTz');
-    expect(source).toContain('timeZone: tz');
+    // The formatter lives in _shared/showTimeZone.ts (MYK9-1198), where
+    // authoritativeFee.showZone.test.ts runs it.
+    expect(source).toContain('calendarDateInTimeZone(new Date(), showTz)');
     // "now" is the local date; the deadline is the date read in UTC
     expect(source).toContain('const todayLocal =');
     expect(source).toContain("'UTC'");
@@ -34,8 +35,11 @@ describe('stripe-checkout entry-window gate', () => {
   });
 
   it('resolves the show timezone from the primary trial with a default', () => {
-    expect(source).toContain(".from('trials')");
-    expect(source).toContain("tzRow?.timezone || 'America/New_York'");
+    // MYK9-1198: read with the show, chosen by the submit_show_entries rule
+    // (first by date, undated last, then id; America/New_York fallback), which
+    // showTimeZoneFromTrials implements and authoritativeFee.showZone.test.ts runs.
+    expect(source).toContain('trials(id, date, timezone)');
+    expect(source).toContain('const showTz = showTimeZoneFromTrials(');
   });
 
   it('still fails closed with 403 when the window is closed', () => {

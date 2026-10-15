@@ -121,7 +121,8 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   {
     pkgDir: '.',
     script: 'qa:sql:behavioral:test',
-    command: 'vitest run scripts/qa/run-behavioral-sql-tests.test.ts',
+    command:
+      'vitest run scripts/qa/run-behavioral-sql-tests.test.ts scripts/qa/run-sql-local.test.ts',
   },
   {
     pkgDir: '.',

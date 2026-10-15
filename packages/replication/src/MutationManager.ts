@@ -82,16 +82,12 @@ export class MutationManager {
    * expired token and, offline, retries that with backoff for tens of seconds,
    * which guarded IndexedDB reads must not wait on. The live lookup answers only
    * when nothing is persisted. For readers that branch on "unresolved" instead
-   * of failing; never for queue ownership, which stays on `requireCurrentUserId`.
+   * of failing. Queue ownership uses `requireQueueOwnerUserId` (MYK9-1204).
    */
   async resolveCurrentUserId(): Promise<string | null> {
     const usable = (id: unknown): id is string => typeof id === 'string' && id.trim().length > 0;
-    try {
-      const cached = this.getCachedUserId();
-      if (usable(cached)) return cached;
-    } catch {
-      // Fall through to the live lookup.
-    }
+    const cached = this.readCachedUserId();
+    if (cached) return cached;
     try {
       const live = await this.getCurrentUserId();
       return usable(live) ? live : null;
@@ -120,15 +116,29 @@ export class MutationManager {
     // Offline, the live lookup can only fail, and only after its refresh retries
     // back off for tens of seconds: a judge must not wait on that to score.
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      const persisted = this.getCachedUserId();
-      if (typeof persisted === 'string' && persisted.trim().length > 0) return persisted;
+      const persisted = this.readCachedUserId();
+      if (persisted) return persisted;
     }
     try {
       return await this.requireCurrentUserId();
     } catch (liveError) {
-      const cached = this.getCachedUserId();
-      if (typeof cached === 'string' && cached.trim().length > 0) return cached;
+      const cached = this.readCachedUserId();
+      if (cached) return cached;
       throw liveError;
+    }
+  }
+
+  /**
+   * The persisted session's user id, or null. Never throws: a blocked storage
+   * getter (browser privacy settings) must fall through to the live session,
+   * which Supabase can still hold in memory.
+   */
+  private readCachedUserId(): string | null {
+    try {
+      const cached = this.getCachedUserId();
+      return typeof cached === 'string' && cached.trim().length > 0 ? cached : null;
+    } catch {
+      return null;
     }
   }
 

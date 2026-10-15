@@ -181,6 +181,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
           refetchDirtyRowsById(this, getAdapter(), rowIds)
         )
       : undefined;
+    this.unregisterOwnerTransfer?.();
+    this.unregisterOwnerTransfer = manager.ownerTransfers?.register(
+      this.tableName,
+      (ids, from, to) => this.transferRowOwnership(ids, from, to)
+    );
     this.unregisterDiscardReverter?.();
     this.unregisterDiscardReverter = this.revertsOnDiscard
       ? manager.discardReverters.register(this.tableName, {
@@ -191,6 +196,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   private unregisterRowRefetcher: (() => void) | undefined;
+  private unregisterOwnerTransfer: (() => void) | undefined;
   private unregisterDiscardReverter: (() => void) | undefined;
 
   /**
@@ -284,6 +290,26 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * The show a ringside RPC mutation on this row belongs to, stamped at enqueue
+   * so a fresh passcode session can adopt it (MYK9-1205). Defaults to the stored
+   * row's own show id; tables whose rows reach a show another way override it.
+   * Undefined means the mutation is never adoptable, the safe default.
+   */
+  protected async resolveMutationShowId(rowId: string): Promise<string | undefined> {
+    try {
+      const db = await databaseManager.getDatabase(this.tableName);
+      const row = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+        this.tableName,
+        String(rowId),
+      ])) as ReplicatedRow<Record<string, unknown>> | undefined;
+      const showId = row?.data?.showId ?? row?.data?.show_id;
+      return typeof showId === 'string' && showId.length > 0 ? showId : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
    * Queue a mutation for upload to Supabase.
    * Subclasses call this after set() with the Supabase-format payload.
    */
@@ -345,7 +371,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
         serverVersion,
         rpc,
         !deferUpload,
-        rowRevision
+        rowRevision,
+        rpc ? await this.resolveMutationShowId(rowId) : undefined
       );
       queueSucceeded = true;
       return mutationId;
@@ -1334,6 +1361,35 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   protected async notifyListeners(): Promise<void> {
     return this.cacheManager.notifyListeners();
+  }
+
+  /**
+   * Hand rows to another owner (MYK9-1205: a fresh passcode session adopting the
+   * held scores of a dead one). Only a row currently owned by `from` moves; its
+   * data, version, dirty flag, sync status and conflict snapshot are kept as they
+   * are. Idempotent: a row already moved is no longer `from`'s. Notifies
+   * subscribers like every other write, so a mounted list shows the rows at once.
+   * @returns the conflict snapshots of the rows that moved.
+   */
+  async transferRowOwnership(
+    ids: readonly string[],
+    from: string,
+    to: string
+  ): Promise<ReplicationConflictSnapshot<T>[]> {
+    const db = await this.init();
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const moved: ReplicationConflictSnapshot<T>[] = [];
+    let movedRows = 0;
+    for (const id of new Set(ids.map(String))) {
+      const row = (await tx.store.get([this.tableName, id])) as ReplicatedRow<T> | undefined;
+      if (!row || row.ownerAuthUserId !== from) continue;
+      await tx.store.put({ ...row, ownerAuthUserId: to });
+      movedRows++;
+      if (row.conflict) moved.push(row.conflict);
+    }
+    await tx.done;
+    if (movedRows > 0) await this.notifyListeners();
+    return moved;
   }
 
   async estimateTotalSize(): Promise<number> {

@@ -78,6 +78,11 @@ test('canonical queue positions and state-only controls agree across roles (MYK9
           const secRow = secretaryRow(secretary.page, 'Willow');
           const ringRow = judgeRow(judge.page, 'Willow');
           const ownRow = exhibitor.page.getByTestId(`at-show-my-entry-${f.willowId}`);
+          if (scenario.name === 'pulled')
+            await judge.page
+              .locator('summary')
+              .filter({ hasText: /^Not running \(1\)$/ })
+              .click();
           if (scenario.name === 'completed')
             await judge.page.getByRole('button', { name: /^Completed/ }).click();
           for (const entryRow of [secRow, ringRow, ownRow]) {

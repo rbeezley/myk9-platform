@@ -250,6 +250,10 @@ export class MutationManager {
    */
   async adoptHeldMutations(options: AdoptHeldMutationsOptions): Promise<number> {
     await this.requireSameCurrentUserId(options.toAuthUserId);
+    // A backup restore in flight is what puts evicted scores back into the queue:
+    // adopting first would find none and strand them under the dead session.
+    // Outside the lock, because a restore may itself wait on an upload.
+    while (this.restoreInFlight) await this.restoreInFlight.catch(() => undefined);
     // Under the upload lock: a pass must not read rows mid-rewrite. The session
     // can change while this waits for the lock, so the identity is checked again
     // INSIDE it, immediately before ownership is rewritten.
@@ -543,14 +547,17 @@ export class MutationManager {
   async restoreMutationsFromLocalStorage(): Promise<void> {
     if (this.restoreInFlight) return this.restoreInFlight;
 
-    // Never restore a stale backup into a queue that is being flushed. The
-    // flush owns deletion and its pass-level backup; restore follows it.
-    // A failed upload must not prevent startup/reconnect recovery from running.
-    // The upload caller still receives the rejection; restore can inspect the
-    // durable queue and retry on its own.
-    if (this.uploadInFlight) await this.uploadInFlight.catch(() => undefined);
-
-    const restore = this.backupStore.restore();
+    // restoreInFlight must cover the wait on an upload too, so adoption cannot
+    // slip between the two and find an empty queue.
+    const restore = (async () => {
+      // Never restore a stale backup into a queue that is being flushed. The
+      // flush owns deletion and its pass-level backup; restore follows it.
+      // A failed upload must not prevent startup/reconnect recovery from running.
+      // The upload caller still receives the rejection; restore can inspect the
+      // durable queue and retry on its own.
+      if (this.uploadInFlight) await this.uploadInFlight.catch(() => undefined);
+      await this.backupStore.restore();
+    })();
     this.restoreInFlight = restore;
     try {
       await restore;

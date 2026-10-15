@@ -1369,7 +1369,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * data, version, dirty flag, sync status and conflict snapshot are kept as they
    * are. Idempotent: a row already moved is no longer `from`'s. Notifies
    * subscribers like every other write, so a mounted list shows the rows at once.
-   * @returns the conflict snapshots of the rows that moved.
+   * @returns the conflict snapshots of the rows that moved, plus those of rows
+   * already owned by `to` (a resumed adoption).
    */
   async transferRowOwnership(
     ids: readonly string[],
@@ -1382,6 +1383,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     let movedRows = 0;
     for (const id of new Set(ids.map(String))) {
       const row = (await tx.store.get([this.tableName, id])) as ReplicatedRow<T> | undefined;
+      // A row already `to`'s with a conflict is a half-finished adoption (the
+      // queue step failed after this one): hand its snapshot back so the retry
+      // re-surfaces it instead of leaving uploads conflict-blocked and silent.
+      if (row?.ownerAuthUserId === to && row.conflict) moved.push(row.conflict);
       if (!row || row.ownerAuthUserId !== from) continue;
       await tx.store.put({ ...row, ownerAuthUserId: to });
       movedRows++;

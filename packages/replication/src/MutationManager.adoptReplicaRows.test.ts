@@ -210,4 +210,34 @@ describe('adoption moves the replica rows with the queue (MYK9-1205)', () => {
       'anon-2',
     ]);
   });
+
+  it('re-surfaces the conflict of a row already transferred by a half-finished adoption', async () => {
+    await queue('conflicted');
+    const row = (await table.getReplicatedRowIncludingOtherAccounts('conflicted'))!;
+    await table.markConflict('conflicted', snapshot('conflicted', row.version), 3);
+    user = 'anon-2';
+    // The replica step ran and the queue step then failed: the row is already anon-2's.
+    await table.transferRowOwnership(['conflicted'], 'anon-1', 'anon-2');
+    const dispatch = vi.fn();
+    vi.stubGlobal('window', { dispatchEvent: dispatch });
+
+    try {
+      await manager.adoptHeldMutations({
+        showId: 'show-x',
+        toAuthUserId: 'anon-2',
+        rpcNames: RPCS,
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    const db = await databaseManager.getDatabase('MutationManager');
+    expect((await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).map(m => m.authUserId)).toEqual([
+      'anon-2',
+    ]);
+    const conflictEvents = dispatch.mock.calls
+      .map(([event]) => event as CustomEvent)
+      .filter(event => event.type === 'replication:conflict');
+    expect(conflictEvents.map(event => event.detail.rowId)).toEqual(['conflicted']);
+  });
 });

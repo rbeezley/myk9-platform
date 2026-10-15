@@ -55,23 +55,34 @@ describe('run-sql-local.sh', () => {
     expect(result.calls).toEqual(['--version']);
   });
 
-  it('destroys the stack when a step fails and keeps the failing exit code', () => {
-    const result = runWithFakeCli('2.121.0', 'db');
+  it('rebuilds a fresh dedicated stack and destroys it when a step fails', () => {
+    const result = runWithFakeCli('2.121.0', 'start');
     expect(result.status).toBe(7);
-    expect(result.calls[1]).toMatch(/^start --workdir .+ --runtime native --exclude /);
-    expect(result.calls[2]).toMatch(/^db reset --workdir .+ --local --no-seed$/);
-    expect(result.calls.at(-1)).toMatch(/^stack destroy --workdir .+ --yes$/);
+    expect(result.calls[1]).toMatch(/^stack destroy --workdir .+ --stack qa-sql-local --yes$/);
+    expect(result.calls[2]).toMatch(
+      /^start --workdir .+ --stack qa-sql-local --runtime native --exclude /
+    );
+    expect(result.calls.at(-1)).toBe(result.calls[1]);
+  });
+
+  // A worktree's default stack may hold someone's development data; only the
+  // named qa-sql-local stack is ever started, reset or destroyed.
+  it('never touches the default project stack', () => {
+    const { calls } = runWithFakeCli('2.121.0', 'start');
+    for (const call of calls.slice(1)) {
+      expect(call).toMatch(/--stack qa-sql-local/);
+    }
   });
 
   it('fails the run when the stack cannot be destroyed', () => {
-    // `db` fails too, so the run stops before the real SQL test scripts.
-    const result = runWithFakeCli('2.121.0', 'stack', 'db');
+    // `start` fails too, so the run stops before the real SQL test scripts.
+    const result = runWithFakeCli('2.121.0', 'stack', 'start');
     expect(result.status).toBe(7);
     expect(result.stderr).toContain('stack destroy failed');
   });
 
   it('never targets the linked project', () => {
-    const { calls } = runWithFakeCli('2.121.0', 'db');
+    const { calls } = runWithFakeCli('2.121.0', 'start');
     for (const call of calls) {
       expect(call).not.toMatch(/--linked|\bpush\b|--db-url|--project-ref/);
     }

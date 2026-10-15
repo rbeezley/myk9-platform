@@ -112,21 +112,29 @@ CI's `sql-tests` job stays the authoritative gate.
 
 - refuses a CLI older than 2.121.0 with an upgrade message (`SUPABASE_BIN`
   points it at a CLI that is not on `PATH`, such as a downloaded release);
-- starts a native stack for the worktree (`SUPABASE_EXPERIMENTAL_STACK=1`,
-  `--runtime native`, the native exclude list), then `db reset --local --no-seed`;
+- owns a dedicated stack named `qa-sql-local`, never the worktree's default
+  stack, so a development stack you started yourself keeps its data. It
+  destroys any leftover `qa-sql-local` stack first, then starts it fresh
+  (`SUPABASE_EXPERIMENTAL_STACK=1`, `--runtime native`, the native exclude
+  list); a new stack applies every migration on start, and with no
+  `seed.sql` that equals CI's `start` + `db reset --no-seed`. `db reset` has no
+  `--stack` flag, so it is not used (Codex review of #3055 caught the earlier
+  version resetting and destroying the default stack);
 - runs CI's steps by calling the same scripts: `run-behavioral-sql-tests.sh`,
   `class-absent-mutation.ts`, `run-financial-sql-tests.sh`;
-- runs `stack destroy --yes` on success, failure or Ctrl-C, and fails the run
+- runs `stack destroy --stack qa-sql-local --yes` on success, failure or Ctrl-C, and fails the run
   if that teardown fails (a leaked stack holds port 54322);
 - never passes `--linked`, `db push` or a remote URL.
-  `scripts/qa/run-sql-local.test.ts` pins the version gate, the teardown and
-  the absence of linked-project flags against a stub CLI.
+  `scripts/qa/run-sql-local.test.ts` pins the version gate, the teardown, the
+  named stack and the absence of linked-project flags against a stub CLI.
 
-Evidence on the dev Mac with the v2.121.0 release: green on `main`
+Evidence on the dev Mac with the v2.121.0 release: green on this branch
 (693 migrations, 153 behavioral files, mutation proof, financial assertions)
-in 49 s with a warm download cache, and red when a scratch migration dropped
+in 73 s with a warm download cache; red when a scratch migration dropped
 `trg_enforce_show_publish_gate` (`show_publish_gate_trigger_test.sql` failed,
-stack destroyed, exit non-zero).
+stack destroyed, exit 3); and with the worktree's own default stack already
+running, the run stopped at `start` ("Public port 54322 … is in use") and
+the default stack survived.
 
 Not done, deliberately: steps 3 and 4 and the two-worktrees-at-once test. The
 stack uses the fixed `config.toml` ports because the runners accept only

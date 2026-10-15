@@ -2,34 +2,30 @@
 
 ## Context
 
-Main baseline `7e73c5fa1`; production independently read as `28c1cb1ac` on 2026-10-15. Both contain #3040, #2727 and #2824. The actual engine regression exercises replicatedEntriesTable/shared MutationManager over fake IndexedDB with only auth and transport replaced; it covers expired-session queueing, same-owner upload, different-owner hold and no-owner refusal. Existing queue render/parity tests cover null, gaps and state-only controls. Fresh five-file/76-test run passes.
+The full criteria and prior proof are recorded in Linear and docs/qa/batch2-show-day-verification.md. Shared read-only preparation passed in #3047. The owner now explicitly authorizes the remaining proof in an isolated environment, with closure conditional on complete passing evidence.
 
 ## Goals / Non-Goals
 
-**Goals:** close MYK9-1204 and MYK9-992 only after their full deployed proof gates pass. Preserve the judge’s fast scoring rhythm, the secretary’s reliable list and truthful exhibitor queue text.
+Goals: preserve real browser auth/queue/SQL boundaries, prove the two issues, and keep all shared application data unchanged. Preserve judge rhythm, secretary reliability and truthful exhibitor queue text.
 
-**Non-goals:** new product surfaces, auth/permission policy changes, payments, messages, modifying seed Willow/Cooper, completing/releasing the class, or silently replacing real offline time with mocked time.
+Non-goals: production deployment/data, new product UI, modified JWT policy, live payments/messages or a synthetic replacement for the natural expiry interval.
 
 ## Decisions
 
-1. Use existing production UI and established replication mutations. No new persistence path or copied scoring implementation. The evidence PR changes prose/tooling unless verification reproduces a defect.
-2. Use today’s existing Heartland demo show `dededede-0000-0000-0731-47330ec0b729`, trial `dededede-0000-0000-0731-154792ee5e03`, class `dededede-0000-0000-0731-4b5f7ece1a4e`. Read-only survey found Willow/Cooper unchanged and no Ranger entry. Approval was requested for one disposable unpaid Ranger entry and fixture-only NULL/101 run order setup. The owner declined those writes and selected read-only preparation. Do not create an entry under the current boundary; a future authorized run must record its ID immediately.
-3. Compare secretary, judge and fresh exhibitor context against SQL and actual replica values: checked-in unscored NULL means pending; gapped/high stored order means canonical place (never 101); in-ring/pulled/completed means state-only. Preserve prior full surface sweep and repeat focused regression tests, including run-sheet helper tests.
-4. Keep an owned judge browser genuinely offline for at least 61 minutes. Record wall-clock start/end, persisted session expiry and online state without tokens. Only after expiry, check in and score the disposable entry. Prove local IndexedDB row plus owned queue entries, unchanged server while offline, then same-user re-auth/reconnect and exact server readback with empty queue. Do not replace an auth failure with mocked success. Use distinct scoring time as a sentinel, track RPC statuses and accepted versions.
-5. Run teardown on all exits: secretary delete if permitted, otherwise pull only the disposable entry. Record any residue explicitly; compare every original Willow/Cooper field before/after and never repair unrelated rows silently. If unexpected concurrent change occurs, stop that assertion and report it.
+1. Use the existing `qa:isolated-e2e:prepare` lifecycle on a fresh GitHub Actions VM. It starts/reset/seeds local Supabase and exports matching loopback build/API configuration. Reuse the canonical show-day seed and its assigned judge/Willow/Cooper entries; changing those rows is allowed only in this disposable database. Do not use the prior shared fixture IDs as a write target.
+2. Fail closed before mutations with `resolveIsolatedE2eTarget`: only local allowlisted project, matching build/API loopback origins. Use runner-generated passwords, no shared Supabase/Stripe/email credentials. Block browser external HTTP requests and container public egress. Use native WebSockets derived from the verified loopback build configuration, assert every observed socket URL is loopback, and count received frames across the offline interval; do not proxy sockets through Node. Service workers are disabled in this suite so they cannot bypass Playwright routing. This covers an already-loaded scoring page, not offline cold boot/PWA cache behavior.
+3. Add a dedicated manual workflow/config rather than adding 61 minutes to both ordinary regression passes. The PR runs the new workflow against its exact source, with concurrency keyed by source SHA and cancellation disabled; future workflow_dispatch can repeat it. The existing schedule is untouched. Cleanup always stops the disposable target; never deploy anything.
+4. Fixture setup uses service-role writes to this local target only. Set high/gapped or NULL run_order and actual check-in/score states, then use fresh role browser contexts and real reads. A ringside pulled check-in state is distinct from withdrawn/scratched entry lifecycle filtering. Scope every state/no-raw-number assertion to Willow’s actual row. Verify 1/2 positions in the real hand-placement list and terminal rows in its read-only sections without choosing any mutation. Test pending/place text and state-only controls without inventing a second queue ordering rule.
+5. Preload the real judge scoresheet, record source SHA/session identity/expiry and server baseline, go truly offline with context.setOffline, wait at least61 real minutes using a monotonic timer, then score through UI. Prove the local row and queue owner, server unchanged while offline, then reconnect and verify same-user refresh/upload, final values and empty queue. No intercepted success, mocked session, artificial expiry or clock is accepted as this proof. Existing engine controls cover different-owner hold and no-owner refusal.
+6. Preserve only synthetic evidence with credentials scrubbed and verified before upload; no traces/videos or auth state artifacts. Keep incomplete tasks and failures truthful. Close only after full criteria pass and reviewed/green harness is merged. Archive only after passing verification, merge and tracker closure; never because the earlier preparation PR merged.
 
 ## Risks / Trade-offs
 
-- Shared database → require exact owner approval before fixture writes; enforce entry/class/dog scope, no money or notifications. Store credentials only in existing env; logs redact passwords and never include tokens.
-- Browser/service worker or refresh can invalidate the proof → record served SHA, expiry, monotonic interval, queue and SQL readback; maintain a real foreground-owned session through the hour and re-auth same account when necessary.
-- Local queued data could be lost in teardown → never close/clear judge storage until upload and server readback are confirmed, or explicitly preserve pending evidence and report the blocked cleanup.
-- A different user must never receive the queue → current engine regression must pass; browser sign-in stays on the same judge ID.
-- Scope is already fixed → do not invent code changes just to create a fix PR. A real failure gets assertion-first coverage and the normal review/deploy gates.
+- New isolation setup can fail before tests → report setup versus product failures distinctly and retain diagnostics; do not mark a skipped/undiscovered test passing.
+- Natural expiry takes time →120-minute job budget,75-minute test budget, progress each minute, no retries. Earlier failed attempts are not passing evidence.
+- Queue upload can fail → capture durable queue and server state before teardown; the disposable VM prevents shared residue. Never infer upload from an optimistic label.
+- Latest main may change → record exact source and merge base, integrate relevant changes before final review and preserve unrelated work.
 
 ## Migration Plan
 
-No migration or deployment is currently needed. If a correction becomes necessary, merge a reviewed/green PR before any authorized deployment; keep issues In Progress until deployed verification passes. Commit the report and artifacts; independent review/CI/merge provide durable evidence. Merging the read-only preparation PR does not permit archive. Keep the change active until all live proof and full delivery/closure tasks pass, or a specific owner-approved acceptance replacement is completed; only then archive and perform owned cleanup.
-
-## Owner boundary — 2026-10-15
-
-Owner response to the exact fixture/offline-proof approval request: **“Prepare checks without shared-data writes.”** This supersedes the pending approval in the original plan. Only read-only preparation/evidence is authorized now. No disposable entry, run-order change, score/check-in, 61-minute score-upload proof, or substitute closure acceptance was authorized. Preserve the original live tasks as blocked and keep both issues In Progress. Ship the read-only preparation records; do not archive the unfinished change or claim either issue closed.
+No migration/deployment to shared infrastructure. Only the disposable runner applies existing migrations/seeds. On any product defect, obtain assertion-first coverage, use appropriate full validation and independent review, then release only through the existing authorized workflow. The verification harness itself ships through PR/review/CI/merge.

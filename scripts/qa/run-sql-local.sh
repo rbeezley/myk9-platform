@@ -57,8 +57,36 @@ for port in "${SUPABASE_DB_PORT:-}" "${SUPABASE_API_PORT:-}"; do
   fi
 done
 
+# Exit 0 when this worktree has a stack named $STACK, 1 when it has none, and
+# 2 when `stack list` fails or prints something unparseable. Reads the CLI's
+# JSON rather than matching error text, which the CLI may reformat.
+stack_exists() {
+  local listing
+  listing="$("$SUPABASE" stack list --workdir "$REPO_ROOT" --output-format json)" || return 2
+  printf '%s' "$listing" | node -e '
+    let raw = "";
+    process.stdin.on("data", chunk => (raw += chunk)).on("end", () => {
+      try {
+        const [root, name] = process.argv.slice(1);
+        const { stacks } = JSON.parse(raw);
+        process.exit(stacks.some(s => s.project_root === root && s.name === name) ? 0 : 1);
+      } catch {
+        process.exit(2);
+      }
+    });
+  ' "$REPO_ROOT" "$STACK"
+}
+
+# Succeeds only when the stack is gone afterwards, so a surviving stack is
+# never resumed with an old schema or leaked holding the port.
 destroy_stack() {
-  "$SUPABASE" stack destroy --workdir "$REPO_ROOT" --stack "$STACK" --yes >/dev/null 2>&1
+  local found=0
+  stack_exists || found=$?
+  case "$found" in
+    0) "$SUPABASE" stack destroy --workdir "$REPO_ROOT" --stack "$STACK" --yes >/dev/null ;;
+    1) return 0 ;;
+    *) echo "FAIL: could not read '$SUPABASE stack list' output." >&2; return 1 ;;
+  esac
 }
 
 stack_started=0
@@ -86,7 +114,10 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 # A `qa-sql-local` stack left by a killed run would be resumed, not rebuilt.
-destroy_stack || true
+if ! destroy_stack; then
+  echo "FAIL: could not remove a leftover '$STACK' stack; it would be resumed instead of rebuilt." >&2
+  exit 1
+fi
 
 port_in_use() {
   (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null

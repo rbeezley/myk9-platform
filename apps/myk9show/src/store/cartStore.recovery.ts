@@ -1,3 +1,5 @@
+import { currentCalendarDate } from '@/features/_shared/isDayOfShowEntry';
+import { getTrialTimezone } from '@/features/registries';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 
@@ -16,7 +18,35 @@ export interface RecoverableEntryRow {
   show_pre_entry_fee: number | string | null;
   show_day_of_show_fee: number | string | null;
   show_start_date: string | null;
+  /**
+   * IANA zone of the show's first trial (MYK9-1198). "Show day" is decided in
+   * the show's zone; absent or invalid falls back to America/New_York, the same
+   * default `submit_show_entries` and `stripe-checkout` use.
+   */
+  show_timezone?: string | null | undefined;
 }
+
+interface ShowTrialZoneRow {
+  id: string;
+  date: string | null;
+  timezone: string | null;
+}
+
+/**
+ * The show's zone is its FIRST trial's, ordered as the server orders it
+ * (`ORDER BY t.date NULLS LAST, t.id` in `submit_show_entries`).
+ */
+const firstTrialTimezone = (trials: ShowTrialZoneRow[] | null | undefined): string | null => {
+  const [first] = [...(trials ?? [])].sort((a, b) => {
+    if (a.date !== b.date) {
+      if (a.date == null) return 1;
+      if (b.date == null) return -1;
+      return a.date < b.date ? -1 : 1;
+    }
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+  return first?.timezone ?? null;
+};
 
 export const RECOVERABLE_ENTRY_STATUSES = [
   'pending',
@@ -39,9 +69,14 @@ const getNormalEntryFeeCents = (entry: RecoverableEntryRow): number => {
   const preEntryFee = parseFeeDollars(entry.show_pre_entry_fee);
   const dayOfShowFee = parseFeeDollars(entry.show_day_of_show_fee);
   const showStartDate = entry.show_start_date?.slice(0, 10);
-  const todayUtc = new Date().toISOString().slice(0, 10);
+  // MYK9-1198: the fee switches at midnight where the show is held, the same
+  // for every exhibitor whatever their device zone.
+  const todayInShowZone = currentCalendarDate(
+    new Date(),
+    getTrialTimezone({ timezone: entry.show_timezone })
+  );
 
-  if (showStartDate && todayUtc >= showStartDate && dayOfShowFee != null) {
+  if (showStartDate && todayInShowZone >= showStartDate && dayOfShowFee != null) {
     return Math.round(dayOfShowFee * 100);
   }
   if (preEntryFee != null) return Math.round(preEntryFee * 100);
@@ -124,7 +159,7 @@ export const findRecoverableEntries = async ({
     .from('entries')
     .select(
       `id, class_id, dog_id, handler_id, entry_fee, jump_height, special_requests,
-       class:classes(entry_fee), show:shows(pre_entry_fee, day_of_show_fee, start_date)`
+       class:classes(entry_fee), show:shows(pre_entry_fee, day_of_show_fee, start_date, trials(id, date, timezone))`
     )
     .in('id', explicitEntryIds)
     .eq('show_id', showId)
@@ -157,6 +192,7 @@ export const findRecoverableEntries = async ({
         show_pre_entry_fee: showRow?.pre_entry_fee ?? null,
         show_day_of_show_fee: showRow?.day_of_show_fee ?? null,
         show_start_date: showRow?.start_date ?? null,
+        show_timezone: firstTrialTimezone(showRow?.trials),
       } as RecoverableEntryRow;
     })
   );

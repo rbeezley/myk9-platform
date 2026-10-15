@@ -338,7 +338,7 @@ if [ "$WITHDRAW" = 1 ]; then
   # nothing objected to. Gated on WITHDRAW alone (not HAS_REVIEW_LOG) so this
   # is true for EVERY reviewer token, including owner/none — REQUIRES_LOG
   # above already guaranteed a non-empty $LOG by the time we get here.
-  if ! review_text_matches "$REVIEW_FINDING_BULLET" "$VERDICT_BLOCK"; then
+  if ! review_has_findings "$VERDICT_BLOCK"; then
     echo "post-review-gate: log does not support withdrawing '$VERDICT' (it carries no [P*] bullets); nothing posted" >&2
     exit 2
   fi
@@ -356,7 +356,7 @@ fi
 # ("Codex unavailable, no review was run") is still accepted — only a
 # findings-laden log under a clean verdict is refused.
 if [ "$LOG_SUPPLIED" = 1 ] && [ "$WITHDRAW" != 1 ]; then
-  if review_text_matches "$REVIEW_FINDING_BULLET" "$VERDICT_BLOCK"; then
+  if review_has_findings "$VERDICT_BLOCK"; then
     echo "post-review-gate: log does not support '$VERDICT' (it still carries [P*] bullets); nothing posted" >&2
     exit 2
   fi

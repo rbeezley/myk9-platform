@@ -3,6 +3,13 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import {
+  CLEAN_WITH_NOISE,
+  NEGATED_CLEAN_FORMS,
+  REVIEW_3003,
+  CLEAN_OPENING_WITH_FINDINGS_ARRAY,
+  NEGATED_OPENING_ONLY,
+} from './review-3003-fixture';
 
 /**
  * The poster is the ONLY writer of `Review gate:` evidence comments, so it gets
@@ -138,6 +145,11 @@ describe('post-review-gate.sh', () => {
     'No actionable verdict is available; only one file has been inspected.\n',
     'No issues found in this diff.\n',
     'Summary of changes.\n\nNo actionable defects found.\n',
+    // MYK9-1209: the #3003 review, and negated forms of the contract sentence.
+    REVIEW_3003,
+    ...NEGATED_CLEAN_FORMS,
+    NEGATED_OPENING_ONLY,
+    CLEAN_OPENING_WITH_FINDINGS_ARRAY,
   ])(
     'refuses "no findings" over a log that did not complete or still carries findings: %j',
     text => {
@@ -147,6 +159,17 @@ describe('post-review-gate.sh', () => {
       expect(r.code).toBe(2);
       expect(r.out).toMatch(/log does not support/);
       expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    }
+  );
+
+  it.each(CLEAN_WITH_NOISE)(
+    'accepts "no findings" over a clean log with JSON or caveats: %j',
+    text => {
+      const gh = stubGh();
+      const log = logFile(text);
+      expect(run(['42', 'codex', '0a2020c7a', '5af9af158', 'no findings', log], gh.bin).code).toBe(
+        0
+      );
     }
   );
 

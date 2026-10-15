@@ -151,10 +151,12 @@ already listening, after any leftover `qa-sql-local` stack is destroyed.
 config.toml's 54321/54322 stay as they are for plain `supabase start`, so a
 worktree's own default stack no longer blocks the run either.
 
-Evidence on the dev Mac with the v2.121.0 release: two worktrees ran
-`run-sql-local.sh` at the same moment (db ports 41211 and 41145), both green
-(153 behavioral files, mutation proof, financial assertions) in 84 s, and
-`stack list` was empty afterwards.
+Evidence on the dev Mac with the v2.121.0 release: with this worktree's own
+default stack already running on 54322, two worktrees ran `run-sql-local.sh`
+at the same moment (db ports 41211 and 41145). Both went green (all
+migrations, 153 behavioral files, the four-signature mutation proof, financial
+assertions) in 27 s, both `qa-sql-local` stacks were destroyed, and the default
+stack was still answering on 54322 afterwards.
 
 ## Testing phase
 

@@ -16,6 +16,7 @@ import {
   updateLifecycleEmailStepEnabled,
   LifecycleSendPartialError,
   type LifecycleEmailJobReview,
+  type LifecycleSendResult,
   type LifecycleEmailSupabaseClient,
 } from './api';
 import type { LifecycleEmailStepSummary } from './readModel';
@@ -162,6 +163,11 @@ function ScheduledEmailStepRow({
   );
 }
 
+function unsentMessage({ sent, failed, total }: LifecycleSendResult): string {
+  const [verb, pronoun] = failed === 1 ? ['is', 'it'] : ['are', 'them'];
+  return `Sent ${sent} of ${total} emails. ${failed} couldn't be sent and ${verb} still on the list. Send again to retry ${pronoun}.`;
+}
+
 function LifecycleBatchReviewDialog({
   showId,
   stepType,
@@ -184,17 +190,21 @@ function LifecycleBatchReviewDialog({
     queryFn: () =>
       fetchLifecycleEmailJobsForReview({ supabase: lifecycleClient, showId, stepType }),
   });
+  const refreshReviewList = () =>
+    queryClient.invalidateQueries({
+      queryKey: ['show-lifecycle-email-review', showId, stepType],
+    });
   const sendMutation = useMutation({
     mutationFn: async (input: { sendJobs: LifecycleEmailJobReview[]; skippedJobIds: string[] }) => {
       await skipLifecycleEmailJobsForReview({
         supabase: lifecycleClient,
         jobIds: input.skippedJobIds,
       });
-      if (input.sendJobs.length === 0) return;
+      if (input.sendJobs.length === 0) return null;
       // Only forward text the secretary actually edited. Anything sent here is a
       // BROADCAST override applied to every recipient, so an unedited send must
       // omit it and let each job deliver its own personalised draft (MYK9-315).
-      await sendLifecycleEmailJobs({
+      return sendLifecycleEmailJobs({
         supabase,
         showId,
         jobIds: input.sendJobs.map(job => job.id),
@@ -203,13 +213,18 @@ function LifecycleBatchReviewDialog({
         secretaryNote,
       });
     },
-    onSuccess: onSent,
+    // Per-job failures arrive inside a 200: stay open and say so rather than closing as a success.
+    onSuccess: result => {
+      if (result && result.failed > 0) refreshReviewList();
+      else onSent();
+    },
     // A partly sent batch: refresh the list so what already went out drops off it.
-    onError: () =>
-      queryClient.invalidateQueries({
-        queryKey: ['show-lifecycle-email-review', showId, stepType],
-      }),
+    onError: refreshReviewList,
+    // The send is resumable ("Send again"); an automatic retry would restart at chunk 1 and
+    // scramble the sent count (MYK9-1191).
+    retry: false,
   });
+  const unsent = sendMutation.data && sendMutation.data.failed > 0 ? sendMutation.data : null;
   const jobs = jobsQuery.data ?? [];
   const selectedSubject = subject ?? jobs[0]?.subject ?? '';
   const selectedBody = body ?? jobs[0]?.body ?? '';
@@ -230,6 +245,8 @@ function LifecycleBatchReviewDialog({
     <SlideOverPanel
       open={true}
       onClose={() => onOpenChange(false)}
+      // A second Send racing an in-flight chunked send doubles up email_log rows (MYK9-1191).
+      preventClose={sendMutation.isPending}
       title={`${STEP_LABELS[stepType]} review`}
       size="lg"
       footer={
@@ -244,8 +261,21 @@ function LifecycleBatchReviewDialog({
                 : "Couldn't send these emails. Nothing was lost; try again."}
             </p>
           ) : null}
+          {unsent ? (
+            <p
+              role="alert"
+              className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+            >
+              {unsentMessage(unsent)}
+            </p>
+          ) : null}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={sendMutation.isPending}
+              onClick={() => onOpenChange(false)}
+            >
               Close
             </Button>
             <Button

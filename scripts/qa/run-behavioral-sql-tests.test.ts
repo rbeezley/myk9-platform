@@ -155,6 +155,7 @@ const launchCriticalSqlTests = [
   'myk9_1045_results_verified_test.sql',
   'myk9_1059_creation_attribution_test.sql',
   'myk9_1117_registration_date_test.sql',
+  'myk9_1151_merge_sibling_registrations_test.sql',
   'myk9_1071_registration_people_versions_test.sql',
   'myk9_963_unfulfilled_charge_refund_test.sql',
   'myk9_969_results_privacy_test.sql',

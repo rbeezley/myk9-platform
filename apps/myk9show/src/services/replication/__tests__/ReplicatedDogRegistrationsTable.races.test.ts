@@ -239,3 +239,50 @@ describe('c. placeholders of a create the server merged onto an existing dog', (
     expect(await table.getReplicatedRow(placeholders[1]!.id)).not.toBeNull();
   });
 });
+
+describe('d. MYK9-1151: a merged create now also inserts its safe siblings on the server', () => {
+  it('leaves the sibling on the existing dog on the device after the merge', async () => {
+    // Offline create of dog-device with AKC SW1 (held by dog-d) and UKC U9.
+    const placeholders = await table.createLocalRegistrationsForDog('dog-device', [
+      { organization: 'AKC', number: 'SW1', registeredName: 'M', type: 'Beagle', status: 'active' },
+      { organization: 'UKC', number: 'U9', registeredName: 'M', type: 'Beagle', status: 'active' },
+    ]);
+    // The upload remapped the placeholders onto dog-d, which the server returned.
+    for (const placeholder of placeholders) {
+      await table.set(placeholder.id, { ...placeholder, dogId: 'dog-d' }, false);
+    }
+    await new ReplicatedDogsTable().set(
+      'dog-d',
+      { id: 'dog-d', name: 'D', callName: 'D', breed: 'Beagle' },
+      false
+    );
+    const sw1 = serverRow({
+      id: 'srv-sw1',
+      dog_id: 'dog-d',
+      organization: 'AKC',
+      registration_number: 'SW1',
+      created_at: '2020-01-01T00:00:00Z',
+    });
+    // The server inserted U9 on dog-d with the device's created_at.
+    const u9 = serverRow({
+      id: 'srv-u9',
+      dog_id: 'dog-d',
+      organization: 'UKC',
+      registration_number: 'U9',
+      is_primary: false,
+    });
+    await table.applyServerRows([sw1]);
+    await table.removeResolvedPlaceholders();
+
+    installRegistrationsServer(
+      newServer({ idPages: [[{ id: 'srv-sw1' }, { id: 'srv-u9' }]], rows: [sw1, u9] })
+    );
+    await table.reconcileWithServerIds();
+
+    const shown = await table.getRegistrationsForDogs(['dog-d']);
+    expect(shown.map(row => row.id).sort()).toEqual(['srv-sw1', 'srv-u9']);
+    for (const placeholder of placeholders) {
+      expect(await table.getReplicatedRow(placeholder.id)).toBeNull();
+    }
+  });
+});

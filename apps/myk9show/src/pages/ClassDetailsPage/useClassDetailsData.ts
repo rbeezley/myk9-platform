@@ -50,6 +50,8 @@ export function secretaryEntryToRawRow(entry: SecretaryEntry): RawEntryRow {
     entry_status: entry.entry_status,
     payment_status: entry.payment_status,
     moved_from_entry_id: entry.moved_from_entry_id,
+    // MYK9-1162: the run sheet leaves held entries off by this flag.
+    awaiting_registration_number: entry.awaiting_registration_number,
     registration: entry.registration,
     handler_id: entry.handler_id,
     armband: entry.armband,

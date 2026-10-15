@@ -21,7 +21,7 @@ import { SocialSignInButtons } from './SocialSignInButtons';
 import { JoinShowConfirmation } from './JoinShowConfirmation';
 import { validatePasscode } from './validatePasscode';
 import { startAnonymousRingsideSession } from './ringsideAnonSession';
-import { useHeldScoresAfterPasscode } from './useHeldScoresAfterPasscode';
+import { offerHeldScoresAfterPasscode } from '@/features/at-show/heldScoresPrompt';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import type { UserRole as RingsideRole } from '@myk9/ringside';
 import type { TurnstileChallengeHandle } from '@/components/security/TurnstileChallenge';
@@ -81,7 +81,6 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   const submissionPendingRef = useRef(false);
 
   const navigate = useNavigate();
-  const heldScores = useHeldScoresAfterPasscode(showId => navigate(`/at-show/${showId}`));
   const {
     user,
     firstName,
@@ -288,7 +287,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
         source: 'passcode',
       });
       // Scores an earlier passcode session left queued: ask first (MYK9-1205).
-      if (await heldScores.offer(result.showId)) return;
+      if (await offerHeldScoresAfterPasscode(result.showId)) return;
       navigate(`/at-show/${result.showId}`);
     } finally {
       submissionPendingRef.current = false;
@@ -441,7 +440,6 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
           onCancel={() => setPending(null)}
         />
       )}
-      {heldScores.dialog}
     </div>
   );
 };

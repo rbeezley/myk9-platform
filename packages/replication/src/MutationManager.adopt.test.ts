@@ -95,4 +95,55 @@ describe('MutationManager adoption (MYK9-1205)', () => {
     ).resolves.toBe(1);
     expect((await pending()).map(row => row.authUserId)).toEqual(['anon-2']);
   });
+
+  it('re-checks the live session INSIDE the upload lock, so a switch while waiting refuses', async () => {
+    await queue('e1', 'show-x');
+    user = 'anon-2';
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => (release = resolve));
+    const runner = (
+      manager as unknown as {
+        uploadRunner: { runExclusive(w: () => Promise<void>): Promise<void> };
+      }
+    ).uploadRunner;
+    const held = runner.runExclusive(() => gate);
+
+    const adopting = manager.adoptHeldMutations({
+      showId: 'show-x',
+      toAuthUserId: 'anon-2',
+      rpcNames: RPCS,
+    });
+    const refused = expect(adopting).rejects.toThrow(/user changed/);
+    // The pre-lock check has passed (still anon-2); now the session changes.
+    await new Promise(resolve => setTimeout(resolve, 10));
+    user = 'anon-3';
+    release();
+    await held;
+    await refused;
+
+    expect((await pending()).map(row => row.authUserId)).toEqual(['anon-1']);
+  });
+
+  it('survives a localStorage backup failure: adopted, event fired, upload scheduled', async () => {
+    await queue('e1', 'show-x');
+    user = 'anon-2';
+    const internals = manager as unknown as {
+      backupStore: { writeCurrent(): Promise<void> };
+      scheduleUpload(): void;
+    };
+    vi.spyOn(internals.backupStore, 'writeCurrent').mockRejectedValue(new Error('QuotaExceeded'));
+    const schedule = vi.spyOn(internals, 'scheduleUpload').mockImplementation(() => {});
+    const dispatch = vi.mocked(window.dispatchEvent);
+    dispatch.mockClear();
+
+    await expect(
+      manager.adoptHeldMutations({ showId: 'show-x', toAuthUserId: 'anon-2', rpcNames: RPCS })
+    ).resolves.toBe(1);
+
+    expect((await pending()).map(row => row.authUserId)).toEqual(['anon-2']);
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'replication:mutation-queued' })
+    );
+    expect(schedule).toHaveBeenCalledTimes(1);
+  });
 });

@@ -1,6 +1,12 @@
+import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@/test/utils/testUtils';
-import { useHeldScoresAfterPasscode } from '@/pages/useHeldScoresAfterPasscode';
+import {
+  HeldScoresPromptHost,
+  offerHeldScoresAfterPasscode,
+  useHeldScoresPromptStore,
+} from './heldScoresPrompt';
 import { HeldRingsideScoresBanner } from './HeldRingsideScores';
 
 const held = vi.hoisted(() => ({
@@ -55,65 +61,86 @@ describe('HeldRingsideScoresBanner (MYK9-1205)', () => {
   });
 });
 
-function PasscodeHarness({ proceed }: { proceed: (showId: string) => void }) {
-  const { offer, dialog } = useHeldScoresAfterPasscode(proceed);
+/**
+ * The sign-in page is NOT where the question lives: on /at-show the anonymous
+ * sign-in swaps the page out (RingsideEntryPage stops rendering SmartSignInPage),
+ * so the child here unmounts itself right after offering, as the real page does.
+ */
+function SignInThatUnmounts() {
+  const [mounted, setMounted] = useState(true);
+  if (!mounted) return <p>chooser</p>;
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => void offer('show-x').then(asked => asked || proceed('show-x'))}
-      >
-        Enter
-      </button>
-      {dialog}
-    </>
+    <button
+      type="button"
+      onClick={() => void offerHeldScoresAfterPasscode('show-x').then(() => setMounted(false))}
+    >
+      Enter
+    </button>
   );
 }
 
-describe('asking after a passcode validates (MYK9-1205)', () => {
+function Where() {
+  return <output data-testid="where">{useLocation().pathname}</output>;
+}
+
+function renderPasscodeFlow() {
+  return render(
+    <>
+      <SignInThatUnmounts />
+      <HeldScoresPromptHost />
+      <Where />
+    </>,
+    { initialRoute: '/at-show' }
+  );
+}
+
+beforeEach(() => {
+  useHeldScoresPromptStore.getState().setPrompt(null);
+});
+
+describe('asking after a passcode validates, above the sign-in page (MYK9-1205)', () => {
   it('goes straight to the show when nothing is held', async () => {
     held.count = 0;
-    const proceed = vi.fn();
-    const { user } = render(<PasscodeHarness proceed={proceed} />);
+    const { user } = renderPasscodeFlow();
     await user.click(screen.getByRole('button', { name: 'Enter' }));
-    await waitFor(() => expect(proceed).toHaveBeenCalledExactlyOnceWith('show-x'));
+    expect(await screen.findByText('chooser')).toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('where')).toHaveTextContent('/at-show');
+  });
+
+  it('still asks after the sign-in page has unmounted, adopts, then lands on the show', async () => {
+    const { user } = renderPasscodeFlow();
+    await user.click(screen.getByRole('button', { name: 'Enter' }));
+    expect(await screen.findByText('chooser')).toBeInTheDocument();
+    const dialog = await screen.findByRole('alertdialog');
+    expect(screen.getByTestId('where')).toHaveTextContent('/at-show');
+    await user.click(within(dialog).getByRole('button', { name: 'Upload them' }));
+
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/at-show/show-x'));
+    expect(held.adopt).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 
-  it('adopts, then goes to the show once, on "Upload them"', async () => {
-    const proceed = vi.fn();
-    const { user } = render(<PasscodeHarness proceed={proceed} />);
-    await user.click(screen.getByRole('button', { name: 'Enter' }));
-    const dialog = await screen.findByRole('alertdialog');
-    expect(proceed).not.toHaveBeenCalled();
-    await user.click(within(dialog).getByRole('button', { name: 'Upload them' }));
-
-    await waitFor(() => expect(proceed).toHaveBeenCalledExactlyOnceWith('show-x'));
-    expect(held.adopt).toHaveBeenCalledTimes(1);
-  });
-
-  it('leaves the scores held and still goes to the show, once, on "Not now"', async () => {
-    const proceed = vi.fn();
-    const { user } = render(<PasscodeHarness proceed={proceed} />);
+  it('leaves the scores held and still lands on the show on "Not now"', async () => {
+    const { user } = renderPasscodeFlow();
     await user.click(screen.getByRole('button', { name: 'Enter' }));
     await user.click(
       within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Not now' })
     );
 
-    await waitFor(() => expect(proceed).toHaveBeenCalledExactlyOnceWith('show-x'));
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/at-show/show-x'));
     expect(held.adopt).not.toHaveBeenCalled();
   });
 
-  it('still goes to the show when adopting fails', async () => {
+  it('still lands on the show when adopting fails', async () => {
     held.adopt = vi.fn(async () => {
       throw new Error('boom');
     });
-    const proceed = vi.fn();
-    const { user } = render(<PasscodeHarness proceed={proceed} />);
+    const { user } = renderPasscodeFlow();
     await user.click(screen.getByRole('button', { name: 'Enter' }));
     await user.click(
       within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Upload them' })
     );
-    await waitFor(() => expect(proceed).toHaveBeenCalledExactlyOnceWith('show-x'));
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/at-show/show-x'));
   });
 });

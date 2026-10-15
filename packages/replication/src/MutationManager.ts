@@ -253,10 +253,24 @@ export class MutationManager {
    */
   async adoptHeldMutations(options: AdoptHeldMutationsOptions): Promise<number> {
     await this.requireSameCurrentUserId(options.toAuthUserId);
-    // Under the upload lock: a pass must not read rows mid-rewrite.
-    const adopted = await this.uploadRunner.runExclusive(() => adoptHeldMutationsInStore(options));
+    // Under the upload lock: a pass must not read rows mid-rewrite. The session
+    // can change while this waits for the lock, so the identity is checked again
+    // INSIDE it, immediately before ownership is rewritten.
+    const adopted = await this.uploadRunner.runExclusive(async () => {
+      await this.requireSameCurrentUserId(options.toAuthUserId);
+      return adoptHeldMutationsInStore(options);
+    });
     if (adopted === 0) return 0;
-    await this.backupStore.writeCurrent();
+    // The backup is a SECONDARY safety net: ownership already changed in
+    // IndexedDB, so a localStorage failure must not reject the adoption.
+    try {
+      await this.backupStore.writeCurrent();
+    } catch (backupErr) {
+      this.logger.warn(
+        '[MutationManager] localStorage backup failed after adoption (scores are durably queued in IndexedDB):',
+        backupErr
+      );
+    }
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('replication:mutation-queued', { detail: {} }));
     }

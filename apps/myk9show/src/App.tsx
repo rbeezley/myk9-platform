@@ -1,3 +1,4 @@
+import { HeldScoresPromptHost } from '@/features/at-show/heldScoresPrompt';
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
@@ -248,6 +249,7 @@ function App() {
                             end of the document so it reserves its own room there and
                             never covers a page's last control (MYK9-1131). */}
                         <NewRoleStepBanner />
+                        <HeldScoresPromptHost />
                       </div>
                     </AppShellMobileNavProvider>
                   </ErrorBoundary>

@@ -34,12 +34,13 @@ import {
   Radio,
   Activity,
   LifeBuoy,
+  Flag,
 } from 'lucide-react';
 import { UserRole, USER_ROLE_HIERARCHY } from '@/types/auth-types';
 import { ROLE_LABELS } from '@/services/rbac/roleUiConstants';
 import { rosterIsOwnDogsOnlyForRoles } from '@/utils/dogRosterScope';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
-import type { SidebarConfig, NavGroup, NavItem } from './types';
+import type { SidebarConfig, NavGroup, NavItem, NavRailMenu } from './types';
 
 export interface ClubContext {
   clubId: string;
@@ -75,6 +76,19 @@ const EXHIBITOR_SHOW_DAY_NAV_ITEM: NavItem = {
 function hasAnyRole(userRoles: readonly UserRole[], required: readonly UserRole[]): boolean {
   return required.some(r => userRoles.includes(r));
 }
+
+function nextShowRailTitle(phase: NextShowContext['phase']): string {
+  if (phase === 'today') return "Today's show";
+  if (phase === 'draft') return 'Draft show';
+  return 'Next show';
+}
+
+// The rail folds the two longest sections into one labeled item each, so a
+// secretary who is also club admin sees 9 rail items instead of 12, and a
+// site admin 10 instead of 22 (docs/plan-sidebar-browse-pane.md, phase 1).
+const ADMIN_RAIL_MENU: NavRailMenu = { id: 'admin', title: 'Admin', icon: Shield };
+// Flag, not Building2: Building2 is already the Clubs browse item's icon.
+const CLUB_RAIL_MENU: NavRailMenu = { id: 'club', title: 'My Club', icon: Flag };
 
 function nextShowDescription(phase: NextShowContext['phase']): string {
   if (phase === 'today') return 'Live today';
@@ -151,6 +165,7 @@ export function buildUnifiedSidebarConfig(
     if (hasSiteAdmin) {
       groups.push({
         title: 'Admin',
+        railMenu: ADMIN_RAIL_MENU,
         items: [
           {
             title: 'Dashboard',
@@ -203,6 +218,8 @@ export function buildUnifiedSidebarConfig(
       const manageItems: NavItem[] = [
         {
           title: 'Show Management',
+          // "Management" is wider than the rail; renamed there, never cut.
+          railTitle: 'Manage',
           href: '/secretary/dashboard',
           icon: LayoutDashboard,
         },
@@ -211,6 +228,7 @@ export function buildUnifiedSidebarConfig(
       if (nextShow) {
         manageItems.push({
           title: nextShow.name,
+          railTitle: nextShowRailTitle(nextShow.phase),
           // Not `/setup`: that route only redirects to the show Overview now
           // (decision 4, docs/plan-secretary-show-actions.md), so linking there
           // made the sidebar's own destination a bounce.
@@ -304,6 +322,7 @@ export function buildUnifiedSidebarConfig(
 
       groups.push({
         title: 'My Club',
+        railMenu: CLUB_RAIL_MENU,
         items: myClubItems,
       });
     }
@@ -314,6 +333,7 @@ export function buildUnifiedSidebarConfig(
   if (hasSiteAdmin) {
     groups.push({
       title: 'Resources',
+      railMenu: ADMIN_RAIL_MENU,
       items: [
         {
           title: 'Support',

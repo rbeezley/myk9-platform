@@ -16,7 +16,8 @@ interface AccountMenuProps {
   variant: 'header' | 'sidebar';
   displayName?: string;
   roleLabel?: string;
-  isCollapsed?: boolean;
+  /** Desktop rail: the avatar with the first name under it. */
+  rail?: boolean;
   className?: string;
 }
 
@@ -28,7 +29,7 @@ export function AccountMenu({
   variant,
   displayName,
   roleLabel,
-  isCollapsed = false,
+  rail = false,
   className,
 }: AccountMenuProps) {
   const { user, signOut } = useAuthContext();
@@ -56,16 +57,13 @@ export function AccountMenu({
             className={cn(
               'text-primary hover:bg-primary/10 min-h-11 rounded-lg',
               isSidebar
-                ? isCollapsed
-                  ? 'flex min-w-11 justify-center p-2'
+                ? rail
+                  ? 'flex h-auto w-full flex-col items-center gap-1 px-1 py-2'
                   : 'flex w-full justify-start gap-3 px-2 py-2 text-left hover:bg-muted/50'
                 : 'flex min-w-11 items-center gap-1.5 px-2 py-2 hover:bg-muted/50',
               className
             )}
             aria-label={isSidebar ? sidebarLabel : 'Account menu'}
-            title={
-              isSidebar && isCollapsed ? `${resolvedName} · ${roleLabel ?? 'Account'}` : undefined
-            }
           >
             <Avatar className={cn('shrink-0', isSidebar ? 'h-8 w-8' : 'h-7 w-7')}>
               {currentPerson?.profileImage && (
@@ -76,7 +74,13 @@ export function AccountMenu({
               </AvatarFallback>
             </Avatar>
 
-            {isSidebar && !isCollapsed && (
+            {isSidebar && rail && (
+              <span className="max-w-full break-words text-[11px] font-medium leading-tight text-foreground">
+                {resolvedName}
+              </span>
+            )}
+
+            {isSidebar && !rail && (
               <>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-foreground">

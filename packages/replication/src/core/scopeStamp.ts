@@ -9,8 +9,11 @@ export interface ScopeStampDirective {
   syncingAuthUserId: string;
   /** This account finished a whole download of the scope. */
   whole: boolean;
-  /** At least one row this sync wrote is still owned by `syncingAuthUserId`. */
-  wroteRows: boolean;
+  /**
+   * The ids this sync handed to the bulk write. Whether `syncingAuthUserId` still
+   * owns any of them is read inside the metadata transaction (MYK9-1149).
+   */
+  writtenIds: readonly string[];
 }
 
 export interface ResolvedScopeStamp {
@@ -31,12 +34,13 @@ export interface ResolvedScopeStamp {
  * - not whole, stored stamp is the syncing account's: keep it (its rows are its own).
  * - not whole, rows written and the stored stamp is another's or absent: clear it
  *   and leave a marker, so the scope is foreign, not never-synced, for everyone else.
- * - nothing written: leave the stored stamp alone.
+ * - nothing written (no id handed over is still the syncing account's): leave the stored stamp alone.
  */
-export function resolveScopeStamp(
+export async function resolveScopeStamp(
   option: string | null | ScopeStampDirective | undefined,
-  stored: string | undefined
-): ResolvedScopeStamp {
+  stored: string | undefined,
+  wroteRows: () => Promise<boolean>
+): Promise<ResolvedScopeStamp> {
   if (option === undefined || option === null || typeof option === 'string') {
     return { stamp: option, recordMarker: false, freezeCursor: false };
   }
@@ -45,7 +49,7 @@ export function resolveScopeStamp(
   if (stored === option.syncingAuthUserId) {
     return { stamp: undefined, recordMarker: false, freezeCursor: false };
   }
-  if (!option.wroteRows) {
+  if (!(await wroteRows())) {
     return { stamp: undefined, recordMarker: false, freezeCursor: true };
   }
   return { stamp: null, recordMarker: true, freezeCursor: false };

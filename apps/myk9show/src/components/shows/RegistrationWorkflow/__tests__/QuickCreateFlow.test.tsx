@@ -20,8 +20,8 @@ vi.mock('@/components/panels/edit', () => ({
   ),
 }));
 
-vi.mock('../CreateExhibitorDialog', () => ({
-  CreateExhibitorDialog: vi.fn(
+vi.mock('../CreatePersonForm', () => ({
+  CreatePersonForm: vi.fn(
     ({
       open,
       onExhibitorCreated,

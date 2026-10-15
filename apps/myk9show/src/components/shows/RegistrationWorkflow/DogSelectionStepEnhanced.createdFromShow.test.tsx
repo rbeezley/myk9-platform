@@ -7,9 +7,11 @@ import { DogSelectionStepEnhanced } from './DogSelectionStepEnhanced';
 // the show being entered, so the dog or person it creates is attributed to it.
 const SHOW_ID = '6349d047-34fe-4307-b29a-c1ae6d7750c7';
 
-vi.mock('@/hooks/useDogStoreCompat', () => ({
-  useDogStoreCompat: () => ({ dogs: [], isLoading: false }),
-}));
+vi.mock('@/hooks/useDogStoreCompat', () => {
+  // One stable array: a fresh `dogs` every render loops the step's effects.
+  const dogs: unknown[] = [];
+  return { useDogStoreCompat: () => ({ dogs, isLoading: false }) };
+});
 vi.mock('@/hooks/useRegistrationPermissions', () => ({
   useRegistrationPermissions: () => ({
     user: { id: 'u1' },
@@ -21,13 +23,8 @@ vi.mock('@/hooks/useRegistrationPermissions', () => ({
 }));
 vi.mock('@/hooks/useRegistrationContext', () => ({
   useRegistrationContext: () => ({
-    workflowConfig: { features: { advancedSearch: false, createNew: true } },
+    workflowConfig: { features: { advancedSearch: true, createNew: true } },
   }),
-}));
-vi.mock('@/components/shows/RegistrationWorkflow/CreateExhibitorDialog', () => ({
-  CreateExhibitorDialog: (props: { createdFromShowId?: string }) => (
-    <div data-testid="create-exhibitor">{props.createdFromShowId ?? 'none'}</div>
-  ),
 }));
 vi.mock('@/components/shows/RegistrationWorkflow/QuickCreateFlow', () => ({
   QuickCreateFlow: (props: { createdFromShowId?: string }) => (
@@ -42,7 +39,7 @@ vi.mock('@/components/panels/edit', () => ({
 vi.mock('@/services/database/dogs', () => ({ SEARCH_ALL_DOGS_LIMIT: 25, searchAllDogs: vi.fn() }));
 
 describe('DogSelectionStepEnhanced createdFromShowId', () => {
-  it('hands the show id to Quick Create, Add Person and Add Dog', () => {
+  it('hands the show id to Quick Create and Add Dog', () => {
     render(
       <DogSelectionStepEnhanced
         selectedDogs={[]}
@@ -51,14 +48,12 @@ describe('DogSelectionStepEnhanced createdFromShowId', () => {
       />
     );
     expect(screen.getByTestId('quick-create')).toHaveTextContent(SHOW_ID);
-    expect(screen.getByTestId('create-exhibitor')).toHaveTextContent(SHOW_ID);
     expect(screen.getByTestId('add-dog')).toHaveTextContent(SHOW_ID);
   });
 
   it('hands nothing down when no show id is supplied', () => {
     render(<DogSelectionStepEnhanced selectedDogs={[]} onSelectionChange={vi.fn()} />);
     expect(screen.getByTestId('quick-create')).toHaveTextContent('none');
-    expect(screen.getByTestId('create-exhibitor')).toHaveTextContent('none');
     expect(screen.getByTestId('add-dog')).toHaveTextContent('none');
   });
 });

@@ -9,7 +9,7 @@ import { render, screen, userEvent, waitFor } from '@/test/utils/testUtils';
 import { fromAny } from '@total-typescript/shoehorn';
 import { createUser } from '@/services/database/users';
 import { useUserStore } from '@/store/userStore';
-import { CreateExhibitorDialog } from '../CreateExhibitorDialog';
+import { CreatePersonForm } from '../CreatePersonForm';
 
 vi.mock('@/hooks/useRBAC', () => ({ useRBAC: () => ({ hasPermission: () => false }) }));
 vi.mock('@/services/database/users', async importOriginal => ({
@@ -34,7 +34,7 @@ const existing = {
 
 const next = () => screen.findByRole('button', { name: /Next: Contact/ });
 
-describe('CreateExhibitorDialog prefill and duplicate prompt', () => {
+describe('CreatePersonForm prefill and duplicate prompt', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useUserStore.setState({ people: [existing], users: [existing] } as never);
@@ -49,7 +49,7 @@ describe('CreateExhibitorDialog prefill and duplicate prompt', () => {
     );
     const user = userEvent.setup();
     render(
-      <CreateExhibitorDialog
+      <CreatePersonForm
         open
         onOpenChange={vi.fn()}
         onExhibitorCreated={vi.fn()}
@@ -69,7 +69,7 @@ describe('CreateExhibitorDialog prefill and duplicate prompt', () => {
 
   it('checks for a duplicate when leaving Basic Info, and announces and focuses the prompt', async () => {
     const user = userEvent.setup();
-    render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+    render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
     await user.type(await screen.findByLabelText(/First Name/), 'Tera');
     await user.type(screen.getByLabelText(/Last Name/), 'Handler');
     await user.type(screen.getByLabelText(/Email Address/), 'tera@example.com');
@@ -88,7 +88,7 @@ describe('CreateExhibitorDialog prefill and duplicate prompt', () => {
 
   it('clears the prompt when the name or email changes, and re-checks on the next Next', async () => {
     const user = userEvent.setup();
-    render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+    render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
     await user.type(await screen.findByLabelText(/First Name/), 'Tera');
     await user.type(screen.getByLabelText(/Last Name/), 'Handler');
     await user.type(screen.getByLabelText(/Email Address/), 'tera@example.com');
@@ -116,7 +116,7 @@ describe('CreateExhibitorDialog prefill and duplicate prompt', () => {
 
   it('still checks at the final save', async () => {
     const user = userEvent.setup();
-    render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+    render(<CreatePersonForm open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
     await user.type(await screen.findByLabelText(/First Name/), 'Tera');
     await user.type(screen.getByLabelText(/Last Name/), 'Handler');
     await user.click(await next());

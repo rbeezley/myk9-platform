@@ -11,9 +11,11 @@ const PUP_DOB = '2026-06-01';
 const decision = (showStartDate?: string) =>
   getUnderMinAgeDobWarning(PUP_DOB, 'Pup', showStartDate) ?? 'no warning';
 
-vi.mock('@/hooks/useDogStoreCompat', () => ({
-  useDogStoreCompat: () => ({ dogs: [], isLoading: false }),
-}));
+vi.mock('@/hooks/useDogStoreCompat', () => {
+  // One stable array: a fresh `dogs` every render loops the step's effects.
+  const dogs: unknown[] = [];
+  return { useDogStoreCompat: () => ({ dogs, isLoading: false }) };
+});
 vi.mock('@/hooks/useRegistrationPermissions', () => ({
   useRegistrationPermissions: () => ({
     user: { id: 'u1' },
@@ -25,11 +27,11 @@ vi.mock('@/hooks/useRegistrationPermissions', () => ({
 }));
 vi.mock('@/hooks/useRegistrationContext', () => ({
   useRegistrationContext: () => ({
-    workflowConfig: { features: { advancedSearch: false, createNew: true } },
+    workflowConfig: { features: { advancedSearch: true, createNew: true } },
   }),
 }));
-vi.mock('@/components/shows/RegistrationWorkflow/CreateExhibitorDialog', () => ({
-  CreateExhibitorDialog: () => null,
+vi.mock('@/components/shows/RegistrationWorkflow/CreatePersonForm', () => ({
+  CreatePersonForm: () => null,
 }));
 vi.mock('@/components/shows/RegistrationWorkflow/QuickCreateFlow', () => ({
   QuickCreateFlow: (props: { showStartDate?: string }) => (

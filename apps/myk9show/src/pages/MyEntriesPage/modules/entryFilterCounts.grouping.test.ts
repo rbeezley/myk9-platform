@@ -91,7 +91,7 @@ describe('count derivations group entries once per tab', () => {
     expect(groupSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('deriveTabCounts groups once per tab, not once per tab and status', () => {
+  it('deriveTabCounts groups once per tab (unchanged)', () => {
     const entries = mixedEntries();
     groupSpy.mockClear();
     deriveTabCounts(entries, 'pending', NOW, 0);

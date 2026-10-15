@@ -6,28 +6,47 @@ import { PlacementPill } from '@/components/base/PlacementPill';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { useMyEntryQueuePlaces, type QueuePlaces } from '@/hooks/queries/useMyEntryQueuePlaces';
 import { withServerPlace } from '@/utils/showEntryRunQueue';
+import { isTrialDayAhead } from '@/pages/MyEntriesPage/modules/dayCheckIn';
+import { parseLocalDateString } from '@/utils/dateLocal';
 import { useMyEntriesInClass, type MyClassEntry } from './useMyEntriesInClass';
 
 interface ExhibitorClassCalloutProps {
   classId: string | undefined;
   /** Released results read directly (bypasses stale replication store). */
   releasedRows?: RawEntryRow[];
+  /** The class's trial day (YYYY-MM-DD) and the trial's own IANA zone. */
+  trialDate?: string | undefined;
+  trialTimezone?: string | undefined;
 }
 
-export function ExhibitorClassCallout({ classId, releasedRows }: ExhibitorClassCalloutProps) {
+export function ExhibitorClassCallout({
+  classId,
+  releasedRows,
+  trialDate,
+  trialTimezone,
+}: ExhibitorClassCalloutProps) {
   const { myEntries, isAfterClass } = useMyEntriesInClass(classId, releasedRows);
 
   if (myEntries.length === 0) return null;
 
+  // MYK9-1195: same day gate as the show page's run schedule (MYK9-1173). On a
+  // future trial day, judged in the trial's own zone, there is no place in line
+  // to claim; no resolved zone, no claim either way (the old behaviour stays).
+  const futureDay =
+    !!trialDate &&
+    !!trialTimezone &&
+    isTrialDayAhead(parseLocalDateString(trialDate.slice(0, 10)), trialTimezone, new Date());
+
   return isAfterClass ? (
     <YourResults entries={myEntries} />
   ) : (
-    <YourDogsInClass entries={myEntries} />
+    <YourDogsInClass entries={myEntries} futureDay={futureDay} />
   );
 }
 
-function YourDogsInClass({ entries }: { entries: MyClassEntry[] }) {
-  const places = useMyEntryQueuePlaces(entries.map(entry => entry.entryId));
+function YourDogsInClass({ entries, futureDay }: { entries: MyClassEntry[]; futureDay: boolean }) {
+  // No place is read for a future day: the server answer would be unused.
+  const places = useMyEntryQueuePlaces(futureDay ? [] : entries.map(entry => entry.entryId));
   const label = entries.length === 1 ? 'dog' : `${entries.length} dogs`;
 
   return (
@@ -43,19 +62,27 @@ function YourDogsInClass({ entries }: { entries: MyClassEntry[] }) {
 
       <div className="space-y-2">
         {entries.map(entry => (
-          <BeforeEntryRow key={entry.entryId} entry={entry} places={places} />
+          <BeforeEntryRow key={entry.entryId} entry={entry} places={places} futureDay={futureDay} />
         ))}
       </div>
     </div>
   );
 }
 
-function BeforeEntryRow({ entry, places }: { entry: MyClassEntry; places: QueuePlaces }) {
+function BeforeEntryRow({
+  entry,
+  places,
+  futureDay,
+}: {
+  entry: MyClassEntry;
+  places: QueuePlaces;
+  futureDay: boolean;
+}) {
   // MYK9-992: the stored run number is internal, and this page holds only the
   // exhibitor's own dogs, so it cannot count a place in line itself. MYK9-995:
   // the server counts it; until that answer is in (or when offline) the dog's
   // state shows, and nothing at all until the secretary has set an order.
-  const queue = withServerPlace(entry.queue, places.get(entry.entryId));
+  const queue = futureDay ? null : withServerPlace(entry.queue, places.get(entry.entryId));
   const dogsAhead = queue?.kind === 'waiting' && queue.place > 1 ? queue.place - 1 : 0;
 
   return (

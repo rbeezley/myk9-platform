@@ -117,7 +117,8 @@ test('canonical queue positions and state-only controls agree across roles (MYK9
           await expect
             .poll(async () => (await replica(judge.page, f.willowId)).row?.data)
             .toMatchObject({
-              runOrder: scenario.fields.run_order,
+              // rowToEntry maps SQL NULL to an absent optional runOrder.
+              runOrder: scenario.fields.run_order ?? undefined,
               checkInStatus: status,
               isScored: scenario.fields.is_scored,
             });

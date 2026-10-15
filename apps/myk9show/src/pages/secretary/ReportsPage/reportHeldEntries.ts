@@ -1,4 +1,4 @@
-import { isAwaitingRegistrationNumber } from '@/features/dogs/identity';
+import { isAwaitingRegistrationNumber, type ServerHeldFlag } from '@/features/dogs/identity';
 import type { ReportDbEntry } from '@/lib/reports/types';
 import type { DbClass, DbTrial } from '@/types/database-mappings';
 
@@ -17,10 +17,9 @@ export function omitHeldEntries<T extends { awaitingRegistrationNumber?: boolean
 }
 
 /**
- * MYK9-1162: a held entry is kept off the catalog. Unloaded registrations
- * (`dog.registrations` absent) read as "not held", never as "missing" — unless
- * the server already said so: the replicated row's `awaiting_registration_number`
- * is the answer to fall back on when this device cannot see the registrations.
+ * MYK9-1162: a held entry is kept off the catalog. Registrations this device
+ * could not read completely are unknown, and the shared predicate then answers
+ * from the replicated row's own `awaiting_registration_number`.
  */
 export function isReportEntryHeld(
   e: ReportDbEntry,
@@ -29,16 +28,15 @@ export function isReportEntryHeld(
   classData: DbClass | undefined
 ): boolean {
   const dog = e.dog;
-  const registrationsKnown = dog?.registrationsReadComplete !== false && dog?.registrations != null;
-  if (!registrationsKnown) {
-    return (
-      (e as { awaiting_registration_number?: boolean | null }).awaiting_registration_number === true
-    );
-  }
+  const registrationsKnown = dog?.registrationsReadComplete !== false;
   return isAwaitingRegistrationNumber(
-    { entryStatus: e.entry_status ?? undefined, deletedAt: e.deleted_at },
+    {
+      entryStatus: e.entry_status ?? undefined,
+      deletedAt: e.deleted_at,
+      awaiting_registration_number: (e as ServerHeldFlag).awaiting_registration_number,
+    },
     registryId,
-    dog?.registrations,
+    registrationsKnown ? dog?.registrations : undefined,
     {
       trialType: trial.trial_type,
       className: classData?.name,

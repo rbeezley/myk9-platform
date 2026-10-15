@@ -66,7 +66,11 @@ export function useArmbandLabelData(showId: string | undefined): ArmbandLabelDat
   // MYK9-1162: no label for an entry awaiting a registration number. The flag is
   // computed server-side in the entry-results view; if that read fails (or the
   // view predates the column) nothing is excluded, so labels are never withheld.
-  const { data: heldEntryIds, isPending: heldQueryPending } = useQuery({
+  const {
+    data: heldEntryIds,
+    isPending: heldQueryPending,
+    isFetching: heldQueryFetching,
+  } = useQuery({
     queryKey: [...ARMBAND_LABEL_HELD_ENTRIES_KEY, showId],
     queryFn: async () => {
       if (!showId) return [];
@@ -86,13 +90,15 @@ export function useArmbandLabelData(showId: string | undefined): ArmbandLabelDat
   });
 
   // A disabled query (no show yet) is pending forever; it holds nothing back.
-  const heldPending = !!showId && heldQueryPending;
+  // A refetch counts as unsettled too: the cached answer it replaces may predate
+  // a number being removed, so the labels wait for the current one.
+  const heldPending = !!showId && (heldQueryPending || heldQueryFetching);
 
   const { data: venueWifi, isLoading: wifiLoading } = useShowVenueWifi(showId ?? null);
 
-  // Labels are built only once the held lookup has settled (answered, or failed
-  // and fallen back to "nothing held"), so a slow lookup can never let a held
-  // entry's label through.
+  // Labels are built only once the current held lookup has settled (answered, or
+  // failed and fallen back to "nothing held"), first fetch or refetch alike, so a
+  // slow or cached lookup can never let a held entry's label through.
   const entries = useMemo(
     () =>
       heldPending

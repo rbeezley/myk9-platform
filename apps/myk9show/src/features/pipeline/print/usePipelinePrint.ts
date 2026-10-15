@@ -42,6 +42,8 @@ interface EntryRow {
   id: string;
   dog_id?: string | null;
   entry_status?: string | null;
+  /** The server's held verdict (MYK9-1162), present on replica-sourced rows. */
+  awaiting_registration_number?: boolean | null;
   armband?: string | number | null;
   run_order?: number | null;
   is_scored?: boolean | null;
@@ -77,8 +79,8 @@ function mapEntry(row: EntryRow): PrintReportEntry {
 
 /**
  * MYK9-1162: an entry awaiting a registration number holds its capacity place
- * but is never printed. With no trial registry, or a registration read that did
- * not answer for a dog, nothing is held: an unverified class is never emptied.
+ * but is never printed. A registration read that did not answer for a dog falls
+ * back to the row's own server held flag; with neither, nothing is held.
  */
 async function withoutHeldEntries(
   rows: EntryRow[],
@@ -93,7 +95,10 @@ async function withoutHeldEntries(
     row =>
       !row.dog_id ||
       !isAwaitingRegistrationNumber(
-        { entryStatus: row.entry_status ?? undefined },
+        {
+          entryStatus: row.entry_status ?? undefined,
+          awaiting_registration_number: row.awaiting_registration_number,
+        },
         registryId,
         registrationsFromRead(read, row.dog_id),
         { trialType: trial.trialType, className, element: null, level: null }

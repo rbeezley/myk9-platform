@@ -36,6 +36,12 @@ export function isConformationPuppyClass({
   return classMetadata.includes('puppy');
 }
 
+/** The server's held verdict, as a replicated entry row carries it (either casing). */
+export interface ServerHeldFlag {
+  awaitingRegistrationNumber?: boolean | null | undefined;
+  awaiting_registration_number?: boolean | null | undefined;
+}
+
 /**
  * Is this entry awaiting a registration number (MYK9-1162)?
  *
@@ -47,18 +53,23 @@ export function isConformationPuppyClass({
  * number is not a number) and the filter in `emergency_packet_input`.
  *
  * `registrations` is `null`/`undefined` when the caller has not loaded the
- * dog's registrations. Unknown is NOT missing: it returns false, so an
- * unhydrated fixture can never silently empty a class. An empty array means
- * "loaded, and there are none" and is held.
+ * dog's registrations. Unknown is NOT missing: the answer is then the server's
+ * own, the `awaiting_registration_number` flag the entry row carries when it
+ * came from the replica, and with no flag it is false, so an unhydrated fixture
+ * can never silently empty a class. An empty array means "loaded, and there are
+ * none" and is held. Every caller passes the row it has, so the offline
+ * fallback is decided here once rather than at each call site.
  */
 export function isAwaitingRegistrationNumber(
-  entry: EntryAccountingFields,
+  entry: EntryAccountingFields & ServerHeldFlag,
   registryId: string | null | undefined,
   registrations: readonly (DogRegistrationLike | MappedDogRegistrationLike)[] | null | undefined,
   puppyContext?: ConformationPuppyContext
 ): boolean {
-  if (registrations == null) return false;
   if (!isOnClassRunList(entry)) return false;
+  if (registrations == null) {
+    return (entry.awaitingRegistrationNumber ?? entry.awaiting_registration_number) === true;
+  }
   if (puppyContext && isConformationPuppyClass(puppyContext)) return false;
 
   const registry = registryId?.trim() || 'AKC';

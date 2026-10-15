@@ -42,7 +42,7 @@ vi.mock('../useShowVenueWifi', () => ({
   useShowVenueWifi: () => ({ data: null, isLoading: false }),
 }));
 
-import { useArmbandLabelData } from '../useArmbandLabelData';
+import { ARMBAND_LABEL_HELD_ENTRIES_KEY, useArmbandLabelData } from '../useArmbandLabelData';
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -86,6 +86,34 @@ describe('useArmbandLabelData entries awaiting a registration number', () => {
     await new Promise(resolve => setTimeout(resolve, 30));
     expect(result.current.entries).toEqual([]);
     expect(result.current.isLoading).toBe(true);
+
+    release();
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.entries.map(entry => entry.id)).toEqual(['ok']);
+  });
+
+  it('withholds labels during a refetch, so a cached "nothing held" answer cannot print a newly held dog', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const sharedWrapper = ({ children }: { children: React.ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useArmbandLabelData('show-1'), {
+      wrapper: sharedWrapper,
+    });
+    await waitFor(() =>
+      expect(result.current.entries.map(entry => entry.id)).toEqual(['ok', 'held'])
+    );
+
+    // The number is removed: the next lookup answers "held", but slowly.
+    state.held = { data: [{ id: 'held' }], error: null };
+    let release: () => void = () => undefined;
+    state.heldGate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    void client.invalidateQueries({ queryKey: ARMBAND_LABEL_HELD_ENTRIES_KEY });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(true));
+    expect(result.current.entries).toEqual([]);
 
     release();
     await waitFor(() => expect(result.current.isLoading).toBe(false));

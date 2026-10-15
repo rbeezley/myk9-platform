@@ -110,15 +110,17 @@ export function buildRunSheetEntries(
 ): RunSheetEntry[] {
   // Withdrawn, scratched, moved and not-accepted entries are not on the run
   // sheet (MYK9-976); the one rule lives in `entryAccounting`. An entry
-  // awaiting a registration number is left off too (MYK9-1162). With no trial
-  // registry, or a dog whose registrations are not loaded, nothing is held.
+  // awaiting a registration number is left off too (MYK9-1162). A dog whose
+  // registrations are not loaded is decided by the row's own server held flag.
   return rows
     .filter(row => isOnClassRunList({ entryStatus: row.entry_status ?? undefined }))
     .filter(
       row =>
-        registryId == null ||
         !isAwaitingRegistrationNumber(
-          { entryStatus: row.entry_status ?? undefined },
+          {
+            entryStatus: row.entry_status ?? undefined,
+            awaiting_registration_number: row.awaiting_registration_number,
+          },
           registryId,
           registrationsIfKnown(dogLookup.get(row.dog_id)),
           puppyContext

@@ -20,4 +20,5 @@ export {
 export type {
   ConformationPuppyContext,
   DogRegistrationsSource,
+  ServerHeldFlag,
 } from './isAwaitingRegistrationNumber';

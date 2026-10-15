@@ -34,13 +34,11 @@ export async function loadEntriesWithDogs(classId: string): Promise<ScoringEntry
     registry
   );
   // MYK9-1162: an entry awaiting a registration number is never on a paper
-  // scoresheet. `registrationsByDogId` is empty when no registry is in context
-  // (nothing is verified), so nothing is held then.
+  // scoresheet. A dog whose registrations were not read (none are when no
+  // registry is in context) is decided by the replicated row's own held flag.
   const listedEntries = rawEntries.filter(
     e =>
       !e.dogId ||
-      !registry ||
-      !registrationsByDogId.has(e.dogId) ||
       !isAwaitingRegistrationNumber(e, registry, registrationsByDogId.get(e.dogId), puppyContext)
   );
   return listedEntries.map((e, i) =>

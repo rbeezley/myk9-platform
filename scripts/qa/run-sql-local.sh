@@ -92,9 +92,14 @@ port_in_use() {
   (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null
 }
 
+# An explicit port on either side is kept; the other defaults beside it, as
+# in config.toml (api = db - 1).
 if [ -n "${SUPABASE_DB_PORT:-}" ]; then
   db_port="$SUPABASE_DB_PORT"
   api_port="${SUPABASE_API_PORT:-$((10#$db_port - 1))}"
+elif [ -n "${SUPABASE_API_PORT:-}" ]; then
+  api_port="$SUPABASE_API_PORT"
+  db_port=$((10#$api_port + 1))
 else
   # A stable slot per worktree path, in 40000-41999 (clear of config.toml's
   # 543xx and the CLI's dynamic 20000-32767), stepped on if something listens.
@@ -106,7 +111,7 @@ else
     slot=$(((slot + 1) % 1000))
   done
 fi
-if [ "$db_port" = "$api_port" ] || ! usable_port "$api_port"; then
+if [ "$db_port" = "$api_port" ] || ! usable_port "$api_port" || ! usable_port "$db_port"; then
   echo "FAIL: db port $db_port and api port $api_port must be two different usable ports." >&2
   exit 1
 fi

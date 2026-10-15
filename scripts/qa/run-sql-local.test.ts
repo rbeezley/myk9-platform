@@ -113,6 +113,18 @@ describe('run-sql-local.sh', () => {
     expect(ports).toBe('db=45001 api=45000');
   });
 
+  it('honours an api-only SUPABASE_API_PORT and puts the db port beside it', () => {
+    const { ports } = runWithFakeCliEnv({ SUPABASE_API_PORT: '45000' }, '2.121.0', 'start');
+    expect(ports).toBe('db=45001 api=45000');
+  });
+
+  it('refuses an api-only port whose db neighbour is out of range', () => {
+    const result = runWithFakeCliEnv({ SUPABASE_API_PORT: '65535' }, '2.121.0');
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('must be two different usable ports');
+    expect(result.ports).toBeUndefined();
+  });
+
   it('refuses an unusable port before starting a stack', () => {
     const result = runWithFakeCliEnv({ SUPABASE_DB_PORT: '5432x' }, '2.121.0');
     expect(result.status).toBe(1);

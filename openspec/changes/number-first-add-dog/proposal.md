@@ -21,7 +21,7 @@ Both problems hit secretaries during entry season, so they matter for fall 2026 
 - **A secretary's entry may hold its place without a number (BREAKING, for a database rule).** The 2026-08-28 rule that refuses no-number entries is relaxed only for entries inserted by someone who can manage the trial. Exhibitor (self-service) inserts are still refused, and the conformation-puppy carve-out is unchanged.
 - **A held entry is visible and chased.** An entry whose dog has no number for the trial's registry:
   - appears under a new **Entries → Exceptions → Registration number needed** pane;
-  - is left out of the catalog, run order, printed judge sheets and the emergency trial packet until a number is added;
+  - is left out of the catalog, printed run sheets and judge sheets, labels and the emergency trial packet until a number is added (the live run order at the show keeps its place, with scoring locked);
   - leaves that state on its own once the number is added, because nothing is stored to clear.
 - **"Registration number needed" lifecycle email.** A new per-show lifecycle step:
   - sent from the Exceptions row with "Email exhibitor", previewed by the secretary like the accepted and waitlisted emails, and sent again with "Send reminder" (send on demand, one server step, never a Scheduled emails batch);

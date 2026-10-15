@@ -30,7 +30,7 @@
   - `paperScoresheetData.loadEntriesWithDogs`;
   - pipeline print.
 
-  Load registrations where a builder lacks them. Verify each builder has a test with one held and one normal entry, and a test showing that unloaded registrations exclude nothing.
+  Each builder reads the server's held flag through `isHeldEntry` (design D4); none derives it from registrations. Verify each builder has a test with one held and one normal entry, and that a row with no flag is not held.
 
 - [x] 2.4 Update `emergency_packet_input` (copy from `20260922220537`) to exclude held entries using its existing per-registry registration join. Verify an extended behavioral SQL test.
 - [x] 2.5 Add the `'registration-needed'` exception:
@@ -42,7 +42,7 @@
 
 - [x] 2.6 Update secretary guide card 5 (`docs/user-guides/secretary-guide.md:103-119`): replace the "save is refused" callout with held-entry behavior and the Exceptions pane. Verify `pnpm format:check:changed` passes and the callout matches the behavior.
 - [x] 2.7 Run the shuffled affected test directories, typecheck, lint and the ratchet. Verify green; then grep for any other run-list or catalog consumer not covered and list the result in the PR.
-- [ ] 2.8 Ship batch 2 as in 1.7.
+- [x] 2.8 Ship batch 2 as in 1.7. (rbeezley/myk9-platform#3017)
 
 ## 3. Batch 3: "Registration number needed" email (PR 3, independent review)
 
@@ -61,14 +61,14 @@
   Verify render tests (dog, show, registry, instructions; escaped content) and toggle tests.
 
 - [x] 3.3 The Exceptions row is the one place to send the email (no automatic post-save offer; the save screen cannot know which entries are held without guessing from the device). Each row's button reads **Email exhibitor** until a `registration_number_needed` job exists for the entry, then **Send reminder**, opening the existing text-only preview; Send calls the single server action `send_registration_number_needed` (3.4). Show "No email on file. Contact by phone." when there is no address. Skip and close save and call nothing. The step is send-on-demand: its toggle stays in Scheduled emails, with no batch review or send. Verify hook and pane tests, including the disabled step (no button).
-- [x] 3.4 `send-lifecycle-email`: add the action `send_registration_number_needed`. Server-side, in order: authorize, check the step is enabled, check the entry is still held (`not_held` vs `unverified` skips, no job), resolve the owner's current email (`no_email` skips, no job), skip any earlier ready or failed job, insert one job with a server-built idempotency key (`busy` on 23505), and send it with `sendOneJob`. The `send` action keeps its held re-check for this step. Verify handler tests under `// @vitest-environment node`: sent, supersede-before-insert, busy, not_held vs unverified, no_email, current email, unauthorized and step-disabled refused.
+- [x] 3.4 `send-lifecycle-email`: add the action `send_registration_number_needed`. Server-side, in order: authorize; check the step is enabled; check the entry is still held (`not_held` vs `unverified` skips, no job); resolve the owner's current email (`no_email` skips, no job); a job already under this preview's request key answers `sent` or is re-sent as itself; a recent ready job of the entry answers `busy`; a failed or stale ready one is recovered (replayed exactly under its own key) while its address is current, else skipped; insert one job keyed by the request id (`busy` on 23505) and send it with `sendOneJob`. The `send` action keeps its held re-check for this step. Verify handler tests under `// @vitest-environment node` for each branch (design D6).
 - [x] 3.5 Update secretary guide section 9 ("Email your exhibitors") with the new step. Run the shuffled affected tests, typecheck, lint and the ratchet; verify green.
-- [ ] 3.6 Ship batch 3 as in 1.7. The PR lists the owner-pending `db push` and the `send-lifecycle-email` deploy.
+- [x] 3.6 Ship batch 3 as in 1.7. (rbeezley/myk9-platform#3042) The PR lists the owner-pending `db push` and the `send-lifecycle-email` deploy.
 
 ## 4. Batch 4: integration (PR 4)
 
-- [ ] 4.1 Add an isolated-target e2e journey: a secretary adds a dog number-first (existing-dog hit, then a no-number skip), enters it, sees it under Registration number needed, and confirms it is absent from the class run sheet; then adds the number and sees it leave the pane and appear on the run sheet. Add an exhibitor phone-width Add Dog that hits the foreign-number message. Verify it passes on the Nightly target and fails if the trigger relaxation is reverted.
-- [ ] 4.2 Run `opsx:verify` against the integrated tree and fix CRITICAL findings in this PR. Verify the report has no CRITICAL findings.
+- [ ] 4.1 Update secretary guide card 5 with the number-first Add Dog steps (and refresh the AskQ guide assets). Add an isolated-target e2e journey: a secretary adds a dog number-first (existing-dog hit, then a no-number skip), enters it, sees it under Registration number needed, and confirms it is absent from the class run sheet; then adds the number and sees it leave the pane and appear on the run sheet. Add an exhibitor phone-width Add Dog that hits the foreign-number message. Verify it passes on the Nightly target and fails if the trigger relaxation is reverted.
+- [x] 4.2 Run `opsx:verify` against the integrated tree and fix CRITICAL findings in this PR. Verify the report has no CRITICAL findings.
 - [ ] 4.3 Ship batch 4 with the review tier the diff reports; watcher green, then squash-merge.
 
 ## Workflow follow-up

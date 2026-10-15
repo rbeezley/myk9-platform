@@ -106,6 +106,14 @@ The view tabs across the top — _Needs review_, _Missing info_, _Payment due_, 
 
 > This works **after entries close** — you're the trial secretary, so the deadline doesn't block you.
 
+**Adding a dog that isn't in myK9Show yet.** Add Dog starts with the registration number, so you don't add the same dog twice:
+
+1. Choose the registry (AKC, UKC or ASCA) and type the dog's registration number.
+2. Choose **Find dog**.
+3. If the dog is already in myK9Show, you see its name. Choose **Use existing dog** and carry on with that dog.
+4. If it isn't, the rest of the registration opens. Fill it in, choose **Save and continue**, then add the dog's name, sex, date of birth and owner.
+5. If the number is missing or hard to read on the paper entry, choose **No registration number yet**. You add the dog's details without a number, and the entry is held (see below).
+
 > **No registration number yet?** You can still enter the dog. As the trial secretary,
 > the entry saves and takes its place in the class, so a mail-in with a missing or
 > illegible number does not lose its spot. Until the dog has a number for the trial's

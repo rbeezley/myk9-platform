@@ -227,12 +227,9 @@ export function mergeCanonicalEntry(
   };
 }
 
-function compareByTime(a: EnrichedShowEntry, b: EnrichedShowEntry): number {
-  return compareClassSchedule(
-    { day: a.trialDate, time: a.startTime },
-    { day: b.trialDate, time: b.startTime }
-  );
-}
+const scheduleKey = (e: EnrichedShowEntry) => ({ day: e.trialDate, time: e.startTime });
+const compareByTime = (a: EnrichedShowEntry, b: EnrichedShowEntry) =>
+  compareClassSchedule(scheduleKey(a), scheduleKey(b));
 
 interface ClassNameFields {
   element?: string | null | undefined;

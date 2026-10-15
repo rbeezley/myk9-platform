@@ -234,13 +234,13 @@ describe('useClassRowSyncState', () => {
       rejections.push(reason);
     };
     process.on('unhandledRejection', onRejection);
-    const { unmount } = renderHook(() => useClassRowSyncState('class-a'));
-    await waitFor(() => expect(replicatedClassesTable.getReplicatedRow).toHaveBeenCalled());
-    unmount();
-
-    // CI tears jsdom down before a late read settles; any setState then throws.
-    vi.stubGlobal('window', undefined);
     try {
+      const { unmount } = renderHook(() => useClassRowSyncState('class-a'));
+      await waitFor(() => expect(replicatedClassesTable.getReplicatedRow).toHaveBeenCalled());
+      unmount();
+
+      // CI tears jsdom down before a late read settles; any setState then throws.
+      vi.stubGlobal('window', undefined);
       settle(null);
       await new Promise(resolve => setTimeout(resolve, 0));
       await new Promise(resolve => setTimeout(resolve, 0));

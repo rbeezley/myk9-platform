@@ -148,7 +148,7 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
   return (
     <Link
       to={href}
-      className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-3 transition-colors hover:bg-muted/70"
+      className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-muted/40 px-3 py-3 transition-colors hover:bg-muted/70"
       aria-label={[
         entry.classTitle,
         `${entry.dayLabel} ${accessibleTimeLabel}`.trim(),
@@ -180,7 +180,7 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
 
       <PersonAvatar name={entry.dogName} size="sm" className="h-7 w-7" />
 
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1 basis-24">
         <p className="truncate text-sm font-semibold">
           {entry.dogName}
           {entry.classTitle && (
@@ -202,7 +202,7 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
 
       <ResultChip entry={entry} didNotRun={didNotRun} />
 
-      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+      <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground shrink-0" />
     </Link>
   );
 }

@@ -3,6 +3,13 @@ import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import {
+  CLEAN_WITH_NOISE,
+  NEGATED_CLEAN_FORMS,
+  REVIEW_3003,
+  CLEAN_OPENING_WITH_FINDINGS_ARRAY,
+  NEGATED_OPENING_ONLY,
+} from './review-3003-fixture';
 
 /**
  * The Claude half of the review gate gets the same behavioural treatment as the
@@ -273,6 +280,75 @@ describe('claude-review.sh', () => {
     const r = run(stub, gh);
     expect(r.code).toBe(2);
     expect(bodies(gh.calls)).toEqual([]);
+  });
+
+  it('treats the #3003 review (negated opening plus JSON findings) as findings, never clean (MYK9-1209)', () => {
+    const stub = stubClaude(REVIEW_3003);
+    const gh = stubGh();
+    const r = run(stub, gh);
+    expect(r.code).toBe(1);
+    expect(bodies(gh.calls).join('\n')).not.toContain('no findings');
+  });
+
+  it.each(CLEAN_WITH_NOISE)(
+    'still certifies a clean verdict with a JSON snippet or validation caveat: %j',
+    output => {
+      expect(run(stubClaude(output), stubGh()).code).toBe(0);
+    }
+  );
+
+  it.each([...NEGATED_CLEAN_FORMS, NEGATED_OPENING_ONLY])(
+    'does not certify a negated clean sentence: %j',
+    output => {
+      const stub = stubClaude(output);
+      const gh = stubGh();
+      const r = run(stub, gh);
+      expect(r.code).toBe(2);
+      expect(bodies(gh.calls)).toEqual([]);
+    }
+  );
+
+  it('a clean-looking opening over a valid findings array is findings, counted by array length', () => {
+    expect(run(stubClaude(CLEAN_OPENING_WITH_FINDINGS_ARRAY), stubGh()).code).toBe(1);
+    const count = execFileSync(
+      'bash',
+      [
+        '-c',
+        '. "$1"; review_finding_count "$2"',
+        'x',
+        resolve(import.meta.dirname, 'review-verdict.sh'),
+        `${CLEAN_OPENING_WITH_FINDINGS_ARRAY}\n- [P1] a bullet\n`,
+      ],
+      { encoding: 'utf8' }
+    ).trim();
+    expect(count).toBe('3');
+  });
+
+  it('fails closed when a fenced verdict cannot be parsed (node unavailable)', () => {
+    const clean = (text: string, bin: string): number => {
+      try {
+        execFileSync(
+          'bash',
+          [
+            '-c',
+            '. "$1"; review_verdict_is_clean "$2"',
+            'x',
+            resolve(import.meta.dirname, 'review-verdict.sh'),
+            text,
+          ],
+          { env: { ...process.env, REVIEW_NODE_BIN: bin }, stdio: 'ignore' }
+        );
+        return 0;
+      } catch (error) {
+        return (error as { status: number }).status;
+      }
+    };
+    const fenced = 'No actionable defects found.\n\n```json\n{"a": 1}\n```\n';
+    expect(clean(fenced, '/nonexistent/node')).toBe(1);
+    expect(clean(fenced, 'false')).toBe(1);
+    expect(clean(fenced, 'node')).toBe(0);
+    // No fence: node is never consulted.
+    expect(clean('No actionable defects found.\n', '/nonexistent/node')).toBe(0);
   });
 
   it('exits 2 when the findings comment could not be posted', () => {

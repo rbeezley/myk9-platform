@@ -52,7 +52,7 @@ test('canonical queue positions and state-only controls agree across roles (MYK9
     {
       name: 'pulled',
       fields: { ...waiting, run_order: 101, check_in_status: 'pulled' },
-      exhibitor: /pulled/i,
+      exhibitor: /I won.t be running this class/,
     },
     {
       name: 'completed',
@@ -216,7 +216,10 @@ test('expired token after 61 real minutes offline still queues and uploads the s
   const judge = await rolePage(browser, 'JUDGE', `${classPath(f)}/score/${f.willowId}`);
   const calls: Array<{ status: number; fields: unknown }> = [];
   judge.page.on('response', response => {
-    if (response.url().endsWith('/rpc/ringside_update_entry')) {
+    if (
+      response.request().method() === 'POST' &&
+      response.url().endsWith('/rpc/ringside_update_entry')
+    ) {
       const payload = response.request().postDataJSON() as { p_fields?: unknown };
       calls.push({ status: response.status(), fields: payload.p_fields });
     }

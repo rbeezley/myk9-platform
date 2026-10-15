@@ -23,6 +23,12 @@ export interface MutationManagerOptions {
    * when the live lookup throws. Never for authorization or uploads.
    */
   getCachedUserId?: () => string | null;
+  /**
+   * Whether the persisted session for `authUserId` is an anonymous (passcode)
+   * one. Stamped on each new queue entry as `ownerIsAnonymous` (MYK9-1205) so a
+   * later anonymous session can adopt it. Defaults to false: never adoptable.
+   */
+  getOwnerIsAnonymous?: (authUserId: string) => boolean;
   /** Resolve a request client pinned to the same auth session as its owner id. */
   getCurrentUploadContext?: () => Promise<MutationUploadAuthContext | null>;
   /** Acquire a synchronous app-level write slot before queueing a mutation. */

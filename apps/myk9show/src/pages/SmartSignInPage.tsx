@@ -21,6 +21,7 @@ import { SocialSignInButtons } from './SocialSignInButtons';
 import { JoinShowConfirmation } from './JoinShowConfirmation';
 import { validatePasscode } from './validatePasscode';
 import { startAnonymousRingsideSession } from './ringsideAnonSession';
+import { adoptHeldRingsideScoresForLiveClaim } from '@/services/replication/heldRingsideScores';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import type { UserRole as RingsideRole } from '@myk9/ringside';
 import type { TurnstileChallengeHandle } from '@/components/security/TurnstileChallenge';
@@ -285,6 +286,9 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
         sessionId: crypto.randomUUID(),
         source: 'passcode',
       });
+      // Scores an earlier passcode session left queued for this show now upload
+      // under this claim (MYK9-1205). Not awaited: it never delays the ring.
+      void adoptHeldRingsideScoresForLiveClaim();
       navigate(`/at-show/${result.showId}`);
     } finally {
       submissionPendingRef.current = false;

@@ -7,6 +7,7 @@
 
 import {
   ReplicatedTable,
+  databaseManager,
   syncReplicatedTable,
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
@@ -802,6 +803,24 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
    */
   async getClassById(classId: string): Promise<ReplicatedClass | null> {
     return this.get(classId);
+  }
+
+  /** A class reaches its show through its trial (MYK9-1205). */
+  protected override async resolveMutationShowId(classId: string): Promise<string | undefined> {
+    try {
+      const db = await databaseManager.getDatabase(this.getTableName());
+      const cls = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+        this.getTableName(),
+        classId,
+      ])) as ReplicatedRow<ReplicatedClass> | undefined;
+      const trialId = cls?.data?.trialId;
+      if (!trialId) return undefined;
+      const trial = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, ['trials', trialId])) as
+        ReplicatedRow<{ showId?: string }> | undefined;
+      return trial?.data?.showId || undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   /**

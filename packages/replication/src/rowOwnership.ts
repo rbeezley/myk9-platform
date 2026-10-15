@@ -21,26 +21,16 @@ export async function anyRowNotOwnedBy<T extends { id: string }>(
 
 /**
  * The one request every ending of an account-owned sync makes of the cache to
- * settle the scope stamp (see {@link ScopeStampDirective}). `wroteRows` is read
- * after the fact: does this account STILL own a row it wrote? A row another
- * account has since taken back, or one the bulk write skipped, is not this
- * sync's to answer for. Stops at the first row found, so the usual cost is one
- * read.
+ * settle the scope stamp (see {@link ScopeStampDirective}). It names the rows
+ * the sync handed to the bulk write; whether this account still owns any of them
+ * is read by the cache INSIDE the metadata transaction (MYK9-1149), so a row
+ * another account took back in the meantime is not this sync's to answer for.
  */
-export async function scopeStampDirective<T extends { id: string }>(
-  table: ReplicatedTable<T>,
+export function scopeStampDirective(
   writtenIds: readonly string[],
   syncingAuthUserId: string | null,
   whole: boolean
-): Promise<ScopeStampDirective | undefined> {
+): ScopeStampDirective | undefined {
   if (syncingAuthUserId === null) return undefined;
-  let wroteRows = false;
-  for (const id of writtenIds) {
-    const row = await table.getReplicatedRowIncludingOtherAccounts(id);
-    if (row?.ownerAuthUserId === syncingAuthUserId) {
-      wroteRows = true;
-      break;
-    }
-  }
-  return { syncingAuthUserId, whole, wroteRows };
+  return { syncingAuthUserId, whole, writtenIds };
 }

@@ -118,11 +118,13 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
 }) => {
   const isInRing = entry.inRing || entry.status === 'in-ring';
   // MYK9-1162: a held entry (no registration number for the trial's registry)
-  // keeps its run-order place but cannot be scored until the secretary adds the
-  // number. The server decides (`awaitingRegistrationNumber`); unknown is not
-  // held, and the server refuses the write regardless.
+  // keeps its run-order place but cannot be timed or scored until the secretary
+  // adds the number. The card stays tappable: the scoresheet route explains the
+  // lock and still lets the judge record the dog ABSENT, which the server
+  // allows. The server decides (`awaitingRegistrationNumber`); unknown is not
+  // held, and the server refuses a locked write regardless.
   const awaitingRegistration = entry.awaitingRegistrationNumber === true && !entry.isScored;
-  const scoringDisabled = scoringDisabledByRow || awaitingRegistration;
+  const scoringDisabled = scoringDisabledByRow;
   const longPressTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPressRef = React.useRef(false);
   const [isLongPressing, setIsLongPressing] = React.useState(false);
@@ -252,7 +254,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
       onMouseDown={stopCardGesture}
       onTouchStart={stopCardGesture}
     >
-      Score {entry.callName}
+      {awaitingRegistration ? 'Open' : 'Score'} {entry.callName}
     </button>
   );
   const actionPill = (label: string) => (
@@ -290,7 +292,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
           onClick={handleStatusBadgeClick}
           inverse
         />
-        {scoringAllowed && actionPill('Resume')}
+        {scoringAllowed && !awaitingRegistration && actionPill('Resume')}
         {keyboardScoreButton}
       </>
     ) : variant === 'next' ? (
@@ -301,7 +303,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
           onClick={handleStatusBadgeClick}
         />
         {isOwnEntry && <OwnDogQueuePill dogsAhead={dogsAhead} />}
-        {scoringAllowed && actionPill('Time')}
+        {scoringAllowed && !awaitingRegistration && actionPill('Time')}
         {keyboardScoreButton}
       </>
     ) : showStatus ? (

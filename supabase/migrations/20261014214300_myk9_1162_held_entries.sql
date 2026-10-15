@@ -387,6 +387,9 @@ COMMENT ON FUNCTION public.entry_awaiting_registration_number(uuid, uuid, text, 
 -- 23514 is a permanent error to the replication outbox, so a score queued
 -- offline for a dog that is held at upload time dead-letters into the existing
 -- refused-write Retry/Discard UX instead of being dropped or retried forever.
+-- The one exception is ABSENT (a zero time, no scoring start), which a held dog
+-- may be recorded as: no registration number is needed to say a dog did not
+-- come.
 CREATE OR REPLACE FUNCTION public.entries_block_score_when_awaiting_registration()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -394,6 +397,15 @@ SECURITY DEFINER
 SET search_path TO ''
 AS $$
 BEGIN
+  -- Recording a dog ABSENT needs no registration number: the live scoresheet's
+  -- Absent chip writes a zero time and no scoring start. Anything timed, and
+  -- every other result (qualified, NQ, excused, disqualified), stays locked.
+  IF NEW.result_status = 'absent'
+     AND coalesce(NEW.search_time_seconds, 0) = 0
+     AND NEW.scoring_started_at IS NOT DISTINCT FROM OLD.scoring_started_at THEN
+    RETURN NEW;
+  END IF;
+
   IF (NEW.is_scored IS TRUE AND OLD.is_scored IS DISTINCT FROM TRUE)
      OR (NEW.result_status IS DISTINCT FROM OLD.result_status
          AND NEW.result_status IS NOT NULL AND NEW.result_status <> 'pending')
@@ -423,6 +435,54 @@ CREATE TRIGGER trg_entries_block_score_when_awaiting_registration
 
 COMMENT ON FUNCTION public.entries_block_score_when_awaiting_registration() IS
   'Refuses a score write (23514, "Registration number needed. See the secretary.") for an entry awaiting a registration number (MYK9-1162). Covers ringside_update_entry and direct manager writes alike.';
+
+-- A registration change can flip an entry between held and not held, so the
+-- entry rows replicas read must advance. A max(registration updated_at) in the
+-- view cannot see a DELETE, or an UPDATE that blanks a number, so the change
+-- itself bumps the dog's live entries. This is a plain `SET updated_at = now()`:
+-- no score, status or money column changes, so the guard above and every other
+-- entries trigger pass it; the replication version increment
+-- (entries_version_increment) moves each touched entry's version by one, which
+-- a ringside client with a queued write for that entry meets as one ordinary
+-- version conflict and resolves on its next sync.
+CREATE OR REPLACE FUNCTION public.entries_touch_for_registration_change()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $$
+DECLARE
+  v_old uuid;
+  v_new uuid;
+BEGIN
+  IF TG_OP = 'UPDATE'
+     AND NEW.dog_id IS NOT DISTINCT FROM OLD.dog_id
+     AND NEW.organization IS NOT DISTINCT FROM OLD.organization
+     AND NEW.registration_number IS NOT DISTINCT FROM OLD.registration_number THEN
+    RETURN NULL;
+  END IF;
+  IF TG_OP IN ('UPDATE', 'DELETE') THEN v_old := OLD.dog_id; END IF;
+  IF TG_OP IN ('INSERT', 'UPDATE') THEN v_new := NEW.dog_id; END IF;
+
+  UPDATE public.entries e
+     SET updated_at = now()
+   WHERE e.deleted_at IS NULL
+     AND e.dog_id IN (v_old, v_new);
+  RETURN NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.entries_touch_for_registration_change()
+  FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_dog_registrations_touch_entries ON public.dog_registrations;
+CREATE TRIGGER trg_dog_registrations_touch_entries
+  AFTER INSERT OR UPDATE OR DELETE ON public.dog_registrations
+  FOR EACH ROW
+  EXECUTE FUNCTION public.entries_touch_for_registration_change();
+
+COMMENT ON FUNCTION public.entries_touch_for_registration_change() IS
+  'Bumps updated_at on a dog''s live entries when one of its registrations is added, removed, or has its organization or number changed, so replicas re-read awaiting_registration_number (MYK9-1162).';
 
 -- -----------------------------------------------------------------------------
 -- The entry-results views gain awaiting_registration_number (appended last).
@@ -510,11 +570,12 @@ SELECT
     consent.profiles_updated_at,
     d.updated_at,
     (SELECT max(epoch.updated_at) FROM private.results_privacy_epoch epoch),
-    -- MYK9-1162: adding or editing a registration, or changing the trial's
-    -- registry, flips awaiting_registration_number, so it must move the row for
-    -- the replication cursor (updated_at, id).
-    held_trial.updated_at,
-    (SELECT max(hr.updated_at) FROM public.dog_registrations hr WHERE hr.dog_id = e.dog_id)
+    -- MYK9-1162: changing the trial's registry flips awaiting_registration_number
+    -- for every entry in it, so the trial moves the row for the replication
+    -- cursor (updated_at, id). Registration changes do not appear here: a
+    -- DELETE cannot be seen by a max(updated_at), so
+    -- trg_dog_registrations_touch_entries bumps the dog's entries instead.
+    held_trial.updated_at
   ) AS updated_at,
   e.deleted_at,
   CASE WHEN access.can_view_admin THEN e.deleted_by END AS deleted_by,

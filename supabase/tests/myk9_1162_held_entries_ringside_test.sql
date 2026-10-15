@@ -7,8 +7,15 @@
 --   B. a judge PASSCODE session (no dog_registrations access) sees the same flag
 --   C. a judge passcode cannot record a score for the held entry (23514); a
 --      check-in write for it still goes through; a registered entry scores
---   D. a manager's direct score write is refused too
+--   D. a manager's direct score write is refused too; a held entry can still be
+--      withdrawn; an entry scored before it became held takes non-score writes
 --   E. once the registration exists the flag clears and the score is accepted
+--   F. ABSENT is allowed for a held dog (zero time), a timed absent and every
+--      other result stay refused
+--   G. conformation puppies are never held; a UKC trial with only an AKC number is
+--   H. a registration DELETE advances the entry's updated_at (replicas re-read)
+--   I. grants: no EXECUTE on the predicate for anon or authenticated, and anon
+--      has no SELECT on either entry-results view
 --
 -- Fixtures roll back.
 
@@ -33,11 +40,31 @@ insert into public.classes (id, trial_id, name, status, element, level, section)
 insert into public.show_passcodes (show_id, role, passcode_hash, created_at) values
   ('00000000-0000-0000-0000-000001162021', 'judge', 'myk9-1162-judge', '2026-10-10T00:00:00Z');
 
+insert into public.trials (id, show_id, name, date, registry_id, trial_type) values
+  ('00000000-0000-0000-0000-000001162052', '00000000-0000-0000-0000-000001162021',
+   'MYK9-1162 Conformation Trial', current_date, 'AKC', 'Conformation'),
+  ('00000000-0000-0000-0000-000001162062', '00000000-0000-0000-0000-000001162021',
+   'MYK9-1162 UKC Trial', current_date, 'UKC', 'Scent Work');
+insert into public.classes (id, trial_id, name, status, element, level, section) values
+  ('00000000-0000-0000-0000-000001162053', '00000000-0000-0000-0000-000001162052',
+   'Puppy 6-9 Months', 'upcoming', 'Puppy', 'Puppy', 'A'),
+  ('00000000-0000-0000-0000-000001162063', '00000000-0000-0000-0000-000001162062',
+   'Container Novice U', 'upcoming', 'Container', 'Novice', 'A');
+
 insert into public.dogs (id, name, call_name, breed) values
   ('00000000-0000-0000-0000-000001162031', 'MYK9-1162 Held', 'Held', 'Beagle'),
-  ('00000000-0000-0000-0000-000001162032', 'MYK9-1162 Registered', 'Reg', 'Beagle');
-insert into public.dog_registrations (dog_id, organization, registration_number, is_primary) values
-  ('00000000-0000-0000-0000-000001162032', 'AKC', 'SR1162001', true);
+  ('00000000-0000-0000-0000-000001162032', 'MYK9-1162 Registered', 'Reg', 'Beagle'),
+  ('00000000-0000-0000-0000-000001162033', 'MYK9-1162 Withdraw', 'Wd', 'Beagle'),
+  ('00000000-0000-0000-0000-000001162034', 'MYK9-1162 Absent', 'Abs', 'Beagle'),
+  ('00000000-0000-0000-0000-000001162035', 'MYK9-1162 Puppy', 'Pup', 'Beagle'),
+  ('00000000-0000-0000-0000-000001162036', 'MYK9-1162 AKC In UKC', 'Mix', 'Beagle'),
+  ('00000000-0000-0000-0000-000001162037', 'MYK9-1162 Scored Then Held', 'Sth', 'Beagle'),
+  ('00000000-0000-0000-0000-000001162038', 'MYK9-1162 Touch', 'Tch', 'Beagle');
+insert into public.dog_registrations (id, dog_id, organization, registration_number, is_primary) values
+  ('00000000-0000-0000-0000-000001162081', '00000000-0000-0000-0000-000001162032', 'AKC', 'SR1162001', true),
+  ('00000000-0000-0000-0000-000001162082', '00000000-0000-0000-0000-000001162036', 'AKC', 'SR1162006', true),
+  ('00000000-0000-0000-0000-000001162083', '00000000-0000-0000-0000-000001162037', 'AKC', 'SR1162007', true),
+  ('00000000-0000-0000-0000-000001162084', '00000000-0000-0000-0000-000001162038', 'AKC', 'SR1162008', true);
 
 -- Held entries reach the table through a trial manager's insert; the fixture
 -- owner has no caller identity, so the entry trigger is off for the fixture only.
@@ -48,8 +75,31 @@ insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_statu
    '00000000-0000-0000-0000-000001162022', 'confirmed', '1', 1, 'no-status'),
   ('00000000-0000-0000-0000-000001162042', '00000000-0000-0000-0000-000001162032',
    '00000000-0000-0000-0000-000001162023', '00000000-0000-0000-0000-000001162021',
-   '00000000-0000-0000-0000-000001162022', 'confirmed', '2', 2, 'no-status');
+   '00000000-0000-0000-0000-000001162022', 'confirmed', '2', 2, 'no-status'),
+  ('00000000-0000-0000-0000-000001162043', '00000000-0000-0000-0000-000001162033',
+   '00000000-0000-0000-0000-000001162023', '00000000-0000-0000-0000-000001162021',
+   '00000000-0000-0000-0000-000001162022', 'confirmed', '3', 3, 'no-status'),
+  ('00000000-0000-0000-0000-000001162044', '00000000-0000-0000-0000-000001162034',
+   '00000000-0000-0000-0000-000001162023', '00000000-0000-0000-0000-000001162021',
+   '00000000-0000-0000-0000-000001162022', 'confirmed', '4', 4, 'no-status'),
+  ('00000000-0000-0000-0000-000001162045', '00000000-0000-0000-0000-000001162035',
+   '00000000-0000-0000-0000-000001162053', '00000000-0000-0000-0000-000001162021',
+   '00000000-0000-0000-0000-000001162052', 'confirmed', '5', 1, 'no-status'),
+  ('00000000-0000-0000-0000-000001162046', '00000000-0000-0000-0000-000001162036',
+   '00000000-0000-0000-0000-000001162063', '00000000-0000-0000-0000-000001162021',
+   '00000000-0000-0000-0000-000001162062', 'confirmed', '6', 1, 'no-status'),
+  ('00000000-0000-0000-0000-000001162047', '00000000-0000-0000-0000-000001162037',
+   '00000000-0000-0000-0000-000001162023', '00000000-0000-0000-0000-000001162021',
+   '00000000-0000-0000-0000-000001162022', 'confirmed', '7', 5, 'no-status'),
+  ('00000000-0000-0000-0000-000001162048', '00000000-0000-0000-0000-000001162038',
+   '00000000-0000-0000-0000-000001162023', '00000000-0000-0000-0000-000001162021',
+   '00000000-0000-0000-0000-000001162022', 'confirmed', '8', 6, 'no-status');
 alter table public.entries enable trigger trg_entries_require_dog_registration;
+
+-- Entry 47 was scored while its dog was registered; the registration is deleted
+-- later (section D), which makes it held with a result already on it.
+update public.entries set is_scored = true, result_status = 'qualified', search_time_seconds = 22
+ where id = '00000000-0000-0000-0000-000001162047';
 
 create temporary table myk9_1162 (step text primary key, value text) on commit drop;
 grant select, insert, update on myk9_1162 to authenticated;
@@ -153,8 +203,37 @@ begin
      where id = '00000000-0000-0000-0000-000001162041';
     raise exception 'FAIL D a manager scored a held entry directly';
   exception when check_violation then
-    raise notice 'PASS D a manager''s direct score write is refused';
+    if sqlerrm not like 'Registration number needed%' then
+      raise exception 'FAIL D wrong refusal: %', sqlerrm;
+    end if;
+    raise notice 'PASS D a manager''s direct score write is refused with the plain copy';
   end;
+
+  -- A held entry can still be withdrawn (it stops being live, so is not held).
+  update public.entries set entry_status = 'withdrawn'
+   where id = '00000000-0000-0000-0000-000001162043';
+  raise notice 'PASS D a held entry can be withdrawn';
+end $$;
+
+-- An entry scored BEFORE it became held takes non-score writes.
+reset role;
+delete from public.dog_registrations where id = '00000000-0000-0000-0000-000001162083';
+set local role authenticated;
+select pg_temp.as_account('00000000-0000-0000-0000-000001162101');
+do $$
+declare held boolean;
+begin
+  select awaiting_registration_number into held
+    from public.view_authenticated_entry_results_replication
+   where id = '00000000-0000-0000-0000-000001162047';
+  if held is distinct from true then
+    raise exception 'FAIL D the scored entry was not flagged once its registration was gone (%)', held;
+  end if;
+  update public.entries set judge_notes = 'checked after the fact'
+   where id = '00000000-0000-0000-0000-000001162047';
+  update public.entries set check_in_status = 'checked-in'
+   where id = '00000000-0000-0000-0000-000001162047';
+  raise notice 'PASS D a non-score write to an entry scored before it became held passes';
 end $$;
 
 -- E. add the registration; the flag clears and the score is accepted
@@ -177,6 +256,82 @@ begin
      set is_scored = true, result_status = 'qualified', search_time_seconds = 41
    where id = '00000000-0000-0000-0000-000001162041';
   raise notice 'PASS E the flag clears and the score is accepted once the number exists';
+end $$;
+
+-- F. ABSENT for a held dog
+select pg_temp.as_passcode('00000000-0000-0000-0000-000001162021', 'judge');
+do $$
+begin
+  begin
+    perform public.ringside_update_entry(
+      '00000000-0000-0000-0000-000001162044',
+      jsonb_build_object('is_scored', true, 'result_status', 'absent', 'search_time_seconds', 14), null);
+    raise exception 'FAIL F a timed absent was accepted for a held entry';
+  exception when check_violation then
+    raise notice 'PASS F a timed absent is refused';
+  end;
+  begin
+    perform public.ringside_update_entry(
+      '00000000-0000-0000-0000-000001162044',
+      jsonb_build_object('is_scored', true, 'result_status', 'excused', 'search_time_seconds', 0), null);
+    raise exception 'FAIL F excused was accepted for a held entry';
+  exception when check_violation then
+    raise notice 'PASS F excused is refused';
+  end;
+  perform public.ringside_update_entry(
+    '00000000-0000-0000-0000-000001162044',
+    jsonb_build_object('is_scored', true, 'result_status', 'absent', 'search_time_seconds', 0), null);
+  raise notice 'PASS F a held dog can be recorded absent (zero time)';
+end $$;
+
+-- G. carve-out and per-trial registry
+select pg_temp.as_account('00000000-0000-0000-0000-000001162101');
+do $$
+declare puppy boolean; ukc boolean;
+begin
+  select awaiting_registration_number into puppy
+    from public.view_authenticated_entry_results_replication
+   where id = '00000000-0000-0000-0000-000001162045';
+  select awaiting_registration_number into ukc
+    from public.view_authenticated_entry_results_replication
+   where id = '00000000-0000-0000-0000-000001162046';
+  if puppy is distinct from false then
+    raise exception 'FAIL G a conformation puppy was held (%)', puppy;
+  end if;
+  if ukc is distinct from true then
+    raise exception 'FAIL G a UKC-trial entry with only an AKC number was not held (%)', ukc;
+  end if;
+  raise notice 'PASS G conformation puppy is not held; a UKC trial needs a UKC number';
+end $$;
+
+-- H. a registration DELETE advances the entry's updated_at
+reset role;
+do $$
+declare before_ts timestamptz; after_ts timestamptz;
+begin
+  update public.entries set updated_at = '2020-01-01T00:00:00Z'
+   where id = '00000000-0000-0000-0000-000001162048';
+  delete from public.dog_registrations where id = '00000000-0000-0000-0000-000001162084';
+  select updated_at into after_ts from public.entries
+   where id = '00000000-0000-0000-0000-000001162048';
+  if after_ts < now() - interval '1 minute' then
+    raise exception 'FAIL H deleting a registration did not advance the entry (%)', after_ts;
+  end if;
+  raise notice 'PASS H a registration delete advances the entry''s updated_at';
+end $$;
+
+-- I. grants
+do $$
+declare fn text := 'public.entry_awaiting_registration_number(uuid, uuid, text, timestamptz)';
+begin
+  if has_function_privilege('anon', fn, 'EXECUTE') or has_function_privilege('authenticated', fn, 'EXECUTE') then
+    raise exception 'FAIL I a client role can execute the held predicate';
+  end if;
+  if has_table_privilege('anon', 'public.view_authenticated_entry_results', 'SELECT')
+     or has_table_privilege('anon', 'public.view_authenticated_entry_results_replication', 'SELECT') then
+    raise exception 'FAIL I anon can read an entry-results view';
+  end if;
+  raise notice 'PASS I the predicate is internal and anon cannot read the entry-results views';
 end $$;
 
 rollback;

@@ -1056,6 +1056,22 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     expect(transitionToInRing).not.toHaveBeenCalled();
   });
 
+  it('still lets the judge record a held dog absent, with nothing timed', async () => {
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([
+      { id: 'entry-1', armband: 105, dogId: 'dog-1', awaitingRegistrationNumber: true },
+    ] as never);
+
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Mark absent' }));
+
+    await waitFor(() => expect(submitScoreOptimistically).toHaveBeenCalledTimes(1));
+    expect(submitScoreOptimistically.mock.calls[0]?.[0].scoreData).toMatchObject({
+      resultText: 'ABS',
+      searchTime: '0.00',
+      nonQualifyingReason: 'Absent',
+    });
+  });
+
   it('opens the scoresheet when the flag is unknown (an older replica row)', async () => {
     renderPage();
 

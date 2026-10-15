@@ -253,7 +253,7 @@ describe('useAtShowEntryListHandlers — entry-card view intent', () => {
 });
 
 describe('useAtShowEntryListHandlers — entry awaiting a registration number (MYK9-1162)', () => {
-  it('says why instead of opening the scoresheet, and writes nothing', () => {
+  it('still opens the scoresheet route, where the lock is explained and absent is allowed', () => {
     toastInfo.mockClear();
     const held = makeEntry({ id: 'entry-1', callName: 'Rex', awaitingRegistrationNumber: true });
     const actions = makeActions();
@@ -263,9 +263,7 @@ describe('useAtShowEntryListHandlers — entry awaiting a registration number (M
       result.current.handleEntryClick(held);
     });
 
-    expect(toastInfo).toHaveBeenCalledTimes(1);
-    expect(toastInfo.mock.calls[0]?.[0]).toMatch(/registration number/i);
-    expect(toastInfo.mock.calls[0]?.[0]).toMatch(/see the secretary/i);
+    expect(toastInfo).not.toHaveBeenCalled();
     expect(actions.handleMarkInRing).not.toHaveBeenCalled();
   });
 });

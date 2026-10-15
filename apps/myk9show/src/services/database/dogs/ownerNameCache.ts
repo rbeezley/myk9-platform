@@ -39,13 +39,16 @@ function readMap(key: string): NameMap {
   }
 }
 
-/** Merge these owners' names into the signed-in account's device copy. Best effort. */
+/** Merge these owners' names into the signed-in account's device copy, only while `key` is still that account's. Best effort. */
 export function rememberOwnerNames(
   owners: ReadonlyArray<{ id: string; first_name?: string | null; last_name?: string | null }>,
   key: string | null
 ): void {
   if (typeof window === 'undefined') return;
   if (!key || owners.length === 0) return;
+  // MYK9-1202: a response that outlived its account (signed out or switched
+  // mid-read) is dropped; writing it would recreate the cleared key.
+  if (ownerNameCacheKey() !== key) return;
   try {
     const map = readMap(key);
     for (const owner of owners) {

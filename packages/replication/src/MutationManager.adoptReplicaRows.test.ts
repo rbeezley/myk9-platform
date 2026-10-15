@@ -141,4 +141,30 @@ describe('adoption moves the replica rows with the queue (MYK9-1205)', () => {
       ['plain', 'anon-2'],
     ]);
   });
+
+  it('re-surfaces an adopted conflicted row through the existing replication:conflict event, with no sync', async () => {
+    await queue('conflicted');
+    await queue('plain');
+    const row = (await table.getReplicatedRowIncludingOtherAccounts('conflicted'))!;
+    await table.markConflict('conflicted', snapshot('conflicted', row.version), 3);
+    user = 'anon-2';
+    const dispatch = vi.fn();
+    vi.stubGlobal('window', { dispatchEvent: dispatch });
+
+    try {
+      await manager.adoptHeldMutations({
+        showId: 'show-x',
+        toAuthUserId: 'anon-2',
+        rpcNames: RPCS,
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    const conflictEvents = dispatch.mock.calls
+      .map(([event]) => event as CustomEvent)
+      .filter(event => event.type === 'replication:conflict');
+    expect(conflictEvents.map(event => event.detail.rowId)).toEqual(['conflicted']);
+    expect(conflictEvents[0]?.detail).toMatchObject({ fields: ['name'], remoteServerVersion: 3 });
+  });
 });

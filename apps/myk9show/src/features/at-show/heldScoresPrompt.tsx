@@ -48,7 +48,7 @@ export function HeldScoresPromptHost() {
       go();
       return;
     }
-    void adoptHeldRingsideScores()
+    void adoptHeldRingsideScores(prompt.showId)
       .catch(error =>
         logger.error('[sign-in] adopting held scores failed', 'at-show', { error: String(error) })
       )

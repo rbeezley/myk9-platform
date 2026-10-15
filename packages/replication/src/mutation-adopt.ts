@@ -1,5 +1,5 @@
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
-import type { PendingMutation, ReplicatedRow } from './types';
+import type { PendingMutation, ReplicatedRow, ReplicationConflictSnapshot } from './types';
 
 /**
  * Adoption of held ringside scores by a fresh anonymous (passcode) session
@@ -57,7 +57,8 @@ export async function countAdoptableHeldMutations(
 /**
  * Re-owns the adoptable queue rows AND the replica rows they target, in ONE
  * transaction across both stores (they share a database). Returns how many
- * mutations moved.
+ * mutations moved, and the conflict snapshots of the rows that moved so the caller
+ * can re-surface them (the auth-time scan ran while they were invisible).
  *
  * Account-owned replica rows are read by owner: a row left with the dead session
  * would be invisible to the new one, including a conflicted row (its conflict
@@ -67,7 +68,7 @@ export async function countAdoptableHeldMutations(
  */
 export async function adoptHeldMutationsInStore(
   options: AdoptHeldMutationsOptions
-): Promise<number> {
+): Promise<{ adopted: number; conflicts: ReplicationConflictSnapshot[] }> {
   const db = await databaseManager.getDatabase('MutationManager');
   const tx = db.transaction(
     [REPLICATION_STORES.PENDING_MUTATIONS, REPLICATION_STORES.REPLICATED_TABLES],
@@ -77,16 +78,18 @@ export async function adoptHeldMutationsInStore(
   const replica = tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES);
   const rows = (await queue.getAll()) as PendingMutation[];
   let adopted = 0;
+  const conflicts: ReplicationConflictSnapshot[] = [];
   for (const row of rows) {
     if (!isAdoptableHeldMutation(row, options)) continue;
     const replicaRow = (await replica.get([row.tableName, row.rowId])) as
       ReplicatedRow<unknown> | undefined;
     if (replicaRow && replicaRow.ownerAuthUserId === row.authUserId) {
       await replica.put({ ...replicaRow, ownerAuthUserId: options.toAuthUserId });
+      if (replicaRow.conflict) conflicts.push(replicaRow.conflict as ReplicationConflictSnapshot);
     }
     await queue.put({ ...row, authUserId: options.toAuthUserId });
     adopted++;
   }
   await tx.done;
-  return adopted;
+  return { adopted, conflicts };
 }

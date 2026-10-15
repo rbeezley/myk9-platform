@@ -36,25 +36,36 @@ async function currentClaim(): Promise<{ userId: string; showId: string } | null
   }
 }
 
-/** How many held scores from an earlier session this device could adopt right now. */
-export async function countHeldRingsideScores(): Promise<number> {
+/** Held scores the live claim's show could adopt, with that show, or null when there is none. */
+export async function getHeldRingsideScores(): Promise<{ count: number; showId: string } | null> {
   const claim = await currentClaim();
-  if (!claim) return 0;
+  if (!claim) return null;
   try {
-    return await mutationManager.countAdoptableHeldMutations({
+    const count = await mutationManager.countAdoptableHeldMutations({
       showId: claim.showId,
       toAuthUserId: claim.userId,
       rpcNames: ADOPTABLE_RPCS,
     });
+    return { count, showId: claim.showId };
   } catch {
-    return 0;
+    return null;
   }
 }
 
-/** Adopt them and request an upload. Returns how many moved; throws on failure. */
-export async function adoptHeldRingsideScores(): Promise<number> {
+/** How many held scores from an earlier session this device could adopt right now. */
+export async function countHeldRingsideScores(): Promise<number> {
+  return (await getHeldRingsideScores())?.count ?? 0;
+}
+
+/**
+ * Adopt them and request an upload. Returns how many moved; throws on failure.
+ * `offeredShowId` is the show the owner agreed to: if the live claim has moved to
+ * another show since (another tab validated a different passcode), nothing is
+ * adopted, so scores outside the consented show never upload.
+ */
+export async function adoptHeldRingsideScores(offeredShowId: string): Promise<number> {
   const claim = await currentClaim();
-  if (!claim) return 0;
+  if (!claim || claim.showId !== offeredShowId) return 0;
   return mutationManager.adoptHeldMutations({
     showId: claim.showId,
     toAuthUserId: claim.userId,

@@ -11,17 +11,19 @@ import { HeldRingsideScoresBanner } from './HeldRingsideScores';
 
 const held = vi.hoisted(() => ({
   count: 2,
-  adopt: vi.fn(async () => 2),
+  adopt: vi.fn<(showId: string) => Promise<number>>().mockResolvedValue(2),
 }));
 
 vi.mock('@/services/replication/heldRingsideScores', () => ({
   countHeldRingsideScores: async () => held.count,
-  adoptHeldRingsideScores: () => held.adopt(),
+  getHeldRingsideScores: async () =>
+    held.count > 0 ? { count: held.count, showId: 'show-x' } : null,
+  adoptHeldRingsideScores: (showId: string) => held.adopt(showId),
 }));
 
 beforeEach(() => {
   held.count = 2;
-  held.adopt = vi.fn(async () => 2);
+  held.adopt = vi.fn<(showId: string) => Promise<number>>().mockResolvedValue(2);
 });
 
 describe('HeldRingsideScoresBanner (MYK9-1205)', () => {
@@ -57,7 +59,7 @@ describe('HeldRingsideScoresBanner (MYK9-1205)', () => {
     await user.click(
       within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Upload them' })
     );
-    await waitFor(() => expect(held.adopt).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(held.adopt).toHaveBeenCalledExactlyOnceWith('show-x'));
   });
 });
 
@@ -117,7 +119,7 @@ describe('asking after a passcode validates, above the sign-in page (MYK9-1205)'
     await user.click(within(dialog).getByRole('button', { name: 'Upload them' }));
 
     await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/at-show/show-x'));
-    expect(held.adopt).toHaveBeenCalledTimes(1);
+    expect(held.adopt).toHaveBeenCalledExactlyOnceWith('show-x');
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 
@@ -133,9 +135,7 @@ describe('asking after a passcode validates, above the sign-in page (MYK9-1205)'
   });
 
   it('still lands on the show when adopting fails', async () => {
-    held.adopt = vi.fn(async () => {
-      throw new Error('boom');
-    });
+    held.adopt = vi.fn<(showId: string) => Promise<number>>().mockRejectedValue(new Error('boom'));
     const { user } = renderPasscodeFlow();
     await user.click(screen.getByRole('button', { name: 'Enter' }));
     await user.click(

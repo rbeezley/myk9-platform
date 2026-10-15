@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   adoptHeldRingsideScores,
-  countHeldRingsideScores,
+  getHeldRingsideScores,
 } from '@/services/replication/heldRingsideScores';
 
 // Events after which the held count may have changed: the queue grew, drained,
@@ -18,13 +18,14 @@ const REFRESH_EVENTS = [
  * requests an upload; it resolves true when scores moved.
  */
 export function useHeldRingsideScores(): { count: number; adopt: () => Promise<boolean> } {
-  const [count, setCount] = useState(0);
+  // The show is remembered with the count: "Upload them" adopts for THAT show only.
+  const [held, setHeld] = useState<{ count: number; showId: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const refresh = () => {
-      void countHeldRingsideScores().then(next => {
-        if (!cancelled) setCount(next);
+      void getHeldRingsideScores().then(next => {
+        if (!cancelled) setHeld(next);
       });
     };
     refresh();
@@ -35,6 +36,10 @@ export function useHeldRingsideScores(): { count: number; adopt: () => Promise<b
     };
   }, []);
 
-  const adopt = useCallback(async () => (await adoptHeldRingsideScores()) > 0, []);
-  return { count, adopt };
+  const showId = held?.showId;
+  const adopt = useCallback(
+    async () => showId !== undefined && (await adoptHeldRingsideScores(showId)) > 0,
+    [showId]
+  );
+  return { count: held?.count ?? 0, adopt };
 }

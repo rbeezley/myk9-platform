@@ -110,6 +110,14 @@ export function useRegistrationNumberNeededEmail({
   // Skip and dismiss. A job this prompt already saved but did not deliver is marked skipped
   // first, so it cannot be batch-sent later from Scheduled emails. If that fails the preview
   // stays open and says so: dropping it would leave the sendable job behind unnoticed.
+  // Every read of these jobs: the row's label, the Scheduled emails summary and its
+  // Review list (whose cache would otherwise show a replaced or skipped email).
+  const invalidateJobReads = () => {
+    void queryClient.invalidateQueries({ queryKey: summaryKey });
+    void queryClient.invalidateQueries({ queryKey: countsKey });
+    void queryClient.invalidateQueries({ queryKey: ['show-lifecycle-email-review', showId] });
+  };
+
   const dismissPrompt = async (id: number) => {
     // Never mid-send: withdrawing the job while its send is in flight would race the
     // send for the job's final state. The send finishes (and closes it) first.
@@ -122,7 +130,7 @@ export function useRegistrationNumberNeededEmail({
         toast.error("The saved email couldn't be withdrawn. Try Skip again.");
         return;
       }
-      void queryClient.invalidateQueries({ queryKey: summaryKey });
+      invalidateJobReads();
     }
     closePrompt(id);
   };
@@ -144,37 +152,38 @@ export function useRegistrationNumberNeededEmail({
     try {
       let jobId = savedJobIdsRef.current.get(id) ?? null;
       if (!jobId) {
-        const history = await readRegistrationNumberNeededHistory({
-          supabase: lifecycleClient,
-          showId: entry.showId,
-          entryId: entry.id,
-        });
-        // At most one sendable email per entry: an earlier one that failed or was
-        // never sent is withdrawn first, so no batch retry can send it as well.
-        if (history.outstandingJobIds.length > 0) {
-          await skipLifecycleEmailJobsForReview({
-            supabase: lifecycleClient,
-            jobIds: history.outstandingJobIds,
-          });
+        const historyArgs = { supabase: lifecycleClient, showId: entry.showId, entryId: entry.id };
+        const history = await readRegistrationNumberNeededHistory(historyArgs);
+        // The database allows ONE waiting or failed email per entry. If one exists it
+        // is the email to send: re-sending it is safe from double delivery, because
+        // every send carries the job's own idempotency key to the provider.
+        jobId = history.outstandingJobIds[0] ?? null;
+        if (!jobId) {
+          try {
+            jobId = await saveLifecycleEmailJobForLater({
+              supabase,
+              showId: entry.showId,
+              stepType: REGISTRATION_NUMBER_NEEDED_STEP,
+              recipientScope: 'entry',
+              entryId: entry.id,
+              recipientEmail: entry.ownerEmail,
+              recipientName: entry.ownerName,
+              subject: values.subject,
+              body: values.body,
+              secretaryNote: values.secretaryNote,
+              idempotencyKey: buildRegistrationNumberNeededIdempotencyKey({
+                showId: entry.showId,
+                entryId: entry.id,
+                priorCount: history.count,
+              }),
+            });
+          } catch (error) {
+            // Another tab or visit saved one first: the index refused ours. Use theirs.
+            const after = await readRegistrationNumberNeededHistory(historyArgs);
+            jobId = after.outstandingJobIds[0] ?? null;
+            if (!jobId) throw error;
+          }
         }
-        const priorCount = history.count;
-        jobId = await saveLifecycleEmailJobForLater({
-          supabase,
-          showId: entry.showId,
-          stepType: REGISTRATION_NUMBER_NEEDED_STEP,
-          recipientScope: 'entry',
-          entryId: entry.id,
-          recipientEmail: entry.ownerEmail,
-          recipientName: entry.ownerName,
-          subject: values.subject,
-          body: values.body,
-          secretaryNote: values.secretaryNote,
-          idempotencyKey: buildRegistrationNumberNeededIdempotencyKey({
-            showId: entry.showId,
-            entryId: entry.id,
-            priorCount,
-          }),
-        });
         if (!jobId) throw new Error('Lifecycle email job was not created');
         savedJobIdsRef.current.set(id, jobId);
       }
@@ -197,8 +206,7 @@ export function useRegistrationNumberNeededEmail({
       } else {
         toast.success('Registration number email sent');
       }
-      void queryClient.invalidateQueries({ queryKey: summaryKey });
-      void queryClient.invalidateQueries({ queryKey: countsKey });
+      invalidateJobReads();
       closePrompt(id);
     } catch {
       toast.error('The email did not send. Try again.');

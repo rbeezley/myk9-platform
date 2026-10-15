@@ -17,6 +17,10 @@
 --      client and asks it whether a job's entry is still held; a service-role
 --      read of the entry-results views is no substitute, because their row gate
 --      is the caller (auth.uid()).
+--   5. At most ONE waiting or failed registration_number_needed email per entry
+--      (partial unique index). Send reminder re-sends that one rather than adding
+--      a second, so no browser tab, page visit or Scheduled emails batch can leave
+--      two sendable emails for the same dog.
 --
 -- Rollback: re-apply the 20260710080000 function and the five-value CHECKs
 -- (delete any registration_number_needed rows first).
@@ -104,5 +108,9 @@ SELECT public.ensure_show_lifecycle_email_steps(s.id) FROM public.shows s;
 
 GRANT EXECUTE ON FUNCTION public.entry_awaiting_registration_number(uuid, uuid, text, timestamptz)
   TO service_role;
+
+CREATE UNIQUE INDEX IF NOT EXISTS show_lifecycle_email_jobs_one_outstanding_number_needed
+  ON public.show_lifecycle_email_jobs (entry_id)
+  WHERE step_type = 'registration_number_needed' AND status IN ('ready', 'failed');
 
 COMMIT;

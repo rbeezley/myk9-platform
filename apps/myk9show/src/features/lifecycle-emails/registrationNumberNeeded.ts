@@ -28,14 +28,14 @@ export function buildRegistrationNumberNeededIdempotencyKey(input: {
 export interface RegistrationNumberNeededHistory {
   /** Every job for the entry, whatever its status: the next reminder's sequence. */
   count: number;
-  /** Jobs that could still be sent (ready or failed), which a new email supersedes. */
+  /** The waiting or failed job, if any: at most one, by the database's index. */
   outstandingJobIds: string[];
 }
 
 /**
- * The entry's "registration number needed" jobs. An entry has at most ONE sendable
- * email: before a new one is saved, the outstanding ones are withdrawn, so a failed
- * or abandoned earlier email can never be batch-sent beside the new one.
+ * The entry's "registration number needed" jobs. The database allows at most ONE
+ * waiting or failed one per entry (a partial unique index); when it exists it is the
+ * email to send, so Send reminder never creates a second sendable copy.
  */
 export async function readRegistrationNumberNeededHistory(args: {
   supabase: LifecycleEmailSupabaseClient;

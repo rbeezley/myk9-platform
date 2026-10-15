@@ -8,6 +8,8 @@
 --      one step_type CHECK (the old one was dropped, not left beside the new)
 --   E. service_role may execute entry_awaiting_registration_number, which
 --      send-lifecycle-email asks before sending this step
+--   F. one waiting or failed registration_number_needed email per entry; a sent
+--      one does not block the next reminder, and other steps are unaffected
 --
 -- Fixtures roll back.
 
@@ -130,6 +132,70 @@ begin
     raise exception 'FAIL E an API role can call ensure_show_lifecycle_email_steps directly (SA-022)';
   end if;
   raise notice 'PASS E service_role (not anon) may execute the held predicate; API roles cannot seed steps';
+end $$;
+
+-- F needs a real entry (entry_id references entries). The fixture owner has no
+-- caller identity, so the no-number entry trigger is off for this insert only.
+insert into public.trials (id, show_id, name, date, registry_id, trial_type) values
+  ('00000000-0000-0000-0000-000001162303', '00000000-0000-0000-0000-000001162302',
+   'MYK9-1162 Lifecycle Trial', current_date, 'AKC', 'Scent Work');
+insert into public.classes (id, trial_id, name, status, element, level, section) values
+  ('00000000-0000-0000-0000-000001162304', '00000000-0000-0000-0000-000001162303',
+   'Container Novice A', 'upcoming', 'Container', 'Novice', 'A');
+insert into public.dogs (id, name, call_name, breed) values
+  ('00000000-0000-0000-0000-000001162305', 'MYK9-1162 Lifecycle Dog', 'Life', 'Beagle');
+alter table public.entries disable trigger trg_entries_require_dog_registration;
+insert into public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, armband, run_order, check_in_status) values
+  ('00000000-0000-0000-0000-000001162306', '00000000-0000-0000-0000-000001162305',
+   '00000000-0000-0000-0000-000001162304', '00000000-0000-0000-0000-000001162302',
+   '00000000-0000-0000-0000-000001162303', 'confirmed', '1', 1, 'no-status');
+alter table public.entries enable trigger trg_entries_require_dog_registration;
+
+do $$
+declare
+  v_step uuid;
+  v_other_step uuid;
+  v_entry uuid := '00000000-0000-0000-0000-000001162306';
+begin
+  select id into v_step from public.show_lifecycle_email_steps
+   where show_id = '00000000-0000-0000-0000-000001162302' and step_type = 'registration_number_needed';
+  select id into v_other_step from public.show_lifecycle_email_steps
+   where show_id = '00000000-0000-0000-0000-000001162302' and step_type = 'accepted';
+
+  insert into public.show_lifecycle_email_jobs
+    (show_id, step_id, step_type, recipient_scope, entry_id, recipient_email, idempotency_key, status)
+  values
+    ('00000000-0000-0000-0000-000001162302', v_step, 'registration_number_needed', 'entry', v_entry,
+     'a@example.test', 'myk9-1162-f-1', 'failed');
+
+  begin
+    insert into public.show_lifecycle_email_jobs
+      (show_id, step_id, step_type, recipient_scope, entry_id, recipient_email, idempotency_key)
+    values
+      ('00000000-0000-0000-0000-000001162302', v_step, 'registration_number_needed', 'entry', v_entry,
+       'a@example.test', 'myk9-1162-f-2');
+    raise exception 'FAIL F a second outstanding registration_number_needed email was accepted';
+  exception when unique_violation then null;
+  end;
+
+  -- Once the first is sent, the next reminder may be saved.
+  update public.show_lifecycle_email_jobs set status = 'sent', sent_at = now()
+   where idempotency_key = 'myk9-1162-f-1';
+  insert into public.show_lifecycle_email_jobs
+    (show_id, step_id, step_type, recipient_scope, entry_id, recipient_email, idempotency_key)
+  values
+    ('00000000-0000-0000-0000-000001162302', v_step, 'registration_number_needed', 'entry', v_entry,
+     'a@example.test', 'myk9-1162-f-3');
+
+  -- Other steps are not limited.
+  insert into public.show_lifecycle_email_jobs
+    (show_id, step_id, step_type, recipient_scope, entry_id, recipient_email, idempotency_key)
+  values
+    ('00000000-0000-0000-0000-000001162302', v_other_step, 'accepted', 'entry', v_entry,
+     'a@example.test', 'myk9-1162-f-4'),
+    ('00000000-0000-0000-0000-000001162302', v_other_step, 'accepted', 'entry', v_entry,
+     'a@example.test', 'myk9-1162-f-5');
+  raise notice 'PASS F one outstanding registration_number_needed email per entry';
 end $$;
 
 rollback;

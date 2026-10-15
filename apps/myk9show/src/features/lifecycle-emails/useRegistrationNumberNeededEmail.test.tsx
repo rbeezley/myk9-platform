@@ -96,7 +96,7 @@ function mountHook() {
       <Harness />
     </QueryClientProvider>
   );
-  return { api, view };
+  return { api, view, queryClient };
 }
 
 const values = { subject: 's', body: 'b', secretaryNote: '' };
@@ -331,7 +331,7 @@ describe('useRegistrationNumberNeededEmail', () => {
     expect(toast.success).toHaveBeenCalledWith('Registration number email sent');
   });
 
-  it('withdraws an earlier unsent email before saving a new one, so only one can be sent', async () => {
+  it('re-sends the waiting or failed email instead of saving a second one', async () => {
     vi.mocked(readRegistrationNumberNeededHistory).mockResolvedValue({
       count: 2,
       outstandingJobIds: ['job-failed'],
@@ -343,12 +343,47 @@ describe('useRegistrationNumberNeededEmail', () => {
       await dialog.current?.onSend(values);
     });
 
-    expect(skipLifecycleEmailJobsForReview).toHaveBeenCalledWith(
-      expect.objectContaining({ jobIds: ['job-failed'] })
+    expect(saveLifecycleEmailJobForLater).not.toHaveBeenCalled();
+    expect(skipLifecycleEmailJobsForReview).not.toHaveBeenCalled();
+    expect(vi.mocked(sendLifecycleEmailJobs).mock.calls[0]![0]).toMatchObject({
+      jobIds: ['job-failed'],
+    });
+  });
+
+  it("uses the other tab's email when the database refuses a second outstanding one", async () => {
+    vi.mocked(readRegistrationNumberNeededHistory)
+      .mockResolvedValueOnce({ count: 0, outstandingJobIds: [] })
+      .mockResolvedValueOnce({ count: 1, outstandingJobIds: ['job-other-tab'] });
+    vi.mocked(saveLifecycleEmailJobForLater).mockRejectedValueOnce(
+      new Error('Lifecycle email is already saved for review')
     );
-    expect(vi.mocked(skipLifecycleEmailJobsForReview).mock.invocationCallOrder[0]).toBeLessThan(
-      vi.mocked(saveLifecycleEmailJobForLater).mock.invocationCallOrder[0]!
-    );
+    const { api } = mountHook();
+    await openFor(api, target('e1', 'a@example.com'));
+
+    await act(async () => {
+      await dialog.current?.onSend(values);
+    });
+
+    expect(vi.mocked(sendLifecycleEmailJobs).mock.calls[0]![0]).toMatchObject({
+      jobIds: ['job-other-tab'],
+    });
+    expect(toast.success).toHaveBeenCalledWith('Registration number email sent');
+  });
+
+  it('refreshes the row label and the Scheduled emails Review list after Skip withdraws a saved email', async () => {
+    vi.mocked(sendLifecycleEmailJobs).mockRejectedValueOnce(new Error('network'));
+    const { api, queryClient } = mountHook();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    await openFor(api, target('e1', 'a@example.com'));
+    await act(async () => {
+      await dialog.current?.onSend(values);
+    });
+
+    await act(async () => dialog.current?.onNotNow(values));
+
+    const keys = invalidate.mock.calls.map(([filters]) => JSON.stringify(filters?.queryKey));
+    expect(keys).toContain(JSON.stringify(['registration-number-needed-jobs', 'show-1']));
+    expect(keys).toContain(JSON.stringify(['show-lifecycle-email-review', 'show-1']));
   });
 
   it('says only what is certain when the server skips the email', async () => {

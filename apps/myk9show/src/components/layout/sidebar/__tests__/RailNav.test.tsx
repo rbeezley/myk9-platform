@@ -55,7 +55,7 @@ describe('RailNav', () => {
   it('marks the My Club button current while one of its pages is open', () => {
     renderClubAdminRail('/club-admin/members');
 
-    expect(screen.getByRole('button', { name: 'My Club' })).toHaveClass('text-primary');
+    expect(screen.getByRole('button', { name: 'My Club' })).toHaveClass('bg-primary/10');
     expect(screen.getByRole('link', { name: 'Dogs' })).not.toHaveAttribute('aria-current');
   });
 

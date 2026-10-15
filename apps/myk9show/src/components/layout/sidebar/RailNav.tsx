@@ -22,10 +22,17 @@ import type { NavGroup, NavItem } from './types';
 const RAIL_ITEM_CLASS =
   'group relative flex min-h-14 w-full flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2';
 
+// Active text stays foreground: primary text on its own 10% tint measures
+// 4.21:1 on the rail surface (axe, A11y smoke on #3050). The tint and the
+// primary icon (non-text, 3:1) carry the active state instead.
 function railItemStateClass(active: boolean): string {
   return active
-    ? 'bg-primary/10 text-primary'
+    ? 'bg-primary/10 font-semibold text-foreground'
     : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground';
+}
+
+function railIconClass(active: boolean): string {
+  return cn('h-5 w-5', active && 'text-primary');
 }
 
 /** Wraps at spaces only; a word too wide for the rail is renamed, never cut. */
@@ -79,7 +86,7 @@ function RailLink({ item, active }: { item: NavItem; active: boolean }) {
       className={cn(RAIL_ITEM_CLASS, railItemStateClass(active))}
     >
       <span className="relative">
-        <Icon className="h-5 w-5" aria-hidden="true" />
+        <Icon className={railIconClass(active)} aria-hidden="true" />
         {item.badge && (
           <span className="absolute -right-2.5 -top-1.5 rounded-full bg-primary px-1 text-xs font-semibold leading-4 text-primary-foreground">
             {item.badge}
@@ -107,7 +114,7 @@ function RailMenu({ title, icon: Icon, sections, isActive }: RailMenuProps) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button type="button" className={cn(RAIL_ITEM_CLASS, railItemStateClass(active))}>
-          <Icon className="h-5 w-5" aria-hidden="true" />
+          <Icon className={railIconClass(active)} aria-hidden="true" />
           <span className={RAIL_LABEL_CLASS}>{title}</span>
         </button>
       </PopoverTrigger>
@@ -138,7 +145,7 @@ function RailMenu({ title, icon: Icon, sections, isActive }: RailMenuProps) {
                         'flex min-h-11 flex-col justify-center rounded-md px-2 py-1.5 text-sm',
                         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                         itemActive
-                          ? 'bg-primary/10 font-medium text-primary'
+                          ? 'bg-primary/10 font-semibold text-foreground'
                           : 'text-foreground hover:bg-muted/50'
                       )}
                     >

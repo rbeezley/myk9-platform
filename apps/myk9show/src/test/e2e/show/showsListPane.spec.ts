@@ -3,14 +3,41 @@ import { signInAsSecretary } from '../uat/shared/auth';
 
 /**
  * MYK9-1213 (docs/plan-sidebar-browse-pane.md, phase 2): the Shows list beside the show.
- * From a 1280px window the show sits in the pane beside the list; between 1024 and 1279 the list
- * folds away while a show is open; under 1024 a tap is a page hop. Runs against the shared
- * staging data as the secretary, who manages several shows past and upcoming.
+ * The cockpit splits on its own width (868px, `cockpitSplit.ts`), and the list stays beside an
+ * open show only where the cockpit beside it still splits (`showsPaneFold.ts`): open at 1440,
+ * folded at 1280 and 1024; under 1024 a tap is a page hop. Runs against the shared staging data
+ * as the secretary, who manages several shows past and upcoming.
  */
 
 const SHOW_URL = /\/shows\/([a-f0-9-]{36})$/;
 
 const showsList = (page: Page) => page.getByRole('region', { name: 'Shows list' });
+
+/** The cockpit's measured geometry: its width, its layout, and the focused class column. */
+async function cockpitGeometry(page: Page) {
+  const grid = page.locator('[data-cockpit-layout]');
+  await expect(grid).toBeVisible({ timeout: 20_000 });
+  return grid.evaluate(element => ({
+    width: element.getBoundingClientRect().width,
+    layout: element.getAttribute('data-cockpit-layout'),
+    focus:
+      element.querySelector('[data-testid="cockpit-split-focus"]')?.getBoundingClientRect().width ??
+      null,
+  }));
+}
+
+/** The cockpit splits exactly when it is 868px or wider, and then gives the focus 360px or more. */
+async function expectCockpitFollowsItsWidth(page: Page, expected: 'split' | 'stacked') {
+  const geometry = await cockpitGeometry(page);
+  expect(geometry.layout, `cockpit ${geometry.width}px wide`).toBe(
+    geometry.width >= 868 ? 'split' : 'stacked'
+  );
+  expect(geometry.layout).toBe(expected);
+  if (expected === 'split') expect(geometry.focus).toBeGreaterThanOrEqual(360);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true
+  );
+}
 
 async function openFirstShow(page: Page, group: 'Today' | 'Upcoming' | 'Past'): Promise<string> {
   const row = showsList(page)
@@ -47,37 +74,32 @@ test.describe('Shows list with a detail pane', () => {
     );
     await expect(page.getByRole('region', { name: 'Show', exact: true })).toBeVisible();
 
-    // Today's show is one click away in the list, and its cockpit keeps the split.
+    // Today's show is one click away in the list, and its cockpit keeps the split beside it.
     await openFirstShow(page, 'Today');
-    await expect(page.getByTestId('cockpit-split-focus')).toBeVisible({ timeout: 20_000 });
+    await expectCockpitFollowsItsWidth(page, 'split');
   });
 
-  test('at 1280 the show sits beside the list with the cockpit split', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await signInAsSecretary(page, '/shows');
-    await openFirstShow(page, 'Today');
+  // The cockpit decides from the width it is given: full page at 1024 and 1280 it splits; beside
+  // the list there (the viewer's own choice) it stacks rather than squeezing its schedule.
+  for (const width of [1024, 1280]) {
+    test(`at ${width} the list folds from an open show, whose cockpit splits full width`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await signInAsSecretary(page, '/shows');
+      await page.evaluate(() => window.localStorage.removeItem('view-pref-shows-pane'));
+      await openFirstShow(page, 'Today');
 
-    await expect(showsList(page)).toBeVisible();
-    await expect(page.getByTestId('cockpit-split-focus')).toBeVisible({ timeout: 20_000 });
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
-    ).toBe(true);
-  });
+      await expect(showsList(page)).toHaveCount(0);
+      await expectCockpitFollowsItsWidth(page, 'split');
 
-  test('at 1024 the list folds away while a show is open; "Shows" brings it back', async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 1024, height: 768 });
-    await signInAsSecretary(page, '/shows');
-    await page.evaluate(() => window.localStorage.removeItem('view-pref-shows-pane'));
-    await openFirstShow(page, 'Upcoming');
-
-    await expect(showsList(page)).toHaveCount(0);
-    await page.getByRole('button', { name: 'Shows', exact: true }).click();
-    await expect(showsList(page)).toBeVisible();
-    await page.getByRole('button', { name: 'Hide shows list' }).click();
-    await expect(showsList(page)).toHaveCount(0);
-  });
+      await page.getByRole('button', { name: 'Shows', exact: true }).click();
+      await expect(showsList(page)).toBeVisible();
+      await expectCockpitFollowsItsWidth(page, 'stacked');
+      await page.getByRole('button', { name: 'Hide shows list' }).click();
+      await expect(showsList(page)).toHaveCount(0);
+    });
+  }
 
   test('with the network off, a show opened earlier is still listed and opens', async ({
     page,

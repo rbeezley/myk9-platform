@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ListViewTabs } from '@/components/list-toolkit';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
@@ -22,6 +23,7 @@ export function SecretaryCockpitSchedule({
   onFilterChange,
   onFocusClass,
   inlineFocusedContent,
+  split = false,
   entryBreakdownByClassId,
   renderTrialActions,
 }: {
@@ -33,6 +35,8 @@ export function SecretaryCockpitSchedule({
   onFilterChange: (filter: CockpitFilter) => void;
   onFocusClass: (classId: string) => void;
   inlineFocusedContent?: ReactNode;
+  /** The cockpit is split: the schedule holds the first column, the focused class the second. */
+  split?: boolean;
   /** Entered/pending per class (MYK9-943); absent until entries are read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   renderTrialActions?: ((trialId: string, label: string) => ReactNode) | undefined;
@@ -48,7 +52,7 @@ export function SecretaryCockpitSchedule({
   return (
     <>
       <section
-        className="space-y-3 xl:col-start-1 xl:row-start-1"
+        className={cn('space-y-3', split && 'col-start-1 row-start-1')}
         aria-labelledby="cockpit-schedule-title"
       >
         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -84,7 +88,10 @@ export function SecretaryCockpitSchedule({
         />
       </section>
 
-      <section className="space-y-3 xl:col-start-1 xl:row-start-2" aria-label="Trial schedule">
+      <section
+        className={cn('space-y-3', split && 'col-start-1 row-start-2')}
+        aria-label="Trial schedule"
+      >
         {model.trialGroups.length === 0 && (
           <div className="rounded-xl border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
             {hasAnyClassForSelectedDay && filter !== 'all'

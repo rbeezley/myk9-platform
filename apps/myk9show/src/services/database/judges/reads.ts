@@ -290,20 +290,21 @@ export async function getJudgeQualificationSummary(
   const qualifications = await getJudgeQualificationsByJudgeId(judgeId);
 
   const activeQualifications = qualifications.filter(q => q.is_active);
-  const expiredQualifications = qualifications.filter(
-    q => q.expiration_date && new Date(q.expiration_date) < new Date()
-  );
+  // expiration_date is a DATE: compare calendar days, as the expiry-window reads do (MYK9-1198).
+  const today = localDayOffset(0);
+  const in30Days = localDayOffset(30);
+  const expiresOn = (q: { expiration_date?: string | null }) => q.expiration_date?.slice(0, 10);
+  const expiredQualifications = qualifications.filter(q => {
+    const day = expiresOn(q);
+    return !!day && day < today;
+  });
   const suspendedQualifications = qualifications.filter(q => q.suspension_date);
 
   // Check for expiring qualifications (within 30 days)
-  const thirtyDaysFromNow = new Date();
-  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-  const expiringSoon = qualifications.filter(
-    q =>
-      q.expiration_date &&
-      new Date(q.expiration_date) <= thirtyDaysFromNow &&
-      new Date(q.expiration_date) >= new Date()
-  );
+  const expiringSoon = qualifications.filter(q => {
+    const day = expiresOn(q);
+    return !!day && day >= today && day <= in30Days;
+  });
 
   const summary: JudgeQualificationSummary = {
     total_qualifications: qualifications.length,

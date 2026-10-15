@@ -5,8 +5,9 @@ import { createDatabaseError } from '@/services/database/databaseError';
 // Records every filter call; the chain is awaitable and resolves to an empty result.
 const rec = vi.hoisted(() => {
   const calls: Array<[string, unknown[]]> = [];
+  const rows: { data: unknown[] } = { data: [] };
   const makeChain = () => {
-    const result = { data: [], count: 0, error: null };
+    const result = { data: rows.data, count: 0, error: null };
     const chain: Record<string, unknown> = {
       then: (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve),
     };
@@ -18,7 +19,7 @@ const rec = vi.hoisted(() => {
     }
     return chain;
   };
-  return { calls, makeChain };
+  return { calls, rows, makeChain };
 });
 
 vi.mock('./supabaseClient', () => ({
@@ -36,6 +37,7 @@ import { postgrestGetUpcomingShows } from './shows/reads.postgrest';
 import { countUpcomingClubShows } from './clubs/reads';
 import {
   getJudgeQualificationAlerts,
+  getJudgeQualificationSummary,
   getJudgeQualificationsByJudgeId,
   getJudgeRosterSummary,
 } from './judges/reads';
@@ -48,6 +50,7 @@ describe('server reads use the local calendar day, not the UTC date', () => {
 
   beforeEach(() => {
     rec.calls.length = 0;
+    rec.rows.data = [];
     process.env.TZ = 'America/Chicago';
     vi.useFakeTimers({ toFake: ['Date'] });
     // 2026-11-09 19:00 in Chicago (CST) is already 2026-11-10 in UTC.
@@ -86,5 +89,12 @@ describe('server reads use the local calendar day, not the UTC date', () => {
     const or = rec.calls.find(([m]) => m === 'or')?.[1][0] as string;
     expect(or).toContain('expiration_date.lte.2026-12-09');
     expect(or).toContain('expiration_date.gte.2026-08-11');
+  });
+
+  it('qualification summary counts one expiring on the local day as expiring, not expired', async () => {
+    rec.rows.data = [{ id: 'q1', is_active: true, expiration_date: '2026-11-09' }];
+    const summary = await getJudgeQualificationSummary('j1');
+    expect(summary.expired_qualifications).toBe(0);
+    expect(summary.expiring_soon).toBe(1);
   });
 });

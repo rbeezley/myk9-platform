@@ -64,9 +64,11 @@ interface OwnerRow {
 // every people column list.
 async function loadOwnersMap(
   ownerIds: string[]
-): Promise<{ map: Map<string, OwnerRow>; readFailed: boolean }> {
+): Promise<{ map: Map<string, OwnerRow>; recalled: Map<string, string>; readFailed: boolean }> {
   const map = new Map<string, OwnerRow>();
-  if (ownerIds.length === 0) return { map, readFailed: false };
+  // Device-remembered display names only. Never an owner row: the address is unknown offline.
+  const recalled = new Map<string, string>();
+  if (ownerIds.length === 0) return { map, recalled, readFailed: false };
   const cacheKey = ownerNameCacheKey();
   const uniqueIds = [...new Set(ownerIds)];
   let data: OwnerRow[] | null = null;
@@ -91,20 +93,10 @@ async function loadOwnersMap(
   if (readFailed) {
     // MYK9-1189: no signal, so the owner names the list showed online come from the device.
     for (const [id, owner] of recallOwnerNames(uniqueIds, cacheKey)) {
-      if (!map.has(id)) {
-        map.set(id, {
-          ...owner,
-          email: null,
-          phone: null,
-          street_address: null,
-          city: null,
-          state: null,
-          zip_code: null,
-        });
-      }
+      if (!map.has(id)) recalled.set(id, `${owner.first_name} ${owner.last_name}`.trim());
     }
   }
-  return { map, readFailed };
+  return { map, recalled, readFailed };
 }
 
 export function appendRegistrations(
@@ -319,17 +311,22 @@ function mapDogsWithOwners(
   ownersMap: Map<string, OwnerRow>,
   registrationsMap: Map<string, Record<string, unknown>[]>,
   registrationsReadComplete: boolean,
-  ownersReadFailed = false
+  ownersReadFailed = false,
+  recalledNames: ReadonlyMap<string, string> = new Map()
 ): Record<string, unknown>[] {
   return dogs.map(dog => {
     const owner = dog.ownerId ? (ownersMap.get(dog.ownerId) ?? null) : null;
     const registrations = registrationsMap.get(dog.id) ?? [];
+    const recalledName = dog.ownerId && !owner ? recalledNames.get(dog.ownerId) : undefined;
     return mapReplicatedDogToDbRow(dog, {
       owner: owner as Record<string, unknown> | null,
+      ...(recalledName ? { ownerDisplayName: recalledName } : {}),
       registrations,
       registrationsReadComplete,
       // An owner that could not be read and was never remembered is said so, not left blank.
-      ...(ownersReadFailed && dog.ownerId && !owner ? { ownerUnavailableOffline: true } : {}),
+      ...(ownersReadFailed && dog.ownerId && !owner && !recalledNames.has(dog.ownerId)
+        ? { ownerUnavailableOffline: true }
+        : {}),
     });
   });
 }
@@ -495,7 +492,8 @@ export const getAllDogs = async (personId: string, showAll = false) => {
       owners.map,
       registrationsResult.byDog,
       registrationsResult.registrationsReadComplete,
-      owners.readFailed
+      owners.readFailed,
+      owners.recalled
     );
   };
   return readRosterServerFirst<Record<string, unknown>[]>({

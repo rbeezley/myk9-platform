@@ -68,6 +68,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 
 import { getAllDogs } from '@/services/database/dogs';
 import { mapDatabaseToDog } from '@/services/mappers/dogMappers';
+import { getOwnerAddressPrerequisite } from '@/components/shows/RegistrationWorkflow/ownerAddressPrerequisite';
 import { clearOwnerNameCache } from '@/services/database/dogs/ownerNameCache';
 
 const serverRow = (id: string, ownerId: string, first: string, last: string) => ({
@@ -127,9 +128,33 @@ describe('offline dogs list owners (MYK9-1189)', () => {
 
     expect(error).toBeNull();
     const row = (data as Row[])[0]!;
-    expect((row.owner as Row).first_name).toBe('Ada');
-    expect((row.owner as Row).last_name).toBe('Lovelace');
+    // Display data only: no owner row is fabricated from the device copy.
+    expect(row.owner).toBeNull();
+    expect(row.owner_display_name).toBe('Ada Lovelace');
     expect(row.owner_unavailable_offline).toBeUndefined();
+  });
+
+  it('a recalled name never becomes an owner: the AKC address check stays "unknown, allowed"', async () => {
+    server.dogs = [serverRow('dog-1', 'owner-1', 'Ada', 'Lovelace')];
+    await getAllDogs('p', true);
+    server.online = false;
+    mockDogsTable.getAllDogsWithStatus.mockResolvedValue({
+      rows: [deviceDog('dog-1', 'owner-1')],
+      cold: false,
+    });
+    const { data } = await getAllDogs('p', true);
+
+    const dog = mapDatabaseToDog((data as Row[])[0]!);
+    expect(dog.owner).toBeUndefined();
+    expect(dog.ownerName).toBe('Ada Lovelace');
+    expect(
+      getOwnerAddressPrerequisite({
+        owner: dog.owner,
+        registryId: 'AKC',
+        isOwnAddress: false,
+        warnOnly: false,
+      })
+    ).toEqual({ allowed: true, message: null });
   });
 
   it('keeps only the name on the device, no contact details', async () => {

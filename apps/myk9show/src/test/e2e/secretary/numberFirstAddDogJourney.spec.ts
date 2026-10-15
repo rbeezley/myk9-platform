@@ -172,6 +172,13 @@ test.describe('Number-first Add Dog: a held entry is listed, kept off the run sh
       await page.getByRole('button', { name: /next/i }).click();
       await page.waitForSelector('text=Payment Information', { timeout: 15_000 });
       await page.getByRole('button', { name: /Secretary Payment \(Already Received\)/i }).click();
+      // Money received at the desk names its method (MYK9-677): without it the save is
+      // refused with "Choose whether the payment was received as cash or check".
+      const cash = page
+        .getByRole('group', { name: 'Received as' })
+        .getByRole('button', { name: 'Cash', exact: true });
+      await cash.click();
+      await expect(cash).toHaveAttribute('aria-pressed', 'true');
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
       // #entry-agreement is a hidden native input; its label toggles it.
       const agreement = page.locator('label[for="entry-agreement"]');

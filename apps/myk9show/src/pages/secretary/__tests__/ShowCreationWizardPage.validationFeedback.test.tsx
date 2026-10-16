@@ -126,4 +126,22 @@ describe('ShowCreationWizardPage — Step 1 Next-button feedback', () => {
     await waitFor(() => expect(screen.queryByText('Please enter a show name')).toBeNull());
     expect(nameInput).not.toHaveAttribute('aria-invalid', 'true');
   });
+
+  it('lists an issue in the banner when its control is hidden behind the create form', async () => {
+    const { user } = render(<ShowCreationWizardPage />);
+
+    // Open the "Add new Chair" form: the chair picker and its callout are not on screen.
+    await user.click(screen.getByLabelText(/^chair/i));
+    await user.click(await screen.findByRole('button', { name: /add new chair/i }));
+    expect(screen.queryByLabelText(/^chair/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    // No callout can carry it, so the top banner does.
+    const banner = await screen.findByRole('button', { name: /needs? attention/i });
+    const details = banner.closest('[role="alert"]');
+    expect(details).toHaveTextContent('Please select a chair');
+    // The issues that DO have a callout are not repeated there.
+    expect(details).not.toHaveTextContent('Please enter a show name');
+  });
 });

@@ -1,13 +1,28 @@
-import React from 'react';
+import React, { useContext, useLayoutEffect, useSyncExternalStore } from 'react';
 import { cn } from '@/lib/utils';
-import { FieldErrorsContext, fieldErrorId, useFieldError, type FieldErrorMap } from './fieldErrors';
+import {
+  FieldErrorsContext,
+  FieldRegistryContext,
+  fieldErrorId,
+  useFieldError,
+  type FieldErrorMap,
+  type FieldErrorRegistry,
+} from './fieldErrors';
 
 export const FieldErrorsProvider: React.FC<{
   errors: FieldErrorMap;
+  /** Lets callouts report that they are on screen (see `createFieldErrorRegistry`). */
+  registry?: FieldErrorRegistry | undefined;
   children: React.ReactNode;
-}> = ({ errors, children }) => (
-  <FieldErrorsContext.Provider value={errors}>{children}</FieldErrorsContext.Provider>
+}> = ({ errors, registry, children }) => (
+  <FieldRegistryContext.Provider value={registry ?? null}>
+    <FieldErrorsContext.Provider value={errors}>{children}</FieldErrorsContext.Provider>
+  </FieldRegistryContext.Provider>
 );
+
+const noopSubscribe = () => () => undefined;
+const NONE: readonly string[] = [];
+const emptySnapshot = (): readonly string[] => NONE;
 
 interface FieldErrorProps {
   /** The control's `id`. The callout's own id is `${field}-error`. */
@@ -19,13 +34,27 @@ interface FieldErrorProps {
 
 export const FieldError: React.FC<FieldErrorProps> = ({ field, message, className }) => {
   const { message: text } = useFieldError(field, message);
+  const registry = useContext(FieldRegistryContext);
+  const shown = Boolean(text);
+  // Layout effect: the page learns the callout is there before the browser paints.
+  useLayoutEffect(
+    () => (registry && shown ? registry.register(field) : undefined),
+    [registry, shown, field]
+  );
+  const registered = useSyncExternalStore(
+    registry?.subscribe ?? noopSubscribe,
+    registry?.getSnapshot ?? emptySnapshot
+  );
   if (!text) return null;
+  // Several callouts at once would all be announced; only the first speaks up, the rest are
+  // still read through the control's aria-describedby.
+  const announces = !registry || registered[0] === field || !registered.includes(field);
   return (
     <div
       id={fieldErrorId(field)}
-      role="alert"
+      {...(announces && { role: 'alert' })}
       className={cn(
-        'relative mt-2.5 rounded-md border border-destructive bg-card px-3 py-2 text-sm text-destructive shadow-sm',
+        'relative mt-2.5 rounded-md border border-destructive bg-card px-3 py-2 text-sm text-destructive shadow-sm whitespace-pre-line',
         className
       )}
     >

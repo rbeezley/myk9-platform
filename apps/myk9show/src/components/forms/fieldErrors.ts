@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useState, useSyncExternalStore } from 'react';
 
 /**
  * One required-field error, shown directly under its field with an arrow
@@ -42,13 +42,85 @@ export function useFieldError(fieldId: string, override?: string | undefined) {
 }
 
 /**
- * Focus the first control that reads as invalid inside `root` and centre it.
- * Document order is the order the secretary reads the form in. Returns whether
- * anything was found. Custom controls expose `aria-invalid` on their trigger,
- * so this lands on the trigger.
+ * Which field ids currently have a callout on screen, in the order they mounted. A callout
+ * registers itself on mount and unregisters on unmount, so anything that does NOT appear here
+ * (its control is hidden, say) has no visible feedback and must reach the top banner instead.
  */
-export function focusFirstInvalidField(root: ParentNode | null | undefined): boolean {
-  const target = root?.querySelector<HTMLElement>('[aria-invalid="true"]');
+export interface FieldErrorRegistry {
+  subscribe: (listener: () => void) => () => void;
+  getSnapshot: () => readonly string[];
+  register: (fieldId: string) => () => void;
+}
+
+export function createFieldErrorRegistry(): FieldErrorRegistry {
+  const counts = new Map<string, number>();
+  let snapshot: readonly string[] = [];
+  const listeners = new Set<() => void>();
+  const publish = () => {
+    snapshot = [...counts.keys()];
+    listeners.forEach(listener => listener());
+  };
+  return {
+    subscribe: listener => {
+      listeners.add(listener);
+      return () => void listeners.delete(listener);
+    },
+    getSnapshot: () => snapshot,
+    register: fieldId => {
+      const had = counts.has(fieldId);
+      counts.set(fieldId, (counts.get(fieldId) ?? 0) + 1);
+      if (!had) publish();
+      return () => {
+        const next = (counts.get(fieldId) ?? 1) - 1;
+        if (next > 0) {
+          counts.set(fieldId, next);
+          return;
+        }
+        counts.delete(fieldId);
+        publish();
+      };
+    },
+  };
+}
+
+export const FieldRegistryContext = createContext<FieldErrorRegistry | null>(null);
+
+/** For the page that owns the provider: a registry plus the field ids that have a callout. */
+export function useFieldErrorRegistry(): {
+  registry: FieldErrorRegistry;
+  registered: readonly string[];
+} {
+  const [registry] = useState(createFieldErrorRegistry);
+  const registered = useSyncExternalStore(registry.subscribe, registry.getSnapshot);
+  return { registry, registered };
+}
+
+/**
+ * Find the control for each field id (by its own id, or by the callout it is described by,
+ * for controls such as tabs that carry no id) and return the earliest in document order.
+ */
+export function findFirstFieldControl(
+  fieldIds: readonly string[],
+  root: ParentNode = document
+): HTMLElement | null {
+  let first: HTMLElement | null = null;
+  for (const id of fieldIds) {
+    const escaped = CSS.escape(id);
+    const el = root.querySelector<HTMLElement>(
+      `[id="${escaped}"], [aria-describedby~="${CSS.escape(fieldErrorId(id))}"]`
+    );
+    if (!el) continue;
+    if (!first || first.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_PRECEDING) first = el;
+  }
+  return first;
+}
+
+/** Focus the earliest control among `fieldIds` and centre it. False when none is mounted. */
+export function focusFirstFieldControl(
+  fieldIds: readonly string[],
+  root: ParentNode = document
+): boolean {
+  const target = findFirstFieldControl(fieldIds, root);
   if (!target) return false;
   target.focus({ preventScroll: true });
   if (typeof target.scrollIntoView === 'function') {

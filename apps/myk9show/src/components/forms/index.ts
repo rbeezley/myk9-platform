@@ -1,8 +1,12 @@
 export { FieldError, FieldErrorsProvider } from './FieldError';
 export {
+  createFieldErrorRegistry,
   fieldErrorControlProps,
+  findFirstFieldControl,
+  focusFirstFieldControl,
+  useFieldErrorRegistry,
+  type FieldErrorRegistry,
   fieldErrorId,
-  focusFirstInvalidField,
   useFieldError,
   useFieldErrors,
   type FieldErrorMap,

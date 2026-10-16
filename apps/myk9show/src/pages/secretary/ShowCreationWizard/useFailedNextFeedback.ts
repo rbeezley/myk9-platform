@@ -1,40 +1,49 @@
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
-import { focusFirstInvalidField } from '@/components/forms';
+import { focusFirstFieldControl } from '@/components/forms';
 
 /**
- * What a failed Next click does: focus the first field that failed and centre it, or, when
- * the only problems belong to no single field, scroll the top banner into view.
+ * What a failed Next click does: focus the first control (in document order) among the
+ * BLOCKING issues' fields and centre it, or, when none is mounted, scroll the top banner into
+ * view. Non-blocking local warnings never take the focus.
  *
- * Call the returned function from the click handler. On the first failed attempt the field
- * errors (and so `aria-invalid`) only mount on the render that click triggers, so the work
- * is deferred to an effect; on a repeat attempt nothing re-renders, so it runs at once.
+ * Call the returned function from the click handler with the blocking issues' field ids. When
+ * there is nothing to land on yet (the first failed attempt mounts the banner on the render
+ * the click triggers), one retry runs after that render. The retry is one-shot: it clears
+ * itself before trying and never re-arms, so a later edit cannot pull focus.
  * `scrollIntoView` is a no-op stub in jsdom, hence the typeof guard.
  */
 export function useFailedNextFeedback(
-  stepContentRef: RefObject<HTMLElement | null>,
   bannerRef: RefObject<HTMLElement | null>
-): () => void {
-  const pendingRef = useRef(false);
+): (fieldIds: readonly string[]) => void {
+  const pendingRef = useRef<readonly string[] | null>(null);
 
-  const reveal = useCallback((): void => {
-    if (focusFirstInvalidField(stepContentRef.current)) return;
-    const banner = bannerRef.current;
-    if (banner) {
+  const attempt = useCallback(
+    (fieldIds: readonly string[]): boolean => {
+      if (focusFirstFieldControl(fieldIds)) return true;
+      const banner = bannerRef.current;
+      if (!banner) return false;
       // `start` honours the banner's scroll margin, so its heading lands below the sticky
       // chrome; `center` put it underneath on a phone (MYK9-764).
       if (typeof banner.scrollIntoView === 'function') {
         banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-      return;
-    }
-    pendingRef.current = true;
-  }, [stepContentRef, bannerRef]);
+      return true;
+    },
+    [bannerRef]
+  );
 
-  // One-shot per first attempt, not on every render as fields are corrected.
+  const reveal = useCallback(
+    (fieldIds: readonly string[]): void => {
+      if (!attempt(fieldIds)) pendingRef.current = fieldIds;
+    },
+    [attempt]
+  );
+
   useEffect(() => {
-    if (!pendingRef.current) return;
-    pendingRef.current = false;
-    reveal();
+    const fieldIds = pendingRef.current;
+    if (!fieldIds) return;
+    pendingRef.current = null;
+    attempt(fieldIds);
   });
 
   return reveal;

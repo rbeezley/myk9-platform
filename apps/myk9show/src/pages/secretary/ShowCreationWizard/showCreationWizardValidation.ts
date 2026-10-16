@@ -338,13 +338,25 @@ export function getValidationMessagesForStep(
 }
 
 /**
- * The errors to show beside their fields: field id to message, first message per field.
- * Issues with no field are left to the top banner.
+ * The errors to show beside their fields: field id to message, every message for a field on
+ * its own line. Issues with no field have no place beside a control.
  */
 export function fieldErrorsFromIssues(issues: readonly WizardIssue[]): Record<string, string> {
   const errors: Record<string, string> = {};
   for (const { field, message } of issues) {
-    if (field !== null && !(field in errors)) errors[field] = message;
+    if (field === null) continue;
+    errors[field] = field in errors ? `${errors[field]}\n${message}` : message;
   }
   return errors;
+}
+
+/**
+ * What the top banner must list: issues with no field, and issues whose field has no callout
+ * on screen (its control is hidden or not mounted), so nothing blocking is ever silent.
+ */
+export function bannerIssues(
+  issues: readonly WizardIssue[],
+  registeredFields: readonly string[]
+): WizardIssue[] {
+  return issues.filter(issue => issue.field === null || !registeredFields.includes(issue.field));
 }

@@ -32,6 +32,7 @@ import {
   getEditModeTitle,
   getValidationIssuesForStep,
   fieldErrorsFromIssues,
+  bannerIssues,
   getValidationScope,
   WizardSuccessOverlay,
   WizardValidationBanner,
@@ -54,7 +55,7 @@ import {
   WIZARD_CONTENT_SCROLL_MARGIN_CLASS,
   WIZARD_SCROLL_MARGIN_CLASS,
 } from './ShowCreationWizard/wizardScrollChrome';
-import { FieldErrorsProvider } from '@/components/forms';
+import { FieldErrorsProvider, useFieldErrorRegistry } from '@/components/forms';
 import { useFailedNextFeedback } from './ShowCreationWizard/useFailedNextFeedback';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
 import { isShowListingLive } from '@/features/show-workbench/publishReadiness';
@@ -77,7 +78,8 @@ const ShowCreationWizardPageContent: React.FC = () => {
   const stepsRef = useRef<HTMLDivElement>(null);
   useWizardChromeHeight(stepsRef);
   const validationBannerRef = useRef<HTMLDivElement>(null);
-  const revealFailedNext = useFailedNextFeedback(stepContentRef, validationBannerRef);
+  const revealFailedNext = useFailedNextFeedback(validationBannerRef);
+  const { registry: fieldErrorRegistry, registered: registeredFields } = useFieldErrorRegistry();
 
   // Extract edit mode from URL params. `parseEditMode` allowlists the two modes
   // the app actually links to; previously an unchecked `as` cast turned ANY
@@ -320,7 +322,7 @@ const ShowCreationWizardPageContent: React.FC = () => {
       // stays enabled (see canGoNext) so this click actually fires instead of the button
       // sitting disabled with no explanation.
       setValidationExpanded(true);
-      revealFailedNext();
+      revealFailedNext(issues.flatMap(issue => (issue.field === null ? [] : [issue.field])));
       return;
     }
 
@@ -377,7 +379,7 @@ const ShowCreationWizardPageContent: React.FC = () => {
   const canGoNext = !isLoading && cloneHydration.status !== 'hydrating';
 
   // The top banner lists only what belongs to no single field; the rest sits under its field.
-  const bannerMessages = validationIssues.filter(issue => issue.field === null).map(i => i.message);
+  const bannerMessages = bannerIssues(validationIssues, registeredFields).map(i => i.message);
   const fieldErrors = hasAttemptedNext ? fieldErrorsFromIssues(validationIssues) : undefined;
 
   // Wizard state is reset explicitly on cancel (handleConfirmClose) or
@@ -499,7 +501,10 @@ const ShowCreationWizardPageContent: React.FC = () => {
                     onLeave={() => navigate('/shows')}
                   />
                 ) : (
-                  <FieldErrorsProvider errors={fieldErrors ?? NO_FIELD_ERRORS}>
+                  <FieldErrorsProvider
+                    errors={fieldErrors ?? NO_FIELD_ERRORS}
+                    registry={fieldErrorRegistry}
+                  >
                     <WizardStepContent
                       currentStep={currentStep}
                       editMode={editMode}

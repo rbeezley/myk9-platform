@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bannerIssues,
   fieldErrorsFromIssues,
   getShowDetailsValidationIssues,
   getValidationIssuesForStep,
@@ -35,7 +36,7 @@ describe('Show Details issues name their control', () => {
     expect(fieldErrorsFromIssues(issues)).toEqual({
       [SHOW_FIELD.name]: 'Please enter a show name',
       [SHOW_FIELD.organization]: 'Please select an organization',
-      [SHOW_FIELD.dates]: 'Please select a start date',
+      [SHOW_FIELD.dates]: 'Please select a start date\nPlease select an end date',
       [SHOW_FIELD.location]: 'Please enter a location',
       [SHOW_FIELD.hostClub]: 'Please select a hosting club',
       [SHOW_FIELD.chair]: 'Please select a chair',
@@ -118,5 +119,27 @@ describe('Trial and class issues', () => {
     expect(
       getValidationIssuesForStep(2, show, [trial('a', [])], view, [], {}, 'class-selection')
     ).toEqual([{ field: null, message: 'Please add at least one class to the trials' }]);
+  });
+});
+
+describe('banner: nothing blocking is ever silent', () => {
+  const issues = [
+    { field: SHOW_FIELD.chair, message: 'Please select a chair' },
+    { field: SHOW_FIELD.juniorHandlerFee, message: 'Junior fee too high' },
+    { field: null, message: 'Please add at least one trial' },
+  ];
+
+  it('lists an issue whose field has no callout on screen', () => {
+    // Chair create form open and junior fee hidden: only the null-field issue has a home...
+    expect(bannerIssues(issues, []).map(i => i.message)).toEqual([
+      'Please select a chair',
+      'Junior fee too high',
+      'Please add at least one trial',
+    ]);
+    // ...and a field with a visible callout drops out of the banner.
+    expect(bannerIssues(issues, [SHOW_FIELD.chair]).map(i => i.message)).toEqual([
+      'Junior fee too high',
+      'Please add at least one trial',
+    ]);
   });
 });

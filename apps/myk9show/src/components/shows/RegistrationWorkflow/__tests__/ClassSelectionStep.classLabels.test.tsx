@@ -16,6 +16,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
+import { CLASS_CHIP_NAME, classChipNameForLevel } from '@/test/e2e-helpers/classChipName';
 import type { WorkflowMode } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
 
 const {
@@ -366,5 +367,34 @@ describe('ClassSelectionStep — checkbox names carry element, level and dog (MY
 
     expect(first).toContain('Enter Rex in Container Novice');
     expect(second).not.toContain('Enter Rex in Container Novice');
+  });
+  it('is what the e2e class-chip locators match, and never a dog row (MYK9-1219)', async () => {
+    setupMocks([
+      {
+        id: 'c-na',
+        name: 'Container Novice A',
+        element: 'Container',
+        level: 'Novice',
+        section: 'A',
+      },
+    ]);
+    renderStep();
+
+    const chips = await screen.findAllByRole('checkbox', { name: CLASS_CHIP_NAME });
+    expect(chips).toHaveLength(1);
+    expect(
+      screen.getAllByRole('checkbox', { name: classChipNameForLevel('Novice A') })
+    ).toHaveLength(1);
+    expect(
+      screen.queryAllByRole('checkbox', { name: classChipNameForLevel('Advanced A') })
+    ).toHaveLength(0);
+
+    // The Select Dogs rows keep `Select <dog>` and must stay out of the chip locator.
+    for (const dogRow of ['Select Willow', 'Select all dogs']) {
+      expect(CLASS_CHIP_NAME.test(dogRow)).toBe(false);
+      expect(classChipNameForLevel('Novice A').test(dogRow)).toBe(false);
+    }
+    // An already-entered chip is not addable, so it must not match either.
+    expect(CLASS_CHIP_NAME.test('Rex is already entered in Container')).toBe(false);
   });
 });

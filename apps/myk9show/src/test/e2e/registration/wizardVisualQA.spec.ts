@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsExhibitor, signInAsSecretary } from '../helpers/testUsers';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
+import { CLASS_CHIP_NAME } from '../../e2e-helpers/classChipName';
 import {
   openSaveDraftDialog,
   saveDraftThroughDialog,
@@ -694,7 +695,7 @@ test('the phone entries bar totals the cart without covering the class list', as
       if (root) root.scrollTop = root.scrollHeight;
     });
     await page.waitForTimeout(300);
-    const lastChip = page.getByRole('checkbox', { name: /^Select / }).last();
+    const lastChip = page.getByRole('checkbox', { name: CLASS_CHIP_NAME }).last();
     await lastChip.scrollIntoViewIfNeeded();
     await page.waitForTimeout(200);
     const chipBox = await lastChip.boundingBox();

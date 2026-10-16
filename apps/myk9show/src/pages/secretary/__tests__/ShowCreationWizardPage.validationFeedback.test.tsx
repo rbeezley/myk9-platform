@@ -83,9 +83,25 @@ describe('ShowCreationWizardPage — Step 1 Next-button feedback', () => {
       'true'
     );
 
-    // The top banner is gone: every step 1 problem belongs to a field.
-    expect(screen.queryByText(/needs? attention/i)).not.toBeInTheDocument();
+    // The visible top banner is gone: every step 1 problem belongs to a field. (A hidden
+    // live summary still announces the failure; see the next test.)
+    expect(screen.queryByRole('button', { name: /needs? attention/i })).not.toBeInTheDocument();
     expect(screen.getAllByText('Please enter a show name')).toHaveLength(1);
+  });
+
+  it('announces one failed Next once, with the count and the first error, and again on a repeat', async () => {
+    const { user } = render(<ShowCreationWizardPage />);
+    const next = screen.getByRole('button', { name: /next/i });
+
+    await user.click(next);
+    const first = await screen.findByRole('alert');
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(first).toHaveTextContent(/\d+ items? needs? attention\. Please enter a show name/);
+
+    // A repeat failure replaces the node, so a screen reader announces it again.
+    await user.click(next);
+    await waitFor(() => expect(screen.getByRole('alert')).not.toBe(first));
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
   });
 
   it('focuses the first failing field and scrolls it into view', async () => {

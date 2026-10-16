@@ -57,6 +57,11 @@ import {
 } from './ShowCreationWizard/wizardScrollChrome';
 import { FieldErrorsProvider, useFieldErrorRegistry } from '@/components/forms';
 import { useFailedNextFeedback } from './ShowCreationWizard/useFailedNextFeedback';
+import {
+  FailedNextAnnouncement,
+  summarizeFailedNext,
+  type FailedNextSummary,
+} from './ShowCreationWizard/FailedNextAnnouncement';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
 import { isShowListingLive } from '@/features/show-workbench/publishReadiness';
 
@@ -73,6 +78,7 @@ const ShowCreationWizardPageContent: React.FC = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [validationExpanded, setValidationExpanded] = useState(false);
   const [hasAttemptedNext, setHasAttemptedNext] = useState(false);
+  const [failedNext, setFailedNext] = useState<FailedNextSummary | null>(null);
   const [createdShow, setCreatedShow] = useState<CreatedShow | null>(null);
   const stepContentRef = useRef<HTMLDivElement>(null);
   const stepsRef = useRef<HTMLDivElement>(null);
@@ -322,6 +328,12 @@ const ShowCreationWizardPageContent: React.FC = () => {
       // stays enabled (see canGoNext) so this click actually fires instead of the button
       // sitting disabled with no explanation.
       setValidationExpanded(true);
+      setFailedNext(prev =>
+        summarizeFailedNext(
+          (prev?.attempt ?? 0) + 1,
+          issues.map(issue => issue.message)
+        )
+      );
       revealFailedNext(issues.flatMap(issue => (issue.field === null ? [] : [issue.field])));
       return;
     }
@@ -466,6 +478,10 @@ const ShowCreationWizardPageContent: React.FC = () => {
 
             {/* Collapsible Validation Banner — only shown after user clicks Next.
                 Wrapped so handleNext can scroll it into view on a failed attempt. */}
+            {/* The banner is itself an alert; when it is absent, one hidden alert speaks. */}
+            {hasAttemptedNext && bannerMessages.length === 0 && failedNext && (
+              <FailedNextAnnouncement key={failedNext.attempt} summary={failedNext} />
+            )}
             {hasAttemptedNext && bannerMessages.length > 0 && (
               <div ref={validationBannerRef} className={WIZARD_SCROLL_MARGIN_CLASS}>
                 <WizardValidationBanner

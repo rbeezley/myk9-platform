@@ -113,6 +113,7 @@ async function printFromResults(page: Page, detail: Locator, label: string, repo
   // hover-pauses and expands the stack, so the link never fires and the toasts never leave
   // (both failing runs' screenshots show the stack still up 15s later). Click only once clear,
   // with the pointer parked off the stack first: a hovered stack pauses its own timers.
+  // Kept until a green Playwright Regression run proves the MYK9-1217 clearance.
   await page.mouse.move(0, 0);
   await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 15_000 });
   await row.getByRole('link', { name: /Print/ }).click();
@@ -244,6 +245,33 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
       await expect(detail.getByText('Print the results sheet and ribbon labels')).toBeVisible({
         timeout: 20_000,
       });
+      // MYK9-1217: at 1280x720 the "Scores marked..." and "Results released" toasts used to dock
+      // over the Print link. Measured on the rendered boxes while the toasts are still up.
+      const toasts = page.locator('[data-sonner-toast]');
+      await expect(toasts.first()).toBeVisible();
+      const printLink = paperworkRow(detail, 'Results sheet').getByRole('link', { name: /Print/ });
+      // Retries: the stack animates to its offset as the second toast arrives. Reports the
+      // number of toasts present and how many of them overlap the link's box.
+      await expect
+        .poll(
+          async () => {
+            const link = await printLink.boundingBox();
+            if (!link) return 'no Print box';
+            const boxes = await toasts.evaluateAll(nodes =>
+              nodes.map(node => node.getBoundingClientRect())
+            );
+            const overlapping = boxes.filter(
+              b =>
+                b.left < link.x + link.width &&
+                b.right > link.x &&
+                b.top < link.y + link.height &&
+                b.bottom > link.y
+            );
+            return `${boxes.length > 0 ? 'toasts up' : 'no toasts'}, ${overlapping.length} overlapping`;
+          },
+          { timeout: 5_000 }
+        )
+        .toBe('toasts up, 0 overlapping');
     });
 
     await test.step('6. print the Results sheet and Ribbon labels from their reports', async () => {

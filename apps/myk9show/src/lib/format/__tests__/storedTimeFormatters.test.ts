@@ -28,7 +28,7 @@ describe('stored time formatters share one centisecond rule (MYK9-1225)', () => 
   });
 
   const msFormatters: Array<[string, (ms: number) => string]> = [
-    ['msToDisplay(hundredths)', ms => msToDisplay(ms, 'hundredths')],
+    ['formatSecondsAsMSSCC (analytics seconds)', ms => formatSecondsAsMSSCC(ms / 1000)],
     ['formatTimeFromMs', formatTimeFromMs],
     ['formatMsToTime', formatMsToTime],
   ];

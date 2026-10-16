@@ -343,9 +343,9 @@ export function PaperScoresheetPage() {
     scoring.selectEntry(nextUnscoredAfter(fresh, currentEntryId) ?? currentEntryId);
   };
 
-  const handleClearResult = async () => {
+  const handleClearResult = async (): Promise<boolean> => {
     const entryId = onScreenEntryId;
-    if (!entryId) return;
+    if (!entryId) return false;
     // A failed clear still reloads, so the list shows the score that stayed.
     const cleared = await tryWrite(entryId, 'Result not cleared', () =>
       scoring.clearEntry(entryId)

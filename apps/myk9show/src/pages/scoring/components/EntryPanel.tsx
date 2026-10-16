@@ -141,7 +141,8 @@ export function EntryPanel({
         <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Result
         </div>
-        {/* Two columns so time, faults and Save stay on screen without scrolling. */}
+        {/* Q, the common result, gets its own full-width row; the other four sit in
+            a 2x2 grid below it, so time, faults and Save stay on screen. */}
         <div className="grid grid-cols-2 gap-2">
           {RESULT_BUTTONS.map(({ code, label, description }) => {
             const isSelected = selectedResult === code;
@@ -155,21 +156,10 @@ export function EntryPanel({
                 data-prefilled={isPrefilled ? 'true' : undefined}
                 className={cn(
                   'flex flex-col items-start px-3 py-2 rounded-lg border-2 text-left transition-colors font-semibold',
-                  // DQ is an official record: never styled like the common results.
-                  // It takes the last row on its own, with a red-tinted border
-                  // that reads in both themes.
-                  code === 'DQ' && 'col-span-2',
-                  isSelected &&
-                    !isPrefilled &&
-                    (code === 'DQ'
-                      ? 'border-red-600 bg-zinc-900 text-white ring-2 ring-red-600'
-                      : 'border-primary bg-primary text-primary-foreground'),
+                  code === 'Q' && 'col-span-2',
+                  isSelected && !isPrefilled && 'border-primary bg-primary text-primary-foreground',
                   isPrefilled && 'border-dashed border-primary bg-primary/10',
-                  !isSelected &&
-                    !isPrefilled &&
-                    (code === 'DQ'
-                      ? 'border-red-600/50 hover:bg-accent'
-                      : 'border-border hover:bg-accent')
+                  !isSelected && !isPrefilled && 'border-border hover:bg-accent'
                 )}
               >
                 <span className="text-lg leading-tight">{label}</span>
@@ -257,7 +247,7 @@ export function EntryPanel({
             onChange={event => setReason(event.target.value)}
             maxLength={500}
             placeholder="Briefly describe what happened"
-            className="h-11 w-full rounded-lg border-2 border-red-600/50 bg-background px-3 text-sm font-medium focus:border-red-600 focus:outline-none"
+            className="h-11 w-full rounded-lg border-2 border-border bg-background px-3 text-sm font-medium focus:border-primary focus:outline-none"
           />
         </div>
       )}

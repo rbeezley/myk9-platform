@@ -184,12 +184,15 @@ export function akcResultCodesForOutcome(
     case 'absent':
       return { actionCode: 'ABSN', resultCode: 'A' };
     case 'excused':
-    // AKC's electres schema has no distinct disqualified code in this repo; a DQ is
-    // reported with the excused pair so it is accounted for and never counted
-    // as a start-or-qualify. The DQ and its reason live on the marked catalog
-    // and form AEDSQ1 (MYK9-1011).
-    case 'disqualified':
       return { actionCode: 'EXCU', resultCode: 'EXO' };
+    // MYK9-1011: DISQ is the action code mySWT submitted to AKC for a DQ
+    // (docs/mySWT/mod_XML.bas). mySWT had no result code for one: it passed
+    // the raw placement text ("Disqualified") through. DQ is the owner's call
+    // (2026-10-16). No AKC electres spec in this repo confirms either code, so
+    // this pair is provisional until AKC does. The reason itself lives on the
+    // marked catalog and form AEDSQ1.
+    case 'disqualified':
+      return { actionCode: 'DISQ', resultCode: 'DQ' };
     case 'placed':
       return { actionCode: 'PLAC', resultCode: String(finalPlacement) };
     case 'qualified':

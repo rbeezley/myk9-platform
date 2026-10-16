@@ -23,8 +23,8 @@
 
 - [x] 4.1 Stop the disposable backend and close owned browsers; verify scrubbed synthetic artifacts and no shared target calls/mutations.
 - [x] 4.2 Verify completeness/correctness/coherence against both full issues and record an honest final report; fix any reproduced defect with assertion-first coverage.
-- [ ] 4.3 Ship the final harness/evidence through independent review, green CI and merge; verify the exact merged head.
-- [ ] 4.4 Re-read both full descriptions, post acceptance/evidence/PR links and close only passing issues.
+- [x] 4.3 Ship the final harness/evidence through independent review, green CI and merge; verify the exact merged head.
+- [x] 4.4 Re-read both full descriptions, post acceptance/evidence/PR links and close only passing issues.
 
 ## Workflow follow-up
 

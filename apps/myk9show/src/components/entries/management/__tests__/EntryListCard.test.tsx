@@ -333,6 +333,48 @@ describe('EntryListCard - check-in button affordance', () => {
     await waitFor(() => expect(onEntryRemoved).toHaveBeenCalledWith('entry-1'));
     expect(deleteMocks.remove).toHaveBeenCalledWith('entry', 'entry-1', { override: false });
   });
+  it.each([
+    [
+      'scored',
+      { paid: 0, scored: 1 },
+      'This entry is scored. Use Withdraw or Pull instead of deleting it.',
+    ],
+    [
+      'paid',
+      { paid: 1, scored: 0 },
+      'This entry is paid. Use Withdraw or Pull instead of deleting it.',
+    ],
+  ])(
+    'refuses to delete a %s entry from the Entry Forms row and points to Withdraw or Pull',
+    async (_label, counts, reason) => {
+      deleteMocks.remove.mockReset();
+      deleteMocks.preview.mockResolvedValue({
+        trials: 0,
+        classes: 0,
+        entries: 0,
+        shows: 0,
+        dogs: 0,
+        ...counts,
+        blocking: 1,
+      });
+      const user = userEvent.setup();
+      const onEntryRemoved = vi.fn();
+      render(<EntryListCard {...defaultProps} onEntryRemoved={onEntryRemoved} />);
+
+      await user.click(screen.getByRole('button', { name: 'Actions for Fido' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Remove entry' }));
+
+      const dialog = await screen.findByRole('alertdialog', { name: /Delete the entry for Fido/ });
+      expect(await within(dialog).findByText(reason)).toBeInTheDocument();
+      expect(
+        within(dialog).getByRole('link', { name: 'Withdraw / Pull entries' })
+      ).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Delete entry' })).toBeDisabled();
+      expect(deleteMocks.remove).not.toHaveBeenCalled();
+      expect(onEntryRemoved).not.toHaveBeenCalled();
+    }
+  );
+
   it('reloads the entries when Undo brings a deleted entry back', async () => {
     deleteMocks.preview.mockResolvedValue({
       trials: 0,

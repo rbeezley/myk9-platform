@@ -2,12 +2,14 @@ import type { IDBPDatabase } from 'idb';
 import type { Logger } from './dependencies';
 import { REPLICATION_STORES } from './core/DatabaseManager';
 import { withAcknowledgedSyncFlag } from './core/ReplicatedTableRowState';
+import { writtenColumnsOf, type WrittenFieldOverlay } from './mutation-written-overlay';
 import type { PendingMutation, ReplicatedRow } from './types';
 
 export async function markReplicatedRowSynced(
   db: IDBPDatabase,
   mutation: PendingMutation,
-  newServerVersion?: number
+  newServerVersion?: number,
+  overlayWritten?: WrittenFieldOverlay
 ): Promise<void> {
   if (mutation.operation === 'DELETE') return;
 
@@ -43,6 +45,15 @@ export async function markReplicatedRowSynced(
     nextData = uploaded;
   }
   const stillDirty = existingRow.isDirty && hasAnotherPendingMutation;
+  // MYK9-1220: the row stays dirty for a later queued write, so its merge base
+  // must now include what THIS write put on the server. Any case that cannot be
+  // mapped (INSERT, baked-args RPC, no mapper, a mapper that throws) keeps the
+  // base as it was.
+  let rebasedBase: unknown;
+  if (stillDirty && existingRow.baseData !== undefined && newServerVersion !== undefined) {
+    const written = writtenColumnsOf(mutation);
+    if (written) rebasedBase = overlayWritten?.(existingRow.baseData, written);
+  }
   await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
     ...existingRow,
     data: stillDirty ? nextData : withAcknowledgedSyncFlag(nextData),
@@ -50,6 +61,10 @@ export async function markReplicatedRowSynced(
     syncStatus: existingRow.isDirty && hasAnotherPendingMutation ? 'pending' : 'synced',
     lastSyncedAt: Date.now(),
     ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
+    ...(rebasedBase !== undefined && {
+      baseData: rebasedBase,
+      baseServerVersion: newServerVersion,
+    }),
     // Record the step only when this upload carried a precondition: then the
     // server held exactly `from` before it and exactly this write after it.
     ...(newServerVersion !== undefined &&

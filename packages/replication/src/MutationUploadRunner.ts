@@ -9,6 +9,7 @@ import * as mutationOwner from './mutation-owner';
 import { getMutationQueueCapacity, QUEUE_MAX_SIZE } from './mutation-queue-capacity';
 import { classifyMutationFailure } from './mutation-retry';
 import * as rowSync from './mutation-row-sync';
+import type { WrittenFieldOverlayRegistry } from './mutation-written-overlay';
 import * as uploadEvents from './mutation-upload-events';
 import { markPerf, measurePerf } from './perf';
 import type { PendingMutation, ReplicatedRow, SyncResult, UploadedMutation } from './types';
@@ -55,7 +56,8 @@ export class MutationUploadRunner {
     private readonly queueStore: MutationQueueStore,
     private readonly writeBackup: () => Promise<void>,
     private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext>,
-    private readonly requestRowRefetch?: (tableName: string, rowId: string) => unknown
+    private readonly requestRowRefetch?: (tableName: string, rowId: string) => unknown,
+    private readonly writtenOverlays?: WrittenFieldOverlayRegistry
   ) {}
 
   scheduleUpload(uploadPendingMutations = () => this.uploadPendingMutations()): void {
@@ -286,7 +288,8 @@ export class MutationUploadRunner {
                 remappedRowId
               )
             : queuedMutation;
-          await rowSync.markReplicatedRowSynced(db, uploadedMutation, newServerVersion);
+          const overlay = this.writtenOverlays?.get(uploadedMutation.tableName);
+          await rowSync.markReplicatedRowSynced(db, uploadedMutation, newServerVersion, overlay);
           if (newServerVersion !== undefined) {
             await this.queueStore.updateMutationServerVersions(
               uploadedMutation.tableName,

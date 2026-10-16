@@ -49,6 +49,11 @@ interface MyEntriesOverviewProps {
    */
   entries: MyEntry[];
   onAddDog: () => void;
+  /**
+   * False from lg, where My Dogs is its own tab beside My Shows and the strip would only push the
+   * shows list down the page. Below lg the strip stays (docs/plan-sidebar-browse-pane.md, phase 4).
+   */
+  showDogStrip?: boolean;
 }
 
 export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
@@ -62,6 +67,7 @@ export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
   dogs,
   entries,
   onAddDog,
+  showDogStrip = true,
 }) => {
   const scheduleCounts = React.useMemo(
     () => ({
@@ -93,14 +99,16 @@ export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
       {/* order-3 on mobile keeps the dog strip below the primary entry workflow.
       On desktop every sibling is order-0, so source order keeps the balance and
       dog strip above the entries. */}
-      <div className="max-[720px]:order-3">
-        <DogStrip
-          dogs={dogs}
-          upcomingClassCountByDog={scheduleCounts.upcoming}
-          unpublishedClassCountByDog={scheduleCounts.unpublished}
-          onAddDog={onAddDog}
-        />
-      </div>
+      {showDogStrip && (
+        <div className="max-[720px]:order-3">
+          <DogStrip
+            dogs={dogs}
+            upcomingClassCountByDog={scheduleCounts.upcoming}
+            unpublishedClassCountByDog={scheduleCounts.unpublished}
+            onAddDog={onAddDog}
+          />
+        </div>
+      )}
     </>
   );
 };

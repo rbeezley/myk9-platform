@@ -112,8 +112,13 @@ test.describe('My Shows Page - Enter a Show CTA', () => {
     await expect(page).toHaveURL(/\/shows$/);
   });
 
-  test('should link to dog management alongside Enter a Show', async ({ page }) => {
-    await expect(page.getByRole('link', { name: /My Dogs/ })).toHaveAttribute('href', '/dogs');
+  test('offers My Shows and My Dogs as tabs, My Shows selected', async ({ page }) => {
+    const tabs = page.getByRole('tablist', { name: 'Browse' });
+    await expect(tabs.getByRole('tab', { name: 'My Shows' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    await expect(tabs.getByRole('tab', { name: 'My Dogs' })).toHaveAttribute('href', '/dogs');
   });
 });
 
@@ -135,7 +140,8 @@ test.describe('My Shows Page - Filter Structure', () => {
     // See docs/plan-ia-exhibitor-surface.md, Phase A.
     await expect(timeAxis(page)).toBeVisible();
     await expect(statusAxis(page)).toBeVisible();
-    await expect(page.locator('[role="tablist"]')).toHaveCount(0);
+    // The only tablist is the My Shows / My Dogs switch; the filter axes are radiogroups.
+    await expect(page.locator('[role="tablist"]')).toHaveCount(1);
 
     for (const label of ['All', 'Upcoming', 'Completed']) {
       await expect(

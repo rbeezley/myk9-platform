@@ -18,6 +18,7 @@ import { UserRole, type UserWithRoles } from '@/types/auth-types';
 import { fromAny } from '@total-typescript/shoehorn';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 import { expectedLocalDate } from '@/test/utils/expectedLocalDate';
+import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 
 // Mock dependencies
 const mockCheckInMutateAsync = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
@@ -368,6 +369,7 @@ const submitSelfCheckin = async (user: ReturnType<typeof userEvent.setup>) => {
 
 describe('MyEntriesPage UI Improvements', () => {
   beforeEach(() => {
+    mockViewportWidth(500);
     vi.clearAllMocks();
     localStorage.clear();
     // clearAllMocks resets call history but not return-value overrides, so restore
@@ -462,6 +464,26 @@ describe('MyEntriesPage UI Improvements', () => {
       expect(within(timeAxis).getAllByRole('radio')).toHaveLength(3);
       // Nothing on this page claims tab semantics any more.
       expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    });
+
+    it('keeps the filter chip focused at desktop width when a filter leaves no results', async () => {
+      mockViewportWidth(1440);
+      const user = userEvent.setup();
+      seedLoadedEntry();
+      renderWithProviders(<MyEntriesPage />, '/exhibitor/entries');
+
+      const statusAxis = await screen.findByRole('radiogroup', { name: /filter by entry status/i });
+      expect(screen.getByRole('region', { name: 'Your shows' })).toContainElement(statusAxis);
+      const waitlist = within(statusAxis).getByRole('radio', { name: /Waitlist/i });
+      // Keyboard, as a keyboard user would: jsdom has no layout, so a pointer click lands on the
+      // resize handle's hit area at (0, 0) and the panels library focuses it.
+      waitlist.focus();
+      await user.keyboard('{Enter}');
+
+      // The same chip, still in the document and still focused, with the list pane still showing it.
+      expect(waitlist).toBeInTheDocument();
+      expect(document.activeElement).toBe(waitlist);
+      expect(screen.getByRole('region', { name: 'Your shows' })).toContainElement(waitlist);
     });
 
     it('offers entry status as a composable second axis, not more tabs', async () => {

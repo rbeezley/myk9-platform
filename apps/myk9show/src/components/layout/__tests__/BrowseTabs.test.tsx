@@ -37,6 +37,7 @@ function renderAt(route: string) {
         <Route path="/dogs/*" element={<ListPage name="Dogs" />} />
         <Route path="/people/*" element={<ListPage name="People" />} />
         <Route path="/clubs/*" element={<ListPage name="Clubs" />} />
+        <Route path="/exhibitor/entries" element={<ListPage name="My Shows" />} />
         <Route path="/back" element={<p>Somewhere else</p>} />
       </Routes>
       <LocationProbe />
@@ -135,17 +136,41 @@ describe('BrowseTabs', () => {
     expect(screen.getByRole('heading', { name: 'Clubs list' })).toBeInTheDocument();
   });
 
-  it.each([
-    ['an exhibitor-only account (phase 4)', [UserRole.EXHIBITOR]],
-    ['a site admin with no other role', [UserRole.SITE_ADMIN]],
-  ])('offers no switch to %s', (_label, roles) => {
-    auth.userWithRoles = { roles };
-    renderAt('/dogs');
+  it('gives an exhibitor-only account My Shows and My Dogs, each at its own URL', async () => {
+    const user = userEvent.setup();
+    auth.userWithRoles = { roles: [UserRole.EXHIBITOR] };
+    renderAt('/exhibitor/entries');
+
+    expect(tabNames()).toEqual(['My Shows', 'My Dogs']);
+    const myShows = screen.getByRole('tab', { name: 'My Shows' });
+    expect(myShows).toHaveAttribute('aria-selected', 'true');
+    expect(myShows).toHaveAttribute('href', '/exhibitor/entries');
+
+    myShows.focus();
+    await user.keyboard('{ArrowRight}');
+    expect(location()).toBe('/dogs');
+    expect(screen.getByRole('tab', { name: 'My Dogs' })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'My Dogs' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('offers an exhibitor-only account no People or Clubs', () => {
+    auth.userWithRoles = { roles: [UserRole.EXHIBITOR] };
+    renderAt('/clubs');
 
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-    expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Dogs list' })).toBeInTheDocument();
   });
+
+  it.each([['a site admin with no other role', [UserRole.SITE_ADMIN]]])(
+    'offers no switch to %s',
+    (_label, roles) => {
+      auth.userWithRoles = { roles };
+      renderAt('/dogs');
+
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+      expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Dogs list' })).toBeInTheDocument();
+    }
+  );
 
   it('offers no switch to a signed-out visitor', () => {
     auth.user = null;

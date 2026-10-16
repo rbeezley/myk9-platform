@@ -7,6 +7,9 @@
 import React, { useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { BrowseTabs } from '@/components/layout/BrowseTabs';
+import { MASTER_DETAIL_QUERY } from '@/components/layout/MasterDetailLayout';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { deriveMyEntriesDogState } from './modules/myEntriesDogState';
@@ -29,9 +32,10 @@ import {
   useMyEntriesFilters,
   useMyEntriesDialogs,
   useResultReveal,
-  MyShowsList,
+  MyShowsSplit,
   EntriesEmptyState,
   EntriesLoadErrorCard,
+  EntriesLoadingSkeleton,
   EntriesIdentityPendingCard,
   UnconfirmedReadNotice,
   UNCONFIRMED_EMPTY_HEADLINE,
@@ -142,6 +146,20 @@ const MyEntriesPage: React.FC = () => {
   const selfCheckinByClassId = useSelfCheckinMap(selfCheckinClassIds);
 
   const navigate = useNavigate();
+
+  // From lg the filters live in the shows list pane and the dog strip is the My Dogs tab's job.
+  const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
+  const filterStrip = (
+    <EntryFilterStrip
+      selectedTab={selectedTab}
+      onSelectTab={setSelectedTab}
+      tabCounts={tabCounts}
+      selectedStatus={selectedStatus}
+      onSelectStatus={setSelectedStatus}
+      statusCounts={statusCounts}
+      statusCountsAllWindows={statusCountsAllWindows}
+    />
+  );
 
   const ownerId = useEntriesPersonId() ?? '';
 
@@ -255,26 +273,12 @@ const MyEntriesPage: React.FC = () => {
 
     // Loading state
     if (isLoading || isInitialEntriesSyncing) {
-      return (
-        <div className="bg-background">
-          <div className="container mx-auto px-6 py-6 max-w-7xl">
-            <div className="grid gap-8">
-              <div className="h-8 bg-muted rounded-lg animate-pulse" />
-              <div className="h-12 bg-muted rounded-lg animate-pulse" />
-              <div className="space-y-4">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-32 bg-muted rounded-xl animate-pulse" />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      );
+      return <EntriesLoadingSkeleton />;
     }
 
     return (
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-6 py-6 max-w-7xl">
+        <div>
           {/* Flex stack (not space-y) so the dog strip and the entries section can
             swap order on phones. On mobile the schedule (entries) sits directly
             under the collapsed stats; the dog strip drops below the first fold.
@@ -401,6 +405,7 @@ const MyEntriesPage: React.FC = () => {
                     onNavigate={navigate}
                     dogs={visibleDogs as OverviewDog[]}
                     entries={entries}
+                    showDogStrip={!isWide}
                     onAddDog={dialogs.openAddDog}
                   />
                 )}
@@ -426,20 +431,9 @@ const MyEntriesPage: React.FC = () => {
                     onClearScope={clearScope}
                   />
 
-                  {/* Two composable filter axes, one visual language. Time was
-                    a tablist and status a radiogroup; both narrow the same
-                    list of the same cards, so both are filters now — and both
-                    are named, which neither was. The "All entries · includes
-                    past shows" heading above declares the unit they count. */}
-                  <EntryFilterStrip
-                    selectedTab={selectedTab}
-                    onSelectTab={setSelectedTab}
-                    tabCounts={tabCounts}
-                    selectedStatus={selectedStatus}
-                    onSelectStatus={setSelectedStatus}
-                    statusCounts={statusCounts}
-                    statusCountsAllWindows={statusCountsAllWindows}
-                  />
+                  {/* Two composable filter axes (When, Status), one node: in the page below lg, in
+                    the shows list pane from lg (`MyShowsSplit`), never both. */}
+                  {!isWide && filterStrip}
 
                   <div className="space-y-4">
                     {/* Changing a filter changes the list silently for a
@@ -449,33 +443,35 @@ const MyEntriesPage: React.FC = () => {
                     <p className="sr-only" role="status" aria-live="polite">
                       {filteredResultAnnouncement}
                     </p>
-                    {filteredEntries.length === 0 && waitlistSurface.allowEmptyState ? (
-                      <EntriesEmptyState
-                        selectedTab={selectedTab}
-                        selectedStatus={selectedStatus}
-                        onSwitchTab={setSelectedTab}
-                      />
-                    ) : filteredEntries.length > 0 ? (
-                      // One show group per show, dog cards beneath. The list
-                      // lives in modules/ because this file is at the
-                      // 500-line cap (MYK9-482, design D10).
-                      <MyShowsList
-                        filteredEntries={filteredEntries}
-                        allOrders={entries}
-                        source={entriesSource}
-                        selectedStatus={selectedStatus}
-                        selfCheckinByClassId={selfCheckinByClassId}
-                        seenResultReleaseKeys={reveal.seenResultReleaseKeys}
-                        onCheckInDay={dialogs.checkInClassesForDay}
-                        onOpenCheckIn={dialogs.openCheckIn}
-                        onOpenEdit={dialogs.openEdit}
-                        onLeaveClass={dialogs.openLeaveClass}
-                        onOpenReceipts={(group, moneyKind) =>
-                          dialogs.openReceipt(group.orders, moneyKind)
-                        }
-                        onResultRevealClick={reveal.openResultReveal}
-                      />
-                    ) : null}
+                    {/* One show group per show, dog cards beneath (modules/, MYK9-482 D10). From lg it is
+                      always the split, even with no results, so the filter strip in its list pane
+                      never unmounts under the focused chip. */}
+                    <MyShowsSplit
+                      filters={isWide ? filterStrip : undefined}
+                      emptyState={
+                        filteredEntries.length === 0 && waitlistSurface.allowEmptyState ? (
+                          <EntriesEmptyState
+                            selectedTab={selectedTab}
+                            selectedStatus={selectedStatus}
+                            onSwitchTab={setSelectedTab}
+                          />
+                        ) : null
+                      }
+                      filteredEntries={filteredEntries}
+                      allOrders={entries}
+                      source={entriesSource}
+                      selectedStatus={selectedStatus}
+                      selfCheckinByClassId={selfCheckinByClassId}
+                      seenResultReleaseKeys={reveal.seenResultReleaseKeys}
+                      onCheckInDay={dialogs.checkInClassesForDay}
+                      onOpenCheckIn={dialogs.openCheckIn}
+                      onOpenEdit={dialogs.openEdit}
+                      onLeaveClass={dialogs.openLeaveClass}
+                      onOpenReceipts={(group, moneyKind) =>
+                        dialogs.openReceipt(group.orders, moneyKind)
+                      }
+                      onResultRevealClick={reveal.openResultReveal}
+                    />
                     {selectedStatus === 'waitlist' && waitlistSection}
                   </div>
                 </div>
@@ -516,15 +512,14 @@ const MyEntriesPage: React.FC = () => {
         `databaseUserId` or by the entries query — so a mount inside any single
         branch is invisible in the states that matter most. It renders nothing
         without an `?orderId=`, so the ordinary visit is untouched. */}
-      <div className="bg-background">
-        {/* The page's container width, so the panel lines up with whichever
-          body branch renders beneath it. */}
-        <div className="container mx-auto px-6 pt-6 max-w-7xl">
+      {/* One container for the My Shows / My Dogs tabs, the receipt panel and the body, so all
+        three line up. */}
+      <div className="container mx-auto max-w-7xl space-y-6 bg-background px-6 py-6">
+        <BrowseTabs>
           <ScopedPaymentSummary viewerId={user?.id ?? null} />
-        </div>
+          {renderBody()}
+        </BrowseTabs>
       </div>
-
-      {renderBody()}
 
       <MyEntriesDialogGroup
         user={user}

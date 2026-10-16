@@ -13,6 +13,7 @@ import {
   type PaperResult,
   type SessionSettings,
 } from '../paper-scoring-types';
+import { formatMsAsMSSCC } from '@/lib/format/searchTime';
 
 interface EntryPanelProps {
   entry: ScoringEntry;
@@ -48,11 +49,7 @@ const RESULT_TO_PAPER_RESULT: Record<string, PaperResult> = {
 
 function secondsToTimeValue(milliseconds: number | undefined): string {
   if (!milliseconds || milliseconds <= 0) return '';
-  const totalSeconds = milliseconds / 1000;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = Math.floor(totalSeconds % 60);
-  const hundredths = Math.round((totalSeconds % 1) * 100);
-  return `${minutes}:${String(seconds).padStart(2, '0')}.${String(hundredths).padStart(2, '0')}`;
+  return formatMsAsMSSCC(milliseconds);
 }
 
 function initialResultForEntry(entry: ScoringEntry, settings: SessionSettings): PaperResult | null {

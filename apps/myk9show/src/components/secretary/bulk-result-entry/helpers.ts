@@ -1,3 +1,4 @@
+import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
 import type { BulkEntryData, BulkEntryValues } from './types';
 
 // Helper function to format time from milliseconds to MM:SS format
@@ -23,10 +24,7 @@ export const convertTimeToInputFormat = (timeStr: string): string => {
   // If it's just a number (seconds), convert to MM:SS.HH
   const numericValue = parseFloat(timeStr);
   if (!isNaN(numericValue)) {
-    const minutes = Math.floor(numericValue / 60);
-    const seconds = Math.floor(numericValue % 60);
-    const hundredths = Math.floor((numericValue % 1) * 100);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
+    return formatSecondsAsMSSCC(numericValue);
   }
 
   return timeStr;

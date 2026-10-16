@@ -1,20 +1,12 @@
-export interface SecondsParts {
-  minutes: number;
-  seconds: number;
-  centis: number;
-}
-
 /**
- * Split decimal seconds into whole minutes, seconds and centiseconds.
- * Works in integer centiseconds so 61.23 stays 23 (flooring the float
- * fraction gives 22) and a rounded-up hundredth carries into the second
- * and minute. The one rule behind every m:ss.cc display (MYK9-1225).
+ * Stored-time display rule: integer centiseconds, so 61.23 reads 1:01.23 and a
+ * rounded-up hundredth carries (MYK9-1225). The implementation lives in
+ * @myk9/core (the lower layer); the app imports it from here.
  */
-export function splitSecondsToCentis(secs: number): SecondsParts {
-  const totalCs = Math.round(secs * 100);
-  return {
-    minutes: Math.floor(totalCs / 6000),
-    seconds: Math.floor((totalCs % 6000) / 100),
-    centis: totalCs % 100,
-  };
-}
+export {
+  splitSecondsToCentis,
+  splitMsToCentis,
+  formatSecondsAsMSSCC,
+  formatMsAsMSSCC,
+  type TimeParts,
+} from '@myk9/core';

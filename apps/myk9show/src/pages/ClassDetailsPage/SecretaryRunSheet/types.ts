@@ -1,5 +1,5 @@
 import type { CheckInStatus } from '@myk9/core';
-import { splitSecondsToCentis } from '@/lib/format/searchTime';
+import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
 
 export type ClassPhase = 'not-started' | 'in-progress' | 'finished';
 
@@ -32,8 +32,7 @@ export interface RunSheetEntry {
 
 /** Format decimal seconds → "M:SS.HH" for display in result badges. */
 export function formatSearchTime(secs: number): string {
-  const { minutes, seconds, centis } = splitSecondsToCentis(secs);
-  return `${minutes}:${String(seconds).padStart(2, '0')}.${String(centis).padStart(2, '0')}`;
+  return formatSecondsAsMSSCC(secs);
 }
 
 /** Derive ClassPhase from the string stored in ClassData.status. */

@@ -13,17 +13,12 @@ import { useDogActivity } from '@/features/_shared/hooks/useDogActivity';
 import { deriveEntryPresentation } from '@/services/entryDisplay/entryPresentation';
 import { deriveResultReleaseDisplay } from '@/features/result-card';
 import { formatFaultCount } from '@/features/_shared/faultLabel';
+import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
 
 interface ActivityTabProps {
   dogId: string;
   dogName: string;
   role: 'exhibitor' | 'secretary';
-}
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toFixed(2).padStart(5, '0')}`;
 }
 
 function UpcomingRow({
@@ -136,7 +131,7 @@ function ResultRow({
         <div className="text-xs text-muted-foreground mt-0.5">{className}</div>
         {entry.search_time_seconds != null && (
           <div className="font-mono text-xs text-muted-foreground mt-0.5">
-            {formatTime(entry.search_time_seconds)}
+            {formatSecondsAsMSSCC(entry.search_time_seconds)}
             {release?.placement != null && (
               <span className="ml-2 font-sans font-medium text-amber-600">
                 #{release.placement}

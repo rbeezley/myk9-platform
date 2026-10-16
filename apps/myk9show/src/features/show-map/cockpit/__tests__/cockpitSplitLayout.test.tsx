@@ -116,13 +116,36 @@ describe('the class editor survives the split/stack switch', () => {
       );
       cockpit.width = 700;
       rerender(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />);
-      const afterMeasure = scrollIntoView.mock.calls.length;
+      // Once unmeasured, once on the first measured render (stacked, so the same spot).
+      expect(scrollIntoView).toHaveBeenCalledTimes(2);
 
       // A tablet rotated to landscape later, untouched: the page stays where it is.
       cockpit.width = 1000;
       rerender(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />);
       expect(screen.getByTestId('cockpit-split-focus')).toBeInTheDocument();
-      expect(scrollIntoView).toHaveBeenCalledTimes(afterMeasure);
+      expect(scrollIntoView).toHaveBeenCalledTimes(2);
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+
+  it('scrolls a returning anchor once when its row renders after the measurement', () => {
+    const scrollIntoView = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      cockpit.width = 1000;
+      const empty = { ...snapshot, classes: [] };
+      const { rerender } = render(
+        <SecretaryCockpit snapshot={empty} canManageShow onCommand={vi.fn()} />,
+        { initialRoute: '/shows/show-1?focus=class-1&anchor=class-1' }
+      );
+      expect(scrollIntoView).not.toHaveBeenCalled();
+
+      rerender(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />);
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      rerender(<SecretaryCockpit snapshot={{ ...snapshot }} canManageShow onCommand={vi.fn()} />);
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
     } finally {
       Element.prototype.scrollIntoView = original;
     }

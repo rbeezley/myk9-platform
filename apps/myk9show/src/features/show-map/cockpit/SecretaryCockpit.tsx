@@ -143,7 +143,8 @@ export function SecretaryCockpit({
 
   // The first commit is unmeasured (stacked); a split cockpit re-lays out right after it, before
   // paint, which moves the row. So the anchor scrolls once unmeasured, once more on the first
-  // measured render, and is then spent: a later resize or rotation never moves the page.
+  // measured render, and is then spent (or cancelled sooner by an interaction, above): a later
+  // resize or rotation never moves the page.
   useEffect(() => {
     const anchor = pendingAnchor.current;
     if (!anchor || (gridWidth === null && anchorScrolledUnmeasured.current)) return;

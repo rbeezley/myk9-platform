@@ -86,7 +86,8 @@ function LocationProbe() {
 
 function renderAt(route: string) {
   const client = new QueryClient();
-  const tree = (
+  // A fresh element each time: React skips a rerender handed the identical element.
+  const tree = () => (
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[route]}>
         <Routes>
@@ -97,9 +98,9 @@ function renderAt(route: string) {
       </MemoryRouter>
     </QueryClientProvider>
   );
-  const result = render(tree);
+  const result = render(tree());
   // The same tree again, after the test changes what the data hook returns.
-  return { ...result, refresh: () => result.rerender(tree) };
+  return { ...result, refresh: () => result.rerender(tree()) };
 }
 
 describe('Clubs list with a detail pane', () => {

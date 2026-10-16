@@ -1,8 +1,9 @@
 import React from 'react';
-import { Calendar, CheckCircle2, XCircle, Clock, WifiOff } from 'lucide-react';
+import { Calendar, Clock, WifiOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ResultBadge } from '@/components/common/ResultBadge';
 import { Link } from 'react-router-dom';
 import {
   formatActivityDate,
@@ -151,24 +152,21 @@ function ResultRow({
         )}
       </div>
       <div className="flex-shrink-0">
-        {qualified ? (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600">
-            <CheckCircle2 className="h-3.5 w-3.5" />Q
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-destructive">
-            <XCircle className="h-3.5 w-3.5" />
-            NQ
-          </span>
-        )}
+        {entry.result_status && <ResultBadge resultStatus={entry.result_status} />}
       </div>
     </div>
   );
 }
 
+// A run the dog started. Absent and withdrawn dogs never ran, so they are not
+// part of a qualifying rate; excused and disqualified dogs did (MYK9-1011).
+const STARTED_RESULTS = new Set(['qualified', 'nq', 'excused', 'disqualified']);
+
 const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
   const { upcoming, recentResults, isLoading, isError, canTrustEmpty, resultsVerified, refetch } =
     useDogActivity(dogId);
+  const startedRuns = recentResults.filter(e => STARTED_RESULTS.has(e.result_status ?? '')).length;
+  const qualifyingRuns = recentResults.filter(e => e.result_status === 'qualified').length;
   // An empty list is only "nothing booked" when the read actually resolved.
   // Career applies the identical rule — see `canTrustEmpty`.
   const upcomingUnresolved = upcoming.length === 0 && (isError || !canTrustEmpty);
@@ -252,10 +250,11 @@ const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center justify-between text-base font-semibold">
               <span>Recent results</span>
-              <span className="text-xs font-normal text-muted-foreground">
-                {recentResults.filter(e => e.result_status === 'qualified').length}/
-                {recentResults.length} qualifying runs
-              </span>
+              {startedRuns > 0 && (
+                <span className="text-xs font-normal text-muted-foreground">
+                  {`${qualifyingRuns}/${startedRuns} qualifying runs`}
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>

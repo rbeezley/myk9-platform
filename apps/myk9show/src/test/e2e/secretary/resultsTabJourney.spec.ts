@@ -275,17 +275,20 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
       // The lift is capped, so the stack must stay fully on screen (never over the header).
       await expect
         .poll(
-          async () =>
-            toasts.evaluateAll(
+          async () => {
+            const offScreen = await toasts.evaluateAll(
               nodes =>
                 nodes.filter(node => {
                   const b = node.getBoundingClientRect();
                   return b.top < 0 || b.bottom > window.innerHeight;
                 }).length
-            ),
+            );
+            const count = await toasts.count();
+            return `${count > 0 ? 'toasts up' : 'no toasts'}, ${offScreen} off screen`;
+          },
           { timeout: 5_000 }
         )
-        .toBe(0);
+        .toBe('toasts up, 0 off screen');
     });
 
     await test.step('6. print the Results sheet and Ribbon labels from their reports', async () => {

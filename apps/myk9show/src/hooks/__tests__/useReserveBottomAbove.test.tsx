@@ -2,8 +2,8 @@
  * MYK9-1217: the toast stack must end above a block that sits some way up a scrolling pane.
  * Mounts a real component, since a store-only test passes even when nothing registers.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { act, fireEvent, render } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render } from '@/test/utils/testUtils';
 import { TOAST_ZONE_PX } from '@/components/layout/toastGeometry';
 import { useReserveBottomAbove } from '../useReserveBottomAbove';
 import { useActionBarStore, selectReservedBottom } from '@/store/actionBarStore';
@@ -12,6 +12,16 @@ const reserved = () => selectReservedBottom(useActionBarStore.getState());
 
 let blockTop = 0;
 const originalRect = HTMLElement.prototype.getBoundingClientRect;
+const originalInnerHeight = window.innerHeight;
+
+class FakeResizeObserver {
+  static instances: FakeResizeObserver[] = [];
+  constructor(public callback: () => void) {
+    FakeResizeObserver.instances.push(this);
+  }
+  observe() {}
+  disconnect() {}
+}
 
 function Block({ enabled }: { enabled: boolean }) {
   const ref = useReserveBottomAbove<HTMLDivElement>(enabled);
@@ -44,6 +54,11 @@ describe('useReserveBottomAbove', () => {
 
   afterEach(() => {
     HTMLElement.prototype.getBoundingClientRect = originalRect;
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      value: originalInnerHeight,
+    });
+    vi.unstubAllGlobals();
   });
 
   it('reserves exactly the overlap while the block top is inside the toast zone, and releases on unmount', () => {
@@ -64,6 +79,32 @@ describe('useReserveBottomAbove', () => {
     expect(reserved()).toBe(220);
     blockTop = 100;
     fireEvent.scroll(document.body);
+    await flushFrame();
+    expect(reserved()).toBe(0);
+  });
+
+  it('recomputes on resize and on the observer, and stops listening once detached', async () => {
+    FakeResizeObserver.instances = [];
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+    blockTop = 500;
+    const { unmount } = render(<Block enabled />);
+    expect(reserved()).toBe(220);
+
+    blockTop = 600;
+    fireEvent(window, new Event('resize'));
+    await flushFrame();
+    expect(reserved()).toBe(120);
+
+    blockTop = 480;
+    act(() => FakeResizeObserver.instances.forEach(o => o.callback()));
+    await flushFrame();
+    expect(reserved()).toBe(240);
+
+    unmount();
+    expect(reserved()).toBe(0);
+    blockTop = 500;
+    fireEvent.scroll(document.body);
+    fireEvent(window, new Event('resize'));
     await flushFrame();
     expect(reserved()).toBe(0);
   });

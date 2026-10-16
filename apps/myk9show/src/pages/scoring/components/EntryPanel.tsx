@@ -34,7 +34,7 @@ const RESULT_BUTTONS: { code: PaperResult; label: string; description: string }[
   { code: 'NQ', label: 'NQ', description: 'Not Qualified' },
   { code: 'ABS', label: 'ABS', description: 'Absent' },
   { code: 'EX', label: 'EX', description: 'Excused' },
-  { code: 'DQ', label: 'DQ', description: 'Disqualified (rare)' },
+  { code: 'DQ', label: 'DQ', description: 'Disqualified' },
 ];
 
 const RESULT_TO_PAPER_RESULT: Record<string, PaperResult> = {

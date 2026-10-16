@@ -3,7 +3,8 @@ import type { YourRingClass } from './atShowClassListSort';
 
 export type RingDayBucket = 'today' | 'upcoming' | 'past';
 
-export type DatedRingClass = YourRingClass & { dayBucket: RingDayBucket };
+/** `isToday` is the trial's real date; a live class sorts as today without claiming it. */
+export type DatedRingClass = YourRingClass & { dayBucket: RingDayBucket; isToday: boolean };
 
 const BUCKET_RANK: Record<RingDayBucket, number> = { today: 0, upcoming: 1, past: 2 };
 
@@ -31,7 +32,8 @@ export function orderRingClassesByDay(classes: YourRingClass[], nowMs: number): 
             : c.trialDate > today
               ? 'upcoming'
               : 'past';
-    return { card: { ...c, dayBucket }, index };
+    const isToday = c.trialDate === today;
+    return { card: { ...c, dayBucket, isToday }, index };
   });
   dated.sort((a, b) => {
     const rank = BUCKET_RANK[a.card.dayBucket] - BUCKET_RANK[b.card.dayBucket];

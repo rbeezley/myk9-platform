@@ -76,5 +76,10 @@ describe('orderRingClassesByDay', () => {
       ['live', 'today'],
       ['up', 'upcoming'],
     ]);
+    // It sorts as today but is not dated today, so it gets no Today label.
+    expect(result.map(r => [r.entry.id, r.isToday])).toEqual([
+      ['live', false],
+      ['up', false],
+    ]);
   });
 });

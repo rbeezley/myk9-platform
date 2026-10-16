@@ -26,6 +26,8 @@ interface AtShowClassRowProps {
    * 'today' gets a label; 'past' is rendered quieter but stays tappable.
    */
   dayBucket?: RingDayBucket | undefined;
+  /** The trial's date is today; only this shows the Today label (a live class may sort as today without it). */
+  isToday?: boolean | undefined;
   /** In-ring / next-up preview for this card; omitted when unknown. */
   nextUp?: AtShowNextUpPreview | undefined;
   /**
@@ -89,6 +91,7 @@ export function AtShowClassRow({
   trialTimeZone,
   trialHeading,
   dayBucket,
+  isToday,
   nextUp,
   entryCountsAvailable,
 }: AtShowClassRowProps) {
@@ -111,7 +114,7 @@ export function AtShowClassRow({
           entry.is_favorite && 'border-primary',
           // Past days are quieter by surface only (no shadow, transparent border);
           // never opacity, which drops muted text below AA (see counter comment).
-          dayBucket === 'past' && 'border-transparent shadow-none'
+          dayBucket === 'past' && !entry.is_favorite && 'border-transparent shadow-none'
         )}
       >
         <div className="min-w-0 flex-1">
@@ -122,7 +125,7 @@ export function AtShowClassRow({
           {trialHeading && (
             <div className="mt-0.5 flex items-center gap-2 text-sm font-medium text-foreground/80">
               <span className="truncate">{trialHeading}</span>
-              {dayBucket === 'today' && (
+              {isToday && (
                 <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
                   Today
                 </span>

@@ -486,7 +486,7 @@ export const AtShowClassListPage: React.FC = () => {
             </span>
           </div>
           <ul className="space-y-2">
-            {yourRingClasses.map(({ entry, trialTimeZone, trialHeading, dayBucket }) => (
+            {yourRingClasses.map(({ entry, trialTimeZone, trialHeading, dayBucket, isToday }) => (
               <AtShowClassRow
                 key={entry.id}
                 entry={entry}
@@ -495,6 +495,7 @@ export const AtShowClassListPage: React.FC = () => {
                 trialTimeZone={trialTimeZone}
                 trialHeading={trialHeading}
                 dayBucket={dayBucket}
+                isToday={isToday}
                 nextUp={selectNextUpForCard(getClassIds(entry), nextUpByClassId)}
                 entryCountsAvailable={hasTrustedEntryCount(entry)}
               />

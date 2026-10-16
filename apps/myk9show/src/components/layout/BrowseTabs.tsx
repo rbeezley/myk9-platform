@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { isAccountSession } from '@/hooks/guestServerRead';
 import { useEmbeddedDetail } from './embeddedDetail';
-import { browseTabForPath, browseTabsForRoles, type BrowseTabId } from './sidebar/browseTabs';
+import { browseTabForPath, visibleBrowseTabs, type BrowseTabId } from './sidebar/browseTabs';
 
 const PANEL_ID = 'browse-tabpanel';
 const tabElementId = (id: BrowseTabId) => `browse-tab-${id}`;
@@ -35,7 +35,8 @@ interface BrowseTabsProps {
 /**
  * Renders the tablist and wraps `children` (the list) as its tabpanel. Renders `children` alone
  * where there is no switch to offer: signed out, a role with fewer than two lists (exhibitor-only
- * accounts until phase 4), or inside a detail pane (Find Shows beside the Shows list).
+ * accounts until phase 4, or a deployment surface that serves fewer), or inside a detail pane
+ * (Find Shows beside the Shows list).
  */
 export function BrowseTabs({
   children,
@@ -45,7 +46,7 @@ export function BrowseTabs({
   const { user, userWithRoles } = useAuthContext();
   const embedded = useEmbeddedDetail();
   const { pathname } = useLocation();
-  const tabs = isAccountSession(user) ? browseTabsForRoles(userWithRoles?.roles ?? []) : [];
+  const tabs = isAccountSession(user) ? visibleBrowseTabs(userWithRoles?.roles ?? []) : [];
   const selectedId = browseTabForPath(pathname);
   const selected = tabs.find(tab => tab.id === selectedId);
 

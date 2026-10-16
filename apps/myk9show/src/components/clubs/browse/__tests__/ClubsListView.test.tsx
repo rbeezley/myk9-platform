@@ -1,3 +1,8 @@
+import {
+  captureCsvDownload,
+  registeredPageExports,
+  resetPageExports,
+} from '@/test/utils/csvDownload';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ClubsListView } from '../ClubsListView';
@@ -62,5 +67,23 @@ describe('ClubsListView empty cells', () => {
     const row = screen.getByText('Bare Club').closest('tr') as HTMLElement;
     expect(row).toHaveTextContent('—');
     expect(row.textContent).not.toMatch(/(^|[^\w])-($|[^\w])/);
+  });
+
+  it("registers an Export CSV page action with the table's columns", () => {
+    render(<ClubsListView clubs={clubs} clubShowCounts={new Map([['club-1', 3]])} />);
+    const registered = registeredPageExports();
+    expect(registered.map(item => item.id)).toEqual(['clubs']);
+
+    const download = captureCsvDownload();
+    try {
+      registered[0]!.run();
+      const lines = download.csv().split('\n');
+      expect(lines[0]).toBe('Club,Type,Location,Members,Upcoming Shows');
+      expect(lines[1]).toContain('"Golden State Dog Club"');
+      expect(lines[1]).toContain('"3"');
+    } finally {
+      download.restore();
+      resetPageExports();
+    }
   });
 });

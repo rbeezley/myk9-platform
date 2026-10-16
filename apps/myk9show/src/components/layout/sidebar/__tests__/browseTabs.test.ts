@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { UserRole } from '@/types/auth-types';
-import { browseHref, browseTabForPath, browseTabsForRoles } from '../browseTabs';
+import { browseHref, browseTabForPath, browseTabsForRoles, visibleBrowseTabs } from '../browseTabs';
 
 const ids = (roles: UserRole[]) => browseTabsForRoles(roles).map(tab => tab.id);
 
@@ -24,6 +24,26 @@ describe('browseTabsForRoles', () => {
   it('labels the dogs list My Dogs where the roster holds only the viewer’s own dogs', () => {
     expect(browseTabsForRoles([UserRole.JUDGE])[1].title).toBe('My Dogs');
     expect(browseTabsForRoles([UserRole.SECRETARY])[1].title).toBe('Dogs');
+  });
+});
+
+describe('visibleBrowseTabs', () => {
+  // The wizard surface's allowlist, as far as these four lists go: Shows only.
+  const wizardAllows = (path: string) => path === '/shows';
+
+  it('drops the lists a wizard deployment would 404, leaving no switch to draw', () => {
+    expect(visibleBrowseTabs([UserRole.SECRETARY], wizardAllows).map(tab => tab.id)).toEqual([
+      'shows',
+    ]);
+  });
+
+  it('never gates a site admin, as the sidebar does not', () => {
+    const roles = [UserRole.SITE_ADMIN, UserRole.SECRETARY];
+    expect(visibleBrowseTabs(roles, wizardAllows)).toHaveLength(4);
+  });
+
+  it('keeps every list on the full surface', () => {
+    expect(visibleBrowseTabs([UserRole.SECRETARY])).toHaveLength(4);
   });
 });
 

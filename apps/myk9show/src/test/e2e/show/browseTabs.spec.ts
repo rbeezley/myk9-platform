@@ -68,15 +68,9 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
     await expect(page).toHaveURL(/\/dogs$/);
     await expectSelected(page, 'Dogs');
 
-    // Clubs is a list with a detail pane now: a club opens beside the list.
+    // Clubs keeps its own page (its list with a detail pane is MYK9-1228); the tab still leads there.
     await tab(page, 'Clubs').click();
     await expect(page).toHaveURL(/\/clubs$/);
-    const clubsList = page.getByRole('region', { name: 'Clubs list' });
-    await expect(clubsList.getByRole('link').first()).toBeVisible({ timeout: 20_000 });
-    await clubsList.getByRole('link').first().click();
-    await expect(page).toHaveURL(/\/clubs\/[\w-]+$/);
-    await expect(page.getByRole('region', { name: 'Club details' })).toBeVisible();
-    await expect(clubsList).toBeVisible();
     await expectSelected(page, 'Clubs');
     await expectNoSidewaysScroll(page);
 
@@ -143,7 +137,7 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
       expect(box.right).toBeLessThanOrEqual(390);
     }
 
-    // Narrow screens keep the page hop: a club replaces the list.
+    // A club opens as its own page, with no tabs (a record, not a list).
     // Cards or table, whichever this device last chose: either way the club's name opens it.
     const firstClub = page
       .getByRole('main')

@@ -7,6 +7,7 @@
 import { Building2, Calendar, Heart, Users } from 'lucide-react';
 import { UserRole } from '@/types/auth-types';
 import { rosterIsOwnDogsOnlyForRoles } from '@/utils/dogRosterScope';
+import { isPathAllowedInCurrentSurface } from '@/config/surface';
 import type { NavItem } from './types';
 
 const BROWSE_TAB_IDS = ['shows', 'dogs', 'people', 'clubs'] as const;
@@ -61,6 +62,18 @@ export function browseTabsForRoles(roles: readonly UserRole[]): BrowseTab[] {
     );
   }
   return tabs;
+}
+
+/**
+ * The tabs to draw: the role's lists, less any the deployment surface 404s (the wizard surface
+ * serves only its allowlist). A site admin is never gated, as in the sidebar's own filter.
+ */
+export function visibleBrowseTabs(
+  roles: readonly UserRole[],
+  isPathAllowed: (path: string) => boolean = isPathAllowedInCurrentSurface
+): BrowseTab[] {
+  const tabs = browseTabsForRoles(roles);
+  return roles.includes(UserRole.SITE_ADMIN) ? tabs : tabs.filter(tab => isPathAllowed(tab.href));
 }
 
 /** The list a path belongs to (`/dogs/123` is Dogs), or null outside the Browse lists. */

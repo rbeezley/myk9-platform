@@ -61,6 +61,7 @@ import {
 import {
   instantFieldsFor,
   mergeNonConflictingServerFields,
+  type DirtyRowComparePolicy,
 } from '../conflict/detectDirtyRowConflict';
 import type { ScopeStampDirective } from './scopeStamp';
 import { isConflictSurfacingEnabled } from '../conflictConfig';
@@ -947,6 +948,16 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * How this table reads two spellings of one value when a dirty row meets a
+   * pull. The sync adapter hands the same policy to conflict detection; the
+   * merge here must use it too, or a field detection calls unchanged is kept
+   * as the device's and erases the server's value (MYK9-1236).
+   */
+  protected getDirtyRowComparePolicy(): DirtyRowComparePolicy | undefined {
+    return undefined;
+  }
+
+  /**
    * Reconcile a locally-dirty row against a freshly-synced server snapshot WITHOUT
    * discarding the pending local edit. Used by syncReplicatedTable's dirty branch
    * when there is NO same-field conflict, to fix the root cause of the ringside OCC
@@ -1027,6 +1038,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
         local: existingRow.data,
         remote: params.remote,
         instantFields: instantFieldsFor(this.tableName),
+        comparePolicy: this.getDirtyRowComparePolicy(),
       }).merged;
     const normalizedMerged = { ...mergedData, id: normalizedId } as T;
     for (const field of params.adoptRemoteFields ?? []) {
@@ -1143,6 +1155,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
         local: row.data,
         remote: snapshot.remoteData,
         instantFields: instantFieldsFor(this.tableName),
+        comparePolicy: this.getDirtyRowComparePolicy(),
       }).merged;
       await this.clearConflict(id, snapshot.remoteServerVersion, {
         mergedData: merged,

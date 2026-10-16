@@ -20,6 +20,7 @@ import {
   type MutationManager,
   type ReplicatedSetResult,
   type RowRefetchAdapter,
+  type DirtyRowComparePolicy,
   type SyncReplicatedTableAdapter,
   type SyncOptions,
   type SyncResult,
@@ -148,6 +149,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     return true;
   }
 
+  protected override getDirtyRowComparePolicy(): DirtyRowComparePolicy {
+    return ENTRY_DIRTY_ROW_COMPARE_POLICY;
+  }
+
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
   private _hasWarnedMissingShowScope = false;
@@ -264,7 +269,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       rebuildUpdatePayload: entry => entryToSupabaseRow(entry),
       // Sync and the by-id refetch both read this adapter, so both compare null and
       // undefined as one value (MYK9-1236).
-      dirtyRowComparePolicy: ENTRY_DIRTY_ROW_COMPARE_POLICY,
+      dirtyRowComparePolicy: this.getDirtyRowComparePolicy(),
     };
   }
 

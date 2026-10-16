@@ -108,7 +108,6 @@ export function detectDirtyRowConflict<T extends object>({
   comparePolicy,
 }: DirtyRowConflictInput<T>): DirtyRowConflictResult {
   const ignored = new Set(ignoredFields);
-  const normalize = comparePolicy?.normalizeValue;
   const serverWins = new Set(comparePolicy?.serverWinsFields ?? []);
   const respelled: string[] = [];
   let agreedFields = 0;
@@ -122,9 +121,9 @@ export function detectDirtyRowConflict<T extends object>({
     if (ignored.has(field)) continue;
 
     const asInstant = instantFields.has(field);
-    const baseValue = normalize ? normalize(field, baseRecord[field]) : baseRecord[field];
-    const localValue = normalize ? normalize(field, localRecord[field]) : localRecord[field];
-    const remoteValue = normalize ? normalize(field, remoteRecord[field]) : remoteRecord[field];
+    const baseValue = comparableValue(comparePolicy, field, baseRecord[field]);
+    const localValue = comparableValue(comparePolicy, field, localRecord[field]);
+    const remoteValue = comparableValue(comparePolicy, field, remoteRecord[field]);
     const localChanged = !deepEqual(localValue, baseValue, asInstant);
     const remoteChanged = !deepEqual(remoteValue, baseValue, asInstant);
     const sidesDiffer = !deepEqual(localValue, remoteValue, asInstant);
@@ -182,6 +181,7 @@ export function mergeNonConflictingServerFields<T extends object>({
   remote,
   ignoredFields = DEFAULT_IGNORED_FIELDS,
   instantFields = NO_INSTANT_FIELDS,
+  comparePolicy,
 }: DirtyRowConflictInput<T>): DirtyRowMergeResult<T> {
   const ignored = new Set(ignoredFields);
   const fields = new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)]);
@@ -194,21 +194,34 @@ export function mergeNonConflictingServerFields<T extends object>({
   for (const field of fields) {
     if (ignored.has(field)) continue;
 
-    const baseValue = baseRecord[field];
-    const localValue = localRecord[field];
-    const remoteValue = remoteRecord[field];
+    const baseValue = comparableValue(comparePolicy, field, baseRecord[field]);
+    const localValue = comparableValue(comparePolicy, field, localRecord[field]);
+    const remoteValue = comparableValue(comparePolicy, field, remoteRecord[field]);
     const asInstant = instantFields.has(field);
     const localChanged = !deepEqual(localValue, baseValue, asInstant);
     const remoteChanged = !deepEqual(remoteValue, baseValue, asInstant);
 
     // Server changed a field the client never touched → adopt the server value.
     if (remoteChanged && !localChanged) {
-      merged[field] = remoteValue;
+      merged[field] = remoteRecord[field];
       appliedFields.push(field);
     }
   }
 
   return { merged: merged as T, appliedFields: appliedFields.sort() };
+}
+
+/**
+ * A field's value as the table's compare policy reads it. Detection and the
+ * merge both go through this, so what counts as "unchanged" cannot differ
+ * between deciding a collision and deciding whose value the row keeps (MYK9-1236).
+ */
+export function comparableValue(
+  policy: DirtyRowComparePolicy | undefined,
+  field: string,
+  value: unknown
+): unknown {
+  return policy?.normalizeValue ? policy.normalizeValue(field, value) : value;
 }
 
 export function deepEqual(left: unknown, right: unknown, asInstant: boolean): boolean {

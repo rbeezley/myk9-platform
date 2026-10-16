@@ -7402,6 +7402,7 @@ export type Database = {
         Row: {
           batch_key: string | null
           body: string | null
+          claimed_until: string | null
           correction_for_job_id: string | null
           created_at: string
           created_by: string | null
@@ -7435,6 +7436,7 @@ export type Database = {
         Insert: {
           batch_key?: string | null
           body?: string | null
+          claimed_until?: string | null
           correction_for_job_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -7468,6 +7470,7 @@ export type Database = {
         Update: {
           batch_key?: string | null
           body?: string | null
+          claimed_until?: string | null
           correction_for_job_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -13105,6 +13108,7 @@ export type Database = {
         Args: {
           p_body: string
           p_entry_id: string
+          p_lease_until?: string
           p_recipient_email: string
           p_recipient_name: string
           p_request_key: string

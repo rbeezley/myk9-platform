@@ -2,7 +2,7 @@ import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { requireEmailLogWrite } from '../_shared/emailLog.ts';
-import { parseNumberNeededClaim } from './lifecycle-email-numberNeeded.ts';
+import { numberNeededClaimWindow, parseNumberNeededClaim } from './lifecycle-email-numberNeeded.ts';
 
 export interface SendLifecycleEmailPayload {
   action?: 'preview' | 'save_ready' | 'send' | 'send_registration_number_needed';
@@ -97,9 +97,6 @@ interface LifecycleEmailJobRow {
   idempotency_key: string;
   entry_id: string | null;
 }
-
-/** A registration_number_needed send still READY after this long died mid-way. */
-const NUMBER_NEEDED_STALE_SEND_MS = 10 * 60 * 1000;
 
 interface HeldEntryRow {
   id?: string;
@@ -525,7 +522,7 @@ async function sendRegistrationNumberNeeded(args: {
       p_body: payload.body ?? null,
       p_secretary_note: payload.secretary_note ?? null,
       p_user_id: userId,
-      p_stale_before: new Date(Date.now() - NUMBER_NEEDED_STALE_SEND_MS).toISOString(),
+      ...numberNeededClaimWindow(),
     }
   );
   // Another writer holds this entry's one outstanding email: busy, as before.
@@ -591,6 +588,7 @@ async function sendOneJob(args: {
         .from('show_lifecycle_email_jobs')
         .update({
           status: 'sent',
+          claimed_until: null,
           email_log_id: existingDelivery.id,
           sent_at: new Date().toISOString(),
           updated_by: args.userId,
@@ -649,6 +647,7 @@ async function sendOneJob(args: {
     .from('show_lifecycle_email_jobs')
     .update({
       status: 'sent',
+      claimed_until: null,
       rendered_subject: subject,
       rendered_body: body,
       rendered_secretary_note: secretaryNote,
@@ -690,6 +689,7 @@ async function recordFailure(
     .from('show_lifecycle_email_jobs')
     .update({
       status: 'failed',
+      claimed_until: null,
       email_log_id: emailLogId,
       rendered_subject: subject,
       rendered_body: body,

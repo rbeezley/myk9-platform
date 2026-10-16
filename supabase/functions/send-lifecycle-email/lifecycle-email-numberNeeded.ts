@@ -21,3 +21,18 @@ export function parseNumberNeededClaim(data: unknown): NumberNeededClaim {
   }
   throw new HttpError(500, 'Failed to save lifecycle email');
 }
+
+/** A registration_number_needed send in flight for this long is presumed dead. */
+export const NUMBER_NEEDED_STALE_SEND_MS = 10 * 60 * 1000;
+
+/**
+ * The claim's two time arguments from ONE definition of the stale window: the cutoff
+ * below which a lease-less ready job counts as abandoned, and the in-flight lease the
+ * claim stamps on the job it answers `send` for (cleared when the send is recorded).
+ */
+export function numberNeededClaimWindow(now = Date.now()) {
+  return {
+    p_stale_before: new Date(now - NUMBER_NEEDED_STALE_SEND_MS).toISOString(),
+    p_lease_until: new Date(now + NUMBER_NEEDED_STALE_SEND_MS).toISOString(),
+  };
+}

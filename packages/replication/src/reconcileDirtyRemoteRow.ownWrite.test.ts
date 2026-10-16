@@ -15,6 +15,7 @@ interface ScoreRow {
   id: string;
   result: string | null;
   reason: string | null;
+  placement?: number | null;
 }
 
 class ScoreTable extends ReplicatedTable<ScoreRow> {
@@ -154,6 +155,38 @@ describe('a pull that returns the device’s own acknowledged write (MYK9-1220)'
 
     expect(outcome.conflict).toBe(false);
     expect(conflicts).toEqual([]);
+  });
+
+  it('(iv) the acked write carries a server-generated placement: it is adopted, B wins its own fields, the base moves to v4', async () => {
+    const table = new ScoreTable(tableName);
+    await table.set(
+      '1',
+      { id: '1', result: 'abs', reason: 'R0', placement: null },
+      false,
+      undefined,
+      3
+    );
+    await table.set('1', { id: '1', result: 'q', reason: null, placement: null }, true);
+    const db = await databaseManager.getDatabase('test');
+    const mutationA = mutation('mut-A', { result: 'q', reason: null }, 3);
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutationA);
+    await table.set('1', { id: '1', result: 'nq', reason: 'R1', placement: null }, true);
+    await db.put(
+      REPLICATION_STORES.PENDING_MUTATIONS,
+      mutation('mut-B', { result: 'nq', reason: 'R1' }, 3)
+    );
+    await markReplicatedRowSynced(db, mutationA, 4);
+    await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, 'mut-A');
+
+    const remote = { id: '1', result: 'q', reason: null, placement: 1 };
+    const outcome = await pull(table, remote, 4);
+
+    expect(conflicts).toEqual([]);
+    expect(outcome.conflict).toBe(false);
+    const row = await table.getReplicatedRow('1');
+    expect(row?.data).toEqual({ id: '1', result: 'nq', reason: 'R1', placement: 1 });
+    expect(row?.baseData).toEqual(remote);
+    expect(row?.serverVersion).toBe(4);
   });
 
   it('(iii) control: someone else wrote a different reason at v4 while B is pending, so it IS a conflict', async () => {

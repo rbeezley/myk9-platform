@@ -51,14 +51,15 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
 ): Promise<DirtyRemoteRowOutcome> {
   const { id, existing, remoteLocal, remoteServerVersion } = params;
   // MYK9-1220: when the snapshot IS this device's own acknowledged write, the
-  // server holds nothing the device did not write, so the merge base is that
-  // snapshot (the original base predates the write and would read it as a
-  // third-party change). Any other version keeps the original base.
-  const base = isOwnAcknowledgedWrite(existing, remoteServerVersion)
+  // original base predates that write and would read it as a third-party
+  // change, so conflict DETECTION diffs against the snapshot instead. The MERGE
+  // below keeps the original base: fields the device never changed (a
+  // server-generated placement on the acked write) still adopt the server value.
+  const detectionBase = isOwnAcknowledgedWrite(existing, remoteServerVersion)
     ? remoteLocal
     : existing.baseData;
   const detection = detectDirtyRowConflict({
-    base,
+    base: detectionBase,
     local: existing.data,
     remote: remoteLocal,
     instantFields: instantFieldsFor(table.getTableName()),
@@ -92,7 +93,7 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
   // defines mergeDirtyRow it owns the data merge; otherwise a generic 3-way
   // merge adopts only the fields the client never changed.
   const reconciled = await table.reconcileDirtyRow(id, {
-    base,
+    base: existing.baseData,
     remote: remoteLocal,
     remoteServerVersion,
     adoptRemoteFields: detection.adoptRemoteFields,

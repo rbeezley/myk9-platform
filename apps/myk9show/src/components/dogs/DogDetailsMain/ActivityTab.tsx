@@ -3,7 +3,7 @@ import { Calendar, Clock, WifiOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ResultBadge } from '@/components/common/ResultBadge';
+import { ResultBadge, type ResultStatus } from '@/components/common/ResultBadge';
 import { Link } from 'react-router-dom';
 import {
   formatActivityDate,
@@ -160,7 +160,12 @@ function ResultRow({
 
 // A run the dog started. Absent and withdrawn dogs never ran, so they are not
 // part of a qualifying rate; excused and disqualified dogs did (MYK9-1011).
-const STARTED_RESULTS = new Set(['qualified', 'nq', 'excused', 'disqualified']);
+const STARTED_RESULTS: ReadonlySet<string> = new Set<ResultStatus>([
+  'qualified',
+  'nq',
+  'excused',
+  'disqualified',
+]);
 
 const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
   const { upcoming, recentResults, isLoading, isError, canTrustEmpty, resultsVerified, refetch } =

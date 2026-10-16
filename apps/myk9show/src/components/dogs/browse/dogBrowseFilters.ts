@@ -5,6 +5,7 @@
  * the view-tab counts in `dogBrowseViews.ts`.
  */
 import { getDogBreedLabel, type Dog } from '@/types/dog-types';
+import { filtersQueryString, parseUrlFilters } from '@/hooks/urlFilters';
 
 export interface DogFilters {
   search: string;
@@ -15,6 +16,22 @@ export const DEFAULT_DOG_FILTERS: DogFilters = {
   search: '',
   status: 'all',
 };
+
+/** Closed vocabularies for the URL (`useUrlFilters`); a value outside one reads as the default. */
+export const ALLOWED_DOG_FILTER_VALUES = {
+  status: ['active', 'retired', 'deceased'],
+} as const;
+
+/**
+ * The Dogs list's filters, read from a URL the way the list reads them, as a query string for
+ * links that leave the list mounted (a row, Up/Down, the open dog's Close). Empty when none set.
+ */
+export function dogFiltersQuery(params: URLSearchParams): string {
+  return filtersQueryString(
+    parseUrlFilters(params, DEFAULT_DOG_FILTERS, ALLOWED_DOG_FILTER_VALUES),
+    DEFAULT_DOG_FILTERS
+  );
+}
 
 /** Lowercased, NUL-joined search haystack for one dog — see `filterDogs`. */
 export function buildDogSearchText(dog: Dog): string {

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Mail, MapPin, Settings } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { buildUserEditSavePayload, buildSavedFormDataUpdates } from './userEditSavePayload';
@@ -10,6 +10,7 @@ import { useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
 import { PageShell } from '@/components/common/PageShell';
 import { CloseDetailLink } from '@/components/layout/CloseDetailLink';
+import { peopleFiltersQuery } from '@/hooks/useBrowsePeopleData';
 import { useEmbeddedDetail } from '@/components/layout/embeddedDetail';
 import { PageHeader } from '@/components/common/PageHeader';
 import { toPageHeaderCrumbs } from '@/components/common/pageHeaderCrumbs';
@@ -46,6 +47,7 @@ interface UserDetailsViewProps {
 const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const embedded = useEmbeddedDetail();
   const { user: currentUser, hasPermission, getUserRoles } = useAuthContext();
   const { loadUsers } = useUserStore();
@@ -382,7 +384,14 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       <PageShell>
         <RecordPageLayout
           storageKey="myk9:person"
-          actions={embedded ? <CloseDetailLink to="/people" label="Close person" /> : undefined}
+          actions={
+            embedded ? (
+              <CloseDetailLink
+                to={`/people${peopleFiltersQuery(searchParams)}`}
+                label="Close person"
+              />
+            ) : undefined
+          }
           breadcrumb={
             <PageHeader
               breadcrumbs={toPageHeaderCrumbs(breadcrumbItems, location.pathname)}

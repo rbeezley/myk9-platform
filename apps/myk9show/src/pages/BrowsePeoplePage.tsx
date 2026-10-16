@@ -20,8 +20,7 @@ import {
 } from '@/components/users/browse/peopleBulkActions';
 import { defaultListView } from '@/utils/defaultListView';
 import { useRBAC } from '@/hooks/useRBAC';
-import { useBrowsePeopleData, DEFAULT_PEOPLE_FILTERS } from '@/hooks/useBrowsePeopleData';
-import { filtersQueryString } from '@/hooks/urlFilters';
+import { useBrowsePeopleData, peopleFiltersQuery } from '@/hooks/useBrowsePeopleData';
 import {
   PeopleCompactList,
   PeopleGridView,
@@ -206,7 +205,7 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
         <PeopleCompactList
           people={filteredPeople}
           selectedId={selectedId}
-          filterQuery={filtersQueryString(filters, DEFAULT_PEOPLE_FILTERS)}
+          filterQuery={peopleFiltersQuery(searchParams)}
         />
       );
     }

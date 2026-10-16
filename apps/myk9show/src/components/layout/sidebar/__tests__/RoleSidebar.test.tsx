@@ -43,7 +43,9 @@ describe('RoleSidebar', () => {
     const manage = screen.getByRole('link', { name: 'Manage: Show Management' });
     expect(manage).toHaveTextContent(/^Manage$/);
     expect(manage).toHaveAttribute('href', '/secretary/dashboard');
-    expect(screen.getByRole('link', { name: 'Shows' })).toHaveAttribute('href', '/shows');
+    // One Browse item stands for Shows, Dogs, People and Clubs; first time, it opens Shows.
+    expect(screen.getByRole('link', { name: 'Browse' })).toHaveAttribute('href', '/shows');
+    expect(screen.queryByRole('link', { name: 'Shows' })).not.toBeInTheDocument();
   });
 
   it('keeps the full Show Management title in the mobile drawer', () => {

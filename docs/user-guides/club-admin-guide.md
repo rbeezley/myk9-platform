@@ -68,7 +68,7 @@ Changes take effect immediately on all future shows. Existing shows that have al
 
 The **Shows** page lists every show your club is hosting or has hosted. Shows are created by a secretary or a site admin — you do not create one from this list.
 
-1. In the sidebar, open **Shows**.
+1. In the sidebar, open **My Club**, then **Our Shows**. (**Browse** opens every show you can see, with tabs for Shows and Dogs.)
 2. Each show card displays the show name, dates, and entry status.
 3. Click a show to open it.
 

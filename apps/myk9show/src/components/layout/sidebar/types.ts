@@ -29,10 +29,22 @@ export interface NavRailMenu {
   icon: React.ComponentType<{ className?: string }>;
 }
 
+/**
+ * Folds a group into one rail link that opens the item used last (Browse: Shows, Dogs, People,
+ * Clubs). Unlike `railMenu` there is no panel: the destination page carries the switch between
+ * the group's items (`BrowseTabs`).
+ */
+export interface NavRailLink {
+  id: 'browse';
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
 export interface NavGroup {
   title: string;
   items: NavItem[];
   railMenu?: NavRailMenu;
+  railLink?: NavRailLink;
 }
 
 export interface SidebarConfig {

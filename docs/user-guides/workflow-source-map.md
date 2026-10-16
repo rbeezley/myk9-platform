@@ -54,18 +54,20 @@ redirect:
 ### 1. Discover and browse shows
 
 **Outcome:** Exhibitor finds an upcoming show with an open entry window.
-**Canonical routes:** `/shows` → `/shows/:id` → `/shows/:showId/trials/:trialId` _(source-map re-verified 2026-09-18)_
+**Canonical routes:** `/shows` → `/shows/:id` → `/shows/:showId/trials/:trialId` _(source-map re-verified 2026-10-16)_
 **Source-map note:** Re-verified 2026-09-02 after a legacy results bookmark was consolidated to the canonical show list; the guide-facing discovery flow is unchanged.
 **Source-map note:** Re-verified 2026-09-13 after public class previews changed their anonymous data boundary; the guide-facing discovery flow is unchanged.
 **Source-map note:** Re-verified 2026-09-18 (MYK9-630 phase 2). The six-tab collapse is a MANAGER surface: `resolveShowAudience` sends an exhibitor or anonymous visitor to the same landing and `?tab=` strip as before, so Exhibitor Guide § Discovery — browse, the show card badges, and clicking through to a show's detail page — is unchanged and was re-read against this head.
+**Source-map note:** Re-verified 2026-10-16 (MYK9-1227). The Browse tablist (Shows / Dogs / People / Clubs) above these lists is drawn only for staff roles; an exhibitor-only account sees no tabs and the same Find Shows page as before, so Exhibitor Guide § Discovery is unchanged.
 **Docs target:** Exhibitor Guide § Discovery
 
 ### 2. Create an account and add a dog
 
 **Outcome:** First-time exhibitor creates an account and registers their dog before entering.
-**Canonical routes:** `/sign-up` → `/dogs` → `/dogs/:id` _(source-map re-verified 2026-09-13)_
+**Canonical routes:** `/sign-up` → `/dogs` → `/dogs/:id` _(source-map re-verified 2026-10-16)_
 **Note:** Source-map entry re-verified 2026-08-04 after route definitions moved into the centralized router; the guide-facing account flow is unchanged.
 **Source-map note:** Re-verified 2026-09-13 after public class previews changed their anonymous data boundary; the guide-facing account flow is unchanged.
+**Source-map note:** Re-verified 2026-10-16 (MYK9-1227). The Browse tablist above `/dogs` is drawn only for staff roles; a first-time exhibitor sees the same My Dogs page as before, so the account flow is unchanged.
 **Docs target:** Exhibitor Guide § Account Setup, KB: `create-account.md`
 
 ### 2a. Manage profile, preferences, and account settings
@@ -119,7 +121,8 @@ redirect:
 ### 9. Manage dog profiles
 
 **Outcome:** Exhibitor adds a dog, updates registration numbers, or views history.
-**Canonical routes:** `/dogs` → `/dogs/:id`
+**Canonical routes:** `/dogs` → `/dogs/:id` _(source-map re-verified 2026-10-16)_
+**Source-map note:** Re-verified 2026-10-16 (MYK9-1227). The Browse tablist (Shows / Dogs / People / Clubs) above these lists is drawn only for staff roles; an exhibitor-only account sees no tabs and the same My Dogs page as before, so Exhibitor Guide § Dogs is unchanged.
 **Docs target:** Exhibitor Guide § Dogs
 
 ### 10. View payments and receipts

@@ -33,12 +33,13 @@ import {
   Activity,
   LifeBuoy,
   Flag,
+  LayoutList,
 } from 'lucide-react';
 import { UserRole, USER_ROLE_HIERARCHY } from '@/types/auth-types';
 import { ROLE_LABELS } from '@/services/rbac/roleUiConstants';
-import { rosterIsOwnDogsOnlyForRoles } from '@/utils/dogRosterScope';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
-import type { SidebarConfig, NavGroup, NavItem, NavRailMenu } from './types';
+import type { SidebarConfig, NavGroup, NavItem, NavRailLink, NavRailMenu } from './types';
+import { browseTabsForRoles } from './browseTabs';
 
 export interface ClubContext {
   clubId: string;
@@ -73,8 +74,9 @@ function hasAnyRole(userRoles: readonly UserRole[], required: readonly UserRole[
 // secretary who is also club admin sees 9 rail items instead of 12, and a
 // site admin 10 instead of 22 (docs/plan-sidebar-browse-pane.md, phase 1).
 const ADMIN_RAIL_MENU: NavRailMenu = { id: 'admin', title: 'Admin', icon: Shield };
-// Flag, not Building2: Building2 is already the Clubs browse item's icon.
+// Flag, not Building2: Building2 is the Clubs list's icon (browseTabs.ts).
 const CLUB_RAIL_MENU: NavRailMenu = { id: 'club', title: 'My Club', icon: Flag };
+const BROWSE_RAIL_LINK: NavRailLink = { id: 'browse', title: 'Browse', icon: LayoutList };
 
 export function buildUnifiedSidebarConfig(
   userRoles: readonly UserRole[],
@@ -91,8 +93,6 @@ export function buildUnifiedSidebarConfig(
     UserRole.CHAIRMAN,
     UserRole.STEWARD,
   ]);
-  const isPureSiteAdmin = hasSiteAdmin && userRoles.length === 1;
-  const ownDogsOnly = rosterIsOwnDogsOnlyForRoles(userRoles);
 
   // Exhibitor-only users get a unified, plain-English sidebar
   const isExhibitorOnly =
@@ -231,31 +231,16 @@ export function buildUnifiedSidebarConfig(
       });
     }
 
-    // 4. Browse section (visible for role workflows; pure site-admin discovery lives in Help)
-    if (!isPureSiteAdmin) {
-      const browseItems: NavItem[] = [
-        { title: 'Shows', href: '/shows', icon: Calendar },
-        // This label follows the roster scope, while `isExhibitorOnly` above
-        // remains role chrome: it controls the simplified sidebar branch and
-        // card/table affordances, which are intentionally separate questions.
-        { title: ownDogsOnly ? 'My Dogs' : 'Dogs', href: '/dogs', icon: Heart },
-      ];
-      // Clubs and People are secretary + admin only (privacy restriction — navigation-ia.md)
-      if (hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.SITE_ADMIN])) {
-        browseItems.push(
-          {
-            title: 'Clubs',
-            href: '/clubs',
-            icon: Building2,
-          },
-          {
-            title: 'People',
-            href: '/people',
-            icon: Users,
-          }
-        );
-      }
-      groups.push({ title: 'Browse', items: browseItems });
+    // 4. Browse section: one rail item, Browse, opening the list used last; the list pages carry
+    // the switch between them (BrowseTabs). The drawer keeps the lists by name under the "Browse"
+    // heading, one tap each on a phone (docs/plan-sidebar-browse-pane.md, phase 3).
+    const browseTabs = browseTabsForRoles(userRoles);
+    if (browseTabs.length > 0) {
+      groups.push({
+        title: 'Browse',
+        railLink: BROWSE_RAIL_LINK,
+        items: browseTabs,
+      });
     }
 
     // 5. My Club section. Stable account destinations remain available while

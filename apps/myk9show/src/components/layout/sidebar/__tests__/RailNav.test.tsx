@@ -57,7 +57,7 @@ describe('RailNav', () => {
     const myClub = screen.getByRole('button', { name: 'My Club' });
     expect(myClub).toHaveAttribute('aria-current', 'true');
     expect(myClub).toHaveClass('bg-primary/10');
-    expect(screen.getByRole('link', { name: 'Dogs' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: 'Browse' })).not.toHaveAttribute('aria-current');
   });
 
   it('does not mark the My Club button current on a page outside it', () => {

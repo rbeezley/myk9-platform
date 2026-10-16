@@ -17,7 +17,8 @@ import {
   type RailEntry,
   type RailMenuSection,
 } from './railEntries';
-import type { NavGroup, NavItem } from './types';
+import { browseHref, browseTabForPath, readLastBrowseTab } from './browseTabs';
+import type { NavGroup, NavItem, NavRailLink } from './types';
 
 const RAIL_ITEM_CLASS =
   'group relative flex min-h-14 w-full flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2';
@@ -56,6 +57,8 @@ export function RailNav({ groups, isActive }: RailNavProps) {
           )}
           {entry.kind === 'item' ? (
             <RailLink item={entry.item} active={isActive(entry.item.href)} />
+          ) : entry.kind === 'link' ? (
+            <RailGroupLink link={entry.link} items={entry.items} isActive={isActive} />
           ) : (
             <RailMenu
               title={entry.menu.title}
@@ -71,9 +74,8 @@ export function RailNav({ groups, isActive }: RailNavProps) {
 }
 
 function entryKey(entry: RailEntry): string {
-  return entry.kind === 'item'
-    ? `item:${entry.item.title}:${entry.item.href}`
-    : `menu:${entry.menu.id}`;
+  if (entry.kind === 'item') return `item:${entry.item.title}:${entry.item.href}`;
+  return entry.kind === 'link' ? `link:${entry.link.id}` : `menu:${entry.menu.id}`;
 }
 
 function RailLink({ item, active }: { item: NavItem; active: boolean }) {
@@ -95,6 +97,36 @@ function RailLink({ item, active }: { item: NavItem; active: boolean }) {
       </span>
       <span className={RAIL_LABEL_CLASS}>{railLabel(item)}</span>
     </Link>
+  );
+}
+
+interface RailGroupLinkProps {
+  link: NavRailLink;
+  items: NavItem[];
+  isActive: (href: string) => boolean;
+}
+
+/**
+ * Browse: one rail item for the Shows, Dogs, People and Clubs lists. It is current on any of them
+ * (and their records), and opens the list open now or the one used last on this device, else
+ * Shows (`useRememberBrowseList` keeps that memory). The list pages carry the switch between them
+ * (`BrowseTabs`).
+ */
+function RailGroupLink({ link, items, isActive }: RailGroupLinkProps) {
+  const activeItem = items.find(item => isActive(item.href));
+  const activeId = activeItem ? browseTabForPath(activeItem.href) : null;
+
+  const tabs = items.flatMap(item => {
+    const id = browseTabForPath(item.href);
+    return id ? [{ ...item, id }] : [];
+  });
+  const href = browseHref(tabs, activeId, readLastBrowseTab());
+
+  return (
+    <RailLink
+      item={{ title: link.title, href, icon: link.icon }}
+      active={activeItem !== undefined}
+    />
   );
 }
 

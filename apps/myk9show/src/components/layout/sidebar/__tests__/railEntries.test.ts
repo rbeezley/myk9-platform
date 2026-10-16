@@ -64,17 +64,40 @@ describe('buildRailEntries', () => {
     ]);
   });
 
-  // Recorded in docs/plan-sidebar-browse-pane.md (phase 1): the counts the
-  // rail menus were sized against. A change here is a design change.
+  it('folds a group with a rail link into one link entry carrying all its items', () => {
+    const link = { id: 'browse' as const, title: 'Browse', icon: Calendar };
+    const groups: NavGroup[] = [
+      { title: 'Show Day', items: [{ title: 'Ringside', href: '/at-show', icon: Calendar }] },
+      {
+        title: 'Browse',
+        railLink: link,
+        items: [
+          { title: 'Shows', href: '/shows', icon: Calendar },
+          { title: 'Dogs', href: '/dogs', icon: Calendar },
+        ],
+      },
+    ];
+
+    const entries = buildRailEntries(groups);
+
+    expect(entries).toHaveLength(2);
+    expect(entries[1]).toMatchObject({ kind: 'link', link, startsGroup: true });
+    if (entries[1].kind !== 'link') return;
+    expect(entries[1].items.map(i => i.href)).toEqual(['/shows', '/dogs']);
+  });
+
+  // Recorded in docs/plan-sidebar-browse-pane.md (phases 1 and 3): the counts the
+  // rail menus were sized against. A change here is a design change. Phase 3 folds
+  // Shows, Dogs, People and Clubs into one Browse item.
   it.each([
     ['exhibitor only', [UserRole.EXHIBITOR], 5],
-    ['judge only', [UserRole.JUDGE], 3],
-    ['secretary + exhibitor', [UserRole.SECRETARY, UserRole.EXHIBITOR], 7],
-    ['club admin + exhibitor', [UserRole.CLUB_ADMIN, UserRole.EXHIBITOR], 5],
+    ['judge only', [UserRole.JUDGE], 2],
+    ['secretary + exhibitor', [UserRole.SECRETARY, UserRole.EXHIBITOR], 4],
+    ['club admin + exhibitor', [UserRole.CLUB_ADMIN, UserRole.EXHIBITOR], 4],
     [
       'secretary + club admin + exhibitor',
       [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.EXHIBITOR],
-      8,
+      5,
     ],
     ['site admin only', [UserRole.SITE_ADMIN], 1],
     [
@@ -86,7 +109,7 @@ describe('buildRailEntries', () => {
         UserRole.JUDGE,
         UserRole.EXHIBITOR,
       ],
-      9,
+      6,
     ],
   ])('a %s rail (%j) has %i items', (_label, roles, expected) => {
     expect(railCount(roles)).toBe(expected);

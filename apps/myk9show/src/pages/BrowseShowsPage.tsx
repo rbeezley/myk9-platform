@@ -34,6 +34,7 @@ import { canManageShowSurface, filterManagedShows, managedClubIds } from '@/util
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
+import { BrowseTabs } from '@/components/layout/BrowseTabs';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   GuestExportButton,
@@ -449,7 +450,7 @@ const BrowseShowsPage: React.FC = () => {
   };
 
   return (
-    <PageShell>
+    <PageShell ContentWrapper={BrowseTabs}>
       {/* Loading state */}
       {isLoading && shows.length === 0 && <ShowsPageSkeleton viewMode={viewMode} count={6} />}
 

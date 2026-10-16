@@ -18,6 +18,7 @@ import { refreshScopesAfterClubUpload } from '@/components/clubs/refreshScopesAf
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
+import { BrowseTabs } from '@/components/layout/BrowseTabs';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   ListEmptyState,
@@ -177,7 +178,7 @@ const BrowseClubsPage: React.FC = () => {
   };
 
   return (
-    <PageShell>
+    <PageShell ContentWrapper={BrowseTabs}>
       {/* Loading state */}
       {isLoading && clubs.length === 0 && (
         <BrowseClubsSkeleton viewMode={viewMode === 'cards' ? 'grid' : 'list'} />

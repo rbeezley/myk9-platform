@@ -272,12 +272,19 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   });
 
   // ── Browse (multi-role) ───────────────────────────────────────────────────
-  it('browse section for secretary includes Shows, Dogs, Clubs, People', () => {
+  it('browse section for secretary lists Shows, Dogs, People, Clubs, in tab order', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const browse = config.groups.find(g => g.title === 'Browse');
     const titles = browse?.items.map(i => i.title) ?? [];
-    expect(titles).toEqual(['Shows', 'Dogs', 'Clubs', 'People']);
+    expect(titles).toEqual(['Shows', 'Dogs', 'People', 'Clubs']);
     expect(browse?.items.every(item => item.description === undefined)).toBe(true);
+  });
+
+  it('folds the browse section into one Browse rail link', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.JUDGE]);
+    const browse = config.groups.find(g => g.title === 'Browse');
+    expect(browse?.railLink).toMatchObject({ id: 'browse', title: 'Browse' });
+    expect(browse?.items.map(i => i.href)).toEqual(['/shows', '/dogs']);
   });
 
   it('browse section for secretary omits Calendar', () => {

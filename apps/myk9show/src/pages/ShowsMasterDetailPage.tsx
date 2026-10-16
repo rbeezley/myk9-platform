@@ -4,6 +4,7 @@ import { List, PanelLeftClose } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { MasterDetailLayout, MASTER_DETAIL_QUERY } from '@/components/layout/MasterDetailLayout';
+import { readSavedListPercent } from '@/components/layout/masterDetailStorage';
 import { ShowsPaneList } from '@/components/shows/browse/ShowsPaneList';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useElementWidth } from '@/hooks/useElementWidth';
@@ -12,7 +13,14 @@ import { useViewPreference } from '@/hooks/useViewPreference';
 import { isAccountSession } from '@/hooks/guestServerRead';
 import { UserRole } from '@/types/auth-types';
 import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
-import { SHOWS_LIST_DEFAULT_PX, showsPaneFolds, type ShowPaneTab } from './showsPaneFold';
+import {
+  SHOWS_LIST_DEFAULT_PX,
+  SHOWS_LIST_MAX_PX,
+  SHOWS_LIST_MIN_PX,
+  showsListWidth,
+  showsPaneFolds,
+  type ShowPaneTab,
+} from './showsPaneFold';
 
 const PANE_MODES = ['open', 'folded'] as const;
 // The show tabs by path (`showWidthNeeded`); any other path under a show is Overview's.
@@ -32,7 +40,11 @@ const PANE_ROLES: ReadonlySet<string> = new Set([
 ]);
 
 // The spike measured a 320px list; dragging stays within a range that leaves the show its width.
-const SHOWS_LIST_SIZE = { default: `${SHOWS_LIST_DEFAULT_PX}px`, min: '260px', max: '440px' };
+const SHOWS_LIST_SIZE = {
+  default: `${SHOWS_LIST_DEFAULT_PX}px`,
+  min: `${SHOWS_LIST_MIN_PX}px`,
+  max: `${SHOWS_LIST_MAX_PX}px`,
+};
 // The fixed header and page padding are the only chrome; each pane scrolls on its own. Folded,
 // the "Shows" button row (2.75rem button + 0.75rem gap) comes off the height too.
 const SPLIT_HEIGHT = 'h-[calc(100dvh-var(--app-top-inset,3rem)-2rem)] min-h-[28rem]';
@@ -83,7 +95,11 @@ function ShowsPaneSplit({ showId, tab }: { showId: string | undefined; tab: Show
   const [paneMode, setPaneMode] = useViewPreference<PaneMode>('shows-pane', 'folded', PANE_MODES);
   const focusAfterToggle = useRef<'list' | 'shows-button' | null>(null);
 
-  const canFold = !!showId && showsPaneFolds(splitWidth, tab);
+  // Read each render (a resize, a tab or show change), not on drag: dragging the list wider where
+  // it fits narrows the show rather than folding the list out from under the pointer.
+  const listWidth =
+    splitWidth === null ? undefined : showsListWidth(splitWidth, readSavedListPercent('shows'));
+  const canFold = !!showId && showsPaneFolds(splitWidth, tab, listWidth);
   const folded = canFold && paneMode === 'folded';
 
   // The control that was clicked unmounts on toggle; put focus where the reader now is.

@@ -233,4 +233,39 @@ describe('a retry after a lost response (stateful, one atomic claim)', () => {
       expect(statusOf(arranged.tables, 'shared')).toBe('skipped');
     });
   });
+
+  describe("an address change on the request's own job", () => {
+    const own = (extra: Record<string, unknown>) => ({
+      ...earlierJob,
+      id: 'mine',
+      idempotency_key: REQUEST_KEY,
+      request_key: REQUEST_KEY,
+      recipient_email: 'old@example.com',
+      ...extra,
+    });
+
+    it('answers busy, writing nothing, while the job is a recent READY send in flight', async () => {
+      const inFlight = own({ status: 'ready', created_at: new Date().toISOString() });
+      const { fetch, tables, run } = arrangeStateful(inFlight, 'new@example.com');
+
+      await expect(run()).resolves.toEqual({ status: 'busy' });
+
+      expect(fetch).not.toHaveBeenCalled();
+      expect(tables.show_lifecycle_email_jobs).toHaveLength(1);
+      expect(statusOf(tables, 'mine')).toBe('ready');
+    });
+
+    it('still replaces a STALE ready job (a send that died) at the new address', async () => {
+      const stale = own({
+        status: 'ready',
+        created_at: new Date(Date.now() - 11 * 60 * 1000).toISOString(),
+      });
+      const { tables, run, recipients } = arrangeStateful(stale, 'new@example.com');
+
+      await expect(run()).resolves.toMatchObject({ status: 'sent' });
+
+      expect(recipients()).toEqual(['new@example.com']);
+      expect(statusOf(tables, 'mine')).toBe('skipped');
+    });
+  });
 });

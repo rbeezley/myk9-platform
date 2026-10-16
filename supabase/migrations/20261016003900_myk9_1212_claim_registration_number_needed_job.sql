@@ -37,8 +37,11 @@
 --      {outcome: 'sent' | 'send' | 'busy', job_id, recovered}:
 --        tie exists, job sent                       -> sent (same job, never a second email)
 --        tie exists, ready/failed, same address     -> send that job (replay)
---        tie exists, ready/failed, new address      -> supersede it, insert a fresh job,
---                                                      re-point this request's tie, send
+--        tie exists, ready newer than p_stale_before, new address -> busy (a send in
+--                                                      flight; nothing written)
+--        tie exists, failed or stale ready, new address -> supersede it, insert a
+--                                                      fresh job, re-point this
+--                                                      request's tie, send
 --        tie exists, any other status               -> busy (replaced by a newer request)
 --        no tie, a ready job newer than p_stale_before -> busy (a send in flight)
 --        no tie, outstanding job at the same address   -> recover it: add a tie for this
@@ -187,6 +190,12 @@ BEGIN
     END IF;
     IF lower(btrim(coalesce(v_tie.recipient_email, ''))) = v_email THEN
       RETURN jsonb_build_object('outcome', 'send', 'job_id', v_tie.id, 'recovered', false);
+    END IF;
+    -- A recent READY job is a send still awaiting the provider: replacing it would
+    -- put a second email under a different provider key. Same guard as branch (b).
+    IF v_tie.status = 'ready'
+       AND NOT (v_tie.created_at IS NULL OR v_tie.created_at < p_stale_before) THEN
+      RETURN jsonb_build_object('outcome', 'busy', 'job_id', null, 'recovered', false);
     END IF;
     -- The owner's address changed since: this job would go to a stale address.
     -- Supersede it and replace it; only THIS request's tie moves to the new job.

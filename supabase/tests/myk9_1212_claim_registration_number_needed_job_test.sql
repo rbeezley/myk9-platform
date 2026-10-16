@@ -19,6 +19,8 @@
 --   K. EXECUTE belongs to service_role alone; the tie table is service_role only
 --      and a request key resolves to one job per show
 --   L. a soft-deleted entry is refused
+--   M. an address change on the request's own job: a recent ready send is busy and
+--      untouched; a stale ready or failed job is replaced
 --
 -- Fixtures roll back.
 
@@ -211,6 +213,11 @@ begin
   end if;
 
   -- The address changes AGAIN before the replacement went out.
+  -- (The replacement is a recent ready send: busy until it has gone stale.)
+  if pg_temp.claim('myk9-1212-d', 'newest@example.test')->>'outcome' <> 'busy' then
+    raise exception 'FAIL D a second change replaced a recent ready send';
+  end if;
+  update public.show_lifecycle_email_jobs set created_at = now() - interval '11 minutes' where id = v_new;
   v_third := (pg_temp.claim('myk9-1212-d', 'newest@example.test')->>'job_id')::uuid;
   if v_third in (v_old, v_new) then raise exception 'FAIL D a second change reused a job'; end if;
 
@@ -385,6 +392,7 @@ begin
   end loop;
 
   -- B's address changes: only B's tie moves; A and C find a skipped job (busy).
+  update public.show_lifecycle_email_jobs set created_at = now() - interval '11 minutes' where id = v_j;
   v := pg_temp.claim('myk9-1212-i-b', 'new@example.test');
   v_new := (v->>'job_id')::uuid;
   if v->>'outcome' <> 'send' or v_new = v_j then
@@ -556,6 +564,52 @@ begin
     raise exception 'FAIL L a refused claim wrote a job';
   end if;
   raise notice 'PASS L a soft-deleted entry is refused';
+end $$;
+
+-- M. an address change on the request's own job: recent ready is busy, stale ready replaces
+do $$
+declare v jsonb; v_id uuid; v_before jsonb; v_after jsonb; v_rows int;
+begin
+  perform pg_temp.reset();
+  v_id := pg_temp.seed_job('myk9-1212-m', 'myk9-1212-m', 'ready', 'old@example.test', interval '2 minutes');
+  select jsonb_agg(to_jsonb(j) order by j.id) into v_before from public.show_lifecycle_email_jobs j
+   where show_id = '00000000-0000-0000-0000-000001212002';
+  v := pg_temp.claim('myk9-1212-m', 'new@example.test');
+  if v->>'outcome' <> 'busy' then
+    raise exception 'FAIL M a recent ready job at a changed address answered %', v;
+  end if;
+  select jsonb_agg(to_jsonb(j) order by j.id) into v_after from public.show_lifecycle_email_jobs j
+   where show_id = '00000000-0000-0000-0000-000001212002';
+  if v_before is distinct from v_after or pg_temp.tie('myk9-1212-m') is distinct from v_id then
+    raise exception 'FAIL M the busy answer wrote: % vs %', v_before, v_after;
+  end if;
+
+  -- Same address is still a replay.
+  v := pg_temp.claim('myk9-1212-m', 'old@example.test');
+  if v->>'outcome' <> 'send' or (v->>'job_id')::uuid <> v_id then
+    raise exception 'FAIL M a recent ready job at the same address answered %', v;
+  end if;
+
+  -- A STALE ready job at a changed address is replaced.
+  perform pg_temp.reset();
+  v_id := pg_temp.seed_job('myk9-1212-m2', 'myk9-1212-m2', 'ready', 'old@example.test', interval '11 minutes');
+  v := pg_temp.claim('myk9-1212-m2', 'new@example.test');
+  if v->>'outcome' <> 'send' or (v->>'job_id')::uuid = v_id
+     or (select status from public.show_lifecycle_email_jobs where id = v_id) <> 'skipped'
+     or pg_temp.tie('myk9-1212-m2') is distinct from (v->>'job_id')::uuid then
+    raise exception 'FAIL M a stale ready job at a changed address answered %', v;
+  end if;
+
+  -- A FAILED job at a changed address is replaced.
+  perform pg_temp.reset();
+  v_id := pg_temp.seed_job('myk9-1212-m3', 'myk9-1212-m3', 'failed', 'old@example.test');
+  v := pg_temp.claim('myk9-1212-m3', 'new@example.test');
+  select count(*) into v_rows from public.show_lifecycle_email_jobs
+   where show_id = '00000000-0000-0000-0000-000001212002';
+  if v->>'outcome' <> 'send' or (v->>'job_id')::uuid = v_id or v_rows <> 2 then
+    raise exception 'FAIL M a failed job at a changed address answered %', v;
+  end if;
+  raise notice 'PASS M a recent ready job is busy at a changed address; stale ready and failed are replaced';
 end $$;
 
 rollback;

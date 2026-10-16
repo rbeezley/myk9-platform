@@ -43,6 +43,8 @@ export function claimRegistrationNumberNeededJob(store: ClaimStore, args: Row) {
     if (tied.status === 'sent') return ok('sent', tied.id);
     if (tied.status !== 'ready' && tied.status !== 'failed') return ok('busy', null);
     if (norm(tied.recipient_email) === email) return ok('send', tied.id);
+    // A recent READY job is a send still in flight: never replace it.
+    if (tied.status === 'ready' && !isStale(tied)) return ok('busy', null);
     // The address changed: supersede and re-point ONLY this request's tie.
     supersede(tied);
     newTie = tie;

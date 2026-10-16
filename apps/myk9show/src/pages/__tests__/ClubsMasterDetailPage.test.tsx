@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import {
+  captureCsvDownload,
+  registeredPageExports,
+  resetPageExports,
+} from '@/test/utils/csvDownload';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Club } from '@/types/club-types';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
@@ -54,9 +59,15 @@ vi.mock('@/hooks/useAuthContext', () => ({
   }),
 }));
 
+const addClub = vi.hoisted(() => vi.fn());
+
 vi.mock('@/store/clubStore', () => ({
   useClubStore: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({ addClub: vi.fn(), selectClub: vi.fn() }),
+    selector({ addClub, selectClub: vi.fn() }),
+}));
+
+vi.mock('@/components/clubs/refreshScopesAfterClubUpload', () => ({
+  refreshScopesAfterClubUpload: vi.fn(),
 }));
 
 // Counts mounts, so a test can tell "still showing" from "unmounted and shown again".
@@ -69,11 +80,30 @@ function OpenClub() {
 
 vi.mock('../ClubDetailPage', () => ({ default: OpenClub }));
 
+// Saves the way EditPanelWrapper does: await onSave, then close the panel.
 vi.mock('@/components/panels/edit/ClubEditPanel', () => ({
-  ClubEditPanel: ({ onClose }: { onClose: () => void }) => (
+  ClubEditPanel: ({
+    onClose,
+    onSave,
+  }: {
+    onClose: () => void;
+    onSave: (
+      club: Record<string, unknown>,
+      context: { runSelfNavigation: (navigate: () => void) => void }
+    ) => Promise<void>;
+  }) => (
     <div role="dialog" aria-label="Add Club panel">
       <button type="button" onClick={onClose}>
         Close panel
+      </button>
+      <button
+        type="button"
+        onClick={async () => {
+          await onSave({ name: 'New Club' }, { runSelfNavigation: navigate => navigate() });
+          onClose();
+        }}
+      >
+        Save club
       </button>
     </div>
   ),
@@ -95,6 +125,7 @@ function renderAt(route: string) {
           <Route path="/clubs/:id" element={<ClubsMasterDetailPage />} />
         </Routes>
         <LocationProbe />
+        <Link to="/clubs/c2?create=true">Add a club from elsewhere</Link>
       </MemoryRouter>
     </QueryClientProvider>
   );
@@ -110,6 +141,8 @@ describe('Clubs list with a detail pane', () => {
     data.hasError = false;
     data.isLoading = false;
     detailMounts.count = 0;
+    addClub.mockReset();
+    resetPageExports();
   });
 
   it('opens a club beside a compact list on a wide screen', () => {
@@ -172,20 +205,61 @@ describe('Clubs list with a detail pane', () => {
     expect(detailMounts.count).toBe(1);
   });
 
-  it('opens Add Club from the URL beside an open club, and closing it drops the parameter', async () => {
+  it('opens Add Club beside an open club and closes it without touching the URL', async () => {
     const user = userEvent.setup();
     mockViewportWidth(1440);
     renderAt('/clubs/c2');
 
     await user.click(screen.getByRole('button', { name: 'Add Club' }));
-
     expect(screen.getByRole('dialog', { name: 'Add Club panel' })).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent('/clubs/c2?create=true');
     expect(screen.getByText('the open club')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Close panel' }));
     expect(screen.queryByRole('dialog', { name: 'Add Club panel' })).not.toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent(/^\/clubs\/c2$/);
+  });
+
+  it('opens Add Club when ?create=true arrives on the page already showing', async () => {
+    const user = userEvent.setup();
+    mockViewportWidth(1440);
+    renderAt('/clubs/c2');
+
+    await user.click(screen.getByRole('link', { name: 'Add a club from elsewhere' }));
+
+    expect(screen.getByRole('dialog', { name: 'Add Club panel' })).toBeInTheDocument();
+    expect(detailMounts.count).toBe(1);
+  });
+
+  it('lands on the new club after a save, even though the panel closes afterwards', async () => {
+    const user = userEvent.setup();
+    addClub.mockResolvedValue('club-new');
+    mockViewportWidth(1440);
+    renderAt('/clubs/c2?create=true');
+
+    await user.click(screen.getByRole('button', { name: 'Save club' }));
+
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/clubs\/club-new$/);
+    expect(screen.queryByRole('dialog', { name: 'Add Club panel' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the Export CSV page action beside an open club', () => {
+    mockViewportWidth(1440);
+    renderAt('/clubs/c2');
+
+    const registered = registeredPageExports();
+    expect(registered.map(item => item.id)).toEqual(['clubs']);
+
+    const download = captureCsvDownload();
+    try {
+      registered[0]!.run();
+      const lines = download.csv().split('\n');
+      expect(lines[0]).toBe('Club,Type,Location,Members,Upcoming Shows');
+      expect(lines).toHaveLength(3);
+      expect(lines[2]).toContain('"Bay Scent Club"');
+      expect(lines[2]).toContain('"2"');
+    } finally {
+      download.restore();
+    }
   });
 
   it('opens Add Club on a club route reached with ?create=true', () => {

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Plus, Building2 } from 'lucide-react';
@@ -7,6 +7,9 @@ import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWra
 import { useClubStore } from '@/store/clubStore';
 import { useBrowseClubsData } from '@/hooks/useBrowseClubsData';
 import { ClubsCompactList, ClubsGridView, ClubsListView } from '@/components/clubs/browse';
+import { CLUB_EXPORT_HEADERS, clubExportRows } from '@/components/clubs/browse/clubsExport';
+import { usePageExportAction } from '@/features/actions/pageEditTarget';
+import { exportRowsCsv } from '@/utils/downloadCsv';
 import { MasterDetailLayout } from '@/components/layout/MasterDetailLayout';
 import { ClubsOfflineState } from '@/components/clubs/ClubsOfflineState';
 import { BrowseClubsSkeleton } from '@/components/common/SkeletonLoaders';
@@ -42,7 +45,7 @@ interface BrowseClubsPageProps {
 
 const BrowseClubsPage: React.FC<BrowseClubsPageProps> = ({ detail = null }) => {
   const routerNavigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { id: selectedId } = useParams<{ id: string }>();
 
   const { user, refreshPermissions, hasRole, hasPermission } = useAuthContext();
@@ -54,20 +57,20 @@ const BrowseClubsPage: React.FC<BrowseClubsPageProps> = ({ detail = null }) => {
   const { canCreateClubs: canCreateClub } = resolveCreateGates({ hasRole, hasPermission });
 
   const [viewMode, setViewMode] = useViewPreference('clubs', defaultListView(true));
-  // From the URL, not seeded once: beside an open club this page stays mounted, so Add Club
-  // (`/clubs?create=true`, also the show wizard's link) must open the panel on a page already showing.
-  const showCreateClubPanel = canCreateClub && searchParams.get('create') === 'true';
-  const openCreatePanel = useCallback(() => {
-    const params = new URLSearchParams(searchParams);
-    params.set('create', 'true');
-    setSearchParams(params, { replace: true });
-  }, [searchParams, setSearchParams]);
-  const closeCreatePanel = useCallback(() => {
-    if (!searchParams.has('create')) return;
-    const params = new URLSearchParams(searchParams);
-    params.delete('create');
-    setSearchParams(params, { replace: true });
-  }, [searchParams, setSearchParams]);
+  // Open state is local, so closing never writes the URL: the panel closes after a successful
+  // save too, and a URL write then would land on top of the save's own navigation. `?create=true`
+  // (the show wizard's link, the header's Add Club) opens it when the page mounts with it, and
+  // when it arrives on a page already showing (beside an open club this page stays mounted).
+  const createRequested = searchParams.get('create') === 'true';
+  const [createPanelOpen, setCreatePanelOpen] = useState(createRequested);
+  const [seenCreateRequest, setSeenCreateRequest] = useState(createRequested);
+  if (createRequested !== seenCreateRequest) {
+    setSeenCreateRequest(createRequested);
+    if (createRequested) setCreatePanelOpen(true);
+  }
+  const showCreateClubPanel = canCreateClub && createPanelOpen;
+  const openCreatePanel = useCallback(() => setCreatePanelOpen(true), []);
+  const closeCreatePanel = useCallback(() => setCreatePanelOpen(false), []);
 
   const addClub = useClubStore(state => state.addClub);
   const selectClub = useClubStore(state => state.selectClub);
@@ -88,6 +91,15 @@ const BrowseClubsPage: React.FC<BrowseClubsPageProps> = ({ detail = null }) => {
 
   // An empty directory has nothing to put beside a list, unless a club is already open.
   const splitOpen = detail !== null && (clubs.length > 0 || Boolean(selectedId));
+
+  // The whole-list export the table's own button used to be (owner decision 4: header Actions
+  // menu). Registered here, not in the table, so it survives the compact list beside a club.
+  usePageExportAction({
+    id: 'clubs',
+    enabled: (viewMode === 'table' || splitOpen) && filteredClubs.length > 0,
+    run: () =>
+      exportRowsCsv('clubs', CLUB_EXPORT_HEADERS, clubExportRows(filteredClubs, clubShowCounts)),
+  });
 
   // Breadcrumbs for PageHeader
   const breadcrumbs = useMemo(() => [{ label: 'Clubs', href: '/clubs' }], []);
@@ -144,9 +156,6 @@ const BrowseClubsPage: React.FC<BrowseClubsPageProps> = ({ detail = null }) => {
           } else {
             navigate(`/clubs/${createdId}`);
           }
-          // Either destination drops `create`, which closes the panel; closing it here as well
-          // would write the old URL back over the navigation.
-          return;
         }
 
         closeCreatePanel();

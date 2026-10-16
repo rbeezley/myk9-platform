@@ -18,6 +18,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClubStore } from '@/store/clubStore';
 import { useRegisterAppShellMobileNav } from './useAppShellMobileNav';
 import { buildUnifiedSidebarConfig } from './sidebar/unifiedSidebarConfig';
+import { useRememberBrowseList } from './sidebar/useRememberBrowseList';
 import type { ClubContext } from './sidebar/unifiedSidebarConfig';
 import { useCurrentValidatedClubContext } from '@/hooks/useValidatedClubContext';
 
@@ -47,6 +48,7 @@ export const UnifiedAppLayout: React.FC = () => {
     () => buildUnifiedSidebarConfig(roles, clubContext, firstName),
     [roles, clubContext, firstName]
   );
+  useRememberBrowseList(sidebarConfig);
   const { mobileOpen, setMobileOpen } = useSidebarLayoutState();
   const isDesktop = useMediaQuery('(min-width: 768px)');
   const openMobileNav = useCallback(() => setMobileOpen(true), [setMobileOpen]);

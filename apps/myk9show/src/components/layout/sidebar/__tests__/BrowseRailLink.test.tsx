@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { render, screen } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { RoleSidebar } from '../RoleSidebar';
 import { buildUnifiedSidebarConfig } from '../unifiedSidebarConfig';
@@ -63,11 +63,10 @@ describe('Browse rail item', () => {
     expect(browseLink()).toHaveAttribute('href', '/people');
   });
 
-  it('remembers the list open now, however the viewer reached it', async () => {
+  it('points at the list open now, however the viewer reached it', () => {
     renderRail([UserRole.SECRETARY], '/dogs/dog-1');
 
     expect(browseLink()).toHaveAttribute('href', '/dogs');
-    await waitFor(() => expect(localStorage.getItem(LAST_TAB_KEY)).toBe('dogs'));
   });
 
   it('opens Shows when the remembered list is one this role cannot see', () => {

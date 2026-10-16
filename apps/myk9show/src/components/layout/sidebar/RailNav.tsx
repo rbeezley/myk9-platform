@@ -6,7 +6,7 @@
  * labels rather than exploring icons (docs/plan-sidebar-browse-pane.md).
  */
 
-import React, { useEffect, useId, useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -17,7 +17,7 @@ import {
   type RailEntry,
   type RailMenuSection,
 } from './railEntries';
-import { browseHref, browseTabForPath, readLastBrowseTab, writeLastBrowseTab } from './browseTabs';
+import { browseHref, browseTabForPath, readLastBrowseTab } from './browseTabs';
 import type { NavGroup, NavItem, NavRailLink } from './types';
 
 const RAIL_ITEM_CLASS =
@@ -109,18 +109,12 @@ interface RailGroupLinkProps {
 /**
  * Browse: one rail item for the Shows, Dogs, People and Clubs lists. It is current on any of them
  * (and their records), and opens the list open now or the one used last on this device, else
- * Shows. The list pages carry the switch between them (`BrowseTabs`).
+ * Shows (`useRememberBrowseList` keeps that memory). The list pages carry the switch between them
+ * (`BrowseTabs`).
  */
 function RailGroupLink({ link, items, isActive }: RailGroupLinkProps) {
   const activeItem = items.find(item => isActive(item.href));
   const activeId = activeItem ? browseTabForPath(activeItem.href) : null;
-
-  // Remember the list in use whenever one is open, however the viewer got there (a tab, a link,
-  // a bookmark). Read through `isActive`, not the pathname, so a club admin's own Club Profile
-  // (`/clubs/<their club>`) stays My Club's and is not remembered as the Clubs list.
-  useEffect(() => {
-    if (activeId) writeLastBrowseTab(activeId);
-  }, [activeId]);
 
   const tabs = items.flatMap(item => {
     const id = browseTabForPath(item.href);

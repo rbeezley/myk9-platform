@@ -43,6 +43,9 @@
 --                                                      fresh job, re-point this
 --                                                      request's tie, send
 --        tie exists, any other status               -> busy (replaced by a newer request)
+--        no tie, but a job already carries the plain key (the previous handler made
+--                 it)                               -> adopt it: insert its tie, then the
+--                                                      tied-job rows above apply to it
 --        no tie, a ready job newer than p_stale_before -> busy (a send in flight)
 --        no tie, outstanding job at the same address   -> recover it: add a tie for this
 --                                                      request, send, recovered = true
@@ -54,8 +57,12 @@
 --      address-change replacement gets "<request key>:to:<uuid>" because the old
 --      row still holds the request key and the column is globally unique. A retry
 --      finds the replacement through its tie, never through the key text, so the
---      suffix need not be reproducible. The EXISTS guard on the plain key is kept
---      only for legacy rows the backfill pattern did not match.
+--      suffix need not be reproducible. A first job's plain key cannot already be
+--      taken: the key embeds this show and entry, and a job holding it is adopted.
+--      Rollout order: migration first is safe. Until the new function is deployed
+--      the old handler keeps creating jobs on the plain key with no tie; the next
+--      claim for that request adopts the job (lazy adoption), so a lost-response
+--      retry cannot send twice. Edge function second.
 --   3. Serialisation: an advisory transaction lock per entry (covers the first
 --      insert, when no row exists to lock) plus SELECT ... FOR UPDATE on the rows
 --      read. Under it a tie insert cannot conflict, so those inserts are plain: a
@@ -142,6 +149,7 @@ DECLARE
   v_idem text;
   v_new uuid;
   v_repoint boolean := false;
+  v_resolved boolean;
 BEGIN
   IF v_email = '' OR coalesce(btrim(p_request_key), '') = '' THEN
     RAISE EXCEPTION 'MYK9-1212: recipient and request key are required'
@@ -169,14 +177,33 @@ BEGIN
     hashtextextended('registration_number_needed:' || p_entry_id::text, 0)
   );
 
-  -- (a) The job this request is already tied to.
+  -- Resolve the job this request answers: (1) its tie, else (2) a job the PREVIOUS
+  -- handler created for it. Until the new edge function is deployed that handler
+  -- still inserts jobs on the plain request key with no tie, so such a job is
+  -- ADOPTED: its tie is inserted now, and the same rules then apply to it.
   SELECT j.* INTO v_tie
     FROM public.show_lifecycle_email_job_requests r
     JOIN public.show_lifecycle_email_jobs j ON j.id = r.job_id
    WHERE r.show_id = p_show_id AND r.request_key = p_request_key
      FOR UPDATE OF r, j;
+  v_resolved := FOUND;
 
-  IF FOUND THEN
+  IF NOT v_resolved THEN
+    SELECT j.* INTO v_tie
+      FROM public.show_lifecycle_email_jobs j
+     WHERE j.idempotency_key = p_request_key
+       AND j.show_id = p_show_id
+       AND j.step_type = 'registration_number_needed'
+       AND j.entry_id = p_entry_id
+       FOR UPDATE;
+    v_resolved := FOUND;
+    IF v_resolved THEN
+      INSERT INTO public.show_lifecycle_email_job_requests (show_id, request_key, job_id)
+      VALUES (p_show_id, p_request_key, v_tie.id);
+    END IF;
+  END IF;
+
+  IF v_resolved THEN
     IF v_tie.entry_id IS DISTINCT FROM p_entry_id
        OR v_tie.step_type <> 'registration_number_needed' THEN
       RAISE EXCEPTION 'MYK9-1212: request key belongs to another email' USING ERRCODE = '22023';
@@ -206,7 +233,7 @@ BEGIN
     v_repoint := true;
     v_idem := p_request_key || ':to:' || gen_random_uuid()::text;
   ELSE
-    -- (b) No tie. Look at this entry's outstanding email (at most one per entry).
+    -- (b) No tie and nothing to adopt. Look at this entry's outstanding email (at most one per entry).
     FOR v_row IN
       SELECT j.id, j.status, j.created_at, j.recipient_email
         FROM public.show_lifecycle_email_jobs j
@@ -246,13 +273,9 @@ BEGIN
          SET status = 'skipped', skipped_at = now(), updated_by = p_user_id
        WHERE id = ANY (v_supersede);
     END IF;
-    -- The handler's key is the request key itself, unless a legacy row (one the
-    -- backfill pattern did not match, so it has no tie) still carries it.
-    v_idem := CASE
-      WHEN EXISTS (SELECT 1 FROM public.show_lifecycle_email_jobs x WHERE x.idempotency_key = p_request_key)
-        THEN p_request_key || ':to:' || gen_random_uuid()::text
-      ELSE p_request_key
-    END;
+    -- The handler's key is the request key itself. No row can already carry it:
+    -- the key embeds this show and entry, so any such row was adopted above.
+    v_idem := p_request_key;
   END IF;
 
   INSERT INTO public.show_lifecycle_email_jobs (

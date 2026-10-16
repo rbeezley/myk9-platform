@@ -268,4 +268,53 @@ describe('a retry after a lost response (stateful, one atomic claim)', () => {
       expect(statusOf(tables, 'mine')).toBe('skipped');
     });
   });
+
+  describe('a job the previous handler created (plain key, no tie row) during the deploy window', () => {
+    const legacy = (extra: Record<string, unknown>) => ({
+      ...earlierJob,
+      id: 'legacy',
+      idempotency_key: REQUEST_KEY,
+      ...extra,
+    });
+    const tieOf = (tables: Record<string, Array<Record<string, unknown>>>) =>
+      tables.show_lifecycle_email_job_requests.filter(row => row.job_id === 'legacy');
+
+    it('answers sent for the same job, creates no second one, and adopts it with a tie', async () => {
+      const { fetch, tables, run } = arrangeStateful(
+        legacy({ status: 'sent' }),
+        'jamie@example.com'
+      );
+
+      await expect(run()).resolves.toEqual({ status: 'sent', jobId: 'legacy' });
+
+      expect(fetch).not.toHaveBeenCalled();
+      expect(tables.show_lifecycle_email_jobs).toHaveLength(1);
+      expect(tieOf(tables)).toHaveLength(1);
+    });
+
+    it('replays a failed legacy job at the same address under its own key', async () => {
+      const { fetch, tables, run } = arrangeStateful(
+        legacy({ status: 'failed' }),
+        'jamie@example.com'
+      );
+
+      await expect(run()).resolves.toMatchObject({ status: 'sent', jobId: 'legacy' });
+
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(tables.show_lifecycle_email_jobs).toHaveLength(1);
+      expect(tieOf(tables)).toHaveLength(1);
+    });
+
+    it('answers busy for a recent ready legacy job at a changed address, writing no new job', async () => {
+      const { fetch, tables, run } = arrangeStateful(
+        legacy({ status: 'ready', created_at: new Date().toISOString() }),
+        'new@example.com'
+      );
+
+      await expect(run()).resolves.toEqual({ status: 'busy' });
+
+      expect(fetch).not.toHaveBeenCalled();
+      expect(tables.show_lifecycle_email_jobs).toHaveLength(1);
+    });
+  });
 });

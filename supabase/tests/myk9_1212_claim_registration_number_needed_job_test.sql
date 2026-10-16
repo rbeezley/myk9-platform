@@ -19,6 +19,8 @@
 --   K. EXECUTE belongs to service_role alone; the tie table is service_role only
 --      and a request key resolves to one job per show
 --   L. a soft-deleted entry is refused
+--   N. lazy adoption: a plain-key job with no tie (made by the previous handler) is
+--      adopted, never duplicated
 --   M. an address change on the request's own job: a recent ready send is busy and
 --      untouched; a stale ready or failed job is replaced
 --
@@ -610,6 +612,51 @@ begin
     raise exception 'FAIL M a failed job at a changed address answered %', v;
   end if;
   raise notice 'PASS M a recent ready job is busy at a changed address; stale ready and failed are replaced';
+end $$;
+
+-- N. lazy adoption: a job the PREVIOUS handler created (plain key, no tie) after the backfill
+do $$
+declare v jsonb; v_id uuid; v_rows int; v_case text; v_status text; v_email text; v_age interval; v_want text; v_ties int;
+begin
+  for v_case, v_status, v_email, v_age, v_want in
+    select * from (values
+      ('n-sent', 'sent', 'a@example.test', interval '0', 'sent'),
+      ('n-ready-same', 'ready', 'a@example.test', interval '1 minute', 'send'),
+      ('n-ready-changed', 'ready', 'old@example.test', interval '1 minute', 'busy'),
+      ('n-skipped', 'skipped', 'a@example.test', interval '0', 'busy')
+    ) as t(c, s, e, a, w)
+  loop
+    perform pg_temp.reset();
+    v_id := pg_temp.seed_job('myk9-1212-' || v_case, null, v_status, v_email, v_age);
+    v := pg_temp.claim('myk9-1212-' || v_case, 'a@example.test');
+    if v->>'outcome' <> v_want or (v_want <> 'busy' and (v->>'job_id')::uuid <> v_id) then
+      raise exception 'FAIL N % answered % (job %)', v_case, v, v_id;
+    end if;
+    select count(*) into v_rows from public.show_lifecycle_email_jobs
+     where show_id = '00000000-0000-0000-0000-000001212002';
+    if v_rows <> 1 then raise exception 'FAIL N % created a new job (% rows)', v_case, v_rows; end if;
+    if pg_temp.tie('myk9-1212-' || v_case) is distinct from v_id then
+      raise exception 'FAIL N % did not adopt the job with a tie', v_case;
+    end if;
+    -- A second retry resolves through the tie, with the same answer.
+    v := pg_temp.claim('myk9-1212-' || v_case, 'a@example.test');
+    if v->>'outcome' <> v_want then raise exception 'FAIL N % second retry answered %', v_case, v; end if;
+    if pg_temp.tie_count('myk9-1212-' || v_case) <> 1 then
+      raise exception 'FAIL N % has % ties', v_case, pg_temp.tie_count('myk9-1212-' || v_case);
+    end if;
+  end loop;
+
+  -- A failed legacy job at a changed address is replaced; the adopted tie is re-pointed.
+  perform pg_temp.reset();
+  v_id := pg_temp.seed_job('myk9-1212-n-failed', null, 'failed', 'old@example.test');
+  v := pg_temp.claim('myk9-1212-n-failed', 'new@example.test');
+  if v->>'outcome' <> 'send' or (v->>'job_id')::uuid = v_id
+     or (select status from public.show_lifecycle_email_jobs where id = v_id) <> 'skipped'
+     or pg_temp.tie('myk9-1212-n-failed') is distinct from (v->>'job_id')::uuid
+     or pg_temp.tie_count('myk9-1212-n-failed') <> 1 then
+    raise exception 'FAIL N a failed legacy job at a changed address answered %', v;
+  end if;
+  raise notice 'PASS N a job the previous handler created is adopted (sent, replay, busy, replace) with no new row';
 end $$;
 
 rollback;

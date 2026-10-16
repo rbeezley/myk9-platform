@@ -37,7 +37,23 @@ export function claimRegistrationNumberNeededJob(store: ClaimStore, args: Row) {
   // A Map lookup, as the tie table's primary key (show_id, request_key) indexes it.
   const tieIndex = new Map(ties.map(row => [`${row.show_id}\u0000${row.request_key}`, row]));
   const tie = tieIndex.get(`${args.p_show_id}\u0000${key}`);
-  const tied = tie ? jobs.find(row => row.id === tie.job_id) : undefined;
+  let tieRow = tie;
+  let tied = tie ? jobs.find(row => row.id === tie.job_id) : undefined;
+  if (!tied) {
+    // Lazy adoption: a job the PREVIOUS handler made on the plain key has no tie yet.
+    const byIdempotency = new Map(jobs.map(row => [String(row.idempotency_key), row]));
+    const legacy = byIdempotency.get(String(key));
+    if (
+      legacy &&
+      legacy.show_id === args.p_show_id &&
+      legacy.step_type === 'registration_number_needed' &&
+      legacy.entry_id === args.p_entry_id
+    ) {
+      tied = legacy;
+      tieRow = { show_id: args.p_show_id, request_key: key, job_id: legacy.id };
+      ties.push(tieRow);
+    }
+  }
   let newTie: Row | undefined;
   if (tied) {
     if (tied.status === 'sent') return ok('sent', tied.id);
@@ -47,7 +63,7 @@ export function claimRegistrationNumberNeededJob(store: ClaimStore, args: Row) {
     if (tied.status === 'ready' && !isStale(tied)) return ok('busy', null);
     // The address changed: supersede and re-point ONLY this request's tie.
     supersede(tied);
-    newTie = tie;
+    newTie = tieRow;
     idempotencyKey = `${String(key)}:to:${store.newId()}`;
   } else {
     const outstanding = jobs.filter(

@@ -567,6 +567,27 @@ describe('AKCScentWorkFormatter', () => {
       expect(xml).toContain('<resultCode>EXO</resultCode>');
     });
 
+    // MYK9-1011: a DQ gets its own pair, never the excused one. DISQ is the
+    // action code mySWT submitted to AKC (docs/mySWT/mod_XML.bas).
+    it('maps disqualified → DISQ / DQ, apart from excused', () => {
+      const xml = AKCScentWorkFormatter.formatXml(
+        makeData({
+          entries: [
+            makeEntry({
+              entryStatus: 'completed',
+              checkInStatus: 'completed',
+              resultStatus: 'disqualified',
+              finalPlacement: null,
+            }),
+          ],
+        })
+      );
+      expect(xml).toContain('actionCode="DISQ"');
+      expect(xml).toContain('<resultCode>DQ</resultCode>');
+      expect(xml).not.toContain('actionCode="EXCU"');
+      expect(xml).not.toContain('<resultCode>EXO</resultCode>');
+    });
+
     it('maps placement 1 → PLAC / 1', () => {
       const xml = AKCScentWorkFormatter.formatXml(
         makeData({

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Mail, MapPin, Settings } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { buildUserEditSavePayload, buildSavedFormDataUpdates } from './userEditSavePayload';
@@ -47,7 +47,7 @@ interface UserDetailsViewProps {
 const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const closeTo = `/people${peopleFiltersQuery(new URLSearchParams(location.search))}`;
   const embedded = useEmbeddedDetail();
   const { user: currentUser, hasPermission, getUserRoles } = useAuthContext();
   const { loadUsers } = useUserStore();
@@ -384,14 +384,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       <PageShell>
         <RecordPageLayout
           storageKey="myk9:person"
-          actions={
-            embedded ? (
-              <CloseDetailLink
-                to={`/people${peopleFiltersQuery(searchParams)}`}
-                label="Close person"
-              />
-            ) : undefined
-          }
+          actions={embedded ? <CloseDetailLink to={closeTo} label="Close person" /> : undefined}
           breadcrumb={
             <PageHeader
               breadcrumbs={toPageHeaderCrumbs(breadcrumbItems, location.pathname)}

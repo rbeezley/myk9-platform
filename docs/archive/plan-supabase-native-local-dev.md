@@ -123,7 +123,7 @@ CI's `sql-tests` job stays the authoritative gate.
 - runs CI's steps by calling the same scripts: `run-behavioral-sql-tests.sh`,
   `class-absent-mutation.ts`, `run-financial-sql-tests.sh`;
 - runs `stack destroy --stack qa-sql-local --yes` on success, failure or Ctrl-C, and fails the run
-  if that teardown fails (a leaked stack holds port 54322);
+  if that teardown fails (a leaked stack holds its ports);
 - never passes `--linked`, `db push` or a remote URL.
   `scripts/qa/run-sql-local.test.ts` pins the version gate, the teardown, the
   named stack and the absence of linked-project flags against a stub CLI.
@@ -136,11 +136,27 @@ stack destroyed, exit 3); and with the worktree's own default stack already
 running, the run stopped at `start` ("Public port 54322 … is in use") and
 the default stack survived.
 
-Not done, deliberately: steps 3 and 4 and the two-worktrees-at-once test. The
-stack uses the fixed `config.toml` ports because the runners accept only
-`127.0.0.1:54322`, so a second worktree's run fails fast at `supabase start`
-with a message naming the worktree that holds the port. Relaxing that guard is
-a separate change.
+Not done, deliberately: step 4.
+
+## Adopted: two worktrees at once (2026-10-15)
+
+Step 3 above. The behavioral runner and `class-absent-mutation.ts` now accept
+`postgresql://postgres:postgres@{127.0.0.1|localhost}:<port>/postgres` for any
+port, still anchored with no query string, so a non-loopback host and a libpq
+`?host=` / `?hostaddr=` override are both refused (known-answer cases in
+`run-behavioral-sql-tests.test.ts`). `run-sql-local.sh` gives each worktree its
+own port pair: `SUPABASE_DB_PORT` / `SUPABASE_API_PORT` when set, otherwise a
+slot in 40000-41999 derived from the worktree path and stepped past any port
+already listening, after any leftover `qa-sql-local` stack is destroyed.
+config.toml's 54321/54322 stay as they are for plain `supabase start`, so a
+worktree's own default stack no longer blocks the run either.
+
+Evidence on the dev Mac with the v2.121.0 release: with this worktree's own
+default stack already running on 54322, two worktrees ran `run-sql-local.sh`
+at the same moment (db ports 41211 and 41145). Both went green (all
+migrations, 153 behavioral files, the four-signature mutation proof, financial
+assertions) in 27 s, both `qa-sql-local` stacks were destroyed, and the default
+stack was still answering on 54322 afterwards.
 
 ## Testing phase
 

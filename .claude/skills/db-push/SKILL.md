@@ -109,7 +109,7 @@ enum values), query the target table first to confirm those values exist.
 
 Consider dispatching the `migration-auditor` agent on the finished file.
 
-Optional, before pushing the branch: `pnpm qa:sql-local` rebuilds every migration on a throwaway Docker-free local stack and runs CI's `sql-tests` steps (~2 min, Supabase CLI >= 2.121.0, Apple silicon/Linux; never touches the linked project). CI stays the gate.
+Optional, before pushing the branch: `pnpm qa:sql-local` rebuilds every migration on a throwaway Docker-free local stack and runs CI's `sql-tests` steps (~2 min, Supabase CLI >= 2.121.0, Apple silicon/Linux; never touches the linked project; each worktree gets its own ports, so two can run at once). CI stays the gate.
 
 ---
 

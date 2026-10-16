@@ -17,21 +17,24 @@ afterEach(() => {
 // the qa-sql-local stack exists (a marker file). `start` creates it, `stack
 // destroy` removes it, and `stack list` prints the JSON shape CLI 2.121.0
 // prints. Lets the test watch exactly what the runner asks the CLI to do
-// without starting a real stack.
+// without starting a real stack. `start` also records the ports it received in
+// a separate file, so `calls` stays a pure list of CLI invocations.
 interface FakeCli {
   version?: string;
   leftoverStack?: boolean;
   failStart?: boolean;
   destroyFails?: boolean;
   listGarbage?: boolean;
+  env?: Record<string, string>;
 }
 
 function runWithFakeCli(options: FakeCli = {}) {
-  const { version = '2.121.0', leftoverStack, failStart, destroyFails, listGarbage } = options;
+  const { version = '2.121.0', leftoverStack, failStart, destroyFails, listGarbage, env } = options;
   const dir = mkdtempSync(join(tmpdir(), 'sql-local-'));
   tempDirs.push(dir);
   const log = join(dir, 'calls.log');
   const marker = join(dir, 'stack-up');
+  const portsLog = join(dir, 'ports.log');
   if (leftoverStack) writeFileSync(marker, '');
   const entry = JSON.stringify({
     id: '74352c92bd39',
@@ -57,7 +60,10 @@ function runWithFakeCli(options: FakeCli = {}) {
       destroyFails ? '  echo boom >&2; exit 1' : '  :',
       `  rm -f '${marker}'; exit 0`,
       'fi',
-      `if [ "$1" = start ]; then touch '${marker}'; ${failStart ? 'exit 7' : 'exit 0'}; fi`,
+      `if [ "$1" = start ]; then`,
+      `  echo "db=$SUPABASE_DB_PORT api=$SUPABASE_API_PORT" > '${portsLog}'`,
+      `  touch '${marker}'; ${failStart ? 'exit 7' : 'exit 0'}`,
+      'fi',
       'exit 0',
       '',
     ].join('\n')
@@ -65,11 +71,18 @@ function runWithFakeCli(options: FakeCli = {}) {
   chmodSync(bin, 0o755);
   const result = spawnSync('bash', [runner], {
     encoding: 'utf8',
-    env: { ...process.env, SUPABASE_BIN: bin },
+    env: {
+      ...process.env,
+      SUPABASE_DB_PORT: '',
+      SUPABASE_API_PORT: '',
+      ...env,
+      SUPABASE_BIN: bin,
+    },
   });
   const calls = readFileSync(log, 'utf8').trim().split('\n');
   const started = calls.some(call => call.startsWith('start'));
-  return { ...result, calls, started, stackLeft: existsSync(marker) };
+  const ports = existsSync(portsLog) ? readFileSync(portsLog, 'utf8').trim() : undefined;
+  return { ...result, calls, started, stackLeft: existsSync(marker), ports };
 }
 
 describe('run-sql-local.sh', () => {
@@ -143,5 +156,40 @@ describe('run-sql-local.sh', () => {
     for (const call of calls) {
       expect(call).not.toMatch(/--linked|\bpush\b|--db-url|--project-ref/);
     }
+  });
+
+  // Two worktrees must not share a port pair, or the second `start` fails.
+  it('derives a stable per-worktree port pair outside config.toml ports', () => {
+    const first = runWithFakeCli({ failStart: true }).ports;
+    const second = runWithFakeCli({ failStart: true }).ports;
+    expect(first).toBe(second);
+    const [, db, api] = first?.match(/^db=(\d+) api=(\d+)$/) ?? [];
+    expect(Number(db)).toBe(Number(api) + 1);
+    expect(Number(api)).toBeGreaterThanOrEqual(40000);
+    expect(Number(db)).toBeLessThanOrEqual(41999);
+  });
+
+  it('honours SUPABASE_DB_PORT and defaults the api port beside it', () => {
+    const { ports } = runWithFakeCli({ failStart: true, env: { SUPABASE_DB_PORT: '45001' } });
+    expect(ports).toBe('db=45001 api=45000');
+  });
+
+  it('honours an api-only SUPABASE_API_PORT and puts the db port beside it', () => {
+    const { ports } = runWithFakeCli({ failStart: true, env: { SUPABASE_API_PORT: '45000' } });
+    expect(ports).toBe('db=45001 api=45000');
+  });
+
+  it('refuses an api-only port whose db neighbour is out of range', () => {
+    const result = runWithFakeCli({ env: { SUPABASE_API_PORT: '65535' } });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('must be two different usable ports');
+    expect(result.started).toBe(false);
+  });
+
+  it('refuses an unusable port before calling the CLI beyond --version', () => {
+    const result = runWithFakeCli({ env: { SUPABASE_DB_PORT: '5432x' } });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("'5432x' is not a usable port");
+    expect(result.calls).toEqual(['--version']);
   });
 });

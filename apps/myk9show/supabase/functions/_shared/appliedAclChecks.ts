@@ -114,6 +114,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   show_eve_nudge_log: '',
   show_incidents: 'SELECT,INSERT',
   show_lifecycle_email_attempts: 'SELECT',
+  show_lifecycle_email_job_requests: '',
   show_lifecycle_email_jobs: 'SELECT,UPDATE',
   show_lifecycle_email_steps: 'SELECT,UPDATE',
   show_message_threads: 'SELECT,INSERT,UPDATE',

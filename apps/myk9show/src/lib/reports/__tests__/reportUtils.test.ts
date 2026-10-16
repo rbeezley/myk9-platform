@@ -210,14 +210,14 @@ describe('sortByPlacement', () => {
     expect(sorted.map(e => e.id)).toEqual(['q1', 'q2', 'q3']);
   });
 
-  it('sorts non-qualified: absent > excused > NQ', () => {
+  it('sorts non-qualified by armband regardless of status (matches on-screen order)', () => {
     const entries = [
       makeEntry({ id: 'nq', resultText: 'nq', armband: '100' }),
       makeEntry({ id: 'exc', resultText: 'excused', armband: '101' }),
       makeEntry({ id: 'abs', resultText: 'absent', armband: '102' }),
     ];
     const sorted = sortByPlacement(entries);
-    expect(sorted.map(e => e.id)).toEqual(['abs', 'exc', 'nq']);
+    expect(sorted.map(e => e.id)).toEqual(['nq', 'exc', 'abs']);
   });
 
   it('sorts same-status entries by armband', () => {
@@ -227,6 +227,14 @@ describe('sortByPlacement', () => {
     ];
     const sorted = sortByPlacement(entries);
     expect(sorted.map(e => e.id)).toEqual(['nq1', 'nq2']);
+  });
+
+  it('breaks a placement tie by armband', () => {
+    const entries = [
+      makeEntry({ id: 'b', resultText: 'qualified', finalPlacement: 2, armband: '200' }),
+      makeEntry({ id: 'a', resultText: 'qualified', finalPlacement: 2, armband: '150' }),
+    ];
+    expect(sortByPlacement(entries).map(e => e.id)).toEqual(['a', 'b']);
   });
 
   it('does not mutate the input array', () => {

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { ResultsSheet } from '../ResultsSheet';
 import type { ReportEntry, ReportProps } from '@/lib/reports/types';
+import { mapDbEntryToReportEntry } from '@/lib/reports/reportUtils';
 
 const makeEntry = (overrides: Partial<ReportEntry> = {}): ReportEntry => ({
   id: '1',
@@ -121,5 +122,58 @@ describe('ResultsSheet', () => {
 
     const rows = screen.getAllByRole('row');
     expect(rows[1].querySelectorAll('td')[1]).toHaveTextContent('—');
+  });
+
+  // MYK9-1234: rows shaped as the server writes them. recalculate_class_placements numbers only
+  // qualified entries (ROW_NUMBER) and clears final_placement on every other row, so a
+  // non-qualifying entry carries NULL, not a 9996-style sentinel.
+  it('lists placed entries by placement, then every unplaced entry by armband (on-screen order)', () => {
+    const row = (
+      id: string,
+      armband: string,
+      result_status: string | null,
+      final_placement: number | null
+    ): ReportEntry =>
+      mapDbEntryToReportEntry(
+        {
+          id,
+          armband,
+          run_order: null,
+          check_in_status: null,
+          section: null,
+          is_scored: result_status != null,
+          result_status,
+          search_time_seconds: null,
+          total_faults: null,
+          final_placement,
+        },
+        `Dog ${id}`,
+        'Labrador',
+        'Handler',
+        null
+      );
+    const entries = [
+      row('abs105', '105', 'absent', null),
+      row('q3', '104', 'qualified', 3),
+      row('nq101', '101', 'nq', null),
+      row('q1', '110', 'qualified', 1),
+      row('exc103', '103', 'excused', null),
+      row('pending102', '102', null, null),
+      row('q2', '100', 'qualified', 2),
+    ];
+    render(<ResultsSheet {...baseProps} entries={entries} />);
+    const names = screen
+      .getAllByRole('row')
+      .slice(1)
+      .map(r => r.querySelectorAll('td')[2].textContent);
+    expect(names).toEqual([
+      'Dog q1',
+      'Dog q2',
+      'Dog q3',
+      'Dog nq101',
+      'Dog pending102',
+      'Dog exc103',
+      'Dog abs105',
+    ]);
   });
 });

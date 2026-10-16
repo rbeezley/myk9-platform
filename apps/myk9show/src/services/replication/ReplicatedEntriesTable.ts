@@ -37,6 +37,7 @@ import {
   type EntryRow,
   type ReplicatedEntry,
 } from './ReplicatedEntriesTable.mapper';
+import { ENTRY_DIRTY_ROW_COMPARE_POLICY } from './entriesDirtyRowComparePolicy';
 import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
 import {
   classifyMoveUpRpcError,
@@ -261,6 +262,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       // fields (e.g. final_placement bumped by the recalc trigger). RPC writes carry
       // a delta and don't need this.
       rebuildUpdatePayload: entry => entryToSupabaseRow(entry),
+      // Sync and the by-id refetch both read this adapter, so both compare null and
+      // undefined as one value (MYK9-1236).
+      dirtyRowComparePolicy: ENTRY_DIRTY_ROW_COMPARE_POLICY,
     };
   }
 

@@ -1,6 +1,7 @@
 import {
   DEFAULT_IGNORED_FIELDS,
   deepEqual,
+  remoteComparable,
   type DirtyRowComparePolicy,
 } from './conflict/detectDirtyRowConflict';
 import { writtenColumnsOf, type WrittenFieldOverlay } from './mutation-written-overlay';
@@ -90,7 +91,15 @@ export function resolveInFlightMergeBase<T extends object>(params: {
       if (DEFAULT_IGNORED_FIELDS.has(field) || serverStamped.has(field)) continue;
       const asInstant = instantFields.has(field);
       if (deepEqual(view(field, before[field]), view(field, after[field]), asInstant)) continue;
-      if (!deepEqual(view(field, shown[field]), view(field, after[field]), asInstant)) return base;
+      // The server's row against this device's landed write: a server-side comparison.
+      if (
+        !deepEqual(
+          remoteComparable(comparePolicy, field, view(field, shown[field])),
+          remoteComparable(comparePolicy, field, view(field, after[field])),
+          asInstant
+        )
+      )
+        return base;
     }
     layered = overlaid;
   }

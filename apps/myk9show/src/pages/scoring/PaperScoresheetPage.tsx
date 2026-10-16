@@ -36,6 +36,7 @@ import { sortByExhibitorOrder } from './paper-scoring-types';
 import { cn } from '@/lib/utils';
 import type { ScoringEntry } from './types';
 import type { PaperResult, PaperScoringMode } from './paper-scoring-types';
+import { logger } from '@/services/LoggingService';
 
 function getClassDetailsHref({
   showId,
@@ -80,6 +81,9 @@ export function PaperScoresheetPage() {
   // A background reload that failed: the last good list (and any unsaved
   // entry) stays on screen with this note, never the error state.
   const [refreshFailed, setRefreshFailed] = useState(false);
+  // A write that failed, named by its dog, so it stays visible whichever dog
+  // is on screen (MYK9-1246).
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const retryLoad = () => setLoadAttempt(attempt => attempt + 1);
   // Counts class loads that read successfully. A save-and-next whose refresh
@@ -277,6 +281,38 @@ export function PaperScoresheetPage() {
     return fresh;
   };
 
+  // A rejected write is said out loud in plain words, naming the dog, never left as an
+  // unhandled rejection. On a failed save the page neither reloads nor
+  // advances, so the panel keeps what was typed for a retry (MYK9-1246).
+  const tryWrite = async (
+    entryId: string,
+    action: string,
+    write: () => Promise<void>
+  ): Promise<boolean> => {
+    setSaveError(null);
+    try {
+      await write();
+      return true;
+    } catch (err) {
+      logger.error(`${action}:`, 'pages', { entryId }, err as Error);
+      const entry = entries.find(e => e.entryId === entryId);
+      const dog = entry ? `${entry.armband} ${entry.callName}` : 'this dog';
+      setSaveError(`${action} for ${dog}. Please try again.`);
+      return false;
+    }
+  };
+
+  const trySave = (
+    entryId: string,
+    result: PaperResult,
+    timeDigits: string,
+    faults: number,
+    reason?: string
+  ) =>
+    tryWrite(entryId, 'Score not saved', () =>
+      scoring.saveEntry(entryId, result, timeDigits, faults, reason)
+    );
+
   const handleSave = async (
     result: PaperResult,
     timeDigits: string,
@@ -285,7 +321,7 @@ export function PaperScoresheetPage() {
   ) => {
     const entryId = onScreenEntryId;
     if (!entryId) return;
-    await scoring.saveEntry(entryId, result, timeDigits, faults, reason);
+    if (!(await trySave(entryId, result, timeDigits, faults, reason))) return;
     await reloadEntries();
   };
 
@@ -297,7 +333,7 @@ export function PaperScoresheetPage() {
   ) => {
     const currentEntryId = onScreenEntryId;
     if (!currentEntryId) return;
-    await scoring.saveEntry(currentEntryId, result, timeDigits, faults, reason);
+    if (!(await trySave(currentEntryId, result, timeDigits, faults, reason))) return;
     const fresh = await reloadEntries();
     if (!fresh) {
       pendingAdvanceRef.current = { from: currentEntryId, afterLoad: freshLoads };
@@ -307,11 +343,15 @@ export function PaperScoresheetPage() {
     scoring.selectEntry(nextUnscoredAfter(fresh, currentEntryId) ?? currentEntryId);
   };
 
-  const handleClearResult = async () => {
+  const handleClearResult = async (): Promise<boolean> => {
     const entryId = onScreenEntryId;
-    if (!entryId) return;
-    await scoring.clearEntry(entryId);
+    if (!entryId) return false;
+    // A failed clear still reloads, so the list shows the score that stayed.
+    const cleared = await tryWrite(entryId, 'Result not cleared', () =>
+      scoring.clearEntry(entryId)
+    );
     await reloadEntries();
+    return cleared;
   };
 
   const handleModeChange = (mode: PaperScoringMode) => {
@@ -392,6 +432,19 @@ export function PaperScoresheetPage() {
       </div>
 
       <SessionToolbar settings={scoring.sessionSettings} onChange={scoring.setSessionSettings} />
+
+      {saveError && (
+        <div
+          role="alert"
+          className="mx-4 mt-2 flex items-center gap-2 rounded-lg bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground"
+        >
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{saveError}</span>
+          <button type="button" onClick={() => setSaveError(null)} className="ml-auto underline">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {refreshFailed && (
         <p role="status" className="px-4 pt-2 text-sm text-muted-foreground">

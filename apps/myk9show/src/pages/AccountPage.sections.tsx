@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AlertTriangle, Camera, CheckCircle2, Loader2, Mail, MapPin, Phone } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,13 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { getInitials } from '@/lib/utils';
 import { useProfileForm } from '@/hooks/useProfileForm';
 import { useAvatarUpload } from '@/hooks/useAvatarUpload';
 import { useUpdatePerson } from '@/hooks/useUsers';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
+import { AccountAccessRolesCard } from '@/pages/AccountAccessRolesCard';
 import { describeUserRoleBadges } from '@/pages/AccountPage.roleBadges';
 import { deleteUser } from '@/services/database/users/reads';
 import { revokeSelfAuthIdentity } from '@/services/auth/revokeSelfAuthIdentity';
@@ -64,19 +63,7 @@ export function ProfileSection() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Need additional access?</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Set up a new club or ask an existing club to appoint you as its show secretary.
-          </p>
-          <Button asChild variant="outline" size="touch">
-            <Link to="/request-access">Request additional access</Link>
-          </Button>
-        </CardContent>
-      </Card>
+      <AccountAccessRolesCard roleBadges={roleBadges} />
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Profile photo</CardTitle>
@@ -264,34 +251,6 @@ export function ProfileSection() {
       </Card>
 
       <ResultsPrivacySetting />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Your roles</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            These roles determine which parts of myK9Show are available to you.
-          </p>
-        </CardHeader>
-        <CardContent>
-          {roleBadges.length > 0 ? (
-            <div className="flex flex-wrap gap-2" aria-label="Assigned roles">
-              {roleBadges.map((label, index) => (
-                // Two distinct clubs can share a display name, so the same
-                // label text can legitimately appear twice — index keeps the
-                // key unique without changing the label itself.
-                <Badge key={`${label}-${index}`} variant="secondary">
-                  {label}
-                </Badge>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No roles assigned.</p>
-          )}
-          <p className="mt-3 text-xs text-muted-foreground">
-            Roles are managed by your organization administrator.
-          </p>
-        </CardContent>
-      </Card>
     </div>
   );
 }

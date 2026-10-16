@@ -156,7 +156,7 @@ export function EntryPanel({
                 data-prefilled={isPrefilled ? 'true' : undefined}
                 className={cn(
                   'flex flex-col items-start px-3 py-2 rounded-lg border-2 text-left transition-colors font-semibold',
-                  code === 'Q' && 'col-span-2',
+                  code === 'Q' && 'col-span-2 flex-row items-center gap-3',
                   isSelected && !isPrefilled && 'border-primary bg-primary text-primary-foreground',
                   isPrefilled && 'border-dashed border-primary bg-primary/10',
                   !isSelected && !isPrefilled && 'border-border hover:bg-accent'

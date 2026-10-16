@@ -4,9 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { type ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/ui/data-table';
 import { getClubInitials } from '@/components/clubs/ClubDetails/utils';
-import { CLUB_TYPES } from '@/types/club-types';
-import { usePageExportAction } from '@/features/actions/pageEditTarget';
-import { exportRowsCsv } from '@/utils/downloadCsv';
+import { getClubLocation, getClubTypeLabel } from './clubsExport';
 import type { Club } from '@/types/club-types';
 
 interface ClubsListViewProps {
@@ -19,16 +17,6 @@ interface ClubTableRow extends Club {
   memberCount: number;
   typeLabel: string | null;
   location: string;
-}
-
-/** Get human-readable label for a club type value */
-function getClubTypeLabel(clubType: string | undefined): string | null {
-  if (!clubType) return null;
-  return CLUB_TYPES.find(t => t.value === clubType)?.label || clubType;
-}
-
-function getClubLocation(club: Club): string {
-  return [club.address?.city, club.address?.state].filter(Boolean).join(', ');
 }
 
 export const ClubsListView: React.FC<ClubsListViewProps> = ({ clubs, clubShowCounts }) => {
@@ -45,24 +33,6 @@ export const ClubsListView: React.FC<ClubsListViewProps> = ({ clubs, clubShowCou
       })),
     [clubs, clubShowCounts]
   );
-
-  // The whole-list export the table's own button used to be (owner decision 4: header Actions menu).
-  usePageExportAction({
-    id: 'clubs',
-    enabled: rows.length > 0,
-    run: () =>
-      exportRowsCsv(
-        'clubs',
-        ['Club', 'Type', 'Location', 'Members', 'Upcoming Shows'],
-        rows.map(row => [
-          row.name,
-          row.typeLabel || '',
-          row.location,
-          row.memberCount,
-          row.upcomingShowCount,
-        ])
-      ),
-  });
 
   const columns = React.useMemo<ColumnDef<ClubTableRow>[]>(
     () => [

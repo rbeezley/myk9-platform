@@ -4,6 +4,10 @@ import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
+import { useSearchParams } from 'react-router-dom';
+import { CloseDetailLink } from '@/components/layout/CloseDetailLink';
+import { useEmbeddedDetail } from '@/components/layout/embeddedDetail';
+import { clubsFilterQuery } from '@/components/clubs/browse/clubsFilterQuery';
 import { logger } from '@/services/LoggingService';
 import type { ClubDetailsProps, ClubTab } from './types';
 import { ClubHeader } from './ClubHeader';
@@ -28,6 +32,10 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
   });
 
   const state = useClubDetailsState(selectedClub);
+  // Beside the Clubs list (a master-detail pane), Close goes back to the list with its search.
+  const embedded = useEmbeddedDetail();
+  const [searchParams] = useSearchParams();
+  const closeTo = `/clubs${clubsFilterQuery(searchParams.get('search') ?? '')}`;
   const tabsRef = useRef<HTMLDivElement>(null);
   const handleStatCardClick = useCallback(
     (tab: ClubTab) => {
@@ -94,6 +102,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
           ]}
           title={selectedClub.name}
           omitTitle
+          actions={embedded ? <CloseDetailLink to={closeTo} label="Close club" /> : undefined}
         />
 
         {/* The hero: logo, name, badges, facts, officials */}

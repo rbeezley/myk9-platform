@@ -1,6 +1,6 @@
 import { createDatabaseError } from '@/services/database/databaseError';
 import { screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { fromAny } from '@total-typescript/shoehorn';
 
 import { render } from '@/test/utils/testUtils';
@@ -245,6 +245,10 @@ describe('ShowDeskPanel cockpit', () => {
   });
 
   it('restores the URL-backed schedule anchor without changing Class focus', async () => {
+    cockpitWidth.value = 700;
+    onTestFinished(() => {
+      cockpitWidth.value = null;
+    });
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
 

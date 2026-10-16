@@ -128,12 +128,13 @@ describe('ShowsMasterDetailPage', () => {
     expect(screen.getByRole('button', { name: 'Shows' })).toBeInTheDocument();
   });
 
-  it('folds until the split is measured, then opens the list beside a wide show', () => {
+  it('mounts the show only once the split is measured, so it never mounts at a stale width', () => {
     mockViewportWidth(1440);
     split.width = null;
     const { rerender } = renderAt('/shows/show-1');
     expect(screen.queryByRole('region', { name: 'Shows list' })).not.toBeInTheDocument();
-    expect(showPageMounts).toBe(1);
+    expect(screen.queryByText(/show page/)).not.toBeInTheDocument();
+    expect(showPageMounts).toBe(0);
 
     split.width = 1440 - RAIL_AND_PADDING_PX;
     rerender(
@@ -146,6 +147,7 @@ describe('ShowsMasterDetailPage', () => {
       </MemoryRouter>
     );
     expect(screen.getByRole('region', { name: 'Shows list' })).toBeInTheDocument();
+    expect(screen.getByText('show page (in pane)')).toBeInTheDocument();
     expect(showPageMounts).toBe(1);
   });
 

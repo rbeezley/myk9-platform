@@ -75,59 +75,37 @@ describe('the class editor survives the split/stack switch', () => {
     expect(screen.getByTestId('cockpit-split-focus')).toBeInTheDocument();
   });
 
-  it('scrolls a returning anchor again once the measured layout splits', () => {
-    const scrollIntoView = vi.fn();
-    const original = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = scrollIntoView;
-    try {
-      cockpit.width = null;
-      const route = '/shows/show-1?focus=class-1&anchor=class-1';
-      const { rerender } = render(
-        <SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />,
-        { initialRoute: route }
-      );
-      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  it.each([
+    [1000, 'split'],
+    [700, 'stacked'],
+  ])(
+    'scrolls a returning anchor once, in the measured %ipx (%s) layout, and never again',
+    width => {
+      const scrollIntoView = vi.fn();
+      const original = Element.prototype.scrollIntoView;
+      Element.prototype.scrollIntoView = scrollIntoView;
+      try {
+        cockpit.width = null;
+        const { rerender } = render(
+          <SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />,
+          { initialRoute: '/shows/show-1?focus=class-1&anchor=class-1' }
+        );
+        // The unmeasured first commit is stacked; the row would move once it measures.
+        expect(scrollIntoView).not.toHaveBeenCalled();
 
-      // The layout effect measures the grid: split now, and the row has moved.
-      cockpit.width = 1000;
-      rerender(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />);
-      expect(screen.getByTestId('cockpit-split-focus')).toBeInTheDocument();
-      expect(scrollIntoView).toHaveBeenCalledTimes(2);
+        cockpit.width = width;
+        rerender(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />);
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
 
-      // Measured and scrolled: later renders leave the page where the secretary is.
-      rerender(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />);
-      cockpit.width = 700;
-      rerender(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />);
-      expect(scrollIntoView).toHaveBeenCalledTimes(2);
-    } finally {
-      Element.prototype.scrollIntoView = original;
+        // A tablet rotated later, untouched: the page stays where it is.
+        cockpit.width = width === 1000 ? 700 : 1000;
+        rerender(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />);
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      } finally {
+        Element.prototype.scrollIntoView = original;
+      }
     }
-  });
-
-  it('spends a returning anchor once measured, even when it measured stacked', () => {
-    const scrollIntoView = vi.fn();
-    const original = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = scrollIntoView;
-    try {
-      cockpit.width = null;
-      const { rerender } = render(
-        <SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />,
-        { initialRoute: '/shows/show-1?focus=class-1&anchor=class-1' }
-      );
-      cockpit.width = 700;
-      rerender(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />);
-      // Once unmeasured, once on the first measured render (stacked, so the same spot).
-      expect(scrollIntoView).toHaveBeenCalledTimes(2);
-
-      // A tablet rotated to landscape later, untouched: the page stays where it is.
-      cockpit.width = 1000;
-      rerender(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />);
-      expect(screen.getByTestId('cockpit-split-focus')).toBeInTheDocument();
-      expect(scrollIntoView).toHaveBeenCalledTimes(2);
-    } finally {
-      Element.prototype.scrollIntoView = original;
-    }
-  });
+  );
 
   it('scrolls a returning anchor once when its row renders after the measurement', () => {
     const scrollIntoView = vi.fn();

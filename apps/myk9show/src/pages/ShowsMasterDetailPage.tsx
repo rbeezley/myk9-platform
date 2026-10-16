@@ -140,7 +140,10 @@ function ShowsPaneSplit({ showId }: { showId: string | undefined }) {
           }
           detail={
             <div style={PANE_TOP_INSET}>
-              <Outlet />
+              {/* Mounted only once this page has measured itself (a layout effect, before paint),
+                  so the show mounts once, at its final width: a first frame at full width that
+                  then narrows would move the rows a returning anchor scrolls to. */}
+              {splitWidth !== null && <Outlet />}
             </div>
           }
         />

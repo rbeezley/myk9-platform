@@ -63,8 +63,6 @@ export function SecretaryCockpit({
     </>
   );
   const pendingAnchor = useRef(state.anchor);
-  // The anchor has scrolled once before the grid was measured.
-  const anchorScrolledUnmeasured = useRef(false);
   // The split follows the width the cockpit is given (full page, or beside the Shows list), not
   // the window: see cockpitSplit.ts.
   const { ref: gridRef, width: gridWidth } = useElementWidth<HTMLDivElement>();
@@ -141,17 +139,15 @@ export function SecretaryCockpit({
     return () => events.forEach(name => window.removeEventListener(name, cancel, options));
   }, []);
 
-  // The first commit is unmeasured (stacked); a split cockpit re-lays out right after it, before
-  // paint, which moves the row. So the anchor scrolls once unmeasured, once more on the first
-  // measured render, and is then spent (or cancelled sooner by an interaction, above): a later
+  // Only in the measured layout: the first commit is unmeasured (stacked), and a split cockpit
+  // re-lays out right after it, which would move the row. Scrolls once, then is spent; a later
   // resize or rotation never moves the page.
   useEffect(() => {
     const anchor = pendingAnchor.current;
-    if (!anchor || (gridWidth === null && anchorScrolledUnmeasured.current)) return;
+    if (!anchor || gridWidth === null) return;
     const target = document.getElementById(getCockpitAnchorElementId(anchor));
     if (!target) return;
-    if (gridWidth === null) anchorScrolledUnmeasured.current = true;
-    else pendingAnchor.current = undefined;
+    pendingAnchor.current = undefined;
     target.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   }, [model.trialGroups, gridWidth]);
 

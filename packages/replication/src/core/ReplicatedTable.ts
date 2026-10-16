@@ -63,7 +63,6 @@ import {
   mergeNonConflictingServerFields,
   type DirtyRowComparePolicy,
 } from '../conflict/detectDirtyRowConflict';
-import { buildQueuedFieldPruner, type QueuedFieldPruner } from './pruneQueuedFields';
 import type { ScopeStampDirective } from './scopeStamp';
 import { isConflictSurfacingEnabled } from '../conflictConfig';
 import { withQuotaEviction } from '../quota-eviction';
@@ -804,8 +803,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       mergedData?: T;
       newBaseData?: T;
       rebuildUpdatePayload?: (local: T) => Record<string, unknown>;
-      /** The base the kept local edits were made against (the conflict snapshot's). */
-      priorBaseData?: T;
     }
   ): Promise<void> {
     const db = await this.init();
@@ -839,17 +836,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     if (newServerVersion !== undefined) {
       const rebuiltData =
         options?.rebuildUpdatePayload?.(nextRow.data) ?? this.rebuildUpdatePayload(nextRow.data);
-      await this.reconcileQueuedMutations(
-        normalizedId,
-        newServerVersion,
-        rebuiltData,
-        options?.priorBaseData
-          ? this.queuedFieldPruner(
-              options.priorBaseData,
-              options.rebuildUpdatePayload ?? (row => this.rebuildUpdatePayload(row))
-            )
-          : undefined
-      );
+      await this.reconcileQueuedMutations(normalizedId, newServerVersion, rebuiltData);
     }
 
     this.notifyListeners();
@@ -936,38 +923,14 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     );
   }
 
-  private queuedFieldPruner(
-    base: T,
-    toRemoteFields: ((row: T) => Record<string, unknown> | undefined) | undefined
-  ): QueuedFieldPruner | undefined {
-    return buildQueuedFieldPruner({
-      base,
-      toRemoteFields,
-      comparePolicy: this.getDirtyRowComparePolicy(),
-      instantFields: instantFieldsFor(this.tableName),
-    });
-  }
-
   private async reconcileQueuedMutations(
     rowId: string,
     serverVersion: number,
-    rebuiltData: Record<string, unknown> | undefined,
-    pruneRpcFields?: QueuedFieldPruner
+    rebuiltData: Record<string, unknown> | undefined
   ): Promise<void> {
     if (!this.mutationManager) return;
     const legacyOmittedKeysServerWins = this.getLegacyOmittedKeysServerWins();
-    // Only pass the trailing arguments when there is something to say (call-shape pins).
-    if (pruneRpcFields) {
-      await this.mutationManager.reconcilePendingMutationsForRow(
-        this.tableName,
-        rowId,
-        serverVersion,
-        rebuiltData,
-        legacyOmittedKeysServerWins,
-        pruneRpcFields
-      );
-      return;
-    }
+    // Only pass the fifth argument when the adapter names keys (call-shape pins).
     await (legacyOmittedKeysServerWins
       ? this.mutationManager.reconcilePendingMutationsForRow(
           this.tableName,
@@ -1120,14 +1083,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     // token forever (storm) and, for full-row UPDATEs, the stale payload (clobber).
     if (rebaseQueue && params.remoteServerVersion !== undefined) {
       const rebuiltData = params.rebuildPayload?.(normalizedMerged);
-      // The base is the one this reconcile judged against: `row` above already moved
-      // the stored base to the server snapshot, so `params.base` is the only copy.
-      await this.reconcileQueuedMutations(
-        normalizedId,
-        params.remoteServerVersion,
-        rebuiltData,
-        this.queuedFieldPruner(params.base, params.rebuildPayload)
-      );
+      await this.reconcileQueuedMutations(normalizedId, params.remoteServerVersion, rebuiltData);
     }
 
     this.logger.log(
@@ -1204,7 +1160,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       await this.clearConflict(id, snapshot.remoteServerVersion, {
         mergedData: merged,
         newBaseData: snapshot.remoteData,
-        priorBaseData: snapshot.baseData,
         rebuildUpdatePayload: options?.rebuildUpdatePayload,
       });
     } else {

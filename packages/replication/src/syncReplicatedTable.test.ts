@@ -897,18 +897,11 @@ describe('syncReplicatedTable', () => {
       await syncReplicatedTable(table, adapter, {}, { conflictSurfacingEnabled: true });
 
       expect(reconcileQueue).toHaveBeenCalledTimes(1);
-      expect(reconcileQueue).toHaveBeenCalledWith(
-        table.getTableName(),
-        '1',
-        8,
-        {
-          id: '1',
-          status: 'done', // local edit preserved
-          final_placement: 2, // server field merged into the rebuilt payload (no clobber)
-        },
-        undefined,
-        expect.any(Function)
-      );
+      expect(reconcileQueue).toHaveBeenCalledWith(table.getTableName(), '1', 8, {
+        id: '1',
+        status: 'done', // local edit preserved
+        final_placement: 2, // server field merged into the rebuilt payload (no clobber)
+      });
     });
 
     it('does not reconcile the queue when the token did not advance', async () => {

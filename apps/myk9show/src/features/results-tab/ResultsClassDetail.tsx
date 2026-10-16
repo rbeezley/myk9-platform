@@ -19,6 +19,7 @@ import { CockpitPaperworkRow } from '@/features/show-map/cockpit/CockpitPaperwor
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import { isStaleResultsError } from '@/features/show-map/resultsVerifiedMutations';
 import { formatTime } from '@/lib/format/dates';
+import { useReserveBottomAbove } from '@/hooks/useReserveBottomAbove';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import type { ResultsClassRow, ResultsEntryRow } from './buildResultsClassRows';
 import { PrintStatusUnavailable } from './PrintStatusUnavailable';
@@ -384,6 +385,10 @@ export function ResultsClassDetail({
   const backQuery = backParams.toString();
   const finished = formatTime(row.finishedAt, timeZone);
   const released = Boolean(row.releasedAt);
+  // MYK9-1217: releasing raises two bottom-right toasts, which landed on the Print link at
+  // 1280x720. In the desktop pane the paperwork rows are the next thing the secretary clicks, so
+  // the toast stack stays above them. Not reserved on the mobile page, where the pane is gone.
+  const thenRef = useReserveBottomAbove<HTMLDivElement>(embedded && released);
   return (
     <section className="space-y-4" aria-label={`${row.name} results`}>
       {!embedded && (
@@ -444,7 +449,7 @@ export function ResultsClassDetail({
       {judgeSignOffSlot}
 
       {row.expectedCount > 0 && (
-        <div className="space-y-2">
+        <div ref={thenRef} className="space-y-2">
           <h3 className="text-sm font-semibold">Then</h3>
           <ul className="space-y-2">
             <li className="flex items-center gap-2 rounded-lg border p-3 text-sm font-medium">

@@ -112,9 +112,10 @@ export function AtShowClassRow({
           // drop text-muted-foreground to 4.26:1, under AA. The filled Star and
           // the primary border already carry the state, so this loses no signal.
           entry.is_favorite && 'border-primary',
-          // Past days are quieter by surface only (no shadow, transparent border);
-          // never opacity, which drops muted text below AA (see counter comment).
-          dayBucket === 'past' && !entry.is_favorite && 'border-transparent shadow-none'
+          // Past days are quieter by surface only (no shadow; the border stays so the
+          // card still reads as a card); never opacity, which drops muted text
+          // below AA (see counter comment).
+          dayBucket === 'past' && 'shadow-none'
         )}
       >
         <div className="min-w-0 flex-1">

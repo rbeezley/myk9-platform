@@ -17,6 +17,9 @@ export const DEFAULT_DOG_FILTERS: DogFilters = {
   status: 'all',
 };
 
+// WARNING: a value missing from these lists is ERASED, not ignored — the param is
+// stripped and the filter falls back to its default. Adding a chip option
+// without adding it here does not degrade the deep link, it DESTROYS it.
 /** Closed vocabularies for the URL (`useUrlFilters`); a value outside one reads as the default. */
 export const ALLOWED_DOG_FILTER_VALUES = {
   status: ['active', 'retired', 'deceased'],

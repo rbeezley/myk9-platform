@@ -119,7 +119,7 @@
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
     "@fission-ai/openspec": "^1.14.1",
-    "@playwright/test": "^1.64.0",
+    "@playwright/test": "1.63.0",
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
     "@supabase/supabase-js": "^2.117.3",

@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { ClubShow } from './types';
 import { getShowStatus } from './utils';
+import { ShowCardTitleRow } from './ShowCardTitleRow';
 import { formatShortCalendarDate } from '@/lib/format/dates';
 
 interface PastShowsTabProps {
@@ -49,34 +50,30 @@ export const PastShowsTab: React.FC<PastShowsTabProps> = ({ shows, onViewShowDet
               onClick={() => onViewShowDetails(show.id)}
             />
             <div className="pointer-events-none relative z-[1]">
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex items-center gap-3 flex-1">
-                  <div className="text-lg font-semibold text-foreground">{show.name}</div>
-                  <div className="px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide bg-purple-500/10 text-purple-500 border border-purple-500/20">
-                    {showStatus.label}
-                  </div>
-                </div>
-                <div className="pointer-events-auto flex items-start flex-shrink-0">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-11 w-11 p-0"
-                        aria-label={`Actions for ${show.name}`}
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onViewShowDetails(show.id)}>
-                        <Eye className="mr-2 h-4 w-4" />
-                        View Results
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
+              <ShowCardTitleRow
+                name={show.name}
+                statusLabel={showStatus.label}
+                statusClassName="bg-purple-500/10 text-purple-500 border border-purple-500/20"
+              >
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-11 w-11 p-0"
+                      aria-label={`Actions for ${show.name}`}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onViewShowDetails(show.id)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      View Results
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </ShowCardTitleRow>
               <div className="flex items-center gap-3 text-sm text-muted-foreground mb-3">
                 <div className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />

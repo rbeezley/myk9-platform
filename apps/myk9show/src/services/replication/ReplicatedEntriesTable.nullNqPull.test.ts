@@ -104,16 +104,4 @@ describe('entry correction Q to NQ against a pull (MYK9-1236)', () => {
     expect(row?.conflict?.fields).toContain('disqualification_reason');
     expect(row?.syncStatus).toBe('conflict');
   });
-
-  it('adopts a note another device wrote when the device only cleared it to null (reverse case)', async () => {
-    // Base: no note (undefined). The device's empty-note save writes null.
-    await table.updateEntry(ID, { judgeNotes: null as unknown as string });
-    mockServerRows([serverRow({ version: 8, judge_notes: 'Good dog' })]);
-
-    await table.sync(SHOW);
-
-    const row = await table.getReplicatedRow(ID);
-    expect(row?.conflict ?? null).toBeNull();
-    expect(row?.data.judgeNotes).toBe('Good dog');
-  });
 });

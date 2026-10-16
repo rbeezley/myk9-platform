@@ -391,10 +391,6 @@ const classReplicationSelect = () =>
   `${CLASS_AUTHENTICATED_COLUMN_SELECT}, judge_assignments!judge_assignments_class_id_fkey(id, person_id, status)`;
 
 export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
-  protected override getDirtyRowComparePolicy(): DirtyRowComparePolicy {
-    return CLASS_DIRTY_ROW_COMPARE_POLICY;
-  }
-
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
 
@@ -597,7 +593,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       // row's merge base forward through it (MYK9-1220).
       toRemoteRow: cls => this.toSupabaseRow(cls),
       rebuildUpdatePayload: cls => this.rebuildUpdatePayload(cls),
-      dirtyRowComparePolicy: this.getDirtyRowComparePolicy(),
+      dirtyRowComparePolicy: CLASS_DIRTY_ROW_COMPARE_POLICY,
     };
   }
 

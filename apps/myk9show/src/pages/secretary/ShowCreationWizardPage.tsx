@@ -30,7 +30,8 @@ import {
   type EditMode,
   type CreatedShow,
   getEditModeTitle,
-  getValidationMessagesForStep,
+  getValidationIssuesForStep,
+  fieldErrorsFromIssues,
   getValidationScope,
   WizardSuccessOverlay,
   WizardValidationBanner,
@@ -53,10 +54,13 @@ import {
   WIZARD_CONTENT_SCROLL_MARGIN_CLASS,
   WIZARD_SCROLL_MARGIN_CLASS,
 } from './ShowCreationWizard/wizardScrollChrome';
+import { FieldErrorsProvider } from '@/components/forms';
+import { useFailedNextFeedback } from './ShowCreationWizard/useFailedNextFeedback';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
 import { isShowListingLive } from '@/features/show-workbench/publishReadiness';
 
 const NO_RETAINED_CLASSES: readonly never[] = [];
+const NO_FIELD_ERRORS: Record<string, string> = {};
 
 const ShowCreationWizardPageContent: React.FC = () => {
   const navigate = useNavigate();
@@ -73,10 +77,7 @@ const ShowCreationWizardPageContent: React.FC = () => {
   const stepsRef = useRef<HTMLDivElement>(null);
   useWizardChromeHeight(stepsRef);
   const validationBannerRef = useRef<HTMLDivElement>(null);
-  // Set by a failed Next click so the effect below scrolls the banner into
-  // view once it has mounted. A ref (not state) keeps this a one-shot signal
-  // that doesn't re-fire as the secretary fixes fields.
-  const pendingBannerScrollRef = useRef(false);
+  const revealFailedNext = useFailedNextFeedback(stepContentRef, validationBannerRef);
 
   // Extract edit mode from URL params. `parseEditMode` allowlists the two modes
   // the app actually links to; previously an unchecked `as` cast turned ANY
@@ -300,24 +301,12 @@ const ShowCreationWizardPageContent: React.FC = () => {
     }
   }, [cloneHydration.status, currentStep, modeAllowedSteps, setCurrentStep, handleClose]);
 
-  // Scroll the validation banner into view. scrollIntoView is a no-op stub in
-  // jsdom, hence the typeof guard. Stable identity so handleNext/the effect can
-  // depend on it.
-  const scrollBannerIntoView = useCallback(() => {
-    const el = validationBannerRef.current;
-    if (el && typeof el.scrollIntoView === 'function') {
-      // `start` honours the banner's scroll margin, so its heading lands below
-      // the sticky chrome; `center` put it underneath on a phone (MYK9-764).
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, []);
-
   const handleNext = useCallback(async () => {
     if (cloneHydration.status === 'hydrating') return;
     setHasAttemptedNext(true);
 
     // Check validation before allowing navigation
-    const messages = getValidationMessagesForStep(
+    const issues = getValidationIssuesForStep(
       currentStep,
       show,
       trials,
@@ -326,23 +315,12 @@ const ShowCreationWizardPageContent: React.FC = () => {
       { requireEntryWindow },
       validationScope
     );
-    if (messages.length > 0) {
-      // Validation failed — surface the banner, expand it, and scroll it into
-      // view. Next stays enabled (see canGoNext) so this click actually fires
-      // instead of the button sitting disabled with no explanation.
+    if (issues.length > 0) {
+      // Validation failed: show each error beside its field and focus the first one. Next
+      // stays enabled (see canGoNext) so this click actually fires instead of the button
+      // sitting disabled with no explanation.
       setValidationExpanded(true);
-      if (validationBannerRef.current) {
-        // Banner already mounted (a repeat failed click) — scroll now. We can't
-        // rely on the post-render effect here: setState above is a no-op when
-        // the values are unchanged, so React may skip the re-render entirely.
-        scrollBannerIntoView();
-      } else {
-        // First failed attempt — the banner mounts on the render this click
-        // triggers. Defer the scroll to the effect below, which fires once it's
-        // in the DOM. (Not left set on the repeat path, so no stray delayed
-        // scroll during later field edits.)
-        pendingBannerScrollRef.current = true;
-      }
+      revealFailedNext();
       return;
     }
 
@@ -371,14 +349,15 @@ const ShowCreationWizardPageContent: React.FC = () => {
     trialView,
     retainedClasses,
     requireEntryWindow,
-    scrollBannerIntoView,
+    revealFailedNext,
+    validationScope,
   ]);
 
   // Step navigation validation
   const canGoBack = !isLoading && cloneHydration.status !== 'hydrating';
 
   // Get validation messages for current step
-  const validationMessages = getValidationMessagesForStep(
+  const validationIssues = getValidationIssuesForStep(
     currentStep,
     show,
     trials,
@@ -397,16 +376,9 @@ const ShowCreationWizardPageContent: React.FC = () => {
   // during re-renders.
   const canGoNext = !isLoading && cloneHydration.status !== 'hydrating';
 
-  // First-mount scroll: on the first failed Next the banner mounts on the
-  // triggered render, so handleNext defers the scroll here. Guarded by the ref
-  // flag so it fires exactly once per first-attempt, not on every re-render as
-  // fields are corrected. Repeat clicks scroll synchronously in handleNext.
-  useEffect(() => {
-    if (pendingBannerScrollRef.current && validationBannerRef.current) {
-      pendingBannerScrollRef.current = false;
-      scrollBannerIntoView();
-    }
-  });
+  // The top banner lists only what belongs to no single field; the rest sits under its field.
+  const bannerMessages = validationIssues.filter(issue => issue.field === null).map(i => i.message);
+  const fieldErrors = hasAttemptedNext ? fieldErrorsFromIssues(validationIssues) : undefined;
 
   // Wizard state is reset explicitly on cancel (handleConfirmClose) or
   // successful creation (saveShow). No unmount cleanup needed — the Zustand
@@ -492,10 +464,10 @@ const ShowCreationWizardPageContent: React.FC = () => {
 
             {/* Collapsible Validation Banner — only shown after user clicks Next.
                 Wrapped so handleNext can scroll it into view on a failed attempt. */}
-            {hasAttemptedNext && validationMessages.length > 0 && (
+            {hasAttemptedNext && bannerMessages.length > 0 && (
               <div ref={validationBannerRef} className={WIZARD_SCROLL_MARGIN_CLASS}>
                 <WizardValidationBanner
-                  messages={validationMessages}
+                  messages={bannerMessages}
                   expanded={validationExpanded}
                   onToggle={() => setValidationExpanded(!validationExpanded)}
                 />
@@ -527,27 +499,29 @@ const ShowCreationWizardPageContent: React.FC = () => {
                     onLeave={() => navigate('/shows')}
                   />
                 ) : (
-                  <WizardStepContent
-                    currentStep={currentStep}
-                    editMode={editMode}
-                    focusTrialId={focusTrialId}
-                    trialView={trialView}
-                    existingTrialsReady={existingTrialsReady}
-                    existingClasses={existingClasses}
-                    hasAttemptedNext={hasAttemptedNext}
-                    isLoading={isLoading}
-                    onCreateShow={handleCreateShow}
-                    onBack={handleBack}
-                    officialsUnknown={officialsUnavailable}
-                    existingTrialsReadStatus={existingTrialsRead.readStatus}
-                    existingTrialsReadError={existingTrialsRead.readError}
-                    onRetryExistingTrials={existingTrialsRead.retry}
-                    persistedOrganization={
-                      editModeResolution.state === 'resolved'
-                        ? editModeResolution.show.organization
-                        : undefined
-                    }
-                  />
+                  <FieldErrorsProvider errors={fieldErrors ?? NO_FIELD_ERRORS}>
+                    <WizardStepContent
+                      currentStep={currentStep}
+                      editMode={editMode}
+                      focusTrialId={focusTrialId}
+                      trialView={trialView}
+                      existingTrialsReady={existingTrialsReady}
+                      existingClasses={existingClasses}
+                      hasAttemptedNext={hasAttemptedNext}
+                      isLoading={isLoading}
+                      onCreateShow={handleCreateShow}
+                      onBack={handleBack}
+                      officialsUnknown={officialsUnavailable}
+                      existingTrialsReadStatus={existingTrialsRead.readStatus}
+                      existingTrialsReadError={existingTrialsRead.readError}
+                      onRetryExistingTrials={existingTrialsRead.retry}
+                      persistedOrganization={
+                        editModeResolution.state === 'resolved'
+                          ? editModeResolution.show.organization
+                          : undefined
+                      }
+                    />
+                  </FieldErrorsProvider>
                 )}
               </div>
             </div>
@@ -563,7 +537,7 @@ const ShowCreationWizardPageContent: React.FC = () => {
                   onBack={handleBack}
                   onNext={handleNext}
                   isLoading={isLoading}
-                  remainingIssueCount={validationMessages.length}
+                  remainingIssueCount={validationIssues.length}
                 />
               </div>
             )}

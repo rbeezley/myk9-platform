@@ -7,7 +7,7 @@ import ShowCreationWizardPage from '../ShowCreationWizardPage';
 // missing, so clicking it did nothing and gave the secretary no clue why
 // (audit finding #2, docs/audits/2026-07-01-show-creation-wizard-ux.md). These
 // tests pin the corrected behavior: Next stays clickable, an inline count hints
-// at what's missing, and the click surfaces + scrolls to the validation banner.
+// at what's missing, and the click shows each error beside its field and focuses the first.
 
 vi.mock('@/pages/secretary/ShowCreationWizard/useShowCreationWizardActions', () => ({
   useShowCreationWizardActions: () => ({
@@ -29,12 +29,16 @@ vi.mock('react-router-dom', async () => ({
 
 describe('ShowCreationWizardPage — Step 1 Next-button feedback', () => {
   let scrollIntoView: typeof Element.prototype.scrollIntoView;
+  const scrolled: Element[] = [];
 
   beforeEach(() => {
     mockNavigate.mockReset();
     // jsdom does not implement scrollIntoView; spy on it so we can assert the
     // banner is scrolled into view without it throwing.
-    scrollIntoView = vi.fn<typeof Element.prototype.scrollIntoView>();
+    scrolled.length = 0;
+    scrollIntoView = vi.fn<typeof Element.prototype.scrollIntoView>(function (this: Element) {
+      scrolled.push(this);
+    });
     Element.prototype.scrollIntoView = scrollIntoView;
   });
 
@@ -58,32 +62,68 @@ describe('ShowCreationWizardPage — Step 1 Next-button feedback', () => {
     expect(screen.getByText(/\d+ items? remaining/i)).toBeInTheDocument();
   });
 
-  it('surfaces and scrolls to the validation banner when Next is clicked with missing fields', async () => {
+  it('shows a required-field error beside its field, not in a top banner', async () => {
     const { user } = render(<ShowCreationWizardPage />);
 
-    // No banner (role="alert") until the secretary actually attempts to advance.
+    // Nothing is flagged until the secretary actually attempts to advance.
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /next/i }));
 
-    // Banner explains what's blocking, and we scroll it into view.
-    const banner = await screen.findByRole('alert');
-    expect(banner).toHaveTextContent(/\d+ items? needs? attention/i);
-    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+    const nameInput = await screen.findByRole('textbox', { name: /show name/i });
+    const callout = await screen.findByText('Please enter a show name');
+    // Beside the field: inside the same field group as the input it belongs to.
+    expect(nameInput.parentElement).toContainElement(callout);
+    expect(nameInput).toHaveAttribute('aria-invalid', 'true');
+    expect(nameInput).toHaveAccessibleDescription('Please enter a show name');
+
+    // Custom controls carry the same error on their trigger.
+    expect(screen.getByRole('combobox', { name: /host club/i })).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+
+    // The top banner is gone: every step 1 problem belongs to a field.
+    expect(screen.queryByText(/needs? attention/i)).not.toBeInTheDocument();
+    expect(screen.getAllByText('Please enter a show name')).toHaveLength(1);
   });
 
-  it('scrolls again on a repeat failed Next click (no re-render needed)', async () => {
+  it('focuses the first failing field and scrolls it into view', async () => {
+    const { user } = render(<ShowCreationWizardPage />);
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const nameInput = await screen.findByRole('textbox', { name: /show name/i });
+    await waitFor(() => expect(nameInput).toHaveFocus());
+    expect(scrolled).toContain(nameInput);
+    expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: 'center' }));
+  });
+
+  it('focuses the first failing field again on a repeat Next click (no re-render needed)', async () => {
     const { user } = render(<ShowCreationWizardPage />);
     const next = screen.getByRole('button', { name: /next/i });
 
-    // First click mounts the banner and scrolls via the effect.
     await user.click(next);
-    await screen.findByRole('alert');
-    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+    const nameInput = await screen.findByRole('textbox', { name: /show name/i });
+    await waitFor(() => expect(nameInput).toHaveFocus());
 
-    // Second click changes no state (banner already shown/expanded), so React
-    // may skip the render — the scroll must still happen synchronously.
+    // Second click changes no state, so React may skip the render; focus still returns.
+    scrolled.length = 0;
     await user.click(next);
-    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(nameInput).toHaveFocus());
+    expect(scrolled).toContain(nameInput);
+  });
+
+  it('clears a field error as soon as that field becomes valid', async () => {
+    const { user } = render(<ShowCreationWizardPage />);
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    const nameInput = await screen.findByRole('textbox', { name: /show name/i });
+    expect(screen.getByText('Please enter a show name')).toBeInTheDocument();
+
+    await user.type(nameInput, 'S');
+
+    await waitFor(() => expect(screen.queryByText('Please enter a show name')).toBeNull());
+    expect(nameInput).not.toHaveAttribute('aria-invalid', 'true');
   });
 });

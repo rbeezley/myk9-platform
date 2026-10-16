@@ -33,6 +33,8 @@ interface VenueAddressAutocompleteProps {
   onSettledBlur?: (() => void) | undefined;
   placeholder?: string;
   rows?: number;
+  'aria-invalid'?: boolean | undefined;
+  'aria-describedby'?: string | undefined;
 }
 
 /**
@@ -52,6 +54,8 @@ export function VenueAddressAutocomplete({
   onSettledBlur,
   placeholder,
   rows = 3,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedBy,
 }: VenueAddressAutocompleteProps) {
   const configured = isPlacesAutocompleteConfigured();
   const listId = useId();
@@ -169,6 +173,8 @@ export function VenueAddressAutocomplete({
         onBlur={handleBlur}
         placeholder={placeholder}
         rows={rows}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
         className="border border-border bg-input rounded-md"
         role={configured ? 'combobox' : undefined}
         aria-expanded={configured ? open : undefined}

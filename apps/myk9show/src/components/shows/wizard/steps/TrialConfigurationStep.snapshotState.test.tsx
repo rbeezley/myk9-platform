@@ -238,9 +238,7 @@ describe('TrialConfigurationStep existing snapshot state', () => {
     expect(screen.getByLabelText(/^Trial Name/)).toHaveValue('Saturday Trial 2');
     expect(screen.getByText('Saturday Trial 2')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Remove Saturday Trial 2' })).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Please select a type for Saturday Trial 2'
-    );
+    expect(screen.getByText('Please select a type for Saturday Trial 2')).toBeInTheDocument();
   });
 
   it('uses show-level copy for trials already scheduled on another day', () => {

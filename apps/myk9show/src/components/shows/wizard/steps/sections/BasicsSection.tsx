@@ -20,6 +20,8 @@ import { useVenueAutoLocate, useVenuePinLocator } from '@/features/maps/useVenue
 import type { VenuePinValue } from '@/features/maps/normalizePinValue';
 import { resolveBrowserTrialTimezone } from '@/features/registries';
 import { buildTrialTimezoneOptions } from '@/data/trialTimezones';
+import { FieldError, useFieldError } from '@/components/forms';
+import { SHOW_FIELD } from '@/pages/secretary/ShowCreationWizard/wizardFieldIds';
 
 interface BasicsSectionProps {
   show: ShowDraft;
@@ -65,6 +67,9 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({
   // 'America/New_York' column default for every show outside Eastern.
   const timezoneValue = show.timezone || resolveBrowserTrialTimezone();
   const timezoneOptions = useMemo(() => buildTrialTimezoneOptions(timezoneValue), [timezoneValue]);
+  const nameError = useFieldError(SHOW_FIELD.name);
+  const organizationError = useFieldError(SHOW_FIELD.organization);
+  const locationError = useFieldError(SHOW_FIELD.location);
 
   return (
     <div>
@@ -77,12 +82,14 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({
             <RequiredMark />
           </Label>
           <Input
-            id="show-name"
+            id={SHOW_FIELD.name}
+            {...nameError.controlProps}
             value={show.name || ''}
             onChange={e => onUpdate({ name: e.target.value })}
             placeholder="Enter show name"
             className="border border-border bg-input rounded-md"
           />
+          <FieldError field={SHOW_FIELD.name} />
         </div>
 
         <div className="space-y-2">
@@ -95,7 +102,11 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({
             disabled={organizationDisabled}
             onValueChange={value => onUpdate({ organization: value })}
           >
-            <SelectTrigger id="show-organization" className="bg-input">
+            <SelectTrigger
+              id={SHOW_FIELD.organization}
+              className="bg-input"
+              {...organizationError.controlProps}
+            >
               <SelectValue placeholder="Select organization">
                 {show.organization
                   ? ORGANIZATIONS.find(t => t.value === show.organization)?.label
@@ -110,6 +121,7 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({
               ))}
             </SelectContent>
           </Select>
+          <FieldError field={SHOW_FIELD.organization} />
           {organizationHint && (
             <p className="text-xs text-muted-foreground" data-testid="organization-guidance">
               {organizationHint}
@@ -147,7 +159,8 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({
             <RequiredMark />
           </Label>
           <VenueAddressAutocomplete
-            id="show-location"
+            id={SHOW_FIELD.location}
+            {...locationError.controlProps}
             value={address}
             onChange={location =>
               onUpdate(invalidateVenuePinIfLocationChanged(show.location, { location }))
@@ -165,6 +178,7 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({
             placeholder="Enter venue name and address"
             rows={3}
           />
+          <FieldError field={SHOW_FIELD.location} />
         </div>
 
         <div className="md:col-span-2">

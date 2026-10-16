@@ -11,6 +11,17 @@ import {
   type PersistedClassIdentity,
 } from './classConfigurationValidation';
 import { juniorHandlerFeeError } from './wizardJuniorHandlerFee';
+import { SHOW_FIELD, trialClassesFieldId, trialFieldId } from './wizardFieldIds';
+
+/**
+ * One thing blocking a step. `field` is the id of the control it belongs to, so it can be
+ * shown beside that control; `null` marks an issue that belongs to no single field (it is
+ * the only kind the top banner lists).
+ */
+export interface WizardIssue {
+  field: string | null;
+  message: string;
+}
 
 interface ShowData {
   name: string;
@@ -113,29 +124,30 @@ export interface ShowDetailsValidationOptions {
 }
 
 /**
- * Get validation messages for the Show Details step (step 0)
+ * Get validation issues for the Show Details step (step 0)
  */
-export function getShowDetailsValidationMessages(
+export function getShowDetailsValidationIssues(
   show: ShowData,
   { requireEntryWindow = false }: ShowDetailsValidationOptions = {}
-): string[] {
-  const messages: string[] = [];
+): WizardIssue[] {
+  const issues: WizardIssue[] = [];
+  const add = (field: string | null, message: string) => issues.push({ field, message });
 
-  if (!show.name?.trim()) messages.push('Please enter a show name');
-  if (!show.organization) messages.push('Please select an organization');
-  if (!show.startDate) messages.push('Please select a start date');
-  if (!show.endDate) messages.push('Please select an end date');
-  if (!show.location?.trim()) messages.push('Please enter a location');
-  if (!show.clubId) messages.push('Please select a hosting club');
-  if (show.officials.chairman.length === 0) messages.push('Please select a chair');
-  if (show.officials.secretary.length === 0) messages.push('Please select a secretary');
+  if (!show.name?.trim()) add(SHOW_FIELD.name, 'Please enter a show name');
+  if (!show.organization) add(SHOW_FIELD.organization, 'Please select an organization');
+  if (!show.startDate) add(SHOW_FIELD.dates, 'Please select a start date');
+  if (!show.endDate) add(SHOW_FIELD.dates, 'Please select an end date');
+  if (!show.location?.trim()) add(SHOW_FIELD.location, 'Please enter a location');
+  if (!show.clubId) add(SHOW_FIELD.hostClub, 'Please select a hosting club');
+  if (show.officials.chairman.length === 0) add(SHOW_FIELD.chair, 'Please select a chair');
+  if (show.officials.secretary.length === 0) add(SHOW_FIELD.secretary, 'Please select a secretary');
   // Mirrors the column CHECK so the secretary sees the problem here, not as a raw database
   // error on the final save. ASCA hides the field, so its stale value is never checked.
   const juniorFeeError = juniorHandlerFeeError(show);
-  if (juniorFeeError) messages.push(juniorFeeError);
+  if (juniorFeeError) add(SHOW_FIELD.juniorHandlerFee, juniorFeeError);
   if (requireEntryWindow) {
-    if (!show.entryOpenDate) messages.push('Please select an entry open date');
-    if (!show.entryCloseDate) messages.push('Please select an entry close date');
+    if (!show.entryOpenDate) add(SHOW_FIELD.entryPeriod, 'Please select an entry open date');
+    if (!show.entryCloseDate) add(SHOW_FIELD.entryPeriod, 'Please select an entry close date');
   }
 
   // Normalize to YYYY-MM-DD so lexicographic comparison is date-only safe
@@ -152,17 +164,61 @@ export function getShowDetailsValidationMessages(
   const open = toDatePart(show.entryOpenDate);
   const close = toDatePart(show.entryCloseDate);
 
-  if (start && end && start > end) messages.push('End date must be on or after start date');
+  if (start && end && start > end) add(SHOW_FIELD.dates, 'End date must be on or after start date');
   if (open && close && open > close)
-    messages.push('Entry close date must be on or after entry open date');
+    add(SHOW_FIELD.entryPeriod, 'Entry close date must be on or after entry open date');
   if (close && start && close > start)
-    messages.push('Entry close date must be on or before the show start date');
+    add(SHOW_FIELD.entryPeriod, 'Entry close date must be on or before the show start date');
 
-  return messages;
+  return issues;
+}
+
+/**
+ * Get validation messages for the Show Details step (step 0)
+ */
+export function getShowDetailsValidationMessages(
+  show: ShowData,
+  options: ShowDetailsValidationOptions = {}
+): string[] {
+  return getShowDetailsValidationIssues(show, options).map(issue => issue.message);
 }
 
 function toDatePart(value: string | undefined | null): string {
   return value ? toLocalDateOnly(value) : '';
+}
+
+/**
+ * Get validation issues for the Trial Configuration step (step 1)
+ */
+export function getTrialValidationIssues(
+  trials: Trial[],
+  trialView: WizardTrialView,
+  organization?: string
+): WizardIssue[] {
+  const issues: WizardIssue[] = [];
+  const requiresEventNumber = organization === 'AKC';
+  if (trials.length === 0) {
+    issues.push({ field: null, message: 'Please add at least one trial' });
+  } else {
+    trials.forEach((trial, index) => {
+      const trialName = trialView.effectiveNamesByTrialId.get(trial.id) ?? `Trial ${index + 1}`;
+      const add = (field: Parameters<typeof trialFieldId>[1], message: string) =>
+        issues.push({ field: trialFieldId(trial.id, field), message });
+      if (!trialView.effectiveNamesByTrialId.get(trial.id)?.trim())
+        add('name', `Please enter a name for ${trialName}`);
+      if (!trial.trialType) add('trialType', `Please select a type for ${trialName}`);
+      if (!trial.trialDate) add('dateTime', `Please select a date for ${trialName}`);
+      const startTimeIssue = trialStartTimeIssues(trial);
+      if (startTimeIssue) add('startTime', trialStartTimeMessage(startTimeIssue, trialName));
+      if (requiresEventNumber && !trial.eventNumber?.trim())
+        add(
+          'eventNumber',
+          `Please enter an event number for ${trialName} (required for AKC events)`
+        );
+    });
+  }
+
+  return issues;
 }
 
 /**
@@ -173,31 +229,15 @@ export function getTrialValidationMessages(
   trialView: WizardTrialView,
   organization?: string
 ): string[] {
-  const messages: string[] = [];
-  const requiresEventNumber = organization === 'AKC';
-  if (trials.length === 0) {
-    messages.push('Please add at least one trial');
-  } else {
-    trials.forEach((trial, index) => {
-      const trialName = trialView.effectiveNamesByTrialId.get(trial.id) ?? `Trial ${index + 1}`;
-      if (!trialView.effectiveNamesByTrialId.get(trial.id)?.trim())
-        messages.push(`Please enter a name for ${trialName}`);
-      if (!trial.trialType) messages.push(`Please select a type for ${trialName}`);
-      if (!trial.trialDate) messages.push(`Please select a date for ${trialName}`);
-      const startTimeIssue = trialStartTimeIssues(trial);
-      if (startTimeIssue) messages.push(trialStartTimeMessage(startTimeIssue, trialName));
-      if (requiresEventNumber && !trial.eventNumber?.trim())
-        messages.push(`Please enter an event number for ${trialName} (required for AKC events)`);
-    });
-  }
-
-  return messages;
+  return getTrialValidationIssues(trials, trialView, organization).map(issue => issue.message);
 }
 
 /**
- * Get validation messages for the Class Selection step (step 2)
+ * Get validation issues for the Class Selection step (step 2). A trial's missing classes
+ * belong to that trial's tab; "pick something to save" and registry-rule errors belong to
+ * no single field.
  */
-export function getClassValidationMessages(
+export function getClassValidationIssues(
   trials: Trial[],
   trialView: WizardTrialView,
   organization: string,
@@ -208,19 +248,26 @@ export function getClassValidationMessages(
    * block Next. Only the "something to save" and registry checks apply.
    */
   scope: ValidationScope = 'full'
-): string[] {
-  const messages: string[] = [];
+): WizardIssue[] {
+  const issues: WizardIssue[] = [];
 
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
   if (totalClasses === 0) {
-    messages.push('Please add at least one class to the trials');
+    // With trials to fill (full scope) the gap sits on the first trial's tab; otherwise it is
+    // a whole-show rule with no field.
+    const first = scope === 'full' ? trials[0] : undefined;
+    issues.push({
+      field: first ? trialClassesFieldId(first.id) : null,
+      message: 'Please add at least one class to the trials',
+    });
   } else if (scope === 'full') {
     // Ensure every trial has at least one class
     trials.forEach(trial => {
       if (trial.classes.length === 0) {
-        messages.push(
-          `${trialView.effectiveNamesByTrialId.get(trial.id) || 'A trial'} needs at least one class`
-        );
+        issues.push({
+          field: trialClassesFieldId(trial.id),
+          message: `${trialView.effectiveNamesByTrialId.get(trial.id) || 'A trial'} needs at least one class`,
+        });
       }
     });
   }
@@ -230,17 +277,26 @@ export function getClassValidationMessages(
       normalizeWizardClassSelections(organization, trials, persistedClasses);
     } catch (error) {
       if (!(error instanceof InvalidWizardClassConfigurationError)) throw error;
-      messages.push(error.message);
+      issues.push({ field: null, message: error.message });
     }
   }
 
-  return messages;
+  return issues;
 }
 
 /**
- * Get all validation messages for a given step
+ * Get validation messages for the Class Selection step (step 2)
  */
-export function getValidationMessagesForStep(
+export function getClassValidationMessages(
+  ...args: Parameters<typeof getClassValidationIssues>
+): string[] {
+  return getClassValidationIssues(...args).map(issue => issue.message);
+}
+
+/**
+ * Get all validation issues for a given step
+ */
+export function getValidationIssuesForStep(
   step: number,
   show: ShowData,
   trials: Trial[],
@@ -249,27 +305,46 @@ export function getValidationMessagesForStep(
   persistedClasses: readonly PersistedClassIdentity[] = [],
   showDetailsOptions: ShowDetailsValidationOptions = {},
   scope: ValidationScope = 'full'
-): string[] {
+): WizardIssue[] {
   // The single choke point for add-classes: show-creation steps (Basics, Trials) and Review
   // are out of scope, so only the class step evaluates anything.
   if (scope === 'class-selection' && step !== 2) return [];
   switch (step) {
     case 0:
-      return getShowDetailsValidationMessages(show, showDetailsOptions);
+      return getShowDetailsValidationIssues(show, showDetailsOptions);
     case 1:
-      return getTrialValidationMessages(trials, trialView, show.organization);
+      return getTrialValidationIssues(trials, trialView, show.organization);
     case 2:
-      return getClassValidationMessages(
+      return getClassValidationIssues(
         trials,
         trialView,
         show.organization,
         persistedClasses,
         scope
       );
-    case 3:
-      // Review step shows its own validation
-      return [];
     default:
+      // Review (step 3) shows its own validation
       return [];
   }
+}
+
+/**
+ * Get all validation messages for a given step
+ */
+export function getValidationMessagesForStep(
+  ...args: Parameters<typeof getValidationIssuesForStep>
+): string[] {
+  return getValidationIssuesForStep(...args).map(issue => issue.message);
+}
+
+/**
+ * The errors to show beside their fields: field id to message, first message per field.
+ * Issues with no field are left to the top banner.
+ */
+export function fieldErrorsFromIssues(issues: readonly WizardIssue[]): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const { field, message } of issues) {
+    if (field !== null && !(field in errors)) errors[field] = message;
+  }
+  return errors;
 }

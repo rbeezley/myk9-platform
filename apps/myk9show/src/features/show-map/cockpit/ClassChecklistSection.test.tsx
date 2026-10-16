@@ -143,3 +143,34 @@ describe('ClassChecklistSection batch print', () => {
     expect(screen.getByText('Novice Container')).toBeInTheDocument();
   });
 });
+
+describe('ClassChecklistSection batch print without checklist items', () => {
+  it('offers Print selected for a class that has only Other paperwork', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    render(
+      <ClassChecklistSection
+        showId="show-1"
+        sourceClass={fromPartial<SecretaryCockpitClass>({
+          id: 'c1',
+          trialId: 't1',
+          name: 'Novice Container',
+          lifecycle: 'cancelled',
+          registryId: 'AKC',
+        })}
+        paperwork={[
+          {
+            reportId: 'armband-labels',
+            label: 'Armband labels',
+            state: 'unconfirmed',
+            printHref: '/print/armband-labels',
+          },
+        ]}
+        timeZone="America/New_York"
+        onCommand={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole('region', { name: 'Class checklist' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select Armband labels to print' }));
+    expect(screen.getByRole('button', { name: 'Print selected (1)' })).toBeInTheDocument();
+  });
+});

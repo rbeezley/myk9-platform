@@ -188,6 +188,19 @@ function ClassPrintPanelBody({
           Untick it and print it on its own.
         </p>
       )}
+      {batch && cannotMerge.length === 0 && blockedMessage && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm"
+        >
+          <span>{blockedMessage}</span>
+          {(readiness.state === 'error' || readiness.state === 'unavailable') && (
+            <Button type="button" variant="outline" className="min-h-11" onClick={() => refetch()}>
+              Try again
+            </Button>
+          )}
+        </div>
+      )}
       {batch && cannotMerge.length === 0 && (
         <section aria-label="Selected sheets preview">
           <h3 className="mb-2 text-sm font-semibold">

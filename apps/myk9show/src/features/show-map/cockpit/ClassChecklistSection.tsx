@@ -113,6 +113,16 @@ export function ClassChecklistSection({
 
   return (
     <>
+      {tickedPrintable.length > 0 && (
+        <Button
+          type="button"
+          className="mt-2 min-h-11 w-full sm:w-auto"
+          onClick={() => setPrintIds(tickedPrintable.map(item => item.reportId))}
+        >
+          <Printer className="mr-2 h-4 w-4" aria-hidden="true" />
+          {`Print selected (${tickedPrintable.length})`}
+        </Button>
+      )}
       {items.length > 0 && (
         <section aria-labelledby="class-checklist-heading">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -127,16 +137,6 @@ export function ClassChecklistSection({
               {summary.unknown > 0 ? ` · ${summary.unknown} unknown` : ''}
             </span>
           </div>
-          {tickedPrintable.length > 0 && (
-            <Button
-              type="button"
-              className="mt-2 min-h-11 w-full sm:w-auto"
-              onClick={() => setPrintIds(tickedPrintable.map(item => item.reportId))}
-            >
-              <Printer className="mr-2 h-4 w-4" aria-hidden="true" />
-              {`Print selected (${tickedPrintable.length})`}
-            </Button>
-          )}
           <ol className="mt-2 space-y-2">
             {items.map(item => (
               <li key={item.id}>

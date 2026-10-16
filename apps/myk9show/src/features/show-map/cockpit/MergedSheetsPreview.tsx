@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, type RefObject } from 'react';
 
+import { Button } from '@/components/ui/button';
+
 import { getReportById } from '@/lib/reports/reportRegistry';
 import { buildPages } from '@/pages/secretary/ReportsPage/reportPreviewPages';
 import type { ReportDataSet } from '@/lib/reports/types';
@@ -46,6 +48,8 @@ export function MergedSheetsPreview({
 }) {
   // The build the failure belongs to, so a new build starts clean without resetting state in an effect.
   const [failedFor, setFailedFor] = useState<unknown>(null);
+  // Bumped by Try again so the sheets are built afresh.
+  const [attempt, setAttempt] = useState(0);
   const key = reportIds.join('|');
   const parts = useMemo(() => {
     if (!ready || !show) return null;
@@ -66,7 +70,9 @@ export function MergedSheetsPreview({
     } catch {
       return 'error' as const;
     }
-  }, [ready, show, trialId, classId, trials, classes, entries, key]);
+    // `attempt` is not read in the body; it forces a fresh build after Try again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, show, trialId, classId, trials, classes, entries, key, attempt]);
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -100,7 +106,15 @@ export function MergedSheetsPreview({
     <div className="w-full">
       {failed && (
         <p role="alert" className="mb-2 text-sm text-destructive">
-          These sheets could not be combined. Print them one at a time.
+          These sheets could not be combined. Try again, or print them one at a time.
+          <Button
+            type="button"
+            variant="outline"
+            className="ml-2 min-h-11"
+            onClick={() => setAttempt(count => count + 1)}
+          >
+            Try again
+          </Button>
         </p>
       )}
       <iframe

@@ -84,4 +84,15 @@ describe('MergedSheetsPreview freshness', () => {
     expect(onReadyChange).toHaveBeenLastCalledWith(false);
     expect(await screen.findByRole('alert')).toHaveTextContent('could not be combined');
   });
+
+  it('offers Try again after a failed build and builds again', async () => {
+    const { ref } = view([{ id: 'a' }]);
+    await act(async () => mocks.merges[0]!.reject(new Error('boom')));
+    const retry = await screen.findByRole('button', { name: 'Try again' });
+    retry.click();
+    await waitFor(() => expect(mocks.merges).toHaveLength(2));
+    await act(async () => mocks.merges[1]!.resolve(new Uint8Array([1])));
+    await waitFor(() => expect(ref.current!.src).toMatch(/^blob:/));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });

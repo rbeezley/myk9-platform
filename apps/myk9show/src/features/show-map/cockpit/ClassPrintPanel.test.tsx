@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   recordPaperworkPrinted: vi.fn(),
   toast: Object.assign(vi.fn(), { error: vi.fn() }),
   dataState: 'ready' as string,
+  refetch: vi.fn(),
 }));
 
 vi.mock('sonner', () => ({ toast: mocks.toast }));
@@ -27,7 +28,7 @@ vi.mock('@/hooks/queries/useReportData', () => ({
     dataState: mocks.dataState,
     isLoading: false,
     isError: false,
-    refetch: vi.fn(),
+    refetch: mocks.refetch,
   }),
 }));
 vi.mock('@/pages/secretary/ReportsPage/ReportPreviewBody', () => ({
@@ -210,5 +211,13 @@ describe('ClassPrintPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Print' }));
     expect(mocks.toast).not.toHaveBeenCalled();
     await waitFor(() => expect(mocks.printIframeAndWait).toHaveBeenCalledOnce());
+  });
+
+  it('shows why a batch cannot preview, with Try again, when the class data failed to load', async () => {
+    mocks.dataState = 'error';
+    renderPanel([sheet('check-in-sheet', 'Check-in sheet'), sheet('scoresheet', 'Score sheets')]);
+    expect(screen.getByRole('alert')).toHaveTextContent('The entries could not be loaded');
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(mocks.refetch).toHaveBeenCalledOnce();
   });
 });

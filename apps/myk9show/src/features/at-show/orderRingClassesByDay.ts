@@ -19,13 +19,18 @@ const BUCKET_RANK: Record<RingDayBucket, number> = { today: 0, upcoming: 1, past
 export function orderRingClassesByDay(classes: YourRingClass[], nowMs: number): DatedRingClass[] {
   const dated = classes.map((c, index) => {
     const today = currentDateInTimeZone(nowMs, c.trialTimeZone);
-    const dayBucket: RingDayBucket = !c.trialDate
-      ? 'upcoming'
-      : c.trialDate === today
+    // A live class (scanPriority 0, `yourRingScanPriority`) is today's work
+    // whatever its date: a class running past midnight must stay on top.
+    const dayBucket: RingDayBucket =
+      c.scanPriority === 0
         ? 'today'
-        : c.trialDate > today
+        : !c.trialDate
           ? 'upcoming'
-          : 'past';
+          : c.trialDate === today
+            ? 'today'
+            : c.trialDate > today
+              ? 'upcoming'
+              : 'past';
     return { card: { ...c, dayBucket }, index };
   });
   dated.sort((a, b) => {

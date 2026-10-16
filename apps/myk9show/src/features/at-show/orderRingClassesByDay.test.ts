@@ -3,10 +3,15 @@ import type { ClassEntry } from '@myk9/ringside';
 import { orderRingClassesByDay } from './orderRingClassesByDay';
 import type { YourRingClass } from './atShowClassListSort';
 
-function card(id: string, trialDate: string | undefined, trialTimeZone = 'America/New_York') {
+function card(
+  id: string,
+  trialDate: string | undefined,
+  trialTimeZone = 'America/New_York',
+  scanPriority = 1
+) {
   return {
     entry: { id, class_name: id, class_order: 1 } as ClassEntry,
-    scanPriority: 1,
+    scanPriority,
     trialTimeZone,
     trialDate,
   } satisfies YourRingClass;
@@ -57,6 +62,19 @@ describe('orderRingClassesByDay', () => {
       ['b', 'today'],
       ['a', 'today'],
       ['none', 'upcoming'],
+    ]);
+  });
+
+  it("keeps a live class on yesterday's date on top and out of the past bucket", () => {
+    // 00:30 Oct 17 in New York: the Oct 16 trial is now yesterday.
+    const justAfterMidnight = new Date('2026-10-17T04:30:00Z').getTime();
+    const result = orderRingClassesByDay(
+      [card('up', '2026-10-18'), card('live', '2026-10-16', 'America/New_York', 0)],
+      justAfterMidnight
+    );
+    expect(result.map(r => [r.entry.id, r.dayBucket])).toEqual([
+      ['live', 'today'],
+      ['up', 'upcoming'],
     ]);
   });
 });

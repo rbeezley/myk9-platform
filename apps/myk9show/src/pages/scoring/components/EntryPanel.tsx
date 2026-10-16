@@ -19,7 +19,8 @@ interface EntryPanelProps {
   settings: SessionSettings;
   onSave: (result: PaperResult, timeDigits: string, faults: number, reason?: string) => void;
   onSaveAndNext: (result: PaperResult, timeDigits: string, faults: number, reason?: string) => void;
-  onClearResult?: (() => void) | undefined;
+  /** Resolves false when the clear failed, so the panel keeps showing the saved score. */
+  onClearResult?: (() => void | Promise<boolean>) | undefined;
   onClose: () => void;
   isSaving: boolean;
   /** Class time limit in seconds; a Q over it shows a warning (still saveable). Omit when unknown. */
@@ -116,13 +117,13 @@ export function EntryPanel({
   const normalizedReason = needsReason ? reason.trim() : undefined;
   const canClearResult = !!onClearResult && (entry.isScored || entry.result);
 
-  const handleClearResult = () => {
+  const handleClearResult = async () => {
     setIsClearConfirmOpen(false);
+    if ((await onClearResult?.()) === false) return;
     setSelectedResult(settings.preFill === 'none' ? null : settings.preFill);
     setTimeDigits('');
     setFaults(0);
     setReason('');
-    onClearResult?.();
   };
 
   return (

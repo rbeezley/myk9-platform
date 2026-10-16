@@ -36,6 +36,7 @@ import { sortByExhibitorOrder } from './paper-scoring-types';
 import { cn } from '@/lib/utils';
 import type { ScoringEntry } from './types';
 import type { PaperResult, PaperScoringMode } from './paper-scoring-types';
+import { logger } from '@/services/LoggingService';
 
 function getClassDetailsHref({
   showId,
@@ -280,7 +281,7 @@ export function PaperScoresheetPage() {
     return fresh;
   };
 
-  // A rejected write is said out loud, naming the dog, never left as an
+  // A rejected write is said out loud in plain words, naming the dog, never left as an
   // unhandled rejection. On a failed save the page neither reloads nor
   // advances, so the panel keeps what was typed for a retry (MYK9-1246).
   const tryWrite = async (
@@ -293,10 +294,10 @@ export function PaperScoresheetPage() {
       await write();
       return true;
     } catch (err) {
+      logger.error(`${action}:`, 'pages', { entryId }, err as Error);
       const entry = entries.find(e => e.entryId === entryId);
       const dog = entry ? `${entry.armband} ${entry.callName}` : 'this dog';
-      const detail = err instanceof Error && err.message ? err.message : 'Please try again.';
-      setSaveError(`${action} for ${dog}: ${detail}`);
+      setSaveError(`${action} for ${dog}. Please try again.`);
       return false;
     }
   };
@@ -346,8 +347,11 @@ export function PaperScoresheetPage() {
     const entryId = onScreenEntryId;
     if (!entryId) return;
     // A failed clear still reloads, so the list shows the score that stayed.
-    await tryWrite(entryId, 'Result not cleared', () => scoring.clearEntry(entryId));
+    const cleared = await tryWrite(entryId, 'Result not cleared', () =>
+      scoring.clearEntry(entryId)
+    );
     await reloadEntries();
+    return cleared;
   };
 
   const handleModeChange = (mode: PaperScoringMode) => {

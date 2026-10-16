@@ -15,7 +15,7 @@ interface SequentialViewProps {
   onNavigate: (index: number) => void;
   onSave: (result: PaperResult, timeDigits: string, faults: number, reason?: string) => void;
   onSaveAndNext: (result: PaperResult, timeDigits: string, faults: number, reason?: string) => void;
-  onClearResult?: (() => void) | undefined;
+  onClearResult?: (() => void | Promise<boolean>) | undefined;
   isSaving: boolean;
   maxTimeSeconds?: number | undefined;
   sportType?: ScoresheetSportType | null | undefined;

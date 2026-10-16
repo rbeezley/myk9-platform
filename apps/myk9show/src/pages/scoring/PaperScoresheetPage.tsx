@@ -80,8 +80,9 @@ export function PaperScoresheetPage() {
   // A background reload that failed: the last good list (and any unsaved
   // entry) stays on screen with this note, never the error state.
   const [refreshFailed, setRefreshFailed] = useState(false);
-  // Keyed to the dog whose save failed, so the note never sits over another dog.
-  const [saveError, setSaveError] = useState<{ entryId: string; message: string } | null>(null);
+  // A write that failed, named by its dog, so it stays visible whichever dog
+  // is on screen (MYK9-1246).
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const retryLoad = () => setLoadAttempt(attempt => attempt + 1);
   // Counts class loads that read successfully. A save-and-next whose refresh
@@ -279,31 +280,37 @@ export function PaperScoresheetPage() {
     return fresh;
   };
 
-  // A rejected save is said out loud, never left as an unhandled rejection. The
-  // panel keeps what was typed and the page neither reloads nor advances, so a
-  // retry sends the same values (MYK9-1246).
-  const trySave = async (
+  // A rejected write is said out loud, naming the dog, never left as an
+  // unhandled rejection. On a failed save the page neither reloads nor
+  // advances, so the panel keeps what was typed for a retry (MYK9-1246).
+  const tryWrite = async (
+    entryId: string,
+    action: string,
+    write: () => Promise<void>
+  ): Promise<boolean> => {
+    setSaveError(null);
+    try {
+      await write();
+      return true;
+    } catch (err) {
+      const entry = entries.find(e => e.entryId === entryId);
+      const dog = entry ? `${entry.armband} ${entry.callName}` : 'this dog';
+      const detail = err instanceof Error && err.message ? err.message : 'Please try again.';
+      setSaveError(`${action} for ${dog}: ${detail}`);
+      return false;
+    }
+  };
+
+  const trySave = (
     entryId: string,
     result: PaperResult,
     timeDigits: string,
     faults: number,
     reason?: string
-  ): Promise<boolean> => {
-    setSaveError(null);
-    try {
-      await scoring.saveEntry(entryId, result, timeDigits, faults, reason);
-      return true;
-    } catch (err) {
-      setSaveError({
-        entryId,
-        message:
-          err instanceof Error && err.message
-            ? `Score not saved: ${err.message}`
-            : 'Score not saved. Please try again.',
-      });
-      return false;
-    }
-  };
+  ) =>
+    tryWrite(entryId, 'Score not saved', () =>
+      scoring.saveEntry(entryId, result, timeDigits, faults, reason)
+    );
 
   const handleSave = async (
     result: PaperResult,
@@ -338,7 +345,8 @@ export function PaperScoresheetPage() {
   const handleClearResult = async () => {
     const entryId = onScreenEntryId;
     if (!entryId) return;
-    await scoring.clearEntry(entryId);
+    // A failed clear still reloads, so the list shows the score that stayed.
+    await tryWrite(entryId, 'Result not cleared', () => scoring.clearEntry(entryId));
     await reloadEntries();
   };
 
@@ -421,13 +429,13 @@ export function PaperScoresheetPage() {
 
       <SessionToolbar settings={scoring.sessionSettings} onChange={scoring.setSessionSettings} />
 
-      {saveError && saveError.entryId === onScreenEntryId && (
+      {saveError && (
         <div
           role="alert"
           className="mx-4 mt-2 flex items-center gap-2 rounded-lg bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground"
         >
           <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{saveError.message}</span>
+          <span>{saveError}</span>
           <button type="button" onClick={() => setSaveError(null)} className="ml-auto underline">
             Dismiss
           </button>

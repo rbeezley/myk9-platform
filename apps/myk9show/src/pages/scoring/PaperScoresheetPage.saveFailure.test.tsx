@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import type { ScoringEntry } from './types';
 
 /**
@@ -128,12 +128,29 @@ describe('PaperScoresheetPage — saving (MYK9-1246)', () => {
     await userEvent.click(screen.getByRole('button', { name: /save & next/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      /score not saved.*entry e1 not found/i
+      /score not saved for 101 willow: entry e1 not found/i
     );
     expect(screen.getByLabelText(/search time/i)).toHaveValue('1:02.03');
     expect(screen.getByRole('button', { name: 'Q' })).toHaveAttribute('data-selected', 'true');
     expect(screen.getByRole('button', { name: /^save$/i })).toBeEnabled();
     expect(screen.getAllByText('Willow').length).toBeGreaterThan(0);
     expect(replica.loadCalls).toBe(loadsBefore);
+  });
+
+  it('says a clear failed, naming the dog, and reloads so the list shows the score that stayed', async () => {
+    replica.rows = [
+      { ...dog('e1', 'Willow', 1), isScored: true, status: 'completed', result: 'qualified' },
+    ];
+    replica.updateEntry.mockRejectedValue(new Error('queue full'));
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: /clear result/i }));
+    const dialog = await screen.findByRole('alertdialog');
+    const loadsBefore = replica.loadCalls;
+    await userEvent.click(within(dialog).getByRole('button', { name: /clear result/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /result not cleared for 101 willow: queue full/i
+    );
+    await waitFor(() => expect(replica.loadCalls).toBe(loadsBefore + 1));
   });
 });

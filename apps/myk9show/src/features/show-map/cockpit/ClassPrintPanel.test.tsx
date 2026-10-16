@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 
@@ -30,17 +31,47 @@ vi.mock('@/hooks/queries/useReportData', () => ({
   }),
 }));
 vi.mock('@/pages/secretary/ReportsPage/ReportPreviewBody', () => ({
-  ReportPreviewBody: ({ reportType }: { reportType: string }) => (
-    <iframe title={`frame-${reportType}`} />
+  ReportPreviewBody: ({
+    reportType,
+    onArmbandDescriptorChange,
+  }: {
+    reportType: string;
+    onArmbandDescriptorChange?: (descriptor: unknown) => void;
+  }) => (
+    <>
+      <iframe title={`frame-${reportType}`} />
+      <button
+        type="button"
+        onClick={() =>
+          onArmbandDescriptorChange?.({
+            reportId: 'armband-labels',
+            scope: { kind: 'class', showId: 'show-1', trialId: 't1', classId: 'c1' },
+            coverage: { scopeKind: 'class', picked: true },
+            fingerprint: 'fp-picked-armbands',
+          })
+        }
+      >
+        pick armbands
+      </button>
+    </>
   ),
 }));
 vi.mock('@/pages/secretary/ReportsPage/reportPreviewUtils', () => ({
   printIframeAndWait: mocks.printIframeAndWait,
 }));
 vi.mock('./MergedSheetsPreview', () => ({
-  MergedSheetsPreview: ({ reportIds }: { reportIds: string[] }) => (
-    <iframe title={`merged-${reportIds.join('+')}`} />
-  ),
+  MergedSheetsPreview: function MergedStub({
+    reportIds,
+    onReadyChange,
+  }: {
+    reportIds: string[];
+    onReadyChange?: (ready: boolean) => void;
+  }) {
+    useEffect(() => {
+      onReadyChange?.(true);
+    }, [onReadyChange]);
+    return <iframe title={`merged-${reportIds.join('+')}`} />;
+  },
   unmergeableReportIds: (ids: string[]) => ids.filter(id => id === 'results-sheet'),
 }));
 vi.mock('./paperworkPrintActions', () => ({
@@ -154,5 +185,30 @@ describe('ClassPrintPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Print' }));
     await waitFor(() => expect(mocks.printIframeAndWait).toHaveBeenCalledOnce());
     expect(mocks.recordPaperworkPrinted).not.toHaveBeenCalled();
+  });
+
+  it('records exactly the armband labels shown, not the full-class descriptor', async () => {
+    renderPanel([sheet('armband-labels', 'Armband labels')]);
+    await userEvent.click(screen.getByRole('button', { name: 'pick armbands' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Print' }));
+    await waitFor(() => expect(mocks.recordPaperworkPrinted).toHaveBeenCalledOnce());
+    const descriptor = mocks.recordPaperworkPrinted.mock.calls[0]![0].descriptor;
+    expect(descriptor.fingerprint).toBe('fp-picked-armbands');
+    expect(descriptor.coverage).toEqual({ scopeKind: 'class', picked: true });
+  });
+
+  it('records no armband print until the preview has reported what it shows', async () => {
+    renderPanel([sheet('armband-labels', 'Armband labels')]);
+    await userEvent.click(screen.getByRole('button', { name: 'Print' }));
+    await waitFor(() => expect(mocks.printIframeAndWait).toHaveBeenCalledOnce());
+    expect(mocks.recordPaperworkPrinted).not.toHaveBeenCalled();
+  });
+
+  it('prints armband labels while unrelated report queries are still loading', async () => {
+    mocks.dataState = 'loading';
+    renderPanel([sheet('armband-labels', 'Armband labels')]);
+    await userEvent.click(screen.getByRole('button', { name: 'Print' }));
+    expect(mocks.toast).not.toHaveBeenCalled();
+    await waitFor(() => expect(mocks.printIframeAndWait).toHaveBeenCalledOnce());
   });
 });

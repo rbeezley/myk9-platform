@@ -48,3 +48,13 @@ export function resolvePrintReadiness(
     reportState === state ? REPORT_ROWS_MESSAGE[state] : HOSTED_DETAILS_MESSAGE[state];
   return { state, blockedMessage };
 }
+
+/**
+ * Why Print is refused for `reportType`, or null when it may print. Armband labels are exempt:
+ * ArmbandLabelsReport reads its own `['armband-label-entries', showId]` query and never touches
+ * trials/classes/entries, so gating it on them would refuse a sheet that is on screen and correct.
+ * Result labels are NOT exempt -- they are handed trials/classes/entries as props.
+ */
+export function blockedPrintMessage(reportType: string, readiness: PrintReadiness): string | null {
+  return reportType === 'armband-labels' ? null : readiness.blockedMessage;
+}

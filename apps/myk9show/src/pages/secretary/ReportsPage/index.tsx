@@ -25,7 +25,7 @@ import { useReportScopeOptions } from './useReportScopeOptions';
 import { useJudgeDayReportScope } from './useJudgeDayReportScope';
 import type { ReportDbEntry } from '@/lib/reports/types';
 import { useHostedReportData } from './useHostedReportData';
-import { resolvePrintReadiness } from './reportReadinessCopy';
+import { blockedPrintMessage, resolvePrintReadiness } from './reportReadinessCopy';
 import { ReportPrintStatus } from './ReportPrintStatus';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
@@ -223,13 +223,10 @@ export default function ReportsPage() {
     // whose iframe body is non-empty, so printIframe() happily returns true and
     // the secretary gets a roster with no dogs on it.
     //
-    // Armband labels are exempt: ArmbandLabelsReport reads its own
-    // `['armband-label-entries', showId]` query and never touches
-    // trials/classes/entries, so gating it here would refuse to print a sheet
-    // that is on screen and correct, citing data it does not use. Result labels
-    // are NOT exempt -- they are handed trials/classes/entries as props.
-    if (reportType !== 'armband-labels' && printReadiness.blockedMessage) {
-      toast(printReadiness.blockedMessage);
+    // Armband labels are exempt (see blockedPrintMessage).
+    const blockedMessage = blockedPrintMessage(reportType, printReadiness);
+    if (blockedMessage) {
+      toast(blockedMessage);
       return;
     }
     // A linked judge day that is not in this show would print an empty catalog (MYK9-1036).

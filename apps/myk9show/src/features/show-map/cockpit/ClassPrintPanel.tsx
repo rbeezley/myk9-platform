@@ -10,7 +10,10 @@ import { useReportData } from '@/hooks/queries/useReportData';
 import { resolveReportScope } from '@/lib/reports/reportScope';
 import { getReportById } from '@/lib/reports/reportRegistry';
 import { ReportPreviewBody } from '@/pages/secretary/ReportsPage/ReportPreviewBody';
-import { resolvePrintReadiness } from '@/pages/secretary/ReportsPage/reportReadinessCopy';
+import {
+  blockedPrintMessage,
+  resolvePrintReadiness,
+} from '@/pages/secretary/ReportsPage/reportReadinessCopy';
 import { printIframeAndWait } from '@/pages/secretary/ReportsPage/reportPreviewUtils';
 import { NO_HOSTED_REPORT_DATA } from '@/pages/secretary/ReportsPage/useHostedReportData';
 import { MergedSheetsPreview, unmergeableReportIds } from './MergedSheetsPreview';
@@ -103,24 +106,39 @@ function ClassPrintPanelBody({
     [items]
   );
   const readiness = resolvePrintReadiness(dataState, 'ready');
+  // Armband labels read their own query, so unrelated report reads never block them (as in Reports).
+  const blockedMessage = items.every(item => blockedPrintMessage(item.reportId, readiness) === null)
+    ? null
+    : readiness.blockedMessage;
   const unrecordable = items.filter(item => !item.confirmation);
 
   const resolvedTrials = trials ?? currentShow?.trials ?? [];
   const batch = items.length > 1;
   const mergedFrame = useRef<HTMLIFrameElement>(null);
+  const [mergedReady, setMergedReady] = useState(false);
+  // What the armband preview is showing now: a picked armband or a filter changes which labels
+  // print, so that, not the full-class confirmation, is what gets recorded (as in Reports).
+  const [armbandDescriptor, setArmbandDescriptor] = useState<PaperworkDescriptor | null>(null);
   const cannotMerge = batch ? unmergeableReportIds(items.map(item => item.reportId)) : [];
   const labelOf = (id: string) => items.find(item => item.reportId === id)?.label ?? id;
 
   const record = async (item: SecretaryCockpitPaperwork) => {
     if (!user || !item.confirmation) return;
+    const descriptor: PaperworkDescriptor | null =
+      item.reportId === 'armband-labels'
+        ? armbandDescriptor
+        : {
+            reportId: item.reportId,
+            scope: item.confirmation.scope,
+            coverage: item.confirmation.coverage as PaperworkDescriptor['coverage'],
+            fingerprint: item.confirmation.fingerprint,
+          };
+    // No descriptor yet means the preview has not said which labels it shows: record nothing
+    // rather than claim labels that were not printed.
+    if (!descriptor) return;
     try {
       await recordPaperworkPrinted({
-        descriptor: {
-          reportId: item.reportId,
-          scope: item.confirmation.scope,
-          coverage: item.confirmation.coverage as PaperworkDescriptor['coverage'],
-          fingerprint: item.confirmation.fingerprint,
-        },
+        descriptor,
         user,
         undoReason: 'Undid print record',
         undoFailureMessage: 'Could not undo that. The sheet is still marked printed.',
@@ -131,8 +149,8 @@ function ClassPrintPanelBody({
   };
 
   const printAll = async () => {
-    if (readiness.blockedMessage) {
-      toast(readiness.blockedMessage);
+    if (blockedMessage) {
+      toast(blockedMessage);
       return;
     }
     // One print job: the merged frame for a batch, the sheet's own frame for a single sheet.
@@ -183,7 +201,8 @@ function ClassPrintPanelBody({
             entries={entries}
             trialId={trialId}
             classId={classId}
-            ready={!readiness.blockedMessage}
+            ready={!blockedMessage}
+            onReadyChange={setMergedReady}
             iframeRef={mergedFrame}
           />
         </section>
@@ -213,6 +232,7 @@ function ClassPrintPanelBody({
                 downloadBlockedReason={undefined}
                 onRetry={() => refetch()}
                 iframeRef={frames.get(item.reportId)!}
+                onArmbandDescriptorChange={setArmbandDescriptor}
               />
             </div>
           </section>
@@ -222,7 +242,9 @@ function ClassPrintPanelBody({
           type="button"
           size="touch"
           className="w-full sm:w-auto"
-          disabled={printing || items.length === 0 || cannotMerge.length > 0}
+          disabled={
+            printing || items.length === 0 || cannotMerge.length > 0 || (batch && !mergedReady)
+          }
           onClick={() => void printAll()}
         >
           <Printer className="mr-2 h-4 w-4" aria-hidden="true" />

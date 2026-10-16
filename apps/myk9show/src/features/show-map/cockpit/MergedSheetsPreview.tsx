@@ -27,6 +27,7 @@ export function MergedSheetsPreview({
   classId,
   ready,
   iframeRef,
+  onReadyChange,
 }: {
   reportIds: readonly string[];
   show: Show | null | undefined;
@@ -37,8 +38,14 @@ export function MergedSheetsPreview({
   classId: string;
   ready: boolean;
   iframeRef: RefObject<HTMLIFrameElement | null>;
+  /**
+   * True only while the frame holds the PDF built from the CURRENT inputs. The caller blocks Print
+   * otherwise, so a stale merge can never print under the current sheets' fingerprints.
+   */
+  onReadyChange?: (ready: boolean) => void;
 }) {
-  const [failed, setFailed] = useState(false);
+  // The build the failure belongs to, so a new build starts clean without resetting state in an effect.
+  const [failedFor, setFailedFor] = useState<unknown>(null);
   const key = reportIds.join('|');
   const parts = useMemo(() => {
     if (!ready || !show) return null;
@@ -63,27 +70,35 @@ export function MergedSheetsPreview({
 
   useEffect(() => {
     const iframe = iframeRef.current;
+    // The inputs changed: whatever the frame holds describes obsolete sheets. Empty it first.
+    if (iframe?.getAttribute('src')?.startsWith('blob:')) iframe.src = 'about:blank';
+    onReadyChange?.(false);
     if (!iframe || !parts || parts === 'error' || parts.some(part => part === null)) return;
     let url: string | null = null;
-    let cancelled = false;
+    // Set by the cleanup of this build, so an older merge resolving late is dropped.
+    let superseded = false;
     mergeReportPdfs(parts as Uint8Array[])
       .then(bytes => {
-        if (cancelled) return;
+        if (superseded) return;
         const copy = new Uint8Array(bytes.byteLength);
         copy.set(bytes);
         url = URL.createObjectURL(new Blob([copy.buffer], { type: 'application/pdf' }));
         iframe.src = url;
+        onReadyChange?.(true);
       })
-      .catch(() => setFailed(true));
+      .catch(() => {
+        if (!superseded) setFailedFor(parts);
+      });
     return () => {
-      cancelled = true;
+      superseded = true;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [parts, iframeRef]);
+  }, [parts, iframeRef, onReadyChange]);
+  const failed = parts === 'error' || (parts !== null && failedFor === parts);
 
   return (
     <div className="w-full">
-      {(failed || parts === 'error') && (
+      {failed && (
         <p role="alert" className="mb-2 text-sm text-destructive">
           These sheets could not be combined. Print them one at a time.
         </p>

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect } from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import {
@@ -238,7 +238,11 @@ describe('Clubs list with a detail pane', () => {
 
     await user.click(screen.getByRole('button', { name: 'Save club' }));
 
-    expect(screen.getByTestId('location')).toHaveTextContent(/^\/clubs\/club-new$/);
+    // The save is awaited before the panel closes; wait for both to land.
+    await waitFor(() => expect(addClub).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent(/^\/clubs\/club-new$/)
+    );
     expect(screen.queryByRole('dialog', { name: 'Add Club panel' })).not.toBeInTheDocument();
   });
 

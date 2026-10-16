@@ -447,31 +447,31 @@ const MyEntriesPage: React.FC = () => {
                       always the split, even with no results, so the filter strip in its list pane
                       never unmounts under the focused chip. */}
                     <MyShowsSplit
-                        filters={isWide ? filterStrip : undefined}
-                        emptyState={
-                          filteredEntries.length === 0 && waitlistSurface.allowEmptyState ? (
-                            <EntriesEmptyState
-                              selectedTab={selectedTab}
-                              selectedStatus={selectedStatus}
-                              onSwitchTab={setSelectedTab}
-                            />
-                          ) : null
-                        }
-                        filteredEntries={filteredEntries}
-                        allOrders={entries}
-                        source={entriesSource}
-                        selectedStatus={selectedStatus}
-                        selfCheckinByClassId={selfCheckinByClassId}
-                        seenResultReleaseKeys={reveal.seenResultReleaseKeys}
-                        onCheckInDay={dialogs.checkInClassesForDay}
-                        onOpenCheckIn={dialogs.openCheckIn}
-                        onOpenEdit={dialogs.openEdit}
-                        onLeaveClass={dialogs.openLeaveClass}
-                        onOpenReceipts={(group, moneyKind) =>
-                          dialogs.openReceipt(group.orders, moneyKind)
-                        }
-                        onResultRevealClick={reveal.openResultReveal}
-                      />
+                      filters={isWide ? filterStrip : undefined}
+                      emptyState={
+                        filteredEntries.length === 0 && waitlistSurface.allowEmptyState ? (
+                          <EntriesEmptyState
+                            selectedTab={selectedTab}
+                            selectedStatus={selectedStatus}
+                            onSwitchTab={setSelectedTab}
+                          />
+                        ) : null
+                      }
+                      filteredEntries={filteredEntries}
+                      allOrders={entries}
+                      source={entriesSource}
+                      selectedStatus={selectedStatus}
+                      selfCheckinByClassId={selfCheckinByClassId}
+                      seenResultReleaseKeys={reveal.seenResultReleaseKeys}
+                      onCheckInDay={dialogs.checkInClassesForDay}
+                      onOpenCheckIn={dialogs.openCheckIn}
+                      onOpenEdit={dialogs.openEdit}
+                      onLeaveClass={dialogs.openLeaveClass}
+                      onOpenReceipts={(group, moneyKind) =>
+                        dialogs.openReceipt(group.orders, moneyKind)
+                      }
+                      onResultRevealClick={reveal.openResultReveal}
+                    />
                     {selectedStatus === 'waitlist' && waitlistSection}
                   </div>
                 </div>

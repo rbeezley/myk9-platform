@@ -240,7 +240,8 @@ To put one dog in a specific spot, open **Run order → Reorder manually...**. E
 
 **Overview → click the class → Class checklist.** Seven items: Check-in sheet, Score sheets, Class started, Scoring complete, Preliminary results, Ribbon labels, and Judge sign-off collected (the judge's initials on an AKC catalog). The squares on the class's schedule card mirror it.
 
-- Print items have **Print** (or **Reprint**) and **Record as printed** — use the second when you printed outside the app, so the checklist knows.
+- Print items have **Print** (or **Reprint**). It opens a preview in a panel beside the Overview, so you never leave the page. When the print window closes, the sheet is recorded as printed and the row reads **Printed 2:14 PM · Undo**. Cancelling the print window records it too, so tap **Undo** if nothing came out.
+- To print the check-in and score sheets together, tick the box beside each one and tap **Print selected**.
 - An item that changed after printing reads **Needs reprint** (an amber square) — for example score sheets after a move-up.
 - Items can be done in any order; nothing blocks anything else.
 

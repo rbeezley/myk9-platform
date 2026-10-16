@@ -97,11 +97,49 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
         onCommand={vi.fn()}
       />
     );
-    const hrefs = screen.getAllByRole('link').map(link => link.getAttribute('href'));
-    expect(hrefs).toContain('/print/check-in-sheet');
-    expect(hrefs).toContain('/print/scoresheet');
-    expect(hrefs).not.toContain('/print/results-sheet');
-    expect(hrefs).not.toContain('/print/result-labels');
+    // Print opens beside the page (no link to Reports), and only these two sheets can be ticked.
+    const printable = screen.getAllByRole('checkbox').map(box => box.getAttribute('aria-label'));
+    expect(printable).toEqual(['Select Check-in sheet to print', 'Select Score sheets to print']);
+    expect(screen.getAllByRole('button', { name: 'Print' })).toHaveLength(2);
+    const hrefs = screen.queryAllByRole('link').map(link => link.getAttribute('href'));
+    expect(hrefs).not.toContain('/print/check-in-sheet');
     expect(screen.queryByText('Other paperwork')).toBeNull();
+  });
+});
+
+describe('ClassChecklistSection batch print', () => {
+  it('ticks several sheets and opens one print panel for them together', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const completeClass = fromPartial<SecretaryCockpitClass>({
+      id: 'c1',
+      trialId: 't1',
+      name: 'Novice Container',
+      lifecycle: 'complete',
+      entryCount: 2,
+      scoredCount: 0,
+      registryId: 'AKC',
+    });
+    const sheet = (reportId: string, label: string) => ({
+      reportId,
+      label,
+      state: 'unconfirmed' as const,
+      printHref: `/print/${reportId}`,
+    });
+    render(
+      <ClassChecklistSection
+        showId="show-1"
+        sourceClass={completeClass}
+        paperwork={[sheet('check-in-sheet', 'Check-in sheet'), sheet('scoresheet', 'Score sheets')]}
+        timeZone="America/New_York"
+        onCommand={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole('button', { name: /Print selected/ })).not.toBeInTheDocument();
+    const boxes = screen.getAllByRole('checkbox');
+    expect(boxes.length).toBeGreaterThanOrEqual(2);
+    for (const box of boxes.slice(0, 2)) await userEvent.click(box);
+    await userEvent.click(screen.getByRole('button', { name: 'Print selected (2)' }));
+    expect(await screen.findByText('Print selected sheets')).toBeInTheDocument();
+    expect(screen.getByText('Novice Container')).toBeInTheDocument();
   });
 });

@@ -28,7 +28,11 @@ function getPrintedByName(user: User): string {
 export async function recordPaperworkPrinted(input: {
   descriptor: PaperworkDescriptor;
   user: User;
-  message: string;
+  /**
+   * The undo toast. Omit it where the record shows on the row with its own Undo (the Overview's
+   * print panel), so the secretary has a line that stays instead of a toast that vanishes.
+   */
+  message?: string;
   undoReason: string;
   undoFailureMessage: string;
 }): Promise<ReplicatedPaperworkPrint> {
@@ -41,13 +45,36 @@ export async function recordPaperworkPrinted(input: {
     printedBy: user.id,
     printedByName: getPrintedByName(user),
   });
-  showUndoToast({
-    message: input.message,
-    onUndo: () => {
-      void replicatedPaperworkPrintsTable
-        .voidPrint({ id: record.id, voidedBy: user.id, reason: input.undoReason })
-        .catch(() => toast.error(input.undoFailureMessage));
-    },
-  });
+  if (input.message) {
+    showUndoToast({
+      message: input.message,
+      onUndo: () => {
+        void voidPaperworkPrint({
+          recordId: record.id,
+          user,
+          reason: input.undoReason,
+          failureMessage: input.undoFailureMessage,
+        });
+      },
+    });
+  }
   return record;
+}
+
+/** The single undo path: marks a print record not printed, keeping it in the history. */
+export async function voidPaperworkPrint(input: {
+  recordId: string;
+  user: User;
+  reason: string;
+  failureMessage: string;
+}): Promise<void> {
+  try {
+    await replicatedPaperworkPrintsTable.voidPrint({
+      id: input.recordId,
+      voidedBy: input.user.id,
+      reason: input.reason,
+    });
+  } catch {
+    toast.error(input.failureMessage);
+  }
 }

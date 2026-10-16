@@ -1,8 +1,11 @@
-import { CheckCircle2, CircleHelp, Clock3, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle2, CircleHelp, Clock3, Printer, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getCockpitResultsControlHref, getShowHomeHref } from './cockpitRoutes';
+import { ClassPrintPanel } from './ClassPrintPanel';
 import { CockpitPaperworkRow } from './CockpitPaperworkRow';
 import {
   buildClassChecklist,
@@ -81,6 +84,32 @@ export function ClassChecklistSection({
   const checklistIds = new Set<string>(items.map(item => item.id));
   const otherPaperwork = paperwork.filter(item => !checklistIds.has(item.reportId));
   const summary = summarizeClassChecklist(items);
+  // Sheets ticked for one batch, and the sheets the open print panel is showing. Print on a row
+  // previews just that sheet; "Print selected" previews every ticked sheet in one panel.
+  const [ticked, setTicked] = useState<ReadonlySet<string>>(new Set());
+  const [printIds, setPrintIds] = useState<readonly string[] | null>(null);
+  const printable = [...items.map(item => item.paperwork), ...otherPaperwork].filter(
+    (item): item is SecretaryCockpitPaperwork => Boolean(item?.printHref)
+  );
+  const labelFor = new Map<string, string>(items.map(item => [item.id, item.label]));
+  const panelItems = printable
+    .filter(item => printIds?.includes(item.reportId))
+    .map(item => ({ ...item, label: labelFor.get(item.reportId) ?? item.label }));
+  const tickedPrintable = printable.filter(item => ticked.has(item.reportId));
+  const rowProps = (item: SecretaryCockpitPaperwork) =>
+    item.printHref
+      ? {
+          onPrint: () => setPrintIds([item.reportId]),
+          selected: ticked.has(item.reportId),
+          onSelectedChange: (checked: boolean) =>
+            setTicked(current => {
+              const next = new Set(current);
+              if (checked) next.add(item.reportId);
+              else next.delete(item.reportId);
+              return next;
+            }),
+        }
+      : {};
 
   return (
     <>
@@ -98,6 +127,16 @@ export function ClassChecklistSection({
               {summary.unknown > 0 ? ` · ${summary.unknown} unknown` : ''}
             </span>
           </div>
+          {tickedPrintable.length > 0 && (
+            <Button
+              type="button"
+              className="mt-2 min-h-11 w-full sm:w-auto"
+              onClick={() => setPrintIds(tickedPrintable.map(item => item.reportId))}
+            >
+              <Printer className="mr-2 h-4 w-4" aria-hidden="true" />
+              {`Print selected (${tickedPrintable.length})`}
+            </Button>
+          )}
           <ol className="mt-2 space-y-2">
             {items.map(item => (
               <li key={item.id}>
@@ -106,6 +145,7 @@ export function ClassChecklistSection({
                     item={{ ...item.paperwork, label: item.label }}
                     timeZone={timeZone}
                     onCommand={onCommand}
+                    {...rowProps(item.paperwork)}
                   />
                 ) : (
                   <ChecklistStepRow item={item} />
@@ -128,11 +168,24 @@ export function ClassChecklistSection({
                 item={item}
                 timeZone={timeZone}
                 onCommand={onCommand}
+                {...rowProps(item)}
               />
             ))}
           </div>
         </section>
       )}
+      <ClassPrintPanel
+        open={printIds !== null && panelItems.length > 0}
+        showId={showId}
+        trialId={sourceClass.trialId}
+        classId={sourceClass.id}
+        classLabel={sourceClass.name}
+        items={panelItems}
+        onClose={() => {
+          setPrintIds(null);
+          setTicked(current => new Set([...current].filter(id => !printIds?.includes(id))));
+        }}
+      />
     </>
   );
 }

@@ -97,6 +97,7 @@ export function buildClassPaperworkMap(input: {
                 }),
             ...(derived.record
               ? {
+                  recordId: derived.record.id,
                   printedAt: derived.record.printedAt,
                   printedBy: derived.record.printedByName,
                   coveredByScope: derived.record.coverage.scopeKind as 'show' | 'trial' | 'class',
@@ -125,6 +126,7 @@ export function buildClassPaperworkMap(input: {
               }),
           ...(derived.record
             ? {
+                recordId: derived.record.id,
                 printedAt: derived.record.printedAt,
                 printedBy: derived.record.printedByName,
                 coveredByScope: derived.record.coverage.scopeKind as 'show' | 'trial' | 'class',

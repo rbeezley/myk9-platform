@@ -1,4 +1,4 @@
-import React, { useContext, useLayoutEffect, useSyncExternalStore } from 'react';
+import React, { useContext, useLayoutEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
   FieldErrorsContext,
@@ -20,10 +20,6 @@ export const FieldErrorsProvider: React.FC<{
   </FieldRegistryContext.Provider>
 );
 
-const noopSubscribe = () => () => undefined;
-const NONE: readonly string[] = [];
-const emptySnapshot = (): readonly string[] => NONE;
-
 interface FieldErrorProps {
   /** The control's `id`. The callout's own id is `${field}-error`. */
   field: string;
@@ -41,14 +37,12 @@ export const FieldError: React.FC<FieldErrorProps> = ({ field, message, classNam
     () => (registry && shown ? registry.register(field) : undefined),
     [registry, shown, field]
   );
-  const registered = useSyncExternalStore(
-    registry?.subscribe ?? noopSubscribe,
-    registry?.getSnapshot ?? emptySnapshot
-  );
   if (!text) return null;
-  // Several callouts at once would all be announced; only the first speaks up, the rest are
-  // still read through the control's aria-describedby.
-  const announces = !registry || registered[0] === field || !registered.includes(field);
+  // Inside a registry-backed form (the wizard), a failed submit moves focus to the first
+  // invalid control, whose aria-describedby reads this text; a live role on every callout
+  // would announce them all at once. A standalone callout has no such focus step, so it
+  // announces itself.
+  const announces = !registry;
   return (
     <div
       id={fieldErrorId(field)}

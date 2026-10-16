@@ -106,11 +106,11 @@ describe('FieldError registry', () => {
     expect(screen.getByTestId('registered')).toHaveTextContent('b');
   });
 
-  it('lets only the first callout be a live alert', () => {
+  it('announces no callout inside a registry-backed form (focus plus aria-describedby reads it)', () => {
     render(<Harness errors={{ a: 'A is required', b: 'B is required' }} />);
 
-    expect(screen.getAllByRole('alert')).toHaveLength(1);
-    expect(screen.getByRole('alert')).toHaveTextContent('A is required');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText('A is required')).toBeInTheDocument();
     expect(screen.getByText('B is required')).toBeInTheDocument();
   });
 

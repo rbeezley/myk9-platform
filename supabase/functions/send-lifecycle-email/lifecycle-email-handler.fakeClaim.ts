@@ -29,6 +29,15 @@ export function claimRegistrationNumberNeededJob(store: ClaimStore, args: Row) {
   const staleBefore = Date.parse(String(args.p_stale_before));
   const isStale = (row: Row) => !row.created_at || Date.parse(String(row.created_at)) < staleBefore;
   const now = new Date().toISOString();
+  // The in-flight lease this claim stamps on the job it answers `send` for (null from
+  // a pre-lease caller, as the SQL default).
+  const lease = args.p_lease_until ?? null;
+  const stamp = (row: Row) => Object.assign(row, { claimed_until: lease });
+  // An ACTIVE send: a live lease, or (no lease at all) a recent ready job.
+  const isActive = (row: Row) =>
+    row.claimed_until != null
+      ? Date.parse(String(row.claimed_until)) > Date.now()
+      : row.status === 'ready' && !isStale(row);
 
   const supersede = (row: Row) =>
     Object.assign(row, { status: 'skipped', skipped_at: now, updated_by: args.p_user_id });
@@ -58,9 +67,13 @@ export function claimRegistrationNumberNeededJob(store: ClaimStore, args: Row) {
   if (tied) {
     if (tied.status === 'sent') return ok('sent', tied.id);
     if (tied.status !== 'ready' && tied.status !== 'failed') return ok('busy', null);
-    if (norm(tied.recipient_email) === email) return ok('send', tied.id);
-    // A recent READY job is a send still in flight: never replace it.
-    if (tied.status === 'ready' && !isStale(tied)) return ok('busy', null);
+    if (norm(tied.recipient_email) === email) {
+      // Same key, address and text: provider-idempotent, so allowed under a live lease.
+      stamp(tied);
+      return ok('send', tied.id);
+    }
+    // An active send is awaiting the provider: never replace it.
+    if (isActive(tied)) return ok('busy', null);
     // The address changed: supersede and re-point ONLY this request's tie.
     supersede(tied);
     newTie = tieRow;
@@ -73,11 +86,12 @@ export function claimRegistrationNumberNeededJob(store: ClaimStore, args: Row) {
         row.entry_id === args.p_entry_id &&
         (row.status === 'ready' || row.status === 'failed')
     );
-    if (outstanding.some(row => row.status === 'ready' && !isStale(row))) return ok('busy', null);
+    if (outstanding.some(isActive)) return ok('busy', null);
     const same = outstanding.find(row => norm(row.recipient_email) === email);
     if (same) {
       // Recovery ADDS a tie; every earlier request keeps resolving to this job.
       ties.push({ show_id: args.p_show_id, request_key: key, job_id: same.id });
+      stamp(same);
       return ok('send', same.id, true);
     }
     outstanding.forEach(supersede);
@@ -97,6 +111,7 @@ export function claimRegistrationNumberNeededJob(store: ClaimStore, args: Row) {
     body: args.p_body,
     secretary_note: args.p_secretary_note,
     idempotency_key: idempotencyKey,
+    claimed_until: lease,
     due_at: now,
     created_at: now,
     created_by: args.p_user_id,

@@ -23,6 +23,12 @@
 --      adopted, never duplicated
 --   M. an address change on the request's own job: a recent ready send is busy and
 --      untouched; a stale ready or failed job is replaced
+--   O. in-flight lease (20261016125300): every `send` stamps claimed_until; an active
+--      lease makes a changed-address claim, a no-tie supersede and a recovery by
+--      another request busy and writes NOTHING; an expired or NULL lease keeps the
+--      old rules; the same request's same-address replay is allowed and renews;
+--      the handler's sent/failed update clears the lease; only the 12-argument
+--      function exists and a pre-lease 11-argument call still works
 --
 -- Fixtures roll back.
 
@@ -477,7 +483,7 @@ end $$;
 -- K. privileges and the request_key index
 do $$
 declare
-  v_sig text := 'public.claim_registration_number_needed_job(uuid, uuid, uuid, text, text, text, text, text, text, uuid, timestamptz)';
+  v_sig text := 'public.claim_registration_number_needed_job(uuid, uuid, uuid, text, text, text, text, text, text, uuid, timestamptz, timestamptz)';
   v_step uuid;
 begin
   if not has_function_privilege('service_role', v_sig, 'EXECUTE') then
@@ -657,6 +663,149 @@ begin
     raise exception 'FAIL N a failed legacy job at a changed address answered %', v;
   end if;
   raise notice 'PASS N a job the previous handler created is adopted (sent, replay, busy, replace) with no new row';
+end $$;
+
+-- O. in-flight lease
+create function pg_temp.claim_lease(
+  p_key text,
+  p_email text,
+  p_lease timestamptz
+) returns jsonb language sql as $$
+  select public.claim_registration_number_needed_job(
+    '00000000-0000-0000-0000-000001212002'::uuid,
+    '00000000-0000-0000-0000-000001212006'::uuid,
+    (select id from public.show_lifecycle_email_steps
+      where show_id = '00000000-0000-0000-0000-000001212002' and step_type = 'registration_number_needed'),
+    p_key, p_email, 'Claim Owner', 'Subject', 'Body', 'Note', null,
+    now() - interval '10 minutes', p_lease)
+$$;
+
+-- Everything the claim may write, as one comparable value.
+create function pg_temp.snapshot() returns jsonb language sql as $$
+  select jsonb_build_object(
+    'jobs', coalesce((select jsonb_agg(to_jsonb(j) order by j.id) from public.show_lifecycle_email_jobs j
+       where j.show_id = '00000000-0000-0000-0000-000001212002'), '[]'::jsonb),
+    'ties', coalesce((select jsonb_agg(to_jsonb(r) order by r.request_key) from public.show_lifecycle_email_job_requests r
+       where r.show_id = '00000000-0000-0000-0000-000001212002'), '[]'::jsonb))
+$$;
+
+create function pg_temp.lease_of(p_id uuid) returns timestamptz language sql as $$
+  select claimed_until from public.show_lifecycle_email_jobs where id = p_id
+$$;
+
+do $$
+declare
+  v jsonb; v_id uuid; v_new uuid; v_before jsonb; v_lease timestamptz := now() + interval '10 minutes';
+begin
+  -- O1. a first claim and a recovery both stamp the lease
+  perform pg_temp.reset();
+  v := pg_temp.claim_lease('myk9-1212-o1', 'a@example.test', v_lease);
+  if v->>'outcome' <> 'send' or pg_temp.lease_of((v->>'job_id')::uuid) is distinct from v_lease then
+    raise exception 'FAIL O1 a first claim did not stamp the lease: % %', v, pg_temp.lease_of((v->>'job_id')::uuid);
+  end if;
+  perform pg_temp.reset();
+  v_id := pg_temp.seed_job('myk9-1212-o1-failed', null, 'failed', 'a@example.test');
+  v := pg_temp.claim_lease('myk9-1212-o1-recover', 'a@example.test', v_lease);
+  if v->>'outcome' <> 'send' or not (v->>'recovered')::boolean or (v->>'job_id')::uuid <> v_id
+     or pg_temp.lease_of(v_id) is distinct from v_lease then
+    raise exception 'FAIL O1 a recovery did not stamp the lease: % %', v, pg_temp.lease_of(v_id);
+  end if;
+  perform pg_temp.reset();
+  v_id := pg_temp.seed_job('myk9-1212-o1-stale', null, 'ready', 'a@example.test', interval '30 minutes');
+  v := pg_temp.claim_lease('myk9-1212-o1-recover2', 'a@example.test', v_lease);
+  if v->>'outcome' <> 'send' or not (v->>'recovered')::boolean or pg_temp.lease_of(v_id) is distinct from v_lease then
+    raise exception 'FAIL O1 a stale-ready recovery did not stamp the lease: % %', v, pg_temp.lease_of(v_id);
+  end if;
+  raise notice 'PASS O1 a first claim and a recovery (failed or stale ready) record the in-flight lease';
+
+  -- O2. active lease: a corrected address, from the recovering request or another, is busy and writes nothing
+  v_before := pg_temp.snapshot();
+  v := pg_temp.claim_lease('myk9-1212-o2-other', 'corrected@example.test', v_lease);
+  if v->>'outcome' <> 'busy' or pg_temp.snapshot() is distinct from v_before then
+    raise exception 'FAIL O2 another request replaced an active send, or wrote: %', v;
+  end if;
+  v := pg_temp.claim_lease('myk9-1212-o1-recover2', 'corrected@example.test', v_lease);
+  if v->>'outcome' <> 'busy' or pg_temp.snapshot() is distinct from v_before then
+    raise exception 'FAIL O2 the recovering request superseded its own active send, or wrote: %', v;
+  end if;
+  -- A third request at the SAME address may not recover an active send either.
+  v := pg_temp.claim_lease('myk9-1212-o2-third', 'a@example.test', v_lease);
+  if v->>'outcome' <> 'busy' or pg_temp.snapshot() is distinct from v_before then
+    raise exception 'FAIL O2 another request recovered an active send, or wrote: %', v;
+  end if;
+  raise notice 'PASS O2 an active lease: replace, supersede and foreign recovery all answer busy and write nothing';
+
+  -- O3. the creator's own tied job under an active lease: busy at a changed address
+  perform pg_temp.reset();
+  v_id := (pg_temp.claim_lease('myk9-1212-o3', 'a@example.test', v_lease)->>'job_id')::uuid;
+  v_before := pg_temp.snapshot();
+  v := pg_temp.claim_lease('myk9-1212-o3', 'corrected@example.test', v_lease);
+  if v->>'outcome' <> 'busy' or pg_temp.snapshot() is distinct from v_before then
+    raise exception 'FAIL O3 a changed address superseded an active tied send, or wrote: %', v;
+  end if;
+  -- O3b. the same request, same address: a replay is allowed (provider-idempotent) and renews
+  update public.show_lifecycle_email_jobs set claimed_until = now() + interval '1 minute' where id = v_id;
+  v := pg_temp.claim_lease('myk9-1212-o3', 'a@example.test', v_lease);
+  if v->>'outcome' <> 'send' or (v->>'job_id')::uuid <> v_id or pg_temp.lease_of(v_id) is distinct from v_lease
+     or (select count(*) from public.show_lifecycle_email_jobs
+          where show_id = '00000000-0000-0000-0000-000001212002') <> 1 then
+    raise exception 'FAIL O3b a same-address replay under a lease answered % (lease %)', v, pg_temp.lease_of(v_id);
+  end if;
+  raise notice 'PASS O3 a tied active send is busy at a changed address; a same-address replay is allowed and renews';
+
+  -- O4. an expired lease is an abandoned attempt: replaced, as before the lease existed
+  update public.show_lifecycle_email_jobs set claimed_until = now() - interval '1 second' where id = v_id;
+  v := pg_temp.claim_lease('myk9-1212-o3', 'corrected@example.test', v_lease);
+  v_new := (v->>'job_id')::uuid;
+  if v->>'outcome' <> 'send' or v_new = v_id
+     or (select status from public.show_lifecycle_email_jobs where id = v_id) <> 'skipped'
+     or pg_temp.lease_of(v_new) is distinct from v_lease
+     or pg_temp.tie('myk9-1212-o3') is distinct from v_new then
+    raise exception 'FAIL O4 an expired lease was not replaced correctly: %', v;
+  end if;
+  -- An expired lease on a no-tie claim is recovered (same address) after expiry.
+  perform pg_temp.reset();
+  v_id := pg_temp.seed_job('myk9-1212-o4-r', null, 'failed', 'a@example.test');
+  update public.show_lifecycle_email_jobs set claimed_until = now() - interval '1 second' where id = v_id;
+  v := pg_temp.claim_lease('myk9-1212-o4-other', 'a@example.test', v_lease);
+  if v->>'outcome' <> 'send' or (v->>'job_id')::uuid <> v_id or not (v->>'recovered')::boolean then
+    raise exception 'FAIL O4 an abandoned attempt was not recovered: %', v;
+  end if;
+  raise notice 'PASS O4 an expired lease is an abandoned attempt: replaced (changed address) or recovered (same address)';
+
+  -- O5. the handler's sent/failed update clears the lease; a cleared failed job is recoverable
+  update public.show_lifecycle_email_jobs set status = 'failed', claimed_until = null where id = v_id;
+  v := pg_temp.claim_lease('myk9-1212-o5-corrected', 'corrected@example.test', v_lease);
+  if v->>'outcome' <> 'send' or (v->>'job_id')::uuid = v_id then
+    raise exception 'FAIL O5 a failed job with a cleared lease was not replaced: %', v;
+  end if;
+  perform pg_temp.reset();
+  v_id := (pg_temp.claim_lease('myk9-1212-o5', 'a@example.test', v_lease)->>'job_id')::uuid;
+  update public.show_lifecycle_email_jobs set status = 'sent', sent_at = now(), claimed_until = null where id = v_id;
+  v := pg_temp.claim_lease('myk9-1212-o5', 'a@example.test', v_lease);
+  if v->>'outcome' <> 'sent' or (v->>'job_id')::uuid <> v_id or pg_temp.lease_of(v_id) is not null then
+    raise exception 'FAIL O5 a sent job still carries a lease or was re-sent: %', v;
+  end if;
+  raise notice 'PASS O5 clearing the lease on a send result makes a failed job replaceable and a sent job stay sent';
+
+  -- O6. pre-lease compatibility: only the 12-argument function exists; the 11-argument
+  -- call (the live handler) stamps NULL and keeps the old recent-ready-is-busy rule.
+  if (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname = 'claim_registration_number_needed_job') <> 1 then
+    raise exception 'FAIL O6 a stale overload of the claim is still callable';
+  end if;
+  perform pg_temp.reset();
+  v := pg_temp.claim('myk9-1212-o6', 'a@example.test');
+  v_id := (v->>'job_id')::uuid;
+  if v->>'outcome' <> 'send' or pg_temp.lease_of(v_id) is not null then
+    raise exception 'FAIL O6 the 11-argument call did not work or stamped a lease: % %', v, pg_temp.lease_of(v_id);
+  end if;
+  -- A lease-less recent ready job (made by the pre-lease handler) is still a send in flight.
+  v := pg_temp.claim('myk9-1212-o6-other', 'corrected@example.test');
+  if v->>'outcome' <> 'busy' then
+    raise exception 'FAIL O6 a lease-less recent ready job was replaced: %', v;
+  end if;
+  raise notice 'PASS O6 one overload only; a pre-lease 11-argument call works and keeps the recent-ready rule';
 end $$;
 
 rollback;

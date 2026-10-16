@@ -94,7 +94,7 @@ Include this boundary clearly near the front of the guide. Clubs get confused wh
 
 **Rough steps (qa-draft):**
 
-1. From the Club Admin sidebar, open **Shows** → your club's shows are listed.
+1. From the sidebar, open **My Club** → **Our Shows** → your club's shows are listed.
 2. Click a show → find the secretary assignment section.
 3. Select the secretary account to assign → Save.
 

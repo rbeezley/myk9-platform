@@ -30,6 +30,7 @@ import { UserRole } from '@/types/auth-types';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
+import { BrowseTabs } from '@/components/layout/BrowseTabs';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -354,7 +355,7 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
   };
 
   return (
-    <PageShell {...(splitOpen ? { maxWidth: 'max-w-[110rem]' } : {})}>
+    <PageShell ContentWrapper={BrowseTabs} {...(splitOpen ? { maxWidth: 'max-w-[110rem]' } : {})}>
       {(isLoading || isResolvingIdentity) && dogs.length === 0 && (
         <BrowseDogsSkeleton viewMode={isExhibitorOnly || viewMode === 'cards' ? 'grid' : 'table'} />
       )}

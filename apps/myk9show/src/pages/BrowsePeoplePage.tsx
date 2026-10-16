@@ -6,6 +6,7 @@ import { useSelectMode } from '@/components/layout/useSelectMode';
 import { Button } from '@/components/ui/button';
 import { Plus, Users } from 'lucide-react';
 import { PageShell } from '@/components/common/PageShell';
+import { BrowseTabs } from '@/components/layout/BrowseTabs';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ListEmptyState, ListViewToggle } from '@/components/list-toolkit';
 import { ErrorState } from '@/components/common/ErrorState';
@@ -243,7 +244,7 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
   ) : null;
 
   return (
-    <PageShell {...(splitOpen ? { maxWidth: 'max-w-[110rem]' } : {})}>
+    <PageShell ContentWrapper={BrowseTabs} {...(splitOpen ? { maxWidth: 'max-w-[110rem]' } : {})}>
       {/* Error state: only when there is nothing to show. A failed background refresh keeps the
           cached rows and says so inline (below). */}
       {error && !isLoading && people.length === 0 && (

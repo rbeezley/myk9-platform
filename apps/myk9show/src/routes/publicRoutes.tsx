@@ -45,8 +45,7 @@ function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPagePr
 
 // Public page lazy imports
 const DogsMasterDetailPage = lazyWithRetry(() => import('@/pages/DogsMasterDetailPage'));
-const BrowseClubsPage = lazyWithRetry(() => import('@/pages/BrowseClubsPage'));
-const ClubDetailPage = lazyWithRetry(() => import('@/pages/ClubDetailPage'));
+const ClubsMasterDetailPage = lazyWithRetry(() => import('@/pages/ClubsMasterDetailPage'));
 const ShowDetailsPage = lazyWithRetry(() => import('@/pages/ShowDetailsPage'));
 const ShowsMasterDetailPage = lazyWithRetry(() => import('@/pages/ShowsMasterDetailPage'));
 const EntryManagementPage = lazyWithRetry(() => import('@/pages/secretary/EntryManagementPage'));
@@ -152,6 +151,14 @@ const dogsRouteElement = (
       <DogsMasterDetailPage />
     </SuspenseWrapper>
   </ProtectedRoute>
+);
+
+// Public: signed-out visitors browse the club directory too. `PageTransition` lives inside
+// `MasterDetailRoute`, around the record only, so the list never re-animates.
+const clubsRouteElement = (
+  <SuspenseWrapper>
+    <ClubsMasterDetailPage />
+  </SuspenseWrapper>
 );
 
 export const PublicRoutes = () => (
@@ -427,28 +434,9 @@ export const PublicRoutes = () => (
     <Route path="/dogs" element={dogsRouteElement} />
     <Route path="/dogs/:id" element={dogsRouteElement} />
 
-    {/* Clubs */}
-    <Route
-      path="/clubs"
-      element={
-        <SuspenseWrapper>
-          <PageTransition>
-            <BrowseClubsPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      }
-    />
-
-    <Route
-      path="/clubs/:id"
-      element={
-        <SuspenseWrapper>
-          <PageTransition>
-            <ClubDetailPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      }
-    />
+    {/* Clubs: one element for both paths, so the list stays mounted beside an open club. */}
+    <Route path="/clubs" element={clubsRouteElement} />
+    <Route path="/clubs/:id" element={clubsRouteElement} />
 
     {/* Feature Pages */}
     <Route path="/preferences" element={<Navigate to="/account" replace />} />

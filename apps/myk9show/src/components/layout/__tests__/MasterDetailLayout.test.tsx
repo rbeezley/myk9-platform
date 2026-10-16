@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, renderHook, screen } from '@testing-library/react';
+import { useDefaultLayout } from 'react-resizable-panels';
 import { MasterDetailLayout } from '../MasterDetailLayout';
+import { readSavedListPercent } from '../masterDetailStorage';
 import { useEmbeddedDetail } from '../embeddedDetail';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 
@@ -51,5 +53,38 @@ describe('MasterDetailLayout', () => {
     expect(screen.getByText('detail:page')).toBeInTheDocument();
     expect(screen.queryByText('the list')).not.toBeInTheDocument();
     expect(screen.queryByTestId('master-detail-layout')).not.toBeInTheDocument();
+  });
+});
+
+describe('readSavedListPercent', () => {
+  // Pinned against the installed library: the key and shape are what `useDefaultLayout` writes.
+  it('reads back the list share the panels saved', () => {
+    const { result } = renderHook(() =>
+      useDefaultLayout({
+        id: 'myk9:master-detail:shows',
+        panelIds: ['list', 'detail'],
+        storage: localStorage,
+        debounceSaveMs: 0,
+      })
+    );
+    result.current.onLayoutChanged({ list: 27.5, detail: 72.5 }, {
+      isUserInteraction: true,
+    } as never);
+
+    expect(readSavedListPercent('shows')).toBe(27.5);
+    expect(readSavedListPercent('dogs')).toBeNull();
+  });
+
+  it('is null for a value it cannot use', () => {
+    localStorage.setItem(
+      'react-resizable-panels:myk9:master-detail:shows:list:detail',
+      '{not json'
+    );
+    expect(readSavedListPercent('shows')).toBeNull();
+    localStorage.setItem(
+      'react-resizable-panels:myk9:master-detail:shows:list:detail',
+      JSON.stringify({ list: 'wide' })
+    );
+    expect(readSavedListPercent('shows')).toBeNull();
   });
 });

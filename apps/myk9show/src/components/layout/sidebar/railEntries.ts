@@ -2,10 +2,11 @@
  * The desktop rail's entries, derived from the same groups the mobile drawer
  * renders. A group with `railMenu` folds into one item that opens a labeled
  * panel; groups sharing a menu id fold into the same item, placed where the
- * first of them sits. Everything else stays one rail item per nav item.
+ * first of them sits. A group with `railLink` folds into one link to the item used last (Browse).
+ * Everything else stays one rail item per nav item.
  */
 
-import type { NavGroup, NavItem, NavRailMenu } from './types';
+import type { NavGroup, NavItem, NavRailLink, NavRailMenu } from './types';
 
 export interface RailMenuSection {
   title: string;
@@ -14,7 +15,8 @@ export interface RailMenuSection {
 
 export type RailEntry =
   | { kind: 'item'; item: NavItem; startsGroup: boolean }
-  | { kind: 'menu'; menu: NavRailMenu; sections: RailMenuSection[]; startsGroup: boolean };
+  | { kind: 'menu'; menu: NavRailMenu; sections: RailMenuSection[]; startsGroup: boolean }
+  | { kind: 'link'; link: NavRailLink; items: NavItem[]; startsGroup: boolean };
 
 export function buildRailEntries(groups: readonly NavGroup[]): RailEntry[] {
   const entries: RailEntry[] = [];
@@ -23,6 +25,11 @@ export function buildRailEntries(groups: readonly NavGroup[]): RailEntry[] {
   groups.forEach((group, groupIndex) => {
     if (group.items.length === 0) return;
     const startsGroup = groupIndex > 0 && entries.length > 0;
+
+    if (group.railLink) {
+      entries.push({ kind: 'link', link: group.railLink, items: group.items, startsGroup });
+      return;
+    }
 
     if (group.railMenu) {
       const existing = menus.get(group.railMenu.id);

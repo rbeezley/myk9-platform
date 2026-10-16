@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { SearchBar } from '@/components/common/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BrowseTabs } from '@/components/layout/BrowseTabs';
 import { CompactRecordList } from '@/components/layout/CompactRecordList';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useBrowseShowsList } from '@/hooks/useBrowseShowsList';
@@ -150,18 +151,24 @@ export const ShowsPaneList: React.FC<ShowsPaneListProps> = ({ selectedId, header
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex shrink-0 items-center gap-2 pb-3">
-        <SearchBar
-          size="sm"
-          value={search}
-          onChange={setSearch}
-          placeholder="Search this list"
-          aria-label="Search the shows list"
-          className="flex-1"
-        />
-        {headerAction}
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto pb-2">{body}</div>
+      {/* The switch to Dogs, People and Clubs sits above the list; only the rows scroll. */}
+      <BrowseTabs
+        tablistClassName="mb-3 shrink-0 sm:w-full"
+        panelClassName="flex min-h-0 flex-1 flex-col"
+      >
+        <div className="flex shrink-0 items-center gap-2 pb-3">
+          <SearchBar
+            size="sm"
+            value={search}
+            onChange={setSearch}
+            placeholder="Search this list"
+            aria-label="Search the shows list"
+            className="flex-1"
+          />
+          {headerAction}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto pb-2">{body}</div>
+      </BrowseTabs>
     </div>
   );
 };

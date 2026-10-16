@@ -4,11 +4,11 @@ import { useDefaultLayout } from 'react-resizable-panels';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { EmbeddedDetailProvider } from './embeddedDetail';
+import { LIST_PANEL_IDS, layoutKey, layoutStorage } from './masterDetailStorage';
 
 /** Tailwind's `lg`. Below it the pane would be under ~300px once the sidebar takes its share. */
 export const MASTER_DETAIL_QUERY = '(min-width: 1024px)';
 
-const PANEL_IDS = ['list', 'detail'];
 const DETAIL_ONLY_IDS = ['detail'];
 
 /** The list pane's starting width and drag limits, in any unit the panels accept ("38%", "320px"). */
@@ -20,24 +20,6 @@ export interface MasterDetailListSize {
 
 const DEFAULT_LIST_SIZE: MasterDetailListSize = { default: '38%', min: '26%', max: '55%' };
 const DEFAULT_SPLIT_HEIGHT = 'h-[calc(100dvh-14rem)] min-h-[32rem]';
-
-// localStorage can throw (private window, blocked site data); a lost layout is only cosmetic.
-const layoutStorage = {
-  getItem(key: string): string | null {
-    try {
-      return window.localStorage.getItem(key);
-    } catch {
-      return null;
-    }
-  },
-  setItem(key: string, value: string): void {
-    try {
-      window.localStorage.setItem(key, value);
-    } catch {
-      // ignore
-    }
-  },
-};
 
 interface MasterDetailLayoutProps {
   /** Unique per entity; the dragged pane sizes are remembered under it. */
@@ -80,8 +62,8 @@ export function MasterDetailLayout({
 }: MasterDetailLayoutProps) {
   const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
   const defaultLayout = useDefaultLayout({
-    id: `myk9:master-detail:${id}`,
-    panelIds: listHidden ? DETAIL_ONLY_IDS : PANEL_IDS,
+    id: layoutKey(id),
+    panelIds: listHidden ? DETAIL_ONLY_IDS : LIST_PANEL_IDS,
     storage: layoutStorage,
   });
 

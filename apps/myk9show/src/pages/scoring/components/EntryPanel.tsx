@@ -143,7 +143,7 @@ export function EntryPanel({
         </div>
         {/* Q, the common result, gets its own full-width row; the other four sit in
             a 2x2 grid below it, so time, faults and Save stay on screen. */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid auto-rows-fr grid-cols-2 gap-2">
           {RESULT_BUTTONS.map(({ code, label, description }) => {
             const isSelected = selectedResult === code;
             const isPrefilled = isPreFilled(code);
@@ -155,7 +155,7 @@ export function EntryPanel({
                 data-selected={isSelected ? 'true' : undefined}
                 data-prefilled={isPrefilled ? 'true' : undefined}
                 className={cn(
-                  'flex flex-col items-start px-3 py-2 rounded-lg border-2 text-left transition-colors font-semibold',
+                  'flex flex-col items-start justify-center px-3 py-2 rounded-lg border-2 text-left transition-colors font-semibold',
                   code === 'Q' && 'col-span-2 flex-row items-center justify-center gap-3',
                   isSelected && !isPrefilled && 'border-primary bg-primary text-primary-foreground',
                   isPrefilled && 'border-dashed border-primary bg-primary/10',

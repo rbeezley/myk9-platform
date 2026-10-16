@@ -17,7 +17,8 @@ import {
   buildDogViews,
   dogViewFilters,
 } from '@/components/dogs/browse/dogBrowseViews';
-import { dogFiltersQuery, type DogFilters } from '@/components/dogs/browse/dogBrowseFilters';
+import { DEFAULT_DOG_FILTERS, type DogFilters } from '@/components/dogs/browse/dogBrowseFilters';
+import { filtersQueryString } from '@/hooks/urlFilters';
 import { BrowseDogsSkeleton } from '@/components/common/SkeletonLoaders';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { Dog as DogType } from '@/types/dog-types';
@@ -324,7 +325,7 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
           dogs={filteredDogs}
           selectedId={selectedId}
           showOwner={!ownDogsOnly}
-          filterQuery={dogFiltersQuery(searchParams)}
+          filterQuery={filtersQueryString(filters, DEFAULT_DOG_FILTERS)}
         />
       );
     }

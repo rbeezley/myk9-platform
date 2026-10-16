@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { render, screen } from '@/test/utils/testUtils';
 import { Route, Routes } from 'react-router-dom';
 import EntryManagementPage from '../EntryManagementPage';
+import { TRIAL_SECRETARY_CHECKING_REASON } from '@/features/actions/trialSecretaryAccess';
 
 /**
  * REV-2341 lens P, P4. This page carried its own gate —
@@ -126,6 +127,8 @@ function renderAtShow() {
   return render(
     <Routes>
       <Route path="/shows/:id/entries" element={<EntryManagementPage />} />
+      <Route path="/secretary/register/:showId" element={<div>secretary wizard</div>} />
+      <Route path="/shows/:id/register" element={<div>exhibitor wizard</div>} />
     </Routes>,
     { initialRoute: '/shows/show-1/entries' }
   );
@@ -171,11 +174,11 @@ describe('EntryManagementPage derives its gate from the one manage scope', () =>
     expect(screen.getByRole('heading', { name: 'Entry Forms' })).toBeInTheDocument();
   });
 
-  // REV-2341 R-4. The round-1 commit claimed "Entry Management carried the same
-  // ungated mail-in button and is fixed with it" and had NO test for it: the
-  // mutation `trialSecretaryOnlyReason -> undefined` left this whole file green.
-  // These two open the popover the button actually lives in.
-  it('greys "Add entry for someone else" for a club admin, with the reason', async () => {
+  // REV-2341 R-4 (reworked by MYK9-1242): the trial secretary's Add Entry goes
+  // straight to the secretary flow, no "Who are you entering?" choice. The
+  // mutation `trialSecretaryOnlyReason -> undefined` must still redden the club
+  // admin test below.
+  it('sends a club admin to the exhibitor own-dog path, since the secretary flow is secretary-only', async () => {
     const user = userEvent.setup();
     manageScopeState.value = {
       status: 'resolved',
@@ -186,32 +189,48 @@ describe('EntryManagementPage derives its gate from the one manage scope', () =>
     };
 
     renderAtShow();
-    await user.click(screen.getByRole('button', { name: /add entry/i }));
 
-    expect(
-      await screen.findByRole('button', { name: /add entry for someone else/i })
-    ).toBeDisabled();
-    // MYK9-954: the late-entry door moved here from Show Day's Tools with the
-    // same gate (`/secretary/register/:id` is secretary-only).
-    expect(screen.getByRole('button', { name: /add late entry/i })).toBeDisabled();
-    // One reason per control, so a focused button has its own description.
-    expect(screen.getAllByText('Trial secretary access only')).toHaveLength(2);
-    // The exhibitor wizard carries no role requirement, so this one stays live.
-    expect(screen.getByRole('button', { name: /add entry for my dog/i })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /^add entry$/i })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /add entry for my dog/i }));
+    expect(await screen.findByText('exhibitor wizard')).toBeInTheDocument();
   });
 
-  it('leaves "Add entry for someone else" live for a trial secretary — positive control', async () => {
+  it('greys the late-entry door for a club admin, with the reason, under More', async () => {
+    const user = userEvent.setup();
+    manageScopeState.value = {
+      status: 'resolved',
+      canManage: true,
+      canOperate: false,
+      hasOperationalStaffRole: false,
+      clubId: 'club-1',
+    };
+
+    renderAtShow();
+    await user.click(screen.getByRole('button', { name: /^more$/i }));
+
+    expect(await screen.findByRole('button', { name: /add late entry/i })).toBeDisabled();
+    expect(screen.getByText('Trial secretary access only')).toBeInTheDocument();
+  });
+
+  it('takes a trial secretary straight to the secretary flow, with no choice dialog — positive control', async () => {
     const user = userEvent.setup();
 
     renderAtShow();
-    await user.click(screen.getByRole('button', { name: /add entry/i }));
+    await user.click(screen.getByRole('button', { name: /^add entry$/i }));
 
-    expect(
-      await screen.findByRole('button', { name: /add entry for someone else/i })
-    ).toBeEnabled();
-    // All three doors Show Day's "Add entries" tool offered live here now.
-    expect(screen.getByRole('button', { name: /add entry for my dog/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Late entry' })).toBeInTheDocument();
+    expect(await screen.findByText('secretary wizard')).toBeInTheDocument();
+    expect(screen.queryByText('Who are you entering?')).toBeNull();
+    expect(screen.queryByRole('button', { name: /add entry for someone else/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /add entry for my dog/i })).toBeNull();
+  });
+
+  it('keeps late entry live for a trial secretary under More', async () => {
+    const user = userEvent.setup();
+
+    renderAtShow();
+    await user.click(screen.getByRole('button', { name: /^more$/i }));
+
+    expect(await screen.findByRole('heading', { name: 'Late entry' })).toBeInTheDocument();
     expect(await screen.findByText('1 class with space')).toBeInTheDocument();
     expect(screen.queryByText('Trial secretary access only')).toBeNull();
   });
@@ -228,5 +247,10 @@ describe('EntryManagementPage derives its gate from the one manage scope', () =>
     renderAtShow();
 
     expect(screen.queryByRole('heading', { name: /access restricted/i })).toBeNull();
+    // Waits rather than guessing: a real secretary never sees the club-admin wording.
+    const waiting = screen.getByRole('button', { name: /^add entry$/i });
+    expect(waiting).toBeDisabled();
+    expect(waiting).toHaveAttribute('title', TRIAL_SECRETARY_CHECKING_REASON);
+    expect(screen.queryByRole('button', { name: /add entry for my dog/i })).toBeNull();
   });
 });

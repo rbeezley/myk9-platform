@@ -49,9 +49,6 @@ const ENTRIES: EntryManagementEntry[] = [
 vi.mock('../WaitlistManagementPage/index', () => ({ default: () => null }));
 vi.mock('@/components/entries/MoveUpRequestsTab', () => ({ MoveUpRequestsTab: () => null }));
 vi.mock('@/components/entries/PullManagementTab', () => ({ PullManagementTab: () => null }));
-vi.mock('@/features/registration/SecretaryAddEntriesDecision', () => ({
-  SecretaryAddEntriesDecision: () => null,
-}));
 vi.mock('@/services/AuditService', () => ({ auditService: { log: vi.fn() } }));
 
 vi.mock('@/hooks/useEntryManagementData', () => ({

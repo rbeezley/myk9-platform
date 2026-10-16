@@ -16,13 +16,13 @@ describe('resolveWizardTitles', () => {
     });
   });
 
-  it('names WHOSE dog, never why, when entering on behalf of an exhibitor', () => {
+  it('names neither whose dog nor why: the secretary has one Add entry (MYK9-1242)', () => {
     const titles = resolveWizardTitles({ isLateEntryMode: false, isInsideSidebar: true });
 
     expect(titles).toEqual({
-      workflowLabel: 'Entry for someone else',
-      sidebarTitle: 'Add entry for someone else',
-      workflowSubtitle: 'Enter on behalf of an exhibitor.',
+      workflowLabel: 'Add entry',
+      sidebarTitle: 'Add entry',
+      workflowSubtitle: 'Enter a dog for any exhibitor, including yourself.',
     });
     // "Mail-in" was one reason among several (a phone call, a walk-up, fixing
     // an exhibitor's mistake) for the identical action. Naming it made the
@@ -39,7 +39,7 @@ describe('resolveWizardTitles', () => {
     expect(resolveWizardTitles({ isLateEntryMode: true, isInsideSidebar: true })).toEqual({
       workflowLabel: 'Late entry',
       sidebarTitle: 'Add late entry',
-      workflowSubtitle: 'Enter on behalf of an exhibitor.',
+      workflowSubtitle: 'Enter a dog for any exhibitor, including yourself.',
     });
   });
 

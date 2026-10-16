@@ -107,7 +107,6 @@ describe('useCurrentActions — ownership must be resolved before anything is of
     expect(aboveCreate(result.current.actions).map(action => action.id)).toEqual([
       'show-settings',
       'show-add-mail-in-entry',
-      'show-enter-own-dogs',
       'show-add-new-trial',
       'show-add-classes',
       'show-open-entry-management',

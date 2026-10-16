@@ -7,8 +7,8 @@ import { auditService } from '@/services/AuditService';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { trialSecretaryOnlyReason } from '@/features/actions/trialSecretaryAccess';
 import { AuditAction } from '@/types/audit-types';
-import { AlertCircle, Download, MoreHorizontal, Plus, UserCheck } from 'lucide-react';
-import { SecretaryAddEntriesDecision } from '@/features/registration/SecretaryAddEntriesDecision';
+import { AlertCircle, Download, MoreHorizontal, UserCheck } from 'lucide-react';
+import { AddEntryButton } from '@/features/registration/AddEntryButton';
 import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
@@ -71,7 +71,7 @@ const EntryManagementPage: React.FC = () => {
   } = useEntryManagementData(urlShowId);
   // Same two gates the Show Day tab uses: `canManage` decides the page,
   // `canOperate` decides the handful of controls that route into
-  // `ProtectedRoute(SECRETARY | SITE_ADMIN)`. "Add entry for someone else" is one of
+  // `ProtectedRoute(SECRETARY | SITE_ADMIN)`. "Add Entry" is one of
   // them, so a club admin gets it greyed with a reason rather than a click that
   // dead-ends on a permission wall.
   const manageScope = useShowManageScope(urlShowId);
@@ -79,7 +79,7 @@ const EntryManagementPage: React.FC = () => {
   // as `/shows/:id/entries` (the six-tab surface) and as a bare
   // `/secretary/entries` that resolves its show from localStorage — and on the
   // second there is nothing for `useShowManageScope` to scope against, so it
-  // never leaves `resolving`. Failing closed there disabled "Add entry for someone else"
+  // never leaves `resolving`. Failing closed there disabled "Add Entry"
   // permanently for a real trial secretary (REV-2341 R-2).
   const secretaryOnlyReason = trialSecretaryOnlyReason(manageScope, {
     showIdKnown: Boolean(urlShowId),
@@ -319,7 +319,7 @@ const EntryManagementPage: React.FC = () => {
             More
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-64 space-y-2">
+        <PopoverContent align="end" className="w-72 max-w-[calc(100vw-2rem)] space-y-2">
           <p className="text-sm font-semibold">Entry tools</p>
           <Button asChild variant="outline" size="sm" className="h-8 gap-2">
             <Link
@@ -339,26 +339,12 @@ const EntryManagementPage: React.FC = () => {
             <Download className="h-4 w-4" />
             Export Full CSV
           </Button>
-        </PopoverContent>
-      </Popover>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button type="button" disabled={!selectedShowId} className="gap-2">
-            <Plus className="h-4 w-4" aria-hidden />
-            Add Entry
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-auto max-w-[calc(100vw-2rem)] space-y-3">
-          <p className="text-sm font-semibold">Who are you entering?</p>
-          <SecretaryAddEntriesDecision
-            showId={selectedShowId}
-            mailInDisabledReason={secretaryOnlyReason}
-          />
-          {/* Moved from Show Day's Tools (MYK9-954): every way to add an
-                  entry lives behind this one button. */}
+          {/* Late entry is a mode of the secretary flow, not a second way to add
+              an entry, so it sits with the tools (MYK9-954 -> MYK9-1242). */}
           <WorkbenchLateEntryAction showId={selectedShowId} disabledReason={secretaryOnlyReason} />
         </PopoverContent>
       </Popover>
+      <AddEntryButton showId={selectedShowId} secretaryOnlyReason={secretaryOnlyReason} />
     </>
   );
 

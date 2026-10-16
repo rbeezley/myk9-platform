@@ -28,7 +28,7 @@ Picking classes in the registration wizard creates an **entry**, not a class. Th
 
 ### Casing follows the surface, not the rule
 
-The rule governs the words, not their case. Buttons and headings take title case (**Add Entry**); menu items, popover triggers and card summaries take sentence case (**Add entry**, **Add entry for someone else**). That is the app's existing convention and the table below reflects both — a casing difference between two rows is not a contradiction.
+The rule governs the words, not their case. Buttons and headings take title case (**Add Entry**); menu items, popover triggers and card summaries take sentence case (**Add entry**, **Add entry for my dog**). That is the app's existing convention and the table below reflects both — a casing difference between two rows is not a contradiction.
 
 ### Retired verbs
 
@@ -47,10 +47,11 @@ It survives because "enter a show" is the sport's own idiom (premiums say _entri
 
 **Do not put the reason into an action label.** A secretary entering a dog on someone's behalf may be working from a mailed entry form, a phone call, a walk-up, or fixing an exhibitor's mistake. It is one action. Naming a single reason makes the others look unsupported.
 
-The two paths at the add-entry decision point differ by **whose dog**, which really does change the flow — the exhibitor route picks from your own dogs, the secretary route searches or creates any exhibitor and dog:
+The trial secretary has **one** add-entry action (MYK9-1242): **Add Entry** (button) / **Add entry** (menu item), straight to the secretary flow, which searches or creates any exhibitor and dog, the secretary's own included. The whose-dog choice is gone for her.
+
+The exhibitor route (picks from your own dogs) survives for a manager who is not the trial secretary and cannot enter the secretary flow:
 
 - **Add entry for my dog**
-- **Add entry for someone else**
 
 "Mail-in" remains correct as a **domain noun** — the mail-in entry blank PDF, the Gazette entry form, help content about the mail-in workflow. It is banned only from action labels.
 
@@ -71,13 +72,11 @@ Late-entry mode does **not** relax the entry-close deadline. That exemption is R
 | Show page — never entered            | Enter This Show                                      |
 | Show page — already entered          | Add Entry                                            |
 | My Entries → Actions menu            | Add entry                                            |
-| Entries Management — popover trigger | Add entry                                            |
-| …decision point, own dog             | Add entry for my dog                                 |
-| …decision point, on behalf           | Add entry for someone else                           |
-| Entries popover late-entry card      | Late entry / Add late entry                          |
+| Entries Management — button          | Add Entry (club admin: Add entry for my dog)         |
+| Entries Management — More popover    | Late entry / Add late entry                          |
 | Per-class entries table              | Add Entry                                            |
 | Offline / ringside entry form        | Add Entry                                            |
-| Header + command menu                | Add entry for my dog / Add entry for someone else    |
+| Header + command menu                | Add entry (club admin also: Add entry for my dog)    |
 | Shows page, empty states, shortcuts  | Add Show                                             |
 | Show wizard — heading, submit button | Add Show                                             |
 | Secretary dashboard, no shows yet    | Add your first show                                  |

@@ -186,23 +186,23 @@ describe('CommandPalette show-action aliases (MYK9-672)', () => {
     render(<CommandPalette open onOpenChange={vi.fn()} />);
   }
 
-  it.each(['mail', 'paper', 'phone', 'walk-up'])(
-    'typing "%s" finds the on-behalf entry action',
+  it.each(['mail', 'paper', 'phone', 'walk-up', 'on behalf'])(
+    'typing "%s" finds the single Add entry action',
     term => {
       renderOnShowPage();
       fireEvent.change(screen.getByPlaceholderText(/search dogs, people, shows/i), {
         target: { value: term },
       });
 
-      expect(screen.getByRole('option', { name: /add entry for someone else/i })).toBeVisible();
+      expect(screen.getByRole('option', { name: /^add entry\b/i })).toBeVisible();
     }
   );
 
   it('keeps the visible label free of the aliases', () => {
     renderOnShowPage();
 
-    const option = screen.getByRole('option', { name: /add entry for someone else/i });
-    expect(option).toHaveTextContent('Add entry for someone else');
+    const option = screen.getByRole('option', { name: /^add entry\b/i });
+    expect(option).toHaveTextContent('Add entry');
     expect(option).not.toHaveTextContent(/mail|paper|phone|walk-up|on behalf/i);
   });
 });

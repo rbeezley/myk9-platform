@@ -52,7 +52,6 @@ export type ActionGroupId = (typeof ACTION_GROUP_ORDER)[number];
 export type ActionIconName =
   | 'edit'
   | 'add-entry'
-  | 'add-entry-other'
   | 'add-trial'
   | 'add-classes'
   | 'entry-forms'
@@ -263,17 +262,20 @@ function buildShowActions(
   if (!viewer.canManageShow) return [];
 
   const encoded = encodeURIComponent(showId);
-  // Id is stable on purpose -- it is the action's identity, not its wording.
-  // The label names WHOSE dog, not why (docs/reference/ui-vocabulary.md).
-  const entryForSomeoneElse: AppAction = {
+  // ONE add-entry action for the secretary (MYK9-1242): most entries are keyed
+  // for someone else's dog, and the secretary flow searches every dog, so it
+  // also covers the secretary's own. Id is stable on purpose -- it is the
+  // action's identity, not its wording. The label names the act, not the
+  // reason or whose dog (docs/reference/ui-vocabulary.md).
+  const addEntry: AppAction = {
     id: 'show-add-mail-in-entry',
-    label: 'Add entry for someone else',
+    label: 'Add entry',
     // The reasons the label leaves out stay findable: "mail-in" is still the
     // domain noun secretaries, guides and entry blanks use (MYK9-672).
     aliases: ['mail-in', 'paper', 'phone', 'walk-up', 'on behalf'],
     href: buildSecretaryRegistrationPath(showId),
     group: 'show',
-    icon: 'add-entry-other',
+    icon: 'add-entry',
     ...(viewer.canOperateShow ? {} : { disabledReason: TRIAL_SECRETARY_ONLY_REASON }),
   };
 
@@ -302,14 +304,21 @@ function buildShowActions(
       group: 'show',
       icon: 'edit',
     },
-    entryForSomeoneElse,
-    {
-      id: 'show-enter-own-dogs',
-      label: 'Add entry for my dog',
-      href: buildExhibitorRegistrationPath(showId),
-      group: 'show',
-      icon: 'add-entry',
-    },
+    addEntry,
+    // A manager who is NOT the trial secretary (a club admin) cannot reach the
+    // secretary flow, so the exhibitor path stays for them. Anyone who can
+    // operate the show gets the one Add entry above, with no duplicate.
+    ...(viewer.canOperateShow
+      ? []
+      : [
+          {
+            id: 'show-enter-own-dogs',
+            label: 'Add entry for my dog',
+            href: buildExhibitorRegistrationPath(showId),
+            group: 'show' as const,
+            icon: 'add-entry' as const,
+          },
+        ]),
     {
       id: 'show-add-new-trial',
       label: 'Add Trial',

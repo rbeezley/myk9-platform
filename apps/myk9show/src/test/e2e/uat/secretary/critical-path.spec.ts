@@ -86,10 +86,14 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await installSecretaryFixture(page);
     await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
 
-    await expect(page.getByRole('heading', { name: 'Add entry for someone else' })).toBeVisible({
+    await expect(
+      page.getByRole('heading', { name: 'Add entry', level: 1, exact: true })
+    ).toBeVisible({
       timeout: 15000,
     });
-    await expect(page.getByText('Enter on behalf of an exhibitor.')).toBeVisible();
+    await expect(
+      page.getByText('Enter a dog for any exhibitor, including yourself.')
+    ).toBeVisible();
     await expect(page.getByText(/Step 1 of 5/).first()).toBeVisible();
 
     const search = page.getByPlaceholder(/Search all dogs/i);

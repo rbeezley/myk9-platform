@@ -7,7 +7,7 @@ export interface EntryEligibleViewer {
 }
 
 /**
- * The shows where the show page's "Add entry for someone else" action is live:
+ * The shows where the show page's "Add entry" action is live:
  * `/secretary/register/:showId`, i.e. the trial-secretary-only gate.
  *
  * Restates `useShowManageScope`'s `canOperate` (hooks/useShowManageScope.ts)

@@ -34,7 +34,7 @@ function parseCalendarDate(value?: string | null): Date | undefined {
  * symmetry was missing and it broke a core secretary task: recording a mail-in
  * entry after the close date -- a cheque that arrived before the deadline,
  * processed after it, or a day-of entry -- is ordinary secretary work. Entry
- * Management's "Add entry for someone else" sends the secretary here with no URL
+ * Management's "Add Entry" sends the secretary here with no URL
  * flag, so before this guard they were told "Entries are closed for this show.
  * Contact the trial secretary for late-entry help." The secretary IS the trial
  * secretary.

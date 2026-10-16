@@ -17,7 +17,6 @@ import {
   ShieldOff,
   Ticket,
   UserPlus,
-  Users,
   type LucideIcon,
 } from 'lucide-react';
 import type { ActionIconName } from './actionRegistry';
@@ -29,7 +28,6 @@ import type { ActionIconName } from './actionRegistry';
 export const ACTION_ICONS: Readonly<Record<ActionIconName, LucideIcon>> = {
   edit: Pencil,
   'add-entry': Ticket,
-  'add-entry-other': Users,
   'add-trial': Layers,
   'add-classes': ListPlus,
   'entry-forms': ClipboardList,

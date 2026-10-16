@@ -49,8 +49,25 @@ export async function markReplicatedRowSynced(
   // must now include what THIS write put on the server. Any case that cannot be
   // mapped (INSERT, baked-args RPC, no mapper, a mapper that throws) keeps the
   // base as it was.
+  //
+  // An acknowledgement that is not newer than the row's current base is late: a
+  // sync already reconciled a newer server row (it moved the base and token
+  // forward), and rebasing now would roll both back.
   let rebasedBase: unknown;
-  if (stillDirty && existingRow.baseData !== undefined && newServerVersion !== undefined) {
+  const isLateAck =
+    newServerVersion !== undefined &&
+    existingRow.baseServerVersion !== undefined &&
+    newServerVersion <= existingRow.baseServerVersion;
+  const tokenWouldRollBack =
+    newServerVersion !== undefined &&
+    existingRow.serverVersion !== undefined &&
+    newServerVersion < existingRow.serverVersion;
+  if (
+    stillDirty &&
+    !isLateAck &&
+    existingRow.baseData !== undefined &&
+    newServerVersion !== undefined
+  ) {
     const written = writtenColumnsOf(mutation);
     if (written) rebasedBase = overlayWritten?.(existingRow.baseData, written);
   }
@@ -60,7 +77,9 @@ export async function markReplicatedRowSynced(
     isDirty: stillDirty,
     syncStatus: existingRow.isDirty && hasAnotherPendingMutation ? 'pending' : 'synced',
     lastSyncedAt: Date.now(),
-    ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
+    // A late ack never moves the token back below a version a sync already holds.
+    ...(newServerVersion !== undefined &&
+      !tokenWouldRollBack && { serverVersion: newServerVersion }),
     ...(rebasedBase !== undefined && {
       baseData: rebasedBase,
       baseServerVersion: newServerVersion,

@@ -6,6 +6,7 @@ import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import { ReplicatedTable } from './core/ReplicatedTable';
 import type { Logger } from './dependencies';
 import { MutationManager } from './MutationManager';
+import { markReplicatedRowSynced } from './mutation-row-sync';
 import { reconcileDirtyRemoteRow } from './reconcileDirtyRemoteRow';
 import type { RowRefetchAdapter } from './refetchDirtyRowsById';
 import type { PendingMutation, SyncOptions, SyncResult } from './types';
@@ -370,6 +371,50 @@ describe('a pull that returns the device’s own acknowledged write (MYK9-1220)'
     expect(row?.isDirty).toBe(true);
     const db = await databaseManager.getDatabase('test');
     expect(await db.get(REPLICATION_STORES.PENDING_MUTATIONS, 'mut-B')).toBeDefined();
+  });
+
+  it('a late acknowledgement never rolls a newer base back (v5 reconciled before A’s v4 ack)', async () => {
+    const table = new ScoreTable(tableName);
+    start(table);
+    await seedA(table);
+    await queueB(table, { result: 'nq', reason: 'R1' });
+
+    // A background sync reconciles v5 first: another device changed the placement,
+    // a field B never touched.
+    const v5 = ownWrite({
+      result_status: 'abs',
+      reason_text: 'R0',
+      final_placement: 6,
+      version: 5,
+    });
+    expect((await pull(table, v5)).conflict).toBe(false);
+    expect((await table.getReplicatedRow('1'))?.baseServerVersion).toBe(5);
+
+    // A's v4 acknowledgement is only applied now.
+    const db = await databaseManager.getDatabase('test');
+    const mutationA = mutation('mut-A', { result_status: 'q', reason_text: null }, 3);
+    await markReplicatedRowSynced(db, mutationA, 4, manager!.writtenOverlays.get(tableName));
+    await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, 'mut-A');
+    const afterAck = await table.getReplicatedRow('1');
+    expect(afterAck?.baseServerVersion).toBe(5);
+    expect(afterAck?.baseData).toEqual(table.adapter().toLocalRow(v5));
+    expect(afterAck?.serverVersion).toBe(5);
+
+    // v6: the placement changes again. B never touched it, so it is adopted.
+    const v6 = ownWrite({
+      result_status: 'abs',
+      reason_text: 'R0',
+      final_placement: 7,
+      version: 6,
+    });
+    const outcome = await pull(table, v6);
+
+    expect(conflicts).toEqual([]);
+    expect(outcome.conflict).toBe(false);
+    const row = await table.getReplicatedRow('1');
+    expect(row?.data).toMatchObject({ result: 'nq', reason: 'R1', placement: 7 });
+    expect(row?.baseServerVersion).toBe(6);
+    expect(row?.serverVersion).toBe(6);
   });
 
   describe('P2: the class compare policy still applies to a later edit', () => {

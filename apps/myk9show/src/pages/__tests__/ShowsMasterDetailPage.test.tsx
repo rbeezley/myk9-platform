@@ -13,7 +13,23 @@ const auth = {
   userWithRoles: SECRETARY as { id: string; roles: string[] } | null,
 };
 let showPageMounts = 0;
+// jsdom has no layout: the split's measured width, inside the 88px rail and the page padding.
+const split = vi.hoisted(() => ({
+  width: null as number | null,
+  ref: { current: null as HTMLElement | null },
+}));
+const RAIL_AND_PADDING_PX = 136;
 const listState = { crash: false };
+
+vi.mock('@/hooks/useElementWidth', () => ({
+  useElementWidth: () => ({ ref: split.ref, width: split.width }),
+}));
+
+/** A window this wide: `lg` from the media query, the split's width from the measured box. */
+function setWindow(width: number) {
+  mockViewportWidth(width);
+  split.width = width - RAIL_AND_PADDING_PX;
+}
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => auth,
@@ -68,23 +84,28 @@ describe('ShowsMasterDetailPage', () => {
     auth.user = { id: 'auth-1', is_anonymous: false };
     auth.userWithRoles = SECRETARY;
     showPageMounts = 0;
+    split.width = null;
     listState.crash = false;
   });
 
-  it('puts the open show beside the list from a 1280px window', () => {
-    mockViewportWidth(1440);
+  it('puts the open show beside the list where the cockpit beside it still splits (1440)', () => {
+    setWindow(1440);
     renderAt('/shows/show-1/entries');
     expect(screen.getByTestId('master-detail-layout')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Shows list' })).toHaveTextContent(
       'shows list (open: show-1)'
     );
     expect(screen.getByRole('region', { name: 'Show' })).toHaveTextContent('show page (in pane)');
-    // The cockpit splits at 1280 too; nothing here folds the list away.
+    // 1304 - 320 - 33 = 951px for the cockpit, past its 868px split; nothing folds the list.
+    // Where the list fits, nothing folds it: no Hide, no Shows button.
     expect(screen.queryByRole('button', { name: /Hide shows list/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Shows' })).not.toBeInTheDocument();
+    // Measured on the box around the split, which folding never resizes.
+    expect(split.ref.current).toBe(screen.getByTestId('master-detail-layout').parentElement);
   });
 
   it('pins the show page sticky offsets to the pane top', () => {
-    mockViewportWidth(1280);
+    setWindow(1280);
     renderAt('/shows/show-1');
     const pane = screen.getByRole('region', { name: 'Show' });
     const insetHolder = pane.querySelector<HTMLElement>('[style]');
@@ -92,7 +113,7 @@ describe('ShowsMasterDetailPage', () => {
   });
 
   it('shows Find Shows beside the list on /shows', () => {
-    mockViewportWidth(1440);
+    setWindow(1440);
     renderAt('/shows');
     expect(screen.getByRole('region', { name: 'Find Shows' })).toHaveTextContent(
       'find shows (in pane)'
@@ -100,9 +121,39 @@ describe('ShowsMasterDetailPage', () => {
     expect(screen.getByText('shows list (open: none)')).toBeInTheDocument();
   });
 
-  it('below 1280 folds the list away while a show is open, and the Shows button brings it back', async () => {
+  it('folds the list away from an open show where the cockpit beside it would stack (1280)', () => {
+    setWindow(1280);
+    renderAt('/shows/show-1');
+    expect(screen.queryByRole('region', { name: 'Shows list' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Shows' })).toBeInTheDocument();
+  });
+
+  it('mounts the show only once the split is measured, so it never mounts at a stale width', () => {
+    mockViewportWidth(1440);
+    split.width = null;
+    const { rerender } = renderAt('/shows/show-1');
+    expect(screen.queryByRole('region', { name: 'Shows list' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/show page/)).not.toBeInTheDocument();
+    expect(showPageMounts).toBe(0);
+
+    split.width = 1440 - RAIL_AND_PADDING_PX;
+    rerender(
+      <MemoryRouter initialEntries={['/shows/show-1']}>
+        <Routes>
+          <Route element={<ShowsMasterDetailPage />}>
+            <Route path="/shows/:id" element={<Page name="show page" />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('region', { name: 'Shows list' })).toBeInTheDocument();
+    expect(screen.getByText('show page (in pane)')).toBeInTheDocument();
+    expect(showPageMounts).toBe(1);
+  });
+
+  it('folds the list away while a show is open on a narrower window, and the Shows button brings it back', async () => {
     const user = userEvent.setup();
-    mockViewportWidth(1100);
+    setWindow(1100);
     renderAt('/shows/show-1');
 
     expect(screen.queryByRole('region', { name: 'Shows list' })).not.toBeInTheDocument();
@@ -121,7 +172,7 @@ describe('ShowsMasterDetailPage', () => {
 
   it('never remounts the open show when the list folds or unfolds', async () => {
     const user = userEvent.setup();
-    mockViewportWidth(1100);
+    setWindow(1100);
     renderAt('/shows/show-1');
     expect(showPageMounts).toBe(1);
 
@@ -133,7 +184,7 @@ describe('ShowsMasterDetailPage', () => {
   it('keeps the open show working when the list itself fails to render', () => {
     listState.crash = true;
     const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
-    mockViewportWidth(1440);
+    setWindow(1440);
     renderAt('/shows/show-1');
     expect(screen.getByRole('alert')).toHaveTextContent("The shows list couldn't be shown.");
     expect(screen.getByText('show page (in pane)')).toBeInTheDocument();
@@ -142,28 +193,28 @@ describe('ShowsMasterDetailPage', () => {
 
   it('gives exhibitors and judges no list: Find Shows is already their list', () => {
     auth.userWithRoles = { id: 'auth-1', roles: ['exhibitor', 'judge'] };
-    mockViewportWidth(1440);
+    setWindow(1440);
     renderAt('/shows');
     expect(screen.getByText('find shows (full page)')).toBeInTheDocument();
     expect(screen.queryByText(/shows list/)).not.toBeInTheDocument();
   });
 
-  it('remembers an opened list between visits below 1280', () => {
+  it('remembers an opened list between visits where it would fold', () => {
     window.localStorage.setItem('view-pref-shows-pane', 'open');
-    mockViewportWidth(1100);
+    setWindow(1100);
     renderAt('/shows/show-1');
     expect(screen.getByTestId('master-detail-layout')).toBeInTheDocument();
   });
 
-  it('keeps the split on /shows below 1280, where no show is open to fold for', () => {
-    mockViewportWidth(1100);
+  it('keeps the split on /shows where it would fold, since no show is open to fold for', () => {
+    setWindow(1100);
     renderAt('/shows');
     expect(screen.getByTestId('master-detail-layout')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Shows' })).not.toBeInTheDocument();
   });
 
   it('keeps the page hop under lg: no list and no Shows button', () => {
-    mockViewportWidth(800);
+    setWindow(800);
     renderAt('/shows/show-1');
     expect(screen.getByText('show page (full page)')).toBeInTheDocument();
     expect(screen.queryByText(/shows list/)).not.toBeInTheDocument();
@@ -172,7 +223,7 @@ describe('ShowsMasterDetailPage', () => {
 
   it('leaves a signed-out visitor’s pages exactly as before', () => {
     auth.user = null;
-    mockViewportWidth(1440);
+    setWindow(1440);
     renderAt('/shows/show-1');
     expect(screen.getByText('show page (full page)')).toBeInTheDocument();
     expect(screen.queryByText(/shows list/)).not.toBeInTheDocument();

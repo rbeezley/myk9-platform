@@ -88,9 +88,23 @@ describe('ShowsMasterDetailPage', () => {
     listState.crash = false;
   });
 
-  it('puts the open show beside the list where the cockpit beside it still splits (1440)', () => {
+  it('folds the list from Entry Forms at a 1440 window, where its cockpit beside it would stack', () => {
     setWindow(1440);
     renderAt('/shows/show-1/entries');
+    expect(screen.queryByRole('region', { name: 'Shows list' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Shows' })).toBeInTheDocument();
+    expect(screen.getByText('show page (in pane)')).toBeInTheDocument();
+  });
+
+  it('keeps the list beside Entry Forms on a 1600 window', () => {
+    setWindow(1600);
+    renderAt('/shows/show-1/entries');
+    expect(screen.getByRole('region', { name: 'Shows list' })).toBeInTheDocument();
+  });
+
+  it('puts the open show beside the list where the cockpit beside it still splits (1440)', () => {
+    setWindow(1440);
+    renderAt('/shows/show-1');
     expect(screen.getByTestId('master-detail-layout')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Shows list' })).toHaveTextContent(
       'shows list (open: show-1)'

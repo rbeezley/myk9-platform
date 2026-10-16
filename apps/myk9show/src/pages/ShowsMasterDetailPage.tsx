@@ -11,9 +11,11 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useViewPreference } from '@/hooks/useViewPreference';
 import { isAccountSession } from '@/hooks/guestServerRead';
 import { UserRole } from '@/types/auth-types';
-import { SHOWS_LIST_DEFAULT_PX, showsPaneFolds } from './showsPaneFold';
+import { SHOWS_LIST_DEFAULT_PX, showsPaneFolds, type ShowPaneTab } from './showsPaneFold';
 
 const PANE_MODES = ['open', 'folded'] as const;
+// The show tabs with their own fold width (`showWidthNeeded`); any other path is Overview's.
+const PANE_TABS: ReadonlySet<string> = new Set(['entries', 'results', 'reports']);
 type PaneMode = (typeof PANE_MODES)[number];
 
 // The people who run shows. An exhibitor or judge would only get the Find Shows list twice, side by
@@ -60,23 +62,25 @@ const ShowsMasterDetailPage: React.FC = () => {
   const { user, userWithRoles } = useAuthContext();
   const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
   const showId = useMatch('/shows/:id/*')?.params.id;
+  const section = useMatch('/shows/:id/:section/*')?.params.section;
+  const tab = PANE_TABS.has(section ?? '') ? (section as ShowPaneTab) : undefined;
 
   // Roles are null only until RBAC first loads (refreshes keep them), so a cold open of a show URL
   // mounts the show once more when the list arrives; after that the tree position is fixed.
   const runsShows = (userWithRoles?.roles ?? []).some(role => PANE_ROLES.has(role));
   if (!isAccountSession(user) || !runsShows || !isWide) return <Outlet />;
-  return <ShowsPaneSplit showId={showId} />;
+  return <ShowsPaneSplit showId={showId} tab={tab} />;
 };
 
 // Its own component so the width is measured from the moment the split mounts, which can be after
 // the page's first render (roles arriving, the window crossing `lg`).
-function ShowsPaneSplit({ showId }: { showId: string | undefined }) {
+function ShowsPaneSplit({ showId, tab }: { showId: string | undefined; tab: ShowPaneTab }) {
   // Measured inside the page padding, on a box whose width folding never changes.
   const { ref: splitRef, width: splitWidth } = useElementWidth<HTMLDivElement>();
   const [paneMode, setPaneMode] = useViewPreference<PaneMode>('shows-pane', 'folded', PANE_MODES);
   const focusAfterToggle = useRef<'list' | 'shows-button' | null>(null);
 
-  const canFold = !!showId && showsPaneFolds(splitWidth);
+  const canFold = !!showId && showsPaneFolds(splitWidth, tab);
   const folded = canFold && paneMode === 'folded';
 
   // The control that was clicked unmounts on toggle; put focus where the reader now is.

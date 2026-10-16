@@ -529,7 +529,8 @@ describe('ReplicatedTable', () => {
           status: 'checked-in',
           final_placement: 2,
         },
-        ['status']
+        ['status'],
+        expect.any(Function)
       );
     });
 

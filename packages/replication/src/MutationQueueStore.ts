@@ -3,6 +3,7 @@ import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { removeOrphanedLocalOnlyRow } from './mutation-row-sync';
 import { DiscardRevertRegistry } from './mutation-discard-revert';
+import type { QueuedFieldPruner } from './core/pruneQueuedFields';
 import { rebaseQueuedMutation, rewriteQueuedMutations } from './mutation-queue-rewrite';
 import { withQuotaEviction } from './quota-eviction';
 import { type PendingMutation, type ReplicatedRow } from './types';
@@ -326,7 +327,8 @@ export class MutationQueueStore {
     authUserId: string,
     rebuiltData?: Record<string, unknown>,
     legacyOmittedKeysServerWins: readonly string[] = [],
-    confirmOwner?: () => Promise<void>
+    confirmOwner?: () => Promise<void>,
+    pruneRpcFields?: QueuedFieldPruner
   ): Promise<number> {
     const db = await databaseManager.getDatabase('MutationManager');
     const all = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
@@ -344,7 +346,13 @@ export class MutationQueueStore {
       db,
       candidates.map(mutation => mutation.id),
       mutation =>
-        rebaseQueuedMutation(mutation, newServerVersion, rebuiltData, legacyOmittedKeysServerWins)
+        rebaseQueuedMutation(
+          mutation,
+          newServerVersion,
+          rebuiltData,
+          legacyOmittedKeysServerWins,
+          pruneRpcFields
+        )
     );
 
     if (changed > 0) {

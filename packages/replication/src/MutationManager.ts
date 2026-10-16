@@ -13,6 +13,7 @@
  * - User notification of sync failures via CustomEvent
  */
 
+import type { QueuedFieldPruner } from './core/pruneQueuedFields';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from './dependencies';
 import { noopLogger } from './dependencies';
@@ -472,7 +473,8 @@ export class MutationManager {
     rowId: string,
     newServerVersion: number,
     rebuiltData?: Record<string, unknown>,
-    legacyOmittedKeysServerWins?: readonly string[]
+    legacyOmittedKeysServerWins?: readonly string[],
+    pruneRpcFields?: QueuedFieldPruner
   ): Promise<void> {
     const authUserId = await this.requireCurrentUserId();
     const changed = await this.queueStore.reconcilePendingMutationsForRow(
@@ -482,7 +484,8 @@ export class MutationManager {
       authUserId,
       rebuiltData,
       legacyOmittedKeysServerWins,
-      () => this.requireSameCurrentUserId(authUserId)
+      () => this.requireSameCurrentUserId(authUserId),
+      pruneRpcFields
     );
     if (changed > 0) {
       await this.backupStore.writeCurrent();

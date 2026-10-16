@@ -57,13 +57,16 @@ export async function rewriteQueuedMutations(
  * advancing the token would trade a 40001 for a silent clobber), and keeps every
  * explicitly queued key the rebuilt payload omits.
  *
+ * An RPC delta's fields pass through `pruneRpcFields` (MYK9-1236).
+ *
  * @returns the rebased mutation, or undefined when it cannot be advanced.
  */
 export function rebaseQueuedMutation(
   mutation: PendingMutation,
   newServerVersion: number,
   rebuiltData: Record<string, unknown> | undefined,
-  legacyOmittedKeysServerWins: readonly string[]
+  legacyOmittedKeysServerWins: readonly string[],
+  pruneRpcFields?: (fields: Record<string, unknown>) => Record<string, unknown>
 ): PendingMutation | undefined {
   const isRpc = mutation.rpc !== undefined;
   if (!isRpc && rebuiltData === undefined) return undefined;
@@ -75,6 +78,16 @@ export function rebaseQueuedMutation(
   const explicitDataKeys =
     mutation.explicitDataKeys ??
     Object.keys(mutation.data).filter(key => !legacyOmittedKeysServerWins.includes(key));
+  if (isRpc && mutation.rpc?.fields && pruneRpcFields) {
+    // An RPC left with no fields still uploads: it is the version-only no-op that
+    // acknowledges the row clean (the RPC returns the current version for it).
+    return {
+      ...mutation,
+      serverVersion,
+      explicitDataKeys,
+      rpc: { ...mutation.rpc, fields: pruneRpcFields(mutation.rpc.fields) },
+    };
+  }
   if (isRpc || rebuiltData === undefined) {
     return { ...mutation, serverVersion, explicitDataKeys };
   }

@@ -23,7 +23,8 @@ export const SHOWS_PANE_CHROME_PX = HANDLE_AND_PADDING_PX + CLASSIC_SCROLLBAR_PX
  * gives the cockpit its schedule / focus split (`COCKPIT_SPLIT_MIN_WIDTH`). Narrower, the list
  * folds so the show keeps its full width, and the "Shows" button brings the list back. The rule
  * reads the space this page is given, not the window, so a wider or narrower app rail moves the
- * fold point with it. Unmeasured, it folds: the show at full width is the safe first frame.
+ * fold point with it. Unmeasured it folds, though nothing shows then: the page mounts the show only
+ * once it has measured (`ShowsMasterDetailPage`).
  */
 export function showsPaneFolds(splitWidth: number | null): boolean {
   if (splitWidth === null) return true;

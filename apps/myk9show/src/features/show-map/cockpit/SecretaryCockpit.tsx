@@ -140,8 +140,9 @@ export function SecretaryCockpit({
   }, []);
 
   // Only in the measured layout: the first commit is unmeasured (stacked), and a split cockpit
-  // re-lays out right after it, which would move the row. Scrolls once, then is spent; a later
-  // resize or rotation never moves the page.
+  // re-lays out right after it, which would move the row. Scrolls once, then is spent for this
+  // mount: a resize or rotation that keeps the cockpit mounted never moves the page. (A remount,
+  // as when the window crosses `lg`, reads the URL's anchor again: MYK9-1218.)
   useEffect(() => {
     const anchor = pendingAnchor.current;
     if (!anchor || gridWidth === null) return;

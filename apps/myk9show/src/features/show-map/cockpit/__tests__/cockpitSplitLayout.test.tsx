@@ -79,7 +79,7 @@ describe('the class editor survives the split/stack switch', () => {
     [1000, 'split'],
     [700, 'stacked'],
   ])(
-    'scrolls a returning anchor once, in the measured %ipx (%s) layout, and never again',
+    'scrolls a returning anchor once, in the measured %ipx (%s) layout, and not again while mounted',
     width => {
       const scrollIntoView = vi.fn();
       const original = Element.prototype.scrollIntoView;

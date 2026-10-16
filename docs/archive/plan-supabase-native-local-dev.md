@@ -1,6 +1,6 @@
 # Supabase native local dev (no Docker) — spike findings
 
-> **Status:** Active
+> **Status:** Complete
 
 Spike run 2026-10-15 on the dev Mac (macOS 27.0.1, Apple silicon) in worktree
 `nostalgic-lovelace-30a976`. Question: can the Supabase CLI's Docker-free
@@ -103,6 +103,60 @@ functions, studio, mail, analytics, pooler`. The spike used
    non-loopback hosts and add a known-answer test for it.
 4. Mention it in CLAUDE.md's "No Docker here" LESSON and the `/commit`
    high-risk ladder for migration changes.
+
+## Adopted: `pnpm qa:sql-local` (2026-10-15)
+
+Step 2 above shipped as an **optional** pre-push check for migration changes;
+CI's `sql-tests` job stays the authoritative gate.
+`scripts/qa/run-sql-local.sh`:
+
+- refuses a CLI older than 2.121.0 with an upgrade message (`SUPABASE_BIN`
+  points it at a CLI that is not on `PATH`, such as a downloaded release);
+- owns a dedicated stack named `qa-sql-local`, never the worktree's default
+  stack, so a development stack you started yourself keeps its data. It
+  destroys any leftover `qa-sql-local` stack first, then starts it fresh
+  (`SUPABASE_EXPERIMENTAL_STACK=1`, `--runtime native`, the native exclude
+  list); a new stack applies every migration on start, and with no
+  `seed.sql` that equals CI's `start` + `db reset --no-seed`. `db reset` has no
+  `--stack` flag, so it is not used (Codex review of #3055 caught the earlier
+  version resetting and destroying the default stack);
+- runs CI's steps by calling the same scripts: `run-behavioral-sql-tests.sh`,
+  `class-absent-mutation.ts`, `run-financial-sql-tests.sh`;
+- runs `stack destroy --stack qa-sql-local --yes` on success, failure or Ctrl-C, and fails the run
+  if that teardown fails (a leaked stack holds its ports);
+- never passes `--linked`, `db push` or a remote URL.
+  `scripts/qa/run-sql-local.test.ts` pins the version gate, the teardown, the
+  named stack and the absence of linked-project flags against a stub CLI.
+
+Evidence on the dev Mac with the v2.121.0 release: green on this branch
+(693 migrations, 153 behavioral files, mutation proof, financial assertions)
+in 73 s with a warm download cache; red when a scratch migration dropped
+`trg_enforce_show_publish_gate` (`show_publish_gate_trigger_test.sql` failed,
+stack destroyed, exit 3); and with the worktree's own default stack already
+running, the run stopped at `start` ("Public port 54322 … is in use") and
+the default stack survived.
+
+Not done, deliberately: step 4.
+
+## Adopted: two worktrees at once (2026-10-15)
+
+Step 3 above. The behavioral runner and `class-absent-mutation.ts` now accept
+`postgresql://postgres:postgres@{127.0.0.1|localhost}:<port>/postgres` for any
+port, still anchored with no query string, so a non-loopback host and a libpq
+`?host=` / `?hostaddr=` override are both refused (known-answer cases in
+`run-behavioral-sql-tests.test.ts`). `run-sql-local.sh` gives each worktree its
+own port pair: `SUPABASE_DB_PORT` / `SUPABASE_API_PORT` when set, otherwise a
+slot in 40000-41999 derived from the worktree path and stepped past any port
+already listening, after any leftover `qa-sql-local` stack is destroyed.
+config.toml's 54321/54322 stay as they are for plain `supabase start`, so a
+worktree's own default stack no longer blocks the run either.
+
+Evidence on the dev Mac with the v2.121.0 release: with this worktree's own
+default stack already running on 54322, two worktrees ran `run-sql-local.sh`
+at the same moment (db ports 41211 and 41145). Both went green (all
+migrations, 153 behavioral files, the four-signature mutation proof, financial
+assertions) in 27 s, both `qa-sql-local` stacks were destroyed, and the default
+stack was still answering on 54322 afterwards.
 
 ## Testing phase
 

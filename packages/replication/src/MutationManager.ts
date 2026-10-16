@@ -29,6 +29,8 @@ import {
   type AdoptHeldMutationsOptions,
 } from './mutation-adopt';
 import { OwnerTransferRegistry } from './mutation-owner-transfer';
+import { WrittenFieldOverlayRegistry } from './mutation-written-overlay';
+import { InFlightWriteRegistry, type InFlightWriteContext } from './inflight-written-base';
 import { type PendingMutation, type ReplicationConflictSnapshot, type SyncResult } from './types';
 import type { MutationManagerOptions, MutationUploadAuthContext } from './mutation-manager-options';
 export type { MutationManagerOptions, MutationUploadAuthContext } from './mutation-manager-options';
@@ -56,6 +58,10 @@ export class MutationManager {
   readonly discardReverters: DiscardRevertRegistry;
   /** Per-table replica-row ownership transfer for adoption (MYK9-1205). */
   readonly ownerTransfers = new OwnerTransferRegistry();
+  /** Per-table map from a written server payload to local fields, for the ack-time base (MYK9-1220). */
+  readonly writtenOverlays = new WrittenFieldOverlayRegistry();
+  /** Sent writes whose acknowledgement is not applied yet (MYK9-1221). */
+  private readonly inFlightWrites = new InFlightWriteRegistry();
 
   constructor(supabaseClient: SupabaseClient, options: MutationManagerOptions = {}) {
     if (!supabaseClient) throw new Error('[MutationManager] Supabase client is required');
@@ -82,8 +88,17 @@ export class MutationManager {
       this.queueStore,
       () => this.backupStore.writeCurrent(),
       () => this.requireCurrentUploadContext(),
-      (tableName, rowId) => this.rowRefetchers.request(tableName, rowId)
+      (tableName, rowId) => this.rowRefetchers.request(tableName, rowId),
+      this.writtenOverlays,
+      this.inFlightWrites
     );
+  }
+
+  getInFlightWrites(tableName: string, rowId: string): InFlightWriteContext {
+    return {
+      mutations: this.inFlightWrites.forRow(tableName, rowId),
+      overlay: this.writtenOverlays.get(tableName),
+    };
   }
 
   /**

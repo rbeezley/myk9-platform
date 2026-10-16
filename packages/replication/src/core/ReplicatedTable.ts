@@ -34,6 +34,8 @@ import {
   type RowRefetchAdapter,
 } from '../refetchDirtyRowsById';
 import { MAX_OPTIMISTIC_UPDATE_RETRIES } from '../constants';
+import { createWrittenFieldOverlay } from '../mutation-written-overlay';
+import type { InFlightWriteContext } from '../inflight-written-base';
 
 import { databaseManager, REPLICATION_STORES, trackTransaction } from './DatabaseManager';
 import {
@@ -181,6 +183,17 @@ export abstract class ReplicatedTable<T extends { id: string }> {
           refetchDirtyRowsById(this, getAdapter(), rowIds)
         )
       : undefined;
+    this.unregisterWrittenOverlay?.();
+    const adapter = getAdapter?.();
+    this.unregisterWrittenOverlay = adapter?.toRemoteRow
+      ? manager.writtenOverlays?.register(
+          this.tableName,
+          createWrittenFieldOverlay({
+            toLocalRow: remote => adapter.toLocalRow(remote),
+            toRemoteRow: local => adapter.toRemoteRow!(local),
+          })
+        )
+      : undefined;
     this.unregisterOwnerTransfer?.();
     this.unregisterOwnerTransfer = manager.ownerTransfers?.register(
       this.tableName,
@@ -195,7 +208,16 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       : undefined;
   }
 
+  /**
+   * Writes of this device for a row that are sent and not yet acknowledged, with
+   * the overlay that places them in a merge base (MYK9-1221).
+   */
+  getInFlightWrites(rowId: string): InFlightWriteContext | undefined {
+    return this.mutationManager?.getInFlightWrites?.(this.tableName, rowId);
+  }
+
   private unregisterRowRefetcher: (() => void) | undefined;
+  private unregisterWrittenOverlay: (() => void) | undefined;
   private unregisterOwnerTransfer: (() => void) | undefined;
   private unregisterDiscardReverter: (() => void) | undefined;
 

@@ -1,6 +1,6 @@
 import { createDatabaseError } from '@/services/database/databaseError';
 import { screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { fromAny } from '@total-typescript/shoehorn';
 
 import { render } from '@/test/utils/testUtils';
@@ -38,6 +38,12 @@ vi.mock('@/store/messageStore', () => ({
   ) => selector({ getOrCreateThread: vi.fn(), sendMessage: vi.fn() }),
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+// jsdom has no layout: the cockpit splits on its own measured width (cockpitSplit.ts), so a test
+// sets the width it would measure. Null (unmeasured) is the stacked layout.
+const cockpitWidth = vi.hoisted(() => ({ value: null as number | null }));
+vi.mock('@/hooks/useElementWidth', () => ({
+  useElementWidth: () => ({ ref: { current: null }, width: cockpitWidth.value }),
+}));
 
 const show = {
   id: 'show-1',
@@ -207,18 +213,8 @@ describe('ShowDeskPanel cockpit', () => {
     expect(screen.getAllByTestId('cockpit-inline-focus')).toHaveLength(1);
   });
 
-  it('mounts the focused Class panel once, in the split column, on a wide viewport', () => {
-    const originalMatchMedia = window.matchMedia;
-    window.matchMedia = vi.fn().mockImplementation(query => ({
-      matches: query === '(min-width: 1280px)',
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    }));
+  it('mounts the focused Class panel once, in the split column, on a wide cockpit', () => {
+    cockpitWidth.value = 1000;
 
     try {
       render(
@@ -244,11 +240,15 @@ describe('ShowDeskPanel cockpit', () => {
       expect(screen.queryByTestId('cockpit-inline-focus')).not.toBeInTheDocument();
       expect(screen.getAllByRole('heading', { name: 'Container Novice' })).toHaveLength(1);
     } finally {
-      window.matchMedia = originalMatchMedia;
+      cockpitWidth.value = null;
     }
   });
 
   it('restores the URL-backed schedule anchor without changing Class focus', async () => {
+    cockpitWidth.value = 700;
+    onTestFinished(() => {
+      cockpitWidth.value = null;
+    });
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
 

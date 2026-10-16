@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 import { applyRegistrationClock, searchForSeededDog, SEEDED_SEARCH_DOGS } from './seedRoster';
+import { classChipNameForLevel } from '../../e2e-helpers/classChipName';
 
 /**
  * MYK9-567: a human tester could not put a space in the handler name —
@@ -125,7 +126,7 @@ test('the handler name field accepts spaces, hyphens and apostrophes', async ({ 
     .locator('.myk9-element-card')
     .filter({ hasText: CLASS_ELEMENT })
     .first()
-    .getByRole('checkbox', { name: `Select ${CLASS_LEVEL}` })
+    .getByRole('checkbox', { name: classChipNameForLevel(CLASS_LEVEL) })
     .first()
     .click();
   await page.getByRole('button', { name: /^Next/ }).click();

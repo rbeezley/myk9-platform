@@ -6,7 +6,12 @@ import type { SyncReplicatedTableAdapter } from './syncReplicatedTable';
 /** The slice of a download adapter a single-row re-fetch needs. */
 export type RowRefetchAdapter<TRemote, TLocal extends { id: string }> = Pick<
   SyncReplicatedTableAdapter<TRemote, TLocal>,
-  'getRemoteId' | 'toLocalRow' | 'mergeDirtyRow' | 'rebuildUpdatePayload' | 'dirtyRowComparePolicy'
+  | 'getRemoteId'
+  | 'toLocalRow'
+  | 'toRemoteRow'
+  | 'mergeDirtyRow'
+  | 'rebuildUpdatePayload'
+  | 'dirtyRowComparePolicy'
 > &
   Required<Pick<SyncReplicatedTableAdapter<TRemote, TLocal>, 'fetchRowsById'>>;
 

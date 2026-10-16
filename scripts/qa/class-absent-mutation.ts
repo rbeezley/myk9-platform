@@ -1,9 +1,12 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
-const local = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
-if (process.env.MYK9_BEHAVIORAL_SQL_DATABASE_URL !== local) {
-  throw new Error('Mutation proof requires the exact disposable loopback SQL URL.');
+// Same guard as run-behavioral-sql-tests.sh: any loopback port, no query string.
+const local = process.env.MYK9_BEHAVIORAL_SQL_DATABASE_URL ?? '';
+const loopback =
+  /^postgresql:\/\/postgres:postgres@(?:127\.0\.0\.1|localhost):(\d{1,5})\/postgres$/.exec(local);
+if (!loopback || Number(loopback[1]) < 1 || Number(loopback[1]) > 65535) {
+  throw new Error('Mutation proof requires a disposable loopback SQL URL.');
 }
 const file = resolve(
   import.meta.dirname,

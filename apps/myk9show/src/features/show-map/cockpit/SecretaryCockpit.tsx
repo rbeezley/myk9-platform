@@ -6,8 +6,9 @@ import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClass
 
 import { Button } from '@/components/ui/button';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { COCKPIT_SPLIT_VIEWPORT_QUERY } from './splitViewport';
+import { cn } from '@/lib/utils';
+import { useElementWidth } from '@/hooks/useElementWidth';
+import { COCKPIT_SPLIT_COLUMNS, isCockpitSplit } from './cockpitSplit';
 
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import { ALL_DAYS, buildSecretaryCockpitModel } from './secretaryCockpitModel';
@@ -45,7 +46,7 @@ export function SecretaryCockpit({
   const { state, updateState } = useSecretaryCockpitUrlState();
   // Edit Trial and Trial details on each trial heading (MYK9-956); Delete is in the edit panel.
   const { trialRowMenu, trialDialogs } = useTrialRowActions(snapshot.showId, canManageShow);
-  // Held here, not in the panel, so a layout switch at 1280px cannot close an open editor.
+  // Held here, not in the panel, so a split/stack switch cannot close an open editor.
   const { renderClassActions, classDialogs } = useFocusedClassSetupActions(snapshot.showId);
   const renderTrialActions = (trialId: string, label: string) => (
     <>
@@ -62,7 +63,13 @@ export function SecretaryCockpit({
     </>
   );
   const pendingAnchor = useRef(state.anchor);
-  const isSplitViewport = useMediaQuery(COCKPIT_SPLIT_VIEWPORT_QUERY);
+  // The split follows the width the cockpit is given (full page, or beside the Shows list), not
+  // the window: see cockpitSplit.ts.
+  const { ref: gridRef, width: gridWidth } = useElementWidth<HTMLDivElement>();
+  // Unmeasured on the first commit, so a split cockpit renders stacked once and moves the focused
+  // panel to its column in the layout effect, before paint. The panel remounts then; the editor
+  // it would lose is held here (useFocusedClassSetupActions), and nothing is visible in between.
+  const isSplit = isCockpitSplit(gridWidth);
   const model = buildSecretaryCockpitModel(snapshot, state);
   const focusedId = model.focusedClass?.id;
   const sourceClass = snapshot.classes.find(classItem => classItem.id === focusedId) ?? null;
@@ -81,6 +88,7 @@ export function SecretaryCockpit({
       trial={trial}
       attention={focusedAttention}
       timeZone={snapshot.timeZone}
+      sticky={isSplit}
       canManageShow={canManageShow}
       onCommand={onCommand}
       {...(runOrder !== undefined && { runOrder })}
@@ -131,14 +139,18 @@ export function SecretaryCockpit({
     return () => events.forEach(name => window.removeEventListener(name, cancel, options));
   }, []);
 
+  // Only in the measured layout: the first commit is unmeasured (stacked), and a split cockpit
+  // re-lays out right after it, which would move the row. Scrolls once, then is spent for this
+  // mount: a resize or rotation that keeps the cockpit mounted never moves the page. (A remount,
+  // as when the window crosses `lg`, reads the URL's anchor again: MYK9-1218.)
   useEffect(() => {
     const anchor = pendingAnchor.current;
-    if (!anchor) return;
+    if (!anchor || gridWidth === null) return;
     const target = document.getElementById(getCockpitAnchorElementId(anchor));
     if (!target) return;
     pendingAnchor.current = undefined;
     target.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-  }, [model.trialGroups]);
+  }, [model.trialGroups, gridWidth]);
 
   return (
     <div className="space-y-5" data-testid="secretary-cockpit">
@@ -187,9 +199,15 @@ export function SecretaryCockpit({
         />
       )}
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] xl:grid-rows-[auto_auto] xl:gap-5">
+      <div
+        ref={gridRef}
+        className={cn('grid items-start', isSplit ? 'grid-rows-[auto_auto] gap-5' : 'gap-4')}
+        style={isSplit ? { gridTemplateColumns: COCKPIT_SPLIT_COLUMNS } : undefined}
+        data-cockpit-layout={isSplit ? 'split' : 'stacked'}
+      >
         <SecretaryCockpitSchedule
           showId={snapshot.showId}
+          split={isSplit}
           entryBreakdownByClassId={entryBreakdownByClassId}
           renderTrialActions={canManageShow ? renderTrialActions : undefined}
           model={model}
@@ -198,11 +216,9 @@ export function SecretaryCockpit({
           filter={state.filter}
           onFilterChange={filter => updateState({ filter })}
           onFocusClass={focusedClassId => updateState({ focusedClassId, anchor: focusedClassId })}
-          inlineFocusedContent={
-            !isSplitViewport && focusedClassIsVisible ? focusedPanel : undefined
-          }
+          inlineFocusedContent={!isSplit && focusedClassIsVisible ? focusedPanel : undefined}
         />
-        {!isSplitViewport && !focusedClassIsVisible && model.focusedClass && (
+        {!isSplit && !focusedClassIsVisible && model.focusedClass && (
           <div
             className="space-y-2"
             data-testid="cockpit-inline-focus"
@@ -214,8 +230,8 @@ export function SecretaryCockpit({
             {focusedPanel}
           </div>
         )}
-        {isSplitViewport && model.focusedClass && (
-          <div className="xl:col-start-2 xl:row-start-2" data-testid="cockpit-split-focus">
+        {isSplit && model.focusedClass && (
+          <div className="col-start-2 row-start-2" data-testid="cockpit-split-focus">
             {focusedPanel}
           </div>
         )}

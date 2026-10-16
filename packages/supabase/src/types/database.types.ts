@@ -7369,10 +7369,40 @@ export type Database = {
           },
         ]
       }
+      show_lifecycle_email_job_requests: {
+        Row: {
+          created_at: string
+          job_id: string
+          request_key: string
+          show_id: string
+        }
+        Insert: {
+          created_at?: string
+          job_id: string
+          request_key: string
+          show_id: string
+        }
+        Update: {
+          created_at?: string
+          job_id?: string
+          request_key?: string
+          show_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_lifecycle_email_job_requests_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "show_lifecycle_email_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       show_lifecycle_email_jobs: {
         Row: {
           batch_key: string | null
           body: string | null
+          claimed_until: string | null
           correction_for_job_id: string | null
           created_at: string
           created_by: string | null
@@ -7406,6 +7436,7 @@ export type Database = {
         Insert: {
           batch_key?: string | null
           body?: string | null
+          claimed_until?: string | null
           correction_for_job_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -7439,6 +7470,7 @@ export type Database = {
         Update: {
           batch_key?: string | null
           body?: string | null
+          claimed_until?: string | null
           correction_for_job_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -13071,6 +13103,23 @@ export type Database = {
           lease_until: string
           outcome: string
         }[]
+      }
+      claim_registration_number_needed_job: {
+        Args: {
+          p_body: string
+          p_entry_id: string
+          p_lease_until?: string
+          p_recipient_email: string
+          p_recipient_name: string
+          p_request_key: string
+          p_secretary_note: string
+          p_show_id: string
+          p_stale_before: string
+          p_step_id: string
+          p_subject: string
+          p_user_id: string
+        }
+        Returns: Json
       }
       claim_sms_opt_in_attempt: {
         Args: { p_auth_user_id: string; p_phone_e164: string }

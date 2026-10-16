@@ -1,5 +1,6 @@
 import type { ReplicatedTable } from './core/ReplicatedTable';
 import { detectDirtyRowConflict, instantFieldsFor } from './conflict/detectDirtyRowConflict';
+import { resolveInFlightMergeBase } from './inflight-written-base';
 import type { SyncReplicatedTableAdapter } from './syncReplicatedTable';
 import type { ReplicatedRow, ReplicationConflictSnapshot } from './types';
 
@@ -20,6 +21,8 @@ export interface DirtyRemoteRowOutcome {
  *   `replication:conflict`. The queued write is left untouched for the resolver.
  * - A collision the table's compare policy reads as the same outcome (MYK9-1104)
  *   is no collision: the server's spelling or stamp is adopted, the write rebases.
+ * - A write of this device that is in flight counts as part of the base when
+ *   the snapshot is that write landing (MYK9-1221, `resolveInFlightMergeBase`).
  * - Anything else reconciles: server fields the client never touched merge in,
  *   and the queued write rebases onto the server's token
  *   (`ReplicatedTable.reconcileDirtyRow`).
@@ -38,8 +41,19 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
   }
 ): Promise<DirtyRemoteRowOutcome> {
   const { id, existing, remoteLocal, remoteServerVersion } = params;
-  const detection = detectDirtyRowConflict({
+  // MYK9-1221: a write of this device that is sent but not yet acknowledged is
+  // part of the base when the snapshot is that write landing.
+  const base = resolveInFlightMergeBase({
     base: existing.baseData,
+    baseServerVersion: existing.baseServerVersion,
+    remote: remoteLocal,
+    remoteServerVersion,
+    inFlight: table.getInFlightWrites(id),
+    instantFields: instantFieldsFor(table.getTableName()),
+    comparePolicy: adapter.dirtyRowComparePolicy,
+  });
+  const detection = detectDirtyRowConflict({
+    base,
     local: existing.data,
     remote: remoteLocal,
     instantFields: instantFieldsFor(table.getTableName()),
@@ -52,7 +66,7 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
       fields: detection.fields,
       localData: existing.data,
       remoteData: remoteLocal,
-      baseData: existing.baseData,
+      baseData: base,
       baseVersion: existing.baseVersion ?? 0,
       localVersion: existing.version,
       remoteServerVersion: remoteServerVersion ?? 0,
@@ -73,7 +87,7 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
   // defines mergeDirtyRow it owns the data merge; otherwise a generic 3-way
   // merge adopts only the fields the client never changed.
   const reconciled = await table.reconcileDirtyRow(id, {
-    base: existing.baseData,
+    base,
     remote: remoteLocal,
     remoteServerVersion,
     adoptRemoteFields: detection.adoptRemoteFields,

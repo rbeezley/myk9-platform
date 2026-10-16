@@ -253,6 +253,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       },
       getRemoteId: remote => String(remote.id),
       toLocalRow: rowToEntry,
+      // An acknowledged write moves the row's merge base forward through this (MYK9-1220).
+      toRemoteRow: entry => entryToSupabaseRow(entry),
       // After a non-conflicting dirty sync-down reconciles a row, a queued full-row
       // direct UPDATE (updateStatus/updateEntry) must be refreshed to the merged
       // payload so advancing its OCC token doesn't clobber server-changed untouched

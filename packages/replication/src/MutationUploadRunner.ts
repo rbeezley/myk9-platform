@@ -1,6 +1,6 @@
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
-import { executeMutation } from './mutation-execute';
+import { sendAndAcknowledge } from './mutation-send-and-ack';
 import { ContainmentError, OccRejectionError } from './mutation-occ';
 import { handleOccRejection } from './mutation-occ-rejection';
 import { UploadLock } from './upload-lock';
@@ -9,6 +9,8 @@ import * as mutationOwner from './mutation-owner';
 import { getMutationQueueCapacity, QUEUE_MAX_SIZE } from './mutation-queue-capacity';
 import { classifyMutationFailure } from './mutation-retry';
 import * as rowSync from './mutation-row-sync';
+import type { InFlightWriteRegistry } from './inflight-written-base';
+import type { WrittenFieldOverlayRegistry } from './mutation-written-overlay';
 import * as uploadEvents from './mutation-upload-events';
 import { markPerf, measurePerf } from './perf';
 import type { PendingMutation, ReplicatedRow, SyncResult, UploadedMutation } from './types';
@@ -55,7 +57,9 @@ export class MutationUploadRunner {
     private readonly queueStore: MutationQueueStore,
     private readonly writeBackup: () => Promise<void>,
     private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext>,
-    private readonly requestRowRefetch?: (tableName: string, rowId: string) => unknown
+    private readonly requestRowRefetch?: (tableName: string, rowId: string) => unknown,
+    private readonly writtenOverlays?: WrittenFieldOverlayRegistry,
+    private readonly inFlightWrites?: InFlightWriteRegistry
   ) {}
 
   scheduleUpload(uploadPendingMutations = () => this.uploadPendingMutations()): void {
@@ -273,28 +277,15 @@ export class MutationUploadRunner {
         if (executionContext === null) continue;
 
         try {
-          const { newServerVersion, remappedRowId } = await executeMutation(
-            executionContext.supabaseClient,
-            this.logger,
-            queuedMutation
-          );
-          const uploadedMutation = remappedRowId
-            ? await rowSync.remapUploadedRpcInsertRowId(
-                db,
-                this.logger,
-                queuedMutation,
-                remappedRowId
-              )
-            : queuedMutation;
-          await rowSync.markReplicatedRowSynced(db, uploadedMutation, newServerVersion);
-          if (newServerVersion !== undefined) {
-            await this.queueStore.updateMutationServerVersions(
-              uploadedMutation.tableName,
-              uploadedMutation.rowId,
-              newServerVersion,
-              executionContext.authUserId
-            );
-          }
+          const uploadedMutation = await sendAndAcknowledge({
+            db,
+            logger: this.logger,
+            queueStore: this.queueStore,
+            mutation: queuedMutation,
+            context: executionContext,
+            writtenOverlays: this.writtenOverlays,
+            inFlightWrites: this.inFlightWrites,
+          });
 
           // Remove the completed row before the pass-level backup. A concurrent
           // startup restore can read localStorage while this upload is in flight;

@@ -67,6 +67,8 @@ export default defineConfig({
       '../../supabase/functions/send-confirmation-email/*.test.ts',
       '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.test.ts',
       '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.registrationNeeded.test.ts',
+      '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.registrationNeeded.retries.test.ts',
+      '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.registrationNeeded.lease.test.ts',
       '../../supabase/functions/send-results/authz.test.ts',
       '../../supabase/functions/send-email/authz.test.ts',
       '../../supabase/functions/send-email/recipientResolution.test.ts',

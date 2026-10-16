@@ -14,9 +14,14 @@ if [ -z "$DATABASE_URL" ]; then
   exit 1
 fi
 
-LOCAL_DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
-if [ "$DATABASE_URL" != "$LOCAL_DATABASE_URL" ]; then
-  echo "FAIL: behavioral SQL tests require the exact local loopback database URL." >&2
+# Any loopback port, so each worktree's stack can run at once; nothing else.
+# Anchored with no query string: libpq options such as `?hostaddr=` or
+# `?host=` would otherwise redirect a loopback-looking URL to another server.
+LOOPBACK_URL_RE='^postgresql://postgres:postgres@(127\.0\.0\.1|localhost):([0-9]{1,5})/postgres$'
+if ! [[ "$DATABASE_URL" =~ $LOOPBACK_URL_RE ]] ||
+  [ "${BASH_REMATCH[2]}" -lt 1 ] || [ "${BASH_REMATCH[2]}" -gt 65535 ]; then
+  echo "FAIL: behavioral SQL tests require a local loopback database URL" >&2
+  echo "      (postgresql://postgres:postgres@127.0.0.1:<port>/postgres or localhost:<port>)." >&2
   exit 1
 fi
 
@@ -187,6 +192,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1162_held_entries_packet_test.sql"
   "$TEST_DIR/myk9_1162_held_entries_ringside_test.sql"
   "$TEST_DIR/myk9_1162_lifecycle_registration_number_needed_test.sql"
+  "$TEST_DIR/myk9_1212_claim_registration_number_needed_job_test.sql"
 )
 
 for test_file in "${TEST_FILES[@]}"; do

@@ -70,7 +70,7 @@ export function WorkbenchLateEntryAction({
 
   return (
     <section
-      className="flex flex-col gap-3 rounded-md border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-3 rounded-md border bg-card p-3"
       aria-labelledby="workbench-late-entry-title"
     >
       <div className="min-w-0">

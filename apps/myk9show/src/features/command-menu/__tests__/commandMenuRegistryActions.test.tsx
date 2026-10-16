@@ -89,9 +89,7 @@ describe('command palette show actions come from the action registry', () => {
       wrapper: wrapperAt('/shows/show-1'),
     });
 
-    expect(result.current.actionCommands.some(c => c.label === 'Add entry for someone else')).toBe(
-      false
-    );
+    expect(result.current.actionCommands.some(c => c.label === 'Add entry')).toBe(false);
     // Positive control: an enabled item still comes through (Open Show Day went with the tab, MYK9-957).
     expect(result.current.actionCommands.some(c => c.label === 'Open Entry Forms')).toBe(true);
   });

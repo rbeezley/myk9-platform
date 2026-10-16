@@ -149,7 +149,6 @@ describe('resolveActions — secretary on a show', () => {
     expect(actions.map(a => a.id)).toEqual([
       'show-settings',
       'show-add-mail-in-entry',
-      'show-enter-own-dogs',
       'show-add-new-trial',
       'show-add-classes',
       'show-open-entry-management',
@@ -162,7 +161,6 @@ describe('resolveActions — secretary on a show', () => {
     expect(actions.map(a => a.href)).toEqual([
       '?edit=true', // the edit panel, over the current section
       `/secretary/register/${SHOW_ID}`,
-      `/shows/${SHOW_ID}/register`,
       `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-trials`,
       `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-classes`,
       `/shows/${SHOW_ID}/entries`,
@@ -191,6 +189,26 @@ describe('resolveActions — secretary on a show', () => {
     expect(actions.every(a => a.disabledReason === undefined)).toBe(true);
   });
 
+  // MYK9-1242: the secretary gets ONE add-entry item. No "for someone else" /
+  // "for my dog" pair, and no own-dog twin; the secretary flow searches every dog.
+  it('offers a single Add entry, with no whose-dog choice or own-dog duplicate', () => {
+    const addEntries = actions.filter(
+      a => /entry/i.test(a.label) && a.id !== 'show-open-entry-management'
+    );
+    expect(addEntries.map(a => [a.id, a.label])).toEqual([['show-add-mail-in-entry', 'Add entry']]);
+    expect(actions.some(a => a.id === 'show-enter-own-dogs')).toBe(false);
+  });
+
+  it('keeps the on-behalf aliases on the single action so search still finds it (MYK9-672)', () => {
+    expect(actions.find(a => a.id === 'show-add-mail-in-entry')?.aliases).toEqual([
+      'mail-in',
+      'paper',
+      'phone',
+      'walk-up',
+      'on behalf',
+    ]);
+  });
+
   it('stays a short menu', () => {
     expect(actions.length).toBeLessThanOrEqual(10);
   });
@@ -202,6 +220,15 @@ describe('resolveActions — club admin on a show', () => {
   // "Open Show Day" went with the tab (MYK9-957): the show home is the page this menu opens over.
   it('keeps the same eight items', () => {
     expect(actions).toHaveLength(8);
+  });
+
+  // MYK9-1242: only the secretary's choice went away. A club admin cannot reach the
+  // secretary flow, so the exhibitor own-dog path stays for them.
+  it('keeps "Add entry for my dog", live, on the exhibitor route', () => {
+    const own = actions.find(a => a.id === 'show-enter-own-dogs');
+    expect(own?.label).toBe('Add entry for my dog');
+    expect(own?.href).toBe(`/shows/${SHOW_ID}/register`);
+    expect(own?.disabledReason).toBeUndefined();
   });
 
   it('greys mail-in entry with a reason, because /secretary/register is secretary-only', () => {

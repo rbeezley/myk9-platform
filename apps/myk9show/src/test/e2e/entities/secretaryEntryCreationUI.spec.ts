@@ -38,15 +38,14 @@ test.describe('Secretary Entry Creation', () => {
     await expect(page.getByRole('button', { name: /refresh/i })).toBeVisible();
   });
 
-  test('Add entry for someone else navigates to registration wizard', async ({ page }) => {
+  test('Add Entry navigates straight to the secretary registration wizard', async ({ page }) => {
     await signInAsSecretary(page);
     await page.goto(`/secretary/entries/${TEST_SHOW_ID}`);
     await page.waitForSelector('text=Entry Forms', { timeout: 10000 });
 
-    // The decision point is inside the "Add entry" popover, which is not
-    // mounted until the trigger is clicked.
+    // MYK9-1242: no decision popover any more.
     await page.getByRole('button', { name: 'Add Entry', exact: true }).click();
-    await page.getByRole('button', { name: 'Add entry for someone else' }).click();
+    await expect(page.getByText('Who are you entering?')).toHaveCount(0);
     await page.waitForURL(`**/secretary/register/${TEST_SHOW_ID}`, { timeout: 10000 });
     await expect(page).toHaveURL(`/secretary/register/${TEST_SHOW_ID}`);
   });

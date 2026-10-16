@@ -18,9 +18,11 @@ async function gotoRegistration(page: Page) {
     waitUntil: 'domcontentloaded',
     timeout: 15000,
   });
-  await expect(page.getByRole('heading', { name: 'Add entry for someone else' })).toBeVisible({
-    timeout: 15000,
-  });
+  await expect(page.getByRole('heading', { name: 'Add entry', level: 1, exact: true })).toBeVisible(
+    {
+      timeout: 15000,
+    }
+  );
 }
 
 /**

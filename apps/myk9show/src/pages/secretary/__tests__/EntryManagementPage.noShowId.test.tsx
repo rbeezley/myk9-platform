@@ -13,7 +13,7 @@ import EntryManagementPage from '../EntryManagementPage';
  * `useShowManageScope` returns `status: 'resolving'` forever — there is nothing
  * to scope against and no retry can change that — and the round-1 helper failed
  * closed on every non-`resolved` status. So a REAL trial secretary found
- * "Add entry for someone else" permanently disabled, captioned "Trial secretary access
+ * "Add Entry" permanently disabled, captioned "Trial secretary access
  * only": the app telling the one person it is not about that it is about her.
  *
  * `useShowManageScope` is deliberately NOT mocked here. Mocking it is what let
@@ -141,45 +141,35 @@ describe('EntryManagementPage at /secretary/entries, where the URL names no show
     auth.roles = ['secretary'];
   });
 
-  it('leaves "Add entry for someone else" live for a real trial secretary', async () => {
-    const user = userEvent.setup();
-
+  it('leaves Add Entry live for a real trial secretary', async () => {
     renderWithoutShowId();
-    await user.click(screen.getByRole('button', { name: /add entry/i }));
 
-    expect(
-      await screen.findByRole('button', { name: /add entry for someone else/i })
-    ).toBeEnabled();
+    expect(screen.getByRole('button', { name: /^add entry$/i })).toBeEnabled();
     expect(screen.queryByText('Trial secretary access only')).toBeNull();
     // ...and never the "still asking" caption either: with no show to ask about,
     // the role IS the answer, so there is nothing in flight.
     expect(screen.queryByText(/checking your access/i)).toBeNull();
   });
 
-  it('leaves it live for a site admin', async () => {
-    const user = userEvent.setup();
+  it('leaves it live for a site admin', () => {
     auth.roles = ['site_admin'];
 
     renderWithoutShowId();
-    await user.click(screen.getByRole('button', { name: /add entry/i }));
 
-    expect(
-      await screen.findByRole('button', { name: /add entry for someone else/i })
-    ).toBeEnabled();
+    expect(screen.getByRole('button', { name: /^add entry$/i })).toBeEnabled();
   });
 
-  it('still greys it for a club admin, who is not an operator anywhere', async () => {
+  it('still keeps the secretary flow from a club admin, who is not an operator anywhere', async () => {
     const user = userEvent.setup();
     auth.roles = ['club_admin'];
 
     renderWithoutShowId();
-    await user.click(screen.getByRole('button', { name: /add entry/i }));
 
-    expect(
-      await screen.findByRole('button', { name: /add entry for someone else/i })
-    ).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /^add entry$/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /add entry for my dog/i })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: /^more$/i }));
     // The late-entry door (moved here by MYK9-954) carries the same gate.
-    expect(screen.getByRole('button', { name: /add late entry/i })).toBeDisabled();
-    expect(screen.getAllByText('Trial secretary access only')).toHaveLength(2);
+    expect(await screen.findByRole('button', { name: /add late entry/i })).toBeDisabled();
+    expect(screen.getByText('Trial secretary access only')).toBeInTheDocument();
   });
 });

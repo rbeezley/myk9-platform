@@ -102,7 +102,7 @@ The view tabs across the top — _Needs review_, _Missing info_, _Payment due_, 
 
 ## 5 · Add a mail-in entry
 
-**Entries → Add Entry → Add entry for someone else.** Pick the dog and handler (or create them), choose classes, and record payment. (**Add entry for my dog** is for entering your own dog.)
+**Entries → Add Entry** (or **Actions → Add entry**). Pick the dog and handler (or create them), choose classes, and record payment. The same flow enters your own dog: search for it like any other.
 
 > This works **after entries close** — you're the trial secretary, so the deadline doesn't block you.
 

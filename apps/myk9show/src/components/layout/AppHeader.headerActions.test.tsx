@@ -232,8 +232,7 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
     // section, which is on every page (CRUD standard decision 6).
     expect(labels).toEqual([
       'Edit show',
-      'Add entry for someone else',
-      'Add entry for my dog',
+      'Add entry',
       'Add Trial',
       'Add classes',
       'Open Entry Forms',
@@ -276,7 +275,7 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
     await user.click(screen.getByRole('button', { name: /^actions$/i }));
     const menu = await screen.findByRole('menu');
 
-    expect(within(menu).getByText('Add entry for someone else').closest('a')).toHaveAttribute(
+    expect(within(menu).getByText('Add entry').closest('a')).toHaveAttribute(
       'href',
       '/secretary/register/show-1'
     );
@@ -303,6 +302,11 @@ describe('AppHeader Actions menu — a club admin who cannot add mail-in entries
     const item = within(menu).getByTestId('header-action-show-add-mail-in-entry');
     expect(item).toHaveAttribute('data-disabled');
     expect(item).toHaveTextContent('Trial secretary access only');
+    // Only the secretary's choice went away (MYK9-1242): the club admin keeps the own-dog path.
+    expect(within(menu).getByText('Add entry for my dog').closest('a')).toHaveAttribute(
+      'href',
+      '/shows/show-1/register'
+    );
   });
 });
 
@@ -389,7 +393,7 @@ describe('AppHeader Actions menu — exhibitor on the same route', () => {
     render(<AppHeader />, { initialRoute: SHOW_ROUTE });
 
     expect(screen.queryByRole('button', { name: /^actions$/i })).toBeNull();
-    expect(screen.queryByText('Add entry for someone else')).toBeNull();
+    expect(screen.queryByText('Add entry')).toBeNull();
     expect(screen.queryByText('Open Show Day')).toBeNull();
   });
 });

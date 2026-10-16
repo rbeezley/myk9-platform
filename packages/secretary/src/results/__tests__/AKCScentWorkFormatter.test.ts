@@ -586,6 +586,9 @@ describe('AKCScentWorkFormatter', () => {
       expect(xml).toContain('<resultCode>DQ</resultCode>');
       expect(xml).not.toContain('actionCode="EXCU"');
       expect(xml).not.toContain('<resultCode>EXO</resultCode>');
+      // Still a starter that did not qualify in the class header.
+      expect(xml).toContain('numStarters="1"');
+      expect(xml).toContain('numQualifying="0"');
     });
 
     it('maps placement 1 → PLAC / 1', () => {

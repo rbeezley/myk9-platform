@@ -186,8 +186,9 @@ export function akcResultCodesForOutcome(
     case 'excused':
       return { actionCode: 'EXCU', resultCode: 'EXO' };
     // MYK9-1011: DISQ is the action code mySWT submitted to AKC for a DQ
-    // (docs/mySWT/mod_XML.bas); DQ as the result code is the owner's call
-    // (2026-10-16). No AKC electres spec in this repo confirms either, so
+    // (docs/mySWT/mod_XML.bas). mySWT had no result code for one: it passed
+    // the raw placement text ("Disqualified") through. DQ is the owner's call
+    // (2026-10-16). No AKC electres spec in this repo confirms either code, so
     // this pair is provisional until AKC does. The reason itself lives on the
     // marked catalog and form AEDSQ1.
     case 'disqualified':

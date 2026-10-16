@@ -51,37 +51,23 @@ export function sortByArmband(entries: ReportEntry[]): ReportEntry[] {
   return [...entries].sort((a, b) => compareArmbands(a.armband, b.armband));
 }
 
-// Qualified first (by placement #), then absent > excused > NQ, tiebreak by armband
+/** A real rank: 1..8999. 9995+ are status sentinels (see getPlacementText), never a rank. */
+export function placementRank(placement: number | null | undefined): number | null {
+  return placement != null && placement > 0 && placement < 9000 ? placement : null;
+}
+
+/**
+ * Placed entries first, by placement; every other entry (ABS, EX, NQ, pending) after, by armband.
+ * Same rule as the on-screen Results rows (`placementSort` in buildResultsClassRows): the server
+ * numbers only qualified entries and leaves every other row's placement NULL, so "has a real
+ * placement" is the discriminator, not the free-text result_status (MYK9-1234).
+ */
 export function sortByPlacement(entries: ReportEntry[]): ReportEntry[] {
   return [...entries].sort((a, b) => {
-    const aResultText = a.resultText?.trim().toLowerCase() || '';
-    const bResultText = b.resultText?.trim().toLowerCase() || '';
-
-    const aIsQualified = (aResultText === 'q' || aResultText === 'qualified') && a.finalPlacement;
-    const bIsQualified = (bResultText === 'q' || bResultText === 'qualified') && b.finalPlacement;
-
-    const aIsAbsent = aResultText === 'absent';
-    const bIsAbsent = bResultText === 'absent';
-    const aIsExcused = aResultText === 'excused' || aResultText === 'disqualified';
-    const bIsExcused = bResultText === 'excused' || bResultText === 'disqualified';
-
-    // Qualified entries with numbered placements come first
-    if (aIsQualified && !bIsQualified) return -1;
-    if (!aIsQualified && bIsQualified) return 1;
-
-    // Both qualified - sort by placement number
-    if (aIsQualified && bIsQualified) {
-      return (a.finalPlacement || 0) - (b.finalPlacement || 0);
-    }
-
-    // Neither qualified - sort by status priority: Absent > Excused > NQ
-    if (aIsAbsent && !bIsAbsent) return -1;
-    if (!aIsAbsent && bIsAbsent) return 1;
-
-    if (aIsExcused && !bIsExcused) return -1;
-    if (!aIsExcused && bIsExcused) return 1;
-
-    // Same status - sort by armband
+    const aRank = placementRank(a.finalPlacement);
+    const bRank = placementRank(b.finalPlacement);
+    if (aRank !== null && bRank !== null && aRank !== bRank) return aRank - bRank;
+    if ((aRank === null) !== (bRank === null)) return aRank === null ? 1 : -1;
     return compareArmbands(a.armband, b.armband);
   });
 }

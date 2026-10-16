@@ -5,6 +5,7 @@
 
 import { formatTimeLimitSeconds } from '@myk9/core';
 import { armbandSortKey } from '@myk9/ringside';
+import { placementRank } from '@/lib/reports/reportUtils';
 import type { PrintReportEntry } from './print-types';
 
 /** Format ISO date string as "M/D/YYYY" for reports */
@@ -32,26 +33,19 @@ export const sortByRunOrder = (entries: PrintReportEntry[]): PrintReportEntry[] 
 export const sortByArmband = (entries: PrintReportEntry[]): PrintReportEntry[] =>
   [...entries].sort((a, b) => armbandSortKey(a.armband) - armbandSortKey(b.armband));
 
-/** Sort entries by placement: Q first by placement, then ABS/EXC/NQ, then by armband */
-export const sortByPlacement = (entries: PrintReportEntry[]): PrintReportEntry[] =>
-  [...entries].sort((a, b) => {
-    const aQ = isQualified(a.resultText);
-    const bQ = isQualified(b.resultText);
-    if (aQ && !bQ) return -1;
-    if (!aQ && bQ) return 1;
-    if (aQ && bQ) return (a.placement ?? 0) - (b.placement ?? 0);
-
-    // Neither qualified — sort by status priority: ABS → EXC → NQ → other
-    const priority = (rt: string | null): number => {
-      const t = rt?.toLowerCase();
-      if (t === 'absent') return 0;
-      if (t === 'excused') return 1;
-      if (t === 'nq') return 2;
-      return 3;
-    };
-    const diff = priority(a.resultText) - priority(b.resultText);
-    return diff !== 0 ? diff : armbandSortKey(a.armband) - armbandSortKey(b.armband);
+/**
+ * Placed entries first, by placement; everyone else (ABS, EXC, NQ, pending) after, by armband.
+ * Same rule as the on-screen Results rows and `lib/reports/reportUtils.sortByPlacement` (MYK9-1234).
+ */
+export const sortByPlacement = (entries: PrintReportEntry[]): PrintReportEntry[] => {
+  return [...entries].sort((a, b) => {
+    const aRank = placementRank(a.placement);
+    const bRank = placementRank(b.placement);
+    if (aRank !== null && bRank !== null && aRank !== bRank) return aRank - bRank;
+    if ((aRank === null) !== (bRank === null)) return aRank === null ? 1 : -1;
+    return armbandSortKey(a.armband) - armbandSortKey(b.armband);
   });
+};
 
 /**
  * Decode placement number to display text.

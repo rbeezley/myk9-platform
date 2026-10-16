@@ -103,14 +103,14 @@ describe('sortByPlacement', () => {
     expect(sorted.map(e => e.id)).toEqual(['q1', 'q2', 'nq']);
   });
 
-  it('sorts non-qualified by status priority: Absent > Excused > NQ', () => {
+  it('sorts non-qualified by armband regardless of status (matches on-screen order)', () => {
     const entries = [
       makeEntry({ id: 'nq', resultText: 'NQ', armband: 100 }),
       makeEntry({ id: 'abs', resultText: 'Absent', armband: 200 }),
       makeEntry({ id: 'exc', resultText: 'Excused', armband: 300 }),
     ];
     const sorted = sortByPlacement(entries);
-    expect(sorted.map(e => e.id)).toEqual(['abs', 'exc', 'nq']);
+    expect(sorted.map(e => e.id)).toEqual(['nq', 'abs', 'exc']);
   });
 
   it('breaks ties by armband', () => {

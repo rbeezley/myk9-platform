@@ -139,6 +139,8 @@ test.describe('Shows list with a detail pane', () => {
   test('at 1440 the list folds from Entry Forms, whose cockpit keeps its queue and detail, and returns on Overview', async ({
     page,
   }) => {
+    // Signs in, then cold-loads the Entries and Overview cockpits against shared staging.
+    test.slow();
     await page.setViewportSize({ width: 1440, height: 1000 });
     await signInAsSecretary(page, '/shows');
     await page.evaluate(() => window.localStorage.removeItem('view-pref-shows-pane'));
@@ -149,8 +151,13 @@ test.describe('Shows list with a detail pane', () => {
     });
     await expect(showsList(page)).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Shows', exact: true })).toBeVisible();
-    // The split cockpit shows the focused entry form beside the queue; stacked, it is not rendered.
-    await expect(page.getByText('Entry form', { exact: true })).toBeVisible();
+    // Split: the queue and the focused entry form side by side. The compact layout shows one at a
+    // time with a "Back to list" button, so all three are read together.
+    await expect(async () => {
+      await expect(page.getByRole('list', { name: 'Entry form work queue' })).toBeVisible();
+      await expect(page.getByText('Entry form', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Back to list' })).toHaveCount(0);
+    }).toPass({ timeout: 10_000 });
 
     await page.getByRole('tab', { name: 'Overview' }).click();
     await expect(showsList(page)).toBeVisible();

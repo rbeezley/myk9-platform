@@ -141,7 +141,8 @@ export function EntryPanel({
         <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Result
         </div>
-        <div className="flex flex-col gap-2">
+        {/* Two columns so time, faults and Save stay on screen without scrolling. */}
+        <div className="grid grid-cols-2 gap-2">
           {RESULT_BUTTONS.map(({ code, label, description }) => {
             const isSelected = selectedResult === code;
             const isPrefilled = isPreFilled(code);
@@ -153,22 +154,28 @@ export function EntryPanel({
                 data-selected={isSelected ? 'true' : undefined}
                 data-prefilled={isPrefilled ? 'true' : undefined}
                 className={cn(
-                  'flex items-center gap-3 px-4 py-3 rounded-lg border-2 text-left transition-colors font-semibold',
+                  'flex flex-col items-start px-3 py-2 rounded-lg border-2 text-left transition-colors font-semibold',
                   // DQ is an official record: never styled like the common results.
-                  code === 'DQ' && 'mt-2 border-zinc-900',
+                  // It takes the last row on its own, with a red-tinted border
+                  // that reads in both themes.
+                  code === 'DQ' && 'col-span-2',
                   isSelected &&
                     !isPrefilled &&
                     (code === 'DQ'
-                      ? 'bg-zinc-900 text-white ring-2 ring-red-600'
+                      ? 'border-red-600 bg-zinc-900 text-white ring-2 ring-red-600'
                       : 'border-primary bg-primary text-primary-foreground'),
                   isPrefilled && 'border-dashed border-primary bg-primary/10',
-                  !isSelected && !isPrefilled && 'border-border hover:bg-accent'
+                  !isSelected &&
+                    !isPrefilled &&
+                    (code === 'DQ'
+                      ? 'border-red-600/50 hover:bg-accent'
+                      : 'border-border hover:bg-accent')
                 )}
               >
-                <span className="w-14 shrink-0 text-lg">{label}</span>
+                <span className="text-lg leading-tight">{label}</span>
                 <span className="text-sm font-normal opacity-80">{description}</span>
                 {isPrefilled && (
-                  <span className="ml-auto text-xs text-muted-foreground">
+                  <span className="text-xs font-normal text-muted-foreground">
                     pre-filled · click to confirm
                   </span>
                 )}
@@ -250,7 +257,7 @@ export function EntryPanel({
             onChange={event => setReason(event.target.value)}
             maxLength={500}
             placeholder="Briefly describe what happened"
-            className="h-11 w-full rounded-lg border-2 border-zinc-900 bg-background px-3 text-sm font-medium focus:outline-none"
+            className="h-11 w-full rounded-lg border-2 border-red-600/50 bg-background px-3 text-sm font-medium focus:border-red-600 focus:outline-none"
           />
         </div>
       )}

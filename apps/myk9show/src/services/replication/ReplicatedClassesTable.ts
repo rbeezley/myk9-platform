@@ -589,6 +589,9 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         visibilityPreset: remote._visibilityPreset,
         timeLimitRule: remote._timeLimitRule,
       }),
+      // The full row, server-owned columns included: an acknowledged write moves the
+      // row's merge base forward through it (MYK9-1220).
+      toRemoteRow: cls => this.toSupabaseRow(cls),
       rebuildUpdatePayload: cls => this.rebuildUpdatePayload(cls),
       dirtyRowComparePolicy: CLASS_DIRTY_ROW_COMPARE_POLICY,
     };

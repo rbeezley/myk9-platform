@@ -2,12 +2,14 @@ import type { IDBPDatabase } from 'idb';
 import type { Logger } from './dependencies';
 import { REPLICATION_STORES } from './core/DatabaseManager';
 import { withAcknowledgedSyncFlag } from './core/ReplicatedTableRowState';
+import { writtenColumnsOf, type WrittenFieldOverlay } from './mutation-written-overlay';
 import type { PendingMutation, ReplicatedRow } from './types';
 
 export async function markReplicatedRowSynced(
   db: IDBPDatabase,
   mutation: PendingMutation,
-  newServerVersion?: number
+  newServerVersion?: number,
+  overlayWritten?: WrittenFieldOverlay
 ): Promise<void> {
   if (mutation.operation === 'DELETE') return;
 
@@ -43,13 +45,45 @@ export async function markReplicatedRowSynced(
     nextData = uploaded;
   }
   const stillDirty = existingRow.isDirty && hasAnotherPendingMutation;
+  // MYK9-1220: the row stays dirty for a later queued write, so its merge base
+  // must now include what THIS write put on the server. Any case that cannot be
+  // mapped (INSERT, baked-args RPC, no mapper, a mapper that throws) keeps the
+  // base as it was.
+  //
+  // An acknowledgement that is not newer than the row's current base is late: a
+  // sync already reconciled a newer server row (it moved the base and token
+  // forward), and rebasing now would roll both back.
+  let rebasedBase: unknown;
+  const isLateAck =
+    newServerVersion !== undefined &&
+    existingRow.baseServerVersion !== undefined &&
+    newServerVersion <= existingRow.baseServerVersion;
+  const tokenWouldRollBack =
+    newServerVersion !== undefined &&
+    existingRow.serverVersion !== undefined &&
+    newServerVersion < existingRow.serverVersion;
+  if (
+    stillDirty &&
+    !isLateAck &&
+    existingRow.baseData !== undefined &&
+    newServerVersion !== undefined
+  ) {
+    const written = writtenColumnsOf(mutation);
+    if (written) rebasedBase = overlayWritten?.(existingRow.baseData, written);
+  }
   await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
     ...existingRow,
     data: stillDirty ? nextData : withAcknowledgedSyncFlag(nextData),
     isDirty: stillDirty,
     syncStatus: existingRow.isDirty && hasAnotherPendingMutation ? 'pending' : 'synced',
     lastSyncedAt: Date.now(),
-    ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
+    // A late ack never moves the token back below a version a sync already holds.
+    ...(newServerVersion !== undefined &&
+      !tokenWouldRollBack && { serverVersion: newServerVersion }),
+    ...(rebasedBase !== undefined && {
+      baseData: rebasedBase,
+      baseServerVersion: newServerVersion,
+    }),
     // Record the step only when this upload carried a precondition: then the
     // server held exactly `from` before it and exactly this write after it.
     ...(newServerVersion !== undefined &&

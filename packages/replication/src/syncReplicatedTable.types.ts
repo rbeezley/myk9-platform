@@ -50,6 +50,13 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
   getPendingDeleteIds?: (context: RemoteRowCountContext) => Promise<ReadonlySet<string>>;
   getRemoteId(remote: TRemote): string;
   toLocalRow(remote: TRemote): TLocal;
+  /**
+   * The server columns a local row stands for (the inverse of `toLocalRow`).
+   * Optional: with it, an acknowledged write that leaves its row dirty moves the
+   * row's merge base forward to include that write (MYK9-1220). Without it the
+   * base stays put, which is the behaviour before MYK9-1220.
+   */
+  toRemoteRow?(local: TLocal): Record<string, unknown>;
 
   /**
    * Server-side `updated_at` for a fetched remote row, as epoch milliseconds

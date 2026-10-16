@@ -34,6 +34,7 @@ import {
   type RowRefetchAdapter,
 } from '../refetchDirtyRowsById';
 import { MAX_OPTIMISTIC_UPDATE_RETRIES } from '../constants';
+import { createWrittenFieldOverlay } from '../mutation-written-overlay';
 
 import { databaseManager, REPLICATION_STORES, trackTransaction } from './DatabaseManager';
 import {
@@ -181,6 +182,17 @@ export abstract class ReplicatedTable<T extends { id: string }> {
           refetchDirtyRowsById(this, getAdapter(), rowIds)
         )
       : undefined;
+    this.unregisterWrittenOverlay?.();
+    const adapter = getAdapter?.();
+    this.unregisterWrittenOverlay = adapter?.toRemoteRow
+      ? manager.writtenOverlays?.register(
+          this.tableName,
+          createWrittenFieldOverlay({
+            toLocalRow: remote => adapter.toLocalRow(remote),
+            toRemoteRow: local => adapter.toRemoteRow!(local),
+          })
+        )
+      : undefined;
     this.unregisterOwnerTransfer?.();
     this.unregisterOwnerTransfer = manager.ownerTransfers?.register(
       this.tableName,
@@ -196,6 +208,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   private unregisterRowRefetcher: (() => void) | undefined;
+  private unregisterWrittenOverlay: (() => void) | undefined;
   private unregisterOwnerTransfer: (() => void) | undefined;
   private unregisterDiscardReverter: (() => void) | undefined;
 

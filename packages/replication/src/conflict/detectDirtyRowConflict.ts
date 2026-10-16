@@ -66,6 +66,15 @@ export interface DirtyRowComparePolicy {
    */
   normalizeValue?: (field: string, value: unknown) => unknown;
   /**
+   * MYK9-1236: like `normalizeValue`, but applied ONLY where a value read from the
+   * server is compared with the base (did the SERVER change this field?), and where
+   * the server's row is compared with a write of this device that has landed. Never
+   * to a comparison involving the device's own value: the device writing `null` over
+   * an `undefined` base is a real write, and calling it a no-op lets a stale clear
+   * overwrite another device's value. Runs after `normalizeValue`.
+   */
+  normalizeRemoteComparison?: (field: string, value: unknown) => unknown;
+  /**
    * Fields the server stamps as a by-product of the outcome (a completion time).
    * When the device and the server each changed one to a different value and
    * every OTHER collision on the row has converged (some other field changed on
@@ -126,7 +135,11 @@ export function detectDirtyRowConflict<T extends object>({
     const localValue = normalize ? normalize(field, localRecord[field]) : localRecord[field];
     const remoteValue = normalize ? normalize(field, remoteRecord[field]) : remoteRecord[field];
     const localChanged = !deepEqual(localValue, baseValue, asInstant);
-    const remoteChanged = !deepEqual(remoteValue, baseValue, asInstant);
+    const remoteChanged = !deepEqual(
+      remoteComparable(comparePolicy, field, remoteValue),
+      remoteComparable(comparePolicy, field, baseValue),
+      asInstant
+    );
     const sidesDiffer = !deepEqual(localValue, remoteValue, asInstant);
 
     if (localChanged && remoteChanged && sidesDiffer) {
@@ -209,6 +222,16 @@ export function mergeNonConflictingServerFields<T extends object>({
   }
 
   return { merged: merged as T, appliedFields: appliedFields.sort() };
+}
+
+/** A value as the policy reads it when compared on the server's side; see `normalizeRemoteComparison`. */
+export function remoteComparable(
+  policy: DirtyRowComparePolicy | undefined,
+  field: string,
+  value: unknown
+): unknown {
+  const normalize = policy?.normalizeRemoteComparison;
+  return normalize ? normalize(field, value) : value;
 }
 
 export function deepEqual(left: unknown, right: unknown, asInstant: boolean): boolean {

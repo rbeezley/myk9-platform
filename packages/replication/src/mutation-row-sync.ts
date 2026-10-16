@@ -10,8 +10,8 @@ export async function markReplicatedRowSynced(
   mutation: PendingMutation,
   newServerVersion?: number,
   overlayWritten?: WrittenFieldOverlay
-): Promise<void> {
-  if (mutation.operation === 'DELETE') return;
+): Promise<number | undefined> {
+  if (mutation.operation === 'DELETE') return newServerVersion;
 
   const key = [mutation.tableName, String(mutation.rowId)];
   const [existingRow, pendingMutations] = (await Promise.all([
@@ -22,7 +22,7 @@ export async function markReplicatedRowSynced(
     ]),
   ])) as [ReplicatedRow<unknown> | undefined, PendingMutation[]];
 
-  if (!existingRow) return;
+  if (!existingRow) return newServerVersion;
 
   const hasAnotherPendingMutation = pendingMutations.some(
     pending => pending.id !== mutation.id && pending.authUserId === mutation.authUserId
@@ -91,6 +91,9 @@ export async function markReplicatedRowSynced(
         lastOwnUpload: { from: mutation.serverVersion, to: newServerVersion },
       }),
   });
+  // The OCC token the row holds now: the acknowledged version, or the newer one
+  // a sync already reconciled when this acknowledgement is late (MYK9-1221).
+  return tokenWouldRollBack ? existingRow.serverVersion : newServerVersion;
 }
 
 /**

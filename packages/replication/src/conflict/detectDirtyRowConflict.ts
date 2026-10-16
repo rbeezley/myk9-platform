@@ -1,4 +1,4 @@
-const DEFAULT_IGNORED_FIELDS = new Set([
+export const DEFAULT_IGNORED_FIELDS: ReadonlySet<string> = new Set([
   'id',
   'created_at',
   'updated_at',
@@ -211,7 +211,7 @@ export function mergeNonConflictingServerFields<T extends object>({
   return { merged: merged as T, appliedFields: appliedFields.sort() };
 }
 
-function deepEqual(left: unknown, right: unknown, asInstant: boolean): boolean {
+export function deepEqual(left: unknown, right: unknown, asInstant: boolean): boolean {
   if (Object.is(left, right)) return true;
   if (asInstant && isSameInstant(left, right)) return true;
   return JSON.stringify(left) === JSON.stringify(right);

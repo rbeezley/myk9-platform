@@ -20,7 +20,8 @@ import {
 } from '@/components/users/browse/peopleBulkActions';
 import { defaultListView } from '@/utils/defaultListView';
 import { useRBAC } from '@/hooks/useRBAC';
-import { useBrowsePeopleData } from '@/hooks/useBrowsePeopleData';
+import { useBrowsePeopleData, DEFAULT_PEOPLE_FILTERS } from '@/hooks/useBrowsePeopleData';
+import { filtersQueryString } from '@/hooks/urlFilters';
 import {
   PeopleCompactList,
   PeopleGridView,
@@ -200,7 +201,15 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
 
     // The table needs ~720px and its checkboxes feed the bulk bar, so it only gets the full
     // width in select mode; beside a person the list is one compact line per person.
-    if (splitOpen) return <PeopleCompactList people={filteredPeople} selectedId={selectedId} />;
+    if (splitOpen) {
+      return (
+        <PeopleCompactList
+          people={filteredPeople}
+          selectedId={selectedId}
+          filterQuery={filtersQueryString(filters, DEFAULT_PEOPLE_FILTERS)}
+        />
+      );
+    }
 
     switch (selectMode ? 'table' : viewMode) {
       case 'table':
@@ -243,21 +252,32 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
     />
   ) : null;
 
+  const skeleton = <BrowsePeopleSkeleton viewMode={viewMode === 'cards' ? 'grid' : 'table'} />;
+  const loadError = <ErrorState message="We couldn't load people." onRetry={handleRetry} />;
+  // Beside an open person, an empty directory that is loading or failed fills the list pane only:
+  // the split stays mounted, so the open person is never unmounted by, or remounted into, a list
+  // that is still settling.
+  const emptyListStatus =
+    splitCapable && Boolean(selectedId) && people.length === 0
+      ? isLoading
+        ? skeleton
+        : error
+          ? loadError
+          : null
+      : null;
+
   return (
     <PageShell ContentWrapper={BrowseTabs} {...(splitOpen ? { maxWidth: 'max-w-[110rem]' } : {})}>
       {/* Error state: only when there is nothing to show. A failed background refresh keeps the
           cached rows and says so inline (below). */}
-      {error && !isLoading && people.length === 0 && (
-        <ErrorState message="We couldn't load people." onRetry={handleRetry} />
-      )}
+      {!emptyListStatus && error && !isLoading && people.length === 0 && loadError}
 
       {/* Loading state */}
-      {isLoading && people.length === 0 && (
-        <BrowsePeopleSkeleton viewMode={viewMode === 'cards' ? 'grid' : 'table'} />
-      )}
+      {!emptyListStatus && isLoading && people.length === 0 && skeleton}
 
       {/* Normal content */}
-      {(!isLoading || people.length > 0) && !(error && people.length === 0) && (
+      {(emptyListStatus ||
+        ((!isLoading || people.length > 0) && !(error && people.length === 0))) && (
         <>
           <PageHeader
             breadcrumbs={breadcrumbs}
@@ -271,7 +291,7 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
             showTitle
           />
 
-          {error && (
+          {error && !emptyListStatus && (
             <div
               role="alert"
               className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm"
@@ -289,22 +309,24 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
             detailLabel="Person details"
             detail={splitOpen ? detail : null}
             listHeader={
-              <PeopleListToolbar
-                people={people}
-                matchCount={filteredPeople.length}
-                filters={filters}
-                onFiltersChange={setFilters}
-                onClearAll={clearAllFilters}
-                hasActiveFilters={hasActiveFilters}
-                compact={splitOpen}
-                resultLineExtra={
-                  splitCapable ? undefined : (
-                    <ListViewToggle active={viewMode} onChange={setViewMode} />
-                  )
-                }
-              />
+              emptyListStatus ? undefined : (
+                <PeopleListToolbar
+                  people={people}
+                  matchCount={filteredPeople.length}
+                  filters={filters}
+                  onFiltersChange={setFilters}
+                  onClearAll={clearAllFilters}
+                  hasActiveFilters={hasActiveFilters}
+                  compact={splitOpen}
+                  resultLineExtra={
+                    splitCapable ? undefined : (
+                      <ListViewToggle active={viewMode} onChange={setViewMode} />
+                    )
+                  }
+                />
+              )
             }
-            list={renderContent()}
+            list={emptyListStatus ?? renderContent()}
           />
         </>
       )}

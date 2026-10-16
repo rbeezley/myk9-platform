@@ -18,7 +18,8 @@ vi.mock('@/hooks/useRBAC', () => ({
   useRBAC: () => ({ hasPermission: () => true, isLoading: false }),
 }));
 
-vi.mock('@/hooks/useBrowsePeopleData', () => ({
+vi.mock('@/hooks/useBrowsePeopleData', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/hooks/useBrowsePeopleData')>()),
   useBrowsePeopleData: () => ({
     people: [ada],
     filteredPeople: [ada],

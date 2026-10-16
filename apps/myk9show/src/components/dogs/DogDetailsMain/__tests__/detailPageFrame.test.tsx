@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
+import { EmbeddedDetailProvider } from '@/components/layout/embeddedDetail';
 import DogDetailsMain from '../index';
 import type { Dog } from '@/types/dog-types';
 import type { User } from '@/types/user-types';
@@ -114,6 +115,29 @@ describe('Dog detail page frame (MYK9-930)', () => {
     const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
     expect(trail.getByRole('link', { name: 'People' })).toHaveAttribute('href', '/people');
     expect(trail.getByRole('link', { name: 'Jane Smith' })).toHaveAttribute('href', '/people/p-1');
+  });
+
+  describe('Close beside the Dogs list', () => {
+    const renderBeside = (route: string) =>
+      render(
+        <EmbeddedDetailProvider value>
+          <DogDetailsMain dog={mockDog} />
+        </EmbeddedDetailProvider>,
+        { initialRoute: route }
+      );
+
+    it('returns to the list with its filters, and nothing else from the URL', () => {
+      renderBeside('/dogs/dog-1?search=rex&status=active&returnTo=x&create=true');
+      expect(screen.getByRole('link', { name: 'Close dog' })).toHaveAttribute(
+        'href',
+        '/dogs?search=rex&status=active'
+      );
+    });
+
+    it('is a bare /dogs when no filter is set, or one is not a valid value', () => {
+      renderBeside('/dogs/dog-1?returnTo=x&status=garbage');
+      expect(screen.getByRole('link', { name: 'Close dog' })).toHaveAttribute('href', '/dogs');
+    });
   });
 
   it('has exactly one h1, and it is the hero title', () => {

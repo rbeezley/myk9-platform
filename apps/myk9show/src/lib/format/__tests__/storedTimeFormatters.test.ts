@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
 import { msToDisplay } from '@/lib/timeUtils';
 import { convertTimeToStandardFormat, formatTimeFromMs } from '@/utils/entryValidation';
 import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
@@ -44,6 +45,13 @@ describe('stored time formatters share one centisecond rule (MYK9-1225)', () => 
     expect(msToDisplay(90000)).toBe('1:30');
     expect(msToDisplay(0, 'hundredths')).toBe('0:00.00');
     expect(msToDisplay(-5)).toBe('0:00');
+  });
+
+  it('msToDisplay hundredths floors a LIVE clock but never prints :60 (stored values use formatSecondsAsMSSCC)', () => {
+    expect(msToDisplay(59996, 'hundredths')).toBe('0:59.99');
+    expect(msToDisplay(119999, 'hundredths')).toBe('1:59.99');
+    expect(msToDisplay(60000, 'hundredths')).toBe('1:00.00');
+    expect(msToDisplay(87359, 'hundredths')).toBe('1:27.35');
   });
 
   it('msToDisplay at seconds precision still floors (no carry into the minute)', () => {

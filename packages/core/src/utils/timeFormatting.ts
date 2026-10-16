@@ -33,9 +33,15 @@ export function splitSecondsToCentis(seconds: number): TimeParts {
   return splitCentis(Math.round(seconds * 100));
 }
 
-/** Same split for integer milliseconds (rounds to the nearest hundredth). */
-export function splitMsToCentis(ms: number): TimeParts {
-  return splitCentis(Math.round(ms / 10));
+/**
+ * Same split for integer milliseconds.
+ *
+ * `round` (default) is for STORED values: nearest hundredth. `floor` is for a
+ * LIVE running clock, which must not show 1:00.00 at 59,996 ms; it still
+ * carries safely because the split runs on whole centiseconds.
+ */
+export function splitMsToCentis(ms: number, mode: 'round' | 'floor' = 'round'): TimeParts {
+  return splitCentis(mode === 'floor' ? Math.floor(ms / 10) : Math.round(ms / 10));
 }
 
 function joinMSSCC({ minutes, seconds, centis }: TimeParts): string {
@@ -47,9 +53,9 @@ export function formatSecondsAsMSSCC(seconds: number): string {
   return joinMSSCC(splitSecondsToCentis(seconds));
 }
 
-/** Integer milliseconds as "M:SS.HH" (unpadded minutes). */
-export function formatMsAsMSSCC(ms: number): string {
-  return joinMSSCC(splitMsToCentis(ms));
+/** Integer milliseconds as "M:SS.HH" (unpadded minutes); `floor` for live clocks. */
+export function formatMsAsMSSCC(ms: number, mode: 'round' | 'floor' = 'round'): string {
+  return joinMSSCC(splitMsToCentis(ms, mode));
 }
 
 /**

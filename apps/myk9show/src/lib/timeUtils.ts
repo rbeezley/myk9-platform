@@ -27,7 +27,8 @@ export type TimeFormat = 'MM:SS' | 'MM:SS.HH' | 'H:MM:SS';
 export function msToDisplay(ms: number, precision: TimeDisplayPrecision = 'seconds'): string {
   if (!ms || ms < 0) return precision === 'hundredths' ? '0:00.00' : '0:00';
 
-  if (precision === 'hundredths') return formatMsAsMSSCC(ms);
+  // Floors: this also drives live running clocks. Stored seconds use formatSecondsAsMSSCC.
+  if (precision === 'hundredths') return formatMsAsMSSCC(ms, 'floor');
 
   // Whole-second precision truncates: a running or stored 59.9s is still 0:59.
   const totalSeconds = Math.floor(ms / 1000);

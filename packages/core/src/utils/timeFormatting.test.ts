@@ -298,4 +298,13 @@ describe('centisecond splitters (MYK9-1225)', () => {
     expect(formatMsAsMSSCC(59999)).toBe('1:00.00');
     expect(formatMsAsMSSCC(87350)).toBe('1:27.35');
   });
+
+  it('floors for a live running clock but never prints :60 (round vs floor)', () => {
+    expect(splitMsToCentis(59996, 'floor')).toEqual({ minutes: 0, seconds: 59, centis: 99 });
+    expect(formatMsAsMSSCC(59996, 'floor')).toBe('0:59.99');
+    expect(formatMsAsMSSCC(59996)).toBe('1:00.00');
+    expect(formatMsAsMSSCC(119999, 'floor')).toBe('1:59.99');
+    expect(formatMsAsMSSCC(60000, 'floor')).toBe('1:00.00');
+    expect(formatMsAsMSSCC(87359, 'floor')).toBe('1:27.35');
+  });
 });

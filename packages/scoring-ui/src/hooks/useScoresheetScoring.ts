@@ -9,6 +9,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 
+import { formatSecondsAsMSSCC } from '@myk9/core';
 import type { AreaScore, ScoreData, ExtendedResult, ResolvedClassRules } from '../types';
 
 export interface ScoresheetScoringConfig {
@@ -155,9 +156,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
       return sum + (parseFloat(time) || 0);
     }, 0);
 
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = (totalSeconds % 60).toFixed(2);
-    return `${minutes}:${seconds.padStart(5, '0')}`;
+    return formatSecondsAsMSSCC(totalSeconds);
   }, [areas]);
 
   const buildScoreData = useCallback(

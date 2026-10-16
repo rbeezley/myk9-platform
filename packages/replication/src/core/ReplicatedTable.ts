@@ -35,6 +35,7 @@ import {
 } from '../refetchDirtyRowsById';
 import { MAX_OPTIMISTIC_UPDATE_RETRIES } from '../constants';
 import { createWrittenFieldOverlay } from '../mutation-written-overlay';
+import type { InFlightWriteContext } from '../inflight-written-base';
 
 import { databaseManager, REPLICATION_STORES, trackTransaction } from './DatabaseManager';
 import {
@@ -205,6 +206,14 @@ export abstract class ReplicatedTable<T extends { id: string }> {
           fetchRow: getAdapter ? rowId => fetchRowForDiscard(getAdapter(), rowId) : undefined,
         })
       : undefined;
+  }
+
+  /**
+   * Writes of this device for a row that are sent and not yet acknowledged, with
+   * the overlay that places them in a merge base (MYK9-1221).
+   */
+  getInFlightWrites(rowId: string): InFlightWriteContext | undefined {
+    return this.mutationManager?.getInFlightWrites?.(this.tableName, rowId);
   }
 
   private unregisterRowRefetcher: (() => void) | undefined;

@@ -11,11 +11,14 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useViewPreference } from '@/hooks/useViewPreference';
 import { isAccountSession } from '@/hooks/guestServerRead';
 import { UserRole } from '@/types/auth-types';
+import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
 import { SHOWS_LIST_DEFAULT_PX, showsPaneFolds, type ShowPaneTab } from './showsPaneFold';
 
 const PANE_MODES = ['open', 'folded'] as const;
-// The show tabs with their own fold width (`showWidthNeeded`); any other path is Overview's.
-const PANE_TABS: ReadonlySet<string> = new Set(['entries', 'results', 'reports']);
+// The show tabs by path (`showWidthNeeded`); any other path under a show is Overview's.
+const PANE_TABS: ReadonlySet<string> = new Set(
+  SHOW_MANAGEMENT_SECTIONS.map(section => section.path)
+);
 type PaneMode = (typeof PANE_MODES)[number];
 
 // The people who run shows. An exhibitor or judge would only get the Find Shows list twice, side by

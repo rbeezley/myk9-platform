@@ -1,5 +1,6 @@
 import { ENTRY_COCKPIT_COMPACT_WIDTH } from '@/components/entries/management/entryManagementCockpitResponsive';
 import { COCKPIT_SPLIT_MIN_WIDTH } from '@/features/show-map/cockpit/cockpitSplit';
+import type { ShowManagementSectionPath } from '@/routes/showManagementSections';
 
 /** The Shows list's starting width; the user can drag it between 260 and 440. */
 export const SHOWS_LIST_DEFAULT_PX = 320;
@@ -23,7 +24,7 @@ export const SHOWS_PANE_CHROME_PX = HANDLE_AND_PADDING_PX + CLASSIC_SCROLLBAR_PX
 const ENTRY_FORMS_PAGE_PADDING_PX = 48;
 
 /** Show tabs by their path under `/shows/:id`; `undefined` is Overview. */
-export type ShowPaneTab = 'entries' | 'results' | 'reports' | undefined;
+export type ShowPaneTab = ShowManagementSectionPath | undefined;
 
 /**
  * The width the open tab needs from the show before its cockpit stacks (MYK9-1222): Entry Forms

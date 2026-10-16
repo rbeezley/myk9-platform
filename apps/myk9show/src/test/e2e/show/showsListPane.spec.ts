@@ -1,11 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
+import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
 
 /**
  * MYK9-1213 (docs/plan-sidebar-browse-pane.md, phase 2): the Shows list beside the show.
  * The cockpit splits on its own width (868px, `cockpitSplit.ts`), and the list stays beside an
  * open show only where the cockpit beside it still splits (`showsPaneFold.ts`): open at 1440,
- * folded at 1280 and 1024; under 1024 a tap is a page hop. Runs against the shared staging data
+ * folded at 1280 and 1024; under 1024 a tap is a page hop. Entry Forms needs more (its own 960px
+ * cockpit, MYK9-1222), so at 1440 the list folds there and returns on Overview. Runs against the shared staging data
  * as the secretary, who manages several shows past and upcoming.
  */
 
@@ -83,6 +85,8 @@ test.describe('Shows list with a detail pane', () => {
   test('at 1440 a secretary finds a past show from /shows; the cockpit still splits', async ({
     page,
   }) => {
+    // Signs in and opens two shows' cockpits against shared staging; 30s was too tight twice.
+    test.slow();
     await page.setViewportSize({ width: 1440, height: 900 });
     await signInAsSecretary(page, '/shows');
 
@@ -131,6 +135,27 @@ test.describe('Shows list with a detail pane', () => {
       await expect(showsList(page)).toHaveCount(0);
     });
   }
+
+  test('at 1440 the list folds from Entry Forms, whose cockpit keeps its queue and detail, and returns on Overview', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await signInAsSecretary(page, '/shows');
+    await page.evaluate(() => window.localStorage.removeItem('view-pref-shows-pane'));
+    await page.goto(`/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
+
+    await expect(page.getByRole('list', { name: 'Entry form work queue' })).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(showsList(page)).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Shows', exact: true })).toBeVisible();
+    // The split cockpit shows the focused entry form beside the queue; stacked, it is not rendered.
+    await expect(page.getByText('Entry form', { exact: true })).toBeVisible();
+
+    await page.getByRole('tab', { name: 'Overview' }).click();
+    await expect(showsList(page)).toBeVisible();
+    await expectCockpitFollowsItsWidth(page, 'split');
+  });
 
   test('with the network off, a show opened earlier is still listed and opens', async ({
     page,

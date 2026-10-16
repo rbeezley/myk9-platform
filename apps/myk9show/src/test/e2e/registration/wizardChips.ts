@@ -12,6 +12,7 @@
  */
 
 import { expect, type Locator, type Page } from '@playwright/test';
+import { CLASS_CHIP_NAME } from '../../e2e-helpers/classChipName';
 import {
   formatProbeFailure,
   probeStepForViewport,
@@ -21,7 +22,7 @@ import {
 
 export function enabledClassChips(page: Page): Locator {
   return page
-    .getByRole('checkbox', { name: /^Select / })
+    .getByRole('checkbox', { name: CLASS_CHIP_NAME })
     .and(
       page.locator(
         ':not([disabled]):not([aria-disabled="true"]):not([data-disabled]):not([data-checked])'
@@ -30,12 +31,12 @@ export function enabledClassChips(page: Page): Locator {
 }
 
 export function selectedClassChips(page: Page): Locator {
-  return page.getByRole('checkbox', { name: /^Select / }).and(page.locator('[data-checked]'));
+  return page.getByRole('checkbox', { name: CLASS_CHIP_NAME }).and(page.locator('[data-checked]'));
 }
 
 export function chipById(page: Page, id: string): Locator {
   return page
-    .getByRole('checkbox', { name: /^Select / })
+    .getByRole('checkbox', { name: CLASS_CHIP_NAME })
     .and(page.locator(`[id="${id}"], label:has([id="${id}"]) [role="checkbox"]`));
 }
 

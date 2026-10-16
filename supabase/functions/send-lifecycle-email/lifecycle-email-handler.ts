@@ -2,6 +2,7 @@ import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { requireEmailLogWrite } from '../_shared/emailLog.ts';
+import { parseNumberNeededClaim } from './lifecycle-email-numberNeeded.ts';
 
 export interface SendLifecycleEmailPayload {
   action?: 'preview' | 'save_ready' | 'send' | 'send_registration_number_needed';
@@ -507,136 +508,49 @@ async function sendRegistrationNumberNeeded(args: {
   const recipientName = formatPersonName(owner) ?? entry.handler ?? null;
 
   const requestKey = buildNumberNeededIdempotencyKey(showId, entryId, requestId);
+  // One atomic claim decides what this request sends (see
+  // claim_registration_number_needed_job): replay its own job, recover an earlier
+  // one, replace it for a changed address, or insert a first email. Nothing is
+  // written outside that transaction, so no failure strands the request.
+  const { data: claim, error: claimError } = await supabase.rpc(
+    'claim_registration_number_needed_job',
+    {
+      p_show_id: showId,
+      p_entry_id: entryId,
+      p_step_id: step.id,
+      p_request_key: requestKey,
+      p_recipient_email: recipientEmail,
+      p_recipient_name: recipientName,
+      p_subject: payload.subject?.trim() || 'Registration number needed',
+      p_body: payload.body ?? null,
+      p_secretary_note: payload.secretary_note ?? null,
+      p_user_id: userId,
+      p_stale_before: new Date(Date.now() - NUMBER_NEEDED_STALE_SEND_MS).toISOString(),
+    }
+  );
+  // Another writer holds this entry's one outstanding email: busy, as before.
+  if (claimError) {
+    if (isUniqueViolation(claimError)) return { status: 'busy' };
+    throw new HttpError(500, getErrorMessage(claimError) ?? 'Failed to save lifecycle email');
+  }
+  const outcome = parseNumberNeededClaim(claim);
+  if (outcome.outcome === 'busy') return { status: 'busy' };
+  if (outcome.outcome === 'sent') return { status: 'sent', jobId: outcome.jobId };
+
+  const [job] = await fetchJobs(supabase, showId, [outcome.jobId]);
+  if (!job) return { status: 'busy' };
   // A job is always sent with ITS OWN stored text: the provider refuses a changed
   // payload under an Idempotency-Key it has seen, so a replay must match exactly.
-  const storedText: SendLifecycleEmailPayload = {
-    ...payload,
-    subject: undefined,
-    body: undefined,
-    secretary_note: undefined,
-  };
-  const send = async (jobId: string, recovered: boolean): Promise<NumberNeededOutcome> => {
-    const [job] = await fetchJobs(supabase, showId, [jobId]);
-    if (!job) return { status: 'busy' };
-    const result = await sendOneJob({
-      deps: args.deps,
-      job,
-      payload: storedText,
-      supabase,
-      userId,
-    });
-    return recovered
-      ? { status: result.status, jobId: job.id, recovered: true }
-      : { status: result.status, jobId: job.id };
-  };
-
-  // 1. A retry of THIS preview's request (its response was lost): the same email.
-  const { data: own, error: ownError } = (await supabase
-    .from('show_lifecycle_email_jobs')
-    .select('id, status')
-    .eq('show_id', showId)
-    .eq('idempotency_key', requestKey)) as QueryResult<Array<{ id: string; status: string }>>;
-  if (ownError) throw new HttpError(500, 'Failed to read the earlier email');
-  const ownJob = own?.[0];
-  if (ownJob) {
-    if (ownJob.status === 'sent') return { status: 'sent', jobId: ownJob.id };
-    if (ownJob.status === 'ready' || ownJob.status === 'failed') return send(ownJob.id, false);
-    // Replaced since by a newer request: nothing of this one is left to send.
-    return { status: 'busy' };
-  }
-
-  // 2. Another request's email still outstanding. At most one per entry (a partial
-  // unique index backs this). This step's jobs are created and sent in one call, so a
-  // recent READY job is a send in flight: answer busy rather than touch it. A failed
-  // one, or a ready one older than the stale window (a send that died), may have been
-  // accepted by the provider without this handler recording it, so it is RECOVERED:
-  // replayed exactly, under its own key, while its address is still current. Only an
-  // address that changed since lets a fresh email replace it.
-  const { data: outstanding, error: outstandingError } = (await supabase
-    .from('show_lifecycle_email_jobs')
-    .select('id, status, created_at, recipient_email')
-    .eq('show_id', showId)
-    .eq('step_type', 'registration_number_needed')
-    .eq('entry_id', entryId)
-    .in('status', ['ready', 'failed'])) as QueryResult<
-    Array<{
-      id: string;
-      status: string;
-      created_at: string | null;
-      recipient_email: string | null;
-    }>
-  >;
-  if (outstandingError) throw new HttpError(500, 'Failed to read the earlier email');
-  const staleBefore = Date.now() - NUMBER_NEEDED_STALE_SEND_MS;
-  const isStale = (row: { created_at: string | null }) =>
-    !row.created_at || Date.parse(row.created_at) < staleBefore;
-  if ((outstanding ?? []).some(row => row.status === 'ready' && !isStale(row))) {
-    return { status: 'busy' };
-  }
-  const sameAddress = (outstanding ?? []).find(
-    row => row.recipient_email?.trim().toLowerCase() === recipientEmail.toLowerCase()
-  );
-  if (sameAddress) return send(sameAddress.id, true);
-
-  const supersede = (outstanding ?? []).map(row => row.id);
-  if (supersede.length > 0) {
-    const { error: supersedeError } = (await supabase
-      .from('show_lifecycle_email_jobs')
-      .update({ status: 'skipped', skipped_at: new Date().toISOString(), updated_by: userId })
-      .in('id', supersede)) as QueryResult;
-    if (supersedeError) throw new HttpError(500, 'Failed to replace the earlier email');
-  }
-
-  // 3. A new email for this request.
-  const subject = payload.subject?.trim() || 'Registration number needed';
-  const body = payload.body ?? null;
-  const secretaryNote = payload.secretary_note ?? null;
-  const { data: inserted, error: insertError } = (await supabase
-    .from('show_lifecycle_email_jobs')
-    .insert({
-      show_id: showId,
-      step_id: step.id,
-      step_type: 'registration_number_needed',
-      status: 'ready',
-      recipient_scope: 'entry',
-      entry_id: entryId,
-      recipient_email: recipientEmail,
-      recipient_name: recipientName,
-      subject,
-      body,
-      secretary_note: secretaryNote,
-      idempotency_key: requestKey,
-      due_at: new Date().toISOString(),
-      created_by: userId,
-      updated_by: userId,
-    })
-    .select('id')
-    .single()) as QueryResult<{ id: string }>;
-  if (insertError) {
-    // Another send for this entry, or this same request, got there first.
-    if (isUniqueViolation(insertError)) return { status: 'busy' };
-    throw new HttpError(500, getErrorMessage(insertError) ?? 'Failed to save lifecycle email');
-  }
-  if (!inserted?.id) throw new HttpError(500, 'Failed to save lifecycle email');
-  const job: LifecycleEmailJobRow = {
-    id: inserted.id,
-    show_id: showId,
-    step_type: 'registration_number_needed',
-    status: 'ready',
-    recipient_email: recipientEmail,
-    recipient_name: recipientName,
-    subject,
-    body,
-    secretary_note: secretaryNote,
-    rendered_subject: null,
-    rendered_body: null,
-    rendered_secretary_note: null,
-    email_log_id: null,
-    idempotency_key: requestKey,
-    entry_id: entryId,
-  };
-  const sent = await sendOneJob({ deps: args.deps, job, payload: storedText, supabase, userId });
-  return { status: sent.status, jobId: job.id };
+  const sent = await sendOneJob({
+    deps: args.deps,
+    job,
+    payload: { ...payload, subject: undefined, body: undefined, secretary_note: undefined },
+    supabase,
+    userId,
+  });
+  return outcome.recovered
+    ? { status: sent.status, jobId: job.id, recovered: true }
+    : { status: sent.status, jobId: job.id };
 }
 
 async function skipJobNoLongerHeld(args: {

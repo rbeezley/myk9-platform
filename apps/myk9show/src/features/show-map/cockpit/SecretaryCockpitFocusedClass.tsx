@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { ShowMapRunOrderMenu } from '../ShowMapRunOrderMenu';
 import { formatTime } from '@/lib/format/dates';
 import { countLabel } from '@/utils/pluralize';
@@ -30,6 +31,7 @@ export function SecretaryCockpitFocusedClass({
   trial,
   attention,
   timeZone,
+  sticky = false,
   canManageShow,
   onCommand,
   runOrder,
@@ -41,6 +43,8 @@ export function SecretaryCockpitFocusedClass({
   trial: SecretaryCockpitTrial | null;
   attention: readonly SecretaryCockpitAttention[];
   timeZone: string;
+  /** Pinned while the schedule beside it scrolls; only in the cockpit's split. */
+  sticky?: boolean;
   canManageShow: boolean;
   onCommand: (commandId: string) => void;
   /** Run-order auto-sort for the focused class (F29b phase 2a). */
@@ -92,7 +96,12 @@ export function SecretaryCockpitFocusedClass({
   ].filter(Boolean);
 
   return (
-    <aside className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm xl:sticky xl:top-[calc(var(--app-top-inset,3rem)+1rem)]">
+    <aside
+      className={cn(
+        'overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm',
+        sticky && 'sticky top-[calc(var(--app-top-inset,3rem)+1rem)]'
+      )}
+    >
       <div className="border-b p-5">
         <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
           Focused Class · {formatTrialIdentity(trial)}

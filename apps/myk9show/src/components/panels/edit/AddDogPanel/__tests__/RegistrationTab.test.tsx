@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { render } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { RegistrationTab } from '../RegistrationTab';
@@ -133,5 +134,23 @@ describe('RegistrationTab row actions are named', () => {
         name: 'Remove AKC (American Kennel Club) registration DN12345601',
       })
     ).toBeInTheDocument();
+  });
+});
+
+describe('registration status badge (MYK9-1210)', () => {
+  it('shows the positive tone for a form-written "Active", whatever its casing', () => {
+    renderTab({
+      registrations: [
+        {
+          id: 'r1',
+          organization: 'AKC',
+          registeredName: 'Ch Alpha',
+          registrationNumber: 'AAA111',
+          breed: 'Beagle',
+          status: 'Active',
+        },
+      ],
+    });
+    expect(screen.getByText('Active')).toHaveClass('text-green-700');
   });
 });

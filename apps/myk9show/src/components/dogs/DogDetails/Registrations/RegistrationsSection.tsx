@@ -48,6 +48,13 @@ interface RegistrationsSectionProps {
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import { EDIT_REGISTRATION_ATTR } from '@/components/dogs/registrationAttrs';
 import { normalizeOrganization } from '@/features/dogs/identity';
+import { registrationStatusTone, type RegistrationStatusTone } from '../../registrationStatusTone';
+
+const STATUS_TONE_CLASS: Record<RegistrationStatusTone, string> = {
+  positive: 'bg-green-500/20 text-success ',
+  attention: 'bg-yellow-500/20 text-warning ',
+  neutral: 'bg-muted text-muted-foreground',
+};
 
 /**
  * The dog's registrations as a list of cards, with per-row Edit / Delete.
@@ -208,7 +215,7 @@ export default function RegistrationsSection({ dog, canEdit }: RegistrationsSect
             </div>
             {typeof reg.status === 'string' && reg.status.trim() !== '' ? (
               <span
-                className={`inline-flex w-fit px-2 py-0.5 rounded text-xs font-medium mb-1 ${reg.status === 'Active' ? 'bg-green-500/20 text-success ' : reg.status === 'Pending' || reg.status === 'Under review' ? 'bg-yellow-500/20 text-warning ' : 'bg-muted text-muted-foreground'}`}
+                className={`inline-flex w-fit px-2 py-0.5 rounded text-xs font-medium mb-1 ${STATUS_TONE_CLASS[registrationStatusTone(reg.status)]}`}
               >
                 {reg.status}
               </span>

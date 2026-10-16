@@ -13,7 +13,6 @@ describe('RoleSidebar', () => {
     const config = buildUnifiedSidebarConfig(
       [UserRole.SITE_ADMIN, UserRole.EXHIBITOR],
       undefined,
-      undefined,
       'Jamie'
     );
 
@@ -82,7 +81,6 @@ describe('RoleSidebar', () => {
     const config = buildUnifiedSidebarConfig(
       [UserRole.CLUB_ADMIN],
       { clubId: 'club-1', clubName: 'Heartland Club' },
-      undefined,
       'Jamie'
     );
 
@@ -99,7 +97,6 @@ describe('RoleSidebar', () => {
     const config = buildUnifiedSidebarConfig(
       [UserRole.CLUB_ADMIN],
       { clubId: 'club-1', clubName: 'Heartland Club' },
-      undefined,
       'Jamie'
     );
 
@@ -113,7 +110,6 @@ describe('RoleSidebar', () => {
     const config = buildUnifiedSidebarConfig(
       [UserRole.CLUB_ADMIN],
       { clubId: 'club-1', clubName: 'Heartland Club' },
-      undefined,
       'Jamie'
     );
 
@@ -132,7 +128,7 @@ describe('RoleSidebar', () => {
   });
 
   it('shows the first name under the avatar in the rail account control', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN], undefined, undefined, 'Jamie');
+    const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN], undefined, 'Jamie');
 
     render(<RoleSidebar config={config} variant="rail" />, { initialRoute: '/admin/dashboard' });
 

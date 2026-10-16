@@ -42,8 +42,12 @@ interface MyEntriesOverviewProps {
   currentFeesHref: string;
   onNavigate: NavigateFunction;
   dogs: OverviewDog[];
-  entries?: MyEntry[];
-  upcomingClassCountByDog?: Record<string, number>;
+  /**
+   * The one source of the dog strip's class counts. Required: an optional
+   * default of `[]` rendered "No upcoming classes" on every dog with no type
+   * error (MYK9-1210).
+   */
+  entries: MyEntry[];
   onAddDog: () => void;
 }
 
@@ -56,8 +60,7 @@ export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
   currentFeesHref,
   onNavigate,
   dogs,
-  entries = [],
-  upcomingClassCountByDog,
+  entries,
   onAddDog,
 }) => {
   const scheduleCounts = React.useMemo(
@@ -93,7 +96,7 @@ export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
       <div className="max-[720px]:order-3">
         <DogStrip
           dogs={dogs}
-          upcomingClassCountByDog={upcomingClassCountByDog ?? scheduleCounts.upcoming}
+          upcomingClassCountByDog={scheduleCounts.upcoming}
           unpublishedClassCountByDog={scheduleCounts.unpublished}
           onAddDog={onAddDog}
         />

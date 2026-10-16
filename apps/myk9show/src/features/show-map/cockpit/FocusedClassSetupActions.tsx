@@ -10,7 +10,7 @@ import { useClassRowActions } from '@/components/shows/tabs/useClassRowActions';
  * that edit panel's footer, not beside Edit (owner, 2026-10-03).
  *
  * A hook, held by the cockpit rather than the panel: the focused panel moves
- * between the inline and split layouts at 1280px, which remounts it, and an
+ * between the inline and split layouts, which remounts it, and an
  * editor living inside it would close and lose its edits on a tablet rotation
  * (Codex review of #2691). The buttons render in the panel; the pending
  * action and the dialogs stay with the cockpit.

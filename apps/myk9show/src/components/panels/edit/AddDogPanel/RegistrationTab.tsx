@@ -34,6 +34,7 @@ interface RegistrationTabProps {
 
 import { ADD_REGISTRATION_ATTR, REGISTRATION_HEADING_ID } from './validationTab';
 import { EDIT_REGISTRATION_ATTR } from '@/components/dogs/registrationAttrs';
+import { registrationStatusTone } from '@/components/dogs/registrationStatusTone';
 
 export const RegistrationTab: React.FC<RegistrationTabProps> = ({
   onRemoveRegistration,
@@ -92,7 +93,7 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
                         <Badge
                           variant="outline"
                           className={
-                            reg.status === 'active'
+                            registrationStatusTone(reg.status) === 'positive'
                               ? 'border-green-500 text-green-700'
                               : 'border-gray-500 text-gray-700'
                           }

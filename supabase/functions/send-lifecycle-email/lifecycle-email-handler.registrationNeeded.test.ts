@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { createSendLifecycleEmailHandler } from './lifecycle-email-handler';
+import { makeStatefulSupabase } from './lifecycle-email-handler.statefulSupabase';
 import { baseTables, makeSupabase, readyJob } from './lifecycle-email-handler.testUtils';
 
 const numberNeededJob = {
@@ -166,6 +167,7 @@ const REQUEST_KEY = `show-lifecycle-email:show-1:registration_number_needed:entr
 
 describe('send_registration_number_needed action', () => {
   const stepRow = { id: 'step-rn', show_id: 'show-1', step_type: 'registration_number_needed' };
+  const CLAIM = 'claim_registration_number_needed_job';
 
   function arrange(
     options: {
@@ -174,21 +176,22 @@ describe('send_registration_number_needed action', () => {
       step?: Record<string, unknown> | null;
       people?: Array<Record<string, unknown>>;
       userRoles?: Array<Record<string, unknown>>;
-      jobInsertError?: { code: string; message: string };
+      claim?: unknown;
     } = {}
   ) {
     const fetch = vi.fn(async () => ({ ok: true, json: async () => ({ id: 'resend-1' }) }));
-    const base = baseTables({
-      show_lifecycle_email_jobs: options.jobs ?? [],
-      show_lifecycle_email_steps: options.step === null ? [] : [options.step ?? stepRow],
-      entries: [entryRow],
-      ...(options.people ? { people: options.people } : {}),
-      ...(options.userRoles ? { user_roles: options.userRoles } : {}),
-    });
-    const { supabase, calls } = makeSupabase(
-      base,
-      { entry_awaiting_registration_number: options.held === undefined ? true : options.held },
-      options.jobInsertError
+    const { supabase, tables, failNext } = makeStatefulSupabase(
+      baseTables({
+        show_lifecycle_email_jobs: options.jobs ?? [],
+        show_lifecycle_email_steps: options.step === null ? [] : [options.step ?? stepRow],
+        entries: [entryRow],
+        ...(options.people ? { people: options.people } : {}),
+        ...(options.userRoles ? { user_roles: options.userRoles } : {}),
+      }),
+      {
+        entry_awaiting_registration_number: options.held === undefined ? true : options.held,
+        ...(options.claim === undefined ? {} : { [CLAIM]: options.claim }),
+      }
     );
     const handler = createSendLifecycleEmailHandler({
       fetch: fetch as unknown as typeof globalThis.fetch,
@@ -208,168 +211,164 @@ describe('send_registration_number_needed action', () => {
           request_id: REQUEST_ID,
         },
         user: { id: userId },
-        supabase: supabase as Parameters<typeof handler>[0]['supabase'],
+        supabase: supabase as unknown as Parameters<typeof handler>[0]['supabase'],
       });
-    return { fetch, supabase, calls, run };
+    const claimArgs = () =>
+      (supabase.rpc.mock.calls as unknown as Array<[string, Record<string, unknown>]>)
+        .filter(([fn]) => fn === CLAIM)
+        .map(([, args]) => args);
+    const sentHeaders = () =>
+      (fetch.mock.calls[0] as unknown as [string, { headers: Record<string, string> }])[1].headers;
+    return { fetch, supabase, tables, failNext, run, claimArgs, sentHeaders };
   }
 
-  const jobCalls = (calls: Array<{ table: string; action: string; value?: unknown }>) =>
-    calls.filter(call => call.table === 'show_lifecycle_email_jobs');
+  const jobs = (tables: Record<string, Array<Record<string, unknown>>>) =>
+    tables.show_lifecycle_email_jobs;
+  const earlier = (extra: Record<string, unknown>) => ({
+    ...readyJob,
+    id: 'earlier',
+    show_id: 'show-1',
+    step_type: 'registration_number_needed',
+    entry_id: 'entry-1',
+    recipient_email: 'jamie@example.com',
+    idempotency_key: 'earlier-key',
+    ...extra,
+  });
 
   it('sends once to the owner, as a first email on the plain server-built key', async () => {
-    const { fetch, calls, run } = arrange();
+    const { fetch, tables, run, claimArgs } = arrange();
 
     const result = await run();
 
-    expect(result).toEqual({ status: 'sent', jobId: 'inserted-job-1' });
+    expect(result).toEqual({ status: 'sent', jobId: jobs(tables)[0].id });
     expect(fetch).toHaveBeenCalledTimes(1);
-    const insert = jobCalls(calls).find(call => call.action === 'insert');
-    expect(insert?.value).toMatchObject({
+    expect(jobs(tables)).toHaveLength(1);
+    expect(jobs(tables)[0]).toMatchObject({
       step_type: 'registration_number_needed',
-      status: 'ready',
       recipient_scope: 'entry',
       entry_id: 'entry-1',
       recipient_email: 'jamie@example.com',
       idempotency_key: REQUEST_KEY,
     });
+    expect(tables.show_lifecycle_email_job_requests).toEqual([
+      { show_id: 'show-1', request_key: REQUEST_KEY, job_id: jobs(tables)[0].id },
+    ]);
+    // The claim gets the server-built key and the reviewed text, never the client's key.
+    expect(claimArgs()).toEqual([
+      expect.objectContaining({
+        p_show_id: 'show-1',
+        p_entry_id: 'entry-1',
+        p_step_id: 'step-rn',
+        p_request_key: REQUEST_KEY,
+        p_recipient_email: 'jamie@example.com',
+        p_subject: 'Registration number needed for Willow',
+        p_body: 'Please send the number.',
+        p_secretary_note: 'Thanks',
+        p_user_id: 'secretary-1',
+      }),
+    ]);
+  });
+
+  it('hands the claim a stale cutoff of ten minutes ago, the handler owning that constant', async () => {
+    const { run, claimArgs } = arrange();
+    const before = Date.now();
+
+    await run();
+
+    const cutoff = Date.parse(String(claimArgs()[0].p_stale_before));
+    expect(cutoff).toBeGreaterThanOrEqual(before - 10 * 60 * 1000);
+    expect(cutoff).toBeLessThanOrEqual(Date.now() - 10 * 60 * 1000);
   });
 
   it('a retry of the same preview whose email already went out answers sent, with no second delivery', async () => {
-    const { fetch, calls, run } = arrange({
+    const { fetch, tables, run } = arrange({
       jobs: [
-        {
-          ...readyJob,
+        earlier({
           id: 'mine',
-          show_id: 'show-1',
-          step_type: 'registration_number_needed',
-          entry_id: 'entry-1',
           status: 'sent',
           idempotency_key: REQUEST_KEY,
-        },
+          request_key: REQUEST_KEY,
+        }),
       ],
     });
 
     await expect(run()).resolves.toEqual({ status: 'sent', jobId: 'mine' });
     expect(fetch).not.toHaveBeenCalled();
-    expect(jobCalls(calls).some(call => call.action === 'insert')).toBe(false);
+    expect(jobs(tables)).toHaveLength(1);
   });
 
   it('a retry of the same preview whose send failed re-sends that email with its stored text', async () => {
-    const { fetch, calls, run } = arrange({
+    const { fetch, tables, run, sentHeaders } = arrange({
       jobs: [
-        {
-          ...readyJob,
+        earlier({
           id: 'mine',
-          show_id: 'show-1',
-          step_type: 'registration_number_needed',
-          entry_id: 'entry-1',
           status: 'failed',
           subject: 'Stored subject',
-          recipient_email: 'jamie@example.com',
           idempotency_key: REQUEST_KEY,
-        },
+          request_key: REQUEST_KEY,
+        }),
       ],
     });
 
     await expect(run()).resolves.toEqual({ status: 'sent', jobId: 'mine' });
-    expect(jobCalls(calls).some(call => call.action === 'insert')).toBe(false);
-    const request = (
-      fetch.mock.calls[0] as unknown as [string, { headers: Record<string, string>; body: string }]
-    )[1];
-    expect(request.headers['Idempotency-Key']).toBe(REQUEST_KEY);
-    expect(JSON.parse(request.body).subject).toBe('Stored subject');
+    expect(jobs(tables)).toHaveLength(1);
+    expect(sentHeaders()['Idempotency-Key']).toBe(REQUEST_KEY);
+    const body = JSON.parse(
+      (fetch.mock.calls[0] as unknown as [string, { body: string }])[1].body
+    ) as { subject: string };
+    expect(body.subject).toBe('Stored subject');
   });
 
   it('refuses a request with no request id', async () => {
-    const { supabase, handler } = (() => {
-      const fetch = vi.fn();
-      const { supabase } = makeSupabase(baseTables({ show_lifecycle_email_steps: [stepRow] }), {
-        entry_awaiting_registration_number: true,
-      });
-      return {
-        supabase,
-        handler: createSendLifecycleEmailHandler({
-          fetch: fetch as unknown as typeof globalThis.fetch,
-          resendApiKey: 'resend-key',
-        }),
-      };
-    })();
+    const { supabase } = makeStatefulSupabase(
+      baseTables({ show_lifecycle_email_steps: [stepRow] }),
+      { entry_awaiting_registration_number: true }
+    );
+    const handler = createSendLifecycleEmailHandler({
+      fetch: vi.fn() as unknown as typeof globalThis.fetch,
+      resendApiKey: 'resend-key',
+    });
 
     await expect(
       handler({
         body: { action: 'send_registration_number_needed', show_id: 'show-1', entry_id: 'entry-1' },
         user: { id: 'secretary-1' },
-        supabase,
+        supabase: supabase as unknown as Parameters<typeof handler>[0]['supabase'],
       })
     ).rejects.toThrow('request_id is required');
-  });
-
-  it('marks the earlier failed job skipped BEFORE inserting the new one', async () => {
-    const { calls, run } = arrange({
-      jobs: [
-        {
-          id: 'old',
-          show_id: 'show-1',
-          step_type: 'registration_number_needed',
-          entry_id: 'entry-1',
-          status: 'failed',
-        },
-      ],
-    });
-
-    await run();
-
-    const actions = jobCalls(calls)
-      .filter(call => call.action !== 'rpc')
-      .map(call => call.action);
-    expect(actions.indexOf('update')).toBeGreaterThanOrEqual(0);
-    expect(actions.indexOf('update')).toBeLessThan(actions.indexOf('insert'));
-    expect(jobCalls(calls).find(call => call.action === 'update')?.value).toMatchObject({
-      status: 'skipped',
-      skipped_at: expect.any(String),
-      updated_by: 'secretary-1',
-    });
   });
 
   it('answers busy, cancelling nothing, while another send of this entry is in flight', async () => {
     // A READY job of this step is a send in progress: cancelling it would let both
     // near-simultaneous sends deliver.
-    const { fetch, calls, run } = arrange({
-      jobs: [
-        {
-          id: 'in-flight',
-          show_id: 'show-1',
-          step_type: 'registration_number_needed',
-          entry_id: 'entry-1',
-          status: 'ready',
-          created_at: new Date().toISOString(),
-        },
-      ],
+    const inFlight = earlier({
+      id: 'in-flight',
+      status: 'ready',
+      created_at: new Date().toISOString(),
     });
+    const { fetch, tables, run } = arrange({ jobs: [inFlight] });
 
     await expect(run()).resolves.toEqual({ status: 'busy' });
     expect(fetch).not.toHaveBeenCalled();
-    expect(jobCalls(calls).some(call => call.action === 'update')).toBe(false);
-    expect(jobCalls(calls).some(call => call.action === 'insert')).toBe(false);
+    expect(jobs(tables)).toEqual([inFlight]);
   });
 
-  it('replaces a ready job left behind by a send that died (older than the stale window)', async () => {
-    const { calls, run } = arrange({
-      jobs: [
-        {
-          id: 'stuck',
-          show_id: 'show-1',
-          step_type: 'registration_number_needed',
-          entry_id: 'entry-1',
-          status: 'ready',
-          created_at: new Date(Date.now() - 11 * 60 * 1000).toISOString(),
-        },
-      ],
+  it('replaces a stale ready job at a DIFFERENT address, skipping the old one first', async () => {
+    const stuck = earlier({
+      id: 'stuck',
+      status: 'ready',
+      recipient_email: 'old@example.com',
+      created_at: new Date(Date.now() - 11 * 60 * 1000).toISOString(),
     });
+    const { tables, run } = arrange({ jobs: [stuck] });
 
     await expect(run()).resolves.toMatchObject({ status: 'sent' });
-    const actions = jobCalls(calls).map(call => call.action);
-    expect(actions.indexOf('update')).toBeLessThan(actions.indexOf('insert'));
+    expect(jobs(tables).find(row => row.id === 'stuck')).toMatchObject({
+      status: 'skipped',
+      skipped_at: expect.any(String),
+      updated_by: 'secretary-1',
+    });
+    expect(jobs(tables)).toHaveLength(2);
   });
 
   it.each([
@@ -378,28 +377,18 @@ describe('send_registration_number_needed action', () => {
   ])(
     'recovers %s with its OWN key when the address is unchanged, so it cannot deliver twice',
     async (_label, status, ageMinutes) => {
-      const { fetch, calls, run } = arrange({
+      const { fetch, tables, run, sentHeaders } = arrange({
         jobs: [
-          {
-            ...readyJob,
-            id: 'earlier',
-            show_id: 'show-1',
-            step_type: 'registration_number_needed',
-            entry_id: 'entry-1',
+          earlier({
             status,
-            recipient_email: 'jamie@example.com',
-            idempotency_key: 'earlier-key',
             created_at: new Date(Date.now() - ageMinutes * 60 * 1000).toISOString(),
-          },
+          }),
         ],
       });
 
       await expect(run()).resolves.toEqual({ status: 'sent', jobId: 'earlier', recovered: true });
-      expect(jobCalls(calls).some(call => call.action === 'insert')).toBe(false);
-      const headers = (
-        fetch.mock.calls[0] as unknown as [string, { headers: Record<string, string> }]
-      )[1].headers;
-      expect(headers['Idempotency-Key']).toBe('earlier-key');
+      expect(jobs(tables)).toHaveLength(1);
+      expect(sentHeaders()['Idempotency-Key']).toBe('earlier-key');
       // Replayed exactly: the provider refuses a changed payload under a seen key.
       const sentBody = JSON.parse(
         (fetch.mock.calls[0] as unknown as [string, { body: string }])[1].body
@@ -409,57 +398,63 @@ describe('send_registration_number_needed action', () => {
   );
 
   it('replaces the earlier email with a fresh one when the address has changed since', async () => {
-    const { calls, run } = arrange({
-      jobs: [
-        {
-          id: 'old-address',
-          show_id: 'show-1',
-          step_type: 'registration_number_needed',
-          entry_id: 'entry-1',
-          status: 'failed',
-          recipient_email: 'old@example.com',
-        },
-      ],
+    const { tables, run } = arrange({
+      jobs: [earlier({ id: 'old-address', status: 'failed', recipient_email: 'old@example.com' })],
     });
 
-    await expect(run()).resolves.toMatchObject({ status: 'sent', jobId: 'inserted-job-1' });
-    const actions = jobCalls(calls).map(call => call.action);
-    expect(actions.indexOf('update')).toBeLessThan(actions.indexOf('insert'));
+    const result = await run();
+
+    expect(result).toMatchObject({ status: 'sent' });
+    expect(jobs(tables).find(row => row.id === 'old-address')?.status).toBe('skipped');
+    expect(jobs(tables).filter(row => row.status === 'sent')).toHaveLength(1);
   });
 
-  it('answers busy, with no Resend call, when another send holds the entry (23505)', async () => {
+  it('answers busy, with no Resend call, when another writer holds the entry (23505)', async () => {
     const { fetch, run } = arrange({
-      jobInsertError: { code: '23505', message: 'duplicate key value' },
+      claim: { error: { code: '23505', message: 'duplicate key value' } },
     });
 
     await expect(run()).resolves.toEqual({ status: 'busy' });
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('tells not_held (number on file) from unverified (could not check), creating no job', async () => {
+  it('fails loudly, sending nothing, when the claim errors or answers something unexpected', async () => {
+    const errored = arrange({ claim: { error: { message: 'boom' } } });
+    await expect(errored.run()).rejects.toThrow('boom');
+    expect(errored.fetch).not.toHaveBeenCalled();
+
+    const garbled = arrange({ claim: { outcome: 'maybe' } });
+    await expect(garbled.run()).rejects.toThrow('Failed to save lifecycle email');
+    expect(garbled.fetch).not.toHaveBeenCalled();
+  });
+
+  it('tells not_held (number on file) from unverified (could not check), claiming nothing', async () => {
     const notHeld = arrange({ held: false });
     await expect(notHeld.run()).resolves.toEqual({ status: 'skipped', reason: 'not_held' });
     expect(notHeld.fetch).not.toHaveBeenCalled();
-    expect(jobCalls(notHeld.calls).some(call => call.action === 'insert')).toBe(false);
+    expect(notHeld.claimArgs()).toEqual([]);
 
     const unverified = arrange({ held: { error: { message: 'boom' } } });
     await expect(unverified.run()).resolves.toEqual({ status: 'skipped', reason: 'unverified' });
     expect(unverified.fetch).not.toHaveBeenCalled();
-    expect(jobCalls(unverified.calls).some(call => call.action === 'insert')).toBe(false);
+    expect(unverified.claimArgs()).toEqual([]);
   });
 
-  it('skips with no_email, creating no job and leaving earlier jobs alone', async () => {
-    const { fetch, calls, run } = arrange({
+  it('skips with no_email, claiming nothing and leaving earlier jobs alone', async () => {
+    const stuck = earlier({ status: 'failed' });
+    const { fetch, tables, run, claimArgs } = arrange({
+      jobs: [stuck],
       people: [{ id: 'person-1', first_name: 'Jamie', last_name: 'Handler', email: '  ' }],
     });
 
     await expect(run()).resolves.toEqual({ status: 'skipped', reason: 'no_email' });
     expect(fetch).not.toHaveBeenCalled();
-    expect(jobCalls(calls)).toEqual([]);
+    expect(claimArgs()).toEqual([]);
+    expect(jobs(tables)).toEqual([stuck]);
   });
 
   it("sends to the owner's CURRENT email, not a value from the request or an old job", async () => {
-    const { fetch, calls, run } = arrange({
+    const { fetch, tables, run } = arrange({
       people: [
         { id: 'person-1', first_name: 'Jamie', last_name: 'Handler', email: 'new@example.com' },
       ],
@@ -467,8 +462,7 @@ describe('send_registration_number_needed action', () => {
 
     await run();
 
-    const insert = jobCalls(calls).find(call => call.action === 'insert');
-    expect(insert?.value).toMatchObject({ recipient_email: 'new@example.com' });
+    expect(jobs(tables)[0]).toMatchObject({ recipient_email: 'new@example.com' });
     const body = JSON.parse(
       (fetch.mock.calls[0] as unknown as [string, { body: string }])[1].body
     ) as { to: string };
@@ -485,11 +479,11 @@ describe('send_registration_number_needed action', () => {
   });
 
   it('refuses when the club turned the step off, before any entry read or job write', async () => {
-    const { fetch, supabase, calls, run } = arrange({ step: { ...stepRow, is_enabled: false } });
+    const { fetch, supabase, tables, run } = arrange({ step: { ...stepRow, is_enabled: false } });
 
     await expect(run()).rejects.toThrow('turned off');
     expect(fetch).not.toHaveBeenCalled();
     expect(supabase.rpc).not.toHaveBeenCalled();
-    expect(jobCalls(calls)).toEqual([]);
+    expect(jobs(tables)).toEqual([]);
   });
 });

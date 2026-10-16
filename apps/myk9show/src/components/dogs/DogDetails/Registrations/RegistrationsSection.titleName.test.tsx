@@ -224,4 +224,20 @@ describe('registration name editing', () => {
 
     expect(screen.queryByRole('dialog')).toBeNull();
   });
+
+  it('tones a lowercase stored "pending" like "Pending" (MYK9-1210)', () => {
+    mocks.registrations.mockReturnValue([
+      {
+        id: 'registration-1',
+        organization: 'AKC',
+        registeredName: 'CH Test Dog',
+        registrationNumber: 'SR12345',
+        breed: 'Beagle',
+        status: 'pending',
+      },
+    ]);
+    const dog = { id: 'dog-1', callName: 'Test Dog' } as Dog;
+    render(<RegistrationsSection dog={dog} canEdit />);
+    expect(screen.getByText('pending')).toHaveClass('text-warning');
+  });
 });

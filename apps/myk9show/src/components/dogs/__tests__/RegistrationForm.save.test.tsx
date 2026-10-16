@@ -310,7 +310,6 @@ it.each(['approved', 'suspended', 'rejected'])(
     const initialData = { ...registration, status };
     function StatusSaveHarness() {
       const editor = useRegistrationEditor({
-        open: true,
         initialData,
         onSave,
         onSaved: vi.fn(),

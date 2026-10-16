@@ -4,7 +4,7 @@
  * variants keep today's registration slide-out and photo control.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { AddDogPanel } from '../index';
@@ -113,5 +113,27 @@ describe('AddDogPanel inline registration sub-mode (T2)', { timeout: JOURNEY_TIM
     );
     await user.click(await screen.findByRole('button', { name: /No registration number yet/ }));
     expect(await screen.findByRole('button', { name: 'Add dog photo' })).toBeInTheDocument();
+  });
+
+  // MYK9-1210: the form is seeded once, when it mounts, so opening another row
+  // while one is open must remount it. The dog form is inert in a sub-mode, so
+  // a click cannot reach the second row's Edit; fireEvent drives the same
+  // `onOpenRegistration` path the page-level opener would.
+  it('shows the second row’s values when it is opened while the first is open', async () => {
+    const { user } = renderInline();
+    await addFirstRegistration(user, 'DN12345601');
+    await fillDogBasics(user);
+    await user.click(screen.getByRole('tab', { name: /Registration/ }));
+    await user.click(await screen.findByRole('button', { name: /Add New Registration/ }));
+    await fillRegistration(user, 'DN22222201');
+    await screen.findByRole('button', { name: /Edit AKC.*DN22222201/ });
+
+    await user.click(await screen.findByRole('button', { name: /Edit AKC.*DN12345601/ }));
+    expect(await screen.findByLabelText(/Registration Number/i)).toHaveValue('DN12345601');
+
+    fireEvent.click(screen.getByRole('button', { name: /Edit AKC.*DN22222201/, hidden: true }));
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Registration Number/i)).toHaveValue('DN22222201')
+    );
   });
 });

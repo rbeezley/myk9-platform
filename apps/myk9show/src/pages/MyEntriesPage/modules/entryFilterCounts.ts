@@ -18,7 +18,7 @@
 
 import { ENTRY_STATUS_FILTER_DEFS, ENTRY_TAB_DEFS, TAB_PREDICATES } from './entryTabDefs';
 import { orderMatchesStatusFilter, narrowDogsToStatus } from './statusFilterPredicate';
-import { groupEntriesByShow } from './groupEntriesByShow';
+import { groupEntriesByShow, type MyShowGroup } from './groupEntriesByShow';
 import { resolveWaitlistSurface, type WaitlistSurface } from './waitlistSurface';
 import type { EntryStatusFilter, EntryTabFilter, MyEntry } from './my-entries-types';
 
@@ -36,6 +36,32 @@ export function countVisibleClassEntries(
     (count, group) => count + group.dogs.reduce((sum, dog) => sum + dog.classes.length, 0),
     0
   );
+}
+
+/** Class-entry rows across already-grouped shows that the status filter keeps. */
+function countGroupedClassEntries(groups: MyShowGroup[], status: EntryStatusFilter): number {
+  return narrowDogsToStatus(groups, status).reduce(
+    (count, group) => count + group.dogs.reduce((sum, dog) => sum + dog.classes.length, 0),
+    0
+  );
+}
+
+/**
+ * `countVisibleClassEntries` for every status at once, from ONE grouping.
+ *
+ * Grouping the whole list and narrowing each class row by its own status keeps
+ * exactly the rows that filtering the orders first would: an order survives a
+ * status only when one of its class rows matches, and `narrowDogsToStatus`
+ * drops the rest (MYK9-1210).
+ */
+function countClassEntriesByStatus(entries: MyEntry[]): Record<EntryStatusFilter, number> {
+  const groups = groupEntriesByShow(entries);
+  return {
+    any: countGroupedClassEntries(groups, 'any'),
+    pending: countGroupedClassEntries(groups, 'pending'),
+    accepted: countGroupedClassEntries(groups, 'accepted'),
+    waitlist: countGroupedClassEntries(groups, 'waitlist'),
+  };
 }
 
 /** The wait-list position facts the Waitlist chip folds in beside entries. */
@@ -60,7 +86,8 @@ export function deriveStatusCounts(
   positions: WaitlistPositionFacts
 ): { counts: Record<EntryStatusFilter, number>; surface: WaitlistSurface } {
   const inTab = entries.filter(entry => TAB_PREDICATES[tab](entry, now));
-  const waitlistEntries = countVisibleClassEntries(inTab, 'waitlist');
+  const byStatus = countClassEntriesByStatus(inTab);
+  const waitlistEntries = byStatus.waitlist;
   const surface = resolveWaitlistSurface({
     waitlistEntryCount: waitlistEntries,
     ...positions,
@@ -69,9 +96,9 @@ export function deriveStatusCounts(
   });
   return {
     counts: {
-      any: countVisibleClassEntries(inTab) + (surface.chipCount - waitlistEntries),
-      pending: countVisibleClassEntries(inTab, 'pending'),
-      accepted: countVisibleClassEntries(inTab, 'accepted'),
+      any: byStatus.any + (surface.chipCount - waitlistEntries),
+      pending: byStatus.pending,
+      accepted: byStatus.accepted,
       waitlist: surface.chipCount,
     },
     surface,

@@ -17,7 +17,7 @@ export const QuickCreateFooter: React.FC<QuickCreateFooterProps> = ({
   onCancel,
   onComplete,
 }) => (
-  <div className="flex justify-between">
+  <div className="flex flex-wrap items-center justify-between gap-3">
     <div>
       {flowState.step !== 'exhibitor' && (
         <Button
@@ -35,7 +35,7 @@ export const QuickCreateFooter: React.FC<QuickCreateFooterProps> = ({
       )}
     </div>
 
-    <div className="flex gap-3">
+    <div className="flex flex-wrap gap-3">
       <Button variant="outline" onClick={onCancel}>
         Cancel
       </Button>
@@ -44,9 +44,15 @@ export const QuickCreateFooter: React.FC<QuickCreateFooterProps> = ({
         <Button onClick={() => onStepChange('dogs')}>Next: Add Dogs</Button>
       )}
 
-      {flowState.step === 'dogs' && flowState.dogs.length > 0 && (
-        <Button onClick={() => onStepChange('review')}>Review</Button>
-      )}
+      {flowState.step === 'dogs' &&
+        (flowState.dogs.length > 0 ? (
+          <Button onClick={() => onStepChange('review')}>Review</Button>
+        ) : (
+          // A person with no dog yet is a complete result: the person is already saved.
+          <Button variant="outline" onClick={onComplete}>
+            Finish Without Dogs
+          </Button>
+        ))}
 
       {flowState.step === 'review' && <Button onClick={onComplete}>Complete Setup</Button>}
     </div>

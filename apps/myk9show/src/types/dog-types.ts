@@ -10,7 +10,7 @@ export type DogStatus = 'active' | 'retired' | 'deceased';
 
 /**
  * Registration statuses accepted by the Zod schema and UI.
- * Shared between `AddEditRegistrationDialog` and `AddDogPanel/validation`
+ * Shared between `registrationFormSchema` and `AddDogPanel/validation`
  * so the form, validator, and type stay in lockstep.
  */
 export const REGISTRATION_STATUS_VALUES = ['Active', 'Pending', 'Expired', 'Under review'] as const;
@@ -165,6 +165,8 @@ export interface Dog {
   /** Co-owner person id (`dogs.co_owner_id`). Carried through the offline replica too; devices that already synced pick it up on the 24h full sync. */
   coOwnerId?: string | undefined;
   ownerName?: string | undefined; // Owner name for easier display
+  /** The owner could not be read offline and was never remembered on this device (MYK9-1189). */
+  ownerUnavailableOffline?: boolean | undefined;
   owner?: Owner | undefined; // Owner object (can be populated later)
   description?: string | undefined;
   // Fields from LegacyDog
@@ -265,6 +267,7 @@ export interface DogInput {
     | Array<{
         organization: string;
         number: string;
+        registrationDate?: string | undefined;
         type: string;
         status: string;
       }>

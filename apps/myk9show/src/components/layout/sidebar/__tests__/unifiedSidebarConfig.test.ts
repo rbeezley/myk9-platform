@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { buildUnifiedSidebarConfig } from '../unifiedSidebarConfig';
-import type { NextShowContext } from '../unifiedSidebarConfig';
 import type { ClubContext } from '../unifiedSidebarConfig';
 import { UserRole } from '@/types/auth-types';
 
@@ -85,19 +84,15 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   });
 
   // ── Manage ───────────────────────────────────────────────────────────────
-  it('manage sidebar items are in lifecycle order (no next show)', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
+  it('manage holds only Show Management; no single show is linked from the sidebar', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY, UserRole.EXHIBITOR]);
     const group = config.groups.find(g => g.title === 'Manage');
     const titles = group?.items.map(i => i.title) ?? [];
     expect(titles).toEqual(['Show Management']);
-  });
-
-  it('manage sidebar includes show name item when nextShow is provided', () => {
-    const nextShow: NextShowContext = { id: 'show-1', name: 'Spring Classic', phase: 'upcoming' };
-    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, nextShow);
-    const group = config.groups.find(g => g.title === 'Manage');
-    const titles = group?.items.map(i => i.title) ?? [];
-    expect(titles).toEqual(['Show Management', 'Spring Classic']);
+    // Today's show is the top of the Shows list's Today group now (MYK9-1213).
+    const hrefs = config.groups.flatMap(g => g.items.map(i => i.href));
+    expect(hrefs.filter(href => /^\/shows\/[^/?]+/.test(href))).toEqual([]);
+    expect(hrefs).toContain('/shows');
   });
 
   it('manage sidebar omits Messages because Message Center is the communication hub', () => {
@@ -170,41 +165,6 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
       '/club-admin/members',
       '/club-admin/payments',
     ]);
-  });
-
-  it('manage omits show link when no nextShow provided', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
-    const group = config.groups.find(g => g.title === 'Manage');
-    const titles = group?.items.map(i => i.title) ?? [];
-    expect(titles).not.toContain('Schedule');
-    expect(titles).not.toContain('Day of Show');
-  });
-
-  it('upcoming nextShow links to the show Overview, not the /setup bounce', () => {
-    const nextShow: NextShowContext = { id: 'show-1', name: 'Spring Classic', phase: 'upcoming' };
-    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, nextShow);
-    const group = config.groups.find(g => g.title === 'Manage');
-    const item = group?.items.find(i => i.title === 'Spring Classic');
-    expect(item?.href).toBe('/shows/show-1');
-    expect(item?.description).toBe('Setup & scheduling');
-  });
-
-  it('today nextShow links to the show home, where the day is run (MYK9-957)', () => {
-    const nextShow: NextShowContext = { id: 'show-1', name: 'Spring Classic', phase: 'today' };
-    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, nextShow);
-    const group = config.groups.find(g => g.title === 'Manage');
-    const item = group?.items.find(i => i.title === 'Spring Classic');
-    expect(item?.href).toBe('/shows/show-1');
-    expect(item?.description).toBe('Live today');
-  });
-
-  it('draft nextShow links to the show Overview, not the /setup bounce', () => {
-    const nextShow: NextShowContext = { id: 'show-1', name: 'Spring Classic', phase: 'draft' };
-    const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, nextShow);
-    const group = config.groups.find(g => g.title === 'Manage');
-    const item = group?.items.find(i => i.title === 'Spring Classic');
-    expect(item?.href).toBe('/shows/show-1');
-    expect(item?.description).toBe('Draft · finish setup');
   });
 
   it('manage sidebar omits standalone Entries, Reports, Results, and Submit Results', () => {
@@ -312,12 +272,19 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   });
 
   // ── Browse (multi-role) ───────────────────────────────────────────────────
-  it('browse section for secretary includes Shows, Dogs, Clubs, People', () => {
+  it('browse section for secretary lists Shows, Dogs, People, Clubs, in tab order', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const browse = config.groups.find(g => g.title === 'Browse');
     const titles = browse?.items.map(i => i.title) ?? [];
-    expect(titles).toEqual(['Shows', 'Dogs', 'Clubs', 'People']);
+    expect(titles).toEqual(['Shows', 'Dogs', 'People', 'Clubs']);
     expect(browse?.items.every(item => item.description === undefined)).toBe(true);
+  });
+
+  it('folds the browse section into one Browse rail link', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.JUDGE]);
+    const browse = config.groups.find(g => g.title === 'Browse');
+    expect(browse?.railLink).toMatchObject({ id: 'browse', title: 'Browse' });
+    expect(browse?.items.map(i => i.href)).toEqual(['/shows', '/dogs']);
   });
 
   it('browse section for secretary omits Calendar', () => {
@@ -418,15 +385,10 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
 // ── Sidebar account identity ──────────────────────────────────────────────
 describe('buildUnifiedSidebarConfig — account identity', () => {
   it('uses firstName as accountName for every role when present', () => {
-    const admin = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN], undefined, undefined, 'Jamie');
-    const secretary = buildUnifiedSidebarConfig(
-      [UserRole.SECRETARY],
-      undefined,
-      undefined,
-      'Jamie'
-    );
-    const judge = buildUnifiedSidebarConfig([UserRole.JUDGE], undefined, undefined, 'Jamie');
-    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, undefined, 'Jamie');
+    const admin = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN], undefined, 'Jamie');
+    const secretary = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, 'Jamie');
+    const judge = buildUnifiedSidebarConfig([UserRole.JUDGE], undefined, 'Jamie');
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, 'Jamie');
 
     expect(admin.accountName).toBe('Jamie');
     expect(secretary.accountName).toBe('Jamie');
@@ -435,7 +397,7 @@ describe('buildUnifiedSidebarConfig — account identity', () => {
   });
 
   it('falls back to "myK9" when firstName is null', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, undefined, null);
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, null);
     expect(config.accountName).toBe('myK9');
   });
 
@@ -445,14 +407,13 @@ describe('buildUnifiedSidebarConfig — account identity', () => {
   });
 
   it('falls back to "myK9" when firstName is empty/whitespace', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, undefined, '   ');
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, '   ');
     expect(config.accountName).toBe('myK9');
   });
 
   it('summarizes additional roles beneath the account name', () => {
     const config = buildUnifiedSidebarConfig(
       [UserRole.EXHIBITOR, UserRole.SITE_ADMIN, UserRole.JUDGE],
-      undefined,
       undefined,
       'Jamie'
     );
@@ -468,7 +429,7 @@ describe('buildUnifiedSidebarConfig — account identity', () => {
     [UserRole.STEWARD, 'Steward'],
     [UserRole.EXHIBITOR, 'Exhibitor'],
   ])('uses the canonical label for %s', (role, label) => {
-    const config = buildUnifiedSidebarConfig([role], undefined, undefined, 'Jamie');
+    const config = buildUnifiedSidebarConfig([role], undefined, 'Jamie');
 
     expect(config.accountRoleLabel).toBe(label);
   });

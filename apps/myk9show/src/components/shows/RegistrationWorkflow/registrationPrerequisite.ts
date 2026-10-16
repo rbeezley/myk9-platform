@@ -1,5 +1,8 @@
 import type { Registration } from '@/types/dog-types';
-import { resolveDogIdentityForOrganization } from '@/features/dogs/identity';
+import {
+  isConformationPuppyClass,
+  resolveDogIdentityForOrganization,
+} from '@/features/dogs/identity';
 
 interface RegistrationPrerequisiteInput {
   registrations: readonly Registration[] | null | undefined;
@@ -8,28 +11,18 @@ interface RegistrationPrerequisiteInput {
   className: string | null | undefined;
   element: string | null | undefined;
   level: string | null | undefined;
+  /**
+   * MYK9-1162: this show's own staff may enter a dog with no number yet. The
+   * entry holds its place until the number is added; the database exempts trial
+   * managers the same way. An exhibitor is never exempt.
+   */
+  managerExemption?: boolean | undefined;
 }
 
 export interface RegistrationPrerequisite {
   allowed: boolean;
   puppyException: boolean;
   message: string | null;
-}
-
-function isProvenConformationPuppyClass(
-  trialType: string | null | undefined,
-  className: string | null | undefined,
-  element: string | null | undefined,
-  level: string | null | undefined
-): boolean {
-  const normalizedTrialType = trialType?.trim().toLowerCase() ?? '';
-  if (!normalizedTrialType.includes('conformation')) return false;
-
-  const classMetadata = [className, element, level]
-    .filter((value): value is string => typeof value === 'string')
-    .join(' ')
-    .toLowerCase();
-  return classMetadata.includes('puppy');
 }
 
 /**
@@ -43,8 +36,9 @@ export function getRegistrationPrerequisite({
   className,
   element,
   level,
+  managerExemption = false,
 }: RegistrationPrerequisiteInput): RegistrationPrerequisite {
-  if (isProvenConformationPuppyClass(trialType, className, element, level)) {
+  if (isConformationPuppyClass({ trialType, className, element, level })) {
     return {
       allowed: true,
       puppyException: true,
@@ -58,6 +52,13 @@ export function getRegistrationPrerequisite({
   }
 
   const registryName = registryId?.trim() || 'the sanctioning organization';
+  if (managerExemption) {
+    return {
+      allowed: true,
+      puppyException: false,
+      message: `No ${registryName} registration number yet. The entry holds its place until the number is added.`,
+    };
+  }
   return {
     allowed: false,
     puppyException: false,

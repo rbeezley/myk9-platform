@@ -4,9 +4,12 @@ import SectionCard from '@/components/common/SectionCard';
 import ThreeDotMenu from '@/components/ui/ThreeDotMenu';
 import { Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, WifiOff } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
-import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
+import {
+  registrationsToList,
+  useDogRegistrationManagement,
+} from '@/hooks/queries/useRegistrationsDatabase';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 
 /**
@@ -43,7 +46,15 @@ interface RegistrationsSectionProps {
 }
 
 import { useRegistrationsStore } from '@/store/registrationsStore';
-import { EDIT_REGISTRATION_ATTR } from './useRegistrationModeFocus';
+import { EDIT_REGISTRATION_ATTR } from '@/components/dogs/registrationAttrs';
+import { normalizeOrganization } from '@/features/dogs/identity';
+import { registrationStatusTone, type RegistrationStatusTone } from '../../registrationStatusTone';
+
+const STATUS_TONE_CLASS: Record<RegistrationStatusTone, string> = {
+  positive: 'bg-green-500/20 text-success ',
+  attention: 'bg-yellow-500/20 text-warning ',
+  neutral: 'bg-muted text-muted-foreground',
+};
 
 /**
  * The dog's registrations as a list of cards, with per-row Edit / Delete.
@@ -58,6 +69,8 @@ export default function RegistrationsSection({ dog, canEdit }: RegistrationsSect
   // Use database hooks for data management
   const {
     registrations: dbRegistrations,
+    registrationsSource,
+    registrationsDeviceHeldRows,
     isLoading,
     error,
     refetch,
@@ -65,7 +78,15 @@ export default function RegistrationsSection({ dog, canEdit }: RegistrationsSect
 
   // Fallback to dog prop registrations if database not available, or use store
   const storeRegistrations = useRegistrationsStore(state => state.registrations);
-  const registrations = dbRegistrations || dog?.registrations || storeRegistrations;
+  const registrations =
+    registrationsToList(
+      registrationsSource,
+      dbRegistrations,
+      registrationsDeviceHeldRows,
+      dog?.registrations
+    ) ||
+    dog?.registrations ||
+    storeRegistrations;
 
   const setIsEditRegistrationDialogOpen = useRegistrationsStore(
     state => state.setIsEditRegistrationDialogOpen
@@ -118,6 +139,21 @@ export default function RegistrationsSection({ dog, canEdit }: RegistrationsSect
     );
   }
 
+  // The server could not be read, so this list is what the device last saved.
+  // INTENT "Offline is normal": a quiet note, not an error.
+  const isOfflineCopy = registrationsSource === 'device';
+
+  if (isOfflineCopy && (!registrations || registrations.length === 0)) {
+    return (
+      <EmptyState
+        icon={WifiOff}
+        title="No registrations saved on this device"
+        description="Reconnect to see this dog's registrations."
+        action={null}
+      />
+    );
+  }
+
   if (!registrations || registrations.length === 0) {
     return (
       <EmptyState
@@ -135,6 +171,12 @@ export default function RegistrationsSection({ dog, canEdit }: RegistrationsSect
 
   return (
     <div className="grid gap-4 grid-cols-1">
+      {isOfflineCopy && (
+        <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
+          <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
+          Offline copy. It may be out of date.
+        </p>
+      )}
       {(registrations as RegistrationRecord[]).map((reg: RegistrationRecord, idx: number) => (
         <SectionCard key={reg.id || idx} className="min-h-[170px] justify-between">
           {canEdit && (
@@ -165,15 +207,15 @@ export default function RegistrationsSection({ dog, canEdit }: RegistrationsSect
           <div className="flex flex-col gap-2">
             <div className="font-semibold text-base mb-0.5">{reg.organization} Registration</div>
             <div className="text-xs text-muted-foreground mb-0.5">
-              {reg.organization === 'AKC'
+              {normalizeOrganization(reg.organization) === 'AKC'
                 ? 'American Kennel Club'
-                : reg.organization === 'UKC'
+                : normalizeOrganization(reg.organization) === 'UKC'
                   ? 'United Kennel Club'
                   : reg.organization}
             </div>
             {typeof reg.status === 'string' && reg.status.trim() !== '' ? (
               <span
-                className={`inline-flex w-fit px-2 py-0.5 rounded text-xs font-medium mb-1 ${reg.status === 'Active' ? 'bg-green-500/20 text-success ' : reg.status === 'Pending' || reg.status === 'Under review' ? 'bg-yellow-500/20 text-warning ' : 'bg-muted text-muted-foreground'}`}
+                className={`inline-flex w-fit px-2 py-0.5 rounded text-xs font-medium mb-1 ${STATUS_TONE_CLASS[registrationStatusTone(reg.status)]}`}
               >
                 {reg.status}
               </span>

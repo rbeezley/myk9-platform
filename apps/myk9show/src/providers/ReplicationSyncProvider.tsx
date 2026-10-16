@@ -11,6 +11,7 @@
  * Uses @myk9/replication package for offline-first data sync.
  */
 
+import { adoptHeldRingsideScoresForLiveClaim } from '@/services/replication/heldRingsideScores';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -53,6 +54,7 @@ import {
   revokeRingsidePasscodeAccess,
 } from '@/features/at-show/ringsidePasscodeRevocation';
 import {
+  formatSyncFailureReason,
   formatSyncFailureToast,
   formatDownloadFailureToast,
   hasPermanentScoreAuthorizationFailure,
@@ -60,6 +62,8 @@ import {
   DOWNLOAD_SYNC_FAILURE_TOAST_ID,
 } from './replicationSyncFormatters';
 import { useSyncPassScheduler } from './useSyncPassScheduler';
+import { useDiscardRevertCacheSync } from './useDiscardRevertCacheSync';
+import { useRegistrationsReplicaCacheSync } from './useRegistrationsReplicaCacheSync';
 import {
   classifyTableSyncResults,
   createTablesStatus,
@@ -200,6 +204,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
 }) => {
   const { isOnline } = useNetworkStatus();
   const queryClient = useQueryClient();
+  useDiscardRevertCacheSync();
+  useRegistrationsReplicaCacheSync();
   const wasOffline = useRef(false);
   const hasInitialSynced = useRef(false);
   const triggerSyncRef = useRef<((targets?: UploadSyncTarget[]) => Promise<void>) | undefined>(
@@ -491,6 +497,14 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     return undefined;
   }, [autoSync, isOnline]);
 
+  // An anonymous passcode session that is active and online takes over this
+  // device's held ringside scores for its show (MYK9-1205). Runs on auth init
+  // (reload) and on reconnect, so a one-shot adoption that failed retries by
+  // itself. Idempotent and guarded inside the service; never blocks or throws.
+  useEffect(() => {
+    if (isAuthenticated && isOnline) void adoptHeldRingsideScoresForLiveClaim();
+  }, [isAuthenticated, isOnline]);
+
   // Sync when coming back online + restore localStorage backup
   useEffect(() => {
     if (syncOnReconnect) {
@@ -655,8 +669,10 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           );
           toast.dismiss(toastId);
         };
+        const reason = formatSyncFailureReason(failureDetail);
         toast.error(formatSyncFailureToast(failureDetail), {
           id: toastId,
+          ...(reason && { description: reason }),
           // INTENT: Failure toasts persist until the user makes an explicit
           // choice. The underlying mutations survive in IDB either way, so a
           // dismissed-by-reload toast re-surfaces on the next sign-in.

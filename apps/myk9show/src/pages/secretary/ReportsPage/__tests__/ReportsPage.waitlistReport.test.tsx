@@ -30,6 +30,7 @@ import { replicatedWaitlistEntriesTable } from '@/services/replication/Replicate
 import { resetHandlerHydrationCircuit } from '@/services/database/entries/handlerHydration';
 import { NOTIFY_DEBOUNCE_MS } from '@myk9/replication';
 import ReportsPage from '../index';
+import { signInReplicatedTable } from '@/test/utils/signedInReplication';
 
 const SHOW_ID = 'show-1';
 const TRIAL_ID = 'trial-1';
@@ -135,9 +136,10 @@ async function seedShowWithWaitlist(waitlist: WaitlistReplica = 'waiting'): Prom
       checkInStatus: 'not-checked-in',
     },
   ] as never);
+  signInReplicatedTable(replicatedEntriesTable, 'user-test');
   await replicatedEntriesTable.updateSyncMetadata(
     { lastIncrementalSyncAt: Date.now(), totalRows: 1 },
-    { scopeValue: SHOW_ID }
+    { scopeValue: SHOW_ID, scopeSyncedBy: 'user-test' }
   );
   // Positions deliberately NOT in insertion order, and one offer already out:
   // the Waitlist tab no longer lists an offered row as waiting, so neither does
@@ -151,10 +153,14 @@ async function seedShowWithWaitlist(waitlist: WaitlistReplica = 'waiting'): Prom
     ] as never);
   }
   if (waitlist !== 'never-synced') {
-    await replicatedWaitlistEntriesTable.updateSyncMetadata({
-      lastIncrementalSyncAt: Date.now(),
-      totalRows: waitlist === 'waiting' ? 4 : 0,
-    });
+    signInReplicatedTable(replicatedWaitlistEntriesTable, 'user-test');
+    await replicatedWaitlistEntriesTable.updateSyncMetadata(
+      {
+        lastIncrementalSyncAt: Date.now(),
+        totalRows: waitlist === 'waiting' ? 4 : 0,
+      },
+      { scopeSyncedBy: 'user-test' }
+    );
   }
   await drainReplicaNotices();
 }

@@ -32,6 +32,9 @@ vi.mock('@/lib/notifications', () => ({
   notifications: { error: mockNotify, warning: vi.fn(), success: vi.fn(), info: vi.fn() },
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+// The per-dog permission check (useCanEditDog) is covered in DogsBulkActionsBar.test.tsx;
+// here every dog is one the viewer may change, so the queue is what is under test.
+vi.mock('@/hooks/queries/useCanEditDog', () => ({ askCanEditDog: async () => true }));
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useUpdateDogMutation: () => ({ mutateAsync: mockDirectUpdate }),
 }));

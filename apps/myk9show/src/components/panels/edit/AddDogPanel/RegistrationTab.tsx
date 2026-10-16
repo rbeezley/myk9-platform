@@ -2,32 +2,51 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FileText, AlertCircle, Plus, Edit, Trash2 } from 'lucide-react';
+import { FileText, Plus, Edit, Trash2 } from 'lucide-react';
 import type { Registration } from '@/types/dog-types';
+import type { DogRegistrationIdentity } from '@/utils/dogIdentity';
 import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import type { DogFormData } from './types';
 import { tabCardClasses } from './tabCard';
 import { cn } from '@/lib/utils';
+import { RegistrationIdentityStep } from './RegistrationIdentityStep';
+import type { RegistrationLookupResult } from './registrationLookup';
 
 interface RegistrationTabProps {
   onRemoveRegistration: (id: string) => void;
   onEditRegistration: (reg: Registration) => void;
   onAddRegistration: () => void;
+  /**
+   * Until the dog has a registration this step is the identity form (MYK9-1162):
+   * these drive it. See `RegistrationIdentityStep`.
+   */
+  onFindDog: (identity: DogRegistrationIdentity) => Promise<RegistrationLookupResult>;
+  onIdentityEdited: () => void;
+  onIdentityDraftChange: (draft: boolean) => void;
+  draftBlocked: boolean;
+  onSaveRegistration: (registration: Registration) => void;
+  onRegistrationSaved: () => void;
+  /** Show managers only: skip the lookup and add the dog with no registration. */
+  onSkip?: (() => void) | undefined;
   /** Inline: no card chrome of its own (see `tabCardClasses`). */
   flat?: boolean | undefined;
 }
 
-import {
-  ADD_REGISTRATION_ATTR,
-  EDIT_REGISTRATION_ATTR,
-  REGISTRATION_HEADING_ID,
-} from './validationTab';
+import { ADD_REGISTRATION_ATTR, REGISTRATION_HEADING_ID } from './validationTab';
+import { EDIT_REGISTRATION_ATTR } from '@/components/dogs/registrationAttrs';
+import { registrationStatusTone } from '@/components/dogs/registrationStatusTone';
 
 export const RegistrationTab: React.FC<RegistrationTabProps> = ({
   onRemoveRegistration,
   onEditRegistration,
   onAddRegistration,
+  onFindDog,
+  onIdentityEdited,
+  onIdentityDraftChange,
+  draftBlocked,
+  onSaveRegistration,
+  onRegistrationSaved,
+  onSkip,
   flat = false,
 }) => {
   const { form } = useEditPanel<DogFormData>();
@@ -51,13 +70,15 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
       </CardHeader>
       <CardContent className={cn('space-y-6', card.content)}>
         {registrations.length === 0 ? (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              No registration yet — that's fine. You can add a registration and its breed anytime
-              later; the breed will be recorded with that organization.
-            </AlertDescription>
-          </Alert>
+          <RegistrationIdentityStep
+            onFindDog={onFindDog}
+            onIdentityEdited={onIdentityEdited}
+            onDraftChange={onIdentityDraftChange}
+            draftBlocked={draftBlocked}
+            onSaveRegistration={onSaveRegistration}
+            onRegistrationSaved={onRegistrationSaved}
+            onSkip={onSkip}
+          />
         ) : (
           <div className="space-y-4">
             {registrations.map((reg, index) => (
@@ -72,7 +93,7 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
                         <Badge
                           variant="outline"
                           className={
-                            reg.status === 'active'
+                            registrationStatusTone(reg.status) === 'positive'
                               ? 'border-green-500 text-green-700'
                               : 'border-gray-500 text-gray-700'
                           }
@@ -113,15 +134,17 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
           </div>
         )}
 
-        <Button
-          variant="outline"
-          className="w-full border-dashed border-2 h-12 hover:border-primary/50 hover:text-primary"
-          onClick={onAddRegistration}
-          {...{ [ADD_REGISTRATION_ATTR]: '' }}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add New Registration
-        </Button>
+        {registrations.length > 0 && (
+          <Button
+            variant="outline"
+            className="w-full border-dashed border-2 h-12 hover:border-primary/50 hover:text-primary"
+            onClick={onAddRegistration}
+            {...{ [ADD_REGISTRATION_ATTR]: '' }}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add New Registration
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

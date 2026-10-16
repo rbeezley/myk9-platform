@@ -57,6 +57,12 @@ vi.mock('@/services/replication', () => ({
     subscribe: vi.fn(() => () => undefined),
     sync: vi.fn(async () => ({ success: true })),
     getByShow: mocks.getByShow,
+    getCurrentAuthUserId: async () => 'user-test',
+    getSyncMetadata: async () => ({
+      tableName: 'paperwork_prints',
+      totalRows: 1,
+      syncedByAuthUserId: 'user-test',
+    }),
     confirmPrinted: mocks.confirmPrinted,
     voidPrint: vi.fn(async () => undefined),
   },

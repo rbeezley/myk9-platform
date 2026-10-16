@@ -6,6 +6,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { notifications } from '@/lib/notifications';
 import { getEntriesByClass } from '@/services/database/entries';
+import { isHeldEntry } from '@/features/dogs/identity';
 import {
   getHandlerPeopleHydrationRevision,
   settleHandlerPeopleHydration,
@@ -46,6 +47,17 @@ interface EntryRow {
   total_faults?: number | null;
   dog?: DogData | null;
   handler_identity?: ProjectedEntryHandler | null;
+  entry_status?: string | null;
+  /** The server's verdict that this entry awaits a registration number (MYK9-1162). */
+  awaiting_registration_number?: boolean | null;
+}
+
+/** MYK9-1162: an entry awaiting a registration number holds its place but is never printed. */
+function isPrintable(row: EntryRow): boolean {
+  return !isHeldEntry({
+    entryStatus: row.entry_status ?? undefined,
+    awaiting_registration_number: row.awaiting_registration_number,
+  });
 }
 
 function mapEntry(row: EntryRow): PrintReportEntry {
@@ -118,7 +130,7 @@ export function usePipelinePrint(showId: string, trialId: string): UsePipelinePr
     let rows = await read();
     await settleHandlerPeopleHydration();
     if (getHandlerPeopleHydrationRevision() !== revision) rows = await read();
-    return rows.map(mapEntry);
+    return rows.filter(isPrintable).map(mapEntry);
   }, []);
 
   const makePrintHandler = useCallback(

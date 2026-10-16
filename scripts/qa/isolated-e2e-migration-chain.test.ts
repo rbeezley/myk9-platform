@@ -105,6 +105,14 @@ describe('isolated E2E migration chain', () => {
     expect(isolatedAccountSeed).toContain('onboarding_completed_at');
   });
 
+  it('marks every role step finished on the seeded profiles (MYK9-1114)', () => {
+    // The migration's backfill ran before these rows existed. Without this the staff accounts read
+    // as having just gained a role and a notice covers the show wizard's Next button.
+    expect(isolatedAccountSeed).toMatch(/onboarded_roles\s*\)/);
+    expect(isolatedAccountSeed).toContain("ARRAY['judge', 'secretary', 'club_admin']");
+    expect(isolatedAccountSeed).toContain('onboarded_roles = EXCLUDED.onboarded_roles');
+  });
+
   it('applies the opt-in load fixture after the lean demo seed (MYK9-558)', () => {
     const lean = lifecycleSource.indexOf("'-f', 'supabase/seed-demo.sql'");
     const fixture = lifecycleSource.indexOf("'-f', 'supabase/seed-load-fixture.sql'");

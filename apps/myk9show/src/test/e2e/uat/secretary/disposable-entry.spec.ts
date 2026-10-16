@@ -131,7 +131,10 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
 
     const toolsDialog = page.getByRole('dialog', { name: 'Show tools' });
     await expect(toolsDialog).toBeVisible();
-    await page.getByRole('textbox', { name: 'Search exhibitors' }).fill(seed.dogName);
+    // The roster's search has no aria-label, so its name is its placeholder.
+    await toolsDialog
+      .getByRole('textbox', { name: /search name, dog, armband/i })
+      .fill(seed.dogName);
 
     const personRow = page.getByRole('button').filter({ hasText: seed.dogName });
     await expect(personRow).toHaveCount(1);

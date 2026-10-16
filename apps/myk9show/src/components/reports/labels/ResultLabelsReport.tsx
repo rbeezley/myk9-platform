@@ -5,6 +5,7 @@ import { buildLabelPages } from '@/lib/labels/labelLayout';
 import { buildLabelStylesheet } from '@/lib/labels/labelStyles';
 import { prepareResultLabelItems } from '@/lib/labels/resultLabelData';
 import { mapScopedReportEntries } from '@/pages/secretary/ReportsPage/reportDataMapping';
+import { omitHeldEntries } from '@/pages/secretary/ReportsPage/reportHeldEntries';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 import type { ReportScope } from '@/lib/reports/types';
@@ -67,7 +68,8 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
       scope,
       show?.assignedJudges ?? []
     );
-    return prepareResultLabelItems(enriched, sortOrder, {
+    // MYK9-1162: a label for a dog awaiting its registration number is never printed.
+    return prepareResultLabelItems(omitHeldEntries(enriched, true), sortOrder, {
       showName: show?.name ?? '',
       ...(show?.clubName ? { clubName: show.clubName } : {}),
     });

@@ -14,7 +14,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import type { Dog } from '@/types/dog-types';
+import type { Dog, Registration } from '@/types/dog-types';
 import AddRegistrationPanel from './AddRegistrationPanel';
 import EditRegistrationPanel from './EditRegistrationPanel';
 import ConfirmDeleteRegistrationDialog from './ConfirmDeleteRegistrationDialog';
@@ -22,12 +22,25 @@ import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDa
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import { dogSaveMessage } from '@/hooks/translateDogDbError';
 import { useRegistrationFormSaves } from './useRegistrationFormSaves';
+import { notifications } from '@/lib/notifications';
+import {
+  deletedMessage,
+  deviceIsOffline,
+  offlineAwareMessage,
+} from '@/components/panels/edit/panelSaveErrors';
 
 interface DogRegistrationDialogsProps {
   dog?: Dog | undefined;
   /** One-shot request from the rail button or the `?addRegistration=true` link. */
   autoOpenAddDialog?: boolean;
   onAddRequestConsumed?: (() => void) | undefined;
+  /**
+   * One-shot request to open Edit on this registration (MYK9-1162: a dog whose
+   * registration for the trial's registry exists with a blank number is fixed
+   * by editing it; Add would insert a duplicate the database refuses).
+   */
+  autoOpenEditRegistration?: Registration | null | undefined;
+  onEditRequestConsumed?: (() => void) | undefined;
   /**
    * The Manage registrations panel is open. Add and Edit are then a mode INSIDE
    * it (MYK9-1089), so this host stands down rather than stack a second
@@ -40,6 +53,8 @@ export default function DogRegistrationDialogs({
   dog,
   autoOpenAddDialog = false,
   onAddRequestConsumed,
+  autoOpenEditRegistration = null,
+  onEditRequestConsumed,
   managePanelOpen = false,
 }: DogRegistrationDialogsProps) {
   const { createRegistration, updateRegistration, deleteRegistration } =
@@ -74,6 +89,20 @@ export default function DogRegistrationDialogs({
     onAddRequestConsumed?.();
   }, [autoOpenAddDialog, onAddRequestConsumed, setIsAddOpen]);
 
+  // The Edit twin of the latched Add request above.
+  const handledEditRequest = useRef(false);
+  useEffect(() => {
+    if (!autoOpenEditRegistration) {
+      handledEditRequest.current = false;
+      return;
+    }
+    if (handledEditRequest.current) return;
+    handledEditRequest.current = true;
+    setSelectedRegistration(autoOpenEditRegistration);
+    setIsEditOpen(true);
+    onEditRequestConsumed?.();
+  }, [autoOpenEditRegistration, onEditRequestConsumed, setIsEditOpen, setSelectedRegistration]);
+
   // registrationsStore is module-global and this host is mounted on every dog
   // page. Without this, Back-ing out of an open Edit on dog A and opening dog B
   // re-opens that panel holding A's registration under B's name — and saving
@@ -97,8 +126,17 @@ export default function DogRegistrationDialogs({
     // Same onError as add and update: the optimistic update targets a different
     // query key, so a rejected delete leaves the row on screen and would
     // otherwise say nothing at all.
+    // Offline the delete is queued on this device, so say so, as an offline Add
+    // does (MYK9-1143). Online stays quiet: the row simply goes.
     if (selectedRegistration?.id) {
-      deleteRegistration(selectedRegistration.id, { onError: reportSaveError });
+      deleteRegistration(selectedRegistration.id, {
+        onError: reportSaveError,
+        onSuccess: () => {
+          if (deviceIsOffline()) {
+            notifications.success(offlineAwareMessage(deletedMessage(undefined, 'Registration')));
+          }
+        },
+      });
     }
     setIsDeleteOpen(false);
     setSelectedRegistration(null);

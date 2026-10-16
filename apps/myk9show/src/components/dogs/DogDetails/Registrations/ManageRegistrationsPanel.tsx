@@ -14,7 +14,7 @@
  * backdrop, X and Back all leave the mode first; a second Escape closes the
  * panel. A dirty form answers each of them with the discard prompt.
  */
-import { useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { Dog } from '@/types/dog-types';
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
@@ -25,7 +25,8 @@ import RegistrationsSection from './RegistrationsSection';
 import AddRegistrationPanel from './AddRegistrationPanel';
 import EditRegistrationPanel from './EditRegistrationPanel';
 import { useRegistrationFormSaves } from './useRegistrationFormSaves';
-import { useRegistrationModeFocus } from './useRegistrationModeFocus';
+import { usePanelModeFocus } from '@/components/panels/usePanelModeFocus';
+import { EDIT_REGISTRATION_ATTR } from '@/components/dogs/registrationAttrs';
 
 interface ManageRegistrationsPanelProps {
   open: boolean;
@@ -58,7 +59,26 @@ export default function ManageRegistrationsPanel({
   const formRef = useRef<HTMLDivElement>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const closeFormRef = useRef<(() => void) | null>(null);
-  useRegistrationModeFocus(mode, selectedRegistration?.id ?? null, listRef, formRef, addButtonRef);
+  // leaveMode clears the selection together with the mode, so remember which
+  // row was edited to put focus back on its Edit button.
+  const selectedId = selectedRegistration?.id ?? null;
+  const lastEditedIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (selectedId) lastEditedIdRef.current = selectedId;
+  }, [selectedId]);
+  // The control that opened Add or Edit unmounts when the panel swaps to the
+  // form: that row's Edit button after an Edit, the header Add after an Add.
+  const returnTarget = useCallback((left: 'list' | 'add' | 'edit') => {
+    const editedId = lastEditedIdRef.current;
+    const row =
+      left === 'edit' && editedId
+        ? listRef.current?.querySelector<HTMLElement>(
+            `[${EDIT_REGISTRATION_ATTR}="${CSS.escape(editedId)}"]`
+          )
+        : null;
+    return row ?? addButtonRef.current;
+  }, []);
+  usePanelModeFocus({ mode, home: 'list', formRef, returnTarget });
 
   function leaveMode() {
     setIsAddOpen(false);

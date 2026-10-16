@@ -228,3 +228,21 @@ describe('declined entries are not entries', () => {
     expect(countCatalogClass([resultWithdrawn]).withdrawn).toBe(1);
   });
 });
+
+describe('entries awaiting a registration number (MYK9-1162)', () => {
+  const held = entry({ id: 'held', awaitingRegistrationNumber: true });
+  const ran = entry({ id: 'ran', resultText: 'q' });
+
+  it('leaves a held entry out of the listing', () => {
+    expect(catalogRows([held, ran]).map(row => row.id)).toEqual(['ran']);
+  });
+
+  it('leaves a held entry out of every header count', () => {
+    expect(countCatalogClass([held, ran])).toEqual({
+      entries: 1,
+      competing: 1,
+      qualifying: 1,
+      withdrawn: 0,
+    });
+  });
+});

@@ -108,15 +108,24 @@ $$;
 -- Fresh Auth users receive an exhibitor profile through the auth hook, but it
 -- starts with onboarding incomplete. Canonical E2E accounts represent returning
 -- users, so keep their profile link current and bypass the first-run wizard.
+--
+-- onboarded_roles (MYK9-970, MYK9-1114): a returning user has also finished every
+-- role step. Left at its '{}' default, each staff account reads as having just
+-- gained its secretary/judge/club_admin role, and NewRoleStepBanner floats a
+-- "You're now a show secretary" notice over the bottom-right of every page,
+-- covering the show wizard's Next button. The migration's own backfill cannot
+-- reach these rows: they are created here, after the migrations have run.
 INSERT INTO public.exhibitor_profiles (
   person_id,
   auth_user_id,
-  onboarding_completed_at
+  onboarding_completed_at,
+  onboarded_roles
 )
 SELECT
   person.id,
   person.auth_user_id,
-  '2026-07-27 00:00:00+00'
+  '2026-07-27 00:00:00+00',
+  ARRAY['judge', 'secretary', 'club_admin']
 FROM public.people AS person
 WHERE lower(person.email) IN (
   'exhibitor@myk9t.com',
@@ -134,6 +143,7 @@ ON CONFLICT (auth_user_id)
 DO UPDATE SET
   person_id = EXCLUDED.person_id,
   onboarding_completed_at = EXCLUDED.onboarding_completed_at,
+  onboarded_roles = EXCLUDED.onboarded_roles,
   updated_at = '2026-07-27 00:00:00+00';
 
 WITH desired(email, role_name) AS (

@@ -13,21 +13,24 @@ import { Outlet } from 'react-router-dom';
 import { SidebarLayout } from '@/components/layout/SidebarLayout';
 import { RoleSidebar } from '@/components/layout/sidebar';
 import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClubStore } from '@/store/clubStore';
-import { useShowStore } from '@/store/showStore';
 import { useRegisterAppShellMobileNav } from './useAppShellMobileNav';
 import { buildUnifiedSidebarConfig } from './sidebar/unifiedSidebarConfig';
-import type { ClubContext, NextShowContext } from './sidebar/unifiedSidebarConfig';
-import { useMyShows } from '@/hooks/useMyShows';
+import { useRememberBrowseList } from './sidebar/useRememberBrowseList';
+import type { ClubContext } from './sidebar/unifiedSidebarConfig';
 import { useCurrentValidatedClubContext } from '@/hooks/useValidatedClubContext';
-import { filterManagedShows, managedClubIds } from '@/utils/roleScopes';
+
+// Desktop shows the labeled icon rail; below `md` the same config opens as the
+// full-width drawer (docs/plan-sidebar-browse-pane.md, phase 1).
+const RAIL_WIDTH_PX = 88;
+const DRAWER_WIDTH_PX = 240;
 
 export const UnifiedAppLayout: React.FC = () => {
-  const { user, getUserRoles, firstName, isAdmin, userWithRoles } = useAuthContext();
+  const { user, getUserRoles, firstName } = useAuthContext();
   const roles = getUserRoles();
   const ensureClubsReady = useClubStore(s => s.ensureClubsReady);
-  const shows = useShowStore(s => s.shows);
   const validatedClubContext = useCurrentValidatedClubContext();
 
   useEffect(() => {
@@ -41,35 +44,13 @@ export const UnifiedAppLayout: React.FC = () => {
       clubName: validatedClubContext.clubName,
     };
   }, [validatedClubContext]);
-  // The sidebar's Manage section names the secretary's NEXT SHOW, so it must
-  // be drawn from the shows this user actually manages. The store holds every
-  // show the viewer can browse, so bucketing it unfiltered put another club's
-  // show under "Manage" — with Setup and Show Desk links the server refuses.
-  const managedClubs = useMemo(
-    () => managedClubIds({ isAdmin, userWithRoles }),
-    [isAdmin, userWithRoles]
-  );
-  const managedShows = useMemo(
-    () => filterManagedShows(shows, managedClubs),
-    [shows, managedClubs]
-  );
-  const { today, upcoming, draft } = useMyShows(managedShows);
-
-  const nextShow = useMemo((): NextShowContext | undefined => {
-    const todayShow = today[0];
-    if (todayShow) return { id: todayShow.id, name: todayShow.name, phase: 'today' };
-    const upcomingShow = upcoming[0];
-    if (upcomingShow) return { id: upcomingShow.id, name: upcomingShow.name, phase: 'upcoming' };
-    const draftShow = draft[0];
-    if (draftShow) return { id: draftShow.id, name: draftShow.name, phase: 'draft' };
-    return undefined;
-  }, [today, upcoming, draft]);
-
   const sidebarConfig = useMemo(
-    () => buildUnifiedSidebarConfig(roles, clubContext, nextShow, firstName),
-    [roles, clubContext, nextShow, firstName]
+    () => buildUnifiedSidebarConfig(roles, clubContext, firstName),
+    [roles, clubContext, firstName]
   );
+  useRememberBrowseList(sidebarConfig);
   const { mobileOpen, setMobileOpen } = useSidebarLayoutState();
+  const isDesktop = useMediaQuery('(min-width: 768px)');
   const openMobileNav = useCallback(() => setMobileOpen(true), [setMobileOpen]);
   useRegisterAppShellMobileNav(openMobileNav, mobileOpen);
 
@@ -80,8 +61,8 @@ export const UnifiedAppLayout: React.FC = () => {
 
   return (
     <SidebarLayout
-      sidebar={<RoleSidebar config={sidebarConfig} />}
-      sidebarWidth={240}
+      sidebar={<RoleSidebar config={sidebarConfig} variant={isDesktop ? 'rail' : 'drawer'} />}
+      sidebarWidth={isDesktop ? RAIL_WIDTH_PX : DRAWER_WIDTH_PX}
       mobileMenuLabel="Navigation"
       showMobileMenuButton={false}
       mobileOpen={mobileOpen}

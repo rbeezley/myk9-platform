@@ -2,6 +2,8 @@
 
 > **2026-09-23:** the myK9Show app project no longer builds from Git at all (`git.deploymentEnabled: false`); production deploys run through `deploy-myk9show.yml` — see [`ci-vercel-deploys.md`](ci-vercel-deploys.md). What follows still applies to the guides project.
 
+> **2026-10-12:** the guides project's Git repository is now disconnected in Vercel too, because `git.deploymentEnabled: false` stopped its builds but not its "Skipped – Not affected" records (about 47 a day). Skip the "connected to GitHub" check in section 1 for the guides project. See [The Git connection is off](#the-git-connection-is-off-2026-10-12).
+
 > **Status:** Repo-side policy is in place. Vercel dashboard verification is still required because the current connector can read basic project metadata but cannot read or update the monorepo skip-unaffected setting.
 
 The Vercel Hobby tier has a daily deployment-created limit. This monorepo can spend that quota quickly because each PR push may create previews for more than one connected Vercel project. The target behavior is:
@@ -48,7 +50,28 @@ The first fix turned Git deploys off only for `claude/*`, `codex/*`, `worktree-*
 
 ### The guides publish only on request (2026-10-04)
 
-[`apps/docs/vercel.json`](../../apps/docs/vercel.json) now sets `git.deploymentEnabled: false`, exactly like myK9Show. No branch push creates a guides deployment of any kind: no preview, no production build, no skipped record. `apps/myk9show/src/test/ci/guidesPreviewScope.test.ts` pins this.
+[`apps/docs/vercel.json`](../../apps/docs/vercel.json) sets `git.deploymentEnabled: false`, exactly like myK9Show. `apps/myk9show/src/test/ci/guidesPreviewScope.test.ts` pins this. It stopped the builds, but **not the records**.
+
+### The Git connection is off (2026-10-12)
+
+`deploymentEnabled: false` did not stop the guides project from creating deployment records. From 2026-10-05 to 2026-10-12, GitHub's deployment list (`gh api repos/rbeezley/myk9-platform/deployments`) shows:
+
+- **330 guides records**, about 47 a day: 244 "Preview" records (PR heads) and 86 "Production" records (one per `main` merge).
+- **Every one ended "Skipped – Not affected".** None built.
+
+The project was still connected to the repo, and the monorepo skip-unaffected check created a record for every push before anything else applied. These are the same skipped records that filled the quota on 2026-10-04. Whether a skipped record counts toward the 100-a-day limit is not confirmed, but that incident suggests it does. myK9Show, with the same `vercel.json` setting, created only 4 records that week.
+
+The owner disconnected the guides project's Git repository in Vercel at 16:51 UTC (Settings → Git → Disconnect). Publishing does not need the connection: `deploy-guides.yml` reaches the project through `VERCEL_PROJECT_ID` and `VERCEL_TOKEN` (`vercel pull`, `vercel build`, `vercel deploy --prebuilt --prod`), not through Git.
+
+**Verified the same day.** The only push after the disconnect, `7262e6389` at 16:58, got no guides record in the following 93 minutes. Five more skipped records did arrive after 16:51, but every one was for a commit pushed before it: Vercel created them 50 to 55 minutes after the push. Publishing still works: `deploy-guides.yml` run 38285164238 published to `help.myk9show.com`.
+
+**To check that it holds:** list the newest records at least an hour after a merge or PR push, because records lag the push by up to about 55 minutes. A guides record is any record whose status links to `myk9-platform-myk9show-guides-…vercel.app`. Since the disconnect, the label reads just `Preview` or `Production`, without the project name, so read the link rather than the label. A guides record for a commit pushed after the disconnect means something reconnected the project. Records owned by `rbeezley` (`guides-production`, `production`) come from the publish workflows and are expected.
+
+```bash
+gh api "repos/rbeezley/myk9-platform/deployments?per_page=5" --jq '.[]|"\(.created_at) \(.environment)"'
+```
+
+**Do not reconnect the repository** to get PR previews back. To preview a guides change, build it locally (below).
 
 To publish the guides, run the manual workflow. Each run costs one Vercel deployment:
 

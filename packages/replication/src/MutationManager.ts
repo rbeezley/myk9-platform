@@ -19,9 +19,19 @@ import { noopLogger } from './dependencies';
 import { getMutationQueueCapacity } from './mutation-queue-capacity';
 import { MutationBackupStore } from './MutationBackupStore';
 import { MutationQueueStore } from './MutationQueueStore';
+import { MutationIdentity } from './mutation-identity';
 import { MutationUploadRunner } from './MutationUploadRunner';
+import { DiscardRevertRegistry } from './mutation-discard-revert';
 import { RowRefetchRegistry } from './mutation-row-refetch';
-import { type PendingMutation, type SyncResult } from './types';
+import {
+  adoptHeldMutationsInStore,
+  findAdoptableHeldMutations,
+  type AdoptHeldMutationsOptions,
+} from './mutation-adopt';
+import { OwnerTransferRegistry } from './mutation-owner-transfer';
+import { WrittenFieldOverlayRegistry } from './mutation-written-overlay';
+import { InFlightWriteRegistry, type InFlightWriteContext } from './inflight-written-base';
+import { type PendingMutation, type ReplicationConflictSnapshot, type SyncResult } from './types';
 import type { MutationManagerOptions, MutationUploadAuthContext } from './mutation-manager-options';
 export type { MutationManagerOptions, MutationUploadAuthContext } from './mutation-manager-options';
 
@@ -39,21 +49,33 @@ export class MutationManager {
   /** Prevent startup/reconnect restore from racing an active queue flush. */
   private restoreInFlight: Promise<void> | null = null;
   private uploadInFlight: Promise<SyncResult[]> | null = null;
-  private readonly getCurrentUserId: () => Promise<string | null>;
+  private readonly identity: MutationIdentity;
   private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext | null>;
   private readonly acquireQueueMutationLock: (() => () => void) | undefined;
   private readonly acquireQueueMutationLockAsync: (() => Promise<() => void>) | undefined;
-  /** Tables that re-fetch a row after a stale full-row OCC rejection (MYK9-771). */
+  /** Per-table hooks: re-fetch on a stale OCC token (MYK9-771), revert on Discard (MYK9-1076). */
   readonly rowRefetchers: RowRefetchRegistry;
+  readonly discardReverters: DiscardRevertRegistry;
+  /** Per-table replica-row ownership transfer for adoption (MYK9-1205). */
+  readonly ownerTransfers = new OwnerTransferRegistry();
+  /** Per-table map from a written server payload to local fields, for the ack-time base (MYK9-1220). */
+  readonly writtenOverlays = new WrittenFieldOverlayRegistry();
+  /** Sent writes whose acknowledgement is not applied yet (MYK9-1221). */
+  private readonly inFlightWrites = new InFlightWriteRegistry();
 
   constructor(supabaseClient: SupabaseClient, options: MutationManagerOptions = {}) {
     if (!supabaseClient) throw new Error('[MutationManager] Supabase client is required');
     this.logger = options.logger ?? noopLogger;
-    this.getCurrentUserId = options.getCurrentUserId ?? (async () => null);
+    this.identity = new MutationIdentity(
+      options.getCurrentUserId ?? (async () => null),
+      options.getCachedUserId ?? (() => null),
+      options.getOwnerIsAnonymous ?? (() => false)
+    );
     this.getCurrentUploadContext = options.getCurrentUploadContext ?? (async () => null);
     this.acquireQueueMutationLock = options.acquireQueueMutationLock;
     this.acquireQueueMutationLockAsync = options.acquireQueueMutationLockAsync;
-    this.queueStore = new MutationQueueStore(this.logger);
+    this.discardReverters = new DiscardRevertRegistry(this.logger);
+    this.queueStore = new MutationQueueStore(this.logger, this.discardReverters);
     this.backupStore = new MutationBackupStore(this.logger);
     this.rowRefetchers = new RowRefetchRegistry(this.logger, work =>
       this.uploadRunner.runExclusive(work)
@@ -66,22 +88,38 @@ export class MutationManager {
       this.queueStore,
       () => this.backupStore.writeCurrent(),
       () => this.requireCurrentUploadContext(),
-      (tableName, rowId) => this.rowRefetchers.request(tableName, rowId)
+      (tableName, rowId) => this.rowRefetchers.request(tableName, rowId),
+      this.writtenOverlays,
+      this.inFlightWrites
     );
   }
 
-  private async requireCurrentUserId(): Promise<string> {
-    const authUserId = await this.getCurrentUserId();
-    if (typeof authUserId !== 'string' || authUserId.trim().length === 0) {
-      throw new Error('[MutationManager] Cannot operate without an authenticated user identity');
-    }
-    return authUserId;
+  getInFlightWrites(tableName: string, rowId: string): InFlightWriteContext {
+    return {
+      mutations: this.inFlightWrites.forRow(tableName, rowId),
+      overlay: this.writtenOverlays.get(tableName),
+    };
   }
 
-  private async requireSameCurrentUserId(expectedAuthUserId: string): Promise<void> {
-    if ((await this.requireCurrentUserId()) !== expectedAuthUserId) {
-      throw new Error('[MutationManager] Authenticated user changed during queue operation');
-    }
+  /**
+   * The current auth user id for comparing replica account stamps (MYK9-1133),
+   * or null when it cannot be settled; see MutationIdentity.
+   */
+  resolveCurrentUserId(): Promise<string | null> {
+    return this.identity.resolveCurrentUserId();
+  }
+
+  private requireCurrentUserId(): Promise<string> {
+    return this.identity.requireCurrentUserId();
+  }
+
+  /** Owner stamp for a NEW queue entry (MYK9-1204); see MutationIdentity. */
+  private requireQueueOwnerUserId(): Promise<string> {
+    return this.identity.requireQueueOwnerUserId();
+  }
+
+  private requireSameCurrentUserId(expectedAuthUserId: string): Promise<void> {
+    return this.identity.requireSameCurrentUserId(expectedAuthUserId);
   }
 
   private async requireCurrentUploadContext(): Promise<MutationUploadAuthContext> {
@@ -127,11 +165,13 @@ export class MutationManager {
     dependsOn?: string[],
     serverVersion?: number,
     rpc?: PendingMutation['rpc'],
-    scheduleUploadNow = true
+    scheduleUploadNow = true,
+    rowRevision?: number,
+    showId?: string
   ): Promise<string> {
     const releaseQueueLock = this.acquireQueueMutationLock?.();
     try {
-      const authUserId = await this.requireCurrentUserId();
+      const authUserId = await this.requireQueueOwnerUserId();
       // Queue overflow protection
       const pendingCount = await this.getPendingCount();
       const capacity = getMutationQueueCapacity(pendingCount);
@@ -158,17 +198,18 @@ export class MutationManager {
         authUserId,
         dependsOn,
         serverVersion,
-        rpc
+        rpc,
+        rowRevision,
+        {
+          ownerIsAnonymous: this.identity.readOwnerIsAnonymous(authUserId),
+          ...(showId !== undefined && { showId }),
+        }
       );
-      // Backup synchronously (not debounced): a page reload inside a debounce
-      // window would leave the newest mutations only in IndexedDB, where browser
-      // cache eviction can destroy them. Offline scores must hit localStorage
-      // before queueMutation resolves.
-      //
-      // But the backup is a SECONDARY safety net: the score is already durable in
-      // IndexedDB above. A localStorage-full failure (Safari private mode, a large
-      // queue) must NOT fail a successfully-queued score, so swallow it here
-      // instead of rejecting queueMutation (audit M2).
+      // Backup synchronously (not debounced): after a reload inside a debounce
+      // window the newest mutations would live only in evictable IndexedDB.
+      // It is a SECONDARY safety net, so a localStorage-full failure (Safari
+      // private mode, a large queue) is swallowed, never failing a durably
+      // queued score (audit M2).
       try {
         await this.backupStore.writeCurrent();
       } catch (backupErr) {
@@ -215,6 +256,79 @@ export class MutationManager {
 
   async getPendingCount(): Promise<number> {
     return this.queueStore.getPendingCount();
+  }
+
+  /**
+   * Re-own anonymous-owned pending ringside scores for one show to the current
+   * (anonymous) session, then upload. Narrow rules: see mutation-adopt.ts.
+   * `toAuthUserId` must be the live session, so a stale caller adopts nothing.
+   */
+  async adoptHeldMutations(options: AdoptHeldMutationsOptions): Promise<number> {
+    await this.requireSameCurrentUserId(options.toAuthUserId);
+    // A backup restore in flight is what puts evicted scores back into the queue:
+    // adopting first would find none and strand them under the dead session.
+    // Outside the lock, because a restore may itself wait on an upload.
+    while (this.restoreInFlight) await this.restoreInFlight.catch(() => undefined);
+    // Under the upload lock: a pass must not read rows mid-rewrite. The session
+    // can change while this waits for the lock, so the identity is checked again
+    // INSIDE it, immediately before ownership is rewritten.
+    const { adopted, conflicts } = await this.uploadRunner.runExclusive(async () => {
+      await this.requireSameCurrentUserId(options.toAuthUserId);
+      return this.adoptUnderLock(options);
+    });
+    if (adopted === 0) return 0;
+    // Conflicted rows were invisible to this owner when the auth-time scan ran:
+    // re-dispatch them through the same event so the existing resolver appears,
+    // offline too (INTENT: a conflict must be resolvable where the score was taken).
+    if (typeof window !== 'undefined') {
+      for (const snapshot of conflicts) {
+        window.dispatchEvent(new CustomEvent('replication:conflict', { detail: snapshot }));
+      }
+    }
+    // The backup is a SECONDARY safety net: ownership already changed in
+    // IndexedDB, so a localStorage failure must not reject the adoption.
+    try {
+      await this.backupStore.writeCurrent();
+    } catch (backupErr) {
+      this.logger.warn(
+        '[MutationManager] localStorage backup failed after adoption (scores are durably queued in IndexedDB):',
+        backupErr
+      );
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('replication:mutation-queued', { detail: {} }));
+    }
+    this.scheduleUpload();
+    return adopted;
+  }
+
+  /**
+   * Replica rows first, then the queue. A crash or failure between the two leaves
+   * rows the new owner can see while their mutations stay held: nothing uploads,
+   * the score is still shown, and a retry converges because both steps are
+   * idempotent (a row already moved is no longer the dead owner's; the queue step
+   * re-checks each mutation). The other order could let a mutation upload while
+   * its row stayed invisible to its owner.
+   */
+  private async adoptUnderLock(
+    options: AdoptHeldMutationsOptions
+  ): Promise<{ adopted: number; conflicts: ReplicationConflictSnapshot[] }> {
+    const targets = await findAdoptableHeldMutations(options);
+    const byTableAndOwner = new Map<string, { table: string; from: string; ids: string[] }>();
+    for (const mutation of targets) {
+      const from = mutation.authUserId as string;
+      const key = `${mutation.tableName}\u0000${from}`;
+      const group = byTableAndOwner.get(key) ?? { table: mutation.tableName, from, ids: [] };
+      group.ids.push(mutation.rowId);
+      byTableAndOwner.set(key, group);
+    }
+    const conflicts: ReplicationConflictSnapshot[] = [];
+    for (const { table, from, ids } of byTableAndOwner.values()) {
+      const transfer = this.ownerTransfers.get(table);
+      if (transfer) conflicts.push(...(await transfer(ids, from, options.toAuthUserId)));
+    }
+    const adopted = await adoptHeldMutationsInStore(options, new Set(targets.map(m => m.id)));
+    return { adopted, conflicts };
   }
 
   /** This user's queued mutations for one row, or (ForTable, MYK9-762) a whole table. */
@@ -448,14 +562,17 @@ export class MutationManager {
   async restoreMutationsFromLocalStorage(): Promise<void> {
     if (this.restoreInFlight) return this.restoreInFlight;
 
-    // Never restore a stale backup into a queue that is being flushed. The
-    // flush owns deletion and its pass-level backup; restore follows it.
-    // A failed upload must not prevent startup/reconnect recovery from running.
-    // The upload caller still receives the rejection; restore can inspect the
-    // durable queue and retry on its own.
-    if (this.uploadInFlight) await this.uploadInFlight.catch(() => undefined);
-
-    const restore = this.backupStore.restore();
+    // restoreInFlight must cover the wait on an upload too, so adoption cannot
+    // slip between the two and find an empty queue.
+    const restore = (async () => {
+      // Never restore a stale backup into a queue that is being flushed. The
+      // flush owns deletion and its pass-level backup; restore follows it.
+      // A failed upload must not prevent startup/reconnect recovery from running.
+      // The upload caller still receives the rejection; restore can inspect the
+      // durable queue and retry on its own.
+      if (this.uploadInFlight) await this.uploadInFlight.catch(() => undefined);
+      await this.backupStore.restore();
+    })();
     this.restoreInFlight = restore;
     try {
       await restore;

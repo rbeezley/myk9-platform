@@ -19,6 +19,7 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { HeaderActions } from '@/components/layout/HeaderActions';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useAppShellMobileNav } from './useAppShellMobileNav';
+import { useIsGuestLanding } from './useIsGuestLanding';
 
 const MOBILE_SIDEBAR_QUERY = '(max-width: 767px)';
 
@@ -54,7 +55,7 @@ const AppHeader: React.FC = () => {
   // The marketing landing renders its own editorial sticky header
   // (LandingHeader). Suppressing this global app bar on `/` for guests
   // avoids two stacked headers.
-  const isGuestLanding = !user && location.pathname === '/';
+  const isGuestLanding = useIsGuestLanding();
   const isOnboardingRoute =
     location.pathname === '/onboarding' || location.pathname.startsWith('/onboarding/');
   // At-show ringside is a full-screen judge view on a phone (mirrors myK9Q's

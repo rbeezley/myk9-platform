@@ -8,11 +8,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReplicatedWaitlistEntry } from '@/services/replication/ReplicatedWaitlistEntriesTable';
 
 const t = vi.hoisted(() => ({
-  waitlist: { getByClass: vi.fn(), getAll: vi.fn(), getAllOrThrow: vi.fn() },
+  waitlist: {
+    getByClass: vi.fn(),
+    getAll: vi.fn(),
+    getAllOrThrow: vi.fn(),
+    getCurrentAuthUserId: async () => 'user-test',
+    getSyncMetadata: async () => ({
+      tableName: 'waitlist_entries',
+      totalRows: 1,
+      syncedByAuthUserId: 'user-test',
+    }),
+  },
   trials: { getTrialsByShow: vi.fn(), getTrialById: vi.fn() },
   classes: { getClassesByTrial: vi.fn(), getClassById: vi.fn() },
   dogs: { getDogById: vi.fn() },
-  entries: { getEntryById: vi.fn(), getAllOrThrow: vi.fn() },
+  entries: {
+    getEntryById: vi.fn(),
+    getAllOrThrow: vi.fn(),
+    getCurrentAuthUserId: async () => 'user-test',
+    getSyncMetadata: async () => ({
+      tableName: 'entries',
+      totalRows: 1,
+      syncedByAuthUserId: 'user-test',
+    }),
+  },
 }));
 
 vi.mock('@/services/replication/ReplicatedWaitlistEntriesTable', () => ({

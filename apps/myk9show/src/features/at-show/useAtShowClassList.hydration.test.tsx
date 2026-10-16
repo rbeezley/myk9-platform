@@ -31,6 +31,7 @@ import {
   replicatedTrialsTable,
 } from '@/services/replication';
 import { useAtShowClassList } from './useAtShowClassList';
+import { signInReplicatedTable } from '@/test/utils/signedInReplication';
 
 const SHOW_ID = 'show-1';
 const TRIAL_ID = 'trial-1';
@@ -85,9 +86,10 @@ async function seedStructure(): Promise<void> {
  * and `removeStaleEntries` notifies only when it removed something.
  */
 async function completeSyncWithNoRows(): Promise<void> {
+  signInReplicatedTable(replicatedEntriesTable, 'user-test');
   await replicatedEntriesTable.updateSyncMetadata(
     { lastIncrementalSyncAt: Date.now(), totalRows: 0 },
-    { scopeValue: SHOW_ID }
+    { scopeValue: SHOW_ID, scopeSyncedBy: 'user-test' }
   );
 }
 
@@ -100,7 +102,7 @@ async function completeSyncWithRows(): Promise<void> {
   ] as never);
   await replicatedEntriesTable.updateSyncMetadata(
     { lastIncrementalSyncAt: Date.now(), totalRows: 3 },
-    { scopeValue: SHOW_ID }
+    { scopeValue: SHOW_ID, scopeSyncedBy: 'user-test' }
   );
 }
 

@@ -156,6 +156,27 @@ describe('AKCScentWorkEntryForm', () => {
     mockUseEntryFormData.mockReturnValue(mockDefaultReturn);
   });
 
+  it.each([
+    ['AKC', true],
+    ['AKC (American Kennel Club)', true],
+    ['PAL (Purebred Alternative Listing)', true],
+    ['ILP (Indefinite Listing Privilege)', true],
+    ['UKC (United Kennel Club)', false],
+  ])(
+    'checks the AKC/PAL/ILP/CP box for a registration stored as %s: %s (MYK9-1207)',
+    (organization, checked) => {
+      const dog = {
+        ...mockDogs[0]!,
+        registration: { ...mockDogs[0]!.registration!, organization },
+      };
+      mockUseEntryFormData.mockReturnValue({ ...mockDefaultReturn, dogs: [dog] });
+      renderForm();
+      expect(screen.getByText(/AKC\/PAL\/ILP\/CP/)).toHaveTextContent(
+        `${checked ? '\u2611' : '\u2610'} AKC/PAL/ILP/CP`
+      );
+    }
+  );
+
   it('renders the form title', () => {
     renderForm();
     expect(screen.getByText('OFFICIAL ENTRY FORM')).toBeInTheDocument();

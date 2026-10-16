@@ -1,3 +1,5 @@
+import { formatDateLocal } from '@/utils/dateLocal';
+
 export interface MailInReserveInput {
   capacity: number;
   strategy: string | null;
@@ -8,7 +10,7 @@ export interface MailInReserveInput {
 }
 
 export function calculateMailInReserved(input: MailInReserveInput): number {
-  const todayIso = input.todayIso ?? new Date().toISOString().slice(0, 10);
+  const todayIso = input.todayIso ?? formatDateLocal(new Date());
   const releaseDateIso = input.releaseDate?.slice(0, 10);
   if (input.autoRelease && releaseDateIso && releaseDateIso <= todayIso) {
     return 0;

@@ -589,7 +589,7 @@ describe('MessageCenterPanel', () => {
     });
 
     renderPanel();
-    fireEvent.click(screen.getByRole('tab', { name: 'Show messages' }));
+    fireEvent.click(screen.getByRole('tab', { name: /Show messages/ }));
     expect(screen.getByText('Can you confirm your armband?')).toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: /message center/i })).toHaveTextContent('2 unread');
     fireEvent.click(screen.getByRole('button', { name: /Spring Trial/i }));
@@ -657,7 +657,7 @@ describe('MessageCenterPanel', () => {
     });
 
     renderPanel();
-    fireEvent.click(screen.getByRole('tab', { name: 'Show messages' }));
+    fireEvent.click(screen.getByRole('tab', { name: /Show messages/ }));
 
     expect(screen.getByTestId('announcement-item')).toHaveTextContent('Ring paused');
     expect(screen.queryByRole('tab', { name: 'Announcements' })).not.toBeInTheDocument();
@@ -702,7 +702,7 @@ describe('MessageCenterPanel', () => {
     });
 
     renderPanel();
-    fireEvent.click(screen.getByRole('tab', { name: 'Show messages' }));
+    fireEvent.click(screen.getByRole('tab', { name: /Show messages/ }));
 
     expect(screen.getByTestId('announcement-item')).toHaveTextContent('Ring paused');
     fireEvent.click(screen.getByRole('button', { name: /try again/i }));

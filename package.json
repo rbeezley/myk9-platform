@@ -94,7 +94,8 @@
     "qa:go-live:phase4:test": "vitest run scripts/go-live/phase-4-evidence-pass.test.ts",
     "qa:sql:financial": "bash scripts/qa/run-financial-sql-tests.sh",
     "qa:sql:behavioral": "bash scripts/qa/run-behavioral-sql-tests.sh",
-    "qa:sql:behavioral:test": "vitest run scripts/qa/run-behavioral-sql-tests.test.ts",
+    "qa:sql:behavioral:test": "vitest run scripts/qa/run-behavioral-sql-tests.test.ts scripts/qa/run-sql-local.test.ts",
+    "qa:sql-local": "bash scripts/qa/run-sql-local.sh",
     "qa:pr-checks": "bash scripts/qa/watch-pr-checks.sh",
     "qa:pr-checks:test": "vitest run scripts/qa/watch-pr-checks.test.ts",
     "qa:rls-smoke": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/rls-smoke/rls-recursion-smoke.ts",
@@ -121,7 +122,7 @@
     "@playwright/test": "^1.64.0",
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
-    "@supabase/supabase-js": "^2.117.2",
+    "@supabase/supabase-js": "^2.117.3",
     "@types/node": "^22",
     "globals": "^17.13.0",
     "prettier": "^3.9.9",
@@ -137,7 +138,7 @@
   "pnpm": {
     "overrides": {
       "eslint-plugin-react-hooks": "7.0.1",
-      "@supabase/supabase-js": "2.117.2",
+      "@supabase/supabase-js": "2.117.3",
       "esbuild": "^0.28.1",
       "qs": "^6.16.0",
       "undici": "^7.16.0",

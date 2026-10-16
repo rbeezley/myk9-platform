@@ -7,10 +7,12 @@
 
 import {
   ReplicatedTable,
+  databaseManager,
   syncReplicatedTable,
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
   REPLICATION_STORES,
+  type DirtyRowComparePolicy,
   type ReplicatedRow,
   type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
@@ -24,6 +26,8 @@ import {
   resolveVisibilityForClassRows,
   type ResolvedClassVisibility,
 } from './resolveClassVisibility';
+import { createInFlightSharer, type ShareRead } from '@/services/database/_shared/shareInFlight';
+import { readPersistedAuthUserId } from '@/services/database/persistedAuthUserId';
 import { resolveHideCountsForClassRows } from './resolveClassHideCounts';
 import { resolveJudgeNamesForClassRows } from './resolveClassJudgeNames';
 import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeFields';
@@ -310,6 +314,38 @@ const SERVER_OWNED_CLASS_COLUMNS: ReadonlyArray<readonly [string, keyof Replicat
   ['num_hides', 'hideCount'],
 ];
 
+/**
+ * MYK9-1104: a device that marks a class complete writes `Completed` and its own
+ * `actual_end_time`; the server's derived completion reads back as `completed`
+ * with its own stamp. Both mean the class is complete, so the status compares in
+ * the server's spelling and the stamp yields to the server's once the status
+ * agrees. Any other status difference (the server reopened the class) still
+ * surfaces. Only known statuses are folded; anything else compares as written.
+ */
+export const CLASS_DIRTY_ROW_COMPARE_POLICY: DirtyRowComparePolicy = {
+  normalizeValue: (field, value) =>
+    field === 'classStatus' && typeof value === 'string' ? foldClassStatus(value) : value,
+  serverWinsFields: ['actual_end_time'],
+};
+
+function foldClassStatus(status: string): string {
+  switch (status) {
+    case 'Setup':
+      return 'setup';
+    case 'In Progress':
+      return 'in_progress';
+    case 'Completed':
+      return 'completed';
+    case 'Cancelled':
+      return 'cancelled';
+    case 'Scheduled':
+    case 'Upcoming':
+      return 'upcoming';
+    default:
+      return status;
+  }
+}
+
 const LEGACY_OMITTED_CLASS_KEYS_SERVER_WINS: readonly string[] = SERVER_OWNED_CLASS_COLUMNS.map(
   ([dbKey]) => dbKey
 );
@@ -553,9 +589,23 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         visibilityPreset: remote._visibilityPreset,
         timeLimitRule: remote._timeLimitRule,
       }),
+      // The full row, server-owned columns included: an acknowledged write moves the
+      // row's merge base forward through it (MYK9-1220).
+      toRemoteRow: cls => this.toSupabaseRow(cls),
       rebuildUpdatePayload: cls => this.rebuildUpdatePayload(cls),
+      dirtyRowComparePolicy: CLASS_DIRTY_ROW_COMPARE_POLICY,
     };
   }
+
+  /**
+   * MYK9-1170: a show syncs one trial at a time, and each trial's enrichment asks the same
+   * per-show RPCs. Overlapping asks share one round trip; see `createInFlightSharer`. Both
+   * RPCs answer per caller, so the key carries the signed-in account: a sync that starts after
+   * an account switch never joins the previous account's read.
+   */
+  private readonly sharedShowReads = createInFlightSharer();
+  private readonly shareShowRead: ShareRead = (key, read) =>
+    this.sharedShowReads(`${readPersistedAuthUserId() ?? 'anon'}:${key}`, read);
 
   /** Server-derived values a class row carries offline (visibility, hides, judge). */
   private async enrichClassRows(rows: ClassRow[]): Promise<EnrichedClassRow[]> {
@@ -576,13 +626,15 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     // totals are derived from registry rules; protected judge-set totals are
     // returned only by the show-scoped official RPC. Both are merged here so
     // the caller keeps the count they are entitled to while offline.
-    const hideCountByClassId = await resolveHideCountsForClassRows(rows).catch(() => {
-      logger.warn(
-        `[${this.getTableName()}] Hide-count resolve failed; scoring may fall back to the rule band`,
-        'replication'
-      );
-      return new Map<string, number>();
-    });
+    const hideCountByClassId = await resolveHideCountsForClassRows(rows, this.shareShowRead).catch(
+      () => {
+        logger.warn(
+          `[${this.getTableName()}] Hide-count resolve failed; scoring may fall back to the rule band`,
+          'replication'
+        );
+        return new Map<string, number>();
+      }
+    );
 
     // MYK9-1086: the max-time rule the ringside Set Max Time dialog checks offline.
     // A failed lookup must not read as "no rule": carry the rule already on this
@@ -596,13 +648,15 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     // MYK9-494: names cannot come from a `people` embed — an exhibitor cannot read
     // another person's row, so the embed (or `people!inner`) yields nothing and every
     // schedule row reads `Judge TBD`. get_show_judges is the authorized source.
-    const judgeByClassId = await resolveJudgeNamesForClassRows(rows).catch(() => {
-      logger.warn(
-        `[${this.getTableName()}] Judge-name resolve failed; cached names are retained`,
-        'replication'
-      );
-      return new Map<string, JudgeNameParts | null>();
-    });
+    const judgeByClassId = await resolveJudgeNamesForClassRows(rows, this.shareShowRead).catch(
+      () => {
+        logger.warn(
+          `[${this.getTableName()}] Judge-name resolve failed; cached names are retained`,
+          'replication'
+        );
+        return new Map<string, JudgeNameParts | null>();
+      }
+    );
 
     return rows.map(row => ({
       ...row,
@@ -752,6 +806,24 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
    */
   async getClassById(classId: string): Promise<ReplicatedClass | null> {
     return this.get(classId);
+  }
+
+  /** A class reaches its show through its trial (MYK9-1205). */
+  protected override async resolveMutationShowId(classId: string): Promise<string | undefined> {
+    try {
+      const db = await databaseManager.getDatabase(this.getTableName());
+      const cls = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+        this.getTableName(),
+        classId,
+      ])) as ReplicatedRow<ReplicatedClass> | undefined;
+      const trialId = cls?.data?.trialId;
+      if (!trialId) return undefined;
+      const trial = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, ['trials', trialId])) as
+        ReplicatedRow<{ showId?: string }> | undefined;
+      return trial?.data?.showId || undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   /**

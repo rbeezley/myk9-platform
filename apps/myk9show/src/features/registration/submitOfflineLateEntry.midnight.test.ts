@@ -9,7 +9,12 @@ const mocks = vi.hoisted(() => ({
 // This show has completed a scoped entries sync on this device (MYK9-761).
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
-    getSyncMetadata: async () => ({ tableName: 'entries', totalRows: 1 }),
+    getCurrentAuthUserId: async () => 'user-test',
+    getSyncMetadata: async () => ({
+      tableName: 'entries',
+      totalRows: 1,
+      syncedByAuthUserId: 'user-test',
+    }),
   },
 }));
 

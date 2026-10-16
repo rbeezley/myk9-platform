@@ -30,6 +30,7 @@ export interface DogInput {
         organization: string;
         number: string;
         registeredName?: string | undefined;
+        registrationDate?: string | undefined;
         type: string;
         status: string;
       }>

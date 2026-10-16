@@ -14,6 +14,12 @@ import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTa
 const { mockWaitlistTable, mockTrialsTable, mockClassesTable, mockDogsTable, mockEntriesTable } =
   vi.hoisted(() => ({
     mockWaitlistTable: {
+      getCurrentAuthUserId: async () => 'user-test',
+      getSyncMetadata: async () => ({
+        tableName: 'waitlist_entries',
+        totalRows: 1,
+        syncedByAuthUserId: 'user-test',
+      }),
       getByClass: vi.fn(),
       getByDog: vi.fn(),
       getById: vi.fn(),
@@ -41,6 +47,12 @@ const { mockWaitlistTable, mockTrialsTable, mockClassesTable, mockDogsTable, moc
       },
     },
     mockEntriesTable: {
+      getCurrentAuthUserId: async () => 'user-test',
+      getSyncMetadata: async () => ({
+        tableName: 'entries',
+        totalRows: 1,
+        syncedByAuthUserId: 'user-test',
+      }),
       getEntriesByClass: vi.fn(),
       getAll: vi.fn(),
       get getAllOrThrow() {

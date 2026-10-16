@@ -145,6 +145,7 @@ export const AtShowClassListPage: React.FC = () => {
               )
             ),
             trialTimeZone: getTrialTimezone(group.trial),
+            trialHeading: formatAtShowTrialHeading(group.trial),
           }));
         })
       ),
@@ -443,6 +444,10 @@ export const AtShowClassListPage: React.FC = () => {
 
       <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
 
+      {/* MYK9-1184: the exhibitor's way back to "Your dogs today" is a button,
+          so name what this all-days list is. */}
+      {isExhibitorOnly && <h2 className="mb-3 px-1 text-sm font-semibold">All classes</h2>}
+
       {assignmentError && (
         <section
           role="status"
@@ -472,13 +477,14 @@ export const AtShowClassListPage: React.FC = () => {
             </span>
           </div>
           <ul className="space-y-2">
-            {yourRingClasses.map(({ entry, trialTimeZone }) => (
+            {yourRingClasses.map(({ entry, trialTimeZone, trialHeading }) => (
               <AtShowClassRow
                 key={entry.id}
                 entry={entry}
                 isExhibitorOnly={isExhibitorOnly}
                 onClick={handleClassClick}
                 trialTimeZone={trialTimeZone}
+                trialHeading={trialHeading}
                 nextUp={selectNextUpForCard(getClassIds(entry), nextUpByClassId)}
                 entryCountsAvailable={hasTrustedEntryCount(entry)}
               />

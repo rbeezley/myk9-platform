@@ -201,6 +201,10 @@ export const mapReplicatedDogToDbRow = (
     owner?: Record<string, unknown> | null;
     registrations?: Record<string, unknown>[];
     registrationsReadComplete?: boolean;
+    /** MYK9-1189: a device-remembered owner name; display only, never an owner row. */
+    ownerDisplayName?: string;
+    /** MYK9-1189: the owner could not be read offline and was never remembered on this device. */
+    ownerUnavailableOffline?: boolean;
     entries?: Record<string, unknown>[];
     healthRecords?: Record<string, unknown>[];
   }
@@ -229,6 +233,8 @@ export const mapReplicatedDogToDbRow = (
     co_owner_id: d.coOwnerId ?? null,
     deleted_at: d.deletedAt ?? d.deleted_at ?? null,
     owner: options?.owner ?? null,
+    ...(options?.ownerDisplayName ? { owner_display_name: options.ownerDisplayName } : {}),
+    ...(options?.ownerUnavailableOffline ? { owner_unavailable_offline: true } : {}),
     registrations: options?.registrations ?? [],
     ...(options?.registrationsReadComplete !== undefined
       ? { registrations_read_complete: options.registrationsReadComplete }
@@ -326,8 +332,11 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
     ...(typeof dbDog.co_owner_id === 'string' ? { coOwnerId: dbDog.co_owner_id } : {}),
     ownerName: dbDog.owner
       ? `${(dbDog.owner as Record<string, unknown>).first_name} ${(dbDog.owner as Record<string, unknown>).last_name}`.trim()
-      : '',
+      : typeof dbDog.owner_display_name === 'string'
+        ? dbDog.owner_display_name
+        : '',
     ...(mapDbOwner(dbDog.owner) && { owner: mapDbOwner(dbDog.owner) }),
+    ...(dbDog.owner_unavailable_offline === true ? { ownerUnavailableOffline: true } : {}),
     microchipNumber: dbDog.microchip_number as string,
     imageUrl: (dbDog.image_url as string) || undefined,
     spayedNeutered: (dbDog.spayed_neutered as boolean) ?? undefined,
@@ -349,6 +358,9 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
       ...(regCreatedAt(reg) != null ? { createdAt: regCreatedAt(reg) as string } : {}),
       ...(regIsPrimary(reg) != null ? { isPrimary: regIsPrimary(reg) as boolean } : {}),
       registrationNumber: regNumber(reg),
+      ...((reg.registration_date ?? reg.registrationDate)
+        ? { registrationDate: (reg.registration_date ?? reg.registrationDate) as string }
+        : {}),
       status: (reg.status as string) || 'active',
     })),
     registrationsReadComplete:

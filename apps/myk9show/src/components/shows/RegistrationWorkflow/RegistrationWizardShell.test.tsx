@@ -1,7 +1,8 @@
 import { createRef } from 'react';
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { RegistrationWizardShell } from './RegistrationWizardShell';
+import { useRegistrationShellChrome } from './RegistrationShellChrome';
 
 describe('RegistrationWizardShell', () => {
   it('owns the sticky header, content clearance, card, and footer regions', () => {
@@ -22,7 +23,8 @@ describe('RegistrationWizardShell', () => {
     const header = screen.getByTestId('registration-wizard-header');
     const main = screen.getByTestId('registration-wizard-main');
     const card = screen.getByTestId('registration-wizard-card');
-    expect(header).toHaveClass('sticky', 'top-0');
+    // Where it sticks (top, collapse) is geometry: registrationWizardStickyChrome.spec.ts.
+    expect(header).toHaveClass('sticky');
     expect(main).toHaveClass('pt-[var(--app-shell-page-gap,1.5rem)]');
     expect(card).toHaveClass('min-h-[600px]', 'flex', 'flex-col');
     // No panel passed: no second column is reserved (the Receipt step).
@@ -68,5 +70,29 @@ describe('RegistrationWizardShell', () => {
         .getByTestId('registration-wizard-shell')
         .style.getPropertyValue('--registration-header-height')
     ).toMatch(/px$/);
+  });
+
+  it('publishes the bottom bar height a child reports, for the scrollport to clear', () => {
+    const rootRef = createRef<HTMLDivElement>();
+    function Bar() {
+      const { setBarHeight } = useRegistrationShellChrome();
+      return <button onClick={() => setBarHeight(72)}>report</button>;
+    }
+    render(
+      <RegistrationWizardShell
+        rootRef={rootRef}
+        header={<div>Wizard header</div>}
+        footer={<div>Wizard footer</div>}
+        aside={<Bar />}
+      >
+        <div>Wizard content</div>
+      </RegistrationWizardShell>
+    );
+    const root = screen.getByTestId('registration-wizard-shell');
+    expect(root.style.getPropertyValue('--registration-bar-height')).toBe('');
+
+    act(() => screen.getByRole('button', { name: 'report' }).click());
+
+    expect(root.style.getPropertyValue('--registration-bar-height')).toBe('72px');
   });
 });

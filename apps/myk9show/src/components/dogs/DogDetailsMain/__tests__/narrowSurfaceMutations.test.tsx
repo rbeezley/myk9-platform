@@ -52,15 +52,28 @@ const registration = {
   registeredName: 'CH Willow Of Test',
   registrationNumber: 'SR123',
 };
-vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
-  useRegistrationsByDogQuery: () => ({ data: [registration], isLoading: false }),
-  useDogRegistrationManagement: () => ({
-    registrations: [registration],
-    isLoading: false,
-    error: null,
-    refetch: vi.fn(),
-  }),
-}));
+vi.mock('@/hooks/queries/useRegistrationsDatabase', async () => {
+  // The pure helpers stay real; only the hooks are faked.
+  const actual = await vi.importActual<typeof import('@/hooks/queries/useRegistrationsDatabase')>(
+    '@/hooks/queries/useRegistrationsDatabase'
+  );
+  return {
+    registrationsToList: actual.registrationsToList,
+    isEmptyOfflineCopy: actual.isEmptyOfflineCopy,
+    railRegistrations: actual.railRegistrations,
+    useRegistrationsByDogQuery: () => ({ data: [registration], isLoading: false }),
+    useRailRegistrationsQuery: () => ({
+      data: { registrations: [registration], offline: false },
+      isLoading: false,
+    }),
+    useDogRegistrationManagement: () => ({
+      registrations: [registration],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    }),
+  };
+});
 vi.mock('@/components/dogs/DogDetails/Registrations/ManageRegistrationsPanel', () => ({
   default: () => <div data-testid="manage-registrations" />,
 }));

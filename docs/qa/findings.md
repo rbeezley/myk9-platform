@@ -431,6 +431,23 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### QA-TIME-DISPLAY-001
+
+- **Status:** open; report-only P3, awaiting an approved Linear-creation batch.
+- **Severity:** low; canonical P3, source Claude review P3; confidence high.
+- **Classification / lifecycle:** product display defect / new; one detected browser run, independently reproduced by formatter call.
+- **First / last seen:** 2026-10-15 / 2026-10-15.
+- **Baseline:** `58ae5c5fc5e586edb31ccdaa35349129d539bcbf`.
+- **Role / surface:** secretary; class run sheet, `apps/myk9show/src/pages/ClassDetailsPage/SecretaryRunSheet/types.ts:33`; desktop1280×720.
+- **Suite category / pattern:** manual-debug / validation-visible-mismatch.
+- **Detected by:** batch2 isolated proof and independent Claude review of [PR3049](https://github.com/rbeezley/myk9-platform/pull/3049#issuecomment-6204361418).
+- **Evidence:** [run38815521555](https://github.com/rbeezley/myk9-platform/actions/runs/38815521555), completed JSON/screenshot: SQL61.23, judge01:01.23, secretary1:01.22; exhibitor61.2s is intentionally one decimal. Pure `formatSearchTime(61.23)` also returns1:01.22 (expected1:01.23), EXIT0. The floating fraction multiplied by100 is truncated by Math.floor. No fixture writes were needed for the pure reproduction; browser data was disposable.
+- **User impact / intent:** secretary sees a time one centisecond below the stored score, undermining reliable score checking. No stored-score or ranking corruption alleged.
+- **Deduplication:** registry/source and archived-inclusive Linear searches for centisecond(s), rounding and61.23 found no matching canonical formatter defect. MYK9-992 is queue-position scope and MYK9-1204 is offline score persistence; neither is reused for display precision.
+- **Fix owner / next action:** SecretaryRunSheet formatter area; triage the separate display correction, then reuse the established time helper if suitable.
+- **Proof required:** assertion-first61.23→1:01.23 plus minute-boundary controls; real run-sheet render compared with SQL/judge, preserving intentional exhibitor rounding.
+- **Notes:** both targeted issues may close after their own criteria and merge gates pass; this finding remains open. Quality-finding-lifecycle keeps other P3 findings report-only pending an approved triage batch.
+
 ### MYK9-1011 — DQ downstream reader gaps
 
 - **Status:** open (canonical issue reopened to Todo)

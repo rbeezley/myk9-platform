@@ -17,6 +17,7 @@ function mockStats(overrides: Partial<ReturnType<typeof usePerformanceStatistics
     stats: null,
     isLoading: false,
     isError: false,
+    unreleasedCount: 0,
     refetch: vi.fn(),
     ...overrides,
   });
@@ -117,5 +118,38 @@ describe('PerformanceStatisticsSection', () => {
 
     expect(screen.getByText('Disqualified (DQ): 2')).toBeInTheDocument();
     expect(screen.queryByText(/^NQ: /)).not.toBeInTheDocument();
+  });
+
+  it('says results are waiting, not "No scored results yet", when every result is preliminary', () => {
+    mockStats({ stats: makeStats({ overall: emptyOverall }), unreleasedCount: 2 });
+    render(<PerformanceStatisticsSection dogId="dog-1" />);
+    expect(screen.queryByText(/no scored results yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/2 results are waiting for the secretary to release them/i)
+    ).toBeInTheDocument();
+  });
+
+  it('shows stats plus the waiting line when some results are preliminary', () => {
+    mockStats({ stats: makeStats(), unreleasedCount: 2 });
+    render(<PerformanceStatisticsSection dogId="dog-1" />);
+    expect(
+      screen.getByText(/2 results are waiting for the secretary to release them/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/no scored results yet/i)).not.toBeInTheDocument();
+  });
+
+  it('uses the singular for one waiting result', () => {
+    mockStats({ stats: makeStats(), unreleasedCount: 1 });
+    render(<PerformanceStatisticsSection dogId="dog-1" />);
+    expect(
+      screen.getByText(/1 result is waiting for the secretary to release it/i)
+    ).toBeInTheDocument();
+  });
+
+  it('shows no waiting line when every result is released', () => {
+    mockStats({ stats: makeStats(), unreleasedCount: 0 });
+    render(<PerformanceStatisticsSection dogId="dog-1" />);
+    expect(screen.queryByText(/waiting for the secretary/i)).not.toBeInTheDocument();
   });
 });

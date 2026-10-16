@@ -17,9 +17,52 @@
  */
 
 import { ENTRY_STATUS_FILTER_DEFS, ENTRY_TAB_DEFS, TAB_PREDICATES } from './entryTabDefs';
-import { orderMatchesStatusFilter } from './statusFilterPredicate';
+import { orderMatchesStatusFilter, narrowDogsToStatus } from './statusFilterPredicate';
+import { groupEntriesByShow, type MyShowGroup } from './groupEntriesByShow';
 import { resolveWaitlistSurface, type WaitlistSurface } from './waitlistSurface';
 import type { EntryStatusFilter, EntryTabFilter, MyEntry } from './my-entries-types';
+
+/**
+ * Count the class-entry rows the grouped list actually renders (MYK9-1147).
+ * Orders are filtered first, as the list does, so a dog's class in an order the
+ * filter drops is not counted.
+ */
+export function countVisibleClassEntries(
+  entries: MyEntry[],
+  status: EntryStatusFilter = 'any'
+): number {
+  const kept = entries.filter(entry => orderMatchesStatusFilter(entry, status));
+  return narrowDogsToStatus(groupEntriesByShow(kept), status).reduce(
+    (count, group) => count + group.dogs.reduce((sum, dog) => sum + dog.classes.length, 0),
+    0
+  );
+}
+
+/** Class-entry rows across already-grouped shows that the status filter keeps. */
+function countGroupedClassEntries(groups: MyShowGroup[], status: EntryStatusFilter): number {
+  return narrowDogsToStatus(groups, status).reduce(
+    (count, group) => count + group.dogs.reduce((sum, dog) => sum + dog.classes.length, 0),
+    0
+  );
+}
+
+/**
+ * `countVisibleClassEntries` for every status at once, from ONE grouping.
+ *
+ * Grouping the whole list and narrowing each class row by its own status keeps
+ * exactly the rows that filtering the orders first would: an order survives a
+ * status only when one of its class rows matches, and `narrowDogsToStatus`
+ * drops the rest (MYK9-1210).
+ */
+function countClassEntriesByStatus(entries: MyEntry[]): Record<EntryStatusFilter, number> {
+  const groups = groupEntriesByShow(entries);
+  return {
+    any: countGroupedClassEntries(groups, 'any'),
+    pending: countGroupedClassEntries(groups, 'pending'),
+    accepted: countGroupedClassEntries(groups, 'accepted'),
+    waitlist: countGroupedClassEntries(groups, 'waitlist'),
+  };
+}
 
 /** The wait-list position facts the Waitlist chip folds in beside entries. */
 export interface WaitlistPositionFacts {
@@ -43,7 +86,8 @@ export function deriveStatusCounts(
   positions: WaitlistPositionFacts
 ): { counts: Record<EntryStatusFilter, number>; surface: WaitlistSurface } {
   const inTab = entries.filter(entry => TAB_PREDICATES[tab](entry, now));
-  const waitlistEntries = inTab.filter(entry => orderMatchesStatusFilter(entry, 'waitlist')).length;
+  const byStatus = countClassEntriesByStatus(inTab);
+  const waitlistEntries = byStatus.waitlist;
   const surface = resolveWaitlistSurface({
     waitlistEntryCount: waitlistEntries,
     ...positions,
@@ -52,9 +96,9 @@ export function deriveStatusCounts(
   });
   return {
     counts: {
-      any: inTab.length + (surface.chipCount - waitlistEntries),
-      pending: inTab.filter(entry => orderMatchesStatusFilter(entry, 'pending')).length,
-      accepted: inTab.filter(entry => orderMatchesStatusFilter(entry, 'accepted')).length,
+      any: byStatus.any + (surface.chipCount - waitlistEntries),
+      pending: byStatus.pending,
+      accepted: byStatus.accepted,
       waitlist: surface.chipCount,
     },
     surface,
@@ -85,7 +129,10 @@ export function deriveTabCounts(
   const statusFiltered = entries.filter(entry => orderMatchesStatusFilter(entry, status));
   return Object.fromEntries(
     ENTRY_TAB_DEFS.map(tab => {
-      const realCount = statusFiltered.filter(entry => TAB_PREDICATES[tab.id](entry, now)).length;
+      const realCount = countVisibleClassEntries(
+        statusFiltered.filter(entry => TAB_PREDICATES[tab.id](entry, now)),
+        status
+      );
       const admitsPositions = tab.id !== 'completed';
       const count = admitsPositions && realCount === 0 ? realCount + positionCount : realCount;
       return [tab.id, count];

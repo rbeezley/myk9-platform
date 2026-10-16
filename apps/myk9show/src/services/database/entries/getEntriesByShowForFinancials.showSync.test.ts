@@ -12,6 +12,7 @@ const { mockEntriesTable, online } = vi.hoisted(() => ({
   mockEntriesTable: {
     sync: vi.fn(),
     getEntriesByShow: vi.fn(),
+    getCurrentAuthUserId: async () => 'user-test',
     getSyncMetadata: vi.fn(),
     getReplicatedRow: vi.fn(),
   },
@@ -121,8 +122,14 @@ describe('getEntriesByShowForFinancials on a show that has not synced (MYK9-761)
 
   // Codex P2 on #2463: a failed local sync-metadata read must not block the
   // online read the financial summary falls back to.
+  // MYK9-1133: an unreadable metadata read is "not whole for this account", never
+  // "never synced": the show is read online over the (clean) local rows.
   it('reads online when the local sync metadata cannot be read', async () => {
     mockEntriesTable.getSyncMetadata.mockRejectedValue(new Error('IndexedDB unavailable'));
+    mockEntriesTable.getReplicatedRow.mockImplementation(async (id: string) => ({
+      id,
+      isDirty: false,
+    }));
 
     const result = await getEntriesByShowForFinancials('s1');
 
@@ -148,7 +155,11 @@ describe('getEntriesByShowForFinancials on a show that has not synced (MYK9-761)
   });
 
   it('reads locally once the show has synced', async () => {
-    mockEntriesTable.getSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 1 });
+    mockEntriesTable.getSyncMetadata.mockResolvedValue({
+      tableName: 'entries',
+      totalRows: 1,
+      syncedByAuthUserId: 'user-test',
+    });
     online.error = new TypeError('Failed to fetch');
 
     const result = await getEntriesByShowForFinancials('s1');

@@ -8,6 +8,8 @@
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
+import { assertTableNotForeign } from '@/services/replication/scopeAccountStamp';
+import { assertShowEntriesNotForeign } from '@/services/replication/entriesShowSyncState';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
@@ -103,6 +105,7 @@ export const getWaitlistByClass = async (classId: string) => {
   const startTime = Date.now();
 
   try {
+    await assertTableNotForeign(replicatedWaitlistEntriesTable, 'the waitlist');
     const waitlistEntries = filterQueuedWaitlistEntries(
       await replicatedWaitlistEntriesTable.getByClass(classId)
     );
@@ -142,6 +145,7 @@ export const getWaitlistOffersByClass = async (classId: string) => {
   const startTime = Date.now();
 
   try {
+    await assertTableNotForeign(replicatedWaitlistEntriesTable, 'the waitlist');
     const offered = filterOfferedWaitlistEntries(
       await replicatedWaitlistEntriesTable.getByClass(classId)
     );
@@ -214,6 +218,11 @@ export const getClassesWithWaitlistCounts = async (showId: string) => {
     const classes = allClasses.flat();
 
     // Batch-load all entries and waitlist entries once, count per class in JS
+    // Capacity decides whether Offer Spot is enabled, so a figure is never built
+    // from a scope this account may not read: that would be a successful 0 on a
+    // full class. Either scope being another account's fails the whole read.
+    await assertTableNotForeign(replicatedWaitlistEntriesTable, 'the waitlist');
+    await assertShowEntriesNotForeign(showId);
     const [allEntries, allWaitlist] = await Promise.all([
       replicatedEntriesTable.getAllOrThrow(),
       replicatedWaitlistEntriesTable.getAllOrThrow(),

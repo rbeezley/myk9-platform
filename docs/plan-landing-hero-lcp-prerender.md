@@ -1,6 +1,8 @@
 # Landing-page mobile LCP — prerender + hydrate the hero
 
 > **Status:** Active
+>
+> The hero and the preload this plan describes were replaced by [`plan-landing-lifecycle.md`](archive/plan-landing-lifecycle.md) (MYK9-1141).
 
 Follow-up captured 2026-06-19. Best timed for **launch preparation** (real marketing
 traffic), not urgent now: the project is pre-launch with no real users, and desktop

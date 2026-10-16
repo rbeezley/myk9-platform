@@ -1,8 +1,15 @@
 import { screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
 import { SecretaryCockpit } from './SecretaryCockpit';
+
+// jsdom has no layout. Unmeasured (null) is the stacked layout; the anchor scroll waits for a
+// measured width, so the test that restores one sets it.
+const cockpitWidth = vi.hoisted(() => ({ value: null as number | null }));
+vi.mock('@/hooks/useElementWidth', () => ({
+  useElementWidth: () => ({ ref: { current: null }, width: cockpitWidth.value }),
+}));
 import type { SecretaryCockpitSnapshot } from './secretaryCockpitTypes';
 
 const snapshot: SecretaryCockpitSnapshot = {
@@ -100,6 +107,10 @@ describe('SecretaryCockpit class selection (show home overview)', () => {
   });
 
   it('still restores the anchored class when the page opens with one', () => {
+    cockpitWidth.value = 700;
+    onTestFinished(() => {
+      cockpitWidth.value = null;
+    });
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
     render(<SecretaryCockpit snapshot={twoClassSnapshot()} canManageShow onCommand={vi.fn()} />, {

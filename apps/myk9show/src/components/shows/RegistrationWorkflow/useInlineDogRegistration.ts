@@ -3,12 +3,17 @@ import { toast } from 'sonner';
 import { useCreateRegistrationMutation } from '@/hooks/queries/useRegistrationsDatabase';
 import { dogSaveMessage } from '@/hooks/translateDogDbError';
 import type { Registration } from '@/types/dog-types';
-import type { DbDogRegistrationInsert } from '@/types/database-mappings';
+import {
+  formDataToRegistration,
+  type RegistrationFormData,
+} from '@/components/dogs/registrationForm';
+import { PanelSaveHandledError } from '@/components/panels/edit/panelSaveErrors';
+import type { RegistrationDraft } from '@/services/replication/ReplicatedDogRegistrationsTable';
 
 export function toDogRegistrationInsert(
   dogId: string,
   registration: Registration
-): DbDogRegistrationInsert {
+): RegistrationDraft {
   return {
     dog_id: dogId,
     organization: registration.organization,
@@ -24,7 +29,7 @@ export function toDogRegistrationInsert(
   };
 }
 
-/** Reuses the canonical registration mutation while keeping wizard context in place. */
+/** Reuses the canonical (queued) registration add while keeping wizard context in place. */
 export function useInlineDogRegistration(onSaved?: () => void) {
   const [registrationDogId, setRegistrationDogId] = useState<string | null>(null);
   const createRegistration = useCreateRegistrationMutation();
@@ -46,10 +51,20 @@ export function useInlineDogRegistration(onSaved?: () => void) {
     }
   };
 
+  /**
+   * `saveRegistration` for the registration panel: it rejects when the save
+   * failed so the panel stays open, and says nothing more because
+   * `saveRegistration` has already toasted.
+   */
+  const saveRegistrationForm = async (data: RegistrationFormData): Promise<void> => {
+    if (!(await saveRegistration(formDataToRegistration(data)))) throw new PanelSaveHandledError();
+  };
+
   return {
     registrationDogId,
     openRegistrationEditor: setRegistrationDogId,
     closeRegistrationEditor: () => setRegistrationDogId(null),
     saveRegistration,
+    saveRegistrationForm,
   };
 }

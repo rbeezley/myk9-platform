@@ -4,7 +4,6 @@
 
 export {
   getAllDogs,
-  getDogById,
   getDogsByOwner,
   createDog,
   updateDog,
@@ -19,5 +18,6 @@ export {
   getDeletedDogs,
   getOwnedLiveDogsByPerson,
 } from './reads';
+export { getDogById } from './dogDetailRead';
 export type { OwnedLiveDog } from './reads';
 export type { RestoreDogResult, SkippedPlacement } from './restoreDogResult';

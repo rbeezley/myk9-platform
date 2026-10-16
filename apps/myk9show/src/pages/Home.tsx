@@ -1,20 +1,24 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import {
   LandingHeader,
-  HeroPhotoLed,
-  TaglineStrip,
-  CredibilityBand,
-  ClubFeatures,
-  ExhibitorFeatures,
-  OfflineCallout,
-  ClubOnboarding,
-  ClosingWaitlist,
+  LandingHero,
+  LifecycleTimeline,
+  TrustSection,
+  LandingClose,
   LandingFooter,
-} from '@/components/landing/v2';
+} from '@/components/landing/lifecycle';
+import { ctaAudience } from '@/components/landing/lifecycle/landingCtas';
+import { DEFAULT_AUDIENCE, type Audience } from '@/components/landing/lifecycle/lifecycleStories';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 const Home: React.FC = () => {
-  const closingRef = useRef<HTMLElement>(null);
+  const { user } = useAuthContext();
+  const signedIn = Boolean(user);
+  // The story switch also decides which calls to action the header and close lead with,
+  // except that a signed-in visitor (who already has an account) always gets the club ones.
+  const [audience, setAudience] = useState<Audience>(DEFAULT_AUDIENCE);
+  const ctas = ctaAudience(audience, signedIn);
 
   useEffect(() => {
     if (window.location.hash !== '#get-started') return;
@@ -29,57 +33,14 @@ const Home: React.FC = () => {
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
-  const scrollToWaitlist = useCallback(() => {
-    const node = closingRef.current ?? document.getElementById('closing');
-    if (!node) return;
-
-    const reducedMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-
-    node.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
-
-    const emailInput = node.querySelector<HTMLInputElement>('#l-wl-closing');
-    if (!emailInput) return;
-
-    if (reducedMotion) {
-      // No animation to wait for — focus immediately.
-      emailInput.focus({ preventScroll: true });
-      return;
-    }
-
-    // Prefer scrollend (instant + accurate) when the browser supports it;
-    // fall back to a conservative timeout for Safari < 17 / older Chromium.
-    const supportsScrollEnd = 'onscrollend' in window;
-    if (supportsScrollEnd) {
-      let done = false;
-      const finish = () => {
-        if (done) return;
-        done = true;
-        window.removeEventListener('scrollend', finish);
-        emailInput.focus({ preventScroll: true });
-      };
-      window.addEventListener('scrollend', finish, { once: true });
-      // Belt-and-braces: if scrollend never fires (very short scroll, etc.),
-      // resolve the focus anyway after a generous window.
-      window.setTimeout(finish, 800);
-    } else {
-      window.setTimeout(() => emailInput.focus({ preventScroll: true }), 320);
-    }
-  }, []);
-
   return (
-    <div className="landing-v2">
-      <LandingHeader onJoinWaitlistClick={scrollToWaitlist} />
+    <div className="landing-v2" data-guest={user ? 'false' : 'true'}>
+      <LandingHeader signedIn={signedIn} audience={ctas} />
       <ShowTodayBanner />
-      <HeroPhotoLed />
-      <TaglineStrip />
-      <CredibilityBand />
-      <ClubFeatures />
-      <ExhibitorFeatures />
-      <OfflineCallout />
-      <ClubOnboarding />
-      <ClosingWaitlist ref={closingRef} />
+      <LandingHero showSignUp={!signedIn} />
+      <LifecycleTimeline audience={audience} onAudienceChange={setAudience} />
+      <TrustSection />
+      <LandingClose audience={ctas} />
       <LandingFooter />
     </div>
   );

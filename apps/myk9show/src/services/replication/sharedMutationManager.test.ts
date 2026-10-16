@@ -88,4 +88,51 @@ describe('sharedMutationManager auth identity', () => {
       (() => Promise<string | null>) | undefined;
     await expect(getCurrentUserId?.()).rejects.toThrow('session storage unavailable');
   });
+
+  // MYK9-1133: getSession() errors once the token expires offline, which would
+  // leave every stamped replica scope reading as another account's. The stamp
+  // check may fall back to the persisted session's user id; uploads may not. A
+  // NEW queue entry takes it as its owner stamp only (MYK9-1204), never as proof
+  // of a session: the upload still needs a live session for that same id.
+  describe('offline-durable identity for replica stamps', () => {
+    const storageKey = 'sb-test-auth-token';
+
+    beforeEach(() => {
+      window.localStorage.removeItem(storageKey);
+    });
+
+    it('offers the persisted session user id, and nothing once the session is gone', async () => {
+      await import('./sharedMutationManager');
+      const getCachedUserId = hoisted.managerOptions?.getCachedUserId as
+        (() => string | null) | undefined;
+
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify({ access_token: 'expired', user: { id: 'auth-user-1' } })
+      );
+      expect(getCachedUserId?.()).toBe('auth-user-1');
+
+      window.localStorage.removeItem(storageKey);
+      expect(getCachedUserId?.()).toBeNull();
+    });
+
+    it('still refuses an upload context while the live session read fails', async () => {
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify({ access_token: 'expired', user: { id: 'auth-user-1' } })
+      );
+      hoisted.getSession.mockResolvedValue({
+        data: { session: null },
+        error: new Error('AuthRetryableFetchError'),
+      });
+      await import('./sharedMutationManager');
+
+      const getCurrentUploadContext = hoisted.managerOptions?.getCurrentUploadContext as
+        (() => Promise<unknown>) | undefined;
+      await expect(getCurrentUploadContext?.()).rejects.toThrow('AuthRetryableFetchError');
+      const getCurrentUserId = hoisted.managerOptions?.getCurrentUserId as
+        (() => Promise<string | null>) | undefined;
+      await expect(getCurrentUserId?.()).rejects.toThrow('AuthRetryableFetchError');
+    });
+  });
 });

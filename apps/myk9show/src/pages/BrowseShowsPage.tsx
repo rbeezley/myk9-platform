@@ -34,9 +34,9 @@ import { canManageShowSurface, filterManagedShows, managedClubIds } from '@/util
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
+import { BrowseTabs } from '@/components/layout/BrowseTabs';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
-  ListEmptyState,
   GuestExportButton,
   ListFilterBar,
   ListResultLine,
@@ -62,6 +62,7 @@ import { ShowCardGrid, ShowsTableView, ShowBulkActionsBar } from '@/components/s
 import { MonthScrubber } from '@/components/shows/browse/MonthScrubber';
 import { ShowLocationField } from '@/components/shows/browse/ShowLocationField';
 import { ShowsMapPanel } from '@/components/shows/browse/ShowsMapPanel';
+import { ShowsEmptyState } from '@/components/shows/browse/ShowsEmptyState';
 import { useViewerLocation } from '@/features/location/useViewerLocation';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { getBrowseShowsCountUserId, getBrowseShowsTabCount } from '@/utils/browseShowsUtils';
@@ -393,16 +394,7 @@ const BrowseShowsPage: React.FC = () => {
   // Render shows in different view modes
   const renderShowsView = () => {
     if (enhancedShows.length === 0 && viewMode !== 'map') {
-      return (
-        <ListEmptyState
-          icon={Search}
-          noun={SHOW_NOUN}
-          filtered={hasActiveFilters}
-          onShowAll={clearAllFilters}
-          description="Shows will appear here as they are added. Try searching by discipline or club name above."
-          action={null}
-        />
-      );
+      return <ShowsEmptyState filtered={hasActiveFilters} onShowAll={clearAllFilters} />;
     }
 
     switch (viewMode) {
@@ -458,7 +450,7 @@ const BrowseShowsPage: React.FC = () => {
   };
 
   return (
-    <PageShell>
+    <PageShell ContentWrapper={BrowseTabs}>
       {/* Loading state */}
       {isLoading && shows.length === 0 && <ShowsPageSkeleton viewMode={viewMode} count={6} />}
 

@@ -78,6 +78,8 @@ export const mapReplicatedEntryToDbRow = (
       moved_from_entry_id: 'movedFromEntryId',
       // MYK9-969: the server hid this row's results from this viewer.
       results_private: 'resultsPrivate',
+      // MYK9-1162: the server says this entry awaits a registration number.
+      awaiting_registration_number: 'awaitingRegistrationNumber',
     }),
     check_in_status: entry.checkInStatus ?? entry.check_in_status ?? null,
     discount_amount: entry.discountAmount ?? entry.discount_amount ?? null,
@@ -192,6 +194,7 @@ export const mapReplicatedClassToEntryRow = (cls: ReplicatedClass): Record<strin
     max_entries: 'maxEntries',
     description: 'description',
     trial_id: 'trialId',
+    start_time: 'startTime',
   }),
   class_number: null, // class_number is not on ReplicatedClass
   jump_height: cls.jumpHeights?.[0] ?? null,

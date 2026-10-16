@@ -10,18 +10,23 @@ import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
  * columns the read asks for; the mock answers only the columns it was asked.
  */
 
-const { selects, mockDogsTable, peopleRows, postgrestDogRows } = vi.hoisted(() => ({
+const { selects, mockDogsTable, peopleRows, postgrestDogRows, serverDown } = vi.hoisted(() => ({
   selects: [] as { table: string; columns: string }[],
   mockDogsTable: { getAllDogsWithStatus: vi.fn() },
   peopleRows: [] as Record<string, unknown>[],
   postgrestDogRows: [] as Record<string, unknown>[],
+  /** The dogs list query fails as a network failure: the device copy answers. */
+  serverDown: { value: false },
 }));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: mockDogsTable,
 }));
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
-  replicatedDogRegistrationsTable: { getRegistrationsForDogs: vi.fn(async () => []) },
+  replicatedDogRegistrationsTable: {
+    getRegistrationsForDogs: vi.fn(async () => []),
+    getUnsentWorkForDogs: vi.fn(async () => []),
+  },
 }));
 
 /** Keep only the columns a select string names, as PostgREST would. */
@@ -37,10 +42,13 @@ vi.mock('@/services/database/supabaseClient', () => ({
         selects.push({ table, columns });
         const rows =
           table === 'people' ? peopleRows.map(row => project(row, columns)) : postgrestDogRows;
-        const result = Promise.resolve({
-          data: table === 'dog_registrations' ? [] : rows,
-          error: null,
-        });
+        const result =
+          table === 'dogs' && serverDown.value
+            ? Promise.resolve({ data: null, error: { message: 'Failed to fetch' } })
+            : Promise.resolve({
+                data: table === 'dog_registrations' ? [] : rows,
+                error: null,
+              });
         const chain: Record<string, unknown> = {
           in: () => result,
           is: () => chain,
@@ -88,10 +96,12 @@ describe('owner address on the dog roster read (MYK9-1010)', () => {
     selects.length = 0;
     peopleRows.length = 0;
     postgrestDogRows.length = 0;
+    serverDown.value = false;
     mockDogsTable.getAllDogsWithStatus.mockReset();
   });
 
-  it('replication path: the owner batch read carries the address to Dog.owner', async () => {
+  it('device copy (server unreachable): the owner batch read carries the address to Dog.owner', async () => {
+    serverDown.value = true;
     mockDogsTable.getAllDogsWithStatus.mockResolvedValue({ rows: [replicatedDog()], cold: false });
     peopleRows.push(OWNER_ROW);
 
@@ -133,6 +143,7 @@ describe('owner address on the dog roster read (MYK9-1010)', () => {
   });
 
   it('a dog whose owner was not read has no owner object, not an empty address', async () => {
+    serverDown.value = true;
     mockDogsTable.getAllDogsWithStatus.mockResolvedValue({ rows: [replicatedDog()], cold: false });
 
     const { data } = await getAllDogs('person-1');

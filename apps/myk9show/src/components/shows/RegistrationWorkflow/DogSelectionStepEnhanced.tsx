@@ -20,7 +20,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { getDogBreedLabel, getDogDisplayName, Dog, User } from '@/types/dog-types';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
@@ -30,7 +29,6 @@ import { useDebounce } from '@myk9/scoring-ui';
 import { searchAllDogs, SEARCH_ALL_DOGS_LIMIT } from '@/services/database/dogs';
 import { mapDatabaseDogsArray } from '@/services/mappers/dogMappers';
 import { DogSearchInterface } from './DogSearchInterface';
-import { CreateExhibitorDialog } from './CreateExhibitorDialog';
 import { AddDogPanel } from '@/components/panels/edit';
 import { QuickCreateFlow } from './QuickCreateFlow';
 import { useCreatedInSession } from './CreatedInSessionContext';
@@ -149,13 +147,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
     dogs: [],
   });
   const [showQuickCreateFlow, setShowQuickCreateFlow] = useState(false);
-  const [showExhibitorDialog, setShowExhibitorDialog] = useState(false);
   const [showDogDialog, setShowDogDialog] = useState(false);
-  // Add Person Only hands over to Add Dog for that person once its slide-out has
-  // left the screen, so the two never show at once (MYK9-1081).
-  const addDogAfterPersonRef = useRef(false);
-  const [createdExhibitorId, setCreatedExhibitorId] = useState<string | undefined>(undefined);
-  const [createdExhibitorMutationIds, setCreatedExhibitorMutationIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeQuickFilter, setActiveQuickFilter] = useState('');
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
@@ -296,23 +288,6 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
     onSelectionChange([...selectedDogs, ...newDogIds]);
   };
 
-  const handleExhibitorCreated = (
-    exhibitor: User,
-    metadata?: { pendingMutationIds?: string[] | undefined }
-  ) => {
-    logger.debug('Exhibitor created:', 'shows', { data: exhibitor });
-    createdInSession?.recordOwnerCreated(exhibitor);
-    setCreatedExhibitorId(exhibitor.id);
-    setCreatedExhibitorMutationIds(metadata?.pendingMutationIds ?? []);
-    addDogAfterPersonRef.current = true;
-  };
-
-  const handleExhibitorPanelExited = () => {
-    if (!addDogAfterPersonRef.current) return;
-    addDogAfterPersonRef.current = false;
-    setShowDogDialog(true);
-  };
-
   const handleDogCreated = (dog: Dog, options?: { existing?: boolean }) => {
     logger.debug('Dog created:', 'shows', { data: dog });
     if (!options?.existing) createdInSession?.recordDogCreated(dog);
@@ -403,15 +378,6 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         createdFromShowId={createdFromShowId}
         offlineFirst={offlineFirst}
       />
-      <CreateExhibitorDialog
-        open={showExhibitorDialog}
-        onOpenChange={setShowExhibitorDialog}
-        onExhibitorCreated={handleExhibitorCreated}
-        onExited={handleExhibitorPanelExited}
-        searchQuery={searchQuery}
-        offlineFirst={offlineFirst}
-        createdFromShowId={createdFromShowId}
-      />
       <AddDogPanel
         showStartDate={showStartDate}
         createdFromShowId={createdFromShowId}
@@ -420,8 +386,6 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         onClose={() => setShowDogDialog(false)}
         onDogCreated={handleDogCreated}
         offlineFirst={offlineFirst}
-        currentUserPersonId={createdExhibitorId}
-        offlineDependsOn={createdExhibitorMutationIds}
       />
     </>
   );
@@ -438,55 +402,6 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
             {Array.from({ length: 4 }).map((_, index) => (
               <Skeleton key={index} className="h-24 rounded-lg" />
             ))}
-          </div>
-        </div>
-      );
-    }
-
-    // Only bail to the "no dogs" state for roles that can't search the full
-    // system. Secretaries/admins keep the search interface so they can find
-    // and register mail-in dogs they don't own.
-    if (accessibleDogs.length === 0 && !workflowConfig.features.advancedSearch) {
-      return (
-        <div className="space-y-4">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold">Select Dogs to Register</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              No dogs are available for registration yet.
-            </p>
-          </div>
-          <div className="text-center py-8 space-y-4">
-            <p className="text-muted-foreground">No dogs found.</p>
-            <p className="text-sm text-muted-foreground">
-              Search for an existing dog or add a new person and dog.
-            </p>
-            {canCreateNew && (
-              <div className="space-y-3">
-                <Alert>
-                  <UserPlus className="h-4 w-4" />
-                  <AlertDescription>
-                    As a secretary, you can add new people and dogs for entries.
-                  </AlertDescription>
-                </Alert>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button
-                    onClick={() => setShowQuickCreateFlow(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    Add Person & Dog(s)
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowExhibitorDialog(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    Add Person Only
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       );
@@ -562,10 +477,6 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                         Exhibitor & Dog(s)
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setShowExhibitorDialog(true)}>
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Exhibitor Only
-                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setShowDogDialog(true)}>
                         <Plus className="h-4 w-4 mr-2" />
                         Dog Only

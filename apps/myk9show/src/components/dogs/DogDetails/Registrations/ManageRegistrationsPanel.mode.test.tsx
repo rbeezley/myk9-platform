@@ -6,6 +6,7 @@ import type { Dog } from '@/types/dog-types';
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import ManageRegistrationsPanel from './ManageRegistrationsPanel';
 import DogRegistrationDialogs from './DogRegistrationDialogs';
+import { enterRegistrationText, fillNewRegistration } from './registrationFormTestHelpers';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 /**
@@ -20,25 +21,34 @@ const mocks = vi.hoisted(() => ({
   deleteRegistration: vi.fn(),
 }));
 
-vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
-  useDogRegistrationManagement: () => ({
-    registrations: [
-      {
-        id: 'registration-1',
-        organization: 'AKC',
-        registeredName: 'CH Test Dog',
-        registrationNumber: 'SR12345',
-        breed: 'Beagle',
-      },
-    ],
-    isLoading: false,
-    error: null,
-    createRegistration: mocks.createRegistration,
-    updateRegistration: mocks.updateRegistration,
-    deleteRegistration: mocks.deleteRegistration,
-    refetch: vi.fn(),
-  }),
-}));
+vi.mock('@/hooks/queries/useRegistrationsDatabase', async () => {
+  // The pure helpers stay real; only the hooks are faked.
+  const actual = await vi.importActual<typeof import('@/hooks/queries/useRegistrationsDatabase')>(
+    '@/hooks/queries/useRegistrationsDatabase'
+  );
+  return {
+    registrationsToList: actual.registrationsToList,
+    isEmptyOfflineCopy: actual.isEmptyOfflineCopy,
+    railRegistrations: actual.railRegistrations,
+    useDogRegistrationManagement: () => ({
+      registrations: [
+        {
+          id: 'registration-1',
+          organization: 'AKC',
+          registeredName: 'CH Test Dog',
+          registrationNumber: 'SR12345',
+          breed: 'Beagle',
+        },
+      ],
+      isLoading: false,
+      error: null,
+      createRegistration: mocks.createRegistration,
+      updateRegistration: mocks.updateRegistration,
+      deleteRegistration: mocks.deleteRegistration,
+      refetch: vi.fn(),
+    }),
+  };
+});
 
 const dog = { id: 'dog-1', callName: 'Maple' } as unknown as Dog;
 
@@ -171,7 +181,7 @@ describe('ManageRegistrationsPanel — Add and Edit are modes of the one panel',
   ])('a dirty form asks before %s discards it', async (_label, leave) => {
     const { user } = render(<Harness />);
     await user.click(screen.getByRole('button', { name: /^add$/i }));
-    await user.type(await screen.findByLabelText(/registered name/i), 'CH New');
+    await enterRegistrationText(user, await screen.findByLabelText(/registered name/i), 'CH New');
 
     await leave(user);
 
@@ -187,13 +197,7 @@ describe('ManageRegistrationsPanel — Add and Edit are modes of the one panel',
   it('saving an Add sends the same payload as before and returns to the list', async () => {
     const { user } = render(<Harness />);
     await user.click(screen.getByRole('button', { name: /^add$/i }));
-    await user.selectOptions(
-      await screen.findByLabelText(/^organization/i),
-      'AKC (American Kennel Club)'
-    );
-    await user.type(screen.getByLabelText(/registered name/i), 'CH New Dog');
-    await user.selectOptions(screen.getByLabelText(/^breed/i), 'Beagle');
-    await user.type(screen.getByLabelText(/registration number/i), 'SR999');
+    await fillNewRegistration(user);
 
     await user.click(screen.getByRole('button', { name: 'Add Registration' }));
 
@@ -218,7 +222,11 @@ describe('ManageRegistrationsPanel — Add and Edit are modes of the one panel',
   it('saving an Edit sends the same payload as before and returns to the list', async () => {
     const { user } = render(<Harness />);
     await user.click(editButton());
-    await user.type(await screen.findByDisplayValue('CH Test Dog'), ' II');
+    await enterRegistrationText(
+      user,
+      await screen.findByDisplayValue('CH Test Dog'),
+      'CH Test Dog II'
+    );
 
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
@@ -227,7 +235,8 @@ describe('ManageRegistrationsPanel — Add and Edit are modes of the one panel',
         {
           id: 'registration-1',
           updates: {
-            organization: 'AKC',
+            // The stored short code `AKC` is normalized to the full label on save (MYK9-1207).
+            organization: 'AKC (American Kennel Club)',
             registered_name: 'CH Test Dog II',
             breed: 'Beagle',
             variety: null,
@@ -249,7 +258,11 @@ describe('ManageRegistrationsPanel — Add and Edit are modes of the one panel',
     );
     const { user } = render(<Harness />);
     await user.click(editButton());
-    await user.type(await screen.findByDisplayValue('CH Test Dog'), ' II');
+    await enterRegistrationText(
+      user,
+      await screen.findByDisplayValue('CH Test Dog'),
+      'CH Test Dog II'
+    );
 
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
@@ -263,7 +276,7 @@ describe('focus stays inside the Manage panel', () => {
   it('Add moves focus to the first field; Edit moves it to the form’s first control', async () => {
     const { user } = render(<Harness />);
     await user.click(screen.getByRole('button', { name: /^add$/i }));
-    await waitFor(() => expect(screen.getByLabelText(/^organization/i)).toHaveFocus());
+    await waitFor(() => expect(screen.getByLabelText(/^registration organization/i)).toHaveFocus());
     await user.click(screen.getByRole('button', { name: /back/i }));
     await screen.findByText('CH Test Dog');
 
@@ -279,13 +292,7 @@ describe('focus stays inside the Manage panel', () => {
   it('after a successful Add save focus lands on the header Add button', async () => {
     const { user } = render(<Harness />);
     await user.click(screen.getByRole('button', { name: /^add$/i }));
-    await user.selectOptions(
-      await screen.findByLabelText(/^organization/i),
-      'AKC (American Kennel Club)'
-    );
-    await user.type(screen.getByLabelText(/registered name/i), 'CH New Dog');
-    await user.selectOptions(screen.getByLabelText(/^breed/i), 'Beagle');
-    await user.type(screen.getByLabelText(/registration number/i), 'SR999');
+    await fillNewRegistration(user);
     await user.click(screen.getByRole('button', { name: 'Add Registration' }));
 
     await screen.findByRole('heading', { name: 'Registrations' });
@@ -295,7 +302,11 @@ describe('focus stays inside the Manage panel', () => {
   it('after a successful Edit save focus lands on that row’s Edit control', async () => {
     const { user } = render(<Harness />);
     await user.click(editButton());
-    await user.type(await screen.findByDisplayValue('CH Test Dog'), ' II');
+    await enterRegistrationText(
+      user,
+      await screen.findByDisplayValue('CH Test Dog'),
+      'CH Test Dog II'
+    );
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     await screen.findByRole('heading', { name: 'Registrations' });

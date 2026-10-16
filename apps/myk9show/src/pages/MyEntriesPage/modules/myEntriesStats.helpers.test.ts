@@ -478,3 +478,32 @@ describe('computeMyEntriesShowProgressStats — one verdict per show', () => {
     expect(stats.upcomingShows).toBe(0);
   });
 });
+
+describe('unpublished classes are not a known upcoming schedule (MYK9-1147)', () => {
+  it('does not add undated classes to the scheduled count', () => {
+    const cls: EntryClass = {
+      id: 'draft-class',
+      name: 'Class not published yet',
+      number: '',
+      fee: 25,
+      status: 'entered',
+      entryStatus: EntryStatus.ACCEPTED,
+      entryStatusKind: 'accepted',
+    };
+    const draft = makeEntry({
+      showDate: undefined,
+      showEndDate: undefined,
+      isShowUnreadable: true,
+      dogs: [
+        {
+          id: 'draft-dog',
+          dogId: 'dog-1',
+          dogName: 'Dog',
+          classes: [cls],
+          entryStatus: EntryStatus.ACCEPTED,
+        },
+      ],
+    });
+    expect(countUpcomingClassesByDog([draft], NOW)).toEqual({});
+  });
+});

@@ -45,6 +45,12 @@ vi.mock('@react-pdf/renderer', () => ({
   },
 }));
 
+const emailHook = vi.hoisted(() => vi.fn());
+vi.mock('@/features/lifecycle-emails', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/lifecycle-emails')>()),
+  useRegistrationNumberNeededEmail: emailHook,
+}));
+
 import { WorkflowStepContent } from '../WorkflowStepContent';
 
 const workflowConfig: WorkflowConfig = {
@@ -239,6 +245,14 @@ function renderConfirmation(outcomes: EntrySubmissionOutcome[]) {
     />
   );
 }
+
+describe('WorkflowStepContent registration number email', () => {
+  it('sends nothing and mounts nothing after a secretary save: the Exceptions list is the one place', () => {
+    renderConfirmation([createdOutcome('dog-2', 'class-2', 'entry-2')]);
+
+    expect(emailHook).not.toHaveBeenCalled();
+  });
+});
 
 describe('WorkflowStepContent entry blanks', () => {
   it('shows the missing-registration warning before mounting PDF generation', async () => {

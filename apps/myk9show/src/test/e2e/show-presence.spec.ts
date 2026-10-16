@@ -45,7 +45,11 @@ async function signIn(page: Page, user: TestUser) {
 
 async function openFirstShow(page: Page): Promise<string> {
   await page.goto('/shows', { waitUntil: 'domcontentloaded' });
-  await page.locator('a[href^="/shows/"]').first().click();
+  // On a wide window the Shows list sits beside Find Shows and orders shows per viewer (the
+  // viewer's own first), so both users pick the first Find Shows card, never a list row.
+  const findShows = page.getByRole('region', { name: 'Find Shows' });
+  const scope = (await findShows.count()) > 0 ? findShows : page;
+  await scope.locator('a[href^="/shows/"]').first().click();
   await page.waitForURL(/\/shows\/[^/]+$/, { timeout: 15000 });
   return page.url();
 }

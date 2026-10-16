@@ -12,6 +12,8 @@
  */
 
 import React from 'react';
+import { countUpcomingClassesByDog, countUnpublishedClassesByDog } from './myEntriesStats.helpers';
+import type { MyEntry } from './my-entries-types';
 import type { NavigateFunction } from 'react-router-dom';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
 import { DogStrip, type DogStripDog } from '@/components/exhibitor/DogStrip';
@@ -40,7 +42,12 @@ interface MyEntriesOverviewProps {
   currentFeesHref: string;
   onNavigate: NavigateFunction;
   dogs: OverviewDog[];
-  upcomingClassCountByDog: Record<string, number>;
+  /**
+   * The one source of the dog strip's class counts. Required: an optional
+   * default of `[]` rendered "No upcoming classes" on every dog with no type
+   * error (MYK9-1210).
+   */
+  entries: MyEntry[];
   onAddDog: () => void;
 }
 
@@ -53,35 +60,49 @@ export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
   currentFeesHref,
   onNavigate,
   dogs,
-  upcomingClassCountByDog,
+  entries,
   onAddDog,
-}) => (
-  <>
-    {showMoney && (
-      <div data-testid="entry-fee-balance" className="max-[720px]:order-2">
-        <CompactStatsRow
-          currentFees={currentFees}
-          amountDue={amountDue}
-          hasPastBalance={hasPastBalance}
-          currentFeesHref={currentFeesHref}
-          onNavigate={onNavigate}
-        />
-      </div>
-    )}
-    {moneyWarning && (
-      <p role="status" className="text-sm text-muted-foreground">
-        Some balances could not be confirmed with the server yet; the money total covers confirmed
-        balances only.
-      </p>
-    )}
+}) => {
+  const scheduleCounts = React.useMemo(
+    () => ({
+      upcoming: countUpcomingClassesByDog(entries),
+      unpublished: countUnpublishedClassesByDog(entries),
+    }),
+    [entries]
+  );
+  return (
+    <>
+      {showMoney && (
+        <div data-testid="entry-fee-balance" className="max-[720px]:order-2">
+          <CompactStatsRow
+            currentFees={currentFees}
+            amountDue={amountDue}
+            hasPastBalance={hasPastBalance}
+            currentFeesHref={currentFeesHref}
+            onNavigate={onNavigate}
+          />
+        </div>
+      )}
+      {moneyWarning && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Some balances could not be confirmed with the server yet; the money total covers confirmed
+          balances only.
+        </p>
+      )}
 
-    {/* order-3 on mobile keeps the dog strip below the primary entry workflow.
+      {/* order-3 on mobile keeps the dog strip below the primary entry workflow.
       On desktop every sibling is order-0, so source order keeps the balance and
       dog strip above the entries. */}
-    <div className="max-[720px]:order-3">
-      <DogStrip dogs={dogs} upcomingClassCountByDog={upcomingClassCountByDog} onAddDog={onAddDog} />
-    </div>
-  </>
-);
+      <div className="max-[720px]:order-3">
+        <DogStrip
+          dogs={dogs}
+          upcomingClassCountByDog={scheduleCounts.upcoming}
+          unpublishedClassCountByDog={scheduleCounts.unpublished}
+          onAddDog={onAddDog}
+        />
+      </div>
+    </>
+  );
+};
 
 export default MyEntriesOverview;

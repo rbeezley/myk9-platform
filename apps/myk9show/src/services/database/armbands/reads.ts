@@ -7,6 +7,7 @@
 import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
 import { withReplicationFallback } from '../_shared/replication-fallback';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
+import { assertScopeNotForeign } from '@/services/replication/scopeAccountStamp';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
@@ -155,6 +156,7 @@ export const getArmbandCountForShow = async (showId: string) => {
   try {
     return await withReplicationFallback(
       async () => {
+        await assertScopeNotForeign(replicatedArmbandsTable, showId, { includeTableStamp: true });
         const armbands = await replicatedArmbandsTable.getByShow(showId);
         return { count: armbands.length, error: null };
       },
@@ -226,6 +228,7 @@ export const lookupDogByArmband = async (showId: string, armbandNumber: string) 
   try {
     return await withReplicationFallback(
       async () => {
+        await assertScopeNotForeign(replicatedArmbandsTable, showId, { includeTableStamp: true });
         const armband = await replicatedArmbandsTable.lookupByArmbandNumber(showId, armbandNumber);
         if (!armband || !armband.dogId) return { data: null, error: null };
 

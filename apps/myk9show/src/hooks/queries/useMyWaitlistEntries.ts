@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { toast } from 'sonner';
@@ -55,7 +56,7 @@ function mapWaitlistEntry(row: WaitlistEntryRow, exhibitorId: string): WaitListE
     id: row.id,
     classId: row.class_id,
     className: row.classes?.name ?? 'Unknown Class',
-    showName: row.classes?.trials?.shows?.name ?? 'Unknown Show',
+    showName: row.classes?.trials?.shows?.name ?? SHOW_NOT_PUBLISHED_LABEL,
     exhibitorId,
     exhibitorName,
     dogId: null,

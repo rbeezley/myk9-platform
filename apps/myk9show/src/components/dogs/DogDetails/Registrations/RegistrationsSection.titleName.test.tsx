@@ -12,32 +12,41 @@ const mocks = vi.hoisted(() => ({
   registrations: vi.fn(),
 }));
 
-vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
-  useDogRegistrationManagement: () => ({
-    registrations: mocks.registrations() ?? [
-      {
-        id: 'registration-1',
-        organization: 'AKC',
-        registeredName: 'CH Test Dog',
-        registrationNumber: 'SR12345',
-        breed: 'Beagle',
-      },
-      {
-        id: 'registration-2',
-        organization: 'UKC',
-        registeredName: 'UCH Test Dog',
-        registrationNumber: 'R67890',
-        breed: 'Beagle',
-      },
-    ],
-    isLoading: false,
-    error: null,
-    createRegistration: mocks.createRegistration,
-    updateRegistration: vi.fn(),
-    deleteRegistration: vi.fn(),
-    refetch: vi.fn(),
-  }),
-}));
+vi.mock('@/hooks/queries/useRegistrationsDatabase', async () => {
+  // The pure helpers stay real; only the hooks are faked.
+  const actual = await vi.importActual<typeof import('@/hooks/queries/useRegistrationsDatabase')>(
+    '@/hooks/queries/useRegistrationsDatabase'
+  );
+  return {
+    registrationsToList: actual.registrationsToList,
+    isEmptyOfflineCopy: actual.isEmptyOfflineCopy,
+    railRegistrations: actual.railRegistrations,
+    useDogRegistrationManagement: () => ({
+      registrations: mocks.registrations() ?? [
+        {
+          id: 'registration-1',
+          organization: 'AKC',
+          registeredName: 'CH Test Dog',
+          registrationNumber: 'SR12345',
+          breed: 'Beagle',
+        },
+        {
+          id: 'registration-2',
+          organization: 'UKC',
+          registeredName: 'UCH Test Dog',
+          registrationNumber: 'R67890',
+          breed: 'Beagle',
+        },
+      ],
+      isLoading: false,
+      error: null,
+      createRegistration: mocks.createRegistration,
+      updateRegistration: vi.fn(),
+      deleteRegistration: vi.fn(),
+      refetch: vi.fn(),
+    }),
+  };
+});
 let capturedOnSave: ((data: Record<string, string>) => Promise<void>) | undefined;
 vi.mock('./AddRegistrationPanel', () => ({
   default: ({ open, onSave }: { open: boolean; onSave: (d: never) => Promise<void> }) => {
@@ -96,6 +105,20 @@ describe('registration name editing', () => {
     );
 
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing UKC: UCH Test Dog');
+  });
+
+  it('gives a registration stored as a full label its friendly subtitle (MYK9-1207)', () => {
+    mocks.registrations.mockReturnValue([
+      {
+        id: 'registration-9',
+        organization: 'AKC (American Kennel Club)',
+        registeredName: 'CH Label Dog',
+        registrationNumber: 'SR1',
+        breed: 'Beagle',
+      },
+    ]);
+    render(<RegistrationsSection dog={{ id: 'dog-1', callName: 'Test Dog' } as Dog} canEdit />);
+    expect(screen.getByText('American Kennel Club')).toBeInTheDocument();
   });
 
   // registrationsStore is module-global and DogRegistrationDialogs is mounted on
@@ -200,5 +223,21 @@ describe('registration name editing', () => {
     );
 
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('tones a lowercase stored "pending" like "Pending" (MYK9-1210)', () => {
+    mocks.registrations.mockReturnValue([
+      {
+        id: 'registration-1',
+        organization: 'AKC',
+        registeredName: 'CH Test Dog',
+        registrationNumber: 'SR12345',
+        breed: 'Beagle',
+        status: 'pending',
+      },
+    ]);
+    const dog = { id: 'dog-1', callName: 'Test Dog' } as Dog;
+    render(<RegistrationsSection dog={dog} canEdit />);
+    expect(screen.getByText('pending')).toHaveClass('text-warning');
   });
 });

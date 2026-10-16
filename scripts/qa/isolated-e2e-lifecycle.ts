@@ -98,6 +98,9 @@ export function buildJobEnvironment(local: LocalSupabaseEnvironment): Record<str
     SUPABASE_DB_URL: local.dbUrl,
     // The local edge runtime's test-only cron secret, so a spec can run a cron on demand.
     MYK9_E2E_CRON_SECRET: ISOLATED_FUNCTION_SECRETS.CRON_SECRET,
+    // The local stripe-webhook's dummy signing secret: Stripe cannot reach the runner, so the
+    // wait-list journey's paid leg signs and delivers the real event itself (MYK9-971).
+    MYK9_E2E_STRIPE_WEBHOOK_SECRET: ISOLATED_FUNCTION_SECRETS.STRIPE_WEBHOOK_SECRET,
   };
 }
 

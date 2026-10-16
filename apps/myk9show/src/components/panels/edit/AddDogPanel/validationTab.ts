@@ -11,9 +11,9 @@ export const REGISTRATION_HEADING_ID = 'registration-tab-heading';
 
 /**
  * Where focus returns when the inline registration sub-mode closes (MYK9-1081):
- * the row's Edit button after an Edit, "Add New Registration" after an Add.
+ * the row's Edit button after an Edit (EDIT_REGISTRATION_ATTR lives in
+ * components/dogs/registrationAttrs.ts), "Add New Registration" after an Add.
  */
-export const EDIT_REGISTRATION_ATTR = 'data-edit-registration';
 export const ADD_REGISTRATION_ATTR = 'data-add-registration';
 
 const FIELD_LOCATION: Record<string, FieldLocation<TabValue>> = {
@@ -35,7 +35,7 @@ export const locateInvalidField = (field: string): FieldLocation<TabValue> | und
 
 /** Tab order and names for the Add Dog "Next: <tab>" walk (matches TabNavigation). */
 export const DOG_STEP_TABS: ReadonlyArray<{ value: TabValue; label: string }> = [
-  { value: 'basic', label: 'Essential' },
   { value: 'registration', label: 'Registration' },
+  { value: 'basic', label: 'Essential' },
   { value: 'optional', label: 'Optional details' },
 ];

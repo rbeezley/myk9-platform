@@ -6,6 +6,7 @@
  * Mutation functions live in writes.ts and secretary.ts.
  */
 import { supabase, createDatabaseError, logQuery, type DatabaseError } from '../supabaseClient';
+import { withServerHeldFlags } from './serverHeldFlags';
 import {
   compareDateDesc,
   compareNumberAscNullsLast,
@@ -16,6 +17,7 @@ import {
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import {
   areEntryRowsFromSyncedShows,
+  assertShowEntriesNotForeign,
   hasShowEntriesSynced,
   hasUnsavedWritesAmong,
 } from '@/services/replication/entriesShowSyncState';
@@ -767,6 +769,7 @@ export const getEntriesByShow = async (showId: string) => {
   let unverified = false;
   const result = await readWithReplicationFallback({
     replication: async () => {
+      await assertShowEntriesNotForeign(showId);
       const [entries, scopeSynced, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
         hasShowEntriesSynced(showId),
@@ -798,7 +801,7 @@ export const getEntriesByShow = async (showId: string) => {
         unsavedLocalWrites: !scopeSynced && (await hasUnsavedWritesAmong(entries)),
       };
     },
-    postgrest: () => postgrestGetEntriesByShow(showId),
+    postgrest: () => withServerHeldFlags(postgrestGetEntriesByShow(showId)),
     table: 'entries',
     operation: 'select_by_show',
     errorData: [],
@@ -826,6 +829,7 @@ export const getEntriesByShow = async (showId: string) => {
 export const getEntriesByShowFromReplication = async (showId: string) => {
   return readWithReplicationFallback({
     replication: async () => {
+      await assertShowEntriesNotForeign(showId);
       const [rawEntries, scopeSynced, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
         hasShowEntriesSynced(showId),
@@ -854,7 +858,7 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
         unsavedLocalWrites: !scopeSynced && (await hasUnsavedWritesAmong(rawEntries)),
       };
     },
-    postgrest: () => postgrestGetEntriesByShow(showId),
+    postgrest: () => withServerHeldFlags(postgrestGetEntriesByShow(showId)),
     table: 'entries',
     operation: 'select_by_show_report',
     errorData: [],
@@ -990,7 +994,7 @@ export const getEntriesByTrial = async (trialId: string) => {
       );
       return { data, error: null, locallyDeletedIds, scopeUnsynced, unsavedLocalWrites };
     },
-    postgrest: () => postgrestGetEntriesByTrial(trialId),
+    postgrest: () => withServerHeldFlags(postgrestGetEntriesByTrial(trialId)),
     table: 'entries',
     operation: 'select_by_trial',
     errorData: [],
@@ -1061,7 +1065,7 @@ export const getEntriesByClass = async (classId: string) => {
         unsavedLocalWrites,
       };
     },
-    postgrest: () => postgrestGetEntriesByClass(classId),
+    postgrest: () => withServerHeldFlags(postgrestGetEntriesByClass(classId)),
     table: 'entries',
     operation: 'select_by_class',
     errorData: [],

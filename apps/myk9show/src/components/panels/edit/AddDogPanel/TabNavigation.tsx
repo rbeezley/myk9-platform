@@ -6,8 +6,8 @@ import { cn } from '@/lib/utils';
 interface TabNavigationProps {
   /** The Essential tab holds the only required fields — a check means "done". */
   isBasicValid: boolean;
-  /** Registration is optional; only a *started* (non-empty) registration set
-   *  can be "complete" or "incomplete". Empty = untouched, no indicator. */
+  /** Only a *started* (non-empty) registration set can be "complete" or
+   *  "incomplete". Empty = untouched, no indicator. */
   hasRegistrations: boolean;
   isRegistrationValid: boolean;
   /**
@@ -15,6 +15,10 @@ interface TabNavigationProps {
    * so the decorative icons drop and the text steps down and may wrap. Measured
    * in Montserrat at 375px: the default strip overflows "Registration" by 3px
    * and "Optional details" by 15px into its neighbours; this fits with 5px spare.
+   * MYK9-1121: the green check is then a corner badge below `sm`. In the row it
+   * was a flex item that shrank to 2px at 375px and 0px at 320px, so the "done"
+   * mark vanished exactly where the label already left no room for it. The label stays at `text-xs` (14px, the app's floor, INTENT.md); the
+   * strip's columns flex instead so "Registration" fits a 320px strip.
    */
   compact?: boolean | undefined;
 }
@@ -25,10 +29,15 @@ const TAB_TRIGGER_BASE = cn(
 );
 
 const COMPACT_TRIGGER = cn(
-  'gap-1 px-1 text-xs leading-tight whitespace-normal text-center',
+  'relative gap-1 px-0 text-xs leading-tight whitespace-normal text-center',
+  'min-[360px]:px-1',
   'sm:gap-2 sm:px-4 sm:text-sm'
 );
+// "Registration" is one unbreakable word, so its tab takes its width and the two
+// that can wrap share the rest; equal thirds left it 4px short at 320px.
+const COMPACT_STRIP = 'grid-cols-[auto_1fr_1fr] sm:grid-cols-3';
 const COMPACT_ICON = 'hidden shrink-0 sm:block';
+const COMPACT_CHECK = 'absolute right-0.5 top-0 h-3 w-3 sm:static sm:h-4 sm:w-4';
 
 export const TabNavigation: React.FC<TabNavigationProps> = ({
   isBasicValid,
@@ -45,24 +54,29 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
   const showRegistrationError = hasRegistrations && !isRegistrationValid;
   const trigger = cn(TAB_TRIGGER_BASE, compact && COMPACT_TRIGGER);
   const icon = cn('h-4 w-4', compact && COMPACT_ICON);
+  const check = cn(
+    'text-emerald-500 animate-in zoom-in-0 duration-200',
+    compact ? COMPACT_CHECK : 'h-4 w-4'
+  );
   return (
-    <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 backdrop-blur-xl">
-      <TabsTrigger value="basic" className={cn(trigger, !isBasicValid && 'text-destructive/80')}>
-        <Heart className={icon} />
-        <span className="font-medium">Essential</span>
-        {isBasicValid && (
-          <CheckCircle className="h-4 w-4 text-emerald-500 animate-in zoom-in-0 duration-200" />
-        )}
-      </TabsTrigger>
+    <TabsList
+      className={cn(
+        'grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 backdrop-blur-xl',
+        compact && COMPACT_STRIP
+      )}
+    >
       <TabsTrigger
         value="registration"
         className={cn(trigger, showRegistrationError && 'text-destructive/80')}
       >
         <FileText className={icon} />
         <span className="font-medium">Registration</span>
-        {showRegistrationCheck && (
-          <CheckCircle className="h-4 w-4 text-emerald-500 animate-in zoom-in-0 duration-200" />
-        )}
+        {showRegistrationCheck && <CheckCircle className={check} />}
+      </TabsTrigger>
+      <TabsTrigger value="basic" className={cn(trigger, !isBasicValid && 'text-destructive/80')}>
+        <Heart className={icon} />
+        <span className="font-medium">Essential</span>
+        {isBasicValid && <CheckCircle className={check} />}
       </TabsTrigger>
       <TabsTrigger value="optional" className={trigger}>
         <Settings className={icon} />

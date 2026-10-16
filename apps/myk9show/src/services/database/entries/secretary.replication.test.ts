@@ -39,6 +39,7 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
     updateSecretaryLifecycleStatus: mocks.updateSecretaryLifecycleStatus,
     getEntryById: mocks.getEntryById,
     getEntriesByShow: mocks.getEntriesByShow,
+    getCurrentAuthUserId: async () => 'user-test',
     getSyncMetadata: mocks.getEntriesSyncMetadata,
     getReplicatedRow: mocks.getReplicatedRow,
     hasPendingWritesForShow: mocks.hasPendingWritesForShow,
@@ -321,7 +322,11 @@ describe('secretary entry read replication', () => {
     mocks.supabaseRpc.mockResolvedValue({ data: 1, error: null });
     mocks.getSession.mockResolvedValue({ data: { session: { user: { id: 'secretary-1' } } } });
     // A completed show-scoped sync records the scope's row count (MYK9-746).
-    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 2 });
+    mocks.getEntriesSyncMetadata.mockResolvedValue({
+      tableName: 'entries',
+      totalRows: 2,
+      syncedByAuthUserId: 'user-test',
+    });
     mocks.syncEntries.mockResolvedValue({ success: false });
     mocks.syncClasses.mockResolvedValue({ success: true });
     mocks.syncTrials.mockResolvedValue({ success: true });
@@ -358,6 +363,7 @@ describe('secretary entry read replication', () => {
         finalPlacement: '1',
         judgeNotes: 'Clean search',
         scoringCompletedAt: '2026-06-01T10:45:00.000Z',
+        awaitingRegistrationNumber: true,
         jumpHeight: '12',
         runOrder: 7,
         specialRequests: 'Crate near ring',
@@ -575,6 +581,12 @@ describe('secretary entry read replication', () => {
     );
   });
 
+  it("carries the server's held verdict from the replica (MYK9-1162)", async () => {
+    const result = await getEntriesForShow('show-1');
+
+    expect(result.data?.[0]?.awaiting_registration_number).toBe(true);
+  });
+
   it('merges online pull timing and saved refund decisions into replicated entries', async () => {
     mockMetadataLookups([
       {
@@ -768,7 +780,7 @@ describe('secretary entry read replication', () => {
   it('hydrates a cold show-scoped replica before using PostgREST', async () => {
     mocks.getEntriesSyncMetadata
       .mockResolvedValueOnce({ tableName: 'entries' })
-      .mockResolvedValue({ tableName: 'entries', totalRows: 1 });
+      .mockResolvedValue({ tableName: 'entries', totalRows: 1, syncedByAuthUserId: 'user-test' });
     mocks.getEntriesByShow.mockResolvedValueOnce([]).mockResolvedValue([
       {
         id: 'entry-after-hydration',
@@ -816,7 +828,11 @@ describe('secretary entry read replication', () => {
 
   it('trusts a synced empty scope after its last entry was removed', async () => {
     mocks.supabaseRpc.mockResolvedValue({ data: 0, error: null });
-    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 0 });
+    mocks.getEntriesSyncMetadata.mockResolvedValue({
+      tableName: 'entries',
+      totalRows: 0,
+      syncedByAuthUserId: 'user-test',
+    });
     mocks.getEntriesByShow.mockResolvedValue([]);
     mocks.getAllDogs.mockResolvedValue([]);
     mocks.getAllClasses.mockResolvedValue([]);
@@ -834,7 +850,11 @@ describe('secretary entry read replication', () => {
   });
 
   it('does not present an RLS-filtered zero-row replica as an empty queue', async () => {
-    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 0 });
+    mocks.getEntriesSyncMetadata.mockResolvedValue({
+      tableName: 'entries',
+      totalRows: 0,
+      syncedByAuthUserId: 'user-test',
+    });
     mocks.getEntriesByShow.mockResolvedValue([]);
     mocks.getAllDogs.mockResolvedValue([]);
     mocks.getAllClasses.mockResolvedValue([]);
@@ -852,7 +872,11 @@ describe('secretary entry read replication', () => {
 
   it('shows unavailable while offline even after an earlier verified zero', async () => {
     mocks.supabaseRpc.mockResolvedValue({ data: 0, error: null });
-    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 0 });
+    mocks.getEntriesSyncMetadata.mockResolvedValue({
+      tableName: 'entries',
+      totalRows: 0,
+      syncedByAuthUserId: 'user-test',
+    });
     mocks.getEntriesByShow.mockResolvedValue([]);
     mocks.getAllDogs.mockResolvedValue([]);
     mocks.getAllClasses.mockResolvedValue([]);
@@ -874,7 +898,11 @@ describe('secretary entry read replication', () => {
   it('does not report zero while a cold create is queued without a cached row', async () => {
     mocks.supabaseRpc.mockResolvedValue({ data: 0, error: null });
     mocks.hasPendingWritesForShow.mockResolvedValue(true);
-    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 0 });
+    mocks.getEntriesSyncMetadata.mockResolvedValue({
+      tableName: 'entries',
+      totalRows: 0,
+      syncedByAuthUserId: 'user-test',
+    });
     mocks.getEntriesByShow.mockResolvedValue([]);
     mocks.getAllDogs.mockResolvedValue([]);
     mocks.getAllClasses.mockResolvedValue([]);
@@ -887,7 +915,11 @@ describe('secretary entry read replication', () => {
   });
 
   it('rehydrates when rows are missing but persisted scope metadata still expects them', async () => {
-    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 1 });
+    mocks.getEntriesSyncMetadata.mockResolvedValue({
+      tableName: 'entries',
+      totalRows: 1,
+      syncedByAuthUserId: 'user-test',
+    });
     mocks.getEntriesByShow.mockResolvedValue([]);
     mocks.getAllDogs.mockResolvedValue([]);
     mocks.getAllClasses.mockResolvedValue([]);
@@ -1055,7 +1087,11 @@ describe('secretary entry read replication', () => {
       ];
       mocks.syncEntries.mockImplementation(async () => {
         mocks.getEntriesByShow.mockResolvedValue(synced);
-        mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 3 });
+        mocks.getEntriesSyncMetadata.mockResolvedValue({
+          tableName: 'entries',
+          totalRows: 3,
+          syncedByAuthUserId: 'user-test',
+        });
         mocks.getAllClasses.mockResolvedValue([
           { id: 'class-1', name: 'Novice Containers', maxEntries: 20 },
         ]);
@@ -1106,7 +1142,11 @@ describe('secretary entry read replication', () => {
   // A failed class lookup is only a missing label (joinRowsOrEmpty): the local
   // entries, the unsaved check-in among them, stay on screen.
   it('keeps the local entries when only the class lookup fails', async () => {
-    mocks.getEntriesSyncMetadata.mockResolvedValue({ tableName: 'entries', totalRows: 1 });
+    mocks.getEntriesSyncMetadata.mockResolvedValue({
+      tableName: 'entries',
+      totalRows: 1,
+      syncedByAuthUserId: 'user-test',
+    });
     mocks.getEntriesByShow.mockResolvedValue([
       { id: 'entry-checked-in', showId: 'show-1', classId: 'class-1', checkInStatus: 'checked-in' },
     ]);

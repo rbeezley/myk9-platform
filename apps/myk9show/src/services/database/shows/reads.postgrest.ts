@@ -1,4 +1,5 @@
 import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
+import { formatDateLocal } from '@/utils/dateLocal';
 import { supabase, createDatabaseError } from '../supabaseClient';
 
 /** Statuses the public /shows listing shows; the stray-show health check (MYK9-741) mirrors them. */
@@ -128,7 +129,7 @@ export async function postgrestGetAllShows() {
 }
 
 export async function postgrestGetUpcomingShows(limit: number) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = formatDateLocal(new Date());
   const { data, error } = await supabase
     .from('shows')
     .select(

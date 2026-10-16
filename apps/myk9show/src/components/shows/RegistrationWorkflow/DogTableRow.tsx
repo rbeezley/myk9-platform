@@ -28,6 +28,7 @@ import {
 import { DOG_TABLE_GRID, getRegistrationShownInRow } from './DogSelectionStepEnhanced.helpers';
 import { RegistrationChipsForShow } from './RegistrationChipsForShow';
 import { DogIneligibleReason } from './DogIneligibleReason';
+import { OWNER_UNAVAILABLE_OFFLINE_LABEL } from '@/components/dogs/browse/dogCardFacts';
 
 export interface DogRowData {
   dogs: Dog[];
@@ -55,7 +56,10 @@ export const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
   const breed = getDogBreedLabel(dog);
   const forShow = resolveRegistrationForShow(dog, showRegistryId);
   const reg = getRegistrationShownInRow(dog, showRegistryId);
-  const ownerDisplay = dog.ownerName || dog.owner?.name || '—';
+  const ownerDisplay =
+    dog.ownerName ||
+    dog.owner?.name ||
+    (dog.ownerUnavailableOffline ? OWNER_UNAVAILABLE_OFFLINE_LABEL : '—');
   const dogDisplayName = getDogDisplayName(dog);
 
   // The row is role="checkbox", whose children are presentational: nothing

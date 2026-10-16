@@ -64,6 +64,22 @@ const REGRESSION_SPECS = [
   // real accessibility tree at three viewports (MYK9-88). Nightly rather than
   // PR smoke on cost grounds — six panel opens across three viewports.
   '**/dogPanelAccessibleNames.spec.ts',
+  // Secretary-authed, read-only (types into the unsaved form, never saves): rendered
+  // field inset, tab-strip fit and completion-check size of the Add Dog slide-out at
+  // 320/375/768/1440 (MYK9-1121). jsdom cannot compute layout.
+  '**/addDogPanelGeometry.spec.ts',
+  // Secretary-authed, writes nothing: the registration wizard's pinned header stays at most a
+  // quarter of the viewport and a focused control is never under it, at 375/768/1024/1440
+  // (MYK9-1138). jsdom cannot measure layout.
+  '**/registrationWizardStickyChrome.spec.ts',
+  // Secretary-authed, writes nothing (every write is blocked or answered locally): Quick Create's
+  // "Use This Person", the Dogs Added row's Remove and the step footer stay inside the slide-out at
+  // 320/375/768/1280 (MYK9-1137). jsdom cannot measure layout.
+  '**/quickCreatePhoneGeometry.spec.ts',
+  // Secretary-authed, read-only (never saves, never dismisses): the new-role
+  // notice must not cover the show wizard's Next at 390/1280px (MYK9-1131).
+  // It rewrites the profile read to empty onboarded_roles. jsdom cannot measure.
+  '**/secretary/newRoleNoticeWizardFooter.spec.ts',
   '**/cross-role-workflows.spec.ts',
   '**/simple-connectivity.spec.ts',
   // The live-data exhibitor canary. Here it runs with
@@ -123,6 +139,9 @@ const REGRESSION_SPECS = [
   // trail. Secretary-authed and read-only; finds its target live and skips as
   // data-absent (fails under MYK9_PLAYWRIGHT_REGRESSION_ENABLED) without one.
   '**/class-breadcrumb-fits.spec.ts',
+  // MYK9-1192: exhibitor show page at 390px must not pan sideways. Read-only,
+  // exhibitor-authed against the staging demo show.
+  '**/show-page-no-sideways-scroll.spec.ts',
   // MYK9-1068: known-answer checks for the shared overflow helper every
   // geometry spec imports. setContent only: no sign-in, no data, ~1s.
   '**/horizontalOverflow.selftest.spec.ts',
@@ -135,6 +154,19 @@ const REGRESSION_SPECS = [
   // dedupe). Stateful and local-only: it calls the real cron-waitlist-expiration function on the
   // isolated target's edge runtime and restores the seed's full-class fixture in afterAll.
   '**/secretary/waitlistJourney.spec.ts',
+  // MYK9-1162: number-first Add Dog (an existing dog found by its number, a no-number dog entered
+  // as a held entry listed under Registration number needed, kept off the run sheet, released by
+  // adding its number) and the exhibitor's phone-width "number belongs to another owner" message.
+  // Stateful and local-only: skips unless MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true, service-role
+  // setup refuses any non-local host, and its dogs and entries are removed in afterAll.
+  '**/secretary/numberFirstAddDogJourney.spec.ts',
+  // MYK9-1120: the only end-to-end proof of mail-in create (Add Person, Add Dog, Add New
+  // Registration, Review, Complete in the one Quick Create slide-out). Every person, dog and
+  // registration write is answered by the spec's own route mocks, so nothing persists and the
+  // second pass after the isolated reset cannot collide with the first; the shared-staging write
+  // guard is the second net. SEED DEPENDENCY: LIVE_REGISTRATION_SHOW_ID with an open entry window
+  // (applyRegistrationClock pins the moment). Nightly rather than PR smoke on cost grounds.
+  '**/registration/secretaryNewUsers.spec.ts',
 ];
 
 // PR Smoke: stable specs — connectivity, secretary regression proof, the
@@ -198,12 +230,16 @@ const PR_SMOKE_SPECS = [
   '**/exhibitorFixtureSmoke.spec.ts',
   '**/exhibitorReadPathCanary.spec.ts',
   '**/simple-connectivity.spec.ts',
+  '**/landing-lifecycle.spec.ts',
   '**/uat/secretary/qa-regression-proof.spec.ts',
   '**/uat/secretary/critical-path.spec.ts',
   '**/my-entries-page-ui.spec.ts',
   '**/sign-in-fits-one-screen.spec.ts',
   '**/header-wordmark-fits.spec.ts',
   '**/dialogContainsLongContent.spec.ts',
+  // MYK9-1188: a lazy route chunk that fails to load under the real service worker recovers with
+  // one guarded reload. Public route, no sign-in, no database; serves dist/ from its own server.
+  '**/chunkLoadRecoveryServiceWorker.spec.ts',
 ];
 
 /**

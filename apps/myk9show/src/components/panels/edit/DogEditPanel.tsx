@@ -16,6 +16,8 @@ import { dogToFormData, formDataToDog, dogFormSchema, isAdminRole } from './DogE
 import { BasicInfoTab, RegistrationsTab, HealthRecordsTab } from './DogEditPanel.sections';
 import { usePanelValidationNavigation } from './usePanelValidationNavigation';
 import { locateDogField, type DogTabValue } from './DogEditPanel.validationTab';
+import { useCanChangeDogOwner } from '@/hooks/queries/useCanEditDog';
+import { UserRole } from './DogEditPanel.types';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const DogEditContext = createContext<DogEditContextType>({ isAdmin: false, people: [] });
@@ -193,6 +195,7 @@ const DogEditForm: React.FC<{
 export const DogEditPanel: React.FC<DogEditPanelProps> = ({
   open,
   onClose,
+  dogId,
   dogName,
   initialDogData,
   onSave,
@@ -203,6 +206,8 @@ export const DogEditPanel: React.FC<DogEditPanelProps> = ({
   dogDeceasedDate,
   onChangeStatus,
   onDelete,
+  variant,
+  closeRequestRef,
 }) => {
   // A failed Save moves to the tab holding the first invalid field (MYK9-931).
   const { activeTab, setActiveTab, handleValidationFail } =
@@ -213,17 +218,20 @@ export const DogEditPanel: React.FC<DogEditPanelProps> = ({
 
   // Determine if user can edit owner
   const isAdmin = isAdminRole(userRole);
+  // MYK9-1158: staff may edit an account holder's dog yet not re-own it. Site admins always may.
+  const canChangeOwner = useCanChangeDogOwner(dogId, !isAdmin || userRole === UserRole.SITE_ADMIN);
 
   // Context value for passing to form components
   const contextValue = useMemo(
     () => ({
       isAdmin,
+      canChangeOwner,
       people,
       dogStatus,
       dogDeceasedDate,
       onChangeStatus,
     }),
-    [isAdmin, people, dogStatus, dogDeceasedDate, onChangeStatus]
+    [isAdmin, canChangeOwner, people, dogStatus, dogDeceasedDate, onChangeStatus]
   );
 
   // Handle save
@@ -252,6 +260,8 @@ export const DogEditPanel: React.FC<DogEditPanelProps> = ({
         saveLabel="Save Changes"
         cancelLabel="Cancel"
         onDelete={onDelete}
+        {...(variant ? { variant } : {})}
+        {...(closeRequestRef ? { closeRequestRef } : {})}
         successMessage={data => savedMessage(data.callName || dogName)}
         onValidationFail={handleValidationFail}
       >

@@ -1,5 +1,6 @@
 // Pure helper functions for useClassStoreCompat
 
+import { formatDateLocal } from '@/utils/dateLocal';
 import type { ClassInput, SyncableClassData } from '@/store/classStore';
 import type { GeneratedClass } from '@/types/class-template-types';
 
@@ -69,7 +70,7 @@ export async function addClassesFromTemplateHelper(
   generatedClasses: GeneratedClass[],
   addClass: (classData: ClassInput) => Promise<SyncableClassData>
 ): Promise<SyncableClassData[]> {
-  const currentDate = new Date().toISOString().split('T')[0];
+  const currentDate = formatDateLocal(new Date());
   const trialNumber = `TRL-${Date.now()}`;
   const newClasses: SyncableClassData[] = [];
 

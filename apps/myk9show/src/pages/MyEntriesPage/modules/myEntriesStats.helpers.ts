@@ -62,7 +62,7 @@ export function startOfLocalDay(date: Date): Date {
 }
 
 /** The last calendar day a show runs — its end date when known, else the start date. */
-function showLastDay(entry: Pick<MyEntry, 'showDate' | 'showEndDate'>): Date {
+function showLastDay(entry: Pick<MyEntry, 'showDate' | 'showEndDate'>): Date | undefined {
   return entry.showEndDate ?? entry.showDate;
 }
 
@@ -74,7 +74,10 @@ export function isPastShowEntry(
   entry: Pick<MyEntry, 'showDate' | 'showEndDate'>,
   now: Date
 ): boolean {
-  return startOfLocalDay(showLastDay(entry)).getTime() < startOfLocalDay(now).getTime();
+  const lastDay = showLastDay(entry);
+  // An undated show (unreadable draft, MYK9-1147) has not happened yet.
+  if (!lastDay) return false;
+  return startOfLocalDay(lastDay).getTime() < startOfLocalDay(now).getTime();
 }
 
 /**
@@ -249,7 +252,7 @@ export interface MyEntriesShowProgressStats {
 
 /** Stable key for de-duplicating shows; falls back to name+date for legacy rows without an id. */
 function showKey(entry: MyEntry): string {
-  return entry.showId || `${entry.showName}|${entry.showDate.getTime()}`;
+  return entry.showId || `${entry.showName}|${entry.showDate?.getTime() ?? entry.id}`;
 }
 
 /**
@@ -307,7 +310,18 @@ export function countUpcomingClassesByDog(
   now: Date = new Date()
 ): Record<string, number> {
   return entries.reduce<Record<string, number>>((counts, entry) => {
-    if (isPastShowEntry(entry, now)) return counts;
+    if (!showLastDay(entry) || isPastShowEntry(entry, now)) return counts;
+    for (const dog of entry.dogs) {
+      counts[dog.dogId] = (counts[dog.dogId] ?? 0) + outstandingClasses(dog.classes).length;
+    }
+    return counts;
+  }, {});
+}
+
+/** Entries with an unpublished schedule remain visible without promising a class date. */
+export function countUnpublishedClassesByDog(entries: MyEntry[]): Record<string, number> {
+  return entries.reduce<Record<string, number>>((counts, entry) => {
+    if (!entry.isShowUnreadable) return counts;
     for (const dog of entry.dogs) {
       counts[dog.dogId] = (counts[dog.dogId] ?? 0) + outstandingClasses(dog.classes).length;
     }

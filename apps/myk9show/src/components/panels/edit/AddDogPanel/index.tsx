@@ -10,26 +10,87 @@ import { friendlySaveMessage } from '@/utils/friendlySaveError';
 import { PanelSaveHandledError } from '../panelSaveErrors';
 import type { AddDogPanelProps, AddDogSubMode, DogFormData } from './types';
 import { createInitialFormData } from './types';
-import { addDogSchema } from './validation';
-import {
-  locateInvalidField,
-  DOG_STEP_TABS,
-  ADD_REGISTRATION_ATTR,
-  EDIT_REGISTRATION_ATTR,
-} from './validationTab';
+import { addDogSchema, addDogSchemaRequiringRegistration } from './validation';
+import { isAdminRole } from '../DogEditPanel.helpers';
+import { locateInvalidField, DOG_STEP_TABS, ADD_REGISTRATION_ATTR } from './validationTab';
+import { EDIT_REGISTRATION_ATTR } from '@/components/dogs/registrationAttrs';
 import { usePanelValidationNavigation } from '../usePanelValidationNavigation';
 import type { TabValue } from './types';
 import { buildDogSavedToast } from './dogSavedToast';
 import { AddDogPanelContent } from './AddDogPanelContent';
 import { RegistrationFormInline } from './RegistrationFormInline';
 import { usePanelModeFocus } from '../../usePanelModeFocus';
-import { findLikelyDuplicateDogCandidate, type DogIdentityCandidate } from '@/utils/dogIdentity';
+import { SlideOverPanel } from '../../SlideOverPanel';
+import { addDogSubModeTitle } from './subModeTitle';
+import {
+  findLikelyDuplicateDogCandidate,
+  type DogIdentityCandidate,
+  type DogRegistrationIdentity,
+} from '@/utils/dogIdentity';
+import { isRegistryIdentityTaken } from '@/services/database/registrations';
+import { lookupRegistrationIdentity } from './registrationLookup';
 
 export type { AddDogPanelProps } from './types';
 
-export const AddDogPanel: React.FC<AddDogPanelProps> = props => (
-  <AddDogPanelSession key={props.open ? 'open' : 'closed'} {...props} />
-);
+/**
+ * `inline` renders into a host panel (Quick Create). `panel` is that same body
+ * in a slide-out of its own, so the registration form is always a view of one
+ * panel, never a second slide-out (MYK9-1116).
+ */
+export const AddDogPanel: React.FC<AddDogPanelProps> = props =>
+  props.variant === 'inline' ? (
+    <AddDogPanelSession key={props.open ? 'open' : 'closed'} {...props} />
+  ) : (
+    <AddDogPanelHost {...props} />
+  );
+
+const AddDogPanelHost: React.FC<AddDogPanelProps> = props => {
+  const { open, onSubModeChange } = props;
+  const [subMode, setSubMode] = useState<AddDogSubMode>('dog');
+  const ownCloseRef = useRef<(() => void) | null>(null);
+  const requestClose = useCallback(() => ownCloseRef.current?.(), []);
+  const handleSubModeChange = useCallback(
+    (mode: AddDogSubMode) => {
+      setSubMode(mode);
+      onSubModeChange?.(mode);
+    },
+    [onSubModeChange]
+  );
+  // Each opening is a fresh session on the dog form. Closing keeps the session, title and
+  // content as they were until the slide-out has finished leaving, so it does not visibly
+  // reset while it animates away; the panel unmounts its content once it has exited.
+  const [session, setSession] = useState(0);
+  const [contentOpen, setContentOpen] = useState(open);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setSubMode('dog');
+      setSession(count => count + 1);
+      setContentOpen(true);
+    }
+  }
+  return (
+    <SlideOverPanel
+      open={open}
+      onClose={requestClose}
+      title={addDogSubModeTitle(subMode)}
+      size="xl"
+      onExited={() => setContentOpen(false)}
+      {...(subMode !== 'dog' && { showBackButton: true, onBack: requestClose })}
+    >
+      <AddDogPanelSession
+        key={session}
+        {...props}
+        open={contentOpen}
+        variant="inline"
+        showPhoto
+        closeRequestRef={ownCloseRef}
+        onSubModeChange={handleSubModeChange}
+      />
+    </SlideOverPanel>
+  );
+};
 
 const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   open,
@@ -37,7 +98,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   onDogCreated,
   userRole = UserRole.EXHIBITOR,
   currentUserPersonId,
-  variant = 'panel',
+  showPhoto = false,
   offlineFirst = false,
   offlineDependsOn,
   onEnterShowWithDog,
@@ -50,10 +111,28 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   const [localSaveError, setLocalSaveError] = useState<string | null>(null);
   const [duplicateCandidate, setDuplicateCandidate] = useState<DogIdentityCandidate | null>(null);
   const [allowSeparateDog, setAllowSeparateDog] = useState(false);
+  // A dog "Find dog" matched by registration number on the Registration step (MYK9-1162).
+  const [registrationMatch, setRegistrationMatch] = useState<Dog | null>(null);
+  // Registry and number typed on that step, which the dog form does not hold until it is saved.
+  const [identityDraft, setIdentityDraft] = useState(false);
+  // Set when Save was refused because that draft is unsaved; cleared once it is saved or gone.
+  const [draftBlocked, setDraftBlocked] = useState(false);
+  const handleIdentityDraftChange = useCallback((draft: boolean) => {
+    setIdentityDraft(draft);
+    if (!draft) setDraftBlocked(false);
+  }, []);
+  // Retires a lookup the user has since edited past, so a late answer cannot overwrite the
+  // newer one's card. Owned here, not in the step, because the card lives in this state.
+  const lookupSeqRef = useRef(0);
+  // The latest roster, read after the server answers: it may have loaded while Find dog waited.
+  const dogsRef = useRef(dogs);
+  useEffect(() => {
+    dogsRef.current = dogs;
+  }, [dogs]);
   // Lives here (not in the content) so a failed Save can move the user to the
   // tab holding the first invalid field (MYK9-885).
   const { activeTab, setActiveTab, handleValidationFail } = usePanelValidationNavigation<TabValue>(
-    'basic',
+    'registration',
     locateInvalidField
   );
 
@@ -74,6 +153,13 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   const handleSave = async (formData: DogFormData, { runSelfNavigation }: EditPanelSaveContext) => {
     setLocalSaveError(null);
     setDuplicateCandidate(null);
+    // A registration typed on the first step but not saved there is not in the form yet. Saving
+    // now would add the dog without it, so go back and say so instead.
+    if (identityDraft) {
+      setActiveTab('registration');
+      setDraftBlocked(true);
+      throw new PanelSaveHandledError();
+    }
     if (!allowSeparateDog) {
       const firstRegistration = formData.registrations[0];
       const candidate = findLikelyDuplicateDogCandidate(dogs, {
@@ -124,6 +210,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
         organization: reg.organization,
         number: reg.registrationNumber,
         registeredName: reg.registeredName,
+        registrationDate: reg.registrationDate,
         type: reg.breed,
         status: reg.status || 'Active',
       })),
@@ -168,6 +255,20 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
     }
   };
 
+  const handleFindDog = async (identity: DogRegistrationIdentity) => {
+    const seq = ++lookupSeqRef.current;
+    const result = await lookupRegistrationIdentity(
+      () => dogsRef.current,
+      identity,
+      ({ organization, registrationNumber }) =>
+        isRegistryIdentityTaken(organization, registrationNumber)
+    );
+    if (seq === lookupSeqRef.current) {
+      setRegistrationMatch(result.kind === 'existing' ? result.dog : null);
+    }
+    return result;
+  };
+
   const handleUseExistingDog = (dog: Dog) => {
     notifications.success(`${dog.callName || dog.name} selected`, {
       description: 'Add the new registry number from the dog profile if needed.',
@@ -186,10 +287,9 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
     }
   };
 
-  // --- Inline only (MYK9-1081): the registration form is a sub-mode of this
-  // panel's host, shown in place of the dog form. The dog form stays mounted
+  // --- The registration form is a sub-mode of this panel's host (MYK9-1081,
+  // MYK9-1116), shown in place of the dog form. The dog form stays mounted
   // (hidden and inert) so its values and active tab survive the round trip.
-  const inline = variant === 'inline';
   const [registration, setRegistration] = useState<{ editing?: Registration } | null>(null);
   const subMode: AddDogSubMode = !registration
     ? 'dog'
@@ -235,6 +335,8 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
             `[${EDIT_REGISTRATION_ATTR}="${CSS.escape(editedId)}"]`
           )
         : dogForm?.querySelector<HTMLElement>(`[${ADD_REGISTRATION_ATTR}]`);
+    // The opener always exists: Add New Registration shows while the dog has a registration,
+    // and an Edit sub-mode only opens from a row that is still there.
     return target ?? dogForm;
   }, []);
   usePanelModeFocus({
@@ -242,7 +344,6 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
     home: 'dog',
     formRef: registrationFormRef,
     returnTarget: registrationReturnTarget,
-    enabled: inline,
   });
 
   const dogForm = (
@@ -251,15 +352,16 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
       onClose={onClose}
       title="Add Dog"
       initialData={initialFormData}
-      schema={addDogSchema}
+      schema={isAdminRole(userRole) ? addDogSchema : addDogSchemaRequiringRegistration}
       onSave={handleSave}
       forceHasChanges
+      hasUntrackedInput={identityDraft}
       size="xl"
       saveLabel="Add Dog"
       enableAutoSave={false}
       showUnsavedWarning={true}
-      variant={variant}
-      {...(inline && { closeRequestRef: dogCloseRef })}
+      variant="inline"
+      closeRequestRef={dogCloseRef}
       onValidationFail={handleValidationFail}
       steps={{
         mode: 'create',
@@ -278,20 +380,25 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
         currentUserPersonId={currentUserPersonId}
         saveError={localSaveError ?? saveError}
         duplicateCandidate={duplicateCandidate}
+        registrationMatch={registrationMatch}
+        onFindDog={handleFindDog}
+        onIdentityEdited={() => {
+          lookupSeqRef.current += 1;
+          setRegistrationMatch(null);
+        }}
+        onIdentityDraftChange={handleIdentityDraftChange}
+        draftBlocked={draftBlocked}
         onUseExistingDog={handleUseExistingDog}
         onCreateSeparateDog={() => {
           setAllowSeparateDog(true);
           setDuplicateCandidate(null);
         }}
-        {...(inline && {
-          onOpenRegistration: openRegistration,
-          saveRegistrationRef,
-        })}
+        onOpenRegistration={openRegistration}
+        saveRegistrationRef={saveRegistrationRef}
+        showPhoto={showPhoto}
       />
     </EditPanelWrapper>
   );
-
-  if (!inline) return dogForm;
 
   return (
     <>
@@ -307,6 +414,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
       {registration && (
         <div ref={registrationFormRef} tabIndex={-1} className="h-full outline-none">
           <RegistrationFormInline
+            key={registration.editing?.id ?? 'new-registration'}
             initialData={registration.editing}
             onSave={reg => saveRegistrationRef.current?.(reg)}
             onDone={leaveRegistration}

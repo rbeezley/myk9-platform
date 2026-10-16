@@ -52,6 +52,12 @@ vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
     isError: false,
     refetch: vi.fn(),
   }),
+  useRailRegistrationsQuery: () => ({
+    data: { registrations: [], offline: false },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
   useDogRegistrationManagement: () => ({
     registrations: [],
     isLoading: false,

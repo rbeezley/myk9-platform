@@ -1,7 +1,9 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
+import { installSharedStagingWriteGuard } from '../helpers/sharedStagingWriteGuard';
 import { applyRegistrationClock } from './seedRoster';
+import { addFirstRegistration } from '../helpers/addDogRegistration';
 
 const SHOW_ID = LIVE_REGISTRATION_SHOW_ID;
 const MAIL_IN_PERSON_ID = '11111111-1111-4111-8111-111111111111';
@@ -124,6 +126,18 @@ async function captureMailInWrites(page: Page, captured: CapturedMailInWrites) {
 test('secretary can create a mail-in exhibitor and dog without auth user creation', async ({
   page,
 }) => {
+  // The longest Quick Create journey: sign-in, Person (two tabs), Dog (three tabs),
+  // the registration form, Review and Complete (MYK9-1120).
+  test.setTimeout(90000);
+
+  // MYK9-1120: every write below is answered by `captureMailInWrites`, so nothing
+  // persists and the second Nightly pass after the isolated reset cannot collide
+  // with this one. The guard is registered FIRST so those mocks take precedence
+  // (Playwright matches routes newest-first); it is the second net that aborts
+  // any write the mocks did not anticipate if this is ever pointed at shared
+  // staging by hand. Against the isolated target it forwards untouched.
+  await installSharedStagingWriteGuard(page, { strictRpcWrites: true });
+
   // MYK9-545: the seed's entry window is relative to the reseed date.
   await applyRegistrationClock(page);
 
@@ -142,7 +156,8 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   await page.getByRole('menuitem', { name: /Exhibitor & Dog/i }).click();
 
   // MYK9-1081: Quick Create is one slide-out; it opens on its Add Person view.
-  await expect(page.getByRole('dialog', { name: 'Add Person' })).toBeVisible();
+  const personDialog = page.getByRole('dialog', { name: 'Add Person' });
+  await expect(personDialog).toBeVisible();
   await expect(page.getByText('Step 1 of 3: Add Person')).toBeVisible();
 
   await page.getByLabel(/First Name/i).fill('Molly');
@@ -155,14 +170,21 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   await page.getByLabel(/City/i).fill('Envelope');
   await page.getByLabel(/State/i).fill('TX');
   await page.getByLabel(/ZIP Code/i).fill('75001');
-  await page.locator('button').filter({ hasText: 'Add Person' }).last().click();
+  await personDialog.getByRole('button', { name: 'Add Person', exact: true }).click();
 
-  await expect(page.getByRole('heading', { name: 'Add Dog(s)' })).toBeVisible();
-  await page.getByRole('button', { name: 'Add First Dog' }).click();
+  // Back on the step screens: the panel is titled for the flow, not a form.
+  const stepsDialog = page.getByRole('dialog', { name: 'Quick Registration Setup' });
+  await expect(stepsDialog.getByRole('heading', { name: 'Add Dog(s)' })).toBeVisible();
+  await stepsDialog.getByRole('button', { name: 'Add First Dog' }).click();
   // The same slide-out, titled for its Add Dog view.
   const dogDialog = page.getByRole('dialog', { name: 'Add Dog' });
   await expect(dogDialog).toBeVisible();
 
+  // Registration comes first (MYK9-1162): the number is looked up before any other detail.
+  await addFirstRegistration(page, dogDialog, {
+    number: 'DN12345601',
+    registeredName: 'Mailbox Special Delivery',
+  });
   await dogDialog.getByLabel(/Call Name/i).fill('Stamp');
   await dogDialog.getByRole('combobox').first().click();
   await page.getByRole('option', { name: /Female/i }).click();
@@ -174,41 +196,23 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   await dogDialog.getByRole('tab', { name: /Optional details/i }).click();
   await dogDialog.getByLabel(/Color & Markings/i).fill('Black and tan');
 
+  // The one slide-out holds the registration list too (MYK9-1081).
   await dogDialog.getByRole('tab', { name: /Registration/i }).click();
-  await dogDialog.getByRole('button', { name: 'Add New Registration' }).click();
-  // Still the one slide-out (MYK9-1081): the registration form replaces the dog
-  // form inside it rather than stacking a second panel on top.
-  const registrationDialog = page.getByRole('dialog', { name: 'Add New Registration' });
-  await expect(registrationDialog).toBeVisible();
   await expect(page.locator('.slide-over-panel')).toHaveCount(1);
-
-  await registrationDialog.getByRole('combobox').nth(0).click();
-  await page.getByRole('option', { name: /AKC \(American Kennel Club\)/i }).click();
-  await registrationDialog.getByLabel(/Registered Name/i).fill('Mailbox Special Delivery');
-  await registrationDialog.getByLabel(/Registered Breed/i).click();
-  await page.getByPlaceholder('Search breeds…').fill('Golden Retriever');
-  // MYK9-545: the breed picker is a combobox + listbox now, not a button list.
-  await page
-    .getByRole('listbox', { name: 'Breeds' })
-    .getByRole('option', { name: 'Golden Retriever' })
-    .click();
-  await registrationDialog.getByLabel(/Registration Number/i).fill('DN12345601');
-  await registrationDialog.getByRole('button', { name: 'Save Registration' }).click();
-
   await expect(dogDialog.getByText('Mailbox Special Delivery')).toBeVisible();
   // MYK9-931: Add Dog only shows on the last tab; earlier tabs stay clickable.
   await dogDialog.getByRole('tab', { name: /Optional details/i }).click();
   await dogDialog.getByRole('button', { name: 'Add Dog', exact: true }).click();
 
-  await expect(page.getByRole('heading', { name: 'Dogs Added (1):' })).toBeVisible({
+  await expect(stepsDialog.getByRole('heading', { name: 'Dogs Added (1):' })).toBeVisible({
     timeout: 15000,
   });
-  await page.getByRole('button', { name: 'Review' }).click();
-  await expect(page.getByRole('heading', { name: 'Review & Complete' })).toBeVisible({
+  await stepsDialog.getByRole('button', { name: 'Review', exact: true }).click();
+  await expect(stepsDialog.getByRole('heading', { name: 'Review & Complete' })).toBeVisible({
     timeout: 15000,
   });
-  await expect(page.getByText('Stamp', { exact: true }).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Complete Setup' }).click();
+  await expect(stepsDialog.getByText('Stamp', { exact: true }).first()).toBeVisible();
+  await stepsDialog.getByRole('button', { name: 'Complete Setup' }).click();
 
   await expect(page.getByText('1 dog selected')).toBeVisible();
   expect(captured.person).toMatchObject({

@@ -29,7 +29,11 @@ import { MyShowDogCard } from './MyShowDogCard';
 import type { LeaveClassTarget, MyEntry } from './my-entries-types';
 import { deriveMyEntryCardState } from './myEntryCardState';
 import { isPastShowEntry } from './myEntriesStats.helpers';
-import { formatDogNamesPossessive, formatShowHeaderDateRange } from './myShowHeaderFormat';
+import {
+  formatDogNamesPossessive,
+  formatPaidCoverage,
+  formatShowHeaderDateRange,
+} from './myShowHeaderFormat';
 import { derivePaidStrip, hasSeenPaidStrip, markPaidStripSeen } from './paidStripSeen';
 import { deriveShowMoneyState, refundNotesByDog, type ShowMoneyKind } from './showMoneyState';
 import { UnconfirmedReadNotice } from './UnconfirmedReadNotice';
@@ -223,6 +227,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
           <MyShowActionsMenu
             showId={group.showId}
             showName={group.showName}
+            isShowUnreadable={group.isShowUnreadable}
             hasEditableOrders={editableOrders.length > 0}
             hasOrders={group.orders.length > 0}
             isPastShow={isPastShow}
@@ -307,13 +312,13 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
           <div className="min-w-0">
             <p className="myk9-entries-strip-head">
               <Check className="h-3.5 w-3.5" aria-hidden="true" />
-              {formatDogNamesPossessive(paidStrip.dogNames)}{' '}
-              {paidStrip.dogNames.length > 1 ? 'entries are' : 'entry is'} paid —{' '}
-              {formatPaymentCents(paidStrip.amountCents, 'USD')} on{' '}
-              {formatShortCalendarDate(paidStrip.date)}
+              Paid {formatPaymentCents(paidStrip.amountCents, 'USD')} for{' '}
+              {formatPaidCoverage(paidStrip.dogNames, paidStrip.classCount)} on{' '}
+              {formatShortCalendarDate(paidStrip.date)}.
             </p>
             <p className="myk9-entries-strip-body">
-              The secretary will review it next. Receipt sent to your email.
+              {paidStrip.awaitingReview && 'The secretary will review it next. '}
+              Receipt sent to your email.
             </p>
           </div>
           <Button

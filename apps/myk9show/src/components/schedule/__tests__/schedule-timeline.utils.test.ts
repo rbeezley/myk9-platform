@@ -214,6 +214,28 @@ describe('groupByDay', () => {
     expect(result[0]!.trials[0]!.elements[1]!.element).toBe('Obedience');
   });
 
+  it('orders elements by clock time when the replica supplies "h:mm AM" text', () => {
+    const rows = [
+      makeTimelineRow({ element: 'Obedience', startTime: '10:00 AM', classId: 'cls-2' }),
+      makeTimelineRow({ element: 'Rally', startTime: '9:00 AM', classId: 'cls-1' }),
+    ];
+    const elements = groupByDay(rows)[0]!.trials[0]!.elements;
+    expect(elements.map(e => e.element)).toEqual(['Rally', 'Obedience']);
+    expect(elements[0]!.startTime).toBe('9:00 AM');
+  });
+
+  it('takes the earliest class by clock time and puts untimed elements last', () => {
+    const rows = [
+      makeTimelineRow({ element: 'Scent', startTime: '', classId: 'cls-1' }),
+      makeTimelineRow({ element: 'Rally', startTime: '10:00 AM', classId: 'cls-2', level: 'Open' }),
+      makeTimelineRow({ element: 'Rally', startTime: '9:00 AM', classId: 'cls-3' }),
+      makeTimelineRow({ element: 'Obedience', startTime: '8:30 AM', classId: 'cls-4' }),
+    ];
+    const elements = groupByDay(rows)[0]!.trials[0]!.elements;
+    expect(elements.map(e => e.element)).toEqual(['Obedience', 'Rally', 'Scent']);
+    expect(elements[1]!.startTime).toBe('9:00 AM');
+  });
+
   it('handles null element by using class name', () => {
     const rows = [makeTimelineRow({ element: null, className: 'Special Class', classId: 'cls-1' })];
     const result = groupByDay(rows);

@@ -188,6 +188,7 @@ export function mapSecretaryEntryToEntryManagementEntry(
     // on `SecretaryEntry`, not cast off it -- the cast that used to be here is
     // exactly why nobody noticed that neither read path emitted the column.
     movedFromEntryId: entry.moved_from_entry_id ?? null,
+    ...(entry.awaiting_registration_number === true && { awaitingRegistrationNumber: true }),
     entryStatus: mapEntryStatus(entry.entry_status),
     rawEntryStatus: entry.entry_status ?? null,
     isScored: entry.is_scored ?? null,

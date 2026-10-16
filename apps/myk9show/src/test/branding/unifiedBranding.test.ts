@@ -20,7 +20,7 @@ const SEARCH_ROOTS = [
 ];
 
 const SKIP_FILES = new Set([
-  'src/components/landing/v2/HomeBranding.test.tsx',
+  'src/components/landing/lifecycle/__tests__/HomeBranding.test.tsx',
   'src/components/preferences/DataSettings.tsx',
   'src/components/preferences/__tests__/DataSettings.test.tsx',
   'src/test/branding/unifiedBranding.test.ts',

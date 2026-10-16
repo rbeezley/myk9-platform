@@ -8,6 +8,9 @@
  * type assertions via untypedFrom() for .from() calls.
  */
 
+import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
+import { showDateRangeStatus } from '@/utils/date-format';
+import { formatDateLocal } from '@/utils/dateLocal';
 import {
   JudgeQualification,
   CreateJudgeQualificationData,
@@ -24,10 +27,31 @@ import { ACTIVE_JUDGE_ASSIGNMENT_STATUSES } from './assignmentStatus';
 import { diffShowJudges } from './showJudgeChanges';
 
 // Helper to access tables not in generated types
+/** The device's local calendar day shifted by `days`, as YYYY-MM-DD (never the UTC date). */
+const localDayOffset = (days: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return formatDateLocal(d);
+};
 const qualificationsTable = () => untypedFrom('judge_qualifications');
 const certificationsTable = () => untypedFrom('judge_certifications');
 const JUDGE_ASSIGNMENT_PUBLIC_SELECT =
   'id, person_id, show_id, trial_id, class_id, status, invited_at, confirmed_at, created_at, updated_at, day_capacity_override, version';
+
+// A judge's assignment counts only while its show (and class, when class-level)
+// is live. PostgREST returns a null embed for a soft-deleted or otherwise
+// unreadable parent, so a null embed and a set deleted_at both mean "not live".
+const LIVE_PARENT_EMBEDS =
+  'shows!judge_assignments_show_id_fkey(deleted_at), classes!judge_assignments_class_id_fkey(deleted_at)';
+
+function hasLiveParent(embed: unknown): boolean {
+  const parent = embed as { deleted_at?: string | null } | null | undefined;
+  return !!parent && !parent.deleted_at;
+}
+
+function hasLiveShowAndClass(row: Record<string, unknown>): boolean {
+  return hasLiveParent(row.shows) && (row.class_id == null || hasLiveParent(row.classes));
+}
 
 type ManagerJudgeAssignmentRpc = {
   data: Array<Record<string, unknown>> | null;
@@ -163,11 +187,9 @@ export async function getJudgeQualificationsByJudgeId(
     }
   }
   if (filters?.expiring_within_days) {
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + filters.expiring_within_days);
     query = query
       .not('expiration_date', 'is', null)
-      .lte('expiration_date', futureDate.toISOString().split('T')[0]);
+      .lte('expiration_date', localDayOffset(filters.expiring_within_days));
   }
 
   query = query.order('date_obtained', { ascending: false });
@@ -268,20 +290,21 @@ export async function getJudgeQualificationSummary(
   const qualifications = await getJudgeQualificationsByJudgeId(judgeId);
 
   const activeQualifications = qualifications.filter(q => q.is_active);
-  const expiredQualifications = qualifications.filter(
-    q => q.expiration_date && new Date(q.expiration_date) < new Date()
-  );
+  // expiration_date is a DATE: compare calendar days, as the expiry-window reads do (MYK9-1198).
+  const today = localDayOffset(0);
+  const in30Days = localDayOffset(30);
+  const expiresOn = (q: { expiration_date?: string | null }) => q.expiration_date?.slice(0, 10);
+  const expiredQualifications = qualifications.filter(q => {
+    const day = expiresOn(q);
+    return !!day && day < today;
+  });
   const suspendedQualifications = qualifications.filter(q => q.suspension_date);
 
   // Check for expiring qualifications (within 30 days)
-  const thirtyDaysFromNow = new Date();
-  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-  const expiringSoon = qualifications.filter(
-    q =>
-      q.expiration_date &&
-      new Date(q.expiration_date) <= thirtyDaysFromNow &&
-      new Date(q.expiration_date) >= new Date()
-  );
+  const expiringSoon = qualifications.filter(q => {
+    const day = expiresOn(q);
+    return !!day && day >= today && day <= in30Days;
+  });
 
   const summary: JudgeQualificationSummary = {
     total_qualifications: qualifications.length,
@@ -470,8 +493,6 @@ export interface RosterSummary {
 
 /** Roster overview stats for admin/secretary */
 export async function getJudgeRosterSummary(): Promise<RosterSummary> {
-  const thirtyDaysFromNow = new Date();
-  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
@@ -485,8 +506,8 @@ export async function getJudgeRosterSummary(): Promise<RosterSummary> {
       qualificationsTable()
         .select('*', { count: 'exact', head: true })
         .not('expiration_date', 'is', null)
-        .lte('expiration_date', thirtyDaysFromNow.toISOString().split('T')[0])
-        .gte('expiration_date', new Date().toISOString().split('T')[0]),
+        .lte('expiration_date', localDayOffset(30))
+        .gte('expiration_date', localDayOffset(0)),
       assignmentsTable()
         .select('id', { count: 'exact', head: true })
         .gte('created_at', monthStart.toISOString()),
@@ -609,16 +630,14 @@ export async function getJudgeUtilizationStats(
 
 /** Qualification alerts for admin/secretary */
 export async function getJudgeQualificationAlerts(withinDays: number = 30) {
-  const futureDate = new Date();
-  futureDate.setDate(futureDate.getDate() + withinDays);
+  const futureDay = localDayOffset(withinDays);
   // Only show recently expired (within 90 days), not ancient ones
-  const lowerBound = new Date();
-  lowerBound.setDate(lowerBound.getDate() - 90);
+  const lowerBoundDay = localDayOffset(-90);
 
   const { data, error } = await qualificationsTable()
     .select('*, people!judge_qualifications_person_id_fkey(first_name, last_name)')
     .or(
-      `and(expiration_date.not.is.null,expiration_date.lte.${futureDate.toISOString().split('T')[0]},expiration_date.gte.${lowerBound.toISOString().split('T')[0]}),suspension_date.not.is.null`
+      `and(expiration_date.not.is.null,expiration_date.lte.${futureDay},expiration_date.gte.${lowerBoundDay}),suspension_date.not.is.null`
     )
     .order('expiration_date', { ascending: true });
 
@@ -646,7 +665,7 @@ export async function getJudgeStats(
   const yearEnd = `${targetYear}-12-31T23:59:59Z`;
 
   const { data, error } = await assignmentsTable()
-    .select(JUDGE_ASSIGNMENT_PUBLIC_SELECT)
+    .select(`${JUDGE_ASSIGNMENT_PUBLIC_SELECT}, ${LIVE_PARENT_EMBEDS}`)
     .eq('person_id', personId)
     .gte('created_at', yearStart)
     .lte('created_at', yearEnd);
@@ -655,7 +674,7 @@ export async function getJudgeStats(
     throw new Error(`Failed to fetch judge stats: ${error.message}`);
   }
 
-  const rows = (data || []) as Array<Record<string, unknown>>;
+  const rows = ((data || []) as Array<Record<string, unknown>>).filter(hasLiveShowAndClass);
   const uniqueShows = new Set(rows.map(r => r.show_id as string));
 
   const statusBreakdown: Record<string, number> = {};
@@ -678,7 +697,7 @@ export async function getJudgeStats(
 export async function getJudgeUpcomingAssignments(personId: string): Promise<JudgeAssignmentRow[]> {
   const { data, error } = await assignmentsTable()
     .select(
-      `${JUDGE_ASSIGNMENT_PUBLIC_SELECT}, shows!judge_assignments_show_id_fkey(name, start_date, end_date, organization)`
+      `${JUDGE_ASSIGNMENT_PUBLIC_SELECT}, shows!judge_assignments_show_id_fkey(name, start_date, end_date, organization, deleted_at), classes!judge_assignments_class_id_fkey(deleted_at)`
     )
     .eq('person_id', personId)
     .in('status', [...ACTIVE_JUDGE_ASSIGNMENT_STATUSES])
@@ -688,10 +707,12 @@ export async function getJudgeUpcomingAssignments(personId: string): Promise<Jud
     throw new Error(`Failed to fetch upcoming assignments: ${error.message}`);
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
 
   return (
     ((data || []) as Array<Record<string, unknown>>)
+      // A deleted show or class (null embed) is never upcoming work.
+      .filter(hasLiveShowAndClass)
       .map(row => {
         const show = row.shows as Record<string, unknown> | null;
         return {
@@ -704,14 +725,18 @@ export async function getJudgeUpcomingAssignments(personId: string): Promise<Jud
           invited_at: row.invited_at as string | null,
           confirmed_at: row.confirmed_at as string | null,
           notes: null,
-          show_name: (show?.name as string) || 'Unknown Show',
+          show_name: (show?.name as string) || SHOW_NOT_PUBLISHED_LABEL,
           show_start_date: (show?.start_date as string) || '',
           show_end_date: (show?.end_date as string) || '',
           show_organization: (show?.organization as string) || '',
         };
       })
-      // Filter out past shows and sort by show date
-      .filter(a => !a.show_end_date || a.show_end_date >= today)
+      // Filter out past shows (local calendar day, end date inclusive) and sort by show date
+      .filter(
+        a =>
+          !!a.show_end_date &&
+          showDateRangeStatus(a.show_start_date, a.show_end_date, now) !== 'past'
+      )
       .sort((a, b) => a.show_start_date.localeCompare(b.show_start_date))
   );
 }

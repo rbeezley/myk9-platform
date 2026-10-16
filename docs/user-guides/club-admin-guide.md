@@ -50,7 +50,7 @@ Your club profile holds the information that flows into every show your club hos
 **Your club is already in the system** when you first sign in — a myK9Show admin created it from your club's request. You are here to review and update it, not create it from scratch. If your club is not in myK9Show yet, contact us.
 
 1. Sign in with your Club Admin account.
-2. In the sidebar, open **Club Settings**.
+2. In the sidebar, open **My Club**, then **Club Profile**.
 3. Review each field:
    - Club name (as it appears on AKC paperwork)
    - AKC club number
@@ -68,7 +68,7 @@ Changes take effect immediately on all future shows. Existing shows that have al
 
 The **Shows** page lists every show your club is hosting or has hosted. Shows are created by a secretary or a site admin — you do not create one from this list.
 
-1. In the sidebar, open **Shows**.
+1. In the sidebar, open **My Club**, then **Our Shows**. (**Browse** opens every show you can see, with tabs for Shows and Dogs.)
 2. Each show card displays the show name, dates, and entry status.
 3. Click a show to open it.
 
@@ -109,7 +109,7 @@ When you appoint someone to show access, they can manage any of your club's show
 
 **To appoint someone already on your member list:**
 
-1. In the sidebar, open **Members**.
+1. In the sidebar, open **My Club**, then **Members**.
 2. Find the person you want to make secretary.
 3. Click **⋮** (the action menu) next to their name.
 4. Under **Show Access**, click **Grant Show Access**.
@@ -141,7 +141,7 @@ Before your club can receive entry fee revenue, a treasurer needs to complete St
 
 **Steps:**
 
-1. In the sidebar, open **Payments**.
+1. In the sidebar, open **My Club**, then **Payments**.
 2. Click **Connect bank account**.
 3. Review the checklist on screen — confirm you have everything listed above.
 4. Click **Continue to Stripe** → you leave myK9Show and enter Stripe's onboarding form.
@@ -177,7 +177,7 @@ Three days after the show's end date, myK9Show sends the transfer. Your bank typ
 
 **Viewing past payouts:**
 
-1. In the sidebar, open **Payments**.
+1. In the sidebar, open **My Club**, then **Payments**.
 2. The **Show payouts** section lists each show with the deposit amount, date, and status.
 
 ![C-05: Payments page — "Payouts enabled" with a Show payouts row (show name, date, amount, Paid status)](../screenshots/C-05.png)
@@ -223,7 +223,7 @@ The **Members** page lists everyone with club-level access: Club Admins and Secr
 
 **View current members:**
 
-1. In the sidebar, open **Members**.
+1. In the sidebar, open **My Club**, then **Members**.
 2. The **Members** tab lists accounts with club access and their role.
 
 ![Club Members page — member list with name, Show Manager badge, type, status, and action menu](../screenshots/C-06.png)

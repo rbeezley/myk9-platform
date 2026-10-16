@@ -14,19 +14,30 @@ import { TimeOfDayInput } from '@/components/common/TimeOfDayInput';
 import { clockOnDateToIso } from '@/components/trials/trialDateTime';
 import { replicatedClassesTable } from '@/services/replication';
 
-export function ClassActualStartEditor({
-  classId,
-  className,
-  trialDate,
-  timeZone,
-  hasStart,
-}: {
+interface ClassActualStartEditorProps {
   classId: string;
   className: string;
   trialDate: string;
   timeZone: string;
   hasStart: boolean;
-}) {
+}
+
+/**
+ * Keyed by class so the focused-class panel, which reuses one instance as the
+ * secretary moves between classes, never carries a draft or an error from one
+ * class onto the next.
+ */
+export function ClassActualStartEditor(props: ClassActualStartEditorProps) {
+  return <ClassActualStartEditorForm key={props.classId} {...props} />;
+}
+
+function ClassActualStartEditorForm({
+  classId,
+  className,
+  trialDate,
+  timeZone,
+  hasStart,
+}: ClassActualStartEditorProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -48,13 +59,17 @@ export function ClassActualStartEditor({
 
   if (!editing) {
     return (
-      <span className="ml-2 inline-flex gap-1">
+      <span className="ml-2 inline-flex flex-wrap items-center gap-1">
         <Button
           type="button"
           variant="ghost"
           size="sm"
           className="h-8 px-2 text-xs"
-          onClick={() => setEditing(true)}
+          disabled={saving}
+          onClick={() => {
+            setError(null);
+            setEditing(true);
+          }}
           aria-label={`${hasStart ? 'Edit' : 'Set'} start time for ${className}`}
         >
           {hasStart ? 'Edit start' : 'Set start'}
@@ -71,6 +86,11 @@ export function ClassActualStartEditor({
           >
             Clear start
           </Button>
+        )}
+        {error && (
+          <p role="alert" className="w-full text-xs text-destructive">
+            {error}
+          </p>
         )}
       </span>
     );

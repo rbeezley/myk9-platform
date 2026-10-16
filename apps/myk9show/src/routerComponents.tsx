@@ -1,21 +1,23 @@
-import React from 'react';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { Navigate } from 'react-router-dom';
 import Home from './pages/Home';
 import { getDashboardRoute } from '@/hooks/roleUtils';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { PageLoadingFallback } from './components/common/PageLoadingFallback';
 
-export const ExhibitorOnboardingPage = React.lazy(
+export const ExhibitorOnboardingPage = lazyWithRetry(
   () => import('./pages/onboarding/ExhibitorOnboardingPage')
 );
-export const PricingPage = React.lazy(() => import('./pages/PricingPage'));
-export const SmartSignInPage = React.lazy(() => import('./pages/SmartSignInPage'));
-export const RingsideEntryPage = React.lazy(() => import('./features/at-show/RingsideEntryPage'));
-export const SignUpPage = React.lazy(() => import('./pages/SignUpPage'));
-export const ForgotPasswordPage = React.lazy(() => import('./pages/ForgotPasswordPage'));
-export const AuthCallbackPage = React.lazy(() => import('./pages/AuthCallbackPage'));
-export const ResetPasswordPage = React.lazy(() => import('./pages/ResetPasswordPage'));
-export const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
+export const PricingPage = lazyWithRetry(() => import('./pages/PricingPage'));
+export const SmartSignInPage = lazyWithRetry(() => import('./pages/SmartSignInPage'));
+export const RingsideEntryPage = lazyWithRetry(
+  () => import('./features/at-show/RingsideEntryPage')
+);
+export const SignUpPage = lazyWithRetry(() => import('./pages/SignUpPage'));
+export const ForgotPasswordPage = lazyWithRetry(() => import('./pages/ForgotPasswordPage'));
+export const AuthCallbackPage = lazyWithRetry(() => import('./pages/AuthCallbackPage'));
+export const ResetPasswordPage = lazyWithRetry(() => import('./pages/ResetPasswordPage'));
+export const NotFoundPage = lazyWithRetry(() => import('./pages/NotFoundPage'));
 
 export function HomeRedirect() {
   const { user, loading, rbacLoading, userWithRoles } = useAuthContext();

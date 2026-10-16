@@ -501,7 +501,9 @@ describe('ReplicatedEntriesTable', () => {
         }),
         undefined,
         // check_in_status is ringside-whitelisted → routes through the RPC.
-        { name: 'ringside_update_entry', fields: { check_in_status: 'checked-in' } }
+        { name: 'ringside_update_entry', fields: { check_in_status: 'checked-in' } },
+        // durable-first (MYK9-1206): upload deferred until the dirty row exists
+        true
       );
       expect(payload).not.toHaveProperty('result_status');
       expect(payload).not.toHaveProperty('handler');

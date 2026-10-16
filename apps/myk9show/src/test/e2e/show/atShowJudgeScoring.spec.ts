@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsJudge } from '../uat/shared/auth';
+import { installBrowserDiagnostics } from '../shared/browserDiagnostics';
 import {
   installSharedStagingWriteGuard,
   type GuardedRingsideRpcCall,
@@ -56,6 +57,9 @@ const REPLICATED_TABLES_STORE = 'replicated_tables';
 const PENDING_MUTATIONS_STORE = 'pending_mutations';
 
 test.describe('At-show judge scoring authorization', () => {
+  // MYK9-1114: attaches console/network/toast text on failure (traces are not uploaded).
+  installBrowserDiagnostics(test);
+
   test('routes a judge score through ringside_update_entry and persists it', async ({ page }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
     await installSharedStagingWriteGuard(page, {
@@ -198,9 +202,10 @@ test.describe('At-show judge scoring authorization', () => {
 
     await signInAsJudge(page, CLASS_PATH);
     await expect(page.getByText('Change Status')).toHaveCount(0);
-    await page.locator('[data-no-uppercase="true"]').first().click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await page.getByRole('button', { name: 'Pulled' }).click();
+    await page.getByTestId('check-in-button').first().click();
+    const statusDialog = page.getByRole('dialog', { name: 'Change Status' });
+    await expect(statusDialog).toBeVisible();
+    await statusDialog.getByRole('button', { name: 'Pulled' }).click();
 
     await expect
       .poll(() => rpcCalls.some(call => call.p_fields?.check_in_status === 'pulled'), {

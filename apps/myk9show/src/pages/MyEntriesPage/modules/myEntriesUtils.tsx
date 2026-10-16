@@ -195,7 +195,8 @@ export function getStatusIcon(
  */
 export function getContextualStatusMessage(
   entry: {
-    showDate: Date;
+    /** Absent for a show the exhibitor cannot read (MYK9-1147). */
+    showDate?: Date | undefined;
     entryStatus: EntryStatus;
     entryStatusKind?: EntryStatusKind | undefined;
     paymentStatus: PaymentStatus;
@@ -214,8 +215,9 @@ export function getContextualStatusMessage(
   isTomorrow: (date: Date) => boolean,
   differenceInDays: (dateLeft: Date, dateRight: Date) => number
 ): { message: string; className?: string } {
-  const showDate = new Date(entry.showDate);
-  const daysUntilShow = differenceInDays(showDate, new Date());
+  const showDate = entry.showDate ? new Date(entry.showDate) : undefined;
+  // No date: no countdown and no today/tomorrow copy, only the status lines below.
+  const daysUntilShow = showDate ? differenceInDays(showDate, new Date()) : 0;
 
   if (entry.isShowCancelled) {
     if (entry.paymentStatus === PaymentStatus.REFUNDED) {
@@ -310,10 +312,10 @@ export function getContextualStatusMessage(
   }
 
   // Show is today or tomorrow - highlight check-in
-  if (isToday(showDate)) {
+  if (showDate && isToday(showDate)) {
     return { message: 'Show is today!', className: 'text-primary font-medium' };
   }
-  if (isTomorrow(showDate)) {
+  if (showDate && isTomorrow(showDate)) {
     return { message: 'Show is tomorrow', className: 'text-primary' };
   }
 

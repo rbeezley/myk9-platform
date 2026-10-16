@@ -7,6 +7,12 @@ export { UserRole };
 
 export interface DogEditContextType {
   isAdmin: boolean;
+  /**
+   * May this viewer change who owns the dog (`can_change_dog_owner`, MYK9-1158)? Staff who may
+   * edit an account holder's dog can still not re-own it; they see the owner read-only.
+   * Absent means yes (the picker's own `isAdmin` gate still applies).
+   */
+  canChangeOwner?: boolean;
   people: PersonType[];
   /**
    * Lifecycle status as currently stored, for the read-only Status row. NOT part
@@ -25,6 +31,7 @@ export interface DogEditContextType {
 }
 
 import type { EditPanelDeleteOption } from './EditPanelDelete';
+import type { EditPanelVariant } from './EditPanelWrapper.types';
 
 export interface DogEditPanelProps {
   open: boolean;
@@ -47,6 +54,10 @@ export interface DogEditPanelProps {
   dogDeceasedDate?: string | undefined;
   /** Raises the status dialog; omit to render the Status row read-only. */
   onChangeStatus?: (() => void) | undefined;
+  /** 'inline' inside Quick Create's one slide-out; the default is the slide-over panel. */
+  variant?: EditPanelVariant | undefined;
+  /** `inline` only: filled with the form's close request, for the host's Back / Escape / X. */
+  closeRequestRef?: import('react').MutableRefObject<(() => void) | null> | undefined;
 }
 
 // Form data interface matching DogProfileEditDialog expectations

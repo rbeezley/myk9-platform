@@ -47,6 +47,43 @@ export function DiscardChangesDialog({
 }
 
 /**
+ * Explains why a panel will not close while its save is in flight (MYK9-1125):
+ * the save may still fail back to the form, so the panel holds still, but it
+ * never ignores the person silently. `ask` opens it; it closes itself once the
+ * save settles, and Keep waiting is its only answer.
+ */
+export function useStillSavingPrompt(saving: boolean) {
+  const [open, setOpen] = useState(false);
+  // Reset during render when the save ends (React's "adjust state on a prop
+  // change" pattern), so a later save never reopens a stale prompt.
+  const [wasSaving, setWasSaving] = useState(saving);
+  if (saving !== wasSaving) {
+    setWasSaving(saving);
+    if (!saving) setOpen(false);
+  }
+  const ask = useCallback(() => setOpen(true), []);
+
+  const dialog = (
+    <AlertDialog open={open && saving} onOpenChange={setOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Still saving</AlertDialogTitle>
+          <AlertDialogDescription>
+            Waiting for the server to answer. This panel will close or show an error as soon as it
+            does.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep waiting</AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  return { open: open && saving, ask, dialog };
+}
+
+/**
  * For surfaces that own their form state instead of using `EditPanelWrapper`:
  * route every close through `requestClose`, render `discardDialog`, and a close
  * with unsaved changes asks first. A close the surface makes on its own behalf

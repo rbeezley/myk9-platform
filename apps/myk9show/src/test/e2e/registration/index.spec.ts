@@ -15,7 +15,7 @@ const maintainedRegistrationSpecs = [
   },
   {
     file: 'secretaryNewUsers.spec.ts',
-    purpose: 'documents current secretary new-user creation availability',
+    purpose: 'covers secretary mail-in person, dog, and registration creation in Quick Create',
   },
   {
     file: 'singleDogSingleClass.spec.ts',

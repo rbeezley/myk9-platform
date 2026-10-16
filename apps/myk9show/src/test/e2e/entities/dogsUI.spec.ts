@@ -1,6 +1,7 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { signInAsSecretary, signInAsExhibitor } from '../helpers/testUsers';
 import { chooseAction, openActionsMenu as openHeaderActionsMenu } from '../helpers/actionsMenu';
+import { addFirstRegistration, isDogCreateResponse } from '../helpers/addDogRegistration';
 
 /**
  * UI-driven e2e tests for the Dogs section — secretary role.
@@ -124,9 +125,17 @@ async function selectById(page: Page, triggerId: string, optionText: RegExp | st
   }
 
   if (triggerId === 'breed') {
-    await page.keyboard.press('Home');
-    await page.keyboard.press('Enter');
-    await expect(trigger).not.toContainText('Select breed');
+    // The registration form's breed is a searchable combobox (MYK9-422): search,
+    // then pick the option from its listbox.
+    if (typeof optionText !== 'string') {
+      throw new Error(`Breed search requires a string option: ${optionText.toString()}`);
+    }
+    await page.getByPlaceholder('Search breeds…').fill(optionText);
+    await page
+      .getByRole('listbox', { name: 'Breeds' })
+      .getByRole('option', { name: optionText, exact: true })
+      .click();
+    await expect(trigger).toContainText(optionText);
     return;
   }
 
@@ -221,6 +230,11 @@ test.describe('Dogs UI — Create (secretary)', () => {
     await page.getByRole('button', { name: 'Add Dog', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
 
+    // Dog A stays registration-free: the serial Registrations tests below add its AKC and UKC
+    // registrations through the detail page, and a dog holds one per organization. A secretary
+    // may skip the registration step (MYK9-1162).
+    await page.getByRole('button', { name: 'No registration number yet' }).click();
+
     // Fill Essential tab — Sex and Owner are base-ui Selects, targeted by
     // accessible name so a naming regression fails here (MYK9-88).
     await page.getByLabel('Call Name').fill(DOG_A_NAME);
@@ -254,16 +268,18 @@ test.describe('Dogs UI — Create (secretary)', () => {
     await page.getByRole('button', { name: 'Add Dog', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
 
+    // Registration comes first (MYK9-1162): registry and number, Find dog, details.
+    await addFirstRegistration(page, page.getByRole('dialog'));
     await page.getByLabel('Call Name').fill(DOG_B_NAME);
     await selectByAccessibleName(page, /^Sex/, /Female/i);
     await page.getByLabel('Date of Birth').fill('2021-03-20');
 
     await selectOwnerIfNeeded(page, TEST_SECRETARY_PERSON_NAME);
 
-    const createResponsePromise = page.waitForResponse(
-      r => r.url().includes('/rest/v1/dogs') && r.request().method() === 'POST',
-      { timeout: 15000 }
-    );
+    // A dog saved with a registration is created through the RPC, not a dogs POST.
+    const createResponsePromise = page.waitForResponse(isDogCreateResponse, {
+      timeout: 15000,
+    });
     // MYK9-931: Add Dog only shows on the last tab; earlier tabs stay clickable.
     await page
       .getByRole('dialog')
@@ -302,14 +318,15 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
     await page.getByRole('button', { name: 'Add Dog' }).click();
     await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
 
+    // An exhibitor cannot skip the registration (MYK9-1162).
+    await addFirstRegistration(page, page.getByRole('dialog'));
     await page.getByLabel('Call Name').fill(EXHIBITOR_DOG_NAME);
     await selectByAccessibleName(page, /^Sex/, /^Female/i);
     await page.getByLabel('Date of Birth').fill('2022-04-12');
 
-    const createResponsePromise = page.waitForResponse(
-      r => r.url().includes('/rest/v1/dogs') && r.request().method() === 'POST',
-      { timeout: 15000 }
-    );
+    const createResponsePromise = page.waitForResponse(isDogCreateResponse, {
+      timeout: 15000,
+    });
     // MYK9-931: Add Dog only shows on the last tab; earlier tabs stay clickable.
     await page
       .getByRole('dialog')

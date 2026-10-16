@@ -15,7 +15,7 @@ import { render } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { useUserStore } from '@/store/userStore';
 import { resetQuickCreateMocks } from '@/test/quickCreate/quickCreateFlowMocks';
-import { CreateExhibitorDialog } from '@/components/shows/RegistrationWorkflow/CreateExhibitorDialog';
+import { CreatePersonForm } from '@/components/shows/RegistrationWorkflow/CreatePersonForm';
 import { AddDogPanel } from '../index';
 
 vi.mock('@/hooks/useRBAC', () => ({ useRBAC: () => ({ hasPermission: () => false }) }));
@@ -69,7 +69,7 @@ describe('inline Add Dog field inset matches inline Add Person (MYK9-1081)', () 
   it('insets Call Name and Sex by the same 24px as First Name', async () => {
     const person = render(
       <div data-testid="host">
-        <CreateExhibitorDialog
+        <CreatePersonForm
           open
           onOpenChange={vi.fn()}
           onExhibitorCreated={vi.fn()}
@@ -83,7 +83,7 @@ describe('inline Add Dog field inset matches inline Add Person (MYK9-1081)', () 
     );
     person.unmount();
 
-    render(
+    const dog = render(
       <div data-testid="host">
         <AddDogPanel
           open
@@ -96,6 +96,8 @@ describe('inline Add Dog field inset matches inline Add Person (MYK9-1081)', () 
       </div>
     );
     const host = screen.getByTestId('host');
+    // Add Dog opens on the Registration step; a secretary may skip it to reach the fields.
+    await dog.user.click(await screen.findByRole('button', { name: /No registration number yet/ }));
     const callNameInset = insetWithin(await screen.findByLabelText(/Call Name/i), host);
     const sexInset = insetWithin(document.getElementById('gender') as HTMLElement, host);
 

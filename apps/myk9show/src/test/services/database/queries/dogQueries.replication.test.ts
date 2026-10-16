@@ -1,5 +1,5 @@
 import { createDatabaseError } from '@/services/database/databaseError';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 
@@ -29,6 +29,7 @@ const { mockDogsTable, mockEntriesTable, mockDogRegistrationsTable, mockServerRe
     },
     mockDogRegistrationsTable: {
       getRegistrationsForDogs: vi.fn(),
+      getUnsentWorkForDogs: vi.fn(),
       getRegistrationsForDog: vi.fn(),
     },
     mockServerRegistrationRows: vi.fn(() => [] as Record<string, unknown>[]),
@@ -46,38 +47,33 @@ vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
   replicatedDogRegistrationsTable: mockDogRegistrationsTable,
 }));
 
-// Mock supabase client (for loadOwnersMap and getDogById supplemental queries)
-vi.mock('@/services/database/supabaseClient', () => ({
-  supabase: {
-    from: () => ({
-      select: () => ({
-        in: () => Promise.resolve({ data: mockServerRegistrationRows(), error: null }),
-        eq: () => ({
-          single: () =>
-            Promise.resolve({
-              data: { owner: null, registrations: [], health_records: [] },
-              error: null,
-            }),
-          is: () => ({
-            order: () => Promise.resolve({ data: [], error: null }),
-          }),
-        }),
-        or: () => ({
-          or: () => ({
-            is: () => ({
-              order: () => Promise.resolve({ data: [], error: null }),
-            }),
-          }),
-          is: () => ({
-            order: () => Promise.resolve({ data: [], error: null }),
-          }),
-        }),
+// Mock supabase client. The roster reads and the dog page read the server first
+// (MYK9-1139, MYK9-1126), so this file pins the DEVICE copy, which answers only
+// when the server cannot be reached: every `dogs` query rejects as a network
+// failure, and the tests run with `navigator.onLine` false. `in` is the batch
+// read of registrations and owners.
+vi.mock('@/services/database/supabaseClient', () => {
+  const unreachable = () => ({ data: null, error: { message: 'Failed to fetch' } });
+  return {
+    supabase: {
+      from: () => ({
+        select: () => {
+          const chain: Record<string, unknown> = {};
+          for (const method of ['eq', 'or', 'is', 'order', 'ilike']) chain[method] = () => chain;
+          chain.in = () => Promise.resolve({ data: mockServerRegistrationRows(), error: null });
+          chain.single = () => Promise.resolve(unreachable());
+          chain.then = (
+            resolve: (value: unknown) => unknown,
+            reject: (reason: unknown) => unknown
+          ) => Promise.resolve(unreachable()).then(resolve, reject);
+          return chain;
+        },
       }),
-    }),
-  },
-  logQuery: vi.fn(),
-  createDatabaseError,
-}));
+    },
+    logQuery: vi.fn(),
+    createDatabaseError,
+  };
+});
 
 // Now import the functions under test
 import {
@@ -135,8 +131,14 @@ function makeEntry(overrides: Partial<ReplicatedEntry> = {}): ReplicatedEntry {
 // ---------------------------------------------------------------------------
 
 describe('dogQueries (replication)', () => {
+  let onLine: { mockRestore: () => void } | undefined;
+  afterEach(() => {
+    onLine?.mockRestore();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
+    onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     // getAllDogs() in reads.ts reads through getAllDogsWithStatus so a cold
     // local store cannot masquerade as an empty roster; these tests exercise a
     // warm store, so the wrapper just reports what getAllDogs returns.
@@ -145,7 +147,7 @@ describe('dogQueries (replication)', () => {
       cold: false,
     }));
     mockServerRegistrationRows.mockReturnValue([]);
-    mockDogRegistrationsTable.getRegistrationsForDogs.mockResolvedValue([]);
+    mockDogRegistrationsTable.getUnsentWorkForDogs.mockResolvedValue([]);
     mockDogRegistrationsTable.getRegistrationsForDog.mockResolvedValue([]);
   });
 
@@ -195,15 +197,17 @@ describe('dogQueries (replication)', () => {
 
     it('includes local pending registrations when PostgREST has not synced them yet', async () => {
       mockDogsTable.getAllDogs.mockResolvedValue([makeDog()]);
-      mockDogRegistrationsTable.getRegistrationsForDogs.mockResolvedValue([
+      mockDogRegistrationsTable.getUnsentWorkForDogs.mockResolvedValue([
         {
           id: 'registration-local-1',
-          dog_id: 'dog-1',
+          dogId: 'dog-1',
           organization: 'AKC',
-          registration_number: 'SW123456',
-          registered_name: 'Beacon Hill Fast Lane',
+          registrationNumber: 'SW123456',
+          registeredName: 'Beacon Hill Fast Lane',
           breed: 'Golden Retriever',
           status: 'pending',
+          _localOnly: true,
+          _queuedAdd: true,
         },
       ]);
 
@@ -232,15 +236,17 @@ describe('dogQueries (replication)', () => {
           status: 'approved',
         },
       ]);
-      mockDogRegistrationsTable.getRegistrationsForDogs.mockResolvedValue([
+      mockDogRegistrationsTable.getUnsentWorkForDogs.mockResolvedValue([
         {
           id: 'registration-local-1',
-          dog_id: 'dog-1',
+          dogId: 'dog-1',
           organization: 'akc',
-          registration_number: 'SW-123-456',
-          registered_name: 'Beacon Hill Fast Lane',
+          registrationNumber: 'SW-123-456',
+          registeredName: 'Beacon Hill Fast Lane',
           breed: 'Golden Retriever',
           status: 'pending',
+          _localOnly: true,
+          _queuedAdd: true,
         },
       ]);
 
@@ -297,13 +303,13 @@ describe('dogQueries (replication)', () => {
   // -----------------------------------------------------------------------
   // getDogById
   // -----------------------------------------------------------------------
-  describe('getDogById', () => {
-    it('returns dog with entries and supplemental data', async () => {
+  // getDogById reads the server first (MYK9-1126; its online paths are in
+  // services/database/dogs/__tests__/dogDetailRead.test.ts). These cover the
+  // device copy, which answers only when the server cannot be reached.
+  describe('getDogById, server unreachable', () => {
+    it('returns the device dog without entries (the dog page reads those itself)', async () => {
       mockDogsTable.getDogById.mockResolvedValue(makeDog());
-      mockEntriesTable.getAll.mockResolvedValue([
-        makeEntry({ dogId: 'dog-1' }),
-        makeEntry({ id: 'entry-other', dogId: 'dog-other' }),
-      ]);
+      mockEntriesTable.getAll.mockResolvedValue([makeEntry({ dogId: 'dog-1' })]);
 
       const result = await getDogById('dog-1');
 
@@ -311,27 +317,25 @@ describe('dogQueries (replication)', () => {
       const row = result.data as Record<string, unknown>;
       expect(row.id).toBe('dog-1');
       expect(row.name).toBe('Bella');
-      // Entries filtered to this dog
-      const entries = row.entries as Record<string, unknown>[];
-      expect(entries).toHaveLength(1);
-      expect(entries[0].id).toBe('entry-1');
-      expect(entries[0].dog_id).toBe('dog-1');
-      expect(entries[0].class_id).toBe('class-1');
-      expect(entries[0].show_id).toBe('show-1');
+      // MYK9-1126: entries come from getEntriesByDog, never from this row.
+      expect(row.entries).toBeUndefined();
+      expect(mockEntriesTable.getAll).not.toHaveBeenCalled();
     });
 
     it('includes local pending registrations in dog detail reads', async () => {
       mockDogsTable.getDogById.mockResolvedValue(makeDog());
       mockEntriesTable.getAll.mockResolvedValue([]);
-      mockDogRegistrationsTable.getRegistrationsForDogs.mockResolvedValue([
+      mockDogRegistrationsTable.getUnsentWorkForDogs.mockResolvedValue([
         {
           id: 'registration-local-1',
-          dog_id: 'dog-1',
+          dogId: 'dog-1',
           organization: 'AKC',
-          registration_number: 'SW123456',
-          registered_name: 'Beacon Hill Fast Lane',
+          registrationNumber: 'SW123456',
+          registeredName: 'Beacon Hill Fast Lane',
           breed: 'Golden Retriever',
           status: 'pending',
+          _localOnly: true,
+          _queuedAdd: true,
         },
       ]);
 
@@ -347,13 +351,13 @@ describe('dogQueries (replication)', () => {
       ]);
     });
 
-    it('returns { data: null, error: null } for missing dog', async () => {
+    it('returns an error, not a missing dog, when the dog is not on this device', async () => {
       mockDogsTable.getDogById.mockResolvedValue(null);
 
       const result = await getDogById('non-existent');
 
       expect(result.data).toBeNull();
-      expect(result.error).toBeNull();
+      expect(result.error).not.toBeNull();
     });
   });
 

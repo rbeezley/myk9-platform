@@ -47,8 +47,8 @@ const EXEMPT_IMPORTERS: Record<string, string> = {};
 /**
  * Files that still carry aria-pressed, with the exact count. A filter pill is
  * a toolkit ListFilterBar / ListViewTabs job; every entry below is either a
- * genuine non-filter toggle or a filter row no batch replaced yet. A new file,
- * or a changed count, fails until someone decides which it is.
+ * genuine non-filter toggle or a filter row kept on purpose by owner decision.
+ * A new file, or a changed count, fails until someone decides which it is.
  */
 const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> = {
   'features/show-map/cockpit/CockpitTrialGroup.tsx': {
@@ -57,7 +57,8 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
   },
   'features/show-map/cockpit/SecretaryCockpit.tsx': {
     count: 2,
-    reason: 'show-day picker (All days / one day, MYK9-955): a day row, not yet replaced',
+    reason:
+      'show-day picker (All days / one day, MYK9-955): one-tap day row kept on purpose; a select costs a tap on show day (MYK9-967 owner decision)',
   },
   'features/at-show/AtShowScoresheetPage.tsx': { count: 1, reason: 'ringside scoring toggle' },
   'features/operational-views/EntryDisplayPresetControl.tsx': {
@@ -69,6 +70,10 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
     reason: 'text formatting toggle',
   },
   'components/askq/AskQModeSelector.tsx': { count: 1, reason: 'mode selector' },
+  'components/landing/lifecycle/LifecycleTimeline.tsx': {
+    count: 1,
+    reason: 'landing audience story switch (club / exhibitor), not a list filter',
+  },
   'components/entries/management/PullReconciliationActions.tsx': {
     count: 2,
     reason: 'refund/denied decision, not a filter',

@@ -37,6 +37,7 @@ import {
   type EntryRow,
   type ReplicatedEntry,
 } from './ReplicatedEntriesTable.mapper';
+import { ENTRY_DIRTY_ROW_COMPARE_POLICY } from './entriesDirtyRowComparePolicy';
 import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
 import {
   classifyMoveUpRpcError,
@@ -142,6 +143,11 @@ function withdrawEligibilityOf(
 }
 
 export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
+  /** Rows are kept per signed-in account: another account's cache is invisible (MYK9-1133). */
+  override usesAccountOwnedRows(): boolean {
+    return true;
+  }
+
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
   private _hasWarnedMissingShowScope = false;
@@ -248,12 +254,17 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       },
       getRemoteId: remote => String(remote.id),
       toLocalRow: rowToEntry,
+      // An acknowledged write moves the row's merge base forward through this (MYK9-1220).
+      toRemoteRow: entry => entryToSupabaseRow(entry),
       // After a non-conflicting dirty sync-down reconciles a row, a queued full-row
       // direct UPDATE (updateStatus/updateEntry) must be refreshed to the merged
       // payload so advancing its OCC token doesn't clobber server-changed untouched
       // fields (e.g. final_placement bumped by the recalc trigger). RPC writes carry
       // a delta and don't need this.
       rebuildUpdatePayload: entry => entryToSupabaseRow(entry),
+      // Sync and the by-id refetch both read this adapter, so both compare null and
+      // undefined as one value (MYK9-1236).
+      dirtyRowComparePolicy: ENTRY_DIRTY_ROW_COMPARE_POLICY,
     };
   }
 
@@ -298,6 +309,19 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     });
     this._syncsByShow.set(syncKey, { sync, forced: forceFullSync });
     return sync;
+  }
+
+  /**
+   * Settles once every sync of this show running now has settled, its scope's
+   * sync metadata included; null when none is running. Starts nothing. For a
+   * reader that stopped waiting on a bounded refresh (MYK9-1130): recording a
+   * scope as synced notifies no listener, so the reader rechecks from here.
+   */
+  whenShowSyncSettles(showId: string): Promise<void> | null {
+    const running = [...this._syncsByShow]
+      .filter(([key]) => key.endsWith(`:${showId.trim()}`))
+      .map(([, { sync }]) => sync);
+    return running.length > 0 ? Promise.allSettled(running).then(noop) : null;
   }
 
   async refreshReceiptReferencesForUser(principalId: string): Promise<void> {
@@ -632,8 +656,19 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       _syncStatus: 'pending',
     };
 
+    // Durable-first (MYK9-1206): queue before the dirty write, as updateEntry does,
+    // so a rejected queue leaves no dirty row without a mutation. deferUpload keeps
+    // the upload from flushing before the dirty row exists; requestUpload follows.
+    const mutationId = await this.queueMutation(
+      'UPDATE',
+      entryId,
+      entryToSupabaseRow(updated),
+      undefined,
+      undefined,
+      /* deferUpload */ true
+    );
     this.reportSetResult(entryId, await this.set(entryId, updated, true));
-    const mutationId = await this.queueMutation('UPDATE', entryId, entryToSupabaseRow(updated));
+    this.requestUpload();
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId} status to ${status}`);
     return mutationId;
@@ -656,7 +691,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       _syncStatus: 'pending',
     };
 
-    this.reportSetResult(entryId, await this.set(entryId, updated, true));
+    // Durable-first (MYK9-1206): see updateEntryStatus.
     const mutationId = await this.queueMutation(
       'UPDATE',
       entryId,
@@ -668,8 +703,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       undefined,
       // check_in_status is ringside-whitelisted; route through the RPC so judges/
       // stewards can persist check-ins (updated_at is auto-managed, not intent).
-      { name: RINGSIDE_RPC_FUNCTION, fields: { check_in_status: status } }
+      { name: RINGSIDE_RPC_FUNCTION, fields: { check_in_status: status } },
+      /* deferUpload */ true
     );
+    this.reportSetResult(entryId, await this.set(entryId, updated, true));
+    this.requestUpload();
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId} check-in status to ${status}`);
     return mutationId;

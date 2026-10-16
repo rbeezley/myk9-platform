@@ -74,4 +74,90 @@ describe('ClassActualStartEditor', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Enter a time like 9:42 AM.');
     expect(updateClass).not.toHaveBeenCalled();
   });
+  it('shows a retryable error after a rejected clear, then recovers on retry', async () => {
+    updateClass.mockRejectedValueOnce(new Error('synthetic local storage failure'));
+    const { user } = renderEditor(true);
+    const clear = () =>
+      screen.getByRole('button', { name: 'Clear start time for Vehicle Elite B' });
+
+    await user.click(clear());
+
+    expect(updateClass).toHaveBeenCalledWith('class-1', { actual_start_time: undefined });
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Could not save the start time. Try again.'
+    );
+    expect(clear()).toBeEnabled();
+
+    await user.click(clear());
+
+    expect(updateClass).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('keeps the form open with feedback when saving an edit is rejected', async () => {
+    updateClass.mockRejectedValueOnce(new Error('synthetic local storage failure'));
+    const { user } = renderEditor(true);
+
+    await user.click(screen.getByRole('button', { name: 'Edit start time for Vehicle Elite B' }));
+    await user.type(screen.getByLabelText('Start time for Vehicle Elite B'), '9:42 AM');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Could not save the start time. Try again.'
+    );
+    expect(screen.getByLabelText('Start time for Vehicle Elite B')).toBeInTheDocument();
+  });
+
+  it('does not carry a clear error or a draft onto a different class', async () => {
+    updateClass.mockRejectedValueOnce(new Error('synthetic local storage failure'));
+    const editorFor = (classId: string, className: string) => (
+      <ClassActualStartEditor
+        classId={classId}
+        className={className}
+        trialDate="2026-10-10"
+        timeZone="America/Chicago"
+        hasStart
+      />
+    );
+    const { user, rerender } = render(editorFor('class-1', 'Vehicle Elite B'));
+
+    await user.click(screen.getByRole('button', { name: 'Clear start time for Vehicle Elite B' }));
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    rerender(editorFor('class-2', 'Interior Elite A'));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Edit start time for Interior Elite A' })
+    ).toBeEnabled();
+  });
+
+  it('cannot start an edit while a clear is still saving', async () => {
+    let finish: () => void = () => {};
+    updateClass.mockImplementationOnce(
+      () => new Promise<string>(resolve => (finish = () => resolve('mutation-1')))
+    );
+    const { user } = renderEditor(true);
+
+    await user.click(screen.getByRole('button', { name: 'Clear start time for Vehicle Elite B' }));
+
+    expect(
+      screen.getByRole('button', { name: 'Edit start time for Vehicle Elite B' })
+    ).toBeDisabled();
+    finish();
+    expect(
+      await screen.findByRole('button', { name: 'Edit start time for Vehicle Elite B' })
+    ).toBeEnabled();
+  });
+
+  it('drops a stale clear error when an edit is started', async () => {
+    updateClass.mockRejectedValueOnce(new Error('synthetic local storage failure'));
+    const { user } = renderEditor(true);
+
+    await user.click(screen.getByRole('button', { name: 'Clear start time for Vehicle Elite B' }));
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Edit start time for Vehicle Elite B' }));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });

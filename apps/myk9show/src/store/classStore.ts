@@ -4,6 +4,7 @@ import {
   replicatedEntriesTable,
   type ReplicatedClass,
 } from '@/services/replication';
+import { formatDateLocal } from '@/utils/dateLocal';
 import { getLastModifiedBy } from '@/utils/authHelpers';
 import { reportDebug } from '@/utils/standardizedErrorHandler';
 import {
@@ -360,7 +361,7 @@ export const useClassStore = create<ClassStoreState>()((set, get): ClassStoreSta
         id,
         trialId,
         trial: `Trial for ${trialId}`,
-        trialDate: new Date().toISOString().split('T')[0],
+        trialDate: formatDateLocal(new Date()),
         trialNumber: `TRL-${Date.now()}`,
         classOrder: (index + 1).toString(),
         status: 'Scheduled' as const,

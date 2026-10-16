@@ -9,6 +9,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard, StatCardSkeleton, StatsGrid } from '@myk9/ui';
 import { Badge } from '@/components/ui/badge';
+import { formatShortCalendarDate } from '@/lib/format/dates';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   useMyJudgeStats,
@@ -130,7 +131,7 @@ const JudgeStatsPage: React.FC = () => {
                 <p className="text-sm mt-1">Your stats will appear after your first assignment.</p>
               </div>
             ) : (
-              <div className="flex flex-col items-center">
+              <div className="flex w-full flex-col items-center">
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie
@@ -195,7 +196,7 @@ const JudgeStatsPage: React.FC = () => {
                       <p className="font-medium text-sm">{assignment.show_name}</p>
                       <p className="text-xs text-muted-foreground">
                         {assignment.show_start_date
-                          ? new Date(assignment.show_start_date).toLocaleDateString()
+                          ? formatShortCalendarDate(assignment.show_start_date)
                           : 'Date TBD'}
                         {assignment.fee ? ` — $${assignment.fee}` : ''}
                       </p>

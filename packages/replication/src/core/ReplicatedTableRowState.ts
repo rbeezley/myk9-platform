@@ -7,6 +7,7 @@ interface BuildReplicatedRowForSetOptions<T extends { id: string }> {
   isDirty: boolean;
   existingRow?: ReplicatedRow<T> | undefined;
   incomingServerVersion?: number | undefined;
+  ownerAuthUserId?: string | undefined;
   now: number;
 }
 
@@ -17,6 +18,7 @@ export function buildReplicatedRowForSet<T extends { id: string }>({
   isDirty,
   existingRow,
   incomingServerVersion,
+  ownerAuthUserId,
   now,
 }: BuildReplicatedRowForSetOptions<T>): ReplicatedRow<T> {
   const normalizedData = { ...data, id } as T;
@@ -33,6 +35,13 @@ export function buildReplicatedRowForSet<T extends { id: string }>({
       ? existingRow.baseVersion
       : shouldCaptureBase
         ? existingRow.version
+        : undefined
+    : undefined;
+  const baseServerVersion = isDirty
+    ? existingRow?.isDirty
+      ? existingRow.baseServerVersion
+      : shouldCaptureBase
+        ? existingRow.serverVersion
         : undefined
     : undefined;
   const shouldPreserveConflict = isDirty && existingRow?.syncStatus === 'conflict';
@@ -54,7 +63,13 @@ export function buildReplicatedRowForSet<T extends { id: string }>({
     syncStatus: isDirty ? (shouldPreserveConflict ? 'conflict' : 'pending') : 'synced',
     ...(baseData !== undefined && { baseData }),
     ...(baseVersion !== undefined && { baseVersion }),
+    ...(baseServerVersion !== undefined && { baseServerVersion }),
     ...(serverVersion !== undefined && { serverVersion }),
+    // A writer whose account is settled owns the row; one whose account is not
+    // (or a repair that is no writer) leaves the owner it has.
+    ...((ownerAuthUserId ?? existingRow?.ownerAuthUserId) !== undefined && {
+      ownerAuthUserId: (ownerAuthUserId ?? existingRow?.ownerAuthUserId) as string,
+    }),
     // A local (dirty) write keeps the server token, so it keeps the record of
     // how this device last moved it; a server write replaces both.
     ...(isDirty && existingRow?.lastOwnUpload && { lastOwnUpload: existingRow.lastOwnUpload }),
@@ -87,6 +102,8 @@ interface BuildReconciledDirtyRowOptions<T extends { id: string }> {
   mergedData: T;
   /** New merge base — the current server snapshot the dirty edit now sits on top of. */
   newBaseData: T;
+  /** The server `version` of `newBaseData`. */
+  baseServerVersion?: number;
   /** Forward-advanced OCC token (server `version`); undefined leaves it unchanged. */
   serverVersion: number | undefined;
   now: number;
@@ -107,10 +124,11 @@ export function buildReconciledDirtyRow<T extends { id: string }>({
   existingRow,
   mergedData,
   newBaseData,
+  baseServerVersion,
   serverVersion,
   now,
 }: BuildReconciledDirtyRowOptions<T>): ReplicatedRow<T> {
-  return {
+  const row: ReplicatedRow<T> = {
     ...existingRow,
     data: { ...mergedData, id: existingRow.id },
     baseData: { ...newBaseData, id: existingRow.id },
@@ -121,6 +139,9 @@ export function buildReconciledDirtyRow<T extends { id: string }>({
     conflict: undefined,
     ...(serverVersion !== undefined && { serverVersion }),
   };
+  if (baseServerVersion === undefined) delete row.baseServerVersion;
+  else row.baseServerVersion = baseServerVersion;
+  return row;
 }
 
 /**
@@ -145,6 +166,7 @@ export function buildSyncedReplicatedRow<T>(row: ReplicatedRow<T>, now: number):
     lastSyncedAt: now,
     baseData: undefined,
     baseVersion: undefined,
+    baseServerVersion: undefined,
     conflict: undefined,
   };
 }

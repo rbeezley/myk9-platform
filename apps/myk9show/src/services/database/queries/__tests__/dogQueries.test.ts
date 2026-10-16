@@ -139,7 +139,8 @@ describe('Dog Queries', () => {
       const result = await getDogById('1');
 
       expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
-      expect(result.data).toEqual(mockDog);
+      // getDogById adds the registration read's rows and completeness (MYK9-1126).
+      expect(result.data).toMatchObject(mockDog);
       expect(result.error).toBeNull();
     });
   });

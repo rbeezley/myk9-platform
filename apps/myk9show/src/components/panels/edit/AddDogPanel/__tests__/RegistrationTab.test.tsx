@@ -1,4 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { render } from '@/test/utils/testUtils';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { RegistrationTab } from '../RegistrationTab';
 import { EditPanelContext } from '@/components/panels/edit/useEditPanel';
@@ -6,7 +8,7 @@ import type { DogFormData } from '../types';
 import { createInitialFormData } from '../types';
 import { REGISTRATION_HEADING_ID } from '../validationTab';
 
-function renderTab(formOverrides: Partial<DogFormData> = {}) {
+function renderTab(formOverrides: Partial<DogFormData> = {}, onSkip?: () => void) {
   const data: DogFormData = { ...createInitialFormData(), ...formOverrides };
   const form = {
     data,
@@ -41,6 +43,13 @@ function renderTab(formOverrides: Partial<DogFormData> = {}) {
         onRemoveRegistration={vi.fn()}
         onEditRegistration={vi.fn()}
         onAddRegistration={vi.fn()}
+        onFindDog={vi.fn().mockResolvedValue({ kind: 'free' })}
+        onIdentityEdited={vi.fn()}
+        onIdentityDraftChange={vi.fn()}
+        draftBlocked={false}
+        onSaveRegistration={vi.fn()}
+        onRegistrationSaved={vi.fn()}
+        onSkip={onSkip}
       />
     </EditPanelContext.Provider>
   );
@@ -56,11 +65,28 @@ describe('RegistrationTab validation focus target (MYK9-885)', () => {
   });
 });
 
-describe('RegistrationTab empty state (4.E — no silent Mixed Breed)', () => {
-  it('says a registration will supply the breed later', () => {
+// MYK9-1162: with no registration the step is the identity form, not a list.
+describe('RegistrationTab empty state', () => {
+  it('asks for the registry and number first, with Find dog and no Add New Registration', () => {
     renderTab({ registrations: [] });
     expect(screen.queryByText(/Mixed Breed/)).not.toBeInTheDocument();
-    expect(screen.getByText(/breed will be recorded with that organization/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Registration Organization/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Registration Number/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Find dog' })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Registered Name/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Add New Registration/ })).toBeNull();
+  });
+
+  it('offers no skip unless the caller allows it', () => {
+    renderTab({ registrations: [] });
+    expect(screen.queryByRole('button', { name: /No registration number yet/ })).toBeNull();
+  });
+
+  it('offers the skip when the caller allows it, and it calls back', async () => {
+    const onSkip = vi.fn();
+    renderTab({ registrations: [] }, onSkip);
+    await userEvent.click(screen.getByRole('button', { name: /No registration number yet/ }));
+    expect(onSkip).toHaveBeenCalledOnce();
   });
 
   it('does not show the fallback note once a registration exists', () => {
@@ -77,6 +103,8 @@ describe('RegistrationTab empty state (4.E — no silent Mixed Breed)', () => {
       ] as DogFormData['registrations'],
     });
     expect(screen.queryByText(/saved as/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Find dog' })).toBeNull();
+    expect(screen.getByRole('button', { name: /Add New Registration/ })).toBeInTheDocument();
   });
 });
 
@@ -106,5 +134,23 @@ describe('RegistrationTab row actions are named', () => {
         name: 'Remove AKC (American Kennel Club) registration DN12345601',
       })
     ).toBeInTheDocument();
+  });
+});
+
+describe('registration status badge (MYK9-1210)', () => {
+  it('shows the positive tone for a form-written "Active", whatever its casing', () => {
+    renderTab({
+      registrations: [
+        {
+          id: 'r1',
+          organization: 'AKC',
+          registeredName: 'Ch Alpha',
+          registrationNumber: 'AAA111',
+          breed: 'Beagle',
+          status: 'Active',
+        },
+      ],
+    });
+    expect(screen.getByText('Active')).toHaveClass('text-green-700');
   });
 });

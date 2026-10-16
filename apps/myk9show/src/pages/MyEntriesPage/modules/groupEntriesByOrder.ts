@@ -86,7 +86,8 @@ interface OrderAccum {
   isShowCancelled: boolean;
   /** MYK9-778: any row of the order saw the show closed out. */
   isShowClosedOut: boolean;
-  showDate: Date;
+  isShowUnreadable: boolean;
+  showDate?: Date | undefined;
   showEndDate?: Date | undefined;
   location: MyEntry['location'];
   confirmationNumber?: string | undefined;
@@ -159,6 +160,7 @@ export function groupEntriesByOrder(rawEntries: MyEntry[], now: Date = new Date(
         showName: row.showName,
         isShowCancelled: Boolean(row.isShowCancelled),
         isShowClosedOut: Boolean(row.isShowClosedOut),
+        isShowUnreadable: Boolean(row.isShowUnreadable),
         showDate: row.showDate,
         showEndDate: row.showEndDate,
         location: row.location,
@@ -251,6 +253,7 @@ export function groupEntriesByOrder(rawEntries: MyEntry[], now: Date = new Date(
       showName: order.showName,
       isShowCancelled: order.isShowCancelled,
       isShowClosedOut: order.isShowClosedOut,
+      isShowUnreadable: order.isShowUnreadable,
       showDate: order.showDate,
       showEndDate: order.showEndDate,
       location: order.location,

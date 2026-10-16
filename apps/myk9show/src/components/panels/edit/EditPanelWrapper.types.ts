@@ -85,7 +85,7 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   /**
    * `inline` only: filled with this form's close request (the same one Cancel
    * uses, so a dirty form raises the discard prompt and a save in flight holds
-   * the form open). Cleared on unmount.
+   * the form open and says "Still saving"). Cleared on unmount.
    */
   closeRequestRef?: React.MutableRefObject<(() => void) | null>;
 
@@ -97,6 +97,13 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
 
   // For create forms where hasChanges tracking doesn't apply
   forceHasChanges?: boolean;
+
+  /**
+   * True while the panel holds input its form does not track (Add Dog's registry
+   * number before the registration is saved, MYK9-1162). Counts as unsaved work
+   * for the discard prompt and the route guard only; it never enables Save.
+   */
+  hasUntrackedInput?: boolean;
 
   /**
    * The confirmation toast shown once the save succeeds: "‹Name› saved" after

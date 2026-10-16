@@ -1,3 +1,4 @@
+import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
 import {
   buildLifecycleEmailScheduledSummary,
   type LifecycleEmailReceiptSource,
@@ -6,6 +7,7 @@ import {
   type LifecycleEmailJobSummaryRow,
   type LifecycleEmailReceiptLogRow,
 } from './readModel';
+import { fetchAllPages } from './pagedRead';
 import type { LifecycleEmailStepType } from './types';
 
 interface QueryResult<T> {
@@ -17,6 +19,9 @@ interface QueryBuilder<T> extends PromiseLike<QueryResult<T>> {
   select(columns: string): QueryBuilder<T>;
   eq(column: string, value: unknown): QueryBuilder<T>;
   in(column: string, values: readonly unknown[]): QueryBuilder<T>;
+  order(column: string): QueryBuilder<T>;
+  gt(column: string, value: unknown): QueryBuilder<T>;
+  limit(count: number): QueryBuilder<T>;
   update(values: Record<string, unknown>): QueryBuilder<T>;
 }
 
@@ -30,6 +35,7 @@ interface StepRow {
 }
 
 interface JobRow {
+  id: string;
   step_type: LifecycleEmailStepType;
   status: LifecycleEmailJobSummaryRow['status'];
   preview_warnings: string[] | null;
@@ -103,6 +109,26 @@ export interface EntryDecisionEmailStatus {
   sentCorrectionJob: EntryDecisionEmailJob | null;
 }
 
+/** A multi-chunk send that failed after some chunks went out; the message is safe to show. */
+export class LifecycleSendPartialError extends Error {
+  constructor(
+    readonly sent: number,
+    readonly total: number
+  ) {
+    super(`Sent ${sent} of ${total} emails; the rest are still waiting. Send again to finish.`);
+    this.name = 'LifecycleSendPartialError';
+  }
+}
+
+/** What a completed send really did: `failed` jobs stay on the list for another try. */
+export interface LifecycleSendResult {
+  sent: number;
+  failed: number;
+  /** Jobs the server withdrew instead of sending (a registration number arrived first). */
+  skipped?: number;
+  total: number;
+}
+
 export interface LifecycleEmailFunctionsClient {
   functions: {
     invoke: (
@@ -114,6 +140,25 @@ export interface LifecycleEmailFunctionsClient {
 
 export function entryDecisionLifecycleEmailQueryKey(showId: string, entryIds: readonly string[]) {
   return ['entry-decision-lifecycle-emails', showId, [...entryIds].sort().join(',')] as const;
+}
+
+// Registration ids scale with the show, and `.in()` rides in the URL: chunk it.
+async function fetchReceiptLogs(
+  supabase: LifecycleEmailSupabaseClient,
+  registrationIds: readonly string[]
+): Promise<QueryResult<ReceiptLogRow[]>> {
+  const results = await Promise.all(
+    chunk(registrationIds, ID_CHUNK_SIZE).map(async ids =>
+      supabase
+        .from<ReceiptLogRow[]>('email_log')
+        .select('related_id, status, error_message, created_at')
+        .in('related_id', ids)
+        .eq('email_type', 'registration_confirmation')
+    )
+  );
+  const failed = results.find(result => result.error);
+  if (failed) return { data: null, error: failed.error };
+  return { data: results.flatMap(result => result.data ?? []), error: null };
 }
 
 export async function fetchShowLifecycleEmailSummary(args: {
@@ -130,17 +175,13 @@ export async function fetchShowLifecycleEmailSummary(args: {
       .from<StepRow[]>('show_lifecycle_email_steps')
       .select('step_type, is_enabled')
       .eq('show_id', args.showId),
-    args.supabase
-      .from<JobRow[]>('show_lifecycle_email_jobs')
-      .select('step_type, status, preview_warnings')
-      .eq('show_id', args.showId),
-    receiptRegistrationIds.length > 0
-      ? args.supabase
-          .from<ReceiptLogRow[]>('email_log')
-          .select('related_id, status, error_message, created_at')
-          .in('related_id', receiptRegistrationIds)
-          .eq('email_type', 'registration_confirmation')
-      : Promise.resolve({ data: [], error: null }),
+    fetchAllPages<JobRow>(() =>
+      args.supabase
+        .from<JobRow[]>('show_lifecycle_email_jobs')
+        .select('id, step_type, status, preview_warnings')
+        .eq('show_id', args.showId)
+    ),
+    fetchReceiptLogs(args.supabase, receiptRegistrationIds),
   ]);
 
   if (stepsResult.error) throw new Error(stepsResult.error.message ?? 'Failed to load email steps');
@@ -179,14 +220,16 @@ export async function fetchLifecycleEmailJobsForReview(args: {
   showId: string;
   stepType: LifecycleEmailStepType;
 }): Promise<LifecycleEmailJobReview[]> {
-  const result = (await args.supabase
-    .from<JobReviewRow[]>('show_lifecycle_email_jobs')
-    .select(
-      'id, step_type, status, recipient_email, recipient_name, subject, body, secretary_note, preview_warnings'
-    )
-    .eq('show_id', args.showId)
-    .eq('step_type', args.stepType)
-    .in('status', ['ready', 'failed'])) as QueryResult<JobReviewRow[]>;
+  const result = await fetchAllPages<JobReviewRow>(() =>
+    args.supabase
+      .from<JobReviewRow[]>('show_lifecycle_email_jobs')
+      .select(
+        'id, step_type, status, recipient_email, recipient_name, subject, body, secretary_note, preview_warnings'
+      )
+      .eq('show_id', args.showId)
+      .eq('step_type', args.stepType)
+      .in('status', ['ready', 'failed'])
+  );
 
   if (result.error) {
     throw new Error(result.error.message ?? 'Failed to load lifecycle email recipients');
@@ -212,21 +255,29 @@ export async function fetchEntryDecisionEmailStatuses(args: {
 }): Promise<Record<string, EntryDecisionEmailStatus>> {
   if (args.entryIds.length === 0) return {};
 
-  const result = (await args.supabase
-    .from<EntryDecisionJobRow[]>('show_lifecycle_email_jobs')
-    .select(
-      'id, entry_id, step_type, status, subject, body, secretary_note, due_at, prepared_at, sent_at, correction_for_job_id'
+  // Chunked: an `entry_id in (…)` list rides in the URL and grows with the show, so one list
+  // for a large show overflowed the request (MYK9-1186). Not show-wide instead: PostgREST caps
+  // a read at max_rows (1000) without saying so, which a large show's jobs could exceed.
+  const results = (await Promise.all(
+    chunk(args.entryIds, ID_CHUNK_SIZE).map(ids =>
+      args.supabase
+        .from<EntryDecisionJobRow[]>('show_lifecycle_email_jobs')
+        .select(
+          'id, entry_id, step_type, status, subject, body, secretary_note, due_at, prepared_at, sent_at, correction_for_job_id'
+        )
+        .eq('show_id', args.showId)
+        .in('entry_id', ids)
+        .in('step_type', ['accepted', 'waitlisted'])
     )
-    .eq('show_id', args.showId)
-    .in('entry_id', args.entryIds)
-    .in('step_type', ['accepted', 'waitlisted'])) as QueryResult<EntryDecisionJobRow[]>;
+  )) as QueryResult<EntryDecisionJobRow[]>[];
 
-  if (result.error) {
-    throw new Error(result.error.message ?? 'Failed to load entry decision email status');
+  const failed = results.find(result => result.error);
+  if (failed?.error) {
+    throw new Error(failed.error.message ?? 'Failed to load entry decision email status');
   }
 
   const statuses: Record<string, EntryDecisionEmailStatus> = {};
-  for (const row of result.data ?? []) {
+  for (const row of results.flatMap(result => result.data ?? [])) {
     if (!row.entry_id) continue;
     const job = mapEntryDecisionJob(row, row.entry_id);
     const status = (statuses[row.entry_id] ??= {
@@ -266,21 +317,37 @@ export async function sendLifecycleEmailJobs(args: {
   subject?: string | null;
   body?: string | null;
   secretaryNote?: string | null;
-}): Promise<void> {
-  const { error } = await args.supabase.functions.invoke('send-lifecycle-email', {
-    body: {
-      action: 'send',
-      show_id: args.showId,
-      job_ids: args.jobIds,
-      ...(args.subject == null ? {} : { subject: args.subject }),
-      ...(args.body == null ? {} : { body: args.body }),
-      ...(args.secretaryNote == null ? {} : { secretary_note: args.secretaryNote }),
-    },
-  });
+}): Promise<LifecycleSendResult> {
+  // The edge function reads its job ids unpaged, so one call would be capped at max_rows (1000)
+  // and silently send only part of a large batch; chunk it like the skip path (MYK9-1187).
+  // Sent jobs leave the ready/failed set the review reads, so sending again resumes safely.
+  let sent = 0;
+  let failed = 0;
+  let skipped = 0;
+  for (const jobIds of chunk(args.jobIds, ID_CHUNK_SIZE)) {
+    const { data, error } = await args.supabase.functions.invoke('send-lifecycle-email', {
+      body: {
+        action: 'send',
+        show_id: args.showId,
+        job_ids: jobIds,
+        ...(args.subject == null ? {} : { subject: args.subject }),
+        ...(args.body == null ? {} : { body: args.body }),
+        ...(args.secretaryNote == null ? {} : { secretary_note: args.secretaryNote }),
+      },
+    });
 
-  if (error) {
-    throw new Error(error.message ?? 'Failed to send lifecycle email');
+    if (error) {
+      if (sent === 0) throw new Error(error.message ?? 'Failed to send lifecycle email');
+      throw new LifecycleSendPartialError(sent, args.jobIds.length);
+    }
+    // The handler answers 200 with { attempted, sent, failed }; count what really went out.
+    const reported = data as
+      { sent?: unknown; failed?: unknown; skipped?: unknown } | null | undefined;
+    sent += typeof reported?.sent === 'number' ? reported.sent : jobIds.length;
+    if (typeof reported?.failed === 'number') failed += reported.failed;
+    if (typeof reported?.skipped === 'number') skipped += reported.skipped;
   }
+  return { sent, failed, ...(skipped > 0 ? { skipped } : {}), total: args.jobIds.length };
 }
 
 export async function updateReadyLifecycleEmailJob(args: {
@@ -311,14 +378,17 @@ export async function skipLifecycleEmailJobsForReview(args: {
 }): Promise<void> {
   if (args.jobIds.length === 0) return;
 
-  const result = await args.supabase
-    .from('show_lifecycle_email_jobs')
-    .update({ status: 'skipped', skipped_at: new Date().toISOString() })
-    .in('id', args.jobIds)
-    .in('status', ['ready', 'failed']);
+  const skippedAt = new Date().toISOString();
+  for (const ids of chunk(args.jobIds, ID_CHUNK_SIZE)) {
+    const result = await args.supabase
+      .from('show_lifecycle_email_jobs')
+      .update({ status: 'skipped', skipped_at: skippedAt })
+      .in('id', ids)
+      .in('status', ['ready', 'failed']);
 
-  if (result.error) {
-    throw new Error(result.error.message ?? 'Failed to skip lifecycle email recipients');
+    if (result.error) {
+      throw new Error(result.error.message ?? 'Failed to skip lifecycle email recipients');
+    }
   }
 }
 

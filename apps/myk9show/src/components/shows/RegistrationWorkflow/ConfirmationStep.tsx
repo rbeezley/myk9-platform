@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
 import { getDogBreedLabel } from '@/types/dog-types';
 import {
   CheckCircle,
@@ -134,7 +135,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
 
     return {
       registrationNumber,
-      showName: show?.name || 'Unknown Show',
+      showName: show?.name || SHOW_NOT_PUBLISHED_LABEL,
       showClub: show?.clubName || '',
       showDate,
       showLocation: show?.location || 'TBD',

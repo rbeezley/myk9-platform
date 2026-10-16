@@ -117,6 +117,11 @@ export function rowToPaperworkPrint(row: PaperworkPrintRow): ReplicatedPaperwork
 }
 
 export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPaperworkPrint> {
+  /** Rows are kept per signed-in account: another account's cache is invisible (MYK9-1133). */
+  override usesAccountOwnedRows(): boolean {
+    return true;
+  }
+
   constructor() {
     super('paperwork_prints', { logger });
   }
@@ -273,6 +278,11 @@ export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPa
     };
   }
 
+  /**
+   * Only the three void columns, and deliberately no `id`: `authenticated` may UPDATE
+   * these columns and nothing else, so naming any other column (even an unchanged `id`)
+   * is refused 42501. The queue addresses the row by the mutation's `rowId` (MYK9-1132).
+   */
   private toVoidPayload(record: ReplicatedPaperworkPrint): Record<string, unknown> {
     return {
       voided_at: record.voidedAt ?? null,

@@ -33,7 +33,9 @@ export function ResultCard({ model }: ResultCardProps) {
         </div>
         <div className="text-center">
           <p className="font-semibold">{model.className}</p>
-          <p className="text-sm text-muted-foreground">{model.showDateLabel}</p>
+          {model.showDateLabel ? (
+            <p className="text-sm text-muted-foreground">{model.showDateLabel}</p>
+          ) : null}
         </div>
         <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
           {model.timeLabel ? <ResultFact label="Time" value={model.timeLabel} /> : null}

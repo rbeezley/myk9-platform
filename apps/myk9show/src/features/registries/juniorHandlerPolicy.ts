@@ -10,9 +10,10 @@
  * have to re-derive them:
  *
  *  - **AKC Scent Work** — junior is "less than 18 years of age on the day of the trial"
- *    (glossary entry "Junior Handler", akc-scent-work-regulations.txt line 2762, which
- *    itself cross-references pp. 11-12 and 13). Ch.3 §10 — line 444, the p.13 text —
- *    repeats it as "on the day of the event". No minimum age. AKC issues an
+ *    (glossary entry "Junior Handler", akc-scent-work-regulations.txt line 3395, which
+ *    itself cross-references pp. 11-12 and 13). Ch.3 §10 — lines 551-552, the p.13 text —
+ *    repeats it as "on the day of the event". (Line numbers are for the Amended August 2025
+ *    text archived 2026-10-13; the rule is unchanged from the earlier copy.) No minimum age. AKC issues an
  *    **AKC Junior Handler number**; the
  *    glossary is explicit that a junior "need not have" one to compete, but earns no
  *    award credit without one held *prior to the date of the trial*. So the number is

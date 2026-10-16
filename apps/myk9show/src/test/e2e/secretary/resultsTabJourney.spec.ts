@@ -7,6 +7,7 @@ import {
   type RestAuth,
 } from '../helpers/liveCanary';
 import { expectNoHorizontalOverflow } from '../helpers/horizontalOverflow';
+import { installBrowserDiagnostics } from '../shared/browserDiagnostics';
 import { installSharedStagingWriteGuard } from '../helpers/sharedStagingWriteGuard';
 import { signInAsSecretary } from '../helpers/testUsers';
 
@@ -73,28 +74,16 @@ async function findFixtureClass(page: Page, auth: RestAuth, today: string) {
 /**
  * Paper-score both fixture dogs Qualified, unless a previous run already scored the class.
  *
- * The paper page reads the LOCAL replica once on mount (PaperScoresheetPage.tsx load effect) and
- * never re-reads when entries sync in, so a cold direct load can list zero dogs while its
- * "0 of 0 scored" counter is already on screen (the first CI run timed out waiting for a dog
- * button for this reason). The Results tab reads reactively, so it is opened first and given time
- * to show the class's two dogs; only then does the paper page load, from a warm replica. The dog
- * wait reloads once more in case the replica was still filling.
+ * A direct cold load of the paper page, deliberately, with no warm-up and no reload: the page
+ * syncs the show's entries itself and lists dogs that reach the replica after mount, never a
+ * never-synced "0 of 0 scored" (MYK9-1130).
  */
-async function scoreFromPaper(page: Page, resultsUrl: string, classId: string) {
-  await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
-  await expect(
-    page.getByRole('list', { name: 'Classes' }).getByText(/Scored\s*\d+\s*\/\s*2/)
-  ).toBeVisible({ timeout: 45_000 });
-
+async function scoreFromPaper(page: Page, classId: string) {
   await page.goto(`/scoring/classes/${classId}/entries?mode=split`, {
     waitUntil: 'domcontentloaded',
   });
-  await expect(page.getByRole('heading', { name: CLASS_NAME })).toBeVisible({ timeout: 20_000 });
-  const willow = page.getByRole('button', { name: /Willow/ });
-  await expect(async () => {
-    if (!(await willow.isVisible())) await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(willow).toBeVisible({ timeout: 10_000 });
-  }).toPass({ timeout: 60_000 });
+  await expect(page.getByRole('heading', { name: CLASS_NAME })).toBeVisible({ timeout: 45_000 });
+  await expect(page.getByRole('button', { name: /Willow/ })).toBeVisible({ timeout: 45_000 });
 
   if (await page.getByText('2 of 2 scored').first().isVisible()) return;
 
@@ -119,6 +108,14 @@ async function scoreFromPaper(page: Page, resultsUrl: string, classId: string) {
 async function printFromResults(page: Page, detail: Locator, label: string, reportId: string) {
   const row = paperworkRow(detail, label);
   await expect(row.getByText('Not confirmed printed')).toBeVisible({ timeout: 20_000 });
+  // MYK9-1215: the bottom-right toasts ("Scores marked...", "Results released") dock on top of
+  // this row's Print link at 1280x720. A click that lands as they shift hits the toast, which
+  // hover-pauses and expands the stack, so the link never fires and the toasts never leave
+  // (both failing runs' screenshots show the stack still up 15s later). Click only once clear,
+  // with the pointer parked off the stack first: a hovered stack pauses its own timers.
+  // Kept until a green Playwright Regression run proves the MYK9-1217 clearance.
+  await page.mouse.move(0, 0);
+  await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 15_000 });
   await row.getByRole('link', { name: /Print/ }).click();
   await expect(page).toHaveURL(new RegExp(`/reports\\?.*report=${reportId}`));
   const printButton = page.getByRole('button', { name: 'Print', exact: true });
@@ -139,7 +136,36 @@ function paperworkRow(detail: Locator, label: string): Locator {
   return detail.locator('li').filter({ hasText: label }).last();
 }
 
+/** Errors a lazy route's import throws when its chunk could not be fetched. */
+const CHUNK_LOAD_ERROR =
+  /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Unable to preload CSS|ChunkLoadError/i;
+
+/**
+ * Open `url` and wait for `ready`. Nightly 38606805596 (MYK9-1161) showed the lazy-route
+ * "Failed to load component" boundary on this step instead of the Classes list. That boundary
+ * catches any route error, not only a failed chunk fetch, so a reload is earned only when the
+ * error it records (`data-boundary-error`) is a chunk-load failure, which is what its own
+ * "Reload Page" fixes. Any other error fails the step with the error text: a crash at 375px is
+ * a finding, not a flake.
+ */
+async function gotoReadyOrChunkReload(page: Page, url: string, ready: Locator) {
+  const boundary = page.locator('[data-boundary-error]');
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  for (let reloads = 0; ; reloads += 1) {
+    await expect(ready.or(boundary).first()).toBeVisible({ timeout: 30_000 });
+    if (await ready.isVisible()) return;
+    const error = (await boundary.first().getAttribute('data-boundary-error')) ?? '';
+    if (!CHUNK_LOAD_ERROR.test(error) || reloads >= 2) {
+      throw new Error(`Route error boundary instead of the page at ${url}: ${error}`);
+    }
+    await page.reload({ waitUntil: 'domcontentloaded' });
+  }
+}
+
 test.describe('Results tab: scored -> verified -> released -> printed -> initialed', () => {
+  // MYK9-1114: attaches console/network/toast text on failure (traces are not uploaded).
+  installBrowserDiagnostics(test);
+
   test.skip(
     !DATA_REQUIRED,
     'Stateful: writes scores, the paper check, a release, print records and judge initials. ' +
@@ -179,7 +205,7 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
     });
 
     await test.step('2. score both dogs from paper', async () => {
-      await scoreFromPaper(page, resultsUrl, classId);
+      await scoreFromPaper(page, classId);
     });
 
     await test.step('3. open the class on Results once the server has completed it', async () => {
@@ -219,6 +245,50 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
       await expect(detail.getByText('Print the results sheet and ribbon labels')).toBeVisible({
         timeout: 20_000,
       });
+      // MYK9-1217: at 1280x720 the "Scores marked..." and "Results released" toasts used to dock
+      // over the Print link. Measured on the rendered boxes while the toasts are still up.
+      const toasts = page.locator('[data-sonner-toast]');
+      await expect(toasts.first()).toBeVisible();
+      const printLink = paperworkRow(detail, 'Results sheet').getByRole('link', { name: /Print/ });
+      // Retries: the stack animates to its offset as the second toast arrives. Reports the
+      // number of toasts present and how many of them overlap the link's box.
+      await expect
+        .poll(
+          async () => {
+            const link = await printLink.boundingBox();
+            if (!link) return 'no Print box';
+            const boxes = await toasts.evaluateAll(nodes =>
+              nodes.map(node => node.getBoundingClientRect())
+            );
+            const overlapping = boxes.filter(
+              b =>
+                b.left < link.x + link.width &&
+                b.right > link.x &&
+                b.top < link.y + link.height &&
+                b.bottom > link.y
+            );
+            return `${boxes.length > 0 ? 'toasts up' : 'no toasts'}, ${overlapping.length} overlapping`;
+          },
+          { timeout: 5_000 }
+        )
+        .toBe('toasts up, 0 overlapping');
+      // The lift is capped, so the stack must stay fully on screen (never over the header).
+      await expect
+        .poll(
+          async () => {
+            const offScreen = await toasts.evaluateAll(
+              nodes =>
+                nodes.filter(node => {
+                  const b = node.getBoundingClientRect();
+                  return b.top < 0 || b.bottom > window.innerHeight;
+                }).length
+            );
+            const count = await toasts.count();
+            return `${count > 0 ? 'toasts up' : 'no toasts'}, ${offScreen} off screen`;
+          },
+          { timeout: 5_000 }
+        )
+        .toBe('toasts up, 0 off screen');
     });
 
     await test.step('6. print the Results sheet and Ribbon labels from their reports', async () => {
@@ -263,18 +333,17 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
     await test.step('9. the same class on a 375px phone fits the screen', async () => {
       await page.setViewportSize(PHONE);
       // The class is done now, so the default "Needs me" filter no longer lists it.
-      await page.goto(`/shows/${encodeURIComponent(showId)}/results?status=all`, {
-        waitUntil: 'domcontentloaded',
-      });
-      await expect(
-        page
-          .getByRole('list', { name: 'Classes' })
-          .getByRole('link', { name: new RegExp(CLASS_NAME) })
-          .first()
-      ).toBeVisible({ timeout: 30_000 });
+      const classLink = page
+        .getByRole('list', { name: 'Classes' })
+        .getByRole('link', { name: new RegExp(CLASS_NAME) })
+        .first();
+      await gotoReadyOrChunkReload(
+        page,
+        `/shows/${encodeURIComponent(showId)}/results?status=all`,
+        classLink
+      );
       await expectNoHorizontalOverflow(page, 'Results class list at 375px');
-      await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
-      await expect(detail).toBeVisible({ timeout: 30_000 });
+      await gotoReadyOrChunkReload(page, resultsUrl, detail);
       await expectNoHorizontalOverflow(page, 'Results class detail at 375px');
     });
   });

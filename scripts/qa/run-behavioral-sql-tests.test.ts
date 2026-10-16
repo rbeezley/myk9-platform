@@ -1,4 +1,12 @@
-import { chmodSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -81,6 +89,8 @@ const launchCriticalSqlTests = [
   'myk9_878_submit_entries_junior_fee_test.sql',
   'myk9_879_junior_declaration_test.sql',
   'myk9_854_dogs_select_show_scoped_secretary_test.sql',
+  'dogs_update_secretary_created_dogs_test.sql',
+  'people_update_secretary_created_people_test.sql',
   'office_admin_rls_test.sql',
   'one_registry_per_show_test.sql',
   'entry_status_history_rls_test.sql',
@@ -152,6 +162,8 @@ const launchCriticalSqlTests = [
   'myk9_1030_judge_sign_off_test.sql',
   'myk9_1045_results_verified_test.sql',
   'myk9_1059_creation_attribution_test.sql',
+  'myk9_1117_registration_date_test.sql',
+  'myk9_1151_merge_sibling_registrations_test.sql',
   'myk9_1071_registration_people_versions_test.sql',
   'myk9_963_unfulfilled_charge_refund_test.sql',
   'myk9_969_results_privacy_test.sql',
@@ -173,7 +185,44 @@ const launchCriticalSqlTests = [
   'seed_demo_paid_stray_guard_scopes_test.sql',
   'myk9_731_restore_show_day_fixture_test.sql',
   'myk9_731_restore_show_day_fixture_containment_test.sql',
+  'myk9_1162_registry_identity_taken_test.sql',
+  'myk9_1162_held_entries_packet_test.sql',
+  'myk9_1162_held_entries_ringside_test.sql',
+  'myk9_1162_lifecycle_registration_number_needed_test.sql',
+  'myk9_1212_claim_registration_number_needed_job_test.sql',
 ];
+
+// Runs `command` with a stand-in psql first on PATH that logs its arguments,
+// so a test sees which URL (if any) would have reached a real database.
+function runWithFakePsql([command, ...args]: [string, ...string[]], databaseUrl: string) {
+  const scratch = mkdtempSync(join(tmpdir(), 'myk9-behavioral-sql-'));
+  const fakePsql = join(scratch, 'psql');
+  const invocationLog = join(scratch, 'psql.log');
+
+  try {
+    writeFileSync(
+      fakePsql,
+      ['#!/usr/bin/env bash', `printf '%s\\n' "$*" >>"$MYK9_FAKE_PSQL_LOG"`, ''].join('\n'),
+      'utf8'
+    );
+    chmodSync(fakePsql, 0o755);
+
+    const result = spawnSync(command, args, {
+      cwd: repositoryRoot,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${scratch}:${process.env.PATH ?? ''}`,
+        MYK9_BEHAVIORAL_SQL_DATABASE_URL: databaseUrl,
+        MYK9_FAKE_PSQL_LOG: invocationLog,
+      },
+    });
+    const log = existsSync(invocationLog) ? readFileSync(invocationLog, 'utf8').trim() : '';
+    return { result, psqlCalls: log ? log.split('\n') : [] };
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
 
 describe('behavioral SQL test harness', () => {
   it('seeds pull/refund people before auth users so the signup trigger adopts them', () => {
@@ -233,43 +282,17 @@ describe('behavioral SQL test harness', () => {
   });
 
   it('executes every launch-critical behavioral SQL file through psql', () => {
-    const scratch = mkdtempSync(join(tmpdir(), 'myk9-behavioral-sql-'));
-    const fakePsql = join(scratch, 'psql');
-    const invocationLog = join(scratch, 'psql.log');
+    const { result, psqlCalls } = runWithFakePsql(
+      ['bash', runner],
+      'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+    );
 
-    try {
-      writeFileSync(
-        fakePsql,
-        ['#!/usr/bin/env bash', `printf '%s\\n' "$*" >>"$MYK9_FAKE_PSQL_LOG"`, ''].join('\n'),
-        'utf8'
-      );
-      chmodSync(fakePsql, 0o755);
+    expect(result.stderr).toBe('');
+    expect(result.status).toBe(0);
 
-      const result = spawnSync('bash', [runner], {
-        cwd: repositoryRoot,
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          PATH: `${scratch}:${process.env.PATH ?? ''}`,
-          MYK9_BEHAVIORAL_SQL_DATABASE_URL:
-            'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
-          MYK9_FAKE_PSQL_LOG: invocationLog,
-        },
-      });
+    const invokedFiles = psqlCalls.map(line => basename(line.match(/ -f (.+)$/)?.[1] ?? '')).sort();
 
-      expect(result.stderr).toBe('');
-      expect(result.status).toBe(0);
-
-      const invokedFiles = readFileSync(invocationLog, 'utf8')
-        .trim()
-        .split('\n')
-        .map(line => basename(line.match(/ -f (.+)$/)?.[1] ?? ''))
-        .sort();
-
-      expect(invokedFiles).toEqual([...launchCriticalSqlTests].sort());
-    } finally {
-      rmSync(scratch, { recursive: true, force: true });
-    }
+    expect(invokedFiles).toEqual([...launchCriticalSqlTests].sort());
   });
 
   it('uses the current shows schema in the recoverable access-code fixture', () => {
@@ -320,24 +343,74 @@ describe('behavioral SQL test harness', () => {
     );
   });
 
-  it.each([
+  // Known answers for the loopback guard. Any loopback port is accepted so two
+  // worktrees can each run `pnpm qa:sql-local`; every other host, and any libpq
+  // query option that could redirect a loopback-looking URL, is refused.
+  const mutationProof = resolve(repositoryRoot, 'scripts/qa/class-absent-mutation.ts');
+  const refusedUrls: [label: string, databaseUrl: string][] = [
     ['remote authority', 'postgresql://postgres:secret@database.example.com:5432/postgres'],
+    ['non-loopback host', 'postgresql://postgres:postgres@10.0.0.5:54322/postgres'],
     [
-      'libpq host override',
+      'loopback-prefixed hostname',
+      'postgresql://postgres:postgres@127.0.0.1.example.com:54322/postgres',
+    ],
+    [
+      'libpq hostaddr override',
       'postgresql://postgres:postgres@127.0.0.1:54322/postgres?hostaddr=192.0.2.1',
     ],
-  ])('rejects a %s database URL before invoking psql', (_label, databaseUrl) => {
-    const result = spawnSync('bash', [runner], {
-      cwd: repositoryRoot,
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        MYK9_BEHAVIORAL_SQL_DATABASE_URL: databaseUrl,
-      },
-    });
+    [
+      'libpq host override',
+      'postgresql://postgres:postgres@localhost:55322/postgres?host=192.0.2.1',
+    ],
+    ['port 0', 'postgresql://postgres:postgres@127.0.0.1:0/postgres'],
+    ['out-of-range port', 'postgresql://postgres:postgres@127.0.0.1:70000/postgres'],
+    ['missing port', 'postgresql://postgres:postgres@127.0.0.1/postgres'],
+  ];
+  const acceptedUrls: [label: string, databaseUrl: string][] = [
+    ['the config.toml port', 'postgresql://postgres:postgres@127.0.0.1:54322/postgres'],
+    ['another loopback port', 'postgresql://postgres:postgres@127.0.0.1:55322/postgres'],
+    ['localhost on another port', 'postgresql://postgres:postgres@localhost:56123/postgres'],
+  ];
+
+  it.each(refusedUrls)('rejects a %s database URL before invoking psql', (_label, databaseUrl) => {
+    const { result, psqlCalls } = runWithFakePsql(['bash', runner], databaseUrl);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('exact local loopback');
+    expect(result.stderr).toContain('local loopback database URL');
+    expect(psqlCalls).toEqual([]);
+  });
+
+  it.each(acceptedUrls)('runs every file against a URL on %s', (_label, databaseUrl) => {
+    const { result, psqlCalls } = runWithFakePsql(['bash', runner], databaseUrl);
+
+    expect(result.stderr).toBe('');
+    expect(result.status).toBe(0);
+    expect(psqlCalls).toHaveLength(launchCriticalSqlTests.length);
+    for (const call of psqlCalls) expect(call.startsWith(`${databaseUrl} -X `)).toBe(true);
+  });
+
+  it.each(refusedUrls)('mutation proof rejects a %s database URL', (_label, databaseUrl) => {
+    const { result, psqlCalls } = runWithFakePsql(
+      ['node', '--experimental-strip-types', mutationProof],
+      databaseUrl
+    );
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('requires a disposable loopback SQL URL');
+    expect(psqlCalls).toEqual([]);
+  });
+
+  it('mutation proof reaches psql on another loopback port', () => {
+    const databaseUrl = 'postgresql://postgres:postgres@127.0.0.1:55322/postgres';
+    const { result, psqlCalls } = runWithFakePsql(
+      ['node', '--experimental-strip-types', mutationProof],
+      databaseUrl
+    );
+
+    // The silent fake psql makes the proof inconclusive, which is the point:
+    // the guard let it through to psql against the requested port.
+    expect(result.stderr).not.toContain('requires a disposable loopback SQL URL');
+    expect(psqlCalls[0]?.startsWith(`${databaseUrl} -X `)).toBe(true);
   });
 
   it('starts a clean migrated local Supabase target in CI and always stops it', () => {

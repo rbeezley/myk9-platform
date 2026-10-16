@@ -71,6 +71,21 @@ function registrationProblem(value: unknown): string | null {
   return 'has a value that is too long or invalid';
 }
 
+const registrationsSchema = z
+  .custom<Registration[]>(val => Array.isArray(val), { message: 'Invalid registrations' })
+  .superRefine((registrations, ctx) => {
+    // Name the row and the field, so the user is not left hunting (MYK9-931).
+    registrations.forEach((registration, index) => {
+      const problem = registrationProblem(registration);
+      if (problem) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Registration ${index + 1} ${problem}`,
+        });
+      }
+    });
+  });
+
 /**
  * Zod schema for AddDogPanel form data.
  * Replaces the legacy validateDogData function.
@@ -133,20 +148,25 @@ export const addDogSchema = z.object({
       val => !val || val.startsWith('data:image/') || /^https?:\/\//i.test(val),
       'Photo must be an image'
     ),
-  registrations: z
-    .custom<Registration[]>(val => Array.isArray(val), { message: 'Invalid registrations' })
-    .superRefine((registrations, ctx) => {
-      // Name the row and the field, so the user is not left hunting (MYK9-931).
-      registrations.forEach((registration, index) => {
-        const problem = registrationProblem(registration);
-        if (problem) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: `Registration ${index + 1} ${problem}`,
-          });
-        }
-      });
-    }),
+  registrations: registrationsSchema,
+});
+
+/** What an exhibitor sees when they try to move past Registration with none. */
+export const REGISTRATION_REQUIRED_MESSAGE = "Enter your dog's registration number to continue";
+
+/**
+ * Add Dog's schema for a user who may NOT add a dog without a registration
+ * (MYK9-1162): `addDogSchema` plus one issue on `registrations` when there is
+ * none, which `locateInvalidField` already pins to the Registration step, so the
+ * step gate and the Save check enforce it with no bespoke code. Show managers
+ * use `addDogSchema`, where a registration stays optional.
+ */
+export const addDogSchemaRequiringRegistration = addDogSchema.extend({
+  registrations: registrationsSchema.superRefine((registrations, ctx) => {
+    if (registrations.length === 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: REGISTRATION_REQUIRED_MESSAGE });
+    }
+  }),
 });
 
 /**

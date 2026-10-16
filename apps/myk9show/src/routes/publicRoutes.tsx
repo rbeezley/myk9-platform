@@ -10,8 +10,9 @@
  */
 
 import { LegacyShowClassCreateRedirect } from './LegacyClassCreateRedirect';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { LegacyShowClassManagementRedirect } from './LegacyClassManagementRedirect';
-import { lazy, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Route, Navigate, useParams } from 'react-router-dom';
 import { BarChart3, ClipboardList } from 'lucide-react';
 import { ProtectedRoute } from '@/context/AuthContext';
@@ -43,44 +44,46 @@ function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPagePr
 }
 
 // Public page lazy imports
-const DogsMasterDetailPage = lazy(() => import('@/pages/DogsMasterDetailPage'));
-const BrowseClubsPage = lazy(() => import('@/pages/BrowseClubsPage'));
-const ClubDetailPage = lazy(() => import('@/pages/ClubDetailPage'));
-const ShowDetailsPage = lazy(() => import('@/pages/ShowDetailsPage'));
-const EntryManagementPage = lazy(() => import('@/pages/secretary/EntryManagementPage'));
-const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
-const ShowResultsSection = lazy(() => import('@/pages/secretary/ShowResultsSection'));
-const TrialDetailsPage = lazy(() => import('@/pages/TrialDetailsPage'));
-const ClassDetailsPage = lazy(() => import('@/pages/ClassDetailsPage'));
-const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
-const SubscriptionPage = lazy(() => import('@/pages/SubscriptionPage'));
-const LegalPage = lazy(() => import('@/pages/LegalPage'));
-const CredentialsHelpPage = lazy(() => import('@/pages/CredentialsHelpPage'));
-const FeesPage = lazy(() => import('@/pages/FeesPage'));
-const SupportTicketPage = lazy(() => import('@/pages/SupportTicketPage'));
+const DogsMasterDetailPage = lazyWithRetry(() => import('@/pages/DogsMasterDetailPage'));
+const ClubsMasterDetailPage = lazyWithRetry(() => import('@/pages/ClubsMasterDetailPage'));
+const ShowDetailsPage = lazyWithRetry(() => import('@/pages/ShowDetailsPage'));
+const ShowsMasterDetailPage = lazyWithRetry(() => import('@/pages/ShowsMasterDetailPage'));
+const EntryManagementPage = lazyWithRetry(() => import('@/pages/secretary/EntryManagementPage'));
+const ReportsPage = lazyWithRetry(() => import('@/pages/secretary/ReportsPage'));
+const ShowResultsSection = lazyWithRetry(() => import('@/pages/secretary/ShowResultsSection'));
+const TrialDetailsPage = lazyWithRetry(() => import('@/pages/TrialDetailsPage'));
+const ClassDetailsPage = lazyWithRetry(() => import('@/pages/ClassDetailsPage'));
+const RegistrationWizardPage = lazyWithRetry(() => import('@/pages/RegistrationWizardPage'));
+const SubscriptionPage = lazyWithRetry(() => import('@/pages/SubscriptionPage'));
+const LegalPage = lazyWithRetry(() => import('@/pages/LegalPage'));
+const CredentialsHelpPage = lazyWithRetry(() => import('@/pages/CredentialsHelpPage'));
+const FeesPage = lazyWithRetry(() => import('@/pages/FeesPage'));
+const SupportTicketPage = lazyWithRetry(() => import('@/pages/SupportTicketPage'));
 
 // Account (merged profile + preferences + settings)
-const AccountPage = lazy(() => import('@/pages/AccountPage'));
-const RequestAccessPage = lazy(() => import('@/pages/RequestAccessPage'));
+const AccountPage = lazyWithRetry(() => import('@/pages/AccountPage'));
+const RequestAccessPage = lazyWithRetry(() => import('@/pages/RequestAccessPage'));
 
 // Exhibitor pages
-const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
-const MyEntriesPage = lazy(() => import('@/pages/MyEntriesPage'));
-const ExhibitorPaymentsPage = lazy(() => import('@/pages/exhibitor/ExhibitorPaymentsPage'));
-const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'));
+const BrowseShowsPage = lazyWithRetry(() => import('@/pages/BrowseShowsPage'));
+const MyEntriesPage = lazyWithRetry(() => import('@/pages/MyEntriesPage'));
+const ExhibitorPaymentsPage = lazyWithRetry(
+  () => import('@/pages/exhibitor/ExhibitorPaymentsPage')
+);
+const AnalyticsPage = lazyWithRetry(() => import('@/pages/AnalyticsPage'));
 
 // TV Display
-const TVDisplay = lazy(() => import('@/pages/TVDisplay'));
+const TVDisplay = lazyWithRetry(() => import('@/pages/TVDisplay'));
 
 // Messages
-const ChatPage = lazy(() => import('@/features/messages/pages/ChatPage'));
+const ChatPage = lazyWithRetry(() => import('@/features/messages/pages/ChatPage'));
 
 // Notifications history
 
 // Cart and checkout pages
-const CartPage = lazy(() => import('@/pages/CartPage'));
-const CheckoutSuccessPage = lazy(() => import('@/pages/CheckoutSuccessPage'));
-const CheckoutCancelPage = lazy(() => import('@/pages/CheckoutCancelPage'));
+const CartPage = lazyWithRetry(() => import('@/pages/CartPage'));
+const CheckoutSuccessPage = lazyWithRetry(() => import('@/pages/CheckoutSuccessPage'));
+const CheckoutCancelPage = lazyWithRetry(() => import('@/pages/CheckoutCancelPage'));
 
 const SHOW_MANAGEMENT_SECTION_ELEMENTS: Record<ShowManagementSectionPath, ReactNode> = {
   entries: <EntryManagementPage />,
@@ -150,57 +153,75 @@ const dogsRouteElement = (
   </ProtectedRoute>
 );
 
+// Public: signed-out visitors browse the club directory too. `PageTransition` lives inside
+// `MasterDetailRoute`, around the record only, so the list never re-animates.
+const clubsRouteElement = (
+  <SuspenseWrapper>
+    <ClubsMasterDetailPage />
+  </SuspenseWrapper>
+);
+
 export const PublicRoutes = () => (
   <>
-    {/* Browse Shows - Allow anonymous browsing */}
-    <Route
-      path="/shows"
-      element={
-        <SuspenseWrapper>
-          <PageTransition>
-            <BrowseShowsPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      }
-    />
-
     <Route path="/shows/new" element={<Navigate to="/secretary/create-show/wizard" replace />} />
 
+    {/* The Shows list beside Find Shows or the open show, on wide screens for signed-in
+        users (ShowsMasterDetailPage). One layout element for both, so the list stays mounted. */}
     <Route
-      path="/shows/:id"
       element={
         <SuspenseWrapper>
-          <PageTransition>
-            <ShowDetailsPage />
-          </PageTransition>
+          <ShowsMasterDetailPage />
         </SuspenseWrapper>
       }
     >
-      {SHOW_MANAGEMENT_SECTIONS.map(({ path }) => (
-        <Route
-          key={path}
-          path={path}
-          element={
-            <ShowManagementSectionRoute>
-              <SuspenseWrapper>{SHOW_MANAGEMENT_SECTION_ELEMENTS[path]}</SuspenseWrapper>
-            </ShowManagementSectionRoute>
-          }
-        />
-      ))}
-      {/* Every URL the deleted five-link row and the old section nav emitted is
-          still a real route; it redirects into the tab that absorbed it, search
-          and hash intact, so bookmarks and the sidebar keep working. */}
-      {Object.entries(LEGACY_SHOW_SECTION_REDIRECTS).map(([legacyPath, target]) => (
-        <Route
-          key={legacyPath}
-          path={legacyPath}
-          element={<LegacyShowSectionRedirect target={target} />}
-        />
-      ))}
-      {/* Retired Class Management page (MYK9-924): its judge and status controls live in the show home's Select classes. */}
-      <Route path="classes/:trialId" element={<LegacyShowClassManagementRedirect />} />
-      {/* Retired Class Creation page (MYK9-899): bounces into the wizard's add-classes mode. */}
-      <Route path="classes/:trialId/create" element={<LegacyShowClassCreateRedirect />} />
+      {/* Browse Shows - Allow anonymous browsing */}
+      <Route
+        path="/shows"
+        element={
+          <SuspenseWrapper>
+            <PageTransition>
+              <BrowseShowsPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        }
+      />
+
+      <Route
+        path="/shows/:id"
+        element={
+          <SuspenseWrapper>
+            <PageTransition>
+              <ShowDetailsPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        }
+      >
+        {SHOW_MANAGEMENT_SECTIONS.map(({ path }) => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <ShowManagementSectionRoute>
+                <SuspenseWrapper>{SHOW_MANAGEMENT_SECTION_ELEMENTS[path]}</SuspenseWrapper>
+              </ShowManagementSectionRoute>
+            }
+          />
+        ))}
+        {/* Every URL the deleted five-link row and the old section nav emitted is
+            still a real route; it redirects into the tab that absorbed it, search
+            and hash intact, so bookmarks and the sidebar keep working. */}
+        {Object.entries(LEGACY_SHOW_SECTION_REDIRECTS).map(([legacyPath, target]) => (
+          <Route
+            key={legacyPath}
+            path={legacyPath}
+            element={<LegacyShowSectionRedirect target={target} />}
+          />
+        ))}
+        {/* Retired Class Management page (MYK9-924): its judge and status controls live in the show home's Select classes. */}
+        <Route path="classes/:trialId" element={<LegacyShowClassManagementRedirect />} />
+        {/* Retired Class Creation page (MYK9-899): bounces into the wizard's add-classes mode. */}
+        <Route path="classes/:trialId/create" element={<LegacyShowClassCreateRedirect />} />
+      </Route>
     </Route>
 
     <Route
@@ -413,28 +434,9 @@ export const PublicRoutes = () => (
     <Route path="/dogs" element={dogsRouteElement} />
     <Route path="/dogs/:id" element={dogsRouteElement} />
 
-    {/* Clubs */}
-    <Route
-      path="/clubs"
-      element={
-        <SuspenseWrapper>
-          <PageTransition>
-            <BrowseClubsPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      }
-    />
-
-    <Route
-      path="/clubs/:id"
-      element={
-        <SuspenseWrapper>
-          <PageTransition>
-            <ClubDetailPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      }
-    />
+    {/* Clubs: one element for both paths, so the list stays mounted beside an open club. */}
+    <Route path="/clubs" element={clubsRouteElement} />
+    <Route path="/clubs/:id" element={clubsRouteElement} />
 
     {/* Feature Pages */}
     <Route path="/preferences" element={<Navigate to="/account" replace />} />

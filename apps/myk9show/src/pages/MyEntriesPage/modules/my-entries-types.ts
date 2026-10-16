@@ -38,6 +38,8 @@ export interface EntryClass {
   fee: number;
   /** Trial date for this class row, distinct from the show start date. */
   trialDate?: Date | undefined;
+  /** classes.start_time as stored ('9:00 AM' or 'HH:MM'); orders same-day rows (MYK9-1193). */
+  startTime?: string | undefined;
   /** trials.name — the display label (MYK9-704). */
   trialName?: string | undefined;
   /** Trial number assigned by the show secretary/registry. */
@@ -176,11 +178,14 @@ export interface MyEntry {
   registrationId: string | null;
   showId: string;
   showName: string;
+  /** The show row is not readable by this exhibitor (a draft); it has no name or date (MYK9-1147). */
+  isShowUnreadable?: boolean | undefined;
   /** True when the show cascade tombstoned this entry; displayed as cancelled. */
   isShowCancelled?: boolean | undefined;
   /** The secretary closed the show out (`shows.status = 'completed'`, MYK9-778). */
   isShowClosedOut?: boolean | undefined;
-  showDate: Date;
+  /** Absent when the show is unreadable; never a stand-in such as today. */
+  showDate?: Date | undefined;
   /** Final calendar day the show runs; absent for legacy/single-day rows. */
   showEndDate?: Date | undefined;
   location: {

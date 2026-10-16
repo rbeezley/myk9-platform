@@ -193,7 +193,10 @@ describe.each(cases)('$name fetchRowsById (MYK9-771)', ({ name, make, expected }
     const table = make();
     const register = vi.fn(() => () => undefined);
 
-    table.setMutationManager({ rowRefetchers: { register } } as unknown as MutationManager);
+    table.setMutationManager({
+      rowRefetchers: { register },
+      discardReverters: { register: () => () => undefined },
+    } as unknown as MutationManager);
 
     expect(register).toHaveBeenCalledWith(name, expect.any(Function));
   });

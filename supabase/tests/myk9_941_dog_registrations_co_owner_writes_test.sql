@@ -1,8 +1,12 @@
 -- MYK9-941 behavioral contract: dog_registrations INSERT/UPDATE/DELETE
--- (20261003002747_myk9_941_dog_registrations_co_owner_writes.sql).
+-- (20261003002747_myk9_941_dog_registrations_co_owner_writes.sql, narrowed for
+-- secretaries by 20261014173100_myk9_1155_dog_registrations_write_scope.sql).
 --
 --   * the dog's CO-OWNER may insert, update and delete its registrations (the fix);
---   * the owner, a secretary (has_role('secretary')) and a site admin still may;
+--   * the owner and a site admin still may;
+--   * MYK9-1155: a secretary with no tie to the dog may ADD a registry it lacks
+--     (mail-in first entry) but may NOT change or delete its registrations; on a
+--     dog she created she may do all three;
 --   * an unrelated exhibitor and a club admin without the secretary role may not.
 --
 -- Note on the baseline: the repo's own migration chain carried the co-owner arm
@@ -99,7 +103,7 @@ DECLARE
   n integer;
 BEGIN
   ------------------------------------------------------------------
-  -- Allowed: co-owner (the fix), owner, secretary, site admin. Each inserts a UKC
+  -- Allowed: co-owner (the fix), owner, site admin. Each inserts a UKC
   -- registration, updates it, updates the standing AKC row, then deletes its UKC
   -- row (so the next actor's UKC insert does not hit the one-live-org-per-dog index).
   ------------------------------------------------------------------
@@ -107,7 +111,6 @@ BEGIN
     SELECT * FROM (VALUES
       (1, 'co-owner',   '00000000-0000-0000-0000-000000941102'::uuid),
       (2, 'owner',      '00000000-0000-0000-0000-000000941101'::uuid),
-      (3, 'secretary',  '00000000-0000-0000-0000-000000941103'::uuid),
       (4, 'site admin', '00000000-0000-0000-0000-000000941104'::uuid)
     ) AS a(ord, label, auth_id)
     ORDER BY ord
@@ -155,6 +158,84 @@ BEGIN
       RAISE EXCEPTION 'FAIL % update of the standing registration did not persist', actor.label;
     END IF;
   END LOOP;
+
+  ------------------------------------------------------------------
+  -- MYK9-1155: a club secretary with no tie to the dog. She can read it (positive
+  -- control) and ADD a registry it lacks, but cannot change or delete any of its
+  -- registrations, including the one she just added.
+  ------------------------------------------------------------------
+  UPDATE public.dog_registrations SET registered_name = 'MYK9-1155 baseline' WHERE id = standing;
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000941103', true);
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', '00000000-0000-0000-0000-000000941103'::uuid,
+                       'role', 'authenticated')::text, true);
+
+  SELECT count(*) INTO n FROM public.dog_registrations WHERE id = standing;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL secretary could not read the standing registration (control); '
+      'the write denials below would prove nothing';
+  END IF;
+
+  BEGIN
+    INSERT INTO public.dog_registrations (id, dog_id, organization, registration_number)
+    VALUES ('00000000-0000-0000-0000-000000941083', v_dog, 'UKC', 'MYK9941U83');
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE EXCEPTION 'FAIL secretary could not ADD a missing registry (%): %', SQLSTATE, SQLERRM;
+  END;
+
+  UPDATE public.dog_registrations SET registered_name = 'MYK9-1155 hijack'
+  WHERE id IN (standing, '00000000-0000-0000-0000-000000941083');
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL secretary UPDATEd % registration row(s) on a dog she may not edit', n;
+  END IF;
+
+  DELETE FROM public.dog_registrations
+  WHERE id IN (standing, '00000000-0000-0000-0000-000000941083');
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL secretary DELETEd % registration row(s) on a dog she may not edit', n;
+  END IF;
+
+  RESET ROLE;
+
+  SELECT count(*) INTO n FROM public.dog_registrations
+  WHERE id = standing AND registered_name = 'MYK9-1155 baseline';
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL standing registration changed or vanished after the secretary was refused';
+  END IF;
+  DELETE FROM public.dog_registrations WHERE id = '00000000-0000-0000-0000-000000941083';
+
+  -- Positive control: on a dog she created (dogs.created_by), she may do all three.
+  INSERT INTO public.dogs (id, call_name, breed, owner_id, created_by)
+  VALUES ('00000000-0000-0000-0000-000000941052', 'MYK9-1155 Dog', 'Beagle',
+          '00000000-0000-0000-0000-000000941011', '00000000-0000-0000-0000-000000941103');
+  INSERT INTO public.dog_registrations (id, dog_id, organization, registration_number)
+  VALUES ('00000000-0000-0000-0000-000000941062', '00000000-0000-0000-0000-000000941052',
+          'AKC', 'MYK9941062');
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000941103', true);
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', '00000000-0000-0000-0000-000000941103'::uuid,
+                       'role', 'authenticated')::text, true);
+
+  UPDATE public.dog_registrations SET registration_number = 'MYK9941063'
+  WHERE id = '00000000-0000-0000-0000-000000941062';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL secretary updated % of 1 registration on a dog she created', n;
+  END IF;
+
+  DELETE FROM public.dog_registrations WHERE id = '00000000-0000-0000-0000-000000941062';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL secretary deleted % of 1 registration on a dog she created', n;
+  END IF;
+
+  RESET ROLE;
 
   ------------------------------------------------------------------
   -- Refused: an unrelated exhibitor and a club admin without the secretary role.
@@ -215,9 +296,11 @@ BEGIN
     END IF;
   END LOOP;
 
-  RAISE NOTICE 'PASS MYK9-941: co-owner, owner, secretary and site admin insert, update and '
+  RAISE NOTICE 'PASS MYK9-941: co-owner, owner and site admin insert, update and '
     'delete a dog''s registrations; an unrelated exhibitor and a club admin (who can read '
     'the row) are refused all three';
+  RAISE NOTICE 'PASS MYK9-1155: an untied secretary may add a missing registry but not '
+    'update or delete; on a dog she created she may update and delete';
 END;
 $$;
 

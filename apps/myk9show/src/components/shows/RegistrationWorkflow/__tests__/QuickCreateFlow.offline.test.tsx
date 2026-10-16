@@ -17,7 +17,7 @@ import {
 import {
   addPersonThroughForm,
   fillDogBasics,
-  fillRegistration,
+  addFirstRegistration,
   JOURNEY_TIMEOUT_MS,
 } from '@/test/quickCreate/quickCreateFlowKit';
 
@@ -65,10 +65,8 @@ async function createPersonAndDog(offlineFirst: boolean) {
   );
   await addPersonThroughForm(user);
   await user.click(await screen.findByRole('button', { name: 'Add First Dog' }));
+  await addFirstRegistration(user, 'DN1');
   await fillDogBasics(user);
-  await user.click(screen.getByRole('button', { name: /Next: Registration/ }));
-  await user.click(await screen.findByRole('button', { name: /Add New Registration/ }));
-  await fillRegistration(user, 'DN1');
   await user.click(await screen.findByRole('button', { name: /Next: Optional details/ }));
   await user.click(await screen.findByRole('button', { name: 'Add Dog' }));
 }

@@ -16,6 +16,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
+import { CLASS_CHIP_NAME, classChipNameForLevel } from '@/test/e2e-helpers/classChipName';
 import type { WorkflowMode } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
 
 const {
@@ -114,11 +115,14 @@ const SPLIT_LEVEL: SeedClass[] = [
   },
 ];
 
-function setupMocks(classes: SeedClass[], opts: { isStaff?: boolean; registryId?: string } = {}) {
-  const { isStaff = false, registryId = 'AKC' } = opts;
+function setupMocks(
+  classes: SeedClass[],
+  opts: { isStaff?: boolean; registryId?: string; dogs?: { id: string; callName: string }[] } = {}
+) {
+  const { isStaff = false, registryId = 'AKC', dogs = [{ id: DOG_ID, callName: 'Rex' }] } = opts;
 
   mockUseDogStoreCompat.mockReturnValue({
-    dogs: [{ id: DOG_ID, name: 'Rex', callName: 'Rex', registrations: [] }],
+    dogs: dogs.map(d => ({ id: d.id, name: d.callName, callName: d.callName, registrations: [] })),
     refetch: vi.fn(),
   });
   mockUseShowStore.mockReturnValue({
@@ -228,7 +232,7 @@ const UKC_VEHICLE: SeedClass[] = [
   },
 ];
 
-function renderStep(props: { workflowMode?: WorkflowMode } = {}) {
+function renderStep(props: { workflowMode?: WorkflowMode; selectedDogs?: string[] } = {}) {
   return render(
     <ClassSelectionStep
       selectedDogs={[DOG_ID]}
@@ -302,11 +306,95 @@ describe('ClassSelectionStep — UKC level order (MYK9-825)', () => {
       .map(node => node.getAttribute('aria-label') ?? node.closest('label')?.textContent?.trim());
 
     expect(names).toEqual([
-      'Select Novice A',
-      'Select Advanced A',
-      'Select Superior A',
-      'Select Master A',
-      'Select Elite A',
+      'Enter Rex in Vehicle Novice A',
+      'Enter Rex in Vehicle Advanced A',
+      'Enter Rex in Vehicle Superior A',
+      'Enter Rex in Vehicle Master A',
+      'Enter Rex in Vehicle Elite A',
     ]);
+  });
+});
+
+const THREE_NOVICES: SeedClass[] = ['Container', 'Interior', 'Exterior'].map(element => ({
+  id: `${element.toLowerCase()}-novice`,
+  name: `${element} Novice`,
+  element,
+  level: 'Novice',
+  section: null,
+}));
+
+/** The name a screen reader computes for a checkbox: aria-label, else its label. */
+const accessibleNames = () =>
+  screen
+    .getAllByRole('checkbox')
+    .map(node => node.getAttribute('aria-label') ?? node.closest('label')?.textContent?.trim());
+
+describe('ClassSelectionStep — checkbox names carry element, level and dog (MYK9-1181)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('names each Novice checkbox by element and level, and by the dog', async () => {
+    setupMocks(THREE_NOVICES);
+    renderStep();
+
+    expect(await screen.findAllByRole('checkbox')).toHaveLength(3);
+    expect(screen.getAllByRole('checkbox', { name: /Container Novice/ })).toHaveLength(1);
+    expect(accessibleNames()).toEqual(
+      expect.arrayContaining([
+        'Enter Rex in Container Novice',
+        'Enter Rex in Interior Novice',
+        'Enter Rex in Exterior Novice',
+      ])
+    );
+  });
+
+  it('gives the same class a different name on each dog', async () => {
+    const dogs = [
+      { id: DOG_ID, callName: 'Rex' },
+      { id: 'dog-2', callName: 'Willow' },
+    ];
+    setupMocks(THREE_NOVICES, { dogs });
+    const { user } = renderStep({ selectedDogs: [DOG_ID, 'dog-2'] });
+
+    expect(await screen.findAllByRole('checkbox')).toHaveLength(3);
+    const first = accessibleNames();
+    await user.click(screen.getByRole('tab', { name: /Willow/ }));
+    expect(
+      await screen.findByRole('checkbox', { name: 'Enter Willow in Container Novice' })
+    ).toBeInTheDocument();
+    const second = accessibleNames();
+
+    expect(first).toContain('Enter Rex in Container Novice');
+    expect(second).not.toContain('Enter Rex in Container Novice');
+  });
+  it('is what the e2e class-chip locators match, and never a dog row (MYK9-1219)', async () => {
+    setupMocks([
+      {
+        id: 'c-na',
+        name: 'Container Novice A',
+        element: 'Container',
+        level: 'Novice',
+        section: 'A',
+      },
+    ]);
+    renderStep();
+
+    const chips = await screen.findAllByRole('checkbox', { name: CLASS_CHIP_NAME });
+    expect(chips).toHaveLength(1);
+    expect(
+      screen.getAllByRole('checkbox', { name: classChipNameForLevel('Novice A') })
+    ).toHaveLength(1);
+    expect(
+      screen.queryAllByRole('checkbox', { name: classChipNameForLevel('Advanced A') })
+    ).toHaveLength(0);
+
+    // The Select Dogs rows keep `Select <dog>` and must stay out of the chip locator.
+    for (const dogRow of ['Select Willow', 'Select all dogs']) {
+      expect(CLASS_CHIP_NAME.test(dogRow)).toBe(false);
+      expect(classChipNameForLevel('Novice A').test(dogRow)).toBe(false);
+    }
+    // An already-entered chip is not addable, so it must not match either.
+    expect(CLASS_CHIP_NAME.test('Rex is already entered in Container')).toBe(false);
   });
 });

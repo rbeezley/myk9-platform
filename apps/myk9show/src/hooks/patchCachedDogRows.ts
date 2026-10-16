@@ -4,11 +4,13 @@ import { queryKeys } from '@/lib/queryClient';
 /**
  * Show a queued local dog edit in the cached dog reads immediately (MYK9-1070).
  *
- * The dog queries stay `networkMode: 'online'` on purpose: they are hybrid reads
- * (owners and registrations come from PostgREST), so an offline refetch would
- * replace cached owner/registration data with empty values. The invalidation that
- * follows a local write therefore pauses while offline and runs on reconnect; this
- * patch is what makes the edit visible in the meantime.
+ * The dog reads (`useDogsQuery`, `useDogQuery`, `useDogsByOwnerQuery`) are
+ * `networkMode: 'offlineFirst'`: they go to the server first and fall back to the
+ * device replica when the server cannot be reached, so the invalidation that
+ * follows a local write refetches offline too. This patch only puts the queued
+ * edit on screen immediately, before that refetch settles. It is not what makes
+ * an offline edit visible, and the Discard path does not use it: Discard
+ * refetches (`useDiscardRevertCacheSync`) rather than patching rows.
  *
  * Only the changed dog's own columns (snake_case DB-row keys, e.g. `status`) are
  * merged; joined fields (`owner`, `registrations`) and every other dog are left

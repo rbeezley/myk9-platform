@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarClock } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -14,7 +14,9 @@ import {
   sendLifecycleEmailJobs,
   skipLifecycleEmailJobsForReview,
   updateLifecycleEmailStepEnabled,
+  LifecycleSendPartialError,
   type LifecycleEmailJobReview,
+  type LifecycleSendResult,
   type LifecycleEmailSupabaseClient,
 } from './api';
 import type { LifecycleEmailStepSummary } from './readModel';
@@ -30,6 +32,7 @@ const STEP_LABELS: Record<LifecycleEmailStepSummary['stepType'], string> = {
   two_week_reminder: 'Two-week reminder',
   day_before_reminder: 'Day-before reminder',
   results_available: 'Results available',
+  registration_number_needed: 'Registration number needed',
 };
 
 // Reminder/results batches remain deferred until a producer exists (MYK9-318;
@@ -38,6 +41,13 @@ const STEP_LABELS: Record<LifecycleEmailStepSummary['stepType'], string> = {
 const PRODUCER_BACKED_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
   'accepted',
   'waitlisted',
+  'registration_number_needed',
+]);
+
+// Sent one at a time from the Registration number needed list, never as a batch: the toggle
+// stays here, but the step has no Review, preview-all or batch send.
+const SEND_ON_DEMAND_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
+  'registration_number_needed',
 ]);
 
 const queryKey = (showId: string) => ['show-lifecycle-emails', showId] as const;
@@ -104,10 +114,6 @@ export function ScheduledLifecycleEmailsPanel({ showId }: ScheduledLifecycleEmai
           onOpenChange={open => {
             if (!open) setReviewStep(null);
           }}
-          onSent={() => {
-            setReviewStep(null);
-            void queryClient.invalidateQueries({ queryKey: queryKey(showId) });
-          }}
         />
       ) : null}
     </section>
@@ -130,7 +136,8 @@ function ScheduledEmailStepRow({
   const failedLabel = step.failedCount > 0 ? `${step.failedCount} failed` : null;
   const warningLabel = step.warningCount > 0 ? `${step.warningCount} warning` : null;
   const countLabel = [readyLabel, sentLabel, failedLabel, warningLabel].filter(Boolean).join(' · ');
-  const hasReviewableJobs = step.readyCount > 0 || step.failedCount > 0;
+  const hasReviewableJobs =
+    !SEND_ON_DEMAND_STEP_TYPES.has(step.stepType) && (step.readyCount > 0 || step.failedCount > 0);
 
   return (
     <div className="rounded-md border border-border/70 px-3 py-2">
@@ -161,18 +168,22 @@ function ScheduledEmailStepRow({
   );
 }
 
+function unsentMessage({ sent, failed, total }: LifecycleSendResult): string {
+  const [verb, pronoun] = failed === 1 ? ['is', 'it'] : ['are', 'them'];
+  return `Sent ${sent} of ${total} ${total === 1 ? 'email' : 'emails'}. ${failed} couldn't be sent and ${verb} still on the list. Send again to retry ${pronoun}.`;
+}
+
 function LifecycleBatchReviewDialog({
   showId,
   stepType,
   onOpenChange,
-  onSent,
 }: {
   showId: string;
   stepType: LifecycleEmailStepType;
   onOpenChange: (open: boolean) => void;
-  onSent: () => void;
 }) {
   const lifecycleClient = supabase as unknown as LifecycleEmailSupabaseClient;
+  const queryClient = useQueryClient();
   const [subject, setSubject] = useState<string | null>(null);
   const [body, setBody] = useState<string | null>(null);
   const [secretaryNote, setSecretaryNote] = useState<string | null>(null);
@@ -182,17 +193,26 @@ function LifecycleBatchReviewDialog({
     queryFn: () =>
       fetchLifecycleEmailJobsForReview({ supabase: lifecycleClient, showId, stepType }),
   });
+  const refreshReviewList = () =>
+    queryClient.invalidateQueries({
+      queryKey: ['show-lifecycle-email-review', showId, stepType],
+    });
+  // Keyed so a reopened panel still sees a send that outlived the one that started it: a second
+  // Send racing an in-flight chunked send doubles up email_log rows (MYK9-1191).
+  const sendKey = ['lifecycle-send', showId, stepType];
+  const sending = useIsMutating({ mutationKey: sendKey }) > 0;
   const sendMutation = useMutation({
+    mutationKey: sendKey,
     mutationFn: async (input: { sendJobs: LifecycleEmailJobReview[]; skippedJobIds: string[] }) => {
       await skipLifecycleEmailJobsForReview({
         supabase: lifecycleClient,
         jobIds: input.skippedJobIds,
       });
-      if (input.sendJobs.length === 0) return;
+      if (input.sendJobs.length === 0) return null;
       // Only forward text the secretary actually edited. Anything sent here is a
       // BROADCAST override applied to every recipient, so an unedited send must
       // omit it and let each job deliver its own personalised draft (MYK9-315).
-      await sendLifecycleEmailJobs({
+      return sendLifecycleEmailJobs({
         supabase,
         showId,
         jobIds: input.sendJobs.map(job => job.id),
@@ -201,8 +221,23 @@ function LifecycleBatchReviewDialog({
         secretaryNote,
       });
     },
-    onSuccess: onSent,
+    // Hook-level callbacks outlive the panel that started the send (the mutation outlives its
+    // observer), so they only refresh data. Closing is decided at the mutate call below, which
+    // TanStack drops once this panel unmounts, so a late send never closes a later panel.
+    // Any ending, full or partial or failed, may have sent some: refresh the list (what went out
+    // drops off it) and the step summary counts.
+    onSettled: () => {
+      void refreshReviewList();
+      void queryClient.invalidateQueries({ queryKey: queryKey(showId) });
+    },
+    // The send is resumable ("Send again"); an automatic retry would restart at chunk 1 and
+    // scramble the sent count (MYK9-1191).
+    retry: false,
+    // Run even offline so it fails fast into onError; a paused mutation would sit on "Sending..."
+    // and then fire on its own when the network returns.
+    networkMode: 'always',
   });
+  const unsent = sendMutation.data && sendMutation.data.failed > 0 ? sendMutation.data : null;
   const jobs = jobsQuery.data ?? [];
   const selectedSubject = subject ?? jobs[0]?.subject ?? '';
   const selectedBody = body ?? jobs[0]?.body ?? '';
@@ -226,19 +261,48 @@ function LifecycleBatchReviewDialog({
       title={`${STEP_LABELS[stepType]} review`}
       size="lg"
       footer={
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
-          <Button
-            type="button"
-            disabled={
-              sendMutation.isPending || (selectedJobs.length === 0 && skippedJobIds.length === 0)
-            }
-            onClick={() => sendMutation.mutate({ sendJobs: selectedJobs, skippedJobIds })}
-          >
-            {sendMutation.isPending ? 'Sending...' : 'Send now'}
-          </Button>
+        <div className="space-y-2">
+          {sendMutation.isError ? (
+            <p
+              role="alert"
+              className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+            >
+              {sendMutation.error instanceof LifecycleSendPartialError
+                ? sendMutation.error.message
+                : "Couldn't send these emails. Nothing was lost; try again."}
+            </p>
+          ) : null}
+          {unsent ? (
+            <p
+              role="alert"
+              className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+            >
+              {unsentMessage(unsent)}
+            </p>
+          ) : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+            <Button
+              type="button"
+              disabled={sending || (selectedJobs.length === 0 && skippedJobIds.length === 0)}
+              onClick={() =>
+                sendMutation.mutate(
+                  { sendJobs: selectedJobs, skippedJobIds },
+                  {
+                    // Per-job failures arrive inside a 200: stay open and say so rather than
+                    // closing as a success.
+                    onSuccess: result => {
+                      if (!(result && result.failed > 0)) onOpenChange(false);
+                    },
+                  }
+                )
+              }
+            >
+              {sending ? 'Sending...' : 'Send now'}
+            </Button>
+          </div>
         </div>
       }
     >

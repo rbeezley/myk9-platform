@@ -12,6 +12,13 @@ import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTa
 
 const { mockArmbandsTable, mockDogsTable, mockEntriesTable, mockClassesTable } = vi.hoisted(() => ({
   mockArmbandsTable: {
+    // Every show here completed a sync as the signed-in account (MYK9-1133).
+    getCurrentAuthUserId: async () => 'user-test',
+    getSyncMetadata: async () => ({
+      tableName: 'armbands',
+      totalRows: 1,
+      syncedByAuthUserId: 'user-test',
+    }),
     getByShow: vi.fn(),
     getByDog: vi.fn(),
     lookupByArmbandNumber: vi.fn(),

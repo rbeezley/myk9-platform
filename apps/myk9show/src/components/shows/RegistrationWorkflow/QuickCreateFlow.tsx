@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { usePanelModeFocus } from '@/components/panels/usePanelModeFocus';
 import { Badge } from '@/components/ui/badge';
-import { CreateExhibitorDialog } from './CreateExhibitorDialog';
+import { CreatePersonForm } from './CreatePersonForm';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { AddDogSubMode } from '@/components/panels/edit/AddDogPanel/types';
 import { User, Dog } from '@/types/dog-types';
@@ -18,6 +18,7 @@ import {
   type QuickCreateFlowState,
 } from './QuickCreateFlow.types';
 import { QuickCreateSteps } from './QuickCreateSteps';
+import { QuickCreateDogEdit, QuickCreatePersonEdit } from './QuickCreateEditForms';
 import { QuickCreateFooter } from './QuickCreateFooter';
 import { useCreatedInSession } from './CreatedInSessionContext';
 
@@ -58,6 +59,13 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   const [flowState, setFlowState] = useState<QuickCreateFlowState>(INITIAL_QUICK_CREATE_FLOW_STATE);
   const [view, setView] = useState<QuickCreateView>('steps');
   const [dogSubMode, setDogSubMode] = useState<AddDogSubMode>('dog');
+  const [editingDogId, setEditingDogId] = useState<string | null>(null);
+  // Dogs picked from the duplicate prompt rather than made here. Only these need the
+  // server's word before Edit is offered: a dog made in this flow is the secretary's to fix.
+  const [existingDogIds, setExistingDogIds] = useState<ReadonlySet<string>>(() => new Set());
+  // The same for the person: one picked from the duplicate prompt needs the server's word
+  // before Edit Details is offered (MYK9-1134); one made in this flow is hers to fix.
+  const [personIsExisting, setPersonIsExisting] = useState(false);
   const closeFormRef = useRef<(() => void) | null>(null);
   const stepsRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
@@ -68,12 +76,12 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     setView('dog-form');
   };
 
-  const handleExhibitorCreated = (
+  // The person the flow continues with, whether just created or chosen from the
+  // duplicate prompt; only a created one is recorded below.
+  const continueWithExhibitor = (
     exhibitor: User,
     metadata?: { pendingMutationIds?: string[] | undefined }
   ) => {
-    // Saved the moment the form saves, even if the flow is closed before it completes.
-    createdInSession?.recordOwnerCreated(exhibitor);
     setFlowState(prev => ({
       ...prev,
       exhibitor,
@@ -83,8 +91,27 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     setView('steps');
   };
 
+  const handleExhibitorCreated = (
+    exhibitor: User,
+    metadata?: { pendingMutationIds?: string[] | undefined }
+  ) => {
+    // Saved the moment the form saves, even if the flow is closed before it completes.
+    createdInSession?.recordOwnerCreated(exhibitor);
+    setPersonIsExisting(false);
+    continueWithExhibitor(exhibitor, metadata);
+  };
+
+  const handleDuplicateSelected = (
+    exhibitor: User,
+    metadata?: { pendingMutationIds?: string[] | undefined }
+  ) => {
+    setPersonIsExisting(true);
+    continueWithExhibitor(exhibitor, metadata);
+  };
+
   const handleDogCreated = (dog: Dog, options?: { existing?: boolean }) => {
-    if (!options?.existing) createdInSession?.recordDogCreated(dog);
+    if (options?.existing) setExistingDogIds(prev => new Set(prev).add(dog.id));
+    else createdInSession?.recordDogCreated(dog);
     setFlowState(prev => ({
       ...prev,
       dogs: [...prev.dogs, dog],
@@ -94,10 +121,24 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     setView('steps');
   };
 
-  // Edit re-creates the dog through a blank form (unchanged, follow-up F6).
+  // Edit opens the saved dog in the Edit Dog panel (MYK9-1112). The dog stays in
+  // the selection until the edit saves, so Cancel and a refused save lose nothing.
   const handleEditDog = (index: number) => {
-    setFlowState(prev => ({ ...prev, dogs: prev.dogs.filter((_, i) => i !== index) }));
-    openDogForm();
+    const dog = flowState.dogs[index];
+    if (!dog) return;
+    setEditingDogId(dog.id);
+    setView('dog-edit');
+  };
+  const handleDogEdited = (saved: Dog) => {
+    createdInSession?.refreshDogCreated(saved);
+    setFlowState(prev => ({
+      ...prev,
+      dogs: prev.dogs.map(dog => (dog.id === saved.id ? saved : dog)),
+    }));
+  };
+  const handlePersonEdited = (saved: User) => {
+    createdInSession?.refreshOwnerCreated(saved);
+    setFlowState(prev => ({ ...prev, exhibitor: saved }));
   };
   const removedIndexRef = useRef<number | null>(null);
   const handleRemoveDog = (index: number) => {
@@ -116,7 +157,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   };
 
   const handleCompleteFlow = () => {
-    if (flowState.exhibitor && flowState.dogs.length > 0) {
+    if (flowState.exhibitor) {
       const updatedExhibitor: User = {
         ...flowState.exhibitor,
         dogs: flowState.dogs.map(dog => dog.id),
@@ -157,6 +198,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     homeKey: `${flowState.step}:${flowState.dogs.length}`,
   });
 
+  const editingDog = flowState.dogs.find(dog => dog.id === editingDogId);
   const onSteps = view === 'steps';
   return (
     <SlideOverPanel
@@ -187,7 +229,10 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
             flowState={flowState}
             mode={mode}
             onOpenPersonForm={() => setView('person-form')}
+            onEditPerson={() => setView('person-edit')}
+            personIsExisting={personIsExisting}
             onOpenDogForm={openDogForm}
+            existingDogIds={existingDogIds}
             onEditDog={handleEditDog}
             onRemoveDog={handleRemoveDog}
           />
@@ -195,16 +240,35 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
       ) : (
         <div ref={formRef} tabIndex={-1} className="h-full outline-none">
           {view === 'person-form' ? (
-            <CreateExhibitorDialog
+            <CreatePersonForm
               open
               variant="inline"
               closeRequestRef={closeFormRef}
               onOpenChange={isOpen => !isOpen && showSteps()}
               onExhibitorCreated={handleExhibitorCreated}
+              onDuplicateSelected={handleDuplicateSelected}
               searchQuery={searchQuery}
               offlineFirst={offlineFirst}
               createdFromShowId={createdFromShowId}
             />
+          ) : view === 'person-edit' ? (
+            flowState.exhibitor && (
+              <QuickCreatePersonEdit
+                record={flowState.exhibitor}
+                onSaved={handlePersonEdited}
+                onClose={showSteps}
+                closeRequestRef={closeFormRef}
+              />
+            )
+          ) : view === 'dog-edit' ? (
+            editingDog && (
+              <QuickCreateDogEdit
+                record={editingDog}
+                onSaved={handleDogEdited}
+                onClose={showSteps}
+                closeRequestRef={closeFormRef}
+              />
+            )
           ) : (
             <AddDogPanel
               open

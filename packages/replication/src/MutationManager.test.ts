@@ -688,6 +688,7 @@ describe('MutationManager', () => {
         makeMutation({
           id: 'mut-rpc-noocc',
           operation: 'UPDATE',
+          rowId: 'entry-2',
           data: { id: 'entry-2', check_in_status: 'in-ring' },
           rpc: { name: 'ringside_update_entry', fields: { check_in_status: 'in-ring' } },
         })

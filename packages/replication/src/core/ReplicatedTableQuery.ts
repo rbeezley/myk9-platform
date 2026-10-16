@@ -7,6 +7,9 @@ import { databaseManager, REPLICATION_STORES, SHOW_ID_INDEX } from './DatabaseMa
 /**
  * Query operations for a replicated table.
  */
+/** Which stored rows a read may return (see ReplicatedTable.visibleRows). */
+export type RowVisibility = (row: ReplicatedRow<never>) => boolean;
+
 export class ReplicatedTableQueryManager<T extends { id: string }> {
   constructor(
     private tableName: string,
@@ -17,8 +20,8 @@ export class ReplicatedTableQueryManager<T extends { id: string }> {
   /**
    * Get all rows for this table
    */
-  async getAll(licenseKey?: string): Promise<T[]> {
-    return (await this.getAllWithStatus(licenseKey)).rows;
+  async getAll(licenseKey?: string, visible?: RowVisibility): Promise<T[]> {
+    return (await this.getAllWithStatus(licenseKey, visible)).rows;
   }
 
   /**
@@ -26,12 +29,17 @@ export class ReplicatedTableQueryManager<T extends { id: string }> {
    * a failed local read. Prefer this for callers that make factual claims from
    * an empty result; getAll() remains the compatibility adapter.
    */
-  async getAllWithStatus(licenseKey?: string): Promise<ReplicatedReadResult<T>> {
+  async getAllWithStatus(
+    licenseKey?: string,
+    visible?: RowVisibility
+  ): Promise<ReplicatedReadResult<T>> {
     return this.readWithStatus('getAll()', async db => {
       const index = db
         .transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly')
         .store.index('tableName');
-      const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
+      const rows = ((await index.getAll(this.tableName)) as ReplicatedRow<T>[]).filter(
+        row => !visible || visible(row as ReplicatedRow<never>)
+      );
       if (licenseKey) {
         return rows
           .filter(row => (row.data as Record<string, unknown>).license_key === licenseKey)
@@ -46,14 +54,17 @@ export class ReplicatedTableQueryManager<T extends { id: string }> {
    * explicit read status as getAllWithStatus. The read is bounded by the
    * show's own rows, so a device holding many shows does not scan them all.
    */
-  async getByShowWithStatus(showId: string): Promise<ReplicatedReadResult<T>> {
+  async getByShowWithStatus(
+    showId: string,
+    visible?: RowVisibility
+  ): Promise<ReplicatedReadResult<T>> {
     return this.readWithStatus('getByShow()', async db => {
       const index = db
         .transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly')
         .store.index(SHOW_ID_INDEX);
-      const rows = (await index.getAll(
-        IDBKeyRange.only([this.tableName, showId])
-      )) as ReplicatedRow<T>[];
+      const rows = (
+        (await index.getAll(IDBKeyRange.only([this.tableName, showId]))) as ReplicatedRow<T>[]
+      ).filter(row => !visible || visible(row as ReplicatedRow<never>));
       return rows.map(row => row.data);
     });
   }
@@ -83,11 +94,13 @@ export class ReplicatedTableQueryManager<T extends { id: string }> {
     }
   }
 
-  async getAllLocalIds(): Promise<Set<string>> {
+  async getAllLocalIds(visible?: RowVisibility): Promise<Set<string>> {
     const db = await this.getDb();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
     const index = tx.store.index('tableName');
-    const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
+    const rows = ((await index.getAll(this.tableName)) as ReplicatedRow<T>[]).filter(
+      row => !visible || visible(row as ReplicatedRow<never>)
+    );
 
     return new Set(rows.map(row => row.id));
   }

@@ -127,6 +127,8 @@ export const queryKeys = {
   dogRegistrations: (dogId: string) => ['dogs', dogId, 'registrations'] as const,
   dogHealthRecords: (dogId: string) => ['dogs', dogId, 'health'] as const,
   dogPedigree: (dogId: string) => ['dogs', dogId, 'pedigree'] as const,
+  dogCanEdit: (dogId: string) => ['dogs', dogId, 'can-edit'] as const,
+  dogCanChangeOwner: (dogId: string) => ['dogs', dogId, 'can-change-owner'] as const,
 
   // Users
   users: {
@@ -140,6 +142,7 @@ export const queryKeys = {
     withDogCounts: () => ['users', 'dogCounts'] as const,
     statistics: () => ['users', 'statistics'] as const,
     dogs: (userId: string) => ['users', userId, 'dogs'] as const,
+    canEdit: (userId: string) => ['users', userId, 'can-edit'] as const,
   },
 
   // Legacy aliases — still in use by useUsersDatabase / useDogsDatabase.
@@ -175,6 +178,8 @@ export const queryKeys = {
   // Registrations
   registrations: ['registrations'] as const,
   registration: (id: string) => ['registrations', id] as const,
+  /** Prefix of every `registrationsByDog` key: every dog's registrations. */
+  registrationsByDogAll: ['registrations', 'dog'] as const,
   registrationsByDog: (dogId: string) => ['registrations', 'dog', dogId] as const,
   registrationsByOwner: (ownerId: string) => ['registrations', 'owner', ownerId] as const,
 

@@ -14,6 +14,12 @@ interface AtShowClassRowProps {
   isExhibitorOnly: boolean;
   onClick: (entry: ClassEntry) => void;
   trialTimeZone: string;
+  /**
+   * "<trial label> · <date>" (`formatAtShowTrialHeading`). Passed only where
+   * cards from several trials share one flat list (Your ring, MYK9-1165), so a
+   * multi-day show's identical class names stay tellable apart.
+   */
+  trialHeading?: string | undefined;
   /** In-ring / next-up preview for this card; omitted when unknown. */
   nextUp?: AtShowNextUpPreview | undefined;
   /**
@@ -75,6 +81,7 @@ export function AtShowClassRow({
   isExhibitorOnly,
   onClick,
   trialTimeZone,
+  trialHeading,
   nextUp,
   entryCountsAvailable,
 }: AtShowClassRowProps) {
@@ -102,6 +109,11 @@ export function AtShowClassRow({
             {entry.is_favorite && <Star size={15} className="shrink-0 fill-primary text-primary" />}
             <span className="truncate font-medium">{entry.class_name}</span>
           </div>
+          {trialHeading && (
+            <div className="mt-0.5 truncate text-sm font-medium text-foreground/80">
+              {trialHeading}
+            </div>
+          )}
           {entry.judge_name && entry.judge_name !== 'No Judge Assigned' && (
             <div className="mt-0.5 flex items-center gap-1 truncate text-sm text-muted-foreground">
               <User size={13} className="shrink-0" />
@@ -133,23 +145,30 @@ export function AtShowClassRow({
             empty and finished; before the show's entry replica has been read
             that claim is simply unfounded (MYK9-637).
           */}
-          <span className="text-xs text-muted-foreground">
-            {entryCountsAvailable ? (
-              <>
-                <span aria-hidden>
-                  {entry.completed_count} / {entry.entry_count}
-                </span>
-                <span className="sr-only">
-                  {entry.completed_count} of {entry.entry_count} scored
-                </span>
-              </>
-            ) : (
-              <>
-                <span aria-hidden>—</span>
-                <span className="sr-only">Entry count not loaded yet</span>
-              </>
-            )}
-          </span>
+          {/*
+            MYK9-1184: an exhibitor's replica never holds every entry in a
+            class (RLS admits only their own), so for them the count can never
+            load and "not loaded" would be permanent. Omit the line instead.
+          */}
+          {(entryCountsAvailable || !isExhibitorOnly) && (
+            <span className="text-xs text-muted-foreground">
+              {entryCountsAvailable ? (
+                <>
+                  <span aria-hidden>
+                    {entry.completed_count} / {entry.entry_count}
+                  </span>
+                  <span className="sr-only">
+                    {entry.completed_count} of {entry.entry_count} scored
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span aria-hidden>—</span>
+                  <span className="sr-only">Entry count not loaded yet</span>
+                </>
+              )}
+            </span>
+          )}
         </div>
         <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
       </button>

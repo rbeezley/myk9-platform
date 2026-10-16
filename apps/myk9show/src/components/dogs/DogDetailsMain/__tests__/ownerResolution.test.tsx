@@ -92,18 +92,31 @@ vi.mock('@/services/LoggingService', () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
-  useRegistrationsByDogQuery: () => ({ data: mockRegistrations, isLoading: false }),
-  useDogRegistrationManagement: () => ({
-    registrations: mockRegistrations,
-    isLoading: false,
-    error: null,
-    createRegistration: vi.fn(),
-    updateRegistration: vi.fn(),
-    deleteRegistration: vi.fn(),
-    refetch: vi.fn(),
-  }),
-}));
+vi.mock('@/hooks/queries/useRegistrationsDatabase', async () => {
+  // The pure helpers stay real; only the hooks are faked.
+  const actual = await vi.importActual<typeof import('@/hooks/queries/useRegistrationsDatabase')>(
+    '@/hooks/queries/useRegistrationsDatabase'
+  );
+  return {
+    registrationsToList: actual.registrationsToList,
+    isEmptyOfflineCopy: actual.isEmptyOfflineCopy,
+    railRegistrations: actual.railRegistrations,
+    useRegistrationsByDogQuery: () => ({ data: mockRegistrations, isLoading: false }),
+    useRailRegistrationsQuery: () => ({
+      data: { registrations: mockRegistrations, offline: false },
+      isLoading: false,
+    }),
+    useDogRegistrationManagement: () => ({
+      registrations: mockRegistrations,
+      isLoading: false,
+      error: null,
+      createRegistration: vi.fn(),
+      updateRegistration: vi.fn(),
+      deleteRegistration: vi.fn(),
+      refetch: vi.fn(),
+    }),
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Child component mocks (render-heavy; we only care about property sections)

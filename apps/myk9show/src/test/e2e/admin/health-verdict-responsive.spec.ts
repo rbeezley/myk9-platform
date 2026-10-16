@@ -2,8 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { signInAsAdmin } from '../helpers/testUsers';
 
 /**
- * MYK9-434. At 768x1024 the manager sidebar holds 240px of the viewport, so the
- * verdict card's real content column is ~420px — but the header used to split on
+ * MYK9-434. At 768x1024 the manager sidebar held 240px of the viewport (a 76px
+ * rail since MYK9-1214), so the verdict card's real content column was ~420px — but the header used to split on
  * `sm:flex-row`, a VIEWPORT breakpoint, and handed the fixed 250px counter block
  * a majority of that column. The headline collapsed to a 151px, six-line ribbon
  * with the explanation stacked under it in the same gutter.
@@ -19,7 +19,7 @@ import { signInAsAdmin } from '../helpers/testUsers';
 const HEADLINE = '[data-testid="health-verdict-headline"]';
 
 const WIDTHS = [
-  // The regression width: sidebar present, ~420px of content column.
+  // The regression width: sidebar present (~690px of content beside the rail).
   { id: 'tablet', width: 768, height: 1024 },
   // Controls from the issue — these were already correct and must stay so.
   { id: 'laptop', width: 1024, height: 768 },

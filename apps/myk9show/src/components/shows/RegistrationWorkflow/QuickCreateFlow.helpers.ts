@@ -1,4 +1,5 @@
 import type { AddDogSubMode } from '@/components/panels/edit/AddDogPanel/types';
+import { addDogSubModeTitle } from '@/components/panels/edit/AddDogPanel/subModeTitle';
 
 /** The three steps a Quick Create walks through. */
 export type QuickCreateStep = 'exhibitor' | 'dogs' | 'review';
@@ -7,7 +8,13 @@ export type QuickCreateStep = 'exhibitor' | 'dogs' | 'review';
  * What the one Quick Create slide-out shows (MYK9-1081): the step screens, or
  * the Person or Dog form in their place. Never a second overlay.
  */
-export type QuickCreateView = 'steps' | 'person-form' | 'dog-form';
+export type QuickCreateView =
+  | 'steps'
+  | 'person-form'
+  | 'dog-form'
+  // Edit on a record already saved (MYK9-1112): the existing Edit Person / Edit Dog panels.
+  | 'person-edit'
+  | 'dog-edit';
 
 const STEP_LABELS: Record<QuickCreateStep, { number: number; label: string }> = {
   exhibitor: { number: 1, label: 'Add Person' },
@@ -18,11 +25,9 @@ const STEP_LABELS: Record<QuickCreateStep, { number: number; label: string }> = 
 /** The panel's title for the view showing now. */
 export function quickCreateTitle(view: QuickCreateView, dogSubMode: AddDogSubMode): string {
   if (view === 'person-form') return 'Add Person';
-  if (view === 'dog-form') {
-    if (dogSubMode === 'registration-add') return 'Add New Registration';
-    if (dogSubMode === 'registration-edit') return 'Edit Registration';
-    return 'Add Dog';
-  }
+  if (view === 'person-edit') return 'Edit Person';
+  if (view === 'dog-edit') return 'Edit Dog';
+  if (view === 'dog-form') return addDogSubModeTitle(dogSubMode);
   return 'Quick Registration Setup';
 }
 

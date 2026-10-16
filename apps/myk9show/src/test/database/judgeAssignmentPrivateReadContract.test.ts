@@ -64,7 +64,14 @@ describe('MYK9-146 private judge-assignment read contract', () => {
     expect(replication).toContain('day_capacity_override, version');
     expect(replication).toContain('return rows.map(row => ({ ...row, fee: null, notes: null }))');
     expect(judgeReads).toContain("rpc('get_manager_judge_assignments')");
-    expect(judgeReads).toContain('.select(JUDGE_ASSIGNMENT_PUBLIC_SELECT)');
+    // The stats read adds a liveness embed (MYK9-1164); it must still start from the
+    // public column list, and the embed may read only deleted_at.
+    expect(judgeReads).toContain(
+      '.select(`${JUDGE_ASSIGNMENT_PUBLIC_SELECT}, ${LIVE_PARENT_EMBEDS}`)'
+    );
+    expect(judgeReads).toMatch(
+      /const LIVE_PARENT_EMBEDS =\s*'shows!judge_assignments_show_id_fkey\(deleted_at\), classes!judge_assignments_class_id_fkey\(deleted_at\)';/
+    );
     expect(judgeReads).toContain('totalFees: null');
   });
 });

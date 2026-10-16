@@ -12,14 +12,15 @@
  *   (3rem header, or 3rem + PWA banner when the install banner is showing)
  * - Sidebar z-index (z-40) is below header z-index (z-50)
  * - Mobile overlay appears below header but above content
- * - Supports both fixed-width and dynamic-width (collapsible) sidebars
+ * - The sidebar's width is set by the caller (desktop rail or mobile drawer)
  */
 
-import React, { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import React, { ReactNode, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
 import { APP_SHELL_HEADER_HEIGHT_PX } from './appShellContract';
+import { useIsGuestLanding } from './useIsGuestLanding';
 
 // Layout constants - single source of truth
 const SIDEBAR_LAYOUT_CONSTANTS = {
@@ -31,8 +32,6 @@ const SIDEBAR_LAYOUT_CONSTANTS = {
   HEADER_OFFSET_CLASS: 'top-[var(--app-top-inset,3rem)]',
   /** Default sidebar width in pixels */
   DEFAULT_WIDTH: 288, // w-72 = 18rem = 288px
-  /** Collapsed sidebar width in pixels */
-  COLLAPSED_WIDTH: 80, // 5rem = 80px
   /** Z-index for sidebar (below header z-50) */
   SIDEBAR_Z_INDEX: 'z-40',
   /** Z-index for mobile overlay */
@@ -48,12 +47,6 @@ export interface SidebarLayoutProps {
   className?: string;
   /** Sidebar width in pixels (default: 288px / w-72) */
   sidebarWidth?: number;
-  /** Whether the sidebar is collapsible */
-  isCollapsible?: boolean;
-  /** Whether the sidebar is currently collapsed (controlled) */
-  isCollapsed?: boolean;
-  /** Callback when collapse state changes (reserved for future use) */
-  onCollapseChange?: (collapsed: boolean) => void;
   /** Label for the mobile menu button */
   mobileMenuLabel?: string;
   /** Whether to show the mobile menu button (default: true) */
@@ -64,10 +57,6 @@ export interface SidebarLayoutProps {
   mobileOpen?: boolean;
   /** Callback when mobile sidebar open state changes */
   onMobileOpenChange?: (open: boolean) => void;
-  /** Custom collapsed width in pixels (default: SIDEBAR_LAYOUT_CONSTANTS.COLLAPSED_WIDTH) */
-  collapsedWidth?: number;
-  /** Whether to enable hover-driven expand/collapse */
-  hoverToExpand?: boolean;
 }
 
 export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
@@ -75,67 +64,19 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
   children,
   className,
   sidebarWidth = SIDEBAR_LAYOUT_CONSTANTS.DEFAULT_WIDTH,
-  isCollapsible = false,
-  isCollapsed = false,
   mobileMenuLabel = 'Menu',
   showMobileMenuButton = true,
   mobileHeaderContent,
   mobileOpen: controlledMobileOpen,
   onMobileOpenChange,
-  collapsedWidth: customCollapsedWidth,
-  hoverToExpand = false,
 }) => {
   // Internal mobile state (uncontrolled mode)
+  const isGuestLanding = useIsGuestLanding();
   const [internalMobileOpen, setInternalMobileOpen] = useState(false);
-
-  // Hover-to-expand state
-  const [isHoverExpanded, setIsHoverExpanded] = useState(false);
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Use controlled or uncontrolled mobile state
   const mobileOpen = controlledMobileOpen !== undefined ? controlledMobileOpen : internalMobileOpen;
   const setMobileOpen = onMobileOpenChange || setInternalMobileOpen;
-
-  // Hover handlers with 150ms delay on expand, immediate collapse
-  const handleMouseEnter = useCallback(() => {
-    hoverTimerRef.current = setTimeout(() => setIsHoverExpanded(true), 150);
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    if (hoverTimerRef.current) {
-      clearTimeout(hoverTimerRef.current);
-      hoverTimerRef.current = null;
-    }
-    setIsHoverExpanded(false);
-  }, []);
-
-  // Tap-to-expand fallback for touch devices (no hover events).
-  // Only triggers when the sidebar is collapsed — tapping the narrow rail expands it.
-  // A second tap anywhere outside collapses it via the overlay.
-  const handleSidebarClick = useCallback(() => {
-    if (isCollapsible && isCollapsed) {
-      setIsHoverExpanded(true);
-    }
-  }, [isCollapsible, isCollapsed]);
-
-  // Clean up hover timer on unmount
-  useEffect(() => {
-    return () => {
-      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    };
-  }, []);
-
-  // Calculate actual sidebar width based on collapse state
-  const effectivelyCollapsed = isCollapsible && isCollapsed && !isHoverExpanded;
-  const actualWidth = effectivelyCollapsed
-    ? (customCollapsedWidth ?? SIDEBAR_LAYOUT_CONSTANTS.COLLAPSED_WIDTH)
-    : sidebarWidth;
-
-  // When hover-to-expand is active, the sidebar overlays content rather than pushing it.
-  // Locking main's margin to the collapsed width prevents layout shifts on hover.
-  const mainMarginWidth = hoverToExpand
-    ? (customCollapsedWidth ?? SIDEBAR_LAYOUT_CONSTANTS.COLLAPSED_WIDTH)
-    : actualWidth;
 
   return (
     <div className={cn('flex min-h-screen bg-background', className)}>
@@ -149,19 +90,6 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
             'bg-black/50 backdrop-blur-sm md:hidden'
           )}
           onClick={() => setMobileOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Dismiss overlay for touch-expanded sidebar (desktop only) */}
-      {hoverToExpand && isHoverExpanded && isCollapsed && (
-        <div
-          className={cn(
-            'fixed inset-0',
-            SIDEBAR_LAYOUT_CONSTANTS.HEADER_OFFSET_CLASS,
-            'z-30 hidden md:block'
-          )}
-          onClick={() => setIsHoverExpanded(false)}
           aria-hidden="true"
         />
       )}
@@ -180,20 +108,13 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
           // Mobile: slide in/out
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
-        style={{ width: actualWidth }}
-        onClick={hoverToExpand ? handleSidebarClick : undefined}
-        onMouseEnter={hoverToExpand ? handleMouseEnter : undefined}
-        onMouseLeave={hoverToExpand ? handleMouseLeave : undefined}
+        style={{ width: sidebarWidth }}
       >
         {/* Clone sidebar and inject onCloseMobile prop if it accepts it */}
         {React.isValidElement(sidebar)
-          ? React.cloneElement(
-              sidebar as React.ReactElement<{ onCloseMobile?: () => void; isCollapsed?: boolean }>,
-              {
-                onCloseMobile: () => setMobileOpen(false),
-                isCollapsed: effectivelyCollapsed,
-              }
-            )
+          ? React.cloneElement(sidebar as React.ReactElement<{ onCloseMobile?: () => void }>, {
+              onCloseMobile: () => setMobileOpen(false),
+            })
           : sidebar}
       </div>
 
@@ -209,6 +130,9 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
           Leaving overflow visible hands sticky the document scrollport, which
           is what --app-top-inset offsets are already written against.
 
+          The top padding is dropped for the guest landing page, whose own
+          header replaces the app header (see useIsGuestLanding).
+
           `min-w-0` replaces what `overflow-auto` used to do for width: a flex
           item's automatic minimum size is its content, so an over-wide child
           (a table, a long unbroken string) used to be absorbed by this
@@ -217,10 +141,11 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
       <main
         data-layout="app-shell-main"
         className={cn(
-          'flex-1 min-w-0 pt-[var(--app-header-height,3rem)]',
+          'flex-1 min-w-0',
+          isGuestLanding ? 'pt-0' : 'pt-[var(--app-header-height,3rem)]',
           'md:ml-[var(--sidebar-width)]'
         )}
-        style={{ '--sidebar-width': `${mainMarginWidth}px` } as React.CSSProperties}
+        style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
       >
         {/* Mobile header with menu button. Sticks flush under the app chrome
             (header, or header + PWA banner) via --app-top-inset — matching the

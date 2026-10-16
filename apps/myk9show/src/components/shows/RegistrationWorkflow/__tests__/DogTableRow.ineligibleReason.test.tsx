@@ -77,3 +77,16 @@ describe('ineligible row height (MYK9-1060)', () => {
     expect(getDogRowHeight(true)).toBe(DOG_ROW_HEIGHT);
   });
 });
+
+describe('DogRow owner (MYK9-1189)', () => {
+  it('says the owner is unavailable offline instead of a dash', () => {
+    renderRow(dog({ ownerName: '', ownerUnavailableOffline: true }));
+    expect(screen.getByText('Owner unavailable offline')).toBeInTheDocument();
+  });
+
+  it('a known owner name wins over the offline label', () => {
+    renderRow(dog({ ownerName: 'Ada Lovelace', ownerUnavailableOffline: true }));
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+    expect(screen.queryByText('Owner unavailable offline')).not.toBeInTheDocument();
+  });
+});

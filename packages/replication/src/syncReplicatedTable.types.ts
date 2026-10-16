@@ -1,3 +1,5 @@
+import type { DirtyRowComparePolicy } from './conflict/detectDirtyRowConflict';
+
 export interface SyncScope {
   /**
    * Domain-specific scope for this sync, such as a myK9Q license key or a
@@ -48,6 +50,13 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
   getPendingDeleteIds?: (context: RemoteRowCountContext) => Promise<ReadonlySet<string>>;
   getRemoteId(remote: TRemote): string;
   toLocalRow(remote: TRemote): TLocal;
+  /**
+   * The server columns a local row stands for (the inverse of `toLocalRow`).
+   * Optional: with it, an acknowledged write that leaves its row dirty moves the
+   * row's merge base forward to include that write (MYK9-1220). Without it the
+   * base stays put, which is the behaviour before MYK9-1220.
+   */
+  toRemoteRow?(local: TLocal): Record<string, unknown>;
 
   /**
    * Server-side `updated_at` for a fetched remote row, as epoch milliseconds
@@ -81,6 +90,13 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
    * always route through a delta RPC don't need this (the RPC delta never clobbers).
    */
   rebuildUpdatePayload?: (local: TLocal) => Record<string, unknown>;
+
+  /**
+   * How a dirty row's same-field check reads two spellings of one value, and
+   * which server-stamped fields yield once the rest converged (MYK9-1104).
+   * Omit for plain comparison.
+   */
+  dirtyRowComparePolicy?: DirtyRowComparePolicy;
 
   shouldSkipRemoteRow?: (remote: TRemote, context: { local: TLocal | null }) => boolean;
   shouldCleanupStaleRows?: boolean;

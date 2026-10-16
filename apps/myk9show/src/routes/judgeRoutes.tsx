@@ -5,8 +5,8 @@
  * Scoring is myK9Q's domain — no scoring routes here.
  */
 
-import { lazy } from 'react';
 import { Route } from 'react-router-dom';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { UserRole } from '@/types/auth-types';
@@ -15,9 +15,9 @@ import { ResultsDashboardRedirect } from './ResultsDashboardRedirect';
 import { JudgeCheckInRedirect } from './JudgeCheckInRedirect';
 
 // Judge page lazy imports
-const JudgeDashboard = lazy(() => import('@/pages/JudgeDashboard'));
+const JudgeDashboard = lazyWithRetry(() => import('@/pages/JudgeDashboard'));
 
-const JudgeStatsPage = lazy(() => import('@/pages/judge/JudgeStatsPage'));
+const JudgeStatsPage = lazyWithRetry(() => import('@/pages/judge/JudgeStatsPage'));
 
 /** Routes rendered INSIDE UnifiedAppLayout (with sidebar) */
 export const JudgeSidebarRoutes = () => (

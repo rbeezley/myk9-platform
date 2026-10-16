@@ -14,6 +14,7 @@ import { useEffect } from 'react';
 import { useRegistrationWizardState } from './useRegistrationWizardState';
 import { createWizardHandlers } from './wizardHandlers';
 import { useWizardDraftRehydration } from './useWizardDraftRehydration';
+import { useWizardRegistrationOwner } from './useWizardRegistrationOwner';
 
 export function useRegistrationWizard() {
   const state = useRegistrationWizardState();
@@ -26,6 +27,11 @@ export function useRegistrationWizard() {
   // `useEntryDogHandoff` must not act on the mount commit's empty selections
   // while a restore is still in flight (MYK9-514 / MYK9-519).
   const { rehydrationSettled } = useWizardDraftRehydration(state, handlers);
+
+  useWizardRegistrationOwner({
+    ...state,
+    hasSelection: state.registrationData.selectedDogs.length > 0,
+  });
 
   const {
     dogs,

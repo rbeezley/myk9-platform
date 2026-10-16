@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
 import { supabase } from '@/services/database/supabaseClient';
 import { useDogsQuery } from './useDogsDatabase';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
@@ -135,7 +136,7 @@ async function fetchMyLifetimeEntries(dogIds: string[]): Promise<StatsEntry[]> {
     dogId: row.dog_id,
     dogCallName: row.dog_call_name || '',
     showId: row.show_id,
-    showName: row.show_name || 'Unknown Show',
+    showName: row.show_name || SHOW_NOT_PUBLISHED_LABEL,
     showDate: row.show_start_date || '',
     classId: row.class_id,
     className: row.class_name || 'Unknown Class',

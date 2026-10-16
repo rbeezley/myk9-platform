@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps } from '@/lib/reports/types';
+import { normalizeOrganization } from '@/features/dogs/identity';
 import { buildClassGrid, sortEntryFormDogs } from '@/lib/reports/entryFormUtils';
 import { formatReportDate } from '@/lib/reports/reportUtils';
 import {
@@ -231,7 +232,9 @@ function ClassGrid({
 
 function DogInfoTable({ dog }: { dog: EntryFormDog }) {
   const reg = dog.registration;
-  const isAkc = reg?.organization === 'AKC' || reg?.organization === 'PAL';
+  // Stored as a code or a full label; the form's AKC/PAL/ILP/CP box covers the AKC programs.
+  const org = normalizeOrganization(reg?.organization);
+  const isAkc = org === 'AKC' || org === 'PAL' || org === 'ILP';
   const isForeign = reg?.organization === 'Foreign';
   const ownerName = `${dog.owner.firstName ?? ''} ${dog.owner.lastName ?? ''}`.trim();
 

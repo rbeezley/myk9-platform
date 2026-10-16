@@ -2,6 +2,7 @@
  * Hook for fetching scored results for the current user's dogs.
  * Queries the authenticated result view for own entries that have been scored.
  */
+import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { useDogsQuery } from './useDogsDatabase';
@@ -75,6 +76,10 @@ async function fetchExhibitorResults(dogIds: string[]) {
       )
       .in('dog_id', dogIds)
       .eq('is_scored', true)
+      // MYK9-1177: the view keeps an owner's own soft-deleted entries. Deleting a
+      // show or class tombstones its entries (soft_delete_show / soft_delete_class),
+      // so this one filter also hides history from deleted shows and classes.
+      .is('deleted_at', null)
       .order('scoring_completed_at', { ascending: false })
       .order('id', { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
@@ -100,7 +105,7 @@ async function fetchExhibitorResults(dogIds: string[]) {
     for (const trial of data ?? []) trialDates.set(trial.id, trial.date);
   }
 
-  return rows.map((row: Record<string, unknown>): ExhibitorResult => ({
+  const mapped = rows.map((row: Record<string, unknown>): ExhibitorResult => ({
     id: row.id as string,
     dogId: row.dog_id as string,
     dogName: row.dog_name as string,
@@ -117,7 +122,7 @@ async function fetchExhibitorResults(dogIds: string[]) {
     totalFaults: row.total_faults as number | null,
     finalPlacement: row.final_placement as number | null,
     scoringCompletedAt: row.scoring_completed_at as string | null,
-    showName: (row.show_name as string) || 'Unknown Show',
+    showName: (row.show_name as string) || SHOW_NOT_PUBLISHED_LABEL,
     // A trial row the viewer cannot read must not blank the date: fall back to
     // the show start date. '' means no date is known at all; date parsers
     // downstream (titles, stats) need a date or '', so the view labels that
@@ -128,6 +133,14 @@ async function fetchExhibitorResults(dogIds: string[]) {
       '',
     resultsReleasedAt: (row.class_results_released_at as string | null) ?? null,
   }));
+
+  // Newest trial date first (scoring order can disagree with it); undated rows
+  // last, scoring time breaking ties.
+  return mapped.sort(
+    (a, b) =>
+      (b.showDate || '').localeCompare(a.showDate || '') ||
+      (b.scoringCompletedAt || '').localeCompare(a.scoringCompletedAt || '')
+  );
 }
 
 /**

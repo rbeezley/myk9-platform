@@ -18,7 +18,7 @@ export interface ResultCardModel {
   releaseKey: string;
   dogName: string;
   showName: string;
-  showDateLabel: string;
+  showDateLabel?: string | undefined;
   className: string;
   classNumber?: string;
   armband?: string;
@@ -81,7 +81,7 @@ export function buildResultCardModel({
     releaseKey,
     dogName: entry.dogName,
     showName: entry.showName,
-    showDateLabel: entry.showDate.toLocaleDateString(),
+    showDateLabel: entry.showDate?.toLocaleDateString(),
     className: classEntry.name,
     ...(classNumber ? { classNumber } : {}),
     ...(entry.armband ? { armband: entry.armband } : {}),

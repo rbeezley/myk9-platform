@@ -45,6 +45,7 @@ vi.mock('@/services/replication', () => ({
     sync: (...args: unknown[]) => mockEntriesSync(...args),
     getEntriesByShow: (...args: unknown[]) => mockEntriesGetByShow(...args),
     getSyncMetadata: (...args: unknown[]) => mockEntriesGetSyncMetadata(...args),
+    getCurrentAuthUserId: async () => 'user-test',
   },
 }));
 
@@ -143,6 +144,7 @@ describe('mapAssignmentRowToJudgeClass (PostgREST shape)', () => {
       trialTimezone: 'America/Chicago',
       // 09:00 CDT (June, UTC-5) resolves to 14:00 UTC — not device-local 09:00.
       scheduledTime: new Date('2026-06-10T14:00:00Z'),
+      hasStartTime: true,
       ringNumber: null,
       totalEntries: 20,
       checkedInEntries: 14,
@@ -238,6 +240,7 @@ describe('mapReplicatedAssignmentToJudgeClass (denormalized replication shape)',
       trialDate: '2026-06-10',
       trialTimezone: 'America/Chicago',
       scheduledTime: new Date('2026-06-10T14:00:00Z'),
+      hasStartTime: true,
       ringNumber: null,
       totalEntries: 20,
       checkedInEntries: 14,
@@ -315,7 +318,10 @@ describe('useJudgeAssignments', () => {
         })
       )
     );
-    mockEntriesGetSyncMetadata.mockResolvedValue({ totalRows: 20 });
+    mockEntriesGetSyncMetadata.mockResolvedValue({
+      totalRows: 20,
+      syncedByAuthUserId: 'user-test',
+    });
   });
 
   it('reads from the replication store first and skips PostgREST when warm', async () => {

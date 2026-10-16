@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   graphql_public: {
     Tables: {
@@ -7369,10 +7369,40 @@ export type Database = {
           },
         ]
       }
+      show_lifecycle_email_job_requests: {
+        Row: {
+          created_at: string
+          job_id: string
+          request_key: string
+          show_id: string
+        }
+        Insert: {
+          created_at?: string
+          job_id: string
+          request_key: string
+          show_id: string
+        }
+        Update: {
+          created_at?: string
+          job_id?: string
+          request_key?: string
+          show_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_lifecycle_email_job_requests_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "show_lifecycle_email_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       show_lifecycle_email_jobs: {
         Row: {
           batch_key: string | null
           body: string | null
+          claimed_until: string | null
           correction_for_job_id: string | null
           created_at: string
           created_by: string | null
@@ -7406,6 +7436,7 @@ export type Database = {
         Insert: {
           batch_key?: string | null
           body?: string | null
+          claimed_until?: string | null
           correction_for_job_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -7439,6 +7470,7 @@ export type Database = {
         Update: {
           batch_key?: string | null
           body?: string | null
+          claimed_until?: string | null
           correction_for_job_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -11449,6 +11481,7 @@ export type Database = {
           area3_time_seconds: number | null
           area4_time_seconds: number | null
           armband: string | null
+          awaiting_registration_number: boolean | null
           bonus_points: number | null
           check_in_status: string | null
           class_element: string | null
@@ -11767,6 +11800,7 @@ export type Database = {
           area3_time_seconds: number | null
           area4_time_seconds: number | null
           armband: string | null
+          awaiting_registration_number: boolean | null
           bonus_points: number | null
           check_in_status: string | null
           class_element: string | null
@@ -12975,6 +13009,9 @@ export type Database = {
         Args: { p_club_id: string; p_livemode?: boolean }
         Returns: boolean
       }
+      can_change_dog_owner: { Args: { p_dog_id: string }; Returns: boolean }
+      can_edit_dog: { Args: { p_dog_id: string }; Returns: boolean }
+      can_edit_person: { Args: { p_person_id: string }; Returns: boolean }
       can_manage_show: { Args: { check_show_id: string }; Returns: boolean }
       can_manage_show_dog: { Args: { check_dog_id: string }; Returns: boolean }
       can_manage_show_lifecycle_email: {
@@ -13066,6 +13103,23 @@ export type Database = {
           lease_until: string
           outcome: string
         }[]
+      }
+      claim_registration_number_needed_job: {
+        Args: {
+          p_body: string
+          p_entry_id: string
+          p_lease_until?: string
+          p_recipient_email: string
+          p_recipient_name: string
+          p_request_key: string
+          p_secretary_note: string
+          p_show_id: string
+          p_stale_before: string
+          p_step_id: string
+          p_subject: string
+          p_user_id: string
+        }
+        Returns: Json
       }
       claim_sms_opt_in_attempt: {
         Args: { p_auth_user_id: string; p_phone_e164: string }
@@ -13320,6 +13374,16 @@ export type Database = {
         Returns: undefined
       }
       derive_registry_id: { Args: { p_organization: string }; Returns: string }
+      dog_edit_allowed: {
+        Args: {
+          p_co_owner_id: string
+          p_created_by: string
+          p_created_from_show_id: string
+          p_dog_id: string
+          p_owner_id: string
+        }
+        Returns: boolean
+      }
       dog_force_delete_audit: {
         Args: { p_deleted_at: string; p_dog_id: string }
         Returns: {
@@ -13340,6 +13404,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      dog_has_account_holder: {
+        Args: { p_co_owner_id: string; p_owner_id: string }
+        Returns: boolean
       }
       emergency_packet_input: {
         Args: { p_show_id: string; p_trial_date?: string }
@@ -13373,6 +13441,15 @@ export type Database = {
       ensure_show_lifecycle_email_steps: {
         Args: { p_show_id: string }
         Returns: undefined
+      }
+      entry_awaiting_registration_number: {
+        Args: {
+          p_class_id: string
+          p_deleted_at: string
+          p_dog_id: string
+          p_entry_status: string
+        }
+        Returns: boolean
       }
       entry_enrollment_select_show_ids: { Args: never; Returns: string[] }
       evaluate_entry_capacity: {
@@ -14371,6 +14448,15 @@ export type Database = {
         Returns: string
       }
       official_show_ids: { Args: never; Returns: string[] }
+      person_edit_allowed: {
+        Args: {
+          p_auth_user_id: string
+          p_created_by: string
+          p_created_from_show_id: string
+          p_person_id: string
+        }
+        Returns: boolean
+      }
       person_email_lock_facts: { Args: { p_person_id: string }; Returns: Json }
       person_email_lock_facts_unchecked: {
         Args: { p_person_id: string }
@@ -14593,6 +14679,10 @@ export type Database = {
           judge: string
           steward: string
         }[]
+      }
+      registry_identity_taken: {
+        Args: { p_organization: string; p_registration_number: string }
+        Returns: boolean
       }
       release_sms_proximity_send: {
         Args: { p_auth_user_id: string; p_entry_id: string }

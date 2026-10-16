@@ -30,7 +30,10 @@ import { useDogReplicaForEdit } from '@/hooks/useDogReplicaForEdit';
 import { queryKeys } from '@/lib/queryClient';
 import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompatUtils';
 import { syncDogRegistrations } from '@/hooks/dogStoreCompatHelpers';
+import { DEFAULT_REGISTRATION_ORG } from '@/components/dogs/registrationForm';
+import { mirrorServerDogRegistrations } from '@/services/database/registrations/replicaMirror';
 import { rethrownDogDbError } from '@/hooks/translateDogDbError';
+import { FriendlySaveError } from '@/utils/friendlySaveError';
 import { supabase } from '@/lib/supabase';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
 import {
@@ -112,11 +115,12 @@ export const useDogStoreCompat = () => {
         const registrationsToCreate = dogData.registrations.filter(r => r.registeredName);
         const createdAts = createRegistrationTimestamps(registrationsToCreate.length);
         const registrationsPayload = registrationsToCreate.map((r, index) => ({
-          organization: r.organization || 'AKC',
+          organization: r.organization || DEFAULT_REGISTRATION_ORG,
           registered_name: r.registeredName,
           registration_number: r.number || '',
           breed: r.type || null,
           status: r.status || 'pending',
+          registration_date: r.registrationDate || null,
           created_at: createdAts[index]!,
         }));
 
@@ -130,13 +134,16 @@ export const useDogStoreCompat = () => {
         if (rpcError) throw rethrownDogDbError(rpcError);
 
         const savedDogId = typeof rpcDogId === 'string' ? rpcDogId : dogId;
+        // The RPC wrote the registrations server-side under ids this device
+        // never saw; the registration readers answer from the replica, so
+        // copy them in now (its listener refreshes the registration reads).
+        await mirrorServerDogRegistrations(savedDogId);
         if (savedDogId !== dogId) {
           await replicatedDogsTable.delete(dogId);
           await queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
           if (dbData.owner_id) {
             queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(dbData.owner_id) });
           }
-          queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(savedDogId) });
 
           const existingLocalDog = await replicatedDogsTable.getDogById(savedDogId);
           const existingLoadedDog = dogs.find(dog => dog.id === savedDogId);
@@ -163,7 +170,6 @@ export const useDogStoreCompat = () => {
         if (dbData.owner_id) {
           queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(dbData.owner_id) });
         }
-        queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(dogId) });
         return await mapReplicatedDogWithRegistrations(replicatedDog);
       }
 
@@ -200,33 +206,51 @@ export const useDogStoreCompat = () => {
 
     let registrations: Record<string, unknown>[] = [];
     if (dogData.registrations && dogData.registrations.length > 0) {
-      // Create the local mirror FIRST so the RPC payload can carry the same
-      // ordered creation timestamps. Without them every registration in the
-      // RPC's transaction gets an identical server `created_at` and the primary
-      // is decided by a random UUID (MYK9-90 review round 4). Safe with respect
-      // to §5.1: the call-name check above has already thrown by this point.
-      const savedRegistrations =
-        await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
-          dogId,
-          dogData.registrations
-        );
+      // One set of ordered creation timestamps for the RPC payload and the
+      // local placeholders. Without them every registration in the RPC's
+      // transaction gets an identical server `created_at` and the primary is
+      // decided by a random UUID (MYK9-90 review round 4).
+      const createdAts = createRegistrationTimestamps(dogData.registrations.length);
       const registrationRows = dogData.registrations.map((registration, index) => ({
-        organization: registration.organization || 'AKC',
+        organization: registration.organization || DEFAULT_REGISTRATION_ORG,
         registered_name: registration.registeredName || null,
         registration_number: registration.number || '',
         breed: registration.type || null,
         status: registration.status || 'pending',
-        created_at: savedRegistrations[index]?.createdAt ?? null,
+        registration_date: registration.registrationDate || null,
+        created_at: createdAts[index] ?? null,
       }));
+      // The dog is written dirty and queued BEFORE its placeholders exist, so
+      // the registrations ID pass never sees a placeholder whose dog holds no
+      // local work yet and prunes it (MYK9-1090). Safe with respect to §5.1:
+      // the call-name check above has already thrown by this point.
       const savedDog = await replicatedDogsTable.createDogWithRegistrationsRpc(
         replicatedDog,
         registrationRows,
         createOptions
       );
-      registrations = savedRegistrations.map(registration =>
-        replicatedDogRegistrationsTable.toSupabaseRow(registration)
-      );
-      queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(savedDog.id) });
+      // The save is committed once the dog is queued: the registrations travel
+      // inside that queued RPC. Placeholders are only the device's copy for
+      // the screen, so a failed write is logged, not reported as a failed save
+      // (a retry would create the dog twice). The next sync brings the
+      // server's rows.
+      try {
+        const savedRegistrations =
+          await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
+            dogId,
+            dogData.registrations,
+            createdAts
+          );
+        registrations = savedRegistrations.map(registration =>
+          replicatedDogRegistrationsTable.toSupabaseRow(registration)
+        );
+      } catch (error) {
+        logger.warn('Dog queued; its registration placeholders were not written', 'dogs', {
+          dogId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        registrations = registrationRows.map(row => ({ ...row, dog_id: dogId }));
+      }
 
       await queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
       if (savedDog.ownerId) {
@@ -295,14 +319,15 @@ export const useDogStoreCompat = () => {
 
     if (updates.registrations && updates.registrations.length > 0) {
       try {
-        const changed = await syncDogRegistrations(id, updates.registrations);
-        if (changed) {
-          queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(id) });
-        }
+        // Each write it makes is queued on the registrations replica, whose
+        // listener refreshes the registration reads.
+        await syncDogRegistrations(id, updates.registrations);
       } catch (err) {
         logger.error('Failed to update/create registrations', 'dogs', { dogId: id }, err as Error);
         notifications.warning(
-          'Dog details saved, but registration changes could not be synced. Please try editing registrations again.'
+          err instanceof FriendlySaveError
+            ? `Dog details saved, but not its registrations. ${err.message.replace(/\.$/, '')}.`
+            : 'Dog details saved, but registration changes could not be synced. Please try editing registrations again.'
         );
       }
     }

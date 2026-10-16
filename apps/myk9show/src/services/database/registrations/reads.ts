@@ -1,48 +1,8 @@
 // Registration-related database queries
 // Phase 4.3: Registration System Integration
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import type {
-  DbDogRegistrationInsert,
-  DbDogRegistrationUpdate,
-} from '../../../types/database-mappings';
-// Get all registrations with dog information
-export const getAllRegistrations = async () => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('dog_registrations')
-      .select(
-        `
-        *,
-        dog:dogs(
-          id,
-          name,
-          call_name,
-          breed,
-          sex,
-          date_of_birth
-        )
-      `
-      )
-      .order('created_at', { ascending: false });
-
-    const duration = Date.now() - startTime;
-    logQuery('dog_registration', 'select_all_with_dogs', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'dog_registration', 'select_all');
-    }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'dog_registration', 'select_all');
-    logQuery('dog_registration', 'select_all_with_dogs', duration, dbError.message);
-    return { data: [], error: dbError };
-  }
-};
-
+import { mirrorServerRegistration } from './replicaMirror';
+import type { DbDogRegistrationUpdate } from '../../../types/database-mappings';
 // Get registration by ID with full details
 export const getRegistrationById = async (id: string) => {
   const startTime = Date.now();
@@ -148,43 +108,6 @@ export const getRegistrationsByOrganization = async (organization: string) => {
   }
 };
 
-// Create new registration
-export const createRegistration = async (registrationData: DbDogRegistrationInsert) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('dog_registrations')
-      .insert([registrationData])
-      .select(
-        `
-        *,
-        dog:dogs(
-          id,
-          name,
-          call_name,
-          breed
-        )
-      `
-      )
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('dog_registration', 'insert', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'dog_registration', 'insert');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'dog_registration', 'insert');
-    logQuery('dog_registration', 'insert', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
 // Update registration
 export const updateRegistration = async (id: string, updates: DbDogRegistrationUpdate) => {
   const startTime = Date.now();
@@ -217,39 +140,12 @@ export const updateRegistration = async (id: string, updates: DbDogRegistrationU
       throw createDatabaseError(error, 'dog_registration', 'update');
     }
 
+    await mirrorServerRegistration(data);
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'dog_registration', 'update');
     logQuery('dog_registration', 'update', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-// Delete registration
-export const deleteRegistration = async (id: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('dog_registrations')
-      .delete()
-      .eq('id', id)
-      .select('id, dog_id, registration_number, organization')
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('dog_registration', 'delete', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'dog_registration', 'delete');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'dog_registration', 'delete');
-    logQuery('dog_registration', 'delete', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };

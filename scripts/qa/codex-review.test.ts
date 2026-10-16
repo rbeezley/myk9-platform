@@ -3,6 +3,13 @@ import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import {
+  CLEAN_WITH_NOISE,
+  NEGATED_CLEAN_FORMS,
+  REVIEW_3003,
+  CLEAN_OPENING_WITH_FINDINGS_ARRAY,
+  NEGATED_OPENING_ONLY,
+} from './review-3003-fixture';
 
 /**
  * The wrapper is a program, so it gets a behavioural test: a stub `codex` on
@@ -130,6 +137,24 @@ function bodies(callsPath: string): string[] {
 }
 
 describe('codex-review.sh', () => {
+  it('treats the #3003 review (negated opening plus JSON findings) as findings, exit 1 (MYK9-1209)', () => {
+    expect(run(stubCodex(`codex\n${REVIEW_3003}`)).code).toBe(1);
+  });
+  it('a clean-looking opening over a valid findings array is findings (exit 1)', () => {
+    expect(run(stubCodex(`codex\n${CLEAN_OPENING_WITH_FINDINGS_ARRAY}`)).code).toBe(1);
+  });
+  it.each(CLEAN_WITH_NOISE)(
+    'still certifies a clean verdict with a JSON snippet or validation caveat: %j',
+    output => {
+      expect(run(stubCodex(`codex\n${output}`)).code).toBe(0);
+    }
+  );
+  it.each([...NEGATED_CLEAN_FORMS, NEGATED_OPENING_ONLY])(
+    'does not certify a negated clean sentence: %j',
+    output => {
+      expect(run(stubCodex(`codex\n${output}`)).code).toBe(2);
+    }
+  );
   it('counts a bullet whose [P2] tag follows the file path as a finding', () => {
     const stub = stubCodex(
       'codex\n' +

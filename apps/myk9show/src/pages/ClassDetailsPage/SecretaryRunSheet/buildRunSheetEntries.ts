@@ -1,6 +1,7 @@
 import { isCheckInStatus, type CheckInStatus } from '@myk9/core';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { isOnClassRunList } from '@/features/_shared/entryAccounting';
+import { isHeldEntry } from '@/features/dogs/identity';
 import type { Dog } from '@/types/dog-types';
 import type { RunOutcome, RunSheetEntry, RunSheetResult } from './types';
 import { formatSearchTime } from './types';
@@ -102,9 +103,17 @@ export function buildRunSheetEntries(
   organization?: string | null
 ): RunSheetEntry[] {
   // Withdrawn, scratched, moved and not-accepted entries are not on the run
-  // sheet (MYK9-976); the one rule lives in `entryAccounting`.
+  // sheet (MYK9-976); the one rule lives in `entryAccounting`. An entry the
+  // server marks as awaiting a registration number is left off too (MYK9-1162).
   return rows
     .filter(row => isOnClassRunList({ entryStatus: row.entry_status ?? undefined }))
+    .filter(
+      row =>
+        !isHeldEntry({
+          entryStatus: row.entry_status ?? undefined,
+          awaiting_registration_number: row.awaiting_registration_number,
+        })
+    )
     .map(row => rawToEntry(row, dogLookup, organization))
     .sort((a, b) => a.runOrder - b.runOrder);
 }

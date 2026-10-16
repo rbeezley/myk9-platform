@@ -14,12 +14,17 @@ export const quickCreateMocks = {
   getPendingMutationIdsForRow: vi.fn(),
   addDog: vi.fn(),
   addDogOfflineFirst: vi.fn(),
+  updateUser: vi.fn(),
+  updateDog: vi.fn(),
   recordOwnerCreated: vi.fn(),
   recordDogCreated: vi.fn(),
+  refreshOwnerCreated: vi.fn(),
+  refreshDogCreated: vi.fn(),
 };
 
 export const usersModule = {
   createUser: quickCreateMocks.createUser,
+  updateUser: quickCreateMocks.updateUser,
   fetchPersonEmailLockFacts: vi.fn().mockResolvedValue(null),
 };
 
@@ -34,6 +39,7 @@ export const dogStoreModule = {
   useDogStoreCompat: () => ({
     addDog: quickCreateMocks.addDog,
     addDogOfflineFirst: quickCreateMocks.addDogOfflineFirst,
+    updateDog: quickCreateMocks.updateDog,
     dogs: [],
     isLoading: false,
     error: null,
@@ -45,10 +51,12 @@ export const createdInSessionModule = {
     created: { owners: [], dogs: [] },
     recordOwnerCreated: quickCreateMocks.recordOwnerCreated,
     recordDogCreated: quickCreateMocks.recordDogCreated,
+    refreshOwnerCreated: quickCreateMocks.refreshOwnerCreated,
+    refreshDogCreated: quickCreateMocks.refreshDogCreated,
   }),
 };
 
-// The breed picker's popover renders inline, as the AddEditRegistrationDialog
+// The breed picker's popover renders inline, as the registration form
 // tests already do, so jsdom never fights floating-ui. A side effect worth
 // knowing: a mocked popover carries no role="dialog", so counting dialogs stays
 // honest while the breed list is on screen.
@@ -88,4 +96,12 @@ export function resetQuickCreateMocks() {
   };
   quickCreateMocks.addDog.mockResolvedValue(savedDog);
   quickCreateMocks.addDogOfflineFirst.mockResolvedValue(savedDog);
+  quickCreateMocks.updateUser.mockResolvedValue({
+    data: { id: 'person-1', first_name: 'Molly', last_name: 'Mailbox', email: null },
+    error: null,
+  });
+  quickCreateMocks.updateDog.mockImplementation(async (_id: string, updates: object) => ({
+    ...savedDog,
+    ...updates,
+  }));
 }

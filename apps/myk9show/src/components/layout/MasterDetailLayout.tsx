@@ -4,29 +4,22 @@ import { useDefaultLayout } from 'react-resizable-panels';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { EmbeddedDetailProvider } from './embeddedDetail';
+import { LIST_PANEL_IDS, layoutKey, layoutStorage } from './masterDetailStorage';
 
 /** Tailwind's `lg`. Below it the pane would be under ~300px once the sidebar takes its share. */
 export const MASTER_DETAIL_QUERY = '(min-width: 1024px)';
 
-const PANEL_IDS = ['list', 'detail'];
+const DETAIL_ONLY_IDS = ['detail'];
 
-// localStorage can throw (private window, blocked site data); a lost layout is only cosmetic.
-const layoutStorage = {
-  getItem(key: string): string | null {
-    try {
-      return window.localStorage.getItem(key);
-    } catch {
-      return null;
-    }
-  },
-  setItem(key: string, value: string): void {
-    try {
-      window.localStorage.setItem(key, value);
-    } catch {
-      // ignore
-    }
-  },
-};
+/** The list pane's starting width and drag limits, in any unit the panels accept ("38%", "320px"). */
+export interface MasterDetailListSize {
+  default: string;
+  min: string;
+  max: string;
+}
+
+const DEFAULT_LIST_SIZE: MasterDetailListSize = { default: '38%', min: '26%', max: '55%' };
+const DEFAULT_SPLIT_HEIGHT = 'h-[calc(100dvh-14rem)] min-h-[32rem]';
 
 interface MasterDetailLayoutProps {
   /** Unique per entity; the dragged pane sizes are remembered under it. */
@@ -39,6 +32,14 @@ interface MasterDetailLayoutProps {
   detail: ReactNode | null;
   listLabel: string;
   detailLabel: string;
+  listSize?: MasterDetailListSize;
+  /** Height of the split; each pane scrolls on its own inside it. */
+  heightClassName?: string;
+  /**
+   * Fold the list away and give the detail the whole width. The detail stays in the same tree
+   * position, so folding and unfolding never remounts it.
+   */
+  listHidden?: boolean;
 }
 
 /**
@@ -55,11 +56,14 @@ export function MasterDetailLayout({
   detail,
   listLabel,
   detailLabel,
+  listSize = DEFAULT_LIST_SIZE,
+  heightClassName = DEFAULT_SPLIT_HEIGHT,
+  listHidden = false,
 }: MasterDetailLayoutProps) {
   const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
   const defaultLayout = useDefaultLayout({
-    id: `myk9:master-detail:${id}`,
-    panelIds: PANEL_IDS,
+    id: layoutKey(id),
+    panelIds: listHidden ? DETAIL_ONLY_IDS : LIST_PANEL_IDS,
     storage: layoutStorage,
   });
 
@@ -76,15 +80,23 @@ export function MasterDetailLayout({
   return (
     // The group sets an inline `height: 100%`, which beats a height class on it, so the fixed
     // height lives on this wrapper. Each pane then scrolls on its own inside it.
-    <div className="h-[calc(100dvh-14rem)] min-h-[32rem]" data-testid="master-detail-layout">
+    <div className={heightClassName} data-testid="master-detail-layout">
       <ResizablePanelGroup orientation="horizontal" {...defaultLayout}>
-        <ResizablePanel id="list" defaultSize="38%" minSize="26%" maxSize="55%">
-          <div role="region" aria-label={listLabel} className="flex h-full flex-col pr-1">
-            {listHeader && <div className="shrink-0 pb-3">{listHeader}</div>}
-            <div className="min-h-0 flex-1 overflow-y-auto">{list}</div>
-          </div>
-        </ResizablePanel>
-        <ResizableHandle aria-label={`Resize ${listLabel} and ${detailLabel}`} />
+        {/* Fixed slots (false when folded), so the detail panel keeps its position. */}
+        {!listHidden && (
+          <ResizablePanel
+            id="list"
+            defaultSize={listSize.default}
+            minSize={listSize.min}
+            maxSize={listSize.max}
+          >
+            <div role="region" aria-label={listLabel} className="flex h-full flex-col pr-1">
+              {listHeader && <div className="shrink-0 pb-3">{listHeader}</div>}
+              <div className="min-h-0 flex-1 overflow-y-auto">{list}</div>
+            </div>
+          </ResizablePanel>
+        )}
+        {!listHidden && <ResizableHandle aria-label={`Resize ${listLabel} and ${detailLabel}`} />}
         <ResizablePanel id="detail" minSize="40%">
           <div role="region" aria-label={detailLabel} className="h-full overflow-y-auto pl-1">
             <EmbeddedDetailProvider value>{detail}</EmbeddedDetailProvider>

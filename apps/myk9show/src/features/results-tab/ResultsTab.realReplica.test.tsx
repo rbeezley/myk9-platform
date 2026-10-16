@@ -5,8 +5,10 @@
  * `results_released_at` off rows whose mapper omitted it, so every released class read as
  * "Ready to release" and Print all ready stayed disabled.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
+import { configure, getConfig } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 
 import { render, screen, waitFor } from '@/test/utils/testUtils';
@@ -17,6 +19,7 @@ import { getClassesByTrialId } from '@/services/database/classes';
 import { getEntriesForShow } from '@/services/database/entries/secretary';
 import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
 import ResultsTab from './ResultsTab';
+import { signInReplicatedTable } from '@/test/utils/signedInReplication';
 
 const SYNC = {
   _version: 1,
@@ -64,6 +67,23 @@ vi.mock('@/features/show-map/cockpit/useShowPaperworkPrints', () => ({
 }));
 vi.mock('./ResultsVisibilitySheet', () => ({ ResultsVisibilitySheet: () => null }));
 
+// Every wait here follows a real IndexedDB write, then a debounced table notice, then an async
+// re-read (MYK9-1160). Under CPU load plus coverage that chain outlasts the 1000ms default and a
+// `toBeDisabled()` waitFor timed out on a button that was about to lock. A budget, not a poll:
+// a passing run still resolves on the first matching render. Tests here chain up to three waits,
+// so the per-test timeout is raised past their sum: a slow wait then fails as itself, with its DOM
+// dump, instead of as "Test timed out" naming only the it().
+// Module top level, as scripts/qa/*.test.ts do: set before this file's tests are collected.
+vi.setConfig({ testTimeout: 30_000 });
+const { asyncUtilTimeout: DEFAULT_ASYNC_TIMEOUT } = getConfig();
+beforeAll(() => {
+  configure({ asyncUtilTimeout: 8_000 });
+});
+afterAll(() => {
+  configure({ asyncUtilTimeout: DEFAULT_ASYNC_TIMEOUT });
+  vi.resetConfig();
+});
+
 beforeEach(async () => {
   prints.data = [];
   mockSupabase.auth.getSession.mockResolvedValue({
@@ -98,9 +118,10 @@ beforeEach(async () => {
       resultStatus: 'qualified',
     })) as never
   );
+  signInReplicatedTable(replicatedEntriesTable, 'user-test');
   await replicatedEntriesTable.updateSyncMetadata(
     { lastIncrementalSyncAt: Date.now(), totalRows: 2 },
-    { scopeValue: 'show-1' }
+    { scopeValue: 'show-1', scopeSyncedBy: 'user-test' }
   );
   await replicatedClassesTable.batchSet([
     {
@@ -322,6 +343,126 @@ describe('Results tab on the real replicated class rows', () => {
         expect(screen.getByText('NQ')).toBeInTheDocument();
         expect(screen.queryByText('Done')).not.toBeInTheDocument();
       });
+    });
+  });
+
+  describe('a class row this device has not synced (MYK9-1113)', () => {
+    const SAVE_CHECK = { name: 'Scores match the paper' };
+
+    /** The class has no check yet; the secretary ticks the dog, so Verify is ready to click. */
+    async function renderUncheckedAndTick() {
+      await downloadClassWithoutCheck('class-open');
+      const user = userEvent.setup();
+      render(
+        <Routes>
+          <Route path="/shows/:id/results" element={<ResultsTab />} />
+        </Routes>,
+        { initialRoute: '/shows/show-1/results?status=all&classId=class-open' }
+      );
+      await user.click(await screen.findByRole('checkbox', { name: /matches the paper/ }));
+      await waitFor(() => expect(screen.getByRole('button', SAVE_CHECK)).toBeEnabled());
+    }
+
+    /** What the server holds when this device's edit loses: the check is there, the row is not clean. */
+    async function conflictClass(classId: string) {
+      await replicatedClassesTable.updateClass(classId, { classStatus: 'Completed' });
+      const row = (await replicatedClassesTable.getReplicatedRow(classId))!;
+      await replicatedClassesTable.markConflict(classId, {
+        tableName: 'classes',
+        rowId: classId,
+        fields: ['classStatus'],
+        localData: row.data,
+        remoteData: {
+          ...row.data,
+          resultsVerifiedAt: '2026-10-10T15:00:00Z',
+          resultsVerifiedBy: 'u-1',
+        },
+        baseData: row.data,
+        baseVersion: row.version,
+        localVersion: row.version,
+        remoteServerVersion: 9,
+        detectedAt: Date.now(),
+      });
+    }
+
+    it('says a queued class change must sync first, keeps the ticks, and unlocks when it syncs', async () => {
+      await renderUncheckedAndTick();
+
+      await replicatedClassesTable.updateClass('class-open', { classStatus: 'Completed' });
+
+      await waitFor(() => expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled());
+      expect(screen.getByText(/Waiting for this class.s changes to sync/)).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: /matches the paper/ })).toBeChecked();
+
+      // The upload is acknowledged, then an ordinary class sync brings the server's check down.
+      await replicatedClassesTable.markAsSynced('class-open');
+      const row = (await replicatedClassesTable.get('class-open'))!;
+      await replicatedClassesTable.set(
+        'class-open',
+        { ...row, resultsVerifiedAt: '2026-10-10T15:00:00Z', resultsVerifiedBy: 'u-1' },
+        false
+      );
+
+      await waitFor(() =>
+        expect(screen.getByText(/Scores checked against the paper by you/)).toBeInTheDocument()
+      );
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled();
+    });
+
+    it('recovers from waiting when the queue empties without a table notice (Take theirs discard, upload ack)', async () => {
+      await renderUncheckedAndTick();
+      // Some transitions empty this class's queue without notifying the classes table: Take
+      // theirs discards the queued write after its replace has notified; an upload ack marks
+      // the row synced with a raw write. Hold "unsynced" through one real notice, then clear
+      // it silently, which is exactly what the hook sees in those cases.
+      let unsynced = true;
+      const spy = vi
+        .spyOn(replicatedClassesTable, 'hasUnsyncedLocalWork')
+        .mockImplementation(async () => unsynced);
+      try {
+        const row = (await replicatedClassesTable.get('class-open'))!;
+        await replicatedClassesTable.set('class-open', { ...row }, false);
+        await waitFor(() => expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled());
+        expect(screen.getByText(/Waiting for this class.s changes to sync/)).toBeInTheDocument();
+
+        // Let every notice from that write drain (leading and trailing debounce edges), so
+        // nothing table-driven is left to re-read for us.
+        await new Promise(resolve => setTimeout(resolve, 500));
+        expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled();
+        unsynced = false;
+
+        await waitFor(() => expect(screen.getByRole('button', SAVE_CHECK)).toBeEnabled(), {
+          timeout: 4_000,
+        });
+        expect(
+          screen.queryByText(/Waiting for this class.s changes to sync/)
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: /matches the paper/ })).toBeChecked();
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('names an unresolved conflict and points at the Keep mine / Take theirs choice, then unlocks once resolved', async () => {
+      await renderUncheckedAndTick();
+
+      await conflictClass('class-open');
+
+      expect(await screen.findByText(/changed elsewhere/)).toBeInTheDocument();
+      expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled();
+      expect(screen.getByText(/Keep mine or Take theirs/)).toBeInTheDocument();
+      // A dismissed notice is not a dead end: the copy says how to bring it back.
+      expect(screen.getByText(/reload the page to bring it back/)).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: /matches the paper/ })).toBeChecked();
+
+      // Take theirs: the server's row, check included, replaces the local one.
+      await replicatedClassesTable.resolveReplicationConflict('class-open', 'take-remote');
+
+      await waitFor(() =>
+        expect(screen.getByText(/Scores checked against the paper by you/)).toBeInTheDocument()
+      );
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled();
+      expect(screen.queryByText(/changed elsewhere/)).not.toBeInTheDocument();
     });
   });
 });

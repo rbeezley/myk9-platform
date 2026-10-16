@@ -2,14 +2,16 @@ import type { IDBPDatabase } from 'idb';
 import type { Logger } from './dependencies';
 import { REPLICATION_STORES } from './core/DatabaseManager';
 import { withAcknowledgedSyncFlag } from './core/ReplicatedTableRowState';
+import { writtenColumnsOf, type WrittenFieldOverlay } from './mutation-written-overlay';
 import type { PendingMutation, ReplicatedRow } from './types';
 
 export async function markReplicatedRowSynced(
   db: IDBPDatabase,
   mutation: PendingMutation,
-  newServerVersion?: number
-): Promise<void> {
-  if (mutation.operation === 'DELETE') return;
+  newServerVersion?: number,
+  overlayWritten?: WrittenFieldOverlay
+): Promise<number | undefined> {
+  if (mutation.operation === 'DELETE') return newServerVersion;
 
   const key = [mutation.tableName, String(mutation.rowId)];
   const [existingRow, pendingMutations] = (await Promise.all([
@@ -20,7 +22,7 @@ export async function markReplicatedRowSynced(
     ]),
   ])) as [ReplicatedRow<unknown> | undefined, PendingMutation[]];
 
-  if (!existingRow) return;
+  if (!existingRow) return newServerVersion;
 
   const hasAnotherPendingMutation = pendingMutations.some(
     pending => pending.id !== mutation.id && pending.authUserId === mutation.authUserId
@@ -43,13 +45,45 @@ export async function markReplicatedRowSynced(
     nextData = uploaded;
   }
   const stillDirty = existingRow.isDirty && hasAnotherPendingMutation;
+  // MYK9-1220: the row stays dirty for a later queued write, so its merge base
+  // must now include what THIS write put on the server. Any case that cannot be
+  // mapped (INSERT, baked-args RPC, no mapper, a mapper that throws) keeps the
+  // base as it was.
+  //
+  // An acknowledgement that is not newer than the row's current base is late: a
+  // sync already reconciled a newer server row (it moved the base and token
+  // forward), and rebasing now would roll both back.
+  let rebasedBase: unknown;
+  const isLateAck =
+    newServerVersion !== undefined &&
+    existingRow.baseServerVersion !== undefined &&
+    newServerVersion <= existingRow.baseServerVersion;
+  const tokenWouldRollBack =
+    newServerVersion !== undefined &&
+    existingRow.serverVersion !== undefined &&
+    newServerVersion < existingRow.serverVersion;
+  if (
+    stillDirty &&
+    !isLateAck &&
+    existingRow.baseData !== undefined &&
+    newServerVersion !== undefined
+  ) {
+    const written = writtenColumnsOf(mutation);
+    if (written) rebasedBase = overlayWritten?.(existingRow.baseData, written);
+  }
   await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
     ...existingRow,
     data: stillDirty ? nextData : withAcknowledgedSyncFlag(nextData),
     isDirty: stillDirty,
     syncStatus: existingRow.isDirty && hasAnotherPendingMutation ? 'pending' : 'synced',
     lastSyncedAt: Date.now(),
-    ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
+    // A late ack never moves the token back below a version a sync already holds.
+    ...(newServerVersion !== undefined &&
+      !tokenWouldRollBack && { serverVersion: newServerVersion }),
+    ...(rebasedBase !== undefined && {
+      baseData: rebasedBase,
+      baseServerVersion: newServerVersion,
+    }),
     // Record the step only when this upload carried a precondition: then the
     // server held exactly `from` before it and exactly this write after it.
     ...(newServerVersion !== undefined &&
@@ -57,6 +91,9 @@ export async function markReplicatedRowSynced(
         lastOwnUpload: { from: mutation.serverVersion, to: newServerVersion },
       }),
   });
+  // The OCC token the row holds now: the acknowledged version, or the newer one
+  // a sync already reconciled when this acknowledgement is late (MYK9-1221).
+  return tokenWouldRollBack ? existingRow.serverVersion : newServerVersion;
 }
 
 /**
@@ -68,8 +105,8 @@ export async function markReplicatedRowSynced(
 export async function removeOrphanedLocalOnlyRow(
   db: IDBPDatabase,
   discarded: PendingMutation
-): Promise<void> {
-  if (discarded.operation !== 'INSERT') return;
+): Promise<boolean> {
+  if (discarded.operation !== 'INSERT') return false;
   const rowId = String(discarded.rowId);
   const key = [discarded.tableName, rowId];
 
@@ -97,11 +134,16 @@ export async function removeOrphanedLocalOnlyRow(
     .index('tableName_rowId')
     .count(key);
   const data = row?.data as { _localOnly?: unknown } | null | undefined;
+  let removed = false;
   if (row && data !== null && typeof data === 'object' && data._localOnly === true) {
     const failedForRow = failed.some(m => String(m.rowId) === rowId);
-    if (pending === 0 && !failedForRow) await rows.delete(key);
+    if (pending === 0 && !failedForRow) {
+      await rows.delete(key);
+      removed = true;
+    }
   }
   await tx.done;
+  return removed;
 }
 
 export function remapDogIdReferences<T extends Record<string, unknown>>(

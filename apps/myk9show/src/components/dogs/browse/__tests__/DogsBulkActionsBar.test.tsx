@@ -23,6 +23,12 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   },
 }));
 
+// The server's dogs_update rule, asked per dog before queueing (useCanEditDog).
+const askCanEditDog = vi.fn();
+vi.mock('@/hooks/queries/useCanEditDog', () => ({
+  askCanEditDog: (...args: unknown[]) => askCanEditDog(...args),
+}));
+
 let mockIsSiteAdmin = false;
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'staff-1' }, hasRole: () => mockIsSiteAdmin }),
@@ -90,6 +96,7 @@ async function openBulkDelete(user: ReturnType<typeof setup>['user'], count: num
 describe('DogsBulkActionsBar', () => {
   beforeEach(() => {
     updateDogMutateAsync.mockReset().mockResolvedValue(undefined);
+    askCanEditDog.mockReset().mockResolvedValue(true);
     deleteMocks.preview.mockReset().mockResolvedValue(preview(0));
     deleteMocks.remove.mockReset().mockResolvedValue(undefined);
     deleteMocks.purge.mockReset().mockResolvedValue(undefined);
@@ -140,6 +147,44 @@ describe('DogsBulkActionsBar', () => {
       );
     });
     expect(updateDogMutateAsync).toHaveBeenCalledTimes(1);
+    expect(onClear).toHaveBeenCalled();
+  });
+
+  it('refuses a dog the server will not let this viewer change, before queueing it', async () => {
+    askCanEditDog.mockImplementation(async (id: string) => id !== '2');
+    const { user, onClear } = setup([dog('1'), dog('2')]);
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
+    await user.click(await screen.findByRole('menuitem', { name: /mark 2 dogs retired/i }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(updateDogMutateAsync).toHaveBeenCalledTimes(1);
+    expect(updateDogMutateAsync).toHaveBeenCalledWith(
+      '1',
+      expect.objectContaining({ status: 'retired' })
+    );
+    expect(JSON.stringify(vi.mocked(toast.error).mock.calls)).toContain(
+      'only its owner can change this dog'
+    );
+    expect(onClear).not.toHaveBeenCalled();
+  });
+
+  it('does not ask the server for a site admin, who may change any dog', async () => {
+    mockIsSiteAdmin = true;
+    const { user } = setup([dog('1')]);
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
+    await user.click(await screen.findByRole('menuitem', { name: /mark 1 dog retired/i }));
+
+    await waitFor(() => expect(updateDogMutateAsync).toHaveBeenCalledTimes(1));
+    expect(askCanEditDog).not.toHaveBeenCalled();
+  });
+
+  it('still queues when the check cannot be answered (offline), leaving it to the server', async () => {
+    askCanEditDog.mockResolvedValue(null);
+    const { user, onClear } = setup([dog('1')]);
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
+    await user.click(await screen.findByRole('menuitem', { name: /mark 1 dog retired/i }));
+
+    await waitFor(() => expect(updateDogMutateAsync).toHaveBeenCalledTimes(1));
     expect(onClear).toHaveBeenCalled();
   });
 

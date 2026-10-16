@@ -29,6 +29,7 @@ import {
   writeResultsTabUrlState,
   type ResultsTabUrlState,
 } from './resultsTabRoutes';
+import { classRowSyncBlockedReason, useClassRowSyncState } from './useClassRowSyncState';
 import { classHasUnsyncedScores, useClassUnsyncedScores } from './useClassUnsyncedScores';
 import { useResultsTabData } from './useResultsTabData';
 
@@ -119,6 +120,9 @@ export default function ResultsTab() {
   );
   const selected = rows.find(row => row.id === state.classId) ?? null;
   const unsyncedScores = useClassUnsyncedScores(selected?.id ?? null);
+  // The saved check reaches this device through a class sync, which a dirty or conflicted class row
+  // refuses; say so up front instead of letting the click look like it did nothing (MYK9-1113).
+  const verifyBlockedReason = classRowSyncBlockedReason(useClassRowSyncState(selected?.id ?? null));
   const [releaseChecking, setReleaseChecking] = useState(false);
   // Bumped whenever the check is taken back, so a Release already reading the server can tell.
   const checkGeneration = useRef(0);
@@ -271,6 +275,7 @@ export default function ResultsTab() {
         verification.undo({ classId: selected.id, trialId: selected.trialId });
       }}
       releaseBlockedReason={releaseBlockedReason}
+      verifyBlockedReason={verifyBlockedReason}
       verifying={verification.isPending}
       online={isOnline}
       currentUserId={user?.id ?? null}

@@ -1,18 +1,26 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { classScoringRules } from './classScoringRules';
-import type { ReactNode } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, List, PanelTop } from 'lucide-react';
+import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { ScoresheetLoadingSkeleton } from '@/components/scoring/ScoringLoadingSkeletons';
 import { useScoringBreadcrumb } from './useScoringBreadcrumb';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { loadEntriesWithDogs } from './paperScoresheetData';
+import {
+  hasClassesReplicaSynced,
+  requireClassEntriesWhole,
+  whenClassShowSyncSettles,
+} from './paperScoresheetReadiness';
+import { ShowEntriesNotSyncedError } from '@/services/database/entries/requireShowEntriesSynced';
 import { REFRESH_FAILED_MESSAGE, refreshEntriesAfterSave } from './paperScoresheetReload';
 import { type ScoresheetSportType } from '@myk9/scoring-ui';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useOptionalReplicationSync } from '@/hooks/useOptionalReplicationSync';
 import {
   calculatePlacements,
   mapSportType,
@@ -23,6 +31,7 @@ import { usePaperScoring } from './hooks/usePaperScoring';
 import { SessionToolbar } from './components/SessionToolbar';
 import { SplitPanelView } from './components/SplitPanelView';
 import { SequentialView } from './components/SequentialView';
+import { ViewModeToggle } from './components/ViewModeToggle';
 import { sortByExhibitorOrder } from './paper-scoring-types';
 import { cn } from '@/lib/utils';
 import type { ScoringEntry } from './types';
@@ -58,7 +67,6 @@ export function PaperScoresheetPage() {
   const requestedEntryId = searchParams.get('entryId');
   const requestedMode = searchParams.get('mode');
   const appliedRequestRef = useRef<string | null>(null);
-  const autoSelectedClassRef = useRef<string | null>(null);
 
   const [entries, setEntries] = useState<ScoringEntry[]>([]);
   const [className, setClassName] = useState<string | null>(null);
@@ -69,6 +77,9 @@ export function PaperScoresheetPage() {
   const [sportKey, setSportKey] = useState<ScoresheetSportType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // A background reload that failed: the last good list (and any unsaved
+  // entry) stays on screen with this note, never the error state.
+  const [refreshFailed, setRefreshFailed] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const retryLoad = () => setLoadAttempt(attempt => attempt + 1);
   // Counts class loads that read successfully. A save-and-next whose refresh
@@ -77,28 +88,89 @@ export function PaperScoresheetPage() {
   // (MYK9-774).
   const [freshLoads, setFreshLoads] = useState(0);
   const pendingAdvanceRef = useRef<{ from: string; afterLoad: number } | null>(null);
+  // The current load effect's quiet reload, for signals outside the replicas.
+  const quietReloadRef = useRef<(() => void) | null>(null);
+  const classesSyncStatus = useOptionalReplicationSync()?.status.tablesStatus.classes;
 
   useEffect(() => {
-    // A retry can overlap an earlier load; only the latest may write (MYK9-774).
-    let cancelled = false;
-    async function load() {
+    // A retry or a replica change can overlap an earlier load; only the latest
+    // may write (MYK9-774).
+    let disposed = false;
+    let latest = 0;
+    // The page's own load may be waiting on the cold sync, which writes rows
+    // (notifying) BEFORE it records the scope as synced. A reload on that
+    // notification would read "not synced" and overrule it, so a change during
+    // that load is replayed once it finishes instead.
+    let refreshing = false;
+    let changedWhileRefreshing = false;
+    // A class not yet on a cold device: its arrival is a replica change, so the
+    // reload it starts gets the one bounded show sync the page's own load
+    // could not give it (MYK9-1130).
+    let awaitingClass = false;
+    // `refresh`: the page's own load (mount, Try again) shows the skeleton and
+    // may sync a cold show; a reload on a replica change does neither.
+    async function load(refresh: boolean) {
       if (!classId) return;
-      setIsLoading(true);
-      setError(null);
+      const run = ++latest;
+      const cancelled = () => disposed || run !== latest;
+      let syncing = refresh;
+      if (refresh) {
+        refreshing = true;
+        setIsLoading(true);
+        setError(null);
+        setRefreshFailed(false);
+      }
+      // Only the page's own load and Try again may replace a scoresheet with an
+      // error; a background reload that fails keeps what is shown (MYK9-1130).
+      // An error screen has no list or draft to protect, so a background
+      // reload's newer answer replaces it.
+      const fail = (message: string) => {
+        if (refresh) setError(message);
+        else {
+          setError(current => (current === null ? null : message));
+          setRefreshFailed(true);
+        }
+      };
+      let trialId: string | undefined;
       try {
         const cls = await replicatedClassesTable.getClassById(classId);
-        if (cancelled) return;
+        if (cancelled()) return;
         if (!cls) {
-          setError('Class not found');
+          // Absent from a classes replica that never synced is "not loaded
+          // yet"; only a synced replica can say "not found" (MYK9-1130).
+          if (!(await hasClassesReplicaSynced())) {
+            awaitingClass = true;
+            throw new ShowEntriesNotSyncedError();
+          }
+          if (!cancelled()) fail('Class not found');
           return;
         }
+        trialId = cls.trialId;
+        if (awaitingClass && !syncing) {
+          // Hold change reloads like the page's own load, so the sync's own
+          // row writes replay after it instead of overruling it.
+          syncing = true;
+          refreshing = true;
+        }
+        // An empty read is only "no dogs" once the show's entries have synced
+        // here; before that it is "not loaded yet" (MYK9-1130). The arrival
+        // allowance is spent only once the show can be named.
+        await requireClassEntriesWhole(cls.trialId, {
+          refresh: () => {
+            const allowed = refresh || awaitingClass;
+            awaitingClass = false;
+            return allowed;
+          },
+        });
         const scoringEntries = await loadEntriesWithDogs(classId);
-        if (cancelled) return;
+        if (cancelled()) return;
+        setError(null);
+        setRefreshFailed(false);
         setEntries(calculatePlacements(scoringEntries));
         setFreshLoads(count => count + 1);
         setClassName(cls.name);
         const derivedSport = await resolveSportTypeForClass(cls.trialId);
-        if (cancelled) return;
+        if (cancelled()) return;
         if (derivedSport) {
           const { organization, sportType } = mapSportType(derivedSport);
           setSportKey(toRegistryKey(organization, sportType));
@@ -106,26 +178,73 @@ export function PaperScoresheetPage() {
         const rules = classScoringRules(cls);
         setMaxTimeSeconds(rules.areaCount > 1 ? undefined : rules.maxTimeSeconds);
       } catch (err) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Failed to load');
+        if (cancelled()) return;
+        fail(err instanceof Error ? err.message : 'Failed to load');
+        if (err instanceof ShowEntriesNotSyncedError) recheckWhenSyncSettles(trialId);
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled()) setIsLoading(false);
+        if (syncing) {
+          refreshing = false;
+          if (changedWhileRefreshing && !disposed) onReplicaChange();
+        }
       }
     }
-    load();
+    // A sync that outlived the bounded wait records the scope as synced
+    // without notifying; recheck when it settles. Starts no sync.
+    function recheckWhenSyncSettles(trialId: string | undefined) {
+      void whenClassShowSyncSettles(trialId)
+        .then(settled => {
+          if (settled && !disposed) onReplicaChange();
+        })
+        .catch(() => undefined);
+    }
+    function onReplicaChange() {
+      changedWhileRefreshing = refreshing;
+      if (!refreshing) void load(false);
+    }
+    // Subscribed before the first read, so rows a sync writes while it runs
+    // still reload the list: entries arriving after mount appear by themselves.
+    // Trials too: a class whose trial has not synced yet cannot name its show,
+    // and the trial landing is what lets readiness pass. Classes too: on a
+    // cold device the class itself lands after mount (MYK9-1130).
+    const unsubscribeClasses = replicatedClassesTable.subscribe(onReplicaChange, {
+      emitCurrent: false,
+    });
+    const unsubscribeEntries = replicatedEntriesTable.subscribe(onReplicaChange, {
+      emitCurrent: false,
+    });
+    const unsubscribeTrials = replicatedTrialsTable.subscribe(onReplicaChange, {
+      emitCurrent: false,
+    });
+    quietReloadRef.current = onReplicaChange;
+    void load(true);
     return () => {
-      cancelled = true;
+      disposed = true;
+      quietReloadRef.current = null;
+      unsubscribeClasses();
+      unsubscribeEntries();
+      unsubscribeTrials();
     };
   }, [classId, loadAttempt]);
+
+  // Recording a completed classes sync notifies no replica listener, so a class
+  // the synced replica lacks would stay "not finished loading". The provider
+  // reporting the classes table settled rechecks once (MYK9-1130).
+  useEffect(() => {
+    if (classesSyncStatus === 'success') quietReloadRef.current?.();
+  }, [classesSyncStatus]);
 
   const userId = user?.id ?? 'anonymous';
   const scoring = usePaperScoring(entries, userId);
   const scoringMode = scoring.mode;
   const setScoringMode = scoring.setMode;
   const sortedEntries = useMemo(() => sortByExhibitorOrder(entries), [entries]);
+  // The one dog on screen: the card in card mode, the open panel's dog in list
+  // mode. Every save and clear writes to exactly this dog (MYK9-1130).
+  const onScreenEntryId = scoring.onScreenEntryId;
   const sequentialIndex = Math.max(
     0,
-    sortedEntries.findIndex(entry => entry.entryId === scoring.selectedEntryId)
+    sortedEntries.findIndex(entry => entry.entryId === onScreenEntryId)
   );
 
   useEffect(() => {
@@ -142,19 +261,10 @@ export function PaperScoresheetPage() {
   }, [entries, requestedEntryId, scoring]);
 
   useEffect(() => {
-    if (!classId || requestedEntryId || entries.length === 0) return;
-    if (autoSelectedClassRef.current === classId) return;
-    const firstEditableEntry = sortedEntries.find(entry => !entry.isScored) ?? sortedEntries[0];
-    if (!firstEditableEntry) return;
-    scoring.selectEntry(firstEditableEntry.entryId);
-    autoSelectedClassRef.current = classId;
-  }, [classId, entries.length, requestedEntryId, scoring, sortedEntries]);
-
-  useEffect(() => {
     const pending = pendingAdvanceRef.current;
     if (!pending || freshLoads <= pending.afterLoad) return;
     pendingAdvanceRef.current = null;
-    scoring.selectEntry(nextUnscoredAfter(entries, pending.from));
+    scoring.selectEntry(nextUnscoredAfter(entries, pending.from) ?? pending.from);
   }, [entries, freshLoads, scoring]);
 
   // After a landed save: a list that cannot refresh pauses scoring rather than
@@ -173,8 +283,8 @@ export function PaperScoresheetPage() {
     faults: number,
     reason?: string
   ) => {
-    if (!scoring.selectedEntryId) return;
-    const entryId = scoring.selectedEntryId;
+    const entryId = onScreenEntryId;
+    if (!entryId) return;
     await scoring.saveEntry(entryId, result, timeDigits, faults, reason);
     await reloadEntries();
   };
@@ -185,20 +295,21 @@ export function PaperScoresheetPage() {
     faults: number,
     reason?: string
   ) => {
-    if (!scoring.selectedEntryId) return;
-    const currentEntryId = scoring.selectedEntryId;
+    const currentEntryId = onScreenEntryId;
+    if (!currentEntryId) return;
     await scoring.saveEntry(currentEntryId, result, timeDigits, faults, reason);
     const fresh = await reloadEntries();
     if (!fresh) {
       pendingAdvanceRef.current = { from: currentEntryId, afterLoad: freshLoads };
       return;
     }
-    scoring.selectEntry(nextUnscoredAfter(fresh, currentEntryId));
+    // With no dog left to score, the saved dog stays on screen.
+    scoring.selectEntry(nextUnscoredAfter(fresh, currentEntryId) ?? currentEntryId);
   };
 
   const handleClearResult = async () => {
-    if (!scoring.selectedEntryId) return;
-    const entryId = scoring.selectedEntryId;
+    const entryId = onScreenEntryId;
+    if (!entryId) return;
     await scoring.clearEntry(entryId);
     await reloadEntries();
   };
@@ -282,17 +393,27 @@ export function PaperScoresheetPage() {
 
       <SessionToolbar settings={scoring.sessionSettings} onChange={scoring.setSessionSettings} />
 
+      {refreshFailed && (
+        <p role="status" className="px-4 pt-2 text-sm text-muted-foreground">
+          Couldn’t refresh the run list. Showing the last copy.
+        </p>
+      )}
+
       <div
         className={cn(
           'flex-1 overflow-hidden p-4',
           scoring.mode === 'sequential' && 'overflow-y-auto'
         )}
       >
-        {scoring.mode === 'split' ? (
+        {entries.length === 0 ? (
+          <p className="py-12 text-center text-muted-foreground">
+            No dogs are on this class’s run list.
+          </p>
+        ) : scoring.mode === 'split' ? (
           <SplitPanelView
             entries={entries}
             settings={scoring.sessionSettings}
-            selectedEntryId={scoring.selectedEntryId}
+            selectedEntryId={onScreenEntryId}
             onSelectEntry={scoring.selectEntry}
             onSave={handleSave}
             onSaveAndNext={handleSaveAndNext}
@@ -323,62 +444,3 @@ export function PaperScoresheetPage() {
 }
 
 export default PaperScoresheetPage;
-
-function ViewModeToggle({
-  mode,
-  onChange,
-}: {
-  mode: PaperScoringMode;
-  onChange: (mode: PaperScoringMode) => void;
-}) {
-  return (
-    <div
-      role="tablist"
-      aria-label="Scoring view"
-      className="flex items-center gap-1 rounded-lg border bg-background p-1"
-    >
-      <ViewModeButton
-        active={mode === 'split'}
-        icon={<List className="h-4 w-4" />}
-        label="List"
-        onClick={() => onChange('split')}
-      />
-      <ViewModeButton
-        active={mode === 'sequential'}
-        icon={<PanelTop className="h-4 w-4" />}
-        label="Card"
-        onClick={() => onChange('sequential')}
-      />
-    </div>
-  );
-}
-
-function ViewModeButton({
-  active,
-  icon,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  icon: ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className={cn(
-        'flex h-9 items-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors',
-        active
-          ? 'bg-accent text-foreground shadow-sm'
-          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-      )}
-    >
-      {icon}
-      <span className="hidden sm:inline">{label}</span>
-    </button>
-  );
-}

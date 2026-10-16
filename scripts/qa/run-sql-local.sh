@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+# Optional pre-push check for migration changes: rebuild the whole schema from
+# supabase/migrations/ on a throwaway Docker-free ("native") Supabase stack and
+# run the same SQL steps as CI's `sql-tests` job. CI stays the authoritative
+# gate; this only lets you see its verdict before pushing.
+#
+# Usage:  pnpm qa:sql-local
+#         SUPABASE_BIN=/path/to/supabase pnpm qa:sql-local   (CLI not on PATH)
+#
+# NEVER touches the linked project: no `db push`, no `--linked`. Every step
+# targets the local stack, the test runners refuse any database URL that is not
+# loopback, and the stack is destroyed on success, failure or Ctrl-C.
+# The run owns a dedicated stack named `qa-sql-local`, never the worktree's
+# default stack, so a development stack you started yourself is left alone.
+#
+# Ports: each worktree gets its own db/api port pair, so two worktrees can run
+# this at once. SUPABASE_DB_PORT / SUPABASE_API_PORT pick them explicitly;
+# otherwise a pair is derived from the worktree path and stepped past any port
+# already listening. config.toml's 54321/54322 are left for `supabase start`.
+#
+# Native runtime: macOS 14+ Apple silicon or Linux glibc 2.35+, CLI >= 2.121.0
+# (earlier versions fail native pg_cron jobs on macOS). Findings behind it:
+# docs/archive/plan-supabase-native-local-dev.md.
+
+set -Eeuo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SUPABASE="${SUPABASE_BIN:-supabase}"
+MIN_VERSION="2.121.0"
+STACK="qa-sql-local"
+export SUPABASE_EXPERIMENTAL_STACK=1
+
+if ! command -v "$SUPABASE" >/dev/null 2>&1; then
+  echo "FAIL: Supabase CLI not found ('$SUPABASE'). Install >= $MIN_VERSION, or set SUPABASE_BIN." >&2
+  exit 1
+fi
+
+version="$("$SUPABASE" --version 2>/dev/null | head -n 1 | tr -d '[:space:]')"
+version="${version#v}"
+lowest="$(printf '%s\n%s\n' "$MIN_VERSION" "$version" | sort -V | head -n 1)"
+if [ -z "$version" ] || [ "$lowest" != "$MIN_VERSION" ]; then
+  echo "FAIL: Supabase CLI ${version:-unknown} is too old; the native runtime needs >= $MIN_VERSION." >&2
+  echo "      Upgrade with 'brew upgrade supabase' once Homebrew has it, or download the" >&2
+  echo "      release from https://github.com/supabase/cli/releases and set SUPABASE_BIN." >&2
+  exit 1
+fi
+
+cd "$REPO_ROOT"
+
+usable_port() {
+  [[ "$1" =~ ^[0-9]{4,5}$ ]] && [ "$1" -ge 1024 ] && [ "$1" -le 65535 ]
+}
+for port in "${SUPABASE_DB_PORT:-}" "${SUPABASE_API_PORT:-}"; do
+  if [ -n "$port" ] && ! usable_port "$port"; then
+    echo "FAIL: '$port' is not a usable port (SUPABASE_DB_PORT / SUPABASE_API_PORT)." >&2
+    exit 1
+  fi
+done
+
+# Exit 0 when this worktree has a stack named $STACK, 1 when it has none, and
+# 2 when `stack list` fails or prints something unparseable. Reads the CLI's
+# JSON rather than matching error text, which the CLI may reformat.
+stack_exists() {
+  local listing
+  listing="$("$SUPABASE" stack list --workdir "$REPO_ROOT" --output-format json)" || return 2
+  printf '%s' "$listing" | node -e '
+    let raw = "";
+    process.stdin.on("data", chunk => (raw += chunk)).on("end", () => {
+      try {
+        const [root, name] = process.argv.slice(1);
+        const { stacks } = JSON.parse(raw);
+        process.exit(stacks.some(s => s.project_root === root && s.name === name) ? 0 : 1);
+      } catch {
+        process.exit(2);
+      }
+    });
+  ' "$REPO_ROOT" "$STACK"
+}
+
+# Succeeds only when the stack is gone afterwards, so a surviving stack is
+# never resumed with an old schema or leaked holding the port.
+destroy_stack() {
+  local found=0
+  stack_exists || found=$?
+  case "$found" in
+    0) "$SUPABASE" stack destroy --workdir "$REPO_ROOT" --stack "$STACK" --yes >/dev/null ;;
+    1) return 0 ;;
+    *) echo "FAIL: could not read '$SUPABASE stack list' output." >&2; return 1 ;;
+  esac
+}
+
+stack_started=0
+cleanup() {
+  local status=$?
+  trap - EXIT INT TERM
+  if [ "$stack_started" = "1" ]; then
+    echo "==> Destroying the local stack"
+    # A leaked stack keeps its ports and blocks the next run, so a failed
+    # teardown fails the run even when every test passed.
+    if ! destroy_stack; then
+      echo "FAIL: stack destroy failed; find it with 'SUPABASE_EXPERIMENTAL_STACK=1 $SUPABASE stack list'." >&2
+      [ "$status" = "0" ] && status=1
+    fi
+  fi
+  if [ "$status" = "0" ]; then
+    echo "PASS: local SQL checks green (CI's sql-tests job is still the gate)."
+  else
+    echo "FAIL: local SQL checks failed (exit $status)." >&2
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+# A `qa-sql-local` stack left by a killed run would be resumed, not rebuilt.
+if ! destroy_stack; then
+  echo "FAIL: could not remove a leftover '$STACK' stack; it would be resumed instead of rebuilt." >&2
+  exit 1
+fi
+
+port_in_use() {
+  (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null
+}
+
+# An explicit port on either side is kept; the other defaults beside it, as
+# in config.toml (api = db - 1).
+if [ -n "${SUPABASE_DB_PORT:-}" ]; then
+  db_port="$SUPABASE_DB_PORT"
+  api_port="${SUPABASE_API_PORT:-$((10#$db_port - 1))}"
+elif [ -n "${SUPABASE_API_PORT:-}" ]; then
+  api_port="$SUPABASE_API_PORT"
+  db_port=$((10#$api_port + 1))
+else
+  # A stable slot per worktree path, in 40000-41999 (clear of config.toml's
+  # 543xx and the CLI's dynamic 20000-32767), stepped on if something listens.
+  slot=$(($(printf '%s' "$REPO_ROOT" | cksum | cut -d' ' -f1) % 1000))
+  for _ in $(seq 1 50); do
+    api_port=$((40000 + 2 * slot))
+    db_port=$((api_port + 1))
+    if ! port_in_use "$api_port" && ! port_in_use "$db_port"; then break; fi
+    slot=$(((slot + 1) % 1000))
+  done
+fi
+if [ "$db_port" = "$api_port" ] || ! usable_port "$api_port" || ! usable_port "$db_port"; then
+  echo "FAIL: db port $db_port and api port $api_port must be two different usable ports." >&2
+  exit 1
+fi
+if port_in_use "$db_port" || port_in_use "$api_port"; then
+  echo "FAIL: port $db_port or $api_port is already in use; set SUPABASE_DB_PORT / SUPABASE_API_PORT." >&2
+  exit 1
+fi
+export SUPABASE_DB_PORT="$db_port" SUPABASE_API_PORT="$api_port"
+LOCAL_DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:$db_port/postgres"
+
+# The steps below mirror .github/workflows/ci.yml `sql-tests`; keep them in step.
+# A new stack applies every migration on start, and the repo has no seed.sql,
+# so this is CI's `start` + `db reset --no-seed`. (`db reset` has no --stack
+# flag, so it is not used here.)
+if [ -e supabase/seed.sql ] || grep -q '^sql_paths' supabase/config.toml; then
+  echo "FAIL: a seed is now configured, which 'start' would apply; CI runs with --no-seed." >&2
+  exit 1
+fi
+echo "==> Starting a fresh native stack and applying all migrations (CLI $version, db port $db_port, api port $api_port)"
+# Set before `start`: a half-started stack still holds the port.
+stack_started=1
+"$SUPABASE" start --workdir "$REPO_ROOT" --stack "$STACK" --runtime native \
+  --exclude functions,studio,mail,analytics,pooler
+
+export MYK9_BEHAVIORAL_SQL_DATABASE_URL="$LOCAL_DATABASE_URL"
+
+echo "==> Behavioral RLS and RPC SQL tests"
+bash scripts/qa/run-behavioral-sql-tests.sh
+
+echo "==> Lifecycle absent installed SQL mutation proof"
+node --experimental-strip-types scripts/qa/class-absent-mutation.ts
+
+echo "==> Financial migration SQL tests"
+MYK9_SQL_TEST_REQUIRE=1 bash scripts/qa/run-financial-sql-tests.sh

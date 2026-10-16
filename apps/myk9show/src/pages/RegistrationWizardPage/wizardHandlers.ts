@@ -11,7 +11,6 @@
  */
 
 import { notifications } from '@/lib/notifications';
-import { useShowRegistrationStore } from '@/store/showRegistrationStore';
 import {
   PaymentStatus,
   EntryStatus,
@@ -48,7 +47,6 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     ensureCart,
     addItem,
     abandonCart,
-    createRegistration,
     submitRegistration,
     currentRegistration,
     updateShowRegistration,
@@ -67,10 +65,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     setClassSelections,
     setHandlerAssignments,
     registrationId,
-    setRegistrationId,
     setRegistrationNumber,
-    isCreatingRegistration,
-    setIsCreatingRegistration,
     paymentStatus,
     setPaymentStatus,
     setEntryStatus,
@@ -225,35 +220,6 @@ export function createWizardHandlers(state: RegistrationWizardState) {
   // Dog selection handler
   const handleDogSelectionChange = async (selectedDogs: string[]) => {
     setRegistrationData(prev => ({ ...prev, selectedDogs }));
-
-    if (selectedDogs.length === 0 || isCreatingRegistration) {
-      return;
-    }
-
-    // Defer registration creation until we have a single, resolvable owner.
-    // selectedDogsOwner handles the empty case; here we additionally bail
-    // when the cart spans multiple owners (canProceed will surface the error).
-    const owner = selectedDogsOwner(dogs, selectedDogs);
-    if (!owner.ok) return;
-
-    // Owner-change guard: if the user replaces their selection with a
-    // different exhibitor's dog(s), the existing registration's handlerId is
-    // now stale. Reset it so a fresh registration is created under the new
-    // owner. Without this, submission would file the entry under the PREVIOUS
-    // exhibitor — silently re-introducing the wrong-attribution bug.
-    if (registrationId) {
-      const existing = useShowRegistrationStore.getState().getRegistration(registrationId);
-      if (existing && existing.handlerId !== owner.ownerId) {
-        setRegistrationId(undefined);
-      } else {
-        return;
-      }
-    }
-
-    setIsCreatingRegistration(true);
-    const reg = createRegistration(showId || '', userId, owner.ownerId);
-    setRegistrationId(reg.id);
-    setIsCreatingRegistration(false);
   };
 
   const draftDogsAvailable = (selectedDogs: string[]) => {
@@ -291,7 +257,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       setCurrentStep(dogStep >= 0 ? dogStep : 0);
       return;
     }
-    void handleDogSelectionChange(selectedDogs);
+    // The registration follows the resolved owner (useWizardRegistrationOwner).
   };
 
   // Class selection handler
@@ -351,16 +317,6 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       paymentMethod: draft.data.paymentMethod,
       specialRequests: draft.data.specialRequests,
     });
-
-    if (dogsReady && !registrationId && selectedDogs.length > 0) {
-      // createRegistration is synchronous — returns the new local registration directly.
-      // Resolve the loaded selection's owner the same way handleDogSelectionChange does.
-      const owner = selectedDogsOwner(dogs, draft.data.selectedDogs ?? []);
-      if (owner.ok) {
-        const reg = createRegistration(showId, userId, owner.ownerId);
-        setRegistrationId(reg.id);
-      }
-    }
 
     if (!options?.silent) notifications.success('Draft loaded successfully');
     return true;

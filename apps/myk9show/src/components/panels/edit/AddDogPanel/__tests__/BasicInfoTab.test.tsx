@@ -58,8 +58,7 @@ const makeContextValue = (form: ReturnType<typeof makeMockForm>) => ({
 const renderBasicInfoTab = (
   userRole: UserRole,
   currentUserPersonId?: string,
-  formOverrides: Partial<DogFormData> = {},
-  onAddRegistration = vi.fn()
+  formOverrides: Partial<DogFormData> = {}
 ) => {
   const form = makeMockForm(formOverrides);
   const contextValue = makeContextValue(form);
@@ -70,12 +69,11 @@ const renderBasicInfoTab = (
         userRole={userRole}
         currentUserPersonId={currentUserPersonId}
         onPhotoOpen={vi.fn()}
-        onAddRegistration={onAddRegistration}
       />
     </EditPanelContext.Provider>
   );
 
-  return { ...result, form, onAddRegistration };
+  return { ...result, form };
 };
 
 // ---------------------------------------------------------------------------
@@ -106,27 +104,10 @@ describe('BasicInfoTab', () => {
   });
 
   describe('Exhibitor role', () => {
-    it('points to the existing registration editor before a first show entry', async () => {
-      const { user, onAddRegistration } = renderBasicInfoTab(UserRole.EXHIBITOR, 'person-123');
-
-      expect(screen.getByText(/breed is recorded with that registration/i)).toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Add dog registration' }));
-      expect(onAddRegistration).toHaveBeenCalledOnce();
-    });
-
-    it('does not repeat the prompt after a registration is added', () => {
-      renderBasicInfoTab(UserRole.EXHIBITOR, 'person-123', {
-        registrations: [
-          {
-            id: 'r1',
-            organization: 'AKC',
-            registeredName: 'Dog',
-            breed: 'Beagle',
-            registrationNumber: 'SR123',
-            status: 'Active',
-          },
-        ],
-      });
+    // MYK9-1162: Registration is the first step now and an exhibitor cannot leave it empty, so
+    // Essential never needs to send them back to add one.
+    it('carries no registration prompt', () => {
+      renderBasicInfoTab(UserRole.EXHIBITOR, 'person-123');
       expect(screen.queryByRole('button', { name: 'Add dog registration' })).toBeNull();
     });
 
@@ -193,11 +174,7 @@ describe('BasicInfoTab', () => {
 
       render(
         <EditPanelContext.Provider value={contextValue}>
-          <BasicInfoTab
-            userRole={UserRole.SECRETARY}
-            onPhotoOpen={vi.fn()}
-            onAddRegistration={vi.fn()}
-          />
+          <BasicInfoTab userRole={UserRole.SECRETARY} onPhotoOpen={vi.fn()} />
         </EditPanelContext.Provider>
       );
 

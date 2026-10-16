@@ -1,17 +1,16 @@
-import { expect, test, type Browser, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { DATA_REQUIRED } from '../helpers/liveCanary';
-import { installSharedStagingWriteGuard } from '../helpers/sharedStagingWriteGuard';
 import { signInAsExhibitor, signInAsSecretary, TEST_USERS } from '../helpers/testUsers';
-import { chipById, clickClearOfStickyChrome } from '../registration/wizardChips';
 import {
   authUserId,
   backdateOffer,
   DOGS,
+  entryPayment,
   entryStatus,
   exhibitorProfileId,
-  FULL_CLASS_ID,
   mailInHeadNoticeCount,
+  paymentLinkFor,
   prepareFullClass,
   queueBehind,
   restoreFullClass,
@@ -21,65 +20,44 @@ import {
   SHOW_ID,
   waitlistAdmin,
 } from './waitlistJourneyFixture';
+import {
+  expectOnMyShows,
+  joinFullClassAsWillow,
+  offerCard,
+  offerSpotAsSecretary,
+  signedInPage,
+} from './waitlistJourneySteps';
+import {
+  assertSandboxHasNoSharedWebhookEndpoints,
+  deliverCheckoutCompleted,
+  payOnStripeCheckout,
+  routeStripeReturnThroughAllowedOrigin,
+  stripeTestKey,
+} from './waitlistStripe';
 
 /**
  * Suite category: nightly (stateful, seeded Playwright Regression only).
  *
- * MYK9-971: ONE wait-list journey on the seed's full-class fixture (Handler Discrimination
- * Advanced, `...045`, one spot, Cooper entered), across exhibitor, secretary and the real
- * `cron-waitlist-expiration` edge function served by the isolated target's edge runtime:
+ * MYK9-971: wait-list journeys on the seed's full-class fixture (Handler Discrimination Advanced,
+ * `...045`, one spot, Cooper entered), across exhibitor, secretary and the real edge functions
+ * served by the isolated target's edge runtime. The first runs `cron-waitlist-expiration`:
  *
  *   exhibitor joins the full class -> a spot opens -> secretary offers it -> exhibitor sees the
  *   offer and its deadline -> declines -> the cron offers the next online dog -> that offer
  *   expires -> the cron finds a mail-in dog at the head -> each secretary gets ONE notice (a second
  *   cron run sends none) and the online dog behind is NOT offered (MYK9-1021).
  *
- * The paid leg (claim the offer through Stripe) is not here: the target has no Stripe test-mode
- * key, and the functions get a dummy one (scripts/qa/isolated-e2e-functions.ts). So the
- * secretary's Offer creates the pending entry but its payment link fails, which the page reports
- * as a warning; the journey asserts the offer itself.
+ * The paid leg is its own journey below: join -> offer -> the exhibitor claims the spot by paying
+ * on Stripe's test-mode Checkout -> the webhook settles it -> the entry is confirmed and paid. It
+ * needs a Stripe sandbox key (STRIPE_TEST_SECRET_KEY) and skips, with that reason, without one;
+ * waitlistStripe.ts says what is real and what the runner stands in for. In the first journey the
+ * secretary's Offer creates the pending entry but its payment link is refused (the preview origin
+ * is not an allowed return URL), which the page reports as a warning; it asserts the offer itself.
  *
  * Setup and teardown use the service role against the LOCAL database only (`waitlistAdmin`
  * refuses any other host); the class, Juniper's seeded row and the journey's rows are restored in
  * `afterAll` because later specs in the same serial pass read this show.
  */
-
-const CLASS_LABEL = /Handler Discrimination/;
-
-async function signedInPage(
-  browser: Browser,
-  signIn: (page: Page, returnTo: string) => Promise<unknown>,
-  returnTo: string
-): Promise<Page> {
-  const page = await (await browser.newContext()).newPage();
-  await installSharedStagingWriteGuard(page, { strictRpcWrites: true });
-  await signIn(page, returnTo);
-  return page;
-}
-
-function offerCard(page: Page, dogName: string) {
-  return page.getByRole('region', { name: `Waitlist offer for ${dogName}` });
-}
-
-/**
- * My Shows reads the wait list on load; reload until the server's change shows. The list holds
- * only waiting and offered rows, so a closed offer is opened the way its notification links to it
- * (`?waitlistOffer=<id>`), which is the only place the app explains a terminal state.
- */
-async function expectOnMyShows(
-  page: Page,
-  dogName: string,
-  text: RegExp | string,
-  focusedOfferId?: string
-) {
-  const url = focusedOfferId
-    ? `/exhibitor/entries?waitlistOffer=${focusedOfferId}`
-    : '/exhibitor/entries';
-  await expect(async () => {
-    await page.goto(url);
-    await expect(offerCard(page, dogName)).toContainText(text, { timeout: 10_000 });
-  }).toPass({ timeout: 60_000 });
-}
 
 test.describe('Wait list: join -> offer -> decline -> expire -> mail-in head', () => {
   test.skip(
@@ -111,46 +89,8 @@ test.describe('Wait list: join -> offer -> decline -> expire -> mail-in head', (
 
     const exhibitor = await signedInPage(browser, signInAsExhibitor, `/shows/${SHOW_ID}/register`);
 
-    await test.step('exhibitor joins the full class wait list through the wizard and cart', async () => {
-      await expect(exhibitor.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible(
-        { timeout: 20_000 }
-      );
-      await exhibitor.getByRole('checkbox', { name: /^Select Willow$/ }).click();
-      await exhibitor.getByRole('button', { name: /^Next$/ }).click();
-
-      await expect(
-        exhibitor.getByRole('heading', { name: 'Select Classes', exact: true })
-      ).toBeVisible({ timeout: 15_000 });
-      const card = exhibitor.locator('.myk9-element-card').filter({ hasText: CLASS_LABEL });
-      await expect(card.getByText('Full: join wait list')).toBeVisible({ timeout: 15_000 });
-      const chip = chipById(exhibitor, `chip-${FULL_CLASS_ID}`);
-      await expect(chip).toBeEnabled();
-      await clickClearOfStickyChrome(exhibitor, chip);
-      await expect(exhibitor.getByRole('button', { name: /^Next$/ })).toBeEnabled({
-        timeout: 10_000,
-      });
-      await exhibitor.getByRole('button', { name: /^Next$/ }).click();
-
-      await expect(exhibitor.getByRole('heading', { name: 'Payment Information' })).toBeVisible({
-        timeout: 15_000,
-      });
-      await expect(exhibitor.getByText(/joining a wait list is free/)).toBeVisible({
-        timeout: 15_000,
-      });
-      const cardPayment = exhibitor.getByRole('button', {
-        name: /Credit\/Debit Card \(Online Payment\)/i,
-      });
-      await cardPayment.evaluate((button: HTMLElement) => button.click());
-      await exhibitor.getByText(/I have read and agree to the .* entry agreement/i).click();
-      await exhibitor.getByRole('button', { name: /^Submit & pay$/ }).click();
-
-      await expect(exhibitor).toHaveURL(/\/cart$/, { timeout: 15_000 });
-      await exhibitor.getByRole('button', { name: /^Join the wait list \(1 request\)$/ }).click();
-      await expect(exhibitor).toHaveURL(/\/checkout\/success\?waitlist=1/, { timeout: 20_000 });
-
-      const willow = await rowFor(admin, DOGS.willow);
-      expect(willow).toMatchObject({ status: 'waiting', joined_via: 'online', position: 1 });
-    });
+    await test.step('exhibitor joins the full class wait list through the wizard and cart', () =>
+      joinFullClassAsWillow(exhibitor, admin));
 
     // Behind Willow: Ranger online, Scout by mail, Maple online. The secretary would key the
     // mail-in row from paper; the queue order is what the rest of the journey is about.
@@ -163,27 +103,7 @@ test.describe('Wait list: join -> offer -> decline -> expire -> mail-in head', (
     await setMaxEntries(admin, 2);
 
     await test.step('the secretary offers the open spot to the head of the line', async () => {
-      const secretary = await signedInPage(
-        browser,
-        signInAsSecretary,
-        `/shows/${SHOW_ID}/entries?tab=waitlist`
-      );
-      const willowRow = secretary.getByRole('row').filter({ hasText: 'Willow' });
-      await expect(async () => {
-        await secretary.reload();
-        await expect(willowRow.getByRole('button', { name: 'Offer Spot' })).toBeVisible({
-          timeout: 10_000,
-        });
-      }).toPass({ timeout: 90_000 });
-      await willowRow.getByRole('button', { name: 'Offer Spot' }).click();
-      // WaitlistActionDialog is an AlertDialog: role alertdialog, named by its title.
-      const dialog = secretary.getByRole('alertdialog', { name: 'Offer Spot?' });
-      await expect(dialog).toBeVisible();
-      await dialog.getByRole('button', { name: 'Offer Spot', exact: true }).click();
-      await expect(secretary.getByTestId('waitlist-offered-group')).toContainText('Willow', {
-        timeout: 20_000,
-      });
-      await secretary.context().close();
+      await offerSpotAsSecretary(browser, 'Willow');
 
       const willow = await rowFor(admin, DOGS.willow);
       expect(willow.status).toBe('offered');
@@ -246,6 +166,97 @@ test.describe('Wait list: join -> offer -> decline -> expire -> mail-in head', (
       });
       await expect(secretary.getByText(/is next and joined by mail/)).toBeVisible();
       await secretary.context().close();
+    });
+
+    await exhibitor.context().close();
+  });
+});
+
+test.describe('Wait list: join -> offer -> pay -> confirmed entry', () => {
+  test.skip(
+    !DATA_REQUIRED,
+    'Stateful: joins a wait list, offers and pays. ' +
+      'Runs only on the seeded isolated Playwright Regression target.'
+  );
+  test.skip(
+    !stripeTestKey(),
+    'Needs STRIPE_TEST_SECRET_KEY (a Stripe sandbox sk_test_ key) to pay on test-mode Checkout; ' +
+      'the Nightly workflow supplies it from the repository secret.'
+  );
+  test.describe.configure({ mode: 'serial' });
+
+  let admin: SupabaseClient;
+  let snapshot: Awaited<ReturnType<typeof prepareFullClass>> | null = null;
+  const since = new Date().toISOString();
+
+  test.beforeAll(async () => {
+    admin = waitlistAdmin();
+    snapshot = await prepareFullClass(admin);
+  });
+
+  test.afterAll(async () => {
+    if (snapshot) await restoreFullClass(admin, snapshot, since);
+  });
+
+  test('the exhibitor claims an offered spot by paying, and the entry is confirmed (MYK9-971)', async ({
+    browser,
+  }) => {
+    test.setTimeout(360_000);
+    // First, before any Checkout Session exists: a sandbox that delivers to a shared project fails.
+    await test.step('the Stripe sandbox delivers to no shared Supabase project', () =>
+      assertSandboxHasNoSharedWebhookEndpoints());
+    const exhibitor = await signedInPage(browser, signInAsExhibitor, `/shows/${SHOW_ID}/register`);
+    await routeStripeReturnThroughAllowedOrigin(exhibitor);
+
+    await test.step('exhibitor joins the full class wait list', () =>
+      joinFullClassAsWillow(exhibitor, admin));
+    // A spot opens: the club raises the cap from one to two. Nothing offers it automatically
+    // here (the cron is never run in this journey), so only the secretary's Offer can.
+    await setMaxEntries(admin, 2);
+
+    // Without this step Willow stays `waiting`, My Shows never shows "Complete payment", and
+    // stripe-payment-link refuses an exhibitor with no live offer (403): the leg cannot pass.
+    await test.step('the secretary offers the open spot', async () => {
+      await offerSpotAsSecretary(browser, 'Willow');
+      const willow = await rowFor(admin, DOGS.willow);
+      expect(willow.status).toBe('offered');
+      expect(await entryPayment(admin, willow.promoted_entry_id!)).toMatchObject({
+        entry_status: 'pending-payment',
+        payment_status: 'pending',
+      });
+    });
+
+    const willow = await rowFor(admin, DOGS.willow);
+    const entryId = willow.promoted_entry_id!;
+
+    await test.step('the exhibitor completes payment on Stripe test-mode Checkout', async () => {
+      await expectOnMyShows(exhibitor, 'Willow', 'Spot offered');
+      await offerCard(exhibitor, 'Willow')
+        .getByRole('button', { name: 'Complete payment' })
+        .click();
+      const returnPath = await payOnStripeCheckout(exhibitor);
+      expect(returnPath).toBe(`/exhibitor/entries?waitlistOffer=${willow.id}`);
+      expect((await paymentLinkFor(admin, entryId)).status).toBe('open');
+    });
+
+    await test.step('the payment webhook settles it: the entry is confirmed and paid', async () => {
+      const link = await paymentLinkFor(admin, entryId);
+      await deliverCheckoutCompleted(link.stripe_checkout_session_id);
+
+      expect(await entryPayment(admin, entryId)).toEqual({
+        entry_status: 'confirmed',
+        payment_status: 'paid',
+        payment_method: 'online',
+      });
+      expect((await rowFor(admin, DOGS.willow)).status).toBe('accepted');
+      expect((await paymentLinkFor(admin, entryId)).status).toBe('paid');
+    });
+
+    await test.step('My Shows shows the claimed spot, with nothing left to pay', async () => {
+      await expectOnMyShows(exhibitor, 'Willow', 'Payment is being confirmed', willow.id);
+      const card = offerCard(exhibitor, 'Willow');
+      await expect(card.getByRole('button', { name: 'Complete payment' })).toHaveCount(0);
+      await expect(card).not.toContainText('Spot offered');
     });
 
     await exhibitor.context().close();

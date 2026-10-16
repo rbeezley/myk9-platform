@@ -3,6 +3,7 @@ import { signInAsExhibitor } from '../helpers/testUsers';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 import { installSharedStagingWriteGuard } from '../helpers/sharedStagingWriteGuard';
 import { applyRegistrationClock } from './seedRoster';
+import { CLASS_CHIP_NAME } from '../../e2e-helpers/classChipName';
 import { RECOVERABLE_CART_LOOKUP_SELECT_PARAM } from '@/store/cartStore.pickCart.constants';
 import { expectNoHorizontalScroll } from '../shared/horizontalOverflow';
 
@@ -193,7 +194,7 @@ async function selectFirstAvailableClass(page: Page) {
     timeout: 15000,
   });
 
-  const classOptions = page.getByRole('checkbox', { name: /^Select / });
+  const classOptions = page.getByRole('checkbox', { name: CLASS_CHIP_NAME });
   await expect(classOptions.first()).toBeVisible({ timeout: 15000 });
 
   const count = await classOptions.count();

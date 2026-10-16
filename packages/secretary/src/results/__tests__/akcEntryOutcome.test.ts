@@ -102,7 +102,7 @@ describe('classifyAKCEntryOutcome', () => {
     const entry = makeEntry({ resultStatus: 'disqualified' });
     expect(classifyAKCEntryOutcome(entry)).toBe('disqualified');
     expect(classifyAKCEntryOutcome(entry)).not.toBe('unscored');
-    expect(codesFor(entry)).toEqual({ actionCode: 'EXCU', resultCode: 'EXO' });
+    expect(codesFor(entry)).toEqual({ actionCode: 'DISQ', resultCode: 'DQ' });
     expect(countUnscoredAKCEntries([entry])).toBe(0);
     expect(tallyAKCClass([entry])).toMatchObject({
       numEntries: 1,
@@ -113,7 +113,7 @@ describe('classifyAKCEntryOutcome', () => {
 
   it('never gives a disqualified dog a placement code, even with a stale placement', () => {
     const entry = makeEntry({ resultStatus: 'disqualified', finalPlacement: 1 });
-    expect(codesFor(entry)).toEqual({ actionCode: 'EXCU', resultCode: 'EXO' });
+    expect(codesFor(entry)).toEqual({ actionCode: 'DISQ', resultCode: 'DQ' });
   });
 
   describe('absence', () => {

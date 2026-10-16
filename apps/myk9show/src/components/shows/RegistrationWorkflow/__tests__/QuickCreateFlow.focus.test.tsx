@@ -14,6 +14,7 @@ import { resetQuickCreateMocks } from '@/test/quickCreate/quickCreateFlowMocks';
 import {
   addPersonThroughForm,
   fillDogBasics,
+  addFirstRegistration,
   fillRegistration,
   panel,
   JOURNEY_TIMEOUT_MS,
@@ -82,6 +83,7 @@ const settle = () => act(async () => new Promise(resolve => setTimeout(resolve, 
 async function toDogForm(user: ReturnType<typeof render>['user']) {
   await addPersonThroughForm(user);
   await user.click(await screen.findByRole('button', { name: 'Add First Dog' }));
+  await addFirstRegistration(user);
   await fillDogBasics(user);
 }
 
@@ -216,7 +218,7 @@ describe('the registration sub-mode inside Add Dog', { timeout: JOURNEY_TIMEOUT_
   it('leaving an Edit puts focus on that row’s Edit button', async () => {
     const { user } = renderHarness();
     await toRegistrationForm(user);
-    await fillRegistration(user);
+    await fillRegistration(user, 'DN22222201');
     const edit = await waitFor(() => {
       const found = document.querySelector<HTMLElement>('[data-edit-registration]');
       expect(found).not.toBeNull();
@@ -244,7 +246,6 @@ describe('after a save', { timeout: JOURNEY_TIMEOUT_MS }, () => {
   it('after the dog saves, Add Another Dog has focus', async () => {
     const { user } = renderHarness();
     await toDogForm(user);
-    await user.click(button(/Next: Registration/));
     await user.click(await screen.findByRole('button', { name: /Next: Optional details/ }));
     await user.click(await screen.findByRole('button', { name: 'Add Dog' }));
 

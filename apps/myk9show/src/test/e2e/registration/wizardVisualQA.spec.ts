@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsExhibitor, signInAsSecretary } from '../helpers/testUsers';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
+import { CLASS_CHIP_NAME } from '../../e2e-helpers/classChipName';
 import {
   openSaveDraftDialog,
   saveDraftThroughDialog,
@@ -628,11 +629,15 @@ test('the secretary wizard scrolls itself, keeping its header pinned', async ({ 
     0
   );
 
+  // The header collapses to its step list on every width (MYK9-1138), so what stays pinned at
+  // the scrollport top is the step list, not the whole header.
   const shellTop = await shell.evaluate(el => el.getBoundingClientRect().top);
-  const headerTop = await header.evaluate(el => el.getBoundingClientRect().top);
+  const pinnedTop = await header
+    .locator('[data-sticky-pin]')
+    .evaluate(el => el.getBoundingClientRect().top);
   expect(
-    Math.abs(headerTop - shellTop),
-    `header top ${headerTop} must stay at the scrollport top ${shellTop}`
+    Math.abs(pinnedTop - shellTop),
+    `pinned step list top ${pinnedTop} must stay at the scrollport top ${shellTop}`
   ).toBeLessThanOrEqual(1);
 });
 
@@ -690,7 +695,7 @@ test('the phone entries bar totals the cart without covering the class list', as
       if (root) root.scrollTop = root.scrollHeight;
     });
     await page.waitForTimeout(300);
-    const lastChip = page.getByRole('checkbox', { name: /^Select / }).last();
+    const lastChip = page.getByRole('checkbox', { name: CLASS_CHIP_NAME }).last();
     await lastChip.scrollIntoViewIfNeeded();
     await page.waitForTimeout(200);
     const chipBox = await lastChip.boundingBox();
@@ -843,6 +848,12 @@ test('the desktop entries panel is the only place the total appears', async ({ p
       'the wizard root must be scrollable for this to mean anything'
     ).toBeGreaterThan(200);
 
+    // The header collapses to its step list as the step scrolls (MYK9-1138), and the panel is
+    // offset by what stays pinned, so it only holds still once the header has finished collapsing.
+    // Scroll past that first; otherwise "before" is measured mid-collapse and the panel rightly
+    // moves up with the header.
+    await shell.evaluate(el => el.scrollBy(0, 300));
+    await page.waitForTimeout(300);
     const cardTopBefore = await card.evaluate(el => el.getBoundingClientRect().top);
     await shell.evaluate(el => el.scrollBy(0, 800));
     await page.waitForTimeout(300);
@@ -861,12 +872,22 @@ test('the desktop entries panel is the only place the total appears', async ({ p
       Math.abs(cardTopAfter - cardTopBefore),
       `panel card top moved from ${cardTopBefore} to ${cardTopAfter}`
     ).toBeLessThanOrEqual(1);
-
-    const shellTop = await shell.evaluate(el => el.getBoundingClientRect().top);
-    const headerTop = await header.evaluate(el => el.getBoundingClientRect().top);
+    // ...and it sits 1.5rem (24px) below what the header keeps pinned, not under it.
+    const pinnedBottom = await header.evaluate(el => el.getBoundingClientRect().bottom);
     expect(
-      Math.abs(headerTop - shellTop),
-      `header top ${headerTop} must stay at the scrollport top ${shellTop}`
+      Math.abs(cardTopAfter - (pinnedBottom + 24)),
+      `panel card top ${cardTopAfter} must sit 24px below the pinned header bottom ${pinnedBottom}`
+    ).toBeLessThanOrEqual(1);
+
+    // The header collapses to its step list on every width (MYK9-1138), so what stays pinned at
+    // the scrollport top is the step list, not the whole header.
+    const shellTop = await shell.evaluate(el => el.getBoundingClientRect().top);
+    const pinnedTop = await header
+      .locator('[data-sticky-pin]')
+      .evaluate(el => el.getBoundingClientRect().top);
+    expect(
+      Math.abs(pinnedTop - shellTop),
+      `pinned step list top ${pinnedTop} must stay at the scrollport top ${shellTop}`
     ).toBeLessThanOrEqual(1);
   } finally {
     await removeAddedClass(page, added);

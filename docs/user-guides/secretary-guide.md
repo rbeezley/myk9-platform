@@ -30,7 +30,7 @@ Open a show and you get **one row of four tabs**. Everything in this guide lives
 | Tab          | What it is                                                                                                                                                 |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Overview** | Your show home: a **Needs attention** strip, the schedule by trial and day, and the selected class's panel with its status, timing, checklist and actions. |
-| **Entries**  | Everything to do with entries, in view tabs: Needs review, Missing info, Payment due, All, Waitlist, Pulls, Move-ups.                                      |
+| **Entries**  | Everything to do with entries, in view tabs: Needs review, Missing info, Payment due, All, Waitlist, Pulls, Move-ups, Registration number needed.          |
 | **Results**  | Three steps: review and release results, submit them to the registry, then close the show.                                                                 |
 | **Reports**  | Printing: labels, check-in sheets, score sheets, catalogs and registry reports.                                                                            |
 
@@ -106,13 +106,33 @@ The view tabs across the top — _Needs review_, _Missing info_, _Payment due_, 
 
 > This works **after entries close** — you're the trial secretary, so the deadline doesn't block you.
 
-> **A dog needs a registration number** for the trial's registry. The entry form will
-> let you continue without one — it shows a warning, not a block — but the save is
-> refused by the database, so get the number first rather than expecting to fix it
-> later.
+**Adding a dog that isn't in myK9Show yet.** Add Dog starts with the registration number, so you don't add the same dog twice:
+
+1. Choose the registry (AKC, UKC or ASCA) and type the dog's registration number.
+2. Choose **Find dog**.
+3. If the dog is already in myK9Show, you see its name. Choose **Use existing dog** and carry on with that dog.
+4. If it isn't, the rest of the registration opens. Fill it in, choose **Save and continue**, then add the dog's name, sex, date of birth and owner.
+5. If the number is missing or hard to read on the paper entry, choose **No registration number yet**. You add the dog's details without a number, and the entry is held (see below).
+
+> **No registration number yet?** You can still enter the dog. As the trial secretary,
+> the entry saves and takes its place in the class, so a mail-in with a missing or
+> illegible number does not lose its spot. Until the dog has a number for the trial's
+> registry the entry is _held_: it still counts toward the class limit, but it is left
+> off the catalog, the run sheet, the scoresheets and the emergency packet.
+>
+> Held entries are listed in **Entries → Show: Registration number needed**, with a
+> count. When the number arrives, choose **Add registration** on its row. The entry
+> leaves the list and appears on paperwork from then on. If the exhibitor will not
+> supply a number, choose **Pull / Withdraw** to open the entry and decide. Nothing is
+> pulled or withdrawn for you, even on show day.
+>
+> At the ring, a held dog keeps its place in the run order but shows **Registration
+> number needed, see the secretary**, and it cannot be scored until the number is added.
+>
+> Exhibitors entering their own dogs still need the number first.
 >
 > **One exception:** conformation puppy classes. AKC allows a puppy to be entered while
-> its registration is still processing, and those entries are allowed through.
+> its registration is still processing, and those entries are never held.
 
 > The payment reference you enter shows on the registration's card in **Entries**,
 > so you can look a cheque number up later.
@@ -175,6 +195,8 @@ Pending and pulled entries sit together. Each pulled entry shows one of:
 1. Open **Message Center** and choose **Compose**.
 2. Write the message and choose who it goes to — the whole show, or a class. When you open it from a show's pages, that show is already picked.
 3. Send the message.
+
+> **Registration number needed email.** An entry saved for a dog with no registration number is held. To tell the exhibitor, open **Entries → Show: Registration number needed** and choose **Email exhibitor** on the row. The email names the dog, the show and the registry, says the entry is held, and explains how to add the number: on the dog in myK9Show, or by sending it to you. Read it, then **Send** or **Skip**; nothing goes out until you send it, and it goes in one step. If the send fails, myK9Show says so at once; press **Send reminder** on the row to try again. Once an email has been sent the button reads **Send reminder**. If the exhibitor has no email on file the row reads "No email on file. Contact by phone." and has no button. Once the number is added, no further emails go out, and a send started just after is stopped. This email is not part of the **Scheduled emails** batches: your club can turn it on or off there, but it is always sent from the list, one entry at a time.
 
 ## 10 · Payments
 

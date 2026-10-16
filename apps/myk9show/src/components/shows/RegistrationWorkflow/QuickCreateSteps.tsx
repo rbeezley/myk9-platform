@@ -12,6 +12,8 @@ import {
   quickCreateProgress,
 } from './QuickCreateFlow.helpers';
 import type { QuickCreateFlowState } from './QuickCreateFlow.types';
+import { useCanEditDog } from '@/hooks/queries/useCanEditDog';
+import { useCanEditPerson } from '@/hooks/queries/useCanEditPerson';
 
 const ENTRY = { [QUICK_CREATE_ENTRY_ATTR]: '' };
 const REMOVE_DOG = { [QUICK_CREATE_REMOVE_DOG_ATTR]: '' };
@@ -20,17 +22,64 @@ interface QuickCreateStepsProps {
   flowState: QuickCreateFlowState;
   mode: 'single' | 'batch';
   onOpenPersonForm: () => void;
+  onEditPerson: () => void;
+  /** The person was picked from the duplicate prompt, not made in this flow. */
+  personIsExisting: boolean;
   onOpenDogForm: () => void;
+  /** Dogs picked from the duplicate prompt, not made in this flow. */
+  existingDogIds: ReadonlySet<string>;
   onEditDog: (index: number) => void;
   onRemoveDog: (index: number) => void;
 }
+
+/**
+ * Edit for one dog in the list, offered only when the server would accept the save. A dog
+ * made in this flow is the secretary's to fix (she created it, from this show). An existing
+ * dog picked from the duplicate prompt is the owner's record until it is entered in her
+ * show, so the server is asked (`useCanEditDog`) rather than offering an edit it refuses.
+ */
+const DogEditButton: React.FC<{ dogId: string; knownAllowed: boolean; onEdit: () => void }> = ({
+  dogId,
+  knownAllowed,
+  onEdit,
+}) => {
+  const canEdit = useCanEditDog(dogId, knownAllowed);
+  if (!canEdit) return null;
+  return (
+    <Button variant="outline" size="sm" onClick={onEdit}>
+      Edit
+    </Button>
+  );
+};
+
+/**
+ * Edit Details for the flow's person, offered only when the server would accept the save
+ * (MYK9-1134). A person made in this flow is the secretary's to fix; an existing person
+ * picked from the duplicate prompt may be someone else's record, so the server is asked.
+ */
+const PersonEditButton: React.FC<{
+  personId: string;
+  knownAllowed: boolean;
+  onEdit: () => void;
+}> = ({ personId, knownAllowed, onEdit }) => {
+  const canEdit = useCanEditPerson(personId, knownAllowed);
+  if (!canEdit) return null;
+  return (
+    <Button variant="outline" size="sm" className="mt-2" onClick={onEdit} {...ENTRY}>
+      Edit Details
+    </Button>
+  );
+};
 
 /** Quick Create's step screens: progress, then Person, Dogs or Review (MYK9-1081). */
 export const QuickCreateSteps: React.FC<QuickCreateStepsProps> = ({
   flowState,
   mode,
   onOpenPersonForm,
+  onEditPerson,
+  personIsExisting,
   onOpenDogForm,
+  existingDogIds,
   onEditDog,
   onRemoveDog,
 }) => (
@@ -80,15 +129,11 @@ export const QuickCreateSteps: React.FC<QuickCreateStepsProps> = ({
                 {flowState.exhibitor.firstName} {flowState.exhibitor.lastName}
               </p>
               <p className="text-sm text-muted-foreground">{flowState.exhibitor.email}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={onOpenPersonForm}
-                {...ENTRY}
-              >
-                Edit Details
-              </Button>
+              <PersonEditButton
+                personId={flowState.exhibitor.id}
+                knownAllowed={!personIsExisting}
+                onEdit={onEditPerson}
+              />
             </div>
           )}
         </div>
@@ -113,10 +158,10 @@ export const QuickCreateSteps: React.FC<QuickCreateStepsProps> = ({
               {flowState.dogs.map((dog, index) => (
                 <div
                   key={dog.id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
+                  className="flex flex-col gap-3 p-3 border rounded-lg sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{dog.callName}</span>
                       <Badge variant="outline">{getDogBreedLabel(dog)}</Badge>
                       <Badge variant="secondary">{dog.gender}</Badge>
@@ -124,9 +169,11 @@ export const QuickCreateSteps: React.FC<QuickCreateStepsProps> = ({
                     <p className="text-sm text-muted-foreground">{dog.name}</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => onEditDog(index)}>
-                      Edit
-                    </Button>
+                    <DogEditButton
+                      dogId={dog.id}
+                      knownAllowed={!existingDogIds.has(dog.id)}
+                      onEdit={() => onEditDog(index)}
+                    />
                     <Button
                       variant="outline"
                       size="sm"
@@ -259,7 +306,7 @@ export const QuickCreateSteps: React.FC<QuickCreateStepsProps> = ({
             <CheckCircle className="h-4 w-4" />
             <AlertDescription>
               {/* MYK9-832 #6: the person and dog(s) are already saved by this
-                        point (CreateExhibitorDialog / AddDogPanel write on their own
+                        point (CreatePersonForm / AddDogPanel write on their own
                         Save) — Complete Setup only carries them into this
                         registration, and Cancel does NOT remove the saved rows. */}
               The person and {flowState.dogs.length === 1 ? 'dog have' : 'dogs have'} already been

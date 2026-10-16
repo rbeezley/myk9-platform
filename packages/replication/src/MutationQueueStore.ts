@@ -2,6 +2,7 @@ import { unwrap, type IDBPDatabase } from 'idb';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { removeOrphanedLocalOnlyRow } from './mutation-row-sync';
+import { DiscardRevertRegistry } from './mutation-discard-revert';
 import { rebaseQueuedMutation, rewriteQueuedMutations } from './mutation-queue-rewrite';
 import { withQuotaEviction } from './quota-eviction';
 import { type PendingMutation, type ReplicatedRow } from './types';
@@ -17,7 +18,11 @@ export class MutationQueueStore {
   /** Reserved SYNC_METADATA key (store is keyed by `tableName`) for the counter. */
   private static readonly SEQUENCE_METADATA_KEY = '__mutation_sequence__';
 
-  constructor(private readonly logger: Logger) {}
+  constructor(
+    private readonly logger: Logger,
+    /** Tables that put the row back on Discard (MYK9-1076). */
+    private readonly discardReverters = new DiscardRevertRegistry()
+  ) {}
 
   /**
    * Return the next monotonic sequence number, seeding the in-memory counter on
@@ -122,7 +127,9 @@ export class MutationQueueStore {
     authUserId: string,
     dependsOn?: string[],
     serverVersion?: number,
-    rpc?: PendingMutation['rpc']
+    rpc?: PendingMutation['rpc'],
+    rowRevision?: number,
+    adoption: Pick<PendingMutation, 'ownerIsAnonymous' | 'showId'> = {}
   ): Promise<string> {
     const db = await databaseManager.getDatabase('MutationManager');
     const sequenceNumber = await this.nextSequenceNumber(db);
@@ -130,6 +137,8 @@ export class MutationQueueStore {
     const mutation: PendingMutation = {
       id,
       authUserId,
+      ...(adoption.ownerIsAnonymous === true && { ownerIsAnonymous: true }),
+      ...(adoption.showId !== undefined && { showId: adoption.showId }),
       tableName,
       operation,
       rowId,
@@ -142,6 +151,7 @@ export class MutationQueueStore {
       dependsOn,
       ...(serverVersion !== undefined && { serverVersion }),
       ...(rpc !== undefined && { rpc }),
+      ...(rowRevision !== undefined && { rowRevision }),
     };
     // Wrap the durable queue write so storage-quota pressure evicts CLEAN cache
     // rows and retries once, rather than throwing raw QuotaExceededError and
@@ -251,7 +261,8 @@ export class MutationQueueStore {
     if (!failed || failed.authUserId !== authUserId) return false;
     await confirmOwner();
     await db.delete(REPLICATION_STORES.FAILED_MUTATIONS, mutationId);
-    await removeOrphanedLocalOnlyRow(db, failed);
+    const rowRemoved = await removeOrphanedLocalOnlyRow(db, failed);
+    await this.discardReverters.afterDiscard(db, failed, rowRemoved);
     return true;
   }
 

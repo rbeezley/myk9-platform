@@ -76,9 +76,10 @@ describe('the wizard surface blocks every management route under /shows/:id', ()
   });
 
   it('covers every child route the production tree actually mounts', () => {
-    const showRoute = createRoutesFromChildren(PublicRoutes()).find(
-      route => route.path === '/shows/:id'
-    );
+    // `/shows/:id` sits inside the pathless Shows list layout route (MYK9-1213).
+    const showRoute = createRoutesFromChildren(PublicRoutes())
+      .flatMap(route => (route.path ? [route] : (route.children ?? [])))
+      .find(route => route.path === '/shows/:id');
     const childPaths = (showRoute?.children ?? [])
       .map(child => child.path)
       .filter((path): path is string => typeof path === 'string');

@@ -1,0 +1,75 @@
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@/test/utils/testUtils';
+import { ClubOnboarding } from '../ClubOnboarding';
+import { BANNED_COPY } from '../lifecycleStories';
+
+const mockSubmit = vi.fn();
+const mockGetRequests = vi.fn();
+const auth = vi.hoisted(() => ({
+  user: null as null | {
+    id: string;
+    email: string;
+    user_metadata: { firstName: string; lastName: string };
+  },
+}));
+const signedInUser = {
+  id: 'user-1',
+  email: 'club@example.com',
+  user_metadata: { firstName: 'Pat', lastName: 'Morgan' },
+};
+
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => auth,
+}));
+
+vi.mock('@/services/database/onboarding-requests', () => ({
+  submitOnboardingRequest: (...args: unknown[]) => mockSubmit(...args),
+  getMyOnboardingRequests: (...args: unknown[]) => mockGetRequests(...args),
+}));
+
+vi.mock('@/services/LoggingService', () => ({
+  logger: { warn: vi.fn(), error: vi.fn() },
+}));
+
+describe('ClubOnboarding', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    auth.user = signedInUser;
+    mockGetRequests.mockResolvedValue([]);
+  });
+
+  it('shows a friendly message when an active request wins a concurrent submit', async () => {
+    mockSubmit.mockRejectedValue({ code: '23505', message: 'duplicate key value' });
+    render(<ClubOnboarding />, { initialRoute: '/' });
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /submit request/i })).toBeInTheDocument()
+    );
+    fireEvent.change(screen.getByLabelText(/club name/i), {
+      target: { value: 'Tri-State Kennel Club' },
+    });
+    fireEvent.change(screen.getByLabelText(/organization/i), { target: { value: 'AKC' } });
+    fireEvent.change(screen.getByLabelText(/contact name/i), { target: { value: 'Pat Morgan' } });
+    fireEvent.change(screen.getByLabelText(/contact email/i), {
+      target: { value: 'club@example.com' },
+    });
+    fireEvent.submit(screen.getByRole('button', { name: /submit request/i }).closest('form')!);
+
+    await waitFor(() =>
+      expect(screen.getByText(/already have a request under review/i)).toBeInTheDocument()
+    );
+  });
+
+  it('leads with the club heading', () => {
+    render(<ClubOnboarding />, { initialRoute: '/' });
+    expect(
+      screen.getByRole('heading', { level: 2, name: /add your club to myk9show/i })
+    ).toBeInTheDocument();
+  });
+
+  it('contains no banned copy in the signed-out state', () => {
+    auth.user = null;
+    const { container } = render(<ClubOnboarding />);
+    for (const re of BANNED_COPY) expect(container.textContent ?? '').not.toMatch(re);
+  });
+});

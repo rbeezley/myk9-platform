@@ -80,6 +80,8 @@ export function PaperScoresheetPage() {
   // A background reload that failed: the last good list (and any unsaved
   // entry) stays on screen with this note, never the error state.
   const [refreshFailed, setRefreshFailed] = useState(false);
+  // Keyed to the dog whose save failed, so the note never sits over another dog.
+  const [saveError, setSaveError] = useState<{ entryId: string; message: string } | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const retryLoad = () => setLoadAttempt(attempt => attempt + 1);
   // Counts class loads that read successfully. A save-and-next whose refresh
@@ -277,6 +279,32 @@ export function PaperScoresheetPage() {
     return fresh;
   };
 
+  // A rejected save is said out loud, never left as an unhandled rejection. The
+  // panel keeps what was typed and the page neither reloads nor advances, so a
+  // retry sends the same values (MYK9-1246).
+  const trySave = async (
+    entryId: string,
+    result: PaperResult,
+    timeDigits: string,
+    faults: number,
+    reason?: string
+  ): Promise<boolean> => {
+    setSaveError(null);
+    try {
+      await scoring.saveEntry(entryId, result, timeDigits, faults, reason);
+      return true;
+    } catch (err) {
+      setSaveError({
+        entryId,
+        message:
+          err instanceof Error && err.message
+            ? `Score not saved: ${err.message}`
+            : 'Score not saved. Please try again.',
+      });
+      return false;
+    }
+  };
+
   const handleSave = async (
     result: PaperResult,
     timeDigits: string,
@@ -285,7 +313,7 @@ export function PaperScoresheetPage() {
   ) => {
     const entryId = onScreenEntryId;
     if (!entryId) return;
-    await scoring.saveEntry(entryId, result, timeDigits, faults, reason);
+    if (!(await trySave(entryId, result, timeDigits, faults, reason))) return;
     await reloadEntries();
   };
 
@@ -297,7 +325,7 @@ export function PaperScoresheetPage() {
   ) => {
     const currentEntryId = onScreenEntryId;
     if (!currentEntryId) return;
-    await scoring.saveEntry(currentEntryId, result, timeDigits, faults, reason);
+    if (!(await trySave(currentEntryId, result, timeDigits, faults, reason))) return;
     const fresh = await reloadEntries();
     if (!fresh) {
       pendingAdvanceRef.current = { from: currentEntryId, afterLoad: freshLoads };
@@ -392,6 +420,19 @@ export function PaperScoresheetPage() {
       </div>
 
       <SessionToolbar settings={scoring.sessionSettings} onChange={scoring.setSessionSettings} />
+
+      {saveError && saveError.entryId === onScreenEntryId && (
+        <div
+          role="alert"
+          className="mx-4 mt-2 flex items-center gap-2 rounded-lg bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground"
+        >
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{saveError.message}</span>
+          <button type="button" onClick={() => setSaveError(null)} className="ml-auto underline">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {refreshFailed && (
         <p role="status" className="px-4 pt-2 text-sm text-muted-foreground">

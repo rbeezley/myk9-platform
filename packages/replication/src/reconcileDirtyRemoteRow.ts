@@ -11,6 +11,18 @@ export interface DirtyRemoteRowOutcome {
 }
 
 /**
+ * True when `remoteServerVersion` is the version this device's own last upload
+ * moved the row to (`lastOwnUpload.to`). Versions only increase, so the server
+ * row at that version is exactly what that upload wrote.
+ */
+function isOwnAcknowledgedWrite(
+  existing: Pick<ReplicatedRow<unknown>, 'lastOwnUpload'>,
+  remoteServerVersion: number | undefined
+): boolean {
+  return remoteServerVersion !== undefined && existing.lastOwnUpload?.to === remoteServerVersion;
+}
+
+/**
  * Apply a fresh server snapshot to a locally-dirty row that has a clean base to
  * diff against (conflict surfacing on). Shared by the sync download loop and the
  * single-row re-fetch after a stale OCC rejection (MYK9-771), so both decide the
@@ -38,8 +50,15 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
   }
 ): Promise<DirtyRemoteRowOutcome> {
   const { id, existing, remoteLocal, remoteServerVersion } = params;
+  // MYK9-1220: when the snapshot IS this device's own acknowledged write, the
+  // server holds nothing the device did not write, so the merge base is that
+  // snapshot (the original base predates the write and would read it as a
+  // third-party change). Any other version keeps the original base.
+  const base = isOwnAcknowledgedWrite(existing, remoteServerVersion)
+    ? remoteLocal
+    : existing.baseData;
   const detection = detectDirtyRowConflict({
-    base: existing.baseData,
+    base,
     local: existing.data,
     remote: remoteLocal,
     instantFields: instantFieldsFor(table.getTableName()),
@@ -73,7 +92,7 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
   // defines mergeDirtyRow it owns the data merge; otherwise a generic 3-way
   // merge adopts only the fields the client never changed.
   const reconciled = await table.reconcileDirtyRow(id, {
-    base: existing.baseData,
+    base,
     remote: remoteLocal,
     remoteServerVersion,
     adoptRemoteFields: detection.adoptRemoteFields,

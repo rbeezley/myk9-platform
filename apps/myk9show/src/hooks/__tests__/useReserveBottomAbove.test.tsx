@@ -4,6 +4,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { act, fireEvent, render } from '@testing-library/react';
+import { TOAST_ZONE_PX } from '@/components/layout/toastGeometry';
 import { useReserveBottomAbove } from '../useReserveBottomAbove';
 import { useActionBarStore, selectReservedBottom } from '@/store/actionBarStore';
 
@@ -45,19 +46,32 @@ describe('useReserveBottomAbove', () => {
     HTMLElement.prototype.getBoundingClientRect = originalRect;
   });
 
-  it('reserves the distance from the viewport bottom up to the block top, and releases on unmount', () => {
+  it('reserves exactly the overlap while the block top is inside the toast zone, and releases on unmount', () => {
+    blockTop = 720 - 220;
     const { unmount } = render(<Block enabled />);
     expect(reserved()).toBe(220);
     unmount();
     expect(reserved()).toBe(0);
   });
 
-  it('follows the block as the pane scrolls', async () => {
-    render(<Block enabled />);
+  it('follows the block as the pane scrolls into the zone, and out of it', async () => {
     blockTop = 300;
+    render(<Block enabled />);
+    expect(reserved()).toBe(0);
+    blockTop = 500;
     fireEvent.scroll(document.body);
     await flushFrame();
-    expect(reserved()).toBe(420);
+    expect(reserved()).toBe(220);
+    blockTop = 100;
+    fireEvent.scroll(document.body);
+    await flushFrame();
+    expect(reserved()).toBe(0);
+  });
+
+  it('reserves nothing for a block scrolled near the top of the viewport (MYK9-1217)', () => {
+    blockTop = 40;
+    render(<Block enabled />);
+    expect(reserved()).toBe(0);
   });
 
   it('reserves nothing for a block below the fold', () => {
@@ -66,7 +80,19 @@ describe('useReserveBottomAbove', () => {
     expect(reserved()).toBe(0);
   });
 
+  it.each([-50, 0, 40, 200, 459, 460, 461, 500, 719, 720, 721, 900])(
+    'never reserves more than the toast zone (block top %i)',
+    top => {
+      blockTop = top;
+      render(<Block enabled />);
+      const overlap = 720 - top;
+      expect(reserved()).toBeLessThanOrEqual(TOAST_ZONE_PX);
+      expect(reserved()).toBe(overlap > 0 && overlap <= TOAST_ZONE_PX ? overlap : 0);
+    }
+  );
+
   it('reserves nothing while disabled, and registers when it becomes enabled', () => {
+    blockTop = 500;
     const { rerender } = render(<Block enabled={false} />);
     expect(reserved()).toBe(0);
     rerender(<Block enabled />);

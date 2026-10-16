@@ -19,9 +19,7 @@ import { useEffect, useRef } from 'react';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { Toaster, toast, useSonner } from 'sonner';
 import { useActionBarStore, selectReservedBottom } from '@/store/actionBarStore';
-
-/** Clearance between the toast stack and the action bar beneath it. */
-const TOAST_GAP_PX = 12;
+import { TOAST_GAP_PX } from './toastGeometry';
 
 /**
  * A toast raised within this window of a navigation is treated as feedback

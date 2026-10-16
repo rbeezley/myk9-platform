@@ -272,6 +272,20 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
           { timeout: 5_000 }
         )
         .toBe('toasts up, 0 overlapping');
+      // The lift is capped, so the stack must stay fully on screen (never over the header).
+      await expect
+        .poll(
+          async () =>
+            toasts.evaluateAll(
+              nodes =>
+                nodes.filter(node => {
+                  const b = node.getBoundingClientRect();
+                  return b.top < 0 || b.bottom > window.innerHeight;
+                }).length
+            ),
+          { timeout: 5_000 }
+        )
+        .toBe(0);
     });
 
     await test.step('6. print the Results sheet and Ribbon labels from their reports', async () => {

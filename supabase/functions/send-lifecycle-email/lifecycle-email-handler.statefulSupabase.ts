@@ -46,7 +46,7 @@ export function makeStatefulSupabase(
   const uniqueViolation = (table: string, candidate: Row, ignoreId?: unknown) => {
     if (table !== JOBS) return false;
     const others = tables[table].filter(row => row.id !== ignoreId);
-    if (others.some(row => row.idempotency_key === candidate.idempotency_key)) return true;
+    if (new Set(others.map(row => row.idempotency_key)).has(candidate.idempotency_key)) return true;
     const outstanding = (row: Row) => row.status === 'ready' || row.status === 'failed';
     return (
       candidate.step_type === 'registration_number_needed' &&

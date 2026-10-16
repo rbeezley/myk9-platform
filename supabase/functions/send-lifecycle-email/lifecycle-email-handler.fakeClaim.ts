@@ -34,7 +34,9 @@ export function claimRegistrationNumberNeededJob(store: ClaimStore, args: Row) {
     Object.assign(row, { status: 'skipped', skipped_at: now, updated_by: args.p_user_id });
 
   let idempotencyKey = String(key);
-  const tie = ties.find(row => row.show_id === args.p_show_id && row.request_key === key);
+  // A Map lookup, as the tie table's primary key (show_id, request_key) indexes it.
+  const tieIndex = new Map(ties.map(row => [`${row.show_id}\u0000${row.request_key}`, row]));
+  const tie = tieIndex.get(`${args.p_show_id}\u0000${key}`);
   const tied = tie ? jobs.find(row => row.id === tie.job_id) : undefined;
   let newTie: Row | undefined;
   if (tied) {

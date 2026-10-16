@@ -70,6 +70,11 @@ export interface MyShowsListProps {
    * passes it.
    */
   now?: Date | undefined;
+  /**
+   * Render only the show group with this key. The list-and-detail layout (`MyShowsSplit`) shows
+   * one show's entries in the detail pane; every other prop behaves exactly as for the full list.
+   */
+  onlyShowKey?: string | undefined;
 }
 
 export const MyShowsList: React.FC<MyShowsListProps> = ({
@@ -86,8 +91,10 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
   onLeaveClass,
   onResultRevealClick,
   now: nowProp,
+  onlyShowKey,
 }) => {
-  const groups = useMyShowGroups(filteredEntries, selectedStatus);
+  const allGroups = useMyShowGroups(filteredEntries, selectedStatus);
+  const groups = onlyShowKey ? allGroups.filter(group => group.key === onlyShowKey) : allGroups;
   const allOrders = allOrdersProp ?? filteredEntries;
   // Indexed once per unfiltered-set change, not per show group, so a page
   // with many shows still builds it a single time per render pass.

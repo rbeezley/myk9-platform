@@ -193,7 +193,7 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   it('exhibitor-only sidebar omits the additional access path (moved to Account settings)', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
     const allTitles = config.groups.flatMap(g => g.items.map(i => i.title));
-    expect(allTitles).toEqual(['My Shows', 'My Dogs', 'My Payments', 'Ringside', 'Find Shows']);
+    expect(allTitles).toEqual(['My Shows', 'My Dogs', 'My Payments', 'Ringside']);
     expect(allTitles).not.toContain('Request additional access');
   });
 
@@ -202,7 +202,6 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     const items = config.groups.flatMap(g => g.items);
 
     expect(items.find(item => item.title === 'My Dogs')?.description).toBeUndefined();
-    expect(items.find(item => item.title === 'Find Shows')?.description).toBeUndefined();
     expect(items.find(item => item.title === 'Ringside')?.description).toBeDefined();
   });
 

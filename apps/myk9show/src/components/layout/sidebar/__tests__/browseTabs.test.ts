@@ -15,7 +15,7 @@ describe('browseTabsForRoles', () => {
     ['judge', [UserRole.JUDGE], ['shows', 'dogs']],
     ['club admin + exhibitor', [UserRole.CLUB_ADMIN, UserRole.EXHIBITOR], ['shows', 'dogs']],
     ['steward', [UserRole.STEWARD], ['shows', 'dogs']],
-    ['exhibitor only (phase 4)', [UserRole.EXHIBITOR], []],
+    ['exhibitor only (phase 4)', [UserRole.EXHIBITOR], ['my-shows', 'dogs']],
     ['site admin only', [UserRole.SITE_ADMIN], []],
   ] as const)('%s browses %j', (_label, roles, expected) => {
     expect(ids([...roles])).toEqual(expected);

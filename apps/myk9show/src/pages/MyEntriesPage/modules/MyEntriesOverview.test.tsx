@@ -34,6 +34,14 @@ describe('MyEntriesOverview (MYK9-1210)', () => {
     expect(screen.getByText('1 upcoming class')).toBeInTheDocument();
   });
 
+  it('leaves the dog strip out from lg, where My Dogs is its own tab, and keeps it below', () => {
+    const { rerender } = render(<MyEntriesOverview {...baseProps} entries={[]} />);
+    expect(screen.getByText('Rex')).toBeInTheDocument();
+
+    rerender(<MyEntriesOverview {...baseProps} entries={[]} showDogStrip={false} />);
+    expect(screen.queryByText('Rex')).not.toBeInTheDocument();
+  });
+
   it('requires entries, so a caller cannot silently show "No upcoming classes"', () => {
     // @ts-expect-error entries is required: omitting it must be a type error
     const props: ComponentProps<typeof MyEntriesOverview> = baseProps;

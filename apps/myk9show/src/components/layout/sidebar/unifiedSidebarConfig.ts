@@ -19,13 +19,11 @@
 import {
   LayoutDashboard,
   Calendar,
-  Heart,
   Users,
   Building2,
   FileText,
   Shield,
   ShieldCheck,
-  Search,
   HelpCircle,
   Landmark,
   Wallet,
@@ -39,7 +37,7 @@ import { UserRole, USER_ROLE_HIERARCHY } from '@/types/auth-types';
 import { ROLE_LABELS } from '@/services/rbac/roleUiConstants';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
 import type { SidebarConfig, NavGroup, NavItem, NavRailLink, NavRailMenu } from './types';
-import { browseTabsForRoles } from './browseTabs';
+import { browseTabsForRoles, isExhibitorOnlyRoles } from './browseTabs';
 
 export interface ClubContext {
   clubId: string;
@@ -77,6 +75,7 @@ const ADMIN_RAIL_MENU: NavRailMenu = { id: 'admin', title: 'Admin', icon: Shield
 // Flag, not Building2: Building2 is the Clubs list's icon (browseTabs.ts).
 const CLUB_RAIL_MENU: NavRailMenu = { id: 'club', title: 'My Club', icon: Flag };
 const BROWSE_RAIL_LINK: NavRailLink = { id: 'browse', title: 'Browse', icon: LayoutList };
+const MY_SHOWS_RAIL_LINK: NavRailLink = { id: 'my-shows', title: 'My Shows', icon: FileText };
 
 export function buildUnifiedSidebarConfig(
   userRoles: readonly UserRole[],
@@ -95,30 +94,20 @@ export function buildUnifiedSidebarConfig(
   ]);
 
   // Exhibitor-only users get a unified, plain-English sidebar
-  const isExhibitorOnly =
-    hasAnyRole(userRoles, [UserRole.EXHIBITOR]) &&
-    !hasAnyRole(userRoles, [
-      UserRole.JUDGE,
-      UserRole.SECRETARY,
-      UserRole.CLUB_ADMIN,
-      UserRole.SITE_ADMIN,
-    ]);
+  const isExhibitorOnly = isExhibitorOnlyRoles(userRoles);
 
   if (isExhibitorOnly) {
+    // One rail item, My Shows, opening the My Shows / My Dogs tabs on the last one used (the
+    // staff Browse item's mechanism; docs/plan-sidebar-browse-pane.md, phase 4). The drawer lists
+    // both by name. Finding a show is a button on the My Shows list, not a rail item.
+    groups.push({
+      title: '',
+      railLink: MY_SHOWS_RAIL_LINK,
+      items: browseTabsForRoles(userRoles),
+    });
     groups.push({
       title: '',
       items: [
-        {
-          title: 'My Shows',
-          href: '/exhibitor/entries',
-          icon: FileText,
-          description: 'Your entries, dogs, and upcoming shows',
-        },
-        {
-          title: 'My Dogs',
-          href: '/dogs',
-          icon: Heart,
-        },
         {
           title: 'My Payments',
           href: '/exhibitor/payments',
@@ -131,11 +120,6 @@ export function buildUnifiedSidebarConfig(
         // so a static link is safe even though an exhibitor may have several
         // shows. Complements the context-aware <ShowTodayBanner> on MyEntriesPage.
         EXHIBITOR_SHOW_DAY_NAV_ITEM,
-        {
-          title: 'Find Shows',
-          href: '/shows',
-          icon: Search,
-        },
       ],
     });
   } else {

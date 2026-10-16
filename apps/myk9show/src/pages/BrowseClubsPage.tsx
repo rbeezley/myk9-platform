@@ -1,12 +1,17 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Plus, Building2 } from 'lucide-react';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWrapper';
 import { useClubStore } from '@/store/clubStore';
 import { useBrowseClubsData } from '@/hooks/useBrowseClubsData';
-import { ClubsGridView, ClubsListView } from '@/components/clubs/browse';
+import { ClubsCompactList, ClubsGridView, ClubsListView } from '@/components/clubs/browse';
+import { CLUB_EXPORT_HEADERS, clubExportRows } from '@/components/clubs/browse/clubsExport';
+import { clubsFilterQuery } from '@/components/clubs/browse/clubsFilterQuery';
+import { usePageExportAction } from '@/features/actions/pageEditTarget';
+import { exportRowsCsv } from '@/utils/downloadCsv';
+import { MasterDetailLayout } from '@/components/layout/MasterDetailLayout';
 import { ClubsOfflineState } from '@/components/clubs/ClubsOfflineState';
 import { BrowseClubsSkeleton } from '@/components/common/SkeletonLoaders';
 import { logger } from '@/services/LoggingService';
@@ -31,9 +36,18 @@ import { resolveCreateGates } from '@/features/actions/createGates';
 
 const CLUB_NOUN = ['club', 'clubs'] as const;
 
-const BrowseClubsPage: React.FC = () => {
+interface BrowseClubsPageProps {
+  /**
+   * What fills the right pane (the open club, or a "select a club" prompt). Only passed on a wide
+   * screen (see `ClubsMasterDetailPage`); the list then narrows to a compact one.
+   */
+  detail?: React.ReactNode;
+}
+
+const BrowseClubsPage: React.FC<BrowseClubsPageProps> = ({ detail = null }) => {
   const routerNavigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { id: selectedId } = useParams<{ id: string }>();
 
   const { user, refreshPermissions, hasRole, hasPermission } = useAuthContext();
   const isAuthenticated = !!user;
@@ -44,10 +58,32 @@ const BrowseClubsPage: React.FC = () => {
   const { canCreateClubs: canCreateClub } = resolveCreateGates({ hasRole, hasPermission });
 
   const [viewMode, setViewMode] = useViewPreference('clubs', defaultListView(true));
-  const [createPanelRequested, setCreatePanelRequested] = useState(
-    () => searchParams.get('create') === 'true'
-  );
-  const showCreateClubPanel = canCreateClub && createPanelRequested;
+  // Open state is local, so closing never writes the URL: the panel closes after a successful
+  // save too, and a URL write then would land on top of the save's own navigation (the new club,
+  // or the show wizard's returnTo). `?create=true` (the show wizard's link, the header's Add Club)
+  // opens it whenever it arrives, also on a page already showing (beside an open club this page
+  // stays mounted), and is consumed as it opens, so the same request can arrive again.
+  const createRequested = searchParams.get('create') === 'true';
+  const [createPanelOpen, setCreatePanelOpen] = useState(createRequested);
+  const [seenCreateRequest, setSeenCreateRequest] = useState(createRequested);
+  if (createRequested !== seenCreateRequest) {
+    setSeenCreateRequest(createRequested);
+    if (createRequested) setCreatePanelOpen(true);
+  }
+  useEffect(() => {
+    if (!createRequested) return;
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev);
+        next.delete('create');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [createRequested, setSearchParams]);
+  const showCreateClubPanel = canCreateClub && createPanelOpen;
+  const openCreatePanel = useCallback(() => setCreatePanelOpen(true), []);
+  const closeCreatePanel = useCallback(() => setCreatePanelOpen(false), []);
 
   const addClub = useClubStore(state => state.addClub);
   const selectClub = useClubStore(state => state.selectClub);
@@ -65,6 +101,20 @@ const BrowseClubsPage: React.FC = () => {
     clearAllFilters,
     clubShowCounts,
   } = useBrowseClubsData();
+
+  const filterQuery = clubsFilterQuery(filters.search);
+
+  // An empty directory has nothing to put beside a list, unless a club is already open.
+  const splitOpen = detail !== null && (clubs.length > 0 || Boolean(selectedId));
+
+  // The whole-list export the table's own button used to be (owner decision 4: header Actions
+  // menu). Registered here, not in the table, so it survives the compact list beside a club.
+  usePageExportAction({
+    id: 'clubs',
+    enabled: (viewMode === 'table' || splitOpen) && filteredClubs.length > 0,
+    run: () =>
+      exportRowsCsv('clubs', CLUB_EXPORT_HEADERS, clubExportRows(filteredClubs, clubShowCounts)),
+  });
 
   // Breadcrumbs for PageHeader
   const breadcrumbs = useMemo(() => [{ label: 'Clubs', href: '/clubs' }], []);
@@ -123,28 +173,42 @@ const BrowseClubsPage: React.FC = () => {
           }
         }
 
-        setCreatePanelRequested(false);
+        closeCreatePanel();
       } catch (error) {
         logger.error('Failed to create club', 'clubs', {}, error as Error);
         // Reject so the Add Club panel stays open with the form and reports it.
         throw error;
       }
     },
-    [addClub, selectClub, routerNavigate, searchParams, refreshPermissions]
+    [addClub, selectClub, routerNavigate, searchParams, refreshPermissions, closeCreatePanel]
   );
 
   const actionButton = useMemo(
     () =>
       canCreateClub ? (
-        <Button onClick={() => setCreatePanelRequested(true)}>
+        <Button onClick={openCreatePanel}>
           <Plus className="h-4 w-4 mr-2" />
           Add Club
         </Button>
       ) : null,
-    [canCreateClub]
+    [canCreateClub, openCreatePanel]
+  );
+
+  const pageHeader = (
+    <PageHeader breadcrumbs={breadcrumbs} title="Clubs" actions={actionButton} showTitle />
   );
 
   const renderContent = () => {
+    if (splitOpen && filteredClubs.length > 0) {
+      return (
+        <ClubsCompactList
+          clubs={filteredClubs}
+          selectedId={selectedId}
+          clubShowCounts={clubShowCounts}
+          filterQuery={filterQuery}
+        />
+      );
+    }
     if (filteredClubs.length === 0) {
       return (
         <ListEmptyState
@@ -160,9 +224,7 @@ const BrowseClubsPage: React.FC = () => {
                 : 'No clubs are listed yet. Sign in to add one.'
           }
           action={
-            canCreateClub
-              ? { label: 'Add Club', onClick: () => setCreatePanelRequested(true), icon: Plus }
-              : null
+            canCreateClub ? { label: 'Add Club', onClick: openCreatePanel, icon: Plus } : null
           }
         />
       );
@@ -177,55 +239,94 @@ const BrowseClubsPage: React.FC = () => {
     }
   };
 
+  const listHeader = (
+    <div className="flex flex-col gap-3">
+      <ListFilterBar
+        searchValue={filters.search}
+        onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
+        searchPlaceholder={splitOpen ? 'Search clubs' : 'Search clubs by name, city, or state...'}
+        fields={[]}
+      />
+      <ListResultLine
+        shown={filteredClubs.length}
+        total={clubs.length}
+        noun={CLUB_NOUN}
+        filtered={hasActiveFilters}
+        onShowAll={clearAllFilters}
+        showAllInEmptyState={filteredClubs.length === 0}
+      >
+        {/* Beside a club the list is always compact, so there is no view to pick. */}
+        {!splitOpen && <ListViewToggle active={viewMode} onChange={setViewMode} />}
+      </ListResultLine>
+    </div>
+  );
+
+  // Beside an open club, the list's own states (loading, failed, offline) fill the list pane and
+  // never the detail: the split stays mounted whatever the directory is doing, so the open club
+  // is never unmounted by, or remounted into, a list that is still settling.
+  const splitListStatus =
+    isLoading && clubs.length === 0 ? (
+      <BrowseClubsSkeleton viewMode="list" />
+    ) : hasError && !isLoading ? (
+      <ErrorState message="We couldn't load your clubs." onRetry={handleRetry} />
+    ) : isOffline && !isLoading ? (
+      <ClubsOfflineState
+        description="Connect to the internet to browse clubs."
+        onRetry={handleRetry}
+      />
+    ) : null;
+
   return (
-    <PageShell ContentWrapper={BrowseTabs}>
-      {/* Loading state */}
-      {isLoading && clubs.length === 0 && (
-        <BrowseClubsSkeleton viewMode={viewMode === 'cards' ? 'grid' : 'list'} />
-      )}
-
-      {/* Error state */}
-      {hasError && !isLoading && (
-        <ErrorState message="We couldn't load your clubs." onRetry={handleRetry} />
-      )}
-
-      {/* Offline guest: the signed-out directory is online-only (MYK9-747) */}
-      {isOffline && !isLoading && !hasError && (
+    <PageShell ContentWrapper={BrowseTabs} {...(splitOpen ? { maxWidth: 'max-w-[110rem]' } : {})}>
+      {splitOpen ? (
         <>
-          <PageHeader breadcrumbs={breadcrumbs} title="Clubs" actions={actionButton} showTitle />
-          <ClubsOfflineState
-            description="Connect to the internet to browse clubs."
-            onRetry={handleRetry}
+          {pageHeader}
+          <MasterDetailLayout
+            id="clubs"
+            listLabel="Clubs list"
+            detailLabel="Club details"
+            detail={detail}
+            listHeader={splitListStatus ? undefined : listHeader}
+            list={splitListStatus ?? renderContent()}
           />
         </>
-      )}
-
-      {/* Normal content */}
-      {!isLoading && !hasError && !isOffline && (
+      ) : (
         <>
-          <PageHeader breadcrumbs={breadcrumbs} title="Clubs" actions={actionButton} showTitle />
+          {/* Loading state */}
+          {isLoading && clubs.length === 0 && (
+            <BrowseClubsSkeleton viewMode={viewMode === 'cards' ? 'grid' : 'list'} />
+          )}
 
-          <div className="flex flex-col gap-3">
-            <ListFilterBar
-              searchValue={filters.search}
-              onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
-              searchPlaceholder="Search clubs by name, city, or state..."
-              fields={[]}
-            />
-            <ListResultLine
-              shown={filteredClubs.length}
-              total={clubs.length}
-              noun={CLUB_NOUN}
-              filtered={hasActiveFilters}
-              onShowAll={clearAllFilters}
-              showAllInEmptyState={filteredClubs.length === 0}
-            >
-              <ListViewToggle active={viewMode} onChange={setViewMode} />
-            </ListResultLine>
-          </div>
+          {/* Error state */}
+          {hasError && !isLoading && (
+            <ErrorState message="We couldn't load your clubs." onRetry={handleRetry} />
+          )}
 
-          {/* Club Cards / Table */}
-          {renderContent()}
+          {/* Offline guest: the signed-out directory is online-only (MYK9-747) */}
+          {isOffline && !isLoading && !hasError && (
+            <>
+              {pageHeader}
+              <ClubsOfflineState
+                description="Connect to the internet to browse clubs."
+                onRetry={handleRetry}
+              />
+            </>
+          )}
+
+          {/* Normal content */}
+          {!isLoading && !hasError && !isOffline && (
+            <>
+              {pageHeader}
+              <MasterDetailLayout
+                id="clubs"
+                listLabel="Clubs list"
+                detailLabel="Club details"
+                detail={null}
+                listHeader={listHeader}
+                list={renderContent()}
+              />
+            </>
+          )}
         </>
       )}
 
@@ -233,7 +334,7 @@ const BrowseClubsPage: React.FC = () => {
       {showCreateClubPanel && (
         <ClubEditPanel
           open={showCreateClubPanel}
-          onClose={() => setCreatePanelRequested(false)}
+          onClose={closeCreatePanel}
           clubId=""
           clubName=""
           initialClubData={{}}

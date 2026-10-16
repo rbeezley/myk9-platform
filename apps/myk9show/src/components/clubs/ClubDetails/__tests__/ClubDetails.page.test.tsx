@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@/test/utils/testUtils';
 import type { Club } from '@/types/club-types';
+import { EmbeddedDetailProvider } from '@/components/layout/embeddedDetail';
 import { ClubDetails } from '../index';
 
 /**
@@ -97,5 +98,25 @@ describe('ClubDetails page frame (MYK9-930)', () => {
 
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(container.querySelector('h1.sr-only')).toBeNull();
+  });
+
+  it("closes from the pane back to the list, keeping the list's search and nothing else", () => {
+    render(
+      <EmbeddedDetailProvider value>
+        <ClubDetails selectedClub={club} />
+      </EmbeddedDetailProvider>,
+      { initialRoute: '/clubs/club-1?search=heart&returnTo=%2Fdashboard' }
+    );
+
+    expect(screen.getByRole('link', { name: 'Close club' })).toHaveAttribute(
+      'href',
+      '/clubs?search=heart'
+    );
+  });
+
+  it('has no Close link as its own page', () => {
+    render(<ClubDetails selectedClub={club} />, { initialRoute: '/clubs/club-1' });
+
+    expect(screen.queryByRole('link', { name: 'Close club' })).not.toBeInTheDocument();
   });
 });

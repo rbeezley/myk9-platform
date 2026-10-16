@@ -1,11 +1,13 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsJudge, signInAsSecretary } from '../uat/shared/auth';
+import { openActionsMenu } from '../helpers/actionsMenu';
 
 /**
  * MYK9-1227 (docs/plan-sidebar-browse-pane.md, phase 3): one Browse rail item for Shows, Dogs,
- * People and Clubs, opening the list used last, and a tablist above each list. Runs against the
- * shared staging data; it only reads and navigates.
+ * People and Clubs, opening the list used last, and a tablist above each list. MYK9-1228: Clubs
+ * is a list with a detail pane from `lg`. Runs against the shared staging data; it only reads and
+ * navigates (Add Club is opened and cancelled, never saved).
  */
 
 const rail = (page: Page) => page.getByRole('navigation', { name: 'Main' });
@@ -68,7 +70,15 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
     await expect(page).toHaveURL(/\/dogs$/);
     await expectSelected(page, 'Dogs');
 
-    // Clubs keeps its own page (its list with a detail pane is MYK9-1228); the tab still leads there.
+    // Clubs is a list with a detail pane: a club opens beside the list.
+    await tab(page, 'Clubs').click();
+    await expect(page).toHaveURL(/\/clubs$/);
+    const clubsList = page.getByRole('region', { name: 'Clubs list' });
+    await expect(clubsList.getByRole('link').first()).toBeVisible({ timeout: 20_000 });
+    await clubsList.getByRole('link').first().click();
+    await expect(page).toHaveURL(/\/clubs\/[\w-]+$/);
+    await expect(page.getByRole('region', { name: 'Club details' })).toBeVisible();
+    await expect(clubsList).toBeVisible();
     await tab(page, 'Clubs').click();
     await expect(page).toHaveURL(/\/clubs$/);
     await expectSelected(page, 'Clubs');
@@ -80,6 +90,49 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
     await expect(browse(page)).not.toHaveAttribute('aria-current', 'page');
     await browse(page).click();
     await expect(page).toHaveURL(/\/clubs$/);
+  });
+
+  test('at 1440 a club opens beside the Clubs list, which keeps its search, export and Add Club', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await signInAsSecretary(page, '/clubs?search=Heartland');
+
+    const clubsList = page.getByRole('region', { name: 'Clubs list' });
+    const club = clubsList.getByRole('link', { name: /Heartland Scent Work Club/ });
+    await expect(club).toBeVisible({ timeout: 20_000 });
+    await club.click();
+    await expect(page).toHaveURL(/\/clubs\/[\w-]+\?search=Heartland$/);
+    const details = page.getByRole('region', { name: 'Club details' });
+    await expect(
+      details.getByRole('heading', { name: 'Heartland Scent Work Club' }).first()
+    ).toBeVisible({ timeout: 20_000 });
+    // The list kept its search: still filtered, still the same box value.
+    await expect(clubsList.getByRole('searchbox').or(clubsList.getByRole('textbox'))).toHaveValue(
+      'Heartland'
+    );
+    await expect(club).toHaveAttribute('aria-current', 'page');
+    await expectNoSidewaysScroll(page);
+
+    // Export CSV is still in the header Actions menu beside an open club.
+    const menu = await openActionsMenu(page);
+    await expect(menu.getByRole('menuitem', { name: 'Export CSV' })).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    // Add Club opens beside the open club, and Cancel leaves the club and its URL as they were.
+    const urlBefore = page.url();
+    await page.getByRole('button', { name: 'Add Club' }).click();
+    const panel = page.getByRole('dialog', { name: /Add Club/ });
+    await expect(panel).toBeVisible();
+    await panel.getByRole('button', { name: 'Cancel' }).click();
+    await expect(panel).toBeHidden();
+    expect(page.url()).toBe(urlBefore);
+    await expect(details).toBeVisible();
+
+    // Close goes back to the list, its search still applied.
+    await details.getByRole('link', { name: 'Close club' }).click();
+    await expect(page).toHaveURL(/\/clubs\?search=Heartland$/);
+    await expect(page.getByText('Select a club to see its details')).toBeVisible();
   });
 
   test('the tablist and its selected tab pass axe', async ({ page }) => {
@@ -147,6 +200,9 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
     await firstClub.click();
     await expect(page).toHaveURL(/\/clubs\/[\w-]+$/);
     await expect(tablist(page)).toHaveCount(0);
+    // Narrow screens keep the page hop: the club replaces the list.
+    await expect(page.getByRole('region', { name: 'Clubs list' })).toHaveCount(0);
+    // No sideways-scroll check here yet: a show card's Actions button overflows (MYK9-1239).
   });
 
   test('a judge browses Shows and their own dogs, and never People or Clubs', async ({ page }) => {

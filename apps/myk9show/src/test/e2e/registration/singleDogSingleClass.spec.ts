@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 import { applyRegistrationClock } from './seedRoster';
+import { classChipNameForLevel } from '../../e2e-helpers/classChipName';
 
 test.describe.configure({ mode: 'serial', timeout: 90000 });
 
@@ -186,7 +187,7 @@ async function selectFirstContainerClass(page: Page) {
     .first();
   await expect(containerCard).toBeVisible({ timeout: 10000 });
   await containerCard
-    .getByRole('checkbox', { name: `Select ${CLASS_LEVEL}` })
+    .getByRole('checkbox', { name: classChipNameForLevel(CLASS_LEVEL) })
     .first()
     .click();
   await expect(page.getByText(/1 selected/).first()).toBeVisible();

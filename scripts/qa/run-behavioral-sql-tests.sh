@@ -187,6 +187,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1162_held_entries_packet_test.sql"
   "$TEST_DIR/myk9_1162_held_entries_ringside_test.sql"
   "$TEST_DIR/myk9_1162_lifecycle_registration_number_needed_test.sql"
+  "$TEST_DIR/myk9_1212_claim_registration_number_needed_job_test.sql"
 )
 
 for test_file in "${TEST_FILES[@]}"; do

@@ -22,6 +22,20 @@ const baseClub: Partial<Club> = {
   address: { street: '1 Main St', city: 'Omaha', state: 'NE', zipCode: '68102', country: 'US' },
 };
 
+function panelElement(initialClubData: Partial<Club>, onSave: ReturnType<typeof vi.fn>) {
+  return (
+    <ClubEditPanel
+      open
+      onClose={() => {}}
+      clubId="club-1"
+      clubName="Heartland Scent Work Club"
+      initialClubData={initialClubData}
+      mode="edit"
+      onSave={onSave}
+    />
+  );
+}
+
 function renderPanel(
   initialClubData: Partial<Club>,
   onSave = vi.fn().mockResolvedValue(undefined)
@@ -93,5 +107,24 @@ describe('ClubEditPanel club numbers', () => {
 
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty('registryNumbers');
+  });
+
+  it('hydrates numbers that load after another field was edited, so saving UKC keeps AKC', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = render(panelElement(baseClub, onSave));
+
+    await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), ' East');
+    expect(screen.getByLabelText('AKC club number')).toBeDisabled();
+
+    rerender(panelElement({ ...baseClub, registryNumbers: { AKC: '4521' } }, onSave));
+    await waitFor(() => expect(screen.getByLabelText('AKC club number')).toHaveValue('4521'));
+    expect(screen.getByLabelText('AKC club number')).toBeEnabled();
+
+    await user.type(screen.getByLabelText('UKC club number'), 'U-9');
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave.mock.calls[0]?.[0].registryNumbers).toEqual({ AKC: '4521', UKC: 'U-9' });
   });
 });

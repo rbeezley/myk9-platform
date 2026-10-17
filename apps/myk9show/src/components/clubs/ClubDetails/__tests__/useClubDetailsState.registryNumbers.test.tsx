@@ -12,6 +12,11 @@ import type { Club } from '@/types/club-types';
 const mocks = vi.hoisted(() => ({
   updateClub: vi.fn(),
   saveNumbers: vi.fn(),
+  warning: vi.fn(),
+}));
+
+vi.mock('@/lib/notifications', () => ({
+  notifications: { success: vi.fn(), error: vi.fn(), warning: mocks.warning, info: vi.fn() },
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -41,8 +46,9 @@ const club = {
   address: { street: '', city: '', state: '', zipCode: '', country: 'US' },
 } as Club;
 
-function setup() {
+function setup(loaded?: Record<string, string>) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  if (loaded) queryClient.setQueryData(['clubs', 'club-1', 'registry-numbers'], loaded);
   const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
   const { result } = renderHook(() => useClubDetailsState(club), {
     wrapper: ({ children }: { children: React.ReactNode }) => (
@@ -97,5 +103,55 @@ describe('useClubDetailsState club numbers save', () => {
         })
       )
     ).rejects.toThrow('RLS denied');
+  });
+
+  it('skips the numbers write when only the name changed, even offline', async () => {
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const { result } = setup({ AKC: '4521', UKC: 'U-9' });
+
+    await act(() =>
+      result.current.handleClubEditComplete({
+        name: 'Renamed',
+        registryNumbers: { AKC: '4521', UKC: 'U-9' },
+      })
+    );
+
+    expect(mocks.updateClub).toHaveBeenCalledTimes(1);
+    expect(mocks.saveNumbers).not.toHaveBeenCalled();
+    expect(mocks.warning).not.toHaveBeenCalled();
+    online.mockRestore();
+  });
+
+  it('keeps the club save and says so when changed numbers cannot be saved offline', async () => {
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const { result } = setup({ AKC: '4521' });
+
+    await act(() =>
+      result.current.handleClubEditComplete({
+        name: 'Heartland Scent Work Club',
+        registryNumbers: { AKC: '4521', UKC: 'U-9' },
+      })
+    );
+
+    expect(mocks.updateClub).toHaveBeenCalledTimes(1);
+    expect(mocks.saveNumbers).not.toHaveBeenCalled();
+    expect(mocks.warning).toHaveBeenCalledWith(
+      'Club numbers need a connection; they were not saved.'
+    );
+    online.mockRestore();
+  });
+
+  it('writes exactly once when the numbers changed and the device is online', async () => {
+    const { result } = setup({ AKC: '4521' });
+
+    await act(() =>
+      result.current.handleClubEditComplete({
+        name: 'Heartland Scent Work Club',
+        registryNumbers: { AKC: '4521', UKC: 'U-9' },
+      })
+    );
+
+    expect(mocks.saveNumbers).toHaveBeenCalledTimes(1);
+    expect(mocks.saveNumbers).toHaveBeenCalledWith('club-1', { AKC: '4521', UKC: 'U-9' });
   });
 });

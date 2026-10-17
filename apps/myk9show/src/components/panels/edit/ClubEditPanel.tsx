@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   EditPanelWrapper,
   type EditPanelDeleteOption,
@@ -29,7 +29,11 @@ import { AccentColorPicker } from '@/components/ui/accent-color-picker';
 import type { Club } from '@/types/club-types';
 import { CLUB_TYPES } from '@/types/club-types';
 import { logger } from '@/services/LoggingService';
-import { hasClubRegistryNumber } from '@/utils/clubRegistryNumbers';
+import {
+  CLUB_REGISTRY_ORGS,
+  hasClubRegistryNumber,
+  type ClubRegistryNumbers,
+} from '@/utils/clubRegistryNumbers';
 import { PremiumTemplatesTab } from './ClubEditPanel/PremiumTemplatesTab';
 import { ClubTabsList } from './ClubEditPanel/ClubTabsList';
 import {
@@ -72,8 +76,25 @@ const ClubEditForm: React.FC<{
   onTabChange: (tab: ClubTabValue) => void;
   /** Edit mode, numbers not loaded yet: the number fields wait rather than show blank. */
   registryNumbersPending: boolean;
-}> = ({ clubId, mode, onClose, activeTab, onTabChange, registryNumbersPending }) => {
+  /** The club's stored numbers once loaded; undefined until then. */
+  loadedNumbers: ClubRegistryNumbers | undefined;
+}> = ({ clubId, mode, onClose, activeTab, onTabChange, registryNumbersPending, loadedNumbers }) => {
   const { data, form, requestTab } = useEditPanel<ClubEditFormData>();
+
+  // The wrapper will not reset a form that is already dirty, so numbers that load after
+  // the user edited another field would leave the number inputs blank, and saving just
+  // UKC would delete the stored AKC. Put each loaded number into its (disabled until now,
+  // so untouched) field once, whatever the dirty state.
+  useEffect(() => {
+    if (mode !== 'edit' || !loadedNumbers || !form) return;
+    for (const org of CLUB_REGISTRY_ORGS) {
+      const field = clubNumberField(org);
+      const loaded = loadedNumbers[org] ?? '';
+      if (loaded && data[field] !== loaded) form.setValue(field, loaded);
+    }
+    // Hydrate once per load; later keystrokes must not be overwritten.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadedNumbers, mode]);
 
   // Photo dialog state
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
@@ -464,6 +485,7 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
         activeTab={activeTab}
         onTabChange={setActiveTab}
         registryNumbersPending={mode === 'edit' && initialClubData.registryNumbers === undefined}
+        loadedNumbers={initialClubData.registryNumbers}
       />
     </EditPanelWrapper>
   );

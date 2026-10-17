@@ -80,6 +80,11 @@ VALUES (
 --   c41: the class the secretary re-places while the dog is deleted.
 --   c42: the class nobody touches, so its placement must come back.
 --   c43: holds the paid online entry for the MYK9-608 arm.
+-- Since MYK9-1230 (20261017014900) a manual class that is fully accounted for
+-- is ranked like a derived one, which would overwrite the hand-set 1/2 below.
+-- Each of c41/c42 therefore keeps one UNSCORED expected entry (d56's e89/e90),
+-- inserted first and in its own statement, so the class stays partly scored
+-- and the hand placements are what the restore logic is tested against.
 INSERT INTO public.classes (id, trial_id, name, status, status_source)
 VALUES
   ('00000000-0000-0000-0000-000000607041', '00000000-0000-0000-0000-000000607031', 'MYK9-607 Re-placed Class', 'in_progress', 'manual'),
@@ -92,7 +97,8 @@ VALUES
   ('00000000-0000-0000-0000-000000607052', 'Survivor', 'Beagle', '00000000-0000-0000-0000-000000607011'),
   ('00000000-0000-0000-0000-000000607053', 'Stranded', 'Beagle', '00000000-0000-0000-0000-000000607011'),
   ('00000000-0000-0000-0000-000000607054', 'Ordinary', 'Beagle', '00000000-0000-0000-0000-000000607011'),
-  ('00000000-0000-0000-0000-000000607055', 'Cycled', 'Beagle', '00000000-0000-0000-0000-000000607011');
+  ('00000000-0000-0000-0000-000000607055', 'Cycled', 'Beagle', '00000000-0000-0000-0000-000000607011'),
+  ('00000000-0000-0000-0000-000000607056', 'Holder', 'Beagle', '00000000-0000-0000-0000-000000607011');
 
 INSERT INTO public.dog_registrations (dog_id, organization, registration_number, registered_name)
 VALUES
@@ -100,7 +106,20 @@ VALUES
   ('00000000-0000-0000-0000-000000607052', 'AKC', 'SW607102', 'Survivor Formally'),
   ('00000000-0000-0000-0000-000000607053', 'AKC', 'SW607103', 'Stranded Formally'),
   ('00000000-0000-0000-0000-000000607054', 'AKC', 'SW607104', 'Ordinary Formally'),
-  ('00000000-0000-0000-0000-000000607055', 'AKC', 'SW607105', 'Cycled Formally');
+  ('00000000-0000-0000-0000-000000607055', 'AKC', 'SW607105', 'Cycled Formally'),
+  ('00000000-0000-0000-0000-000000607056', 'AKC', 'SW607106', 'Holder Formally');
+
+-- MYK9-1230: the unscored expected entries that keep c41 and c42 partly
+-- scored. They go in BEFORE the scored entries, in their own statement: the
+-- AFTER ROW triggers of the scored INSERT below fire at the end of that
+-- statement and would otherwise see a fully accounted manual class and rank it.
+INSERT INTO public.entries (
+  id, class_id, trial_id, show_id, dog_id, payment_status, entry_status,
+  is_scored, result_status
+)
+VALUES
+  ('00000000-0000-0000-0000-000000607089', '00000000-0000-0000-0000-000000607041', '00000000-0000-0000-0000-000000607031', '00000000-0000-0000-0000-000000607021', '00000000-0000-0000-0000-000000607056', 'pending', 'confirmed', false, 'pending'),
+  ('00000000-0000-0000-0000-000000607090', '00000000-0000-0000-0000-000000607042', '00000000-0000-0000-0000-000000607031', '00000000-0000-0000-0000-000000607021', '00000000-0000-0000-0000-000000607056', 'pending', 'confirmed', false, 'pending');
 
 -- Hand-set placements: d51 is 1st in both manual classes, d52 2nd.
 INSERT INTO public.entries (
@@ -171,6 +190,12 @@ BEGIN
         AND dog_id IN ('00000000-0000-0000-0000-000000607051', '00000000-0000-0000-0000-000000607052'))
      IS DISTINCT FROM ARRAY[1, 2, 1, 2] THEN
     RAISE EXCEPTION 'FIXTURE the manual classes did not start hand-placed 1/2';
+  END IF;
+
+  IF (SELECT count(*) FROM public.entries
+      WHERE id IN ('00000000-0000-0000-0000-000000607089', '00000000-0000-0000-0000-000000607090')
+        AND is_scored = false AND deleted_at IS NULL) <> 2 THEN
+    RAISE EXCEPTION 'FIXTURE a manual class has no unscored dog — it is fully accounted for, so MYK9-1230 re-ranks it and the hand-set assertions prove nothing';
   END IF;
 
   IF NOT EXISTS (

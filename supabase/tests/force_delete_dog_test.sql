@@ -18,11 +18,11 @@
 --   * A force-deleted entry's final_placement survives the round trip, by two
 --     DIFFERENT routes, and both are asserted here (MYK9-596 item 2). A DERIVED
 --     class re-derives through entries_refresh_class_scoring_state. A MANUAL
---     class deliberately never re-ranks (20260817150000), so its survivors must
---     KEEP their hand-set placements through the delete, and the restored row
+--     class that is only partly scored never re-ranks (20260817150000), so its
+--     survivors KEEP their placements through the delete, and the restored row
 --     gets its own placement back from the snapshot force_delete_dog wrote into
---     the audit row. Asserting the manual survivor stays at 2 is what stops a
---     future 'fix' from re-ranking a class a human pinned.
+--     the audit row. (A fully scored manual class is ranked like a derived one
+--     since MYK9-1230; the fixture keeps one dog unscored to stay partial.)
 --   * The override writes ONE activity_log row naming the actor, the entries
 --     and the stranded Stripe payment intents (MYK9-596 item 3). It is the only
 --     record that a captured charge was left behind.
@@ -123,9 +123,13 @@ VALUES (
 
 -- fd041 carries the paid entry and the waitlist queue.
 -- fd042 is the MANUAL scored class: refresh_class_scoring_state's manual branch
--- nulls a tombstoned entry's placement and RETURNs, and must NOT re-rank
--- (20260817150000). Its placements are set by hand in the fixture because that
--- is how a manual class gets them — nothing derives them.
+-- nulls a tombstoned entry's placement, and leaves live placements alone while
+-- the class is only partly scored (20260817150000). Since MYK9-1230
+-- (20261017014900) a manual class that is FULLY accounted for is ranked like a
+-- derived one, so fd042 keeps one dog (fd053, entry fd087) unscored: that holds
+-- it in the partial state, where only the snapshot restore_dog reads back can
+-- give a restored entry its placement. The fully scored manual case is covered
+-- by supabase/tests/placement_soft_delete_ranking_test.sql section 6.
 -- fd043 is the DERIVED scored class, the control arm: its placements come from
 -- the trigger and must re-derive by themselves on delete and on restore.
 --
@@ -148,8 +152,8 @@ VALUES
 -- EVERY dog that gets an entry needs a registration number matching the trial's
 -- registry: trg_entries_require_dog_registration (BEFORE INSERT on entries)
 -- raises 23514 otherwise, and the trial here has no registry_id so it defaults
--- to AKC. fd053 is registered too even though it only ever sits on a waitlist,
--- so a later arm can give it an entry without re-learning this.
+-- to AKC. fd053 sits on fd041's waitlist and also holds the unscored entry that
+-- keeps the manual class fd042 partly scored (MYK9-1230).
 INSERT INTO public.dog_registrations (dog_id, organization, registration_number, registered_name)
 VALUES
   ('00000000-0000-0000-0000-0000000fd051', 'AKC', 'SW999101', 'Paid Up Formally'),
@@ -202,6 +206,21 @@ BEGIN
   END IF;
 END;
 $$;
+
+-- The dog still to run in the manual class, inserted FIRST and on its own so
+-- that no trigger on the scored rows below ever sees fd042 fully accounted for.
+INSERT INTO public.entries (
+  id, class_id, trial_id, show_id, dog_id, payment_status, entry_status,
+  is_scored, result_status
+)
+VALUES (
+  '00000000-0000-0000-0000-0000000fd087',
+  '00000000-0000-0000-0000-0000000fd042',
+  '00000000-0000-0000-0000-0000000fd031',
+  '00000000-0000-0000-0000-0000000fd021',
+  '00000000-0000-0000-0000-0000000fd053',
+  'pending', 'confirmed', false, 'pending'
+);
 
 -- The SCORED half. fd083/fd084 are the MANUAL class: placements are written by
 -- hand, exactly as a secretary who pinned the class would have left them, and
@@ -319,6 +338,14 @@ BEGIN
   ) IS DISTINCT FROM 'manual' THEN
     RAISE EXCEPTION
       'FIXTURE the scored class is no longer status_source=manual — the placement assertions would pass vacuously';
+  END IF;
+
+  IF (
+    SELECT is_scored FROM public.entries
+    WHERE id = '00000000-0000-0000-0000-0000000fd087'
+  ) IS DISTINCT FROM false THEN
+    RAISE EXCEPTION
+      'FIXTURE the manual class has no unscored dog — it is fully accounted for, so MYK9-1230 re-ranks it and the hand-set assertions prove nothing';
   END IF;
 
   IF (
@@ -522,11 +549,10 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS waitlist positions re-sequenced to 1,2';
 
-  -- MYK9-596 item 2, MANUAL class. The delete must NOT re-rank: the survivor
-  -- keeps the placement the secretary set. 20260817150000 forbids the manual
-  -- branch from calling recalculate_class_placements precisely because a
-  -- class-wide re-rank silently destroys published results, so this assertion
-  -- is a guard against the tempting 'fix', not just a description.
+  -- MYK9-596 item 2, MANUAL class. While a manual class is partly scored the
+  -- delete must NOT re-rank: the survivor keeps the placement it had. (Once
+  -- every dog is accounted for, MYK9-1230 ranks a manual class like any other;
+  -- fd087 is still unscored, so that branch is not in play here.)
   SELECT final_placement INTO v_survivor_placement
   FROM public.entries WHERE id = '00000000-0000-0000-0000-0000000fd084';
 

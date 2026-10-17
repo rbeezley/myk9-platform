@@ -69,7 +69,8 @@ describe('server rules that treat excused as accounted-for also cover disqualifi
 
   it('refresh_class_scoring_state counts a DQ as accounted for', () => {
     const fn = definitions.get('refresh_class_scoring_state')!;
-    expect(fn.file).toBe('20261011003700_myk9_1011_disqualified_result.sql');
+    // Redefined by MYK9-1230 (manual classes are placed); the DQ rule carried over verbatim.
+    expect(fn.file).toBe('20261017014900_myk9_1230_manual_class_placements.sql');
     expect(fn.body).toContain(
       "AND (is_scored = true OR result_status IN ('absent', 'excused', 'disqualified'))"
     );

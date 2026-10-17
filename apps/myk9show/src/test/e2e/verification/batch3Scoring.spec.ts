@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import {
   classPath,
+  type Fixture,
   evidence,
   fixture,
   isolatedClient,
@@ -30,11 +31,71 @@ async function restoreCompanion(client: ReturnType<typeof isolatedClient>, id: s
   if (error) throw error;
 }
 
-async function removeVehicle(client: ReturnType<typeof isolatedClient>, id: string) {
+async function resetClass(client: ReturnType<typeof isolatedClient>, f: Fixture) {
+  const { error } = await client
+    .from('classes')
+    .update({
+      status: 'upcoming',
+      status_source: 'derived',
+      is_scoring_finalized: false,
+      actual_start_time: null,
+      actual_end_time: null,
+    })
+    .eq('id', f.classId);
+  if (error) throw error;
+  await reset(client, f);
+  const state = await client
+    .from('classes')
+    .select('status,status_source,is_scoring_finalized')
+    .eq('id', f.classId)
+    .single();
+  if (state.error) throw state.error;
+  expect(state.data).toMatchObject({
+    status: 'upcoming',
+    status_source: 'derived',
+    is_scoring_finalized: false,
+  });
+  const entries = await client
+    .from('entries')
+    .select('is_scored,result_status,final_placement')
+    .eq('class_id', f.classId)
+    .is('deleted_at', null);
+  if (entries.error) throw entries.error;
+  expect(entries.data).toHaveLength(2);
+  for (const entry of entries.data)
+    expect(entry).toMatchObject({
+      is_scored: false,
+      result_status: 'pending',
+      final_placement: null,
+    });
+}
+
+async function removeVehicle(
+  client: ReturnType<typeof isolatedClient>,
+  id: string,
+  armbands: string[]
+) {
   const { error: entriesError } = await client.from('entries').delete().eq('class_id', id);
   if (entriesError) throw entriesError;
   const { error: classError } = await client.from('classes').delete().eq('id', id);
   if (classError) throw classError;
+  const { error: armbandError } = await client.from('armbands').delete().in('id', armbands);
+  if (armbandError) throw armbandError;
+}
+
+async function finishVehicle(
+  client: ReturnType<typeof isolatedClient>,
+  id: string,
+  armbands: string[],
+  primaryError: unknown
+) {
+  try {
+    await removeVehicle(client, id, armbands);
+  } catch (cleanupError) {
+    if (primaryError !== undefined)
+      throw new AggregateError([primaryError, cleanupError], 'Vehicle proof and cleanup failed');
+    throw cleanupError;
+  }
 }
 
 test('paper scoring persists one-entry and multi-entry results after reload (MYK9-1246)', async ({
@@ -43,7 +104,7 @@ test('paper scoring persists one-entry and multi-entry results after reload (MYK
   const client = isolatedClient();
   const f = await fixture(client);
   for (const cardinality of [1, 2]) {
-    await reset(client, f);
+    await resetClass(client, f);
     const { error } = await client
       .from('entries')
       .update({ deleted_at: cardinality === 1 ? new Date().toISOString() : null })
@@ -113,7 +174,7 @@ test('manual class placements agree in Check Scores, Fix and report preview (MYK
 }, info) => {
   const client = isolatedClient();
   const f = await fixture(client);
-  await reset(client, f);
+  await resetClass(client, f);
   const { data: classTemplate, error: classReadError } = await client
     .from('classes')
     .select('*')
@@ -128,50 +189,73 @@ test('manual class placements agree in Check Scores, Fix and report preview (MYK
   if (entryReadError || !entryTemplate) throw entryReadError ?? new Error('No entry template');
   const vehicleId = randomUUID();
   const vehicleEntries = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
-  const { error: classInsertError } = await client.from('classes').insert({
-    ...classTemplate,
-    id: vehicleId,
-    name: 'Vehicle Novice A',
-    element: 'Vehicle',
-    status: 'upcoming',
-    status_source: 'derived',
-    is_scoring_finalized: false,
-    actual_start_time: null,
-    actual_end_time: null,
-    scored_count: 0,
-    version: 1,
-  });
-  if (classInsertError) throw classInsertError;
-  const dogs = [
-    entryTemplate.dog_id,
-    'dededede-0000-0000-0000-000000000046',
-    'dededede-0000-0000-0000-000000000042',
-    'dededede-0000-0000-0000-000000000043',
-  ];
-  const { error: entryInsertError } = await client.from('entries').insert(
-    vehicleEntries.map((id, index) => ({
-      ...entryTemplate,
-      ...waiting,
-      id,
-      class_id: vehicleId,
-      dog_id: dogs[index]!,
-      armband: String(200 + index),
-      run_order: index + 1,
-      final_placement: null,
-      scoring_completed_at: null,
-      deleted_at: null,
-      registration_id: null,
-      entry_fee: 0,
-      payment_status: 'pending',
-      version: 1,
-    }))
-  );
-  if (entryInsertError) throw entryInsertError;
-  const cases = [
-    { id: f.classId, ids: [f.willowId, f.cooperId], order: ['201', '200'] },
-    { id: vehicleId, ids: vehicleEntries, order: ['201', '200', '202', '203'] },
-  ];
+  const addedArmbands = [randomUUID(), randomUUID()];
+  let primaryError: unknown;
   try {
+    const { error: classInsertError } = await client.from('classes').insert({
+      ...classTemplate,
+      id: vehicleId,
+      name: 'Vehicle Novice A',
+      element: 'Vehicle',
+      status: 'upcoming',
+      status_source: 'derived',
+      is_scoring_finalized: false,
+      actual_start_time: null,
+      actual_end_time: null,
+      scored_count: 0,
+      version: 1,
+    });
+    if (classInsertError) throw classInsertError;
+    const dogs = [
+      entryTemplate.dog_id,
+      'dededede-0000-0000-0000-000000000046',
+      'dededede-0000-0000-0000-000000000042',
+      'dededede-0000-0000-0000-000000000043',
+    ];
+    const { error: armbandError } = await client.from('armbands').insert(
+      addedArmbands.map((id, index) => ({
+        id,
+        show_id: f.showId,
+        dog_id: dogs[index + 2]!,
+        armband_number: String(202 + index),
+        is_available: false,
+        assigned_at: new Date().toISOString(),
+        version: 1,
+      }))
+    );
+    if (armbandError) throw armbandError;
+    const { error: entryInsertError } = await client.from('entries').insert(
+      vehicleEntries.map((id, index) => ({
+        ...entryTemplate,
+        ...waiting,
+        id,
+        class_id: vehicleId,
+        dog_id: dogs[index]!,
+        armband: String(200 + index),
+        run_order: index + 1,
+        final_placement: null,
+        scoring_completed_at: null,
+        deleted_at: null,
+        registration_id: null,
+        entry_fee: 0,
+        payment_status: 'pending',
+        version: 1,
+      }))
+    );
+    if (entryInsertError) throw entryInsertError;
+    const inserted = await client
+      .from('entries')
+      .select('dog_id,armband')
+      .eq('class_id', vehicleId)
+      .order('armband');
+    if (inserted.error) throw inserted.error;
+    expect(inserted.data).toEqual(
+      dogs.map((dog_id, index) => ({ dog_id, armband: String(200 + index) }))
+    );
+    const cases = [
+      { id: f.classId, ids: [f.willowId, f.cooperId], order: ['201', '200'] },
+      { id: vehicleId, ids: vehicleEntries, order: ['201', '200', '202', '203'] },
+    ];
     for (const scenario of cases) {
       const { error: manualError } = await client
         .from('classes')
@@ -193,6 +277,7 @@ test('manual class placements agree in Check Scores, Fix and report preview (MYK
         .is('deleted_at', null)
         .order('armband');
       if (storedError) throw storedError;
+      // Acceptance pins: only qualified dogs rank; NQ/ABS follow by armband.
       expect(stored?.map(e => e.final_placement)).toEqual(
         scenario.ids.length === 2 ? [2, 1] : [2, 1, null, null]
       );
@@ -240,8 +325,11 @@ test('manual class placements agree in Check Scores, Fix and report preview (MYK
         await secretary.context.close();
       }
     }
+  } catch (error) {
+    primaryError = error;
+    throw error;
   } finally {
-    await removeVehicle(client, vehicleId);
+    await finishVehicle(client, vehicleId, addedArmbands, primaryError);
   }
 });
 
@@ -250,7 +338,7 @@ test('judge scoring persists the only entry after reload (MYK9-1246)', async ({
 }, info) => {
   const client = isolatedClient();
   const f = await fixture(client);
-  await reset(client, f);
+  await resetClass(client, f);
   const { error } = await client
     .from('entries')
     .update({ deleted_at: new Date().toISOString() })

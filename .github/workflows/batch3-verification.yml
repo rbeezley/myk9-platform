@@ -8,6 +8,13 @@ on:
       - 'apps/myk9show/playwright.batch3.config.ts'
       - 'apps/myk9show/tsconfig.show-day.json'
       - 'apps/myk9show/src/test/e2e/verification/batch3Scoring.spec.ts'
+      - 'apps/myk9show/src/test/e2e/verification/showDayProof.helpers.ts'
+      - 'apps/myk9show/playwright.show-day.config.ts'
+      - 'apps/myk9show/src/test/e2e/helpers/**'
+      - 'apps/myk9show/src/test/e2e-helpers/**'
+      - 'scripts/qa/isolated-e2e*.ts'
+      - 'scripts/qa/*isolated-e2e*'
+      - 'supabase/seed*.sql'
 
 permissions:
   contents: read
@@ -84,7 +91,7 @@ jobs:
         working-directory: apps/myk9show
         run: pnpm exec tsx scripts/verify-artifact-secrets.ts --skip-zip-files playwright-report-ci test-results
       - name: Preserve isolated evidence
-        if: ${{ always() && steps.verify-artifacts.outcome != 'failure' && steps.verify-artifacts.outcome == 'success' }}
+        if: ${{ always() && steps.verify-artifacts.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           name: isolated-batch3-proof

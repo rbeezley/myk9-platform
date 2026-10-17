@@ -4,7 +4,7 @@ Tracking: [MYK9-1246](https://linear.app/myk9-platform/issue/MYK9-1246), [MYK9-1
 
 ## Status and final scope
 
-No issue is closed. No linked migration or production deployment was performed by this task. The owner confirmed secretary paper scoring / Fix for MYK9-1246; its original post-Save response remains unknown.
+No issue is closed. No linked migration or production deployment was performed by this task. The owner confirmed secretary paper scoring / Fix for MYK9-1246; its original post-Save response remains unknown. PR [#3096](https://github.com/rbeezley/myk9-platform/pull/3096) carries this pre-merge report; exact-head CI/review outcomes are recorded on the PR and issues after execution.
 
 The fixes are already merged: rejected-save feedback #3077, printed ordering #3080, and manual-class placements #3094 (`f9add37f3a6c722dabb345038baaabfded4c23d8`). This batch adds the isolated three-case browser proof, dedicated disposable CI, and evidence. It does not duplicate those fixes or their ResultsTab/SQL coverage.
 
@@ -20,7 +20,7 @@ That supersedes this task's earlier proposed all-ranks-missing guard. Once #3094
 
 ## Isolated browser proof
 
-All fixture/scoring writes target disposable loopback Supabase. Contexts block external HTTP requests and service workers; socket origins are checked. Fresh role contexts use actual SQL/replica reads, with no auth, clock, persistence-RPC or result-response stubs. The served build stamp must equal the requested exact source SHA.
+All fixture/scoring writes target disposable loopback Supabase. Contexts block external HTTP requests and service workers; socket origins are checked. Fresh role contexts use actual SQL/replica reads, with no auth, clock, persistence-RPC or result-response stubs. The served build stamp must equal the requested exact source SHA. Three Playwright tests cover the five scenario rows below: cardinalities and placement classes are loops within their tests.
 
 | Case                      | Assertions                                                                                                           |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
@@ -44,13 +44,19 @@ Served app `fc1df57f5e546d6e8bee4c45f0315f3acd8cd5ea` predates #3077 and #3080 b
 
 Selected class status/source/finalization and selected entries' result/time/faults/placement/version matched before and after the recorded comparison. This is a scoped unchanged-data observation, not a claim about unrelated rows or Auth sessions. Shared screenshots remain private; CI artifacts contain synthetic fixtures.
 
+## Deployed read-only recheck — October 17
+
+Production serves `43b3912ad15a178d449a62e3c1cd2407c0510b59`; ancestry confirms #3077 and #3080. Linked history includes migration `20261017014900`, and the installed refresh function body exactly matches #3094's migration body. Another operation installed these; this task only read them.
+
+The guarded browser re-walk passed (one test covering both incident classes, 14.9 seconds). ABC still shows Q / 1:02.03 / zero faults / 1st after cold navigation. Vehicle remains incomplete and unplaced in both views; its print preview now matches the screen: **100, 101, 102, 103, 104, 134**. Selected before/after SQL snapshots are identical (diff exit 0). Only fonts and analytics writes were blocked. The first invocation lacked loaded credentials and exited before sign-in; the recorded pass loaded the existing account environment.
+
 ## Acceptance disposition
 
-| Issue     | Evidence                                                                                                                                | Remaining closure gate                                                                                                                                                  |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| MYK9-1246 | Owner-confirmed paper path; actual ABC score visible; isolated paper cardinality/reload/SQL checks; component rejection/retention tests | Original failing screen behavior remains unreproduced. Owned acceptance is needed if isolated equivalent replaces incident reproduction. Production must include #3077. |
-| MYK9-1230 | Historical root cause, merged #3094 SQL/replica tests and CI; isolated two-class parity proof                                           | Exact-head browser proof; linked migration application and resulting verification require authorization. Do not force shared Vehicle back into its historical state.    |
-| MYK9-1234 | Actual deployed wrong order; both sort callers identified/fixed in #3080; isolated actual report previews and tie/nonqualifier tests    | Exact-head browser proof; production must include #3080 and #3094, followed by stated verification or explicit owned acceptance of isolated replacement evidence.       |
+| Issue     | Evidence                                                                                                                                                | Remaining gate                                                                                                                                                     |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| MYK9-1246 | Confirmed paper path; original ABC score visible after reload; isolated cardinality/persistence and rejection tests; #3077 deployed                     | Final-head browser proof. Original failed-screen response remains unknown; owned acceptance needed if isolated equivalent replaces original-incident reproduction. |
+| MYK9-1230 | Historical deployed root cause; #3094 merged, installed function matches; SQL/replica tests and local two-class parity                                  | Final-head browser proof and full criterion reconciliation; preserve current incomplete shared class.                                                              |
+| MYK9-1234 | Deployed wrong print order on October 16 and corrected order on October 17; both sort callers fixed; actual isolated preview and tie/nonqualifier tests | Final-head browser proof and full criterion reconciliation.                                                                                                        |
 
 ## Validation history and limits
 
@@ -59,7 +65,7 @@ Selected class status/source/finalization and selected entries' result/time/faul
 - An exploratory rapid navigation/reload into the saved editor stopped at “Loading scoresheet.” Passing judge evidence verifies class results after reload, not cold editor reopening. No editor-reload pass is claimed.
 - Full shuffled app suite on that base: **3,030 files passed, one failed, two skipped; 29,455 tests passed, one failed, 11 skipped, one todo**, exit 1. Untouched `useAtShowScoresheet.completion.test.ts:178` exceeded a 100 ms loading deadline. All seven tests passed alone immediately afterward. Cause unknown; MYK9-1252. This is not a green full-suite result.
 - Earlier minimal-reporter and superseded-base suite runs were interrupted, not passed. Vitest 5 defaults to minimal output in agent sessions; explicit verbose reporting established progress.
-- Typecheck, lint, ratchet, proof TypeScript compilation, focused save/print tests (102), and focused contracts/replica tests passed before the final #3094 integration. Final scoped results and CI are recorded below when complete.
+- Typecheck, lint, ratchet, proof TypeScript compilation, focused save/print tests (102), and focused contracts/replica tests passed before the final #3094 integration.
 - After integrating #3094: 133 files / 1,113 tests passed across database contracts, the merged real-replica ResultsTab test, paper save failures, ResultsSheet and both print callers (exit 0). The proof TypeScript graph also passed (exit 0). No Vitest test or production implementation file remains changed by this PR.
 - Final root typecheck, lint and code-quality ratchet on integrated #3094 all exited 0. Owner approved the two unrelated failures as separate follow-ups; mandatory final-head CI/browser proof remains the merge gate.
 - Superseded proposal only: real installed SQL assertion failed NULL/NULL versus expected 2/1, then passed locally; repeat/backfill/partial-rank guards and pristine full SQL passed. A browser-seeded ACL environment was rejected as unsuitable for full SQL. The linked dry run listed only our removed migration and applied nothing (2.121 hung after plan; installed 2.117 exited 0). These do not prove #3094 deployment.
@@ -68,4 +74,4 @@ Selected class status/source/finalization and selected entries' result/time/faul
 
 The task-owned native `batch3-proof` stack was verified by worktree/branch identity, destroyed with exit 0, and followed by an empty stack inventory. Playwright runners ended their owned browsers; no other task's browser was closed. Credentials and raw local stack logs stay private.
 
-The dedicated CI job prepares and destroys its own runner stack, blocks public container egress, scrubs artifacts and requires all three cases with no retries. Independent exact-head review, required CI/watcher, merge, production/incident acceptance, and final tracker closure remain outstanding.
+The dedicated CI job prepares and destroys its own runner stack, blocks public container egress, scrubs artifacts and requires all three cases with no retries. Independent exact-head review, required CI/watcher, merge, original-incident acceptance and final tracker closure remain outstanding. First-review corrections reset/assert class and entry state, create matching extra-dog armbands and assert inserted numbers, retain proof and cleanup errors together, trigger CI on imported helpers, and simplify the artifact condition. Literal nonqualifier-order assertions intentionally pin the acceptance contract.

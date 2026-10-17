@@ -11,17 +11,19 @@ interface ClubNumbersSectionProps {
 }
 
 /**
- * MYK9-1235: the club's AKC / UKC / ASCA numbers, read-only, with an Edit button for
- * people who can edit the club. They are online-only data, so they live here and not in
- * the Edit Club panel (which saves offline-first).
+ * MYK9-1235: the Edit control for the club's AKC / UKC / ASCA numbers, for people who can
+ * edit the club. The numbers themselves are shown once, in ClubHeader's facts line; this
+ * section only adds the edit affordance and the states that line has no room for
+ * (none yet, loading, a failed read with Retry). The numbers are online-only data, so
+ * they are edited here and not in the Edit Club panel (which saves offline-first).
  */
 export const ClubNumbersSection: React.FC<ClubNumbersSectionProps> = ({ clubId, canEdit }) => {
   const [open, setOpen] = useState(false);
   const { data, isLoading, isError, refetch } = useClubRegistryNumbers(clubId);
-  const label = formatClubRegistryNumbers(data);
+  const hasNumbers = Boolean(formatClubRegistryNumbers(data));
 
-  // A visitor with nothing to read and nothing to edit sees no section at all.
-  if (!canEdit && !label) return null;
+  // Visitors read the numbers in the header; there is nothing here for them.
+  if (!canEdit) return null;
 
   return (
     <section
@@ -39,25 +41,16 @@ export const ClubNumbersSection: React.FC<ClubNumbersSectionProps> = ({ clubId, 
               Retry
             </button>
           </span>
-        ) : label ? (
-          <span>{label}</span>
+        ) : hasNumbers ? (
+          <span className="text-muted-foreground">AKC, UKC and ASCA</span>
         ) : (
           <span className="text-muted-foreground">None yet</span>
         )}
       </div>
-      {canEdit && (
-        <>
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            onClick={() => setOpen(true)}
-          >
-            Edit
-          </Button>
-          <ClubNumbersDialog open={open} onOpenChange={setOpen} clubId={clubId} />
-        </>
-      )}
+      <Button type="button" variant="outline" className="min-h-11" onClick={() => setOpen(true)}>
+        Edit
+      </Button>
+      <ClubNumbersDialog open={open} onOpenChange={setOpen} clubId={clubId} />
     </section>
   );
 };

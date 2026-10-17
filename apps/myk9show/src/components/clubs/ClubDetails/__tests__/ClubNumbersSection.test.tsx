@@ -42,18 +42,26 @@ describe('ClubNumbersSection', () => {
     mocks.save.mockResolvedValue(undefined);
   });
 
-  it('shows the numbers read-only', async () => {
+  it('does not repeat the numbers the header already shows', async () => {
     mocks.get.mockResolvedValue({ UKC: 'U-9', AKC: '4521' });
     render(<ClubNumbersSection clubId="club-1" canEdit />);
 
-    expect(await screen.findByText('AKC #4521 · UKC #U-9')).toBeInTheDocument();
+    expect(await screen.findByText('AKC, UKC and ASCA')).toBeInTheDocument();
+    expect(screen.queryByText('AKC #4521 · UKC #U-9')).not.toBeInTheDocument();
     expect(mocks.get).toHaveBeenCalledWith('club-1');
   });
 
-  it('hides the Edit button without edit permission', async () => {
-    render(<ClubNumbersSection clubId="club-1" canEdit={false} />);
+  it('says "None yet" to an editor when the club has no numbers', async () => {
+    mocks.get.mockResolvedValue({});
+    render(<ClubNumbersSection clubId="club-1" canEdit />);
 
-    expect(await screen.findByText('AKC #4521')).toBeInTheDocument();
+    expect(await screen.findByText('None yet')).toBeInTheDocument();
+  });
+
+  it('renders nothing without edit permission (the header shows the numbers)', () => {
+    const { container } = render(<ClubNumbersSection clubId="club-1" canEdit={false} />);
+
+    expect(container).toBeEmptyDOMElement();
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
   });
 

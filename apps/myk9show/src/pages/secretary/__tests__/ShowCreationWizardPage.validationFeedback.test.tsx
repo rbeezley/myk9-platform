@@ -186,6 +186,21 @@ describe('ShowCreationWizardPage — Step 1 Next-button feedback', () => {
       expect(getRegion()).toBe(region);
     });
 
+    it('stays silent when a step changes from inside a step, not through Next or Back', async () => {
+      const { user } = render(<ShowCreationWizardPage />);
+      const region = getRegion();
+      await user.click(screen.getByRole('button', { name: /next/i }));
+      await waitFor(() => expect(region).toHaveTextContent('Please enter a show name'));
+
+      // A review-step Edit link (and anything else) moves the store's step directly. Step 2 has
+      // issues of its own, so only the step tag keeps step 1's sentence from showing there.
+      await act(async () => {
+        useWizardStore.getState().setCurrentStep(1);
+      });
+      expect(region).toHaveTextContent('');
+      expect(getRegion()).toBe(region);
+    });
+
     it('never shows stale text once the banner empties', async () => {
       const { user } = render(<ShowCreationWizardPage />);
       const region = getRegion();

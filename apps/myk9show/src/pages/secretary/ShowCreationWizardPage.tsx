@@ -75,7 +75,8 @@ const ShowCreationWizardPageContent: React.FC = () => {
   const [validationExpanded, setValidationExpanded] = useState(false);
   const [hasAttemptedNext, setHasAttemptedNext] = useState(false);
   // Text of the page's one live region: set only by a failed Next, cleared on any step change.
-  const [failedNextText, setFailedNextText] = useState('');
+  // Tagged with its step so a step change from inside a step (store goToStep) never speaks it.
+  const [failedNext, setFailedNext] = useState<{ step: number; text: string } | null>(null);
   const [createdShow, setCreatedShow] = useState<CreatedShow | null>(null);
   const stepContentRef = useRef<HTMLDivElement>(null);
   const stepsRef = useRef<HTMLDivElement>(null);
@@ -300,7 +301,7 @@ const ShowCreationWizardPageContent: React.FC = () => {
     if (cloneHydration.status === 'hydrating') return;
     const previous = getPreviousAllowedStep(modeAllowedSteps, currentStep);
     if (previous !== null) {
-      setFailedNextText('');
+      setFailedNext(null);
       setCurrentStep(previous);
     } else {
       handleClose();
@@ -309,7 +310,7 @@ const ShowCreationWizardPageContent: React.FC = () => {
 
   const handleStepClick = useCallback(
     (step: number) => {
-      setFailedNextText('');
+      setFailedNext(null);
       goToStep(step);
     },
     [goToStep]
@@ -334,12 +335,12 @@ const ShowCreationWizardPageContent: React.FC = () => {
       // stays enabled (see canGoNext) so this click actually fires instead of the button
       // sitting disabled with no explanation.
       setValidationExpanded(true);
-      setFailedNextText(failedNextAnnouncement(issues));
+      setFailedNext({ step: currentStep, text: failedNextAnnouncement(issues) });
       revealFailedNext(issues.flatMap(issue => (issue.field === null ? [] : [issue.field])));
       return;
     }
 
-    setFailedNextText('');
+    setFailedNext(null);
     setIsLoading(true);
 
     try {
@@ -484,7 +485,9 @@ const ShowCreationWizardPageContent: React.FC = () => {
                 Field callouts carry no live role, and focus reaches the first invalid control
                 before its description mounts, so this is what a screen reader hears. */}
             <p role="status" data-testid="wizard-failed-next-status" className="sr-only">
-              {validationIssues.length > 0 ? failedNextText : ''}
+              {validationIssues.length > 0 && failedNext?.step === currentStep
+                ? failedNext.text
+                : ''}
             </p>
             {hasAttemptedNext && bannerMessages.length > 0 && (
               <div ref={validationBannerRef} className={WIZARD_SCROLL_MARGIN_CLASS}>

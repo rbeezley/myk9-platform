@@ -37,9 +37,14 @@ export const ClubNumbersSection: React.FC<ClubNumbersSectionProps> = ({ clubId, 
         ) : isError ? (
           <span className="text-muted-foreground">
             Couldn&apos;t load.{' '}
-            <button type="button" className="underline" onClick={() => void refetch()}>
+            <Button
+              type="button"
+              variant="outline"
+              className="ml-1 min-h-11 min-w-11"
+              onClick={() => void refetch()}
+            >
               Retry
-            </button>
+            </Button>
           </span>
         ) : hasNumbers ? (
           <span className="text-muted-foreground">AKC, UKC and ASCA</span>

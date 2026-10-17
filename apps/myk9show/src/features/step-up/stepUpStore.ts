@@ -10,6 +10,7 @@
  * waits on the same answer.
  */
 import { create } from 'zustand';
+import { tokenSubject } from './stepUpToken';
 
 export interface StepUpAccount {
   userId: string;
@@ -28,6 +29,8 @@ interface StepUpState {
   /** The session token the client holds now, if it already re-authenticated (see stepUpToken). */
   loadFreshToken: ((refusedToken: string | null) => Promise<string | null>) | null;
   pending: Promise<string | null> | null;
+  /** The account (`sub`) the pending prompt is for; a prompt is never shared across accounts. */
+  pendingSubject: string | null;
   resolve: ((accessToken: string | null) => void) | null;
 }
 
@@ -37,6 +40,7 @@ const initialState: StepUpState = {
   loadAccount: null,
   loadFreshToken: null,
   pending: null,
+  pendingSubject: null,
   resolve: null,
 };
 
@@ -65,8 +69,12 @@ export function registerStepUpHost(
  * first, or the emailed link was used in another tab), that answers without a second prompt.
  */
 export async function requestStepUp(refusedToken: string | null = null): Promise<string | null> {
+  // Bound to the account whose request was refused: if another tab has since switched
+  // accounts, confirming as someone else must never replay this request (Codex round 2).
+  const subject = tokenSubject(refusedToken);
+  if (!subject) return null;
   const before = useStepUpStore.getState();
-  if (before.pending) return before.pending;
+  if (before.pending) return before.pendingSubject === subject ? before.pending : null;
   if (!before.loadAccount) return null;
 
   const held = await (before.loadFreshToken?.(refusedToken) ?? Promise.resolve(null)).catch(
@@ -74,21 +82,23 @@ export async function requestStepUp(refusedToken: string | null = null): Promise
   );
   if (held) return held;
 
-  const { pending, loadAccount } = useStepUpStore.getState();
-  if (pending) return pending;
+  const { pending, pendingSubject, loadAccount } = useStepUpStore.getState();
+  if (pending) return pendingSubject === subject ? pending : null;
   if (!loadAccount) return null;
 
   let resolve: (accessToken: string | null) => void = () => {};
   const next = new Promise<string | null>(r => {
     resolve = r;
   });
-  useStepUpStore.setState({ pending: next, resolve });
+  useStepUpStore.setState({ pending: next, pendingSubject: subject, resolve });
 
   loadAccount()
     .then(account => {
       if (useStepUpStore.getState().pending !== next) return;
-      if (account) useStepUpStore.setState(state => ({ account, promptId: state.promptId + 1 }));
-      else settleStepUp(null);
+      // The signed-in account is no longer the one that was refused: cancel, never prompt.
+      if (account?.userId === subject) {
+        useStepUpStore.setState(state => ({ account, promptId: state.promptId + 1 }));
+      } else settleStepUp(null);
     })
     .catch(() => settleStepUp(null));
 
@@ -98,7 +108,7 @@ export async function requestStepUp(refusedToken: string | null = null): Promise
 /** Close the prompt and answer everyone waiting on it. */
 export function settleStepUp(accessToken: string | null): void {
   const { resolve } = useStepUpStore.getState();
-  useStepUpStore.setState({ account: null, pending: null, resolve: null });
+  useStepUpStore.setState({ account: null, pending: null, pendingSubject: null, resolve: null });
   resolve?.(accessToken);
 }
 

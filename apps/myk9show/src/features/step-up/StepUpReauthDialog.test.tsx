@@ -71,7 +71,7 @@ async function openPrompt(provider: 'email' | 'google') {
   signedInAs(provider);
   let answer!: Promise<string | null>;
   act(() => {
-    answer = requestStepUp();
+    answer = requestStepUp(testJwt(USER_ID, 14 * 86_400, 'refused'));
   });
   // Wrapped: returning the bare promise from an async function would make `await` wait for
   // the person's answer instead of for the prompt.

@@ -12,6 +12,8 @@
  * Refunds and role changes are online-only, so a request that is replayed was never queued
  * offline. Ringside and scoring endpoints cannot return either refusal.
  */
+import { tokenSubject } from './stepUpToken';
+
 export const STEP_UP_SQLSTATE = 'MKAUT';
 export const STEP_UP_REQUIRED_CODE = 'step_up_required';
 
@@ -53,8 +55,10 @@ export function createStepUpFetch(
     const refusedToken =
       new Headers(init?.headers).get('Authorization')?.replace(/^Bearer\s+/i, '') ?? null;
     const accessToken = await requestStepUp(refusedToken);
-    // Cancelled: hand back the refusal, whose message reads "Confirm your password to continue."
-    if (!accessToken) return response;
+    // Cancelled, or answered for a different account than the refused one: hand back the
+    // refusal (the UI already maps it). A request is never replayed under another account.
+    const subject = tokenSubject(refusedToken);
+    if (!accessToken || !subject || tokenSubject(accessToken) !== subject) return response;
 
     const headers = new Headers(init?.headers);
     headers.set('Authorization', `Bearer ${accessToken}`);

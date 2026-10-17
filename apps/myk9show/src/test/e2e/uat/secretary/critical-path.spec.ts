@@ -75,7 +75,9 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await expect(page.getByText(/\d+ items? remaining/i)).toBeVisible();
 
     await page.getByRole('button', { name: /^Next$/ }).click();
-    await expect(page.getByRole('alert')).toContainText(/\d+ items? needs? attention/i);
+    await expect(
+      page.getByRole('status').filter({ hasText: /\d+ items? needs? attention/i })
+    ).toContainText(/\d+ items? needs? attention/i);
   });
 
   test('mail-in registration can find a non-owned dog and reach class selection', async ({

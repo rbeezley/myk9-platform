@@ -57,11 +57,7 @@ import {
 } from './ShowCreationWizard/wizardScrollChrome';
 import { FieldErrorsProvider, useFieldErrorRegistry } from '@/components/forms';
 import { useFailedNextFeedback } from './ShowCreationWizard/useFailedNextFeedback';
-import {
-  FailedNextAnnouncement,
-  summarizeFailedNext,
-  type FailedNextSummary,
-} from './ShowCreationWizard/FailedNextAnnouncement';
+import { failedNextAnnouncement } from './ShowCreationWizard/failedNextAnnouncement';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
 import { isShowListingLive } from '@/features/show-workbench/publishReadiness';
 
@@ -78,7 +74,8 @@ const ShowCreationWizardPageContent: React.FC = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [validationExpanded, setValidationExpanded] = useState(false);
   const [hasAttemptedNext, setHasAttemptedNext] = useState(false);
-  const [failedNext, setFailedNext] = useState<FailedNextSummary | null>(null);
+  // Text of the page's one live region: set only by a failed Next, cleared on any step change.
+  const [failedNextText, setFailedNextText] = useState('');
   const [createdShow, setCreatedShow] = useState<CreatedShow | null>(null);
   const stepContentRef = useRef<HTMLDivElement>(null);
   const stepsRef = useRef<HTMLDivElement>(null);
@@ -303,11 +300,20 @@ const ShowCreationWizardPageContent: React.FC = () => {
     if (cloneHydration.status === 'hydrating') return;
     const previous = getPreviousAllowedStep(modeAllowedSteps, currentStep);
     if (previous !== null) {
+      setFailedNextText('');
       setCurrentStep(previous);
     } else {
       handleClose();
     }
   }, [cloneHydration.status, currentStep, modeAllowedSteps, setCurrentStep, handleClose]);
+
+  const handleStepClick = useCallback(
+    (step: number) => {
+      setFailedNextText('');
+      goToStep(step);
+    },
+    [goToStep]
+  );
 
   const handleNext = useCallback(async () => {
     if (cloneHydration.status === 'hydrating') return;
@@ -328,16 +334,12 @@ const ShowCreationWizardPageContent: React.FC = () => {
       // stays enabled (see canGoNext) so this click actually fires instead of the button
       // sitting disabled with no explanation.
       setValidationExpanded(true);
-      setFailedNext(prev =>
-        summarizeFailedNext(
-          (prev?.attempt ?? 0) + 1,
-          issues.map(issue => issue.message)
-        )
-      );
+      setFailedNextText(failedNextAnnouncement(issues));
       revealFailedNext(issues.flatMap(issue => (issue.field === null ? [] : [issue.field])));
       return;
     }
 
+    setFailedNextText('');
     setIsLoading(true);
 
     try {
@@ -449,7 +451,7 @@ const ShowCreationWizardPageContent: React.FC = () => {
               steps={WIZARD_STEPS}
               currentStep={currentStep}
               completedSteps={completedSteps}
-              {...(modeAllowedSteps === null ? { onStepClick: goToStep } : {})}
+              {...(modeAllowedSteps === null ? { onStepClick: handleStepClick } : {})}
             />
           </div>
 
@@ -478,10 +480,12 @@ const ShowCreationWizardPageContent: React.FC = () => {
 
             {/* Collapsible Validation Banner — only shown after user clicks Next.
                 Wrapped so handleNext can scroll it into view on a failed attempt. */}
-            {/* The banner is itself an alert; when it is absent, one hidden alert speaks. */}
-            {hasAttemptedNext && bannerMessages.length === 0 && failedNext && (
-              <FailedNextAnnouncement key={failedNext.attempt} summary={failedNext} />
-            )}
+            {/* One persistent live region, always mounted and changed only by a failed Next.
+                Field callouts carry no live role, and focus reaches the first invalid control
+                before its description mounts, so this is what a screen reader hears. */}
+            <p role="status" data-testid="wizard-failed-next-status" className="sr-only">
+              {validationIssues.length > 0 ? failedNextText : ''}
+            </p>
             {hasAttemptedNext && bannerMessages.length > 0 && (
               <div ref={validationBannerRef} className={WIZARD_SCROLL_MARGIN_CLASS}>
                 <WizardValidationBanner

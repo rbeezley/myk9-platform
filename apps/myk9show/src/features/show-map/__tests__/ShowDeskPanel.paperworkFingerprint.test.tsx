@@ -28,6 +28,8 @@ const mocks = vi.hoisted(() => ({
   getByShow: vi.fn(),
   confirmPrinted: vi.fn(),
   classListeners: new Set<() => void>(),
+  // The rows the print panel's preview reads; the record is fingerprinted from these (MYK9-1244).
+  reportRows: { classes: [] as unknown[], entries: [] as unknown[] },
 }));
 
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -89,8 +91,8 @@ vi.mock('@/hooks/queries/useReportData', () => ({
   useReportData: () => ({
     show: { id: 'show-1' },
     trials: [],
-    classes: [],
-    entries: [],
+    classes: mocks.reportRows.classes,
+    entries: mocks.reportRows.entries,
     catalogProfilesReadComplete: true,
     dataState: 'ready',
     isLoading: false,
@@ -172,6 +174,8 @@ const overviewClassProps = [
     judgeName: 'Judge Judy',
   },
 ];
+
+mocks.reportRows = { classes: reportsClassRows, entries };
 
 const scope = {
   kind: 'class' as const,

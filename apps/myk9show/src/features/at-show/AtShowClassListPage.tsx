@@ -32,6 +32,8 @@ import { AtShowClassRow } from './AtShowClassRow';
 import { AtShowClassListSkeleton } from './AtShowClassListSkeleton';
 import { WIDE_COLUMN } from './atShowClassListLayout';
 import { formatAtShowTrialHeading } from './atShowTrialHeading';
+import { useNow } from '@/hooks/useNow';
+import { orderRingClassesByDay } from './orderRingClassesByDay';
 
 /** The scopes the picker's own rows come from. */
 const CLASS_DATA_TABLES = ['shows', 'trials', 'classes'] as const;
@@ -126,30 +128,37 @@ export const AtShowClassListPage: React.FC = () => {
     [assignedClassIds, groups, scopeToAssignedClasses, organization]
   );
 
+  // Minute clock so the Today/past split follows a midnight rollover (MYK9-1224).
+  const nowMs = useNow(60_000);
+
   // Filter before A/B grouping so a judge assigned to only one section never
   // gets an unassigned partner pulled into the pinned section.
   const yourRingClasses = useMemo(
     () =>
-      sortClassesForYourRing(
-        groups.flatMap(group => {
-          const assignedClasses = group.classes.filter(cls => assignedClassIds.has(cls.id));
-          const scanPriorities = new Map(
-            assignedClasses.map(cls => [cls.id, yourRingScanPriority(cls)])
-          );
+      orderRingClassesByDay(
+        sortClassesForYourRing(
+          groups.flatMap(group => {
+            const assignedClasses = group.classes.filter(cls => assignedClassIds.has(cls.id));
+            const scanPriorities = new Map(
+              assignedClasses.map(cls => [cls.id, yourRingScanPriority(cls)])
+            );
 
-          return groupSectionedClasses(assignedClasses, organization).map(entry => ({
-            entry,
-            scanPriority: Math.min(
-              ...getClassIds(entry).map(
-                classId => scanPriorities.get(classId) ?? yourRingScanPriority(entry)
-              )
-            ),
-            trialTimeZone: getTrialTimezone(group.trial),
-            trialHeading: formatAtShowTrialHeading(group.trial),
-          }));
-        })
+            return groupSectionedClasses(assignedClasses, organization).map(entry => ({
+              entry,
+              scanPriority: Math.min(
+                ...getClassIds(entry).map(
+                  classId => scanPriorities.get(classId) ?? yourRingScanPriority(entry)
+                )
+              ),
+              trialTimeZone: getTrialTimezone(group.trial),
+              trialHeading: formatAtShowTrialHeading(group.trial),
+              trialDate: group.trial.date ?? group.trial.trial_date ?? undefined,
+            }));
+          })
+        ),
+        nowMs
       ),
-    [assignedClassIds, groups, organization]
+    [assignedClassIds, groups, organization, nowMs]
   );
 
   // Exhibitor show day starts from owned entries, not ringside class
@@ -477,7 +486,7 @@ export const AtShowClassListPage: React.FC = () => {
             </span>
           </div>
           <ul className="space-y-2">
-            {yourRingClasses.map(({ entry, trialTimeZone, trialHeading }) => (
+            {yourRingClasses.map(({ entry, trialTimeZone, trialHeading, dayBucket, isToday }) => (
               <AtShowClassRow
                 key={entry.id}
                 entry={entry}
@@ -485,6 +494,8 @@ export const AtShowClassListPage: React.FC = () => {
                 onClick={handleClassClick}
                 trialTimeZone={trialTimeZone}
                 trialHeading={trialHeading}
+                dayBucket={dayBucket}
+                isToday={isToday}
                 nextUp={selectNextUpForCard(getClassIds(entry), nextUpByClassId)}
                 entryCountsAvailable={hasTrustedEntryCount(entry)}
               />

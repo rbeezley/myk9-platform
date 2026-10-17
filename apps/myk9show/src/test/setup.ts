@@ -13,6 +13,7 @@ import { ReplicatedTable } from '@myk9/replication';
 // QueryClients tests construct as well as for the app's singleton. Without
 // this a new unscoped exhibitor key would ship green (MYK9-429).
 import '@/lib/viewerScopeGuard';
+import { resetHonouredAnchorForTests } from '@/features/show-map/cockpit/cockpitAnchorHonoured';
 import {
   IDBFactory as FDBFactory,
   IDBDatabase as FDBDatabase,
@@ -156,6 +157,9 @@ beforeEach(() => {
   // Snap every Zustand store back to its initial state so a store populated by
   // a prior test can't leak rows/flags into the next under shuffled order.
   resetAllStores();
+  // Module-level 'anchor already scrolled' record (MYK9-1218) must not leak between tests.
+  resetHonouredAnchorForTests();
+  if (hasDom) installDefaultMatchMedia();
   // Reset Supabase mock to defaults
   resetMockSupabase();
 });
@@ -191,6 +195,26 @@ const localStorageMock = {
 // browser-shaped stubs below have to be skipped rather than throw on `window`.
 const hasDom = typeof window !== 'undefined';
 
+// Mock window.matchMedia (nothing matches: the narrow, no-hover baseline). Tests that need a
+// width call mockViewportWidth(), which replaces this; the beforeEach below puts it back so
+// a wide viewport set by one test cannot leak into the next under shuffled order.
+function installDefaultMatchMedia(): void {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: vi.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(), // deprecated
+      removeListener: vi.fn(), // deprecated
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
 if (hasDom) {
   Object.defineProperty(window, 'localStorage', {
     value: localStorageMock,
@@ -207,20 +231,7 @@ if (hasDom) {
     writable: true,
   });
 
-  // Mock window.matchMedia
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    value: vi.fn().mockImplementation(query => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(), // deprecated
-      removeListener: vi.fn(), // deprecated
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
+  installDefaultMatchMedia();
 }
 
 // Mock IntersectionObserver — use a regular function (not arrow) so framer-motion can call it with `new`

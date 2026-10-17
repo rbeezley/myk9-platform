@@ -202,7 +202,11 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
     await expect(tablist(page)).toHaveCount(0);
     // Narrow screens keep the page hop: the club replaces the list.
     await expect(page.getByRole('region', { name: 'Clubs list' })).toHaveCount(0);
-    // No sideways-scroll check here yet: a show card's Actions button overflows (MYK9-1239).
+    // The show card's 44px Actions button must stay inside the card, not push the page sideways.
+    await expect(page.getByRole('button', { name: /^Actions for / }).first()).toBeVisible({
+      timeout: 20_000,
+    });
+    await expectNoSidewaysScroll(page);
   });
 
   test('a judge browses Shows and their own dogs, and never People or Clubs', async ({ page }) => {

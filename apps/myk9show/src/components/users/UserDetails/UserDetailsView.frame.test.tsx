@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createTestQueryClient, render } from '@/test/utils/testUtils';
 import type { User } from '@/types/user-types';
+import { EmbeddedDetailProvider } from '@/components/layout/embeddedDetail';
 import UserDetailsView from './UserDetailsView';
 
 /**
@@ -111,6 +112,32 @@ describe('Person detail page frame (MYK9-930)', () => {
       'href',
       '/admin/users?status=active'
     );
+  });
+
+  describe('Close beside the People list', () => {
+    const renderBeside = (route: string) =>
+      renderBare(
+        <Providers>
+          <MemoryRouter initialEntries={[route]}>
+            <EmbeddedDetailProvider value>
+              <UserDetailsView person={person} />
+            </EmbeddedDetailProvider>
+          </MemoryRouter>
+        </Providers>
+      );
+
+    it('returns to the list with its filters, and nothing else from the URL', () => {
+      renderBeside('/people/person-1?role=judge&returnTo=x&add=true');
+      expect(screen.getByRole('link', { name: 'Close person' })).toHaveAttribute(
+        'href',
+        '/people?role=judge'
+      );
+    });
+
+    it('is a bare /people when no filter is set', () => {
+      renderBeside('/people/person-1?returnTo=x');
+      expect(screen.getByRole('link', { name: 'Close person' })).toHaveAttribute('href', '/people');
+    });
   });
 
   it('has exactly one h1, the hero name', () => {

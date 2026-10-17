@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
 import { SecretaryCockpit } from '../SecretaryCockpit';
+import { resetHonouredAnchorForTests } from '../cockpitAnchorHonoured';
 import { COCKPIT_SPLIT_COLUMNS, COCKPIT_SPLIT_MIN_WIDTH } from '../cockpitSplit';
 import type { SecretaryCockpitSnapshot } from '../secretaryCockpitTypes';
 
@@ -54,6 +55,7 @@ const snapshot: SecretaryCockpitSnapshot = {
 describe('the class editor survives the split/stack switch', () => {
   beforeEach(() => {
     cockpit.width = 700;
+    resetHonouredAnchorForTests();
   });
 
   it('stays open when the cockpit widens past its split width', async () => {

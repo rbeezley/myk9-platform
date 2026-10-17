@@ -50,6 +50,22 @@ describe('ClassEntryRow', () => {
     expect(screen.getByText('Q')).toBeInTheDocument();
   });
 
+  it('shows 61230ms as 1:01.23 and carries 59999ms to 1:00.00 (MYK9-1225)', () => {
+    const scored = (time: number) =>
+      makeEntry({
+        isScored: true,
+        status: 'scored',
+        result: { time, faults: 0, qualification: 'Qualified' },
+      });
+    const { unmount } = render(
+      <ClassEntryRow entry={scored(61230)} isActive={false} onClick={vi.fn()} />
+    );
+    expect(screen.getByText(/1:01\.23/)).toBeInTheDocument();
+    unmount();
+    render(<ClassEntryRow entry={scored(59999)} isActive={false} onClick={vi.fn()} />);
+    expect(screen.getByText(/1:00\.00/)).toBeInTheDocument();
+  });
+
   it('shows NQ badge for not-qualified scored entry', () => {
     const entry = makeEntry({
       isScored: true,

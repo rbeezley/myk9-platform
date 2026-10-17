@@ -211,6 +211,56 @@ describe('AtShowClassListPage Your ring', () => {
     expect(within(yourRing).getByText(/Oct 7, 2026/)).toBeInTheDocument();
   });
 
+  it("leads Your ring with today's card, labels it Today, and sinks past days (MYK9-1224)", async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-16T15:00:00Z'));
+    try {
+      authState.hasRole = role => role === UserRole.JUDGE;
+      authState.userWithRoles = { databaseUserId: 'judge-1' } as UserWithRoles;
+      authState.user = { is_anonymous: false };
+      const dates = ['2026-10-14', '2026-10-16', '2026-10-17'];
+      vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue(
+        dates.map((date, i) => ({
+          id: `trial-${i + 1}`,
+          trialNumber: i + 1,
+          date,
+          timezone: 'America/New_York',
+        })) as never
+      );
+      vi.mocked(replicatedClassesTable.getClassesByTrial).mockImplementation((async (
+        trialId: string
+      ) => [{ ...NOVICE_A, id: `${trialId}-a`, section: '-' }]) as never);
+      judgeAssignmentData.getActive.mockResolvedValue(
+        dates.map((_, i) => ({
+          id: `as-${i}`,
+          personId: 'judge-1',
+          classId: `trial-${i + 1}-a`,
+          status: 'confirmed',
+        })) as never
+      );
+
+      renderPage();
+
+      const yourRing = await screen.findByRole('region', { name: 'Your ring' });
+      const items = await waitFor(() => {
+        const found = yourRing.querySelectorAll('li');
+        expect(found).toHaveLength(3);
+        return found;
+      });
+      expect(Array.from(items).map(li => li.textContent)).toEqual([
+        expect.stringContaining('Oct 16'),
+        expect.stringContaining('Oct 17'),
+        expect.stringContaining('Oct 14'),
+      ]);
+      expect(within(yourRing).getAllByText('Today')).toHaveLength(1);
+      expect(items[0]).toHaveAttribute('data-day-bucket', 'today');
+      expect(items[0]).toHaveTextContent('Today');
+      expect(items[2]).toHaveAttribute('data-day-bucket', 'past');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('keeps trial sections for broader staff who also judge', async () => {
     authState.hasRole = role => role === UserRole.JUDGE || role === UserRole.SECRETARY;
     authState.userWithRoles = { databaseUserId: 'judge-secretary-1' } as UserWithRoles;

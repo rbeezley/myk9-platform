@@ -12,6 +12,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { formatMsAsMSSCC } from '@myk9/core';
 import type { StopwatchOptions, StopwatchReturn } from '../types';
 
 /**
@@ -103,10 +104,8 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
    * Format milliseconds as "M:SS.ss"
    */
   const formatTime = (milliseconds: number): string => {
-    const totalSeconds = milliseconds / 1000;
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = (totalSeconds % 60).toFixed(2);
-    return `${minutes}:${seconds.padStart(5, '0')}`;
+    // Live clock: floor, so it never reads ahead of the real time.
+    return formatMsAsMSSCC(milliseconds, 'floor');
   };
 
   /**
@@ -133,11 +132,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
 
     // Calculate remaining time
     const remainingMs = getRemainingTimeMs();
-    const remainingSeconds = remainingMs / 1000;
-    const mins = Math.floor(remainingSeconds / 60);
-    const secs = (remainingSeconds % 60).toFixed(2);
-
-    return `${mins}:${secs.padStart(5, '0')}`;
+    return formatMsAsMSSCC(remainingMs, 'floor');
   };
 
   /**

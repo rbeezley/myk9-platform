@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import type { ScoringEntry } from '../types';
+import { formatMsAsMSSCC } from '@/lib/format/searchTime';
 
 const RESULT_BADGE: Record<string, { label: string; className: string }> = {
   Qualified: { label: 'Q', className: 'bg-teal-100 text-teal-700' },
@@ -23,11 +24,7 @@ interface ClassEntryRowProps {
 
 function formatTime(milliseconds: number): string {
   if (milliseconds <= 0) return 'Time missing';
-  const totalSeconds = milliseconds / 1000;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = Math.floor(totalSeconds % 60);
-  const hundredths = Math.round((totalSeconds % 1) * 100);
-  return `${minutes}:${String(seconds).padStart(2, '0')}.${String(hundredths).padStart(2, '0')}`;
+  return formatMsAsMSSCC(milliseconds);
 }
 
 function formatFaults(faults: number): string {

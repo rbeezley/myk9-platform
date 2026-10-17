@@ -4,6 +4,8 @@
  * Pure helper functions extracted from the component for reuse and testing.
  */
 
+import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
+
 /** Convert a time string in MM:SS.HH format to milliseconds */
 export function timeStringToMs(timeStr: string): number {
   const match = timeStr.match(/^(\d{1,2}):([0-5]\d)\.(\d{2})$/);
@@ -33,10 +35,7 @@ export function convertTimeToInputFormat(timeStr: string): string {
   // Try to parse as seconds
   const seconds = parseFloat(timeStr);
   if (!isNaN(seconds)) {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    const hundredths = Math.round((seconds % 1) * 100);
-    return `${mins}:${secs.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
+    return formatSecondsAsMSSCC(seconds);
   }
 
   return timeStr;

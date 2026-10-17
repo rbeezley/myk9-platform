@@ -17,7 +17,8 @@ import {
   buildDogViews,
   dogViewFilters,
 } from '@/components/dogs/browse/dogBrowseViews';
-import type { DogFilters } from '@/components/dogs/browse/dogBrowseFilters';
+import { DEFAULT_DOG_FILTERS, type DogFilters } from '@/components/dogs/browse/dogBrowseFilters';
+import { filtersQueryString } from '@/hooks/urlFilters';
 import { BrowseDogsSkeleton } from '@/components/common/SkeletonLoaders';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { Dog as DogType } from '@/types/dog-types';
@@ -320,7 +321,12 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
     // 25-per-page contract (MYK9-218) exists for the table's and the cards' mount cost.
     if (splitOpen) {
       return (
-        <DogsCompactList dogs={filteredDogs} selectedId={selectedId} showOwner={!ownDogsOnly} />
+        <DogsCompactList
+          dogs={filteredDogs}
+          selectedId={selectedId}
+          showOwner={!ownDogsOnly}
+          filterQuery={filtersQueryString(filters, DEFAULT_DOG_FILTERS)}
+        />
       );
     }
 
@@ -354,19 +360,32 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
     }
   };
 
+  const skeleton = (
+    <BrowseDogsSkeleton viewMode={isExhibitorOnly || viewMode === 'cards' ? 'grid' : 'table'} />
+  );
+  const loadError = <ErrorState message="We couldn't load your dogs." onRetry={handleRetry} />;
+  // Beside an open dog, an empty roster that is loading or failed fills the list pane only: the
+  // split stays mounted, so the open dog is never unmounted by, or remounted into, a list that is
+  // still settling.
+  const emptyListStatus =
+    splitCapable && dogs.length === 0
+      ? isLoading || isResolvingIdentity
+        ? skeleton
+        : hasError
+          ? loadError
+          : null
+      : null;
+
   return (
     <PageShell ContentWrapper={BrowseTabs} {...(splitOpen ? { maxWidth: 'max-w-[110rem]' } : {})}>
-      {(isLoading || isResolvingIdentity) && dogs.length === 0 && (
-        <BrowseDogsSkeleton viewMode={isExhibitorOnly || viewMode === 'cards' ? 'grid' : 'table'} />
-      )}
+      {!emptyListStatus && (isLoading || isResolvingIdentity) && dogs.length === 0 && skeleton}
 
       {/* A failed refresh keeps the cached rows (and the open dog beside them) and says so inline;
           the full error state is for when there is nothing to show. */}
-      {hasError && !isLoading && dogs.length === 0 && (
-        <ErrorState message="We couldn't load your dogs." onRetry={handleRetry} />
-      )}
+      {!emptyListStatus && hasError && !isLoading && dogs.length === 0 && loadError}
 
-      {!isLoading && !isResolvingIdentity && !(hasError && dogs.length === 0) && (
+      {(emptyListStatus ||
+        (!isLoading && !isResolvingIdentity && !(hasError && dogs.length === 0))) && (
         <>
           <PageHeader
             breadcrumbs={breadcrumbs}
@@ -375,7 +394,7 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
             showTitle
           />
 
-          {hasError && (
+          {hasError && !emptyListStatus && (
             <div
               role="alert"
               className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm"
@@ -393,45 +412,47 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
             detailLabel="Dog details"
             detail={splitOpen ? detail : null}
             listHeader={
-              <ListToolbarLayout
-                compact={splitOpen}
-                viewTabs={
-                  <ListViewTabs
-                    label="Dog views"
-                    views={dogViews}
-                    activeId={activeViewId}
-                    compact={splitOpen}
-                    onSelect={handleSelectView}
-                  />
-                }
-                filterBar={
-                  <ListFilterBar
-                    searchValue={filters.search}
-                    onSearchChange={handleSearchChange}
-                    searchPlaceholder={searchPlaceholder}
-                    fields={[]}
-                    compact={splitOpen}
-                    {...(splitOpen ? { className: 'min-w-0 flex-1' } : {})}
-                  />
-                }
-                resultLine={
-                  <ListResultLine
-                    shown={filteredDogs.length}
-                    total={dogs.length}
-                    noun={DOG_NOUN}
-                    filtered={hasActiveFilters}
-                    onShowAll={handleClearAllFilters}
-                    showAllInEmptyState={identityResolved && filteredDogs.length === 0}
-                    quietWhenUnfiltered={splitOpen}
-                  >
-                    {!isExhibitorOnly && !splitCapable && (
-                      <ListViewToggle active={viewMode} onChange={setViewMode} />
-                    )}
-                  </ListResultLine>
-                }
-              />
+              emptyListStatus ? undefined : (
+                <ListToolbarLayout
+                  compact={splitOpen}
+                  viewTabs={
+                    <ListViewTabs
+                      label="Dog views"
+                      views={dogViews}
+                      activeId={activeViewId}
+                      compact={splitOpen}
+                      onSelect={handleSelectView}
+                    />
+                  }
+                  filterBar={
+                    <ListFilterBar
+                      searchValue={filters.search}
+                      onSearchChange={handleSearchChange}
+                      searchPlaceholder={searchPlaceholder}
+                      fields={[]}
+                      compact={splitOpen}
+                      {...(splitOpen ? { className: 'min-w-0 flex-1' } : {})}
+                    />
+                  }
+                  resultLine={
+                    <ListResultLine
+                      shown={filteredDogs.length}
+                      total={dogs.length}
+                      noun={DOG_NOUN}
+                      filtered={hasActiveFilters}
+                      onShowAll={handleClearAllFilters}
+                      showAllInEmptyState={identityResolved && filteredDogs.length === 0}
+                      quietWhenUnfiltered={splitOpen}
+                    >
+                      {!isExhibitorOnly && !splitCapable && (
+                        <ListViewToggle active={viewMode} onChange={setViewMode} />
+                      )}
+                    </ListResultLine>
+                  }
+                />
+              )
             }
-            list={renderContent()}
+            list={emptyListStatus ?? renderContent()}
           />
 
           {canBulkManageDogs &&

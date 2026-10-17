@@ -36,25 +36,7 @@ export const formatSearchTimeFromMs = (ms: number): string => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}.00`;
 };
 
-export const convertTimeToInputFormat = (timeStr: string): string => {
-  if (/^\d{1,2}:\d{2}\.\d{2}$/.test(timeStr)) {
-    return timeStr;
-  }
-
-  if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
-    return `${timeStr}.00`;
-  }
-
-  const numericValue = parseFloat(timeStr);
-  if (!isNaN(numericValue)) {
-    const minutes = Math.floor(numericValue / 60);
-    const seconds = Math.floor(numericValue % 60);
-    const hundredths = Math.floor((numericValue % 1) * 100);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
-  }
-
-  return timeStr;
-};
+export { convertTimeToInputFormat } from './bulk-result-entry/helpers';
 
 export const timeStringToMs = (timeStr: string): number => {
   const match = timeStr.match(/^(\d{1,2}):([0-5]\d)\.(\d{2})$/);

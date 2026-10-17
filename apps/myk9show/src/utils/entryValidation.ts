@@ -3,6 +3,8 @@
  * Supports advanced time formats, scoring validation, and comprehensive error handling
  */
 
+import { formatMsAsMSSCC, formatSecondsAsMSSCC } from '@/lib/format/searchTime';
+
 export interface ValidationResult {
   isValid: boolean;
   error?: string;
@@ -42,12 +44,7 @@ export const convertTimeToStandardFormat = (timeStr: string): string => {
   // Seconds only - convert to MM:SS.HH
   const numericValue = parseFloat(trimmed);
   if (!isNaN(numericValue) && numericValue >= 0) {
-    const totalSeconds = Math.floor(numericValue);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    const hundredths = Math.floor((numericValue % 1) * 100);
-
-    return `${minutes}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
+    return formatSecondsAsMSSCC(numericValue);
   }
 
   return trimmed;
@@ -255,11 +252,4 @@ export const timeStringToMs = (timeStr: string): number => {
 /**
  * Format milliseconds back to time string
  */
-export const formatTimeFromMs = (ms: number): string => {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  const hundredths = Math.floor((ms % 1000) / 10);
-
-  return `${minutes}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
-};
+export const formatTimeFromMs = (ms: number): string => formatMsAsMSSCC(ms);

@@ -1,8 +1,12 @@
 import { screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
+
+import { useState } from 'react';
+import { Route, Routes, useNavigate } from 'react-router-dom';
 
 import { render } from '@/test/utils/testUtils';
 import { SecretaryCockpit } from './SecretaryCockpit';
+import { resetHonouredAnchorForTests } from './cockpitAnchorHonoured';
 
 // jsdom has no layout. Unmeasured (null) is the stacked layout; the anchor scroll waits for a
 // measured width, so the test that restores one sets it.
@@ -80,6 +84,9 @@ function twoClassSnapshot(): SecretaryCockpitSnapshot {
 
 describe('SecretaryCockpit class selection (show home overview)', () => {
   const originalScrollIntoView = Element.prototype.scrollIntoView;
+  beforeEach(() => {
+    resetHonouredAnchorForTests();
+  });
   afterEach(() => {
     Element.prototype.scrollIntoView = originalScrollIntoView;
     vi.restoreAllMocks();
@@ -119,6 +126,92 @@ describe('SecretaryCockpit class selection (show home overview)', () => {
 
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
     expect(scrollIntoView.mock.contexts[0]).toHaveAttribute('id', 'cockpit-anchor-class-2');
+  });
+
+  it('does not scroll to its own anchor when the page remounts on the same history entry', () => {
+    cockpitWidth.value = 700;
+    onTestFinished(() => {
+      cockpitWidth.value = null;
+    });
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const cockpit = (
+      <SecretaryCockpit snapshot={twoClassSnapshot()} canManageShow onCommand={vi.fn()} />
+    );
+    const view = render(cockpit, { initialRoute: '/shows/show-1?focus=class-2&anchor=class-2' });
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+    // The window crossing `lg` swaps the split for a bare outlet: unmount, then mount again.
+    view.unmount();
+    render(cockpit, { initialRoute: '/shows/show-1?focus=class-2&anchor=class-2' });
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
+  it('scrolls again when a returnTo link arrives on a new history entry', async () => {
+    cockpitWidth.value = 700;
+    onTestFinished(() => {
+      cockpitWidth.value = null;
+    });
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    function Harness() {
+      const navigate = useNavigate();
+      return (
+        <>
+          <button onClick={() => navigate('/elsewhere')}>Leave</button>
+          <button onClick={() => navigate('/shows/show-1?focus=class-2&anchor=class-2')}>
+            Return
+          </button>
+          <Routes>
+            <Route
+              path="/shows/show-1"
+              element={
+                <SecretaryCockpit snapshot={twoClassSnapshot()} canManageShow onCommand={vi.fn()} />
+              }
+            />
+            <Route path="/elsewhere" element={<p>Elsewhere</p>} />
+          </Routes>
+        </>
+      );
+    }
+    const { user } = render(<Harness />, {
+      initialRoute: '/shows/show-1?focus=class-2&anchor=class-2',
+    });
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('button', { name: 'Leave' }));
+    await user.click(screen.getByRole('button', { name: 'Return' }));
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not scroll after the cockpit rewrote its own URL and then remounted', () => {
+    cockpitWidth.value = 700;
+    onTestFinished(() => {
+      cockpitWidth.value = null;
+    });
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    // No `focus` in the URL: the cockpit writes it back with `replace`, minting a new key.
+    function Remountable() {
+      const [mounted, setMounted] = useState(true);
+      return (
+        <>
+          <button onClick={() => setMounted(m => !m)}>Toggle</button>
+          {mounted && (
+            <SecretaryCockpit snapshot={twoClassSnapshot()} canManageShow onCommand={vi.fn()} />
+          )}
+        </>
+      );
+    }
+    const { user } = render(<Remountable />, { initialRoute: '/shows/show-1?anchor=class-2' });
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+    return user.click(screen.getByRole('button', { name: 'Toggle' })).then(async () => {
+      await user.click(screen.getByRole('button', { name: 'Toggle' }));
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('does not scroll to the default class when the page opens', () => {

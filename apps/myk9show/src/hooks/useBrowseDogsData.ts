@@ -9,16 +9,10 @@ import {
   filterDogs,
   hasActiveDogFilters,
   type DogFilters,
+  ALLOWED_DOG_FILTER_VALUES,
 } from '@/components/dogs/browse/dogBrowseFilters';
 
 export type { DogFilters };
-
-// WARNING: a value missing from this list is ERASED, not ignored — the param is
-// stripped and the filter falls back to its default. Adding a chip option
-// without adding it here does not degrade the deep link, it DESTROYS it.
-const ALLOWED_FILTER_VALUES = {
-  status: ['active', 'retired', 'deceased'],
-} as const;
 
 export interface BrowseDogsData {
   dogs: Dog[];
@@ -44,7 +38,7 @@ export function useBrowseDogsData(): BrowseDogsData {
   // URL-backed so a refresh, back-navigation, or shared link keeps the same
   // result set (MYK9-221). Same [values, setValues] contract as useState.
   const [filters, setFilters] = useUrlFilters<DogFilters>(DEFAULT_DOG_FILTERS, {
-    allowedValues: ALLOWED_FILTER_VALUES,
+    allowedValues: ALLOWED_DOG_FILTER_VALUES,
   });
 
   // Sorted once per data change, NOT per keystroke. The sort does not depend on

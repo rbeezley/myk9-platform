@@ -2,7 +2,7 @@ import { ListChecks } from 'lucide-react';
 import { formatTrialLabel } from '@myk9/core';
 import { Card } from '@/components/ui/card';
 import { formatMonthDay } from '@/lib/format/dates';
-import { msToDisplay } from '@/lib/timeUtils';
+import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
 import type { ClassBreakdownEntry } from './analytics-utils';
 
 interface ClassBreakdownTableProps {
@@ -11,7 +11,7 @@ interface ClassBreakdownTableProps {
 
 function formatTime(seconds: number | null): string {
   if (seconds == null) return '\u2014';
-  return msToDisplay(seconds * 1000, 'hundredths');
+  return formatSecondsAsMSSCC(seconds);
 }
 
 export function ClassBreakdownTable({ classes }: ClassBreakdownTableProps) {

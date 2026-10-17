@@ -86,4 +86,16 @@ describe('fetchOwnRoleNames', () => {
       'HTTP 403'
     );
   });
+  it('treats an exhibitor grant on the judge fixture as drift (seed 10g)', () => {
+    const verdict = compareFixtureRoles('judge@x', FIXTURE_ROLE_RULES.judge, [
+      'judge',
+      'exhibitor',
+    ]);
+    expect(verdict).toEqual({
+      ok: false,
+      message: expect.stringContaining(
+        'E2E fixture account drifted: judge@x has forbidden [exhibitor]'
+      ),
+    });
+  });
 });

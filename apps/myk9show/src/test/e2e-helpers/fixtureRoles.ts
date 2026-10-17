@@ -29,7 +29,9 @@ export const FIXTURE_ROLE_RULES: Record<AuthPreflightRole, FixtureRoleRule> = {
   admin: { required: ['site_admin'], forbidden: [] },
   judge: {
     required: ['judge'],
-    forbidden: ['secretary', 'club_admin', 'site_admin', 'steward', 'chairman'],
+    // seed-demo.sql 10g removes the judge's exhibitor grant: an extra role lets an
+    // authorization check pass through the wrong branch (MYK9-141).
+    forbidden: ['exhibitor', 'secretary', 'club_admin', 'site_admin', 'steward', 'chairman'],
   },
 };
 

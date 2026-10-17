@@ -10,12 +10,12 @@ ways that look like product bugs: the account skips onboarding and gets the staf
 Resolved through `apps/myk9show/src/test/e2e/helpers/testUsers.ts` and
 `src/test/e2e-helpers/e2eAuthPreflight.ts`. Passwords come from the `E2E_*` GitHub secrets.
 
-| Preflight role | Default address       | Must hold              | Must NOT hold                                                           |
-| -------------- | --------------------- | ---------------------- | ----------------------------------------------------------------------- |
-| `exhibitor`    | `exhibitor@myk9t.com` | `exhibitor`            | `secretary`, `club_admin`, `steward`, `judge`, `site_admin`, `chairman` |
-| `secretary`    | `secretary@myk9t.com` | `secretary`, `steward` | `site_admin`, `judge`                                                   |
-| `admin`        | `testadmin@myk9t.com` | `site_admin`           | (nothing)                                                               |
-| `judge`        | `judge@myk9t.com`     | `judge`                | `secretary`, `club_admin`, `site_admin`, `steward`, `chairman`          |
+| Preflight role | Default address       | Must hold              | Must NOT hold                                                               |
+| -------------- | --------------------- | ---------------------- | --------------------------------------------------------------------------- |
+| `exhibitor`    | `exhibitor@myk9t.com` | `exhibitor`            | `secretary`, `club_admin`, `steward`, `judge`, `site_admin`, `chairman`     |
+| `secretary`    | `secretary@myk9t.com` | `secretary`, `steward` | `site_admin`, `judge`                                                       |
+| `admin`        | `testadmin@myk9t.com` | `site_admin`           | (nothing)                                                                   |
+| `judge`        | `judge@myk9t.com`     | `judge`                | `exhibitor`, `secretary`, `club_admin`, `site_admin`, `steward`, `chairman` |
 
 Any other role is tolerated: staging accrues harmless grants through normal use (for example
 `club_admin` on clubs the secretary account created). The rules live in

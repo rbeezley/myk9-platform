@@ -10,8 +10,10 @@
  * leaves the session's `amr` untouched, so the server could never see it.
  */
 import type { Session } from '@supabase/supabase-js';
+import { isCaptchaFailure } from '@/config/turnstile';
 import { supabase } from '@/services/database/supabaseClient';
 import type { StepUpAccount } from './stepUpStore';
+import { reusableFreshToken } from './stepUpToken';
 
 export class StepUpError extends Error {}
 
@@ -21,6 +23,7 @@ const MESSAGES = {
   tooMany: 'Too many tries. Wait a minute, then try again.',
   offline: 'Could not reach myK9Show. Check your connection and try again.',
   otherAccount: 'That signed in a different account. Sign out, then sign in as yourself.',
+  captcha: 'The security check did not finish. Wait a moment, then try again.',
   generic: 'Something went wrong. Please try again.',
 } as const;
 
@@ -39,6 +42,12 @@ export async function loadStepUpAccount(): Promise<StepUpAccount | null> {
   return accountFromSession(data.session);
 }
 
+/** The held session's token when it already re-authenticated and differs from the refused one. */
+export async function loadFreshStepUpToken(refusedToken: string | null): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return reusableFreshToken(data.session?.access_token, refusedToken);
+}
+
 interface AuthFailure {
   status?: number | undefined;
   code?: string | undefined;
@@ -46,6 +55,7 @@ interface AuthFailure {
 }
 
 function friendly(error: AuthFailure, wrong: string) {
+  if (isCaptchaFailure(error)) return MESSAGES.captcha;
   if (error.status === 429 || error.code?.startsWith('over_')) return MESSAGES.tooMany;
   if (error.status === 0 || /fetch|network/i.test(error.message ?? '')) return MESSAGES.offline;
   if (error.status === 400 || error.status === 401 || error.status === 403) return wrong;
@@ -61,31 +71,38 @@ function tokenFor(account: StepUpAccount, session: Session | null): string {
 /** Signs the same account in again with its password; returns the new access token. */
 export async function confirmWithPassword(
   account: StepUpAccount,
-  password: string
+  password: string,
+  captchaToken?: string
 ): Promise<string> {
   const { data, error } = await supabase.auth.signInWithPassword({
     email: account.email,
     password,
+    ...(captchaToken ? { options: { captchaToken } } : {}),
   });
   if (error) throw new StepUpError(friendly(error, MESSAGES.wrongPassword));
   return tokenFor(account, data.session);
 }
 
 /** Emails a one-time sign-in code (and link) to the account's own address. */
-export async function sendStepUpCode(account: StepUpAccount): Promise<void> {
+export async function sendStepUpCode(account: StepUpAccount, captchaToken?: string): Promise<void> {
   const { error } = await supabase.auth.signInWithOtp({
     email: account.email,
-    options: { shouldCreateUser: false },
+    options: { shouldCreateUser: false, ...(captchaToken ? { captchaToken } : {}) },
   });
   if (error) throw new StepUpError(friendly(error, MESSAGES.generic));
 }
 
 /** Verifies the emailed code; returns the new access token. */
-export async function confirmWithCode(account: StepUpAccount, code: string): Promise<string> {
+export async function confirmWithCode(
+  account: StepUpAccount,
+  code: string,
+  captchaToken?: string
+): Promise<string> {
   const { data, error } = await supabase.auth.verifyOtp({
     email: account.email,
     token: code.replace(/\s+/g, ''),
     type: 'email',
+    ...(captchaToken ? { options: { captchaToken } } : {}),
   });
   if (error) throw new StepUpError(friendly(error, MESSAGES.wrongCode));
   return tokenFor(account, data.session);

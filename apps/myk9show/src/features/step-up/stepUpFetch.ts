@@ -40,7 +40,7 @@ function urlOf(input: Parameters<Fetch>[0]): string {
 }
 
 export function createStepUpFetch(
-  requestStepUp: () => Promise<string | null>,
+  requestStepUp: (refusedToken: string | null) => Promise<string | null>,
   baseFetch: Fetch = (input, init) => globalThis.fetch(input, init)
 ): Fetch {
   return async (input, init) => {
@@ -50,7 +50,9 @@ export function createStepUpFetch(
     if (isRequestObject || urlOf(input).includes('/auth/v1/')) return response;
     if (!(await isStepUpRefusal(response))) return response;
 
-    const accessToken = await requestStepUp();
+    const refusedToken =
+      new Headers(init?.headers).get('Authorization')?.replace(/^Bearer\s+/i, '') ?? null;
+    const accessToken = await requestStepUp(refusedToken);
     // Cancelled: hand back the refusal, whose message reads "Confirm your password to continue."
     if (!accessToken) return response;
 

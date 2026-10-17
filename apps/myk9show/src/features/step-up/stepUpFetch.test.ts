@@ -7,6 +7,8 @@ import {
   settleStepUp,
   useStepUpStore,
 } from './stepUpStore';
+import { reusableFreshToken } from './stepUpToken';
+import { testJwt } from './stepUpTestTokens';
 
 const REST = 'https://test.supabase.co/rest/v1/rpc/grant_club_secretary';
 const EDGE = 'https://test.supabase.co/functions/v1/stripe-refund-entry';
@@ -130,6 +132,48 @@ describe('createStepUpFetch', () => {
     const results = await batch;
     expect(results.map(r => r.status)).toEqual([200, 200, 200]);
     expect(promptsShown).toBe(1);
+    expect(useStepUpStore.getState().account).toBeNull();
+  });
+});
+
+describe('a refusal that lands after another request already confirmed', () => {
+  beforeEach(() => {
+    resetStepUpStore();
+  });
+
+  it('replays with the confirmed session instead of prompting a second time', async () => {
+    const stale = testJwt('u1', 14 * 86_400, 'stale');
+    const fresh = testJwt('u1', 1, 'fresh');
+    let held = stale;
+    registerStepUpHost(
+      async () => ({ userId: 'u1', email: 'sec@example.com', hasPassword: true }),
+      async refused => reusableFreshToken(held, refused)
+    );
+
+    let releaseSlowRefusal!: () => void;
+    const slowRefusalGate = new Promise<void>(resolve => {
+      releaseSlowRefusal = resolve;
+    });
+    const base = vi.fn<typeof fetch>(async (input, init) => {
+      if (bearer(init) === `Bearer ${fresh}`) return json(200, { ok: true });
+      if (String(input).endsWith('/slow')) await slowRefusalGate;
+      return edgeRefusal();
+    });
+    const stepUpFetch = createStepUpFetch(requestStepUp, base);
+    const staleHeaders = { headers: { Authorization: `Bearer ${stale}` } };
+
+    const first = stepUpFetch(`${EDGE}/fast`, staleHeaders);
+    const second = stepUpFetch(`${EDGE}/slow`, staleHeaders);
+
+    await vi.waitFor(() => expect(useStepUpStore.getState().account).not.toBeNull());
+    held = fresh; // what signInWithPassword leaves in the client
+    settleStepUp(fresh);
+    expect((await first).status).toBe(200);
+    expect(useStepUpStore.getState().pending).toBeNull();
+
+    releaseSlowRefusal();
+    expect((await second).status).toBe(200);
+    expect(useStepUpStore.getState().promptId).toBe(1);
     expect(useStepUpStore.getState().account).toBeNull();
   });
 });

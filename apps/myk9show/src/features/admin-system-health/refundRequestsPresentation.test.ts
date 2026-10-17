@@ -78,6 +78,29 @@ const APPROVAL_TABLE: [string, Certainty, string][] = [
 
 const NOTHING_REFUNDED = /nothing was refunded|not refunded|no (new )?refund was created|not paid/i;
 
+describe('approvalErrorMessage: a cancelled password prompt (MYK9-1208)', () => {
+  it('Check status says only that the status was not checked: an earlier refund may exist', () => {
+    const message = approvalErrorMessage('step_up_required', 'awaiting_stripe');
+    expect(message).toBe('Status not checked. Confirm your password to check it.');
+    expect(message).not.toMatch(NOTHING_REFUNDED);
+  });
+
+  it.each(['pending', 'failed', undefined] as const)(
+    'an approval (%s) says this approval sent nothing to Stripe',
+    status => {
+      expect(approvalErrorMessage('step_up_required', status)).toBe(
+        'Not approved, so nothing was sent to Stripe this time. Confirm your password to continue.'
+      );
+    }
+  );
+
+  it('resolving without a refund says it was not resolved', () => {
+    expect(resolutionErrorMessage('step_up_required')).toBe(
+      'Not resolved. Confirm your password to continue.'
+    );
+  });
+});
+
 describe('approvalErrorMessage: each server outcome and its copy', () => {
   it.each(APPROVAL_TABLE)('%s (%s)', (code, certainty, copy) => {
     const message = approvalErrorMessage(code);

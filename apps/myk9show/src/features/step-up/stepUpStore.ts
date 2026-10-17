@@ -25,6 +25,8 @@ interface StepUpState {
   promptId: number;
   /** Registered by the mounted dialog. With no dialog there is no one to ask. */
   loadAccount: (() => Promise<StepUpAccount | null>) | null;
+  /** The session token the client holds now, if it already re-authenticated (see stepUpToken). */
+  loadFreshToken: ((refusedToken: string | null) => Promise<string | null>) | null;
   pending: Promise<string | null> | null;
   resolve: ((accessToken: string | null) => void) | null;
 }
@@ -33,6 +35,7 @@ const initialState: StepUpState = {
   account: null,
   promptId: 0,
   loadAccount: null,
+  loadFreshToken: null,
   pending: null,
   resolve: null,
 };
@@ -40,12 +43,15 @@ const initialState: StepUpState = {
 export const useStepUpStore = create<StepUpState>()(() => ({ ...initialState }));
 
 /** Called by the dialog host on mount; returns its unregister function. */
-export function registerStepUpHost(loadAccount: () => Promise<StepUpAccount | null>): () => void {
-  useStepUpStore.setState({ loadAccount });
+export function registerStepUpHost(
+  loadAccount: () => Promise<StepUpAccount | null>,
+  loadFreshToken: (refusedToken: string | null) => Promise<string | null> = async () => null
+): () => void {
+  useStepUpStore.setState({ loadAccount, loadFreshToken });
   return () => {
     if (useStepUpStore.getState().loadAccount === loadAccount) {
       settleStepUp(null);
-      useStepUpStore.setState({ loadAccount: null });
+      useStepUpStore.setState({ loadAccount: null, loadFreshToken: null });
     }
   };
 }
@@ -53,11 +59,24 @@ export function registerStepUpHost(loadAccount: () => Promise<StepUpAccount | nu
 /**
  * Ask the person to confirm who they are. Resolves with the new session's access token,
  * or null when they cancel, when nobody is signed in, or when no dialog is mounted.
+ *
+ * `refusedToken` is the token the server just refused. When the client already holds a
+ * newer, freshly confirmed session for the same account (another request's prompt settled
+ * first, or the emailed link was used in another tab), that answers without a second prompt.
  */
-export function requestStepUp(): Promise<string | null> {
+export async function requestStepUp(refusedToken: string | null = null): Promise<string | null> {
+  const before = useStepUpStore.getState();
+  if (before.pending) return before.pending;
+  if (!before.loadAccount) return null;
+
+  const held = await (before.loadFreshToken?.(refusedToken) ?? Promise.resolve(null)).catch(
+    () => null
+  );
+  if (held) return held;
+
   const { pending, loadAccount } = useStepUpStore.getState();
   if (pending) return pending;
-  if (!loadAccount) return Promise.resolve(null);
+  if (!loadAccount) return null;
 
   let resolve: (accessToken: string | null) => void = () => {};
   const next = new Promise<string | null>(r => {

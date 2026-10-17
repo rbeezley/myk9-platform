@@ -90,11 +90,20 @@ through unchanged, so the object form of `amr` reaches every token.
   it asks for confirmation once, then replays the same request with the new access token.
   Every entry point above goes through the one client, so none of them needed a call-site
   change, and a future refund or role endpoint that adds the server gate is covered too.
-- Concurrent refusals share one prompt. After a confirmation, the server accepts the next five
-  minutes of actions with no prompt.
+- Concurrent refusals share one prompt. A refusal that lands after another request's prompt
+  already settled is answered from the session the client now holds, when that session is a
+  different token for the same account and its `amr` is fresh (`stepUpToken.ts`, a 240 s
+  client window under the server's 300 s), so it never opens a second prompt. After a
+  confirmation, the server accepts the next five minutes of actions with no prompt.
+- CAPTCHA: when a Turnstile site key is configured, the dialog renders the same
+  `TurnstileChallenge` the sign-in page uses (action `step_up`) and forwards a fresh
+  single-use token with every password, send-code and verify-code attempt, resetting the
+  widget after each. With no key it renders nothing and sends no token, as on sign-in.
 - `useStepUpReauth` drives `StepUpReauthDialog`, mounted once at the app root: "Confirm your
   password to continue", a clear wrong-password message, Cancel returns the original refusal
-  to the caller (whose existing error text then reads "Confirm your password to continue.").
+  to the caller, whose error copy says only what is true for that action: "No refund was
+  issued", "Not approved, so nothing was sent to Stripe this time", "Not resolved", and for
+  Check status "Status not checked" (an earlier approval's refund may already exist).
 
 ### Accounts with no password (Google, Apple)
 
@@ -104,8 +113,10 @@ identity. It calls `signInWithOtp({ email, options: { shouldCreateUser: false } 
 `reauthenticate()` was evaluated and rejected: it only issues a nonce for `updateUser` and
 never refreshes the session's `amr`, so the server could not see it. The magic-link email from
 `send-auth-email` now also prints the 6-digit code GoTrue already supplies in the hook payload
-(`email_data.token`); following the link in the email works too, because the new session
-reaches the open tab through shared storage.
+(`email_data.token`). Following the link in another tab works too: that tab signs in, auth-js
+broadcasts the new session, and the open prompt listens to `onAuthStateChange` and settles
+itself on a `SIGNED_IN` or `TOKEN_REFRESHED` session for the same user whose `amr` is fresh,
+so the refused request replays without the code. The link stays in the email.
 
 ## Offline and show day
 

@@ -77,7 +77,8 @@ export function useResolveRefundRequest() {
   });
 }
 
-export function useApproveRefundRequest() {
+/** `status` is the row's, so a refusal reads true for the action taken (Approve or Check status). */
+export function useApproveRefundRequest(status?: RefundRequest['status']) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (requestId: string): Promise<ApprovalOutcome> => {
@@ -86,7 +87,7 @@ export function useApproveRefundRequest() {
       });
       if (!error) return (data as { outcome?: ApprovalOutcome } | null)?.outcome ?? 'refunded';
       // Non-2xx surfaces as FunctionsHttpError; the code is in the body.
-      throw new Error(approvalErrorMessage(await errorCode(error)));
+      throw new Error(approvalErrorMessage(await errorCode(error), status));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: REFUND_REQUESTS_QUERY_KEY });

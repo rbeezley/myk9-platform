@@ -109,7 +109,7 @@ export function ClassStatusControl({
           <button
             type="button"
             disabled={isSaving}
-            aria-label={`Change class status. Current status: ${label}`}
+            aria-label={`Class status: ${label}. Select to change.`}
             className={cn(
               'inline-flex min-h-11 items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition hover:brightness-95 disabled:opacity-60',
               tone

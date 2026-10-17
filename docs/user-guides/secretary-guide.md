@@ -214,7 +214,7 @@ Payment status shows on every registration row in **Entries**; **Entries → Pay
 
 **Overview → click the class → Run order.**
 
-![Focused class showing the Run order control and Move up on each entry](../screenshots/S-15.png)
+![Focused class showing the Run order control and Change class on each entry](../screenshots/S-15.png)
 
 Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immediately and appears on check-in sheets and at ringside. The menu appears once a class has two or more entries.
 
@@ -242,7 +242,7 @@ To put one dog in a specific spot, open **Run order → Reorder manually...**. E
 
 - Print items have **Print** (or **Reprint**). It opens a preview in a panel beside the Overview, so you never leave the page. When the print window closes, the sheet is recorded as printed and the row reads **Printed 2:14 PM · Undo**. Cancelling the print window records it too, so tap **Undo** if nothing came out.
 - To print the check-in and score sheets together, tick the box beside each one and tap **Print selected**.
-- An item that changed after printing reads **Needs reprint** (an amber square) — for example score sheets after a move-up.
+- An item that changed after printing reads **Needs reprint** (an amber square) — for example score sheets after a class change.
 - Items can be done in any order; nothing blocks anything else.
 
 ## 15 · Ringside access codes
@@ -278,9 +278,9 @@ To check in an exhibitor's dog:
 - Or for one class: **Overview → click the class → View entries and results** opens the class's run sheet, with a check-in status on every dog's row.
 - **Overview → Tools → Self check-in** lets exhibitors check themselves in, by show, trial or class.
 
-## 19 · Move a dog up
+## 19 · Change a dog's class
 
-**Overview → click the class → Entries → Move up** on that dog's row.
+**Overview → click the class → Entries → Change class** on that dog's row.
 
 Choose the target class and give a reason. Targets are restricted to the same element at a strictly higher level, so you can't move a dog somewhere ineligible.
 

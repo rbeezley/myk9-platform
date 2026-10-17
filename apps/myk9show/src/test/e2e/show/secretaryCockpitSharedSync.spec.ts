@@ -26,7 +26,7 @@ function focusedPanel(page: Page) {
 
 function statusControl(page: Page, status: string) {
   return focusedPanel(page).getByRole('button', {
-    name: `Change class status. Current status: ${status}`,
+    name: `Class status: ${status}. Select to change.`,
   });
 }
 

@@ -166,7 +166,7 @@ describe('run order is reachable from the focused-class panel', () => {
 
     expect(screen.getByRole('button', { name: /run order/i })).toBeInTheDocument();
     // ...and the entry-action list is correctly absent, since there are none.
-    expect(screen.queryAllByRole('button', { name: /^Change class(?! status)/i })).toHaveLength(0);
+    expect(screen.queryAllByRole('button', { name: /^Change class/i })).toHaveLength(0);
   });
 
   it('counts pending dogs on the run list, not only the dogs left to score', () => {

@@ -162,6 +162,23 @@ describe('ClubNumbersSection', () => {
     await waitFor(() => expect(mocks.save).toHaveBeenCalledWith('club-1', { ASCA: 'A-1' }));
   });
 
+  it('does not call a paused offline read "None yet"', async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryDefaults(queryKeys.clubRegistryNumbers('club-1'), {
+      networkMode: 'online',
+    });
+    const { onlineManager } = await import('@tanstack/react-query');
+    onlineManager.setOnline(false);
+    try {
+      render(<ClubNumbersSection clubId="club-1" canEdit />, { queryClient });
+
+      expect(await screen.findByText('Need a connection to load.')).toBeInTheDocument();
+      expect(screen.queryByText('None yet')).not.toBeInTheDocument();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
   it('disables Save and says why when offline', async () => {
     const user = userEvent.setup();
     mocks.online.value = false;

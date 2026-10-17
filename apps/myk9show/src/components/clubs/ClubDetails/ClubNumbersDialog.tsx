@@ -142,7 +142,9 @@ export const ClubNumbersDialog: React.FC<ClubNumbersDialogProps> = ({
         ) : (
           <div className="space-y-3" role="alert">
             <p className="text-sm text-muted-foreground">
-              We couldn&apos;t load the club numbers. Check your connection and try again.
+              {isError
+                ? "We couldn't load the club numbers. Check your connection and try again."
+                : 'Club numbers need a connection. Connect, then try again.'}
             </p>
             <Button type="button" variant="outline" onClick={() => void refetch()}>
               Retry

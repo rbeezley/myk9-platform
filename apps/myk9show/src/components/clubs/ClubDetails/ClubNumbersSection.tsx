@@ -21,6 +21,9 @@ export const ClubNumbersSection: React.FC<ClubNumbersSectionProps> = ({ clubId, 
   const [open, setOpen] = useState(false);
   const { data, isLoading, isError, refetch } = useClubRegistryNumbers(clubId);
   const hasNumbers = Boolean(formatClubRegistryNumbers(data));
+  // No data that is neither loading nor an error is a paused (offline) read, never
+  // proof the club has no numbers ("None yet" only after a real empty answer).
+  const notLoaded = data === undefined && !isLoading && !isError;
 
   // Visitors read the numbers in the header; there is nothing here for them.
   if (!canEdit) return null;
@@ -46,6 +49,8 @@ export const ClubNumbersSection: React.FC<ClubNumbersSectionProps> = ({ clubId, 
               Retry
             </Button>
           </span>
+        ) : notLoaded ? (
+          <span className="text-muted-foreground">Need a connection to load.</span>
         ) : hasNumbers ? (
           <span className="text-muted-foreground">AKC, UKC and ASCA</span>
         ) : (

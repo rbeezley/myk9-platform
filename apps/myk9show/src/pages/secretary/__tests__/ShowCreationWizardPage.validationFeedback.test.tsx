@@ -201,6 +201,55 @@ describe('ShowCreationWizardPage — Step 1 Next-button feedback', () => {
       expect(getRegion()).toBe(region);
     });
 
+    it('changes its text on an identical repeat failure, so it is spoken again', async () => {
+      const { user } = render(<ShowCreationWizardPage />);
+      const region = getRegion();
+      await user.click(screen.getByRole('button', { name: /next/i }));
+      await waitFor(() => expect(region).toHaveTextContent('Please enter a show name'));
+      const first = region.textContent;
+
+      await user.click(screen.getByRole('button', { name: /next/i }));
+      await waitFor(() => expect(region.textContent).not.toBe(first));
+      expect(region).toHaveTextContent(/^\d+ items need attention\. Please enter a show name$/);
+      const second = region.textContent;
+
+      await user.click(screen.getByRole('button', { name: /next/i }));
+      await waitFor(() => expect(region.textContent).not.toBe(second));
+    });
+
+    it('does not bring a spent sentence back when the issues clear and then return', async () => {
+      const { user } = render(<ShowCreationWizardPage />);
+      const region = getRegion();
+      await user.click(screen.getByRole('button', { name: /next/i }));
+      await waitFor(() => expect(region).toHaveTextContent(/attention/));
+
+      await act(async () => {
+        useWizardStore.getState().updateShowData(validStepOne);
+      });
+      await waitFor(() => expect(region).toHaveTextContent(''));
+
+      // Breaking a field again without pressing Next must stay silent.
+      await act(async () => {
+        useWizardStore.getState().updateShowData({ name: '' });
+      });
+      expect(region).toHaveTextContent('');
+    });
+
+    it('stays silent when the store returns to the step a failed Next was on', async () => {
+      const { user } = render(<ShowCreationWizardPage />);
+      const region = getRegion();
+      await user.click(screen.getByRole('button', { name: /next/i }));
+      await waitFor(() => expect(region).toHaveTextContent(/attention/));
+
+      await act(async () => {
+        useWizardStore.getState().setCurrentStep(1);
+      });
+      await act(async () => {
+        useWizardStore.getState().setCurrentStep(0);
+      });
+      expect(region).toHaveTextContent('');
+    });
+
     it('never shows stale text once the banner empties', async () => {
       const { user } = render(<ShowCreationWizardPage />);
       const region = getRegion();

@@ -335,7 +335,13 @@ const ShowCreationWizardPageContent: React.FC = () => {
       // stays enabled (see canGoNext) so this click actually fires instead of the button
       // sitting disabled with no explanation.
       setValidationExpanded(true);
-      setFailedNext({ step: currentStep, text: failedNextAnnouncement(issues) });
+      const text = failedNextAnnouncement(issues);
+      // A live region speaks only when its text changes, so an identical repeat failure
+      // alternates a trailing no-break space (screen readers ignore it) to be heard again.
+      setFailedNext(prev => ({
+        step: currentStep,
+        text: prev?.step === currentStep && prev.text === text ? `${text}\u00a0` : text,
+      }));
       revealFailedNext(issues.flatMap(issue => (issue.field === null ? [] : [issue.field])));
       return;
     }
@@ -383,6 +389,13 @@ const ShowCreationWizardPageContent: React.FC = () => {
     { requireEntryWindow },
     validationScope
   );
+
+  // The failed-Next sentence is spent once its step's issues clear or the step changes by any
+  // path (Back, a step click, or the store from inside a step): drop it here, during render, so it
+  // can never come back later and be spoken again without a new failed Next.
+  if (failedNext && (failedNext.step !== currentStep || validationIssues.length === 0)) {
+    setFailedNext(null);
+  }
 
   // Keep Next clickable whenever we're not mid-submit. It is deliberately NOT
   // gated on validation: a disabled Next just sits there doing nothing when the
@@ -485,7 +498,7 @@ const ShowCreationWizardPageContent: React.FC = () => {
                 Field callouts carry no live role, and focus reaches the first invalid control
                 before its description mounts, so this is what a screen reader hears. */}
             <p role="status" data-testid="wizard-failed-next-status" className="sr-only">
-              {validationIssues.length > 0 && failedNext?.step === currentStep
+              {failedNext?.step === currentStep && validationIssues.length > 0
                 ? failedNext.text
                 : ''}
             </p>

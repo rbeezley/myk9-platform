@@ -1,5 +1,7 @@
 /** Pure shapes and copy for the refunds-awaiting-approval queue (MYK9-876). */
 
+import { STEP_UP_REQUIRED_CODE } from '@/features/step-up/stepUpFetch';
+
 // Cart overflow is queued with its cart latch since MYK9-964; a paid checkout
 // that created nothing, for its full charge, since MYK9-963.
 export type RefundRequestKind =
@@ -83,6 +85,8 @@ export const UNCONFIRMED_REFUND_MESSAGE =
  * Stripe was called, or Stripe definitively refused or failed it.
  */
 const APPROVAL_ERRORS: Record<string, string> = {
+  // MYK9-1208: refused before anything ran; the person cancelled the password prompt.
+  [STEP_UP_REQUIRED_CODE]: 'Not refunded. Confirm your password to continue.',
   // Refused before Stripe was called.
   fulfilled:
     'Not refunded: this payment was fulfilled with entries after all. Check the entries before doing anything else.',
@@ -119,6 +123,7 @@ export function approvalErrorMessage(code: string | undefined): string {
 }
 
 const RESOLUTION_ERRORS: Record<string, string> = {
+  [STEP_UP_REQUIRED_CODE]: 'Not resolved. Confirm your password to continue.',
   note_required: 'Add a note saying how the charge was honored.',
   has_live_attempt:
     'Not resolved: a refund for this request is still with Stripe or already went through. Check its status first.',

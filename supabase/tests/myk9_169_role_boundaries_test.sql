@@ -90,9 +90,16 @@ WHERE r.name = 'chairman';
 
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000169101', true);
+-- MYK9-1208: role changes need a recent re-authentication in the JWT's amr claim.
 SELECT set_config(
   'request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-000000169101","role":"authenticated"}',
+  jsonb_build_object(
+    'sub', '00000000-0000-0000-0000-000000169101',
+    'role', 'authenticated',
+    'amr', jsonb_build_array(
+      jsonb_build_object('method', 'password', 'timestamp', extract(epoch FROM now())::bigint)
+    )
+  )::text,
   true
 );
 

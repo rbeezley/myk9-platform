@@ -43,6 +43,8 @@ describe('anonGrantsCheck — exact applied ACL drift', () => {
     const check = anonGrantsCheck(grants, PROBED_AT);
     expect(check.status).toBe('fail');
     expect(check.detail).toContain('entries (r) not on the anon allowlist');
+    // The healthy fixture holds no entries columns, so this grant is the only problem.
+    expect(check.detail).not.toContain('missing anon column grant');
   });
 
   it('fails when anon regains any entries column', () => {

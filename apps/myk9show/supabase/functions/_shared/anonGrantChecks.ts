@@ -50,8 +50,9 @@ interface AnonDefaultRow {
  * Every key of ANON_COLUMN_ALLOWLIST is deliberately ABSENT here: those tables carry
  * column grants and must have no table-level SELECT, so their presence in the probe's
  * table list at all is a failure (enforced below over ANON_COLUMN_TABLES).
- * `classes` withholds the scent-work hide counts (MYK9-116); `dogs`, `people`, and `judge_assignments` are column-only so
- * anon PostgREST embeds resolve to null instead of 42501, with RLS admitting them zero rows.
+ * `classes` withholds the scent-work hide counts (MYK9-116); `dogs`, `people`, and
+ * `judge_assignments` are column-only so anon PostgREST embeds resolve to null instead of
+ * 42501, with RLS admitting them zero rows.
  *
  * `entries` is on neither list: MYK9-466 (20260913011500) revoked every anon privilege on
  * the base entry table, so any table or column grant there reports as drift.

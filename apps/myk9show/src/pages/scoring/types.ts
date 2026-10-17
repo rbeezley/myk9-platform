@@ -127,7 +127,7 @@ export function toScoringEntry(
   // Build result object from replicated entry fields
   const result: ScoringResult | undefined = hasResult
     ? {
-        time: (entry.search_time_seconds || entry.searchTimeSeconds || 0) * 1000,
+        time: Math.round((entry.search_time_seconds || entry.searchTimeSeconds || 0) * 1000),
         faults: entry.total_faults ?? entry.totalFaults ?? 0,
         qualification: mapResultStatusToQualification(resultStatus),
         ...(entry.disqualification_reason ? { reason: entry.disqualification_reason } : {}),

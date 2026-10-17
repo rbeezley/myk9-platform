@@ -63,3 +63,18 @@ describe('ScoringEntryCard placement (scoring view — not the podium)', () => {
     expect(screen.getByText('—')).toBeInTheDocument();
   });
 });
+
+describe('ScoringEntryCard stored time', () => {
+  const withTime = (time: number) =>
+    makeScoringEntry({ result: { qualification: 'Qualified', time, faults: 0 } });
+
+  it('carries 59.999 s into the minute', () => {
+    render(<ScoringEntryCard entry={withTime(59999)} />);
+    expect(screen.getByText('1:00.00')).toBeInTheDocument();
+  });
+
+  it('shows 61.23 s as 1:01.23', () => {
+    render(<ScoringEntryCard entry={withTime(61230)} />);
+    expect(screen.getByText('1:01.23')).toBeInTheDocument();
+  });
+});

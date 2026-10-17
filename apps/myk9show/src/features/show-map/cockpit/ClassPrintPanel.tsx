@@ -130,7 +130,6 @@ function ClassPrintPanelBody({
   useEffect(() => {
     refetch();
     // Once per open; `refetch` is a new function every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const unrecordable =
     readiness.state === 'ready'

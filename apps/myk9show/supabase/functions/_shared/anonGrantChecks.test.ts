@@ -13,7 +13,10 @@ describe('anonGrantsCheck — exact applied ACL drift', () => {
     // 85 + the three platform_settings fee columns the public /fees page reads
     // signed out (MYK9-229). platform_settings stays OFF the table allowlist.
     // 86 became 85 when classes.judge_name was dropped (MYK9-479).
-    expect(check.detail).toContain('88 column grants');
+    // 88 became 73 when MYK9-466 revoked anon's 15 entries columns; the live database
+    // held classes 51, judge_assignments 10, dogs 5, people 4, platform_settings 3 on
+    // 2026-10-16.
+    expect(check.detail).toContain('73 column grants');
   });
 
   it('fails when a table not on the allowlist gains an anon grant', () => {
@@ -33,12 +36,21 @@ describe('anonGrantsCheck — exact applied ACL drift', () => {
     expect(check.detail).toContain("shows has 'rw', expected 'r'");
   });
 
+  // MYK9-466: anon holds nothing on the base entry table, at table or column level.
   it('fails when entries gains a table-level grant', () => {
     const grants = anonGrants();
     grants.tables.push({ name: 'entries', kind: 'r', privs: 'r' });
     const check = anonGrantsCheck(grants, PROBED_AT);
     expect(check.status).toBe('fail');
-    expect(check.detail).toContain('entries has a TABLE-level anon grant');
+    expect(check.detail).toContain('entries (r) not on the anon allowlist');
+  });
+
+  it('fails when anon regains any entries column', () => {
+    const grants = anonGrants();
+    grants.columns.push({ name: 'entries', column: 'class_id', privs: 'r' });
+    const check = anonGrantsCheck(grants, PROBED_AT);
+    expect(check.status).toBe('fail');
+    expect(check.detail).toContain('unexpected column grant entries.class_id');
   });
 
   // SA-2026-07-30-02: the monitor used to expect `classes: 'r'` at table level, so it
@@ -91,11 +103,11 @@ describe('anonGrantsCheck — exact applied ACL drift', () => {
   it('fails when an expected column grant disappears', () => {
     const grants = anonGrants();
     grants.columns = grants.columns.filter(
-      row => !(row.name === 'entries' && row.column === 'class_id')
+      row => !(row.name === 'judge_assignments' && row.column === 'class_id')
     );
     const check = anonGrantsCheck(grants, PROBED_AT);
     expect(check.status).toBe('fail');
-    expect(check.detail).toContain('missing anon column grant entries.class_id');
+    expect(check.detail).toContain('missing anon column grant judge_assignments.class_id');
   });
 
   it('fails when an expected table grant disappears', () => {

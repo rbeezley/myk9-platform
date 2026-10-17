@@ -15,8 +15,8 @@
  * nothing. This reads what the database actually has, so drift from ANY source surfaces
  * on /admin/health within a day.
  *
- * Both halves matter. `public.entries` and `public.classes` deliberately carry column-level
- * allowlists with NO table-level SELECT: a table-only check would call a blanket re-grant
+ * Both halves matter. `public.classes` deliberately carries a column-level allowlist with NO
+ * table-level SELECT: a table-only check would call a blanket re-grant
  * healthy, which is precisely the regression MYK9-93 itself shipped and had to repair.
  */
 
@@ -50,9 +50,11 @@ interface AnonDefaultRow {
  * Every key of ANON_COLUMN_ALLOWLIST is deliberately ABSENT here: those tables carry
  * column grants and must have no table-level SELECT, so their presence in the probe's
  * table list at all is a failure (enforced below over ANON_COLUMN_TABLES).
- * `entries` is the public-results release gate and `classes` withholds the scent-work
- * hide counts (MYK9-116); `dogs`, `people`, and `judge_assignments` are column-only so
+ * `classes` withholds the scent-work hide counts (MYK9-116); `dogs`, `people`, and `judge_assignments` are column-only so
  * anon PostgREST embeds resolve to null instead of 42501, with RLS admitting them zero rows.
+ *
+ * `entries` is on neither list: MYK9-466 (20260913011500) revoked every anon privilege on
+ * the base entry table, so any table or column grant there reports as drift.
  */
 export const ANON_TABLE_ALLOWLIST: Readonly<Record<string, string>> = {
   // Public reference data.
@@ -145,23 +147,6 @@ export const ANON_COLUMN_ALLOWLIST: Readonly<Record<string, readonly string[]>> 
     'status_source',
     'reopened_after_closeout_at',
     'revised_expected_start',
-  ],
-  entries: [
-    'id',
-    'class_id',
-    'trial_id',
-    'show_id',
-    'dog_id',
-    'armband',
-    'handler',
-    'run_order',
-    'is_in_ring',
-    'is_scored',
-    'check_in_status',
-    'entry_status',
-    'jump_height',
-    'created_at',
-    'deleted_at',
   ],
   judge_assignments: [
     'id',

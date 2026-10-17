@@ -7,6 +7,8 @@
  * @see /docs/technical/TIME_HANDLING_STANDARDS.md for complete documentation
  */
 
+import { formatMsAsMSSCC } from '@/lib/format/searchTime';
+
 export type TimeDisplayPrecision = 'seconds' | 'hundredths';
 export type TimeFormat = 'MM:SS' | 'MM:SS.HH' | 'H:MM:SS';
 
@@ -25,18 +27,14 @@ export type TimeFormat = 'MM:SS' | 'MM:SS.HH' | 'H:MM:SS';
 export function msToDisplay(ms: number, precision: TimeDisplayPrecision = 'seconds'): string {
   if (!ms || ms < 0) return precision === 'hundredths' ? '0:00.00' : '0:00';
 
+  // Floors: this also drives live running clocks. Stored seconds use formatSecondsAsMSSCC.
+  if (precision === 'hundredths') return formatMsAsMSSCC(ms, 'floor');
+
+  // Whole-second precision truncates: a running or stored 59.9s is still 0:59.
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  const hundredths = Math.floor((ms % 1000) / 10);
-
-  const timeBase = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-
-  if (precision === 'hundredths') {
-    return `${timeBase}.${hundredths.toString().padStart(2, '0')}`;
-  }
-
-  return timeBase;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 /**

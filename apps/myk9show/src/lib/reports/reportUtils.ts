@@ -3,6 +3,7 @@ import {
   compareArmbands,
   normalizePacketArmband,
 } from '@/features/emergency-trial-packet/armband';
+import { splitSecondsToCentis } from '@/lib/format/searchTime';
 import type { ReportEntry } from './types';
 
 /**
@@ -22,11 +23,9 @@ export function formatReportTime(time: string | number | null | undefined): stri
 
   if (isNaN(timeInSeconds)) return '';
 
-  const minutes = Math.floor(timeInSeconds / 60);
-  const seconds = Math.floor(timeInSeconds % 60);
-  const hundredths = Math.floor((timeInSeconds - Math.floor(timeInSeconds)) * 100);
+  const { minutes, seconds, centis } = splitSecondsToCentis(timeInSeconds);
 
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${centis.toString().padStart(2, '0')}`;
 }
 
 export function formatTimeLimit(seconds: number | null | undefined): string {

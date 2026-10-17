@@ -1,3 +1,4 @@
+import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
 import type { QualificationStatus } from '@/types/scent-work-types';
 
 const RESULT_STATUS_TO_QUALIFICATION: Record<string, QualificationStatus> = {
@@ -43,10 +44,7 @@ export function mapQualificationToResultStatus(
 
 export function dbSecondsToInputFormat(seconds: number | null | undefined): string {
   if (!seconds) return '';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  const hundredths = Math.round((seconds % 1) * 100);
-  return `${mins}:${secs.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
+  return formatSecondsAsMSSCC(seconds);
 }
 
 export function inputFormatToDbSeconds(timeStr: string): number {

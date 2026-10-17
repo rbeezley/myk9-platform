@@ -11,6 +11,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { formatMsAsMSSCC } from '@myk9/core';
 import type { ElementTimerReturn } from '../types';
 
 /**
@@ -78,10 +79,8 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
    * Format milliseconds as "M:SS.ss"
    */
   const formatTime = useCallback((milliseconds: number): string => {
-    const totalSeconds = milliseconds / 1000;
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = (totalSeconds % 60).toFixed(2);
-    return `${minutes}:${seconds.padStart(5, '0')}`;
+    // Live clock: floor, so it never reads ahead of the real time.
+    return formatMsAsMSSCC(milliseconds, 'floor');
   }, []);
 
   /**

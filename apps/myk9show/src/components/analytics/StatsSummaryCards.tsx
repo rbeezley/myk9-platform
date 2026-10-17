@@ -3,12 +3,12 @@ import { Award, Clock, ClipboardList, Timer } from 'lucide-react';
 import { StatCard, StatCardSkeleton } from '@myk9/ui';
 import { StatsGrid } from '@myk9/ui';
 
-import { msToDisplay } from '@/lib/timeUtils';
+import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
 import type { SummaryStats } from './analytics-utils';
 
 function formatTime(seconds: number | null): string {
   if (seconds == null) return '—';
-  return msToDisplay(seconds * 1000, 'hundredths');
+  return formatSecondsAsMSSCC(seconds);
 }
 
 interface StatsSummaryCardsProps {

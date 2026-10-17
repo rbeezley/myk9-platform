@@ -3,6 +3,10 @@ import {
   formatMilliseconds,
   formatSecondsToMMSS,
   formatSecondsToTime,
+  splitSecondsToCentis,
+  splitMsToCentis,
+  formatSecondsAsMSSCC,
+  formatMsAsMSSCC,
   convertTimeToSeconds,
   formatTimeForDisplay,
   formatTimeLimitSeconds,
@@ -33,6 +37,11 @@ describe('formatMilliseconds', () => {
 
   it('should handle fractional milliseconds', () => {
     expect(formatMilliseconds(500)).toBe('0:00.50');
+  });
+
+  it('should carry a rounded-up hundredth instead of printing 60.00 seconds (MYK9-1225)', () => {
+    expect(formatMilliseconds(61230)).toBe('1:01.23');
+    expect(formatMilliseconds(59999)).toBe('1:00.00');
   });
 });
 
@@ -85,6 +94,12 @@ describe('formatSecondsToTime', () => {
 
   it('should return 00:00.00 for NaN string', () => {
     expect(formatSecondsToTime('abc')).toBe('00:00.00');
+  });
+
+  it('does not truncate 61.23 and carries 59.999 (MYK9-1225)', () => {
+    expect(formatSecondsToTime(61.23)).toBe('01:01.23');
+    expect(formatSecondsToTime(59.999)).toBe('01:00.00');
+    expect(formatSecondsToTime(59.995)).toBe('01:00.00');
   });
 
   it('should format 30.12 as 00:30.12', () => {
@@ -255,5 +270,41 @@ describe('formatTimeInputToMMSS', () => {
 
   it('should zero out seconds when exactly at max minutes', () => {
     expect(formatTimeInputToMMSS('5:30', 5)).toBe('05:00');
+  });
+});
+
+describe('centisecond splitters (MYK9-1225)', () => {
+  it('splits 61.23 seconds without truncating the hundredths', () => {
+    expect(splitSecondsToCentis(61.23)).toEqual({ minutes: 1, seconds: 1, centis: 23 });
+    expect(formatSecondsAsMSSCC(61.23)).toBe('1:01.23');
+  });
+
+  it('carries a rounded-up hundredth into the second and minute', () => {
+    expect(splitSecondsToCentis(59.995)).toEqual({ minutes: 1, seconds: 0, centis: 0 });
+    expect(formatSecondsAsMSSCC(59.999)).toBe('1:00.00');
+    expect(formatSecondsAsMSSCC(119.999)).toBe('2:00.00');
+  });
+
+  it('keeps zero, whole minutes and exact fractions', () => {
+    expect(formatSecondsAsMSSCC(0)).toBe('0:00.00');
+    expect(formatSecondsAsMSSCC(60)).toBe('1:00.00');
+    expect(formatSecondsAsMSSCC(61.25)).toBe('1:01.25');
+    expect(formatSecondsAsMSSCC(59.99)).toBe('0:59.99');
+  });
+
+  it('splits integer milliseconds, rounding to the nearest hundredth', () => {
+    expect(splitMsToCentis(61230)).toEqual({ minutes: 1, seconds: 1, centis: 23 });
+    expect(formatMsAsMSSCC(2010)).toBe('0:02.01');
+    expect(formatMsAsMSSCC(59999)).toBe('1:00.00');
+    expect(formatMsAsMSSCC(87350)).toBe('1:27.35');
+  });
+
+  it('floors for a live running clock but never prints :60 (round vs floor)', () => {
+    expect(splitMsToCentis(59996, 'floor')).toEqual({ minutes: 0, seconds: 59, centis: 99 });
+    expect(formatMsAsMSSCC(59996, 'floor')).toBe('0:59.99');
+    expect(formatMsAsMSSCC(59996)).toBe('1:00.00');
+    expect(formatMsAsMSSCC(119999, 'floor')).toBe('1:59.99');
+    expect(formatMsAsMSSCC(60000, 'floor')).toBe('1:00.00');
+    expect(formatMsAsMSSCC(87359, 'floor')).toBe('1:27.35');
   });
 });

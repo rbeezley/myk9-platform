@@ -153,6 +153,13 @@ describe('buildRunSheetEntries', () => {
     expect(e.result!.judgeNotes).toBe('Good search');
   });
 
+  it('renders a stored 61.23 seconds as 1:01.23 on the result badge (MYK9-1225)', () => {
+    const [e] = buildRunSheetEntries([
+      makeRow({ is_scored: true, result_status: 'qualified', search_time_seconds: 61.23 }),
+    ]);
+    expect(e.result!.timeStr).toBe('1:01.23');
+  });
+
   it('builds an NQ result with empty timeStr when no time recorded', () => {
     const [e] = buildRunSheetEntries([
       makeRow({ is_scored: true, result_status: 'nq', search_time_seconds: null }),

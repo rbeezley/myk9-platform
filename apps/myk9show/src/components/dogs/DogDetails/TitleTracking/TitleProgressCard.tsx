@@ -4,13 +4,7 @@ import type { TitleProgressResult } from '@/services/titleEngine';
 import EarnedTitleBadge from './EarnedTitleBadge';
 import NextEligibleCallout from './NextEligibleCallout';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
-
-function formatSearchTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  const hs = Math.round((seconds % 1) * 100);
-  return `${m}:${String(s).padStart(2, '0')}.${String(hs).padStart(2, '0')}`;
-}
+import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
 
 interface TitleProgressCardProps {
   progress: TitleProgressResult;
@@ -116,7 +110,7 @@ const TitleProgressCard: React.FC<TitleProgressCardProps> = ({ progress }) => {
                 )}
                 {leg.search_time_seconds != null && (
                   <span className="text-muted-foreground font-mono ml-auto shrink-0">
-                    {formatSearchTime(leg.search_time_seconds)}
+                    {formatSecondsAsMSSCC(leg.search_time_seconds)}
                   </span>
                 )}
                 {leg.judge && !leg.search_time_seconds && (

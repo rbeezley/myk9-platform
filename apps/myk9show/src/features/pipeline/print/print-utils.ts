@@ -5,6 +5,7 @@
 
 import { formatTimeLimitSeconds } from '@myk9/core';
 import { armbandSortKey } from '@myk9/ringside';
+import { splitSecondsToCentis } from '@/lib/format/searchTime';
 import { placementRank } from '@/lib/reports/reportUtils';
 import type { PrintReportEntry } from './print-types';
 
@@ -17,10 +18,8 @@ export const formatReportDate = (dateStr: string): string => {
 /** Format seconds as "MM:SS.hh" for time display */
 export const formatReportTime = (seconds: number | null): string => {
   if (seconds == null || isNaN(seconds)) return '';
-  const minutes = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  const hundredths = Math.floor((seconds - Math.floor(seconds)) * 100);
-  return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
+  const { minutes, seconds: secs, centis } = splitSecondsToCentis(seconds);
+  return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${centis.toString().padStart(2, '0')}`;
 };
 
 /** Sort entries by run order (runOrder, then armband) */

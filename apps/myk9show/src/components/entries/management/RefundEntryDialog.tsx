@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { STEP_UP_REQUIRED_CODE } from '@/features/step-up/stepUpFetch';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
@@ -23,6 +24,7 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 // Server validation is authoritative; these map its error codes to language a
 // secretary can act on.
 const ERROR_MESSAGES: Record<string, string> = {
+  [STEP_UP_REQUIRED_CODE]: 'No refund was issued. Confirm your password to continue.',
   payout_already_sent:
     'This show’s entry fees have already been paid out to the club, so refunds can’t be issued from here. The refund is still possible: contact the site operator, who issues it manually and recovers the club’s share.',
   payout_in_progress: 'A payout to the club is in flight. Try again after it completes.',

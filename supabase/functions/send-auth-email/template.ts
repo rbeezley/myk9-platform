@@ -11,10 +11,16 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
+/**
+ * `code` is the one-time code GoTrue sends alongside the link (`email_data.token`). A
+ * magic-link email prints it so a signed-in person confirming a refund or role change can
+ * type it into the open prompt instead of following the link (MYK9-1208).
+ */
 export function buildAuthEmailHtml(
   type: AuthEmailActionType,
   firstName: string,
-  actionUrl: string
+  actionUrl: string,
+  code?: string
 ): { subject: string; html: string } {
   const safeFirstName = escapeHtml(firstName);
   const safeActionUrl = escapeHtml(actionUrl);
@@ -68,6 +74,10 @@ export function buildAuthEmailHtml(
   }
 
   const isSignup = type === 'signup';
+  const codeBlock =
+    !isSignup && code && /^\d{4,10}$/.test(code)
+      ? `<p style="color: #1a1a1e; font-size: 16px; text-align: center;">Or enter this code: <strong style="font-size: 22px; letter-spacing: 4px;">${code}</strong></p>`
+      : '';
   return {
     subject: isSignup ? 'Confirm your myK9Show email' : 'Sign in to myK9Show',
     html: layout(
@@ -78,6 +88,7 @@ export function buildAuthEmailHtml(
           : 'click the button below to sign in.'
       }</p>
       ${button(isSignup ? 'Confirm Email' : 'Sign In')}
+      ${codeBlock}
       <p style="color: #6b7280; font-size: 14px;">${
         isSignup
           ? "If you didn't create an account, you can safely ignore this email."

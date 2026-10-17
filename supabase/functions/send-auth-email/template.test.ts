@@ -31,4 +31,16 @@ describe('buildAuthEmailHtml', () => {
       'href="https://myk9show.com/auth/callback?next=&quot;/clubs&quot;&amp;token=a&amp;b"'
     );
   });
+
+  it('prints the one-time code in a magic-link email, for the step-up prompt (MYK9-1208)', () => {
+    const url = 'https://myk9show.com/auth/callback?token_hash=abc';
+    expect(buildAuthEmailHtml('magiclink', 'Richard', url, '123456').html).toContain(
+      'Or enter this code: <strong style="font-size: 22px; letter-spacing: 4px;">123456</strong>'
+    );
+    expect(buildAuthEmailHtml('magiclink', 'Richard', url).html).not.toContain('enter this code');
+    expect(buildAuthEmailHtml('signup', 'Richard', url, '123456').html).not.toContain('123456');
+    expect(buildAuthEmailHtml('magiclink', 'Richard', url, '<b>1</b>').html).not.toContain(
+      'enter this code'
+    );
+  });
 });

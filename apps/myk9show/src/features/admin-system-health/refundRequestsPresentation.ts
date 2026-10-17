@@ -1,5 +1,7 @@
 /** Pure shapes and copy for the refunds-awaiting-approval queue (MYK9-876). */
 
+import { STEP_UP_REQUIRED_CODE } from '@/features/step-up/stepUpFetch';
+
 // Cart overflow is queued with its cart latch since MYK9-964; a paid checkout
 // that created nothing, for its full charge, since MYK9-963.
 export type RefundRequestKind =
@@ -114,11 +116,29 @@ const APPROVAL_ERRORS: Record<string, string> = {
 };
 
 /** Unknown codes and transport failures are unconfirmed, never "nothing refunded". */
-export function approvalErrorMessage(code: string | undefined): string {
+/**
+ * MYK9-1208: the server refused before running anything because the person cancelled the
+ * password prompt. What that means depends on the action. Check status (awaiting_stripe)
+ * never looked at Stripe, and an earlier approval's refund may already have gone through,
+ * so it must not say "not refunded". An approval sent nothing to Stripe this time.
+ */
+export const STEP_UP_CHECK_STATUS_MESSAGE =
+  'Status not checked. Confirm your password to check it.';
+export const STEP_UP_APPROVAL_MESSAGE =
+  'Not approved, so nothing was sent to Stripe this time. Confirm your password to continue.';
+
+export function approvalErrorMessage(
+  code: string | undefined,
+  status?: RefundRequest['status']
+): string {
+  if (code === STEP_UP_REQUIRED_CODE) {
+    return status === 'awaiting_stripe' ? STEP_UP_CHECK_STATUS_MESSAGE : STEP_UP_APPROVAL_MESSAGE;
+  }
   return (code && APPROVAL_ERRORS[code]) || UNCONFIRMED_REFUND_MESSAGE;
 }
 
 const RESOLUTION_ERRORS: Record<string, string> = {
+  [STEP_UP_REQUIRED_CODE]: 'Not resolved. Confirm your password to continue.',
   note_required: 'Add a note saying how the charge was honored.',
   has_live_attempt:
     'Not resolved: a refund for this request is still with Stripe or already went through. Check its status first.',

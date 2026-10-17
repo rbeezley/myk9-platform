@@ -11,6 +11,7 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { STEP_UP_REQUIRED_CODE } from '@/features/step-up/stepUpFetch';
 
 export interface ShowRefundAllResult {
   refunded: Array<{ paymentIntentId: string; amountCents: number; entryIds: string[] }>;
@@ -27,6 +28,7 @@ export interface ShowRefundAllResult {
 // Server returns these top-level error codes (422); map to language a secretary
 // can act on. Mirrors RefundEntryDialog's mapping for the shared payout codes.
 const ERROR_MESSAGES: Record<string, string> = {
+  [STEP_UP_REQUIRED_CODE]: 'No refunds were issued. Confirm your password to continue.',
   payout_already_sent:
     'This show’s entry fees were already paid out to the club, so bulk refunds can’t be issued from here. They are still possible — contact the site operator, who issues them manually and recovers the club’s share (post-payout clawback runbook, docs/operations/post-payout-clawback.md).',
   payout_in_progress: 'A payout to the club is in flight — try again after it completes.',

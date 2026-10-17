@@ -25,6 +25,8 @@ interface AuthHookPayload {
   };
   email_data: {
     token_hash: string;
+    /** The one-time code for the same sign-in; printed in magic-link emails. */
+    token?: string;
     redirect_to: string;
     email_action_type: AuthEmailActionType;
   };
@@ -79,7 +81,8 @@ Deno.serve(async (req: Request) => {
     const { subject, html } = buildAuthEmailHtml(
       email_data.email_action_type,
       firstName,
-      callbackUrl
+      callbackUrl,
+      email_data.token
     );
 
     await deliverAuthEmail(

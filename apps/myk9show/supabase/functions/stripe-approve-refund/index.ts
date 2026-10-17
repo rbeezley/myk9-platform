@@ -18,6 +18,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
 import { approveRefundRequest, type ApprovalRefund } from '../_shared/refundApproval.ts';
 import { resolveRefundRequestWithoutRefund } from '../_shared/refundResolution.ts';
+import { stepUpRefusal } from '../_shared/stepUpReauth.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -84,6 +85,11 @@ Deno.serve(async req => {
     if (adminError || isSiteAdmin !== true) {
       return json(headers, { error: 'Only a site admin can approve refunds' }, 403);
     }
+
+    // MYK9-1208: every decision in the refund queue (approve, check status, resolve
+    // without refund) needs a password confirmed in the last five minutes.
+    const stepUp = stepUpRefusal(authHeader);
+    if (stepUp) return json(headers, stepUp.body, stepUp.status);
 
     const body = (await req.json().catch(() => ({}))) as {
       refund_request_id?: unknown;

@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../../types/supabase';
 import { logger } from '@/services/LoggingService';
 import { createDatabaseError, type DatabaseError } from './databaseError';
+import { createStepUpFetch } from '@/features/step-up/stepUpFetch';
+import { requestStepUp } from '@/features/step-up/stepUpStore';
 
 // Environment variables with fallbacks
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -17,7 +19,8 @@ if (!supabaseAnonKey) {
   throw new Error('Missing environment variable: VITE_SUPABASE_ANON_KEY');
 }
 
-// Create typed Supabase client
+// Create typed Supabase client. Its fetch answers a step-up refusal (MYK9-1208): a refund
+// or role change the server refused for want of a recent sign-in prompts once and replays.
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
@@ -31,6 +34,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     headers: {
       'X-Client-Info': 'myK9Show@1.0.0',
     },
+    fetch: createStepUpFetch(requestStepUp),
   },
 });
 

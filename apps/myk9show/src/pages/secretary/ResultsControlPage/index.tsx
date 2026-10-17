@@ -27,6 +27,7 @@ import { OverrideTree } from './OverrideTree';
 import { ResultsBulkBar } from './ResultsBulkBar';
 import { buildResultsReadinessSummary } from './readinessSummary';
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
+import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 
 const getClassId = (c: { id: string }) => c.id;
 
@@ -217,6 +218,7 @@ export default function ResultsControlPage({ embedded = false }: { embedded?: bo
 
   return (
     <div className={embedded ? 'space-y-8' : 'container mx-auto py-6 space-y-8'}>
+      {!embedded && <ShowDeskReturnLink showId={showId} />}
       {!embedded && <h1 className="text-3xl font-bold tracking-tight">Results</h1>}
 
       <Card>

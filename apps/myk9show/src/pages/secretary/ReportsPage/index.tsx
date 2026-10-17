@@ -16,6 +16,7 @@ import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsRe
 import { ResultLabelsReport } from '@/components/reports/labels/ResultLabelsReport';
 import { LabelModeHeader } from '@/components/reports/labels/LabelModeChrome';
 import { useOfficialReportDownload } from './useOfficialReportDownload';
+import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import type { ReportScope } from '@/lib/reports/types';
 import { resolveReportScope } from '@/lib/reports/reportScope';
 import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
@@ -313,6 +314,7 @@ export default function ReportsPage() {
     // with no horizontal padding, and nothing up the tree supplies any -- so at
     // 375px the heading and the packet card sat flush against both edges.
     <div className="container mx-auto flex flex-col px-4 py-6">
+      <ShowDeskReturnLink showId={showId} className="mb-2 self-start" />
       {/* Page header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Reports</h1>

@@ -24,10 +24,12 @@ import {
 } from '@/components/ui/select';
 import { Building, Camera } from 'lucide-react';
 import ClubPhotoDialog from '@/components/clubs/ClubPhotoDialog';
+import { ClubNumberFields } from '@/components/clubs/ClubNumberFields';
 import { AccentColorPicker } from '@/components/ui/accent-color-picker';
 import type { Club } from '@/types/club-types';
 import { CLUB_TYPES } from '@/types/club-types';
 import { logger } from '@/services/LoggingService';
+import { hasClubRegistryNumber } from '@/utils/clubRegistryNumbers';
 import { PremiumTemplatesTab } from './ClubEditPanel/PremiumTemplatesTab';
 import { ClubTabsList } from './ClubEditPanel/ClubTabsList';
 import {
@@ -38,7 +40,8 @@ import {
 } from './ClubEditPanel/validationTab';
 import { ClubContactCard } from './ClubEditPanel/ClubContactCard';
 import {
-  clubEditSchema,
+  clubEditSchemaFor,
+  clubNumberField,
   clubToFormData,
   formDataToClub,
   type ClubEditFormData,
@@ -67,7 +70,9 @@ const ClubEditForm: React.FC<{
   onClose?: () => void;
   activeTab: ClubTabValue;
   onTabChange: (tab: ClubTabValue) => void;
-}> = ({ clubId, mode, onClose, activeTab, onTabChange }) => {
+  /** Edit mode, numbers not loaded yet: the number fields wait rather than show blank. */
+  registryNumbersPending: boolean;
+}> = ({ clubId, mode, onClose, activeTab, onTabChange, registryNumbersPending }) => {
   const { data, form, requestTab } = useEditPanel<ClubEditFormData>();
 
   // Photo dialog state
@@ -232,17 +237,28 @@ const ClubEditForm: React.FC<{
                     {...form?.getFieldProps('name')}
                   />
                 </FormField>
-
-                <FormField label="Club Number" fieldId="clubNumber">
-                  <Input
-                    id="clubNumber"
-                    value={data.clubNumber}
-                    onChange={handleInputChange('clubNumber')}
-                    onBlur={handleBlur('clubNumber')}
-                    placeholder="Enter club number"
-                  />
-                </FormField>
               </div>
+
+              {/* MYK9-1235: a new club has no server row to hang numbers on until its queued
+                  INSERT uploads, so numbers are added from Edit Club afterwards. */}
+              {mode === 'edit' ? (
+                <ClubNumberFields
+                  values={{
+                    AKC: data.akcClubNumber ?? '',
+                    UKC: data.ukcClubNumber ?? '',
+                    ASCA: data.ascaClubNumber ?? '',
+                  }}
+                  idFor={org => `${org.toLowerCase()}ClubNumber`}
+                  onChange={(org, value) => form?.setValue(clubNumberField(org), value)}
+                  onBlur={org => form?.touchField(clubNumberField(org))}
+                  error={form?.getError('akcClubNumber')}
+                  disabled={registryNumbersPending}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  After the club is added, enter its AKC, UKC or ASCA club numbers from Edit Club.
+                </p>
+              )}
 
               <FormField label="Description" fieldId="description">
                 <textarea
@@ -386,17 +402,28 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
   // Convert club data to form data
   const initialFormData = useMemo(() => clubToFormData(initialClubData), [initialClubData]);
 
+  // MYK9-1235: a club that has a number keeps at least one (see clubEditSchemaFor).
+  // Memoized on the boolean so the schema is stable between renders.
+  const requireClubNumber =
+    mode === 'edit' && hasClubRegistryNumber(initialClubData.registryNumbers);
+  const schema = useMemo(() => clubEditSchemaFor(requireClubNumber), [requireClubNumber]);
+
   // Handle save
   const handleSave = useCallback(
     async (formData: ClubEditFormData, context: EditPanelSaveContext) => {
       logger.debug('ClubEditPanel handleSave - Raw form data:', 'panels', { data: formData });
       const clubData = formDataToClub(formData);
+      // Numbers that never loaded (or a create form, which has no number fields) must not be
+      // saved as "none": that would delete what the club has.
+      if (mode === 'create' || initialClubData.registryNumbers === undefined) {
+        delete clubData.registryNumbers;
+      }
       logger.debug('ClubEditPanel handleSave - Converted club data:', 'panels', { data: clubData });
       if (onSave) {
         await onSave(clubData, context);
       }
     },
-    [onSave]
+    [onSave, mode, initialClubData.registryNumbers]
   );
 
   return (
@@ -412,7 +439,7 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
       size="xl"
       initialData={initialFormData}
       onSave={handleSave}
-      schema={clubEditSchema}
+      schema={schema}
       enableAutoSave={enableAutoSave}
       saveLabel={mode === 'create' ? 'Add Club' : 'Save Changes'}
       cancelLabel="Cancel"
@@ -436,6 +463,7 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
         onClose={onClose}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        registryNumbersPending={mode === 'edit' && initialClubData.registryNumbers === undefined}
       />
     </EditPanelWrapper>
   );

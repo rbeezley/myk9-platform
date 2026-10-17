@@ -48,12 +48,13 @@ describe('useUKCTrialReportContext', () => {
   });
 
   it('assembles venue location, club number, and both officials from real rows', async () => {
+    const registryStub = tableStub({ data: { number: 'UKC-4821' } });
     fromMock.mockImplementation((table: string) => {
       if (table === 'shows') {
         return tableStub({ data: { city: 'Springfield', state: 'IL', club_id: 'club-1' } });
       }
-      if (table === 'clubs') {
-        return tableStub({ data: { club_number: 'UKC-4821' } });
+      if (table === 'club_registry_numbers') {
+        return registryStub;
       }
       if (table === 'people') {
         return tableStub({
@@ -99,6 +100,10 @@ describe('useUKCTrialReportContext', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
+    // MYK9-1235: the UKC form prints the club's UKC number, not whichever it has.
+    expect(registryStub.select).toHaveBeenCalledWith('number');
+    expect(registryStub.eq).toHaveBeenCalledWith('club_id', 'club-1');
+    expect(registryStub.eq).toHaveBeenCalledWith('organization', 'UKC');
     expect(result.current.data).toEqual({
       venueCity: 'Springfield',
       venueState: 'IL',

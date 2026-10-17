@@ -52,6 +52,7 @@ describe('RequestAccessPage', () => {
     fireEvent.change(screen.getByLabelText('Club name'), {
       target: { value: 'Heartland Dog Club' },
     });
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '4521' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
 
     await waitFor(() => {
@@ -59,6 +60,7 @@ describe('RequestAccessPage', () => {
         clubName: 'Heartland Dog Club',
         website: '',
         note: '',
+        clubNumbers: { AKC: '4521' },
       });
     });
     expect(await screen.findByRole('heading', { name: 'Request sent' })).toBeInTheDocument();
@@ -86,6 +88,7 @@ describe('RequestAccessPage', () => {
     fireEvent.change(screen.getByLabelText('Club website (optional)'), {
       target: { value: 'www.myclub.org' },
     });
+    fireEvent.change(screen.getByLabelText('UKC club number'), { target: { value: 'U-7' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
 
     await waitFor(() => {
@@ -93,6 +96,7 @@ describe('RequestAccessPage', () => {
         clubName: 'Heartland Dog Club',
         website: 'https://www.myclub.org/',
         note: '',
+        clubNumbers: { UKC: 'U-7' },
       });
     });
   });
@@ -108,6 +112,7 @@ describe('RequestAccessPage', () => {
     fireEvent.change(screen.getByLabelText('Club website (optional)'), {
       target: { value: 'https://myclub.org' },
     });
+    fireEvent.change(screen.getByLabelText('UKC club number'), { target: { value: 'U-7' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
 
     await waitFor(() => {
@@ -115,6 +120,7 @@ describe('RequestAccessPage', () => {
         clubName: 'Heartland Dog Club',
         website: 'https://myclub.org/',
         note: '',
+        clubNumbers: { UKC: 'U-7' },
       });
     });
   });
@@ -133,6 +139,40 @@ describe('RequestAccessPage', () => {
 
     expect(await screen.findByText(/enter a valid website URL/i)).toBeInTheDocument();
     expect(submitNewClubAccessRequest).not.toHaveBeenCalled();
+  });
+
+  it('refuses a new club request with no club number', async () => {
+    render(<RequestAccessPage />, { initialRoute: '/request-access' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Request a new club' }));
+    fireEvent.change(screen.getByLabelText('Club name'), {
+      target: { value: 'Heartland Dog Club' },
+    });
+    fireEvent.change(screen.getByLabelText('ASCA club number'), { target: { value: '   ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
+
+    expect(await screen.findByText('Enter at least one club number.')).toBeInTheDocument();
+    expect(submitNewClubAccessRequest).not.toHaveBeenCalled();
+  });
+
+  it('sends every club number entered when a club holds two', async () => {
+    vi.mocked(submitNewClubAccessRequest).mockResolvedValue('request-1');
+    render(<RequestAccessPage />, { initialRoute: '/request-access' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Request a new club' }));
+    expect(screen.getByText(/enter at least one/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Club name'), {
+      target: { value: 'Heartland Dog Club' },
+    });
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: ' 4521 ' } });
+    fireEvent.change(screen.getByLabelText('UKC club number'), { target: { value: 'U-7' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
+
+    await waitFor(() => {
+      expect(submitNewClubAccessRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ clubNumbers: { AKC: '4521', UKC: 'U-7' } })
+      );
+    });
   });
 
   it('lets an exhibitor search for an existing club from the page', () => {

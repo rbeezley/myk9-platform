@@ -35,7 +35,6 @@ vi.mock('@/lib/branding', () => ({
 const mockClub: Club = {
   id: 'club-1',
   name: 'Test Club',
-  clubNumber: '',
   email: '',
   phone: '',
   description: '',

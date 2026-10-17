@@ -12,6 +12,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { PageShell } from '@/components/common/PageShell';
+import { ClubNumberFields } from '@/components/clubs/ClubNumberFields';
+import {
+  CLUB_NUMBER_REQUIRED_MESSAGE,
+  EMPTY_CLUB_REGISTRY_NUMBER_INPUTS,
+  hasClubRegistryNumber,
+  normalizeClubRegistryNumbers,
+  type ClubRegistryNumberInputs,
+} from '@/utils/clubRegistryNumbers';
 
 type AccessPath = 'new-club' | 'existing-club';
 
@@ -21,6 +29,10 @@ const RequestAccessPage: React.FC = () => {
   const [clubName, setClubName] = useState('');
   const [website, setWebsite] = useState('');
   const [note, setNote] = useState('');
+  const [clubNumbers, setClubNumbers] = useState<ClubRegistryNumberInputs>(
+    EMPTY_CLUB_REGISTRY_NUMBER_INPUTS
+  );
+  const [clubNumberError, setClubNumberError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -56,6 +68,14 @@ const RequestAccessPage: React.FC = () => {
     }
     setWebsite(normalizedWebsite.value);
 
+    if (!hasClubRegistryNumber(clubNumbers)) {
+      setClubNumberError(CLUB_NUMBER_REQUIRED_MESSAGE);
+      setError(null);
+      document.getElementById('requested-club-akc-number')?.focus();
+      return;
+    }
+    setClubNumberError(null);
+
     setIsSubmitting(true);
     setError(null);
     try {
@@ -63,6 +83,7 @@ const RequestAccessPage: React.FC = () => {
         clubName: trimmedName,
         website: normalizedWebsite.value,
         note: note.trim(),
+        clubNumbers: normalizeClubRegistryNumbers(clubNumbers),
       });
       setSubmitted(true);
     } catch {
@@ -133,8 +154,8 @@ const RequestAccessPage: React.FC = () => {
             <CardHeader>
               <CardTitle>Set up a new club</CardTitle>
               <CardDescription>
-                Send us the club name. We will review the request and help finish the setup. This
-                request does not grant access immediately.
+                Send us the club name and its AKC, UKC or ASCA club number. We will review the
+                request and help finish the setup. This request does not grant access immediately.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -160,6 +181,16 @@ const RequestAccessPage: React.FC = () => {
                     placeholder="https://"
                   />
                 </div>
+                <ClubNumberFields
+                  values={clubNumbers}
+                  idFor={org => `requested-club-${org.toLowerCase()}-number`}
+                  onChange={(org, value) => {
+                    setClubNumbers(previous => ({ ...previous, [org]: value }));
+                    setClubNumberError(null);
+                  }}
+                  error={clubNumberError}
+                  disabled={isSubmitting}
+                />
                 <div className="space-y-2">
                   <Label htmlFor="requested-club-note">Message (optional)</Label>
                   <Textarea

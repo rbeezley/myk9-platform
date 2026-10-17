@@ -38,6 +38,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   club_membership_requests: 'SELECT',
   club_officers: 'SELECT,INSERT,UPDATE,DELETE',
   club_premium_templates: 'SELECT,INSERT,UPDATE,DELETE',
+  club_registry_numbers: 'SELECT,INSERT,UPDATE,DELETE',
   club_stripe_accounts: 'SELECT',
   clubs: 'SELECT,INSERT,UPDATE,DELETE',
   dog_favorites: 'SELECT,INSERT,UPDATE,DELETE',

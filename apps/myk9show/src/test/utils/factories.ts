@@ -176,7 +176,6 @@ export const clubFactory = {
     fromAny<Club, unknown>({
       id: nextId(),
       name: `${faker.location.city()} Kennel Club`,
-      clubNumber: faker.string.alphanumeric(6).toUpperCase(),
       email: faker.internet.email(),
       phone: faker.phone.number(),
       website: faker.internet.url(),

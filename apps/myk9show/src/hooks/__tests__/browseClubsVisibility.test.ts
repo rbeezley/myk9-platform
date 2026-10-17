@@ -7,7 +7,6 @@ function makeClub(name: string): Club {
   return {
     id: name,
     name,
-    clubNumber: '',
     email: '',
     phone: '',
     website: '',

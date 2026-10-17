@@ -258,7 +258,11 @@ export const showSchemas = {
 export const clubSchemas = {
   basic: z.object({
     name: commonValidations.name,
-    clubNumber: commonValidations.optionalString,
+    // MYK9-1235: one field per registry; the at-least-one rule is applied by the
+    // Edit Club panel (clubEditSchemaFor), where it depends on the club's history.
+    akcClubNumber: commonValidations.optionalString,
+    ukcClubNumber: commonValidations.optionalString,
+    ascaClubNumber: commonValidations.optionalString,
     email: commonValidations.email,
     phone: z
       .string()

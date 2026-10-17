@@ -37,6 +37,24 @@ function renderDialog(overrides: Partial<Parameters<typeof ShowMapMoveUpDialog>[
   return { ...render(<ShowMapMoveUpDialog {...props} />), onMoveBack };
 }
 
+describe('ShowMapMoveUpDialog labels (MYK9-1232)', () => {
+  it('titles the dialog and names the confirm button "Change class"', () => {
+    renderDialog();
+
+    expect(screen.getByRole('heading', { name: 'Change class' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Change class' })).toBeInTheDocument();
+    expect(screen.queryByText(/move up/i)).not.toBeInTheDocument();
+  });
+
+  it('describes the reversal as a change from the source class', () => {
+    renderDialog({ reversal: AVAILABLE });
+
+    expect(
+      screen.getByText('This entry\u2019s class was changed from Interior Novice A.')
+    ).toBeInTheDocument();
+  });
+});
+
 describe('ShowMapMoveUpDialog move-back (MYK9-640)', () => {
   it('offers the way back, naming the class the entry was moved out of', async () => {
     const { onMoveBack } = renderDialog({ reversal: AVAILABLE });
@@ -51,7 +69,7 @@ describe('ShowMapMoveUpDialog move-back (MYK9-640)', () => {
     renderDialog({ reversal: AVAILABLE });
 
     expect(screen.queryByText('No other classes are available.')).not.toBeInTheDocument();
-    expect(screen.getByText(/no higher class to move up to/i)).toBeInTheDocument();
+    expect(screen.getByText(/no higher class to change to/i)).toBeInTheDocument();
   });
 
   it('says WHY there is no way back once the run has started, and offers no control', () => {
@@ -71,7 +89,7 @@ describe('ShowMapMoveUpDialog move-back (MYK9-640)', () => {
   it('explains when this move-up was superseded by a later move', () => {
     renderDialog({ reversal: { kind: 'blocked', reason: 'superseded' } });
 
-    expect(screen.getByText(/since been superseded by another move-up/i)).toBeInTheDocument();
+    expect(screen.getByText(/since been superseded by another class change/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /move back/i })).not.toBeInTheDocument();
   });
 

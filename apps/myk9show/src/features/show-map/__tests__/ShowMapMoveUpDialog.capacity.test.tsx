@@ -42,7 +42,7 @@ describe('ShowMapMoveUpDialog capacity state (MYK9-920)', () => {
   it('says it is checking capacity and keeps the confirm disabled while loading', () => {
     renderDialog('loading');
     expect(screen.getByText('Checking class capacity…')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Move entry' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Change class' })).toBeDisabled();
   });
 
   it('explains the save still refuses a full class when capacity is unavailable', () => {
@@ -87,9 +87,9 @@ describe('ShowMapMoveUpDialog capacity state (MYK9-920)', () => {
     await user.click(screen.getByRole('combobox'));
     await screen.findByRole('listbox');
     await user.click(await screen.findByRole('option', { name: /Container Advanced/ }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Move entry' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Change class' })).toBeEnabled());
 
     view.rerender(dialog('ready', [{ id: 'c2', label: 'Container Advanced', isFull: true }]));
-    expect(screen.getByRole('button', { name: 'Move entry' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Change class' })).toBeDisabled();
   });
 });

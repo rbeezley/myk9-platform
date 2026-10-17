@@ -337,7 +337,7 @@ describe('moveUpSupersession', () => {
 
     it('surfaces a server refusal rather than reporting success', async () => {
       mockReverseMoveUpEntryViaRpc.mockRejectedValue(
-        new Error('This run has already started, so the move-up can no longer be reversed.')
+        new Error('This run has already started, so the class change can no longer be reversed.')
       );
 
       await expect(reverseShowMapMoveUp('dest-1')).rejects.toThrow(/already started/);

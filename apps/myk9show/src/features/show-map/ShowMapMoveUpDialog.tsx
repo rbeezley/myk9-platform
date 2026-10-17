@@ -76,9 +76,9 @@ export function ShowMapMoveUpDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowUpCircle className="h-5 w-5 text-primary" />
-            Move up entry
+            Change class
           </DialogTitle>
-          <DialogDescription>Move this entry into another class.</DialogDescription>
+          <DialogDescription>Change which class this entry is in.</DialogDescription>
         </DialogHeader>
 
         {/*
@@ -156,8 +156,8 @@ function ShowMapMoveUpDialogFields({
           <div className="space-y-2 rounded-md border border-dashed p-4">
             <div className="text-sm font-medium">
               {reversal.sourceClassName
-                ? `This entry was moved up from ${reversal.sourceClassName}.`
-                : 'This entry was moved up from another class.'}
+                ? `This entry\u2019s class was changed from ${reversal.sourceClassName}.`
+                : 'This entry\u2019s class was changed from another class.'}
             </div>
             <p className="text-sm text-muted-foreground">
               Moving it back restores the original entry, with its check-in, and removes this one.
@@ -216,7 +216,7 @@ function ShowMapMoveUpDialogFields({
           {targets.length === 0 && capacityState !== 'loading' && (
             <p className="text-sm text-muted-foreground">
               {reversal?.kind === 'available'
-                ? 'There is no higher class to move up to from here.'
+                ? 'There is no higher class to change to from here.'
                 : 'No other classes are available.'}
             </p>
           )}
@@ -238,7 +238,7 @@ function ShowMapMoveUpDialogFields({
           Cancel
         </Button>
         <Button type="button" onClick={handleConfirm} disabled={isSubmitting || !canSubmit}>
-          {isSubmitting ? 'Moving...' : 'Move entry'}
+          {isSubmitting ? 'Changing...' : 'Change class'}
         </Button>
       </DialogFooter>
     </>

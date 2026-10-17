@@ -1,4 +1,4 @@
-import { createRef, useMemo, useRef, useState } from 'react';
+import { createRef, useEffect, useMemo, useRef, useState } from 'react';
 import { Printer } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -17,6 +17,7 @@ import {
 import { printIframeAndWait } from '@/pages/secretary/ReportsPage/reportPreviewUtils';
 import { NO_HOSTED_REPORT_DATA } from '@/pages/secretary/ReportsPage/useHostedReportData';
 import { MergedSheetsPreview, unmergeableReportIds } from './MergedSheetsPreview';
+import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';
 import { recordPaperworkPrinted } from './paperworkPrintActions';
 import type { PaperworkDescriptor } from './paperworkPrintState';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
@@ -28,7 +29,9 @@ import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
  * One sheet previews as itself. Several sheets merge into ONE PDF and ONE preview, so the browser
  * opens a single print dialog for the batch. Every sheet is recorded printed when that dialog
  * CLOSES (`afterprint`, or print() returning, or focus coming back), through the same writer Reports uses, so the row on the Overview
- * and the Reports tab read one record. A cancelled dialog fires the same event; the record shows
+ * and the Reports tab read one record. What is recorded is fingerprinted from the very rows the
+ * preview rendered (never from the Overview's own map, which can be newer than the PDF), and the
+ * panel re-reads the class when it opens so a cached preview cannot outlive a run-order change. A cancelled dialog fires the same event; the record shows
  * on the row with an Undo, which is why no "did it print?" question is asked.
  */
 export function ClassPrintPanel({
@@ -110,7 +113,29 @@ function ClassPrintPanelBody({
   const blockedMessage = items.every(item => blockedPrintMessage(item.reportId, readiness) === null)
     ? null
     : readiness.blockedMessage;
-  const unrecordable = items.filter(item => !item.confirmation);
+  // The rows the preview renders are the rows the record is fingerprinted from.
+  const describe = (reportId: string): PaperworkDescriptor | null =>
+    buildReportPaperworkDescriptor({
+      reportId,
+      scope,
+      classes: (classes ?? []) as unknown as Parameters<
+        typeof buildReportPaperworkDescriptor
+      >[0]['classes'],
+      entries: (entries ?? []) as unknown as Parameters<
+        typeof buildReportPaperworkDescriptor
+      >[0]['entries'],
+    });
+  // A freshly opened panel never prints cached rows: the class's report data is re-read on open
+  // (a run-order change does not invalidate the cached `['reports', ...]` entries).
+  useEffect(() => {
+    refetch();
+    // Once per open; `refetch` is a new function every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const unrecordable =
+    readiness.state === 'ready'
+      ? items.filter(item => item.reportId !== 'armband-labels' && !describe(item.reportId))
+      : [];
 
   const resolvedTrials = trials ?? currentShow?.trials ?? [];
   const batch = items.length > 1;
@@ -123,18 +148,11 @@ function ClassPrintPanelBody({
   const labelOf = (id: string) => items.find(item => item.reportId === id)?.label ?? id;
 
   const record = async (item: SecretaryCockpitPaperwork) => {
-    if (!user || !item.confirmation) return;
-    const descriptor: PaperworkDescriptor | null =
-      item.reportId === 'armband-labels'
-        ? armbandDescriptor
-        : {
-            reportId: item.reportId,
-            scope: item.confirmation.scope,
-            coverage: item.confirmation.coverage as PaperworkDescriptor['coverage'],
-            fingerprint: item.confirmation.fingerprint,
-          };
-    // No descriptor yet means the preview has not said which labels it shows: record nothing
-    // rather than claim labels that were not printed.
+    if (!user) return;
+    const descriptor =
+      item.reportId === 'armband-labels' ? armbandDescriptor : describe(item.reportId);
+    // No descriptor means the preview has not said what it shows (armbands) or the sheet has no
+    // fingerprint: record nothing rather than claim paper that was not printed.
     if (!descriptor) return;
     try {
       await recordPaperworkPrinted({

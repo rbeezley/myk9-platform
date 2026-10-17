@@ -37,7 +37,7 @@ describe('ClassStatusControl', () => {
 
     expect(
       screen.getByText(
-        'Start and finish times fill in from ringside scoring. Setting In progress here records the start time, and Complete records the finish time.'
+        'Ringside scoring fills in the start and finish times until you change the status here. After that, In progress records the start time and Complete records the finish time.'
       )
     ).toBeInTheDocument();
   });

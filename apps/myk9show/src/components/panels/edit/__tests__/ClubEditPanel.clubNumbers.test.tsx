@@ -22,7 +22,10 @@ const baseClub: Partial<Club> = {
   address: { street: '1 Main St', city: 'Omaha', state: 'NE', zipCode: '68102', country: 'US' },
 };
 
-function panelElement(initialClubData: Partial<Club>, onSave: ReturnType<typeof vi.fn>) {
+function panelElement(
+  initialClubData: Partial<Club>,
+  onSave: React.ComponentProps<typeof ClubEditPanel>['onSave']
+) {
   return (
     <ClubEditPanel
       open

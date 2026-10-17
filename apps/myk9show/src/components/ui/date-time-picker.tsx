@@ -23,6 +23,8 @@ interface DateTimePickerProps {
   defaultMonth?: Date | undefined;
   /** id on the trigger button so a sibling <label htmlFor> connects for a11y. */
   id?: string | undefined;
+  'aria-invalid'?: boolean | undefined;
+  'aria-describedby'?: string | undefined;
 }
 
 export const DateTimePicker: React.FC<DateTimePickerProps> = ({
@@ -38,6 +40,8 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   defaultTime = '8:00 AM',
   defaultMonth,
   id,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedBy,
 }) => {
   const [open, setOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(value);
@@ -130,9 +134,11 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
       <PopoverTrigger asChild nativeButton>
         <Button
           {...(id !== undefined && { id })}
+          {...(ariaInvalid !== undefined && { 'aria-invalid': ariaInvalid })}
+          {...(ariaDescribedBy !== undefined && { 'aria-describedby': ariaDescribedBy })}
           variant="outline"
           className={cn(
-            'w-full justify-start text-left font-normal',
+            'w-full justify-start text-left font-normal aria-invalid:border-destructive',
             !selectedDate && 'text-muted-foreground',
             className
           )}

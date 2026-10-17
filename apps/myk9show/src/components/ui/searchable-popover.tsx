@@ -182,7 +182,7 @@ function SearchablePopover<T extends { id: string }>({
           aria-controls={listboxId}
           {...(open && activeOption >= 0 && { 'aria-activedescendant': optionDomId(activeOption) })}
           variant="outline"
-          className="w-full justify-start"
+          className="w-full justify-start aria-invalid:border-destructive"
         >
           {triggerLabel}
           <Search className="ml-auto h-4 w-4" />

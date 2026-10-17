@@ -3,6 +3,7 @@ import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Label } from '@/components/ui/label';
 import { RequiredMark } from '@/components/common/RequiredMark';
 import { cn } from '@/lib/utils';
+import { FieldError } from '@/components/forms';
 
 interface TrialDateFieldProps {
   id: string;
@@ -45,11 +46,9 @@ export const TrialDateField: React.FC<TrialDateFieldProps> = ({
       maxDate={maxDate}
       defaultMonth={defaultMonth}
       showTime={false}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={error ? `${id}-error` : undefined}
     />
-    {error && (
-      <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
-        {error}
-      </p>
-    )}
+    <FieldError field={id} message={error} />
   </div>
 );

@@ -92,7 +92,6 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
       return (
         <ClassSelectionStep
           {...stepProps}
-          submitted={hasAttemptedNext}
           existingDBClasses={
             editMode?.mode === 'add-classes' || editMode?.mode === 'add-trials'
               ? existingClasses.map(c => ({
@@ -106,7 +105,6 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
           }
           trialView={trialView}
           {...(focusTrialId ? { focusTrialId } : {})}
-          ignoreEmptyTrials={editMode?.mode === 'add-classes'}
           {...(editMode?.mode === 'add-classes' ? { addJudgeToShowId: editMode.showId } : {})}
         />
       );

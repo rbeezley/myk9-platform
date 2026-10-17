@@ -3,6 +3,7 @@ import { Label } from '@/components/ui/label';
 import { RequiredMark } from '@/components/common/RequiredMark';
 import { TimeOfDayInput } from '@/components/common/TimeOfDayInput';
 import { cn } from '@/lib/utils';
+import { FieldError } from '@/components/forms';
 
 interface TrialStartTimeFieldProps {
   id: string;
@@ -39,10 +40,6 @@ export const TrialStartTimeField: React.FC<TrialStartTimeFieldProps> = ({
       aria-describedby={error ? `${id}-error` : undefined}
       className={cn(error && 'border-destructive')}
     />
-    {error && (
-      <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
-        {error}
-      </p>
-    )}
+    <FieldError field={id} message={error} />
   </div>
 );

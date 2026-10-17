@@ -10,6 +10,7 @@ const appleInput = {
     'bg-input', // Solid input background - consistent with design system
     'border border-[var(--input-border)]', // Visible edge for discoverability
     'rounded-xl', // 12px radius from tokens
+    'aria-invalid:border-destructive', // field error callout (FieldError)
     'transition-all duration-200 ease-apple', // standard easing
     'transform-gpu', // GPU acceleration for smoother animations
   ],

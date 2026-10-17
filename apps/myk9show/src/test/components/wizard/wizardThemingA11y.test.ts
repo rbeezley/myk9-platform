@@ -23,6 +23,7 @@ const showDetailsStep = read(path.join(stepsDir, 'ShowDetailsStep.tsx'));
 // the Dates & Entry group.
 // The date errors render in the control Create and Edit share (MYK9-931).
 const datesEntrySection = read(path.join(stepsDir, '../../ShowDatesFields.tsx'));
+const fieldError = read(path.join(stepsDir, '../../../forms/FieldError.tsx'));
 const trialConfigStep = read(path.join(stepsDir, 'TrialConfigurationStep.tsx'));
 const classSelectionStep = read(path.join(stepsDir, 'ClassSelectionStep.tsx'));
 const judgesPicker = read(path.join(stepsDir, 'JudgesPicker.tsx'));
@@ -102,7 +103,10 @@ describe('Show creation wizard — dark-mode theming guards', () => {
 
   it('ShowDetailsStep validation errors use the semantic destructive token', () => {
     expect(showDetailsStep).not.toContain('text-red-500');
-    expect(datesEntrySection).toContain('text-sm text-destructive mt-1');
+    // The date-range errors render through the shared callout, which carries the token.
+    expect(datesEntrySection).toContain('<FieldError');
+    expect(fieldError).toContain('text-destructive');
+    expect(fieldError).not.toContain('text-red-');
   });
 
   it('ClassSelectionStep empty state uses semantic warning tokens', () => {

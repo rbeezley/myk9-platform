@@ -15,6 +15,8 @@ import {
 import { Plus, Trash2, GripVertical, CalendarPlus, HelpCircle } from 'lucide-react';
 import { format, isWithinInterval, startOfDay } from 'date-fns';
 import { Label } from '@/components/ui/label';
+import { FieldError, fieldErrorControlProps } from '@/components/forms';
+import { trialFieldId } from '@/pages/secretary/ShowCreationWizard/wizardFieldIds';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWizardStore } from '@/store/wizardStore';
 import type { ReplicatedReadStatus } from '@/store/trial-store-types';
@@ -79,10 +81,6 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   const errors = useMemo(() => {
     const newErrors: Record<string, string> = {};
 
-    if (submitted && trials.length === 0) {
-      newErrors.trials = 'Please add at least one trial';
-    }
-
     // Validate each trial
     trials.forEach((trial, index) => {
       const prefix = `trial-${index}`;
@@ -122,21 +120,22 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
       }
     });
 
-    // Check for duplicate trial names (only non-empty names)
-    const names = effectiveTrialNames.map(name => name.trim().toLowerCase()).filter(Boolean);
-    const duplicateNames = names.filter((name, index) => names.indexOf(name) !== index);
-    if (duplicateNames.length > 0) {
-      newErrors.duplicateNames = 'Trial names must be unique';
-    }
-
-    // Check for duplicate event numbers (only non-empty values — empty is handled separately)
-    const eventNumbers = trials.map(t => t.eventNumber.trim()).filter(Boolean);
-    const duplicateEvents = eventNumbers.filter(
-      (num, index) => eventNumbers.indexOf(num) !== index
-    );
-    if (duplicateEvents.length > 0) {
-      newErrors.duplicateEvents = 'Event numbers must be unique';
-    }
+    // Duplicates are flagged on the later trial's own field, not in a summary.
+    const seenNames = new Set<string>();
+    effectiveTrialNames.forEach((name, index) => {
+      const key = name.trim().toLowerCase();
+      if (!key) return;
+      if (seenNames.has(key)) newErrors[`trial-${index}-name`] ??= 'Trial names must be unique';
+      seenNames.add(key);
+    });
+    const seenEvents = new Set<string>();
+    trials.forEach((trial, index) => {
+      const key = trial.eventNumber.trim();
+      if (!key) return;
+      if (seenEvents.has(key))
+        newErrors[`trial-${index}-eventNumber`] ??= 'Event numbers must be unique';
+      seenEvents.add(key);
+    });
 
     return newErrors;
   }, [trials, effectiveTrialNames, show.startDate, show.endDate, show.organization, submitted]);
@@ -314,6 +313,10 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                           onChange={e => updateTrial(trial.id, { nameOverride: e.target.value })}
                           placeholder="e.g., Trial 1, Novice Trial"
                           className="h-10"
+                          {...fieldErrorControlProps(
+                            trialFieldId(trial.id, 'name'),
+                            errors[`trial-${index}-name`]
+                          )}
                         />
                         {trial.nameOverride !== undefined && (
                           <Button
@@ -325,11 +328,10 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                             Use suggested name
                           </Button>
                         )}
-                        {errors[`trial-${index}-name`] && (
-                          <p className="text-sm text-destructive">
-                            {errors[`trial-${index}-name`]}
-                          </p>
-                        )}
+                        <FieldError
+                          field={trialFieldId(trial.id, 'name')}
+                          message={errors[`trial-${index}-name`]}
+                        />
                       </div>
 
                       <div className="space-y-2">
@@ -341,7 +343,14 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                           value={trial.trialType ?? ''}
                           onValueChange={value => updateTrial(trial.id, { trialType: value })}
                         >
-                          <SelectTrigger id={`trial-${trial.id}-type`} className="h-10">
+                          <SelectTrigger
+                            id={trialFieldId(trial.id, 'trialType')}
+                            className="h-10"
+                            {...fieldErrorControlProps(
+                              trialFieldId(trial.id, 'trialType'),
+                              errors[`trial-${index}-trialType`]
+                            )}
+                          >
                             <SelectValue placeholder="Select discipline" />
                           </SelectTrigger>
                           <SelectContent>
@@ -352,11 +361,10 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                             ))}
                           </SelectContent>
                         </Select>
-                        {errors[`trial-${index}-trialType`] && (
-                          <p className="text-sm text-destructive">
-                            {errors[`trial-${index}-trialType`]}
-                          </p>
-                        )}
+                        <FieldError
+                          field={trialFieldId(trial.id, 'trialType')}
+                          message={errors[`trial-${index}-trialType`]}
+                        />
                       </div>
 
                       {/* UKC trials have no event number (owner, MYK9-1086). */}
@@ -394,12 +402,15 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                             }
                             className="h-10"
                             required={show.organization === 'AKC'}
+                            {...fieldErrorControlProps(
+                              trialFieldId(trial.id, 'eventNumber'),
+                              errors[`trial-${index}-eventNumber`]
+                            )}
                           />
-                          {errors[`trial-${index}-eventNumber`] && (
-                            <p className="text-sm text-destructive">
-                              {errors[`trial-${index}-eventNumber`]}
-                            </p>
-                          )}
+                          <FieldError
+                            field={trialFieldId(trial.id, 'eventNumber')}
+                            message={errors[`trial-${index}-eventNumber`]}
+                          />
                         </div>
                       )}
                     </div>
@@ -436,20 +447,6 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
               Add Another Trial adds one more trial — check its date in the new card. Use Next when
               all your trials are listed.
             </p>
-          )}
-
-          {/* Validation Summary */}
-          {Object.keys(errors).length > 0 && (
-            <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4">
-              <p className="text-sm font-medium text-destructive mb-2">
-                Please fix the following errors to continue:
-              </p>
-              <ul className="text-sm text-destructive space-y-1">
-                {Object.values(errors).map((error, index) => (
-                  <li key={index}>• {error}</li>
-                ))}
-              </ul>
-            </div>
           )}
         </div>
       </div>

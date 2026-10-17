@@ -28,7 +28,9 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     await expect(page.getByText(/\d+ items? remaining/i)).toBeVisible();
 
     await page.getByRole('button', { name: /^Next$/ }).click();
-    await expect(page.getByRole('alert')).toContainText(/\d+ items? needs? attention/i);
+    await expect(
+      page.getByRole('status').filter({ hasText: /\d+ items? needs? attention/i })
+    ).toContainText(/\d+ items? needs? attention/i);
   });
 
   // MYK9-643: at 150% zoom on a phone the breadcrumb, the clone picker and

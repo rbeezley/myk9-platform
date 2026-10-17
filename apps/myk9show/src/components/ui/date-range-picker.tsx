@@ -37,6 +37,8 @@ interface DateRangePickerProps {
   minDate?: Date | undefined;
   /** id on the trigger button so a sibling <label htmlFor> connects for a11y. */
   id?: string | undefined;
+  'aria-invalid'?: boolean | undefined;
+  'aria-describedby'?: string | undefined;
 }
 
 function parseTime(timeStr: string): { hours: number; minutes: number } | null {
@@ -78,6 +80,8 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   endDefaultTime = '5:00 PM',
   minDate,
   id,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedBy,
 }) => {
   const startTimeId = id ? `${id}-start-time` : undefined;
   const endTimeId = id ? `${id}-end-time` : undefined;
@@ -177,9 +181,11 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
       <div className="relative w-full">
         <Button
           {...(id !== undefined && { id })}
+          {...(ariaInvalid !== undefined && { 'aria-invalid': ariaInvalid })}
+          {...(ariaDescribedBy !== undefined && { 'aria-describedby': ariaDescribedBy })}
           variant="outline"
           className={cn(
-            'w-full justify-start text-left font-normal',
+            'w-full justify-start text-left font-normal aria-invalid:border-destructive',
             !displayText && 'text-muted-foreground',
             displayText && 'pr-8',
             className

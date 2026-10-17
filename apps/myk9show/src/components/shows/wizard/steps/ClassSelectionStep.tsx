@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { FieldError, fieldErrorControlProps, useFieldErrors } from '@/components/forms';
+import { trialClassesFieldId } from '@/pages/secretary/ShowCreationWizard/wizardFieldIds';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -41,15 +43,11 @@ interface ClassSelectionStepProps {
   existingDBClasses?: ExistingClassInfo[] | undefined;
   /** Shared naming and show-level trial context created by the wizard page. */
   trialView: WizardTrialView;
-  /** True once the user has clicked Next — gates eager validation errors. */
-  submitted?: boolean;
   /**
    * Trial the picker opens on (add-classes launched from a trial). Ignored unless it is
    * one of the wizard's trials, so a stale or hand-edited id falls back to the first.
    */
   focusTrialId?: string;
-  /** Add-classes mode: a trial the secretary is not adding to must not show an error. */
-  ignoreEmptyTrials?: boolean;
   /**
    * Add-classes mode: the show exists and Show Details is not reachable, so "add a judge"
    * links to the show's Judges tab instead of jumping to wizard step 0.
@@ -66,9 +64,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   className,
   existingDBClasses = [],
   trialView,
-  submitted = false,
   focusTrialId,
-  ignoreEmptyTrials = false,
   addJudgeToShowId,
 }) => {
   const {
@@ -294,26 +290,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     });
   }, [show.judgeIds, trials, judgeAssignments, assignJudgeToClass, updateTrial]);
 
-  // Derive validation errors (no setState needed)
-  const errors = useMemo(() => {
-    const newErrors: Record<string, string> = {};
-
-    if (submitted && totalClasses === 0) {
-      newErrors.classes = 'Please select at least one class across all trials';
-    }
-
-    // Check that each trial has completed the class creation process
-    if (submitted && !ignoreEmptyTrials) {
-      trials.forEach((trial, index) => {
-        if (trial.classes.length === 0) {
-          newErrors[`trial-${index}`] =
-            `${effectiveTrialNames[index]} must have at least one class`;
-        }
-      });
-    }
-
-    return newErrors;
-  }, [totalClasses, trials, effectiveTrialNames, submitted, ignoreEmptyTrials]);
+  const fieldErrors = useFieldErrors();
 
   // Update trial state
   const updateTrialState = (trialId: string, updates: Partial<TrialClassState>) => {
@@ -464,7 +441,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                 {trials.map((trial, index) => {
                   const isCompleted = trial.classes.length > 0;
                   return (
-                    <TabsTrigger key={trial.id} value={trial.id}>
+                    <TabsTrigger
+                      key={trial.id}
+                      value={trial.id}
+                      {...fieldErrorControlProps(
+                        trialClassesFieldId(trial.id),
+                        fieldErrors[trialClassesFieldId(trial.id)]
+                      )}
+                    >
                       <span className="truncate">{effectiveTrialNames[index]}</span>
                       <Badge
                         variant={isCompleted ? 'default' : 'outline'}
@@ -476,6 +460,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                   );
                 })}
               </TabsList>
+              {trials.map(trial => (
+                <FieldError key={trial.id} field={trialClassesFieldId(trial.id)} />
+              ))}
 
               {/* Trial Content */}
               {trials.map((trial, index) => (
@@ -606,24 +593,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                 </TabsContent>
               ))}
             </Tabs>
-          )}
-
-          {/* Validation Summary */}
-          {Object.keys(errors).length > 0 && (
-            <Card>
-              <CardContent className="pt-4">
-                <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4">
-                  <p className="text-sm font-medium text-destructive mb-2">
-                    Please fix the following errors to continue:
-                  </p>
-                  <ul className="text-sm text-destructive space-y-1">
-                    {Object.values(errors).map((error, index) => (
-                      <li key={index}>• {error}</li>
-                    ))}
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
           )}
 
           {/* Summary Card */}

@@ -9,6 +9,7 @@ import { GroupedSearchablePopover } from '@/components/ui/grouped-searchable-pop
 import { groupPeopleForOfficial, getPersonName } from './ShowDetailsStep.helpers';
 import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
+import { FieldError, useFieldError } from '@/components/forms';
 
 export interface CreatePersonData {
   firstName: string;
@@ -117,6 +118,7 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
   const triggerId = `official-${idSlug}-trigger`;
+  const pickerError = useFieldError(triggerId);
   const firstNameId = `official-${idSlug}-first-name`;
   const lastNameId = `official-${idSlug}-last-name`;
   const emailId = `official-${idSlug}-email`;
@@ -143,6 +145,7 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
       {!showCreateForm && (
         <GroupedSearchablePopover<User>
           id={triggerId}
+          {...pickerError.controlProps}
           open={open}
           onOpenChange={handleOpenChange}
           triggerLabel={selectedName ?? `Select ${label}`}
@@ -172,6 +175,7 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
           }
         />
       )}
+      {!showCreateForm && <FieldError field={triggerId} />}
 
       {autoFillBadge && selectedName && !showCreateForm && (
         <Badge variant="outline" className="text-xs px-1.5 py-0 text-info border-info/30">

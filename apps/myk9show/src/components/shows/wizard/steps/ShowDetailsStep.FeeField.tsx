@@ -3,6 +3,7 @@ import { Label } from '@/components/ui/label';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { HelpCircle } from 'lucide-react';
+import { FieldError, useFieldError } from '@/components/forms';
 
 /* ------------------------------------------------------------------ */
 /*  FeeField — small presentational helper                             */
@@ -21,27 +22,32 @@ export interface FeeFieldProps {
   onChange: (value: number | undefined) => void;
 }
 
-export const FeeField: React.FC<FeeFieldProps> = ({ id, label, tooltip, value, onChange }) => (
-  <div className="space-y-2">
-    <Label {...(id !== undefined && { htmlFor: id })} className="flex items-center gap-1.5">
-      {label}
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-          </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-xs">
-            <p>{tooltip}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </Label>
-    <CurrencyInput
-      {...(id !== undefined && { id })}
-      value={value}
-      onChange={onChange}
-      placeholder="0.00"
-      className="border border-border bg-input rounded-md"
-    />
-  </div>
-);
+export const FeeField: React.FC<FeeFieldProps> = ({ id, label, tooltip, value, onChange }) => {
+  const feeError = useFieldError(id ?? '');
+  return (
+    <div className="space-y-2">
+      <Label {...(id !== undefined && { htmlFor: id })} className="flex items-center gap-1.5">
+        {label}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs">
+              <p>{tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </Label>
+      <CurrencyInput
+        {...(id !== undefined && { id })}
+        value={value}
+        onChange={onChange}
+        placeholder="0.00"
+        className="border border-border bg-input rounded-md"
+        {...(id !== undefined && feeError.controlProps)}
+      />
+      {id !== undefined && <FieldError field={id} />}
+    </div>
+  );
+};

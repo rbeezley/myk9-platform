@@ -23,6 +23,8 @@ export interface GroupedSearchablePopoverProps<T extends { id: string }> {
   footer?: React.ReactNode;
   /** id on the trigger button so a sibling <label htmlFor> connects for a11y. */
   id?: string | undefined;
+  'aria-invalid'?: boolean | undefined;
+  'aria-describedby'?: string | undefined;
   /**
    * When true, the list shows a "Loading…" message instead of "No results".
    * Lets the caller distinguish "still fetching" from "genuinely none" so an
@@ -56,6 +58,8 @@ function GroupedSearchablePopover<T extends { id: string }>({
   onSelect,
   footer,
   id,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedBy,
   loading = false,
   loadingLabel = 'Loading…',
   selectedItemIds,
@@ -82,8 +86,10 @@ function GroupedSearchablePopover<T extends { id: string }>({
       <PopoverTrigger asChild>
         <Button
           {...(id !== undefined && { id })}
+          {...(ariaInvalid !== undefined && { 'aria-invalid': ariaInvalid })}
+          {...(ariaDescribedBy !== undefined && { 'aria-describedby': ariaDescribedBy })}
           variant="outline"
-          className="w-full justify-start"
+          className="w-full justify-start aria-invalid:border-destructive"
         >
           {triggerLabel}
           <Search className="ml-auto h-4 w-4" />

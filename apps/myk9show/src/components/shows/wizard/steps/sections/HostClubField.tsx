@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { SearchablePopover } from '@/components/ui/searchable-popover';
 import { Plus } from 'lucide-react';
 import type { Club } from '@/types/club-types';
+import { FieldError, useFieldError } from '@/components/forms';
+import { SHOW_FIELD } from '@/pages/secretary/ShowCreationWizard/wizardFieldIds';
 import { clubCreateDeniedMessage } from '@/pages/secretary/ShowCreationWizard/clubShowCreatePermission';
 
 const CREATE_BTN_CLASS = 'w-full border-primary/20 text-primary hover:bg-primary/5';
@@ -43,6 +45,7 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
   clubCreateDenied = false,
 }) => {
   const selectedClub = clubId ? clubs.find(c => c.id === clubId) : undefined;
+  const clubError = useFieldError(SHOW_FIELD.hostClub);
   return (
     <div className="space-y-2 md:col-span-2">
       <Label htmlFor="show-host-club">
@@ -51,15 +54,20 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
       </Label>
       <div className="space-y-3">
         <SearchablePopover
-          id="show-host-club"
+          id={SHOW_FIELD.hostClub}
+          aria-invalid={clubError.controlProps['aria-invalid']}
           open={showSearch}
           onOpenChange={setShowSearch}
           triggerLabel={
             clubId ? clubs.find(c => c.id === clubId)?.name || 'Unknown Club' : 'Select a club'
           }
-          aria-describedby={
-            clubCreateDenied ? 'show-host-club-help show-host-club-advisory' : 'show-host-club-help'
-          }
+          aria-describedby={[
+            clubError.controlProps['aria-describedby'],
+            'show-host-club-help',
+            clubCreateDenied ? 'show-host-club-advisory' : undefined,
+          ]
+            .filter(Boolean)
+            .join(' ')}
           searchPlaceholder="Search clubs..."
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
@@ -80,6 +88,7 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
             </div>
           )}
         />
+        <FieldError field={SHOW_FIELD.hostClub} />
         {/* MYK9-889: choosing an existing club and creating a new one are different jobs.
             Once a club is chosen the create action steps back to a quiet text link. */}
         <p id="show-host-club-help" className="text-sm text-muted-foreground">

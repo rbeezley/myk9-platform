@@ -85,7 +85,9 @@ for (const viewport of VIEWPORTS) {
 
     // A real click, no force: Playwright's hit test fails if anything covers Next.
     await next.click({ timeout: 5000 });
-    await expect(page.getByRole('alert')).toContainText(/\d+ items? needs? attention/i);
+    await expect(
+      page.getByRole('status').filter({ hasText: /\d+ items? needs? attention/i })
+    ).toContainText(/\d+ items? needs? attention/i);
     // The notice is untouched by advancing: still shown once, not dismissed.
     await expect(notice).toBeVisible();
   });

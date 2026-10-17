@@ -1378,6 +1378,7 @@ export type Database = {
       club_access_requests: {
         Row: {
           approved_club_id: string | null
+          club_numbers: Json
           created_at: string
           id: string
           request_note: string | null
@@ -1393,6 +1394,7 @@ export type Database = {
         }
         Insert: {
           approved_club_id?: string | null
+          club_numbers?: Json
           created_at?: string
           id?: string
           request_note?: string | null
@@ -1408,6 +1410,7 @@ export type Database = {
         }
         Update: {
           approved_club_id?: string | null
+          club_numbers?: Json
           created_at?: string
           id?: string
           request_note?: string | null
@@ -1675,6 +1678,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "club_premium_templates_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      club_registry_numbers: {
+        Row: {
+          club_id: string
+          created_at: string
+          id: string
+          number: string
+          organization: string
+          updated_at: string
+        }
+        Insert: {
+          club_id: string
+          created_at?: string
+          id?: string
+          number: string
+          organization: string
+          updated_at?: string
+        }
+        Update: {
+          club_id?: string
+          created_at?: string
+          id?: string
+          number?: string
+          organization?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_registry_numbers_club_id_fkey"
             columns: ["club_id"]
             isOneToOne: false
             referencedRelation: "clubs"
@@ -4698,6 +4736,7 @@ export type Database = {
         Row: {
           auth_user_id: string
           club_name: string
+          club_numbers: Json
           contact_email: string
           contact_name: string
           contact_phone: string | null
@@ -4712,6 +4751,7 @@ export type Database = {
         Insert: {
           auth_user_id: string
           club_name: string
+          club_numbers?: Json
           contact_email: string
           contact_name: string
           contact_phone?: string | null
@@ -4726,6 +4766,7 @@ export type Database = {
         Update: {
           auth_user_id?: string
           club_name?: string
+          club_numbers?: Json
           contact_email?: string
           contact_name?: string
           contact_phone?: string | null
@@ -14427,6 +14468,7 @@ export type Database = {
         Returns: string
       }
       normalize_club_name: { Args: { value: string }; Returns: string }
+      normalize_club_numbers: { Args: { p_numbers: Json }; Returns: Json }
       normalize_dog_registration_number: {
         Args: { value: string }
         Returns: string
@@ -15173,6 +15215,7 @@ export type Database = {
       }
       submit_club_access_request: {
         Args: {
+          p_club_numbers?: Json
           p_request_note?: string
           p_requested_club_name: string
           p_requested_club_website?: string

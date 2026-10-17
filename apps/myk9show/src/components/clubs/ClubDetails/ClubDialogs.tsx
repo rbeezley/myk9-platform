@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Club } from '@/types/club-types';
 import type { ClubMember } from '@/types/club-membership-types';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import ClubPhotoDialog from '../ClubPhotoDialog';
 import { clubDeleteDetail } from '@/features/delete';
 import { AddMemberDialog } from '../members/AddMemberDialog';
+import { useClubRegistryNumbers } from '@/hooks/queries/useClubRegistryNumbers';
 
 interface ClubDialogsProps {
   club: Club;
@@ -58,6 +59,14 @@ export const ClubDialogs: React.FC<ClubDialogsProps> = ({
   onAddMemberDialogChange,
   members,
 }) => {
+  // MYK9-1235: the panel edits the club's numbers, so it starts from the loaded ones.
+  // Until they load, `registryNumbers` is absent and the panel keeps those fields
+  // disabled rather than letting a blank form delete them.
+  const { data: registryNumbers } = useClubRegistryNumbers(club.id);
+  const initialClubData = useMemo(
+    () => (registryNumbers ? { ...club, registryNumbers } : club),
+    [club, registryNumbers]
+  );
   return (
     <>
       {/* Edit Club Panel */}
@@ -66,7 +75,7 @@ export const ClubDialogs: React.FC<ClubDialogsProps> = ({
         onClose={onCloseEditPanel}
         clubId={club.id}
         clubName={club.name}
-        initialClubData={club}
+        initialClubData={initialClubData}
         onSave={onSaveEdit}
         onDelete={
           canDeleteClub

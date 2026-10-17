@@ -2,9 +2,45 @@ import { z } from 'zod';
 import { clubSchemas } from '@/lib/validation';
 import type { Club } from '@/types/club-types';
 import { DEFAULT_COUNTRY } from '@/types/club-types';
+import {
+  CLUB_NUMBER_REQUIRED_MESSAGE,
+  hasClubRegistryNumber,
+  normalizeClubRegistryNumbers,
+  type ClubRegistryOrg,
+} from '@/utils/clubRegistryNumbers';
 
 // Zod schema for club edit form
 export const clubEditSchema = clubSchemas.basic;
+
+/**
+ * MYK9-1235: a club that has a registry number cannot be edited down to none,
+ * so the Edit Club panel adds the at-least-one rule when the club had any. A
+ * club with no number yet (legacy rows) can still be saved, and Add Club does
+ * not ask for numbers at all: a new club has no server row to hang them on
+ * until its queued INSERT uploads.
+ */
+export const clubEditSchemaFor = (requireClubNumber: boolean) =>
+  requireClubNumber
+    ? clubEditSchema.superRefine((data, ctx) => {
+        if (
+          !hasClubRegistryNumber({
+            AKC: data.akcClubNumber,
+            UKC: data.ukcClubNumber,
+            ASCA: data.ascaClubNumber,
+          })
+        ) {
+          ctx.addIssue({
+            code: 'custom',
+            message: CLUB_NUMBER_REQUIRED_MESSAGE,
+            path: ['akcClubNumber'],
+          });
+        }
+      })
+    : clubEditSchema;
+
+/** The form field that holds an organization's club number. */
+export const clubNumberField = (org: ClubRegistryOrg) =>
+  `${org.toLowerCase()}ClubNumber` as 'akcClubNumber' | 'ukcClubNumber' | 'ascaClubNumber';
 
 // Form data type derived from the Zod schema
 export type ClubEditFormData = z.infer<typeof clubEditSchema> & Record<string, unknown>;
@@ -13,7 +49,9 @@ export type ClubEditFormData = z.infer<typeof clubEditSchema> & Record<string, u
 export const clubToFormData = (club: Partial<Club>): ClubEditFormData => {
   return {
     name: club.name || '',
-    clubNumber: club.clubNumber || '',
+    akcClubNumber: club.registryNumbers?.AKC ?? '',
+    ukcClubNumber: club.registryNumbers?.UKC ?? '',
+    ascaClubNumber: club.registryNumbers?.ASCA ?? '',
     email: club.email || '',
     phone: club.phone || '',
     website: club.website || '',
@@ -33,7 +71,11 @@ export const clubToFormData = (club: Partial<Club>): ClubEditFormData => {
 // Convert form data back to Club
 export const formDataToClub = (formData: ClubEditFormData): Partial<Club> => ({
   name: formData.name,
-  clubNumber: formData.clubNumber ?? '',
+  registryNumbers: normalizeClubRegistryNumbers({
+    AKC: formData.akcClubNumber,
+    UKC: formData.ukcClubNumber,
+    ASCA: formData.ascaClubNumber,
+  }),
   email: formData.email,
   phone: formData.phone,
   website: formData.website || undefined,

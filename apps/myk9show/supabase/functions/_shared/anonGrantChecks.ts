@@ -73,6 +73,7 @@ export const ANON_TABLE_ALLOWLIST: Readonly<Record<string, string>> = {
   trials: 'r',
   armbands: 'r',
   clubs: 'r',
+  club_registry_numbers: 'r',
   achievements: 'r',
   show_visibility_settings: 'r',
   trial_visibility_overrides: 'r',

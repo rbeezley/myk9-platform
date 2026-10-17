@@ -7,7 +7,6 @@ const clubs: Club[] = [
   {
     id: 'club-1',
     name: 'Golden State Dog Club',
-    clubNumber: 'GS-001',
     email: 'info@goldenstatedc.org',
     phone: '555-0100',
     website: 'https://goldenstatedc.org',

@@ -1,5 +1,8 @@
 import { useState, startTransition, useMemo, useCallback, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryClient';
+import { saveClubRegistryNumbers } from '@/services/database/clubs';
+import { formatClubRegistryNumbers, type ClubRegistryNumbers } from '@/utils/clubRegistryNumbers';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { useNavigate } from 'react-router-dom';
 import { useClubStore } from '@/store/clubStore';
@@ -45,6 +48,7 @@ const CLUB_TAB_IDS = ['upcoming', 'past', 'about', 'members', 'branding'] as con
 
 export function useClubDetailsState(selectedClub: Club | null) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { updateClub } = useClubStore();
   // Tab state — URL-synced
   const [activeTab, setActiveTabRaw] = useUrlTab(CLUB_TAB_IDS, 'upcoming');
@@ -215,6 +219,26 @@ export function useClubDetailsState(selectedClub: Club | null) {
 
       try {
         await updateClub(updatedClub);
+        // MYK9-1235: numbers live in their own table, so they save as their own write.
+        // Only when they changed: the write is online-only, so an unrelated edit made
+        // offline must not fail a club save that already succeeded.
+        const loadedNumbers = queryClient.getQueryData<ClubRegistryNumbers>(
+          queryKeys.clubRegistryNumbers(selectedClub.id)
+        );
+        if (
+          formData.registryNumbers &&
+          formatClubRegistryNumbers(formData.registryNumbers) !==
+            formatClubRegistryNumbers(loadedNumbers)
+        ) {
+          if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            notifications.warning('Club numbers need a connection; they were not saved.');
+          } else {
+            await saveClubRegistryNumbers(selectedClub.id, formData.registryNumbers);
+            await queryClient.invalidateQueries({
+              queryKey: queryKeys.clubRegistryNumbers(selectedClub.id),
+            });
+          }
+        }
         setShowEditPanel(false);
       } catch (error) {
         logger.error('Failed to save club', 'clubs', { clubId: selectedClub.id }, error as Error);
@@ -223,7 +247,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
         throw error;
       }
     },
-    [selectedClub, updateClub]
+    [selectedClub, updateClub, queryClient]
   );
 
   const handleViewShowDetails = useCallback(

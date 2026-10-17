@@ -149,10 +149,14 @@ describe('ClubEditPanel create mode — guided sections', () => {
         screen.getByRole('tab', { name: name === 'basic' ? /^Basic Info/ : /^Contact/ })
       );
       for (const [field, loc] of Object.entries(FIELD_LOCATION)) {
+        // The club-number inputs are Edit Club only (MYK9-1235): a new club has no
+        // server row to hang numbers on yet, so Add Club does not render them.
+        if (/ClubNumber$/.test(field)) continue;
         if (loc.tab === name && !document.getElementById(loc.elementId)) missing.push(field);
       }
     }
     expect(missing).toEqual([]);
+    expect(document.getElementById('akcClubNumber')).toBeNull();
   });
 
   it('keeps one to-complete count per tab as fields are typed', async () => {

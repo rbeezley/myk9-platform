@@ -14,6 +14,7 @@ import {
 } from '@/services/database/club-access-requests';
 import { formatShortDate } from '@/lib/format/dates';
 import { getSafeWebsiteLink } from '@/lib/websiteUrl';
+import { formatClubRegistryNumbers } from '@/utils/clubRegistryNumbers';
 
 function ReviewCard({
   request,
@@ -94,6 +95,11 @@ function ReviewCard({
           ) : request.requestedClubWebsite ? (
             <p className="mt-2 text-sm text-muted-foreground">{request.requestedClubWebsite}</p>
           ) : null}
+          {formatClubRegistryNumbers(request.clubNumbers) && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Club numbers: {formatClubRegistryNumbers(request.clubNumbers)}
+            </p>
+          )}
           {request.requestNote && (
             <p className="mt-3 text-sm leading-relaxed">{request.requestNote}</p>
           )}

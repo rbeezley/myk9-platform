@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -123,17 +125,23 @@ export function ClassStatusControl({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <p className="max-w-56 px-2 py-1.5 text-xs text-muted-foreground">{STATUS_TIMING_HELP}</p>
-          {STATUS_OPTIONS.filter(option => option.value !== CLASS_STATUS.CANCELLED).map(option => (
-            <DropdownMenuItem
-              key={option.value}
-              disabled={option.label === label}
-              onClick={() => update(option.value)}
-            >
-              {option.label}
-              {option.label === label && <Check className="ml-auto h-4 w-4" />}
-            </DropdownMenuItem>
-          ))}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="max-w-72 text-xs font-normal text-muted-foreground">
+              {STATUS_TIMING_HELP}
+            </DropdownMenuLabel>
+            {STATUS_OPTIONS.filter(option => option.value !== CLASS_STATUS.CANCELLED).map(
+              option => (
+                <DropdownMenuItem
+                  key={option.value}
+                  disabled={option.label === label}
+                  onClick={() => update(option.value)}
+                >
+                  {option.label}
+                  {option.label === label && <Check className="ml-auto h-4 w-4" />}
+                </DropdownMenuItem>
+              )
+            )}
+          </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             disabled={label === 'Cancelled'}

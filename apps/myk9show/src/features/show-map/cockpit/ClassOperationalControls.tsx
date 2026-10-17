@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -25,6 +27,9 @@ const STATUS_OPTIONS: readonly { value: ClassStatusValue; label: string }[] = [
   { value: CLASS_STATUS.COMPLETED, label: 'Complete' },
   { value: CLASS_STATUS.CANCELLED, label: 'Cancelled' },
 ];
+
+export const STATUS_TIMING_HELP =
+  'Ringside scoring fills in the start and finish times until you change the status here. After that, In progress records the start time and Complete records the finish time.';
 
 const STATUS_LABEL: Record<CockpitLifecycle, string> = {
   'not-started': 'Not started',
@@ -120,16 +125,23 @@ export function ClassStatusControl({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          {STATUS_OPTIONS.filter(option => option.value !== CLASS_STATUS.CANCELLED).map(option => (
-            <DropdownMenuItem
-              key={option.value}
-              disabled={option.label === label}
-              onClick={() => update(option.value)}
-            >
-              {option.label}
-              {option.label === label && <Check className="ml-auto h-4 w-4" />}
-            </DropdownMenuItem>
-          ))}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="max-w-72 text-xs font-normal text-muted-foreground">
+              {STATUS_TIMING_HELP}
+            </DropdownMenuLabel>
+            {STATUS_OPTIONS.filter(option => option.value !== CLASS_STATUS.CANCELLED).map(
+              option => (
+                <DropdownMenuItem
+                  key={option.value}
+                  disabled={option.label === label}
+                  onClick={() => update(option.value)}
+                >
+                  {option.label}
+                  {option.label === label && <Check className="ml-auto h-4 w-4" />}
+                </DropdownMenuItem>
+              )
+            )}
+          </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             disabled={label === 'Cancelled'}

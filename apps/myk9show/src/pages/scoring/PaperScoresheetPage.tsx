@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { ScoresheetLoadingSkeleton } from '@/components/scoring/ScoringLoadingSkeletons';
 import { useScoringBreadcrumb } from './useScoringBreadcrumb';
-import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
@@ -387,9 +386,6 @@ export function PaperScoresheetPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 pt-2">
-        <ShowDeskReturnLink showId={breadcrumb.showId ?? undefined} />
-      </div>
       {!breadcrumb.isLoading && (
         <div className="px-4 pt-4">
           <Breadcrumb

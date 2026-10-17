@@ -257,17 +257,6 @@ export const competitionMappers = {
       return seconds + milliseconds / 100;
     }
   },
-
-  // Format time for display
-  formatTime(seconds: number): string {
-    if (seconds < 60) {
-      return `${seconds.toFixed(2)}s`;
-    }
-
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toFixed(2).padStart(5, '0')}`;
-  },
 };
 
 export const pastResultMappers = {

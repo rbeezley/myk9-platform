@@ -58,6 +58,15 @@ describe('useElementTimer', () => {
     });
   });
 
+  describe('live clock carry (MYK9-1225)', () => {
+    it('floors a running 59,996 ms to 0:59.99 and never prints :60 at 119,999 ms', () => {
+      const { result } = renderHook(() => useElementTimer());
+      expect(result.current.formatTime(59996)).toBe('0:59.99');
+      expect(result.current.formatTime(119999)).toBe('1:59.99');
+      expect(result.current.formatTime(120000)).toBe('2:00.00');
+    });
+  });
+
   describe('formatTime', () => {
     it('should format 0 as 0:00.00', () => {
       const { result } = renderHook(() => useElementTimer());

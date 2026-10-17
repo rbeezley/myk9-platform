@@ -25,7 +25,7 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "idb": "^8.0.3"
+    "idb": "^8.0.4"
   },
   "devDependencies": {
     "@myk9/core": "workspace:*",

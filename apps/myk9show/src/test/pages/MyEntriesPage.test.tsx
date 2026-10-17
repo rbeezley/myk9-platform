@@ -1112,6 +1112,7 @@ describe('Receipt deep-link scope from My Payments', () => {
   };
 
   beforeEach(() => {
+    mockViewportWidth(500);
     vi.clearAllMocks();
     localStorage.clear();
     mockUseDogsByOwnerQuery.mockReturnValue({ data: [], isLoading: false });

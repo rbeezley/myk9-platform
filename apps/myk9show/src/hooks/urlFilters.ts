@@ -107,3 +107,15 @@ export function hasRedundantFilterParams<T extends StringValued<T>>(
     key => params.has(key) && parsed[key] === defaults[key]
   );
 }
+
+/**
+ * The filters that differ from their defaults as a query string (`?search=rex&status=active`, or
+ * empty), for links that leave a browse list mounted beside an open record: a row, Up/Down, a
+ * record's Close. The filters live in the URL, so a link without them resets the list. Keys come
+ * from `defaults`, so a filter added later is carried with no list to update, and anything else
+ * in the URL (`returnTo`, `create`, `add`) is never carried.
+ */
+export function filtersQueryString<T extends StringValued<T>>(values: T, defaults: T): string {
+  const query = applyUrlFilters(new URLSearchParams(), values, defaults).toString();
+  return query ? `?${query}` : '';
+}

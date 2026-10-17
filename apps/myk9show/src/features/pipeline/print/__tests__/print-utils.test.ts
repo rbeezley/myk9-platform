@@ -52,6 +52,14 @@ describe('formatReportTime', () => {
     expect(formatReportTime(NaN)).toBe('');
   });
 
+  it('does not truncate 61.23 to 01:01.22 (MYK9-1225)', () => {
+    expect(formatReportTime(61.23)).toBe('01:01.23');
+  });
+
+  it('carries 59.995 to 01:00.00, not 00:59.100 (MYK9-1225)', () => {
+    expect(formatReportTime(59.995)).toBe('01:00.00');
+  });
+
   it('formats zero seconds', () => {
     expect(formatReportTime(0)).toBe('00:00.00');
   });

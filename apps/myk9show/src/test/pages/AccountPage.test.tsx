@@ -199,6 +199,29 @@ describe('AccountPage', () => {
     );
   });
 
+  // MYK9-1237: one combined card, first on the page, request above roles.
+  it('puts the combined access and roles card first, request before roles', () => {
+    render();
+    const title = screen.getByText('Additional Access Request');
+    expect(screen.queryByText('Need additional access?')).not.toBeInTheDocument();
+    const follows = (a: Node, b: Node) =>
+      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+    expect(follows(title, screen.getByText('Profile photo'))).toBe(true);
+    expect(follows(title, screen.getByText('Personal information'))).toBe(true);
+
+    const link = screen.getByRole('link', { name: 'Request additional access' });
+    const rolesHeading = screen.getByText('Your roles');
+    expect(follows(title, link)).toBe(true);
+    expect(follows(link, rolesHeading)).toBe(true);
+    expect(follows(rolesHeading, screen.getByText('Profile photo'))).toBe(true);
+    // Same card: the title and the roles heading share one card container.
+    const card = screen.getByTestId('account-access-roles-card');
+    expect(card).toContainElement(title);
+    expect(card).toContainElement(rolesHeading);
+    expect(card).toContainElement(link);
+  });
+
   it('shows the signed-in user roles as read-only information', () => {
     render();
 

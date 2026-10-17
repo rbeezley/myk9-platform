@@ -1,8 +1,9 @@
 import React from 'react';
-import { Calendar, CheckCircle2, XCircle, Clock, WifiOff } from 'lucide-react';
+import { Calendar, Clock, WifiOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ResultBadge, type ResultStatus } from '@/components/common/ResultBadge';
 import { Link } from 'react-router-dom';
 import {
   formatActivityDate,
@@ -13,17 +14,12 @@ import { useDogActivity } from '@/features/_shared/hooks/useDogActivity';
 import { deriveEntryPresentation } from '@/services/entryDisplay/entryPresentation';
 import { deriveResultReleaseDisplay } from '@/features/result-card';
 import { formatFaultCount } from '@/features/_shared/faultLabel';
+import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
 
 interface ActivityTabProps {
   dogId: string;
   dogName: string;
   role: 'exhibitor' | 'secretary';
-}
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toFixed(2).padStart(5, '0')}`;
 }
 
 function UpcomingRow({
@@ -136,7 +132,7 @@ function ResultRow({
         <div className="text-xs text-muted-foreground mt-0.5">{className}</div>
         {entry.search_time_seconds != null && (
           <div className="font-mono text-xs text-muted-foreground mt-0.5">
-            {formatTime(entry.search_time_seconds)}
+            {formatSecondsAsMSSCC(entry.search_time_seconds)}
             {release?.placement != null && (
               <span className="ml-2 font-sans font-medium text-amber-600">
                 #{release.placement}
@@ -151,24 +147,26 @@ function ResultRow({
         )}
       </div>
       <div className="flex-shrink-0">
-        {qualified ? (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600">
-            <CheckCircle2 className="h-3.5 w-3.5" />Q
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-destructive">
-            <XCircle className="h-3.5 w-3.5" />
-            NQ
-          </span>
-        )}
+        {entry.result_status && <ResultBadge resultStatus={entry.result_status} />}
       </div>
     </div>
   );
 }
 
+// A run the dog started. Absent and withdrawn dogs never ran, so they are not
+// part of a qualifying rate; excused and disqualified dogs did (MYK9-1011).
+const STARTED_RESULTS: ReadonlySet<string> = new Set<ResultStatus>([
+  'qualified',
+  'nq',
+  'excused',
+  'disqualified',
+]);
+
 const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
   const { upcoming, recentResults, isLoading, isError, canTrustEmpty, resultsVerified, refetch } =
     useDogActivity(dogId);
+  const startedRuns = recentResults.filter(e => STARTED_RESULTS.has(e.result_status ?? '')).length;
+  const qualifyingRuns = recentResults.filter(e => e.result_status === 'qualified').length;
   // An empty list is only "nothing booked" when the read actually resolved.
   // Career applies the identical rule — see `canTrustEmpty`.
   const upcomingUnresolved = upcoming.length === 0 && (isError || !canTrustEmpty);
@@ -252,10 +250,11 @@ const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center justify-between text-base font-semibold">
               <span>Recent results</span>
-              <span className="text-xs font-normal text-muted-foreground">
-                {recentResults.filter(e => e.result_status === 'qualified').length}/
-                {recentResults.length} qualifying runs
-              </span>
+              {startedRuns > 0 && (
+                <span className="text-xs font-normal text-muted-foreground">
+                  {`${qualifyingRuns}/${startedRuns} qualifying runs`}
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>

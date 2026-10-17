@@ -1,5 +1,6 @@
 import { useMemo, useCallback } from 'react';
 import { useUrlFilters } from '@/hooks/useUrlFilters';
+import { filtersQueryString, parseUrlFilters } from '@/hooks/urlFilters';
 import { useRoleBasedPeople } from '@/hooks/useRoleBasedData';
 import { extractPersonName } from '@/components/users/UserDetails/userDetailsTypes';
 import type { User } from '@/types/user-types';
@@ -68,6 +69,24 @@ const URL_FILTER_OPTIONS = {
   allowedValues: { role: VIEW_ROLES, login: ['none'] as readonly string[] },
 };
 
+/** Role and "No login" are alternative views, never combined: a role wins. */
+function resolvePeopleFilters(raw: PeopleFilters): PeopleFilters {
+  return raw.role !== 'all' && raw.login !== 'all' ? { ...raw, login: 'all' } : raw;
+}
+
+/**
+ * The People list's filters, read from a URL the way the list reads them, as a query string for
+ * links that leave the list mounted (a row, Up/Down, the open person's Close). Empty when none set.
+ */
+export function peopleFiltersQuery(params: URLSearchParams): string {
+  return filtersQueryString(
+    resolvePeopleFilters(
+      parseUrlFilters(params, DEFAULT_PEOPLE_FILTERS, URL_FILTER_OPTIONS.allowedValues)
+    ),
+    DEFAULT_PEOPLE_FILTERS
+  );
+}
+
 export function useBrowsePeopleData(): BrowsePeopleData {
   const { people, isLoading, error, refetch } = useRoleBasedPeople();
   const handleRetry = useCallback(() => {
@@ -82,13 +101,7 @@ export function useBrowsePeopleData(): BrowsePeopleData {
   );
   // Role and "No login" are alternative views, never combined (no preset covers
   // both), so a role wins and the sign-in restriction reads as off.
-  const filters = useMemo<PeopleFilters>(
-    () =>
-      rawFilters.role !== 'all' && rawFilters.login !== 'all'
-        ? { ...rawFilters, login: 'all' }
-        : rawFilters,
-    [rawFilters]
-  );
+  const filters = useMemo<PeopleFilters>(() => resolvePeopleFilters(rawFilters), [rawFilters]);
 
   const filteredPeople = useMemo(() => filterPeople(people, filters), [people, filters]);
 

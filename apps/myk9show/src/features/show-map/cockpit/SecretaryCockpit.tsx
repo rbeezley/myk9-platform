@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { CalendarDays, Plus } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigationType } from 'react-router-dom';
 import { useTrialRowActions } from '@/components/shows/tabs/useTrialRowActions';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 
@@ -20,6 +20,7 @@ import { CockpitResultsHandoff } from './CockpitResultsHandoff';
 import { isEveryClassComplete } from './resultsHandoff';
 import { SecretaryCockpitSchedule } from './SecretaryCockpitSchedule';
 import { getCockpitAnchorElementId } from './cockpitRoutes';
+import { carryHonouredAnchor, isAnchorHonoured, markAnchorHonoured } from './cockpitAnchorHonoured';
 import type {
   SecretaryCockpitRunOrderControls,
   SecretaryCockpitSnapshot,
@@ -62,7 +63,21 @@ export function SecretaryCockpit({
       {trialRowMenu(trialId, label, true)}
     </>
   );
-  const pendingAnchor = useRef(state.anchor);
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  // A remount on a history entry that already scrolled to this anchor starts spent (MYK9-1218).
+  const pendingAnchor = useRef(
+    state.anchor && !isAnchorHonoured(location.key, state.anchor) ? state.anchor : undefined
+  );
+  const locationKeyRef = useRef(location.key);
+  useEffect(() => {
+    const previousKey = locationKeyRef.current;
+    locationKeyRef.current = location.key;
+    // The cockpit's own `replace` writes mint a new key for the same page.
+    if (previousKey !== location.key && navigationType === 'REPLACE') {
+      carryHonouredAnchor(previousKey, location.key);
+    }
+  }, [location.key, navigationType]);
   // The split follows the width the cockpit is given (full page, or beside the Shows list), not
   // the window: see cockpitSplit.ts.
   const { ref: gridRef, width: gridWidth } = useElementWidth<HTMLDivElement>();
@@ -131,6 +146,7 @@ export function SecretaryCockpit({
   // a row that renders late must not move the page under them.
   useEffect(() => {
     const cancel = () => {
+      if (pendingAnchor.current) markAnchorHonoured(locationKeyRef.current, pendingAnchor.current);
       pendingAnchor.current = undefined;
     };
     const options = { capture: true, passive: true } as const;
@@ -140,14 +156,15 @@ export function SecretaryCockpit({
   }, []);
 
   // Only in the measured layout: the first commit is unmeasured (stacked), and a split cockpit
-  // re-lays out right after it, which would move the row. Scrolls once, then is spent for this
-  // mount: a resize or rotation that keeps the cockpit mounted never moves the page. (A remount,
-  // as when the window crosses `lg`, reads the URL's anchor again: MYK9-1218.)
+  // re-lays out right after it, which would move the row. Scrolls once, then is spent: a resize or
+  // rotation never moves the page, and a remount on the same history entry (the window crossing
+  // `lg`, roles arriving) finds it recorded in cockpitAnchorHonoured and stays put.
   useEffect(() => {
     const anchor = pendingAnchor.current;
     if (!anchor || gridWidth === null) return;
     const target = document.getElementById(getCockpitAnchorElementId(anchor));
     if (!target) return;
+    markAnchorHonoured(locationKeyRef.current, anchor);
     pendingAnchor.current = undefined;
     target.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   }, [model.trialGroups, gridWidth]);

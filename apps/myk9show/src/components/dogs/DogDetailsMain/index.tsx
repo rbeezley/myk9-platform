@@ -12,6 +12,7 @@ import { useDogViewerRelationship } from './useDogViewerRelationship';
 import { DogPageSkeleton } from './Skeletons';
 import { PageShell } from '@/components/common/PageShell';
 import { CloseDetailLink } from '@/components/layout/CloseDetailLink';
+import { dogFiltersQuery } from '@/components/dogs/browse/dogBrowseFilters';
 import { useEmbeddedDetail } from '@/components/layout/embeddedDetail';
 import { isListNavigation } from '@/components/layout/listNavigation';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -347,7 +348,11 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
           breadcrumbs={toPageHeaderCrumbs(breadcrumbItems, `/dogs/${updatedDog.id}`)}
           title={getDogDisplayName(updatedDog)}
           omitTitle
-          actions={embedded ? <CloseDetailLink to="/dogs" label="Close dog" /> : undefined}
+          actions={
+            embedded ? (
+              <CloseDetailLink to={`/dogs${dogFiltersQuery(searchParams)}`} label="Close dog" />
+            ) : undefined
+          }
         />
         <DogHero
           dog={updatedDog}

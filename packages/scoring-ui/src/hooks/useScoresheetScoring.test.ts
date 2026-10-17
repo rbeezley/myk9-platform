@@ -262,4 +262,19 @@ describe('useScoresheetScoring', () => {
     expect(result.current.faultCount).toBe(0);
     expect(result.current.areas[0].time).toBe('');
   });
+
+  it('totals stored area times with a carry, never ":60" (MYK9-1225)', () => {
+    const rules = { ...defaultRules, areaCount: 2 };
+    const { result } = renderHook(() => useScoresheetScoring({ rules }));
+    act(() => {
+      result.current.handleAreaUpdate(0, 'time', '0:59.99');
+      result.current.handleAreaUpdate(1, 'time', '1:00.00');
+    });
+    expect(result.current.calculateTotalTime()).toBe('1:59.99');
+    act(() => {
+      result.current.handleAreaUpdate(0, 'time', '0:30.00');
+      result.current.handleAreaUpdate(1, 'time', '0:29.999');
+    });
+    expect(result.current.calculateTotalTime()).toBe('1:00.00');
+  });
 });

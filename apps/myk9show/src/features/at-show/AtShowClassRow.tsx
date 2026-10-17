@@ -3,6 +3,7 @@ import { getEffectiveClassStatus, type ClassEntry } from '@myk9/ringside';
 import { StatusBadge } from '@/components/status';
 import { cn } from '@/lib/utils';
 import { formatAtShowClassTime } from './atShowClassTiming';
+import type { RingDayBucket } from './orderRingClassesByDay';
 import {
   isEmptyNextUpPreview,
   isLiveNextUpStatus,
@@ -20,6 +21,13 @@ interface AtShowClassRowProps {
    * multi-day show's identical class names stay tellable apart.
    */
   trialHeading?: string | undefined;
+  /**
+   * Day relative to the trial's local today (MYK9-1224), only for Your ring.
+   * 'today' gets a label; 'past' is rendered quieter but stays tappable.
+   */
+  dayBucket?: RingDayBucket | undefined;
+  /** The trial's date is today; only this shows the Today label (a live class may sort as today without it). */
+  isToday?: boolean | undefined;
   /** In-ring / next-up preview for this card; omitted when unknown. */
   nextUp?: AtShowNextUpPreview | undefined;
   /**
@@ -82,6 +90,8 @@ export function AtShowClassRow({
   onClick,
   trialTimeZone,
   trialHeading,
+  dayBucket,
+  isToday,
   nextUp,
   entryCountsAvailable,
 }: AtShowClassRowProps) {
@@ -89,7 +99,7 @@ export function AtShowClassRow({
   const showNextUp = isLiveNextUpStatus(status) && !isEmptyNextUpPreview(nextUp);
 
   return (
-    <li data-class-id={entry.id}>
+    <li data-class-id={entry.id} data-day-bucket={dayBucket}>
       {/* INTENT: in-ring gloved taps want ~48px rows — hence min-h-12. */}
       <button
         type="button"
@@ -101,7 +111,11 @@ export function AtShowClassRow({
           // background tint is gone: it lightened the dark card just enough to
           // drop text-muted-foreground to 4.26:1, under AA. The filled Star and
           // the primary border already carry the state, so this loses no signal.
-          entry.is_favorite && 'border-primary'
+          entry.is_favorite && 'border-primary',
+          // Past days are quieter by surface only (no shadow; the border stays so the
+          // card still reads as a card); never opacity, which drops muted text
+          // below AA (see counter comment).
+          dayBucket === 'past' && 'shadow-none'
         )}
       >
         <div className="min-w-0 flex-1">
@@ -110,8 +124,13 @@ export function AtShowClassRow({
             <span className="truncate font-medium">{entry.class_name}</span>
           </div>
           {trialHeading && (
-            <div className="mt-0.5 truncate text-sm font-medium text-foreground/80">
-              {trialHeading}
+            <div className="mt-0.5 flex items-center gap-2 text-sm font-medium text-foreground/80">
+              <span className="truncate">{trialHeading}</span>
+              {isToday && (
+                <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+                  Today
+                </span>
+              )}
             </div>
           )}
           {entry.judge_name && entry.judge_name !== 'No Judge Assigned' && (

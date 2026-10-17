@@ -3,6 +3,8 @@
  * These types ensure consistent data structure for BulkResultEntry
  */
 
+import { formatMsAsMSSCC } from '@/lib/format/searchTime';
+
 import { TrialType } from './template.types';
 
 export interface UnifiedEntryData {
@@ -179,12 +181,8 @@ function parseTimeToMs(timeStr: string): number {
 /**
  * Format milliseconds to time string (MM:SS.HH)
  */
-function formatMsToTime(ms: number): string {
-  const totalSeconds = ms / 1000;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = Math.floor(totalSeconds % 60);
-  const hundredths = Math.round((totalSeconds % 1) * 100);
-  return `${minutes}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
+export function formatMsToTime(ms: number): string {
+  return formatMsAsMSSCC(ms);
 }
 
 /**

@@ -1,12 +1,12 @@
 import { Trophy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-import { msToDisplay } from '@/lib/timeUtils';
+import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
 import type { DogStats } from './analytics-utils';
 
 function formatTime(seconds: number | null): string {
   if (seconds == null) return '—';
-  return msToDisplay(seconds * 1000, 'hundredths');
+  return formatSecondsAsMSSCC(seconds);
 }
 
 interface DogBreakdownCardsProps {

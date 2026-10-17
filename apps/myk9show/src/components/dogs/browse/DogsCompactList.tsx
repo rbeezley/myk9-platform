@@ -9,6 +9,8 @@ interface DogsCompactListProps {
   selectedId: string | undefined;
   /** False on an own-dogs-only roster, where an owner line only repeats the viewer's name. */
   showOwner?: boolean;
+  /** The list's filters as a query string (`filtersQueryString`), kept on every row's link. */
+  filterQuery?: string;
 }
 
 const displayName = (dog: Dog) => dog.callName || dog.name;
@@ -18,13 +20,14 @@ export const DogsCompactList: React.FC<DogsCompactListProps> = ({
   dogs,
   selectedId,
   showOwner = true,
+  filterQuery = '',
 }) => (
   <CompactRecordList
     items={dogs}
     selectedId={selectedId}
     label="Dogs"
     getId={dog => dog.id}
-    getHref={dog => `/dogs/${dog.id}`}
+    getHref={dog => `/dogs/${dog.id}${filterQuery}`}
     getName={displayName}
     renderRow={dog => ({
       title: displayName(dog),

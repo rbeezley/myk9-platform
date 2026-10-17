@@ -5,6 +5,59 @@
  * Used for scoresheets, entry lists, and anywhere time values need formatting.
  */
 
+/** Whole minutes, seconds and centiseconds of a duration. */
+export interface TimeParts {
+  minutes: number;
+  seconds: number;
+  centis: number;
+}
+
+function splitCentis(totalCs: number): TimeParts {
+  return {
+    minutes: Math.floor(totalCs / 6000),
+    seconds: Math.floor((totalCs % 6000) / 100),
+    centis: totalCs % 100,
+  };
+}
+
+/**
+ * Split decimal seconds into minutes, seconds and centiseconds.
+ *
+ * Works in integer centiseconds: flooring the float fraction turns 61.23
+ * into 22 centis, and rounding the fraction on its own prints 59.999 as
+ * "0:59.100". Rounding first lets a rounded-up hundredth carry into the
+ * second and minute. The one rule behind every stored-time display (MYK9-1225).
+ * Do not use for a live running clock, which should floor.
+ */
+export function splitSecondsToCentis(seconds: number): TimeParts {
+  return splitCentis(Math.round(seconds * 100));
+}
+
+/**
+ * Same split for integer milliseconds.
+ *
+ * `round` (default) is for STORED values: nearest hundredth. `floor` is for a
+ * LIVE running clock, which must not show 1:00.00 at 59,996 ms; it still
+ * carries safely because the split runs on whole centiseconds.
+ */
+export function splitMsToCentis(ms: number, mode: 'round' | 'floor' = 'round'): TimeParts {
+  return splitCentis(mode === 'floor' ? Math.floor(ms / 10) : Math.round(ms / 10));
+}
+
+function joinMSSCC({ minutes, seconds, centis }: TimeParts): string {
+  return `${minutes}:${String(seconds).padStart(2, '0')}.${String(centis).padStart(2, '0')}`;
+}
+
+/** Decimal seconds as "M:SS.HH" (unpadded minutes), e.g. 61.23 -> "1:01.23". */
+export function formatSecondsAsMSSCC(seconds: number): string {
+  return joinMSSCC(splitSecondsToCentis(seconds));
+}
+
+/** Integer milliseconds as "M:SS.HH" (unpadded minutes); `floor` for live clocks. */
+export function formatMsAsMSSCC(ms: number, mode: 'round' | 'floor' = 'round'): string {
+  return joinMSSCC(splitMsToCentis(ms, mode));
+}
+
 /**
  * Format milliseconds as "M:SS.ss"
  *
@@ -16,10 +69,7 @@
  * formatMilliseconds(0)     // "0:00.00"
  */
 export function formatMilliseconds(milliseconds: number): string {
-  const totalSeconds = milliseconds / 1000;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = (totalSeconds % 60).toFixed(2);
-  return `${minutes}:${seconds.padStart(5, '0')}`;
+  return formatMsAsMSSCC(milliseconds);
 }
 
 /**
@@ -56,14 +106,10 @@ export function formatSecondsToTime(seconds: number | string | null): string {
 
   if (isNaN(numSeconds) || numSeconds < 0) return '00:00.00';
 
-  const minutes = Math.floor(numSeconds / 60);
-  const remainingSeconds = numSeconds % 60;
+  const { minutes, seconds: secs, centis } = splitSecondsToCentis(numSeconds);
 
   // Format: MM:SS.HH
-  const minutesStr = minutes.toString().padStart(2, '0');
-  const secondsStr = remainingSeconds.toFixed(2).padStart(5, '0');
-
-  return `${minutesStr}:${secondsStr}`;
+  return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${centis.toString().padStart(2, '0')}`;
 }
 
 /**

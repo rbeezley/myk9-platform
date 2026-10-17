@@ -67,6 +67,8 @@ export interface YourRingClass {
   trialTimeZone: string;
   /** `formatAtShowTrialHeading` of the owning trial (MYK9-1165). */
   trialHeading?: string | undefined;
+  /** Owning trial's date (yyyy-mm-dd), for day ordering (MYK9-1224). */
+  trialDate?: string | undefined;
 }
 
 export function sortClassesForYourRing(classes: YourRingClass[]): YourRingClass[] {

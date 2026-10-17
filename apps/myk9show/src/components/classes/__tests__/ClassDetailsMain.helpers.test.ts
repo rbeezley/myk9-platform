@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { msToDisplay } from '@/lib/timeUtils';
 import {
   shouldShowSection,
   formatClassTitle,
@@ -159,5 +160,23 @@ describe('buildClassStats with a Disqualified dog', () => {
     );
     expect(stats[0]).toMatchObject({ detail1: '3 completed', detail2: '1 pending' });
     expect(stats[1]).toMatchObject({ detail1: '1 Qualified', detail3: '2 Other' });
+  });
+});
+
+describe('buildScentWorkEntries stored search time', () => {
+  it.each([
+    ['2.01', '0:02.01'],
+    ['4.02', '0:04.02'],
+  ])('stored %s s is integer ms and displays as %s', (score, expected) => {
+    const classData = { id: 'c1', entryFee: 0 } as ClassData;
+    const [entry] = buildScentWorkEntries(
+      [{ id: 'e1', dog: 'Rex', handler: 'H', score, status: 'Qualified' } as EntryData],
+      classData,
+      buildClassConfig(classData),
+      []
+    );
+    const ms = entry?.judgingState?.currentResult?.searchTime ?? Number.NaN;
+    expect(Number.isInteger(ms)).toBe(true);
+    expect(msToDisplay(ms, 'hundredths')).toBe(expected);
   });
 });

@@ -72,7 +72,11 @@ function buildScentWorkEntryFromLocal(
         ? {
             entryId: entry.id,
             classId,
-            searchTime: competitionData.score ? parseFloat(competitionData.score) * 1000 : 0,
+            // Integer ms: msToDisplay floors (it also drives live clocks), so a float
+            // product like 2.01 * 1000 would land a centisecond low.
+            searchTime: competitionData.score
+              ? Math.round(parseFloat(competitionData.score) * 1000)
+              : 0,
             maxTimeAllowed: classConfig.timeLimit,
             qualification: (competitionData.qualified === true
               ? 'Qualified'

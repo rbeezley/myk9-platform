@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { msToDisplay } from '@/lib/timeUtils';
 import {
   mapDbClassToScentWorkConfig,
   mapDbEntryToScentWorkEntry,
@@ -320,5 +321,18 @@ describe('mapDbEntryToUnifiedEntry', () => {
     const entry = mapDbEntryToUnifiedEntry(makeDbEntry({ dog: null }));
 
     expect(entry.dog).toBe('Unknown Dog');
+  });
+});
+
+describe('extractScentWorkResult stored search time', () => {
+  it.each([
+    [2.01, '0:02.01'],
+    [4.02, '0:04.02'],
+  ])('stored %s s is integer ms and displays as %s', (seconds, expected) => {
+    const ms =
+      extractScentWorkResult(makeDbEntry({ is_scored: true, search_time_seconds: seconds }), 60000)
+        ?.searchTime ?? Number.NaN;
+    expect(Number.isInteger(ms)).toBe(true);
+    expect(msToDisplay(ms, 'hundredths')).toBe(expected);
   });
 });

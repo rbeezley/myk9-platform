@@ -6,6 +6,7 @@
  */
 
 import { forwardRef } from 'react';
+import { formatMsAsMSSCC } from '@myk9/core';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
@@ -108,7 +109,7 @@ export const ScoringEntryCard = forwardRef<HTMLDivElement, ScoringEntryCardProps
           {entry.isScored && entry.result ? (
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               {entry.result.time > 0 && (
-                <span className="font-mono">{formatTime(entry.result.time)}</span>
+                <span className="font-mono">{formatMsAsMSSCC(entry.result.time)}</span>
               )}
               {entry.result.qualification === 'Qualified' && entry.result.faults > 0 && (
                 <span>
@@ -199,14 +200,4 @@ export function SortableScoringEntryCard({ entry, onSelect, onResetScore }: Scor
       />
     </div>
   );
-}
-
-/**
- * Format milliseconds to M:SS.ss
- */
-function formatTime(ms: number): string {
-  const totalSeconds = ms / 1000;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = (totalSeconds % 60).toFixed(2);
-  return `${minutes}:${seconds.padStart(5, '0')}`;
 }

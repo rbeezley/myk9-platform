@@ -13,6 +13,7 @@ import { ReplicatedTable } from '@myk9/replication';
 // QueryClients tests construct as well as for the app's singleton. Without
 // this a new unscoped exhibitor key would ship green (MYK9-429).
 import '@/lib/viewerScopeGuard';
+import { resetHonouredAnchorForTests } from '@/features/show-map/cockpit/cockpitAnchorHonoured';
 import {
   IDBFactory as FDBFactory,
   IDBDatabase as FDBDatabase,
@@ -156,6 +157,8 @@ beforeEach(() => {
   // Snap every Zustand store back to its initial state so a store populated by
   // a prior test can't leak rows/flags into the next under shuffled order.
   resetAllStores();
+  // Module-level 'anchor already scrolled' record (MYK9-1218) must not leak between tests.
+  resetHonouredAnchorForTests();
   if (hasDom) installDefaultMatchMedia();
   // Reset Supabase mock to defaults
   resetMockSupabase();

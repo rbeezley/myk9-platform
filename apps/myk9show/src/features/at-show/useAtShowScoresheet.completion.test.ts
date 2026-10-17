@@ -106,6 +106,12 @@ vi.mock('./atShowClassCompletion', () => ({
   recordCompletionIntentIfConfirmed: mocks.recordCompletionIntentIfConfirmed,
 }));
 
+// The stalled-sync promises below never settle, so a hook that awaited them
+// would never leave loading at ANY deadline. The deadline therefore only needs
+// to outlast scheduler jitter in a loaded full-suite run (MYK9-1252: 100 ms was
+// missed once under load); it does not define "fast".
+const STALLED_SYNC_DEADLINE_MS = 5_000;
+
 describe('useAtShowScoresheet completion wiring', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -175,7 +181,9 @@ describe('useAtShowScoresheet completion wiring', () => {
     mocks.syncEntries.mockReturnValueOnce(new Promise(() => undefined));
     const { result } = renderScoresheet(vi.fn());
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false), { timeout: 100 });
+    await waitFor(() => expect(result.current.isLoading).toBe(false), {
+      timeout: STALLED_SYNC_DEADLINE_MS,
+    });
     expect(result.current.entry?.entryId).toBe('entry-1');
     expect(result.current.error).toBeNull();
     expect(mocks.syncTrials).not.toHaveBeenCalled();
@@ -215,7 +223,9 @@ describe('useAtShowScoresheet completion wiring', () => {
     mocks.syncEntries.mockReturnValue(new Promise(() => undefined));
     rerender({ entryId: 'entry-2' });
 
-    await waitFor(() => expect(result.current.loadedEntryId).toBe('entry-2'), { timeout: 100 });
+    await waitFor(() => expect(result.current.loadedEntryId).toBe('entry-2'), {
+      timeout: STALLED_SYNC_DEADLINE_MS,
+    });
     expect(result.current.isLoading).toBe(false);
     expect(mocks.syncTrials).toHaveBeenCalledTimes(1);
   });

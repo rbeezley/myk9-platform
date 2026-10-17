@@ -2,7 +2,8 @@
  * Healthy applied ACL facts from migrations 20260725160000–20260725180000, plus the
  * `classes` column allowlist from 20260730140000 (MYK9-116), plus the public judge-assignment
  * columns from MYK9-146. Column-scoped tables appear ONLY in `columns` — their table-level
- * SELECT was revoked so private columns remain withheld.
+ * SELECT was revoked so private columns remain withheld. `entries` holds no anon grant at
+ * all since MYK9-466 (20260913011500).
  */
 export const anonGrants = (over: Record<string, unknown> = {}) => ({
   tables: [
@@ -99,27 +100,8 @@ export const anonGrants = (over: Record<string, unknown> = {}) => ({
       column,
       privs: 'r',
     })),
-    ...[
-      'id',
-      'class_id',
-      'trial_id',
-      'show_id',
-      'dog_id',
-      'armband',
-      'handler',
-      'run_order',
-      'is_in_ring',
-      'is_scored',
-      'check_in_status',
-      'entry_status',
-      'jump_height',
-      'created_at',
-      'deleted_at',
-    ].map(column => ({
-      name: 'entries',
-      column,
-      privs: 'r',
-    })),
+    // No `entries` columns: MYK9-466 (20260913011500) revoked every anon privilege on
+    // the base entry table. Public results read view_public_entry_results instead.
     ...[
       'id',
       'person_id',

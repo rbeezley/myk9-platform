@@ -45,7 +45,6 @@ import { getEntryManagementHref } from '@/features/entry-operations/entryAttenti
 import { getShowMapReportHref } from '@/features/show-map/showMapRoutes';
 import { RelatedContextLinks } from '@/components/common/RelatedContextLinks';
 import { buildClassDetailsRelatedLinks } from './classDetailsRelatedLinks';
-import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { getClassDetailHref } from '@/utils/classDetailHref';
 
 const ClassDetailsPage: React.FC = () => {
@@ -296,7 +295,6 @@ const ClassDetailsPage: React.FC = () => {
     // for anonymous viewers with no presence identity). One channel per show/tab.
     <ShowPresenceProvider showId={parentShow?.id}>
       <PageShell>
-        <ShowDeskReturnLink showId={parentShow?.id} />
         <PageHeader breadcrumbs={breadcrumbs} title={className} omitTitle />
 
         <ClassCompactHeader

@@ -21,9 +21,6 @@ vi.mock('./useScoringBreadcrumb', () => ({
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'user-1' } }),
 }));
-vi.mock('@/features/show-map/cockpit/ShowDeskReturnLink', () => ({
-  ShowDeskReturnLink: () => null,
-}));
 vi.mock('./components/SessionToolbar', () => ({ SessionToolbar: () => null }));
 vi.mock('./paperScoresheetData', () => ({
   loadEntriesWithDogs: vi.fn(async () => {

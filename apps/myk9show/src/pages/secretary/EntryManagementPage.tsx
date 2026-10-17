@@ -39,7 +39,6 @@ import {
 import { parseListParam } from '@/components/list-toolkit';
 import { groupEntriesByShowRegistration } from '@/components/entries/management/showRegistrationProjection';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { EntryManagementUnresolvedShow } from './EntryManagementUnresolvedShow';
 import { EntryManagementExceptionPanes } from './EntryManagementExceptionPanes';
 import { useRegistrationNeededEntries } from '@/hooks/useRegistrationNeededEntries';
@@ -364,7 +363,6 @@ const EntryManagementPage: React.FC = () => {
 
   return (
     <div className="manager-content-container container mx-auto space-y-4 p-4 sm:p-6">
-      <ShowDeskReturnLink showId={selectedShowId || urlShowId} />
       <div className="sr-only">
         <h1>Entry Forms</h1>
         {/*

@@ -270,9 +270,7 @@ describe('verifyE2EAuthCredentials role check (MYK9-1243)', () => {
     const config = { ...resolveAuthPreflightConfig(env, ['exhibitor']), checkRoles: true };
     await expect(
       verifyE2EAuthCredentials(config, fetchWithRoles(['exhibitor', 'secretary']))
-    ).rejects.toThrow(
-      'E2E fixture account drifted: exhibitor@myk9t.com expected roles [exhibitor] but has [exhibitor, secretary]'
-    );
+    ).rejects.toThrow('E2E fixture account drifted: exhibitor@myk9t.com has forbidden [secretary]');
   });
 
   it('still signs out the check session when the role read fails', async () => {

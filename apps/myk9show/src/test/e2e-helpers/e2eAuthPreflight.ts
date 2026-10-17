@@ -1,6 +1,6 @@
 import { resolveFixtureEmail } from '../fixtures/fixtureEmail';
 import { assertAddressIsLive } from '../fixtures/retiredFixtureDomain';
-import { EXPECTED_FIXTURE_ROLES, compareFixtureRoles, fetchOwnRoleNames } from './fixtureRoles';
+import { FIXTURE_ROLE_RULES, compareFixtureRoles, fetchOwnRoleNames } from './fixtureRoles';
 
 export type AuthPreflightRole = 'secretary' | 'admin' | 'judge' | 'exhibitor';
 
@@ -183,7 +183,7 @@ export async function verifyE2EAuthCredentials(
         );
         const verdict = compareFixtureRoles(
           credential.email,
-          EXPECTED_FIXTURE_ROLES[credential.role],
+          FIXTURE_ROLE_RULES[credential.role],
           actual
         );
         if (!verdict.ok) drift = verdict.message;

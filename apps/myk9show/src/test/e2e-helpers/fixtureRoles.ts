@@ -1,50 +1,63 @@
 import type { AuthPreflightRole } from './e2eAuthPreflight';
 
+export interface FixtureRoleRule {
+  /** Role names the account must hold. */
+  required: readonly string[];
+  /** Role names the account must NOT hold. Anything in neither list is tolerated. */
+  forbidden: readonly string[];
+}
+
 /**
- * The role names each CI fixture account must hold on SHARED STAGING, exactly.
- * Measured from the live accounts on 2026-10-17 and matching what
- * supabase/seed-demo.sql grants (it gives secretary@ and testadmin@ a Heartland
- * club_admin grant; supabase/seed-isolated-e2e-accounts.sql grants fewer, so use
- * --check-roles only against shared staging, never an isolated database).
+ * What each CI fixture account must (and must not) hold on SHARED STAGING.
  *
- * The sets are EXACT: an extra staff role is as much drift as a missing one,
- * because a stray secretary role on the exhibitor skips onboarding and swaps the
- * sidebar, and the suite then fails like a product bug (MYK9-1243).
+ * Required + forbidden, not an exact set: staging accumulates harmless grants
+ * through normal app use (secretary@ holds club_admin on clubs it created while
+ * signed in by hand), and a reseed would not restore them. What breaks specs is
+ * a role that changes the account's identity, such as a secretary role on the
+ * exhibitor, which skips onboarding and swaps the sidebar (MYK9-1243). Only
+ * roles seed-demo.sql restores are required.
  *
  * To move CI onto dedicated accounts, change which emails testUsers.ts and
- * e2eAuthPreflight.ts resolve; these sets describe the ROLE, not the address.
+ * e2eAuthPreflight.ts resolve; these rules describe the ROLE, not the address.
  */
-export const EXPECTED_FIXTURE_ROLES: Record<AuthPreflightRole, readonly string[]> = {
-  exhibitor: ['exhibitor'],
-  secretary: ['club_admin', 'exhibitor', 'secretary', 'steward'],
-  admin: ['club_admin', 'exhibitor', 'site_admin'],
-  judge: ['judge'],
+export const FIXTURE_ROLE_RULES: Record<AuthPreflightRole, FixtureRoleRule> = {
+  exhibitor: {
+    required: ['exhibitor'],
+    forbidden: ['secretary', 'club_admin', 'steward', 'judge', 'site_admin', 'chairman'],
+  },
+  secretary: { required: ['secretary', 'steward'], forbidden: ['site_admin', 'judge'] },
+  admin: { required: ['site_admin'], forbidden: [] },
+  judge: {
+    required: ['judge'],
+    forbidden: ['secretary', 'club_admin', 'site_admin', 'steward', 'chairman'],
+  },
 };
 
 export type FixtureRoleVerdict = { ok: true } | { ok: false; message: string };
 
-const normalize = (roles: readonly string[]): string[] => [...new Set(roles)].sort();
+const unique = (roles: readonly string[]): string[] => [...new Set(roles)].sort();
 
 const DRIFT_DOCS_HINT =
   'This is a staging data problem, not a product failure: someone changed this CI account by hand. ' +
   'Restore its roles (see docs/operations/e2e-fixture-accounts.md), then re-run the check.';
 
-/** Pure comparison: expected vs actual role names, order and duplicates irrelevant. */
+/** Pure comparison: actual role names against a required/forbidden rule; order irrelevant. */
 export function compareFixtureRoles(
   email: string,
-  expected: readonly string[],
+  rule: FixtureRoleRule,
   actual: readonly string[]
 ): FixtureRoleVerdict {
-  const want = normalize(expected);
-  const have = normalize(actual);
-  if (want.length === have.length && want.every((role, i) => role === have[i])) {
-    return { ok: true };
-  }
+  const have = new Set(actual);
+  const missing = unique(rule.required.filter(role => !have.has(role)));
+  const forbidden = unique(rule.forbidden.filter(role => have.has(role)));
+  if (missing.length === 0 && forbidden.length === 0) return { ok: true };
+  const problems = [
+    missing.length > 0 ? `is missing [${missing.join(', ')}]` : null,
+    forbidden.length > 0 ? `has forbidden [${forbidden.join(', ')}]` : null,
+  ].filter(Boolean);
   return {
     ok: false,
-    message:
-      `E2E fixture account drifted: ${email} expected roles [${want.join(', ')}] but has [${have.join(', ')}]\n` +
-      DRIFT_DOCS_HINT,
+    message: `E2E fixture account drifted: ${email} ${problems.join(' and ')}\n${DRIFT_DOCS_HINT}`,
   };
 }
 

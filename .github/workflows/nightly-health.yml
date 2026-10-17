@@ -44,7 +44,7 @@ jobs:
 
       - name: Verify E2E auth credentials
         working-directory: apps/myk9show
-        run: pnpm exec tsx scripts/verify-e2e-auth-preflight.ts secretary admin judge exhibitor
+        run: pnpm exec tsx scripts/verify-e2e-auth-preflight.ts --check-roles secretary admin judge exhibitor
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
@@ -154,7 +154,7 @@ jobs:
       # exercised only public routes.
       - name: Verify E2E auth credentials
         working-directory: apps/myk9show
-        run: pnpm exec tsx scripts/verify-e2e-auth-preflight.ts secretary admin judge exhibitor
+        run: pnpm exec tsx scripts/verify-e2e-auth-preflight.ts --check-roles secretary admin judge exhibitor
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}

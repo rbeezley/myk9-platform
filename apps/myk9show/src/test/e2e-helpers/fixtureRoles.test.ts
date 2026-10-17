@@ -1,34 +1,56 @@
 import { describe, expect, it } from 'vitest';
-import { compareFixtureRoles, fetchOwnRoleNames } from './fixtureRoles';
+import { FIXTURE_ROLE_RULES, compareFixtureRoles, fetchOwnRoleNames } from './fixtureRoles';
 
 describe('compareFixtureRoles', () => {
-  it('passes on an exact match regardless of order and duplicates', () => {
-    expect(
-      compareFixtureRoles('a@x', ['exhibitor', 'steward'], ['steward', 'exhibitor', 'steward'])
-    ).toEqual({
+  const rule = { required: ['exhibitor', 'steward'], forbidden: ['site_admin', 'judge'] };
+
+  it('passes when required roles are present, in any order, with tolerated extras', () => {
+    expect(compareFixtureRoles('a@x', rule, ['steward', 'club_admin', 'exhibitor'])).toEqual({
       ok: true,
     });
   });
 
-  it('flags an extra staff role with the drift headline first', () => {
-    const verdict = compareFixtureRoles(
-      'exhibitor@myk9t.com',
-      ['exhibitor'],
-      ['secretary', 'exhibitor']
-    );
+  it('flags a forbidden role with the drift headline first', () => {
+    const verdict = compareFixtureRoles('exhibitor@myk9t.com', FIXTURE_ROLE_RULES.exhibitor, [
+      'secretary',
+      'exhibitor',
+    ]);
     expect(verdict.ok).toBe(false);
     if (verdict.ok) return;
     const [first, second] = verdict.message.split('\n');
     expect(first).toBe(
-      'E2E fixture account drifted: exhibitor@myk9t.com expected roles [exhibitor] but has [exhibitor, secretary]'
+      'E2E fixture account drifted: exhibitor@myk9t.com has forbidden [secretary]'
     );
     expect(second).toContain('staging data problem, not a product failure');
     expect(second).toContain('docs/operations/e2e-fixture-accounts.md');
   });
 
-  it('flags a missing expected role', () => {
-    const verdict = compareFixtureRoles('s@x', ['exhibitor', 'secretary'], ['exhibitor']);
+  it('flags a missing required role', () => {
+    const verdict = compareFixtureRoles('s@x', rule, ['exhibitor']);
     expect(verdict.ok).toBe(false);
+    if (!verdict.ok)
+      expect(verdict.message.split('\n')[0]).toBe(
+        'E2E fixture account drifted: s@x is missing [steward]'
+      );
+  });
+
+  it('reports missing and forbidden together', () => {
+    const verdict = compareFixtureRoles('s@x', rule, ['judge']);
+    if (verdict.ok) throw new Error('expected drift');
+    expect(verdict.message.split('\n')[0]).toBe(
+      'E2E fixture account drifted: s@x is missing [exhibitor, steward] and has forbidden [judge]'
+    );
+  });
+
+  it('tolerates the club_admin grants staging accrues on the secretary', () => {
+    expect(
+      compareFixtureRoles('secretary@myk9t.com', FIXTURE_ROLE_RULES.secretary, [
+        'secretary',
+        'steward',
+        'exhibitor',
+        'club_admin',
+      ]).ok
+    ).toBe(true);
   });
 });
 

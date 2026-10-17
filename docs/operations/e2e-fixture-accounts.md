@@ -10,26 +10,27 @@ ways that look like product bugs: the account skips onboarding and gets the staf
 Resolved through `apps/myk9show/src/test/e2e/helpers/testUsers.ts` and
 `src/test/e2e-helpers/e2eAuthPreflight.ts`. Passwords come from the `E2E_*` GitHub secrets.
 
-| Preflight role | Default address       | Exact roles on shared staging                     |
-| -------------- | --------------------- | ------------------------------------------------- |
-| `exhibitor`    | `exhibitor@myk9t.com` | `exhibitor`                                       |
-| `secretary`    | `secretary@myk9t.com` | `club_admin`, `exhibitor`, `secretary`, `steward` |
-| `admin`        | `testadmin@myk9t.com` | `club_admin`, `exhibitor`, `site_admin`           |
-| `judge`        | `judge@myk9t.com`     | `judge`                                           |
+| Preflight role | Default address       | Must hold              | Must NOT hold                                                           |
+| -------------- | --------------------- | ---------------------- | ----------------------------------------------------------------------- |
+| `exhibitor`    | `exhibitor@myk9t.com` | `exhibitor`            | `secretary`, `club_admin`, `steward`, `judge`, `site_admin`, `chairman` |
+| `secretary`    | `secretary@myk9t.com` | `secretary`, `steward` | `site_admin`, `judge`                                                   |
+| `admin`        | `testadmin@myk9t.com` | `site_admin`           | (nothing)                                                               |
+| `judge`        | `judge@myk9t.com`     | `judge`                | `secretary`, `club_admin`, `site_admin`, `steward`, `chairman`          |
 
-The sets live in `src/test/e2e-helpers/fixtureRoles.ts` (`EXPECTED_FIXTURE_ROLES`) and are exact:
-an extra role is drift, just like a missing one.
+Any other role is tolerated: staging accrues harmless grants through normal use (for example
+`club_admin` on clubs the secretary account created). The rules live in
+`src/test/e2e-helpers/fixtureRoles.ts` (`FIXTURE_ROLE_RULES`).
 
 ## The preflight
 
-The `Verify E2E auth credentials` step in `ci.yml` (the `a11y` and `e2e-myk9show` jobs) runs
+The `Verify E2E auth credentials` step in `ci.yml` (the `a11y` and `e2e-myk9show` jobs, and both `nightly-health.yml` jobs) runs
 `scripts/verify-e2e-auth-preflight.ts --check-roles <roles>` before Playwright starts. It signs
 in with each account's CI password using the anon key, reads that user's own roles through the
-`get_user_roles` RPC (the same read the app does after sign-in), and compares them to the table
+`get_user_roles` RPC (the same read the app does after sign-in), and checks them against the table
 above. It never uses a service-role key and writes nothing. On mismatch the run fails at that step with:
 
 ```
-E2E fixture account drifted: <email> expected roles [..] but has [..]
+E2E fixture account drifted: <email> is missing [..] and/or has forbidden [..]
 This is a staging data problem, not a product failure ...
 ```
 

@@ -32,6 +32,16 @@ describe('ClassStatusControl', () => {
     vi.clearAllMocks();
   });
 
+  it('explains when the start and finish times are recorded', () => {
+    render(<ClassStatusControl classId="class-1" lifecycle="in-progress" canManageShow />);
+
+    expect(
+      screen.getByText(
+        'The start time is recorded when the class goes in progress, and the finish time when you mark it complete.'
+      )
+    ).toBeInTheDocument();
+  });
+
   it('requires confirmation before completing a Class with unentered scores', async () => {
     const { user } = render(
       <ClassStatusControl

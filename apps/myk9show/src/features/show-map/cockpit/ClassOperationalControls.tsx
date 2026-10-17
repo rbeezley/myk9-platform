@@ -26,6 +26,9 @@ const STATUS_OPTIONS: readonly { value: ClassStatusValue; label: string }[] = [
   { value: CLASS_STATUS.CANCELLED, label: 'Cancelled' },
 ];
 
+export const STATUS_TIMING_HELP =
+  'The start time is recorded when the class goes in progress, and the finish time when you mark it complete.';
+
 const STATUS_LABEL: Record<CockpitLifecycle, string> = {
   'not-started': 'Not started',
   'in-progress': 'In progress',
@@ -120,6 +123,7 @@ export function ClassStatusControl({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
+          <p className="max-w-56 px-2 py-1.5 text-xs text-muted-foreground">{STATUS_TIMING_HELP}</p>
           {STATUS_OPTIONS.filter(option => option.value !== CLASS_STATUS.CANCELLED).map(option => (
             <DropdownMenuItem
               key={option.value}

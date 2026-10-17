@@ -8,6 +8,7 @@ on:
       - 'apps/myk9show/playwright.show-day.config.ts'
       - 'apps/myk9show/tsconfig.show-day.json'
       - 'apps/myk9show/src/test/e2e/verification/**'
+      - '!apps/myk9show/src/test/e2e/verification/batch3Scoring.spec.ts'
 
 permissions:
   contents: read

@@ -5,7 +5,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { render } from '@/test/utils/testUtils';
+import { createTestQueryClient, render } from '@/test/utils/testUtils';
+import { queryKeys } from '@/lib/queryClient';
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
@@ -123,6 +124,27 @@ describe('ClubNumbersSection', () => {
 
     expect(await within(dialog).findByLabelText('AKC club number')).toHaveValue('4521');
     expect(mocks.get).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps an unsaved edit when a background refresh fails', async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    render(<ClubNumbersSection clubId="club-1" canEdit />, { queryClient });
+
+    const dialog = await openDialog(user);
+    await user.type(await within(dialog).findByLabelText('UKC club number'), 'U-9');
+
+    mocks.get.mockRejectedValue(new Error('network'));
+    await queryClient.refetchQueries({ queryKey: queryKeys.clubRegistryNumbers('club-1') });
+
+    expect(
+      await within(dialog).findByText(/couldn't refresh the club numbers/i)
+    ).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('UKC club number')).toHaveValue('U-9');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(mocks.save).toHaveBeenCalledWith('club-1', { AKC: '4521', UKC: 'U-9' })
+    );
   });
 
   it('disables Save and says why when offline', async () => {

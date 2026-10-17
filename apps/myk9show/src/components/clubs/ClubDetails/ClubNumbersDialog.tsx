@@ -118,11 +118,22 @@ export const ClubNumbersDialog: React.FC<ClubNumbersDialogProps> = ({
             there.
           </DialogDescription>
         </DialogHeader>
-        {isLoading ? (
+        {/* Once numbers have loaded the form stays mounted, so a failed background
+            refresh never discards what the user has typed (Codex review, MYK9-1235). */}
+        {data ? (
+          <>
+            {isError && (
+              <p className="text-sm text-muted-foreground" role="status">
+                Couldn&apos;t refresh the club numbers. You can still save your changes.
+              </p>
+            )}
+            <ClubNumbersForm clubId={clubId} loaded={data} onDone={() => onOpenChange(false)} />
+          </>
+        ) : isLoading ? (
           <p className="text-sm text-muted-foreground" role="status">
             Loading club numbers…
           </p>
-        ) : isError || !data ? (
+        ) : (
           <div className="space-y-3" role="alert">
             <p className="text-sm text-muted-foreground">
               We couldn&apos;t load the club numbers. Check your connection and try again.
@@ -131,8 +142,6 @@ export const ClubNumbersDialog: React.FC<ClubNumbersDialogProps> = ({
               Retry
             </Button>
           </div>
-        ) : (
-          <ClubNumbersForm clubId={clubId} loaded={data} onDone={() => onOpenChange(false)} />
         )}
       </DialogContent>
     </Dialog>

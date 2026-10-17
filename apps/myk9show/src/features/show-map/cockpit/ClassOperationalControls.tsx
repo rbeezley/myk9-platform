@@ -27,7 +27,7 @@ const STATUS_OPTIONS: readonly { value: ClassStatusValue; label: string }[] = [
 ];
 
 export const STATUS_TIMING_HELP =
-  'The start time is recorded when the class goes in progress, and the finish time when you mark it complete.';
+  'Start and finish times fill in from ringside scoring. Setting In progress here records the start time, and Complete records the finish time.';
 
 const STATUS_LABEL: Record<CockpitLifecycle, string> = {
   'not-started': 'Not started',

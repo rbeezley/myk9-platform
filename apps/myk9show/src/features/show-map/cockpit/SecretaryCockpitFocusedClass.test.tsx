@@ -161,9 +161,11 @@ describe('SecretaryCockpitFocusedClass paperwork', () => {
       />
     );
 
-    expect(screen.getByText(/Printed 9:42 AM by Jannie · Trial scope/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Printed 9:42 AM by Jannie · Printed with the whole trial/)
+    ).toBeInTheDocument();
     expect(screen.getByText(/Class data changed after printing/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /review and reprint/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /review and reprint/i })).toBeInTheDocument();
 
     await user.click(screen.getByText('Print history (2)'));
     expect(screen.getByText(/9:10 AM by Morgan · marked incorrect/)).toBeInTheDocument();

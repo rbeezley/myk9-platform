@@ -10,11 +10,8 @@ import { useReportPrintStatus } from './useReportPrintStatus';
 import { useFocusReportControls } from './useFocusReportControls';
 import { resolveShowTimePhase } from '@/lib/reports/reportPhaseOrder';
 import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
-import { ReportPreview } from './ReportPreview';
+import { ReportPreviewBody } from './ReportPreviewBody';
 import { printIframe } from './reportPreviewUtils';
-import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsReport';
-import { ResultLabelsReport } from '@/components/reports/labels/ResultLabelsReport';
-import { LabelModeHeader } from '@/components/reports/labels/LabelModeChrome';
 import { useOfficialReportDownload } from './useOfficialReportDownload';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import type { ReportScope } from '@/lib/reports/types';
@@ -28,7 +25,7 @@ import { useReportScopeOptions } from './useReportScopeOptions';
 import { useJudgeDayReportScope } from './useJudgeDayReportScope';
 import type { ReportDbEntry } from '@/lib/reports/types';
 import { useHostedReportData } from './useHostedReportData';
-import { resolvePrintReadiness } from './reportReadinessCopy';
+import { blockedPrintMessage, resolvePrintReadiness } from './reportReadinessCopy';
 import { ReportPrintStatus } from './ReportPrintStatus';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
@@ -218,22 +215,18 @@ export default function ReportsPage() {
       timeZone: showTimeZone,
     });
 
-  type PreviewProps = Parameters<typeof ReportPreview>[0];
-  const previewClasses = (judgeDay.scoped?.classes ?? classes) as PreviewProps['classes'];
-  const previewEntries = (judgeDay.scoped?.entries ?? entries) as PreviewProps['entries'];
+  const previewClasses = judgeDay.scoped?.classes ?? classes;
+  const previewEntries = judgeDay.scoped?.entries ?? entries;
 
   const handlePrint = () => {
     // Check the DATA before the iframe. A paused query renders an empty report
     // whose iframe body is non-empty, so printIframe() happily returns true and
     // the secretary gets a roster with no dogs on it.
     //
-    // Armband labels are exempt: ArmbandLabelsReport reads its own
-    // `['armband-label-entries', showId]` query and never touches
-    // trials/classes/entries, so gating it here would refuse to print a sheet
-    // that is on screen and correct, citing data it does not use. Result labels
-    // are NOT exempt -- they are handed trials/classes/entries as props.
-    if (reportType !== 'armband-labels' && printReadiness.blockedMessage) {
-      toast(printReadiness.blockedMessage);
+    // Armband labels are exempt (see blockedPrintMessage).
+    const blockedMessage = blockedPrintMessage(reportType, printReadiness);
+    if (blockedMessage) {
+      toast(blockedMessage);
       return;
     }
     // A linked judge day that is not in this show would print an empty catalog (MYK9-1036).
@@ -390,69 +383,34 @@ export default function ReportsPage() {
           `w-fit mx-auto` centers it when there's room and keeps the left edge
           reachable when it overflows (unlike `flex justify-center`). */}
       <div className="mt-6 overflow-x-auto">
-        {reportType === 'armband-labels' ? (
-          <div className="w-full">
-            <LabelModeHeader
-              title="Armband Labels"
-              subtitle="Choose a label size, pick which armbands to print, then Print."
-            />
-            <ArmbandLabelsReport
-              showId={showId}
-              scope={effectiveScope}
-              iframeRef={iframeRef}
-              onDescriptorChange={setCurrentArmbandDescriptor}
-            />
-            <iframe ref={iframeRef} title="Label Print" style={{ display: 'none' }} />
-          </div>
-        ) : reportType === 'result-labels' ? (
-          <div className="w-full">
-            <LabelModeHeader
-              title="Result Labels"
-              subtitle="Pick a trial and class, set the sort, then Print the result labels."
-            />
-            <ResultLabelsReport
-              show={show}
-              trials={trials as Parameters<typeof ResultLabelsReport>[0]['trials']}
-              classes={classes as Parameters<typeof ResultLabelsReport>[0]['classes']}
-              entries={entries as Parameters<typeof ResultLabelsReport>[0]['entries']}
-              scope={effectiveScope}
-              sortOrder={sortOrder}
-              isLoading={isLoading}
-              isUnavailable={dataState === 'unavailable'}
-              isError={isError}
-              iframeRef={iframeRef}
-            />
-            <iframe ref={iframeRef} title="Label Print" style={{ display: 'none' }} />
-          </div>
-        ) : (
-          <div className="w-fit mx-auto">
-            <ReportPreview
-              reportType={reportType}
-              show={show}
-              trials={trials as Parameters<typeof ReportPreview>[0]['trials']}
-              classes={previewClasses}
-              entries={previewEntries}
-              trialId={trialId}
-              classId={classId}
-              dogId={dogId}
-              sortOrder={sortOrder}
-              isLoading={isLoading}
-              isError={isError}
-              dataState={dataState}
-              hosted={hosted}
-              catalogProfilesReadComplete={catalogProfilesReadComplete}
-              hasDownloadAction={Boolean(officialPdfAction)}
-              downloadBlockedReason={
-                officialPdfAction?.disabled ? officialPdfAction.disabledReason : undefined
-              }
-              onRetry={() => {
-                refetch();
-                hosted.refetch();
-              }}
-              iframeRef={iframeRef}
-            />
-          </div>
-        )}
+        <ReportPreviewBody
+          reportType={reportType}
+          showId={showId}
+          scope={effectiveScope}
+          show={show}
+          trials={trials}
+          classes={previewClasses}
+          entries={previewEntries}
+          trialId={trialId}
+          classId={classId}
+          dogId={dogId}
+          sortOrder={sortOrder}
+          isLoading={isLoading}
+          isError={isError}
+          dataState={dataState}
+          hosted={hosted}
+          catalogProfilesReadComplete={catalogProfilesReadComplete}
+          hasDownloadAction={Boolean(officialPdfAction)}
+          downloadBlockedReason={
+            officialPdfAction?.disabled ? officialPdfAction.disabledReason : undefined
+          }
+          onRetry={() => {
+            refetch();
+            hosted.refetch();
+          }}
+          iframeRef={iframeRef}
+          onArmbandDescriptorChange={setCurrentArmbandDescriptor}
+        />
       </div>
     </div>
   );

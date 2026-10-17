@@ -47,6 +47,8 @@ export interface SecretaryCockpitPaperwork {
   label: string;
   state: PaperworkState;
   printHref?: string;
+  /** The current print record, so a row can offer to mark it not printed. */
+  recordId?: string;
   printedAt?: string;
   printedBy?: string;
   coveredByScope?: 'show' | 'trial' | 'class';

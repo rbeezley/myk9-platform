@@ -1,8 +1,11 @@
-import { CheckCircle2, CircleHelp, Clock3, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle2, CircleHelp, Clock3, Printer, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getCockpitResultsControlHref, getShowHomeHref } from './cockpitRoutes';
+import { ClassPrintPanel } from './ClassPrintPanel';
 import { CockpitPaperworkRow } from './CockpitPaperworkRow';
 import {
   buildClassChecklist,
@@ -54,6 +57,8 @@ function ChecklistStepRow({ item }: { item: ClassChecklistItem }) {
   );
 }
 
+const NO_TICKS: ReadonlySet<string> = new Set();
+
 export function ClassChecklistSection({
   showId,
   sourceClass,
@@ -81,9 +86,61 @@ export function ClassChecklistSection({
   const checklistIds = new Set<string>(items.map(item => item.id));
   const otherPaperwork = paperwork.filter(item => !checklistIds.has(item.reportId));
   const summary = summarizeClassChecklist(items);
+  // Sheets ticked for one batch, and the sheets the open print panel is showing. Print on a row
+  // previews just that sheet; "Print selected" previews every ticked sheet in one panel. Both
+  // belong to the class they were made for: this section stays mounted while the focused class
+  // changes on desktop, and a selection made for one class must never print another.
+  const classId = sourceClass.id;
+  const [tickedFor, setTickedFor] = useState<{ classId: string; ids: ReadonlySet<string> }>({
+    classId,
+    ids: new Set(),
+  });
+  const [printFor, setPrintFor] = useState<{ classId: string; ids: readonly string[] } | null>(
+    null
+  );
+  // A class change spends both for good (reset during render), so returning to the class later
+  // does not bring an old selection back either.
+  if (tickedFor.classId !== classId) setTickedFor({ classId, ids: NO_TICKS });
+  if (printFor && printFor.classId !== classId) setPrintFor(null);
+  const ticked: ReadonlySet<string> = tickedFor.classId === classId ? tickedFor.ids : NO_TICKS;
+  const printIds = printFor?.classId === classId ? printFor.ids : null;
+  const setPrintIds = (ids: readonly string[] | null) =>
+    setPrintFor(ids === null ? null : { classId, ids });
+  const printable = [...items.map(item => item.paperwork), ...otherPaperwork].filter(
+    (item): item is SecretaryCockpitPaperwork => Boolean(item?.printHref)
+  );
+  const labelFor = new Map<string, string>(items.map(item => [item.id, item.label]));
+  const panelItems = printable
+    .filter(item => printIds?.includes(item.reportId))
+    .map(item => ({ ...item, label: labelFor.get(item.reportId) ?? item.label }));
+  const tickedPrintable = printable.filter(item => ticked.has(item.reportId));
+  const rowProps = (item: SecretaryCockpitPaperwork) =>
+    item.printHref
+      ? {
+          onPrint: () => setPrintIds([item.reportId]),
+          selected: ticked.has(item.reportId),
+          onSelectedChange: (checked: boolean) =>
+            setTickedFor(current => {
+              const next = new Set(current.classId === classId ? current.ids : NO_TICKS);
+              if (checked) next.add(item.reportId);
+              else next.delete(item.reportId);
+              return { classId, ids: next };
+            }),
+        }
+      : {};
 
   return (
     <>
+      {tickedPrintable.length > 0 && (
+        <Button
+          type="button"
+          className="mt-2 min-h-11 w-full sm:w-auto"
+          onClick={() => setPrintIds(tickedPrintable.map(item => item.reportId))}
+        >
+          <Printer className="mr-2 h-4 w-4" aria-hidden="true" />
+          {`Print selected (${tickedPrintable.length})`}
+        </Button>
+      )}
       {items.length > 0 && (
         <section aria-labelledby="class-checklist-heading">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -106,6 +163,7 @@ export function ClassChecklistSection({
                     item={{ ...item.paperwork, label: item.label }}
                     timeZone={timeZone}
                     onCommand={onCommand}
+                    {...rowProps(item.paperwork)}
                   />
                 ) : (
                   <ChecklistStepRow item={item} />
@@ -128,11 +186,31 @@ export function ClassChecklistSection({
                 item={item}
                 timeZone={timeZone}
                 onCommand={onCommand}
+                {...rowProps(item)}
               />
             ))}
           </div>
         </section>
       )}
+      <ClassPrintPanel
+        open={printIds !== null && panelItems.length > 0}
+        showId={showId}
+        trialId={sourceClass.trialId}
+        classId={sourceClass.id}
+        classLabel={sourceClass.name}
+        items={panelItems}
+        onClose={() => {
+          setPrintIds(null);
+          setTickedFor(current => ({
+            classId,
+            ids: new Set(
+              [...(current.classId === classId ? current.ids : NO_TICKS)].filter(
+                id => !printIds?.includes(id)
+              )
+            ),
+          }));
+        }}
+      />
     </>
   );
 }

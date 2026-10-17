@@ -8,7 +8,7 @@
  * These tests use the real descriptor builders on both sides.
  */
 import { createDatabaseError } from '@/services/database/databaseError';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fromAny } from '@total-typescript/shoehorn';
 
@@ -28,6 +28,8 @@ const mocks = vi.hoisted(() => ({
   getByShow: vi.fn(),
   confirmPrinted: vi.fn(),
   classListeners: new Set<() => void>(),
+  // The rows the print panel's preview reads; the record is fingerprinted from these (MYK9-1244).
+  reportRows: { classes: [] as unknown[], entries: [] as unknown[] },
 }));
 
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -80,6 +82,30 @@ vi.mock('@/store/messageStore', () => ({
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/undoToast', () => ({ showUndoToast: vi.fn() }));
+// The print panel's preview frames are Reports' own and are not under test here; what is under
+// test is that the record the panel writes carries the descriptor Reports builds.
+vi.mock('@/hooks/useFastShowDetails', () => ({
+  useFastShowDetails: () => ({ show: { id: 'show-1', trials: [] } }),
+}));
+vi.mock('@/hooks/queries/useReportData', () => ({
+  useReportData: () => ({
+    show: { id: 'show-1' },
+    trials: [],
+    classes: mocks.reportRows.classes,
+    entries: mocks.reportRows.entries,
+    catalogProfilesReadComplete: true,
+    dataState: 'ready',
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+}));
+vi.mock('@/pages/secretary/ReportsPage/ReportPreviewBody', () => ({
+  ReportPreviewBody: () => <iframe title="preview" />,
+}));
+vi.mock('@/pages/secretary/ReportsPage/reportPreviewUtils', () => ({
+  printIframeAndWait: vi.fn(async () => true),
+}));
 
 const show = {
   id: 'show-1',
@@ -148,6 +174,8 @@ const overviewClassProps = [
     judgeName: 'Judge Judy',
   },
 ];
+
+mocks.reportRows = { classes: reportsClassRows, entries };
 
 const scope = {
   kind: 'class' as const,
@@ -238,17 +266,18 @@ describe('Overview and Reports agree on what has been printed', () => {
   it('reads a print confirmed on Overview as current for the Reports descriptor', async () => {
     const { user } = renderOverview();
 
-    const recordButton = await waitFor(() => {
+    const printButton = await waitFor(() => {
       const button = screen
-        .getAllByRole('button', { name: 'Record as printed' })
+        .getAllByRole('button', { name: 'Print' })
         .find(candidate =>
           candidate.closest('div.rounded-lg')?.textContent?.includes('Score sheets')
         );
       expect(button).toBeDefined();
       return button!;
     });
-    await user.click(recordButton);
-    await user.click(await screen.findByRole('button', { name: 'Mark printed' }));
+    await user.click(printButton);
+    const panel = await screen.findByRole('dialog');
+    await user.click(within(panel).getByRole('button', { name: 'Print' }));
 
     await waitFor(() => expect(mocks.confirmPrinted).toHaveBeenCalledTimes(1));
     const stored = mocks.confirmPrinted.mock.calls[0]![0] as {

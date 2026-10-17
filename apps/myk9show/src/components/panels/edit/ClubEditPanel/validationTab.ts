@@ -21,9 +21,6 @@ export const CLUB_TAB_LABEL: Record<ClubTabValue, string> = {
  */
 export const FIELD_LOCATION: Record<string, FieldLocation<ClubTabValue>> = {
   name: { tab: 'basic', elementId: 'name' },
-  akcClubNumber: { tab: 'basic', elementId: 'akcClubNumber' },
-  ukcClubNumber: { tab: 'basic', elementId: 'ukcClubNumber' },
-  ascaClubNumber: { tab: 'basic', elementId: 'ascaClubNumber' },
   description: { tab: 'basic', elementId: 'description' },
   founded: { tab: 'basic', elementId: 'founded' },
   clubType: { tab: 'basic', elementId: 'clubType' },

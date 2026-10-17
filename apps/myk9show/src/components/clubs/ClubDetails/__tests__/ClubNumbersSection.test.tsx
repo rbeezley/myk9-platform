@@ -1,0 +1,130 @@
+/**
+ * MYK9-1235: the Club numbers section on the club page. Registry numbers are
+ * online-only data, so they are edited here, not in the offline-first Edit Club panel.
+ */
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { render } from '@/test/utils/testUtils';
+
+const mocks = vi.hoisted(() => ({
+  get: vi.fn(),
+  save: vi.fn(),
+  online: { value: true },
+  success: vi.fn(),
+}));
+
+vi.mock('@/services/database/clubs', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/database/clubs')>()),
+  getClubRegistryNumbers: mocks.get,
+  saveClubRegistryNumbers: mocks.save,
+}));
+vi.mock('@/hooks/useNetworkStatus', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/hooks/useNetworkStatus')>()),
+  useIsOnline: () => mocks.online.value,
+}));
+vi.mock('@/lib/notifications', () => ({
+  notifications: { success: mocks.success, error: vi.fn(), warning: vi.fn(), info: vi.fn() },
+}));
+
+import { ClubNumbersSection } from '../ClubNumbersSection';
+
+async function openDialog(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole('button', { name: 'Edit' }));
+  return screen.findByRole('dialog');
+}
+
+describe('ClubNumbersSection', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.online.value = true;
+    mocks.get.mockResolvedValue({ AKC: '4521' });
+    mocks.save.mockResolvedValue(undefined);
+  });
+
+  it('shows the numbers read-only', async () => {
+    mocks.get.mockResolvedValue({ UKC: 'U-9', AKC: '4521' });
+    render(<ClubNumbersSection clubId="club-1" canEdit />);
+
+    expect(await screen.findByText('AKC #4521 · UKC #U-9')).toBeInTheDocument();
+    expect(mocks.get).toHaveBeenCalledWith('club-1');
+  });
+
+  it('hides the Edit button without edit permission', async () => {
+    render(<ClubNumbersSection clubId="club-1" canEdit={false} />);
+
+    expect(await screen.findByText('AKC #4521')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+  });
+
+  it('prefills the dialog from the loaded numbers', async () => {
+    const user = userEvent.setup();
+    render(<ClubNumbersSection clubId="club-1" canEdit />);
+
+    const dialog = await openDialog(user);
+    expect(await within(dialog).findByLabelText('AKC club number')).toHaveValue('4521');
+    expect(within(dialog).getByLabelText('UKC club number')).toHaveValue('');
+    expect(within(dialog).getByLabelText('ASCA club number')).toHaveValue('');
+  });
+
+  it('keeps AKC when only UKC is added and sends the exact numbers once', async () => {
+    const user = userEvent.setup();
+    render(<ClubNumbersSection clubId="club-1" canEdit />);
+
+    const dialog = await openDialog(user);
+    await user.type(await within(dialog).findByLabelText('UKC club number'), ' U-9 ');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
+    expect(mocks.save).toHaveBeenCalledWith('club-1', { AKC: '4521', UKC: 'U-9' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('writes nothing when nothing changed', async () => {
+    const user = userEvent.setup();
+    render(<ClubNumbersSection clubId="club-1" canEdit />);
+
+    const dialog = await openDialog(user);
+    await within(dialog).findByLabelText('AKC club number');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
+  it('refuses to clear the last number', async () => {
+    const user = userEvent.setup();
+    render(<ClubNumbersSection clubId="club-1" canEdit />);
+
+    const dialog = await openDialog(user);
+    await user.clear(await within(dialog).findByLabelText('AKC club number'));
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+
+    expect(await within(dialog).findByText('Enter at least one club number.')).toBeInTheDocument();
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
+  it('shows a calm error with Retry that refetches when the read fails', async () => {
+    const user = userEvent.setup();
+    mocks.get.mockRejectedValueOnce(new Error('network')).mockResolvedValue({ AKC: '4521' });
+    render(<ClubNumbersSection clubId="club-1" canEdit />);
+
+    const dialog = await openDialog(user);
+    expect(await within(dialog).findByText(/couldn't load the club numbers/i)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Retry' }));
+
+    expect(await within(dialog).findByLabelText('AKC club number')).toHaveValue('4521');
+    expect(mocks.get).toHaveBeenCalledTimes(2);
+  });
+
+  it('disables Save and says why when offline', async () => {
+    const user = userEvent.setup();
+    mocks.online.value = false;
+    render(<ClubNumbersSection clubId="club-1" canEdit />);
+
+    const dialog = await openDialog(user);
+    await within(dialog).findByLabelText('AKC club number');
+    expect(within(dialog).getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(within(dialog).getByText('Club numbers need a connection.')).toBeInTheDocument();
+  });
+});

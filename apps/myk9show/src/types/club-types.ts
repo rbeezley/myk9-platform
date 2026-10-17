@@ -1,5 +1,3 @@
-import type { ClubRegistryNumbers } from '@/utils/clubRegistryNumbers';
-
 export interface ClubAddress {
   street: string;
   city: string;
@@ -11,12 +9,6 @@ export interface ClubAddress {
 export interface Club {
   id: string;
   name: string;
-  /**
-   * MYK9-1235: AKC / UKC / ASCA club numbers. Not part of the replicated club row
-   * (they live in club_registry_numbers); only present where a surface loaded
-   * them, such as the Edit Club panel's initial data.
-   */
-  registryNumbers?: ClubRegistryNumbers | undefined;
   email: string;
   phone: string;
   website?: string | undefined;

@@ -29,7 +29,7 @@ Every guide section, KB article, and macro should feel like a calm, competent co
 | Entry               | Registration (in the software sense; "registration" to a dog person means the AKC/UKC number)        |
 | Approved / Accepted | Confirmed, processed                                                                                 |
 | Pulled              | Scratched ("scratch" and "pull" are one act and the word is Pull; never use Pulled for a withdrawal) |
-| Move up             | Class transfer                                                                                       |
+| Change class        | Move up, class transfer                                                                              |
 | Run order           | Class order, sequence                                                                                |
 | Armband number      | Entry number, bib                                                                                    |
 | Secretary dashboard | Mission Control, management panel                                                                    |

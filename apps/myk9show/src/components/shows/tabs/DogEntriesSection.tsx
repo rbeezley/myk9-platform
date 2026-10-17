@@ -124,7 +124,7 @@ function EntryRow({ entry, showId }: EntryRowProps) {
         {entry.movedUpFrom && (
           <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-primary truncate">
             <ArrowUpRight className="h-3 w-3 shrink-0" />
-            Moved up from {entry.movedUpFrom}
+            Class changed from {entry.movedUpFrom}
           </p>
         )}
       </div>

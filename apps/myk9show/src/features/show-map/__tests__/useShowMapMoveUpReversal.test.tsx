@@ -82,7 +82,7 @@ describe('useShowMapMoveUpReversal — refused Move back (MYK9-821)', () => {
     reverseShowMapMoveUpMock.mockRejectedValue(
       new MoveUpRpcError(
         'refused',
-        'This move-up has since been superseded by another move-up, so it cannot be reversed here.'
+        'This class change has since been superseded by another class change, so it cannot be reversed here.'
       )
     );
     const onClose = vi.fn();

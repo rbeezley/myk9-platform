@@ -272,7 +272,7 @@ export function SecretaryCockpitFocusedClass({
             {/* Only entries that can still move up -- not the class's full list,
                 which is on "View entries and results". */}
             <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Can move up
+              Can change class
             </h3>
             <p className="mt-1 text-xs text-muted-foreground">
               Entries that have not run, before the class starts.

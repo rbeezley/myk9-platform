@@ -1695,6 +1695,22 @@ describe('showMapActions', () => {
       expect(ids).toContain('move-up-entry');
     });
 
+    it('labels the action "Change class" (MYK9-1232), not a judgment about the dog', () => {
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          { id: 'class-source', trialId: 'trial-1', name: 'Vehicle Novice', status: 'Upcoming' },
+        ],
+        entries: [{ id: 'entry-pending', class_id: 'class-source', entry_status: 'accepted' }],
+      });
+
+      const action = getDirectActionsForNode(tree.nodesById['entry:entry-pending']!, {
+        tree,
+      }).find(a => a.id === 'move-up-entry');
+      expect(action?.label).toBe('Change class');
+    });
+
     // Owner, 2026-10-03: a move-up happens before the dog runs, on the next
     // trial's class before it starts -- never on a class already under way.
     it.each([

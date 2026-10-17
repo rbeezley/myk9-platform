@@ -297,7 +297,7 @@ function renderCover(doc: jsPDF, model: EmergencyPacketModel, page: EmergencyPac
   doc.setFontSize(10);
   const rules = [
     'This is a snapshot, not live data. Use the generation time on every page.',
-    'Write pulls, move-ups, absences, time changes, and corrections directly on the paper.',
+    'Write pulls, class changes, absences, time changes, and corrections directly on the paper.',
     'Keep each page with its class; every footer identifies the trial day, ring, and class.',
     'Initial corrections. Preserve all pages until paper results are transcribed and checked.',
   ];
@@ -836,7 +836,7 @@ function renderTranscription(doc: jsPDF, page: EmergencyPacketPage): void {
   const steps = [
     'Gather every check-in, running-order, score, certification, correction, and incident page.',
     'Use the generation time and page footers to separate this snapshot from older copies.',
-    'In myK9, apply pulls, move-ups, absences, and class-order changes before entering scores.',
+    'In myK9, apply pulls, class changes, absences, and class-order changes before entering scores.',
     'Enter each score from the paper. A second person should read back armband, result, time, faults, and placement.',
     'Compare class totals and judge/secretary certifications against the system before releasing or submitting results.',
     'Write the transcription completion time and both reviewers below; retain the packet with the club records.',

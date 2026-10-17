@@ -40,9 +40,19 @@ describe('club registry numbers service (MYK9-1235)', () => {
       ],
       { onConflict: 'club_id,organization' }
     );
-    // The organization left blank (ASCA) is removed, and only that one.
+    // ASCA was not passed, so it is left exactly as stored: no delete at all.
+    expect(mocks.deleteIn).not.toHaveBeenCalled();
+  });
+
+  it('deletes only the organizations passed blank, never ones left out', async () => {
+    await saveClubRegistryNumbers('club-1', { ASCA: 'A-1', UKC: '' });
+
+    expect(mocks.upsert).toHaveBeenCalledWith(
+      [{ club_id: 'club-1', organization: 'ASCA', number: 'A-1' }],
+      { onConflict: 'club_id,organization' }
+    );
     expect(mocks.deleteEq).toHaveBeenCalledWith('club_id', 'club-1');
-    expect(mocks.deleteIn).toHaveBeenCalledWith('organization', ['ASCA']);
+    expect(mocks.deleteIn).toHaveBeenCalledWith('organization', ['UKC']);
   });
 
   it('removes the rows of cleared fields and upserts nothing when all are blank', async () => {
@@ -59,7 +69,7 @@ describe('club registry numbers service (MYK9-1235)', () => {
     expect(mocks.deleteIn).not.toHaveBeenCalled();
   });
 
-  it('throws the database error so the Edit Club panel stays open', async () => {
+  it('throws the database error so the Club numbers dialog stays open', async () => {
     mocks.upsert.mockResolvedValue({ error: new Error('RLS denied') });
 
     await expect(saveClubRegistryNumbers('club-1', { AKC: '1' })).rejects.toThrow('RLS denied');

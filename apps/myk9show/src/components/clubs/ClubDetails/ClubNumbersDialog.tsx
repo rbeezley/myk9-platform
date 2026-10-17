@@ -20,7 +20,6 @@ import {
   CLUB_NUMBER_REQUIRED_MESSAGE,
   formatClubRegistryNumbers,
   hasClubRegistryNumber,
-  normalizeClubRegistryNumbers,
   type ClubRegistryNumberInputs,
   type ClubRegistryNumbers,
 } from '@/utils/clubRegistryNumbers';
@@ -66,7 +65,8 @@ const ClubNumbersForm: React.FC<{
     setSaving(true);
     setError(null);
     try {
-      await saveClubRegistryNumbers(clubId, normalizeClubRegistryNumbers(values));
+      // Only the fields the user typed in; every other organization stays as stored.
+      await saveClubRegistryNumbers(clubId, edits);
       await queryClient.invalidateQueries({ queryKey: queryKeys.clubRegistryNumbers(clubId) });
       notifications.success('Club numbers saved.');
       onDone();

@@ -76,7 +76,7 @@ describe('ClubNumbersSection', () => {
     expect(within(dialog).getByLabelText('ASCA club number')).toHaveValue('');
   });
 
-  it('keeps AKC when only UKC is added and sends the exact numbers once', async () => {
+  it('sends only the field the user edited, once', async () => {
     const user = userEvent.setup();
     render(<ClubNumbersSection clubId="club-1" canEdit />);
 
@@ -85,7 +85,7 @@ describe('ClubNumbersSection', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
-    expect(mocks.save).toHaveBeenCalledWith('club-1', { AKC: '4521', UKC: 'U-9' });
+    expect(mocks.save).toHaveBeenCalledWith('club-1', { UKC: ' U-9 ' });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
@@ -142,9 +142,7 @@ describe('ClubNumbersSection', () => {
     ).toBeInTheDocument();
     expect(within(dialog).getByLabelText('UKC club number')).toHaveValue('U-9');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
-    await waitFor(() =>
-      expect(mocks.save).toHaveBeenCalledWith('club-1', { AKC: '4521', UKC: 'U-9' })
-    );
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledWith('club-1', { UKC: 'U-9' }));
   });
 
   it('follows a successful refresh in fields the user has not touched', async () => {
@@ -161,9 +159,7 @@ describe('ClubNumbersSection', () => {
     expect(await within(dialog).findByDisplayValue('U-9')).toBeInTheDocument();
     expect(within(dialog).getByLabelText('ASCA club number')).toHaveValue('A-1');
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
-    await waitFor(() =>
-      expect(mocks.save).toHaveBeenCalledWith('club-1', { AKC: '4521', UKC: 'U-9', ASCA: 'A-1' })
-    );
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledWith('club-1', { ASCA: 'A-1' }));
   });
 
   it('disables Save and says why when offline', async () => {

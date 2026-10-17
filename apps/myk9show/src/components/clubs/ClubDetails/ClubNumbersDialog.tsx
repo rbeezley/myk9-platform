@@ -31,7 +31,12 @@ interface ClubNumbersDialogProps {
   clubId: string;
 }
 
-/** Fields start from the stored numbers; mounted only once they have loaded. */
+/**
+ * Fields show the stored numbers until the user types in them. Only typed fields are kept
+ * as edits; every other field follows `loaded`, so a background refresh that brings new
+ * numbers updates the untouched fields and Save never writes a stale snapshot back
+ * (Codex review, MYK9-1235). Mounted only once the numbers have loaded.
+ */
 const ClubNumbersForm: React.FC<{
   clubId: string;
   loaded: ClubRegistryNumbers;
@@ -39,11 +44,12 @@ const ClubNumbersForm: React.FC<{
 }> = ({ clubId, loaded, onDone }) => {
   const queryClient = useQueryClient();
   const isOnline = useIsOnline();
-  const [values, setValues] = useState<ClubRegistryNumberInputs>({
-    AKC: loaded.AKC ?? '',
-    UKC: loaded.UKC ?? '',
-    ASCA: loaded.ASCA ?? '',
-  });
+  const [edits, setEdits] = useState<Partial<ClubRegistryNumberInputs>>({});
+  const values: ClubRegistryNumberInputs = {
+    AKC: edits.AKC ?? loaded.AKC ?? '',
+    UKC: edits.UKC ?? loaded.UKC ?? '',
+    ASCA: edits.ASCA ?? loaded.ASCA ?? '',
+  };
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -78,7 +84,7 @@ const ClubNumbersForm: React.FC<{
         values={values}
         idFor={org => `club-number-${org.toLowerCase()}`}
         onChange={(org, value) => {
-          setValues(previous => ({ ...previous, [org]: value }));
+          setEdits(previous => ({ ...previous, [org]: value }));
           setError(null);
         }}
         error={error}

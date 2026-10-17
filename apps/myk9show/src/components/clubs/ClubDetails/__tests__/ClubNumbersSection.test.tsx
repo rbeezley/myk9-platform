@@ -147,6 +147,25 @@ describe('ClubNumbersSection', () => {
     );
   });
 
+  it('follows a successful refresh in fields the user has not touched', async () => {
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    render(<ClubNumbersSection clubId="club-1" canEdit />, { queryClient });
+
+    const dialog = await openDialog(user);
+    await user.type(await within(dialog).findByLabelText('ASCA club number'), 'A-1');
+
+    mocks.get.mockResolvedValue({ AKC: '4521', UKC: 'U-9' });
+    await queryClient.refetchQueries({ queryKey: queryKeys.clubRegistryNumbers('club-1') });
+
+    expect(await within(dialog).findByDisplayValue('U-9')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('ASCA club number')).toHaveValue('A-1');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(mocks.save).toHaveBeenCalledWith('club-1', { AKC: '4521', UKC: 'U-9', ASCA: 'A-1' })
+    );
+  });
+
   it('disables Save and says why when offline', async () => {
     const user = userEvent.setup();
     mocks.online.value = false;

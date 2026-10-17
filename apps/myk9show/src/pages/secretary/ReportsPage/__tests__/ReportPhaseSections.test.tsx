@@ -54,7 +54,26 @@ describe('ReportPhaseSections', () => {
           reportRegistry.filter(r => r.phase === phase).length,
         ])
       );
-      expect(sizes).toEqual({ before: 13, during: 10, after: 13, anytime: 1 });
+      expect(sizes).toEqual({ before: 13, during: 11, after: 12, anytime: 1 });
+    });
+
+    it('lists Result Labels under During the show, not Before or After (MYK9-1233)', () => {
+      expect(reportRegistry.find(r => r.id === 'result-labels')?.phase).toBe('during');
+      render(<ReportPhaseSections {...defaultProps} trials={[]} />);
+      const during = screen.getByRole('region', { name: PHASE_COPY.during.label });
+      expect(
+        within(during)
+          .getAllByTestId('report-card')
+          .map(el => el.getAttribute('data-report-id'))
+      ).toContain('result-labels');
+      for (const phase of ['before', 'after'] as const) {
+        const section = screen.getByRole('region', { name: PHASE_COPY[phase].label });
+        expect(
+          within(section)
+            .getAllByTestId('report-card')
+            .map(el => el.getAttribute('data-report-id'))
+        ).not.toContain('result-labels');
+      }
     });
 
     it('reorders without gating: every report is still listed in every show phase', () => {

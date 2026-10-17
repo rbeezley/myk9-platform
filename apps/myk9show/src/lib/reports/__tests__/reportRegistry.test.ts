@@ -165,13 +165,13 @@ describe('reportRegistry', () => {
     });
 
     it('places ring-day paperwork in the during phase', () => {
-      for (const id of ['check-in-sheet', 'scoresheet', 'steward-report']) {
+      for (const id of ['check-in-sheet', 'scoresheet', 'steward-report', 'result-labels']) {
         expect(getReportById(id)?.phase, `${id} should be a during-the-show report`).toBe('during');
       }
     });
 
     it('places post-event paperwork in the after phase', () => {
-      for (const id of ['results-sheet', 'high-in-trial', 'akc-judge-report', 'result-labels']) {
+      for (const id of ['results-sheet', 'high-in-trial', 'akc-judge-report']) {
         expect(getReportById(id)?.phase, `${id} should be an after-the-show report`).toBe('after');
       }
     });

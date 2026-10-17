@@ -1,5 +1,6 @@
 import { resolveFixtureEmail } from '../fixtures/fixtureEmail';
 import { assertAddressIsLive } from '../fixtures/retiredFixtureDomain';
+import { FIXTURE_ROLE_RULES, compareFixtureRoles, fetchOwnRoleNames } from './fixtureRoles';
 
 export type AuthPreflightRole = 'secretary' | 'admin' | 'judge' | 'exhibitor';
 
@@ -19,6 +20,8 @@ export interface AuthPreflightConfig {
   supabaseUrl: string;
   anonKey: string;
   credentials: AuthPreflightCredential[];
+  /** MYK9-1243: also assert each account holds exactly its expected roles. */
+  checkRoles?: boolean;
 }
 
 /**
@@ -149,11 +152,46 @@ export async function verifyE2EAuthCredentials(
       );
     }
 
-    const body = (await response.json().catch(() => null)) as { access_token?: unknown } | null;
+    const body = (await response.json().catch(() => null)) as {
+      access_token?: unknown;
+      user?: { id?: unknown };
+    } | null;
     if (typeof body?.access_token !== 'string' || body.access_token.length === 0) {
       throw new Error(
         `E2E auth preflight failed for ${credential.role}: Supabase returned no access token. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.`
       );
+    }
+
+    // MYK9-1243: a hand-granted role (a secretary role on the exhibitor fixture)
+    // otherwise surfaces as product-looking failures several specs later. The
+    // read is the signed-in user's own, through the app's own RPC, and writes nothing.
+    let drift: string | null = null;
+    if (config.checkRoles) {
+      if (typeof body.user?.id !== 'string') {
+        throw new Error(
+          `E2E auth preflight failed for ${credential.role}: Supabase returned no user id, so roles cannot be checked.`
+        );
+      }
+      // A failed role read must still reach the sign-out below (MYK9-1056).
+      try {
+        const actual = await fetchOwnRoleNames(
+          config.supabaseUrl,
+          config.anonKey,
+          body.access_token,
+          body.user.id,
+          fetchImpl
+        );
+        const verdict = compareFixtureRoles(
+          credential.email,
+          FIXTURE_ROLE_RULES[credential.role],
+          actual
+        );
+        if (!verdict.ok) drift = verdict.message;
+      } catch (error) {
+        drift = `E2E auth preflight failed for ${credential.role}: ${
+          error instanceof Error ? error.message : String(error)
+        }`;
+      }
     }
 
     // The check created a session; end just that one so it does not pile up
@@ -168,5 +206,7 @@ export async function verifyE2EAuthCredentials(
         `E2E auth preflight: could not sign out the ${credential.role} check session (HTTP ${signOut?.status ?? 'none'}).`
       );
     }
+
+    if (drift) throw new Error(drift);
   }
 }

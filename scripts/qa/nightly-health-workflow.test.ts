@@ -59,7 +59,8 @@ function extractJobs(source: string): Map<string, string> {
 
 const jobs = extractJobs(workflow);
 
-const PREFLIGHT_STEP = 'scripts/verify-e2e-auth-preflight.ts secretary admin judge exhibitor';
+const PREFLIGHT_STEP =
+  'scripts/verify-e2e-auth-preflight.ts --check-roles secretary admin judge exhibitor';
 
 /**
  * The jobs that actually sweep routes, and therefore carry the build-first and

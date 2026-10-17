@@ -488,8 +488,8 @@ $$;
 --   5.2 the tombstone loses its placement, and
 --   5.3 the LIVE entries keep theirs.
 -- A class-wide clear would satisfy 5.2 and destroy pinned results in 5.3.
--- 5.4 (MYK9-1230): a manual class is still ranked once every expected entry
--- is accounted for, without its status being touched.
+-- Section 6 covers the other half of the manual branch: it still places a
+-- class once every expected entry is accounted for (MYK9-1230).
 -- =====================================================================
 DO $$
 DECLARE
@@ -498,13 +498,9 @@ DECLARE
   v_class uuid := gen_random_uuid();
   v_keep  uuid := gen_random_uuid();
   v_gone  uuid := gen_random_uuid();
-  v_late  uuid := gen_random_uuid();
   v_status text;
-  v_class_status text;
-  v_class_status_after text;
   v_keep_placement integer;
   v_gone_placement integer;
-  v_late_placement integer;
 BEGIN
   -- MYK9-1008: every show belongs to a club (shows.club_id NOT NULL); each
   -- fixture show gets its own fixture club, reusing the show's id.
@@ -560,45 +556,84 @@ BEGIN
     RAISE EXCEPTION '5.3 FAIL: manual status_source was overwritten with %', v_status;
   END IF;
   RAISE NOTICE '5.3 PASS: live placements and the manual pin both survive';
+END $$;
 
-  -- 5.4 MYK9-1230. A manual class is still placed once every expected dog is
-  --     accounted for, and only then. A late dog that is not yet scored leaves
-  --     the existing placement alone; scoring it re-ranks the class, while the
-  --     human's status and status_source stay exactly as they were.
-  SELECT status FROM public.classes WHERE id = v_class INTO v_class_status;
+-- =====================================================================
+-- 6. A class completed BY HAND is still placed once every dog is accounted
+--    for (MYK9-1230, 20261017014900).
+--
+-- The live case: a secretary marked Vehicle Novice A Complete before its last
+-- dog was scored. The manual branch used to return before ranking, so Check
+-- Scores showed no placements. Scoring a dog into a manually closed class does
+-- not reopen it (class_status_auto_derivation_test 3.2), so the class stays
+-- manual and the manual branch is the one that must rank it.
+--   6.1 while a dog is still unscored, nothing is placed;
+--   6.2 scoring the last dog places the class by faults, then time;
+--   6.3 status and status_source stay exactly as the human left them.
+-- =====================================================================
+DO $$
+DECLARE
+  v_show  uuid := gen_random_uuid();
+  v_trial uuid := gen_random_uuid();
+  v_class uuid := gen_random_uuid();
+  v_fast  uuid := gen_random_uuid();
+  v_mid   uuid := gen_random_uuid();
+  v_last  uuid := gen_random_uuid();
+  v_source text;
+  v_status text;
+  v_fast_p integer;
+  v_mid_p  integer;
+  v_last_p integer;
+BEGIN
+  INSERT INTO public.clubs (id, name) VALUES (v_show, 'MYK9-1230 fixture club ' || v_show);
+  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals, club_id)
+    VALUES (v_show, 'Placement Manual Complete Show', 'Test Org', current_date, current_date, false, v_show);
+  INSERT INTO public.trials (id, show_id, name, date)
+    VALUES (v_trial, v_show, 'Manual Complete Trial', current_date);
+  INSERT INTO public.classes (id, trial_id, name, status)
+    VALUES (v_class, v_trial, 'Manual Complete Class', 'upcoming');
 
   INSERT INTO public.entries
-    (id, class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status)
+    (id, class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status, total_faults, search_time_seconds)
   VALUES
-    (v_late, v_class, v_show, v_trial, 'checked-in', 'checked-in', false, 'pending');
+    (v_mid,  v_class, v_show, v_trial, 'checked-in', 'checked-in', true,  'qualified', 0, 40.00),
+    (v_fast, v_class, v_show, v_trial, 'checked-in', 'checked-in', true,  'qualified', 0, 30.00),
+    (v_last, v_class, v_show, v_trial, 'checked-in', 'checked-in', false, 'pending',   NULL, NULL);
 
-  SELECT final_placement FROM public.entries WHERE id = v_keep INTO v_keep_placement;
-  IF v_keep_placement IS DISTINCT FROM 1 THEN
-    RAISE EXCEPTION
-      '5.4 FAIL: an unscored late dog changed a manual class''s placement (got %)',
-      v_keep_placement;
+  -- The secretary closes the class by hand with one dog still to run.
+  UPDATE public.classes SET status = 'completed', status_source = 'manual' WHERE id = v_class;
+
+  -- 6.1 A scoring edit while a dog is unscored refreshes the class but must
+  --     not place it.
+  UPDATE public.entries SET search_time_seconds = 29.00 WHERE id = v_fast;
+  SELECT final_placement FROM public.entries WHERE id = v_fast INTO v_fast_p;
+  SELECT final_placement FROM public.entries WHERE id = v_mid INTO v_mid_p;
+  IF v_fast_p IS NOT NULL OR v_mid_p IS NOT NULL THEN
+    RAISE EXCEPTION '6.1 FAIL: a partly scored manual class was placed (%/%)', v_fast_p, v_mid_p;
   END IF;
+  RAISE NOTICE '6.1 PASS: a partly scored manual class is not placed';
 
+  -- 6.2 Scoring the last dog accounts for every expected entry.
   UPDATE public.entries
-  SET is_scored = true, result_status = 'qualified', total_faults = 0, search_time_seconds = 20.00
-  WHERE id = v_late;
+  SET is_scored = true, result_status = 'qualified', total_faults = 1, search_time_seconds = 20.00
+  WHERE id = v_last;
 
-  SELECT final_placement FROM public.entries WHERE id = v_late INTO v_late_placement;
-  SELECT final_placement FROM public.entries WHERE id = v_keep INTO v_keep_placement;
-  IF (v_late_placement, v_keep_placement) IS DISTINCT FROM (1, 2) THEN
+  SELECT final_placement FROM public.entries WHERE id = v_fast INTO v_fast_p;
+  SELECT final_placement FROM public.entries WHERE id = v_mid INTO v_mid_p;
+  SELECT final_placement FROM public.entries WHERE id = v_last INTO v_last_p;
+  IF (v_fast_p, v_mid_p, v_last_p) IS DISTINCT FROM (1, 2, 3) THEN
     RAISE EXCEPTION
-      '5.4 FAIL: a fully accounted manual class was not re-ranked: expected 1/2, got %/%',
-      v_late_placement, v_keep_placement;
+      '6.2 FAIL: a fully accounted manual class was not placed: expected 1/2/3, got %/%/%',
+      v_fast_p, v_mid_p, v_last_p;
   END IF;
+  RAISE NOTICE '6.2 PASS: the hand-completed class is placed by faults, then time';
 
-  SELECT status_source, status FROM public.classes WHERE id = v_class
-    INTO v_status, v_class_status_after;
-  IF v_status IS DISTINCT FROM 'manual'
-     OR v_class_status_after IS DISTINCT FROM v_class_status THEN
-    RAISE EXCEPTION '5.4 FAIL: placing a manual class changed its status (% / %)',
-      v_status, v_class_status_after;
+  -- 6.3 The human's status survives.
+  SELECT status_source, status FROM public.classes WHERE id = v_class INTO v_source, v_status;
+  IF (v_source, v_status) IS DISTINCT FROM ('manual', 'completed') THEN
+    RAISE EXCEPTION '6.3 FAIL: placing a manual class changed it to % / %', v_source, v_status;
   END IF;
-  RAISE NOTICE '5.4 PASS: a fully accounted manual class is placed, status untouched';
+  RAISE NOTICE '6.3 PASS: status_source and status stay manual / completed';
 END $$;
 
 do $$

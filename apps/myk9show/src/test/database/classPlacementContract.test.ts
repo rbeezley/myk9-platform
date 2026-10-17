@@ -194,7 +194,7 @@ describe('completion gate — refresh_class_scoring_state (latest definition)', 
   it('asserts against the newest migration that redefines the function', () => {
     // Same rule as the ranking pin above: repoint it at the new file and
     // re-check every assertion below, rather than deleting it.
-    expect(latestGateMigrationFile).toBe('20261011003700_myk9_1011_disqualified_result.sql');
+    expect(latestGateMigrationFile).toBe('20261017014900_myk9_1230_manual_class_placements.sql');
   });
 
   it('excludes absent lifecycle rows from the expected denominator', () => {
@@ -215,13 +215,46 @@ describe('completion gate — refresh_class_scoring_state (latest definition)', 
     expect(triggerMigration).toContain("'not_accepted', 'absent'");
   });
 
-  it('computes placements ONLY in the fully-accounted-for branch', () => {
+  it('computes placements ONLY when the class is fully accounted for', () => {
+    // Exactly two call sites: the derived fully-accounted branch, and the manual
+    // branch behind the same expected/accounted test (MYK9-1230).
+    const calls = [...gateBody.matchAll(/PERFORM public\.recalculate_class_placements/g)].map(
+      m => m.index
+    );
+    expect(calls).toHaveLength(2);
+    const [manualRecalc, derivedRecalc] = calls;
+
     const branch = gateBody.indexOf('ELSIF v_accounted_count = v_expected_count THEN');
-    const recalc = gateBody.indexOf('PERFORM public.recalculate_class_placements');
     const nextBranch = gateBody.indexOf('ELSIF v_accounted_count > 0 THEN');
     expect(branch).toBeGreaterThanOrEqual(0);
-    expect(recalc).toBeGreaterThan(branch);
-    expect(recalc).toBeLessThan(nextBranch); // recalc lives INSIDE that branch
+    expect(derivedRecalc).toBeGreaterThan(branch);
+    expect(derivedRecalc).toBeLessThan(nextBranch); // recalc lives INSIDE that branch
+
+    const manualBranch = gateBody.indexOf("IF v_status_source = 'manual' THEN");
+    const manualGate = gateBody.indexOf(
+      'IF v_expected_count > 0 AND v_accounted_count = v_expected_count THEN',
+      manualBranch
+    );
+    const manualReturn = gateBody.indexOf('RETURN;', manualBranch);
+    expect(manualGate).toBeGreaterThan(manualBranch);
+    expect(manualRecalc).toBeGreaterThan(manualGate);
+    expect(manualRecalc).toBeLessThan(manualReturn);
+  });
+
+  it('places a MANUAL class without touching its status, finalization or times', () => {
+    // status_source = 'manual' means a human owns the class status. MYK9-1230
+    // lets the manual branch rank a fully-accounted class, and nothing more.
+    const manualBranch = gateBody.slice(
+      gateBody.indexOf("IF v_status_source = 'manual' THEN"),
+      gateBody.indexOf('RETURN;', gateBody.indexOf("IF v_status_source = 'manual' THEN"))
+    );
+    expect(manualBranch).not.toMatch(/SET\s+status\s*=/);
+    expect(manualBranch).not.toContain('is_scoring_finalized');
+    expect(manualBranch).not.toContain('actual_start_time');
+    expect(manualBranch).not.toContain('actual_end_time');
+    expect(manualBranch).toContain(
+      'recalculate_class_placements(ARRAY[p_class_id], COALESCE(v_is_nationals, false))'
+    );
   });
 
   it('counts only NON-DELETED entries when deciding completeness', () => {

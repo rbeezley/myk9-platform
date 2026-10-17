@@ -488,6 +488,8 @@ $$;
 --   5.2 the tombstone loses its placement, and
 --   5.3 the LIVE entries keep theirs.
 -- A class-wide clear would satisfy 5.2 and destroy pinned results in 5.3.
+-- 5.4 (MYK9-1230): a manual class is still ranked once every expected entry
+-- is accounted for, without its status being touched.
 -- =====================================================================
 DO $$
 DECLARE
@@ -496,9 +498,13 @@ DECLARE
   v_class uuid := gen_random_uuid();
   v_keep  uuid := gen_random_uuid();
   v_gone  uuid := gen_random_uuid();
+  v_late  uuid := gen_random_uuid();
   v_status text;
+  v_class_status text;
+  v_class_status_after text;
   v_keep_placement integer;
   v_gone_placement integer;
+  v_late_placement integer;
 BEGIN
   -- MYK9-1008: every show belongs to a club (shows.club_id NOT NULL); each
   -- fixture show gets its own fixture club, reusing the show's id.
@@ -554,6 +560,45 @@ BEGIN
     RAISE EXCEPTION '5.3 FAIL: manual status_source was overwritten with %', v_status;
   END IF;
   RAISE NOTICE '5.3 PASS: live placements and the manual pin both survive';
+
+  -- 5.4 MYK9-1230. A manual class is still placed once every expected dog is
+  --     accounted for, and only then. A late dog that is not yet scored leaves
+  --     the existing placement alone; scoring it re-ranks the class, while the
+  --     human's status and status_source stay exactly as they were.
+  SELECT status FROM public.classes WHERE id = v_class INTO v_class_status;
+
+  INSERT INTO public.entries
+    (id, class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status)
+  VALUES
+    (v_late, v_class, v_show, v_trial, 'checked-in', 'checked-in', false, 'pending');
+
+  SELECT final_placement FROM public.entries WHERE id = v_keep INTO v_keep_placement;
+  IF v_keep_placement IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION
+      '5.4 FAIL: an unscored late dog changed a manual class''s placement (got %)',
+      v_keep_placement;
+  END IF;
+
+  UPDATE public.entries
+  SET is_scored = true, result_status = 'qualified', total_faults = 0, search_time_seconds = 20.00
+  WHERE id = v_late;
+
+  SELECT final_placement FROM public.entries WHERE id = v_late INTO v_late_placement;
+  SELECT final_placement FROM public.entries WHERE id = v_keep INTO v_keep_placement;
+  IF (v_late_placement, v_keep_placement) IS DISTINCT FROM (1, 2) THEN
+    RAISE EXCEPTION
+      '5.4 FAIL: a fully accounted manual class was not re-ranked: expected 1/2, got %/%',
+      v_late_placement, v_keep_placement;
+  END IF;
+
+  SELECT status_source, status FROM public.classes WHERE id = v_class
+    INTO v_status, v_class_status_after;
+  IF v_status IS DISTINCT FROM 'manual'
+     OR v_class_status_after IS DISTINCT FROM v_class_status THEN
+    RAISE EXCEPTION '5.4 FAIL: placing a manual class changed its status (% / %)',
+      v_status, v_class_status_after;
+  END IF;
+  RAISE NOTICE '5.4 PASS: a fully accounted manual class is placed, status untouched';
 END $$;
 
 do $$

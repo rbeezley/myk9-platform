@@ -68,7 +68,12 @@ test.describe('lazy route chunk failure under the service worker', () => {
     server.clearFault();
   });
 
-  test('a chunk that fails once recovers with exactly one reload', async ({ page }) => {
+  // MYK9-1248: Chromium bundled with Playwright 1.64 no longer keeps a failed dynamic import failed
+  // for the life of the document, so lazyWithRetry's in-page retry can recover WITHOUT the reload
+  // (bisected in CI: vite 7.3.7 alone passed; Playwright 1.64 alone gave documentLoads() 0 while the
+  // stays-down test below still counted its one reload). The contract is "recovers, with at most one
+  // reload"; the stays-down test keeps pinning that a reload happens when one is needed.
+  test('a chunk that fails once recovers with at most one reload', async ({ page }) => {
     const documentLoads = await controlledPageWithEmptyPrecache(page);
     server.failChunk(chunk, 1);
 
@@ -77,6 +82,24 @@ test.describe('lazy route chunk failure under the service worker', () => {
     await expect(page.getByRole('heading', { name: ROUTE_HEADING })).toBeVisible();
     expect(new URL(page.url()).pathname).toBe(ROUTE);
     expect(server.faultsServed()).toBe(1);
+    expect(documentLoads()).toBeLessThanOrEqual(1);
+    await expect(page.getByText(BOUNDARY_HEADING)).toHaveCount(0);
+  });
+
+  // MYK9-1248: the fresh-document recovery path, forced. The chunk fails for every in-page attempt
+  // (lazyWithRetry makes RETRY_DELAYS_MS.length + 1 = 3), so only the guarded reload can recover it,
+  // and the reloaded document's fetch succeeds. Assumes a browser that re-fetches a failed import
+  // (Playwright 1.64's Chromium); one that caches the failure serves only 1 fault before the reload.
+  test('a chunk that fails every in-page retry recovers through one reload', async ({ page }) => {
+    const documentLoads = await controlledPageWithEmptyPrecache(page);
+    server.failChunk(chunk, 3);
+
+    await navigateInApp(page, ROUTE);
+
+    await expect(page.getByRole('heading', { name: ROUTE_HEADING })).toBeVisible({
+      timeout: 30_000,
+    });
+    expect(server.faultsServed()).toBe(3);
     expect(documentLoads()).toBe(1);
     await expect(page.getByText(BOUNDARY_HEADING)).toHaveCount(0);
   });

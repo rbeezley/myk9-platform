@@ -70,7 +70,6 @@ vi.mock('@/services/database/clubs', () => ({
 const club: Club = {
   id: 'club-1',
   name: 'Heartland Club',
-  clubNumber: '',
   email: '',
   phone: '',
   website: undefined,

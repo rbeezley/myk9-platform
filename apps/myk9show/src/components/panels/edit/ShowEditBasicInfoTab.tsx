@@ -26,7 +26,7 @@ interface ShowEditBasicInfoTabProps {
   data: ShowEditFormData;
   form?: FormValidation<ShowEditFormData> | undefined;
   availableShowTypes: string[];
-  clubs: Array<{ id: string; name: string; clubNumber: string }>;
+  clubs: Array<{ id: string; name: string }>;
   handleInputChange: (
     field: keyof ShowEditFormData
   ) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
@@ -203,7 +203,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                   {data.clubId
                     ? (() => {
                         const club = clubs.find(c => c.id === data.clubId);
-                        return club ? `${club.name} (${club.clubNumber})` : 'Loading...';
+                        return club ? club.name : 'Loading...';
                       })()
                     : undefined}
                 </SelectValue>
@@ -212,7 +212,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                 {clubs.length > 0 ? (
                   clubs.map(club => (
                     <SelectItem key={club.id} value={club.id}>
-                      {club.name} ({club.clubNumber})
+                      {club.name}
                     </SelectItem>
                   ))
                 ) : (

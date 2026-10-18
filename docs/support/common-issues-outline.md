@@ -229,7 +229,7 @@ Troubleshooting index organized by user symptom, not by feature. Each entry name
 | Situation                   | Artifact                      |
 | --------------------------- | ----------------------------- |
 | Scratch a dog               | KB: `handle-a-scratch.md`     |
-| Move up                     | KB: `handle-move-up.md`       |
+| Change class                | KB: `handle-move-up.md`       |
 | Late entry / walk-in        | Secretary Guide § Show Day    |
 | Entry count wrong           | KB: `entry-count-mismatch.md` |
 | Send announcement           | KB: `send-announcement.md`    |

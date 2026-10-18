@@ -126,7 +126,6 @@ const BrowseClubsPage: React.FC<BrowseClubsPageProps> = ({ detail = null }) => {
         const newClub: Club = {
           id: '',
           name: clubData.name || '',
-          clubNumber: clubData.clubNumber || '',
           email: clubData.email || '',
           phone: clubData.phone || '',
           website: clubData.website || '',

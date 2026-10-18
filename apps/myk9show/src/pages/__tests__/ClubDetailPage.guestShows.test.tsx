@@ -84,7 +84,6 @@ vi.mock('@/hooks/queries/useClubsDatabase', () => ({
 const club: Club = {
   id: 'club-1',
   name: 'Heartland Club',
-  clubNumber: '',
   email: '',
   phone: '',
   website: undefined,

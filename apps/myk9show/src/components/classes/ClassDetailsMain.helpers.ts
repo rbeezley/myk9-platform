@@ -231,7 +231,7 @@ export function buildScentWorkEntries(
             ? {
                 entryId: entry.id,
                 classId: classData.id,
-                searchTime: entry.score ? parseFloat(entry.score) * 1000 : 0,
+                searchTime: entry.score ? Math.round(parseFloat(entry.score) * 1000) : 0,
                 maxTimeAllowed: classConfig.timeLimit,
                 qualification:
                   entry.status as import('@/types/scent-work-types').QualificationStatus,

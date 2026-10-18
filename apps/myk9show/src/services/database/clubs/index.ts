@@ -21,6 +21,7 @@ export {
 } from './reads';
 
 export { setClubAuthorization } from './authorization';
+export { getClubRegistryNumbers, saveClubRegistryNumbers } from './registryNumbers';
 export {
   getPublicDirectoryClubs,
   getPublicClubById,

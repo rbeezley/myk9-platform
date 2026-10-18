@@ -8,7 +8,11 @@ import { render } from '@/test/utils/testUtils';
 import { applyManualClassStatus } from '@/services/show-day/classStatusMutations';
 import { setRevisedExpectedStart } from '@/services/show-day/classTimingMutations';
 
-import { ClassStatusControl, ExpectedStartControl } from './ClassOperationalControls';
+import {
+  ClassStatusControl,
+  ExpectedStartControl,
+  STATUS_TIMING_HELP,
+} from './ClassOperationalControls';
 
 vi.mock('@/services/show-day/classStatusMutations', () => ({
   applyManualClassStatus: vi.fn(async () => undefined),
@@ -24,12 +28,20 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
     <button type="button" role="menuitem" {...props} />
   ),
   DropdownMenuSeparator: () => <hr role="separator" />,
+  DropdownMenuGroup: ({ children }: { children: ReactNode }) => <div role="group">{children}</div>,
+  DropdownMenuLabel: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 describe('ClassStatusControl', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('explains when the start and finish times are recorded', () => {
+    render(<ClassStatusControl classId="class-1" lifecycle="in-progress" canManageShow />);
+
+    expect(screen.getByText(STATUS_TIMING_HELP)).toBeInTheDocument();
   });
 
   it('requires confirmation before completing a Class with unentered scores', async () => {

@@ -308,11 +308,11 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
       clearPendingMoveUpTimeout();
     },
     onSuccess: () => {
-      toast.success('Move-up undone');
+      toast.success('Class change undone');
       setLastMoveUp(null);
     },
     onError: error => {
-      toast.error(getMoveUpErrorMessage(error, 'That move-up could not be undone.'));
+      toast.error(getMoveUpErrorMessage(error, 'That class change could not be undone.'));
     },
     onSettled: (_data, _error, variables) => {
       invalidateShowMapActionQueries(variables?.classId);
@@ -351,13 +351,13 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
         setLastMoveUp(null);
       }, MOVE_UP_UNDO_BANNER_TIMEOUT_MS);
       setMoveUpAction(null);
-      toast.success('Entry moved up');
+      toast.success('Class changed');
     },
     onError: error => {
       // Not getUserFriendlyError: in production that hunts for a PostgREST
       // `code`, finds none on a refusal, and replaces every sentence the RPC
       // wrote with "Something went wrong."
-      toast.error(getMoveUpErrorMessage(error, 'That entry could not be moved.'));
+      toast.error(getMoveUpErrorMessage(error, 'That entry\u2019s class could not be changed.'));
     },
     onSettled: (_data, _error, variables) => {
       invalidateShowMapActionQueries(variables?.action.classId);

@@ -4,6 +4,7 @@ import { render, screen, waitFor } from '@/test/utils/testUtils';
 import type { Club } from '@/types/club-types';
 import { AboutTab } from '../AboutTab';
 import { ClubHeader } from '../ClubHeader';
+import { getClubRegistryNumbers } from '@/services/database/clubs';
 
 vi.mock('@/components/ui/cover-image-upload', () => ({
   CoverImageUpload: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -17,6 +18,11 @@ vi.mock('@/services/database/club-memberships', () => ({
   getClubOfficials: vi.fn().mockResolvedValue({ adminNames: [], secretaryNames: [] }),
 }));
 
+// MYK9-1235: the facts row reads the club's per-organization numbers.
+vi.mock('@/services/database/clubs', () => ({
+  getClubRegistryNumbers: vi.fn().mockResolvedValue({}),
+}));
+
 vi.mock('@/hooks/useAuthContext', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/useAuthContext')>()),
   useAuthContext: vi.fn(() => ({ user: { id: 'auth-1' } })),
@@ -28,7 +34,6 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 const baseClub: Club = {
   id: 'club-1',
   name: 'Heartland Club',
-  clubNumber: 'HC-1',
   email: '',
   phone: '',
   website: undefined,
@@ -76,22 +81,30 @@ describe('club hero (MYK9-930)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Heartland Club' })).toBeInTheDocument();
   });
 
-  it('carries the facts row: location, club number, club type and founding year', () => {
+  it('carries the facts row: location, every club number, club type and founding year', async () => {
+    vi.mocked(getClubRegistryNumbers).mockResolvedValueOnce({ UKC: 'U-9', AKC: 'HC-1' });
     render(<ClubHeader club={heroClub} onEditPhoto={noop} />);
     expect(screen.getByText('Tulsa, OK')).toBeInTheDocument();
-    expect(screen.getByText('Club #HC-1')).toBeInTheDocument();
+    expect(await screen.findByText('AKC #HC-1 · UKC #U-9')).toBeInTheDocument();
+    expect(getClubRegistryNumbers).toHaveBeenCalledWith('club-1');
     expect(screen.getByText(/scent club/i)).toBeInTheDocument();
     expect(screen.getByText('Founded 2008')).toBeInTheDocument();
   });
 
-  it('hides facts the club has not filled in (an optional blank field is hidden)', () => {
+  it('shows a lone AKC number as "AKC #..." and hides facts the club has not filled in', async () => {
+    vi.mocked(getClubRegistryNumbers).mockResolvedValueOnce({ AKC: '55' });
+    const { unmount } = render(<ClubHeader club={baseClub} onEditPhoto={noop} />);
+    expect(await screen.findByText('AKC #55')).toBeInTheDocument();
+    unmount();
+
     render(
       <ClubHeader
-        club={{ ...baseClub, clubNumber: undefined, address: undefined } as unknown as Club}
+        club={{ ...baseClub, address: undefined } as unknown as Club}
         onEditPhoto={noop}
       />
     );
-    expect(screen.queryByText(/club #/i)).not.toBeInTheDocument();
+    await waitFor(() => expect(getClubRegistryNumbers).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(/#/)).not.toBeInTheDocument();
     expect(screen.queryByText('Not set')).not.toBeInTheDocument();
   });
 

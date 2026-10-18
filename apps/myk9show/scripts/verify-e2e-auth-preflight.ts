@@ -21,13 +21,17 @@ loadEnv({ path: envLocalPath, override: false });
 loadEnv({ path: envPath, override: false });
 
 const DEFAULT_ROLES = ['secretary', 'admin', 'judge', 'exhibitor'] as const;
-const requestedRoles = process.argv.slice(2);
+const args = process.argv.slice(2);
+const checkRoles = args.includes('--check-roles');
+const requestedRoles = args.filter(arg => !arg.startsWith('--'));
 const roles = requestedRoles.length > 0 ? requestedRoles : DEFAULT_ROLES;
 
 try {
-  const config = resolveAuthPreflightConfig(process.env, roles);
+  const config = { ...resolveAuthPreflightConfig(process.env, roles), checkRoles };
   await verifyE2EAuthCredentials(config);
-  console.log(`E2E auth preflight passed for ${roles.join(', ')}`);
+  console.log(
+    `E2E auth preflight passed for ${roles.join(', ')}${checkRoles ? ' (roles verified)' : ''}`
+  );
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   // Name the two files this script looked in only for a genuinely missing

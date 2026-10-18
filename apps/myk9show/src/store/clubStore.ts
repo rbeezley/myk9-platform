@@ -35,7 +35,6 @@ function replicatedToClub(rc: ReplicatedClub): Club {
   return {
     id: rc.id,
     name: rc.name,
-    clubNumber: rc.clubNumber || '',
     email: rc.email || '',
     phone: rc.phone || '',
     website: rc.website,
@@ -86,7 +85,6 @@ function clubToReplicated(club: Club): ReplicatedClub {
     city: club.address.city,
     state: club.address.state,
     zipCode: club.address.zipCode,
-    clubNumber: club.clubNumber || undefined,
     // MYK9-572: round-trip, not editable here — clubToReplicated feeds a
     // FULL object into ReplicatedClubsTable.updateClub's `{...current,
     // ...updates}` merge, so omitting this would overwrite a cached

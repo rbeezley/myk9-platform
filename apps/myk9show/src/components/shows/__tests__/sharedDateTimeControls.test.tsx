@@ -72,7 +72,7 @@ describe('show dates: create and edit render the same control', () => {
         <ShowEditBasicInfoTab
           data={editData}
           availableShowTypes={['AKC']}
-          clubs={[{ id: 'club-1', name: 'Club', clubNumber: '1' }]}
+          clubs={[{ id: 'club-1', name: 'Club' }]}
           handleInputChange={() => vi.fn()}
           handleSelectChange={() => vi.fn()}
           handleDateChange={() => vi.fn()}
@@ -92,7 +92,7 @@ describe('show dates: create and edit render the same control', () => {
         <ShowEditBasicInfoTab
           data={editData}
           availableShowTypes={['AKC']}
-          clubs={[{ id: 'club-1', name: 'Club', clubNumber: '1' }]}
+          clubs={[{ id: 'club-1', name: 'Club' }]}
           handleInputChange={() => vi.fn()}
           handleSelectChange={() => vi.fn()}
           handleDateChange={() => vi.fn()}

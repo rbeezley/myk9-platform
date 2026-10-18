@@ -20,7 +20,6 @@ function publicDirectoryRowToClub(row: PublicDirectoryClubRow): Club {
   return {
     id: String(row.id),
     name: row.name,
-    clubNumber: '',
     email: '',
     phone: '',
     description: row.description ?? '',
@@ -69,10 +68,9 @@ export async function getPublicDirectoryClubs(): Promise<Club[]> {
  * site-admin-only and a guest is never a site admin.
  */
 export const PUBLIC_CLUB_DETAIL_COLUMNS =
-  'id, name, club_number, email, phone, website, description, logo_url, cover_image_url, accent_color, address, city, state, zip_code';
+  'id, name, email, phone, website, description, logo_url, cover_image_url, accent_color, address, city, state, zip_code';
 
 interface PublicClubDetailRow extends PublicDirectoryClubRow {
-  club_number: string | null;
   email: string | null;
   phone: string | null;
   website: string | null;
@@ -88,7 +86,6 @@ function publicClubDetailRowToClub(row: PublicClubDetailRow): Club {
   const base = publicDirectoryRowToClub(row);
   return {
     ...base,
-    clubNumber: row.club_number ?? '',
     email: row.email ?? '',
     phone: row.phone ?? '',
     website: row.website ?? undefined,

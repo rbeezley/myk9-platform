@@ -213,6 +213,10 @@ const REVIEWED_CLUB_HELPER_POLICY_SITES: readonly string[] = [
   'club_officers_insert -> is_club_admin',
   'club_officers_select -> is_club_admin',
   'club_officers_update -> is_club_admin',
+  // SAFE: club_id is `uuid NOT NULL` (20261017171300_myk9_1235_club_registry_numbers.sql).
+  'club_registry_numbers_delete -> is_club_admin',
+  'club_registry_numbers_insert -> is_club_admin',
+  'club_registry_numbers_update -> is_club_admin',
   // SAFE: club_id is `uuid not null unique` (20260609120000_stripe_connect_payouts.sql).
   'club_stripe_accounts_select -> is_club_admin',
   // GUARDED: show_templates.club_id is nullable (a NULL is a platform template).
@@ -284,6 +288,7 @@ const NOT_NULL_CLUB_ID_TABLES: readonly string[] = [
   'club_members',
   'club_officers',
   'club_premium_templates',
+  'club_registry_numbers',
   'club_stripe_accounts',
   'premium_generations',
 ];

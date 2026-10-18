@@ -48,6 +48,23 @@ describe('toScoringEntry', () => {
     expect(scoringEntry.callName).toBe('Current Call Name');
     expect(scoringEntry.breed).toBe('Current Breed');
   });
+
+  it.each([
+    [2.01, 2010],
+    [4.02, 4020],
+  ])('turns a stored %s s into integer %s ms (MYK9-1249)', (seconds, ms) => {
+    const entry: ReplicatedEntry = {
+      id: 'entry-1',
+      classId: 'class-1',
+      dogId: 'dog-1',
+      armband: '101',
+      status: 'scored',
+      result_status: 'qualified',
+      search_time_seconds: seconds,
+    };
+
+    expect(toScoringEntry(entry, null, 0).result?.time).toBe(ms);
+  });
 });
 
 describe('secretaryEntryToScoringEntry', () => {

@@ -332,8 +332,8 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
           {
             id: 'move-up-entry',
             nodeId: node.id,
-            label: 'Move up',
-            why: withEntryContext(node, 'Move this entry to the next eligible class'),
+            label: 'Change class',
+            why: withEntryContext(node, 'Change this entry to another class'),
             priority: 32,
             icon: ArrowUpCircle,
             ...(classId ? { classId } : {}),

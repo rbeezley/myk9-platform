@@ -40,7 +40,7 @@ function renderTab(status: string, initialStatus: string | undefined = status) {
         data={baseFormData(status)}
         initialStatus={initialStatus}
         availableShowTypes={['AKC']}
-        clubs={[{ id: 'club-1', name: 'Test Club', clubNumber: '123' }]}
+        clubs={[{ id: 'club-1', name: 'Test Club' }]}
         handleInputChange={() => vi.fn()}
         handleSelectChange={() => vi.fn()}
         handleDateChange={() => vi.fn()}

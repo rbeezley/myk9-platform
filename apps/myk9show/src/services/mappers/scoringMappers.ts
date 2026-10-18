@@ -157,7 +157,7 @@ export function extractScentWorkResult(
   return {
     entryId: dbEntry.id,
     classId: dbEntry.class_id || '',
-    searchTime: (dbEntry.search_time_seconds || 0) * 1000,
+    searchTime: Math.round((dbEntry.search_time_seconds || 0) * 1000),
     maxTimeAllowed,
     qualification: mapQualification(dbEntry.result_status),
     faults: dbEntry.total_faults || 0,

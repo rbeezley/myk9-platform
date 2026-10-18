@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { ShowMapMessageHandlerDialog } from '../ShowMapMessageHandlerDialog';
@@ -36,6 +36,17 @@ function renderDialog(overrides: Partial<Parameters<typeof ShowMapMessageHandler
   };
 }
 
+// Base UI moves focus into a dialog on the next animation frame, and pulls it to
+// the first control even when the field was focused in the meantime. A test that
+// starts typing inside that frame has the dialog take focus back mid-word (seen
+// as @base-ui/react 1.9.0 timing, MYK9-1248). People cannot act within one frame,
+// so wait for the initial focus before interacting.
+async function settleInitialFocus() {
+  await waitFor(() => {
+    expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement);
+  });
+}
+
 describe('ShowMapMessageHandlerDialog', () => {
   it('prefills the first canned reply and switches templates into the message body', async () => {
     const { user } = renderDialog();
@@ -52,6 +63,7 @@ describe('ShowMapMessageHandlerDialog', () => {
     const { user } = renderDialog();
     const message = screen.getByLabelText(/^message$/i, { selector: 'textarea' });
     const send = screen.getByRole('button', { name: /^send$/i });
+    await settleInitialFocus();
 
     expect(send).toBeEnabled();
 
@@ -65,6 +77,7 @@ describe('ShowMapMessageHandlerDialog', () => {
   it('sends the trimmed message body', async () => {
     const { user, onConfirm } = renderDialog();
     const message = screen.getByLabelText(/^message$/i, { selector: 'textarea' });
+    await settleInitialFocus();
 
     await user.clear(message);
     await user.type(message, '  Please come see us.  ');

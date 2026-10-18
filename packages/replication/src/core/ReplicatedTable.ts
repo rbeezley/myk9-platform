@@ -94,6 +94,12 @@ export { REPLICATION_STORES } from './DatabaseManager';
  *
  * @template T - Type of the table row (must have an 'id' field)
  */
+/** Rows stored for exactly this account. */
+const ownedBy =
+  (owner: string): RowVisibility =>
+  row =>
+    row.ownerAuthUserId === owner;
+
 export abstract class ReplicatedTable<T extends { id: string }> {
   protected db: IDBPDatabase | null = null;
 
@@ -1490,14 +1496,33 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     return this.queryManager.getAllLocalIds(await this.visibleRows());
   }
 
+  /**
+   * The syncing account's own rows with explicit read status (MYK9-1250). Stale
+   * cleanup computes what to keep from THIS, never from the ambient account.
+   */
+  async getAllWithStatusOwnedBy(ownerAuthUserId: string): Promise<ReplicatedReadResult<T>> {
+    return this.presentResult(
+      await this.queryManager.getAllWithStatus(undefined, ownedBy(ownerAuthUserId))
+    );
+  }
+
+  /**
+   * `ownerAuthUserId` pins the rows considered to that account's (MYK9-1250).
+   * The sync passes the account whose server response proved the rows absent;
+   * the signed-in account is NOT consulted, so a session that switched while the
+   * pass ran can never have its own cache selected for deletion. Without it, an
+   * account-owned table falls back to the signed-in account.
+   */
   async removeStaleEntries(
     serverIds: Set<string>,
-    options: { syncedBefore?: number } = {}
+    options: { syncedBefore?: number; ownerAuthUserId?: string } = {}
   ): Promise<number> {
     // Only the syncing account's own rows are ever stale to it: another
     // account's cache must survive this account's sync (MYK9-1133). Settled
     // before the transaction opens, never inside it.
-    const visible = await this.visibleRows();
+    const visible = options.ownerAuthUserId
+      ? ownedBy(options.ownerAuthUserId)
+      : await this.visibleRows();
     const db = await this.init();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const index = tx.store.index('tableName');

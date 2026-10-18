@@ -59,13 +59,15 @@ async function fetchUKCTrialReportContext(showId: string): Promise<UKCTrialRepor
   const clubId = (showRead.data as { club_id: string | null } | null)?.club_id ?? null;
   let clubNumber: string | null = null;
   if (clubId) {
+    // MYK9-1235: the UKC form prints the club's UKC number specifically.
     const clubRead = await supabase
-      .from('clubs')
-      .select('club_number')
-      .eq('id', clubId)
+      .from('club_registry_numbers')
+      .select('number')
+      .eq('club_id', clubId)
+      .eq('organization', 'UKC')
       .maybeSingle();
     if (clubRead.error) throw clubRead.error;
-    clubNumber = (clubRead.data as { club_number: string | null } | null)?.club_number ?? null;
+    clubNumber = (clubRead.data as { number: string } | null)?.number ?? null;
   }
 
   const officials = (

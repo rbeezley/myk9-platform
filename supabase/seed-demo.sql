@@ -862,6 +862,16 @@ ON CONFLICT (id) DO UPDATE
       default_withdrawal_retention_value = DEFAULT,
       default_withdrawal_policy_notes    = DEFAULT;
 
+-- MYK9-1235: club numbers live in club_registry_numbers (one row per registry).
+-- Reset the demo clubs' numbers on every run so an edit made during a walk does
+-- not survive a reseed, and so a reseeded club shows its AKC number in the new UI.
+DELETE FROM public.club_registry_numbers
+WHERE club_id IN ('dededede-0000-0000-0000-000000000001', 'dededede-0000-0000-0000-000000000002');
+INSERT INTO public.club_registry_numbers (club_id, organization, number)
+VALUES
+  ('dededede-0000-0000-0000-000000000001', 'AKC', 'HSWC-001'),
+  ('dededede-0000-0000-0000-000000000002', 'AKC', 'PTDSC-002');
+
 -- Stripe Connect sandbox account for the demo club.
 -- payouts_enabled=true gates the stripe-checkout edge function's online-entry
 -- check. The session itself doesn't use Connect (no transfer_data), so a

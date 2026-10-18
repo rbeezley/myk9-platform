@@ -1,9 +1,11 @@
 /**
  * chunkLoadRecovery - one guarded page reload when a route chunk cannot be loaded.
  *
- * Why (MYK9-1188): Chromium caches a FAILED dynamic import per URL for the life of the document,
- * so lazyWithRetry's re-imports never reach the network again (reproduced: 3 `import()` calls of
- * a URL that 404'd once made 1 request and all rejected). A transient failure (service worker
+ * Why (MYK9-1188): some browsers cache a FAILED dynamic import per URL for the life of the
+ * document, so lazyWithRetry's re-imports never reach the network again (reproduced on the Chromium
+ * bundled with Playwright 1.63: 3 `import()` calls of a URL that 404'd once made 1 request and all
+ * rejected). Newer Chromium (Playwright 1.64, MYK9-1248) re-fetches, so the in-page retry can
+ * recover alone; Safari and older Chromium still need this reload. A transient failure (service worker
  * installing or updating, a deploy replacing hashed chunks) therefore stays failed until the
  * page reloads. A fresh document recovers it. The service worker is left alone: unregistering it
  * would drop the offline copy of the app, and offline-first is not traded for this recovery.

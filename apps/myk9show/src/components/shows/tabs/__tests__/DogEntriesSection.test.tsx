@@ -158,4 +158,15 @@ describe('DogEntriesSection', () => {
     expect(screen.getByText('Pending review')).toBeInTheDocument();
     expect(screen.queryByText('Not accepted')).not.toBeInTheDocument();
   });
+  it('names a secretary class change in plain words (MYK9-1232)', () => {
+    render(
+      <DogEntriesSection
+        group={{ ...group, entries: [{ ...group.entries[0], movedUpFrom: 'Detective Novice' }] }}
+        showId="show-1"
+      />
+    );
+
+    expect(screen.getByText(/Class changed from Detective Novice/)).toBeInTheDocument();
+    expect(screen.queryByText(/moved up/i)).not.toBeInTheDocument();
+  });
 });

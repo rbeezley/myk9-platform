@@ -13,7 +13,6 @@ export type ClubEditFormData = z.infer<typeof clubEditSchema> & Record<string, u
 export const clubToFormData = (club: Partial<Club>): ClubEditFormData => {
   return {
     name: club.name || '',
-    clubNumber: club.clubNumber || '',
     email: club.email || '',
     phone: club.phone || '',
     website: club.website || '',
@@ -33,7 +32,6 @@ export const clubToFormData = (club: Partial<Club>): ClubEditFormData => {
 // Convert form data back to Club
 export const formDataToClub = (formData: ClubEditFormData): Partial<Club> => ({
   name: formData.name,
-  clubNumber: formData.clubNumber ?? '',
   email: formData.email,
   phone: formData.phone,
   website: formData.website || undefined,

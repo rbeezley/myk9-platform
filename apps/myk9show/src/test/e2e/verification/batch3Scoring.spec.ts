@@ -269,9 +269,17 @@ test('manual class placements agree in Check Scores, Fix and report preview (MYK
     await page.getByRole('link', { name: 'Fix score for Willow', exact: true }).click();
     await expect(page.getByRole('button', { name: /Willow/ })).toContainText('2nd');
     await expect(page.getByRole('button', { name: /Cooper/ })).toContainText('1st');
-    for (const dog of count === 4 ? ['Ranger', 'Juni'] : []) {
+    const unplaced =
+      count === 4
+        ? ([
+            ['Ranger', 'NQ'],
+            ['Juni', 'ABS'],
+          ] as const)
+        : [];
+    for (const [dog, result] of unplaced) {
       const entryRow = page.getByRole('button', { name: new RegExp(dog) });
       await expect(entryRow).toBeVisible();
+      await expect(entryRow).toContainText(result);
       await expect(entryRow).not.toContainText(/\b\d+(st|nd|rd|th)\b/);
     }
     await screenshot(page, info, `fix-${f.classId}`);

@@ -21,7 +21,7 @@ const classifiedProductionResendWriters = {
   'supabase/functions/send-auth-email/delivery.ts': 'platform-account',
   'supabase/functions/send-confirmation-email/index.ts': 'show-owned',
   'supabase/functions/send-email/index.ts': 'mixed-entry-decision-and-platform',
-  'supabase/functions/send-lifecycle-email/lifecycle-email-handler.ts': 'show-owned',
+  'supabase/functions/send-lifecycle-email/lifecycle-email-shared.ts': 'show-owned',
   'supabase/functions/send-registration-email/index.ts': 'show-owned',
   'supabase/functions/send-results/index.ts': 'show-owned',
   'supabase/functions/send-waitlist-invite/index.ts': 'platform-waitlist',
@@ -66,7 +66,7 @@ describe('MYK9-180 show email delivery source contract', () => {
     ],
     [
       'lifecycle emails',
-      'supabase/functions/send-lifecycle-email/lifecycle-email-handler.ts',
+      'supabase/functions/send-lifecycle-email/lifecycle-email-shared.ts',
       'show_id: args.job.show_id',
     ],
     [
@@ -122,7 +122,7 @@ describe('MYK9-180 show email delivery source contract', () => {
       'supabase/functions/send-registration-email/index.ts',
       'supabase/functions/send-confirmation-email/index.ts',
       'supabase/functions/send-email/index.ts',
-      'supabase/functions/send-lifecycle-email/lifecycle-email-handler.ts',
+      'supabase/functions/send-lifecycle-email/lifecycle-email-shared.ts',
       'supabase/functions/push-trigger-waitlist/index.ts',
       'supabase/functions/send-results/index.ts',
     ]) {

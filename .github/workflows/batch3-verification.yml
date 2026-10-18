@@ -65,8 +65,37 @@ jobs:
           sudo iptables -I DOCKER-USER 2 -d 172.16.0.0/12 -j RETURN
           sudo iptables -I DOCKER-USER 3 -d 192.168.0.0/16 -j RETURN
           sudo iptables -I DOCKER-USER 4 -j DROP
+          sudo iptables -C FORWARD -j DOCKER-USER || sudo iptables -I FORWARD 1 -j DOCKER-USER
       - name: Prepare disposable local Supabase
         run: pnpm qa:isolated-e2e:prepare
+      - name: Prove local connectivity and blocked public egress
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The host can pull images; containers must not reach public services.
+          curl --noproxy '*' --silent --show-error --connect-timeout 5 --max-time 10 \
+            --output /dev/null https://1.1.1.1
+          mapfile -t gateways < <(docker ps --format '{{.Names}}' | grep '^supabase_kong_')
+          test "${#gateways[@]}" -eq 1
+          gateway="${gateways[0]}"
+          mapfile -t networks < <(docker inspect "$gateway" --format '{{range $name, $value := .NetworkSettings.Networks}}{{$name}}{{"\n"}}{{end}}' | sed '/^$/d')
+          test "${#networks[@]}" -eq 1
+          network="${networks[0]}"
+          # This proof installs IPv4 rules; fail closed if the stack enables IPv6.
+          test "$(docker network inspect "$network" --format '{{.EnableIPv6}}')" = false
+          docker pull curlimages/curl:8.12.1
+          docker run --rm --network "$network" curlimages/curl:8.12.1 \
+            --noproxy '*' --fail --silent --show-error --max-time 10 \
+            --header "apikey: $MYK9_E2E_SUPABASE_ANON_KEY" \
+            "http://$gateway:8000/auth/v1/health" --output /dev/null
+          set +e
+          docker run --rm --network "$network" curlimages/curl:8.12.1 \
+            --noproxy '*' --silent --show-error --connect-timeout 3 --max-time 5 \
+            https://1.1.1.1 --output /dev/null
+          probe_status=$?
+          set -e
+          test "$probe_status" -eq 28
+          echo 'Local Supabase reachable; public-IP connection timed out on the stack network.'
       - name: Verify isolated target
         run: pnpm exec tsx scripts/qa/verify-isolated-e2e-target.ts
       - name: Stamp tested source

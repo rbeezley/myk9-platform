@@ -15,6 +15,14 @@ Historical Vehicle was manually completed, fully accounted for and unplaced. Cur
 - Require all three browser cases on the exact PR head, zero retries, in disposable CI before merge. Compare served build stamp with requested SHA.
 - Shared reads fail closed on mutations. Isolated evidence does not silently replace original incident or deployed acceptance gates.
 
+## Approved proof redesign — October 18
+
+The second review found cleanup after failed sign-in and unproven firewall enforcement on the same paths. The owner approved independent disposable fixtures: every scenario creates new class/entry IDs and its own confirmed judge assignment from canonical seed references. The canonical class/entries are read-only templates. Remove soft-deletes, resets, restoration, per-class deletes and error-aggregation teardown. The test runner closes its browser contexts after each test, including failed sign-in; unconditional runner-stack destruction owns database cleanup. Tests run independently rather than serially skipping after an unrelated failure.
+
+Reuse existing canonical dog armbands and create only missing extra-dog armbands inside the disposable show. Assert each inserted entry's number and initial unscored/unplaced state. Check every placement, including NQ/ABS, in both Check Scores and Fix. Literal rank/order assertions remain the acceptance contract.
+
+Network isolation now has an explicit FORWARD jump and positive/negative probes on the actual Supabase gateway network: host public reachability control, local authenticated health success, and a public-IP timeout from the container. Fail closed if that network enables IPv6 because these rules cover IPv4. The probe and all three browser cases must pass on the redesigned head, followed by independent review and required CI; previous green browser runs do not waive the review findings.
+
 ## Verification and risk
 
 Risk: verification infrastructure and scoring acceptance. Run typecheck/lint/ratchet, relevant scoring/database/print tests, independent exact-head review, required CI and dedicated browser proof. Block container public egress and require loopback fixture targets. Keep credentials private and scrub published artifacts.

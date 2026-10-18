@@ -15,6 +15,9 @@ The browser spec asserts SQL, real replica, existing Check Scores/Fix and actual
 - Commit validation (4.1) is complete with the owner's explicit exception: final root typecheck/lint/ratchet, proof compilation, 1,113 focused tests, formatting and strict OpenSpec validation pass. No new migration remains. Earlier full shuffle's untouched failure is MYK9-1252 and is not declared green; required CI and all browser cases must pass before merge.
 - Obtain independent exact-head review, required CI and merge (4.2).
 - Obtain concrete linked migration/deployment authorization and resulting verification (4.3).
+- October 17 read-only checks found the fixes already deployed by another operation: build 43b3912ad contains #3077/#3080 and the installed refresh body exactly matches #3094. No new shared write is required by this task for that state; re-read full acceptance before closure.
 - Re-read issues and record all criteria before closure (4.4). Original MYK9-1246 response remains unknown; isolated equivalent requires owned acceptance if replacing incident reproduction.
 
 Owned local stack cleanup is complete (4.5), inventory empty. No linked migration or deployment occurred. This change remains active and is not ready to archive.
+
+October 18 redesign approved after the second review: independent class/entry/assignment fixtures, no canonical-entry soft-delete/reset/restore, browser teardown after each test and whole-stack database teardown; actual-network local/public probes; all NQ/ABS placements asserted in both views. The two previous CI browser passes are historical; redesigned-head CI and independent review remain required.

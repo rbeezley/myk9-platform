@@ -4,6 +4,7 @@ interface ClaimStore {
   jobs: Row[];
   ties: Row[];
   newId: () => string;
+  newAttemptId: () => string;
   uniqueViolation: (candidate: Row) => boolean;
 }
 
@@ -13,70 +14,63 @@ const norm = (value: unknown) =>
     .toLowerCase();
 
 /**
+ * A job is active while its lease runs, whoever wrote it: a pre-migration send has a
+ * lease and no attempt_id, and must still answer busy. attempt_id only decides who
+ * may record the outcome.
+ */
+export const isActiveAttempt = (row: Row) =>
+  row.claimed_until != null && Date.parse(String(row.claimed_until)) > Date.now();
+
+/**
  * Test double for public.claim_registration_number_needed_job: the SAME decision
  * table the SQL function implements (supabase/tests/myk9_1212_*.sql proves the SQL),
  * run over an in-memory jobs table so the handler's dispatch is exercised end to end.
  * A write that would violate a unique index returns the 23505 error and changes nothing.
  */
 export function claimRegistrationNumberNeededJob(store: ClaimStore, args: Row) {
-  const ok = (outcome: string, jobId: unknown, recovered = false) => ({
-    data: { outcome, job_id: jobId, recovered },
+  const answer = (outcome: string, jobId: unknown, attemptId: unknown, recovered = false) => ({
+    data: { outcome, job_id: jobId, attempt_id: attemptId, recovered },
     error: null,
   });
+  const busy = () => answer('busy', null, null);
   const { jobs, ties } = store;
   const key = args.p_request_key;
   const email = norm(args.p_recipient_email);
-  const staleBefore = Date.parse(String(args.p_stale_before));
-  const isStale = (row: Row) => !row.created_at || Date.parse(String(row.created_at)) < staleBefore;
+  const lease = args.p_lease_until;
+  if (lease == null || Date.parse(String(lease)) <= Date.now()) {
+    return { data: null, error: { code: '22023', message: 'a future lease is required' } };
+  }
   const now = new Date().toISOString();
-  // The in-flight lease this claim stamps on the job it answers `send` for (null from
-  // a pre-lease caller, as the SQL default).
-  const lease = args.p_lease_until ?? null;
-  const stamp = (row: Row) => Object.assign(row, { claimed_until: lease });
-  // An ACTIVE send: a live lease, or (no lease at all) a recent ready job.
-  const isActive = (row: Row) =>
-    row.claimed_until != null
-      ? Date.parse(String(row.claimed_until)) > Date.now()
-      : row.status === 'ready' && !isStale(row);
-
+  const attempt = store.newAttemptId();
+  const own = (row: Row) =>
+    Object.assign(row, { attempt_id: attempt, claimed_until: lease, updated_by: args.p_user_id });
   const supersede = (row: Row) =>
-    Object.assign(row, { status: 'skipped', skipped_at: now, updated_by: args.p_user_id });
+    Object.assign(row, {
+      status: 'skipped',
+      skipped_at: now,
+      updated_by: args.p_user_id,
+      attempt_id: null,
+      claimed_until: null,
+    });
 
   let idempotencyKey = String(key);
   // A Map lookup, as the tie table's primary key (show_id, request_key) indexes it.
   const tieIndex = new Map(ties.map(row => [`${row.show_id}\u0000${row.request_key}`, row]));
   const tie = tieIndex.get(`${args.p_show_id}\u0000${key}`);
-  let tieRow = tie;
-  let tied = tie ? jobs.find(row => row.id === tie.job_id) : undefined;
-  if (!tied) {
-    // Lazy adoption: a job the PREVIOUS handler made on the plain key has no tie yet.
-    const byIdempotency = new Map(jobs.map(row => [String(row.idempotency_key), row]));
-    const legacy = byIdempotency.get(String(key));
-    if (
-      legacy &&
-      legacy.show_id === args.p_show_id &&
-      legacy.step_type === 'registration_number_needed' &&
-      legacy.entry_id === args.p_entry_id
-    ) {
-      tied = legacy;
-      tieRow = { show_id: args.p_show_id, request_key: key, job_id: legacy.id };
-      ties.push(tieRow);
-    }
-  }
-  let newTie: Row | undefined;
-  if (tied) {
-    if (tied.status === 'sent') return ok('sent', tied.id);
-    if (tied.status !== 'ready' && tied.status !== 'failed') return ok('busy', null);
+  const tied = tie ? jobs.find(row => row.id === tie.job_id) : undefined;
+  let repoint: Row | undefined;
+  if (tie && tied) {
+    if (tied.status === 'sent') return answer('sent', tied.id, null);
+    if (tied.status !== 'ready' && tied.status !== 'failed') return busy();
+    // Nothing touches an active attempt, not even this request's own replay.
+    if (isActiveAttempt(tied)) return busy();
     if (norm(tied.recipient_email) === email) {
-      // Same key, address and text: provider-idempotent, so allowed under a live lease.
-      stamp(tied);
-      return ok('send', tied.id);
+      own(tied);
+      return answer('send', tied.id, attempt);
     }
-    // An active send is awaiting the provider: never replace it.
-    if (isActive(tied)) return ok('busy', null);
     // The address changed: supersede and re-point ONLY this request's tie.
     supersede(tied);
-    newTie = tieRow;
+    repoint = tie;
     idempotencyKey = `${String(key)}:to:${store.newId()}`;
   } else {
     const outstanding = jobs.filter(
@@ -86,13 +80,13 @@ export function claimRegistrationNumberNeededJob(store: ClaimStore, args: Row) {
         row.entry_id === args.p_entry_id &&
         (row.status === 'ready' || row.status === 'failed')
     );
-    if (outstanding.some(isActive)) return ok('busy', null);
+    if (outstanding.some(isActiveAttempt)) return busy();
     const same = outstanding.find(row => norm(row.recipient_email) === email);
     if (same) {
       // Recovery ADDS a tie; every earlier request keeps resolving to this job.
       ties.push({ show_id: args.p_show_id, request_key: key, job_id: same.id });
-      stamp(same);
-      return ok('send', same.id, true);
+      own(same);
+      return answer('send', same.id, attempt, true);
     }
     outstanding.forEach(supersede);
   }
@@ -111,6 +105,7 @@ export function claimRegistrationNumberNeededJob(store: ClaimStore, args: Row) {
     body: args.p_body,
     secretary_note: args.p_secretary_note,
     idempotency_key: idempotencyKey,
+    attempt_id: attempt,
     claimed_until: lease,
     due_at: now,
     created_at: now,
@@ -121,7 +116,37 @@ export function claimRegistrationNumberNeededJob(store: ClaimStore, args: Row) {
     return { data: null, error: { code: '23505', message: 'duplicate key value' } };
   }
   jobs.push(row);
-  if (newTie) newTie.job_id = row.id;
+  if (repoint) repoint.job_id = row.id;
   else ties.push({ show_id: args.p_show_id, request_key: key, job_id: row.id });
-  return ok('send', row.id);
+  return answer('send', row.id, attempt);
+}
+
+/**
+ * Test double for public.finish_registration_number_needed_attempt: a compare-and-set
+ * on attempt_id. Only the attempt that owns a ready/failed job records its outcome.
+ */
+export function finishRegistrationNumberNeededAttempt(jobs: Row[], args: Row) {
+  if (args.p_status !== 'sent' && args.p_status !== 'failed') {
+    return { data: null, error: { code: '22023', message: 'an attempt finishes sent or failed' } };
+  }
+  const job = jobs.find(
+    row =>
+      row.id === args.p_job_id &&
+      row.step_type === 'registration_number_needed' &&
+      row.attempt_id === args.p_attempt_id &&
+      (row.status === 'ready' || row.status === 'failed')
+  );
+  if (!job) return { data: false, error: null };
+  Object.assign(job, {
+    status: args.p_status,
+    ...(args.p_status === 'sent' ? { sent_at: new Date().toISOString() } : {}),
+    email_log_id: args.p_email_log_id,
+    rendered_subject: args.p_rendered_subject,
+    rendered_body: args.p_rendered_body,
+    rendered_secretary_note: args.p_rendered_secretary_note,
+    updated_by: args.p_user_id,
+    attempt_id: null,
+    claimed_until: null,
+  });
+  return { data: true, error: null };
 }

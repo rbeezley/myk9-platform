@@ -18,22 +18,24 @@ const entryRow = {
   handler: 'Jamie Handler',
 };
 const STALE_MS = 10 * 60 * 1000;
+const FINISH = 'finish_registration_number_needed_attempt';
+
+type Row = Record<string, unknown>;
 
 /**
- * MYK9-1212 residual. A job a request RECOVERS (failed, or ready and stale) is sent
- * again under its own provider key. While that send is in flight an owner-address
- * correction must not supersede it and send a replacement under a second key: both
- * emails would land. The claim stamps an in-flight lease; only an abandoned attempt
- * (lease expired) may be replaced. A barrier on the provider call holds the first
- * request mid-send while the second one runs, against the actual handler.
+ * MYK9-1212. A send is an ATTEMPT: the claim mints it with a lease, nothing touches a
+ * job while its attempt is active (not even the same request's replay), and only the
+ * attempt that owns the job records the outcome. Barriers on the provider call hold an
+ * attempt mid-send while other requests run, against the actual handler.
  */
-describe('a recovered send in flight cannot be superseded by an address correction', () => {
+describe('registration number needed: one owned attempt per job', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2026-10-16T12:00:00.000Z'));
+    vi.setSystemTime(new Date('2026-10-17T12:00:00.000Z'));
   });
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   const earlierJob = {
@@ -46,22 +48,29 @@ describe('a recovered send in flight cannot be superseded by an address correcti
     idempotency_key: 'earlier-key',
   };
 
-  function arrange(job: Record<string, unknown>) {
-    let release: () => void = () => {};
-    let started: () => void = () => {};
-    const providerStarted = new Promise<void>(resolve => (started = resolve));
-    const gate = new Promise<void>(resolve => (release = resolve));
+  /** `gated` provider calls block (in order) until their gate is released. */
+  function arrange(jobs: Row[], gated = 1) {
     const okResponse = { ok: true, json: async () => ({ id: 'resend-1' }) };
-    const fetch = vi.fn(async () => okResponse);
-    // Only the FIRST provider call blocks: it is the recovered send held in flight.
-    fetch.mockImplementationOnce(async () => {
-      started();
-      await gate;
+    const gates = Array.from({ length: gated }, () => {
+      let release: () => void = () => {};
+      let started: () => void = () => {};
+      const reached = new Promise<void>(resolve => (started = resolve));
+      const open = new Promise<void>(resolve => (release = resolve));
+      return { release, reached, started, open };
+    });
+    let call = 0;
+    const fetch = vi.fn(async () => {
+      const gate = gates[call];
+      call += 1;
+      if (gate) {
+        gate.started();
+        await gate.open;
+      }
       return okResponse;
     });
-    const { supabase, tables } = makeStatefulSupabase(
+    const { supabase, tables, failNext } = makeStatefulSupabase(
       baseTables({
-        show_lifecycle_email_jobs: [job],
+        show_lifecycle_email_jobs: jobs,
         show_lifecycle_email_job_requests: [],
         show_lifecycle_email_steps: [stepRow],
         entries: [entryRow],
@@ -75,6 +84,7 @@ describe('a recovered send in flight cannot be superseded by an address correcti
       fetch: fetch as unknown as typeof globalThis.fetch,
       resendApiKey: 'resend-key',
     });
+    const asSupabase = supabase as unknown as Parameters<typeof handler>[0]['supabase'];
     const run = (requestId: string) =>
       handler({
         body: {
@@ -85,92 +95,203 @@ describe('a recovered send in flight cannot be superseded by an address correcti
           request_id: requestId,
         },
         user: { id: 'secretary-1' },
-        supabase: supabase as unknown as Parameters<typeof handler>[0]['supabase'],
+        supabase: asSupabase,
+      });
+    const genericSend = (jobId: string) =>
+      handler({
+        body: { action: 'send', show_id: 'show-1', job_ids: [jobId] },
+        user: { id: 'secretary-1' },
+        supabase: asSupabase,
       });
     const recipients = () =>
       fetch.mock.calls.map(
-        call =>
-          (JSON.parse((call as unknown as [string, { body: string }])[1].body) as { to: string }).to
+        c => (JSON.parse((c as unknown as [string, { body: string }])[1].body) as { to: string }).to
       );
     const correctAddress = () => {
       tables.people[0].email = 'corrected@example.com';
     };
-    const job1 = () => tables.show_lifecycle_email_jobs.find(row => row.id === 'earlier');
-    return { release, providerStarted, tables, run, recipients, correctAddress, job1 };
+    const job = (id: string) => tables.show_lifecycle_email_jobs.find(row => row.id === id);
+    const onlyJob = () => tables.show_lifecycle_email_jobs[0];
+    const expireLeases = () => vi.setSystemTime(Date.now() + STALE_MS + 1000);
+    return {
+      fetch,
+      gates,
+      tables,
+      failNext,
+      run,
+      genericSend,
+      recipients,
+      correctAddress,
+      job,
+      onlyJob,
+      expireLeases,
+    };
   }
 
-  // Seeds are built inside each test, so a stale age is measured on the faked clock.
-  const variants = [
-    ['a FAILED job', () => ({ status: 'failed' })],
+  // Seeds are built inside each test, so lease ages are measured on the faked clock.
+  const variants: Array<[string, () => Row[], string | null]> = [
+    ['a first email', () => [], null],
+    ['recovering a FAILED job', () => [{ ...earlierJob, status: 'failed' }], 'earlier'],
     [
-      'a STALE ready job',
-      () => ({ status: 'ready', created_at: new Date(Date.now() - 2 * STALE_MS).toISOString() }),
+      'recovering an ABANDONED ready job (lease expired)',
+      () => [
+        {
+          ...earlierJob,
+          status: 'ready',
+          attempt_id: 'attempt-dead',
+          claimed_until: new Date(Date.now() - 1000).toISOString(),
+        },
+      ],
+      'earlier',
     ],
-  ] as const;
+  ];
 
-  for (const [label, seed] of variants) {
-    it(`recovering ${label}: a correction while it sends answers busy, then one email in total`, async () => {
-      const { release, providerStarted, run, recipients, correctAddress, tables, job1 } = arrange({
-        ...earlierJob,
-        ...seed(),
-      });
+  for (const [label, seed, seededId] of variants) {
+    it(`${label}: while it sends, a replay and a correction both answer busy; then exactly one email`, async () => {
+      const a = arrange(seed());
+      const id = () => seededId ?? String(a.onlyJob().id);
 
-      const first = run(FIRST_REQUEST);
-      await providerStarted;
-      // The lease is the handler's stale window from the claim moment.
-      expect(job1()?.claimed_until).toBe(new Date(Date.now() + STALE_MS).toISOString());
-      correctAddress();
+      const first = a.run(FIRST_REQUEST);
+      await a.gates[0].reached;
+      // The attempt is leased for the handler's stale window from the claim moment.
+      expect(a.job(id())?.claimed_until).toBe(new Date(Date.now() + STALE_MS).toISOString());
+      expect(a.job(id())?.attempt_id).toEqual(expect.any(String));
+      const owner = a.job(id())?.attempt_id;
 
-      await expect(run(SECOND_REQUEST)).resolves.toEqual({ status: 'busy' });
-      // The recovering request's own retry, now at a changed address, is busy as well.
-      await expect(run(FIRST_REQUEST)).resolves.toEqual({ status: 'busy' });
-      expect(recipients()).toEqual(['old@example.com']);
-      expect(job1()?.status).not.toBe('skipped');
-      expect(tables.show_lifecycle_email_jobs).toHaveLength(1);
+      // The same request's lost-response retry: busy, and no second provider call.
+      await expect(a.run(FIRST_REQUEST)).resolves.toEqual({ status: 'busy' });
+      expect(a.fetch).toHaveBeenCalledTimes(1);
 
-      release();
-      await expect(first).resolves.toMatchObject({ status: 'sent', jobId: 'earlier' });
-      expect(recipients()).toEqual(['old@example.com']);
-      expect(job1()?.status).toBe('sent');
-      // The lease is cleared with the outcome.
-      expect(job1()?.claimed_until).toBeNull();
-    });
+      a.correctAddress();
+      await expect(a.run(SECOND_REQUEST)).resolves.toEqual({ status: 'busy' });
+      await expect(a.run(FIRST_REQUEST)).resolves.toEqual({ status: 'busy' });
+      expect(a.recipients()).toEqual(['old@example.com']);
+      expect(a.tables.show_lifecycle_email_jobs).toHaveLength(1);
+      expect(a.job(id())?.status).toMatch(/^(ready|failed)$/);
+      expect(a.job(id())?.attempt_id).toBe(owner);
 
-    it(`recovering ${label}: an ABANDONED attempt is replaced for the corrected address once its lease expires`, async () => {
-      const { release, providerStarted, run, recipients, correctAddress, tables, job1 } = arrange({
-        ...earlierJob,
-        ...seed(),
-      });
-
-      const first = run(FIRST_REQUEST);
-      await providerStarted;
-      correctAddress();
-      await expect(run(SECOND_REQUEST)).resolves.toEqual({ status: 'busy' });
-
-      // R1 never finishes (a crashed isolate); its lease runs out.
-      vi.setSystemTime(Date.now() + STALE_MS + 1000);
-      await expect(run(SECOND_REQUEST)).resolves.toMatchObject({ status: 'sent' });
-
-      expect(recipients()).toEqual(['old@example.com', 'corrected@example.com']);
-      expect(job1()?.status).toBe('skipped');
-      expect(tables.show_lifecycle_email_jobs).toHaveLength(2);
-      release();
-      await first;
+      a.gates[0].release();
+      await expect(first).resolves.toMatchObject({ status: 'sent', jobId: id() });
+      expect(a.recipients()).toEqual(['old@example.com']);
+      // The owner recorded the outcome and released the job.
+      expect(a.job(id())).toMatchObject({ status: 'sent', attempt_id: null, claimed_until: null });
     });
   }
 
-  it('the same request replaying its job at the same address is allowed while the lease is active', async () => {
-    const { release, providerStarted, run, recipients } = arrange({
-      ...earlierJob,
-      status: 'failed',
+  it('a generic send during an active attempt is skipped, leaving the attempt and lease intact', async () => {
+    const a = arrange([]);
+    const first = a.run(FIRST_REQUEST);
+    await a.gates[0].reached;
+    const before = { ...a.onlyJob() };
+
+    await expect(a.genericSend(String(before.id))).resolves.toMatchObject({
+      attempted: 1,
+      sent: 0,
+      skipped: 1,
+      results: [{ jobId: before.id, status: 'skipped', reason: 'send_on_demand' }],
     });
 
-    const first = run(FIRST_REQUEST);
-    await providerStarted;
-    // Same key, same address, same stored text: the provider collapses the replay.
-    await expect(run(FIRST_REQUEST)).resolves.toMatchObject({ status: 'sent', jobId: 'earlier' });
-    release();
+    expect(a.fetch).toHaveBeenCalledTimes(1);
+    expect(a.onlyJob()).toEqual(before);
+    a.gates[0].release();
+    await expect(first).resolves.toMatchObject({ status: 'sent' });
+  });
+
+  for (const [who, requestId] of [
+    ['another request', SECOND_REQUEST],
+    ["the attempt's own request (current recipient via the expired lease)", FIRST_REQUEST],
+  ] as const) {
+    it(`an abandoned attempt finishing late changes nothing once ${who} has replaced it`, async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const a = arrange([]);
+      const first = a.run(FIRST_REQUEST);
+      await a.gates[0].reached;
+      const abandoned = { id: String(a.onlyJob().id), attempt: a.onlyJob().attempt_id };
+
+      // The isolate is presumed dead: its lease runs out and the address is corrected.
+      a.expireLeases();
+      a.correctAddress();
+      await expect(a.run(requestId)).resolves.toMatchObject({ status: 'sent' });
+      expect(a.job(abandoned.id)?.status).toBe('skipped');
+      const replacement = a.tables.show_lifecycle_email_jobs.find(row => row.id !== abandoned.id);
+      expect(replacement).toMatchObject({
+        status: 'sent',
+        recipient_email: 'corrected@example.com',
+      });
+
+      a.gates[0].release();
+      // The provider's real result is reported; the job row is not touched.
+      await expect(first).resolves.toMatchObject({ status: 'sent', jobId: abandoned.id });
+      expect(a.job(abandoned.id)).toMatchObject({ status: 'skipped', attempt_id: null });
+      expect(replacement).toMatchObject({ status: 'sent' });
+      expect(warn).toHaveBeenCalledWith(
+        'send-lifecycle-email: attempt outcome not recorded',
+        expect.objectContaining({
+          lost_ownership: true,
+          job_id: abandoned.id,
+          attempt_id: abandoned.attempt,
+        })
+      );
+      expect(a.recipients()).toEqual(['old@example.com', 'corrected@example.com']);
+    });
+  }
+
+  it('a lost job-row write after delivery: the next claim after expiry records sent with no provider call', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const a = arrange([], 0);
+    a.failNext(FINISH, 'rpc');
+
+    // Delivered and logged, but the finish write was lost: the provider's result stands.
+    await expect(a.run(FIRST_REQUEST)).resolves.toMatchObject({ status: 'sent' });
+    const id = String(a.onlyJob().id);
+    expect(a.onlyJob()).toMatchObject({ status: 'ready', attempt_id: expect.any(String) });
+    const log = a.tables.email_log.find(row => row.related_id === id);
+    expect(log).toMatchObject({ status: 'sent' });
+
+    // Still leased: a retry is busy.
+    await expect(a.run(FIRST_REQUEST)).resolves.toEqual({ status: 'busy' });
+    a.expireLeases();
+    await expect(a.run(FIRST_REQUEST)).resolves.toMatchObject({ status: 'sent', jobId: id });
+
+    expect(a.fetch).toHaveBeenCalledTimes(1);
+    expect(a.onlyJob()).toMatchObject({
+      status: 'sent',
+      email_log_id: log?.id,
+      attempt_id: null,
+      claimed_until: null,
+    });
+  });
+
+  it("a losing finish never clears the current owner's attempt or lease", async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const a = arrange([], 2);
+    const first = a.run(FIRST_REQUEST);
+    await a.gates[0].reached;
+    const stale = a.onlyJob().attempt_id;
+
+    // A's lease expires; the same request takes the job again with a NEW attempt.
+    a.expireLeases();
+    const second = a.run(FIRST_REQUEST);
+    await a.gates[1].reached;
+    const owner = { attempt: a.onlyJob().attempt_id, lease: a.onlyJob().claimed_until };
+    expect(owner.attempt).not.toBe(stale);
+    expect(owner.lease).toBe(new Date(Date.now() + STALE_MS).toISOString());
+
+    a.gates[0].release();
     await first;
-    expect(recipients()).toEqual(['old@example.com', 'old@example.com']);
+    expect(a.onlyJob()).toMatchObject({
+      status: 'ready',
+      attempt_id: owner.attempt,
+      claimed_until: owner.lease,
+    });
+    expect(warn).toHaveBeenCalledWith(
+      'send-lifecycle-email: attempt outcome not recorded',
+      expect.objectContaining({ lost_ownership: true, attempt_id: stale })
+    );
+
+    a.gates[1].release();
+    await expect(second).resolves.toMatchObject({ status: 'sent' });
+    expect(a.onlyJob()).toMatchObject({ status: 'sent', attempt_id: null, claimed_until: null });
+    expect(a.tables.show_lifecycle_email_jobs).toHaveLength(1);
   });
 });

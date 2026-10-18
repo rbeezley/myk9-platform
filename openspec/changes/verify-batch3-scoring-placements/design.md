@@ -23,6 +23,8 @@ Reuse existing canonical dog armbands and create only missing extra-dog armbands
 
 Network isolation now has an explicit FORWARD jump and positive/negative probes on the actual Supabase gateway network: host public reachability control, local authenticated health success, and a public-IP timeout from the container. Fail closed if that network enables IPv6 because these rules cover IPv4. The probe and all three browser cases must pass on the redesigned head, followed by independent review and required CI; previous green browser runs do not waive the review findings.
 
+The suite-map inflight check exited 1 for an unchecked-out local branch `claude/epic-sutherland-bfe257`, with no PR. Its sole map change adds the unrelated `showsListPane.spec.ts` row. Preserve that branch; our independent batch-3 paragraph does not edit its row. CI exposed the missing registration and the artifact policy's required explicit failure exclusion; register this spec and retain that exclusion alongside success. The artifact guard test passes without changing its assertions.
+
 ## Verification and risk
 
 Risk: verification infrastructure and scoring acceptance. Run typecheck/lint/ratchet, relevant scoring/database/print tests, independent exact-head review, required CI and dedicated browser proof. Block container public egress and require loopback fixture targets. Keep credentials private and scrub published artifacts.

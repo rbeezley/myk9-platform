@@ -22,6 +22,8 @@ That supersedes this task's earlier proposed all-ranks-missing guard. Once #3094
 
 All fixture/scoring writes target disposable loopback Supabase. Contexts block external HTTP requests and service workers; socket origins are checked. Fresh role contexts use actual SQL/replica reads, with no auth, clock, persistence-RPC or result-response stubs. The served build stamp must equal the requested exact source SHA. Three Playwright tests cover the five scenario rows below: cardinalities and placement classes are loops within their tests.
 
+Socket checks are observational, not a browser firewall: a non-loopback WebSocket is recorded and fails the proof, but is not prevented from connecting. The container egress probe covers the Supabase network, not the host browser. No stronger local-browser isolation claim is made. Persistent fixture/scoring writes use the fail-closed loopback client and guarded HTTP paths; only synthetic data is present in the disposable target.
+
 | Case                      | Assertions                                                                                                           |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Paper, one live entry     | UI saves Q / 62.03 seconds / 1 fault; SQL agrees; reload retains result/time; clean replica and empty mutation queue |

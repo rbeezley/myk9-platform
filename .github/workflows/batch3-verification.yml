@@ -15,6 +15,15 @@ on:
       - 'scripts/qa/isolated-e2e*.ts'
       - 'scripts/qa/*isolated-e2e*'
       - 'supabase/seed*.sql'
+      - 'apps/myk9show/src/pages/scoring/**'
+      - 'apps/myk9show/src/features/at-show/**'
+      - 'apps/myk9show/src/features/results-tab/**'
+      - 'apps/myk9show/src/features/pipeline/print/**'
+      - 'apps/myk9show/src/components/reports/**'
+      - 'apps/myk9show/src/lib/reports/**'
+      - 'packages/**'
+      - 'supabase/migrations/**'
+      - 'supabase/functions/**'
 
 permissions:
   contents: read
@@ -25,7 +34,7 @@ concurrency:
 
 jobs:
   proof:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    # No shared secrets: fork PRs use the same generated runner-only credentials.
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -60,6 +69,7 @@ jobs:
       # to any public address (including shared Supabase/email/Stripe) are denied.
       - name: Restrict containers to local networks
         run: |
+          set -euo pipefail
           sudo iptables -N DOCKER-USER 2>/dev/null || true
           sudo iptables -I DOCKER-USER 1 -d 10.0.0.0/8 -j RETURN
           sudo iptables -I DOCKER-USER 2 -d 172.16.0.0/12 -j RETURN
@@ -120,7 +130,9 @@ jobs:
         working-directory: apps/myk9show
         run: pnpm exec tsx scripts/verify-artifact-secrets.ts --skip-zip-files playwright-report-ci test-results
       - name: Preserve isolated evidence
-        if: ${{ always() && steps.verify-artifacts.outcome == 'success' }}
+        # Keep the explicit exclusion required by playwrightArtifactScrubbing.test.ts;
+        # success also prevents uploads when the scanner is skipped or cancelled.
+        if: ${{ always() && steps.verify-artifacts.outcome != 'failure' && steps.verify-artifacts.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           name: isolated-batch3-proof

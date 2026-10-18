@@ -86,6 +86,24 @@ test.describe('lazy route chunk failure under the service worker', () => {
     await expect(page.getByText(BOUNDARY_HEADING)).toHaveCount(0);
   });
 
+  // MYK9-1248: the fresh-document recovery path, forced. The chunk fails for every in-page attempt
+  // (lazyWithRetry makes RETRY_DELAYS_MS.length + 1 = 3), so only the guarded reload can recover it,
+  // and the reloaded document's fetch succeeds. Assumes a browser that re-fetches a failed import
+  // (Playwright 1.64's Chromium); one that caches the failure serves only 1 fault before the reload.
+  test('a chunk that fails every in-page retry recovers through one reload', async ({ page }) => {
+    const documentLoads = await controlledPageWithEmptyPrecache(page);
+    server.failChunk(chunk, 3);
+
+    await navigateInApp(page, ROUTE);
+
+    await expect(page.getByRole('heading', { name: ROUTE_HEADING })).toBeVisible({
+      timeout: 30_000,
+    });
+    expect(server.faultsServed()).toBe(3);
+    expect(documentLoads()).toBe(1);
+    await expect(page.getByText(BOUNDARY_HEADING)).toHaveCount(0);
+  });
+
   test('a chunk that stays down reloads once, then shows the boundary and stops', async ({
     page,
   }) => {

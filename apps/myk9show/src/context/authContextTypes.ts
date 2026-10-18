@@ -40,7 +40,8 @@ export interface AuthContextType {
   signInWithGoogle: (redirectTo?: string, intendedRoles?: readonly string[]) => Promise<void>;
   signInWithApple: (redirectTo?: string, intendedRoles?: readonly string[]) => Promise<void>;
   resetPassword: (email: string, captchaToken?: string) => Promise<void>;
-  updatePassword: (newPassword: string) => Promise<void>;
+  /** Step-up first (MYK9-1208); `nonce` is the emailed code when GoTrue asks for one. */
+  updatePassword: (newPassword: string, nonce?: string) => Promise<void>;
   updateProfile: (updates: {
     email?: string;
     password?: string;

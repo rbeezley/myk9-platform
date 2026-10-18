@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { SecuritySettings } from '@/components/preferences/SecuritySettings';
+import { PasswordNonceRequired } from '@/features/step-up/passwordChange';
 
 const mockUpdatePassword = vi.fn();
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -54,6 +55,26 @@ describe('SecuritySettings password form', () => {
     submit();
 
     await waitFor(() => expect(mockUpdatePassword).toHaveBeenCalledWith('longenough1'));
+    await waitFor(() =>
+      expect(screen.getByText(/password updated successfully/i)).toBeInTheDocument()
+    );
+  });
+
+  it('shows a code field when GoTrue asks for the emailed code, then sends it (MYK9-1208)', async () => {
+    mockUpdatePassword
+      .mockRejectedValueOnce(new PasswordNonceRequired())
+      .mockResolvedValueOnce(undefined);
+    render(<SecuritySettings />);
+    fill('longenough1', 'longenough1');
+    submit();
+
+    expect(await screen.findByText(/we've emailed you a code/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Code from the email'), { target: { value: '654321' } });
+    submit();
+
+    await waitFor(() =>
+      expect(mockUpdatePassword).toHaveBeenLastCalledWith('longenough1', '654321')
+    );
     await waitFor(() =>
       expect(screen.getByText(/password updated successfully/i)).toBeInTheDocument()
     );

@@ -118,6 +118,28 @@ broadcasts the new session, and the open prompt listens to `onAuthStateChange` a
 itself on a `SIGNED_IN` or `TOKEN_REFRESHED` session for the same user whose `amr` is fresh,
 so the refused request replays without the code. The link stays in the email.
 
+## Password changes (owner option 1)
+
+A stale session could otherwise change the password and then pass any step-up check. Two layers:
+
+- **Server:** GoTrue "Secure password change" (`[auth.email] secure_password_change = true` in
+  `supabase/config.toml`, checked against the installed CLI 2.117.0 schema, where it maps to
+  `security_update_password_require_reauthentication`). A session signed in more than 24 hours
+  ago must present the nonce emailed by `reauthenticate()`. config.toml only drives the local
+  stack; the hosted project needs the dashboard switch below.
+- **Client:** `features/step-up/passwordChange.ts` runs before `updateUser({ password })` for
+  both `SecuritySettings` (through `useAuth.updatePassword`) and `ResetPasswordPage`. It needs a
+  fresh `amr` (the same `stepUpToken` check), otherwise it opens the step-up dialog. The reset
+  page also accepts a `recovery`, `otp` or `magiclink` entry up to 15 minutes old, so a
+  forgotten password can be reset from the emailed link. If GoTrue still answers
+  `reauthentication_needed`, the client calls `reauthenticate()`, shows "For your security,
+  confirm it's you first. We've emailed you a code." with a code field, and retries
+  `updateUser({ password, nonce })` (supported by the installed auth-js `UserAttributes.nonce`).
+  `send-auth-email` renders the `reauthentication` email as a code with no link.
+
+Owner step (hosted project `sojmvhhwsjxmfistvzbe`): Supabase Dashboard > Authentication >
+Sign In / Providers > Email > turn on "Secure password change" > Save.
+
 ## Offline and show day
 
 Refunds and role changes were already online-only: edge functions and RPCs with no replicated

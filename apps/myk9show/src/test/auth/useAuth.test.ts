@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { testJwt } from '@/features/step-up/stepUpTestTokens';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAuth } from '@/hooks/useAuth';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
@@ -407,6 +408,14 @@ describe('useAuth', () => {
   });
 
   describe('updatePassword', () => {
+    // MYK9-1208: a password confirmed moments ago, so no step-up prompt is needed.
+    beforeEach(() => {
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: { session: { access_token: testJwt('auth-user-1', 5), user: { id: 'auth-user-1' } } },
+        error: null,
+      });
+    });
+
     it('should call Supabase updateUser for password', async () => {
       const { result } = renderHook(() => useAuth());
 

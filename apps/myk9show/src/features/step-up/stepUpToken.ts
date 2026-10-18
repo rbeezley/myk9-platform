@@ -9,7 +9,7 @@
  */
 const CLIENT_FRESH_WINDOW_SECONDS = 240;
 const FUTURE_SKEW_SECONDS = 60;
-const STEP_UP_METHODS = new Set([
+const STEP_UP_METHODS: ReadonlySet<string> = new Set([
   'password',
   'otp',
   'magiclink',
@@ -43,10 +43,12 @@ export function tokenSubject(token: string | null | undefined): string | null {
   return typeof sub === 'string' ? sub : null;
 }
 
-/** True when the token's latest password, code or MFA confirmation is inside the window. */
-export function isFreshlyReauthenticated(
+/** True when the token holds an `amr` entry of one of `methods` inside `windowSeconds`. */
+function hasFreshMethod(
   token: string | null | undefined,
-  nowSeconds: number = Math.floor(Date.now() / 1000)
+  methods: ReadonlySet<string>,
+  windowSeconds: number,
+  nowSeconds: number
 ): boolean {
   const amr = claimsOf(token)?.amr;
   if (!Array.isArray(amr)) return false;
@@ -55,13 +57,37 @@ export function isFreshlyReauthenticated(
     const { method, timestamp } = entry as { method?: unknown; timestamp?: unknown };
     return (
       typeof method === 'string' &&
-      STEP_UP_METHODS.has(method) &&
+      methods.has(method) &&
       typeof timestamp === 'number' &&
       Number.isFinite(timestamp) &&
       timestamp <= nowSeconds + FUTURE_SKEW_SECONDS &&
-      nowSeconds - timestamp <= CLIENT_FRESH_WINDOW_SECONDS
+      nowSeconds - timestamp <= windowSeconds
     );
   });
+}
+
+/** True when the token's latest password, code or MFA confirmation is inside the window. */
+export function isFreshlyReauthenticated(
+  token: string | null | undefined,
+  nowSeconds: number = Math.floor(Date.now() / 1000)
+): boolean {
+  return hasFreshMethod(token, STEP_UP_METHODS, CLIENT_FRESH_WINDOW_SECONDS, nowSeconds);
+}
+
+/**
+ * The reset-password page only: a session minted by a recovery link (or an emailed code or
+ * magic link) proves control of the account's email, which is the whole point of a reset.
+ * It gets 15 minutes, so someone reading the email and choosing a password is not asked for
+ * the password they forgot.
+ */
+const RECOVERY_METHODS: ReadonlySet<string> = new Set(['recovery', 'otp', 'magiclink']);
+const RECOVERY_WINDOW_SECONDS = 15 * 60;
+
+export function isFreshRecoverySession(
+  token: string | null | undefined,
+  nowSeconds: number = Math.floor(Date.now() / 1000)
+): boolean {
+  return hasFreshMethod(token, RECOVERY_METHODS, RECOVERY_WINDOW_SECONDS, nowSeconds);
 }
 
 /**

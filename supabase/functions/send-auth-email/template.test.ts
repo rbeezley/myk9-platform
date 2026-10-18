@@ -43,4 +43,12 @@ describe('buildAuthEmailHtml', () => {
       'enter this code'
     );
   });
+
+  it('sends the password-change code with no sign-in link (MYK9-1208)', () => {
+    const url = 'https://myk9show.com/auth/callback?token_hash=abc';
+    const { subject, html } = buildAuthEmailHtml('reauthentication', 'Richard', url, '654321');
+    expect(subject).toBe('Your myK9Show confirmation code');
+    expect(html).toContain('654321');
+    expect(html).not.toContain('href="https://myk9show.com/auth/callback');
+  });
 });

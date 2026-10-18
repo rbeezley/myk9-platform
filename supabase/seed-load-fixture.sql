@@ -246,6 +246,17 @@ FROM (VALUES
    'A growing scent work club focused on approachable, well-organized trials for handlers of every level.')
 ) AS load_clubs(s, club_name, club_code, club_description);
 
+-- MYK9-1235: the load clubs' numbers, in club_registry_numbers. The clubs are
+-- recreated above on every run, and the cascade on club_registry_numbers.club_id
+-- clears their old rows with them; these inserts restore the AKC numbers.
+INSERT INTO public.club_registry_numbers (club_id, organization, number)
+SELECT
+  format('a1090000-0000-0000-0013-%s%s', s, lpad('1', 11, '0'))::uuid,
+  'AKC',
+  format('%s-%s', club_code, lpad(s::text, 3, '0'))
+FROM (VALUES (1, 'GCSW'), (2, 'RRCS'), (3, 'BSKT')) AS load_clubs(s, club_code)
+ON CONFLICT (club_id, organization) DO UPDATE SET number = EXCLUDED.number;
+
 -- Stripe Connect sandbox account for Load Club 1 (Green Country Scent Work Club) ONLY.
 --
 -- Why club 1 and not all three: the load shows' entry window is open

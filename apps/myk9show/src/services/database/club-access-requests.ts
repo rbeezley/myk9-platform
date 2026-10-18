@@ -1,9 +1,15 @@
 import { supabase } from './supabaseClient';
+import {
+  normalizeClubRegistryNumbers,
+  type ClubRegistryNumbers,
+} from '@/utils/clubRegistryNumbers';
 
 export interface SubmitNewClubAccessRequestInput {
   clubName: string;
   website?: string;
   note?: string;
+  /** MYK9-1235: at least one is required; the RPC refuses a request with none. */
+  clubNumbers: ClubRegistryNumbers;
 }
 
 export type ClubAccessRequestStatus = 'pending' | 'approved' | 'denied';
@@ -16,6 +22,7 @@ export interface ClubAccessRequest {
   requestedClubName: string;
   requestedClubWebsite: string | null;
   requestNote: string | null;
+  clubNumbers: ClubRegistryNumbers;
   status: ClubAccessRequestStatus;
   approvedClubId: string | null;
   createdAt: string;
@@ -28,6 +35,7 @@ interface ClubAccessRequestDbRow {
   requested_club_name: string;
   requested_club_website: string | null;
   request_note: string | null;
+  club_numbers?: Record<string, string | null> | null;
   status: string;
   approved_club_id: string | null;
   created_at: string;
@@ -50,6 +58,7 @@ function mapClubAccessRequest(row: ClubAccessRequestDbRow): ClubAccessRequest {
     requestedClubName: row.requested_club_name,
     requestedClubWebsite: row.requested_club_website,
     requestNote: row.request_note,
+    clubNumbers: normalizeClubRegistryNumbers(row.club_numbers),
     status: row.status as ClubAccessRequestStatus,
     approvedClubId: row.approved_club_id,
     createdAt: row.created_at,
@@ -68,6 +77,7 @@ export async function submitNewClubAccessRequest(
     p_requested_club_name: input.clubName,
     p_requested_club_website: input.website || null,
     p_request_note: input.note || null,
+    p_club_numbers: normalizeClubRegistryNumbers(input.clubNumbers),
   });
 
   if (error) throw error;

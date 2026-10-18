@@ -83,7 +83,7 @@ describe('getPublicClubById (MYK9-747)', () => {
     await getPublicClubById('club-1');
 
     expect(query.select).toHaveBeenCalledWith(
-      'id, name, club_number, email, phone, website, description, logo_url, cover_image_url, accent_color, address, city, state, zip_code'
+      'id, name, email, phone, website, description, logo_url, cover_image_url, accent_color, address, city, state, zip_code'
     );
     expect(single.eq).toHaveBeenCalledWith('id', 'club-1');
   });
@@ -99,7 +99,6 @@ describe('getPublicClubById (MYK9-747)', () => {
       data: {
         id: 'club-1',
         name: 'Heartland',
-        club_number: 'H-1',
         email: 'h@club.org',
         phone: '555',
         website: null,
@@ -117,7 +116,6 @@ describe('getPublicClubById (MYK9-747)', () => {
 
     await expect(getPublicClubById('club-1')).resolves.toMatchObject({
       id: 'club-1',
-      clubNumber: 'H-1',
       coverImage: 'cover.png',
       accentColor: '#123456',
       address: { street: '1 Main St', city: 'Tulsa', state: 'OK', zipCode: '74103', country: 'US' },

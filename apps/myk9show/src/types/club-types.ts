@@ -9,7 +9,6 @@ export interface ClubAddress {
 export interface Club {
   id: string;
   name: string;
-  clubNumber: string;
   email: string;
   phone: string;
   website?: string | undefined;
@@ -65,7 +64,6 @@ export interface Club {
 
 export interface ClubInput {
   name: string;
-  clubNumber: string;
   email: string;
   phone: string;
   website?: string | undefined;
@@ -90,7 +88,6 @@ export interface ClubInput {
 export interface ClubFormData {
   id: string;
   name: string;
-  clubNumber: string;
   email: string;
   phone: string;
   website: string;

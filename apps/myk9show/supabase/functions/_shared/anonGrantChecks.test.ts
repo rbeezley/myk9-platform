@@ -9,7 +9,8 @@ describe('anonGrantsCheck — exact applied ACL drift', () => {
     const check = anonGrantsCheck(anonGrants(), PROBED_AT);
     expect(check.status).toBe('ok');
     // 19 table grants: judge_assignments moved to its ten-column allowlist in MYK9-146.
-    expect(check.detail).toContain('19 table grants (1 write)');
+    // 20 with club_registry_numbers (MYK9-1235): a club's registry numbers are public, read-only.
+    expect(check.detail).toContain('20 table grants (1 write)');
     // 85 + the three platform_settings fee columns the public /fees page reads
     // signed out (MYK9-229). platform_settings stays OFF the table allowlist.
     // 86 became 85 when classes.judge_name was dropped (MYK9-479).

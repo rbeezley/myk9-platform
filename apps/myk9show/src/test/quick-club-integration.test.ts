@@ -9,7 +9,6 @@ import {
   mapClubToClubInput,
   validateClubData,
   createDefaultClubInput,
-  formatClubDisplayName,
   formatClubAddress,
 } from '@/services/mappers/clubMappers';
 import type { ClubInput } from '@/types/club-types';
@@ -18,7 +17,6 @@ import type { DbClub } from '@/types/database-mappings';
 // Mock data
 const mockClubInput: ClubInput = {
   name: 'Golden State Dog Club',
-  clubNumber: 'GS001',
   email: 'info@gsdc.org',
   phone: '555-123-4567',
   website: 'https://gsdc.org',
@@ -83,7 +81,6 @@ describe('Club Mappers', () => {
     it('should handle optional fields correctly', () => {
       const minimalInput: ClubInput = {
         name: 'Simple Club',
-        clubNumber: 'SC001',
         email: 'info@simple.org',
         phone: '555-000-0000',
         description: 'A simple club',
@@ -139,7 +136,6 @@ describe('Club Mappers', () => {
 
       expect(result.id).toBe('club_123');
       expect(result.name).toBe('Golden State Dog Club');
-      expect(result.clubNumber).toBe(''); // No club_number in basic schema
       expect(result.email).toBe('info@gsdc.org');
       expect(result.phone).toBe('555-123-4567');
       expect(result.website).toBe('https://gsdc.org');
@@ -219,7 +215,6 @@ describe('Club Mappers', () => {
       const result = mapClubToClubInput(club);
 
       expect(result.name).toBe(club.name);
-      expect(result.clubNumber).toBe(club.clubNumber);
       expect(result.email).toBe(club.email);
       expect(result.phone).toBe(club.phone);
       expect(result.website).toBe(club.website);
@@ -244,7 +239,6 @@ describe('Club Mappers', () => {
     it('should return errors for missing required fields', () => {
       const invalidClub: ClubInput = {
         name: '',
-        clubNumber: 'GS001',
         email: 'invalid-email',
         phone: '',
         description: '',
@@ -277,20 +271,6 @@ describe('Club Mappers', () => {
       expect(defaultInput.country).toBe('US');
       expect(defaultInput.clubType).toBe('local');
       expect(defaultInput.memberIds).toEqual([]);
-    });
-
-    it('should format club display name correctly', () => {
-      const club = mapDatabaseToClub(mockDbClub);
-      const displayName = formatClubDisplayName(club);
-
-      // Since club doesn't have clubNumber in basic schema, it should just be the name
-      expect(displayName).toBe('Golden State Dog Club');
-
-      // Test with a club that has a number
-      const clubWithNumber = { ...club, clubNumber: 'GS001' };
-      const displayNameWithNumber = formatClubDisplayName(clubWithNumber);
-
-      expect(displayNameWithNumber).toBe('Golden State Dog Club (GS001)');
     });
 
     it('should format club address correctly', () => {

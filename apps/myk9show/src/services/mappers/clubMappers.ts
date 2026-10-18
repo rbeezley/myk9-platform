@@ -24,7 +24,6 @@ export const mapClubInputToInsert = (input: ClubInput): DbClubInsert => {
     city: input.city || null,
     state: input.state || null,
     zip_code: input.zipCode || null,
-    club_number: input.clubNumber || null,
   };
 };
 
@@ -40,7 +39,6 @@ export const mapClubInputToUpdate = (input: Partial<ClubInput>): DbClubUpdate =>
   if (input.website !== undefined) update.website = input.website || null;
   if (input.description !== undefined) update.description = input.description || null;
   if (input.logo !== undefined) update.logo_url = input.logo || null;
-  if (input.clubNumber !== undefined) update.club_number = input.clubNumber || null;
 
   // Handle address fields - update individual columns and the combined address string
   if (input.city !== undefined) update.city = input.city || null;
@@ -108,7 +106,6 @@ export const mapDatabaseToClub = (
   return {
     id: dbClub.id,
     name: dbClub.name,
-    clubNumber: dbClub.club_number || '',
     email: dbClub.email || '',
     phone: dbClub.phone || '',
     website: dbClub.website || undefined,
@@ -153,7 +150,6 @@ export const mapDatabaseClubsArray = (
 export const mapClubToClubInput = (club: Club): ClubInput => {
   return {
     name: club.name,
-    clubNumber: club.clubNumber,
     email: club.email,
     phone: club.phone,
     website: club.website,
@@ -190,7 +186,6 @@ export const mapClubToUpdate = (club: Club): DbClubUpdate => {
     city: club.address.city || null,
     state: club.address.state || null,
     zip_code: club.address.zipCode || null,
-    club_number: club.clubNumber || null,
   };
 };
 
@@ -279,7 +274,6 @@ export const validateClubData = (club: Club | ClubInput): string[] => {
 export const createDefaultClubInput = (): Partial<ClubInput> => {
   return {
     name: '',
-    clubNumber: '',
     email: '',
     phone: '',
     website: '',
@@ -301,16 +295,6 @@ export const createDefaultClubInput = (): Partial<ClubInput> => {
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
-};
-
-/**
- * Utility function to format club display name
- */
-export const formatClubDisplayName = (club: Club): string => {
-  if (club.clubNumber) {
-    return `${club.name} (${club.clubNumber})`;
-  }
-  return club.name;
 };
 
 /**

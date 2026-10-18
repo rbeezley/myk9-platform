@@ -38,6 +38,7 @@ const request = {
   status: 'pending' as const,
   approvedClubId: null,
   createdAt: '2026-09-19T12:00:00Z',
+  clubNumbers: { AKC: '4521', UKC: 'U-88' },
   reviewNote: null,
 };
 
@@ -54,6 +55,7 @@ describe('ClubAccessRequestsSection', () => {
 
     expect(await screen.findByText('Heartland Dog Club')).toBeInTheDocument();
     expect(screen.getByText(/Liz Beezley/)).toBeInTheDocument();
+    expect(screen.getByText('Club numbers: AKC #4521 · UKC #U-88')).toBeInTheDocument();
     expect(
       screen.getByText(/active member.*club-admin.*secretary\/show-manager access/i)
     ).toBeInTheDocument();

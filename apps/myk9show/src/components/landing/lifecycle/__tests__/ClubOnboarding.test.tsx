@@ -31,6 +31,21 @@ vi.mock('@/services/LoggingService', () => ({
   logger: { warn: vi.fn(), error: vi.fn() },
 }));
 
+function fillRequiredFields() {
+  fireEvent.change(screen.getByLabelText(/club name/i), {
+    target: { value: 'Tri-State Kennel Club' },
+  });
+  fireEvent.change(screen.getByLabelText(/organization/i), { target: { value: 'AKC' } });
+  fireEvent.change(screen.getByLabelText(/contact name/i), { target: { value: 'Pat Morgan' } });
+  fireEvent.change(screen.getByLabelText(/contact email/i), {
+    target: { value: 'club@example.com' },
+  });
+}
+
+function submitForm() {
+  fireEvent.submit(screen.getByRole('button', { name: /submit request/i }).closest('form')!);
+}
+
 describe('ClubOnboarding', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -45,19 +60,75 @@ describe('ClubOnboarding', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /submit request/i })).toBeInTheDocument()
     );
-    fireEvent.change(screen.getByLabelText(/club name/i), {
-      target: { value: 'Tri-State Kennel Club' },
-    });
-    fireEvent.change(screen.getByLabelText(/organization/i), { target: { value: 'AKC' } });
-    fireEvent.change(screen.getByLabelText(/contact name/i), { target: { value: 'Pat Morgan' } });
-    fireEvent.change(screen.getByLabelText(/contact email/i), {
-      target: { value: 'club@example.com' },
-    });
-    fireEvent.submit(screen.getByRole('button', { name: /submit request/i }).closest('form')!);
+    fillRequiredFields();
+    fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '123' } });
+    submitForm();
 
     await waitFor(() =>
       expect(screen.getByText(/already have a request under review/i)).toBeInTheDocument()
     );
+  });
+
+  describe('club numbers (MYK9-1235)', () => {
+    async function openForm() {
+      render(<ClubOnboarding />, { initialRoute: '/' });
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /submit request/i })).toBeInTheDocument()
+      );
+      fillRequiredFields();
+    }
+
+    it('asks for an AKC, UKC and ASCA club number', async () => {
+      await openForm();
+      for (const label of ['AKC club number', 'UKC club number', 'ASCA club number']) {
+        expect(screen.getByLabelText(label)).toBeInTheDocument();
+      }
+      expect(screen.getByText(/enter at least one/i)).toBeInTheDocument();
+    });
+
+    it('refuses to submit with no club number', async () => {
+      await openForm();
+      fireEvent.change(screen.getByLabelText('UKC club number'), { target: { value: '   ' } });
+      submitForm();
+
+      expect(await screen.findByText('Enter at least one club number.')).toBeInTheDocument();
+      expect(mockSubmit).not.toHaveBeenCalled();
+    });
+
+    it('submits an AKC-only club with just that number', async () => {
+      mockSubmit.mockResolvedValue(undefined);
+      await openForm();
+      fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: ' 4521 ' } });
+      submitForm();
+
+      await waitFor(() => expect(mockSubmit).toHaveBeenCalledTimes(1));
+      expect(mockSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ clubNumbers: { AKC: '4521' } })
+      );
+    });
+
+    it('submits a UKC-only club with just that number', async () => {
+      mockSubmit.mockResolvedValue(undefined);
+      await openForm();
+      fireEvent.change(screen.getByLabelText('UKC club number'), { target: { value: 'U-9' } });
+      submitForm();
+      await waitFor(() => expect(mockSubmit).toHaveBeenCalledTimes(1));
+      expect(mockSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ clubNumbers: { UKC: 'U-9' } })
+      );
+    });
+
+    it('sends every number entered when a club has two', async () => {
+      mockSubmit.mockResolvedValue(undefined);
+      await openForm();
+      fireEvent.change(screen.getByLabelText('AKC club number'), { target: { value: '4521' } });
+      fireEvent.change(screen.getByLabelText('UKC club number'), { target: { value: 'U-9' } });
+      submitForm();
+      await waitFor(() => expect(mockSubmit).toHaveBeenCalledTimes(1));
+      expect(mockSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ clubNumbers: { AKC: '4521', UKC: 'U-9' } })
+      );
+    });
   });
 
   it('leads with the club heading', () => {

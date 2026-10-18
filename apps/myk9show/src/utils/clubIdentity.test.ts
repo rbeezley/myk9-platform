@@ -11,7 +11,6 @@ import {
 const club = (overrides: Partial<Club> = {}): Club => ({
   id: 'club-1',
   name: 'Heartland Scent Work Club',
-  clubNumber: 'CLUB-1',
   email: 'secretary@heartlandscentwork.org',
   phone: '555-0100',
   website: 'https://www.heartlandscentwork.org/about',

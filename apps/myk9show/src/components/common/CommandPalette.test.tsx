@@ -122,7 +122,6 @@ vi.mock('@/store/clubStore', () => ({
       clubs: ['Heartland Scent Club', 'E2E Club 174'].map((name, i) => ({
         id: `club-${i}`,
         name,
-        clubNumber: '',
         email: '',
         phone: '',
         description: '',

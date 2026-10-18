@@ -232,17 +232,14 @@ const ClubEditForm: React.FC<{
                     {...form?.getFieldProps('name')}
                   />
                 </FormField>
-
-                <FormField label="Club Number" fieldId="clubNumber">
-                  <Input
-                    id="clubNumber"
-                    value={data.clubNumber}
-                    onChange={handleInputChange('clubNumber')}
-                    onBlur={handleBlur('clubNumber')}
-                    placeholder="Enter club number"
-                  />
-                </FormField>
               </div>
+
+              {mode === 'create' && (
+                <p className="text-sm text-muted-foreground">
+                  After the club is added, enter its AKC, UKC or ASCA club numbers in the Club
+                  numbers section on the club page.
+                </p>
+              )}
 
               <FormField label="Description" fieldId="description">
                 <textarea

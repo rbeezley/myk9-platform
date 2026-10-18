@@ -11,6 +11,7 @@ export const anonGrants = (over: Record<string, unknown> = {}) => ({
       'achievements',
       'armbands',
       'class_visibility_overrides',
+      'club_registry_numbers',
       'clubs',
       'rule_organizations',
       'rule_sports',

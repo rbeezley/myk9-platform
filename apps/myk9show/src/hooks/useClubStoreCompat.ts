@@ -84,7 +84,6 @@ export const useClubStoreCompat = (selectedClubId: string = ''): ClubStoreCompat
         const clubInputUpdates: Partial<ClubInput> = {};
 
         if (updates.name !== undefined) clubInputUpdates.name = updates.name;
-        if (updates.clubNumber !== undefined) clubInputUpdates.clubNumber = updates.clubNumber;
         if (updates.email !== undefined) clubInputUpdates.email = updates.email;
         if (updates.phone !== undefined) clubInputUpdates.phone = updates.phone;
         if (updates.website !== undefined) clubInputUpdates.website = updates.website;
@@ -119,7 +118,6 @@ export const useClubStoreCompat = (selectedClubId: string = ''): ClubStoreCompat
             club.name.toLowerCase().includes(searchTerm) ||
             club.email.toLowerCase().includes(searchTerm) ||
             club.phone.includes(searchTerm) ||
-            club.clubNumber.toLowerCase().includes(searchTerm) ||
             `${club.address.city} ${club.address.state}`.toLowerCase().includes(searchTerm)
         );
       },

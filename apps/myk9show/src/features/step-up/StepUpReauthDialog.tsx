@@ -151,7 +151,7 @@ function StepUpReauthForm({ account }: { account: StepUpAccount }) {
           {usingPassword ? (
             <button
               type="button"
-              className="text-primary underline-offset-4 hover:underline"
+              className="inline-flex min-h-11 min-w-11 items-center px-1 text-primary underline-offset-4 hover:underline"
               onClick={() => step.switchMode('code')}
             >
               Email me a code instead
@@ -161,7 +161,7 @@ function StepUpReauthForm({ account }: { account: StepUpAccount }) {
               {step.codeSent && (
                 <button
                   type="button"
-                  className="text-primary underline-offset-4 hover:underline"
+                  className="inline-flex min-h-11 min-w-11 items-center px-1 text-primary underline-offset-4 hover:underline"
                   disabled={step.busy || !step.captcha.ready}
                   onClick={() => void step.sendCode()}
                 >
@@ -171,7 +171,7 @@ function StepUpReauthForm({ account }: { account: StepUpAccount }) {
               {account.hasPassword && (
                 <button
                   type="button"
-                  className="text-primary underline-offset-4 hover:underline"
+                  className="inline-flex min-h-11 min-w-11 items-center px-1 text-primary underline-offset-4 hover:underline"
                   onClick={() => step.switchMode('password')}
                 >
                   Use my password instead

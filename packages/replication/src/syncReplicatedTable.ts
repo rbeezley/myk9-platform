@@ -4,7 +4,8 @@ import { repairStuckPendingFlagsOnce } from './core/repairStuckPendingFlags';
 import { reconcileDirtyRemoteRow } from './reconcileDirtyRemoteRow';
 import { anyRowNotOwnedBy, scopeStampDirective } from './rowOwnership';
 import { describeError } from './error-message';
-import { countCoveredRows, staleCleanupKeepIds, getCoveredRemoteIds } from './replicaCoverage';
+import { countCoveredRows, getCoveredRemoteIds } from './replicaCoverage';
+import { runStaleCleanup } from './syncStaleCleanup';
 import {
   configureConflictSurfacing as _configureConflictSurfacing,
   isConflictSurfacingEnabled,
@@ -349,27 +350,22 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       }
     };
 
-    let staleCleanupCompleted = false;
-    if (adapter.shouldCleanupStaleRows) {
-      rowsAffected += await table.removeStaleEntries(serverIds);
-      staleCleanupCompleted = true;
-    } else if (
-      adapter.cleanupStaleRowsOnFullSync &&
-      forceFullSync &&
-      // Only a fetch known to be COMPLETE proves a row is gone: a capped or
-      // paged response (PostgREST max_rows) returns the oldest rows only, and
-      // cleaning up after it would delete the newest (MYK9-775 review P2). No
-      // server count, no cleanup.
-      expectedRemoteRows !== undefined &&
-      coveredServerIds.size >= expectedRemoteRows &&
-      (await scopeEmptyIsProven())
-    ) {
-      const keep = await staleCleanupKeepIds(table, serverIds, await getLocalRowsForScope());
-      if (keep) {
-        rowsAffected += await table.removeStaleEntries(keep, { syncedBefore: fetchStartedAt });
-        staleCleanupCompleted = true;
-      }
-    }
+    const cleanup = await runStaleCleanup({
+      table,
+      adapter,
+      scope,
+      serverIds,
+      accountOwned,
+      syncingAuthUserId,
+      forceFullSync,
+      expectedRemoteRows,
+      coveredCount: coveredServerIds.size,
+      fetchStartedAt,
+      scopeEmptyIsProven,
+      getLocalRowsForScope,
+    });
+    rowsAffected += cleanup.removed;
+    const staleCleanupCompleted = cleanup.completed;
 
     await adapter.afterSuccessfulSync?.({ scope, serverIds, localRows, staleCleanupCompleted });
 

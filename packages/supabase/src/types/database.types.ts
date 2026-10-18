@@ -15213,15 +15213,24 @@ export type Database = {
         Args: { p_entry_ids: string[]; p_notes: string }
         Returns: number
       }
-      submit_club_access_request: {
-        Args: {
-          p_club_numbers?: Json
-          p_request_note?: string
-          p_requested_club_name: string
-          p_requested_club_website?: string
-        }
-        Returns: string
-      }
+      submit_club_access_request:
+        | {
+            Args: {
+              p_request_note?: string
+              p_requested_club_name: string
+              p_requested_club_website?: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_club_numbers: Json
+              p_request_note: string
+              p_requested_club_name: string
+              p_requested_club_website: string
+            }
+            Returns: string
+          }
       submit_club_membership_request: {
         Args: { p_club_id: string; p_requester_note?: string }
         Returns: string

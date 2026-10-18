@@ -191,6 +191,7 @@ const launchCriticalSqlTests = [
   'myk9_1162_lifecycle_registration_number_needed_test.sql',
   'myk9_1212_claim_registration_number_needed_job_test.sql',
   'myk9_1235_club_registry_numbers_test.sql',
+  'myk9_1254_lifecycle_jobs_column_acl_test.sql',
 ];
 
 // Runs `command` with a stand-in psql first on PATH that logs its arguments,

@@ -430,6 +430,105 @@ describe('conflict injection', () => {
   });
 });
 
+describe('ambient PWA install telemetry', () => {
+  const analyticsUrl = `${sharedBaseUrl}/rest/v1/analytics_events`;
+  // The exact shape usePwaInstallTelemetry sends via buildPwaAnalyticsRow.
+  const telemetryRow = (eventType: string) => ({
+    event_type: eventType,
+    section_name: 'pwa_install',
+    page: '/at-show',
+    metadata: {
+      platform: 'desktop',
+      browser: 'chrome',
+      standalone: false,
+      pushPermission: 'default',
+      pushReachable: true,
+    },
+  });
+
+  async function drive(init: { method: string; url?: string; body?: unknown }) {
+    const { page, handlers } = createRouteRecorder();
+    const ledger: SharedStagingWriteLedgerEntry[] = [];
+    await installSharedStagingWriteGuard(page, { ledger, strictRpcWrites: true });
+    const route = createRouteDouble({
+      method: init.method,
+      url: init.url ?? analyticsUrl,
+      body: init.body,
+    });
+    await getHandler(handlers, '**/rest/v1/**')(route.route);
+    return { route, ledger };
+  }
+
+  it.each([
+    'pwa_install_state',
+    'pwa_install_accepted',
+    'pwa_install_dismissed',
+    'pwa_ios_instructions_shown',
+  ])('answers %s locally, never forwards it, and records it as non-blocked', async eventType => {
+    const { route, ledger } = await drive({ method: 'POST', body: telemetryRow(eventType) });
+
+    expect(route.fulfilledStatuses).toEqual([201]);
+    expect(route.fallbackCount()).toBe(0);
+    expect(route.abortCount()).toBe(0);
+    expect(ledger).toEqual([
+      {
+        kind: 'ambient-telemetry',
+        method: 'POST',
+        path: '/rest/v1/analytics_events',
+        disposition: 'intercepted',
+      },
+    ]);
+    expect(summarizeSharedStagingWriteLedger(ledger).blocked).toEqual([]);
+  });
+
+  it('does not let telemetry satisfy the positive scoring-interception check', () => {
+    const summary = summarizeSharedStagingWriteLedger([
+      {
+        kind: 'ambient-telemetry',
+        method: 'POST',
+        path: '/rest/v1/analytics_events',
+        disposition: 'intercepted',
+      },
+    ]);
+    expect(summary.intercepted).toBe(0);
+  });
+
+  it.each([
+    ['a different event_type', { method: 'POST', body: telemetryRow('page_view') }],
+    ['a body with no event_type', { method: 'POST', body: { section_name: 'x' } }],
+    [
+      'a mixed batch',
+      { method: 'POST', body: [telemetryRow('pwa_install_state'), telemetryRow('page_view')] },
+    ],
+    ['a PATCH', { method: 'PATCH', body: telemetryRow('pwa_install_state') }],
+    ['a DELETE', { method: 'DELETE', body: telemetryRow('pwa_install_state') }],
+    [
+      'another table',
+      {
+        method: 'POST',
+        url: `${sharedBaseUrl}/rest/v1/dogs`,
+        body: telemetryRow('pwa_install_state'),
+      },
+    ],
+  ])('still blocks %s on analytics_events-style writes', async (_label, init) => {
+    const { route, ledger } = await drive(init);
+
+    expect(route.abortCount()).toBe(1);
+    expect(route.fulfilledStatuses).toEqual([]);
+    expect(summarizeSharedStagingWriteLedger(ledger).blocked).toHaveLength(1);
+  });
+
+  it('does not touch analytics_events writes to an isolated target', async () => {
+    const { route, ledger } = await drive({
+      method: 'POST',
+      url: 'https://isolated-e2e-project.supabase.co/rest/v1/analytics_events',
+      body: telemetryRow('pwa_install_state'),
+    });
+    expect(route.fallbackCount()).toBe(1);
+    expect(ledger).toEqual([]);
+  });
+});
+
 function createRouteRecorder() {
   const handlers = new Map<string, RouteHandler>();
   const page = {
@@ -449,7 +548,7 @@ function getHandler(handlers: Map<string, RouteHandler>, url: string) {
   return handler;
 }
 
-function createRouteDouble({ method, url }: { method: string; url: string }) {
+function createRouteDouble({ method, url, body }: { method: string; url: string; body?: unknown }) {
   const fulfilledBodies: string[] = [];
   const fulfilledStatuses: number[] = [];
   let fallbacks = 0;
@@ -459,7 +558,7 @@ function createRouteDouble({ method, url }: { method: string; url: string }) {
       ({
         method: () => method,
         url: () => url,
-        postDataJSON: () => ({ p_entry_id: 'entry-1', p_fields: { is_scored: true } }),
+        postDataJSON: () => body ?? { p_entry_id: 'entry-1', p_fields: { is_scored: true } },
       }) as unknown,
     fulfill: async (response: { body?: string; status?: number }) => {
       fulfilledBodies.push(response.body ?? '');

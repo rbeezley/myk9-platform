@@ -787,7 +787,7 @@ NCR-2026-09-04-01 (core coverage and PR coverage gate). No Linear issues were cl
 - **Evidence:** #1931 (`924b2cbce`) replaced the document-wide `MutationObserver` with a `popstate` listener, deferring push navigation to "the owning surface". Independent grep for `page_view` across the app returns only `MonitoringService.ts:455` (initial load) and `:468` (popstate), plus an unrelated `ProductionMonitoringService.ts:299` — no route owner implements it. `history.pushState`/`replaceState` does not fire `popstate`, so in-app navigation emits nothing.
 - **Expected behavior:** One `page_view` per route transition, without a document-wide observer.
 - **Observed behavior:** Initial load and back/forward tracked; ordinary in-app navigation not tracked.
-- **User impact:** None user-facing. Kept in proportion: `analytics_events` has no writer today, so nothing downstream consumes these events yet.
+- **User impact:** None user-facing. Kept in proportion: `analytics_events` has no writer today, so nothing downstream consumes these events yet. _(2026-10-18, MYK9-1255 note: no longer true as written. `usePwaInstallTelemetry` now writes `analytics_events` (PWA install events); `page_view` still has no writer.)_
 - **Intent check:** Preserves #1931's performance intent; weakens a platform-health signal that is not yet wired up.
 - **Confidence:** high on source behaviour; no analytics-pipeline replay was available.
 - **Fix owner:** MonitoringService / app-shell router integration.

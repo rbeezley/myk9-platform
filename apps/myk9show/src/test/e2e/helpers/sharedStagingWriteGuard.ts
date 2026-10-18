@@ -1,5 +1,7 @@
 import type { Page, Route } from '@playwright/test';
 
+import { isPwaTelemetryInsert } from './ambientPwaTelemetry';
+
 export const SHARED_STAGING_PROJECT_REF = 'sojmvhhwsjxmfistvzbe';
 
 type GuardedWriteKind = 'ringside-update-entry-rpc' | 'entries-patch';
@@ -17,7 +19,7 @@ type GuardedWriteKind = 'ringside-update-entry-rpc' | 'entries-patch';
 export type SharedStagingWriteDisposition = 'intercepted' | 'blocked';
 
 export interface SharedStagingWriteLedgerEntry {
-  kind: GuardedWriteKind | 'presence-rpc' | 'unclassified-rest-write';
+  kind: GuardedWriteKind | 'presence-rpc' | 'ambient-telemetry' | 'unclassified-rest-write';
   method: string;
   /** Path only — query strings can carry row ids and filter values. */
   path: string;
@@ -239,7 +241,11 @@ export function isUnambiguousSharedStagingRestWrite(
 export function summarizeSharedStagingWriteLedger(ledger: SharedStagingWriteLedgerEntry[]) {
   return {
     total: ledger.length,
-    intercepted: ledger.filter(entry => entry.disposition === 'intercepted').length,
+    // Ambient telemetry is answered locally but is not a guarded journey write,
+    // so it must not satisfy a spec's "the replay reached a write" assertion.
+    intercepted: ledger.filter(
+      entry => entry.disposition === 'intercepted' && entry.kind !== 'ambient-telemetry'
+    ).length,
     blocked: ledger.filter(entry => entry.disposition === 'blocked'),
   };
 }
@@ -266,6 +272,12 @@ export async function installSharedStagingWriteGuard(
     if (strictRpcWrites && isInterceptedWriteRpc(requestLike)) {
       recordLedgerEntry(ledger, requestLike, 'presence-rpc', 'intercepted');
       await route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
+      return;
+    }
+
+    if (isAmbientPwaTelemetryWrite(requestLike, readJsonBody(request))) {
+      recordLedgerEntry(ledger, requestLike, 'ambient-telemetry', 'intercepted');
+      await route.fulfill({ status: 201, contentType: 'application/json', body: '' });
       return;
     }
 
@@ -394,6 +406,20 @@ function recordLedgerEntry(
     path: parseUrl(request.url)?.pathname ?? request.url,
     disposition,
   });
+}
+
+function isAmbientPwaTelemetryWrite(request: RequestLike, body: unknown) {
+  const url = parseUrl(request.url);
+  if (!url || !isSharedStagingHost(url.hostname)) return false;
+  return isPwaTelemetryInsert(request.method, url.pathname, body);
+}
+
+function readJsonBody(request: { postDataJSON: () => unknown }): unknown {
+  try {
+    return request.postDataJSON();
+  } catch {
+    return null;
+  }
 }
 
 function parseUrl(value: string) {

@@ -32,7 +32,6 @@ interface ClubRow {
   city: string | null;
   state: string | null;
   zip_code: string | null;
-  club_number?: string | null;
   email: string | null;
   phone: string | null;
   website: string | null;
@@ -64,7 +63,6 @@ export interface ReplicatedClub {
   city?: string | undefined;
   state?: string | undefined;
   zipCode?: string | undefined;
-  clubNumber?: string | undefined;
   coverImageUrl?: string | undefined;
   accentColor?: string | undefined;
   // Timestamps
@@ -99,7 +97,6 @@ export function rowToClub(row: ClubRow): ReplicatedClub {
     city: row.city ?? undefined,
     state: row.state ?? undefined,
     zipCode: row.zip_code ?? undefined,
-    clubNumber: row.club_number ?? undefined,
     coverImageUrl: row.cover_image_url ?? undefined,
     accentColor: row.accent_color ?? undefined,
     createdAt: row.created_at ?? undefined,
@@ -156,7 +153,6 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       city: club.city ?? null,
       state: club.state ?? null,
       zip_code: club.zipCode ?? null,
-      club_number: club.clubNumber ?? null,
       cover_image_url: club.coverImageUrl ?? null,
       accent_color: club.accentColor ?? null,
       updated_at: new Date().toISOString(),

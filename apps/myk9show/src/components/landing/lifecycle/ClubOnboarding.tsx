@@ -8,6 +8,16 @@ import {
   type OnboardingRequest,
 } from '@/services/database/onboarding-requests';
 import { logger } from '@/services/LoggingService';
+import {
+  CLUB_NUMBER_HELP_TEXT,
+  CLUB_NUMBER_LABEL,
+  CLUB_NUMBER_REQUIRED_MESSAGE,
+  CLUB_REGISTRY_ORGS,
+  EMPTY_CLUB_REGISTRY_NUMBER_INPUTS,
+  hasClubRegistryNumber,
+  normalizeClubRegistryNumbers,
+  type ClubRegistryNumberInputs,
+} from '@/utils/clubRegistryNumbers';
 import { buildSignInPathForRedirect, buildSignUpPathForRedirect } from '@/pages/SignInPage.helpers';
 
 // Club-onboarding lead form for the marketing homepage. Restyled onto the
@@ -27,6 +37,9 @@ export function ClubOnboarding() {
   // Form state
   const [clubName, setClubName] = useState('');
   const [organization, setOrganization] = useState('');
+  const [clubNumbers, setClubNumbers] = useState<ClubRegistryNumberInputs>(
+    EMPTY_CLUB_REGISTRY_NUMBER_INPUTS
+  );
   const [contactName, setContactName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
@@ -98,6 +111,10 @@ export function ClubOnboarding() {
         setError('Please select an organization.');
         return;
       }
+      if (!hasClubRegistryNumber(clubNumbers)) {
+        setError(CLUB_NUMBER_REQUIRED_MESSAGE);
+        return;
+      }
       if (!contactName.trim()) {
         setError('Contact name is required.');
         return;
@@ -119,6 +136,7 @@ export function ClubOnboarding() {
           authUserId: user.id,
           clubName: clubName.trim(),
           organization,
+          clubNumbers: normalizeClubRegistryNumbers(clubNumbers),
           contactName: contactName.trim(),
           contactEmail: contactEmail.trim(),
           contactPhone: contactPhone.trim() || undefined,
@@ -142,7 +160,17 @@ export function ClubOnboarding() {
         setSubmitting(false);
       }
     },
-    [user, clubName, organization, contactName, contactEmail, contactPhone, firstShowDate, message]
+    [
+      user,
+      clubName,
+      organization,
+      clubNumbers,
+      contactName,
+      contactEmail,
+      contactPhone,
+      firstShowDate,
+      message,
+    ]
   );
 
   // --- Card body: switches on auth / request state ---
@@ -260,6 +288,30 @@ export function ClubOnboarding() {
               ))}
             </select>
           </div>
+
+          <fieldset className="l-field-stack">
+            <legend className="l-lbl">Club numbers</legend>
+            <p id="onb-club-numbers-help" className="l-fineprint">
+              {CLUB_NUMBER_HELP_TEXT}
+            </p>
+            {CLUB_REGISTRY_ORGS.map(org => (
+              <div key={org}>
+                <label className="l-lbl" htmlFor={`onb-${org.toLowerCase()}-number`}>
+                  {CLUB_NUMBER_LABEL[org]}
+                </label>
+                <input
+                  id={`onb-${org.toLowerCase()}-number`}
+                  className="l-pill-input"
+                  type="text"
+                  value={clubNumbers[org]}
+                  onChange={e => setClubNumbers(prev => ({ ...prev, [org]: e.target.value }))}
+                  maxLength={50}
+                  autoComplete="off"
+                  aria-describedby="onb-club-numbers-help"
+                />
+              </div>
+            ))}
+          </fieldset>
 
           <div className="l-onboard-row">
             <div>

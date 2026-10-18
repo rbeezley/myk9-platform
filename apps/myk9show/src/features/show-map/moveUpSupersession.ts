@@ -216,10 +216,11 @@ export async function reverseShowMapMoveUp(destinationEntryId: string): Promise<
 }
 
 export const MOVE_UP_REVERSAL_REFUSALS: Record<MoveUpReversalBlockedReason, string> = {
-  'not-a-move-up': 'This entry was not created by a move-up, so there is nothing to move back.',
+  'not-a-move-up':
+    'This entry was not created by a class change, so there is nothing to move back.',
   'source-missing':
     'The class this entry was moved out of no longer has the original entry, so it cannot be restored.',
-  'run-started': 'This run has already started, so the move-up can no longer be reversed.',
+  'run-started': 'This run has already started, so the class change can no longer be reversed.',
   superseded:
-    'This move-up has since been superseded by another move-up, so it cannot be reversed here.',
+    'This class change has since been superseded by another class change, so it cannot be reversed here.',
 };

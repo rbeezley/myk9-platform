@@ -37,8 +37,8 @@ export function UnresolvedMoneyRootNotice({ count, remedy }: UnresolvedMoneyRoot
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
       <p>
         {count === 1
-          ? '1 entry was moved up from outside this view, so its fee and payment are not included below.'
-          : `${count} entries were moved up from outside this view, so their fees and payments are not included below.`}{' '}
+          ? '1 entry had its class changed outside this view, so its fee and payment are not included below.'
+          : `${count} entries had their classes changed outside this view, so their fees and payments are not included below.`}{' '}
         {remedy}
       </p>
     </div>

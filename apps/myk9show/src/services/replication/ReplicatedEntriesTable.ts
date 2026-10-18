@@ -1226,7 +1226,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       p_reason: input.reason ?? null,
     });
     if (error) {
-      throw classifyMoveUpRpcError(error, 'That entry could not be moved.');
+      throw classifyMoveUpRpcError(error, 'That entry\u2019s class could not be changed.');
     }
 
     const destinationId = data ? data : input.newEntryId;
@@ -1250,7 +1250,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       p_destination_entry_id: destinationEntryId,
     });
     if (error) {
-      throw classifyMoveUpRpcError(error, 'That move-up could not be reversed.');
+      throw classifyMoveUpRpcError(error, 'That class change could not be reversed.');
     }
 
     const sourceId = data ? data : null;

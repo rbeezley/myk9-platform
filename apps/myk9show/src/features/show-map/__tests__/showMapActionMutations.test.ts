@@ -441,7 +441,7 @@ describe('showMapActionMutations', () => {
 
     await expect(
       moveUpShowMapEntry({ entryId: 'entry-1', targetClassId: 'class-2' })
-    ).rejects.toThrow('not a valid move-up target');
+    ).rejects.toThrow('not a valid class to change to');
     expect(mockMoveUpEntryViaRpc).not.toHaveBeenCalled();
     expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
   });
@@ -594,7 +594,7 @@ describe('showMapActionMutations', () => {
         entryId: 'entry-1',
         targetClassId: 'class-2',
       })
-    ).rejects.toThrow('not a valid move-up target');
+    ).rejects.toThrow('not a valid class to change to');
 
     // Nothing should have been written — the server call is never made.
     expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
@@ -669,7 +669,7 @@ describe('showMapActionMutations', () => {
         entryId: 'entry-1',
         targetClassId: 'class-2',
       })
-    ).rejects.toThrow('not a valid move-up target');
+    ).rejects.toThrow('not a valid class to change to');
   });
 
   it('keeps Show Map move-up fully replicated and audit logged', async () => {

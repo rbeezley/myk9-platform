@@ -16,7 +16,6 @@ import ClubsMasterDetailPage from '../ClubsMasterDetailPage';
 const makeClub = (id: string, name: string, city: string): Club => ({
   id,
   name,
-  clubNumber: '',
   email: '',
   phone: '',
   website: '',

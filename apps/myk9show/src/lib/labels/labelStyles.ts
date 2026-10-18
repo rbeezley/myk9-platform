@@ -79,22 +79,9 @@ body {
   padding: 0.04in 0;
 }
 
-.armband-label__top {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.15in;
-}
-
 .armband-label__number {
   font-weight: bold;
   line-height: 1;
-}
-
-.armband-label__info {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding-top: 0.02in;
 }
 
 .armband-label__call-name {
@@ -105,22 +92,16 @@ body {
   color: #444;
 }
 
-.armband-label__bottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 0.1in;
-}
-
 .armband-label__date {
   color: #333;
 }
 
+.armband-label__show-code {
+  font-weight: 600;
+  color: #222;
+}
+
 .armband-label__actions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 1px;
   color: #555;
 }
 

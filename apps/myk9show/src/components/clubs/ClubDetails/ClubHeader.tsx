@@ -9,6 +9,8 @@ import { getClubInitials } from './utils';
 import { CLUB_UNAUTHORIZED_MESSAGE } from '@/features/payments/onlineEntryGate';
 import { useClubOfficials } from './useClubOfficials';
 import { ClubOfficialsLine } from './ClubOfficialsLine';
+import { useClubRegistryNumbers } from '@/hooks/queries/useClubRegistryNumbers';
+import { formatClubRegistryNumbers } from '@/utils/clubRegistryNumbers';
 
 interface ClubHeaderProps {
   club: Club;
@@ -44,6 +46,8 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
     isError: officialsError,
     refetch: refetchOfficials,
   } = useClubOfficials(club.id);
+  const { data: registryNumbers } = useClubRegistryNumbers(club.id);
+  const registryNumbersLabel = formatClubRegistryNumbers(registryNumbers);
   const foundedYear = club.founded
     ? club.founded instanceof Date
       ? club.founded.getFullYear()
@@ -132,8 +136,8 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
   // Owner decision 6: an optional blank field is hidden, not shown as a dash.
   const facts = [
     ...(location ? [{ label: location, icon: <MapPin className="h-4 w-4" /> }] : []),
-    ...(club.clubNumber
-      ? [{ label: `Club #${club.clubNumber}`, icon: <Shield className="h-4 w-4" /> }]
+    ...(registryNumbersLabel
+      ? [{ label: registryNumbersLabel, icon: <Shield className="h-4 w-4" /> }]
       : []),
   ];
 

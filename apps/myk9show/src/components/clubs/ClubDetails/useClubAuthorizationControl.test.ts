@@ -28,7 +28,6 @@ function makeClub(authorizedAt: string | null | undefined): Club {
   return {
     id: 'club-1',
     name: 'Test Club',
-    clubNumber: '',
     email: '',
     phone: '',
     website: undefined,

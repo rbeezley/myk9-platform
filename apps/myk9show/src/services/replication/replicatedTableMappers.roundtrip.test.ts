@@ -103,8 +103,10 @@ describe('Replicated*Table mappers — db row -> domain -> db row', () => {
       city: 'Springfield',
       state: 'IL',
       zipCode: '62701',
-      clubNumber: 'BC-100',
     });
+    // MYK9-1235: club numbers live in club_registry_numbers; the legacy column is neither read
+    // into the domain row nor written back.
+    expect(domain).not.toHaveProperty('clubNumber');
 
     const table = new TestableClubsTable();
     const rebuilt = table.publicRebuildUpdatePayload(domain);
@@ -116,8 +118,8 @@ describe('Replicated*Table mappers — db row -> domain -> db row', () => {
       city: 'Springfield',
       state: 'IL',
       zip_code: '62701',
-      club_number: 'BC-100',
     });
+    expect(rebuilt).not.toHaveProperty('club_number');
   });
 
   it('dogs: maps optional fields and round-trips core identity fields', () => {

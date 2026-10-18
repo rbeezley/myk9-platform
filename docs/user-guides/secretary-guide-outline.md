@@ -207,7 +207,7 @@
 
 ## Section 7 — Show Desk (Day-of Operations)
 
-**User outcome:** Secretary handles check-in, scratches, move-ups, and late entries from one page.
+**User outcome:** Secretary handles check-in, scratches, class changes, and late entries from one page.
 
 **Canonical route:** `/shows/:showId/show-day`
 
@@ -226,10 +226,10 @@
 1. In the Show Map, open the row actions (three-dot menu) on the entry.
 2. Select **Scratch** (or Pull) → confirm → class count updates.
 
-**Process a move-up:**
+**Change a dog's class:**
 
 1. Open the row actions on an entry.
-2. Select **Move Up** → pick the destination class → confirm.
+2. Select **Change class** → pick the destination class → confirm.
 
 **Add a late entry / walk-in:**
 
@@ -244,7 +244,7 @@
 **Tools panel (Show Desk side sheet):**
 Available from the Tools panel: Quick Broadcast, Class Broadcast, Schedule Slip Script, Incident Log, Show Access Codes, Tasks & Notes, Volunteers.
 
-**Screenshots:** Show Desk overview with Show Map; scratch dialog; move-up dialog; late entry dialog; Tools panel.
+**Screenshots:** Show Desk overview with Show Map; scratch dialog; change-class dialog; late entry dialog; Tools panel.
 
 **KB articles this section generates:**
 

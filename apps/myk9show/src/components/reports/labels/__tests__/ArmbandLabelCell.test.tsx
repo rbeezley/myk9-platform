@@ -110,4 +110,57 @@ describe('ArmbandLabelCell', () => {
     );
     expect(screen.queryByText(/ShowNet/)).not.toBeInTheDocument();
   });
+
+  describe('layout and show code (MYK9-1233)', () => {
+    it('keeps the existing Show code line, in the right column, when the toggle is on', () => {
+      const { container } = render(
+        <ArmbandLabelCell
+          item={item}
+          config={DEFAULT_CONTENT_CONFIG}
+          labelHeight={1.333}
+          passcode="eab12"
+        />
+      );
+      const side = container.querySelector('.armband-label__side') as HTMLElement;
+      expect(side).toHaveTextContent('Show code: eab12');
+    });
+
+    it('omits the Show code line when the toggle is off', () => {
+      render(
+        <ArmbandLabelCell
+          item={item}
+          config={{ ...DEFAULT_CONTENT_CONFIG, showAccessCode: false }}
+          labelHeight={1.333}
+          passcode="eab12"
+        />
+      );
+      expect(screen.queryByText(/Show code/)).not.toBeInTheDocument();
+    });
+
+    it('puts the number in its own large element and the rest in a right-hand column', () => {
+      const { container } = render(
+        <ArmbandLabelCell
+          item={item}
+          config={{ ...DEFAULT_CONTENT_CONFIG, handlerName: true }}
+          labelHeight={1.333}
+          passcode="eab12"
+        />
+      );
+      const number = container.querySelector('.armband-label__number') as HTMLElement;
+      const side = container.querySelector('.armband-label__side') as HTMLElement;
+      expect(number).not.toBeNull();
+      expect(side).not.toBeNull();
+      // Two siblings in one row: number first, secondary column second (on the right).
+      expect(number.nextElementSibling).toBe(side);
+      expect(side.contains(number)).toBe(false);
+      expect(side).toHaveTextContent('Storm');
+      expect(side).toHaveTextContent('Jane Smith');
+      expect(side).toHaveTextContent('Show code: eab12');
+      expect(side).toHaveTextContent('6/11/2025');
+      // The number is the largest type on the label.
+      const numberPx = parseFloat(number.style.fontSize);
+      expect(numberPx).toBeGreaterThanOrEqual(24);
+      expect(parseFloat(side.style.fontSize)).toBeLessThan(numberPx);
+    });
+  });
 });

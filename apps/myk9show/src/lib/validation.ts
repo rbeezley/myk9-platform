@@ -258,7 +258,6 @@ export const showSchemas = {
 export const clubSchemas = {
   basic: z.object({
     name: commonValidations.name,
-    clubNumber: commonValidations.optionalString,
     email: commonValidations.email,
     phone: z
       .string()

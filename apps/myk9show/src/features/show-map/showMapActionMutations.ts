@@ -284,8 +284,8 @@ export async function moveUpShowMapEntry({
     // DatabaseError — the latter reaches production as "Something went wrong".
     throw new MoveUpRpcError(
       'refused',
-      `${targetClass.name} is not a valid move-up target for ${sourceClass.name}. ` +
-        'A move-up must be to a higher level within the same element.'
+      `${targetClass.name} is not a valid class to change to from ${sourceClass.name}. ` +
+        'A class change must be to a higher level within the same element.'
     );
   }
 

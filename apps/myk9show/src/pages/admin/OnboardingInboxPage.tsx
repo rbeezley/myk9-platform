@@ -1,3 +1,4 @@
+import { formatClubRegistryNumbers } from '@/utils/clubRegistryNumbers';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
@@ -355,6 +356,11 @@ export default function OnboardingInboxPage() {
                     <div className="mt-1 text-sm text-muted-foreground">
                       {request.contactName} · Requested {formatShortDate(request.createdAt)}
                     </div>
+                    {formatClubRegistryNumbers(request.clubNumbers) && (
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        Club numbers: {formatClubRegistryNumbers(request.clubNumbers)}
+                      </div>
+                    )}
                     <div className="mt-2 flex flex-wrap gap-x-4 text-sm">
                       <a
                         href={`mailto:${request.contactEmail}`}

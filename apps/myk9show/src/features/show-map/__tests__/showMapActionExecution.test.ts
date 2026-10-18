@@ -122,7 +122,7 @@ describe('showMapActionExecution', () => {
   it('enables move-up through the shared dialog lane', () => {
     const moveUp = makeAction({
       id: 'move-up-entry',
-      label: 'Move up',
+      label: 'Change class',
       href: null,
     });
 

@@ -124,11 +124,12 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
     () => ({
       config,
       labelHeight: template.labelHeight,
+      labelWidth: template.labelWidth,
       passcode: passcodes?.exhibitor,
       wifiNetwork: config.venueWifi ? (wifiNetwork ?? undefined) : undefined,
       wifiPassword: config.venueWifi ? (wifiPassword ?? undefined) : undefined,
     }),
-    [config, template.labelHeight, passcodes, wifiNetwork, wifiPassword]
+    [config, template.labelHeight, template.labelWidth, passcodes, wifiNetwork, wifiPassword]
   );
 
   const writeLabelIframe = useCallback(() => {

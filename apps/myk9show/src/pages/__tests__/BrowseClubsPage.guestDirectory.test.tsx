@@ -71,7 +71,6 @@ function makeClub(id: string, name: string, overrides: Partial<Club> = {}): Club
   return {
     id,
     name,
-    clubNumber: '',
     email: '',
     phone: '',
     description: '',

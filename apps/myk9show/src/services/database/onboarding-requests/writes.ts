@@ -2,6 +2,7 @@
 
 import { supabase } from '../supabaseClient';
 import type { TablesUpdate } from '@/types/supabase';
+import { normalizeClubRegistryNumbers } from '@/utils/clubRegistryNumbers';
 import {
   mapDbRow,
   type DbOnboardingRow,
@@ -21,6 +22,7 @@ export async function submitOnboardingRequest(request: CreateOnboardingRequest):
     auth_user_id: request.authUserId,
     club_name: request.clubName,
     organization: request.organization,
+    club_numbers: normalizeClubRegistryNumbers(request.clubNumbers),
     contact_name: request.contactName,
     contact_email: request.contactEmail,
     contact_phone: request.contactPhone ?? null,

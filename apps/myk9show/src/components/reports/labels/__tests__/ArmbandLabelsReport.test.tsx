@@ -82,6 +82,12 @@ describe('ArmbandLabelsReport', () => {
     expect(screen.getByText('Max')).toBeInTheDocument();
   });
 
+  it('prints the existing show code (exhibitor passcode) on every label', () => {
+    render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
+    expect(screen.getAllByTestId('armband-label-show-code')).toHaveLength(2);
+    expect(screen.getAllByText(/Show code: etest/)).toHaveLength(2);
+  });
+
   it('shows label count summary', () => {
     render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
     expect(screen.getByText(/2 label/i)).toBeInTheDocument();

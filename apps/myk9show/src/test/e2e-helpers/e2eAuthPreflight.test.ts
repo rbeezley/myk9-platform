@@ -234,3 +234,69 @@ describe('e2e auth preflight', () => {
     });
   });
 });
+
+describe('verifyE2EAuthCredentials role check (MYK9-1243)', () => {
+  const env = {
+    VITE_SUPABASE_URL: 'https://p.supabase.co',
+    VITE_SUPABASE_ANON_KEY: 'anon',
+    E2E_DEMO_EXHIBITOR_PASSWORD: 'pw',
+  } as NodeJS.ProcessEnv;
+  const fetchWithRoles = (roleNames: string[]) => async (url: string | URL | Request) => {
+    const u = String(url);
+    if (u.includes('/token')) {
+      return new Response(JSON.stringify({ access_token: 'tok', user: { id: 'uid' } }), {
+        status: 200,
+      });
+    }
+    if (u.includes('get_user_roles')) {
+      return new Response(
+        JSON.stringify(roleNames.map(role_name => ({ role_name, is_active: true }))),
+        {
+          status: 200,
+        }
+      );
+    }
+    return new Response('{}', { status: 204 });
+  };
+
+  it('passes when the exhibitor holds only the exhibitor role', async () => {
+    const config = { ...resolveAuthPreflightConfig(env, ['exhibitor']), checkRoles: true };
+    await expect(
+      verifyE2EAuthCredentials(config, fetchWithRoles(['exhibitor']))
+    ).resolves.toBeUndefined();
+  });
+
+  it('fails with the drift headline when the exhibitor was given a secretary role', async () => {
+    const config = { ...resolveAuthPreflightConfig(env, ['exhibitor']), checkRoles: true };
+    await expect(
+      verifyE2EAuthCredentials(config, fetchWithRoles(['exhibitor', 'secretary']))
+    ).rejects.toThrow('E2E fixture account drifted: exhibitor@myk9t.com has forbidden [secretary]');
+  });
+
+  it('still signs out the check session when the role read fails', async () => {
+    const config = { ...resolveAuthPreflightConfig(env, ['exhibitor']), checkRoles: true };
+    const calls: string[] = [];
+    const fetchImpl = async (url: string | URL | Request) => {
+      const u = String(url);
+      calls.push(u);
+      if (u.includes('/token')) {
+        return new Response(JSON.stringify({ access_token: 'tok', user: { id: 'uid' } }), {
+          status: 200,
+        });
+      }
+      if (u.includes('get_user_roles')) return new Response('{}', { status: 500 });
+      return new Response('{}', { status: 204 });
+    };
+    await expect(verifyE2EAuthCredentials(config, fetchImpl)).rejects.toThrow(
+      'could not read own roles via get_user_roles (HTTP 500)'
+    );
+    expect(calls.some(u => u.includes('/logout'))).toBe(true);
+  });
+
+  it('does not read roles unless asked', async () => {
+    const config = resolveAuthPreflightConfig(env, ['exhibitor']);
+    await expect(
+      verifyE2EAuthCredentials(config, fetchWithRoles(['exhibitor', 'secretary']))
+    ).resolves.toBeUndefined();
+  });
+});

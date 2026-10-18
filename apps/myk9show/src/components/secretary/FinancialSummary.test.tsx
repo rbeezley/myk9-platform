@@ -64,7 +64,7 @@ describe('FinancialSummary (per trial)', () => {
     ]);
 
     const notice = screen.getByRole('status');
-    expect(notice).toHaveTextContent(/moved up from outside this view/i);
+    expect(notice).toHaveTextContent(/had its class changed outside this view/i);
     expect(notice).toHaveTextContent(/show-level Financial Summary counts them/i);
   });
 

@@ -377,13 +377,18 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
           nodeId: 'entry:e1',
           label: '#101 Scout',
           actions: [
-            { id: 'move-up-entry', commandId: 'move-up-entry:entry:e1', label: 'Move up', why: '' },
+            {
+              id: 'move-up-entry',
+              commandId: 'move-up-entry:entry:e1',
+              label: 'Change class',
+              why: '',
+            },
           ],
         },
       ],
     });
 
-    expect(screen.getByRole('heading', { name: 'Can move up' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Can change class' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Entries' })).toBeNull();
   });
 });

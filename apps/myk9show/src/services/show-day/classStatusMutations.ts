@@ -31,11 +31,14 @@ export async function applyManualClassStatus(
   switch (targetStatus) {
     case CLASS_STATUS.IN_PROGRESS:
       // Starting a class must NOT clear a reopen stamp — only a manual
-      // completion does (see the Completed case below).
+      // completion does (see the Completed case below). A reopen (Complete →
+      // In progress) keeps the original start and clears the finish, matching
+      // refresh_class_scoring_state when a class leaves completed.
       await replicatedClassesTable.updateClass(classId, {
         classStatus: targetStatus,
         statusSource: 'manual',
-        actual_start_time: new Date().toISOString(),
+        ...(currentClass?.actual_start_time ? {} : { actual_start_time: new Date().toISOString() }),
+        actual_end_time: undefined,
       });
       return;
 

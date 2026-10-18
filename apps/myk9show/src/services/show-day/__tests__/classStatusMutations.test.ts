@@ -25,13 +25,15 @@ describe('applyManualClassStatus', () => {
   it('writes In Progress with a start timestamp and no reopen-stamp clear', async () => {
     await applyManualClassStatus('class-1', CLASS_STATUS.IN_PROGRESS);
 
+    // MYK9-1253 (owner, 2026-10-17): moving into In progress clears the finish time, matching
+    // refresh_class_scoring_state; the reopen stamp is still left alone.
     expect(mockUpdateClass).toHaveBeenCalledWith('class-1', {
       classStatus: CLASS_STATUS.IN_PROGRESS,
       statusSource: 'manual',
       actual_start_time: '2026-07-18T12:00:00.000Z',
+      actual_end_time: undefined,
     });
     const payload = mockUpdateClass.mock.calls[0][1] as Record<string, unknown>;
-    expect(payload).not.toHaveProperty('actual_end_time');
     expect(payload).not.toHaveProperty('reopenedAfterCloseoutAt');
     expect(payload).not.toHaveProperty('isCompleted');
   });

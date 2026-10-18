@@ -44,11 +44,19 @@ export function countCoveredRows(
 export async function staleCleanupKeepIds(
   table: {
     getAllWithStatus(): Promise<{ ok: boolean; rows: readonly { id: string }[] }>;
+    getAllWithStatusOwnedBy?(
+      ownerAuthUserId: string
+    ): Promise<{ ok: boolean; rows: readonly { id: string }[] }>;
   },
   serverIds: ReadonlySet<string>,
-  scopeRows: readonly { id: string }[]
+  scopeRows: readonly { id: string }[],
+  ownerAuthUserId?: string
 ): Promise<Set<string> | null> {
-  const all = await table.getAllWithStatus();
+  // MYK9-1250: read the same account the deletion is pinned to.
+  const all =
+    ownerAuthUserId && table.getAllWithStatusOwnedBy
+      ? await table.getAllWithStatusOwnedBy(ownerAuthUserId)
+      : await table.getAllWithStatus();
   if (!all.ok) return null;
   const inScope = new Set(scopeRows.map(row => String(row.id)));
   const keep = new Set(serverIds);

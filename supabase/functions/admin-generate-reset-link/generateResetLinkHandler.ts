@@ -9,12 +9,14 @@
 import type { HandlerCtx } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity, rolesInclude } from '../_shared/roleValidity.ts';
+import { STEP_UP_REQUIRED_CODE, stepUpRefusal } from '../_shared/stepUpReauth.ts';
 
 export interface GenerateResetLinkRequest {
   targetEmail?: string;
 }
 
 export async function generateResetLinkHandler({
+  req,
   body,
   user,
   supabase,
@@ -47,6 +49,13 @@ export async function generateResetLinkHandler({
 
   if (!isSiteAdmin) {
     throw new HttpError(403, 'Unauthorized: requires site_admin role');
+  }
+
+  // MYK9-1208: a recovery link lets its holder set a new password and then sign in with
+  // fresh proof, which would satisfy every other step-up gate. So issuing one needs the
+  // same confirmation: a sign-in within the last five minutes.
+  if (stepUpRefusal(req.headers.get('Authorization') ?? '')) {
+    throw new HttpError(403, STEP_UP_REQUIRED_CODE);
   }
 
   // 2. Parse request

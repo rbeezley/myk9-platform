@@ -2,6 +2,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { generateResetLinkHandler } from './generateResetLinkHandler.ts';
 
+// A Bearer request whose JWT says the caller signed in `ageSeconds` ago (MYK9-1208).
+function reqSignedIn(ageSeconds: number): Request {
+  const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const timestamp = Math.floor(Date.now() / 1000) - ageSeconds;
+  const token = `${b64({ alg: 'HS256' })}.${b64({ sub: 'caller', amr: [{ method: 'password', timestamp }] })}.sig`;
+  return new Request('https://example.test', { headers: { Authorization: `Bearer ${token}` } });
+}
+
 function chain<T>(data: T, error: unknown = null) {
   const query: Record<string, unknown> = {};
   const self = () => query as unknown;
@@ -60,11 +68,26 @@ function makeSupabase(opts: MockOptions = {}) {
 }
 
 describe('generateResetLinkHandler', () => {
+  it('refuses a stale session with step_up_required and issues no link (MYK9-1208)', async () => {
+    const { supabase, generateLink } = makeSupabase();
+
+    await expect(
+      generateResetLinkHandler({
+        req: reqSignedIn(3600),
+        body: { targetEmail: 'admin@example.com' },
+        user: { id: 'auth-1' } as never,
+        supabase: supabase as never,
+      })
+    ).rejects.toMatchObject({ status: 403, message: 'step_up_required' });
+    expect(generateLink).not.toHaveBeenCalled();
+  });
+
   it('rejects an unauthenticated caller with 401', async () => {
     const { supabase } = makeSupabase();
 
     await expect(
       generateResetLinkHandler({
+        req: reqSignedIn(10),
         body: { targetEmail: 'exhibitor@example.com' },
         user: undefined,
         supabase: supabase as never,
@@ -77,6 +100,7 @@ describe('generateResetLinkHandler', () => {
 
     await expect(
       generateResetLinkHandler({
+        req: reqSignedIn(10),
         body: { targetEmail: 'exhibitor@example.com' },
         user: { id: 'auth-caller' },
         supabase: supabase as never,
@@ -89,6 +113,7 @@ describe('generateResetLinkHandler', () => {
 
     await expect(
       generateResetLinkHandler({
+        req: reqSignedIn(10),
         body: { targetEmail: 'exhibitor@example.com' },
         user: { id: 'auth-caller' },
         supabase: supabase as never,
@@ -101,6 +126,7 @@ describe('generateResetLinkHandler', () => {
 
     await expect(
       generateResetLinkHandler({
+        req: reqSignedIn(10),
         body: { targetEmail: 'exhibitor@example.com' },
         user: { id: 'auth-caller' },
         supabase: supabase as never,
@@ -114,6 +140,7 @@ describe('generateResetLinkHandler', () => {
 
     await expect(
       generateResetLinkHandler({
+        req: reqSignedIn(10),
         body: {},
         user: { id: 'auth-caller' },
         supabase: supabase as never,
@@ -126,6 +153,7 @@ describe('generateResetLinkHandler', () => {
 
     await expect(
       generateResetLinkHandler({
+        req: reqSignedIn(10),
         body: { targetEmail: 'exhibitor@example.com' },
         user: { id: 'auth-caller' },
         supabase: supabase as never,
@@ -138,6 +166,7 @@ describe('generateResetLinkHandler', () => {
 
     await expect(
       generateResetLinkHandler({
+        req: reqSignedIn(10),
         body: { targetEmail: 'exhibitor@example.com' },
         user: { id: 'auth-caller' },
         supabase: supabase as never,
@@ -149,6 +178,7 @@ describe('generateResetLinkHandler', () => {
     const { supabase, generateLink } = makeSupabase();
 
     const result = await generateResetLinkHandler({
+      req: reqSignedIn(10),
       body: { targetEmail: 'exhibitor@example.com' },
       user: { id: 'auth-caller' },
       supabase: supabase as never,
@@ -168,6 +198,7 @@ describe('generateResetLinkHandler', () => {
     const { supabase } = makeSupabase({ linkData: { properties: {} } });
 
     const result = await generateResetLinkHandler({
+      req: reqSignedIn(10),
       body: { targetEmail: 'exhibitor@example.com' },
       user: { id: 'auth-caller' },
       supabase: supabase as never,

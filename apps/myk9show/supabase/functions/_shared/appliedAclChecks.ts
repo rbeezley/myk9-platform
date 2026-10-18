@@ -116,7 +116,8 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   show_incidents: 'SELECT,INSERT',
   show_lifecycle_email_attempts: 'SELECT',
   show_lifecycle_email_job_requests: '',
-  show_lifecycle_email_jobs: 'SELECT,UPDATE',
+  // MYK9-1254: UPDATE is column-level only (subject, body, secretary_note, status, skipped_at).
+  show_lifecycle_email_jobs: 'SELECT',
   show_lifecycle_email_steps: 'SELECT,UPDATE',
   show_message_threads: 'SELECT,INSERT,UPDATE',
   show_messages: 'SELECT,INSERT,UPDATE',

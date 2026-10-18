@@ -262,7 +262,10 @@ test('manual class placements agree in Check Scores, Fix and report preview (MYK
         index === 0 ? '2' : index === 1 ? '1' : '—'
       );
     }
-    await screenshot(page, info, `check-scores-${f.classId}`);
+    await info.attach(`check-scores-${f.classId}`, {
+      body: await table.screenshot(),
+      contentType: 'image/png',
+    });
     await page.getByRole('link', { name: 'Fix score for Willow', exact: true }).click();
     await expect(page.getByRole('button', { name: /Willow/ })).toContainText('2nd');
     await expect(page.getByRole('button', { name: /Cooper/ })).toContainText('1st');
@@ -275,9 +278,11 @@ test('manual class placements agree in Check Scores, Fix and report preview (MYK
     await page.goto(
       `/shows/${f.showId}/reports?report=results-sheet&trialId=${f.trialId}&classId=${f.classId}`
     );
-    const reportRows = page
+    const reportTable = page
       .frameLocator('iframe[title="Report Preview"]')
-      .locator('table.report-table tbody tr');
+      .locator('table.report-table');
+    await expect(reportTable).toBeVisible();
+    const reportRows = reportTable.locator('tbody tr');
     await expect(reportRows).toHaveCount(count);
     const order = await reportRows.evaluateAll(rows =>
       rows.map(r => r.querySelectorAll('td')[1]?.textContent?.trim())
@@ -290,7 +295,10 @@ test('manual class placements agree in Check Scores, Fix and report preview (MYK
       previewOrder: order,
       nonLocalSockets: secretary.nonLocalSocketUrls,
     });
-    await screenshot(page, info, `print-preview-${f.classId}`);
+    await info.attach(`print-preview-${f.classId}`, {
+      body: await reportTable.screenshot(),
+      contentType: 'image/png',
+    });
     await secretary.context.close();
   }
 });

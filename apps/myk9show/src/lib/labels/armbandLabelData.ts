@@ -28,24 +28,24 @@ export function filterEntries(
   entries: ArmbandLabelEntry[],
   filter: LabelFilterConfig
 ): ArmbandLabelEntry[] {
+  // Armbands typed by number are picked by number alone; the buckets below do not also have to
+  // be ticked for them (MYK9-1233).
+  const selection = filter.specificArmbands;
+  if (selection != null) {
+    return entries.filter(e => armbandInSelection(e.armband, selection));
+  }
+
   // "Early" vs "Day of Show" is the REGISTRY bucket (`is_day_of_show`,
   // MYK9-642), reviewed for MYK9-677 and kept: it chooses which armbands to
   // print, not whose money is in the cash box, so a mail-in keyed after entries
   // closed prints with the day-of batch the registry counts it in. The
   // closeout card's "Entries made during the show" keys on submission time instead, and its
   // money comes from the payments ledger, not from entries.
-  let result = entries.filter(e => {
+  return entries.filter(e => {
     if (e.isDayOfShow && !filter.dayOfShowEntries) return false;
     if (!e.isDayOfShow && !filter.earlyEntries) return false;
     return true;
   });
-
-  const selection = filter.specificArmbands;
-  if (selection != null) {
-    result = result.filter(e => armbandInSelection(e.armband, selection));
-  }
-
-  return result;
 }
 
 export function prepareArmbandLabelItems(entries: ArmbandLabelEntry[]): ArmbandLabelItem[] {

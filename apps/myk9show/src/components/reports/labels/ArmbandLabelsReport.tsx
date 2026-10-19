@@ -69,6 +69,11 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
     () => ({ ...filter, specificArmbands: showSpecific ? printRangesFor(armbandText) : null }),
     [filter, showSpecific, armbandText]
   );
+  // A typed list picks armbands by number, so the Early / Day of Show boxes do nothing meanwhile.
+  const listActive = filterConfig.specificArmbands != null && selectionInvalid === null;
+  const bucketRowClass = listActive
+    ? `${TAP_ROW} cursor-not-allowed text-muted-foreground`
+    : TAP_ROW;
 
   const filteredCandidates = useMemo(
     () =>
@@ -237,9 +242,10 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
         <div>
           <SetupEyebrow className="mb-2">Select Armbands to Print</SetupEyebrow>
           <div className="flex flex-col">
-            <label htmlFor="armband-early" className={TAP_ROW}>
+            <label htmlFor="armband-early" className={bucketRowClass}>
               <Checkbox
                 id="armband-early"
+                disabled={listActive}
                 checked={filter.earlyEntries}
                 onCheckedChange={checked =>
                   setFilter(f => ({ ...f, earlyEntries: checked === true }))
@@ -247,9 +253,10 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
               />
               <span>Early Entries</span>
             </label>
-            <label htmlFor="armband-day" className={TAP_ROW}>
+            <label htmlFor="armband-day" className={bucketRowClass}>
               <Checkbox
                 id="armband-day"
+                disabled={listActive}
                 checked={filter.dayOfShowEntries}
                 onCheckedChange={checked =>
                   setFilter(f => ({
@@ -299,7 +306,9 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
               >
                 {selectionInvalid !== null
                   ? `"${selectionInvalid}" is not an armband number or range.`
-                  : 'Numbers and ranges separated by commas, like 101, 105-110.'}
+                  : listActive
+                    ? 'These armbands print whether or not Early or Day of Show is ticked.'
+                    : 'Numbers and ranges separated by commas, like 101, 105-110.'}
               </p>
             )}
           </div>

@@ -103,6 +103,18 @@ describe('filterEntries', () => {
     });
     expect(result.map(e => e.armband).sort()).toEqual([101, 201]);
   });
+
+  it('prints listed armbands whether or not Early or Day of Show is ticked', () => {
+    const result = filterEntries(entries, {
+      earlyEntries: false,
+      dayOfShowEntries: false,
+      specificArmbands: [
+        [101, 101],
+        [201, 201],
+      ],
+    });
+    expect(result.map(e => e.armband).sort()).toEqual([101, 201]);
+  });
 });
 
 describe('prepareArmbandLabelItems', () => {

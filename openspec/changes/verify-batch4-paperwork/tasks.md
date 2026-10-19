@@ -14,7 +14,7 @@
 ## 3. Overview print acceptance
 
 - [x] 3.1 Exercise preview and batch selection at 375px and desktop without leaving Overview; inspect actual merged PDF page count/content and retain screenshots.
-- [x] 3.2 Observe real browser print-close/cancel behavior, persistent Printed/time/Undo, reload and Reports agreement through the existing mutation path. Verify Undo against stored state; retain exact engine/native limitations. Native cancellation remains unproven; verification.md records the failed headed launch and the issue stays open.
+- [x] 3.2 Verify the real headless Chromium print lifecycle, persistent Printed/time/Undo, reload and Reports agreement through the existing mutation path. Verify Undo against stored state. This completed task does not cover native print-dialog cancellation; verification.md records the failed headed launch and MYK9-1244 retains that open acceptance gate.
 - [x] 3.3 For any reproduced defect, run a failing real-caller assertion before a minimal fix; rerun related tests and browser proof. If no defect is reproduced, record that result instead of changing application code.
 
 ## 4. Ship and reconcile

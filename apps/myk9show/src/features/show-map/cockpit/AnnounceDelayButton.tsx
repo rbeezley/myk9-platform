@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Megaphone } from 'lucide-react';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Button } from '@/components/ui/button';
@@ -36,21 +37,27 @@ export function AnnounceDelayButton({
         <Megaphone className="h-4 w-4" aria-hidden="true" />
         Announce the delay
       </Button>
-      <SlideOverPanel
-        open={open}
-        onClose={() => setOpen(false)}
-        title="Announce the delay"
-        subtitle={subtitle}
-        size="lg"
-      >
-        <div className="p-6">
-          <ScheduleSlipScriptCard
-            showId={showId}
-            defaultClassName={className}
-            {...(delayMinutes !== undefined && { defaultDelayMinutes: delayMinutes })}
-          />
-        </div>
-      </SlideOverPanel>
+      {/* SlideOverPanel is not portaled and the focused-class card is sticky (its own stacking
+          context), so the panel goes to <body> to sit above the app header and sidebar. */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <SlideOverPanel
+            open={open}
+            onClose={() => setOpen(false)}
+            title="Announce the delay"
+            subtitle={subtitle}
+            size="lg"
+          >
+            <div className="p-6">
+              <ScheduleSlipScriptCard
+                showId={showId}
+                defaultClassName={className}
+                {...(delayMinutes !== undefined && { defaultDelayMinutes: delayMinutes })}
+              />
+            </div>
+          </SlideOverPanel>,
+          document.body
+        )}
     </>
   );
 }

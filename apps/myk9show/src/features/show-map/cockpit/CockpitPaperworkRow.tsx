@@ -12,7 +12,10 @@ import { replicatedPaperworkPrintsTable } from '@/services/replication';
 import { recordPaperworkPrinted, voidPaperworkPrint } from './paperworkPrintActions';
 import type { PaperworkDescriptor } from './paperworkPrintState';
 import { CockpitActionLink } from './CockpitActionLink';
-import { PaperworkPrintConfirmationDialog } from './PaperworkPrintConfirmationDialog';
+import {
+  PaperworkPrintConfirmationDialog,
+  PaperworkPrintConfirmationInline,
+} from './PaperworkPrintConfirmationDialog';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 
 export function CockpitPaperworkRow({
@@ -22,6 +25,7 @@ export function CockpitPaperworkRow({
   onPrint,
   selected,
   onSelectedChange,
+  confirmInline = false,
 }: {
   item: SecretaryCockpitPaperwork;
   timeZone: string;
@@ -35,6 +39,12 @@ export function CockpitPaperworkRow({
   /** With `onSelectedChange`, shows a checkbox so several sheets print together. */
   selected?: boolean;
   onSelectedChange?: (selected: boolean) => void;
+  /**
+   * Asks the physical-print question inside the row instead of an AlertDialog. A row hosted in a
+   * slide-out sets it: recording a print is routine, and a dialog never stacks on a slide-out
+   * for a routine step (docs/INTENT.md).
+   */
+  confirmInline?: boolean;
 }) {
   const { user } = useAuthContext();
   const [isRecording, setIsRecording] = useState(false);
@@ -170,16 +180,30 @@ export function CockpitPaperworkRow({
           {isRecording ? 'Recording…' : 'Record as printed'}
         </button>
       )}
-      <PaperworkPrintConfirmationDialog
-        open={confirmOpen}
-        reportLabel={item.label}
-        isSaving={isRecording}
-        onOpenChange={setConfirmOpen}
-        onConfirm={() => {
-          setConfirmOpen(false);
-          void recordAsPrinted();
-        }}
-      />
+      {confirmInline ? (
+        confirmOpen && (
+          <PaperworkPrintConfirmationInline
+            reportLabel={item.label}
+            isSaving={isRecording}
+            onCancel={() => setConfirmOpen(false)}
+            onConfirm={() => {
+              setConfirmOpen(false);
+              void recordAsPrinted();
+            }}
+          />
+        )
+      ) : (
+        <PaperworkPrintConfirmationDialog
+          open={confirmOpen}
+          reportLabel={item.label}
+          isSaving={isRecording}
+          onOpenChange={setConfirmOpen}
+          onConfirm={() => {
+            setConfirmOpen(false);
+            void recordAsPrinted();
+          }}
+        />
+      )}
       {item.history && item.history.length > 0 && (
         <details className="mt-2 text-xs text-muted-foreground">
           <summary className="cursor-pointer font-medium text-foreground">

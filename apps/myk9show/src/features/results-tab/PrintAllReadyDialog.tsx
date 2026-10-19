@@ -64,6 +64,7 @@ export function PrintAllReadyDialog({
                   item={{ ...item, label: PRINT_LABEL[item.reportId] ?? item.label }}
                   timeZone={timeZone}
                   onCommand={() => undefined}
+                  confirmInline
                 />
               ))}
             </section>

@@ -68,6 +68,7 @@ describe('a queued ringside write meeting a pull (MYK9-1236)', () => {
   let rpcCalls: RpcCall[];
   let serverVersion: number;
   let serverFields: Record<string, unknown>;
+  let acknowledgeRpc: (args: RpcCall) => Promise<void>;
   let conflicts: Array<{ fields: string[] }>;
   const onConflict = (event: Event) => conflicts.push((event as CustomEvent).detail);
 
@@ -78,6 +79,7 @@ describe('a queued ringside write meeting a pull (MYK9-1236)', () => {
     rpcCalls = [];
     serverVersion = 8;
     serverFields = {};
+    acknowledgeRpc = async () => {};
     conflicts = [];
     window.addEventListener('replication:conflict', onConflict);
     // The server is already at token 8: a write against token 3 is rejected with
@@ -88,6 +90,7 @@ describe('a queued ringside write meeting a pull (MYK9-1236)', () => {
         if (args.p_expected_version === serverVersion) {
           Object.assign(serverFields, args.p_fields);
           serverVersion += 1;
+          await acknowledgeRpc(args);
           return { data: serverVersion, error: null };
         }
         return {
@@ -128,6 +131,17 @@ describe('a queued ringside write meeting a pull (MYK9-1236)', () => {
     await manager.uploadPendingMutations();
   }
 
+  async function expectFinalQ() {
+    // An overlapping upload requests another pass and returns immediately.
+    // Assert convergence, rather than treating its return as a drained queue.
+    await vi.waitFor(async () => {
+      expect(await manager.getPendingCount()).toBe(0);
+      expect(serverFields.result_status).toBe('qualified');
+      expect((await table.get(ID))?.resultStatus).toBe('qualified');
+    });
+    expect(conflicts).toHaveLength(0);
+  }
+
   it('prompts instead of erasing a note another device wrote over a no-op clear', async () => {
     await table.batchSet([seed], new Map([[ID, 3]]));
     await writeAndBounce({ judgeNotes: null as unknown as string });
@@ -164,9 +178,34 @@ describe('a queued ringside write meeting a pull (MYK9-1236)', () => {
     await uploadAgain();
     await uploadAgain();
 
-    expect(conflicts).toHaveLength(0);
-    expect(serverFields.result_status).toBe('qualified');
-    expect((await table.get(ID))?.resultStatus).toBe('qualified');
+    await expectFinalQ();
+  });
+
+  it('drains a Q queued while the previous NQ acknowledgement is still in flight', async () => {
+    let releaseNq!: () => void;
+    const nqAcknowledgement = new Promise<void>(resolve => (releaseNq = resolve));
+    acknowledgeRpc = async args => {
+      if (args.p_fields.result_status === 'nq') await nqAcknowledgement;
+    };
+    await table.batchSet([{ ...seed, disqualification_reason: null }], new Map([[ID, 3]]));
+    await writeAndBounce({ resultStatus: 'nq', disqualification_reason: 'Incorrect Call' });
+    mockServerRows([serverRow({ disqualification_reason: null })]);
+
+    let upload: Promise<void> | undefined;
+    try {
+      await table.sync(SHOW);
+      upload = uploadAgain();
+      await vi.waitFor(() => expect(serverFields.result_status).toBe('nq'));
+      await table.updateEntry(ID, { resultStatus: 'qualified', disqualification_reason: null });
+      await uploadAgain();
+      releaseNq();
+      await upload;
+
+      await expectFinalQ();
+    } finally {
+      releaseNq();
+      await upload;
+    }
   });
 
   it('still uploads the NQ and its reason after a null-to-undefined pull', async () => {

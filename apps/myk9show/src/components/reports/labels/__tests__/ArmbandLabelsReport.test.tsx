@@ -150,6 +150,25 @@ describe('ArmbandLabelsReport', () => {
       expect(numberInput).toHaveValue('42');
     });
 
+    it('prints a listed armband with Early and Day of Show unticked, and locks those boxes', () => {
+      render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
+      const early = screen.getByRole('checkbox', { name: /early entries/i });
+      const dayOf = screen.getByRole('checkbox', { name: /day of show entries/i });
+      fireEvent.click(early);
+      fireEvent.click(dayOf);
+      expect(screen.queryByText('Storm')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('checkbox', { name: /specific armbands/i }));
+      fireEvent.change(screen.getByLabelText('Armband numbers'), { target: { value: '101' } });
+      expect(screen.getByText('Storm')).toBeInTheDocument();
+      expect(screen.queryByText('Max')).not.toBeInTheDocument();
+      expect(early).toHaveAttribute('aria-disabled', 'true');
+      expect(dayOf).toHaveAttribute('aria-disabled', 'true');
+      expect(
+        screen.getByText('These armbands print whether or not Early or Day of Show is ticked.')
+      ).toBeInTheDocument();
+    });
+
     it('prints only the armbands listed, as numbers, lists or ranges', () => {
       render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
       fireEvent.click(screen.getByRole('checkbox', { name: /specific armbands/i }));

@@ -10,6 +10,7 @@
  * @module at-show/myAtShowEntryDetails.helpers
  */
 import type { CheckInStatus } from '@myk9/core';
+import { isPulledEntry } from '@/features/_shared/entryAccounting';
 import type { ReplicatedEntry } from '@/services/replication';
 import { UserRole } from '@/types/auth-types';
 import { isTrialDayToday } from '@/pages/MyEntriesPage/modules/dayCheckIn';
@@ -167,7 +168,10 @@ export function buildMyAtShowEntryDetails(
     // dog page and the show page do (owner decision, MYK9-1026).
     const own = resultsByEntryId.get(entry.id);
     const status = own?.resultStatus ?? null;
-    const hasVisibleResult = own?.isScored === true && status != null && status !== 'pending';
+    // A pull outranks a result recorded before it (MYK9-1258).
+    const pulled = isPulledEntry(entry);
+    const hasVisibleResult =
+      !pulled && own?.isScored === true && status != null && status !== 'pending';
     const seconds = own?.searchTimeSeconds;
     const { isPreliminary } = deriveResultReleaseDisplay({
       // The own read is authoritative: a stale class replica must never turn
@@ -187,7 +191,7 @@ export function buildMyAtShowEntryDetails(
       expectedStartLabel: classSummary?.expectedStartLabel ?? null,
       isRevisedStart: classSummary?.isRevisedStart ?? false,
       hasRunOrder: entry.runOrder != null,
-      isScored: entry.isScored ?? false,
+      isScored: (entry.isScored ?? false) && !pulled,
       resultStatus: hasVisibleResult ? status : null,
       resultTimeSeconds:
         hasVisibleResult && typeof seconds === 'number' && Number.isFinite(seconds) && seconds >= 0

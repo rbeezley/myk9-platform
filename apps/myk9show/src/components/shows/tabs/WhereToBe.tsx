@@ -12,6 +12,7 @@ import { withServerPlace } from '@/utils/showEntryRunQueue';
 import { formatFaultCount } from '@/features/_shared/faultLabel';
 import {
   getPendingResultLabel,
+  getPulledStateLabel,
   hasUnpublishedScheduleDetails,
   UNPUBLISHED_SCHEDULE_DETAILS_MESSAGE,
 } from './entryResultDisplay';
@@ -213,6 +214,16 @@ function ResultChip({ entry, didNotRun }: { entry: EnrichedShowEntry; didNotRun:
     return (
       <Chip color="stone" size="sm">
         {reviewLabel}
+      </Chip>
+    );
+  }
+
+  // A pulled dog carries no result and is not waiting on one (MYK9-1258).
+  const pulledLabel = getPulledStateLabel(entry);
+  if (pulledLabel) {
+    return (
+      <Chip color="stone" size="sm">
+        {pulledLabel}
       </Chip>
     );
   }

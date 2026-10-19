@@ -413,7 +413,8 @@ export function useShowEntriesForUser(
         canSeeAll,
         entry.competitionData,
         ownResults.get(entry.id),
-        cls?.results_released_at
+        cls?.results_released_at,
+        { checkInStatus, entryStatus: entry.status }
       );
       const hasResult = !!result;
 

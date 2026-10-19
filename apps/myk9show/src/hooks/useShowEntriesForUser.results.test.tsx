@@ -166,6 +166,20 @@ describe('canonical results with existing local entries (MYK9-381)', () => {
     expect(screen.queryByText(/Q ·/)).not.toBeInTheDocument();
   });
 
+  // MYK9-1258: a scored entry the secretary then pulled keeps its result
+  // columns; neither the schedule nor the dog list may show the stale Q.
+  it('shows no result for an entry pulled after it was scored', () => {
+    const pulled = { ...released, check_in_status: 'pulled' } as SubmittedEntryDbRow;
+    setStored(storedEntry(pulled));
+    setOwn(pulled);
+    render(<MyEntriesTab showId={SHOW_ID} canonicalEntries={[pulled]} />);
+
+    expect(screen.queryByText('Q · 0:38.50')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('entry-result-badge')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Pulled').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Awaiting results')).not.toBeInTheDocument();
+  });
+
   it.each([null, 'pending'])(
     'clears stale Q/time when the canonical result is %s',
     resultStatus => {

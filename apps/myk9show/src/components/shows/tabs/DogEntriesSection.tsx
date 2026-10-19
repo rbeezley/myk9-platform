@@ -18,7 +18,11 @@ import { Chip } from '@/components/base/Chip';
 import { PlacementPill } from '@/components/base/PlacementPill';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import type { DogEntriesGroup, EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
-import { getPendingResultLabel, getRemovedStateLabel } from './entryResultDisplay';
+import {
+  getPendingResultLabel,
+  getPulledStateLabel,
+  getRemovedStateLabel,
+} from './entryResultDisplay';
 import { getExhibitorLifecycleReviewLabel } from '@/components/entries/management/reviewStateLabels';
 
 type ElementIconConfig = { icon: React.ElementType; bg: string; fg: string };
@@ -171,6 +175,16 @@ function EntryResultBadge({ entry }: { entry: EnrichedShowEntry }) {
     return (
       <Chip color="stone" size="sm">
         {reviewLabel}
+      </Chip>
+    );
+  }
+
+  // A pulled dog carries no result and is not waiting on one (MYK9-1258).
+  const pulledLabel = getPulledStateLabel(entry);
+  if (pulledLabel) {
+    return (
+      <Chip color="stone" size="sm">
+        {pulledLabel}
       </Chip>
     );
   }

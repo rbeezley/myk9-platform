@@ -242,6 +242,13 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
     expect(within(checklist).queryByText('Armband labels')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Other paperwork' })).toBeInTheDocument();
     expect(screen.getByText('Armband labels')).toBeInTheDocument();
+    // Armbands come first, above the checklist's check-in sheet (MYK9-1233).
+    expect(
+      screen
+        .getByText('Armband labels')
+        .compareDocumentPosition(within(checklist).getByText('Check-in sheet')) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 });
 

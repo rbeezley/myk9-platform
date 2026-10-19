@@ -14,6 +14,7 @@ const entries: ArmbandLabelEntry[] = [
     calendarDay: '2025-06-11',
     armband: 101,
     callName: 'Storm',
+    breed: 'Beagle',
     handler: 'Jane Doe',
     trialDate: '6/11/2025',
     isDayOfShow: false,
@@ -26,6 +27,7 @@ const entries: ArmbandLabelEntry[] = [
     calendarDay: '2025-06-11',
     armband: 102,
     callName: 'Jewels',
+    breed: 'Beagle',
     handler: 'Bob Smith',
     trialDate: '6/11/2025',
     isDayOfShow: false,
@@ -38,6 +40,7 @@ const entries: ArmbandLabelEntry[] = [
     calendarDay: '2025-06-12',
     armband: 201,
     callName: 'Crash',
+    breed: 'Beagle',
     handler: 'Sue Lee',
     trialDate: '6/12/2025',
     isDayOfShow: true,
@@ -97,6 +100,30 @@ describe('prepareArmbandLabelItems', () => {
     expect(items[1].armband).toBe(102);
     expect(items[2].armband).toBe(201);
   });
+
+  it('picks the same entry per dog and day whatever order the rows arrive in', () => {
+    const entry = (id: string, handler: string): ArmbandLabelEntry => ({
+      id,
+      dogId: 'dog-1',
+      trialId: 't1',
+      classId: `class-${id}`,
+      calendarDay: '2025-06-11',
+      armband: 101,
+      callName: 'Storm',
+      breed: 'Beagle',
+      handler,
+      trialDate: '6/11/2025',
+      isDayOfShow: false,
+    });
+    const rows = [entry('b', 'Bob'), entry('a', 'Jane')];
+    const scope = { kind: 'show' as const, showId: 'show-1' };
+    expect(selectArmbandLabelEntries(rows, scope)[0].handler).toBe('Jane');
+    expect(selectArmbandLabelEntries([...rows].reverse(), scope)[0].handler).toBe('Jane');
+  });
+
+  it('carries the breed through to the printed item', () => {
+    expect(prepareArmbandLabelItems(entries).every(item => item.breed === 'Beagle')).toBe(true);
+  });
 });
 
 describe('selectArmbandLabelEntries', () => {
@@ -109,6 +136,7 @@ describe('selectArmbandLabelEntries', () => {
       calendarDay: '2025-06-11',
       armband: 101,
       callName: 'Storm',
+      breed: 'Beagle',
       handler: 'Jane Doe',
       trialDate: '6/11/2025',
       isDayOfShow: false,

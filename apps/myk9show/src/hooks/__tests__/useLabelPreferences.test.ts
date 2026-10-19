@@ -44,6 +44,26 @@ describe('useLabelPreferences', () => {
     expect(prefs.contentConfig.showAccessCode).toBe(false);
   });
 
+  it('turns the handler on once for prefs saved before the breed option', () => {
+    localStorage.setItem(
+      'myk9show-label-prefs',
+      JSON.stringify({ contentConfig: { callName: true, handlerName: false } })
+    );
+    const { result } = renderHook(() => useLabelPreferences());
+    expect(result.current[0].contentConfig.handlerName).toBe(true);
+    expect(result.current[0].contentConfig.breed).toBe(true);
+  });
+
+  it('keeps the handler off when it was turned off after the breed option existed', () => {
+    localStorage.setItem(
+      'myk9show-label-prefs',
+      JSON.stringify({ contentConfig: { breed: false, handlerName: false } })
+    );
+    const { result } = renderHook(() => useLabelPreferences());
+    expect(result.current[0].contentConfig.handlerName).toBe(false);
+    expect(result.current[0].contentConfig.breed).toBe(false);
+  });
+
   it('handles corrupted localStorage gracefully', () => {
     localStorage.setItem('myk9show-label-prefs', 'not json');
     const { result } = renderHook(() => useLabelPreferences());

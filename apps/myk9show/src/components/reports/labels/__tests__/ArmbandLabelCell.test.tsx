@@ -7,13 +7,22 @@ import { DEFAULT_CONTENT_CONFIG } from '@/lib/labels/armbandLabelTypes';
 const item: ArmbandLabelItem = {
   armband: 101,
   callName: 'Storm',
+  breed: 'Labrador Retriever',
   handler: 'Jane Smith',
   trialDate: '6/11/2025',
 };
 
 describe('ArmbandLabelCell', () => {
   it('always renders the armband number', () => {
-    render(<ArmbandLabelCell item={item} config={DEFAULT_CONTENT_CONFIG} labelHeight={1.333} />);
+    render(
+      <ArmbandLabelCell
+        item={item}
+        config={DEFAULT_CONTENT_CONFIG}
+        labelHeight={1.333}
+        labelWidth={4}
+        numberDigits={3}
+      />
+    );
     expect(screen.getByText('101')).toBeInTheDocument();
   });
 
@@ -23,6 +32,8 @@ describe('ArmbandLabelCell', () => {
         item={item}
         config={{ ...DEFAULT_CONTENT_CONFIG, callName: true }}
         labelHeight={1.333}
+        labelWidth={4}
+        numberDigits={3}
       />
     );
     expect(screen.getByText('Storm')).toBeInTheDocument();
@@ -34,6 +45,8 @@ describe('ArmbandLabelCell', () => {
         item={item}
         config={{ ...DEFAULT_CONTENT_CONFIG, callName: false }}
         labelHeight={1.333}
+        labelWidth={4}
+        numberDigits={3}
       />
     );
     expect(screen.queryByText('Storm')).not.toBeInTheDocument();
@@ -45,6 +58,8 @@ describe('ArmbandLabelCell', () => {
         item={item}
         config={{ ...DEFAULT_CONTENT_CONFIG, trialDate: true }}
         labelHeight={1.333}
+        labelWidth={4}
+        numberDigits={3}
       />
     );
     expect(screen.getByText('6/11/2025')).toBeInTheDocument();
@@ -56,6 +71,8 @@ describe('ArmbandLabelCell', () => {
         item={item}
         config={{ ...DEFAULT_CONTENT_CONFIG, handlerName: true }}
         labelHeight={1.333}
+        labelWidth={4}
+        numberDigits={3}
       />
     );
     expect(screen.getByText('Jane Smith')).toBeInTheDocument();
@@ -67,6 +84,8 @@ describe('ArmbandLabelCell', () => {
         item={item}
         config={{ ...DEFAULT_CONTENT_CONFIG, handlerName: false }}
         labelHeight={1.333}
+        labelWidth={4}
+        numberDigits={3}
       />
     );
     expect(screen.queryByText('Jane Smith')).not.toBeInTheDocument();
@@ -78,6 +97,8 @@ describe('ArmbandLabelCell', () => {
         item={item}
         config={{ ...DEFAULT_CONTENT_CONFIG, showAccessCode: true }}
         labelHeight={1.333}
+        labelWidth={4}
+        numberDigits={3}
         passcode="eab12"
       />
     );
@@ -91,6 +112,8 @@ describe('ArmbandLabelCell', () => {
         item={item}
         config={{ ...DEFAULT_CONTENT_CONFIG, venueWifi: true }}
         labelHeight={1.333}
+        labelWidth={4}
+        numberDigits={3}
         wifiNetwork="ShowNet"
         wifiPassword="dog123"
       />
@@ -104,6 +127,8 @@ describe('ArmbandLabelCell', () => {
         item={item}
         config={{ ...DEFAULT_CONTENT_CONFIG, venueWifi: false }}
         labelHeight={1.333}
+        labelWidth={4}
+        numberDigits={3}
         wifiNetwork="ShowNet"
         wifiPassword="dog123"
       />
@@ -118,6 +143,8 @@ describe('ArmbandLabelCell', () => {
           item={item}
           config={DEFAULT_CONTENT_CONFIG}
           labelHeight={1.333}
+          labelWidth={4}
+          numberDigits={3}
           passcode="eab12"
         />
       );
@@ -131,6 +158,8 @@ describe('ArmbandLabelCell', () => {
           item={item}
           config={{ ...DEFAULT_CONTENT_CONFIG, showAccessCode: false }}
           labelHeight={1.333}
+          labelWidth={4}
+          numberDigits={3}
           passcode="eab12"
         />
       );
@@ -143,6 +172,8 @@ describe('ArmbandLabelCell', () => {
           item={item}
           config={{ ...DEFAULT_CONTENT_CONFIG, handlerName: true }}
           labelHeight={1.333}
+          labelWidth={4}
+          numberDigits={3}
           passcode="eab12"
         />
       );
@@ -161,6 +192,61 @@ describe('ArmbandLabelCell', () => {
       const numberPx = parseFloat(number.style.fontSize);
       expect(numberPx).toBeGreaterThanOrEqual(24);
       expect(parseFloat(side.style.fontSize)).toBeLessThan(numberPx);
+      // Bold inline, so the preview (no label stylesheet) shows the weight too.
+      expect(number.style.fontWeight).toBe('700');
+    });
+
+    it('prints the breed and handler by default, and hides each when unticked', () => {
+      const { container, rerender } = render(
+        <ArmbandLabelCell
+          item={item}
+          config={DEFAULT_CONTENT_CONFIG}
+          labelHeight={1.333}
+          labelWidth={4}
+          numberDigits={3}
+        />
+      );
+      const side = () => container.querySelector('.armband-label__side') as HTMLElement;
+      expect(side()).toHaveTextContent('Labrador Retriever');
+      expect(side()).toHaveTextContent('Jane Smith');
+      rerender(
+        <ArmbandLabelCell
+          item={item}
+          config={{ ...DEFAULT_CONTENT_CONFIG, breed: false, handlerName: false }}
+          labelHeight={1.333}
+          labelWidth={4}
+          numberDigits={3}
+        />
+      );
+      expect(side()).not.toHaveTextContent('Labrador Retriever');
+      expect(side()).not.toHaveTextContent('Jane Smith');
+    });
+
+    it('prints no breed line for a dog with no registration with this registry', () => {
+      const { container } = render(
+        <ArmbandLabelCell
+          item={{ ...item, breed: '' }}
+          config={DEFAULT_CONTENT_CONFIG}
+          labelHeight={1.333}
+          labelWidth={4}
+          numberDigits={3}
+        />
+      );
+      expect(container.querySelector('.armband-label__breed')).toBeNull();
+    });
+
+    it('stacks the details under the number on the tall 8387 label', () => {
+      const { container } = render(
+        <ArmbandLabelCell
+          item={item}
+          config={DEFAULT_CONTENT_CONFIG}
+          labelHeight={5.5}
+          labelWidth={4.25}
+          numberDigits={3}
+        />
+      );
+      const row = container.querySelector('.armband-label__row') as HTMLElement;
+      expect(row.style.flexDirection).toBe('column');
     });
   });
 });

@@ -6,7 +6,13 @@ import { formatReportDate } from '@/lib/reports/reportUtils';
 import { useShowVenueWifi } from './useShowVenueWifi';
 import { loadServerHeldEntryIds } from '@/services/database/entries/serverHeldFlags';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
-import { isHeldEntry } from '@/features/dogs/identity';
+import { isHeldEntry, resolveDogIdentityForOrganization } from '@/features/dogs/identity';
+import type { DogRegistrationLike } from '@/features/dogs/identity';
+import { getTrialRegistry } from '@/features/registries';
+import {
+  projectHandlerIdentity,
+  type HandlerPersonLike,
+} from '@/features/registries/handlerIdentity';
 
 /** Exported for unit testing — pure function, no hooks */
 
@@ -19,7 +25,8 @@ export function mapEntryToArmbandLabelEntry(
   if (!armband) return null;
 
   const dog = raw.dog as Record<string, unknown> | null;
-  const owner = dog?.owner as Record<string, unknown> | null;
+  const owner = dog?.owner as HandlerPersonLike | null;
+  const handlerPerson = raw.handler_person as HandlerPersonLike | null;
   const cls = raw.class as Record<string, unknown> | null;
   const trial = cls?.trial as Record<string, unknown> | null;
 
@@ -34,7 +41,21 @@ export function mapEntryToArmbandLabelEntry(
     calendarDay: rawDate,
     armband,
     callName: (dog?.call_name as string) ?? '',
-    handler: owner ? `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim() : '',
+    // The registration with THIS trial's registry, never another registry's or `dogs.breed`
+    // (MYK9-90): a borrowed breed is worse than a blank.
+    breed:
+      resolveDogIdentityForOrganization(
+        dog?.registrations as DogRegistrationLike[] | null | undefined,
+        getTrialRegistry(trial as { registry_id?: string | null } | null).id
+      ).breed ?? '',
+    // The entry's handler by the same rule the check-in sheet and catalog print (MYK9-570).
+    handler:
+      projectHandlerIdentity({
+        assignedHandlerName: raw.handler as string | null,
+        assignedHandlerId: raw.handler_id as string | null,
+        assignedHandlerPerson: handlerPerson,
+        ownerPerson: owner,
+      }).name ?? '',
     trialDate,
     isDayOfShow: (raw.is_day_of_show as boolean) ?? false,
   };
@@ -55,7 +76,7 @@ export function useArmbandLabelData(showId: string | undefined): ArmbandLabelDat
       const { data } = await supabase
         .from('entries')
         .select(
-          'id, dog_id, armband, is_day_of_show, dog:dogs!inner(call_name, owner:people!dogs_owner_id_fkey(first_name, last_name)), class:classes!left(id, trial:trials!left(id, date))'
+          'id, dog_id, armband, is_day_of_show, handler, handler_id, handler_person:people!entries_handler_id_fkey(first_name, last_name), dog:dogs!inner(call_name, owner:people!dogs_owner_id_fkey(first_name, last_name), registrations:dog_registrations(id, organization, breed, is_primary, created_at)), class:classes!left(id, trial:trials!left(id, date, registry_id))'
         )
         .eq('show_id', showId)
         .is('deleted_at', null)

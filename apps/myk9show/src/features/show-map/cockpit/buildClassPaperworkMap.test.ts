@@ -80,6 +80,61 @@ describe('buildClassPaperworkMap', () => {
     expect(map.get('class-1')).toEqual([]);
   });
 
+  it("names the armband label's handler by the label's own rule, so its print reads current", () => {
+    const scope = {
+      kind: 'class' as const,
+      showId: 'show-1',
+      trialId: 'trial-1',
+      classId: 'class-1',
+    };
+    // The label prints the handler entered on the entry (projectHandlerIdentity), not the
+    // linked person's full name or the owner.
+    const descriptor = buildArmbandPaperworkDescriptor(scope, [
+      {
+        dogId: 'dog-1',
+        calendarDay: '2026-07-20',
+        armband: 101,
+        callName: 'Storm',
+        handlerName: 'Pat H.',
+        classIds: ['class-1'],
+        trialIds: ['trial-1'],
+      },
+    ]);
+    const handled = [
+      {
+        ...entries[0],
+        handler: 'Pat H.',
+        handler_id: 'person-pat',
+        handler_person: { first_name: 'Pat', last_name: 'Handler' },
+      },
+    ] as unknown as DbEntry[];
+    const map = buildClassPaperworkMap({
+      showId: 'show-1',
+      classes,
+      trials: [{ id: 'trial-1', trialDate: '2026-07-20' }],
+      entries: handled,
+      records: [
+        {
+          id: 'armband-print-1',
+          showId: 'show-1',
+          trialId: 'trial-1',
+          classId: 'class-1',
+          scopeKind: 'class' as const,
+          reportId: 'armband-labels',
+          coverage: descriptor.coverage,
+          fingerprint: descriptor.fingerprint,
+          printedBy: 'user-1',
+          printedByName: 'Jamie',
+          printedAt: '2026-07-20T14:42:00.000Z',
+        },
+      ],
+      returnTo: '/shows/show-1/show-day',
+    });
+    expect(map.get('class-1')?.find(item => item.reportId === 'armband-labels')).toMatchObject({
+      state: 'current',
+    });
+  });
+
   it('derives current and stale Armband Label evidence from Dog/day coverage', () => {
     const scope = {
       kind: 'class' as const,

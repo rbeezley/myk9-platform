@@ -84,8 +84,7 @@ export default function ResultsTab() {
   const showId = params.showId ?? params.id ?? '';
   const [searchParams, setSearchParams] = useSearchParams();
   const state = readResultsTabUrlState(searchParams);
-  const { rows, trials, readState, retry, refreshFailed, paperworkAvailable } =
-    useResultsTabData(showId);
+  const { rows, trials, readState, retry, refreshFailed } = useResultsTabData(showId);
   const release = useReleaseResults();
   const { pathname, search } = useLocation();
   const judgeSignOff = useJudgeSignOffMutations();
@@ -104,6 +103,20 @@ export default function ResultsTab() {
       }),
     [setSearchParams]
   );
+
+  // Print all ready is a shortcut to the Needs printing filter: the print rows live in each
+  // class's detail. Beside the list (desktop) the first match opens so they are on screen at once;
+  // below `lg` selecting a class replaces the list, so only the filter is applied and the list
+  // shows the classes to open one by one.
+  const printAllReady = () => {
+    const first = rows.find(row => matchesResultsStatusFilter(row.phase, 'needs-printing'));
+    update({
+      status: 'needs-printing',
+      trialId: null,
+      search: '',
+      ...(isWide && first ? { classId: first.id } : { classId: null }),
+    });
+  };
 
   const visibleRows = useMemo(
     () =>
@@ -350,10 +363,8 @@ export default function ResultsTab() {
             state={state}
             trials={trials}
             rows={rows}
-            timeZone={timeZone}
-            paperworkAvailable={paperworkAvailable}
-            onRetry={retry}
             onChange={update}
+            onPrintAllReady={printAllReady}
             onOpenVisibility={() => setVisibilityOpen(true)}
           />
         }

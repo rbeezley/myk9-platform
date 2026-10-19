@@ -963,16 +963,42 @@ describe('ResultsTab toolbar', () => {
     expect(screen.getByTestId('visibility-sheet')).toBeInTheDocument();
   });
 
-  it('counts the released classes still to print on Print all ready', async () => {
+  it('counts the released classes still to print on Print all ready', () => {
+    renderAt();
+
+    expect(screen.getByRole('button', { name: /Print all ready/ })).toHaveTextContent('(1)');
+  });
+
+  it('Print all ready applies the Needs printing filter without a dialog (list only below lg)', async () => {
+    const { user } = renderAt('?status=all');
+
+    await user.click(screen.getByRole('button', { name: /Print all ready/ }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Show' })).toHaveTextContent('Needs printing');
+    const list = screen.getByRole('list', { name: 'Classes' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(list).getByText('Containers Open')).toBeInTheDocument();
+  });
+
+  it('Print all ready opens the first class needing printing, with its print rows, when wide', async () => {
+    media.wide = true;
+    const { user } = renderAt('?status=all');
+
+    await user.click(screen.getByRole('button', { name: /Print all ready/ }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const list = screen.getByRole('list', { name: 'Classes' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.getByRole('region', { name: 'Class results' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Print: Containers Open' })).toBeInTheDocument();
+  });
+
+  it('counts the Needs printing filter option', async () => {
     const { user } = renderAt();
 
-    const button = screen.getByRole('button', { name: /Print all ready/ });
-    expect(button).toHaveTextContent('(1)');
-
-    await user.click(button);
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Containers Open')).toBeInTheDocument();
-    expect(within(dialog).queryByText('Containers Advanced')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('combobox', { name: 'Show' }));
+    expect(screen.getByRole('option', { name: /Needs printing/ })).toHaveTextContent('1');
   });
 });
 

@@ -129,7 +129,13 @@ export const RESULTS_PHASE_LABEL: Record<ResultsClassPhase, string> = {
 };
 
 export type ResultsStatusFilterId =
-  'needs-me' | 'all' | 'needs-checking' | 'ready-to-release' | 'released' | 'done';
+  | 'needs-me'
+  | 'all'
+  | 'needs-checking'
+  | 'ready-to-release'
+  | 'needs-printing'
+  | 'released'
+  | 'done';
 
 export const DEFAULT_RESULTS_STATUS_FILTER: ResultsStatusFilterId = 'needs-me';
 
@@ -145,6 +151,8 @@ const FILTER_PHASES: Record<ResultsStatusFilterId, ReadonlySet<ResultsClassPhase
   all: null,
   'needs-checking': new Set(['needs-checking']),
   'ready-to-release': new Set(['ready-to-release']),
+  // Released, paperwork not yet printed: exactly what the Print all ready button counts.
+  'needs-printing': new Set(['released']),
   released: new Set(['released', 'needs-initials', 'done']),
   done: new Set(['done']),
 };
@@ -165,6 +173,7 @@ export const RESULTS_STATUS_FILTER_OPTIONS: readonly {
   { id: 'all', label: 'All classes' },
   { id: 'needs-checking', label: 'Needs checking' },
   { id: 'ready-to-release', label: 'Ready to release' },
+  { id: 'needs-printing', label: 'Needs printing' },
   { id: 'released', label: 'Released' },
   { id: 'done', label: 'Done' },
 ];

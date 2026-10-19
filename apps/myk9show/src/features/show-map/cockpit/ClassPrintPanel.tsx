@@ -1,4 +1,5 @@
 import { createRef, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Printer } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -51,7 +52,11 @@ export function ClassPrintPanel({
   items: readonly SecretaryCockpitPaperwork[];
   onClose: () => void;
 }) {
-  return (
+  // The panel opens from the focused-class card, which is `position: sticky` and so its own
+  // stacking context: rendered in place, the whole panel stacks under the pinned show header.
+  // It goes to the app root instead, which keeps the page "behind" it in the same tree for
+  // SlideOverPanel's focus handling.
+  return createPortal(
     <SlideOverPanel
       open={open}
       onClose={onClose}
@@ -69,7 +74,8 @@ export function ClassPrintPanel({
           onDone={onClose}
         />
       )}
-    </SlideOverPanel>
+    </SlideOverPanel>,
+    document.getElementById('root') ?? document.body
   );
 }
 

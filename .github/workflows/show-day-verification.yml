@@ -8,6 +8,9 @@ on:
       - 'apps/myk9show/playwright.show-day.config.ts'
       - 'apps/myk9show/tsconfig.show-day.json'
       - 'apps/myk9show/src/test/e2e/verification/**'
+      # Trigger filter: editing only the short proof must not launch the hour-long job.
+      # The Playwright testMatch controls discovery after a workflow has started.
+      - '!apps/myk9show/src/test/e2e/verification/batch3Scoring.spec.ts'
 
 permissions:
   contents: read

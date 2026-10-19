@@ -1,0 +1,127 @@
+name: Isolated batch 3 scoring verification
+
+on:
+  workflow_dispatch:
+  # Run every PR: save-path dependencies extend beyond the scoring pages.
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: isolated-batch3-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  proof:
+    # No shared secrets: fork PRs use the same generated runner-only credentials.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
+      MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
+      MYK9_E2E_APPROVED_PROJECT_REFS: local
+      MYK9_E2E_SUPABASE_PROJECT_REF: local
+      MYK9_SHOW_DAY_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: supabase/setup-cli@v3
+        with:
+          version: latest
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate runner-only account passwords
+        shell: bash
+        run: |
+          set -euo pipefail
+          password="Proof-$(openssl rand -hex 24)!"
+          echo "::add-mask::$password"
+          for name in E2E_ADMIN_PASSWORD E2E_SECRETARY_PASSWORD E2E_JUDGE_PASSWORD E2E_DEMO_EXHIBITOR_PASSWORD; do
+            echo "$name=$password" >> "$GITHUB_ENV"
+          done
+      # The VM is disposable. Docker pulls use the host, while container requests
+      # to any public address (including shared Supabase/email/Stripe) are denied.
+      - name: Restrict containers to local networks
+        run: |
+          set -euo pipefail
+          sudo iptables -N DOCKER-USER 2>/dev/null || true
+          sudo iptables -I DOCKER-USER 1 -d 10.0.0.0/8 -j RETURN
+          sudo iptables -I DOCKER-USER 2 -d 172.16.0.0/12 -j RETURN
+          sudo iptables -I DOCKER-USER 3 -d 192.168.0.0/16 -j RETURN
+          sudo iptables -I DOCKER-USER 4 -j DROP
+          sudo iptables -C FORWARD -j DOCKER-USER || sudo iptables -I FORWARD 1 -j DOCKER-USER
+      - name: Prepare disposable local Supabase
+        run: pnpm qa:isolated-e2e:prepare
+      - name: Prove local connectivity and blocked public egress
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The host can pull images; containers must not reach public services.
+          curl --noproxy '*' --silent --show-error --connect-timeout 5 --max-time 10 \
+            --output /dev/null https://1.1.1.1
+          mapfile -t gateways < <(docker ps --format '{{.Names}}' | grep '^supabase_kong_')
+          test "${#gateways[@]}" -eq 1
+          gateway="${gateways[0]}"
+          mapfile -t networks < <(docker inspect "$gateway" --format '{{range $name, $value := .NetworkSettings.Networks}}{{$name}}{{"\n"}}{{end}}' | sed '/^$/d')
+          test "${#networks[@]}" -eq 1
+          network="${networks[0]}"
+          # This proof installs IPv4 rules; fail closed if the stack enables IPv6.
+          test "$(docker network inspect "$network" --format '{{.EnableIPv6}}')" = false
+          docker pull curlimages/curl:8.12.1
+          docker run --rm --network "$network" curlimages/curl:8.12.1 \
+            --noproxy '*' --fail --silent --show-error --max-time 10 \
+            --header "apikey: $MYK9_E2E_SUPABASE_ANON_KEY" \
+            "http://$gateway:8000/auth/v1/health" --output /dev/null
+          set +e
+          docker run --rm --network "$network" curlimages/curl:8.12.1 \
+            --noproxy '*' --silent --show-error --connect-timeout 3 --max-time 5 \
+            https://1.1.1.1 --output /dev/null
+          probe_status=$?
+          set -e
+          test "$probe_status" -eq 28
+          echo 'Local Supabase reachable; public-IP connection timed out on the stack network.'
+      - name: Verify isolated target
+        run: pnpm exec tsx scripts/qa/verify-isolated-e2e-target.ts
+      - name: Stamp tested source
+        run: git rev-parse HEAD > apps/myk9show/public/build-sha.txt
+      - name: Build current app and packages
+        run: pnpm build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+      - name: Install Chromium
+        run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
+      - name: Compile proof tests
+        working-directory: apps/myk9show
+        run: pnpm exec tsc --noEmit -p tsconfig.show-day.json
+      - name: Scoring persistence and placement/print parity
+        working-directory: apps/myk9show
+        run: pnpm exec playwright test --config=playwright.batch3.config.ts --workers=1 --retries=0 --fail-on-flaky-tests
+        env:
+          CI: 'true'
+      - name: Verify reports contain no credentials
+        id: verify-artifacts
+        if: always()
+        working-directory: apps/myk9show
+        run: pnpm exec tsx scripts/verify-artifact-secrets.ts --skip-zip-files playwright-report-ci test-results
+      - name: Preserve isolated evidence
+        # Keep the explicit exclusion required by playwrightArtifactScrubbing.test.ts;
+        # success also prevents uploads when the scanner is skipped or cancelled.
+        if: ${{ always() && steps.verify-artifacts.outcome != 'failure' && steps.verify-artifacts.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: isolated-batch3-proof
+          path: |
+            apps/myk9show/playwright-report-ci/
+            apps/myk9show/test-results/
+            !apps/myk9show/playwright-report-ci/**/*.zip
+            !apps/myk9show/test-results/**/*.zip
+          retention-days: 7
+      - name: Stop disposable target
+        if: always()
+        run: pnpm qa:isolated-e2e:stop

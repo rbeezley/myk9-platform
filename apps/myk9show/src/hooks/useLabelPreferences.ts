@@ -44,6 +44,9 @@ function loadPrefs(): LabelPreferences {
         ...DEFAULT_CONTENT_CONFIG,
         ...savedContentConfig,
         showAccessCode: savedContentConfig.showAccessCode ?? legacyShowAccessCode ?? true,
+        // Prefs saved before the breed option (MYK9-1233) carry the old handler-off default,
+        // not a choice: they pick up handler-on once, and every later save keeps `breed`.
+        ...(savedContentConfig.breed === undefined ? { handlerName: true } : {}),
       },
     };
   } catch {

@@ -120,16 +120,29 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
   );
   const pages = useMemo(() => buildLabelPages(template, items, skip), [template, items, skip]);
 
+  const numberDigits = useMemo(
+    () => items.reduce((max, item) => Math.max(max, String(item.armband).length), 1),
+    [items]
+  );
   const sharedCellProps = useMemo(
     () => ({
       config,
       labelHeight: template.labelHeight,
       labelWidth: template.labelWidth,
+      numberDigits,
       passcode: passcodes?.exhibitor,
       wifiNetwork: config.venueWifi ? (wifiNetwork ?? undefined) : undefined,
       wifiPassword: config.venueWifi ? (wifiPassword ?? undefined) : undefined,
     }),
-    [config, template.labelHeight, template.labelWidth, passcodes, wifiNetwork, wifiPassword]
+    [
+      config,
+      template.labelHeight,
+      template.labelWidth,
+      numberDigits,
+      passcodes,
+      wifiNetwork,
+      wifiPassword,
+    ]
   );
 
   const writeLabelIframe = useCallback(() => {
@@ -291,6 +304,14 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                 onCheckedChange={checked => updateConfig('callName', checked === true)}
               />
               <span>Dog&apos;s Call Name</span>
+            </label>
+            <label htmlFor="cfg-breed" className={TAP_ROW}>
+              <Checkbox
+                id="cfg-breed"
+                checked={config.breed}
+                onCheckedChange={checked => updateConfig('breed', checked === true)}
+              />
+              <span>Dog&apos;s Breed</span>
             </label>
             <label htmlFor="cfg-trialDate" className={TAP_ROW}>
               <Checkbox

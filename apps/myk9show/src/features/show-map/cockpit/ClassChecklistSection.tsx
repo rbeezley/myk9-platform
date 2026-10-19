@@ -141,6 +141,25 @@ export function ClassChecklistSection({
           {`Print selected (${tickedPrintable.length})`}
         </Button>
       )}
+      {/* Armband labels first: exhibitors need them before check-in (owner, MYK9-1233). */}
+      {otherPaperwork.length > 0 && (
+        <section>
+          <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Other paperwork
+          </h3>
+          <div className="mt-2 space-y-2">
+            {otherPaperwork.map(item => (
+              <CockpitPaperworkRow
+                key={item.reportId}
+                item={item}
+                timeZone={timeZone}
+                onCommand={onCommand}
+                {...rowProps(item)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
       {items.length > 0 && (
         <section aria-labelledby="class-checklist-heading">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -171,25 +190,6 @@ export function ClassChecklistSection({
               </li>
             ))}
           </ol>
-        </section>
-      )}
-
-      {otherPaperwork.length > 0 && (
-        <section>
-          <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Other paperwork
-          </h3>
-          <div className="mt-2 space-y-2">
-            {otherPaperwork.map(item => (
-              <CockpitPaperworkRow
-                key={item.reportId}
-                item={item}
-                timeZone={timeZone}
-                onCommand={onCommand}
-                {...rowProps(item)}
-              />
-            ))}
-          </div>
         </section>
       )}
       <ClassPrintPanel

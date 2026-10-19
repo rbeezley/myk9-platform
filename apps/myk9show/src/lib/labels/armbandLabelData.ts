@@ -11,8 +11,10 @@ export function selectArmbandLabelEntries(
     return true;
   });
 
+  // A dog's entries may name different handlers, and the query has no order: pick by entry id
+  // so the label (and its print fingerprint) does not change between fetches.
   const selected = new Map<string, ArmbandLabelEntry>();
-  for (const entry of scoped) {
+  for (const entry of [...scoped].sort((a, b) => a.id.localeCompare(b.id))) {
     const dogKey = entry.dogId || `armband:${entry.armband}`;
     const dayKey = entry.calendarDay || entry.trialDate || entry.id;
     const key = `${dogKey}:${dayKey}`;
@@ -50,6 +52,7 @@ export function prepareArmbandLabelItems(entries: ArmbandLabelEntry[]): ArmbandL
     .map(e => ({
       armband: e.armband,
       callName: e.callName,
+      breed: e.breed,
       handler: e.handler,
       trialDate: e.trialDate,
     }));

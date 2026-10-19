@@ -96,6 +96,18 @@ export function isExpectedEntry(entry: EntryAccountingFields): boolean {
   return !EXCLUDED_ENTRY_STATUSES.has(entryStatus) && checkInStatus !== 'pulled';
 }
 
+/**
+ * True when the entry was pulled (check-in `pulled`) or scratched, so any
+ * result it carries was recorded BEFORE the pull and is not shown to the
+ * exhibitor (MYK9-1258). One predicate for every exhibitor result surface.
+ * Deliberately a display rule: scoring accounting still uses `isAccountedFor`.
+ */
+export function isPulledEntry(entry: EntryAccountingFields): boolean {
+  const checkInStatus = normalized(entry.checkInStatus ?? entry.check_in_status);
+  const entryStatus = normalized(entry.entryStatus ?? entry.entry_status ?? entry.status);
+  return checkInStatus === 'pulled' || entryStatus === 'scratched';
+}
+
 /** True when the entry no longer represents outstanding scoring work. */
 export function isAccountedFor(entry: EntryAccountingFields): boolean {
   const resultStatus = normalized(entry.resultStatus ?? entry.result_status);

@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { Printer } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { CockpitPaperworkRow } from '@/features/show-map/cockpit/CockpitPaperworkRow';
 import { PrintStatusUnavailable } from './PrintStatusUnavailable';
 import type { ResultsClassRow } from './buildResultsClassRows';
@@ -43,37 +49,38 @@ export function PrintAllReadyDialog({
         Print all ready
         {ready.length > 0 && <span aria-hidden="true">({ready.length})</span>}
       </Button>
-      <SlideOverPanel
-        open={open}
-        onClose={() => setOpen(false)}
-        title="Print all ready"
-        subtitle="Released classes that still need their results sheet or ribbon labels printed."
-        size="lg"
-      >
-        <div className="space-y-4 p-6">
-          {!paperworkAvailable && <PrintStatusUnavailable onRetry={onRetry} />}
-          {ready.map(row => (
-            <section key={row.id} className="space-y-2" aria-label={row.name}>
-              <h3 className="text-sm font-semibold">
-                {row.name}
-                <span className="font-normal text-muted-foreground"> · {row.trialLabel}</span>
-              </h3>
-              {row.paperwork.map(item => (
-                <CockpitPaperworkRow
-                  key={item.reportId}
-                  item={{ ...item, label: PRINT_LABEL[item.reportId] ?? item.label }}
-                  timeZone={timeZone}
-                  onCommand={() => undefined}
-                  confirmInline
-                />
-              ))}
-            </section>
-          ))}
-          {ready.length === 0 && (
-            <p className="text-sm text-muted-foreground">Everything released is printed.</p>
-          )}
-        </div>
-      </SlideOverPanel>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Print all ready</DialogTitle>
+            <DialogDescription>
+              Released classes that still need their results sheet or ribbon labels printed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {!paperworkAvailable && <PrintStatusUnavailable onRetry={onRetry} />}
+            {ready.map(row => (
+              <section key={row.id} className="space-y-2" aria-label={row.name}>
+                <h3 className="text-sm font-semibold">
+                  {row.name}
+                  <span className="font-normal text-muted-foreground"> · {row.trialLabel}</span>
+                </h3>
+                {row.paperwork.map(item => (
+                  <CockpitPaperworkRow
+                    key={item.reportId}
+                    item={{ ...item, label: PRINT_LABEL[item.reportId] ?? item.label }}
+                    timeZone={timeZone}
+                    onCommand={() => undefined}
+                  />
+                ))}
+              </section>
+            ))}
+            {ready.length === 0 && (
+              <p className="text-sm text-muted-foreground">Everything released is printed.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

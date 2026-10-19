@@ -971,7 +971,6 @@ describe('ResultsTab toolbar', () => {
 
     await user.click(button);
     const dialog = await screen.findByRole('dialog');
-    expect(dialog.querySelector('.slide-over-panel')).not.toBeNull();
     expect(within(dialog).getByText('Containers Open')).toBeInTheDocument();
     expect(within(dialog).queryByText('Containers Advanced')).not.toBeInTheDocument();
   });

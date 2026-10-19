@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { CheckCircle2, Clock3, Printer, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -12,10 +12,7 @@ import { replicatedPaperworkPrintsTable } from '@/services/replication';
 import { recordPaperworkPrinted, voidPaperworkPrint } from './paperworkPrintActions';
 import type { PaperworkDescriptor } from './paperworkPrintState';
 import { CockpitActionLink } from './CockpitActionLink';
-import {
-  PaperworkPrintConfirmationDialog,
-  PaperworkPrintConfirmationInline,
-} from './PaperworkPrintConfirmationDialog';
+import { PaperworkPrintConfirmationDialog } from './PaperworkPrintConfirmationDialog';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 
 export function CockpitPaperworkRow({
@@ -25,7 +22,6 @@ export function CockpitPaperworkRow({
   onPrint,
   selected,
   onSelectedChange,
-  confirmInline = false,
 }: {
   item: SecretaryCockpitPaperwork;
   timeZone: string;
@@ -39,17 +35,10 @@ export function CockpitPaperworkRow({
   /** With `onSelectedChange`, shows a checkbox so several sheets print together. */
   selected?: boolean;
   onSelectedChange?: (selected: boolean) => void;
-  /**
-   * Asks the physical-print question inside the row instead of an AlertDialog. A row hosted in a
-   * slide-out sets it: recording a print is routine, and a dialog never stacks on a slide-out
-   * for a routine step (docs/INTENT.md).
-   */
-  confirmInline?: boolean;
 }) {
   const { user } = useAuthContext();
   const [isRecording, setIsRecording] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const recordButtonRef = useRef<HTMLButtonElement>(null);
   const [voidRecordId, setVoidRecordId] = useState<string | null>(null);
   const current = item.state === 'current';
   const stale = item.state === 'stale';
@@ -173,7 +162,6 @@ export function CockpitPaperworkRow({
       </div>
       {item.confirmation && user && !onPrint && (
         <button
-          ref={recordButtonRef}
           type="button"
           className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary underline-offset-4 hover:underline disabled:opacity-60"
           disabled={isRecording}
@@ -182,33 +170,16 @@ export function CockpitPaperworkRow({
           {isRecording ? 'Recording…' : 'Record as printed'}
         </button>
       )}
-      {confirmInline ? (
-        confirmOpen && (
-          <PaperworkPrintConfirmationInline
-            reportLabel={item.label}
-            isSaving={isRecording}
-            onCancel={() => {
-              setConfirmOpen(false);
-              recordButtonRef.current?.focus();
-            }}
-            onConfirm={() => {
-              setConfirmOpen(false);
-              void recordAsPrinted();
-            }}
-          />
-        )
-      ) : (
-        <PaperworkPrintConfirmationDialog
-          open={confirmOpen}
-          reportLabel={item.label}
-          isSaving={isRecording}
-          onOpenChange={setConfirmOpen}
-          onConfirm={() => {
-            setConfirmOpen(false);
-            void recordAsPrinted();
-          }}
-        />
-      )}
+      <PaperworkPrintConfirmationDialog
+        open={confirmOpen}
+        reportLabel={item.label}
+        isSaving={isRecording}
+        onOpenChange={setConfirmOpen}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          void recordAsPrinted();
+        }}
+      />
       {item.history && item.history.length > 0 && (
         <details className="mt-2 text-xs text-muted-foreground">
           <summary className="cursor-pointer font-medium text-foreground">

@@ -30,6 +30,24 @@ const getLogEndpoint = (): string | undefined => {
   }
 };
 
+/**
+ * True when `url` is the remote log endpoint. Anything that reports failed
+ * requests must skip it: reporting a failed log POST sends another log POST
+ * (MYK9-1251).
+ */
+export const isLogEndpointUrl = (url: string): boolean => {
+  const endpoint = getLogEndpoint();
+  if (!endpoint) return false;
+  try {
+    const base = typeof window !== 'undefined' ? window.location.href : undefined;
+    const target = new URL(url, base);
+    const logUrl = new URL(endpoint, base);
+    return target.origin === logUrl.origin && target.pathname === logUrl.pathname;
+  } catch {
+    return false;
+  }
+};
+
 const getAnonKey = (): string | undefined => {
   try {
     return typeof import.meta !== 'undefined' ? import.meta.env?.VITE_SUPABASE_ANON_KEY : undefined;

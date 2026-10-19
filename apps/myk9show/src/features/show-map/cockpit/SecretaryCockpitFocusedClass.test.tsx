@@ -279,6 +279,8 @@ describe('SecretaryCockpitFocusedClass delay announcement', () => {
     await user.click(screen.getByRole('button', { name: 'Announce the delay' }));
 
     const dialog = screen.getByRole('dialog', { name: 'Announce the delay' });
+    // A slide-out, not a centered dialog (docs/INTENT.md, Decision vs Work).
+    expect(dialog.querySelector('.slide-over-panel')).not.toBeNull();
     expect(within(dialog).getByLabelText('Affected class')).toHaveValue('Container Novice');
     expect(within(dialog).getByLabelText('Delay minutes')).toHaveValue('45');
     expect((within(dialog).getByLabelText('PA script') as HTMLTextAreaElement).value).toContain(

@@ -18,9 +18,6 @@ export type {
 export { LiveScoreUpdates } from './LiveScoreUpdates';
 export type { LiveScoreUpdatesProps } from './LiveScoreUpdates';
 
-export { ScoringConflictHandler } from './ScoringConflictHandler';
-export type { ScoringConflictHandlerProps } from './ScoringConflictHandler';
-
 export { default as JudgeSyncDashboard } from './JudgeSyncDashboard';
 export type { JudgeSyncDashboardProps } from '@/utils/scoringUtils';
 

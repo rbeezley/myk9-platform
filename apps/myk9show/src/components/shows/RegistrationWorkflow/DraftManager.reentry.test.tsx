@@ -48,6 +48,18 @@ describe('DraftManager reentry', () => {
     expect(screen.getByText(/select a dog below to start a different entry/i)).toBeInTheDocument();
   });
 
+  it('opens the saved drafts in a slide-out and loads the selected one', () => {
+    const { loadDraft } = renderManager({ showResume: false });
+
+    fireEvent.click(screen.getByRole('button', { name: /Load Draft/ }));
+    const panel = screen.getByRole('dialog', { name: 'Load Registration Draft' });
+    expect(panel.querySelector('.slide-over-panel')).not.toBeNull();
+
+    fireEvent.click(screen.getByText('My entry'));
+    fireEvent.click(screen.getByRole('button', { name: /Load Selected Draft/ }));
+    expect(loadDraft).toHaveBeenCalledWith('draft-1');
+  });
+
   it('does not offer an empty or completed entry as resumable', () => {
     renderManager({
       availableDrafts: [

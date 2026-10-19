@@ -29,7 +29,7 @@ import {
 } from './permissionDisplay';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
-interface RolePermissionsEditorProps {
+export interface RolePermissionsEditorProps {
   role: Role;
   permissions: Permission[];
   grantedPermissionIds: string[];

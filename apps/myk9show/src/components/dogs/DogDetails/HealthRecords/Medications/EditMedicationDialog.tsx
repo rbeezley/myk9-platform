@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import DatePickerField from '@/components/common/DatePickerField';
 import type { MedicationRecord } from '@/types/health';
+import { FieldError, fieldErrorControlProps, useSubmitFieldErrors } from '@/components/forms';
 
 interface EditMedicationDialogProps {
   open: boolean;
@@ -31,18 +32,17 @@ const EditMedicationDialog: React.FC<EditMedicationDialogProps> = ({
   const [notes, setNotes] = useState(record?.notes || '');
   const [startDate, setStartDate] = useState(record?.start_date || '');
   const [endDate, setEndDate] = useState(record?.end_date || '');
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const errors: Record<string, string> = {};
+  if (!medicationName.trim()) errors.editMedicationName = 'Enter the medication name.';
+  if (!dosage.trim()) errors.editDosage = 'Enter the dosage.';
+  const { shown, fail } = useSubmitFieldErrors(errors);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!record) return;
-    // Validate at the form boundary in addition to native `required`
-    // attributes so an invalid submission never reaches the mutation.
-    if (!medicationName.trim() || !dosage.trim()) {
-      setValidationError('Name and Dosage are required.');
-      return;
-    }
-    setValidationError(null);
+    // The per-field error map guards the mutation: an invalid submission never reaches it.
+    // `required` stays on the inputs for semantics; the form is noValidate so the callouts show.
+    if (fail()) return;
     onSave({
       ...record,
       medication_name: medicationName,
@@ -68,9 +68,9 @@ const EditMedicationDialog: React.FC<EditMedicationDialogProps> = ({
       saveLabel="Save"
       isSubmitting={isSaving}
     >
-      {(validationError || saveError) && (
+      {saveError && (
         <p role="alert" aria-live="assertive" className="text-sm text-destructive mb-3">
-          {validationError ?? `${saveError} The record was not saved. Please try again.`}
+          {`${saveError} The record was not saved. Please try again.`}
         </p>
       )}
       {/*
@@ -81,6 +81,7 @@ const EditMedicationDialog: React.FC<EditMedicationDialogProps> = ({
 */}
       <form
         id="edit-medication-form"
+        noValidate
         onSubmit={handleSubmit}
         className="py-4 min-w-[350px] max-w-[500px] mx-auto"
       >
@@ -91,7 +92,9 @@ const EditMedicationDialog: React.FC<EditMedicationDialogProps> = ({
               value={medicationName}
               onChange={e => setMedicationName(e.target.value)}
               required
+              {...fieldErrorControlProps('editMedicationName', shown.editMedicationName)}
             />
+            <FieldError field="editMedicationName" message={shown.editMedicationName} />
           </FormField>
           <FormField label="Dosage" fieldId="editDosage" required>
             <Input
@@ -99,7 +102,9 @@ const EditMedicationDialog: React.FC<EditMedicationDialogProps> = ({
               value={dosage}
               onChange={e => setDosage(e.target.value)}
               required
+              {...fieldErrorControlProps('editDosage', shown.editDosage)}
             />
+            <FieldError field="editDosage" message={shown.editDosage} />
           </FormField>
           <FormField label="Frequency" fieldId="editFrequency">
             <Input

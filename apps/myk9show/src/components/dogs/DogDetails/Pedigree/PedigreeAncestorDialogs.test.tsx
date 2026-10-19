@@ -110,9 +110,9 @@ describe('PedigreeAncestorAddDialog', () => {
     await user.click(screen.getByRole('button', { name: /add/i }));
 
     expect(onAdd).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      /enter both registry organization and registration number, or neither/i
-    );
+    expect(
+      screen.getByText('Enter the registration number, or clear the registry organization.')
+    ).toBeInTheDocument();
   });
 
   it('does not call onAdd when only Registration # is filled', async () => {
@@ -135,9 +135,9 @@ describe('PedigreeAncestorAddDialog', () => {
     await user.click(screen.getByRole('button', { name: /add/i }));
 
     expect(onAdd).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      /enter both registry organization and registration number, or neither/i
-    );
+    expect(
+      screen.getByText('Enter the registry organization, or clear the registration number.')
+    ).toBeInTheDocument();
   });
 });
 

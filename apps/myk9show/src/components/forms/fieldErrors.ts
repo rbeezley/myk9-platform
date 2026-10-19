@@ -21,12 +21,22 @@ export function fieldErrorId(fieldId: string): string {
   return `${fieldId}-error`;
 }
 
-/** aria wiring for a control whose error is `message` (empty when valid). */
+/**
+ * aria wiring for a control whose error is `message` (empty when valid). `alsoDescribedBy` is an
+ * id the control is described by regardless (a hint), listed before the error's own id.
+ */
 export function fieldErrorControlProps(
   fieldId: string,
-  message: string | undefined
+  message: string | undefined,
+  alsoDescribedBy?: string
 ): { 'aria-invalid'?: true; 'aria-describedby'?: string } {
-  return message ? { 'aria-invalid': true, 'aria-describedby': fieldErrorId(fieldId) } : {};
+  const describedBy = [alsoDescribedBy, message ? fieldErrorId(fieldId) : undefined]
+    .filter(Boolean)
+    .join(' ');
+  return {
+    ...(message && { 'aria-invalid': true as const }),
+    ...(describedBy && { 'aria-describedby': describedBy }),
+  };
 }
 
 /** Every field error in scope, for lists of controls that cannot call a hook per row. */
@@ -124,7 +134,10 @@ export function focusFirstFieldControl(
   if (!target) return false;
   target.focus({ preventScroll: true });
   if (typeof target.scrollIntoView === 'function') {
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // A control taller than the screen (a group of checkboxes) centred would leave its own
+    // callout above the fold; show its top instead.
+    const tall = target.getBoundingClientRect().height > window.innerHeight * 0.8;
+    target.scrollIntoView({ behavior: 'smooth', block: tall ? 'start' : 'center' });
   }
   return true;
 }

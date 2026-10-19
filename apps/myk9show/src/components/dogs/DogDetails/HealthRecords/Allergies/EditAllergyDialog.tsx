@@ -4,6 +4,7 @@ import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { AllergyRecord } from '@/types/health';
+import { FieldError, fieldErrorControlProps, useSubmitFieldErrors } from '@/components/forms';
 
 interface EditAllergyDialogProps {
   open: boolean;
@@ -31,18 +32,16 @@ const EditAllergyDialog: React.FC<EditAllergyDialogProps> = ({
   const [severity, setSeverity] = useState<AllergySeverityInput>(record?.severity || '');
   const [discoveredDate, setDiscoveredDate] = useState(record?.discovered_date || '');
   const [notes, setNotes] = useState(record?.notes || '');
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const errors: Record<string, string> = {};
+  if (!allergen.trim()) errors.editAllergyName = 'Enter the allergy name.';
+  const { shown, fail } = useSubmitFieldErrors(errors);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!record) return;
-    // Validate at the form boundary in addition to native `required`
-    // attributes so an invalid submission never reaches the mutation.
-    if (!allergen.trim()) {
-      setValidationError('Allergy Name is required.');
-      return;
-    }
-    setValidationError(null);
+    // The per-field error map guards the mutation: an invalid submission never reaches it.
+    // `required` stays on the inputs for semantics; the form is noValidate so the callouts show.
+    if (fail()) return;
     onSave({
       ...record,
       allergen,
@@ -67,12 +66,17 @@ const EditAllergyDialog: React.FC<EditAllergyDialogProps> = ({
       saveLabel="Save"
       isSubmitting={isSaving}
     >
-      {(validationError || saveError) && (
+      {saveError && (
         <p role="alert" aria-live="assertive" className="text-sm text-destructive mb-3">
-          {validationError ?? `${saveError} The record was not saved. Please try again.`}
+          {`${saveError} The record was not saved. Please try again.`}
         </p>
       )}
-      <form id="edit-allergy-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form
+        id="edit-allergy-form"
+        noValidate
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-4"
+      >
         <FormField label="Allergy Name" fieldId="editAllergyName" required>
           <Input
             id="editAllergyName"
@@ -80,7 +84,9 @@ const EditAllergyDialog: React.FC<EditAllergyDialogProps> = ({
             value={allergen}
             onChange={e => setAllergen(e.target.value)}
             required
+            {...fieldErrorControlProps('editAllergyName', shown.editAllergyName)}
           />
+          <FieldError field="editAllergyName" message={shown.editAllergyName} />
         </FormField>
         <FormField label="Reaction" fieldId="editAllergyReaction">
           <Input

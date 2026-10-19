@@ -8,7 +8,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 
-export interface DatePickerProps {
+export interface DatePickerProps extends Pick<
+  React.AriaAttributes,
+  'aria-invalid' | 'aria-describedby'
+> {
   date: Date | undefined;
   setDate: (date: Date | undefined) => void;
   className?: string;
@@ -17,6 +20,8 @@ export interface DatePickerProps {
   required?: boolean;
   name?: string | undefined;
   id?: string | undefined;
+  /** id on the visible trigger button (`id` lands on the hidden form input). */
+  triggerId?: string | undefined;
   onBlur?: React.FocusEventHandler<HTMLInputElement>;
 }
 
@@ -29,6 +34,9 @@ export function DatePicker({
   required = false,
   name,
   id,
+  triggerId,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedBy,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
   // Create a formatted string for display
@@ -40,6 +48,9 @@ export function DatePicker({
         <Button
           variant="outline"
           type="button"
+          id={triggerId}
+          aria-invalid={ariaInvalid}
+          aria-describedby={ariaDescribedBy}
           className={cn(
             'w-full justify-start text-left font-normal bg-[var(--dialog-input-bg)] dark:bg-[#1a1d23]',
             !date && 'text-muted-foreground',

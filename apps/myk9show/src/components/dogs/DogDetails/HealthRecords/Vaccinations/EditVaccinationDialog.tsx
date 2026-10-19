@@ -4,6 +4,7 @@ import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 import DatePickerField from '@/components/common/DatePickerField';
 import type { VaccinationRecord } from '@/types/health';
+import { FieldError, fieldErrorControlProps, useSubmitFieldErrors } from '@/components/forms';
 
 interface EditVaccinationDialogProps {
   open: boolean;
@@ -28,18 +29,19 @@ const EditVaccinationDialog: React.FC<EditVaccinationDialogProps> = ({
   const [dateGiven, setDateGiven] = useState(record?.date_given || '');
   const [expirationDate, setExpirationDate] = useState(record?.expiration_date || '');
   const [vetName, setVeterinarian] = useState(record?.vet_name || '');
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const errors: Record<string, string> = {};
+  if (!vaccineName.trim()) errors.editVaccination = 'Enter the vaccine name.';
+  if (!dateGiven) errors.editVaccinationDate = 'Choose the date given.';
+  if (!expirationDate) errors.editVaccinationExpiration = 'Choose the expiration date.';
+  if (!vetName.trim()) errors.editVaccinationVet = "Enter the veterinarian's name.";
+  const { shown, fail } = useSubmitFieldErrors(errors);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!record) return;
-    // Validate at the form boundary in addition to native `required`
-    // attributes so an invalid submission never reaches the mutation.
-    if (!vaccineName.trim() || !dateGiven || !expirationDate || !vetName.trim()) {
-      setValidationError('All fields are required.');
-      return;
-    }
-    setValidationError(null);
+    // The per-field error map guards the mutation: an invalid submission never reaches it.
+    // `required` stays on the inputs for semantics; the form is noValidate so the callouts show.
+    if (fail()) return;
     onSave({
       ...record,
       vaccine_name: vaccineName,
@@ -63,12 +65,17 @@ const EditVaccinationDialog: React.FC<EditVaccinationDialogProps> = ({
       saveLabel="Save"
       isSubmitting={isSaving}
     >
-      {(validationError || saveError) && (
+      {saveError && (
         <p role="alert" aria-live="assertive" className="text-sm text-destructive mb-3">
-          {validationError ?? `${saveError} The record was not saved. Please try again.`}
+          {`${saveError} The record was not saved. Please try again.`}
         </p>
       )}
-      <form id="edit-vaccination-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form
+        id="edit-vaccination-form"
+        noValidate
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-4"
+      >
         <FormField label="Vaccination" fieldId="editVaccination" required>
           <Input
             id="editVaccination"
@@ -76,10 +83,20 @@ const EditVaccinationDialog: React.FC<EditVaccinationDialogProps> = ({
             value={vaccineName}
             onChange={e => setVaccineName(e.target.value)}
             required
+            {...fieldErrorControlProps('editVaccination', shown.editVaccination)}
           />
+          <FieldError field="editVaccination" message={shown.editVaccination} />
         </FormField>
         <div>
-          <DatePickerField label="Date" value={dateGiven} onChange={setDateGiven} required />
+          <DatePickerField
+            label="Date"
+            value={dateGiven}
+            onChange={setDateGiven}
+            required
+            triggerId="editVaccinationDate"
+            {...fieldErrorControlProps('editVaccinationDate', shown.editVaccinationDate)}
+          />
+          <FieldError field="editVaccinationDate" message={shown.editVaccinationDate} />
         </div>
         <div>
           <DatePickerField
@@ -87,7 +104,13 @@ const EditVaccinationDialog: React.FC<EditVaccinationDialogProps> = ({
             value={expirationDate}
             onChange={setExpirationDate}
             required
+            triggerId="editVaccinationExpiration"
+            {...fieldErrorControlProps(
+              'editVaccinationExpiration',
+              shown.editVaccinationExpiration
+            )}
           />
+          <FieldError field="editVaccinationExpiration" message={shown.editVaccinationExpiration} />
         </div>
         <FormField label="Veterinarian" fieldId="editVaccinationVet" required>
           <Input
@@ -96,7 +119,9 @@ const EditVaccinationDialog: React.FC<EditVaccinationDialogProps> = ({
             value={vetName}
             onChange={e => setVeterinarian(e.target.value)}
             required
+            {...fieldErrorControlProps('editVaccinationVet', shown.editVaccinationVet)}
           />
+          <FieldError field="editVaccinationVet" message={shown.editVaccinationVet} />
         </FormField>
       </form>
     </StandardDialog>

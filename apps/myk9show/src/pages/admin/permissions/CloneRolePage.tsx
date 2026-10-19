@@ -26,8 +26,10 @@ import {
 } from 'lucide-react';
 import { rbacService } from '@/services/rbac/RBACService';
 import { Permission, Role } from '@/types/rbac-types';
-import { RolePermissionsEditor } from '@/components/admin/permissions/RolePermissionsEditor';
 import { FormSkeleton } from '@/components/common/SkeletonLoaders';
+import { FieldError, fieldErrorControlProps, useSubmitFieldErrors } from '@/components/forms';
+import { ROLE_FIELD, validateRoleForm } from './roleFormErrors';
+import { RolePermissionsGroup } from './RolePermissionsGroup';
 
 const CloneRolePage: React.FC = () => {
   const { roleId } = useParams<{ roleId: string }>();
@@ -45,6 +47,12 @@ const CloneRolePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const errors = validateRoleForm({
+    name: formData.name,
+    displayName: formData.displayName,
+    selectedPermissionCount: selectedPermissions.length,
+  });
+  const { shown, fail } = useSubmitFieldErrors(errors);
 
   const loadRoleData = useCallback(async () => {
     if (!roleId) return;
@@ -99,27 +107,8 @@ const CloneRolePage: React.FC = () => {
     );
   };
 
-  const validateForm = () => {
-    if (!formData.name.trim()) {
-      setError('Role name is required');
-      return false;
-    }
-
-    if (!formData.displayName.trim()) {
-      setError('Display name is required');
-      return false;
-    }
-
-    if (selectedPermissions.length === 0) {
-      setError('At least one permission must be selected');
-      return false;
-    }
-
-    return true;
-  };
-
   const handleSave = async () => {
-    if (!validateForm()) return;
+    if (fail()) return;
 
     try {
       setIsSaving(true);
@@ -268,7 +257,9 @@ const CloneRolePage: React.FC = () => {
                 value={formData.displayName}
                 onChange={e => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
                 placeholder="e.g., Senior Secretary"
+                {...fieldErrorControlProps(ROLE_FIELD.displayName, shown[ROLE_FIELD.displayName])}
               />
+              <FieldError field={ROLE_FIELD.displayName} message={shown[ROLE_FIELD.displayName]} />
             </div>
 
             <div>
@@ -279,6 +270,7 @@ const CloneRolePage: React.FC = () => {
                   value={formData.name}
                   onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g., senior_secretary"
+                  {...fieldErrorControlProps(ROLE_FIELD.name, shown[ROLE_FIELD.name])}
                 />
                 <Button
                   variant="outline"
@@ -292,6 +284,7 @@ const CloneRolePage: React.FC = () => {
               <p className="text-xs text-muted-foreground mt-1">
                 Used internally - lowercase letters, numbers, and underscores only
               </p>
+              <FieldError field={ROLE_FIELD.name} message={shown[ROLE_FIELD.name]} />
             </div>
 
             <div>
@@ -365,11 +358,12 @@ const CloneRolePage: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <RolePermissionsEditor
+          <RolePermissionsGroup
             role={dummyRole}
             permissions={permissions}
             grantedPermissionIds={selectedPermissions}
             onPermissionChange={handlePermissionChange}
+            error={shown[ROLE_FIELD.permissions]}
           />
         </CardContent>
       </Card>

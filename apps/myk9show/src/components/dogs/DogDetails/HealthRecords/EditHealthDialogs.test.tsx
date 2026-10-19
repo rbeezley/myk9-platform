@@ -183,7 +183,7 @@ describe('health edit dialogs', () => {
     await user.click(screen.getByRole('button', { name: /^save$/i }));
 
     expect(onSave).not.toHaveBeenCalled();
-    expect(screen.getByRole('alert')).toHaveTextContent(/all fields are required/i);
+    expect(screen.getByText('Choose the expiration date.')).toBeInTheDocument();
     // Entered values remain in the still-open form.
     expect(screen.getByRole('textbox', { name: /veterinarian/i })).toHaveValue('Dr. Removed Later');
   });

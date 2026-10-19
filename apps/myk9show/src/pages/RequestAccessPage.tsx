@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { FieldError, fieldErrorControlProps, useSubmitFieldErrors } from '@/components/forms';
 import { PageShell } from '@/components/common/PageShell';
 import { ClubNumberFields } from '@/components/clubs/ClubNumberFields';
 import {
@@ -36,6 +37,14 @@ const RequestAccessPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const normalizedWebsite = normalizeWebsiteUrl(website);
+  const errors: Record<string, string> = {};
+  if (!clubName.trim()) errors['requested-club-name'] = 'Enter the club name.';
+  if (!normalizedWebsite.valid) {
+    errors['requested-club-website'] =
+      'Enter a valid website, like example.com or https://example.com.';
+  }
+  const { shown, fail } = useSubmitFieldErrors(errors);
   const { filteredClubs, filters, setFilters, isLoading, hasError, handleRetry } =
     useBrowseClubsData();
 
@@ -56,25 +65,15 @@ const RequestAccessPage: React.FC = () => {
   const submitNewClub = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = clubName.trim();
-    if (!trimmedName) {
-      setError('Enter the club name before sending your request.');
-      return;
-    }
-
-    const normalizedWebsite = normalizeWebsiteUrl(website);
-    if (!normalizedWebsite.valid) {
-      setError('Please enter a valid website URL (e.g., example.com or https://example.com).');
-      return;
-    }
-    setWebsite(normalizedWebsite.value);
-
-    if (!hasClubRegistryNumber(clubNumbers)) {
-      setClubNumberError(CLUB_NUMBER_REQUIRED_MESSAGE);
-      setError(null);
+    const numbersMissing = !hasClubRegistryNumber(clubNumbers);
+    setClubNumberError(numbersMissing ? CLUB_NUMBER_REQUIRED_MESSAGE : null);
+    setError(null);
+    if (fail()) return;
+    if (numbersMissing || !normalizedWebsite.valid) {
       document.getElementById('requested-club-akc-number')?.focus();
       return;
     }
-    setClubNumberError(null);
+    setWebsite(normalizedWebsite.value);
 
     setIsSubmitting(true);
     setError(null);
@@ -168,7 +167,9 @@ const RequestAccessPage: React.FC = () => {
                     onChange={event => setClubName(event.target.value)}
                     placeholder="Example: Heartland Dog Club"
                     required
+                    {...fieldErrorControlProps('requested-club-name', shown['requested-club-name'])}
                   />
+                  <FieldError field="requested-club-name" message={shown['requested-club-name']} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="requested-club-website">Club website (optional)</Label>
@@ -179,6 +180,14 @@ const RequestAccessPage: React.FC = () => {
                     onChange={event => setWebsite(event.target.value)}
                     onBlur={handleWebsiteBlur}
                     placeholder="https://"
+                    {...fieldErrorControlProps(
+                      'requested-club-website',
+                      shown['requested-club-website']
+                    )}
+                  />
+                  <FieldError
+                    field="requested-club-website"
+                    message={shown['requested-club-website']}
                   />
                 </div>
                 <ClubNumberFields

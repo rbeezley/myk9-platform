@@ -1,6 +1,7 @@
 import React, { useState, useImperativeHandle, forwardRef } from 'react';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
+import { FieldError, fieldErrorControlProps, useSubmitFieldErrors } from '@/components/forms';
 import { DatePicker } from '@/components/ui/date-picker';
 import { parseLocalDateString, formatDateLocal } from '@/utils/dateLocal';
 import {
@@ -56,12 +57,28 @@ const PedigreeAncestorForm = forwardRef<PedigreeAncestorFormRef, PedigreeAncesto
       ...INITIAL_VALUES,
       ...initialValues,
     });
-    const [error, setError] = useState<string | null>(null);
+    const regOrgId = `${formId}-regOrg`;
+    const regNumberId = `${formId}-regNumber`;
+    const nameId = `${formId}-registeredName`;
+    // Registry Org and Registration # are only persisted as a pair (see
+    // PedigreeAncestorAddDialog/EditDialog, which build
+    // `registration_numbers` only when both are present). A half-filled
+    // pair passes native validation but is silently discarded on save,
+    // so the empty half is flagged instead.
+    const errors: Record<string, string> = {};
+    if (!form.registeredName.trim()) errors[nameId] = 'Enter the registered name.';
+    const hasRegOrg = form.regOrg.trim() !== '';
+    const hasRegNumber = form.regNumber.trim() !== '';
+    if (hasRegOrg && !hasRegNumber) {
+      errors[regNumberId] = 'Enter the registration number, or clear the registry organization.';
+    } else if (hasRegNumber && !hasRegOrg) {
+      errors[regOrgId] = 'Enter the registry organization, or clear the registration number.';
+    }
+    const { shown, fail } = useSubmitFieldErrors(errors);
 
     useImperativeHandle(ref, () => ({
       reset: () => {
         setForm({ ...INITIAL_VALUES, ...initialValues });
-        setError(null);
       },
     }));
 
@@ -70,47 +87,22 @@ const PedigreeAncestorForm = forwardRef<PedigreeAncestorFormRef, PedigreeAncesto
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
-      // Validate at the form boundary in addition to native `required`
-      // attributes so an invalid submission never reaches the mutation.
-      if (!form.registeredName.trim()) {
-        setError('Registered Name is required.');
-        return;
-      }
-      // Registry Org and Registration # are only persisted as a pair (see
-      // PedigreeAncestorAddDialog/EditDialog, which build
-      // `registration_numbers` only when both are present). A half-filled
-      // pair passes native validation but is silently discarded on save,
-      // so reject it explicitly here.
-      const hasRegOrg = form.regOrg.trim() !== '';
-      const hasRegNumber = form.regNumber.trim() !== '';
-      if (hasRegOrg !== hasRegNumber) {
-        setError('Enter both registry organization and registration number, or neither.');
-        return;
-      }
-      setError(null);
+      if (fail()) return;
       onSubmit(form);
     };
 
     return (
-      <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-4">
-        {error && (
-          <p role="alert" aria-live="assertive" className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
-        <FormField
-          label="Registered Name"
-          fieldId={`${formId}-registeredName`}
-          required
-          error={!form.registeredName.trim() && error ? error : undefined}
-        >
+      <form id={formId} noValidate onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <FormField label="Registered Name" fieldId={nameId} required>
           <Input
-            id={`${formId}-registeredName`}
+            id={nameId}
             type="text"
             value={form.registeredName}
             onChange={e => update('registeredName', e.target.value)}
             required
+            {...fieldErrorControlProps(nameId, shown[nameId])}
           />
+          <FieldError field={nameId} message={shown[nameId]} />
         </FormField>
         <FormField label="Call Name" fieldId={`${formId}-callName`}>
           <Input
@@ -183,21 +175,25 @@ const PedigreeAncestorForm = forwardRef<PedigreeAncestorFormRef, PedigreeAncesto
         <div className="grid grid-cols-2 gap-4">
           <FormField label="Registry Org" fieldId={`${formId}-regOrg`}>
             <Input
-              id={`${formId}-regOrg`}
+              id={regOrgId}
               type="text"
               value={form.regOrg}
               onChange={e => update('regOrg', e.target.value)}
               placeholder="e.g. AKC, UKC"
+              {...fieldErrorControlProps(regOrgId, shown[regOrgId])}
             />
+            <FieldError field={regOrgId} message={shown[regOrgId]} />
           </FormField>
           <FormField label="Registration #" fieldId={`${formId}-regNumber`}>
             <Input
-              id={`${formId}-regNumber`}
+              id={regNumberId}
               type="text"
               value={form.regNumber}
               onChange={e => update('regNumber', e.target.value)}
               placeholder="e.g. SS12345"
+              {...fieldErrorControlProps(regNumberId, shown[regNumberId])}
             />
+            <FieldError field={regNumberId} message={shown[regNumberId]} />
           </FormField>
         </div>
         <FormField label="Health Info" fieldId={`${formId}-healthInfo`}>

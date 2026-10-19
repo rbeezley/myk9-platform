@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Lock, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { usePasswordChange } from '@/features/step-up/usePasswordChange';
+import { FieldError, fieldErrorControlProps, useSubmitFieldErrors } from '@/components/forms';
 import { PasswordNonceField } from '@/features/step-up/PasswordNonceField';
 
 const ResetPasswordPage = () => {
@@ -16,6 +17,10 @@ const ResetPasswordPage = () => {
   const [sessionValid, setSessionValid] = useState<boolean | null>(null);
   // MYK9-1208: step-up first, but a fresh recovery-link session already proves it is you.
   const passwordChange = usePasswordChange({ acceptRecoverySession: true });
+  const errors: Record<string, string> = {};
+  if (password.length < 8) errors['new-password'] = 'Enter a password of at least 8 characters.';
+  else if (password !== confirmPassword) errors['confirm-password'] = 'Passwords do not match.';
+  const { shown, fail } = useSubmitFieldErrors(errors);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -75,14 +80,7 @@ const ResetPasswordPage = () => {
     e.preventDefault();
     setError('');
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
+    if (fail()) return;
 
     setLoading(true);
     try {
@@ -108,7 +106,7 @@ const ResetPasswordPage = () => {
         </div>
         <h2 className="text-2xl font-bold mb-2 text-center">Choose a new password</h2>
         <p className="text-muted-foreground text-center mb-6">Enter your new password below.</p>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="mb-4">
             <label className="block mb-1 font-medium" htmlFor="new-password">
               New password
@@ -125,6 +123,7 @@ const ResetPasswordPage = () => {
                 className="w-full p-2 pl-10 pr-10 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                 required
                 minLength={8}
+                {...fieldErrorControlProps('new-password', shown['new-password'])}
               />
               <button
                 type="button"
@@ -136,6 +135,7 @@ const ResetPasswordPage = () => {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            <FieldError field="new-password" message={shown['new-password']} />
           </div>
           <div className="mb-6">
             <label className="block mb-1 font-medium" htmlFor="confirm-password">
@@ -152,6 +152,7 @@ const ResetPasswordPage = () => {
                 onChange={e => setConfirmPassword(e.target.value)}
                 className="w-full p-2 pl-10 pr-10 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                 required
+                {...fieldErrorControlProps('confirm-password', shown['confirm-password'])}
               />
               <button
                 type="button"
@@ -163,6 +164,7 @@ const ResetPasswordPage = () => {
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            <FieldError field="confirm-password" message={shown['confirm-password']} />
           </div>
           {passwordChange.needsCode && (
             <div className="mb-4">

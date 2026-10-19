@@ -76,6 +76,27 @@ describe('ClassSelectionStep: a trial with no classes is flagged on its own tab'
     expect(screen.queryByText(/please fix the following errors/i)).not.toBeInTheDocument();
   });
 
+  it("renders each callout in the cell under its own trial's tab, in one shared scroller", () => {
+    renderStep([mk('a', 'Saturday', []), mk('b', 'Sunday', [klass]), mk('c', 'Monday', [])]);
+
+    const scroller = screen.getByTestId('trial-tabs-scroller');
+    const row = screen.getByTestId('trial-callout-row');
+    const tabs = screen.getAllByRole('tab');
+    expect(scroller).toContainElement(row);
+    for (const tab of tabs) expect(scroller).toContainElement(tab);
+    // Same columns as the tab list, one cell per trial, same order.
+    expect(row.style.gridTemplateColumns).toBe(tabs[0].parentElement!.style.gridTemplateColumns);
+    expect(row.children).toHaveLength(tabs.length);
+    const cellOf = (text: string) =>
+      Array.from(row.children).findIndex(cell => cell.textContent?.includes(text));
+    expect(cellOf('Monday needs at least one class')).toBe(
+      tabs.indexOf(screen.getByRole('tab', { name: /monday/i }))
+    );
+    expect(cellOf('Saturday')).toBe(tabs.indexOf(screen.getByRole('tab', { name: /saturday/i })));
+    // The trial that has a class gets an empty cell, not a callout.
+    expect(row.children[1]).toBeEmptyDOMElement();
+  });
+
   it('flags the first trial when nothing is picked anywhere', () => {
     renderStep([mk('a', 'Saturday', []), mk('b', 'Sunday', [])]);
 

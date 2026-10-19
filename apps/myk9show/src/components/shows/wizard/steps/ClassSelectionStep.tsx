@@ -1,9 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { FieldError, fieldErrorControlProps, useFieldErrors } from '@/components/forms';
-import { trialClassesFieldId } from '@/pages/secretary/ShowCreationWizard/wizardFieldIds';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { TrialTabsList } from './TrialTabsList';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
@@ -290,8 +288,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     });
   }, [show.judgeIds, trials, judgeAssignments, assignJudgeToClass, updateTrial]);
 
-  const fieldErrors = useFieldErrors();
-
   // Update trial state
   const updateTrialState = (trialId: string, updates: Partial<TrialClassState>) => {
     setRawTrialStates(prev => ({
@@ -427,42 +423,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                 setSelectedTrialId(id);
               }}
             >
-              {/* Trial Tabs */}
-              {/* gridTemplateColumns inline, not `grid-cols-${n}`: Tailwind
-                  extracts class names statically, so the interpolated class was
-                  never compiled and the trial tabs collapsed to one column at
-                  every trial count. */}
-              <TabsList
-                className="grid w-full overflow-x-auto"
-                style={{
-                  gridTemplateColumns: `repeat(${trials.length}, minmax(7rem, 1fr))`,
-                }}
-              >
-                {trials.map((trial, index) => {
-                  const isCompleted = trial.classes.length > 0;
-                  return (
-                    <TabsTrigger
-                      key={trial.id}
-                      value={trial.id}
-                      {...fieldErrorControlProps(
-                        trialClassesFieldId(trial.id),
-                        fieldErrors[trialClassesFieldId(trial.id)]
-                      )}
-                    >
-                      <span className="truncate">{effectiveTrialNames[index]}</span>
-                      <Badge
-                        variant={isCompleted ? 'default' : 'outline'}
-                        className="text-xs ml-1.5"
-                      >
-                        {isCompleted ? trial.classes.length : '0'}
-                      </Badge>
-                    </TabsTrigger>
-                  );
-                })}
-              </TabsList>
-              {trials.map(trial => (
-                <FieldError key={trial.id} field={trialClassesFieldId(trial.id)} />
-              ))}
+              <TrialTabsList trials={trials} names={effectiveTrialNames} />
 
               {/* Trial Content */}
               {trials.map((trial, index) => (

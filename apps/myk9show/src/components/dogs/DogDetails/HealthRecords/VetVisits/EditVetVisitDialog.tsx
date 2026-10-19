@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import DatePickerField from '@/components/common/DatePickerField';
 import type { VetVisitRecord } from '@/types/health';
+import { FieldError, fieldErrorControlProps, useSubmitFieldErrors } from '@/components/forms';
 
 interface EditVetVisitDialogProps {
   open: boolean;
@@ -32,18 +33,18 @@ const EditVetVisitDialog: React.FC<EditVetVisitDialogProps> = ({
   const [clinicName, setClinicName] = useState(record?.clinic_name || '');
   const [diagnosis, setDiagnosis] = useState(record?.diagnosis || '');
   const [treatment, setTreatment] = useState(record?.treatment || '');
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const errors: Record<string, string> = {};
+  if (!reason.trim()) errors.editVetVisitReason = 'Enter the reason for the visit.';
+  if (!visitDate) errors.editVetVisitDate = 'Choose the visit date.';
+  if (!vetName.trim()) errors.editVetVisitVetName = "Enter the vet's name.";
+  const { shown, fail } = useSubmitFieldErrors(errors);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!record) return;
-    // Validate at the form boundary in addition to native `required`
-    // attributes so an invalid submission never reaches the mutation.
-    if (!reason.trim() || !visitDate || !vetName.trim()) {
-      setValidationError('Reason, Date, and Vet Name are required.');
-      return;
-    }
-    setValidationError(null);
+    // The per-field error map guards the mutation: an invalid submission never reaches it.
+    // `required` stays on the inputs for semantics; the form is noValidate so the callouts show.
+    if (fail()) return;
     onSave({
       ...record,
       visit_date: visitDate,
@@ -70,12 +71,17 @@ const EditVetVisitDialog: React.FC<EditVetVisitDialogProps> = ({
       saveLabel="Save"
       isSubmitting={isSaving}
     >
-      {(validationError || saveError) && (
+      {saveError && (
         <p role="alert" aria-live="assertive" className="text-sm text-destructive mb-3">
-          {validationError ?? `${saveError} The record was not saved. Please try again.`}
+          {`${saveError} The record was not saved. Please try again.`}
         </p>
       )}
-      <form id="edit-vet-visit-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form
+        id="edit-vet-visit-form"
+        noValidate
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-4"
+      >
         <FormField label="Reason" fieldId="editVetVisitReason" required>
           <Input
             id="editVetVisitReason"
@@ -83,10 +89,20 @@ const EditVetVisitDialog: React.FC<EditVetVisitDialogProps> = ({
             value={reason}
             onChange={e => setReason(e.target.value)}
             required
+            {...fieldErrorControlProps('editVetVisitReason', shown.editVetVisitReason)}
           />
+          <FieldError field="editVetVisitReason" message={shown.editVetVisitReason} />
         </FormField>
         <div>
-          <DatePickerField label="Date" value={visitDate} onChange={setVisitDate} required />
+          <DatePickerField
+            label="Date"
+            value={visitDate}
+            onChange={setVisitDate}
+            required
+            triggerId="editVetVisitDate"
+            {...fieldErrorControlProps('editVetVisitDate', shown.editVetVisitDate)}
+          />
+          <FieldError field="editVetVisitDate" message={shown.editVetVisitDate} />
         </div>
         <FormField label="Vet Name" fieldId="editVetVisitVetName" required>
           <Input
@@ -95,7 +111,9 @@ const EditVetVisitDialog: React.FC<EditVetVisitDialogProps> = ({
             value={vetName}
             onChange={e => setVetName(e.target.value)}
             required
+            {...fieldErrorControlProps('editVetVisitVetName', shown.editVetVisitVetName)}
           />
+          <FieldError field="editVetVisitVetName" message={shown.editVetVisitVetName} />
         </FormField>
         <FormField label="Clinic Name" fieldId="editVetVisitClinicName">
           <Input

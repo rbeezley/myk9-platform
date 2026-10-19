@@ -11,3 +11,4 @@ export {
   useFieldErrors,
   type FieldErrorMap,
 } from './fieldErrors';
+export { useSubmitFieldErrors } from './useSubmitFieldErrors';

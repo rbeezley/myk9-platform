@@ -241,7 +241,7 @@ export function DraftManager({
 
               <Separator />
 
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <Button
                   variant="outline"
                   size="touch"
@@ -252,7 +252,7 @@ export function DraftManager({
                   Clear All Drafts
                 </Button>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col-reverse gap-2 sm:flex-row">
                   <Button variant="outline" onClick={() => setIsLoadDialogOpen(false)}>
                     Cancel
                   </Button>

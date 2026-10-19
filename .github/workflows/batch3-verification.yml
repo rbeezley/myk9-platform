@@ -1,4 +1,4 @@
-name: Isolated batch 3 scoring verification
+name: Isolated scoring and paperwork verification
 
 on:
   workflow_dispatch:

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { PDFDocument } from 'pdf-lib';
-import { disposableClass } from './disposableClass';
+import { disposableClass, registerDisposableProofHooks } from './disposableClass';
 import {
   evidence,
   isolatedClient,
@@ -12,17 +12,7 @@ import {
   setState,
 } from './showDayProof.helpers';
 
-test.beforeAll(async () => {
-  const source = process.env.MYK9_SHOW_DAY_SOURCE_SHA;
-  expect(source).toMatch(/^[a-f0-9]{40}$/);
-  const response = await fetch('http://127.0.0.1:4173/build-sha.txt');
-  expect(response.ok).toBe(true);
-  expect((await response.text()).trim()).toBe(source);
-});
-
-test.afterEach(async ({ browser }) => {
-  await Promise.all(browser.contexts().map(context => context.close()));
-});
+registerDisposableProofHooks();
 
 test('secretary and judge preserve stored 61.23 seconds (MYK9-1225)', async ({ browser }, info) => {
   const client = isolatedClient();
@@ -99,9 +89,16 @@ for (const width of [375, 1280]) {
       body: Buffer.from(pdf),
       contentType: 'application/pdf',
     });
-    await screenshot(page, info, `overview-preview-${width}`);
+    const printButton = page.getByRole('button', { name: 'Print 2 sheets', exact: true });
+    await expect(printButton).toBeEnabled();
+    // Capture this fixed viewport: full-page capture can resize the measured
+    // cockpit and remount its focused panel while a preview is open.
+    await info.attach(`overview-preview-${width}`, {
+      body: await page.screenshot({ fullPage: false }),
+      contentType: 'image/png',
+    });
     // Exercise the actual browser print implementation; no synthetic afterprint/focus.
-    await page.getByRole('button', { name: 'Print 2 sheets', exact: true }).click();
+    await printButton.click();
     await expect(
       page.getByRole('heading', { name: 'Print selected sheets', exact: true })
     ).toHaveCount(0);

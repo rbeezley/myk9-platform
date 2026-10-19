@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { disposableClass as scenario } from './disposableClass';
+import { disposableClass as scenario, registerDisposableProofHooks } from './disposableClass';
 import {
   evidence,
   isolatedClient,
@@ -11,19 +11,7 @@ import {
   setState,
 } from './showDayProof.helpers';
 
-test.beforeAll(async () => {
-  const expected = process.env.MYK9_SHOW_DAY_SOURCE_SHA;
-  if (!expected || !/^[a-f0-9]{40}$/.test(expected)) throw new Error('Missing exact source SHA');
-  const response = await fetch('http://127.0.0.1:4173/build-sha.txt');
-  expect(response.ok).toBe(true);
-  expect((await response.text()).trim()).toBe(expected);
-});
-
-// This worker's browser belongs only to this spec. Also closes a context when
-// signIn throws before rolePage returns it. Database cleanup is whole-stack only.
-test.afterEach(async ({ browser }) => {
-  await Promise.all(browser.contexts().map(context => context.close()));
-});
+registerDisposableProofHooks();
 
 test('paper scoring persists one-entry and multi-entry results after reload (MYK9-1246)', async ({
   browser,

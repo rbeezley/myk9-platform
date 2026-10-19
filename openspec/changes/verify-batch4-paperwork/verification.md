@@ -21,6 +21,8 @@ Every scenario creates a fresh class/entries/confirmed judge assignment. Canonic
 
 ## Exact remaining acceptance gate
 
+Subsequent CI on documentation head `98cf39200` passed five cases but timed out finding the desktop Print button after full-page preview capture. The retained preview image shows expanded full-page geometry and an absent panel; the failure screenshot shows the underlying Overview. The cockpit documents that a measured split/stack switch remounts its focused panel. The proof now captures the fixed viewport (no full-page expansion) after Print readiness, preserving the 375px/1280px scenario. This is a scoped evidence-capture correction, not a claimed product fix; require a complete zero-retry final-head run. Failed run: `39277334335`.
+
 Headless Chromium's real print lifecycle does not prove cancellation of a native print dialog. The owned Chrome tab crashed before native assertions; it was closed without touching other tabs. Headed Firefox failed before test execution with a launch/profile failure, not an app assertion. No mocked print return, synthetic afterprint or synthetic focus was used to claim native acceptance.
 
 **MYK9-1244 remains In Progress** until native dialog cancel/close records Printed and row Undo is verified in an isolated environment, or the owner explicitly accepts substitute evidence. All other isolated criteria pass. MYK9-1225 is eligible for closure after final-source CI, merge and recorded cleanup evidence. MYK9-1233's physical label-stock check remains outside this batch.

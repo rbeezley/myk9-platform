@@ -1,6 +1,22 @@
-import { expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { fixture, isolatedClient, waiting } from './showDayProof.helpers';
+
+export function registerDisposableProofHooks() {
+  test.beforeAll(async () => {
+    const expected = process.env.MYK9_SHOW_DAY_SOURCE_SHA;
+    if (!expected || !/^[a-f0-9]{40}$/.test(expected)) throw new Error('Missing exact source SHA');
+    const response = await fetch('http://127.0.0.1:4173/build-sha.txt');
+    expect(response.ok).toBe(true);
+    expect((await response.text()).trim()).toBe(expected);
+  });
+
+  // This worker owns the browser. Close contexts even when sign-in fails;
+  // the disposable runner destroys the whole database stack separately.
+  test.afterEach(async ({ browser }) => {
+    await Promise.all(browser.contexts().map(context => context.close()));
+  });
+}
 
 const DOGS = [
   'dededede-0000-0000-0000-000000000041',

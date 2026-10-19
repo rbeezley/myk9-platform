@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../ui/dialog';
+import { SlideOverPanel } from '../../panels/SlideOverPanel';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Label } from '../../ui/label';
@@ -166,110 +167,108 @@ export function DraftManager({
       </Dialog>
 
       {/* Load Draft Button */}
-      <Dialog open={isLoadDialogOpen} onOpenChange={setIsLoadDialogOpen}>
-        <DialogTrigger asChild>
-          <Button
-            variant="ghost"
-            size="touch"
-            disabled={availableDrafts.length === 0}
-            className="text-xs"
-          >
-            <FolderOpen className="h-3 w-3 mr-1" />
-            Load Draft ({availableDrafts.length})
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>Load Registration Draft</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {availableDrafts.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Archive className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No saved drafts found</p>
-                <p className="text-sm">Your progress is automatically saved every 30 seconds</p>
-              </div>
-            ) : (
-              <>
-                <div className="grid gap-3 max-h-96 overflow-y-auto">
-                  {availableDrafts.map(draft => (
-                    <Card
-                      key={draft.id}
-                      className={`cursor-pointer transition-colors hover:bg-muted/50 ${
-                        selectedDraft?.id === draft.id ? 'ring-2 ring-primary' : ''
-                      }`}
-                      onClick={() => setSelectedDraft(draft)}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <CardTitle className="text-sm font-medium">{draft.title}</CardTitle>
-                            <CardDescription className="text-xs">{draft.preview}</CardDescription>
-                          </div>
-                          <Badge
-                            variant={getStepBadgeVariant(draft.stepCompleted)}
-                            className="text-xs"
-                          >
-                            {getStepDisplayName(draft.stepCompleted)}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            <span>{formatDraftAge(draft.timestamp)}</span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon-lg"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            aria-label={`Delete draft ${draft.title}`}
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleDeleteDraft(draft.id);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-
-                <Separator />
-
-                <div className="flex justify-between items-center">
-                  <Button
-                    variant="outline"
-                    size="touch"
-                    onClick={clearAllDrafts}
-                    className="text-destructive hover:text-destructive"
+      <Button
+        variant="ghost"
+        size="touch"
+        disabled={availableDrafts.length === 0}
+        className="text-xs"
+        onClick={() => setIsLoadDialogOpen(true)}
+      >
+        <FolderOpen className="h-3 w-3 mr-1" />
+        Load Draft ({availableDrafts.length})
+      </Button>
+      <SlideOverPanel
+        open={isLoadDialogOpen}
+        onClose={() => setIsLoadDialogOpen(false)}
+        title="Load Registration Draft"
+        size="lg"
+      >
+        <div className="space-y-4 p-6">
+          {availableDrafts.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Archive className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No saved drafts found</p>
+              <p className="text-sm">Your progress is automatically saved every 30 seconds</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-3">
+                {availableDrafts.map(draft => (
+                  <Card
+                    key={draft.id}
+                    className={`cursor-pointer transition-colors hover:bg-muted/50 ${
+                      selectedDraft?.id === draft.id ? 'ring-2 ring-primary' : ''
+                    }`}
+                    onClick={() => setSelectedDraft(draft)}
                   >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Clear All Drafts
-                  </Button>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <CardTitle className="text-sm font-medium">{draft.title}</CardTitle>
+                          <CardDescription className="text-xs">{draft.preview}</CardDescription>
+                        </div>
+                        <Badge
+                          variant={getStepBadgeVariant(draft.stepCompleted)}
+                          className="text-xs"
+                        >
+                          {getStepDisplayName(draft.stepCompleted)}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          <span>{formatDraftAge(draft.timestamp)}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon-lg"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          aria-label={`Delete draft ${draft.title}`}
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleDeleteDraft(draft.id);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
 
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setIsLoadDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={() => selectedDraft && handleLoadDraft(selectedDraft.id)}
-                      disabled={!selectedDraft}
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      Load Selected Draft
-                    </Button>
-                  </div>
+              <Separator />
+
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <Button
+                  variant="outline"
+                  size="touch"
+                  onClick={clearAllDrafts}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear All Drafts
+                </Button>
+
+                <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                  <Button variant="outline" onClick={() => setIsLoadDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => selectedDraft && handleLoadDraft(selectedDraft.id)}
+                    disabled={!selectedDraft}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Load Selected Draft
+                  </Button>
                 </div>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+              </div>
+            </>
+          )}
+        </div>
+      </SlideOverPanel>
       {latestEntryDraft && (
         <section className="flex w-full flex-col gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>

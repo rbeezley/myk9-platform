@@ -7441,6 +7441,7 @@ export type Database = {
       }
       show_lifecycle_email_jobs: {
         Row: {
+          attempt_id: string | null
           batch_key: string | null
           body: string | null
           claimed_until: string | null
@@ -7475,6 +7476,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          attempt_id?: string | null
           batch_key?: string | null
           body?: string | null
           claimed_until?: string | null
@@ -7509,6 +7511,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          attempt_id?: string | null
           batch_key?: string | null
           body?: string | null
           claimed_until?: string | null
@@ -13149,13 +13152,13 @@ export type Database = {
         Args: {
           p_body: string
           p_entry_id: string
-          p_lease_until?: string
+          p_lease_until: string
           p_recipient_email: string
           p_recipient_name: string
           p_request_key: string
           p_secretary_note: string
           p_show_id: string
-          p_stale_before: string
+          p_stale_before?: string
           p_step_id: string
           p_subject: string
           p_user_id: string
@@ -13672,6 +13675,19 @@ export type Database = {
           p_delivered_to: string[]
           p_error: string
           p_outcome: string
+        }
+        Returns: boolean
+      }
+      finish_registration_number_needed_attempt: {
+        Args: {
+          p_attempt_id: string
+          p_email_log_id: string
+          p_job_id: string
+          p_rendered_body: string
+          p_rendered_secretary_note: string
+          p_rendered_subject: string
+          p_status: string
+          p_user_id: string
         }
         Returns: boolean
       }

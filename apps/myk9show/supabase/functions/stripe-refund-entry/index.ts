@@ -16,6 +16,7 @@ import {
 } from '../_shared/withdrawalPolicy.ts';
 import { acquireShowMoneyLock } from '../_shared/showMoneyLock.ts';
 import { decideRefundStampGuard, entryHasRefundStamp } from '../_shared/entryRefundStampGuard.ts';
+import { stepUpRefusal } from '../_shared/stepUpReauth.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -160,6 +161,11 @@ Deno.serve(async req => {
         403
       );
     }
+
+    // MYK9-1208: refunds need a password confirmed in the last five minutes. After the
+    // authorization check (a stranger still reads "not authorized"), before any money step.
+    const stepUp = stepUpRefusal(authHeader);
+    if (stepUp) return corsResponse(corsHeaders, stepUp.body, stepUp.status);
 
     // Live payout state for the show (the unique partial index guarantees at
     // most one non-failed row). This pre-lock read gives the secretary a fast,

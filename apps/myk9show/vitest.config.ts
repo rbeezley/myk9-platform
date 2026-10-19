@@ -41,6 +41,8 @@ export default defineConfig({
       '../../supabase/functions/_shared/roleValidity.test.ts',
       '../../supabase/functions/_shared/roleValidityCoverage.test.ts',
       '../../supabase/functions/_shared/userRolePerson.test.ts',
+      // MYK9-1208: the root-tree copy of the step-up helper must match the app-tree copy.
+      '../../supabase/functions/_shared/stepUpReauthParity.test.ts',
       '../../supabase/functions/push-trigger-scoring/*.test.ts',
       '../../supabase/functions/push-trigger-waitlist/waitlistNotification.test.ts',
       // Whole directory rather than a named file: this allowlist is

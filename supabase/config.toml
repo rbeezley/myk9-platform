@@ -36,3 +36,7 @@ enable_signup = true
 enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
+# MYK9-1208: a password change from a session signed in more than 24 hours ago needs the
+# nonce emailed by reauthenticate(). Hosted: Dashboard > Authentication > Providers > Email >
+# "Secure password change" (security_update_password_require_reauthentication).
+secure_password_change = true

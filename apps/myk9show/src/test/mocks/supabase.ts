@@ -62,6 +62,9 @@ export function createMockSupabase() {
     signInWithOAuth: vi.fn().mockResolvedValue({ data: { url: '', provider: '' }, error: null }),
     resetPasswordForEmail: vi.fn().mockResolvedValue({ data: {}, error: null }),
     updateUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
+    signInWithOtp: vi.fn().mockResolvedValue({ data: { user: null, session: null }, error: null }),
+    verifyOtp: vi.fn().mockResolvedValue({ data: { user: null, session: null }, error: null }),
+    reauthenticate: vi.fn().mockResolvedValue({ data: { user: null, session: null }, error: null }),
   };
 
   const mockChannel = vi.fn().mockReturnValue({

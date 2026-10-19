@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Lock, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { usePasswordChange } from '@/features/step-up/usePasswordChange';
+import { PasswordNonceField } from '@/features/step-up/PasswordNonceField';
 
 const ResetPasswordPage = () => {
   const [password, setPassword] = useState('');
@@ -12,6 +14,8 @@ const ResetPasswordPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [sessionValid, setSessionValid] = useState<boolean | null>(null);
+  // MYK9-1208: step-up first, but a fresh recovery-link session already proves it is you.
+  const passwordChange = usePasswordChange({ acceptRecoverySession: true });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -82,8 +86,7 @@ const ResetPasswordPage = () => {
 
     setLoading(true);
     try {
-      const { error: updateError } = await supabase.auth.updateUser({ password });
-      if (updateError) throw updateError;
+      await passwordChange.submit(password);
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update password.');
@@ -161,6 +164,11 @@ const ResetPasswordPage = () => {
               </button>
             </div>
           </div>
+          {passwordChange.needsCode && (
+            <div className="mb-4">
+              <PasswordNonceField value={passwordChange.code} onChange={passwordChange.setCode} />
+            </div>
+          )}
           {error && <div className="text-destructive mb-4 text-center">{error}</div>}
           <button
             type="submit"

@@ -1,6 +1,6 @@
 export interface AuthActionUrlInput {
   tokenHash: string;
-  actionType: 'signup' | 'recovery' | 'magiclink' | 'invite';
+  actionType: 'signup' | 'recovery' | 'magiclink' | 'invite' | 'reauthentication';
   redirectTo?: string;
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { changePassword } from '@/features/step-up/passwordChange';
 import { supabase } from '../lib/supabase';
 import { rbacService } from '@/services/rbac/RBACService';
 import { captureAuthEmailRequestFailure } from '@/services/observability/sentry';
@@ -378,13 +379,9 @@ export function useAuth() {
    * @param {string} newPassword - The new password
    * @throws {AuthError} If the operation fails
    */
-  const updatePassword = useCallback(async (newPassword: string) => {
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
-    if (error) {
-      throw error;
-    }
+  const updatePassword = useCallback(async (newPassword: string, nonce?: string) => {
+    // MYK9-1208: asks for a fresh password confirmation first; see passwordChange.ts.
+    await changePassword(newPassword, nonce ? { nonce } : {});
   }, []);
 
   /**

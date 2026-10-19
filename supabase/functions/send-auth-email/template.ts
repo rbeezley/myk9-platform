@@ -1,4 +1,4 @@
-export type AuthEmailActionType = 'signup' | 'recovery' | 'magiclink';
+export type AuthEmailActionType = 'signup' | 'recovery' | 'magiclink' | 'reauthentication';
 
 const BRAND_COLOR = '#a8472d';
 const LOGO_URL = 'https://myk9show.com/pwa-192x192.png';
@@ -11,10 +11,16 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
+/**
+ * `code` is the one-time code GoTrue sends alongside the link (`email_data.token`). A
+ * magic-link email prints it so a signed-in person confirming a refund or role change can
+ * type it into the open prompt instead of following the link (MYK9-1208).
+ */
 export function buildAuthEmailHtml(
   type: AuthEmailActionType,
   firstName: string,
-  actionUrl: string
+  actionUrl: string,
+  code?: string
 ): { subject: string; html: string } {
   const safeFirstName = escapeHtml(firstName);
   const safeActionUrl = escapeHtml(actionUrl);
@@ -53,6 +59,22 @@ export function buildAuthEmailHtml(
       <a href="${safeActionUrl}" style="background-color: ${BRAND_COLOR}; color: #fff; padding: 12px 32px; border-radius: 6px; font-weight: 600; text-decoration: none; display: inline-block;">${text}</a>
     </div>`;
 
+  // MYK9-1208: "Secure password change" emails a code (no link) to confirm a password change.
+  if (type === 'reauthentication') {
+    const safeCode = code && /^\d{4,10}$/.test(code) ? code : '';
+    return {
+      subject: 'Your myK9Show confirmation code',
+      html: layout(
+        'Confirm it is you',
+        `
+        <p style="color: #1a1a1e; font-size: 16px;">Hi ${safeFirstName}, enter this code in myK9Show to finish changing your password.</p>
+        <p style="color: #1a1a1e; font-size: 16px; text-align: center;"><strong style="font-size: 22px; letter-spacing: 4px;">${safeCode}</strong></p>
+        <p style="color: #6b7280; font-size: 14px;">If you didn't ask to change your password, sign in and change it now, or contact the club.</p>
+      `
+      ),
+    };
+  }
+
   if (type === 'recovery') {
     return {
       subject: 'Reset your myK9Show password',
@@ -68,6 +90,10 @@ export function buildAuthEmailHtml(
   }
 
   const isSignup = type === 'signup';
+  const codeBlock =
+    !isSignup && code && /^\d{4,10}$/.test(code)
+      ? `<p style="color: #1a1a1e; font-size: 16px; text-align: center;">Or enter this code: <strong style="font-size: 22px; letter-spacing: 4px;">${code}</strong></p>`
+      : '';
   return {
     subject: isSignup ? 'Confirm your myK9Show email' : 'Sign in to myK9Show',
     html: layout(
@@ -78,6 +104,7 @@ export function buildAuthEmailHtml(
           : 'click the button below to sign in.'
       }</p>
       ${button(isSignup ? 'Confirm Email' : 'Sign In')}
+      ${codeBlock}
       <p style="color: #6b7280; font-size: 14px;">${
         isSignup
           ? "If you didn't create an account, you can safely ignore this email."

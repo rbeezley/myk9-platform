@@ -42,7 +42,7 @@ import {
 } from '@/features/admin-system-health/refundRequestsPresentation';
 
 function RefundRequestRow({ request }: { request: RefundRequest }) {
-  const { mutateAsync, isPending } = useApproveRefundRequest();
+  const { mutateAsync, isPending } = useApproveRefundRequest(request.status);
   const [isOpen, setIsOpen] = useState(false);
   const amount = formatRefundAmount(request.amountCents);
   const failure = request.status === 'failed' ? failedRowCopy(request.lastFailure) : null;

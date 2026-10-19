@@ -10,6 +10,7 @@ import {
 import { findReusableShowRefund, showRefundAttemptCount } from '../_shared/showRefundReuse.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
 import { acquireShowMoneyLock } from '../_shared/showMoneyLock.ts';
+import { stepUpRefusal } from '../_shared/stepUpReauth.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -330,6 +331,11 @@ Deno.serve(async req => {
         403
       );
     }
+
+    // MYK9-1208: refunds need a password confirmed in the last five minutes. After the
+    // authorization check (a stranger still reads "not authorized"), before any money step.
+    const stepUp = stepUpRefusal(authHeader);
+    if (stepUp) return corsResponse(corsHeaders, stepUp.body, stepUp.status);
 
     // Cancellation gate: a bulk make-whole refund is a SHOW-CANCELLATION action.
     // Requiring shows.status = 'cancelled' (set deliberately first) stops an

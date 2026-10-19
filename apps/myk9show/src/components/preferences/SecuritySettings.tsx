@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { PasswordNonceRequired } from '@/features/step-up/passwordChange';
+import { PasswordNonceField } from '@/features/step-up/PasswordNonceField';
 
 export function SecuritySettings() {
   const { updatePassword } = useAuthContext();
@@ -16,6 +18,9 @@ export function SecuritySettings() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  // MYK9-1208: GoTrue asked for the emailed reauthentication code.
+  const [needsCode, setNeedsCode] = useState(false);
+  const [code, setCode] = useState('');
 
   const passwordsMatch = newPassword === confirmPassword;
 
@@ -41,12 +46,16 @@ export function SecuritySettings() {
     setSuccess(false);
 
     try {
-      await updatePassword(newPassword);
+      if (needsCode && code.trim()) await updatePassword(newPassword, code);
+      else await updatePassword(newPassword);
       setSuccess(true);
+      setNeedsCode(false);
+      setCode('');
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
+      if (err instanceof PasswordNonceRequired) setNeedsCode(true);
       setError(err instanceof Error ? err.message : 'Failed to update password');
     } finally {
       setIsSubmitting(false);
@@ -127,6 +136,8 @@ export function SecuritySettings() {
                 <p className="text-xs text-destructive">Passwords do not match</p>
               )}
             </div>
+
+            {needsCode && <PasswordNonceField value={code} onChange={setCode} />}
 
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Updating...' : 'Update Password'}

@@ -33,6 +33,7 @@ import { UnsavedChangesRouteGuardProvider } from './components/navigation/Unsave
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { ToastContainer } from '@/components/notifications/ToastContainer';
 import { AppToaster } from '@/components/layout/AppToaster';
+import { StepUpReauthHost } from '@/features/step-up/StepUpReauthDialog';
 
 // Exhibitor Onboarding
 import { ExhibitorOnboardingChecker } from './components/exhibitor';
@@ -243,6 +244,7 @@ function App() {
                         <NotificationCenter />
                         <AppToaster />
                         <ToastContainer />
+                        <StepUpReauthHost />
                         <Outlet />
                         {/* After the page, not before: the notice sits in flow at the
                             end of the document so it reserves its own room there and

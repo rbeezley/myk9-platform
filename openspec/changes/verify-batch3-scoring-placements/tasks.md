@@ -14,15 +14,15 @@
 
 ## 3. Browser acceptance
 
-- [ ] 3.1 Verify local single/multiple-entry saves through paper and judge paths, reload result/time/faults and visible rejected-save value retention; retain SQL/browser evidence and identify any original incident unknowns.
-- [x] 3.2 Verify Check Scores/Fix placement parity across two classes and actual printed/preview order with ties/non-qualifiers; retain screenshots and SQL against tested SHA.
+- [x] 3.1 Verify isolated single/multiple-entry saves through paper and judge paths, reload result/time/faults and visible rejected-save value retention; retain SQL/browser evidence and identify original incident unknowns. Browser run 39256135312 passed on 995fa645f; existing save-failure tests cover rejection retention. Original-incident acceptance remains under 4.4.
+- [x] 3.2 Verify Check Scores/Fix placement parity across two classes and actual printed/preview order with ties/non-qualifiers; retain screenshots and SQL against tested SHA. Browser run 39256135312 passed on 995fa645f. This records executed proof, not issue closure; final-head CI/review/merge remain under 4.2.
 - [x] 3.3 Record deployed-build read-only reproduction evidence where available; preserve explicit unmet criteria where historical data or authorization prevents proof.
 
 ## 4. Ship and close
 
-- [x] 4.1 Run commit validation: focused tests, typecheck/lint/ratchet and strict OpenSpec pass; record earlier full-shuffle failure and owner-approved separate tracking. No new migration remains, so its migration guard is not applicable; merged SQL CI passed.
+- [x] 4.1 Execute commit validation with the owner's explicit scoped-shipping exception: focused tests, typecheck/lint/ratchet and strict OpenSpec pass. The earlier full-shuffle failure remains recorded under MYK9-1252; this checkbox does not assert a green full local suite. No new migration remains; merged SQL CI passed. Final-head CI is separately required under 4.2.
 - [ ] 4.2 Obtain independent exact-head review, required CI via watcher, and merge batch PR; record PR/SHA evidence.
-- [ ] 4.3 Prepare concrete shared migration/deployment gates only if still required, execute only with authorization, and record resulting verification.
+- [x] 4.3 Verify deployment state read-only: another operation already deployed #3077/#3080 and applied #3094. October 19 served build 67032e1ce contains both frontend fixes, selected incident rows are unchanged, and the installed refresh body exactly matches #3094. No new shared mutation is needed or performed by this task.
 - [ ] 4.4 Read full issues again, post criterion-by-criterion evidence, and close only those whose entire contract passes; retain precise remaining gates for others.
 - [x] 4.5 Close owned browser contexts and destroy only the owned disposable stack; verify cleanup.
 

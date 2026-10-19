@@ -1,6 +1,6 @@
 # Verification: batch 3 scoring and placements
 
-Status: implementation fixes are merged separately; this scoped proof is awaiting final validation/review/CI. See [evidence report](../../../docs/qa/batch3-scoring-verification.md).
+Status: implementation fixes are merged separately. Isolated browser run [39256135312](https://github.com/rbeezley/myk9-platform/actions/runs/39256135312) passed all three cases on source 995fa645f (32.4 seconds, zero retries), including network probes, credential scan and whole-stack teardown. Any later head still requires its own proof, independent review, required CI and merge under task 4.2. See [evidence report](../../../docs/qa/batch3-scoring-verification.md).
 
 ## Correctness and coherence
 
@@ -11,11 +11,10 @@ The browser spec asserts SQL, real replica, existing Check Scores/Fix and actual
 ## Remaining tasks before archive
 
 - Merged SQL CI and local standard-view coverage are verified (2.1/2.3): 133 local files / 1,113 tests passed, including database contracts, ResultsTab, save failures and print callers. Proof TypeScript compilation passed.
-- Pass all three browser cases on the exact PR head (3.1). Prior integrated judge attempt failed before auth, tracked separately as MYK9-1251.
+- Browser acceptance tasks 3.1/3.2 record the executed 995fa645f proof; they do not close Linear issues or satisfy a later head's merge gate. Prior integrated judge attempt failed before auth, tracked separately as MYK9-1251.
 - Commit validation (4.1) is complete with the owner's explicit exception: final root typecheck/lint/ratchet, proof compilation, 1,113 focused tests, formatting and strict OpenSpec validation pass. No new migration remains. Earlier full shuffle's untouched failure is MYK9-1252 and is not declared green; required CI and all browser cases must pass before merge.
 - Obtain independent exact-head review, required CI and merge (4.2).
-- Obtain concrete linked migration/deployment authorization and resulting verification (4.3).
-- October 17 read-only checks found the fixes already deployed by another operation: build 43b3912ad contains #3077/#3080 and the installed refresh body exactly matches #3094. No new shared write is required by this task for that state; re-read full acceptance before closure.
+- Task 4.3 is verified read-only: October 17 build 43b3912ad contained #3077/#3080; October 19 build 67032e1ce also contains them. The installed refresh body still exactly matches #3094, and selected incident rows are unchanged. Another operation deployed these fixes; no new shared write is required by this task.
 - Re-read issues and record all criteria before closure (4.4). Original MYK9-1246 response remains unknown; isolated equivalent requires owned acceptance if replacing incident reproduction.
 
 Owned local stack cleanup is complete (4.5), inventory empty. No linked migration or deployment occurred. This change remains active and is not ready to archive.

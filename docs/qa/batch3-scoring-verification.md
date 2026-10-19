@@ -20,6 +20,8 @@ That supersedes this task's earlier proposed all-ranks-missing guard. Once #3094
 
 ## Isolated browser proof
 
+October 19 checkpoint: run [39256135312](https://github.com/rbeezley/myk9-platform/actions/runs/39256135312), source 995fa645f, passed all three cases in 32.4 seconds with zero retries, including the exact Q-badge assertion. Network probes, artifact secret scan and stack teardown passed. Synthetic report/table screenshots are retained. This is executed-proof evidence; every later source head still needs its own CI/browser/review verdict before merge. The pre-merge acceptance table below preserves original-incident gaps and does not claim issue closure. Final shipping and criterion outcomes are recorded on the PR and Linear issues.
+
 All fixture/scoring writes target disposable loopback Supabase. Contexts block external HTTP requests and service workers; socket origins are checked. Fresh role contexts use actual SQL/replica reads, with no auth, clock, persistence-RPC or result-response stubs. The served build stamp must equal the requested exact source SHA. Three Playwright tests cover the five scenario rows below: cardinalities and placement classes are loops within their tests.
 
 Socket checks are observational, not a browser firewall: a non-loopback WebSocket is recorded and fails the proof, but is not prevented from connecting. The container egress probe covers the Supabase network, not the host browser. No stronger local-browser isolation claim is made. Persistent fixture/scoring writes use the fail-closed loopback client and guarded HTTP paths; only synthetic data is present in the disposable target.

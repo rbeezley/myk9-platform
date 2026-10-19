@@ -22,7 +22,7 @@
 - [x] 4.1 Register the proof with the existing short CI/config and suite map; pass proof compilation, relevant tests, formatting, ratchet and strict OpenSpec validation; record verification coverage and limitations.
 - [ ] 4.2 Ship one PR through required review and final-source CI/browser proof; use the authoritative watcher and verify squash merge from primary without touching its edits.
 - [ ] 4.3 Re-read full issue descriptions, post criterion-by-criterion source/run/artifact evidence, close only acceptance-complete issues and retain any exact native/operator gate.
-- [x] 4.4 Close only owned browser sessions, destroy only this task's local stack and verify empty owned inventory; preserve evidence outside the worktree before any approved removal. Secret-scrubbed report scanned clean; native stack destroy exit 0 and inventory empty; owned preview stopped.
+- [x] 4.4 Close only owned browser sessions, destroy only this task's local stack and verify empty owned inventory; preserve evidence outside the worktree before any approved removal. Secret-scrubbed report scanned clean; native stack destroy exit 0 and inventory empty; owned preview stopped. This is cleanup of the historical local run, not completion of final-head CI (task 4.2).
 
 ## Workflow follow-up
 

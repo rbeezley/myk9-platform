@@ -4,7 +4,7 @@
  * Created: December 2024
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,8 +33,15 @@ import {
 } from '@/components/ui/select';
 import { rbacService } from '@/services/rbac/RBACService';
 import { Permission, Role } from '@/types/rbac-types';
-import { RolePermissionsEditor } from '@/components/admin/permissions/RolePermissionsEditor';
 import { PermissionTemplateSelector } from '@/components/admin/permissions/PermissionTemplateSelector';
+import {
+  FieldError,
+  fieldErrorControlProps,
+  focusFirstFieldControl,
+  useSubmitFieldErrors,
+} from '@/components/forms';
+import { ROLE_FIELD, validateRoleForm } from './roleFormErrors';
+import { RolePermissionsGroup } from './RolePermissionsGroup';
 
 const CreateRolePage: React.FC = () => {
   const navigate = useNavigate();
@@ -99,33 +106,29 @@ const CreateRolePage: React.FC = () => {
     );
   };
 
-  const validateForm = () => {
-    if (!formData.name.trim()) {
-      setError('Role name is required');
-      return false;
-    }
-
-    if (!formData.displayName.trim()) {
-      setError('Display name is required');
-      return false;
-    }
-
-    // Check if role name already exists
-    if (roles.some(r => r.name.toLowerCase() === formData.name.toLowerCase())) {
-      setError('A role with this name already exists');
-      return false;
-    }
-
-    if (selectedPermissions.length === 0) {
-      setError('At least one permission must be selected');
-      return false;
-    }
-
-    return true;
-  };
+  const errors = validateRoleForm({
+    name: formData.name,
+    displayName: formData.displayName,
+    selectedPermissionCount: selectedPermissions.length,
+    existingRoleNames: roles.map(r => r.name),
+  });
+  const { shown, fail } = useSubmitFieldErrors(errors);
+  // The failing field may be on another step; move there, then focus it once it has rendered.
+  const focusAfterStep = useRef(false);
+  useEffect(() => {
+    if (!focusAfterStep.current) return;
+    focusAfterStep.current = false;
+    focusFirstFieldControl(Object.keys(errors));
+  }, [step, errors]);
 
   const handleSave = async () => {
-    if (!validateForm()) return;
+    const failing = Object.keys(errors);
+    if (failing.length > 0) {
+      setStep(failing.every(id => id === ROLE_FIELD.permissions) ? 'permissions' : 'basic');
+      focusAfterStep.current = true;
+      fail();
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -173,7 +176,7 @@ const CreateRolePage: React.FC = () => {
   return (
     <div className="container mx-auto p-6 max-w-4xl space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <Button variant="ghost" size="sm" asChild>
           <Link to="/admin/permissions/roles">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -195,7 +198,7 @@ const CreateRolePage: React.FC = () => {
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <div
                 className={`flex items-center gap-2 ${
                   step === 'basic' ? 'text-primary' : 'text-muted-foreground'
@@ -272,6 +275,11 @@ const CreateRolePage: React.FC = () => {
                   value={formData.displayName}
                   onChange={e => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
                   placeholder="e.g., Event Coordinator"
+                  {...fieldErrorControlProps(ROLE_FIELD.displayName, shown[ROLE_FIELD.displayName])}
+                />
+                <FieldError
+                  field={ROLE_FIELD.displayName}
+                  message={shown[ROLE_FIELD.displayName]}
                 />
               </div>
 
@@ -283,6 +291,7 @@ const CreateRolePage: React.FC = () => {
                     value={formData.name}
                     onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="e.g., event_coordinator"
+                    {...fieldErrorControlProps(ROLE_FIELD.name, shown[ROLE_FIELD.name])}
                   />
                   <Button
                     variant="outline"
@@ -296,6 +305,7 @@ const CreateRolePage: React.FC = () => {
                 <p className="text-xs text-muted-foreground mt-1">
                   Used internally - lowercase letters, numbers, and underscores only
                 </p>
+                <FieldError field={ROLE_FIELD.name} message={shown[ROLE_FIELD.name]} />
               </div>
 
               <div>
@@ -368,11 +378,12 @@ const CreateRolePage: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <RolePermissionsEditor
+            <RolePermissionsGroup
               role={dummyRole}
               permissions={permissions}
               grantedPermissionIds={selectedPermissions}
               onPermissionChange={handlePermissionChange}
+              error={shown[ROLE_FIELD.permissions]}
             />
           </CardContent>
         </Card>
@@ -432,7 +443,7 @@ const CreateRolePage: React.FC = () => {
       )}
 
       {/* Navigation */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           {step !== 'basic' && (
             <Button
@@ -446,7 +457,7 @@ const CreateRolePage: React.FC = () => {
             </Button>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
             <Link to="/admin/permissions/roles">Cancel</Link>
           </Button>

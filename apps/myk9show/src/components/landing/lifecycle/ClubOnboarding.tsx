@@ -18,6 +18,7 @@ import {
   normalizeClubRegistryNumbers,
   type ClubRegistryNumberInputs,
 } from '@/utils/clubRegistryNumbers';
+import { FieldError, fieldErrorControlProps, useSubmitFieldErrors } from '@/components/forms';
 import { buildSignInPathForRedirect, buildSignUpPathForRedirect } from '@/pages/SignInPage.helpers';
 
 // Club-onboarding lead form for the marketing homepage. Restyled onto the
@@ -52,6 +53,21 @@ export function ClubOnboarding() {
   const [error, setError] = useState('');
   const [existingRequest, setExistingRequest] = useState<OnboardingRequest | null>(null);
   const [checkingExisting, setCheckingExisting] = useState(false);
+
+  // Required-field and format errors sit under their own field; `error` keeps only
+  // what belongs to no field (a failed submission).
+  const firstClubNumberId = `onb-${CLUB_REGISTRY_ORGS[0].toLowerCase()}-number`;
+  const errors: Record<string, string> = {};
+  if (!clubName.trim()) errors['onb-club-name'] = 'Enter the club name.';
+  if (!organization) errors['onb-organization'] = 'Choose an organization.';
+  if (!hasClubRegistryNumber(clubNumbers)) errors[firstClubNumberId] = CLUB_NUMBER_REQUIRED_MESSAGE;
+  if (!contactName.trim()) errors['onb-contact-name'] = 'Enter your name.';
+  if (!contactEmail.trim()) errors['onb-contact-email'] = 'Enter your email address.';
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+    errors['onb-contact-email'] = 'Enter a valid email address.';
+  }
+  const { shown, fail } = useSubmitFieldErrors(errors);
+  const clubNumberError = shown[firstClubNumberId];
 
   // Pre-fill from auth session (only once to avoid overwriting user edits)
   const prefilled = useRef(false);
@@ -97,81 +113,43 @@ export function ClubOnboarding() {
     navigate(buildSignInPathForRedirect('/?onboarding=true#get-started'));
   }, [navigate]);
 
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!user) return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (fail()) return;
 
-      // Validate
-      if (!clubName.trim()) {
-        setError('Club name is required.');
-        return;
-      }
-      if (!organization) {
-        setError('Please select an organization.');
-        return;
-      }
-      if (!hasClubRegistryNumber(clubNumbers)) {
-        setError(CLUB_NUMBER_REQUIRED_MESSAGE);
-        return;
-      }
-      if (!contactName.trim()) {
-        setError('Contact name is required.');
-        return;
-      }
-      if (!contactEmail.trim()) {
-        setError('Contact email is required.');
-        return;
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
-        setError('Please enter a valid email address.');
-        return;
-      }
+    setSubmitting(true);
+    setError('');
 
-      setSubmitting(true);
-      setError('');
-
-      try {
-        await submitOnboardingRequest({
-          authUserId: user.id,
-          clubName: clubName.trim(),
-          organization,
-          clubNumbers: normalizeClubRegistryNumbers(clubNumbers),
-          contactName: contactName.trim(),
-          contactEmail: contactEmail.trim(),
-          contactPhone: contactPhone.trim() || undefined,
-          firstShowDate: firstShowDate || undefined,
-          message: message.trim() || undefined,
-        });
-        setSubmitted(true);
-      } catch (err) {
-        const isAuthError = err instanceof Error && /401|403|JWT|auth/i.test(err.message);
-        const isDuplicateRequest =
-          typeof err === 'object' && err !== null && 'code' in err && err.code === '23505';
-        if (isDuplicateRequest) {
-          setError('You already have a request under review.');
-        } else if (isAuthError) {
-          setError('Your session has expired. Please sign in again.');
-        } else {
-          setError('Something went wrong. Please try again.');
-        }
-        logger.error('Onboarding request submission failed', 'onboarding', {}, err as Error);
-      } finally {
-        setSubmitting(false);
+    try {
+      await submitOnboardingRequest({
+        authUserId: user.id,
+        clubName: clubName.trim(),
+        organization,
+        clubNumbers: normalizeClubRegistryNumbers(clubNumbers),
+        contactName: contactName.trim(),
+        contactEmail: contactEmail.trim(),
+        contactPhone: contactPhone.trim() || undefined,
+        firstShowDate: firstShowDate || undefined,
+        message: message.trim() || undefined,
+      });
+      setSubmitted(true);
+    } catch (err) {
+      const isAuthError = err instanceof Error && /401|403|JWT|auth/i.test(err.message);
+      const isDuplicateRequest =
+        typeof err === 'object' && err !== null && 'code' in err && err.code === '23505';
+      if (isDuplicateRequest) {
+        setError('You already have a request under review.');
+      } else if (isAuthError) {
+        setError('Your session has expired. Please sign in again.');
+      } else {
+        setError('Something went wrong. Please try again.');
       }
-    },
-    [
-      user,
-      clubName,
-      organization,
-      clubNumbers,
-      contactName,
-      contactEmail,
-      contactPhone,
-      firstShowDate,
-      message,
-    ]
-  );
+      logger.error('Onboarding request submission failed', 'onboarding', {}, err as Error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // --- Card body: switches on auth / request state ---
   let card: React.ReactNode;
@@ -266,7 +244,9 @@ export function ClubOnboarding() {
               onChange={e => setClubName(e.target.value)}
               placeholder="e.g. Tri-State Kennel Club"
               required
+              {...fieldErrorControlProps('onb-club-name', shown['onb-club-name'])}
             />
+            <FieldError field="onb-club-name" message={shown['onb-club-name']} />
           </div>
 
           <div>
@@ -279,6 +259,7 @@ export function ClubOnboarding() {
               value={organization}
               onChange={e => setOrganization(e.target.value)}
               required
+              {...fieldErrorControlProps('onb-organization', shown['onb-organization'])}
             >
               <option value="">Select organization…</option>
               {ONBOARDING_ORGANIZATIONS.map(org => (
@@ -287,6 +268,7 @@ export function ClubOnboarding() {
                 </option>
               ))}
             </select>
+            <FieldError field="onb-organization" message={shown['onb-organization']} />
           </div>
 
           <fieldset className="l-field-stack">
@@ -307,8 +289,15 @@ export function ClubOnboarding() {
                   onChange={e => setClubNumbers(prev => ({ ...prev, [org]: e.target.value }))}
                   maxLength={50}
                   autoComplete="off"
-                  aria-describedby="onb-club-numbers-help"
+                  {...fieldErrorControlProps(
+                    org === CLUB_REGISTRY_ORGS[0] ? firstClubNumberId : '',
+                    org === CLUB_REGISTRY_ORGS[0] ? clubNumberError : undefined,
+                    'onb-club-numbers-help'
+                  )}
                 />
+                {org === CLUB_REGISTRY_ORGS[0] && (
+                  <FieldError field={firstClubNumberId} message={shown[firstClubNumberId]} />
+                )}
               </div>
             ))}
           </fieldset>
@@ -327,7 +316,9 @@ export function ClubOnboarding() {
                 placeholder="Your full name"
                 autoComplete="name"
                 required
+                {...fieldErrorControlProps('onb-contact-name', shown['onb-contact-name'])}
               />
+              <FieldError field="onb-contact-name" message={shown['onb-contact-name']} />
             </div>
             <div>
               <label className="l-lbl" htmlFor="onb-contact-email">
@@ -342,7 +333,9 @@ export function ClubOnboarding() {
                 placeholder="you@example.com"
                 autoComplete="email"
                 required
+                {...fieldErrorControlProps('onb-contact-email', shown['onb-contact-email'])}
               />
+              <FieldError field="onb-contact-email" message={shown['onb-contact-email']} />
             </div>
           </div>
 

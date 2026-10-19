@@ -82,8 +82,35 @@ describe('ResetPasswordPage', () => {
     await user.type(screen.getByLabelText(/confirm password/i), 'different');
     await user.click(screen.getByRole('button', { name: /update password/i }));
 
-    expect(screen.getByText(/do not match/i)).toBeInTheDocument();
+    expect(screen.getByText('Passwords do not match.')).toBeInTheDocument();
+    expect(screen.getByLabelText(/confirm password/i)).toHaveAttribute('aria-invalid', 'true');
     expect(mockUpdateUser).not.toHaveBeenCalled();
+  });
+
+  it('puts a callout under the new password when it is too short, focused', async () => {
+    mockGetSession.mockResolvedValue(recoverySession);
+    render(
+      <MemoryRouter>
+        <ResetPasswordPage />
+      </MemoryRouter>
+    );
+    const user = userEvent.setup();
+
+    await waitFor(() => screen.getByLabelText(/new password/i));
+    await user.click(screen.getByRole('button', { name: /update password/i }));
+
+    const field = screen.getByLabelText(/new password/i);
+    expect(screen.getByText('Enter a password of at least 8 characters.')).toBeInTheDocument();
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(field).toHaveAttribute('aria-describedby', 'new-password-error');
+    expect(field).toHaveFocus();
+    expect(screen.queryByText(/must be at least 8 characters\./i)).not.toBeInTheDocument();
+    expect(mockUpdateUser).not.toHaveBeenCalled();
+
+    await user.type(field, 'password123');
+    expect(
+      screen.queryByText('Enter a password of at least 8 characters.')
+    ).not.toBeInTheDocument();
   });
 
   it('calls updateUser and shows success on valid submit', async () => {

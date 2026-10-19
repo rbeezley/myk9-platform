@@ -25,7 +25,10 @@ function formatDateString(year: number, month: number, day: number): string {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-export interface DatePickerFieldProps {
+export interface DatePickerFieldProps extends Pick<
+  React.AriaAttributes,
+  'aria-invalid' | 'aria-describedby'
+> {
   label?: string;
   value: string;
   onChange: (value: string) => void;
@@ -35,6 +38,8 @@ export interface DatePickerFieldProps {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  /** Puts an id on the visible trigger button (what a required-field callout focuses). */
+  triggerId?: string;
 }
 
 const DatePickerField: React.FC<DatePickerFieldProps> = ({
@@ -47,6 +52,9 @@ const DatePickerField: React.FC<DatePickerFieldProps> = ({
   disabled = false,
   placeholder = 'Select date',
   className,
+  triggerId,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedBy,
 }) => {
   // Create a Date object from the stored value
   let date: Date | undefined = undefined;
@@ -85,7 +93,7 @@ const DatePickerField: React.FC<DatePickerFieldProps> = ({
     <div className={className ?? 'space-y-2'}>
       {label && (
         <div className="flex items-center gap-1">
-          <label htmlFor={id} className="block text-sm font-medium">
+          <label htmlFor={triggerId ?? id} className="block text-sm font-medium">
             {label}
             {required && <span className="text-destructive ml-1">*</span>}
           </label>
@@ -99,6 +107,9 @@ const DatePickerField: React.FC<DatePickerFieldProps> = ({
         id={id}
         disabled={disabled}
         placeholder={placeholder}
+        triggerId={triggerId}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
       />
     </div>
   );

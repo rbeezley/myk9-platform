@@ -137,7 +137,7 @@ describe('RequestAccessPage', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
 
-    expect(await screen.findByText(/enter a valid website URL/i)).toBeInTheDocument();
+    expect(await screen.findByText(/enter a valid website/i)).toBeInTheDocument();
     expect(submitNewClubAccessRequest).not.toHaveBeenCalled();
   });
 
@@ -192,5 +192,32 @@ describe('RequestAccessPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Find an existing club' }));
 
     expect(screen.getByRole('button', { name: /Heartland Dog Club/ })).toBeInTheDocument();
+  });
+
+  it('puts callouts under the club name and website, focuses the name, and clears when fixed', async () => {
+    render(<RequestAccessPage />, { initialRoute: '/request-access' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Request a new club' }));
+    fireEvent.change(screen.getByLabelText('Club website (optional)'), {
+      target: { value: 'myclub' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
+
+    const name = screen.getByLabelText('Club name');
+    expect(screen.getByText('Enter the club name.')).toBeInTheDocument();
+    expect(screen.getByText(/enter a valid website, like example\.com/i)).toBeInTheDocument();
+    expect(screen.getByText('Enter at least one club number.')).toBeInTheDocument();
+    expect(name).toHaveAttribute('aria-invalid', 'true');
+    expect(name).toHaveAttribute('aria-describedby', 'requested-club-name-error');
+    expect(screen.getByLabelText('Club website (optional)')).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+    expect(name).toHaveFocus();
+    expect(screen.queryByText(/before sending your request/i)).not.toBeInTheDocument();
+    expect(submitNewClubAccessRequest).not.toHaveBeenCalled();
+
+    fireEvent.change(name, { target: { value: 'Heartland' } });
+    expect(screen.queryByText('Enter the club name.')).not.toBeInTheDocument();
   });
 });

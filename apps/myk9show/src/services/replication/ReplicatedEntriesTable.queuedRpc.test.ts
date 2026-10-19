@@ -137,7 +137,10 @@ describe('a queued ringside write meeting a pull (MYK9-1236)', () => {
     await vi.waitFor(async () => {
       expect(await manager.getPendingCount()).toBe(0);
       expect(serverFields.result_status).toBe('qualified');
-      expect((await table.get(ID))?.resultStatus).toBe('qualified');
+      expect(serverFields.disqualification_reason ?? null).toBeNull();
+      const entry = await table.get(ID);
+      expect(entry?.resultStatus).toBe('qualified');
+      expect(entry?.disqualification_reason ?? null).toBeNull();
     });
     expect(conflicts).toHaveLength(0);
   }
@@ -196,6 +199,7 @@ describe('a queued ringside write meeting a pull (MYK9-1236)', () => {
       await table.sync(SHOW);
       upload = uploadAgain();
       await vi.waitFor(() => expect(serverFields.result_status).toBe('nq'));
+      expect(serverFields.disqualification_reason).toBe('Incorrect Call');
       await table.updateEntry(ID, { resultStatus: 'qualified', disqualification_reason: null });
       await uploadAgain();
       releaseNq();

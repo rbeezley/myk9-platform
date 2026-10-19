@@ -101,6 +101,26 @@ describe('prepareArmbandLabelItems', () => {
     expect(items[2].armband).toBe(201);
   });
 
+  it('picks the same entry per dog and day whatever order the rows arrive in', () => {
+    const entry = (id: string, handler: string): ArmbandLabelEntry => ({
+      id,
+      dogId: 'dog-1',
+      trialId: 't1',
+      classId: `class-${id}`,
+      calendarDay: '2025-06-11',
+      armband: 101,
+      callName: 'Storm',
+      breed: 'Beagle',
+      handler,
+      trialDate: '6/11/2025',
+      isDayOfShow: false,
+    });
+    const rows = [entry('b', 'Bob'), entry('a', 'Jane')];
+    const scope = { kind: 'show' as const, showId: 'show-1' };
+    expect(selectArmbandLabelEntries(rows, scope)[0].handler).toBe('Jane');
+    expect(selectArmbandLabelEntries([...rows].reverse(), scope)[0].handler).toBe('Jane');
+  });
+
   it('carries the breed through to the printed item', () => {
     expect(prepareArmbandLabelItems(entries).every(item => item.breed === 'Beagle')).toBe(true);
   });

@@ -1,3 +1,7 @@
+import {
+  projectHandlerIdentity,
+  type HandlerPersonLike,
+} from '@/features/registries/handlerIdentity';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 import type { ReplicatedPaperworkPrint } from '@/services/replication';
 
@@ -163,20 +167,22 @@ function buildArmbandDescriptor(
     if (!Number.isFinite(armband) || armband === null || !calendarDay) continue;
     const row = entry as DbEntry & Record<string, unknown>;
     const dog = row.dog as Record<string, unknown> | null;
-    const handler = row.handler_person as Record<string, unknown> | null;
-    const owner = dog?.owner as Record<string, unknown> | null;
     const dogId = entry.dog_id ?? '';
     const key = `${dogId || `armband:${armband}`}:${calendarDay}`;
     if (dogs.has(key)) continue;
-    const handlerSource = handler ?? owner;
     dogs.set(key, {
       dogId,
       calendarDay,
       armband,
       callName: String(dog?.call_name ?? dog?.name ?? ''),
-      handlerName: handlerSource
-        ? `${handlerSource.first_name ?? ''} ${handlerSource.last_name ?? ''}`.trim()
-        : String(row.handler ?? ''),
+      // The rule the label prints (useArmbandLabelData), so a recorded print matches here.
+      handlerName:
+        projectHandlerIdentity({
+          assignedHandlerName: row.handler as string | null | undefined,
+          assignedHandlerId: row.handler_id as string | null | undefined,
+          assignedHandlerPerson: row.handler_person as HandlerPersonLike | null | undefined,
+          ownerPerson: dog?.owner as HandlerPersonLike | null | undefined,
+        }).name ?? '',
       classIds: [scope.classId],
       trialIds: [scope.trialId],
     });

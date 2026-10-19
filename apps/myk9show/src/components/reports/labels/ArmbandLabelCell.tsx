@@ -103,7 +103,7 @@ export const ArmbandLabelCell: React.FC<ArmbandLabelCellProps> = ({
               {item.breed}
             </span>
           )}
-          {config.handlerName && (
+          {config.handlerName && item.handler && (
             <span className="armband-label__handler" style={TRUNCATE}>
               {item.handler}
             </span>

@@ -6,7 +6,7 @@
  * error tracking and reporting
  */
 
-import { LoggingService } from '@/services/LoggingService';
+import { LoggingService, isLogEndpointUrl } from '@/services/LoggingService';
 import { MonitoringService } from '@/services/MonitoringService';
 import { logger } from '@/services/LoggingService';
 import { isBenignResizeObserverLoopError } from './ignoredBrowserErrors';
@@ -199,6 +199,11 @@ class GlobalErrorHandler {
     const originalFetch = window.fetch;
 
     window.fetch = async (...args) => {
+      const requestUrl = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url;
+      // The remote logger's own POST must not be reported: its failure would send
+      // another POST, forever (MYK9-1251).
+      if (isLogEndpointUrl(requestUrl)) return originalFetch(...args);
+
       try {
         const response = await originalFetch(...args);
 
@@ -211,7 +216,7 @@ class GlobalErrorHandler {
             sessionId: this.sessionId,
             errorType: 'network',
             severity: this.classifyNetworkErrorSeverity(response.status),
-            requestUrl: typeof args[0] === 'string' ? args[0] : (args[0] as Request).url,
+            requestUrl,
             method: args[1]?.method || 'GET',
             statusCode: response.status,
           };
@@ -229,7 +234,7 @@ class GlobalErrorHandler {
           sessionId: this.sessionId,
           errorType: 'network',
           severity: 'high',
-          requestUrl: typeof args[0] === 'string' ? args[0] : (args[0] as Request).url,
+          requestUrl,
           method: args[1]?.method || 'GET',
         };
 

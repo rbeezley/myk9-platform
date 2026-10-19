@@ -14,6 +14,7 @@ const entries: ArmbandLabelEntry[] = [
     calendarDay: '2025-06-11',
     armband: 101,
     callName: 'Storm',
+    breed: 'Beagle',
     handler: 'Jane Doe',
     trialDate: '6/11/2025',
     isDayOfShow: false,
@@ -26,6 +27,7 @@ const entries: ArmbandLabelEntry[] = [
     calendarDay: '2025-06-11',
     armband: 102,
     callName: 'Jewels',
+    breed: 'Beagle',
     handler: 'Bob Smith',
     trialDate: '6/11/2025',
     isDayOfShow: false,
@@ -38,6 +40,7 @@ const entries: ArmbandLabelEntry[] = [
     calendarDay: '2025-06-12',
     armband: 201,
     callName: 'Crash',
+    breed: 'Beagle',
     handler: 'Sue Lee',
     trialDate: '6/12/2025',
     isDayOfShow: true,
@@ -97,6 +100,10 @@ describe('prepareArmbandLabelItems', () => {
     expect(items[1].armband).toBe(102);
     expect(items[2].armband).toBe(201);
   });
+
+  it('carries the breed through to the printed item', () => {
+    expect(prepareArmbandLabelItems(entries).every(item => item.breed === 'Beagle')).toBe(true);
+  });
 });
 
 describe('selectArmbandLabelEntries', () => {
@@ -109,6 +116,7 @@ describe('selectArmbandLabelEntries', () => {
       calendarDay: '2025-06-11',
       armband: 101,
       callName: 'Storm',
+      breed: 'Beagle',
       handler: 'Jane Doe',
       trialDate: '6/11/2025',
       isDayOfShow: false,

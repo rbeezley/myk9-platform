@@ -79,11 +79,6 @@ body {
   padding: 0.04in 0;
 }
 
-.armband-label__number {
-  font-weight: bold;
-  line-height: 1;
-}
-
 .armband-label__call-name {
   font-weight: 600;
 }

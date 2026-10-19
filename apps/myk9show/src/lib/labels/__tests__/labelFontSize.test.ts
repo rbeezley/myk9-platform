@@ -1,69 +1,68 @@
-import { getArmbandFontSize, getArmbandSideFontSize } from '../labelFontSize';
+import {
+  ARMBAND_NUMBER_LINE_HEIGHT,
+  getArmbandFontSize,
+  getArmbandLayout,
+  getArmbandSideFontSize,
+} from '../labelFontSize';
 
-describe('getArmbandFontSize', () => {
-  it('returns larger font when fewer fields are enabled', () => {
-    const fewFields = getArmbandFontSize(1.333, 1);
-    const manyFields = getArmbandFontSize(1.333, 5);
-    expect(fewFields).toBeGreaterThan(manyFields);
+const TEMPLATES = [
+  ['18262', 4, 1.333],
+  ['18163', 4, 2],
+  ['8387', 4.25, 5.5],
+] as const;
+const contentW = (w: number) => (w - 0.24) * 96;
+const contentH = (h: number) => (h - 0.24) * 96;
+
+describe('getArmbandLayout', () => {
+  it('puts details beside the number on wide labels and under it on tall ones', () => {
+    expect(getArmbandLayout(4, 1.333)).toBe('row');
+    expect(getArmbandLayout(4, 2)).toBe('row');
+    expect(getArmbandLayout(4.25, 5.5)).toBe('stacked');
+  });
+});
+
+describe('getArmbandFontSize (MYK9-1233: as large as the label allows)', () => {
+  it('fills the 1-1/3" label far beyond the old 48px', () => {
+    // Known answer: 3 digits, width-bound at half of 361px content -> 103px.
+    expect(getArmbandFontSize(4, 1.333, 3)).toBe(103);
   });
 
-  it('returns larger font for taller labels', () => {
-    const small = getArmbandFontSize(1.333, 2);
-    const large = getArmbandFontSize(5.5, 2);
-    expect(large).toBeGreaterThan(small);
+  it.each(TEMPLATES)('never overflows the content box on %s', (_id, w, h) => {
+    for (const digits of [1, 2, 3, 4, 5]) {
+      const size = getArmbandFontSize(w, h, digits);
+      expect(size * ARMBAND_NUMBER_LINE_HEIGHT).toBeLessThanOrEqual(contentH(h));
+      expect(size * 0.58 * digits).toBeLessThanOrEqual(contentW(w) + 0.5);
+    }
   });
 
-  it('never goes below minimum readable size', () => {
-    const size = getArmbandFontSize(1.333, 10);
-    expect(size).toBeGreaterThanOrEqual(24);
+  it.each(TEMPLATES.filter(([, w, h]) => getArmbandLayout(w, h) === 'row'))(
+    'leaves the details column at least 40%% of the cell on %s',
+    (_id, w, h) => {
+      const numberWidth = getArmbandFontSize(w, h, 3) * 0.58 * 3;
+      const sideWidth = contentW(w) - numberWidth - 0.12 * 96;
+      expect(sideWidth / (w * 96)).toBeGreaterThanOrEqual(0.4);
+    }
+  );
+
+  it('stacked: leaves at least 45% of the height for the details', () => {
+    const size = getArmbandFontSize(4.25, 5.5, 3);
+    expect(size * ARMBAND_NUMBER_LINE_HEIGHT).toBeLessThanOrEqual(contentH(5.5) * 0.55);
+    // And it is far larger than a side-by-side number on the same label would be.
+    expect(size).toBeGreaterThan(200);
   });
 
-  it('never exceeds label height in points', () => {
-    const size = getArmbandFontSize(1.333, 0);
-    expect(size).toBeLessThanOrEqual(1.333 * 72);
+  it('grows when the run has shorter armbands, shrinks for longer ones', () => {
+    const three = getArmbandFontSize(4, 2, 3);
+    expect(getArmbandFontSize(4, 2, 2)).toBeGreaterThan(three);
+    expect(getArmbandFontSize(4, 2, 4)).toBeLessThan(three);
   });
 
-  describe('width cap (MYK9-1233)', () => {
-    const contentPx = (widthIn: number) => (widthIn - 0.24) * 96;
+  it('never goes below a readable minimum', () => {
+    expect(getArmbandFontSize(4, 1.333, 12)).toBeGreaterThanOrEqual(24);
+  });
 
-    it.each([
-      ['18262', 4, 1.333],
-      ['18163', 4, 2],
-      ['8387', 4.25, 5.5],
-    ])(
-      'leaves the right column at least 45%% of the cell on %s for a 3-digit number',
-      (_id, w, h) => {
-        const size = getArmbandFontSize(h, 0, { labelWidthInches: w, digits: 3 });
-        const numberWidth = size * 0.6 * 3;
-        const sideWidth = contentPx(w) - numberWidth - 0.12 * 96;
-        expect(sideWidth / (w * 96)).toBeGreaterThanOrEqual(0.4);
-        expect(size).toBeGreaterThanOrEqual(24);
-      }
-    );
-
-    it('shrinks the number on a very tall label instead of eating the column', () => {
-      const tall = getArmbandFontSize(5.5, 0);
-      const capped = getArmbandFontSize(5.5, 0, { labelWidthInches: 4.25, digits: 3 });
-      expect(capped).toBeLessThan(tall);
-    });
-
-    it('sizes a 1- or 2-digit number like a 3-digit one, and a 4-digit one smaller', () => {
-      const w = { labelWidthInches: 4.25 };
-      const three = getArmbandFontSize(5.5, 0, { ...w, digits: 3 });
-      expect(getArmbandFontSize(5.5, 0, { ...w, digits: 1 })).toBe(three);
-      expect(getArmbandFontSize(5.5, 0, { ...w, digits: 4 })).toBeLessThan(three);
-    });
-
-    it('keeps the secondary text smaller than the number on every template', () => {
-      for (const [w, h] of [
-        [4, 1.333],
-        [4, 2],
-        [4.25, 5.5],
-      ]) {
-        const num = getArmbandFontSize(h, 0, { labelWidthInches: w, digits: 3 });
-        expect(getArmbandSideFontSize(h)).toBeLessThan(num);
-        expect(getArmbandSideFontSize(h)).toBeGreaterThanOrEqual(11);
-      }
-    });
+  it.each(TEMPLATES)('keeps the details text smaller than the number on %s', (_id, w, h) => {
+    expect(getArmbandSideFontSize(h)).toBeLessThan(getArmbandFontSize(w, h, 5));
+    expect(getArmbandSideFontSize(h)).toBeGreaterThanOrEqual(11);
   });
 });

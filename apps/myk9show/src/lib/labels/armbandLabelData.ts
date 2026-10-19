@@ -50,6 +50,7 @@ export function prepareArmbandLabelItems(entries: ArmbandLabelEntry[]): ArmbandL
     .map(e => ({
       armband: e.armband,
       callName: e.callName,
+      breed: e.breed,
       handler: e.handler,
       trialDate: e.trialDate,
     }));

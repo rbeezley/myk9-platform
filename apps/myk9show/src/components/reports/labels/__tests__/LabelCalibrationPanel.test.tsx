@@ -36,6 +36,7 @@ function makePrefs(overrides: Partial<LabelPreferences> = {}): LabelPreferences 
     templateId: '18262',
     contentConfig: {
       callName: true,
+      breed: false,
       trialDate: true,
       handlerName: false,
       clubLogo: false,

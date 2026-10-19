@@ -6,6 +6,8 @@ export interface ArmbandLabelEntry {
   calendarDay: string;
   armband: number;
   callName: string;
+  /** Breed on the dog's registration with this trial's registry; blank when it has none. */
+  breed: string;
   handler: string;
   trialDate: string;
   isDayOfShow: boolean;
@@ -14,12 +16,14 @@ export interface ArmbandLabelEntry {
 export interface ArmbandLabelItem {
   armband: number;
   callName: string;
+  breed: string;
   handler: string;
   trialDate: string;
 }
 
 export interface LabelContentConfig {
   callName: boolean;
+  breed: boolean;
   trialDate: boolean;
   handlerName: boolean;
   clubLogo: boolean;
@@ -35,8 +39,9 @@ export interface LabelFilterConfig {
 
 export const DEFAULT_CONTENT_CONFIG: LabelContentConfig = {
   callName: true,
+  breed: true,
   trialDate: true,
-  handlerName: false,
+  handlerName: true,
   clubLogo: false,
   showAccessCode: true,
   venueWifi: false,

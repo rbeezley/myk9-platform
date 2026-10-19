@@ -131,13 +131,13 @@ describe('ArmbandLabelsReport', () => {
       render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
 
       const specificCheckbox = screen.getByRole('checkbox', {
-        name: /specific armband number/i,
+        name: /specific armbands/i,
       });
       // Reveal the number field.
       fireEvent.click(specificCheckbox);
       expect(specificCheckbox).toHaveAttribute('aria-checked', 'true');
 
-      const numberInput = screen.getByLabelText('Armband number');
+      const numberInput = screen.getByLabelText('Armband numbers');
       const checkboxLabel = specificCheckbox.closest('label');
       expect(checkboxLabel).not.toBeNull();
       // The regression: the input must be a SIBLING of the label, never a
@@ -147,18 +147,50 @@ describe('ArmbandLabelsReport', () => {
       // And typing leaves the checkbox checked.
       fireEvent.change(numberInput, { target: { value: '42' } });
       expect(specificCheckbox).toHaveAttribute('aria-checked', 'true');
-      expect(numberInput).toHaveValue(42);
+      expect(numberInput).toHaveValue('42');
+    });
+
+    it('prints only the armbands listed, as numbers, lists or ranges', () => {
+      render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
+      fireEvent.click(screen.getByRole('checkbox', { name: /specific armbands/i }));
+      const field = screen.getByLabelText('Armband numbers');
+
+      fireEvent.change(field, { target: { value: '102' } });
+      expect(screen.queryByText('Storm')).not.toBeInTheDocument();
+      expect(screen.getByText('Max')).toBeInTheDocument();
+
+      fireEvent.change(field, { target: { value: '101, 102' } });
+      expect(screen.getByText('Storm')).toBeInTheDocument();
+      expect(screen.getByText('Max')).toBeInTheDocument();
+
+      fireEvent.change(field, { target: { value: '100-101' } });
+      expect(screen.getByText('Storm')).toBeInTheDocument();
+      expect(screen.queryByText('Max')).not.toBeInTheDocument();
+    });
+
+    it('names text it cannot read and prints nothing for it', () => {
+      render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
+      fireEvent.click(screen.getByRole('checkbox', { name: /specific armbands/i }));
+      const field = screen.getByLabelText('Armband numbers');
+      fireEvent.change(field, { target: { value: '101, abc' } });
+      expect(field).toHaveAttribute('aria-invalid', 'true');
+      expect(screen.getByText('"abc" is not an armband number or range.')).toBeInTheDocument();
+      expect(screen.getByText('Fix the armband numbers above to see labels')).toBeInTheDocument();
+      expect(screen.queryByText('Storm')).not.toBeInTheDocument();
+      expect(screen.queryByText('Max')).not.toBeInTheDocument();
     });
 
     it('hides the number field and clears it when the checkbox is unchecked', () => {
       render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
       const specificCheckbox = screen.getByRole('checkbox', {
-        name: /specific armband number/i,
+        name: /specific armbands/i,
       });
       fireEvent.click(specificCheckbox);
-      expect(screen.getByLabelText('Armband number')).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText('Armband numbers'), { target: { value: '101' } });
       fireEvent.click(specificCheckbox);
-      expect(screen.queryByLabelText('Armband number')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Armband numbers')).not.toBeInTheDocument();
+      fireEvent.click(specificCheckbox);
+      expect(screen.getByLabelText('Armband numbers')).toHaveValue('');
     });
   });
 
@@ -175,10 +207,10 @@ describe('ArmbandLabelsReport', () => {
 
       // Filter down to an armband number that matches no entry -> zero pages.
       const specificCheckbox = screen.getByRole('checkbox', {
-        name: /specific armband number/i,
+        name: /specific armbands/i,
       });
       fireEvent.click(specificCheckbox);
-      const numberInput = screen.getByLabelText('Armband number');
+      const numberInput = screen.getByLabelText('Armband numbers');
       fireEvent.change(numberInput, { target: { value: '999' } });
 
       await waitFor(() => {

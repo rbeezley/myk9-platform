@@ -1,3 +1,5 @@
+import type { ArmbandRange } from './armbandSelection';
+
 export interface ArmbandLabelEntry {
   id: string;
   dogId: string;
@@ -34,7 +36,8 @@ export interface LabelContentConfig {
 export interface LabelFilterConfig {
   earlyEntries: boolean;
   dayOfShowEntries: boolean;
-  specificArmband?: number | null;
+  /** Only these armbands (`101, 105-110`); null prints every armband the other filters allow. */
+  specificArmbands?: readonly ArmbandRange[] | null;
 }
 
 export const DEFAULT_CONTENT_CONFIG: LabelContentConfig = {

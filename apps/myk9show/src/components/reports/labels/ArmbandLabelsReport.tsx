@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { LABEL_TEMPLATES, DEFAULT_TEMPLATE_ID, getAllTemplates } from '@/lib/labels/labelTemplates';
 import { buildLabelPages } from '@/lib/labels/labelLayout';
+import { parseArmbandSelection, printRangesFor } from '@/lib/labels/armbandSelection';
 import { buildLabelStylesheet } from '@/lib/labels/labelStyles';
 import {
   prepareArmbandLabelItems,
@@ -46,7 +47,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
     earlyEntries: true,
     dayOfShowEntries: true,
   });
-  const [specificArmband, setSpecificArmband] = useState('');
+  const [armbandText, setArmbandText] = useState('');
   const [showSpecific, setShowSpecific] = useState(false);
 
   // Derive from prefs — single source of truth
@@ -61,12 +62,12 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
   const template = LABEL_TEMPLATES[templateId];
   const passcodes = useMemo(() => (showId ? generatePasscodesFromShowId(showId) : null), [showId]);
 
+  const parsedArmbands = parseArmbandSelection(armbandText);
+  const selectionInvalid =
+    showSpecific && 'invalid' in parsedArmbands ? parsedArmbands.invalid : null;
   const filterConfig: LabelFilterConfig = useMemo(
-    () => ({
-      ...filter,
-      specificArmband: showSpecific && specificArmband ? Number(specificArmband) : null,
-    }),
-    [filter, showSpecific, specificArmband]
+    () => ({ ...filter, specificArmbands: showSpecific ? printRangesFor(armbandText) : null }),
+    [filter, showSpecific, armbandText]
   );
 
   const filteredCandidates = useMemo(
@@ -273,23 +274,34 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
                   onCheckedChange={checked => {
                     const next = checked === true;
                     setShowSpecific(next);
-                    if (!next) setSpecificArmband('');
+                    if (!next) setArmbandText('');
                   }}
                 />
-                <span>Specific Armband Number</span>
+                <span>Specific Armbands</span>
               </label>
               {showSpecific && (
                 <Input
-                  type="number"
-                  inputMode="numeric"
-                  value={specificArmband}
-                  onChange={e => setSpecificArmband(e.target.value)}
-                  className="w-20 ml-2 h-11"
-                  placeholder="#"
-                  aria-label="Armband number"
+                  type="text"
+                  value={armbandText}
+                  onChange={e => setArmbandText(e.target.value)}
+                  className="w-44 ml-2 h-11"
+                  placeholder="e.g. 101, 105-110"
+                  aria-label="Armband numbers"
+                  aria-invalid={selectionInvalid !== null}
+                  aria-describedby="armband-specific-help"
                 />
               )}
             </div>
+            {showSpecific && (
+              <p
+                id="armband-specific-help"
+                className={`text-xs ${selectionInvalid !== null ? 'text-destructive' : 'text-muted-foreground'}`}
+              >
+                {selectionInvalid !== null
+                  ? `"${selectionInvalid}" is not an armband number or range.`
+                  : 'Numbers and ranges separated by commas, like 101, 105-110.'}
+              </p>
+            )}
           </div>
         </div>
 
@@ -404,9 +416,11 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
         >
           {allEntries.length === 0
             ? 'No entries with armbands assigned for this show'
-            : showSpecific && specificArmband
-              ? `No entry found with armband #${specificArmband}`
-              : 'No entries match the selected filters'}
+            : selectionInvalid !== null
+              ? 'Fix the armband numbers above to see labels'
+              : showSpecific && armbandText.trim()
+                ? `No entry found with armband ${armbandText.trim()}`
+                : 'No entries match the selected filters'}
         </div>
       )}
 

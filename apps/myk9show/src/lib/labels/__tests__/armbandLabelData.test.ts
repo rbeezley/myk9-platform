@@ -86,10 +86,22 @@ describe('filterEntries', () => {
     const result = filterEntries(entries, {
       earlyEntries: true,
       dayOfShowEntries: true,
-      specificArmband: 102,
+      specificArmbands: [[102, 102]],
     });
     expect(result).toHaveLength(1);
     expect(result[0].callName).toBe('Jewels');
+  });
+
+  it('filters to a list and a range of armbands', () => {
+    const result = filterEntries(entries, {
+      earlyEntries: true,
+      dayOfShowEntries: true,
+      specificArmbands: [
+        [101, 101],
+        [200, 250],
+      ],
+    });
+    expect(result.map(e => e.armband).sort()).toEqual([101, 201]);
   });
 });
 

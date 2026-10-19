@@ -29,6 +29,16 @@ describe('mapEntryToArmbandLabelEntry', () => {
     });
   });
 
+  it('reads the text armband column as a number', () => {
+    const raw = { id: 'e9', armband: '101', is_day_of_show: false, dog: null, class: null };
+    expect(mapEntryToArmbandLabelEntry(raw)!.armband).toBe(101);
+  });
+
+  it('skips an armband that is not a number, as the Overview does', () => {
+    const raw = { id: 'e10', armband: '101A', is_day_of_show: false, dog: null, class: null };
+    expect(mapEntryToArmbandLabelEntry(raw)).toBeNull();
+  });
+
   it('returns null for entries without armband', () => {
     const raw = {
       id: 'e2',

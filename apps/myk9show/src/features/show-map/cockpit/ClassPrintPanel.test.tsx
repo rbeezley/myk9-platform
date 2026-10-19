@@ -189,6 +189,25 @@ describe('ClassPrintPanel', () => {
     expect(mocks.toast).not.toHaveBeenCalled();
   });
 
+  // Regression: the sticky focused-class card must not contain the dialog (see ClassPrintPanel).
+  it('renders outside the sticky card it is opened from, so the show header cannot cover it', () => {
+    render(
+      <aside data-testid="sticky-card" style={{ position: 'sticky' }}>
+        <ClassPrintPanel
+          open
+          showId="show-1"
+          trialId="t1"
+          classId="c1"
+          classLabel="Novice Container"
+          items={[sheet('check-in-sheet', 'Check-in sheet')]}
+          onClose={vi.fn()}
+        />
+      </aside>
+    );
+    const dialog = screen.getByRole('dialog');
+    expect(screen.getByTestId('sticky-card').contains(dialog)).toBe(false);
+  });
+
   it('previews a single sheet as itself', () => {
     renderPanel([sheet('check-in-sheet', 'Check-in sheet')]);
     expect(screen.getByTitle('frame-check-in-sheet')).toBeInTheDocument();

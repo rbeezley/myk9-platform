@@ -113,5 +113,12 @@ describe('NotificationBell', () => {
 
     render(<NotificationBell />);
     expect(screen.getByText('6')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Message Center 6 unread' })).toBeInTheDocument();
+  });
+  it('includes the capped visible badge in the accessible name', () => {
+    useNotificationStore.setState({ unreadCount: 120 });
+    render(<NotificationBell />);
+    expect(screen.getByRole('button', { name: 'Message Center 99+ unread' })).toBeInTheDocument();
+    expect(screen.getByText('99+')).toBeVisible();
   });
 });

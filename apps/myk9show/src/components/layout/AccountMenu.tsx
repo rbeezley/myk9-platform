@@ -43,9 +43,6 @@ export function AccountMenu({
     resolvedName !== 'Account'
       ? resolvedName.charAt(0).toUpperCase()
       : user?.email?.charAt(0).toUpperCase() || 'U';
-  const sidebarLabel = roleLabel
-    ? `Account menu for ${resolvedName}, ${roleLabel}`
-    : `Account menu for ${resolvedName}`;
   const isSidebar = variant === 'sidebar';
 
   return (
@@ -63,9 +60,12 @@ export function AccountMenu({
                 : 'flex min-w-11 items-center gap-1.5 px-2 py-2 hover:bg-muted/50',
               className
             )}
-            aria-label={isSidebar ? sidebarLabel : 'Account menu'}
           >
-            <Avatar className={cn('shrink-0', isSidebar ? 'h-8 w-8' : 'h-7 w-7')}>
+            <span className="sr-only">{isSidebar ? 'Account menu for ' : 'Account menu'}</span>
+            <Avatar
+              aria-hidden="true"
+              className={cn('shrink-0', isSidebar ? 'h-8 w-8' : 'h-7 w-7')}
+            >
               {currentPerson?.profileImage && (
                 <AvatarImage src={currentPerson.profileImage} alt="Profile photo" />
               )}
@@ -77,6 +77,7 @@ export function AccountMenu({
             {isSidebar && rail && (
               <span className="max-w-full whitespace-normal break-words text-xs font-medium leading-tight text-foreground">
                 {resolvedName}
+                {roleLabel && <span className="sr-only">{`, ${roleLabel}`}</span>}
               </span>
             )}
 
@@ -85,7 +86,8 @@ export function AccountMenu({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-foreground">
                     {resolvedName}
-                  </span>
+                    {roleLabel && <span className="sr-only">,</span>}
+                  </span>{' '}
                   {roleLabel && (
                     <span className="block truncate text-xs text-muted-foreground">
                       {roleLabel}

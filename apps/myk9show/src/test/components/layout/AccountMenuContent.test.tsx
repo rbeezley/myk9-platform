@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, isInaccessible, screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AccountMenuContent } from '@/components/layout/AccountMenuContent';
@@ -367,5 +367,24 @@ describe('AccountMenuContent save status', () => {
     expect(screen.getByText(expected)).toBeInTheDocument();
     expect(screen.queryByText('Online')).not.toBeInTheDocument();
     expect(screen.queryByText('Synced')).not.toBeInTheDocument();
+  });
+});
+
+describe('AccountMenu accessible trigger', () => {
+  it.each([false, true])(
+    'keeps the avatar decorative while naming the sidebar control (rail=%s)',
+    rail => {
+      render(<AccountMenu variant="sidebar" rail={rail} displayName="Pat" roleLabel="Judge" />);
+      expect(
+        screen.getByRole('button', { name: 'Account menu for Pat, Judge' })
+      ).toBeInTheDocument();
+      expect(screen.getByText('Pat')).toBeVisible();
+      expect(isInaccessible(screen.getByText('P'))).toBe(true);
+    }
+  );
+  it('names the header control without announcing the decorative fallback', () => {
+    render(<AccountMenu variant="header" displayName="Pat" />);
+    expect(screen.getByRole('button', { name: 'Account menu' })).toBeInTheDocument();
+    expect(isInaccessible(screen.getByText('P'))).toBe(true);
   });
 });

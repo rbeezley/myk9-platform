@@ -10,17 +10,18 @@ export function NotificationBell() {
   const messageUnread = useMessageStore(s => s.unreadCount);
 
   const totalUnread = unreadCount + announcementUnread + messageUnread;
+  const badgeLabel = totalUnread > 99 ? '99+' : String(totalUnread);
 
   return (
     <button
-      aria-label="Message Center"
+      aria-label={totalUnread > 0 ? `Message Center ${badgeLabel} unread` : 'Message Center'}
       onClick={openCenter}
       className="relative flex min-h-11 min-w-11 items-center justify-center rounded-md p-2 hover:bg-muted"
     >
-      <Bell className="h-5 w-5" />
+      <Bell aria-hidden="true" className="h-5 w-5" />
       {totalUnread > 0 && (
         <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
-          {totalUnread > 99 ? '99+' : totalUnread}
+          {badgeLabel}
         </span>
       )}
     </button>

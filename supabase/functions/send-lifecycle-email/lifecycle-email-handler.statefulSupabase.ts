@@ -1,11 +1,15 @@
 import { vi } from 'vitest';
-import { claimRegistrationNumberNeededJob } from './lifecycle-email-handler.fakeClaim';
+import {
+  claimRegistrationNumberNeededJob,
+  finishRegistrationNumberNeededAttempt,
+} from './lifecycle-email-handler.fakeClaim';
 
 type Row = Record<string, unknown>;
 type Filter = (row: Row) => boolean;
 
 const JOBS = 'show_lifecycle_email_jobs';
 const TIES = 'show_lifecycle_email_job_requests';
+const FINISH = 'finish_registration_number_needed_attempt';
 
 /**
  * An in-memory Supabase fake whose writes stick, so a test can run the same request
@@ -15,7 +19,9 @@ const TIES = 'show_lifecycle_email_job_requests';
  * the jobs table carries. Request ties live in show_lifecycle_email_job_requests.
  *
  * `claim_registration_number_needed_job` runs the SQL function's decision table over
- * these same tables, atomically (an injected failure aborts it with no write).
+ * these same tables, atomically (an injected failure aborts it with no write), and
+ * `finish_registration_number_needed_attempt` its compare-and-set on attempt_id
+ * (`failNext(FINISH, 'rpc')` loses that write, as a dropped connection would).
  */
 export function makeStatefulSupabase(
   initial: Record<string, Row[]>,
@@ -34,6 +40,8 @@ export function makeStatefulSupabase(
   }
   let nextId = 0;
   const newId = (table: string) => `${table}-${(nextId += 1)}`;
+  let nextAttempt = 0;
+  const newAttemptId = () => `attempt-${(nextAttempt += 1)}`;
   /** Writes to fail once, in order: `{ table, mode }` matches the next such write. */
   const failures: Array<{ table: string; mode: 'insert' | 'update' | 'rpc' }> = [];
   const takeFailure = (table: string, mode: 'insert' | 'update' | 'rpc') => {
@@ -130,10 +138,15 @@ export function makeStatefulSupabase(
           jobs: tables[JOBS],
           ties: tables[TIES],
           newId: () => newId(JOBS),
+          newAttemptId,
           uniqueViolation: row => uniqueViolation(JOBS, row),
         },
         args
       );
+    }
+    if (fn === FINISH) {
+      if (takeFailure(FINISH, 'rpc')) return { data: null, error: { message: 'injected failure' } };
+      return finishRegistrationNumberNeededAttempt(tables[JOBS], args);
     }
     return { data: rpcResults[fn] ?? null, error: null };
   });

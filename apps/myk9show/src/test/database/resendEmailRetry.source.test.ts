@@ -13,7 +13,7 @@ const callerPaths = [
   'supabase/functions/send-confirmation-email/index.ts',
   'supabase/functions/send-email/index.ts',
   'supabase/functions/send-access-request-emails/worker.ts',
-  'supabase/functions/send-lifecycle-email/lifecycle-email-handler.ts',
+  'supabase/functions/send-lifecycle-email/lifecycle-email-shared.ts',
   'supabase/functions/send-registration-email/index.ts',
   'supabase/functions/send-results/index.ts',
   'supabase/functions/send-waitlist-invite/index.ts',

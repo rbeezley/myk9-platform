@@ -1,3 +1,4 @@
+import { isPulledEntry, type EntryAccountingFields } from '@/features/_shared/entryAccounting';
 import { deriveResultReleaseDisplay } from '@/features/result-card';
 import type { OwnShowResult } from '@/features/at-show/myAtShowEntryDetails.helpers';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
@@ -57,7 +58,10 @@ export function buildScheduleResult(
   canSeeAll: boolean,
   compData: SyncableShowEntry['competitionData'],
   own: OwnShowResult | undefined,
-  classResultsReleasedAt: string | null | undefined
+  classResultsReleasedAt: string | null | undefined,
+  entryState: EntryAccountingFields = {}
 ): ScheduleResult | undefined {
+  // A pull outranks a result recorded before it (MYK9-1258).
+  if (isPulledEntry(entryState)) return undefined;
   return canSeeAll ? fromDeviceRow(compData, classResultsReleasedAt) : fromOwnRead(own);
 }

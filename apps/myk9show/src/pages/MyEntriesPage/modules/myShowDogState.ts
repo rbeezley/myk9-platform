@@ -11,7 +11,7 @@
  * @module MyEntriesPage/modules/myShowDogState
  */
 
-import { isAccountedFor } from '@/features/_shared/entryAccounting';
+import { isAccountedFor, isPulledEntry } from '@/features/_shared/entryAccounting';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
 import { mapEntryStatusKindToUi } from '@/services/entryDisplay/entryStatusUiAdapter';
@@ -94,7 +94,17 @@ function settledRowKind(cls: MyShowClass): ClassRowKind | undefined {
  * reports that it never ran.
  */
 export function deriveClassRowState(cls: MyShowClass, ctx: DayCheckInContext): ClassRowState {
-  if (cls.isScored === true) return { kind: 'result' };
+  // A pull outranks a result recorded before it (MYK9-1258): a scored entry the
+  // secretary then pulled keeps its result columns, and the card header already
+  // reads "Pulled" off the same check-in column, so the row must not contradict
+  // it with a stale Q. A row settled by lifecycle (withdrawn, stored scratched)
+  // keeps its own word: its check-in value is stale (MYK9-582).
+  if (cls.isScored === true) {
+    const settled = settledRowKind(cls);
+    if (settled === 'scratched') return { kind: 'scratched' };
+    if (!settled && isPulledEntry(cls)) return { kind: 'pulled' };
+    return { kind: 'result' };
+  }
   // A RECORDED outcome without a score (absent, excused, or a WD result)
   // outranks the lifecycle on purpose: a row withdrawn on paper but marked
   // absent/excused in the ring has an outcome the exhibitor should see, and

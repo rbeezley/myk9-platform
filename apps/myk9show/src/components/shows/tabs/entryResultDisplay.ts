@@ -7,6 +7,7 @@ import {
   getRemovedStatusLabel,
   isRemovedStatus,
 } from '@/services/entryDisplay/entryDisplaySelectors';
+import { getStatusDescriptor } from '@/components/status/statusIconGrammar';
 import { getReviewStateLabel } from '@/components/entries/management/reviewStateLabels';
 
 export const UNPUBLISHED_SCHEDULE_DETAILS_MESSAGE =
@@ -56,6 +57,15 @@ export function isPastTrialDate(trialDate: string, now = new Date()): boolean {
   if (!parsed) return false;
 
   return startOfLocalDay(parsed).getTime() < startOfLocalDay(now).getTime();
+}
+
+/**
+ * Label for a dog the secretary pulled (check-in `pulled`), or `null`. A
+ * pulled dog carries no result and is not waiting on one, so the result slot
+ * names the pull instead of "Upcoming" / "Awaiting results" (MYK9-1258).
+ */
+export function getPulledStateLabel(entry: { checkInStatus?: string | undefined }): string | null {
+  return entry.checkInStatus === 'pulled' ? getStatusDescriptor('entry', 'pulled').label : null;
 }
 
 export function getPendingResultLabel(entry: PendingResultEntry, now = new Date()): string | null {

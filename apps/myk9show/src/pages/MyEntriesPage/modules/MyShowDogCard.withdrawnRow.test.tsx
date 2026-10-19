@@ -126,6 +126,26 @@ describe('MyShowDogCard — a withdrawn class beside a live one (MYK9-582)', () 
     expect(screen.queryByText(/scratch/i)).not.toBeInTheDocument();
   });
 
+  // MYK9-1258: a pulled entry that was scored before the pull keeps its result
+  // columns; the row must speak for the pull, never the stale Q.
+  it('shows a pulled-after-scoring row as pulled, with no result chip or time', () => {
+    renderRows([
+      mapleRow('maple-pulled-scored', 'Container Novice', 'scratched', {
+        checkInStatus: 'pulled',
+        isScored: true,
+        resultStatus: 'qualified',
+        searchTimeSeconds: 58,
+      }),
+    ]);
+
+    const row = rowFor('Container Novice');
+    expect(row).toHaveTextContent('pulled');
+    expect(row).not.toHaveTextContent(/preliminary/i);
+    expect(row).not.toHaveTextContent('58');
+    expect(row.textContent).not.toMatch(/\bQ\b/);
+    expect(screen.getByText('Pulled')).toBeInTheDocument();
+  });
+
   it('control — an all-live card carries no withdrawn marker', () => {
     renderRows([liveRow()]);
 

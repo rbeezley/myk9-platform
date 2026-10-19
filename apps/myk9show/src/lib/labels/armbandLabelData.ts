@@ -1,4 +1,5 @@
 import type { ArmbandLabelEntry, ArmbandLabelItem, LabelFilterConfig } from './armbandLabelTypes';
+import { armbandInSelection } from './armbandSelection';
 import type { ReportScope } from '@/lib/reports/types';
 
 export function selectArmbandLabelEntries(
@@ -39,8 +40,9 @@ export function filterEntries(
     return true;
   });
 
-  if (filter.specificArmband != null) {
-    result = result.filter(e => e.armband === filter.specificArmband);
+  const selection = filter.specificArmbands;
+  if (selection != null) {
+    result = result.filter(e => armbandInSelection(e.armband, selection));
   }
 
   return result;

@@ -21,8 +21,10 @@ export const ARMBAND_LABEL_HELD_ENTRIES_KEY = ['armband-label-held-entries'] as 
 export function mapEntryToArmbandLabelEntry(
   raw: Record<string, unknown>
 ): ArmbandLabelEntry | null {
-  const armband = raw.armband as number | null;
-  if (!armband) return null;
+  // `entries.armband` is a text column. Read it as a number, as the Overview does
+  // (buildClassPaperworkMap), so the specific-armband filter and the print fingerprint match.
+  const armband = Number(raw.armband);
+  if (!Number.isFinite(armband) || armband <= 0) return null;
 
   const dog = raw.dog as Record<string, unknown> | null;
   const owner = dog?.owner as HandlerPersonLike | null;

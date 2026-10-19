@@ -191,7 +191,7 @@ test('paper scoring persists one-entry and multi-entry results after reload (MYK
       .toEqual([true, 'qualified', 62.03, 1]);
     await page.reload();
     const willow = page.getByRole('button', { name: /Willow/ });
-    await expect(willow).toContainText('Q');
+    await expect(willow.getByText('Q', { exact: true })).toBeVisible();
     await expect(willow).toContainText('1:02.03');
     await expect(willow).toContainText('1 fault');
     if ((await willow.getAttribute('data-active')) !== 'true') await willow.click();

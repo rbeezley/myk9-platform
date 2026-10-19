@@ -2,28 +2,8 @@ name: Isolated batch 3 scoring verification
 
 on:
   workflow_dispatch:
+  # Run every PR: save-path dependencies extend beyond the scoring pages.
   pull_request:
-    paths:
-      - '.github/workflows/batch3-verification.yml'
-      - 'apps/myk9show/playwright.batch3.config.ts'
-      - 'apps/myk9show/tsconfig.show-day.json'
-      - 'apps/myk9show/src/test/e2e/verification/batch3Scoring.spec.ts'
-      - 'apps/myk9show/src/test/e2e/verification/showDayProof.helpers.ts'
-      - 'apps/myk9show/playwright.show-day.config.ts'
-      - 'apps/myk9show/src/test/e2e/helpers/**'
-      - 'apps/myk9show/src/test/e2e-helpers/**'
-      - 'scripts/qa/isolated-e2e*.ts'
-      - 'scripts/qa/*isolated-e2e*'
-      - 'supabase/seed*.sql'
-      - 'apps/myk9show/src/pages/scoring/**'
-      - 'apps/myk9show/src/features/at-show/**'
-      - 'apps/myk9show/src/features/results-tab/**'
-      - 'apps/myk9show/src/features/pipeline/print/**'
-      - 'apps/myk9show/src/components/reports/**'
-      - 'apps/myk9show/src/lib/reports/**'
-      - 'packages/**'
-      - 'supabase/migrations/**'
-      - 'supabase/functions/**'
 
 permissions:
   contents: read

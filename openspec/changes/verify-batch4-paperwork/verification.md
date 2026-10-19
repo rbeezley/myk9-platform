@@ -21,6 +21,10 @@ Every scenario creates a fresh class/entries/confirmed judge assignment. Canonic
 
 ## Exact remaining acceptance gate
 
+CI on `8c72d3f02` found a separate capture-readiness race at phone width: a blob URL existed, then the panel's mandatory data refetch superseded/revoked it before the proof fetched its bytes. `MergedSheetsPreview` deliberately empties/rebuilds the iframe on changed inputs. Capture now waits for bytes from one current URL generation; it repeats readiness only when the actual iframe URL changed, and propagates a fetch failure for the same URL. No browser/test retry, transport stub or product mutation is introduced. The final-source six-case run remains mandatory.
+
+Controlled Chromium diagnostic executed the actual old/new callbacks extracted from source: original fetch fails on a genuinely revoked/superseded URL; the new callback reports not-ready, then captures current blob bytes. An unchanged broken URL still throws. This diagnostic uses native browser blobs and delegates fetch to the browser; it supplies red/green evidence for the capture race, not native print acceptance or the full application proof.
+
 Subsequent CI on documentation head `98cf39200` passed five cases but timed out finding the desktop Print button after full-page preview capture. The retained preview image shows expanded full-page geometry and an absent panel; the failure screenshot shows the underlying Overview. The cockpit documents that a measured split/stack switch remounts its focused panel. The proof now captures the fixed viewport (no full-page expansion) after Print readiness, preserving the 375px/1280px scenario. This is a scoped evidence-capture correction, not a claimed product fix; require a complete zero-retry final-head run. Failed run: `39277334335`.
 
 Headless Chromium's real print lifecycle does not prove cancellation of a native print dialog. The owned Chrome tab crashed before native assertions; it was closed without touching other tabs. Headed Firefox failed before test execution with a launch/profile failure, not an app assertion. No mocked print return, synthetic afterprint or synthetic focus was used to claim native acceptance.

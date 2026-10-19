@@ -71,12 +71,27 @@ for (const width of [375, 1280]) {
     ).toBeVisible();
     expect(new URL(page.url()).pathname).toBe(`/shows/${f.showId}`);
     const preview = page.locator('iframe[title="Selected sheets preview"]');
-    await expect(preview).toHaveAttribute('src', /^blob:/);
-    const pdf = await preview.evaluate(async frame =>
-      Array.from(
-        new Uint8Array(await (await fetch((frame as HTMLIFrameElement).src)).arrayBuffer())
-      )
-    );
+    let pdf: number[] = [];
+    // Opening the panel refetches its data and revokes superseded PDFs. Capture
+    // one current generation; a changed URL means readiness must be checked again.
+    await expect
+      .poll(async () => {
+        const captured = await preview.evaluate(async frame => {
+          const iframe = frame as HTMLIFrameElement;
+          const source = iframe.src;
+          if (!source.startsWith('blob:')) return null;
+          try {
+            const bytes = Array.from(new Uint8Array(await (await fetch(source)).arrayBuffer()));
+            return iframe.src === source ? bytes : null;
+          } catch (error) {
+            if (iframe.src !== source) return null;
+            throw error;
+          }
+        });
+        if (captured) pdf = captured;
+        return captured?.length ?? 0;
+      })
+      .toBeGreaterThan(0);
     const document = await PDFDocument.load(new Uint8Array(pdf));
     expect(document.getPageCount()).toBe(2);
     await evidence(info, `batch-preview-${width}`, {

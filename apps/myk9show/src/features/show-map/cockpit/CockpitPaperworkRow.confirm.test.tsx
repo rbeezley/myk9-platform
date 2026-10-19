@@ -56,6 +56,9 @@ describe('CockpitPaperworkRow print confirmation', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Record as printed' }));
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(screen.getByText('Did the Results sheet print correctly?')).toBeInTheDocument();
+    expect(
+      screen.getByRole('group', { name: 'Did the Results sheet print correctly?' })
+    ).toHaveFocus();
     await userEvent.click(screen.getByRole('button', { name: 'Mark printed' }));
     expect(mocks.recordPaperworkPrinted).toHaveBeenCalledTimes(1);
     expect(mocks.recordPaperworkPrinted).toHaveBeenCalledWith(
@@ -71,6 +74,7 @@ describe('CockpitPaperworkRow print confirmation', () => {
     renderRow(true);
     await userEvent.click(screen.getByRole('button', { name: 'Record as printed' }));
     await userEvent.click(screen.getByRole('button', { name: 'Not yet' }));
+    expect(screen.getByRole('button', { name: 'Record as printed' })).toHaveFocus();
     expect(screen.queryByText('Did the Results sheet print correctly?')).toBeNull();
     expect(mocks.recordPaperworkPrinted).not.toHaveBeenCalled();
   });

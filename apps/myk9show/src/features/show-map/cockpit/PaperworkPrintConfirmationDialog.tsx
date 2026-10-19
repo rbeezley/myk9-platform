@@ -1,3 +1,5 @@
+import { useEffect, useId, useRef } from 'react';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,9 +27,23 @@ export function PaperworkPrintConfirmationInline({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const titleId = useId();
+  const groupRef = useRef<HTMLDivElement>(null);
+  // The question appears under the control that asked it, so focus moves into it.
+  useEffect(() => {
+    groupRef.current?.focus();
+  }, []);
   return (
-    <div role="group" aria-label={`Confirm ${reportLabel} printed`} className="mt-2 space-y-2">
-      <p className="text-sm font-medium">Did the {reportLabel} print correctly?</p>
+    <div
+      ref={groupRef}
+      role="group"
+      aria-labelledby={titleId}
+      tabIndex={-1}
+      className="mt-2 space-y-2 outline-none"
+    >
+      <p id={titleId} className="text-sm font-medium">
+        Did the {reportLabel} print correctly?
+      </p>
       <p className="text-xs text-muted-foreground">{CONFIRM_BODY}</p>
       <div className="flex gap-2">
         <Button

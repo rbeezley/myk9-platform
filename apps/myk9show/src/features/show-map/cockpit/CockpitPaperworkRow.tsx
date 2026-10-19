@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { CheckCircle2, Clock3, Printer, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -49,6 +49,7 @@ export function CockpitPaperworkRow({
   const { user } = useAuthContext();
   const [isRecording, setIsRecording] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const recordButtonRef = useRef<HTMLButtonElement>(null);
   const [voidRecordId, setVoidRecordId] = useState<string | null>(null);
   const current = item.state === 'current';
   const stale = item.state === 'stale';
@@ -172,6 +173,7 @@ export function CockpitPaperworkRow({
       </div>
       {item.confirmation && user && !onPrint && (
         <button
+          ref={recordButtonRef}
           type="button"
           className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary underline-offset-4 hover:underline disabled:opacity-60"
           disabled={isRecording}
@@ -185,7 +187,10 @@ export function CockpitPaperworkRow({
           <PaperworkPrintConfirmationInline
             reportLabel={item.label}
             isSaving={isRecording}
-            onCancel={() => setConfirmOpen(false)}
+            onCancel={() => {
+              setConfirmOpen(false);
+              recordButtonRef.current?.focus();
+            }}
             onConfirm={() => {
               setConfirmOpen(false);
               void recordAsPrinted();

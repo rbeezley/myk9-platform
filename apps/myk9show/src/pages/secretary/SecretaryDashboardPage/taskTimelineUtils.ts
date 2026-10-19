@@ -1,3 +1,4 @@
+import { addDays } from 'date-fns';
 import type { SecretaryTask } from './types';
 
 export type UrgencyBucket = 'overdue' | 'today' | 'this-week' | 'future';
@@ -46,7 +47,7 @@ export function toDateOnly(date: Date): Date {
 export function getUrgency(dueDate: Date, today: Date): UrgencyBucket {
   const due = toDateOnly(dueDate);
   const t = toDateOnly(today);
-  const sevenDays = new Date(t.getTime() + 7 * 86400000);
+  const sevenDays = addDays(t, 7);
 
   if (due < t) return 'overdue';
   if (due.getTime() === t.getTime()) return 'today';
@@ -97,7 +98,7 @@ export function calcDateRange(datedTasks: DatedTask[]): DateRange {
   const today = toDateOnly(new Date());
 
   if (datedTasks.length === 0) {
-    const end = new Date(today.getTime() + 14 * 86400000);
+    const end = addDays(today, 14);
     return buildRange(today, end);
   }
 
@@ -107,7 +108,8 @@ export function calcDateRange(datedTasks: DatedTask[]): DateRange {
 
   const start = minDue < today ? toDateOnly(minDue) : today;
   const rawEnd = maxDue > today ? toDateOnly(maxDue) : today;
-  const cappedEnd = new Date(Math.min(rawEnd.getTime(), today.getTime() + MAX_DAYS * 86400000));
+  const capDay = addDays(today, MAX_DAYS);
+  const cappedEnd = rawEnd < capDay ? rawEnd : capDay;
 
   return buildRange(start, cappedEnd);
 }

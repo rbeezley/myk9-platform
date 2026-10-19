@@ -199,9 +199,13 @@ describe('matchesResultsStatusFilter', () => {
       'all',
       'needs-checking',
       'ready-to-release',
+      'needs-printing',
       'released',
       'done',
     ]);
+    expect(matchesResultsStatusFilter('released', 'needs-printing')).toBe(true);
+    expect(matchesResultsStatusFilter('needs-initials', 'needs-printing')).toBe(false);
+    expect(matchesResultsStatusFilter('done', 'needs-printing')).toBe(false);
     expect(matchesResultsStatusFilter('needs-checking', 'needs-checking')).toBe(true);
   });
 });

@@ -1,4 +1,4 @@
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, Printer } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { ListFilterBar, type ListFilterField } from '@/components/list-toolkit';
@@ -7,7 +7,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { ResultsClassRow } from './buildResultsClassRows';
-import { PrintAllReadyDialog } from './PrintAllReadyDialog';
 import {
   matchesResultsStatusFilter,
   RESULTS_STATUS_FILTER_OPTIONS,
@@ -21,10 +20,9 @@ interface ResultsTabToolbarProps {
   trials: readonly SyncableTrial[];
   /** Every class in the show, so the status counts do not shrink with the other filters. */
   rows: readonly ResultsClassRow[];
-  timeZone: string;
-  paperworkAvailable: boolean;
-  onRetry: () => void;
   onChange: (next: Partial<ResultsTabUrlState>) => void;
+  /** Applies the Needs printing filter (and opens the first match where the detail sits beside the list). */
+  onPrintAllReady: () => void;
   onOpenVisibility: () => void;
 }
 
@@ -35,7 +33,7 @@ function trialOptionLabel(trial: SyncableTrial): string {
 }
 
 /**
- * Filter bar (search, Trial, status), the More menu and the primary Print all ready, on the same
+ * Filter bar (search, Trial, status), the More menu and the primary Print all ready (a shortcut to the Needs printing filter), on the same
  * list toolkit the Entry Forms tab uses. Density is not offered: the rows are two short lines and
  * the shared control only reshapes the Entry Forms queue.
  */
@@ -44,14 +42,13 @@ export function ResultsTabToolbar({
   state,
   trials,
   rows,
-  timeZone,
-  paperworkAvailable,
-  onRetry,
   onChange,
+  onPrintAllReady,
   onOpenVisibility,
 }: ResultsTabToolbarProps) {
   const countFor = (filter: ResultsStatusFilterId) =>
     rows.filter(row => matchesResultsStatusFilter(row.phase, filter)).length;
+  const printCount = countFor('needs-printing');
   const fields: ListFilterField[] = [
     {
       kind: 'options',
@@ -113,12 +110,16 @@ export function ResultsTabToolbar({
             </Button>
           </PopoverContent>
         </Popover>
-        <PrintAllReadyDialog
-          rows={rows}
-          timeZone={timeZone}
-          paperworkAvailable={paperworkAvailable}
-          onRetry={onRetry}
-        />
+        <Button
+          type="button"
+          className="min-h-11 gap-2"
+          disabled={printCount === 0}
+          onClick={onPrintAllReady}
+        >
+          <Printer className="h-4 w-4" aria-hidden="true" />
+          Print all ready
+          {printCount > 0 && <span aria-hidden="true">({printCount})</span>}
+        </Button>
       </div>
     </div>
   );

@@ -16,10 +16,11 @@ import type { SecretaryCockpitSnapshot } from '../secretaryCockpitTypes';
 // One ref object, as the real hook's is stable, so the tests can see what it is attached to.
 const cockpit = vi.hoisted(() => ({
   width: 700 as number | null,
+  canPin: true,
   ref: { current: null as HTMLElement | null },
 }));
 
-vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => true }));
+vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => cockpit.canPin }));
 vi.mock('@/hooks/useElementWidth', () => ({
   useElementWidth: () => ({ ref: cockpit.ref, width: cockpit.width }),
 }));
@@ -60,6 +61,7 @@ const snapshot: SecretaryCockpitSnapshot = {
 // edits on a tablet rotation; the cockpit owns it now.
 describe('the class editor survives the split/stack switch', () => {
   beforeEach(() => {
+    cockpit.canPin = true;
     cockpit.width = 700;
     resetHonouredAnchorForTests();
   });
@@ -174,5 +176,40 @@ describe('the class editor survives the split/stack switch', () => {
       layout === 'split' ? FOCUSED_CLASS_HEADER_CLASS : FOCUSED_CLASS_HEADER_CLASS_IN_PANEL;
     expect(header).toHaveClass(...expected.split(' '));
     expect(header).not.toHaveClass(other.split(' ').find(c => c.includes('top-')) ?? 'x');
+  });
+  // One rule picks every pin from the cockpit's own mode, behind ONE viewport floor (canPin).
+  it.each([
+    [true, COCKPIT_SPLIT_MIN_WIDTH, 'panel'],
+    [true, COCKPIT_SPLIT_MIN_WIDTH - 1, 'page'],
+    [false, COCKPIT_SPLIT_MIN_WIDTH, 'none'],
+    [false, COCKPIT_SPLIT_MIN_WIDTH - 1, 'none'],
+  ])('canPin=%s at %ipx pins by %s', (canPin, width, mode) => {
+    cockpit.canPin = canPin;
+    cockpit.width = width;
+    render(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />, {
+      initialRoute: '/shows/show-1',
+    });
+    const header = screen.getByTestId('focused-class-header');
+    const wrapper = screen.queryByTestId('cockpit-split-focus');
+    const sticky = [header, wrapper, screen.getByRole('complementary')].filter(
+      el => el && /(^|\s)sticky(\s|$)/.test(el.className)
+    );
+    if (mode === 'panel') {
+      // Panel sticks under the show header; the header pins to the top of the panel itself.
+      expect(wrapper?.className).toContain('show-header-h');
+      expect(wrapper).toHaveClass('overflow-y-auto');
+      expect(header).toHaveClass('top-0');
+      expect(sticky).toHaveLength(2);
+    } else if (mode === 'page') {
+      expect(wrapper).toBeNull();
+      expect(header.className).toContain('--show-header-h');
+      expect(header).not.toHaveClass('top-0');
+      expect(sticky).toEqual([header]);
+    } else {
+      // Below the floor nothing is sticky, scrolls itself or carries a scroll margin.
+      expect(sticky).toHaveLength(0);
+      expect(wrapper?.className ?? '').not.toContain('overflow-y-auto');
+      expect(screen.getByRole('complementary').innerHTML).not.toContain('scroll-mt-');
+    }
   });
 });

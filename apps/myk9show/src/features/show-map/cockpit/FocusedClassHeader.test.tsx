@@ -30,6 +30,9 @@ describe('FocusedClassHeader', () => {
     expect(header).toHaveClass(...FOCUSED_CLASS_HEADER_CLASS.split(' '));
     expect(header).toHaveClass('sticky');
     expect(header.className).not.toContain('lg:');
+    // Page mode offsets by the measured show header; the panel variant must not.
+    expect(header.className).toContain('--show-header-h');
+    expect(header).not.toHaveClass('top-0');
   });
 
   it('in the split panel pins to the panel top, and the panel scrolls itself from lg up', () => {

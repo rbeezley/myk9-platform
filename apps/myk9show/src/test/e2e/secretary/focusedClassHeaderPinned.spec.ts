@@ -112,12 +112,16 @@ async function probe(page: Page) {
   );
 }
 
-/** Scroll the page to a fraction of its length (a sticky panel rides up with the end of its grid). */
+/**
+ * Scroll the page to a fraction of its length, instantly (the document has smooth scrolling). Not
+ * the very end: a sticky panel rides up with the end of its grid.
+ */
 async function scrollPageTo(page: Page, fraction: number) {
   await page.evaluate(f => {
     const grid = document.querySelector('[data-cockpit-layout]');
     for (let el = grid?.parentElement ?? null; el; el = el.parentElement) {
-      if (el.scrollHeight > el.clientHeight) el.scrollTop = (el.scrollHeight - el.clientHeight) * f;
+      if (el.scrollHeight > el.clientHeight)
+        el.scrollTo({ top: (el.scrollHeight - el.clientHeight) * f, behavior: 'instant' });
     }
   }, fraction);
 }
@@ -195,29 +199,84 @@ test('stacked: the header pins to the page under the show header and tabs', asyn
   expect(Math.abs((after?.headerTop ?? -1) - (after?.stripBottom ?? 9999))).toBeLessThanOrEqual(2);
 });
 
-for (const width of [375, 980]) {
-  test(`at ${width}px the single viewport floor disables both panel and header pinning`, async ({
-    page,
-  }) => {
-    await open(page, null, 'stacked', width);
-    await expect(page.getByTestId('focused-class-header')).toHaveCSS('position', 'static');
-    await scrollPageTo(page, 0.5);
-    await expect(page.getByTestId('focused-class-header')).toHaveCSS('position', 'static');
+test('at 375px nothing pins and the page still scrolls', async ({ page }) => {
+  await open(page, null, 'stacked', 375);
+  const header = page.getByTestId('focused-class-header');
+  await expect(header).toHaveCSS('position', 'static');
+  const before = await probe(page);
+  expect(before?.pageScrollable ?? 0).toBeGreaterThan(300);
+  await scrollPageTo(page, 0.5);
+  const after = await probe(page);
+  expect(after?.pageScrollTop ?? 0).toBeGreaterThan((before?.pageScrollTop ?? 0) + 100);
+  await expect(header).toHaveCSS('position', 'static');
+});
+
+test('at 980px (stacked, below the floor) nothing pins', async ({ page }) => {
+  await open(page, null, 'stacked', 980);
+  const header = page.getByTestId('focused-class-header');
+  await expect(header).toHaveCSS('position', 'static');
+  await scrollPageTo(page, 0.5);
+  await expect(header).toHaveCSS('position', 'static');
+});
+
+test('at 1020px the cockpit splits below the 1024px floor: no sticky anywhere, nothing covered', async ({
+  page,
+}) => {
+  await open(page, null, 'split', 1020);
+  const wrapper = page.getByTestId('cockpit-split-focus');
+  const header = page.getByTestId('focused-class-header');
+  await expect(header).toHaveCSS('position', 'static');
+  await expect(wrapper).toHaveCSS('position', 'static');
+  await expect(wrapper).toHaveCSS('overflow-y', 'visible');
+  const before = await probe(page);
+  // The header sits in normal flow under the show header and tabs, uncovered.
+  expect(before?.h2Top ?? -1).toBeGreaterThanOrEqual((before?.stripBottom ?? 9999) - 1);
+  expect(before?.hitInsideBlock).toBe(true);
+  expect(before?.pageScrollable ?? 0).toBeGreaterThan(300);
+  await scrollPageTo(page, 0.5);
+  const after = await probe(page);
+  expect(after?.pageScrollTop ?? 0).toBeGreaterThan((before?.pageScrollTop ?? 0) + 100);
+  // It scrolled away with the page, rather than riding under the tabs.
+  expect(after?.headerTop ?? 9999).toBeLessThan((before?.headerTop ?? 0) - 100);
+});
+
+for (const layout of ['split', 'stacked'] as const) {
+  test(`${layout}: a low focused control scrolls below the pinned header`, async ({ page }) => {
+    await open(page, layout === 'stacked' ? 700 : null, layout);
+    const header = page.getByTestId('focused-class-header');
+    await expect(header).toHaveCSS('position', 'sticky');
+    const control = page.getByRole('complementary').locator('button, input, a, select').last();
+    await control.evaluate(el => {
+      (el as HTMLElement).focus();
+      el.scrollIntoView({ block: 'start' });
+    });
+    await expect(control).toBeInViewport();
+    const controlBox = await control.boundingBox();
+    const headerBox = await header.boundingBox();
+    expect(controlBox?.y ?? -1).toBeGreaterThanOrEqual(
+      (headerBox?.y ?? 9999) + (headerBox?.height ?? 0) - 1
+    );
+    // The control, not the header, is what is at its own centre.
+    const covered = await control.evaluate(el => {
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return !hit || !(el === hit || el.contains(hit) || hit.contains(el));
+    });
+    expect(covered).toBe(false);
   });
 }
 
-test('a low focused control scrolls below the pinned header', async ({ page }) => {
+test('the fixture aborts a write to a table route even with no query string', async ({ page }) => {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  test.skip(!supabaseUrl, 'no Supabase URL in the environment');
   await open(page, null, 'split');
-  const header = page.getByTestId('focused-class-header');
-  const control = page.getByRole('complementary').locator('button, input, a, select').last();
-  await control.evaluate(el => {
-    (el as HTMLElement).focus();
-    el.scrollIntoView({ block: 'start' });
-  });
-  await expect(control).toBeInViewport();
-  const controlBox = await control.boundingBox();
-  const headerBox = await header.boundingBox();
-  expect(controlBox?.y ?? -1).toBeGreaterThanOrEqual(
-    (headerBox?.y ?? 9999) + (headerBox?.height ?? 0)
-  );
+  const outcome = await page.evaluate(async url => {
+    try {
+      await fetch(`${url}/rest/v1/entries`, { method: 'POST', body: '{}' });
+      return 'sent';
+    } catch {
+      return 'aborted';
+    }
+  }, supabaseUrl);
+  expect(outcome).toBe('aborted');
 });

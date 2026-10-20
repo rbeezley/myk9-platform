@@ -23,6 +23,11 @@ import type {
   SecretaryCockpitTrial,
 } from './secretaryCockpitTypes';
 import { ClassActualStartEditor } from './ClassActualStartEditor';
+import { FocusedClassHeader } from './FocusedClassHeader';
+import {
+  FOCUSED_CLASS_SCROLL_MARGIN_CLASS,
+  FOCUSED_CLASS_SCROLL_MARGIN_CLASS_IN_PANEL,
+} from '@/components/shows/ShowDetails/showStickyLayout';
 
 export function SecretaryCockpitFocusedClass({
   showId,
@@ -31,7 +36,7 @@ export function SecretaryCockpitFocusedClass({
   trial,
   attention,
   timeZone,
-  sticky = false,
+  inPanel = false,
   canManageShow,
   onCommand,
   runOrder,
@@ -43,8 +48,8 @@ export function SecretaryCockpitFocusedClass({
   trial: SecretaryCockpitTrial | null;
   attention: readonly SecretaryCockpitAttention[];
   timeZone: string;
-  /** Pinned while the schedule beside it scrolls; only in the cockpit's split. */
-  sticky?: boolean;
+  /** Rendered in the split's own-scroll panel (SecretaryCockpit), so the header pins to it. */
+  inPanel?: boolean;
   canManageShow: boolean;
   onCommand: (commandId: string) => void;
   /** Run-order auto-sort for the focused class (F29b phase 2a). */
@@ -96,24 +101,24 @@ export function SecretaryCockpitFocusedClass({
   ].filter(Boolean);
 
   return (
-    <aside
-      className={cn(
-        'overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm',
-        sticky && 'sticky top-[calc(var(--app-top-inset,3rem)+1rem)]'
-      )}
-    >
-      <div className="border-b p-5">
-        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-          Focused Class · {formatTrialIdentity(trial)}
-        </div>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight">{focused.name}</h2>
-        {facts.length > 0 && (
-          <p className="mt-1 text-sm text-muted-foreground">{facts.join(' · ')}</p>
-        )}
-        {canManageShow && setupActions && <div className="mt-3">{setupActions}</div>}
-      </div>
+    <aside className="rounded-xl border bg-card text-card-foreground shadow-sm">
+      {/* No overflow-hidden on the card: it would turn the card into the header's scroll
+          container and the header would never pin. */}
+      <FocusedClassHeader
+        eyebrow={`Focused Class · ${formatTrialIdentity(trial)}`}
+        title={focused.name}
+        facts={facts.join(' · ')}
+        inPanel={inPanel}
+      >
+        {canManageShow && setupActions}
+      </FocusedClassHeader>
 
-      <div className="space-y-5 p-5">
+      <div
+        className={cn(
+          'space-y-5 p-5',
+          inPanel ? FOCUSED_CLASS_SCROLL_MARGIN_CLASS_IN_PANEL : FOCUSED_CLASS_SCROLL_MARGIN_CLASS
+        )}
+      >
         {/* What the secretary SETS for this class, laid out as a form, apart from
             the work below it (owner, 2026-10-03). */}
         <section aria-labelledby="focused-class-settings" className="rounded-lg border bg-muted/30">

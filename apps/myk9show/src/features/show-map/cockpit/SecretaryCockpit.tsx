@@ -7,6 +7,7 @@ import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClass
 import { Button } from '@/components/ui/button';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { cn } from '@/lib/utils';
+import { FOCUSED_CLASS_PANEL_CLASS } from '@/components/shows/ShowDetails/showStickyLayout';
 import { useElementWidth } from '@/hooks/useElementWidth';
 import { COCKPIT_SPLIT_COLUMNS, isCockpitSplit } from './cockpitSplit';
 
@@ -103,7 +104,7 @@ export function SecretaryCockpit({
       trial={trial}
       attention={focusedAttention}
       timeZone={snapshot.timeZone}
-      sticky={isSplit}
+      inPanel={isSplit}
       canManageShow={canManageShow}
       onCommand={onCommand}
       {...(runOrder !== undefined && { runOrder })}
@@ -248,7 +249,10 @@ export function SecretaryCockpit({
           </div>
         )}
         {isSplit && model.focusedClass && (
-          <div className="col-start-2 row-start-2" data-testid="cockpit-split-focus">
+          <div
+            className={cn('col-start-2 row-start-2', FOCUSED_CLASS_PANEL_CLASS)}
+            data-testid="cockpit-split-focus"
+          >
             {focusedPanel}
           </div>
         )}

@@ -19,3 +19,46 @@ export const SHOW_HEADER_HEIGHT_VAR = '--show-header-h';
 
 // A page's own sticky pane (the Entry Management focus pane, EntryManagementCockpit) writes the same
 // offset out as a literal class: `calc(var(--app-top-inset,3rem)+var(--show-header-h,0px)+3rem+...)`.
+
+/** The custom property the focused-class header publishes (its height in px). */
+export const FOCUSED_CLASS_HEADER_HEIGHT_VAR = '--focused-class-header-h';
+
+/**
+ * The focused class's header on the Overview tab: pinned from `lg` up, directly under the show
+ * header (measured) and the 3rem tab strip, and one layer below them (`z-10` against their `z-20`)
+ * so it never covers them. Below `lg` it scrolls away: a phone's height is scarce and the app and
+ * show headers already take the top.
+ */
+export const FOCUSED_CLASS_HEADER_CLASS =
+  'bg-card lg:sticky lg:top-[calc(var(--app-top-inset,3rem)+var(--show-header-h,4.25rem)+3rem)] lg:z-10';
+
+/**
+ * A control inside the focused class that scrolls into view (focus, scrollIntoView) stops below
+ * the pinned header instead of under it.
+ */
+export const FOCUSED_CLASS_SCROLL_MARGIN_CLASS =
+  'lg:[&_:is(a,button,input,select,textarea,summary,[tabindex])]:scroll-mt-[calc(var(--app-top-inset,3rem)+var(--show-header-h,4.25rem)+3rem+var(--focused-class-header-h,0px)+0.5rem)]';
+
+/**
+ * The split layout's focused column (schedule left, class right), from `lg` up: a sticky panel with
+ * its OWN scroll, so a short class follows the long schedule beside it and a class taller than the
+ * window scrolls inside the panel instead of leaving its lower half unreachable. It starts under
+ * the show header and tab strip (+1rem gap) and ends 1rem above the window bottom (3rem tab strip + 1rem top gap + 1rem bottom gap = 5rem;
+ * the subtraction needs spaces, written as underscores, which CSS calc requires).
+ */
+export const FOCUSED_CLASS_PANEL_CLASS =
+  'lg:sticky lg:top-[calc(var(--app-top-inset,3rem)+var(--show-header-h,4.25rem)+3rem+1rem)] lg:max-h-[calc(var(--pane-scroll-h,calc(100dvh_-_var(--app-top-inset,3rem)))_-_var(--show-header-h,4.25rem)_-_5rem)] lg:overflow-y-auto';
+
+/**
+ * The height of the box the show page scrolls in, when that is not the window: the Shows list pane
+ * (ShowsMasterDetailPage) declares it on its split wrapper, where `--app-top-inset` is still real
+ * (inside the pane it is zeroed). The panel's max-height reads it; with none, the window is the box.
+ */
+export const PANE_SCROLL_HEIGHT_VAR = '--pane-scroll-h';
+
+/** The header inside that panel pins to the top of the panel, not to the page offset. */
+export const FOCUSED_CLASS_HEADER_CLASS_IN_PANEL = 'bg-card sticky top-0 z-10';
+
+/** In the panel a focused control only has to clear the panel's own pinned header. */
+export const FOCUSED_CLASS_SCROLL_MARGIN_CLASS_IN_PANEL =
+  '[&_:is(a,button,input,select,textarea,summary,[tabindex])]:scroll-mt-[calc(var(--focused-class-header-h,0px)+0.5rem)]';

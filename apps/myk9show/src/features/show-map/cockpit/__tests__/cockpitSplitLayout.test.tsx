@@ -1,4 +1,9 @@
 import { screen } from '@testing-library/react';
+import {
+  FOCUSED_CLASS_HEADER_CLASS,
+  FOCUSED_CLASS_HEADER_CLASS_IN_PANEL,
+  FOCUSED_CLASS_PANEL_CLASS,
+} from '@/components/shows/ShowDetails/showStickyLayout';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
@@ -148,12 +153,25 @@ describe('the class editor survives the split/stack switch', () => {
     if (layout === 'split') {
       expect(grid?.style.gridTemplateColumns).toBe(COCKPIT_SPLIT_COLUMNS);
       expect(screen.getByTestId('cockpit-split-focus')).toBeInTheDocument();
-      // Pinned while the schedule beside it scrolls.
-      expect(screen.getByRole('complementary')).toHaveClass('sticky');
+      // The focused column is a sticky panel with its own scroll, so a short class follows the
+      // schedule and a tall one scrolls inside it (MYK9-1266); the card itself is not sticky.
+      expect(screen.getByTestId('cockpit-split-focus')).toHaveClass(
+        ...FOCUSED_CLASS_PANEL_CLASS.split(' ')
+      );
+      expect(screen.getByRole('complementary')).not.toHaveClass('sticky');
     } else {
       expect(grid?.style.gridTemplateColumns).toBe('');
       expect(screen.queryByTestId('cockpit-split-focus')).not.toBeInTheDocument();
       expect(screen.getByRole('complementary')).not.toHaveClass('sticky');
     }
+    // Pinned in BOTH layouts: split to the top of its panel, stacked to the page under the show
+    // header and tabs (from lg up).
+    const header = screen.getByTestId('focused-class-header');
+    const expected =
+      layout === 'split' ? FOCUSED_CLASS_HEADER_CLASS_IN_PANEL : FOCUSED_CLASS_HEADER_CLASS;
+    const other =
+      layout === 'split' ? FOCUSED_CLASS_HEADER_CLASS : FOCUSED_CLASS_HEADER_CLASS_IN_PANEL;
+    expect(header).toHaveClass(...expected.split(' '));
+    expect(header).not.toHaveClass(other.split(' ').find(c => c.includes('top-')) ?? 'x');
   });
 });

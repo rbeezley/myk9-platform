@@ -7,6 +7,10 @@
  * say why — exhibitors should never be left guessing what the wizard wants.
  */
 
+/** Alert on the Classes step after the last class is removed from Payment. */
+export const EMPTY_ENTRY_NOTICE = 'No classes left in this entry.';
+const EMPTY_ENTRY_PAYMENT_REASON = 'No classes left. Go back to Classes to pick one.';
+
 export interface ProceedGatingContext {
   stepId: string;
   selectedDogsCount: number;
@@ -79,6 +83,10 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
       if (ctx.unassignedHandlerCount > 0) return handlerReason(ctx.unassignedHandlerCount);
       return null;
     case 'payment':
+      // An entry with no classes has nothing to submit or total. The wizard
+      // also returns to Classes when the last one is removed (MYK9-1289); this
+      // keeps Submit off for any other way of arriving here empty.
+      if (ctx.entryCount === 0) return EMPTY_ENTRY_PAYMENT_REASON;
       // First: without the show's timezone there is no trustworthy total to
       // agree to, so nothing below this can be decided either. Unavailable
       // outranks loading — never ask someone to wait for a failed read.

@@ -28,7 +28,8 @@ import { awaitIdentity, deferred, installExhibitorProfile } from './exhibitorPro
 
 export const SECRETARY_FIXTURE_SHOW_ID = 'f1f1f1f1-0000-0000-0000-000000000101';
 const TRIAL_ID = 'f1f1f1f1-0000-0000-0000-000000000111';
-const CLASS_IDS = [
+/** The fixture trial's classes, in display order; a spec focuses one with `?focus=`. */
+export const SECRETARY_FIXTURE_CLASS_IDS = [
   'f1f1f1f1-0000-0000-0000-000000000121',
   'f1f1f1f1-0000-0000-0000-000000000122',
 ] as const;
@@ -105,7 +106,7 @@ function showDates() {
   };
 }
 
-function buildRows(clubId: string) {
+function buildRows(clubId: string, extraClasses: number) {
   const dates = showDates();
 
   const trial: TrialRow & Record<string, unknown> = {
@@ -126,9 +127,16 @@ function buildRows(clubId: string) {
     updated_at: STAMP,
   };
 
+  // Extra classes only make the schedule taller (a spec that scrolls it); none by default.
+  const extra = Array.from({ length: extraClasses }, (_, i) => ({
+    id: `f1f1f1f1-0000-0000-0000-${String(200 + i).padStart(12, '0')}`,
+    name: `Extra Novice ${i + 1}`,
+    element: 'Exterior',
+  }));
   const classes: Array<ClassRow & Record<string, unknown>> = [
-    { id: CLASS_IDS[0], name: 'Container Novice A', element: 'Container' },
-    { id: CLASS_IDS[1], name: 'Interior Novice A', element: 'Interior' },
+    { id: SECRETARY_FIXTURE_CLASS_IDS[0], name: 'Container Novice A', element: 'Container' },
+    { id: SECRETARY_FIXTURE_CLASS_IDS[1], name: 'Interior Novice A', element: 'Interior' },
+    ...extra,
   ].map((c, index) => ({
     ...c,
     trial_id: TRIAL_ID,
@@ -241,7 +249,10 @@ async function serve(route: Route, rows: unknown[]) {
  * Install the fixture. Call BEFORE signing in: the replication layer pulls
  * `shows`, `trials` and `classes` on the first authenticated render.
  */
-export async function installSecretaryFixture(page: Page): Promise<void> {
+export async function installSecretaryFixture(
+  page: Page,
+  options: { extraClasses?: number } = {}
+): Promise<void> {
   // The club the live role read scopes this secretary to.
   const club = deferred<string>();
   page.on('response', async response => {
@@ -262,7 +273,7 @@ export async function installSecretaryFixture(page: Page): Promise<void> {
     );
     if (scope?.scope_id) club.resolve(scope.scope_id);
   });
-  const rows = club.promise.then(buildRows);
+  const rows = club.promise.then(clubId => buildRows(clubId, options.extraClasses ?? 0));
   const serveBuilt = async (route: Route, pick: (built: Awaited<typeof rows>) => unknown[]) => {
     const built = await awaitIdentity(route, rows, "the secretary's club scope");
     if (built) await serve(route, pick(built));
@@ -274,11 +285,11 @@ export async function installSecretaryFixture(page: Page): Promise<void> {
   // mail-in wizard cannot resolve the owner of the dog it just found.
   await installExhibitorProfile(page);
 
-  await page.route('**/rest/v1/shows?*', route => serveBuilt(route, b => [b.showWithEmbeds]));
-  await page.route('**/rest/v1/trials?*', route => serveBuilt(route, b => [b.trial]));
-  await page.route('**/rest/v1/classes?*', route => serveBuilt(route, b => b.classes));
-  await page.route('**/rest/v1/dogs?*', route => serveBuilt(route, b => [b.dog]));
+  await page.route('**/rest/v1/shows{,?*}', route => serveBuilt(route, b => [b.showWithEmbeds]));
+  await page.route('**/rest/v1/trials{,?*}', route => serveBuilt(route, b => [b.trial]));
+  await page.route('**/rest/v1/classes{,?*}', route => serveBuilt(route, b => b.classes));
+  await page.route('**/rest/v1/dogs{,?*}', route => serveBuilt(route, b => [b.dog]));
   // `searchAllDogs` resolves registration matches first and folds the ids into
   // the dog query; served empty, so the name match alone must find the dog.
-  await page.route('**/rest/v1/dog_registrations?*', route => serve(route, []));
+  await page.route('**/rest/v1/dog_registrations{,?*}', route => serve(route, []));
 }

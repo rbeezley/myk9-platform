@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Inbox, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { CheckCircle2, Inbox, RefreshCw, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useQueryClient } from '@tanstack/react-query';
@@ -20,12 +19,10 @@ function ReviewCard({
   request,
   clubs,
   onReviewed,
-  onApproved,
 }: {
   request: ClubAccessRequest;
   clubs: { id: string; name: string }[];
   onReviewed: () => Promise<void>;
-  onApproved: (clubId: string, clubName: string) => void;
 }) {
   const [clubChoice, setClubChoice] = useState('new');
   const [clubName, setClubName] = useState(request.requestedClubName);
@@ -37,7 +34,7 @@ function ReviewCard({
   const handleReview = async (decision: 'approved' | 'denied') => {
     try {
       setBusy(true);
-      const clubId = await reviewClubAccessRequest({
+      await reviewClubAccessRequest({
         requestId: request.id,
         decision,
         existingClubId: decision === 'approved' && clubChoice !== 'new' ? clubChoice : null,
@@ -47,12 +44,11 @@ function ReviewCard({
       notifications.success(
         decision === 'approved' ? 'Club request approved' : 'Club request denied'
       );
-      // MYK9-855: approval never sets clubs.authorized_at (MYK9-572 made that
-      // a deliberate, separate site-admin step on /clubs/:id) — hand the
-      // admin straight to that action instead of leaving them to find it.
-      if (decision === 'approved' && clubId) {
-        onApproved(clubId, clubName.trim() || request.requestedClubName);
-        // The approved club now belongs on "Clubs awaiting authorization".
+      // MYK9-1310: approval authorizes the club in the same transaction (the approving
+      // site admin is the human who decides it may exist), so there is no second step.
+      // The club list still changes: a new club appears, or an attached one leaves
+      // "Clubs awaiting authorization".
+      if (decision === 'approved') {
         void queryClient.invalidateQueries({ queryKey: clubQueryKeys.lists() });
       }
       await onReviewed();
@@ -168,25 +164,11 @@ function ReviewCard({
   );
 }
 
-interface ApprovedClub {
-  clubId: string;
-  clubName: string;
-}
-
 export function ClubAccessRequestsSection() {
   const [requests, setRequests] = useState<ClubAccessRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const { data: clubs = [] } = useClubsQuery();
-  // MYK9-855: an approved request drops out of `pendingRequests` below, so
-  // this is the only place left to hand the admin the authorize-club step —
-  // keyed by clubId so re-approving the same club (idempotent retry) never
-  // duplicates the row.
-  const [justApproved, setJustApproved] = useState<Record<string, ApprovedClub>>({});
-  const handleApproved = useCallback((clubId: string, clubName: string) => {
-    setJustApproved(prev => ({ ...prev, [clubId]: { clubId, clubName } }));
-  }, []);
-
   const loadRequests = useCallback(async () => {
     try {
       setLoading(true);
@@ -219,7 +201,8 @@ export function ClubAccessRequestsSection() {
           <p className="mt-1 max-w-3xl text-base text-muted-foreground">
             These requests come from the exhibitor home page when someone is setting up a club for
             the first time. Approval creates or connects the club, adds the requester as an active
-            member, and gives them club-admin and secretary/show-manager access for that club.
+            member, gives them club-admin and secretary/show-manager access for that club, and
+            authorizes the club so its shows can publish.
           </p>
         </div>
         <Button
@@ -234,28 +217,6 @@ export function ClubAccessRequestsSection() {
           Refresh
         </Button>
       </div>
-
-      {Object.values(justApproved).length > 0 && (
-        <div className="space-y-2">
-          {Object.values(justApproved).map(({ clubId, clubName }) => (
-            <div
-              key={clubId}
-              className="flex flex-col gap-2 rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
-            >
-              <span>
-                <strong>{clubName}</strong> is approved but still pending myK9 authorization — shows
-                can be built now, but publishing needs the club authorized first.
-              </span>
-              <Button variant="outline" size="sm" className="min-h-11 gap-2 shrink-0" asChild>
-                <Link to={`/clubs/${clubId}`}>
-                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                  Authorize this club
-                </Link>
-              </Button>
-            </div>
-          ))}
-        </div>
-      )}
 
       {loading && (
         <p role="status" className="text-base text-muted-foreground">
@@ -292,7 +253,6 @@ export function ClubAccessRequestsSection() {
               request={request}
               clubs={clubs}
               onReviewed={loadRequests}
-              onApproved={handleApproved}
             />
           ))}
         </div>

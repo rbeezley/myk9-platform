@@ -446,6 +446,46 @@ describe('showMapActionMutations', () => {
     expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
   });
 
+  it('Change class (anyOpenClass) accepts another trial and another element (MYK9-1265)', async () => {
+    mockGetReplicatedClassById.mockImplementation((id: string) =>
+      Promise.resolve({
+        id,
+        trialId: id === 'class-1' ? 'trial-1' : 'trial-2',
+        name: id === 'class-1' ? 'Master' : 'Novice A',
+        element: id === 'class-1' ? 'Container' : 'Interior',
+        level: id === 'class-1' ? 'Master' : 'Novice',
+        maxEntries: 50,
+      })
+    );
+
+    await moveUpShowMapEntry({ entryId: 'entry-1', targetClassId: 'class-2', anyOpenClass: true });
+    expect(mockMoveUpEntryViaRpc).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceEntryId: 'entry-1', targetClassId: 'class-2' })
+    );
+  });
+
+  it.each(['completed', 'cancelled'])(
+    'Change class refuses a %s target class, writing nothing (MYK9-1265)',
+    async status => {
+      mockGetReplicatedClassById.mockImplementation((id: string) =>
+        Promise.resolve({
+          id,
+          trialId: 'trial-1',
+          name: id,
+          element: 'Container',
+          level: 'Novice',
+          maxEntries: 50,
+          classStatus: id === 'class-2' ? status : 'upcoming',
+        })
+      );
+
+      await expect(
+        moveUpShowMapEntry({ entryId: 'entry-1', targetClassId: 'class-2', anyOpenClass: true })
+      ).rejects.toThrow('no longer open for entries');
+      expect(mockMoveUpEntryViaRpc).not.toHaveBeenCalled();
+    }
+  );
+
   it('does not touch the source when the server refuses the move', async () => {
     // The RPC is the whole operation: if it fails, nothing happened. There is no
     // half-landed state left for a rollback to repair, which is the shape the

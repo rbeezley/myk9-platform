@@ -333,7 +333,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
       const entryId = sourceIdFromShowMapNodeId(action.nodeId, 'entry');
       if (!entryId) throw new Error('Unable to find the entry for this action.');
 
-      return moveUpShowMapEntry({ entryId, targetClassId, reason });
+      return moveUpShowMapEntry({ entryId, targetClassId, reason, anyOpenClass: true });
     },
     onSuccess: (result, { action, targetClassId }) => {
       const nextLastMoveUp = {

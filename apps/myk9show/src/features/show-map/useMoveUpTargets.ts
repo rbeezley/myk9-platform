@@ -6,13 +6,12 @@ import { getClassesWithCapacity } from '@/services/database/day-of-operations';
 import { buildMoveUpTargets } from './buildMoveUpTargets';
 import type { ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
 import type { BuildShowMapTreeInput } from './showMapTypes';
-import type { RegistryId } from '@/features/registries';
 
 export type MoveUpCapacityState = 'loading' | 'ready' | 'unavailable';
 
 /**
- * Move-up targets for the Show Map / Show Desk dialog, with the same capacity
- * rule the Entries Management approve dialog applies (MYK9-920). Seat counts
+ * Change-class targets for the Overview / Show Desk dialog (MYK9-1265), with
+ * capacity as an advisory flag (MYK9-920). Seat counts
  * come from the replication-backed `getClassesWithCapacity`, read only while
  * the dialog is open. Capacity is advisory: `capacityState` lets the dialog say
  * so while it loads or when the read failed, and `moveUpShowMapEntry` refuses a
@@ -22,7 +21,7 @@ export function useMoveUpTargets(
   showId: string,
   classes: BuildShowMapTreeInput['classes'],
   currentClassId: string | undefined,
-  registryId: RegistryId
+  enteredClassIds: ReadonlySet<string>
 ): {
   targets: ShowMapMoveUpTarget[];
   capacityState: MoveUpCapacityState;
@@ -61,8 +60,8 @@ export function useMoveUpTargets(
 
   const targets = useMemo(() => {
     const spots = data ? new Map(data.map(cls => [cls.id, cls.available_spots])) : undefined;
-    return buildMoveUpTargets(classes, currentClassId, registryId, spots);
-  }, [classes, currentClassId, registryId, data]);
+    return buildMoveUpTargets(classes, currentClassId, enteredClassIds, spots);
+  }, [classes, currentClassId, enteredClassIds, data]);
 
   // From query status, explicitly: a failed refetch keeps the old data but is
   // still 'unavailable', never 'ready'.

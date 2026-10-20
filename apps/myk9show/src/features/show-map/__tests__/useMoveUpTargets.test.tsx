@@ -32,6 +32,7 @@ vi.mock('@/services/replication', () => {
 function showMapClass(id: string, level: string): ShowMapClassInput {
   return { id, trialId: 'trial-1', name: id, element: 'Container', level };
 }
+const NONE_ENTERED: ReadonlySet<string> = new Set();
 const classes = [
   showMapClass('novice', 'Novice'),
   showMapClass('advanced', 'Advanced'),
@@ -68,14 +69,17 @@ describe('useMoveUpTargets', () => {
     queryClient.clear();
   });
 
-  it('drops a full class once capacity loads', async () => {
+  it('lists a full class, flagged, once capacity loads', async () => {
     mockGetClassesWithCapacity.mockResolvedValue({
       data: [capacity('advanced', 3), capacity('master', 0)],
       error: null,
     });
-    const { result } = renderHook(() => useMoveUpTargets('show-1', classes, 'novice', 'AKC'), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useMoveUpTargets('show-1', classes, 'novice', NONE_ENTERED),
+      {
+        wrapper,
+      }
+    );
     await waitFor(() => expect(result.current.capacityState).toBe('ready'));
     expect(result.current.targets.map(t => [t.id, t.isFull === true])).toEqual([
       ['advanced', false],
@@ -84,9 +88,12 @@ describe('useMoveUpTargets', () => {
   });
 
   it('does not read capacity while no move-up dialog is open', () => {
-    const { result } = renderHook(() => useMoveUpTargets('show-1', classes, undefined, 'AKC'), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useMoveUpTargets('show-1', classes, undefined, NONE_ENTERED),
+      {
+        wrapper,
+      }
+    );
     expect(mockGetClassesWithCapacity).not.toHaveBeenCalled();
     expect(result.current.targets).toEqual([]);
   });
@@ -97,18 +104,24 @@ describe('useMoveUpTargets', () => {
       data: [capacity('advanced', 3), capacity('master', 0)],
       error: null,
     });
-    const { result } = renderHook(() => useMoveUpTargets('show-1', classes, 'novice', 'AKC'), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useMoveUpTargets('show-1', classes, 'novice', NONE_ENTERED),
+      {
+        wrapper,
+      }
+    );
     await waitFor(() => expect(result.current.capacityState).toBe('ready'));
     expect(result.current.targets.map(t => t.id)).toEqual(['advanced', 'master']);
   });
 
   it('reports unavailable (targets still listed) when the capacity read fails', async () => {
     mockGetClassesWithCapacity.mockResolvedValue({ data: [], error: new Error('boom') });
-    const { result } = renderHook(() => useMoveUpTargets('show-1', classes, 'novice', 'AKC'), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useMoveUpTargets('show-1', classes, 'novice', NONE_ENTERED),
+      {
+        wrapper,
+      }
+    );
     await waitFor(() => expect(result.current.capacityState).toBe('unavailable'));
     expect(result.current.targets.map(t => t.id)).toEqual(['advanced', 'master']);
   });
@@ -120,9 +133,12 @@ describe('useMoveUpTargets', () => {
         data: [capacity('advanced', 3), capacity('master', 0)],
         error: null,
       });
-      const { result } = renderHook(() => useMoveUpTargets('show-1', classes, 'novice', 'AKC'), {
-        wrapper,
-      });
+      const { result } = renderHook(
+        () => useMoveUpTargets('show-1', classes, 'novice', NONE_ENTERED),
+        {
+          wrapper,
+        }
+      );
       await waitFor(() =>
         expect(result.current.targets.find(t => t.id === 'master')?.isFull).toBe(true)
       );
@@ -145,9 +161,12 @@ describe('useMoveUpTargets', () => {
       data: [capacity('advanced', 3), capacity('master', 2)],
       error: null,
     });
-    const { result } = renderHook(() => useMoveUpTargets('show-1', classes, 'novice', 'AKC'), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useMoveUpTargets('show-1', classes, 'novice', NONE_ENTERED),
+      {
+        wrapper,
+      }
+    );
     await waitFor(() => expect(result.current.capacityState).toBe('ready'));
 
     mockGetClassesWithCapacity.mockResolvedValueOnce({ data: [], error: new Error('boom') });
@@ -160,7 +179,7 @@ describe('useMoveUpTargets', () => {
   });
 
   it('does not subscribe to replica changes while no dialog is open', () => {
-    renderHook(() => useMoveUpTargets('show-1', classes, undefined, 'AKC'), { wrapper });
+    renderHook(() => useMoveUpTargets('show-1', classes, undefined, NONE_ENTERED), { wrapper });
     expect(replicaListeners.entries.size).toBe(0);
     expect(replicaListeners.classes.size).toBe(0);
   });

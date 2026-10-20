@@ -15,6 +15,7 @@ import { logReplicatedEntryStatusChange } from '@/services/show-day/entryStatusA
 import { generateUUID } from '@/utils/idUtils';
 import { SEAT_HOLDING_ENTRY_STATUSES } from '@/utils/waitlistCountSelectors';
 import { isEligibleMoveUpTarget } from '@/utils/moveUpEligibility';
+import { isClassClosedToChange } from '@/utils/changeClassTargets';
 import { reverseShowMapMoveUp } from './moveUpSupersession';
 import { destinationEntryStatusFor } from './moveUpRequestStatuses';
 import { MoveUpRpcError } from '@/services/replication/moveUpEntryRpc';
@@ -24,6 +25,12 @@ export interface ShowMapMoveUpInput {
   entryId: string;
   targetClassId: string;
   reason?: string | undefined;
+  /**
+   * MYK9-1265: the secretary's "Change class" goes to any not-complete class in
+   * the show (`utils/changeClassTargets.ts`), so the move-up ladder is skipped.
+   * Left off, the ladder applies: the exhibitor move-up REQUEST approval uses it.
+   */
+  anyOpenClass?: boolean | undefined;
 }
 
 export interface ShowMapMoveUpUndoInput {
@@ -248,6 +255,7 @@ export async function moveUpShowMapEntry({
   entryId,
   targetClassId,
   reason,
+  anyOpenClass = false,
 }: ShowMapMoveUpInput): Promise<ShowMapMoveUpResult> {
   const currentEntry = await replicatedEntriesTable.getEntryById(entryId);
 
@@ -279,7 +287,11 @@ export async function moveUpShowMapEntry({
     ? await replicatedTrialsTable.getTrialById(sourceTrialId)
     : null;
   const registryId = getTrialRegistry(sourceTrial).id;
-  if (!isEligibleMoveUpTarget(sourceClass, targetClass, registryId)) {
+  if (anyOpenClass) {
+    if (isClassClosedToChange(targetClass.classStatus)) {
+      throw new MoveUpRpcError('refused', `${targetClass.name} is no longer open for entries.`);
+    }
+  } else if (!isEligibleMoveUpTarget(sourceClass, targetClass, registryId)) {
     // Authored for the secretary, so thrown as a refusal rather than a
     // DatabaseError — the latter reaches production as "Something went wrong".
     throw new MoveUpRpcError(

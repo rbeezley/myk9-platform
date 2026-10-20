@@ -11,6 +11,7 @@ import { ShowDeskToolsSheet, type ShowDeskToolSection } from './ShowDeskToolsShe
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
 import { useMoveUpTargets } from './useMoveUpTargets';
+import { classIdsEnteredByDog } from './buildMoveUpTargets';
 import { computeShowDeskPendingSignals } from './showDeskPendingSignals';
 import { computeShowDeskStatus } from './showDeskStatus';
 import { getRankedActions } from './showMapActions';
@@ -21,7 +22,6 @@ import type { BuildShowMapTreeInput } from './showMapTypes';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import { ShowHomeSetupLinks } from './ShowHomeSetupLinks';
 import { ShowHomePaperScores } from './ShowHomePaperScores';
-import { getTrialRegistry } from '@/features/registries';
 
 interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   canManageShow: boolean;
@@ -151,12 +151,18 @@ export default function ShowDeskPanel({
     [effectiveScopeNow, executeAction, navigateTo, tree]
   );
 
-  const registryId = getTrialRegistry(trials[0]).id;
+  const moveUpDogId = moveUpAction
+    ? tree.nodesById[moveUpAction.nodeId]?.entryDisplay?.dogId
+    : undefined;
+  const enteredClassIds = useMemo(
+    () => classIdsEnteredByDog(entries, moveUpDogId),
+    [entries, moveUpDogId]
+  );
   const {
     targets: moveUpTargets,
     capacityState: moveUpCapacityState,
     capacityIsStale: moveUpCapacityIsStale,
-  } = useMoveUpTargets(show.id, classes, moveUpAction?.classId, registryId);
+  } = useMoveUpTargets(show.id, classes, moveUpAction?.classId, enteredClassIds);
   const moveUpCurrentClass = moveUpAction?.classId
     ? tree.nodesById[`class:${moveUpAction.classId}`]
     : undefined;

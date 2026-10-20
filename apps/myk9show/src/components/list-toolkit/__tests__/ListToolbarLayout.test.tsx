@@ -40,9 +40,14 @@ describe('ListToolbarLayout', () => {
       const { unmount } = render(
         <ListToolbarLayout compact={compact} {...parts} selectAction={<button>Select</button>} />
       );
-      const row = screen.getByText('filters').parentElement as HTMLElement;
+      // filters sit in their own slot (a width floor beside a record); the row is that slot's parent.
+      const slot = screen.getByText('filters').parentElement as HTMLElement;
+      const row = slot.parentElement as HTMLElement;
       expect(row).toContainElement(screen.getByRole('button', { name: 'Select' }));
       expect(row.contains(screen.getByText('views'))).toBe(compact);
+      // Beside a record the row wraps rather than squeezing search to nothing (MYK9-1267 review).
+      expect(row).toHaveClass('flex-wrap');
+      expect(slot.className.includes('min-w-[12rem]')).toBe(compact);
       unmount();
     }
   });

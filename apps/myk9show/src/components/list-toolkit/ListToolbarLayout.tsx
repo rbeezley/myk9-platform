@@ -33,8 +33,10 @@ export function ListToolbarLayout({
     return (
       <div className="flex flex-col gap-3">
         {!compact && viewTabs}
-        <div className={cn('flex items-center gap-2', !compact && 'flex-wrap')}>
-          {filterBar}
+        {/* Wraps rather than squeezing: beside an open record the pane can be ~300px, and the
+            search keeps a usable floor while Select and the view menu move to the next line. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className={cn(compact && 'min-w-[12rem] flex-1')}>{filterBar}</div>
           {selectAction}
           {compact && viewTabs}
         </div>

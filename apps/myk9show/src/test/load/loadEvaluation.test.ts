@@ -178,6 +178,26 @@ describe('load result evaluation', () => {
       expect(evaluation.noVerdictReasons).toHaveLength(1);
     });
 
+    it('fails on the observed lower bound when probes were lost (61 of 60, 300 of 450)', () => {
+      const observation = withSampling([10, 10], [450, 300]);
+      if (!observation.platform) throw new Error('Missing fixture platform');
+      observation.platform.peakConnections = Number.NaN;
+      observation.platform.observedPeakConnections = 61;
+      const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, observation);
+      expect(evaluation.verdict).toBe('fail');
+      expect(evaluation.failures).toContain('Peak database connections exceeded the verified cap.');
+    });
+
+    it('never passes on a partial lower bound under the cap', () => {
+      const observation = withSampling([10, 10], [450, 440]);
+      if (!observation.platform) throw new Error('Missing fixture platform');
+      observation.platform.peakConnections = Number.NaN;
+      observation.platform.observedPeakConnections = 30;
+      const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, observation);
+      expect(evaluation.passed).toBe(false);
+      expect(evaluation.verdict).not.toBe('pass');
+    });
+
     it('does not let missing connection telemetry hide a measured resource result', () => {
       // The evaluation has no CPU/IO threshold to breach (peaks are required
       // present, not bounded), so the mirror is: lost connection probes yield

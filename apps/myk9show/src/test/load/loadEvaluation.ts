@@ -280,22 +280,27 @@ export function evaluateLoadResult(
       platform.connectionCap <= 0 ||
       platform.statementDeltas.length === 0 ||
       (platform.resourceSampling !== undefined && platform.resourceSampling.succeeded <= 0);
-    // Each independently measured value is judged on its own. A lost resource
-    // sample must never hide a connection breach that WAS measured (61 of 60),
-    // so the cap checks run whenever connections were measured, whatever else is
-    // missing. Only genuinely missing telemetry is explained away by coverage:
-    // missing peaks are a CONSEQUENCE of thin coverage, and the verdict is then
-    // NO VERDICT rather than a fail that blames the app for the sampler's outage.
-    const connectionsMeasured =
-      !!platform &&
-      finite(platform.peakConnections) &&
-      platform.peakConnections >= 0 &&
-      finite(platform.connectionCap) &&
-      platform.connectionCap > 0;
-    if (platform && connectionsMeasured) {
+    // A measured value that PROVES a breach fails the run whatever else is
+    // missing; missing telemetry can only withhold a verdict, never earn a pass.
+    // For connections the proof is a lower bound: the exact peak when every probe
+    // landed, otherwise the highest peak the probes that did land observed. A lost
+    // resource or connection sample therefore never hides a measured 61 of 60, and
+    // a partial lower bound under the cap still cannot establish a pass (the
+    // missing exact peak keeps `telemetryMissing` true).
+    const capMeasured = !!platform && finite(platform.connectionCap) && platform.connectionCap > 0;
+    const connectionLowerBound = !platform
+      ? undefined
+      : finite(platform.peakConnections) && platform.peakConnections >= 0
+        ? platform.peakConnections
+        : platform.observedPeakConnections;
+    if (platform && capMeasured) {
       if (platform.connectionCap !== scenario.targets.databaseConnectionCap) {
         failures.push('Verified database connection cap did not match the scenario.');
-      } else if (platform.peakConnections > platform.connectionCap) {
+      } else if (
+        connectionLowerBound !== undefined &&
+        finite(connectionLowerBound) &&
+        connectionLowerBound > platform.connectionCap
+      ) {
         failures.push('Peak database connections exceeded the verified cap.');
       }
     }

@@ -23,8 +23,13 @@ const HEADING = 'Container Novice A';
 // A cold dev server compiles the show page on first load.
 test.setTimeout(90000);
 
-async function open(page: Page, cockpitMaxWidth: number | null, layout: 'split' | 'stacked') {
-  await page.setViewportSize({ width: 1440, height: 700 });
+async function open(
+  page: Page,
+  cockpitMaxWidth: number | null,
+  layout: 'split' | 'stacked',
+  width = 1440
+) {
+  await page.setViewportSize({ width, height: 700 });
   await installSecretaryCockpitFixture(page, { extraClasses: 14 });
   await signInAsSecretary(page, '/');
   await page.goto(`/shows/${SECRETARY_FIXTURE_SHOW_ID}?focus=${SECRETARY_FIXTURE_CLASS_IDS[0]}`);
@@ -92,6 +97,7 @@ async function probe(page: Page) {
         blockPosition: getComputedStyle(block).position,
         cardTop: card.getBoundingClientRect().top,
         pageScrollable: page.scrollHeight - page.clientHeight,
+        pageScrollTop: page.scrollTop,
         viewBottom: Math.min(view.bottom, window.innerHeight),
         panel: panel && {
           top: panel.getBoundingClientRect().top,
@@ -131,6 +137,7 @@ test('split: a short class follows the schedule, and its own scroll keeps the he
   await expect(heading).toBeInViewport();
   const followed = await probe(page);
   expect(followed?.panel).not.toBeNull();
+  expect(followed?.pageScrollTop ?? 0).toBeGreaterThan(before?.pageScrollTop ?? 0);
   expect(followed?.panel?.top ?? -1).toBeGreaterThanOrEqual((followed?.stripBottom ?? 9999) - 1);
   expect(followed?.panel?.top ?? 9999).toBeLessThanOrEqual((followed?.stripBottom ?? 0) + 40);
   expect(followed?.panel?.bottom ?? 9999).toBeLessThanOrEqual((followed?.viewBottom ?? 0) + 1);
@@ -185,4 +192,32 @@ test('stacked: the header pins to the page under the show header and tabs', asyn
   expect(after?.h2Top ?? -1).toBeGreaterThanOrEqual((after?.stripBottom ?? 9999) - 1);
   expect(after?.hitInsideBlock).toBe(true);
   expect(after?.blockPosition).toBe('sticky');
+  expect(Math.abs((after?.headerTop ?? -1) - (after?.stripBottom ?? 9999))).toBeLessThanOrEqual(2);
+});
+
+for (const width of [375, 980]) {
+  test(`at ${width}px the single viewport floor disables both panel and header pinning`, async ({
+    page,
+  }) => {
+    await open(page, null, 'stacked', width);
+    await expect(page.getByTestId('focused-class-header')).toHaveCSS('position', 'static');
+    await scrollPageTo(page, 0.5);
+    await expect(page.getByTestId('focused-class-header')).toHaveCSS('position', 'static');
+  });
+}
+
+test('a low focused control scrolls below the pinned header', async ({ page }) => {
+  await open(page, null, 'split');
+  const header = page.getByTestId('focused-class-header');
+  const control = page.getByRole('complementary').locator('button, input, a, select').last();
+  await control.evaluate(el => {
+    (el as HTMLElement).focus();
+    el.scrollIntoView({ block: 'start' });
+  });
+  await expect(control).toBeInViewport();
+  const controlBox = await control.boundingBox();
+  const headerBox = await header.boundingBox();
+  expect(controlBox?.y ?? -1).toBeGreaterThanOrEqual(
+    (headerBox?.y ?? 9999) + (headerBox?.height ?? 0)
+  );
 });

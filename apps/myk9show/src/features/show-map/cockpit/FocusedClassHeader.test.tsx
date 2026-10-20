@@ -11,19 +11,36 @@ import {
 import { FocusedClassHeader } from './FocusedClassHeader';
 
 describe('FocusedClassHeader', () => {
+  it('does not pin when the cockpit disables pinning below its viewport floor', () => {
+    render(
+      <FocusedClassHeader eyebrow="Focused Class" title="Buried Novice A" facts="" pinMode="none" />
+    );
+    expect(screen.getByTestId('focused-class-header').className).not.toMatch(/sticky|top-\[/);
+  });
   it('pins from lg up, under the show header and tabs, and not below lg', () => {
-    render(<FocusedClassHeader eyebrow="Focused Class" title="Buried Novice A" facts="1 entry" />);
+    render(
+      <FocusedClassHeader
+        eyebrow="Focused Class"
+        title="Buried Novice A"
+        facts="1 entry"
+        pinMode="page"
+      />
+    );
     const header = screen.getByTestId('focused-class-header');
     expect(header).toHaveClass(...FOCUSED_CLASS_HEADER_CLASS.split(' '));
-    // Every pinning class is lg-prefixed, so nothing sticks on a phone.
-    const pinning = FOCUSED_CLASS_HEADER_CLASS.split(' ').filter(c => /sticky|top-|z-/.test(c));
-    expect(pinning.length).toBeGreaterThan(0);
-    pinning.forEach(c => expect(c.startsWith('lg:')).toBe(true));
-    expect(header.className).not.toMatch(/(^|\s)sticky/);
+    expect(header).toHaveClass('sticky');
+    expect(header.className).not.toContain('lg:');
   });
 
   it('in the split panel pins to the panel top, and the panel scrolls itself from lg up', () => {
-    render(<FocusedClassHeader eyebrow="Focused Class" title="Buried Novice A" facts="" inPanel />);
+    render(
+      <FocusedClassHeader
+        eyebrow="Focused Class"
+        title="Buried Novice A"
+        facts=""
+        pinMode="panel"
+      />
+    );
     const header = screen.getByTestId('focused-class-header');
     expect(header).toHaveClass(...FOCUSED_CLASS_HEADER_CLASS_IN_PANEL.split(' '));
     expect(header).toHaveClass('top-0');
@@ -31,17 +48,17 @@ describe('FocusedClassHeader', () => {
     const panel = FOCUSED_CLASS_PANEL_CLASS.split(' ');
     expect(panel).toEqual(
       expect.arrayContaining([
-        expect.stringMatching(/^lg:sticky$/),
-        expect.stringMatching(/^lg:top-.*show-header-h/),
-        expect.stringMatching(/^lg:max-h-.*100dvh/),
-        'lg:overflow-y-auto',
+        expect.stringMatching(/^sticky$/),
+        expect.stringMatching(/^top-.*show-header-h/),
+        expect.stringMatching(/^max-h-.*100dvh/),
+        'overflow-y-auto',
       ])
     );
-    panel.forEach(c => expect(c.startsWith('lg:')).toBe(true));
+    panel.forEach(c => expect(c.startsWith('lg:')).toBe(false));
   });
 
   it('sits below the show header and the tab strip, not on top of them', () => {
-    const z = (cls: string) => Number(/lg:z-(\d+)/.exec(cls)?.[1]);
+    const z = (cls: string) => Number(/(?:^|\s)(?:lg:)?z-(\d+)/.exec(cls)?.[1]);
     expect(z(FOCUSED_CLASS_HEADER_CLASS)).toBeLessThan(z(SHOW_HEADER_CLASS));
     expect(z(FOCUSED_CLASS_HEADER_CLASS)).toBeLessThan(z(SHOW_TAB_STRIP_CLASS));
     // Offset = app header + the show header's measured height + the 3rem tab strip.

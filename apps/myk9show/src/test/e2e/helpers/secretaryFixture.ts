@@ -285,11 +285,11 @@ export async function installSecretaryFixture(
   // mail-in wizard cannot resolve the owner of the dog it just found.
   await installExhibitorProfile(page);
 
-  await page.route('**/rest/v1/shows?*', route => serveBuilt(route, b => [b.showWithEmbeds]));
-  await page.route('**/rest/v1/trials?*', route => serveBuilt(route, b => [b.trial]));
-  await page.route('**/rest/v1/classes?*', route => serveBuilt(route, b => b.classes));
-  await page.route('**/rest/v1/dogs?*', route => serveBuilt(route, b => [b.dog]));
+  await page.route('**/rest/v1/shows{,?*}', route => serveBuilt(route, b => [b.showWithEmbeds]));
+  await page.route('**/rest/v1/trials{,?*}', route => serveBuilt(route, b => [b.trial]));
+  await page.route('**/rest/v1/classes{,?*}', route => serveBuilt(route, b => b.classes));
+  await page.route('**/rest/v1/dogs{,?*}', route => serveBuilt(route, b => [b.dog]));
   // `searchAllDogs` resolves registration matches first and folds the ids into
   // the dog query; served empty, so the name match alone must find the dog.
-  await page.route('**/rest/v1/dog_registrations?*', route => serve(route, []));
+  await page.route('**/rest/v1/dog_registrations{,?*}', route => serve(route, []));
 }

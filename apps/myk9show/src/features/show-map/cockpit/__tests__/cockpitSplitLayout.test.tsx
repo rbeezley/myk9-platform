@@ -19,6 +19,7 @@ const cockpit = vi.hoisted(() => ({
   ref: { current: null as HTMLElement | null },
 }));
 
+vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => true }));
 vi.mock('@/hooks/useElementWidth', () => ({
   useElementWidth: () => ({ ref: cockpit.ref, width: cockpit.width }),
 }));

@@ -27,6 +27,7 @@ import { FocusedClassHeader } from './FocusedClassHeader';
 import {
   FOCUSED_CLASS_SCROLL_MARGIN_CLASS,
   FOCUSED_CLASS_SCROLL_MARGIN_CLASS_IN_PANEL,
+  type FocusedClassPinMode,
 } from '@/components/shows/ShowDetails/showStickyLayout';
 
 export function SecretaryCockpitFocusedClass({
@@ -36,7 +37,7 @@ export function SecretaryCockpitFocusedClass({
   trial,
   attention,
   timeZone,
-  inPanel = false,
+  pinMode = 'none',
   canManageShow,
   onCommand,
   runOrder,
@@ -49,7 +50,7 @@ export function SecretaryCockpitFocusedClass({
   attention: readonly SecretaryCockpitAttention[];
   timeZone: string;
   /** Rendered in the split's own-scroll panel (SecretaryCockpit), so the header pins to it. */
-  inPanel?: boolean;
+  pinMode?: FocusedClassPinMode;
   canManageShow: boolean;
   onCommand: (commandId: string) => void;
   /** Run-order auto-sort for the focused class (F29b phase 2a). */
@@ -108,7 +109,7 @@ export function SecretaryCockpitFocusedClass({
         eyebrow={`Focused Class · ${formatTrialIdentity(trial)}`}
         title={focused.name}
         facts={facts.join(' · ')}
-        inPanel={inPanel}
+        pinMode={pinMode}
       >
         {canManageShow && setupActions}
       </FocusedClassHeader>
@@ -116,7 +117,11 @@ export function SecretaryCockpitFocusedClass({
       <div
         className={cn(
           'space-y-5 p-5',
-          inPanel ? FOCUSED_CLASS_SCROLL_MARGIN_CLASS_IN_PANEL : FOCUSED_CLASS_SCROLL_MARGIN_CLASS
+          pinMode === 'panel'
+            ? FOCUSED_CLASS_SCROLL_MARGIN_CLASS_IN_PANEL
+            : pinMode === 'page'
+              ? FOCUSED_CLASS_SCROLL_MARGIN_CLASS
+              : ''
         )}
       >
         {/* What the secretary SETS for this class, laid out as a form, apart from

@@ -6,6 +6,7 @@ import {
   FOCUSED_CLASS_HEADER_CLASS,
   FOCUSED_CLASS_HEADER_CLASS_IN_PANEL,
   FOCUSED_CLASS_HEADER_HEIGHT_VAR,
+  type FocusedClassPinMode,
 } from '@/components/shows/ShowDetails/showStickyLayout';
 
 /**
@@ -18,14 +19,14 @@ export function FocusedClassHeader({
   eyebrow,
   title,
   facts,
-  inPanel = false,
+  pinMode = 'none',
   children,
 }: {
   eyebrow: string;
   title: string;
   facts: string;
   /** The split's own-scroll panel: pin to the panel's top, not the page offset. */
-  inPanel?: boolean;
+  pinMode?: FocusedClassPinMode;
   children?: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -36,7 +37,11 @@ export function FocusedClassHeader({
       data-testid="focused-class-header"
       className={cn(
         'rounded-t-xl border-b p-5',
-        inPanel ? FOCUSED_CLASS_HEADER_CLASS_IN_PANEL : FOCUSED_CLASS_HEADER_CLASS
+        pinMode === 'panel'
+          ? FOCUSED_CLASS_HEADER_CLASS_IN_PANEL
+          : pinMode === 'page'
+            ? FOCUSED_CLASS_HEADER_CLASS
+            : 'bg-card'
       )}
     >
       <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">

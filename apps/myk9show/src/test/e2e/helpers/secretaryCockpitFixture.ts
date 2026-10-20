@@ -15,7 +15,7 @@ export async function installSecretaryCockpitFixture(
   await installSecretaryFixture(page, options);
   // The entries replica pulls `entries` and the results view; both served empty.
   for (const table of ['entries', 'view_authenticated_entry_results_replication']) {
-    await page.route(`**/rest/v1/${table}?*`, async route => {
+    await page.route(`**/rest/v1/${table}{,?*}`, async route => {
       if (!isRead(route)) {
         await route.abort('blockedbyclient');
         return;

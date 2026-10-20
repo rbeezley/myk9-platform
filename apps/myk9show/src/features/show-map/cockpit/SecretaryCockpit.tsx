@@ -7,7 +7,12 @@ import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClass
 import { Button } from '@/components/ui/button';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { cn } from '@/lib/utils';
-import { FOCUSED_CLASS_PANEL_CLASS } from '@/components/shows/ShowDetails/showStickyLayout';
+import {
+  FOCUSED_CLASS_PANEL_CLASS,
+  FOCUSED_CLASS_PIN_QUERY,
+  type FocusedClassPinMode,
+} from '@/components/shows/ShowDetails/showStickyLayout';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useElementWidth } from '@/hooks/useElementWidth';
 import { COCKPIT_SPLIT_COLUMNS, isCockpitSplit } from './cockpitSplit';
 
@@ -86,6 +91,8 @@ export function SecretaryCockpit({
   // panel to its column in the layout effect, before paint. The panel remounts then; the editor
   // it would lose is held here (useFocusedClassSetupActions), and nothing is visible in between.
   const isSplit = isCockpitSplit(gridWidth);
+  const canPin = useMediaQuery(FOCUSED_CLASS_PIN_QUERY);
+  const pinMode: FocusedClassPinMode = !canPin ? 'none' : isSplit ? 'panel' : 'page';
   const model = buildSecretaryCockpitModel(snapshot, state);
   const focusedId = model.focusedClass?.id;
   const sourceClass = snapshot.classes.find(classItem => classItem.id === focusedId) ?? null;
@@ -104,7 +111,7 @@ export function SecretaryCockpit({
       trial={trial}
       attention={focusedAttention}
       timeZone={snapshot.timeZone}
-      inPanel={isSplit}
+      pinMode={pinMode}
       canManageShow={canManageShow}
       onCommand={onCommand}
       {...(runOrder !== undefined && { runOrder })}
@@ -250,7 +257,10 @@ export function SecretaryCockpit({
         )}
         {isSplit && model.focusedClass && (
           <div
-            className={cn('col-start-2 row-start-2', FOCUSED_CLASS_PANEL_CLASS)}
+            className={cn(
+              'col-start-2 row-start-2',
+              pinMode === 'panel' && FOCUSED_CLASS_PANEL_CLASS
+            )}
             data-testid="cockpit-split-focus"
           >
             {focusedPanel}

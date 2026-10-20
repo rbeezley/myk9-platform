@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import type { BrowserLoadResult } from './loadBrowserRunner';
 import type { LoadEvidenceTarget } from './loadEvidence';
 import type { LoadObservation, WorkflowFailureDetail } from './loadEvaluation';
+import { mergeApiErrorCounts } from './loadErrorCodes';
 import { percentile, type LoadMetricSamples } from './loadMetrics';
 import type { LoadScenario } from './loadScenario';
 import { scenarioSessionCount } from './loadScenario';
@@ -28,6 +29,8 @@ export interface LoadShardArtifact {
   assignmentSequences: readonly number[];
   target: LoadEvidenceTarget;
   scenarioId: LoadScenario['id'];
+  /** Total sessions in the scenario this shard was cut from (the `sessions` input). */
+  sessionSize?: number;
   observation: LoadObservation;
   samples: LoadMetricSamples;
 }
@@ -65,6 +68,7 @@ export function buildLoadShardArtifact(input: {
     assignmentSequences: input.result.assignmentSequences,
     target: input.target,
     scenarioId: input.scenario.id,
+    sessionSize: scenarioSessionCount(input.scenario),
     observation: input.result.observation,
     samples: input.result.samples,
   };
@@ -148,6 +152,10 @@ export function aggregateLoadShardArtifacts(
     observations,
     observation => observation.virtualUserRequestCount ?? 0
   );
+  const virtualUserSkippedPasses = sum(
+    observations,
+    observation => observation.virtualUserSkippedPasses ?? 0
+  );
   const browserRequestCount = sum(
     observations,
     observation =>
@@ -228,8 +236,12 @@ export function aggregateLoadShardArtifacts(
       generator,
       requestCount,
       virtualUserRequestCount,
+      virtualUserSkippedPasses,
       browserRequestCount,
       failedRequestCount,
+      apiErrorCounts: mergeApiErrorCounts(
+        observations.map(observation => observation.apiErrorCounts)
+      ),
       workflowFailures,
       workflowFailureDetails,
       scoringWriteP95Ms: percentile(samples.scoring, 95),
@@ -301,6 +313,7 @@ function validateArtifacts(artifacts: readonly LoadShardArtifact[], scenario: Lo
   const first = artifacts[0];
   const indexes = new Set<number>();
   const sequences: number[] = [];
+  const expectedSessions = scenarioSessionCount(scenario);
 
   for (const artifact of artifacts) {
     if (
@@ -312,6 +325,11 @@ function validateArtifacts(artifacts: readonly LoadShardArtifact[], scenario: Lo
       JSON.stringify(artifact.target) !== JSON.stringify(first.target)
     ) {
       throw new Error('Load shard manifests do not describe one synchronized rehearsal.');
+    }
+    if (artifact.sessionSize !== undefined && artifact.sessionSize !== expectedSessions) {
+      throw new Error(
+        `Load shard ${artifact.shard.index} ran a ${artifact.sessionSize}-session workload but the aggregate expects ${expectedSessions}; the sessions input must match across jobs.`
+      );
     }
     if (
       artifact.observation.generator?.shards.length !== 1 ||
@@ -337,10 +355,7 @@ function validateArtifacts(artifacts: readonly LoadShardArtifact[], scenario: Lo
     }
   }
 
-  const expectedSequences = Array.from(
-    { length: scenarioSessionCount(scenario) },
-    (_, index) => index
-  );
+  const expectedSequences = Array.from({ length: expectedSessions }, (_, index) => index);
   if (
     JSON.stringify([...sequences].sort((left, right) => left - right)) !==
     JSON.stringify(expectedSequences)

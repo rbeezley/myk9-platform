@@ -7,6 +7,8 @@ export interface LoadPlatformArtifact {
   runId: string;
   startAtMs: number;
   platform: PlatformObservation;
+  /** Postmaster start before load (prepare) and after it (end of sampling). */
+  postmaster?: { before?: string; after?: string };
 }
 
 /**

@@ -11,6 +11,8 @@ on:
       # Trigger filter: editing only the short proof must not launch the hour-long job.
       # The Playwright testMatch controls discovery after a workflow has started.
       - '!apps/myk9show/src/test/e2e/verification/batch3Scoring.spec.ts'
+      - '!apps/myk9show/src/test/e2e/verification/batch4Paperwork.spec.ts'
+      - '!apps/myk9show/src/test/e2e/verification/disposableClass.ts'
 
 permissions:
   contents: read

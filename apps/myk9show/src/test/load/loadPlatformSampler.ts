@@ -6,6 +6,7 @@ import type {
   StatementDelta,
 } from './loadEvaluation';
 import { summarizeObservedPeaks } from './loadPlatformPeaks';
+import { platformCoverage } from './loadVerdict';
 import {
   parseScheduledWriteSnapshot,
   scheduledWriteDeltas,
@@ -207,6 +208,16 @@ export async function startLoadPlatformSampler(
         // them is a silent pass on the capacity verdict itself.
         //
         // The retry above is the real fix for transient loss. This stays closed.
+        const resourceSampling = {
+          attempts: resourceAttempts,
+          succeeded: resourceSuccesses,
+          retried: resourceRetries,
+          failures: resourceFailures,
+        };
+        const connectionSampling = {
+          attempts: connectionAttempts,
+          succeeded: connectionSuccesses,
+        };
         return {
           ...summarizeObservedPeaks({
             peakCpuPercent,
@@ -226,16 +237,10 @@ export async function startLoadPlatformSampler(
             baselineSucceeded: initialScheduledWrites?.succeeded ?? false,
             finalSucceeded: finalScheduledWrites?.succeeded ?? false,
           },
-          resourceSampling: {
-            attempts: resourceAttempts,
-            succeeded: resourceSuccesses,
-            retried: resourceRetries,
-            failures: resourceFailures,
-          },
-          connectionSampling: {
-            attempts: connectionAttempts,
-            succeeded: connectionSuccesses,
-          },
+          resourceSampling,
+          connectionSampling,
+          // First-class so the summary and the no-verdict rule read one number.
+          ...platformCoverage({ resourceSampling, connectionSampling }),
         };
       })();
       return stopPromise;

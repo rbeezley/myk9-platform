@@ -4,8 +4,8 @@ import { planGeneration } from './loadGenerationPlan';
 import { G9_NORMAL_SCENARIO } from './loadScenario';
 import { DISTRIBUTED_G9_SHARD_COUNT } from './loadShard';
 import { VirtualUserFleet } from './loadVirtualUserFleet';
-import { LOAD_SHOWS } from './loadFixture';
 import { LoadVirtualUser, type VirtualUserRequestSample } from './loadVirtualUser';
+import { READER_TABLE_PASSES } from './loadVirtualUserTables';
 
 function recordingFetch() {
   const urls: string[] = [];
@@ -62,14 +62,15 @@ describe('virtual user fleet', () => {
     }
   });
 
-  it('targets each reader at its own show and trial', async () => {
+  it('reads unscoped, as the app poll does, whatever show a reader belongs to', async () => {
+    // The poll passes no sync scope, so RLS alone decides what each reader gets.
+    // A reader that filtered by show or trial would ask for less than a device does.
     const { fleet, urls } = fleetFor(4);
     await fleet.hydrate();
-    const showFilters = urls.filter(url => url.includes('show_id=eq.'));
-    expect(showFilters.length).toBeGreaterThan(0);
-    // Every entries read is scoped to a show; none is unscoped.
-    for (const url of urls.filter(u => u.includes('view_authenticated_entry_results'))) {
-      expect(url).toContain('show_id=eq.');
+    expect(urls.length).toBeGreaterThan(0);
+    for (const url of urls) {
+      expect(url).not.toMatch(/[?&](show_id|trial_id|owner_id)=eq\./);
+      expect(url).not.toContain('view_authenticated_entry_results');
     }
   });
 
@@ -77,8 +78,11 @@ describe('virtual user fleet', () => {
     const samples: VirtualUserRequestSample[] = [];
     const { fleet } = fleetFor(5, sample => samples.push(sample));
     await fleet.hydrate();
-    // Three tables per reader: classes, entries view, dogs.
-    expect(samples).toHaveLength(15);
+    // Seventeen requests per reader on an empty server: a count and a delta for
+    // shows, trials, classes, judge_assignments and waitlist_entries (10); the dogs
+    // and dog_registrations deltas, each followed by an id scan (4); the clubs delta
+    // and count (2, its id scan needs a readable count); and the one armbands read.
+    expect(samples).toHaveLength(5 * 17);
   });
 
   it('reports every sample to the collector', async () => {
@@ -88,7 +92,7 @@ describe('virtual user fleet', () => {
     for (const sample of samples) {
       expect(sample.ok).toBe(true);
       expect(sample.durationMs).toBeGreaterThanOrEqual(0);
-      expect(['classes', 'view_authenticated_entry_results', 'dogs']).toContain(sample.table);
+      expect(READER_TABLE_PASSES.map(pass => pass.table)).toContain(sample.table.split(' ')[0]);
     }
   });
 
@@ -237,15 +241,14 @@ describe('virtual-user lifecycle accounting (MYK9-126)', () => {
     }
   });
 
-  it('drains every overlapping poll, not just the newest', async () => {
+  it('skips and counts a tick that fires while the previous pass is still running', async () => {
     // A sync slower than the 60s cadence is the OVERLOAD case, and the last
-    // rehearsal measured ~140s syncs — so a second tick fires while the first is
-    // still running. Keeping a single `inFlight` handle let drain() wait only for
-    // the newest, so older requests settled after outcomes were captured and kept
-    // hitting shared staging past the workload boundary.
+    // rehearsal measured ~140s syncs. The app never overlaps passes
+    // (ReplicationSyncProvider returns at once while one is in flight); a reader
+    // that did would send the struggling database more than a device ever could.
     //
-    // Driven through syncOnce rather than fetch: one sync issues several
-    // requests, so gating at the fetch layer cannot separate two polls.
+    // Driven through syncOnce rather than fetch: one pass issues many requests, so
+    // gating at the fetch layer cannot separate two polls.
     vi.useFakeTimers();
     try {
       const user = new LoadVirtualUser(
@@ -253,41 +256,84 @@ describe('virtual-user lifecycle accounting (MYK9-126)', () => {
           supabaseUrl: 'https://fixture.supabase.co',
           anonKey: 'anon',
           accessToken: 'token',
-          showId: LOAD_SHOWS[0].showId,
-          trialId: LOAD_SHOWS[0].trials[0].trialId,
           role: 'exhibitor',
         },
         'id,updated_at'
       );
 
       const settle: (() => void)[] = [];
-      vi.spyOn(user, 'syncOnce').mockImplementation(
+      const sync = vi.spyOn(user, 'syncOnce').mockImplementation(
         () =>
           new Promise(resolve => {
             settle.push(() => resolve({ samples: [], rows: 0 }));
           })
       );
 
-      user.start(() => {});
+      const onSkip = vi.fn();
+      user.start(() => {}, undefined, onSkip);
       vi.advanceTimersByTime(60_000);
-      vi.advanceTimersByTime(60_000);
-      expect(settle).toHaveLength(2);
+      expect(sync).toHaveBeenCalledTimes(1);
 
+      // The second and third ticks arrive into a pass that has not finished.
+      vi.advanceTimersByTime(120_000);
+      expect(sync).toHaveBeenCalledTimes(1);
+      expect(user.skippedPasses).toBe(2);
+      expect(onSkip).toHaveBeenCalledTimes(2);
+
+      // Once the pass settles, the next tick runs again and nothing more is skipped.
+      settle[0]?.();
+      for (let tick = 0; tick < 20; tick += 1) await Promise.resolve();
+      vi.advanceTimersByTime(60_000);
+      expect(sync).toHaveBeenCalledTimes(2);
+      expect(user.skippedPasses).toBe(2);
+
+      // drain() still waits for the pass in flight at the boundary.
       user.stop();
       let drained = false;
       const draining = user.drain().then(() => {
         drained = true;
       });
-
-      // Settle only the NEWEST poll. A single-handle drain resolves here and
-      // strands the older one.
-      settle[1]?.();
       for (let tick = 0; tick < 20; tick += 1) await Promise.resolve();
       expect(drained).toBe(false);
-
-      settle[0]?.();
+      settle[1]?.();
       await draining;
       expect(drained).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('carries every reader skipped tick through the fleet to the collector', async () => {
+    vi.useFakeTimers();
+    try {
+      const abortError = () => Object.assign(new Error('aborted'), { name: 'AbortError' });
+      const hanging = ((_url: RequestInfo | URL, init?: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          // Real fetch rejects immediately on an already-aborted signal.
+          if (init?.signal?.aborted) reject(abortError());
+          init?.signal?.addEventListener('abort', () => reject(abortError()));
+        })) as unknown as typeof fetch;
+      const assignments = buildSessionAssignments(G9_NORMAL_SCENARIO);
+      const plan = planGeneration(assignments, { browserReaderSample: DISTRIBUTED_G9_SHARD_COUNT });
+      const onSkippedPass = vi.fn();
+      const fleet = new VirtualUserFleet(plan.virtualUser.slice(0, 3), {
+        supabaseUrl: 'https://fixture.supabase.co',
+        anonKey: 'anon',
+        accessTokenFor: () => 'token',
+        classColumnSelect: 'id,updated_at',
+        onSample: () => {},
+        onSkippedPass,
+        fetchImpl: hanging,
+      });
+
+      fleet.start();
+      // One tick starts each reader's pass; the next two are skipped by all three.
+      vi.advanceTimersByTime(3 * 60_000);
+      expect(fleet.skippedPasses).toBe(6);
+      expect(onSkippedPass).toHaveBeenCalledTimes(6);
+
+      fleet.stop();
+      await fleet.drain();
     } finally {
       vi.useRealTimers();
     }
@@ -318,8 +364,6 @@ describe('virtual-user lifecycle accounting (MYK9-126)', () => {
           supabaseUrl: 'https://fixture.supabase.co',
           anonKey: 'anon',
           accessToken: 'token',
-          showId: LOAD_SHOWS[0].showId,
-          trialId: LOAD_SHOWS[0].trials[0].trialId,
           role: 'exhibitor',
           fetchImpl: hanging,
         },
@@ -339,9 +383,9 @@ describe('virtual-user lifecycle accounting (MYK9-126)', () => {
   });
 
   it('issues no further requests once the boundary has passed', async () => {
-    // Aborting the in-flight request is not enough: a sync is three sequential
-    // queries, so a pass cancelled on its first would still issue the other two
-    // — requests reaching shared staging after the approved window closed.
+    // Aborting the in-flight requests is not enough: a table's pass is several
+    // sequential reads (a count, a delta, an id scan), so one cancelled on its first
+    // would still issue the rest, reaching shared staging after the window closed.
     vi.useFakeTimers();
     try {
       let issued = 0;
@@ -362,8 +406,6 @@ describe('virtual-user lifecycle accounting (MYK9-126)', () => {
           supabaseUrl: 'https://fixture.supabase.co',
           anonKey: 'anon',
           accessToken: 'token',
-          showId: LOAD_SHOWS[0].showId,
-          trialId: LOAD_SHOWS[0].trials[0].trialId,
           role: 'exhibitor',
           fetchImpl: counting,
         },
@@ -373,12 +415,14 @@ describe('virtual-user lifecycle accounting (MYK9-126)', () => {
       user.start(() => {});
       vi.advanceTimersByTime(60_000);
       for (let tick = 0; tick < 50; tick += 1) await Promise.resolve();
-      expect(issued).toBe(1);
+      // Every table starts at once: nine begin with a request that never answers.
+      const issuedAtBoundary = issued;
+      expect(issuedAtBoundary).toBe(READER_TABLE_PASSES.length);
 
       user.stop();
       await user.drain();
-      // The remaining two queries of the cancelled pass must never be issued.
-      expect(issued).toBe(1);
+      // The follow-up reads of the cancelled pass must never be issued.
+      expect(issued).toBe(issuedAtBoundary);
     } finally {
       vi.useRealTimers();
     }

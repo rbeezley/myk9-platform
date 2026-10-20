@@ -7,6 +7,7 @@ import {
   assertBaselineBeforeStart,
   platformSamplingWindow,
 } from '../src/test/load/loadPlatformWindow';
+import { readPostmasterStart } from '../src/test/load/loadPostmasterRestart';
 import { G9_NORMAL_SCENARIO } from '../src/test/load/loadScenario';
 
 function delay(milliseconds: number): Promise<void> {
@@ -63,12 +64,21 @@ assertBaselineBeforeStart({ startAtMs: run.startAtMs, baselineCompletedAtMs: Dat
 
 await delay(Math.max(0, window.stopAtMs - Date.now()));
 const platform = await sampler.stop();
+// After the load window and drain grace, still in this job: aggregation compares
+// it with the prepare job's value before any evidence is written.
+const postmasterAfter = await readPostmasterStart(process.env);
 
 const outputPath = writeLoadPlatformArtifact({
   schemaVersion: 1,
   runId: run.runId,
   startAtMs: run.startAtMs,
   platform,
+  postmaster: {
+    ...(process.env.LOAD_TEST_POSTMASTER_BEFORE
+      ? { before: process.env.LOAD_TEST_POSTMASTER_BEFORE }
+      : {}),
+    ...(postmasterAfter !== undefined ? { after: postmasterAfter } : {}),
+  },
 });
 
 console.log(
@@ -83,6 +93,8 @@ console.log(
       scheduledWriteCapture: platform.scheduledWriteCapture,
       scheduledWriteDeltas: platform.scheduledWriteDeltas,
       resourceSampling: platform.resourceSampling,
+      resourceCoveragePercent: platform.resourceCoveragePercent,
+      connectionCoveragePercent: platform.connectionCoveragePercent,
     },
     null,
     2

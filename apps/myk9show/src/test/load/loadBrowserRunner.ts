@@ -194,8 +194,9 @@ export async function runBrowserLoad(
             ? exhibitorAccessToken
             : (secretaryTokens.get(showIndex) ?? secretaryTokens.get(0) ?? ''),
         classColumnSelect: LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT,
-        onSample: sample =>
-          metrics.recordVirtualUserRequest({ durationMs: sample.durationMs, ok: sample.ok }),
+        onSample: sample => metrics.recordVirtualUserRequest(sample),
+        onApiError: observation => metrics.recordApiError(observation),
+        onSkippedPass: () => metrics.recordVirtualUserSkippedPass(),
       });
       await virtualUsers.hydrate();
     }

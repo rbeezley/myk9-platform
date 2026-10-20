@@ -403,6 +403,42 @@ describe('distributed load aggregation', () => {
     );
   });
 
+  it('sums the skipped virtual-reader polls through to the rendered evidence (MYK9-1271)', () => {
+    // A poll skipped because the previous pass was still running is how a slow
+    // target shows up in a run that reports healthy request counts. An aggregate
+    // that dropped the field would read as "no reader ever fell behind".
+    const skipped = new Map([
+      [0, 7],
+      [2, 5],
+    ]);
+    const artifacts = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) => {
+      const artifact = shardArtifact(index);
+      artifact.observation.virtualUserSkippedPasses = skipped.get(index) ?? 0;
+      return artifact;
+    });
+    const { observation } = aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, undefined);
+
+    expect(observation.virtualUserSkippedPasses).toBe(12);
+    const evidence = buildLoadEvidence({
+      target,
+      scenario: G9_NORMAL_SCENARIO,
+      observation,
+      evaluation: evaluateLoadResult(G9_NORMAL_SCENARIO, observation),
+    });
+    expect(renderLoadEvidenceMarkdown(evidence)).toContain(
+      'Virtual-reader polls skipped (previous pass still running): 12'
+    );
+  });
+
+  it('reads a shard that predates the skipped-poll count as zero skipped', () => {
+    const { observation } = aggregateLoadShardArtifacts(
+      Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) => shardArtifact(index)),
+      G9_NORMAL_SCENARIO,
+      undefined
+    );
+    expect(observation.virtualUserSkippedPasses).toBe(0);
+  });
+
   it('still aggregates every valid shard when the sampler produced nothing', () => {
     // A full set of shard evidence is expensive and one-shot against shared
     // staging; a dead sampler must degrade to a recorded FAIL, not destroy it.

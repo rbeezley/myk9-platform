@@ -82,7 +82,6 @@ Generated 2026-07-01 by an AST sweep (TypeScript compiler) of `apps/myk9show/src
 | `src/components/scoring/MultiAreaScoresheet.tsx`                              | 419                     |
 | `src/components/scoring/OptimisticScoreEntry.tsx`                             | 220                     |
 | `src/components/scoring/ScoringConflictHandler.tsx`                           | 449                     |
-| `src/components/secretary/PromoCodesSection.tsx`                              | 179                     |
 | `src/components/secretary/SecretaryClassDashboard.tsx`                        | 358                     |
 | `src/components/shows/browse/ShowBulkActionsBar.tsx`                          | 222                     |
 | `src/components/shows/RegistrationWorkflow/DogSearchInterface.tsx`            | 358                     |

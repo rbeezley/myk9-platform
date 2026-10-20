@@ -52,7 +52,7 @@ describe('useUrlTab', () => {
 
   // Security-relevant: pages that hide tabs by role must pass only the
   // visible tabs as `allowedTabs`. This mirrors TrialDetailsPage gating its
-  // staff-only Promo Codes / Financials tabs — a non-staff visitor deep-linked
+  // staff-only Financials tab — a non-staff visitor deep-linked
   // to a hidden management tab must NOT have that panel selected.
   it('falls back to default when a hidden (role-gated) tab is in the URL', () => {
     const PUBLIC_TABS = ['overview', 'entries'] as const;

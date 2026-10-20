@@ -7,7 +7,6 @@ const WORKSPACE_ROOT = resolve(process.cwd(), '../..');
 
 const OUT_OF_SCOPE_STATUS_SOURCE_SEGMENTS = [
   '/components/common/ResultBadge.tsx',
-  '/components/secretary/PromoCodesSection.tsx',
   '/features/lifecycle-emails/',
   '/pages/admin/SystemHealthPage.tsx',
   '/utils/showCardUtils.ts',

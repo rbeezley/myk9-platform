@@ -51,7 +51,6 @@ async function openCreateClubDialog(page: Page) {
 
 interface ClubFormData {
   name: string;
-  number: string;
   description: string;
   founded?: string;
   type?: 'Specialty Club' | 'All-Breed Club' | 'Local Club' | 'Regional Club' | 'National Club';
@@ -78,7 +77,9 @@ interface ClubFormData {
 async function fillCreateClubForm(page: Page, data: ClubFormData) {
   // Basic Info tab (default selected)
   await page.getByRole('textbox', { name: 'Club Name (required)' }).fill(data.name);
-  await page.getByRole('textbox', { name: 'Club Number' }).fill(data.number);
+  // Club numbers (AKC/UKC/ASCA) are entered per registry on the club page after
+  // creation, never on the Add Club form (MYK9-1235).
+  await expect(page.getByRole('textbox', { name: 'Club Number' })).toHaveCount(0);
   await page.getByRole('textbox', { name: 'Description' }).fill(data.description);
 
   if (data.brandColor) {
@@ -192,7 +193,6 @@ test.describe('Clubs UI — Create', () => {
 
     await fillCreateClubForm(page, {
       name: CLUB_A_NAME,
-      number: `CLUB-A-${RUN_ID}`,
       description: 'Club A — automated UI test club, persists across runs',
       founded: '1985-06-15',
       type: 'Specialty Club',
@@ -216,7 +216,6 @@ test.describe('Clubs UI — Create', () => {
 
     await fillCreateClubForm(page, {
       name: CLUB_B_NAME,
-      number: `CLUB-B-${RUN_ID}`,
       description: 'Club B — all-breed test club',
       type: 'All-Breed Club',
       brandColor: 'Red',
@@ -237,7 +236,6 @@ test.describe('Clubs UI — Create', () => {
 
     await fillCreateClubForm(page, {
       name: CLUB_C_NAME,
-      number: `CLUB-C-${RUN_ID}`,
       description: 'Club C — minimal test club, deleted at end of run',
       type: 'Local Club',
       email: 'club-c@e2etest.com',

@@ -387,33 +387,6 @@ describe('TrialDetailsPage', () => {
     expect(showQueryCalls.every(arg => arg === '')).toBe(true);
   });
 
-  it('does not expose promo-code management to a secretary', () => {
-    mockAuthContext.user = { id: 'user-1' };
-    mockAuthContext.isSecretary = true;
-    mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
-    mockSelectedTrialId = 'trial-1';
-    mockShows = [{ id: 'show-1', name: 'Heartland Scent Work Classic', clubId: 'club-1' }];
-
-    renderPage();
-
-    expect(screen.queryByRole('button', { name: 'Promo Codes' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Financials' })).toBeInTheDocument();
-  });
-
-  it('does not render the removed promo-code panel when deep-linked', () => {
-    mockAuthContext.user = { id: 'user-1' };
-    mockAuthContext.isSecretary = true;
-    mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
-    mockSelectedTrialId = 'trial-1';
-    mockShows = [{ id: 'show-1', name: 'Heartland Scent Work Classic', clubId: 'club-1' }];
-
-    renderPage('/trials/trial-1?tab=promo-codes');
-
-    expect(screen.queryByRole('button', { name: 'Promo Codes' })).not.toBeInTheDocument();
-    expect(screen.queryByText('PromoCodesSection')).not.toBeInTheDocument();
-    expect(screen.getByTestId('trial-details-main')).toBeInTheDocument();
-  });
-
   it('Add Classes opens the show wizard add-classes mode focused on this trial', async () => {
     mockAuthContext.user = { id: 'user-1' };
     mockAuthContext.isSecretary = true;

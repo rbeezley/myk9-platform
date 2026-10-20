@@ -474,7 +474,7 @@ export const reportRegistry: ReportDefinition[] = [
   {
     id: 'result-labels',
     excludesHeldEntries: true,
-    name: 'Result Labels',
+    name: 'Result labels',
     phase: 'during',
     scopes: ['trial', 'class'],
     sortOptions: [

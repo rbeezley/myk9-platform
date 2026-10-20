@@ -7,7 +7,7 @@ import { REPORT_STYLES } from '../reportStyles';
 // scoring boxes and hand-fill lines rendered unstyled/invisible in the preview.
 // Guard that every class the scoresheet template emits has a matching rule here,
 // so a future markup edit that adds a class without CSS fails in CI instead of
-// silently shipping unstyled. (Result Labels render via the dedicated label
+// silently shipping unstyled. (Result labels render via the dedicated label
 // engine — buildLabelStylesheet — not REPORT_STYLES, so they are not guarded here.)
 
 // Emitted by ScoresheetReport.tsx (entry-row internals).

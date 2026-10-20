@@ -28,7 +28,7 @@ import { getFixScoreHref, getOverviewFocusHref } from './resultsTabRoutes';
 
 const THEN_LABEL: Record<string, string> = {
   'results-sheet': 'Results sheet',
-  'result-labels': 'Ribbon labels',
+  'result-labels': 'Result labels',
 };
 
 interface ResultsClassDetailProps {
@@ -176,7 +176,7 @@ function PrimaryWork({
     body =
       'Could not read whether this class is released. Retry from the class list; Release is held back until it is known.';
   } else if (phase === 'released') {
-    title = 'Print the results sheet and ribbon labels';
+    title = 'Print the results sheet and result labels';
     body = 'The results are released. Print the paperwork below and record it as printed.';
   } else if (phase === 'needs-initials') {
     title = `Record the judge's ${noun}`;

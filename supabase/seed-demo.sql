@@ -398,10 +398,21 @@ WHERE class_id IN (
         -- MYK9-490 sibling-show classes (UKC / ASCA)
         'dec1a55e-0000-0000-0000-000000000041','dec1a55e-0000-0000-0000-000000000042',
         'dec1a55e-0000-0000-0000-000000000043','dec1a55e-0000-0000-0000-000000000044')
-   OR dog_id IN (
+   -- MYK9-126: the demo dogs are reset in place, not deleted, so a cart a club's
+   -- own show holds for one of them is not the seed's and stays. Only carts on
+   -- the seed's shows (demo, siblings, show-day fixtures) are cleared.
+   OR (dog_id IN (
         'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
         'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
-        'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046');
+        'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046')
+       AND class_id IN (SELECT c.id FROM public.classes c
+                 JOIN public.trials t ON t.id = c.trial_id
+                 WHERE t.show_id IN ('dededede-0000-0000-0000-000000000010',
+                                     'dededede-0000-0000-0000-000000000011',
+                                     'dededede-0000-0000-0000-000000000012',
+                                     'dededede-0000-0000-0000-000000000014')
+                    OR (t.show_id >= 'dededede-0000-0000-0731-000000000000'::uuid
+                        AND t.show_id <  'dededede-0000-0000-0732-000000000000'::uuid)));
 -- Armbands hang off the seeded show (and reference dogs/entries) — clear by show
 -- before deleting entries/dogs so their FKs can't block.
 DELETE FROM public.armbands WHERE show_id = 'dededede-0000-0000-0000-000000000010';
@@ -676,17 +687,114 @@ DELETE FROM public.classes WHERE id IN (
   'dec1a55e-0000-0000-0000-000000000038','dec1a55e-0000-0000-0000-000000000039',
   'dec1a55e-0000-0000-0000-000000000040','dec1a55e-0000-0000-0000-000000000045'
 );
--- waitlist_entries.dog_id is also NO ACTION (see the myk9_109 waitlist cleanup
--- above); a stray waitlist join for one of these demo dogs would block this
--- delete the same way the stray wizard entry blocked the enrollment delete above.
--- Unscoped by status on purpose: seed-owned dogs, and the seed's own §15 waiting
--- row for ...043 is re-inserted below.
-DELETE FROM public.waitlist_entries WHERE dog_id IN (
+-- MYK9-126: the six hand-authored demo dogs are RESET IN PLACE (section 5 upserts
+-- them), never deleted. Deleting them cascaded away every entry a club took for
+-- one on its OWN show -- paper entries paid by check among them -- and the paid-
+-- stray guard rightly refused (G9 rehearsal 2026-10-19, run 39357883251).
+--
+-- Replacing a cascading delete with an upsert loses what the cascade did, so
+-- each part is replicated explicitly here (pg_constraint confrelid='dogs'):
+--   * waitlist_entries / entry_cart_items (NO ACTION): cleared on the seed's
+--     own shows only; a club's waitlist row for a demo dog stays.
+--   * entries (CASCADE): demo-show entries go with their classes/trials/shows
+--     below; the show-day fixture shows are never deleted, so a walk's entry
+--     for a demo dog there is deleted explicitly. Entries on any other show are
+--     a club's and stay. seed_demo_assert_no_paid_strays() scopes its demo-dog
+--     arm to exactly this delete (migration 20261020024300).
+--   * every other CASCADE child is the dog's own profile and is cleared, as
+--     the delete used to; section 5 re-inserts the registrations.
+--   * SET NULL children (armbands, show_incidents, pedigree linked_dog_id) are
+--     left as they are: the seed's armbands are cleared above, and anything
+--     else points at a show the seed does not own.
+DELETE FROM public.waitlist_entries
+WHERE dog_id IN (
+  'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+  'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+  'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
+)
+  AND class_id IN (SELECT c.id FROM public.classes c
+                 JOIN public.trials t ON t.id = c.trial_id
+                 WHERE t.show_id IN ('dededede-0000-0000-0000-000000000010',
+                                     'dededede-0000-0000-0000-000000000011',
+                                     'dededede-0000-0000-0000-000000000012',
+                                     'dededede-0000-0000-0000-000000000014')
+                    OR (t.show_id >= 'dededede-0000-0000-0731-000000000000'::uuid
+                        AND t.show_id <  'dededede-0000-0000-0732-000000000000'::uuid));
+DELETE FROM public.entries
+WHERE dog_id IN (
+  'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+  'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+  'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
+)
+  AND (show_id = 'dededede-0000-0000-0000-000000000014'
+       OR (show_id >= 'dededede-0000-0000-0731-000000000000'::uuid
+           AND show_id <  'dededede-0000-0000-0732-000000000000'::uuid));
+DELETE FROM public.dog_registrations WHERE dog_id IN (
   'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
   'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
   'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
 );
-DELETE FROM public.dogs WHERE id IN (
+DELETE FROM public.health_records WHERE dog_id IN (
+  'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+  'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+  'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
+);
+DELETE FROM public.vaccinations WHERE dog_id IN (
+  'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+  'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+  'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
+);
+DELETE FROM public.medications WHERE dog_id IN (
+  'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+  'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+  'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
+);
+DELETE FROM public.allergies WHERE dog_id IN (
+  'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+  'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+  'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
+);
+DELETE FROM public.vet_visits WHERE dog_id IN (
+  'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+  'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+  'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
+);
+DELETE FROM public.achievements WHERE dog_id IN (
+  'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+  'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+  'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
+);
+DELETE FROM public.training_journal_entries WHERE dog_id IN (
+  'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+  'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+  'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
+);
+DELETE FROM public.training_milestones WHERE dog_id IN (
+  'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+  'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+  'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
+);
+DELETE FROM public.manual_results WHERE dog_id IN (
+  'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+  'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+  'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
+);
+DELETE FROM public.pedigree_ancestors WHERE dog_id IN (
+  'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+  'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+  'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
+);
+DELETE FROM public.ofa_screenings WHERE dog_id IN (
+  'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+  'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+  'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
+);
+DELETE FROM public.genetic_screenings WHERE dog_id IN (
+  'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
+  'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
+  'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
+);
+DELETE FROM public.training_goals WHERE dog_id IN (
   'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
   'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
   'dededede-0000-0000-0000-000000000045','dededede-0000-0000-0000-000000000046'
@@ -1415,7 +1523,36 @@ VALUES
   ('dededede-0000-0000-0000-000000000045', 'Maple', 'Maple', 'Golden Retriever', 'female', '2021-09-30', 'Golden', 'active',
    (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 1),
   ('dededede-0000-0000-0000-000000000046', 'Cooper', 'Cooper', 'Beagle', 'male', '2023-01-12', 'Tricolor', 'active',
-   (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com'), 1);
+   (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com'), 1)
+-- MYK9-126: the demo dogs survive a reseed (see the MYK9-126 note above the trials delete), so
+-- reset every column a walk could have changed back to the seeded shape. version
+-- moves FORWARD, never back to 1: replicas compare it, and a lower version would
+-- read as stale against a cached row.
+ON CONFLICT (id) DO UPDATE SET
+  name                 = EXCLUDED.name,
+  call_name            = EXCLUDED.call_name,
+  breed                = EXCLUDED.breed,
+  sex                  = EXCLUDED.sex,
+  date_of_birth        = EXCLUDED.date_of_birth,
+  color                = EXCLUDED.color,
+  status               = EXCLUDED.status,
+  owner_id             = EXCLUDED.owner_id,
+  height               = NULL,
+  weight               = NULL,
+  microchip_number     = NULL,
+  image_url            = NULL,
+  spayed_neutered      = false,
+  deceased             = false,
+  deceased_date        = NULL,
+  co_owner_id          = NULL,
+  breeder_id           = NULL,
+  license_key          = NULL,
+  created_by           = NULL,
+  created_from_show_id = NULL,
+  deleted_at           = NULL,
+  deleted_by           = NULL,
+  updated_at           = now(),
+  version              = public.dogs.version + 1;
 
 -- Every seeded dog needs a registration number: `trg_entries_require_dog_registration`
 -- (20260828210000) rejects an entry whose dog has none for the TRIAL'S registry, so a

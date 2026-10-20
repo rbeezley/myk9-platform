@@ -103,6 +103,10 @@ VALUES
   -- One myk9_109 load show, inside the id RANGE arm rather than the id list.
   ('a1090000-0000-0000-0010-000000000001', 'F538 Load Show', 'AKC',
    DATE '2026-11-01', DATE '2026-11-02', '00000000-0000-0000-0000-000000538001', 'draft'),
+  -- A show-day fixture show (MYK9-731 range): never deleted, but the seed
+  -- deletes demo-dog entries on it explicitly (MYK9-126).
+  ('dededede-0000-0000-0731-000000000001', 'F538 Show-Day Fixture', 'AKC',
+   DATE '2026-11-01', DATE '2026-11-02', '00000000-0000-0000-0000-000000538001', 'draft'),
   -- A show the seed never touches: the negative control for every arm.
   ('00000000-0000-0000-0000-000000538003', 'F538 Unrelated Show', 'AKC',
    DATE '2026-11-01', DATE '2026-11-02', '00000000-0000-0000-0000-000000538001', 'draft');
@@ -228,9 +232,11 @@ DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000000538104';
 -- E. the hand-authored demo dog LIST + a recorded cheque at a ZERO fee.
 --    MYK9-539 narrows payment_method as corroboration for 'secretary_paid'
 --    alone; a cheque is a recorded payment at any fee and must still abort.
-INSERT INTO public.entries (id, dog_id, payment_status, entry_fee, payment_method)
+--    Since MYK9-126 the arm covers a demo dog's entries on the show-day fixture
+--    shows only, the one place the seed still deletes them.
+INSERT INTO public.entries (id, dog_id, show_id, payment_status, entry_fee, payment_method)
 VALUES ('00000000-0000-0000-0000-000000538105', 'dededede-0000-0000-0000-000000000041',
-        'paid', 0.00, 'check');
+        'dededede-0000-0000-0731-000000000001', 'paid', 0.00, 'check');
 
 DO $$
 DECLARE err text := pg_temp.guard_error();
@@ -243,6 +249,25 @@ BEGIN
 END;
 $$;
 DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000000538105';
+
+-- E2. MYK9-126: the same recorded cheque on the same demo dog, but on a show the
+--     seed does not own (a club's own show). The reseed no longer deletes the
+--     demo dogs, so nothing cascades this entry away and the guard must stay
+--     quiet; refusing here wedged the 2026-10-19 rehearsal on a real paper entry.
+INSERT INTO public.entries (id, dog_id, show_id, payment_status, entry_fee, payment_method)
+VALUES ('00000000-0000-0000-0000-000000538106', 'dededede-0000-0000-0000-000000000041',
+        '00000000-0000-0000-0000-000000538003', 'paid', 30.00, 'check');
+
+DO $$
+DECLARE err text := pg_temp.guard_error();
+BEGIN
+  IF err IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL F538.6b a demo dog''s paid entry on a club''s own show aborted the guard: %', err;
+  END IF;
+  RAISE NOTICE 'PASS F538.6b a demo dog''s entry on an unowned show is outside the guard (MYK9-126)';
+END;
+$$;
+DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000000538106';
 
 -- --- the remaining corroboration columns ------------------------------------
 -- refunded_at, refund_amount, refund_decided_at, entry_status_history and a

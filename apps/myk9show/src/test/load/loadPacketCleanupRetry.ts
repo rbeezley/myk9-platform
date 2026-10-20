@@ -28,23 +28,34 @@ export interface ApiResult<T> {
 export interface RetryPolicy {
   attempts: number;
   baseDelayMs: number;
-  /**
-   * Epoch ms after which no retry starts, shared by every call in one cleanup so
-   * the whole sequence fits inside the workflow step's own timeout.
-   */
-  deadlineAtMs?: number;
-  now: () => number;
   sleep: (ms: number) => Promise<void>;
   log: (message: string) => void;
 }
 
+/** The script's per-request ceiling: a hung gateway becomes a retryable failure. */
+export const PACKET_REQUEST_TIMEOUT_MS = 30_000;
+/** Read, Storage remove, row delete, verify. */
+export const PACKET_CLEANUP_CALLS = 4;
+
 export const DEFAULT_RETRY_POLICY: RetryPolicy = {
   attempts: 4,
   baseDelayMs: 2_000,
-  now: () => Date.now(),
   sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
   log: message => console.warn(message),
 };
+
+/**
+ * The longest the whole cleanup can take when every call times out on every
+ * attempt. The workflow step's timeout is sized from this, so the step always
+ * outlives its own retries and the last failure reason reaches the log.
+ */
+export function worstCaseCleanupMs(policy: Pick<RetryPolicy, 'attempts' | 'baseDelayMs'>): number {
+  const backoffMs = Array.from(
+    { length: policy.attempts - 1 },
+    (_, index) => policy.baseDelayMs * 2 ** index
+  ).reduce((total, delay) => total + delay, 0);
+  return PACKET_CLEANUP_CALLS * (policy.attempts * PACKET_REQUEST_TIMEOUT_MS + backoffMs);
+}
 
 function httpStatus(result: ApiResult<unknown>): number | undefined {
   const status = result.error?.status ?? result.status;
@@ -91,19 +102,13 @@ export async function withTransientRetry<T>(
 
     const transient = isTransientFailure(result);
     const description = describeFailure(result);
-    const delayMs = policy.baseDelayMs * 2 ** (attempt - 1);
-    const pastDeadline =
-      policy.deadlineAtMs !== undefined && policy.now() + delayMs >= policy.deadlineAtMs;
-    if (!transient || attempt >= policy.attempts || pastDeadline) {
-      const reason = !transient
-        ? ' (not retried: not a transient failure)'
-        : attempt < policy.attempts
-          ? ' (retry budget exhausted)'
-          : '';
+    if (!transient || attempt >= policy.attempts) {
       throw new Error(
-        `${step}: ${description} after ${attempt} attempt${attempt === 1 ? '' : 's'}${reason}`
+        `${step}: ${description} after ${attempt} attempt${attempt === 1 ? '' : 's'}` +
+          (transient ? '' : ' (not retried: not a transient failure)')
       );
     }
+    const delayMs = policy.baseDelayMs * 2 ** (attempt - 1);
     policy.log(
       `${step}: attempt ${attempt}/${policy.attempts} failed, ${description}; retrying in ${delayMs} ms.`
     );

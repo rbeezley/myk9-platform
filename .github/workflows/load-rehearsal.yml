@@ -490,7 +490,8 @@ jobs:
     needs: [prepare, shard, platform, aggregate]
     if: ${{ always() && needs.prepare.outputs.restore-required == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    # Room for the packet step's worst case on top of the drain and the restore.
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v7
@@ -533,8 +534,10 @@ jobs:
           pnpm --filter @myk9/show exec tsx scripts/load-cleanup.ts
 
       - name: Clear canonical trial packet snapshots
-        # Bounded so its retries cannot spend the restore's share of the job.
-        timeout-minutes: 4
+        # Outlives the script's own worst case (worstCaseCleanupMs, ~9 min when
+        # every call times out on every attempt), so a failure always logs its
+        # reason instead of being killed mid-retry.
+        timeout-minutes: 10
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: pnpm --filter @myk9/show exec tsx scripts/load-packet-cleanup.ts

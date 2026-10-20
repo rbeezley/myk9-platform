@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildSessionAssignments } from './loadAssignments';
 import { G9_NORMAL_SCENARIO } from './loadScenario';
+import { DEFAULT_RETRY_POLICY, worstCaseCleanupMs } from './loadPacketCleanupRetry';
 import { DISTRIBUTED_G9_SHARD_COUNT, selectShardAssignments } from './loadShard';
 
 describe('manual distributed load workflow', () => {
@@ -135,7 +136,16 @@ describe('manual distributed load workflow', () => {
       return cleanupJob.slice(start, next === -1 ? undefined : next);
     };
     expect(step('Abort and drain in-flight scoring work')).toContain('id: drain');
-    expect(step('Clear canonical trial packet snapshots')).toMatch(/timeout-minutes: \d/);
+    // The step must outlive the script's own retries, with a minute for install
+    // and startup, and the job must still have room for the drain and restore.
+    const stepMinutes = Number(
+      /timeout-minutes: (\d+)/.exec(step('Clear canonical trial packet snapshots'))?.[1]
+    );
+    expect(stepMinutes * 60_000).toBeGreaterThanOrEqual(
+      worstCaseCleanupMs(DEFAULT_RETRY_POLICY) + 60_000
+    );
+    const jobMinutes = Number(/timeout-minutes: (\d+)/.exec(cleanupJob)?.[1]);
+    expect(jobMinutes).toBeGreaterThanOrEqual(stepMinutes + 8);
     expect(step('Restore canonical seed')).toContain(
       "if: ${{ !cancelled() && steps.drain.outcome == 'success' }}"
     );

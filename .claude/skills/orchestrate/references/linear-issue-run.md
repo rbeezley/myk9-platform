@@ -189,11 +189,11 @@ asking:
 2. **Summary**, as the final message (and a push notification when the owner is away):
 
 ```markdown
-| Issue    | Outcome            | PR    | Reason / owed                    |
-| -------- | ------------------ | ----- | -------------------------------- |
-| MYK9-123 | merged · Done      | #2870 | —                                |
-| MYK9-456 | merged · In Review | #2871 | browser walk of /at-show scoring |
-| MYK9-789 | held · Todo        | —     | touches refunds (needs-richard)  |
+| Issue    | Outcome            | PR    | Reason / owed                            |
+| -------- | ------------------ | ----- | ---------------------------------------- |
+| MYK9-123 | merged · Done      | #2870 | —                                        |
+| MYK9-456 | merged · In Review | #2871 | browser walk of /at-show scoring         |
+| MYK9-789 | held · Todo        | —     | touches refunds (needs-richard)          |
 | MYK9-321 | held · Todo        | —     | not reproducible on main (needs-richard) |
 ```
 
@@ -203,15 +203,15 @@ run, and mark each `refill` issue in the table (e.g. `MYK9-321 (refill)`).
 
 ## Common mistakes
 
-| Mistake                                                    | Instead                                                        |
-| ---------------------------------------------------------- | -------------------------------------------------------------- |
-| Trusting Linear's auto-Done after the merge                | Always re-read and set Done or In Review yourself              |
-| Dispatching the issue's criteria without reproducing them  | Reproduce on `main` first; hold what you cannot see            |
+| Mistake                                                    | Instead                                                          |
+| ---------------------------------------------------------- | ---------------------------------------------------------------- |
+| Trusting Linear's auto-Done after the merge                | Always re-read and set Done or In Review yourself                |
+| Dispatching the issue's criteria without reproducing them  | Reproduce on `main` first; hold what you cannot see              |
 | Building the issue's Recommendation as written             | Weigh an alternative; the criteria are the contract, not the fix |
-| Picking from Backlog, or grading issues up front           | Todo only; risk is judged from the diff at ship time           |
-| Handing a refund fix to sonnet "because it's small"        | Money is held, whatever its size                               |
-| Letting the implementer push, open the PR or post the gate | The orchestrator owns every shared-system write                |
-| Retrying a red CI a third time                             | Hold at In Review after two attempts                           |
-| Removing a merge-pending worktree                          | Keep it; `/cleanup` after GitHub merges                        |
-| Ending an overnight run when the approved list is done     | Continuous mode refills from Todo until a stop condition holds |
-| Reusing the run-start Todo list for refills                | Re-query; the board changes overnight                          |
+| Picking from Backlog, or grading issues up front           | Todo only; risk is judged from the diff at ship time             |
+| Handing a refund fix to sonnet "because it's small"        | Money is held, whatever its size                                 |
+| Letting the implementer push, open the PR or post the gate | The orchestrator owns every shared-system write                  |
+| Retrying a red CI a third time                             | Hold at In Review after two attempts                             |
+| Removing a merge-pending worktree                          | Keep it; `/cleanup` after GitHub merges                          |
+| Ending an overnight run when the approved list is done     | Continuous mode refills from Todo until a stop condition holds   |
+| Reusing the run-start Todo list for refills                | Re-query; the board changes overnight                            |

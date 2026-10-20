@@ -217,7 +217,9 @@ describe('Results tab on the real replicated class rows', () => {
 
     await downloadClassWithoutCheck('class-open');
 
-    await waitFor(() => expect(screen.queryByText(/Scores checked by you/)).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByText(/Scores checked by you/)).not.toBeInTheDocument()
+    );
     expect(screen.getByText('Release the results')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled();
   });

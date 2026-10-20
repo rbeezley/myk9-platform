@@ -102,6 +102,8 @@ const observation: LoadObservation = {
 
 const evaluation: LoadEvaluation = {
   passed: true,
+  verdict: 'pass',
+  noVerdictReasons: [],
   gateEligible: true,
   informational: false,
   gate: 'G9',

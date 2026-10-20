@@ -117,17 +117,86 @@ describe('load result evaluation', () => {
     const observation = passingObservation();
     if (!observation.platform) throw new Error('Missing fixture platform');
     observation.platform.resourceSampling = {
-      attempts: 3,
-      succeeded: 2,
+      attempts: 10,
+      succeeded: 9,
       failures: [{ kind: 'timeout', count: 1 }],
     };
     expect(evaluateLoadResult(G9_NORMAL_SCENARIO, observation)).toMatchObject({
       passed: true,
+      verdict: 'pass',
       failures: [],
     });
   });
 
-  it('rejects platform telemetry when resource sampling produced no valid sample', () => {
+  describe('no-verdict rule', () => {
+    function withSampling(
+      resource: [number, number],
+      connection: [number, number]
+    ): LoadObservation {
+      const observation = passingObservation();
+      if (!observation.platform) throw new Error('Missing fixture platform');
+      observation.platform.resourceSampling = {
+        attempts: resource[0],
+        succeeded: resource[1],
+        failures: [],
+      };
+      observation.platform.connectionSampling = {
+        attempts: connection[0],
+        succeeded: connection[1],
+      };
+      return observation;
+    }
+
+    it('returns NO VERDICT, not a pass and not a threshold failure, below 80% resource coverage', () => {
+      const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, withSampling([14, 2], [450, 450]));
+      expect(evaluation.verdict).toBe('no-verdict');
+      expect(evaluation.passed).toBe(false);
+      expect(evaluation.failures).toEqual([]);
+      expect(evaluation.noVerdictReasons).toHaveLength(1);
+      expect(evaluation.noVerdictReasons[0]).toContain('Resource (CPU/IO) sampling covered 14.3%');
+    });
+
+    it('returns NO VERDICT below 80% connection coverage and explains the withheld peak', () => {
+      const observation = withSampling([10, 10], [450, 300]);
+      if (!observation.platform) throw new Error('Missing fixture platform');
+      observation.platform.peakConnections = Number.NaN;
+      const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, observation);
+      expect(evaluation.verdict).toBe('no-verdict');
+      expect(evaluation.failures).toEqual([]);
+      expect(evaluation.noVerdictReasons[0]).toContain('Connection sampling covered 66.7%');
+    });
+
+    it('reports both reasons when both coverages are low', () => {
+      const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, withSampling([10, 1], [10, 1]));
+      expect(evaluation.noVerdictReasons).toHaveLength(2);
+    });
+
+    it('treats exactly 80% as enough', () => {
+      expect(evaluateLoadResult(G9_NORMAL_SCENARIO, withSampling([10, 8], [10, 8]))).toMatchObject({
+        verdict: 'pass',
+        passed: true,
+      });
+    });
+
+    it('stays a FAIL when a real threshold is missed, whatever the coverage', () => {
+      const observation = withSampling([14, 2], [450, 450]);
+      observation.errorRate = 0.5;
+      const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, observation);
+      expect(evaluation.verdict).toBe('fail');
+      expect(evaluation.failures).toContain('Error rate exceeded or was missing.');
+    });
+
+    it('does not apply to a missing platform artifact, which stays a failure', () => {
+      const evaluation = evaluateLoadResult(
+        G9_NORMAL_SCENARIO,
+        passingObservation({ platform: undefined })
+      );
+      expect(evaluation.verdict).toBe('fail');
+      expect(evaluation.failures).toContain('Required platform telemetry was missing.');
+    });
+  });
+
+  it('has no verdict when resource sampling produced no valid sample', () => {
     const observation = passingObservation();
     if (!observation.platform) throw new Error('Missing fixture platform');
     observation.platform.resourceSampling = {
@@ -137,9 +206,9 @@ describe('load result evaluation', () => {
     };
     observation.platform.peakCpuPercent = Number.NaN;
     observation.platform.peakIoPercent = Number.NaN;
-    expect(evaluateLoadResult(G9_NORMAL_SCENARIO, observation).failures).toContain(
-      'Required platform telemetry was missing.'
-    );
+    const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, observation);
+    expect(evaluation.verdict).toBe('no-verdict');
+    expect(evaluation.failures).not.toContain('Required platform telemetry was missing.');
   });
 
   it('passes G9 only when every Normal workload and platform target is present', () => {

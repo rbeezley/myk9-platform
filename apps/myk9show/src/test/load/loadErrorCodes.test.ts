@@ -1,0 +1,163 @@
+import type { CDPSession, Page } from '@playwright/test';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  ApiErrorTally,
+  extractApiErrorCode,
+  formatApiErrorCounts,
+  mergeApiErrorCounts,
+} from './loadErrorCodes';
+import { LoadMetrics } from './loadMetrics';
+
+describe('error code extraction', () => {
+  it.each([
+    ['{"code":"PGRST003","message":"Timed out acquiring connection"}', 'PGRST003'],
+    ['{"code":"57014","details":null,"message":"canceling statement"}', '57014'],
+    ['{"code":"42501","message":"permission denied"}', '42501'],
+    ['{"code":"PGRST003","message":"trunc', 'PGRST003'],
+    ['<html>502 Bad Gateway</html>', undefined],
+    ['', undefined],
+    ['{"message":"no code"}', undefined],
+    ['{"code":{"nested":1}}', undefined],
+    ['{"code":"has spaces and is far too long to be a code"}', undefined],
+  ])('reads %j as %j', (body, expected) => {
+    expect(extractApiErrorCode(body)).toBe(expected);
+  });
+});
+
+describe('error tally and merge', () => {
+  it('counts by status and code, most frequent first', () => {
+    const tally = new ApiErrorTally();
+    tally.record(503, 'PGRST003');
+    tally.record(503, 'PGRST003');
+    tally.record(500, '57014');
+    tally.record(502);
+    tally.record(0);
+    expect(tally.entries()).toEqual([
+      { status: 503, code: 'PGRST003', count: 2 },
+      { status: 0, code: 'transport', count: 1 },
+      { status: 500, code: '57014', count: 1 },
+      { status: 502, code: 'none', count: 1 },
+    ]);
+  });
+
+  it('sums shards and tolerates shards that predate the field', () => {
+    const merged = mergeApiErrorCounts([
+      [{ status: 503, code: 'PGRST003', count: 4 }],
+      undefined,
+      [
+        { status: 503, code: 'PGRST003', count: 3 },
+        { status: 500, code: '57014', count: 1 },
+      ],
+    ]);
+    expect(merged).toEqual([
+      { status: 503, code: 'PGRST003', count: 7 },
+      { status: 500, code: '57014', count: 1 },
+    ]);
+    expect(formatApiErrorCounts(merged)).toBe('PGRST003 (HTTP 503) x7, 57014 (HTTP 500) x1');
+    expect(formatApiErrorCounts([])).toBe('none');
+  });
+});
+
+function observationOf(metrics: LoadMetrics) {
+  return metrics.buildObservation({
+    concurrentSessions: 1,
+    ringsideSessions: 0,
+    sessionLifecycle: {
+      configuredSessions: 1,
+      preparedSessions: 1,
+      startedWorkflows: 1,
+      completedWorkflows: 1,
+      failedWorkflows: 0,
+      peakActiveWorkflows: 1,
+      configuredRingsideSessions: 0,
+      preparedRingsideSessions: 0,
+      startedRingsideWorkflows: 0,
+      completedRingsideWorkflows: 0,
+      failedRingsideWorkflows: 0,
+      peakActiveRingsideWorkflows: 0,
+      activityIntervals: [],
+    },
+    generator: {} as never,
+    elapsedMs: 1_000,
+    maxReplicationQueueDepth: 0,
+    finalReplicationQueueDepth: 0,
+    queueTelemetryFailures: 0,
+    expectedPersistedScores: 0,
+    persistedScores: 0,
+  });
+}
+
+describe('error codes in load metrics', () => {
+  it('counts virtual-user failures by status and code, and ignores successes', () => {
+    const metrics = new LoadMetrics();
+    metrics.recordVirtualUserRequest({ durationMs: 5, ok: true, status: 200 });
+    metrics.recordVirtualUserRequest({ durationMs: 5, ok: false, status: 503, code: 'PGRST003' });
+    metrics.recordVirtualUserRequest({ durationMs: 5, ok: false, status: 503, code: 'PGRST003' });
+    // A failure without a code (unit A has not populated it yet) is still counted.
+    metrics.recordVirtualUserRequest({ durationMs: 5, ok: false, status: 500 });
+    metrics.recordVirtualUserRequest({ durationMs: 5, ok: false });
+    expect(observationOf(metrics).apiErrorCounts).toEqual([
+      { status: 503, code: 'PGRST003', count: 2 },
+      { status: 0, code: 'transport', count: 1 },
+      { status: 500, code: 'none', count: 1 },
+    ]);
+  });
+
+  it('reads the code from a failed browser API response body', async () => {
+    const listeners = new Map<string, (event: never) => void>();
+    const bodies = new Map<string, string>([
+      ['r1', '{"code":"PGRST003","message":"pool"}'],
+      ['r2', '{"code":"57014","message":"timeout"}'],
+    ]);
+    const session = {
+      send: vi.fn(async (method: string, params?: { requestId?: string }) =>
+        method === 'Network.getResponseBody' && params?.requestId
+          ? { body: bodies.get(params.requestId) ?? '' }
+          : {}
+      ),
+      on(event: string, listener: (event: never) => void) {
+        listeners.set(event, listener);
+        return session;
+      },
+    } as unknown as CDPSession;
+    const page = {
+      context: () => ({ newCDPSession: vi.fn().mockResolvedValue(session) }),
+    } as unknown as Page;
+    const metrics = new LoadMetrics();
+    await metrics.attach(page);
+
+    const respond = (requestId: string, url: string, status: number) => {
+      listeners.get('Network.requestWillBeSent')?.({
+        requestId,
+        timestamp: 1,
+        request: { url },
+      } as never);
+      listeners.get('Network.responseReceived')?.({
+        requestId,
+        timestamp: 1.1,
+        response: { url, status },
+      } as never);
+      listeners.get('Network.loadingFinished')?.({ requestId } as never);
+    };
+    respond('r1', 'https://p.supabase.co/rest/v1/classes', 503);
+    respond('r2', 'https://p.supabase.co/rest/v1/rpc/ringside_update_entry', 500);
+    respond('r3', 'https://p.supabase.co/rest/v1/dogs', 200);
+    respond('r4', 'https://app.example/assets/missing.js', 404);
+    listeners.get('Network.requestWillBeSent')?.({
+      requestId: 'r5',
+      timestamp: 2,
+      request: { url: 'https://p.supabase.co/rest/v1/dogs' },
+    } as never);
+    listeners.get('Network.loadingFailed')?.({ requestId: 'r5' } as never);
+    await metrics.settle();
+
+    const observation = observationOf(metrics);
+    expect(observation.failedRequestCount).toBe(4);
+    expect(observation.apiErrorCounts).toEqual([
+      { status: 0, code: 'transport', count: 1 },
+      { status: 404, code: 'none', count: 1 },
+      { status: 500, code: '57014', count: 1 },
+      { status: 503, code: 'PGRST003', count: 1 },
+    ]);
+  });
+});

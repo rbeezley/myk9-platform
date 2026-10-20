@@ -4,6 +4,7 @@ import { buildLoadEvidence, renderLoadEvidenceMarkdown, writeLoadEvidence } from
 import { evaluateLoadResult } from './loadEvaluation';
 import { G9_NORMAL_SCENARIO } from './loadScenario';
 import { loadShardFromEnv } from './loadShard';
+import { loadScenarioFromEnv } from './loadSessionSizing';
 import {
   buildLoadShardArtifact,
   writeLoadShardArtifact,
@@ -28,10 +29,12 @@ test('G9 Normal show-day load', async ({ browser }, testInfo) => {
   let target!: ReturnType<typeof loadTargetFromEnv>;
   let shard!: ReturnType<typeof loadShardFromEnv>;
   let result: Awaited<ReturnType<typeof runBrowserLoad>>;
+  let scenario!: ReturnType<typeof loadScenarioFromEnv>;
   try {
+    scenario = loadScenarioFromEnv(process.env);
     target = loadTargetFromEnv(process.env);
     shard = loadShardFromEnv(process.env);
-    result = await runBrowserLoad(browser, G9_NORMAL_SCENARIO, target, { shard });
+    result = await runBrowserLoad(browser, scenario, target, { shard });
   } catch (error) {
     const failure = error instanceof Error ? error : new Error(String(error));
     const fallback = failureArtifactMetadata(process.env);
@@ -74,7 +77,7 @@ test('G9 Normal show-day load', async ({ browser }, testInfo) => {
     const artifact = buildLoadShardArtifact({
       shard,
       target,
-      scenario: G9_NORMAL_SCENARIO,
+      scenario,
       result,
     });
     const artifactPath = writeLoadShardArtifact(artifact);
@@ -87,10 +90,10 @@ test('G9 Normal show-day load', async ({ browser }, testInfo) => {
   }
 
   const observation = result.observation;
-  const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, observation);
+  const evaluation = evaluateLoadResult(scenario, observation);
   const evidence = buildLoadEvidence({
     target,
-    scenario: G9_NORMAL_SCENARIO,
+    scenario,
     observation,
     evaluation,
   });

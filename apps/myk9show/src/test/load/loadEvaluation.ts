@@ -11,6 +11,8 @@ import {
 } from './loadSessionLifecycle';
 import { DISTRIBUTED_G9_SHARD_COUNT } from './loadShard';
 import type { PersistenceFailure } from './loadPersistence';
+import type { ApiErrorCount } from './loadErrorCodes';
+import { noVerdictReasons, verdictOf, type LoadVerdict } from './loadVerdict';
 
 export interface ResourceSamplingFailure {
   kind: 'http' | 'timeout' | 'transport' | 'invalid-counters';
@@ -73,6 +75,13 @@ export interface PlatformObservation {
     attempts: number;
     succeeded: number;
   };
+  /**
+   * Share of resource / connection samples that landed, as first-class fields so
+   * an operator reads coverage without dividing attempts. Below 80% on either the
+   * run has NO VERDICT (see loadVerdict.ts).
+   */
+  resourceCoveragePercent?: number;
+  connectionCoveragePercent?: number;
 }
 
 export interface WorkflowFailureDetail {
@@ -95,6 +104,8 @@ export interface LoadObservation {
   /** Of `requestCount`, how many came from a real browser context. */
   browserRequestCount?: number;
   failedRequestCount: number;
+  /** Failed requests by HTTP status and PostgREST/Postgres error code. */
+  apiErrorCounts?: readonly ApiErrorCount[];
   workflowFailures: number;
   workflowFailureDetails: readonly WorkflowFailureDetail[];
   scoringWriteP95Ms: number;
@@ -136,6 +147,10 @@ export interface LoadFailure {
 
 export interface LoadEvaluation {
   passed: boolean;
+  /** `no-verdict` is never a pass: the job still fails, but not on a threshold. */
+  verdict: LoadVerdict;
+  /** Why telemetry coverage was too low to judge. Empty unless `no-verdict`. */
+  noVerdictReasons: string[];
   gateEligible: boolean;
   informational: boolean;
   gate: LoadScenario['gate'];
@@ -242,9 +257,11 @@ export function evaluateLoadResult(
     failures.push('Persisted scoring results did not reconcile.');
   }
 
+  let coverageReasons: string[] = [];
   if (scenario.gate === 'G9') {
     const platform = observation.platform;
-    if (
+    coverageReasons = platform ? noVerdictReasons(platform) : [];
+    const telemetryMissing =
       !platform ||
       !finite(platform.peakCpuPercent) ||
       !finite(platform.peakIoPercent) ||
@@ -255,9 +272,12 @@ export function evaluateLoadResult(
       platform.peakConnections < 0 ||
       platform.connectionCap <= 0 ||
       platform.statementDeltas.length === 0 ||
-      (platform.resourceSampling !== undefined && platform.resourceSampling.succeeded <= 0)
-    ) {
-      failures.push('Required platform telemetry was missing.');
+      (platform.resourceSampling !== undefined && platform.resourceSampling.succeeded <= 0);
+    // Missing peaks are a CONSEQUENCE of thin coverage (a lost connection probe
+    // withholds the peak), so when coverage already explains them the verdict is
+    // NO VERDICT rather than a fail that blames the app for the sampler's outage.
+    if (telemetryMissing) {
+      if (coverageReasons.length === 0) failures.push('Required platform telemetry was missing.');
     } else if (platform.connectionCap !== scenario.targets.databaseConnectionCap) {
       failures.push('Verified database connection cap did not match the scenario.');
     } else if (platform.peakConnections > platform.connectionCap) {
@@ -280,7 +300,9 @@ export function evaluateLoadResult(
   return {
     // Only gating failures decide the verdict. Shape-dependent misses are
     // reported alongside, so the gate stays honest in both directions.
-    passed: failures.length === 0,
+    passed: failures.length === 0 && coverageReasons.length === 0,
+    verdict: verdictOf({ failures, noVerdictReasons: coverageReasons }),
+    noVerdictReasons: coverageReasons,
     pendingDerivation,
     gateEligible: scenario.gate === 'G9' && !scenario.informational,
     informational: scenario.informational,

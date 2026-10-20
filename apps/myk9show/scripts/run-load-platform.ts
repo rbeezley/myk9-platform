@@ -83,6 +83,8 @@ console.log(
       scheduledWriteCapture: platform.scheduledWriteCapture,
       scheduledWriteDeltas: platform.scheduledWriteDeltas,
       resourceSampling: platform.resourceSampling,
+      resourceCoveragePercent: platform.resourceCoveragePercent,
+      connectionCoveragePercent: platform.connectionCoveragePercent,
     },
     null,
     2

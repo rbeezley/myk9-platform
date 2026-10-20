@@ -102,11 +102,6 @@ vi.mock('@/components/common/DetailHero', () => ({
 }));
 vi.mock('@/components/shows/ShowDateBlock', () => ({ ShowDateBlock: () => null }));
 vi.mock('@/components/shows/overview/QuickInfoCards', () => ({ QuickInfoCards: () => null }));
-vi.mock('@/components/shows/ArmbandLookup', () => ({
-  ArmbandLookup: ({ showId }: { showId: string }) => (
-    <div data-testid="armband-lookup">Armband lookup for {showId}</div>
-  ),
-}));
 vi.mock('@/components/shows/ShowStatusPill', () => ({
   ShowStatusPill: ({ clubId }: { clubId?: string }) => (
     <div data-testid="status-pill" data-club-id={clubId} />
@@ -233,7 +228,6 @@ function shellProps(overrides: Partial<ShowManagementShellProps>): ShowManagemen
     show: makeShow(),
     showId: 'show-1',
     breadcrumbs: [],
-    armbandCount: 0,
     catalogEntryCount: 0,
     canonicalShowHref: '/shows/show-1',
     activeManagementSection: undefined,
@@ -437,22 +431,10 @@ describe('ShowManagementShell', () => {
     expect(screen.getByRole('tab', { name: /^Entry Forms/ }).textContent).toContain('517');
   });
 
-  it('renders the staff armband lookup only when armbands exist', () => {
-    renderShell({ armbandCount: 3 });
-    expect(screen.getByTestId('armband-lookup')).toHaveTextContent('Armband lookup for show-1');
-  });
-
-  // Codex P2 on MYK9-957: an unread count (loading, offline, failed) is not
-  // zero. Hiding the lookup then leaves the secretary nothing to retry; the
-  // deleted Show Day header kept it, and its URL now lands here.
-  it('keeps the staff armband lookup when the armband count is unknown', () => {
-    renderShell({ armbandCount: undefined });
-    expect(screen.getByTestId('armband-lookup')).toHaveTextContent('Armband lookup for show-1');
-  });
-
-  it('omits the staff armband lookup before armbands exist', () => {
-    renderShell({ armbandCount: 0 });
-    expect(screen.queryByTestId('armband-lookup')).toBeNull();
+  it('keeps Entry Forms available without a separate armband search', () => {
+    renderShell();
+    expect(screen.queryByRole('combobox', { name: 'Armband lookup' })).toBeNull();
+    expect(screen.getByRole('tab', { name: /^Entry Forms/ })).toBeInTheDocument();
   });
 
   it('renders the publish row anchor with the premium cards on Overview', () => {

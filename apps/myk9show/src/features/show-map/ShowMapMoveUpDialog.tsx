@@ -213,10 +213,10 @@ function ShowMapMoveUpDialogFields({
                 : 'Capacity unavailable — the save will still refuse a full class.'}
             </p>
           )}
-          {targets.length === 0 && capacityState !== 'loading' && (
+          {targets.length === 0 && (
             <p className="text-sm text-muted-foreground">
               {reversal?.kind === 'available'
-                ? 'There is no higher class to change to from here.'
+                ? 'There is no other class to change to from here.'
                 : 'No other classes are available.'}
             </p>
           )}

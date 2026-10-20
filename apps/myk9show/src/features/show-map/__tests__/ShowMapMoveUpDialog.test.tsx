@@ -69,7 +69,7 @@ describe('ShowMapMoveUpDialog move-back (MYK9-640)', () => {
     renderDialog({ reversal: AVAILABLE });
 
     expect(screen.queryByText('No other classes are available.')).not.toBeInTheDocument();
-    expect(screen.getByText(/no higher class to change to/i)).toBeInTheDocument();
+    expect(screen.getByText(/no other class to change to/i)).toBeInTheDocument();
   });
 
   it('says WHY there is no way back once the run has started, and offers no control', () => {

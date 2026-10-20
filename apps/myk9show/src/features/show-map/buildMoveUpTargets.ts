@@ -1,52 +1,63 @@
 /**
- * Move-up target builder for the Show Map and Show Desk surfaces. The rule
- * itself (same trial, same element, strictly higher level, free seat) lives in
- * `@/utils/moveUpTargetSelection`, shared with Entries Management; this adds
- * the Show Map labels and trial detail.
+ * Change-class target builder for the Overview and Show Desk dialog. The rule
+ * itself (every not-complete class in every trial that the dog is not already
+ * entered in) lives in `@/utils/changeClassTargets`; this adds the Show Map
+ * labels and trial detail (MYK9-1265).
  */
 import { formatTrialLabel } from '@myk9/core';
-import { buildClassDisambiguator, buildFullClassLabel } from '@/features/_shared/classLabel';
-import { selectMoveUpTargetClasses } from '@/utils/moveUpTargetSelection';
+import {
+  buildClassDisambiguatorsByGroup,
+  buildFullClassLabel,
+} from '@/features/_shared/classLabel';
+import { entryHoldsDogInClass, selectChangeClassTargets } from '@/utils/changeClassTargets';
 import type { ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
-import type { BuildShowMapTreeInput } from './showMapTypes';
-import type { RegistryId } from '@/features/registries';
+import type { BuildShowMapTreeInput, ShowMapEntryInput } from './showMapTypes';
+
+function readId(record: Record<string, unknown>, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value) return value;
+  }
+  return undefined;
+}
+
+/** Classes this dog already holds a live entry in (never a valid target). */
+export function classIdsEnteredByDog(
+  entries: readonly ShowMapEntryInput[],
+  dogId: string | undefined
+): ReadonlySet<string> {
+  const ids = new Set<string>();
+  if (!dogId) return ids;
+  for (const entry of entries) {
+    const dog = entry.dog;
+    const entryDogId =
+      (dog && typeof dog === 'object' ? readId(dog as Record<string, unknown>, 'id') : undefined) ??
+      readId(entry, 'dog_id', 'dogId');
+    const classId = readId(entry, 'class_id', 'classId');
+    if (entryDogId === dogId && classId && entryHoldsDogInClass(entry)) ids.add(classId);
+  }
+  return ids;
+}
 
 /**
- * `registryId` defaults to AKC for any caller not yet updated — pass the show's
- * actual registry (a show's trials always share one — see scoping §7) so
- * UKC/ASCA-only levels (Superior/Elite, Open) are recognized. See
- * isEligibleMoveUpTarget's NOT COVERED note re: ASCA's standalone Champion class.
- *
- * Restricted to the entry's OWN trial (MYK9-825, now enforced inside
- * isEligibleMoveUpTarget itself, MYK9-920). When `availableSpotsByClassId` is
- * supplied, a class with no free seat stays listed, flagged `isFull`. Capacity
- * is advisory: the write path refuses a full class either way.
+ * When `availableSpotsByClassId` is supplied, a class with no free seat stays
+ * listed, flagged `isFull`. Capacity is advisory: the write path refuses a full
+ * class either way.
  */
 export function buildMoveUpTargets(
   classes: BuildShowMapTreeInput['classes'],
   currentClassId: string | undefined,
-  registryId: RegistryId = 'AKC',
+  enteredClassIds: ReadonlySet<string> = new Set(),
   availableSpotsByClassId?: ReadonlyMap<string, number>
 ): ShowMapMoveUpTarget[] {
-  const current = currentClassId ? classes.find(cls => cls.id === currentClassId) : undefined;
-  if (!current) return [];
-
-  // The one shared rule (MYK9-920), identical to the Entries Management approve
-  // dialog: same trial, same element, higher level
-  const targets = selectMoveUpTargetClasses(classes, current.id, registryId, cls =>
+  const targets = selectChangeClassTargets(classes, currentClassId, enteredClassIds, cls =>
     availableSpotsByClassId?.get(cls.id)
   );
-  const sameTrial = classes.filter(cls => cls.trialId === current.trialId);
-  // Scoped to the entry's own trial: a same-shaped class in another trial is
-  // never a collision to disambiguate, it's excluded entirely by the filter above.
-  const disambiguate = buildClassDisambiguator(
-    sameTrial.map(cls => ({
-      name: cls.name,
-      element: cls.element,
-      level: cls.level,
-      section: cls.section,
-    }))
-  );
+  // A collision is a question about classes in the SAME trial (MYK9-805).
+  const disambiguatorFor = buildClassDisambiguatorsByGroup(classes, cls => cls.trialId);
+
+  const orderKey = (cls: (typeof targets)[number]['cls']) =>
+    `${cls.trialDate ?? ''}|${cls.trialNumber ?? ''}|${cls.trialId}`;
 
   return targets
     .map(({ cls, isFull }) => {
@@ -57,18 +68,22 @@ export function buildMoveUpTargets(
         section: cls.section,
       };
       return {
-        id: cls.id,
-        isFull,
-        label: buildFullClassLabel(identity, disambiguate(identity), cls.name),
-        detail: [
-          cls.trialDate,
-          cls.trialName || cls.trialNumber
-            ? formatTrialLabel({ name: cls.trialName, trialNumber: cls.trialNumber })
-            : undefined,
-        ]
-          .filter(Boolean)
-          .join(' · '),
+        key: orderKey(cls),
+        target: {
+          id: cls.id,
+          isFull,
+          label: buildFullClassLabel(identity, disambiguatorFor(cls.trialId)(identity), cls.name),
+          detail: [
+            cls.trialDate,
+            cls.trialName || cls.trialNumber
+              ? formatTrialLabel({ name: cls.trialName, trialNumber: cls.trialNumber })
+              : undefined,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        },
       };
     })
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .sort((a, b) => a.key.localeCompare(b.key) || a.target.label.localeCompare(b.target.label))
+    .map(item => item.target);
 }

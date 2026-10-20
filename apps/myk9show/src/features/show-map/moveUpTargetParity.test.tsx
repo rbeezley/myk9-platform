@@ -43,37 +43,36 @@ const withCapacity: ClassWithCapacity[] = all.map(cls => ({
   section: cls.section ?? null,
 }));
 
-describe('move-up targets: Show Map vs Entries Management', () => {
-  it('lists a full class as disabled, and drops a class in another trial', () => {
+describe('Change class targets vs the move-up request approval', () => {
+  it('lists every open class in every trial, a full one disabled', () => {
     const map = new Map(withCapacity.map(c => [c.id, c.available_spots]));
-    expect(
-      buildMoveUpTargets(all, novice.id, 'AKC', map).map(t => [t.id, t.isFull === true])
-    ).toEqual([
+    expect(buildMoveUpTargets(all, novice.id, new Set(), map).map(t => [t.id, t.isFull])).toEqual([
       [advanced.id, false],
       [fullMaster.id, true],
+      [advancedTrial2.id, false],
     ]);
   });
 
-  it('offers identical targets for the same entry, from the real capacity source', async () => {
+  it('gives the dialog the same set from the real capacity source, while the request approval keeps the ladder', async () => {
     mockGetClassesWithCapacity.mockResolvedValue({ data: withCapacity, error: null });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
-    const { result } = renderHook(() => useMoveUpTargets('show-1', all, novice.id, 'AKC'), {
+    const { result } = renderHook(() => useMoveUpTargets('show-1', all, novice.id, new Set()), {
       wrapper,
     });
     await waitFor(() => expect(result.current.capacityState).toBe('ready'));
 
-    const entryManagementIds = getAvailableMoveUpTargets(withCapacity, novice.id, 'AKC').map(
-      c => c.id
-    );
-    expect(entryManagementIds).toEqual([advanced.id]);
-    // Show Map lists the full class too (disabled); its open targets match
-    // Entries Management, which keeps hiding full classes.
-    expect(result.current.targets.filter(t => !t.isFull).map(t => t.id)).toEqual(
-      entryManagementIds
-    );
-    expect(result.current.targets.map(t => t.id)).toEqual([advanced.id, fullMaster.id]);
+    expect(result.current.targets.map(t => t.id)).toEqual([
+      advanced.id,
+      fullMaster.id,
+      advancedTrial2.id,
+    ]);
+    // MYK9-1265 changes the secretary's Change class only. Approving an exhibitor's move-up
+    // REQUEST (Entries Management) still offers same-trial, same-element, higher, open classes.
+    expect(getAvailableMoveUpTargets(withCapacity, novice.id, 'AKC').map(c => c.id)).toEqual([
+      advanced.id,
+    ]);
   });
 });

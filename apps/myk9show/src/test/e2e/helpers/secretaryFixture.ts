@@ -24,6 +24,11 @@
 import type { Page, Route } from '@playwright/test';
 import type { Tables } from '@/types/supabase';
 import { fulfillRows, isRead } from './postgrestRoute';
+import {
+  buildChangeClassClasses,
+  buildChangeClassEntries,
+  buildChangeClassTrial2,
+} from './secretaryChangeClassRows';
 import { awaitIdentity, deferred, installExhibitorProfile } from './exhibitorProfileRoute';
 
 export const SECRETARY_FIXTURE_SHOW_ID = 'f1f1f1f1-0000-0000-0000-000000000101';
@@ -105,7 +110,12 @@ function showDates() {
   };
 }
 
-function buildRows(clubId: string) {
+export interface SecretaryFixtureOptions {
+  /** MYK9-1265: Buried Novice A/Advanced/Excellent/Master in trial 1, a second trial, one entry. */
+  changeClass?: boolean;
+}
+
+function buildRows(clubId: string, options: SecretaryFixtureOptions = {}) {
   const dates = showDates();
 
   const trial: TrialRow & Record<string, unknown> = {
@@ -126,26 +136,31 @@ function buildRows(clubId: string) {
     updated_at: STAMP,
   };
 
-  const classes: Array<ClassRow & Record<string, unknown>> = [
-    { id: CLASS_IDS[0], name: 'Container Novice A', element: 'Container' },
-    { id: CLASS_IDS[1], name: 'Interior Novice A', element: 'Interior' },
-  ].map((c, index) => ({
-    ...c,
-    trial_id: TRIAL_ID,
-    level: 'Novice',
-    section: 'A',
-    competition_type: 'regular',
-    entry_fee: 30,
-    max_entries: 50,
-    allow_waitlist: true,
-    status: 'setup',
-    status_source: 'manual',
-    display_order: index,
-    deleted_at: null,
-    version: 1,
-    created_at: STAMP,
-    updated_at: STAMP,
-  }));
+  const changeClassTrial = options.changeClass
+    ? buildChangeClassTrial2({ id: SECRETARY_FIXTURE_SHOW_ID, date: dates.start_date })
+    : undefined;
+  const classes: Array<ClassRow & Record<string, unknown>> = options.changeClass
+    ? (buildChangeClassClasses(TRIAL_ID) as unknown as Array<ClassRow & Record<string, unknown>>)
+    : [
+        { id: CLASS_IDS[0], name: 'Container Novice A', element: 'Container' },
+        { id: CLASS_IDS[1], name: 'Interior Novice A', element: 'Interior' },
+      ].map((c, index) => ({
+        ...c,
+        trial_id: TRIAL_ID,
+        level: 'Novice',
+        section: 'A',
+        competition_type: 'regular',
+        entry_fee: 30,
+        max_entries: 50,
+        allow_waitlist: true,
+        status: 'setup',
+        status_source: 'manual',
+        display_order: index,
+        deleted_at: null,
+        version: 1,
+        created_at: STAMP,
+        updated_at: STAMP,
+      }));
 
   const show: ShowRow & Record<string, unknown> = {
     id: SECRETARY_FIXTURE_SHOW_ID,
@@ -220,11 +235,20 @@ function buildRows(clubId: string) {
       cover_image_url: null,
       accent_color: null,
     },
-    trials: [{ ...trial, class: classes }],
+    trials: [
+      { ...trial, class: classes.filter(c => c.trial_id === TRIAL_ID) },
+      ...(changeClassTrial
+        ? [{ ...changeClassTrial, class: classes.filter(c => c.trial_id === changeClassTrial.id) }]
+        : []),
+    ],
     judge_assignments: [],
   };
 
-  return { showWithEmbeds, trial, classes, dog };
+  const trials = changeClassTrial ? [trial, changeClassTrial] : [trial];
+  const entries = options.changeClass
+    ? buildChangeClassEntries(SECRETARY_FIXTURE_SHOW_ID, TRIAL_ID)
+    : [];
+  return { showWithEmbeds, trial, trials, classes, dog, entries };
 }
 
 async function serve(route: Route, rows: unknown[]) {
@@ -241,7 +265,10 @@ async function serve(route: Route, rows: unknown[]) {
  * Install the fixture. Call BEFORE signing in: the replication layer pulls
  * `shows`, `trials` and `classes` on the first authenticated render.
  */
-export async function installSecretaryFixture(page: Page): Promise<void> {
+export async function installSecretaryFixture(
+  page: Page,
+  options: SecretaryFixtureOptions = {}
+): Promise<void> {
   // The club the live role read scopes this secretary to.
   const club = deferred<string>();
   page.on('response', async response => {
@@ -262,7 +289,7 @@ export async function installSecretaryFixture(page: Page): Promise<void> {
     );
     if (scope?.scope_id) club.resolve(scope.scope_id);
   });
-  const rows = club.promise.then(buildRows);
+  const rows = club.promise.then(clubId => buildRows(clubId, options));
   const serveBuilt = async (route: Route, pick: (built: Awaited<typeof rows>) => unknown[]) => {
     const built = await awaitIdentity(route, rows, "the secretary's club scope");
     if (built) await serve(route, pick(built));
@@ -275,8 +302,13 @@ export async function installSecretaryFixture(page: Page): Promise<void> {
   await installExhibitorProfile(page);
 
   await page.route('**/rest/v1/shows?*', route => serveBuilt(route, b => [b.showWithEmbeds]));
-  await page.route('**/rest/v1/trials?*', route => serveBuilt(route, b => [b.trial]));
+  await page.route('**/rest/v1/trials?*', route => serveBuilt(route, b => b.trials));
   await page.route('**/rest/v1/classes?*', route => serveBuilt(route, b => b.classes));
+  if (options.changeClass) {
+    await page.route('**/rest/v1/view_authenticated_entry_results*', route =>
+      serveBuilt(route, b => b.entries)
+    );
+  }
   await page.route('**/rest/v1/dogs?*', route => serveBuilt(route, b => [b.dog]));
   // `searchAllDogs` resolves registration matches first and folds the ids into
   // the dog query; served empty, so the name match alone must find the dog.

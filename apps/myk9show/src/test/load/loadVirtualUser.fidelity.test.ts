@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   databaseManager,
@@ -41,7 +42,6 @@ import {
 const wire = vi.hoisted(() => ({ fetch: undefined as unknown as typeof fetch }));
 vi.mock('@/services/database/supabaseClient', async () => {
   const { createClient } = await import('@supabase/supabase-js');
-  const { createDatabaseError } = await import('@/services/database/databaseError');
   const client = createClient('https://fixture.supabase.co', 'fixture-anon-key', {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { fetch: (...args: Parameters<typeof fetch>) => wire.fetch(...args) },

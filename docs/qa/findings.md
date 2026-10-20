@@ -433,10 +433,10 @@ Copy this block for each new finding.
 
 ### QA-TIME-DISPLAY-001
 
-- **Status:** open; report-only P3, awaiting an approved Linear-creation batch.
+- **Status:** open; tracked in [MYK9-1225](https://linear.app/myk9-platform/issue/MYK9-1225). Reconfirmed and filed by source: codex on 2026-10-16.
 - **Severity:** low; canonical P3, source Claude review P3; confidence high.
 - **Classification / lifecycle:** product display defect / new; one detected browser run, independently reproduced by formatter call.
-- **First / last seen:** 2026-10-15 / 2026-10-15.
+- **First / last seen:** 2026-10-15 / 2026-10-16.
 - **Baseline:** `58ae5c5fc5e586edb31ccdaa35349129d539bcbf`.
 - **Role / surface:** secretary; class run sheet, `apps/myk9show/src/pages/ClassDetailsPage/SecretaryRunSheet/types.ts:33`; desktop1280×720.
 - **Suite category / pattern:** manual-debug / validation-visible-mismatch.
@@ -446,7 +446,7 @@ Copy this block for each new finding.
 - **Deduplication:** registry/source and archived-inclusive Linear searches for centisecond(s), rounding and61.23 found no matching canonical formatter defect. MYK9-992 is queue-position scope and MYK9-1204 is offline score persistence; neither is reused for display precision.
 - **Fix owner / next action:** SecretaryRunSheet formatter area; triage the separate display correction, then reuse the established time helper if suitable.
 - **Proof required:** assertion-first61.23→1:01.23 plus minute-boundary controls; real run-sheet render compared with SQL/judge, preserving intentional exhibitor rounding.
-- **Notes:** both targeted issues may close after their own criteria and merge gates pass; this finding remains open. Quality-finding-lifecycle keeps other P3 findings report-only pending an approved triage batch.
+- **Notes:** both targeted issues may close after their own criteria and merge gates pass; this finding remains open. The user’s September 3 Linear policy requires confirmed actionable findings at every severity to be filed; MYK9-1225 contains the full execution contract. Codex reproduced the actual formatter at c2f831e0763f708c7bca4cf5e20c78f6cdf630b8; 60, 61.25 and 59.99 controls passed.
 
 ### MYK9-1011 — DQ downstream reader gaps
 

@@ -47,7 +47,7 @@ export interface ReaderContext {
   request<T>(label: string, run: () => PromiseLike<PostgrestResult>): Promise<RequestOutcome<T>>;
 }
 
-const FAILED = { ok: false, rows: [], count: null } as const;
+const failed = <T>(): RequestOutcome<T> => ({ ok: false, rows: [], count: null });
 
 export class PassRecorder {
   readonly samples: VirtualUserRequestSample[] = [];
@@ -66,7 +66,7 @@ export class PassRecorder {
     // produced; with a 60s cadence over 600s the last tick commonly straddles the
     // boundary, which across the fleet is enough to push availability under its
     // target on a healthy run.
-    if (this.signal.aborted) return FAILED;
+    if (this.signal.aborted) return failed();
     const startedAt = Date.now();
     try {
       const { data, count, error } = await run();
@@ -74,19 +74,19 @@ export class PassRecorder {
       if (error) {
         // supabase-js converts a rejected fetch into an `error` result rather
         // than throwing, so the abort arrives here rather than in the catch.
-        if (this.signal.aborted) return FAILED;
+        if (this.signal.aborted) return failed();
         this.samples.push({ table: label, durationMs, ok: false, status: 0 });
-        return FAILED;
+        return failed();
       }
       this.samples.push({ table: label, durationMs, ok: true, status: 200 });
       return { ok: true, rows: (data ?? []) as T[], count: count ?? null };
     } catch (error) {
       // Same reasoning for a request aborted mid-flight rather than before it began.
       if (this.signal.aborted || (error as { name?: string })?.name === 'AbortError') {
-        return FAILED;
+        return failed();
       }
       this.samples.push({ table: label, durationMs: Date.now() - startedAt, ok: false, status: 0 });
-      return FAILED;
+      return failed();
     }
   }
 }

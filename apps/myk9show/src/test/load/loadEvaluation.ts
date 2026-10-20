@@ -280,15 +280,27 @@ export function evaluateLoadResult(
       platform.connectionCap <= 0 ||
       platform.statementDeltas.length === 0 ||
       (platform.resourceSampling !== undefined && platform.resourceSampling.succeeded <= 0);
-    // Missing peaks are a CONSEQUENCE of thin coverage (a lost connection probe
-    // withholds the peak), so when coverage already explains them the verdict is
+    // Each independently measured value is judged on its own. A lost resource
+    // sample must never hide a connection breach that WAS measured (61 of 60),
+    // so the cap checks run whenever connections were measured, whatever else is
+    // missing. Only genuinely missing telemetry is explained away by coverage:
+    // missing peaks are a CONSEQUENCE of thin coverage, and the verdict is then
     // NO VERDICT rather than a fail that blames the app for the sampler's outage.
-    if (telemetryMissing) {
-      if (coverageReasons.length === 0) failures.push('Required platform telemetry was missing.');
-    } else if (platform.connectionCap !== scenario.targets.databaseConnectionCap) {
-      failures.push('Verified database connection cap did not match the scenario.');
-    } else if (platform.peakConnections > platform.connectionCap) {
-      failures.push('Peak database connections exceeded the verified cap.');
+    const connectionsMeasured =
+      !!platform &&
+      finite(platform.peakConnections) &&
+      platform.peakConnections >= 0 &&
+      finite(platform.connectionCap) &&
+      platform.connectionCap > 0;
+    if (platform && connectionsMeasured) {
+      if (platform.connectionCap !== scenario.targets.databaseConnectionCap) {
+        failures.push('Verified database connection cap did not match the scenario.');
+      } else if (platform.peakConnections > platform.connectionCap) {
+        failures.push('Peak database connections exceeded the verified cap.');
+      }
+    }
+    if (telemetryMissing && coverageReasons.length === 0) {
+      failures.push('Required platform telemetry was missing.');
     }
     if (!generatorAssessment.complete) {
       failures.push('Required per-runner generator evidence was missing or incomplete.');

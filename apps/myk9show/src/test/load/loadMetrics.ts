@@ -201,9 +201,16 @@ export class LoadMetrics {
     this.requestCount += 1;
     this.virtualUserRequestCount += 1;
     this.apiDurations.push(sample.durationMs);
-    if (sample.ok) return;
-    this.failedRequestCount += 1;
-    this.apiErrors.record(sample.status ?? 0, sample.code);
+    // Failed samples are the FINAL outcome per logical request: they drive
+    // failedRequestCount and availability. The code tally is NOT fed from here;
+    // the reader's fetch layer reports every non-2xx response through
+    // recordApiError, so a retried request is never counted twice.
+    if (!sample.ok) this.failedRequestCount += 1;
+  }
+
+  /** One non-2xx response (status 0: none arrived) seen by a reader's fetch. */
+  recordApiError(observation: { status: number; code?: string }): void {
+    this.apiErrors.record(observation.status, observation.code);
   }
 
   /** A reader's tick was skipped, as the app skips a poll that fires into a running pass. */

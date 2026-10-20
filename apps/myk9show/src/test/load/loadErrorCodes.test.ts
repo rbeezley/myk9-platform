@@ -91,14 +91,19 @@ function observationOf(metrics: LoadMetrics) {
 }
 
 describe('error codes in load metrics', () => {
-  it('counts virtual-user failures by status and code, and ignores successes', () => {
+  it('counts virtual-user failed requests, and takes the code tally only from the fetch layer', () => {
     const metrics = new LoadMetrics();
     metrics.recordVirtualUserRequest({ durationMs: 5, ok: true, status: 200 });
     metrics.recordVirtualUserRequest({ durationMs: 5, ok: false, status: 503, code: 'PGRST003' });
-    metrics.recordVirtualUserRequest({ durationMs: 5, ok: false, status: 503, code: 'PGRST003' });
-    // A failure without a code (unit A has not populated it yet) is still counted.
-    metrics.recordVirtualUserRequest({ durationMs: 5, ok: false, status: 500 });
     metrics.recordVirtualUserRequest({ durationMs: 5, ok: false });
+    // The final-outcome samples carry codes, but must not tally them: the fetch
+    // layer already reported every response, and tallying both would double count.
+    expect(observationOf(metrics).failedRequestCount).toBe(2);
+    expect(observationOf(metrics).apiErrorCounts).toEqual([]);
+    metrics.recordApiError({ status: 503, code: 'PGRST003' });
+    metrics.recordApiError({ status: 503, code: 'PGRST003' });
+    metrics.recordApiError({ status: 500 });
+    metrics.recordApiError({ status: 0 });
     expect(observationOf(metrics).apiErrorCounts).toEqual([
       { status: 503, code: 'PGRST003', count: 2 },
       { status: 0, code: 'transport', count: 1 },
@@ -208,6 +213,7 @@ describe('virtual reader to metrics', () => {
         status: 503,
         headers: { 'Content-Type': 'application/json' },
       })) as unknown as typeof fetch;
+    const observed: { status: number; code?: string }[] = [];
     const user = new LoadVirtualUser(
       {
         supabaseUrl: FIXTURE_URL,
@@ -215,6 +221,7 @@ describe('virtual reader to metrics', () => {
         accessToken: 'fixture-token',
         role: 'exhibitor',
         fetchImpl: failing,
+        onApiError: observation => observed.push(observation),
       },
       LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT
     );
@@ -230,10 +237,59 @@ describe('virtual reader to metrics', () => {
 
     const metrics = new LoadMetrics();
     for (const sample of samples) metrics.recordVirtualUserRequest(sample);
+    for (const observation of observed) metrics.recordApiError(observation);
 
     expect(samples.length).toBeGreaterThan(0);
+    // Failed requests come from final samples; codes come from the fetch layer,
+    // which sees every attempt (supabase-js retries 503s), so it reports at least
+    // one response per failed request, each with its real status and code.
+    expect(observationOf(metrics).failedRequestCount).toBe(samples.length);
+    const counts = observationOf(metrics).apiErrorCounts ?? [];
+    expect(counts).toHaveLength(1);
+    expect(counts[0]).toMatchObject({ status: 503, code: 'PGRST003' });
+    expect(counts[0].count).toBeGreaterThanOrEqual(samples.length);
+  });
+
+  it('counts a 503 PGRST003 that a retry recovered, without a failed request', async () => {
+    let calls = 0;
+    const flaky = (async () => {
+      calls += 1;
+      return calls <= 2
+        ? new Response(JSON.stringify({ code: 'PGRST003', message: 'pool' }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        : new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as unknown as typeof fetch;
+    const observed: { status: number; code?: string }[] = [];
+    const user = new LoadVirtualUser(
+      {
+        supabaseUrl: FIXTURE_URL,
+        anonKey: FIXTURE_ANON_KEY,
+        accessToken: 'fixture-token',
+        role: 'exhibitor',
+        fetchImpl: flaky,
+        onApiError: observation => observed.push(observation),
+      },
+      LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT
+    );
+    vi.useFakeTimers();
+    let samples;
+    try {
+      const pass = user.syncOnce();
+      await vi.runAllTimersAsync();
+      samples = (await pass).samples;
+    } finally {
+      vi.useRealTimers();
+    }
+    const metrics = new LoadMetrics();
+    for (const sample of samples) metrics.recordVirtualUserRequest(sample);
+    for (const observation of observed) metrics.recordApiError(observation);
+
+    expect(samples.every(sample => sample.ok)).toBe(true);
+    expect(observationOf(metrics).failedRequestCount).toBe(0);
     expect(observationOf(metrics).apiErrorCounts).toEqual([
-      { status: 503, code: 'PGRST003', count: samples.length },
+      { status: 503, code: 'PGRST003', count: 2 },
     ]);
   });
 });

@@ -166,6 +166,31 @@ describe('load result evaluation', () => {
       expect(evaluation.noVerdictReasons[0]).toContain('Connection sampling covered 66.7%');
     });
 
+    it('fails a measured connection breach even when resource sampling failed (61 of 60)', () => {
+      const observation = withSampling([14, 2], [450, 450]);
+      if (!observation.platform) throw new Error('Missing fixture platform');
+      observation.platform.peakConnections = 61;
+      observation.platform.peakCpuPercent = Number.NaN;
+      observation.platform.peakIoPercent = Number.NaN;
+      const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, observation);
+      expect(evaluation.verdict).toBe('fail');
+      expect(evaluation.failures).toContain('Peak database connections exceeded the verified cap.');
+      expect(evaluation.noVerdictReasons).toHaveLength(1);
+    });
+
+    it('does not let missing connection telemetry hide a measured resource result', () => {
+      // The evaluation has no CPU/IO threshold to breach (peaks are required
+      // present, not bounded), so the mirror is: lost connection probes yield
+      // NO VERDICT with the measured CPU/IO preserved, not a fabricated failure.
+      const observation = withSampling([10, 10], [450, 300]);
+      if (!observation.platform) throw new Error('Missing fixture platform');
+      observation.platform.peakConnections = Number.NaN;
+      const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, observation);
+      expect(evaluation.verdict).toBe('no-verdict');
+      expect(evaluation.failures).toEqual([]);
+      expect(observation.platform.peakCpuPercent).toBeGreaterThanOrEqual(0);
+    });
+
     it('reports both reasons when both coverages are low', () => {
       const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, withSampling([10, 1], [10, 1]));
       expect(evaluation.noVerdictReasons).toHaveLength(2);

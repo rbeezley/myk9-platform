@@ -1,4 +1,5 @@
 import type { LoadSessionAssignment } from './loadAssignments';
+import type { ApiErrorObservation } from './loadVirtualUserFetch';
 import {
   LoadVirtualUser,
   type VirtualUserRequestSample,
@@ -25,6 +26,8 @@ export interface VirtualUserFleetOptions {
   /** Column list for the classes delta, mirroring the application's own. */
   readonly classColumnSelect: string;
   readonly onSample: (sample: VirtualUserRequestSample) => void;
+  /** Every non-2xx response a reader's fetch saw, including retried ones. */
+  readonly onApiError?: (observation: ApiErrorObservation) => void;
   /** A reader's tick was dropped because its previous pass was still running. */
   readonly onSkippedPass?: () => void;
   readonly fetchImpl?: typeof fetch;
@@ -68,6 +71,7 @@ export class VirtualUserFleet {
           accessToken: options.accessTokenFor(role, assignment.target.showIndex),
           role,
           ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
+          ...(options.onApiError ? { onApiError: options.onApiError } : {}),
         },
         options.classColumnSelect
       );

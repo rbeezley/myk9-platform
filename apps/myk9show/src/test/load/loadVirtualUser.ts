@@ -4,6 +4,7 @@ import {
   type ReaderContext,
   type VirtualUserRequestSample,
 } from './loadVirtualUserContext';
+import { observingFetch, type ApiErrorObservation } from './loadVirtualUserFetch';
 import { runReaderPass } from './loadVirtualUserTables';
 
 export type { VirtualUserRequestSample } from './loadVirtualUserContext';
@@ -45,6 +46,8 @@ export interface LoadVirtualUserOptions {
    */
   readonly role: VirtualUserRole;
   readonly fetchImpl?: typeof fetch;
+  /** Every non-2xx response the reader's fetch saw, retried or not. */
+  readonly onApiError?: (observation: ApiErrorObservation) => void;
 }
 
 export interface VirtualUserSyncResult {
@@ -58,6 +61,8 @@ interface TableWatermark {
 
 export class LoadVirtualUser {
   private readonly client: SupabaseClient;
+  /** Error-body reads still running; settled before a pass reports. */
+  private readonly errorReads = new Set<Promise<void>>();
   private readonly watermarks = new Map<string, TableWatermark>();
   /**
    * Every poll still running. The tick guard below keeps this to one at a time,
@@ -94,7 +99,12 @@ export class LoadVirtualUser {
       auth: { persistSession: false, autoRefreshToken: false },
       global: {
         headers: { Authorization: `Bearer ${options.accessToken}` },
-        ...(options.fetchImpl ? { fetch: options.fetchImpl } : {}),
+        fetch: observingFetch(
+          options.fetchImpl ?? ((...args) => fetch(...args)),
+          observation => options.onApiError?.(observation),
+          this.abort.signal,
+          this.errorReads
+        ),
       },
     });
   }
@@ -138,6 +148,7 @@ export class LoadVirtualUser {
       request: (label, run) => recorder.request(label, run),
     };
     await runReaderPass(context);
+    await Promise.allSettled([...this.errorReads]);
     return { samples: recorder.samples, rows: recorder.rows };
   }
 

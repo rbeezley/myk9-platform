@@ -51,7 +51,7 @@ export const FOCUSED_CLASS_SCROLL_MARGIN_CLASS =
  * the subtraction needs spaces, written as underscores, which CSS calc requires).
  */
 export const FOCUSED_CLASS_PANEL_CLASS =
-  'sticky top-[calc(var(--app-top-inset,3rem)+var(--show-header-h,4.25rem)+3rem+1rem)] max-h-[calc(var(--pane-scroll-h,calc(100dvh_-_var(--app-top-inset,3rem)))_-_var(--show-header-h,4.25rem)_-_5rem)] overflow-y-auto';
+  'sticky top-[calc(var(--app-top-inset,3rem)+var(--show-header-h,4.25rem)+3rem+1rem)] max-h-[calc(var(--pane-scroll-h,calc(100dvh_-_var(--app-top-inset,3rem)))_-_var(--show-header-h,4.25rem)_-_5rem)] overflow-y-auto overflow-x-clip';
 
 /**
  * The height of the box the show page scrolls in, when that is not the window: the Shows list pane

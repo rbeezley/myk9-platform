@@ -38,6 +38,7 @@ import { WizardLeaveGuard } from './RegistrationWizardPage/WizardLeaveGuard';
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
 import { useEntryDogHandoff } from './RegistrationWizardPage/useEntryDogHandoff';
 import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
+import { EMPTY_ENTRY_NOTICE } from './RegistrationWizardPage/proceedGating';
 import { STAFF_RECEIPT_DONE_LABEL } from './RegistrationWizardPage.routes';
 
 /** Stable id so the Next button can point at the blocked-reason text. */
@@ -115,6 +116,7 @@ function RegistrationWizardContent() {
     handlePaymentStatusChange,
     handleEntryStatusChange,
     proceedBlocked,
+    emptyEntryNoticeShown,
     canProceed,
     isSubmitting,
     handleNext,
@@ -387,6 +389,14 @@ function RegistrationWizardContent() {
           </div>
         ) : (
           <>
+            {emptyEntryNoticeShown && (
+              <div
+                role="alert"
+                className="mb-4 rounded-md border border-border bg-muted/40 px-4 py-3 text-sm"
+              >
+                {EMPTY_ENTRY_NOTICE}
+              </div>
+            )}
             {/* Multi-owner / orphan-owner cart guard */}
             {currentStepId === 'dog-selection' &&
               registrationData.selectedDogs.length > 0 &&

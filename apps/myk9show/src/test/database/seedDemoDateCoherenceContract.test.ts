@@ -119,13 +119,28 @@ describe('seed-demo date coherence (MYK9-1281)', () => {
     // protected table, each correlated to the loop's show: no NOT, no literal TRUE.
     const cond = /LOOP\s+SELECT\s+([\s\S]*?)\s+INTO v_hangs;/.exec(block)?.[1];
     expect(cond, 'skip condition not found').toBeDefined();
-    expect(cond).not.toMatch(/\bNOT\b/);
-    expect(cond).not.toMatch(/\b(TRUE|FALSE|AND)\b/);
+    expect(cond).not.toMatch(/\bNOT\b/i);
+    expect(cond).not.toMatch(/\b(TRUE|FALSE|AND)\b/i);
+    expect(cond).not.toMatch(/\d\s*=\s*\d/);
+    // The flag is set by that SELECT and nowhere else.
+    expect(block.match(/v_hangs\s*:=|INTO\s+v_hangs/gi)).toHaveLength(1);
     const terms = cond!.split(/\n\s*OR\s+(?=EXISTS\b)/);
     const tables: string[] = [];
     for (const term of terms) {
       const m = /^EXISTS \(SELECT 1 FROM public\.(\w+) \w+\s+WHERE[\s\S]*\)$/.exec(term.trim());
       expect(m, `skip term is not a plain EXISTS(...): ${term}`).not.toBeNull();
+      // The paren EXISTS opens closes at the term's last character: nothing rides after it.
+      const body = term.trim();
+      let depth = 0;
+      let closedAt = -1;
+      for (let i = body.indexOf('('); i < body.length; i++) {
+        if (body[i] === '(') depth++;
+        if (body[i] === ')' && --depth === 0) {
+          closedAt = i;
+          break;
+        }
+      }
+      expect(closedAt, `trailing text after EXISTS(...): ${term}`).toBe(body.length - 1);
       expect(term, `${m![1]} term is not correlated to the loop show`).toContain('v_show.id');
       tables.push(m![1]);
     }
@@ -133,6 +148,7 @@ describe('seed-demo date coherence (MYK9-1281)', () => {
       [
         'entries',
         'enrollments',
+        'waitlist_entries',
         'entry_cart_items',
         'stripe_orders',
         'show_payments',
@@ -151,7 +167,12 @@ describe('seed-demo date coherence (MYK9-1281)', () => {
 
     // The one DELETE is keyed on the loop show alone, inside IF NOT v_hangs and
     // its own sub-block that keeps the show and warns on an unlisted FK.
-    expect(block.match(/DELETE FROM/g)).toHaveLength(1);
+    expect(block.match(/DELETE\s+FROM/gi)).toHaveLength(1);
+    // And no other statement in the file deletes a fixture-range show.
+    const fixtureShowDeletes = [...seed.matchAll(/DELETE\s+FROM\s+public\.shows\b[^;]*;/gi)].filter(
+      m => m[0].includes('0731') || /v_show\.id/.test(m[0])
+    );
+    expect(fixtureShowDeletes).toHaveLength(1);
     expect(block).toMatch(/DELETE FROM public\.shows WHERE id = v_show\.id;/);
     const guard = block.indexOf('IF NOT v_hangs THEN');
     const sub = block.indexOf('BEGIN', guard);
@@ -175,7 +196,16 @@ describe('seed-demo date coherence (MYK9-1281)', () => {
     const block = seed.slice(seed.lastIndexOf('DO $$', idx), seed.indexOf('END $$;', idx));
     expect(block).toMatch(/entry_close_date[^>]*\)::date > \(s\.start_date/);
     expect(block).toContain('has a trial dated outside its start/end range');
-    expect(block).toMatch(/t\.date < .*start_date[\s\S]*t\.date > .*end_date/);
+    // The exact pair, with nothing between or after the two comparisons.
+    expect(block).toMatch(
+      /AND \(t\.date < \(s\.start_date AT TIME ZONE 'UTC'\)::date\s+OR t\.date > \(s\.end_date AT TIME ZONE 'UTC'\)::date\)\s+LIMIT 1;/
+    );
+    // Both per-show checks read only the seed-owned set.
+    expect(block.match(/JOIN _seed_owned_shows o ON o\.id = s\.id/g)).toHaveLength(2);
+    // The set is exactly the four fixed ids or today's fixture: no other boolean rides along.
+    const setDef = /CREATE TEMP TABLE _seed_owned_shows[\s\S]*?;/.exec(block)?.[0] ?? '';
+    expect(setDef).toMatch(/AND \(s\.id IN \([^)]*\)\s+OR s\.id = v_fixture\);$/);
+    expect(setDef).not.toMatch(/\b(true|false)\b/i);
     expect(block).toContain('share the name');
     // Each check fails the reseed with RAISE EXCEPTION, guarded by its own finding.
     for (const msg of [

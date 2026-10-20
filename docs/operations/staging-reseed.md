@@ -135,10 +135,19 @@ It **refuses, and writes nothing,** when:
 - the seeded dogs Willow and Cooper are missing or deleted.
 
 There is no money refusal: the function touches no existing row, so there is
-nothing for it to cascade or overwrite. Fixture shows accumulate, one per
-restore that found nothing ready and one per reseed. Section 0 of the reseed
-removes the entries and seeded-dog armbands the function minted, and leaves the
-shows themselves.
+nothing for it to cascade or overwrite. Between reseeds, fixture shows
+accumulate, one per restore that found nothing ready. A reseed retires them:
+section 0 removes the entries and seeded-dog armbands the function minted, then
+deletes every fixture show that carries none of a person's rows (entries by
+show, trial or class; enrollments; cart items; Stripe orders; show payments,
+payouts and payment links; money locks; refund requests; packet snapshots). A
+show that carries any of them is kept, and a delete blocked by a constraint the
+list does not name keeps that show and prints a `kept fixture show` WARNING.
+
+The reseed now also ends with a date check. It aborts, naming the show, when
+one of the four fixed demo shows or today's fixture closes entries after it
+starts, holds a trial outside its dates, or shares a name and start date with
+another of them. A clash with a kept older fixture is a WARNING only.
 
 ## Post-reseed verification — REQUIRED
 

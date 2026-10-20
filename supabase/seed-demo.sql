@@ -529,7 +529,8 @@ SELECT public.seed_demo_assert_no_paid_strays();
 -- (six by 2026-10-20, four on the same dates).
 -- Two layers, two jobs. The SKIP LIST protects data: a fixture show is left
 -- alone when anything that carries money or a person's own work hangs off it,
--- matched by show_id OR through one of the show's classes or trials (entries.
+-- matched by show_id OR through one of the show's classes or trials (a waitlist
+-- join counts as a person's work; entries.
 -- show_id is nullable; entry_cart_items hangs off classes with NO ACTION, which
 -- would block the shows -> trials -> classes cascade with 23503). refund_requests
 -- is ON DELETE SET NULL, so deleting would silently strip its show link. The
@@ -559,6 +560,10 @@ BEGIN
                                    JOIN public.trials t ON t.id = c.trial_id
                                    WHERE t.show_id = v_show.id))
       OR EXISTS (SELECT 1 FROM public.enrollments en WHERE en.show_id = v_show.id)
+      OR EXISTS (SELECT 1 FROM public.waitlist_entries we
+                 WHERE we.class_id IN (SELECT c.id FROM public.classes c
+                                       JOIN public.trials t ON t.id = c.trial_id
+                                       WHERE t.show_id = v_show.id))
       OR EXISTS (SELECT 1 FROM public.entry_cart_items eci
                  WHERE eci.class_id IN (SELECT c.id FROM public.classes c
                                         JOIN public.trials t ON t.id = c.trial_id

@@ -160,4 +160,38 @@ describe('error codes in load metrics', () => {
       { status: 503, code: 'PGRST003', count: 1 },
     ]);
   });
+
+  it('keeps the known status when a failed response then emits loadingFailed', async () => {
+    const listeners = new Map<string, (event: never) => void>();
+    const session = {
+      send: vi.fn().mockResolvedValue({}),
+      on(event: string, listener: (event: never) => void) {
+        listeners.set(event, listener);
+        return session;
+      },
+    } as unknown as CDPSession;
+    const page = {
+      context: () => ({ newCDPSession: vi.fn().mockResolvedValue(session) }),
+    } as unknown as Page;
+    const metrics = new LoadMetrics();
+    await metrics.attach(page);
+    const url = 'https://p.supabase.co/rest/v1/classes';
+    listeners.get('Network.requestWillBeSent')?.({
+      requestId: 'x',
+      timestamp: 1,
+      request: { url },
+    } as never);
+    listeners.get('Network.responseReceived')?.({
+      requestId: 'x',
+      timestamp: 1.1,
+      response: { url, status: 503 },
+    } as never);
+    listeners.get('Network.loadingFailed')?.({ requestId: 'x' } as never);
+    // A late loadingFinished for the same id must not double count.
+    listeners.get('Network.loadingFinished')?.({ requestId: 'x' } as never);
+    await metrics.settle();
+    const observation = observationOf(metrics);
+    expect(observation.failedRequestCount).toBe(1);
+    expect(observation.apiErrorCounts).toEqual([{ status: 503, code: 'none', count: 1 }]);
+  });
 });

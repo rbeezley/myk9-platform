@@ -117,6 +117,15 @@ export class LoadMetrics {
       });
     });
     session.on('Network.loadingFailed', (event: CdpLoadingEvent) => {
+      // A failed-status response can still end in loadingFailed (body never
+      // delivered). It was already counted at responseReceived; keep its known
+      // status with no code rather than losing it from the tally.
+      const failedResponse = failedResponses.get(event.requestId);
+      if (failedResponse) {
+        failedResponses.delete(event.requestId);
+        this.apiErrors.record(failedResponse.status);
+        return;
+      }
       if (!requests.delete(event.requestId)) return;
       this.requestCount += 1;
       this.failedRequestCount += 1;

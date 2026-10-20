@@ -46,20 +46,21 @@ describe('manual distributed load workflow', () => {
     expect(options).toContain(defaultSessions);
   });
 
-  it('records the Postgres start time before load and fails the run if it moved', () => {
+  it('records the Postgres start time before load and checks it before evidence is written', () => {
     expect(workflow).toContain(
       'postmaster-start: ${{ steps.postmaster.outputs.postmaster-start }}'
     );
-    expect(workflow).toContain('scripts/load-postmaster-check.ts record');
-    expect(workflow).toContain('scripts/load-postmaster-check.ts compare');
-    expect(workflow).toContain(
+    expect(workflow).toContain('run: pnpm exec tsx scripts/load-postmaster-check.ts');
+    expect(workflow.indexOf('id: postmaster')).toBeLessThan(workflow.indexOf('id: window'));
+    // The AFTER read lives in the platform job (end of sampling), and the
+    // comparison in aggregation; no cleanup-job compare can publish PASS first.
+    const platformStart = workflow.indexOf('\n  platform:\n');
+    const platformJob = workflow.slice(platformStart, workflow.indexOf('\n  shard:\n'));
+    expect(platformJob).toContain(
       'LOAD_TEST_POSTMASTER_BEFORE: ${{ needs.prepare.outputs.postmaster-start }}'
     );
-    // The record must precede the load window, and the compare must not block the restore.
-    expect(workflow.indexOf('id: postmaster')).toBeLessThan(workflow.indexOf('id: window'));
-    expect(workflow).toContain("if: ${{ always() && steps.restart.outcome == 'failure' }}");
-    const compareStep = workflow.slice(workflow.indexOf('id: restart'));
-    expect(compareStep.slice(0, 120)).toContain('continue-on-error: true');
+    expect(workflow).not.toContain('load-postmaster-check.ts compare');
+    expect(workflow).not.toContain('Fail the run if Postgres restarted');
   });
 
   it('samples the platform from a browser-free job whose artifact name pairs', () => {

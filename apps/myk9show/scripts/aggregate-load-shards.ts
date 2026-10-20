@@ -9,6 +9,7 @@ import {
   type LoadShardArtifact,
   shardWindowDivergence,
 } from '../src/test/load/loadShardAggregation';
+import { postmasterRestartFailure } from '../src/test/load/loadPostmasterRestart';
 import { loadScenarioFromEnv } from '../src/test/load/loadSessionSizing';
 import { renderLoadStepSummary } from '../src/test/load/loadStepSummary';
 import { appendGatingFailures, verdictLabel } from '../src/test/load/loadVerdict';
@@ -86,6 +87,14 @@ if (diagnostics.length > 0) {
 // (MYK9-126).
 const windowDivergence = shardWindowDivergence(artifacts.map(artifact => artifact.elapsedMs));
 if (windowDivergence) appendGatingFailures(evaluation, [windowDivergence]);
+// A restart is gating before any evidence is written. Without the platform
+// artifact there is nothing to compare, and its absence already fails the run.
+if (platformArtifact) {
+  appendGatingFailures(
+    evaluation,
+    [postmasterRestartFailure(platformArtifact) ?? ''].filter(Boolean)
+  );
+}
 const evidence = buildLoadEvidence({
   target: aggregate.target,
   scenario,

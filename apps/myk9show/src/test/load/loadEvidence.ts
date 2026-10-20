@@ -75,7 +75,7 @@ export function buildLoadEvidence(input: {
       configuredRingsideSessions,
     },
     supportedCeiling:
-      input.evaluation.passed && input.target.gateEligible
+      input.evaluation.passed && input.evaluation.gateEligible && input.target.gateEligible
         ? // One scorer per ring across concurrent shows. "a show of N entries"
           // described a single-show fixture and would now understate the shape.
           `${configuredRingsideSessions} concurrent rings across ${LOAD_SHOWS.length} shows and ${LOAD_TOTAL_ENTRY_COUNT} entries`

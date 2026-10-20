@@ -1,3 +1,6 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
 /**
  * Postgres restart detection (MYK9-1271).
  *
@@ -47,4 +50,67 @@ export function comparePostmasterStart(
     status: 'unchanged',
     message: `Postgres did not restart during the run (started ${before?.trim()}).`,
   };
+}
+
+export const POSTMASTER_READ_TIMEOUT_MS = 30_000;
+
+type ExecFileLike = (
+  file: string,
+  args: string[],
+  options: { env: NodeJS.ProcessEnv; encoding: 'utf8'; timeout: number; killSignal: 'SIGKILL' }
+) => Promise<{ stdout: string }>;
+
+/**
+ * Reads the postmaster start time with every wait bounded: a connect deadline, a
+ * statement deadline set in SQL (Supavisor need not forward PGOPTIONS), and a
+ * hard child-process kill. A hung pooler must cost this read, never the job.
+ * Resolves undefined on any failure so the caller reports it as unverifiable.
+ */
+export async function readPostmasterStart(
+  env: NodeJS.ProcessEnv,
+  run: ExecFileLike = promisify(execFile) as unknown as ExecFileLike
+): Promise<string | undefined> {
+  const databaseUrl = env.SUPABASE_DB_URL;
+  if (!databaseUrl) return undefined;
+  try {
+    const result = await run(
+      'psql',
+      [
+        databaseUrl,
+        '-X',
+        '-v',
+        'ON_ERROR_STOP=1',
+        '-At',
+        '--quiet',
+        '--command',
+        'SET statement_timeout = 10000',
+        '--command',
+        POSTMASTER_START_SQL,
+      ],
+      {
+        env: { ...env, PGPASSWORD: env.SUPABASE_DB_PASSWORD, PGCONNECT_TIMEOUT: '10' },
+        encoding: 'utf8',
+        timeout: POSTMASTER_READ_TIMEOUT_MS,
+        killSignal: 'SIGKILL',
+      }
+    );
+    return result.stdout.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The gating failure for aggregation, or undefined when Postgres provably did
+ * not restart. An artifact that carries no postmaster block is unverifiable, not
+ * clean: the check exists precisely so silence cannot read as a pass.
+ */
+export function postmasterRestartFailure(artifact: {
+  postmaster?: { before?: string; after?: string };
+}): string | undefined {
+  const comparison = comparePostmasterStart(
+    artifact.postmaster?.before,
+    artifact.postmaster?.after
+  );
+  return comparison.status === 'unchanged' ? undefined : comparison.message;
 }

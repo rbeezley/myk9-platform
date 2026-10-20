@@ -268,7 +268,7 @@ jobs:
         env:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           SUPABASE_DB_URL: postgresql://postgres.${{ env.LOAD_TEST_PROJECT_REF }}@${{ env.LOAD_TEST_DB_HOST }}:${{ env.LOAD_TEST_ADMIN_DB_PORT }}/postgres
-        run: pnpm exec tsx scripts/load-postmaster-check.ts record
+        run: pnpm exec tsx scripts/load-postmaster-check.ts
 
       - name: Set synchronized load window
         id: window
@@ -329,6 +329,8 @@ jobs:
           LOAD_TEST_SUPABASE_PROJECT_REF: sojmvhhwsjxmfistvzbe
           LOAD_TEST_RUN_ID: ${{ needs.prepare.outputs.run-id }}
           LOAD_TEST_START_AT: ${{ needs.prepare.outputs.start-at-ms }}
+          # Compared in aggregation, which reads the AFTER value from the platform artifact.
+          LOAD_TEST_POSTMASTER_BEFORE: ${{ needs.prepare.outputs.postmaster-start }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           LOAD_TEST_CAPTURE_WRITE_ACTIVITY: 'true'
@@ -556,19 +558,6 @@ jobs:
         run: |
           pnpm --filter @myk9/show exec tsx scripts/load-cleanup.ts
 
-      # After the drain, before the reseed, so only the load window is judged.
-      # continue-on-error keeps the restore running; the last step turns a
-      # failure here into a red job.
-      - name: Check Postgres did not restart during the run
-        id: restart
-        continue-on-error: true
-        working-directory: apps/myk9show
-        env:
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          SUPABASE_DB_URL: postgresql://postgres.${{ env.LOAD_TEST_PROJECT_REF }}@${{ env.LOAD_TEST_DB_HOST }}:${{ env.LOAD_TEST_ADMIN_DB_PORT }}/postgres
-          LOAD_TEST_POSTMASTER_BEFORE: ${{ needs.prepare.outputs.postmaster-start }}
-        run: pnpm exec tsx scripts/load-postmaster-check.ts compare
-
       - name: Clear canonical trial packet snapshots
         # Outlives the script's own worst case (worstCaseCleanupMs, ~9 min when
         # every call times out on every attempt), so a failure always logs its
@@ -623,9 +612,3 @@ jobs:
             echo "Multi-show cleanup postcondition failed: $multi" >&2
             exit 1
           }
-
-      - name: Fail the run if Postgres restarted
-        if: ${{ always() && steps.restart.outcome == 'failure' }}
-        run: |
-          echo "Postgres restarted during the run (or the restart check could not run): no numbers." >&2
-          exit 1

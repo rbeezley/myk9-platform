@@ -375,7 +375,10 @@ describe('distributed load aggregation', () => {
 
   it('sums the virtual-user request split through to the rendered evidence (MYK9-126)', () => {
     // Run 39390552156 reported 0 virtual-user requests while every shard carried ~250.
-    const counts = new Map([[0, 240], [1, 280]]);
+    const counts = new Map([
+      [0, 240],
+      [1, 280],
+    ]);
     const artifacts = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) => {
       const artifact = shardArtifact(index);
       const virtualUserRequestCount = counts.get(index) ?? 0;
@@ -386,7 +389,9 @@ describe('distributed load aggregation', () => {
     const { observation } = aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, undefined);
 
     expect(observation.virtualUserRequestCount).toBe(520);
-    expect(observation.browserRequestCount).toBe(PER_SHARD_REQUESTS * DISTRIBUTED_G9_SHARD_COUNT - 520);
+    expect(observation.browserRequestCount).toBe(
+      PER_SHARD_REQUESTS * DISTRIBUTED_G9_SHARD_COUNT - 520
+    );
     const evidence = buildLoadEvidence({
       target,
       scenario: G9_NORMAL_SCENARIO,

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { groupEntriesByShowRegistration } from '../showRegistrationProjection';
 import {
   normalizeEntryManagementCockpitParams,
+  shouldLandOnAllQueues,
+  urlNamesQueue,
   toggleQueueSelection,
   writeCockpitException,
   writeCockpitFocus,
@@ -279,5 +284,65 @@ describe('normalizeEntryManagementCockpitParams', () => {
     ] as const)('%j toggling %s gives %j', (current, queue, expected) => {
       expect(toggleQueueSelection(current, queue)).toEqual(expected);
     });
+  });
+});
+
+describe('empty Needs review landing (MYK9-1276)', () => {
+  const entry = (id: string, entryStatus: EntryStatus): EntryManagementEntry => ({
+    id,
+    registrationId: `registration-${id}`,
+    entryNumber: id,
+    showId: 'show-1',
+    dogId: `dog-${id}`,
+    dogName: `Dog ${id}`,
+    ownerName: `Owner ${id}`,
+    ownerEmail: `${id}@example.com`,
+    handlerName: `Owner ${id}`,
+    classes: [
+      { id, classId: `class-${id}`, name: 'Novice', number: '1', fee: 25, status: 'entered' },
+    ],
+    totalFee: 25,
+    paidAmount: 25,
+    entryStatus,
+    paymentStatus: PaymentStatus.PAID_ONLINE,
+    submittedAt: new Date(2026, 6, 1, 9),
+    lastUpdated: new Date(2026, 6, 1, 9),
+  });
+  const settled = groupEntriesByShowRegistration([entry('1', EntryStatus.ACCEPTED)]);
+  const pending = groupEntriesByShowRegistration([
+    entry('1', EntryStatus.ACCEPTED),
+    entry('2', EntryStatus.PENDING),
+  ]);
+
+  it.each([
+    ['', false],
+    ['search=bob&trial=t1', false],
+    ['queue=needs-review', true],
+    ['queue=all&entry=e1', true],
+    ['payment=pending', true],
+    ['attention=missing_information', true],
+    ['entryTab=all', true],
+  ])('urlNamesQueue(%j) is %s', (query, named) => {
+    expect(urlNamesQueue(params(query))).toBe(named);
+  });
+
+  const noView = { search: '', classIds: [], trialClassIds: undefined };
+
+  it('lands on All only for a link naming no queue, loaded forms, and an empty Needs review', () => {
+    expect(shouldLandOnAllQueues(false, settled, noView)).toBe(true);
+    expect(shouldLandOnAllQueues(false, pending, noView)).toBe(false);
+    expect(shouldLandOnAllQueues(true, settled, noView)).toBe(false);
+    expect(shouldLandOnAllQueues(false, [], noView)).toBe(false);
+  });
+
+  it('decides on the scoped view: a class scope can empty Needs review in a show that has some', () => {
+    // Form 2 is pending in class-2; scoped to class-1 the pending form is out of view.
+    expect(shouldLandOnAllQueues(false, pending, { ...noView, classIds: ['class-1'] })).toBe(true);
+    expect(shouldLandOnAllQueues(false, pending, { ...noView, classIds: ['class-2'] })).toBe(false);
+    expect(shouldLandOnAllQueues(false, pending, { ...noView, classIds: ['nope'] })).toBe(false);
+  });
+
+  it('never lands for a search: a search ignores the queue, so it cannot empty it', () => {
+    expect(shouldLandOnAllQueues(false, pending, { ...noView, search: 'Owner 1' })).toBe(false);
   });
 });

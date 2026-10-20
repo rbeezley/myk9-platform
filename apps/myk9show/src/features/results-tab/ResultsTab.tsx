@@ -31,6 +31,7 @@ import {
 } from './resultsTabRoutes';
 import { classRowSyncBlockedReason, useClassRowSyncState } from './useClassRowSyncState';
 import { classHasUnsyncedScores, useClassUnsyncedScores } from './useClassUnsyncedScores';
+import { useResultsStatusLanding } from './useResultsStatusLanding';
 import { useResultsTabData } from './useResultsTabData';
 
 function rowMatchesSearch(row: ResultsClassRow, rawQuery: string): boolean {
@@ -102,6 +103,12 @@ export default function ResultsTab() {
         preventScrollReset: true,
       }),
     [setSearchParams]
+  );
+
+  useResultsStatusLanding(
+    showId,
+    readState !== 'loading' && readState !== 'failed' && readState !== 'unavailable',
+    rows
   );
 
   // Print all ready is a shortcut to the Needs printing filter: the print rows live in each

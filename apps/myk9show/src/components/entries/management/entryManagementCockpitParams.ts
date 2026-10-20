@@ -1,5 +1,6 @@
 import { parseListParam, serializeListParam } from '@/components/list-toolkit';
 import {
+  buildShowRegistrationPage,
   SHOW_REGISTRATION_QUEUES,
   type ShowRegistrationGroup,
   type ShowRegistrationQueue,
@@ -127,6 +128,48 @@ function getQueues(source: URLSearchParams): ShowRegistrationQueue[] {
   if (legacy === 'missing_information') return ['missing-information'];
   if (legacy === 'all' || legacy === 'accepted' || legacy === 'issues') return ['all'];
   return ['needs-review'];
+}
+
+/**
+ * True when the link itself names a queue: the `queue` param or any legacy param `getQueues`
+ * reads. Only a link that names none gets the empty-queue landing below.
+ */
+export function urlNamesQueue(source: URLSearchParams): boolean {
+  return (
+    source.has('queue') ||
+    source.has('payment') ||
+    source.has('attention') ||
+    source.has('entryTab')
+  );
+}
+
+/**
+ * The landing rule (MYK9-1276): a link that names no queue opens on Needs review, but when what
+ * that queue would SHOW is empty and the same view in All is not, it opens on All so the forms
+ * are not one click away. Decided on the cockpit's own view (search, class and trial scope), not
+ * the whole show: a search ignores the queue, so it never empties it, and a class or trial scope
+ * can empty Needs review in a show that has other forms waiting. Pure: callers decide it once per
+ * show, after the registrations have loaded.
+ */
+export function shouldLandOnAllQueues(
+  namedQueue: boolean,
+  groups: readonly ShowRegistrationGroup[],
+  view: {
+    search: string;
+    classIds: readonly string[];
+    trialClassIds: readonly string[] | undefined;
+  }
+): boolean {
+  if (namedQueue || groups.length === 0) return false;
+  const build = (queue: ShowRegistrationQueue) =>
+    buildShowRegistrationPage([...groups], {
+      queues: [queue],
+      search: view.search,
+      classIds: view.classIds,
+      ...(view.trialClassIds ? { trialClassIds: view.trialClassIds } : {}),
+      pageIndex: 0,
+    }).page.total;
+  return build('needs-review') === 0 && build('all') > 0;
 }
 
 /** The ids in a list param, dropping any the loaded list does not know (kept while unknown). */

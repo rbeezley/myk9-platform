@@ -10,6 +10,8 @@ import { getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
 import {
   DEFAULT_RESULTS_STATUS_FILTER,
   isResultsStatusFilterId,
+  matchesResultsStatusFilter,
+  type ResultsClassPhase,
   type ResultsStatusFilterId,
 } from './resultsNextAction';
 
@@ -28,6 +30,19 @@ export function readResultsTabUrlState(params: URLSearchParams): ResultsTabUrlSt
     search: params.get('q') ?? '',
     status: isResultsStatusFilterId(status) ? status : DEFAULT_RESULTS_STATUS_FILTER,
   };
+}
+
+/**
+ * The landing rule (MYK9-1276): a link with no `status` opens on Needs me, but when the show has
+ * classes and none needs the secretary it opens on All, so the pane is not empty. Pure: callers
+ * decide it once per visit, after the rows have loaded.
+ */
+export function shouldLandOnAllStatus(
+  namedStatus: boolean,
+  rows: readonly { phase: ResultsClassPhase }[]
+): boolean {
+  if (namedStatus || rows.length === 0) return false;
+  return !rows.some(row => matchesResultsStatusFilter(row.phase, DEFAULT_RESULTS_STATUS_FILTER));
 }
 
 /** Writes `next` over `previous`, dropping defaults and leaving `step` (and anything else) alone. */

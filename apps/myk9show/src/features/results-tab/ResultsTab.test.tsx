@@ -238,6 +238,67 @@ beforeEach(() => {
 });
 
 describe('ResultsTab list', () => {
+  // MYK9-1276: the landing rule. A link with no status opens on All when no class needs the
+  // secretary, so the pane is never an empty queue above real classes.
+  describe('landing', () => {
+    const doneOnly = () => buildRows().filter(row => row.phase === 'done');
+
+    it('lands on All and lists the classes when no class needs the secretary', () => {
+      hook.value = { ...hook.value, rows: doneOnly() };
+      renderAt();
+
+      const list = screen.getByRole('list', { name: 'Classes' });
+      expect(within(list).getByText('Containers Advanced')).toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: 'Show' })).toHaveTextContent('All classes');
+      expect(screen.queryByText('Nothing needs you right now.')).not.toBeInTheDocument();
+    });
+
+    it('keeps Needs me when a class needs the secretary', () => {
+      renderAt();
+
+      expect(screen.getByRole('combobox', { name: 'Show' })).toHaveTextContent('Needs me');
+      expect(
+        within(screen.getByRole('list', { name: 'Classes' })).queryByText('Containers Advanced')
+      ).not.toBeInTheDocument();
+    });
+
+    it('decides once: choosing Needs me afterwards is not bounced back to All', async () => {
+      hook.value = { ...hook.value, rows: doneOnly() };
+      const { user } = renderAt();
+      const select = screen.getByRole('combobox', { name: 'Show' });
+      expect(select).toHaveTextContent('All classes');
+
+      await user.click(select);
+      await user.click(await screen.findByRole('option', { name: /Needs me/ }));
+
+      expect(screen.getByRole('combobox', { name: 'Show' })).toHaveTextContent('Needs me');
+      expect(screen.getByText('Nothing needs you right now.')).toBeInTheDocument();
+    });
+
+    it('still lands when the first read has no classes and they arrive afterwards', () => {
+      hook.value = { ...hook.value, rows: [] };
+      const view = renderAt();
+      expect(screen.getByRole('combobox', { name: 'Show' })).toHaveTextContent('Needs me');
+
+      hook.value = { ...hook.value, rows: doneOnly() };
+      view.rerender(
+        <Routes>
+          <Route path="/shows/:id/results" element={<ResultsTab />} />
+        </Routes>
+      );
+
+      expect(screen.getByRole('combobox', { name: 'Show' })).toHaveTextContent('All classes');
+    });
+
+    it('keeps an explicit status=needs-me on the empty queue', () => {
+      hook.value = { ...hook.value, rows: doneOnly() };
+      renderAt('?status=needs-me');
+
+      expect(screen.getByRole('combobox', { name: 'Show' })).toHaveTextContent('Needs me');
+      expect(screen.getByText('Nothing needs you right now.')).toBeInTheDocument();
+    });
+  });
+
   it('defaults the status filter to Needs me and shows only classes waiting on the secretary', () => {
     renderAt();
 
@@ -293,7 +354,7 @@ describe('ResultsTab list', () => {
 
   it('says nothing needs the secretary only when the scores loaded and none do', () => {
     hook.value = { ...hook.value, rows: buildRows().filter(row => row.phase === 'done') };
-    renderAt();
+    renderAt('?status=needs-me');
 
     expect(screen.getByText('Nothing needs you right now.')).toBeInTheDocument();
   });

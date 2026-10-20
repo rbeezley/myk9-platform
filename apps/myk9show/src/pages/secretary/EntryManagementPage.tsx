@@ -18,6 +18,7 @@ import {
   useEntryManagementTrialClasses,
   useEntryManagementTrialScope,
 } from '@/hooks/useEntryManagementTrialScope';
+import { useEntryQueueLanding } from '@/hooks/useEntryQueueLanding';
 import { useEntryManagementCockpit } from '@/hooks/useEntryManagementCockpit';
 import { useMoveUpRequestsCount } from '@/hooks/useMoveUpRequestsCount';
 import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
@@ -157,6 +158,15 @@ const EntryManagementPage: React.FC = () => {
       setSearchParams(cockpitUrl.params, { replace: true });
     }
   }, [canValidateFocus, cockpitUrl.params, searchParams, setSearchParams]);
+
+  useEntryQueueLanding({
+    showId: selectedShowId || null,
+    loaded: canValidateFocus,
+    onRegistrationsTab: cockpitUrl.state.tab === 'registrations',
+    groups: registrationGroups,
+    state: cockpitUrl.state,
+    trialClassIds,
+  });
 
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
   const showTimeZone = useMemo(() => getEntryWindowTimezone(trials), [trials]);

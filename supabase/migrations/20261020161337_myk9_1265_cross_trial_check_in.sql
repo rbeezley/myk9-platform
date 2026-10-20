@@ -344,5 +344,30 @@ REVOKE ALL ON FUNCTION public.move_up_entry(uuid, uuid, uuid, text) FROM PUBLIC,
 GRANT EXECUTE ON FUNCTION public.move_up_entry(uuid, uuid, uuid, text) TO authenticated, service_role;
 REVOKE ALL ON FUNCTION public.reverse_move_up_entry(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.reverse_move_up_entry(uuid) TO authenticated, service_role;
+COMMENT ON FUNCTION public.move_up_entry(uuid, uuid, uuid, text) IS
+  'MYK9-639/MYK9-640/MYK9-1265: Change class -- move an entry to another class of the same '
+  'show as ONE transaction: insert the destination and mark the source moved. The target '
+  'may be in any trial, element or level; the client lists the eligible classes. MONEY '
+  'DOES NOT TRAVEL: the destination is created payment_status = ''pending'', entry_fee = 0, '
+  'with no method, reference, comp, discount or Stripe intent, and moved_from_entry_id is '
+  'the only link back to the paying entry. What DOES travel from the source: entry_status '
+  '(a move-up is not an acceptance) EXCEPT the four request statuses, which fold to '
+  '''confirmed''; check_in_status, but only when it is ''checked-in'' AND the target is in '
+  'the SAME trial (a move to another trial or day starts at ''no-status'', MYK9-1265); '
+  'entry_source, is_day_of_show, registration_id, handler, armband and jump_height. '
+  'Refuses a source that is soft-deleted, pulled, withdrawn, scratched, absent, already '
+  'moved, not accepted, or whose run has already STARTED; a target class that is completed '
+  'or cancelled; and a dog who already holds a live entry in the target class. SECURITY '
+  'DEFINER; restates can_manage_show(show_id).';
+
+COMMENT ON FUNCTION public.reverse_move_up_entry(uuid) IS
+  'MYK9-640/MYK9-1265: undo a move as ONE transaction -- restore the superseded source from '
+  'the destination''s live entry_status, and from the SOURCE''s own check_in_status unless '
+  'the dog was checked in on the destination after the move AND the destination is in the '
+  'same trial (another trial''s check-in is never imported), then soft-delete the '
+  'destination. Refuses once the run has STARTED, or when a newer live successor already '
+  'superseded the destination. Touches no money. Restates can_manage_show on BOTH the '
+  'destination''s and the source''s show, and requires them to be the same show.';
+
 NOTIFY pgrst, 'reload schema';
 COMMIT;

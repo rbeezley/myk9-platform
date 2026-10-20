@@ -196,6 +196,7 @@ export async function runBrowserLoad(
         classColumnSelect: LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT,
         onSample: sample =>
           metrics.recordVirtualUserRequest({ durationMs: sample.durationMs, ok: sample.ok }),
+        onSkippedPass: () => metrics.recordVirtualUserSkippedPass(),
       });
       await virtualUsers.hydrate();
     }

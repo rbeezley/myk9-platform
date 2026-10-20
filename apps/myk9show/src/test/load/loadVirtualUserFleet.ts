@@ -1,5 +1,4 @@
 import type { LoadSessionAssignment } from './loadAssignments';
-import { LOAD_SHOWS } from './loadFixture';
 import {
   LoadVirtualUser,
   type VirtualUserRequestSample,
@@ -26,6 +25,8 @@ export interface VirtualUserFleetOptions {
   /** Column list for the classes delta, mirroring the application's own. */
   readonly classColumnSelect: string;
   readonly onSample: (sample: VirtualUserRequestSample) => void;
+  /** A reader's tick was dropped because its previous pass was still running. */
+  readonly onSkippedPass?: () => void;
   readonly fetchImpl?: typeof fetch;
 }
 
@@ -59,17 +60,12 @@ export class VirtualUserFleet {
     private readonly options: VirtualUserFleetOptions
   ) {
     for (const assignment of assignments) {
-      const show = LOAD_SHOWS[assignment.target.showIndex];
       const role = assignment.role === 'exhibitor' ? 'exhibitor' : 'secretary';
       const user = new LoadVirtualUser(
         {
           supabaseUrl: options.supabaseUrl,
           anonKey: options.anonKey,
           accessToken: options.accessTokenFor(role, assignment.target.showIndex),
-          showId: show.showId,
-          // A reader replicates the trial its class belongs to. Staff readers
-          // carry no owner scope, which is what makes their dog sync unscoped.
-          trialId: assignment.target.trialId,
           role,
           ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
         },
@@ -81,6 +77,15 @@ export class VirtualUserFleet {
 
   get size(): number {
     return this.entries.length;
+  }
+
+  /**
+   * Ticks dropped across the fleet because a reader's previous pass had not
+   * finished. Nonzero means the target answered slower than the 60 s cadence, which
+   * is itself a finding: the readers were backing off as the app does.
+   */
+  get skippedPasses(): number {
+    return this.entries.reduce((total, entry) => total + entry.user.skippedPasses, 0);
   }
 
   /**
@@ -122,7 +127,8 @@ export class VirtualUserFleet {
         result => this.report(entry, result),
         () => {
           /* A throwing poll adds no success; the outcome stays as it was. */
-        }
+        },
+        () => this.options.onSkippedPass?.()
       );
     }
   }

@@ -148,6 +148,10 @@ export function aggregateLoadShardArtifacts(
     observations,
     observation => observation.virtualUserRequestCount ?? 0
   );
+  const virtualUserSkippedPasses = sum(
+    observations,
+    observation => observation.virtualUserSkippedPasses ?? 0
+  );
   const browserRequestCount = sum(
     observations,
     observation =>
@@ -228,6 +232,7 @@ export function aggregateLoadShardArtifacts(
       generator,
       requestCount,
       virtualUserRequestCount,
+      virtualUserSkippedPasses,
       browserRequestCount,
       failedRequestCount,
       workflowFailures,

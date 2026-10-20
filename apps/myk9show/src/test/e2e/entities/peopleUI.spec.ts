@@ -274,7 +274,7 @@ test.describe('People UI — Add Dog with Person as Owner (secretary)', () => {
     await page.getByRole('link', { name: new RegExp(PERSON_A_LAST) }).click();
     await page.waitForURL(/\/people\/[^/]+/);
 
-    await chooseAction(page, 'Add Dog');
+    await page.getByRole('button', { name: 'Add Dog', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Add Dog' })).toBeVisible();
 
     // No registration number is part of this check; a secretary may skip it (MYK9-1162).

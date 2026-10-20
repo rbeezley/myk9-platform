@@ -92,14 +92,36 @@ Each phase ships as its own PR and its own test run. A phase is complete only wh
 
 ### Phase 1: make the harness measure the real app
 
-- [ ] Virtual readers replay the app's actual sync pass by importing the replication adapters' query builders, not hand-written URLs. Same tables, count queries, scope, in-flight guard and cadence. Replace the fidelity test's hand-written URL with an import of the adapter.
-- [ ] Add a `sessions` input to the `Manual G9 Load Rehearsal` workflow (for example 50 / 100 / 200 / 358), keeping the role mix proportional.
-- [ ] Record per run: `pg_postmaster_start_time()` before and after (a restart fails the run), Supavisor checkout errors, and `PGRST003` counts from the logs.
-- [ ] Tests: unit tests on the adapter-backed virtual reader and the session-count split; one smoke run at `sessions=50`. The smoke run is a shared-system write under the rules above, so it needs the owner's request and gate approval like any rehearsal. [EXPANDED]
-- [ ] Keep the virtual reader's in-flight guard: a tick that starts while the previous sync is still running is skipped and counted, so a slow database cannot make the harness send more than the app would. The README's 140 s syncs against a 60 s cadence came from the missing guard. [ADDED]
-- [ ] Make the platform sampler survive an outage: sample over the admin pooler on port 6543 with a 5 s statement timeout and a retry, and report coverage as a first-class number so a low-coverage run reads "no verdict" rather than "81% CPU". [ADDED]
+**Done 2026-10-20** (MYK9-1271; #3142, #3146). Two deviations from the list below: Supavisor checkouts and `PGRST003` are counted per status and code from the API responses, not scraped from the logs; and the sampler keeps its existing 10 s statement timeout. The smoke run is [39487970380](https://github.com/rbeezley/myk9-platform/actions/runs/39487970380), which is also the Phase 2 baseline.
+
+- [x] Virtual readers replay the app's actual sync pass by importing the replication adapters' query builders, not hand-written URLs. Same tables, count queries, scope, in-flight guard and cadence. Replace the fidelity test's hand-written URL with an import of the adapter.
+- [x] Add a `sessions` input to the `Manual G9 Load Rehearsal` workflow (for example 50 / 100 / 200 / 358), keeping the role mix proportional.
+- [x] Record per run: `pg_postmaster_start_time()` before and after (a restart fails the run), Supavisor checkout errors, and `PGRST003` counts from the logs.
+- [x] Tests: unit tests on the adapter-backed virtual reader and the session-count split; one smoke run at `sessions=50`. The smoke run is a shared-system write under the rules above, so it needs the owner's request and gate approval like any rehearsal. [EXPANDED]
+- [x] Keep the virtual reader's in-flight guard: a tick that starts while the previous sync is still running is skipped and counted, so a slow database cannot make the harness send more than the app would. The README's 140 s syncs against a 60 s cadence came from the missing guard. [ADDED]
+- [x] Make the platform sampler survive an outage: sample over the admin pooler on port 6543 with a 5 s statement timeout and a retry, and report coverage as a first-class number so a low-coverage run reads "no verdict" rather than "81% CPU". [ADDED]
 
 ### Phase 2: baseline the ceiling on today's code
+
+**Done 2026-10-20: the baseline is a FAIL at 50 sessions** (42 exhibitors, 8 secretary-side, 3 ringside), from [run 39487970380](https://github.com/rbeezley/myk9-platform/actions/runs/39487970380) on `90030fbf7`. Full numbers are on MYK9-126.
+
+- The step-down below did not run as written. 100 and 200 would only fail harder, 25 is not a workflow size, and the owner chose to take the 50 run as the "before" number rather than step lower.
+- Headline numbers:
+  - about 31 requests per device per minute;
+  - CPU 99.8% and IO 100%, with resource coverage 71.4%, so those readings are floors;
+  - API p95 61.4 s and availability 98.86%;
+  - 29 of 50 sessions failed, including every ringside scorer;
+  - no Postgres restart.
+- Where the database time went, from the top 20 `pg_stat_statements` deltas:
+  - the 60 s sync pass's own reads: 52%;
+  - `dogs` with owner and registration embeds: 18%;
+  - realtime: 14%;
+  - RPCs: 12%.
+- The largest single sync statement is the `armbands` re-download (about 0.7 s per call). The per-table counts total about 135 s.
+- **The entry-results view is not in the top 20**, so Phase 3 comes before Phase 4. Within Phase 3, items 8 (armbands), 3 (counts) and 4 (dog ids) move up.
+- The comparison for every later change: requests per device per minute and the statement shares above, at `sessions=50`.
+
+The original step-down rule, kept for Phase 5:
 
 - [ ] Step-down runs at 100, then 200, on unchanged app code. Stop at the first failing size. This gives the "before" number for every later change.
 - [ ] If 100 fails, step down to 50, then 25. The first passing size is the baseline; "below 25" means the problem is not load and the run is investigated as an incident first. [ADDED]

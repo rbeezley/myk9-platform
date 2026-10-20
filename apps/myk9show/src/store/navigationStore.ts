@@ -54,10 +54,6 @@ const ROUTE_METADATA = {
     title: 'Judge Entry',
     roles: ['judge', 'site_admin'],
   },
-  '/shows/:showId/trials/:trialId/classes/:classId/secretary': {
-    title: 'Secretary Dashboard',
-    roles: ['secretary', 'site_admin'],
-  },
   '/shows/:showId/trials/:trialId/classes/:classId/results': { title: 'Results' },
   '/results/dashboard': { title: 'Results Dashboard (legacy)' },
   '/judge/dashboard': { title: 'Judge Dashboard', roles: ['judge', 'site_admin'] },

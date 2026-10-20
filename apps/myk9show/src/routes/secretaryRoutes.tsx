@@ -10,6 +10,10 @@ import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { LegacyTrialClassCreateRedirect } from './LegacyClassCreateRedirect';
 import { LegacyTrialClassManagementRedirect } from './LegacyClassManagementRedirect';
+import {
+  LegacyClassSecretaryRedirect,
+  LegacyTrialPipelineRedirect,
+} from './LegacyPipelineRedirects';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
@@ -27,18 +31,9 @@ const SecretaryDashboardPage = lazyWithRetry(() =>
     default: m.SecretaryDashboardPage,
   }))
 );
-const TrialPipelineDetail = lazyWithRetry(
-  () => import('@/features/pipeline/components/TrialPipelineDetail')
-);
 
 const ShowCreationWizardPage = lazyWithRetry(
   () => import('@/pages/secretary/ShowCreationWizardPage')
-);
-// Secretary components
-const SecretaryClassDashboard = lazyWithRetry(() =>
-  import('@/components/secretary/SecretaryClassDashboard').then(m => ({
-    default: m.SecretaryClassDashboard,
-  }))
 );
 
 // People pages
@@ -257,18 +252,7 @@ export const SecretaryRoutes = () => (
         </ProtectedRoute>
       }
     />
-    <Route
-      path="/secretary/pipeline/:trialId"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <TrialPipelineDetail />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
+    <Route path="/secretary/pipeline/:trialId" element={<LegacyTrialPipelineRedirect />} />
     <Route
       path="/secretary/create-show"
       element={
@@ -451,15 +435,7 @@ export const SecretaryRoutes = () => (
     />
     <Route
       path="/shows/:showId/trials/:trialId/classes/:classId/secretary"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.JUDGE, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <SecretaryClassDashboard />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
+      element={<LegacyClassSecretaryRedirect />}
     />
     <Route
       path="/secretary/messages"

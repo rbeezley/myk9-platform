@@ -41,10 +41,10 @@ const LABEL_BREAKPOINT_QUERY = '(min-width: 640px)';
  * (`src/test/e2e/header-wordmark-fits.spec.ts` measures it). The label returns
  * from `sm` up, where the room exists.
  *
- * The trigger is the solid primary fill, the same `default` variant as the
- * list-page Add buttons (owner decision 2026-10-20, MYK9-1268): a grey outline
- * did not stand out, and most of what a secretary can do on a page lives here.
- * Both the labelled and the icon-only trigger take it.
+ * The trigger is the solid primary fill, the shared `default` button variant
+ * (owner decision 2026-10-20, MYK9-1268): a grey outline did not stand out, and
+ * most of what a secretary can do on a page lives here, including Add Dog,
+ * Person and Club (MYK9-1267). Both the labelled and the icon-only trigger take it.
  */
 export function HeaderActions() {
   const { groups } = useCurrentActions();

@@ -28,6 +28,12 @@ export interface ApiResult<T> {
 export interface RetryPolicy {
   attempts: number;
   baseDelayMs: number;
+  /**
+   * Epoch ms after which no retry starts, shared by every call in one cleanup so
+   * the whole sequence fits inside the workflow step's own timeout.
+   */
+  deadlineAtMs?: number;
+  now: () => number;
   sleep: (ms: number) => Promise<void>;
   log: (message: string) => void;
 }
@@ -35,6 +41,7 @@ export interface RetryPolicy {
 export const DEFAULT_RETRY_POLICY: RetryPolicy = {
   attempts: 4,
   baseDelayMs: 2_000,
+  now: () => Date.now(),
   sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
   log: message => console.warn(message),
 };
@@ -84,13 +91,19 @@ export async function withTransientRetry<T>(
 
     const transient = isTransientFailure(result);
     const description = describeFailure(result);
-    if (!transient || attempt >= policy.attempts) {
+    const delayMs = policy.baseDelayMs * 2 ** (attempt - 1);
+    const pastDeadline =
+      policy.deadlineAtMs !== undefined && policy.now() + delayMs >= policy.deadlineAtMs;
+    if (!transient || attempt >= policy.attempts || pastDeadline) {
+      const reason = !transient
+        ? ' (not retried: not a transient failure)'
+        : attempt < policy.attempts
+          ? ' (retry budget exhausted)'
+          : '';
       throw new Error(
-        `${step}: ${description} after ${attempt} attempt${attempt === 1 ? '' : 's'}` +
-          (transient ? '' : ' (not retried: not a transient failure)')
+        `${step}: ${description} after ${attempt} attempt${attempt === 1 ? '' : 's'}${reason}`
       );
     }
-    const delayMs = policy.baseDelayMs * 2 ** (attempt - 1);
     policy.log(
       `${step}: attempt ${attempt}/${policy.attempts} failed, ${description}; retrying in ${delayMs} ms.`
     );

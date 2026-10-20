@@ -50,6 +50,7 @@ function retryPolicy(): RetryPolicy & { sleeps: number[]; logs: string[] } {
   return {
     attempts: 4,
     baseDelayMs: 2_000,
+    now: () => 0,
     sleep: async ms => {
       sleeps.push(ms);
     },
@@ -120,6 +121,16 @@ describe('load trial packet cleanup', () => {
     );
     expect(retry.sleeps).toEqual([2_000, 4_000, 8_000]);
     expect(remove).not.toHaveBeenCalled();
+  });
+
+  it('stops retrying once the shared deadline would pass, and says so', async () => {
+    const { client } = createClient({ reads: [GATEWAY_TIMEOUT, GATEWAY_TIMEOUT, OK, VERIFIED] });
+    const retry = { ...retryPolicy(), deadlineAtMs: 2_000 };
+
+    await expect(clearLoadTrialPacketSnapshots(client, SHOW_ID, retry)).rejects.toThrow(
+      'Could not read trial packet snapshots: upstream request timeout (HTTP 504) after 1 attempt (retry budget exhausted)'
+    );
+    expect(retry.sleeps).toEqual([]);
   });
 
   it('retries a storage call that got no HTTP response at all', async () => {

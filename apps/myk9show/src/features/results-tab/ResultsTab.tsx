@@ -153,31 +153,67 @@ export default function ResultsTab() {
   );
 
   const handleRelease = async (row: ResultsClassRow) => {
-    // Release in this tab waits for the paper check (the server does not, by design). The
-    // replica's copy of the check is only a hint that enabled the button: the click is decided by
-    // a fresh read of the class on the server.
-    if (row.phase !== 'ready-to-release' || releaseBlockedReason !== null) return;
+    // One tap (MYK9-1264): from Needs checking the tap first saves the check for the results the
+    // secretary is looking at (the server refuses it if they moved: MK015), then releases through
+    // the same preflight as a class that was already checked. The replica's phase is not awaited
+    // between the two: the server's own answer below is what decides.
+    const verifyFirst = row.phase === 'needs-checking';
+    if (verifyFirst) {
+      if (!row.statusCompleted || row.resultsCanonical === null || verifyBlockedReason !== null) {
+        return;
+      }
+    } else if (row.phase !== 'ready-to-release') {
+      return;
+    }
+    if (releaseBlockedReason !== null) return;
     const generationAtClick = checkGeneration.current;
-    // Held for the WHOLE preflight (server read and unsynced re-check), so Undo and the confirm
-    // stay disabled until the release is queued or the preflight gives up.
+    // Held for the WHOLE verify and preflight, so Undo and the button stay disabled until the
+    // release is queued or the preflight gives up.
     setReleaseChecking(true);
+    let checked = !verifyFirst;
+    // After the check is saved, a refusal must not read as if nothing happened.
+    const refuse = (message: string) =>
+      toast.error(
+        checked && verifyFirst
+          ? `${message.replace(/\.$/, '')}. The scores are checked, not released yet.`
+          : message
+      );
     try {
+      if (verifyFirst) {
+        if (row.resultsCanonical === null) return;
+        try {
+          await verification.verifyAsync({
+            classId: row.id,
+            trialId: row.trialId,
+            showId,
+            canonical: row.resultsCanonical,
+          });
+        } catch {
+          // The mutation already told the user why (MK015 included) and refetched the entries.
+          return;
+        }
+        checked = true;
+        // Already released: the check was all this class was missing.
+        if (row.releasedAt) return;
+      }
+      // Release in this tab waits for the check (the server does not, by design). The replica's
+      // copy of the check is only a hint: the click is decided by a fresh read on the server.
       let verifiedAt: string | null;
       try {
         verifiedAt = await readServerResultsVerifiedAt(row.id);
       } catch {
-        toast.error('Could not check this class. Try again.');
+        refuse('Could not check this class. Try again.');
         return;
       }
       // A correction can land while the server was being asked: the answer then describes older
       // results. Look again, directly, before anything is queued.
       try {
         if (await classHasUnsyncedScores(row.id)) {
-          toast.error('Waiting for score changes to sync');
+          refuse('Waiting for score changes to sync');
           return;
         }
       } catch {
-        toast.error('Could not check this class. Try again.');
+        refuse('Could not check this class. Try again.');
         return;
       }
       // The check was taken back (Undo) at any point since the click: the read is stale. Compared
@@ -197,8 +233,8 @@ export default function ResultsTab() {
           onSuccess: ({ released }) =>
             released.length > 0
               ? toast.success('Results released')
-              : toast.error('Could not release the results. Try again.'),
-          onError: () => toast.error('Could not release the results. Try again.'),
+              : refuse('Could not release the results. Try Release again.'),
+          onError: () => refuse('Could not release the results. Try Release again.'),
         }
       );
     } finally {
@@ -275,14 +311,6 @@ export default function ResultsTab() {
       releasing={release.isPending || releaseChecking}
       onRelease={() => handleRelease(selected)}
       onRetry={retry}
-      onVerify={canonical =>
-        verification.verifyAsync({
-          classId: selected.id,
-          trialId: selected.trialId,
-          showId,
-          canonical,
-        })
-      }
       onUndoVerify={() => {
         checkGeneration.current += 1;
         verification.undo({ classId: selected.id, trialId: selected.trialId });

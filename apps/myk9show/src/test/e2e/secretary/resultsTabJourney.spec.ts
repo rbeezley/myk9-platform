@@ -17,7 +17,7 @@ import { signInAsSecretary } from '../helpers/testUsers';
  * MYK9-1031, plan-results-tab-redesign Phase 7: ONE secretary journey through the Results tab on
  * the show-day fixture show (`seed_demo_restore_show_day_fixture`, MYK9-731):
  *
- *   scored class -> verified against the paper -> released -> results sheet and result labels printed -> judge
+ *   scored class -> checked and released with one tap -> results sheet and result labels printed -> judge
  *   initialed -> reload reads released + initialed.
  *
  * Why seeded-only: every step writes (scores, the check, Release, the print records, the judge's
@@ -108,7 +108,7 @@ async function scoreFromPaper(page: Page, classId: string) {
 async function printFromResults(page: Page, detail: Locator, label: string, reportId: string) {
   const row = paperworkRow(detail, label);
   await expect(row.getByText('Not confirmed printed')).toBeVisible({ timeout: 20_000 });
-  // MYK9-1215: the bottom-right toasts ("Scores marked...", "Results released") dock on top of
+  // MYK9-1215: the bottom-right toasts ("Scores checked", "Results released") dock on top of
   // this row's Print link at 1280x720. A click that lands as they shift hits the toast, which
   // hover-pauses and expands the stack, so the link never fires and the toasts never leave
   // (both failing runs' screenshots show the stack still up 15s later). Click only once clear,
@@ -190,7 +190,6 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
     let classId = '';
     let resultsUrl = '';
     const detail = page.getByRole('region', { name: `${CLASS_NAME} results` });
-    const verifyButton = detail.getByRole('button', { name: 'Scores match the paper' });
     const releaseButton = detail.getByRole('button', { name: 'Release results' });
     const signOff = detail.locator('section[aria-labelledby="judge-sign-off-heading"]');
 
@@ -216,36 +215,21 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
       // class row unsynced. So wait for the sync; each load re-reads the show's classes.
       await expect(async () => {
         await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
-        await expect(verifyButton).toBeVisible({ timeout: 10_000 });
+        await expect(releaseButton).toBeVisible({ timeout: 10_000 });
       }).toPass({ timeout: 90_000 });
     });
 
-    await test.step('4. tick every dog against the paper and verify', async () => {
-      await expect(verifyButton).toBeVisible({ timeout: 30_000 });
-      // Release stays held until the check is saved.
-      await expect(verifyButton).toBeDisabled();
-      await expect(releaseButton).toBeDisabled();
-      const ticks = detail.getByRole('checkbox');
-      await expect(ticks).toHaveCount(2);
-      for (let index = 0; index < 2; index += 1) {
-        await ticks.nth(index).check();
-        await expect(ticks.nth(index)).toBeChecked();
-      }
-      await expect(verifyButton).toBeEnabled();
-      await verifyButton.click();
-      await expect(detail.getByText(/Scores checked against the paper by you/)).toBeVisible({
-        timeout: 20_000,
-      });
-    });
-
-    await test.step('5. release the results', async () => {
+    await test.step('4. release the results with one tap (the check is saved first)', async () => {
+      await expect(releaseButton).toBeVisible({ timeout: 30_000 });
+      // No per-dog ticks: one tap saves the check and releases.
+      await expect(detail.getByRole('checkbox')).toHaveCount(0);
       await expect(releaseButton).toBeEnabled({ timeout: 20_000 });
       await releaseButton.click();
       await expect(page.getByText('Results released').first()).toBeVisible({ timeout: 20_000 });
       await expect(detail.getByText('Print the results sheet and result labels')).toBeVisible({
         timeout: 20_000,
       });
-      // MYK9-1217: at 1280x720 the "Scores marked..." and "Results released" toasts used to dock
+      // MYK9-1217: at 1280x720 the "Scores checked" and "Results released" toasts used to dock
       // over the Print link. Measured on the rendered boxes while the toasts are still up.
       const toasts = page.locator('[data-sonner-toast]');
       await expect(toasts.first()).toBeVisible();
@@ -291,13 +275,13 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
         .toBe('toasts up, 0 off screen');
     });
 
-    await test.step('6. print the Results sheet and Result labels from their reports', async () => {
+    await test.step('5. print the Results sheet and Result labels from their reports', async () => {
       await printFromResults(page, detail, 'Results sheet', 'results-sheet');
       await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
       await printFromResults(page, detail, 'Result labels', 'result-labels');
     });
 
-    await test.step('7. back on Results: both read printed, record the judge initials', async () => {
+    await test.step('6. back on Results: both read printed, record the judge initials', async () => {
       await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
       // A print Reports just recorded must read Printed here too, not Stale: the two pages
       // fingerprint the class from different read paths (buildReportPaperworkDescriptor).
@@ -315,12 +299,12 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
       });
     });
 
-    await test.step('8. reload: released, checked and initialed', async () => {
+    await test.step('7. reload: released, checked and initialed', async () => {
       await page.reload({ waitUntil: 'domcontentloaded' });
       await expect(detail.getByText('Released', { exact: true }).first()).toBeVisible({
         timeout: 30_000,
       });
-      await expect(detail.getByText(/Scores checked against the paper by you/)).toBeVisible();
+      await expect(detail.getByText(/Scores checked by you/)).toBeVisible();
       await expect(signOff.getByText('Initialed by judge').first()).toBeVisible({
         timeout: 20_000,
       });
@@ -330,7 +314,7 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
       await expect(detail.getByText('All done for this class')).toBeVisible();
     });
 
-    await test.step('9. the same class on a 375px phone fits the screen', async () => {
+    await test.step('8. the same class on a 375px phone fits the screen', async () => {
       await page.setViewportSize(PHONE);
       // The class is done now, so the default "Needs me" filter no longer lists it.
       const classLink = page

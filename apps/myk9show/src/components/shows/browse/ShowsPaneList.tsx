@@ -30,7 +30,8 @@ function matchesSearch(show: Show, needle: string): boolean {
 }
 
 /**
- * The Shows list in the left pane: Today, Upcoming and Past, the viewer's own shows first in each
+ * The Shows list in the left pane: Managing (the viewer's current shows), then Today, Upcoming and
+ * Past for the rest, her over shows pinned first in Past
  * (docs/plan-sidebar-browse-pane.md, phase 2). It reads the same list as Find Shows
  * (`useBrowseShowsList`: the shows replica for a signed-in account), so it lists from the device
  * when offline and adds no network read.
@@ -134,7 +135,8 @@ export const ShowsPaneList: React.FC<ShowsPaneListProps> = ({ selectedId, header
               renderRow={show => ({
                 title: show.name,
                 subtitle: [
-                  isManaged(show) ? 'Managing' : '',
+                  // Inside the Managing section the tag would repeat on every row.
+                  group.id !== 'managing' && isManaged(show) ? 'Managing' : '',
                   show.status === 'draft' ? 'Draft' : '',
                   formatShowDateRange(show.startDate, show.endDate),
                   show.clubName,

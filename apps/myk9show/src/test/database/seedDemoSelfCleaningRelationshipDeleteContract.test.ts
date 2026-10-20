@@ -323,7 +323,9 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
       waitlistDeletes.length,
       'no waitlist_entries delete found — the MYK9-490 self-cleaning fix was removed'
     ).toBeGreaterThanOrEqual(2);
-    expect(dogsDeletes.length).toBeGreaterThanOrEqual(2);
+    // Only the myk9_109 load-dog range is deleted; the six hand-authored demo
+    // dogs are reset in place since MYK9-126 (seedDemoDogsResetInPlaceContract).
+    expect(dogsDeletes.length).toBe(1);
 
     // Both waitlist_entries.dog_id and entry_cart_items.dog_id are NO ACTION.
     // For each dogs delete, EVERY guard that shares one of its literal ids (an

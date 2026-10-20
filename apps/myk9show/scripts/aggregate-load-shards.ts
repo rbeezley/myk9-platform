@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildLoadEvidence, writeLoadEvidence } from '../src/test/load/loadEvidence';
 import { readUsablePlatformArtifact } from '../src/test/load/loadPlatformArtifact';
@@ -9,9 +9,14 @@ import {
   type LoadShardArtifact,
   shardWindowDivergence,
 } from '../src/test/load/loadShardAggregation';
-import { G9_NORMAL_SCENARIO } from '../src/test/load/loadScenario';
+import { postmasterRestartFailure } from '../src/test/load/loadPostmasterRestart';
+import { loadScenarioFromEnv } from '../src/test/load/loadSessionSizing';
+import { renderLoadStepSummary } from '../src/test/load/loadStepSummary';
+import { appendGatingFailures, verdictLabel } from '../src/test/load/loadVerdict';
 import { collectShardDiagnostics } from '../src/test/load/loadShardDiagnostics';
 
+// The workflow's `sessions` input; shards validate their own artifacts against it.
+const scenario = loadScenarioFromEnv(process.env);
 const inputDirectory = resolve(
   process.argv[2] ?? process.env.LOAD_TEST_SHARD_INPUT_DIR ?? 'test-results/load-shards'
 );
@@ -67,28 +72,32 @@ const platformArtifact = readUsablePlatformArtifact(
 );
 let aggregate: ReturnType<typeof aggregateLoadShardArtifacts>;
 try {
-  aggregate = aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, platformArtifact);
+  aggregate = aggregateLoadShardArtifacts(artifacts, scenario, platformArtifact);
 } catch (error) {
   throwWithDiagnostics(error);
 }
-const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, aggregate.observation);
+const evaluation = evaluateLoadResult(scenario, aggregate.observation);
 if (diagnostics.length > 0) {
   console.warn(`Load shard failure diagnostics: ${diagnostics.join('; ')}`);
-  evaluation.failures.push(...diagnostics);
-  evaluation.passed = false;
+  appendGatingFailures(evaluation, diagnostics);
 }
 // Aggregating shards that measured different windows produces one percentile
 // over incommensurable samples. Appended rather than folded into
 // evaluateLoadResult because only the aggregate sees the per-shard windows
 // (MYK9-126).
 const windowDivergence = shardWindowDivergence(artifacts.map(artifact => artifact.elapsedMs));
-if (windowDivergence) {
-  evaluation.failures.push(windowDivergence);
-  evaluation.passed = false;
+if (windowDivergence) appendGatingFailures(evaluation, [windowDivergence]);
+// A restart is gating before any evidence is written. Without the platform
+// artifact there is nothing to compare, and its absence already fails the run.
+if (platformArtifact) {
+  appendGatingFailures(
+    evaluation,
+    [postmasterRestartFailure(platformArtifact) ?? ''].filter(Boolean)
+  );
 }
 const evidence = buildLoadEvidence({
   target: aggregate.target,
-  scenario: G9_NORMAL_SCENARIO,
+  scenario,
   observation: aggregate.observation,
   evaluation,
 });
@@ -97,7 +106,8 @@ const paths = writeLoadEvidence(evidence);
 console.log(
   JSON.stringify(
     {
-      result: evaluation.passed ? 'PASS' : 'FAIL',
+      result: verdictLabel(evaluation.verdict),
+      noVerdictReasons: evaluation.noVerdictReasons,
       shardCount: artifacts.length,
       evidence: paths,
       failures: evaluation.failures,
@@ -106,4 +116,7 @@ console.log(
     2
   )
 );
+if (process.env.GITHUB_STEP_SUMMARY) {
+  appendFileSync(process.env.GITHUB_STEP_SUMMARY, renderLoadStepSummary(evidence));
+}
 if (!evaluation.passed) process.exitCode = 1;

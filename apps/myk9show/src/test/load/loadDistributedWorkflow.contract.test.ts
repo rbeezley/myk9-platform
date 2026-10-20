@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildSessionAssignments } from './loadAssignments';
-import { G9_NORMAL_SCENARIO } from './loadScenario';
+import { G9_NORMAL_SCENARIO, scenarioSessionCount } from './loadScenario';
+import { G9_SESSION_SIZES } from './loadSessionSizing';
 import { DEFAULT_RETRY_POLICY, worstCaseCleanupMs } from './loadPacketCleanupRetry';
-import { DISTRIBUTED_G9_SHARD_COUNT, selectShardAssignments } from './loadShard';
+import { DISTRIBUTED_G9_SHARD_COUNT } from './loadShard';
 
 describe('manual distributed load workflow', () => {
   const workflow = readFileSync(
@@ -28,15 +28,39 @@ describe('manual distributed load workflow', () => {
     // size would leave some starting after the synchronized start.
     expect(workflow).toContain(`max-parallel: ${DISTRIBUTED_G9_SHARD_COUNT}`);
 
-    const sizes = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) =>
-      selectShardAssignments(buildSessionAssignments(G9_NORMAL_SCENARIO), {
-        count: DISTRIBUTED_G9_SHARD_COUNT,
-        index,
-      })
-    ).map(shard => shard.length);
+    // The step name must stay true at every size, so it names no per-shard count.
+    expect(workflow).toContain('Run synchronized load shard with generator telemetry');
+    expect(workflow).not.toMatch(/\d+\/\d+-session shard/);
+  });
+
+  it('offers exactly the published session sizes and threads the choice to shards and aggregate', () => {
+    const input = workflow.match(/\n {6}sessions:\n([\s\S]*?)\n\npermissions:/)?.[1] ?? '';
+    expect(input).toContain('type: choice');
+    expect(input).toContain("default: '358'");
+    const options = [...input.matchAll(/^\s+- '(\d+)'$/gm)].map(match => Number(match[1]));
+    expect(options).toEqual([...G9_SESSION_SIZES]);
+    // Shard step and aggregate step each read the same input; a job that missed
+    // it would build a different scenario than its siblings.
+    expect(workflow.match(/LOAD_TEST_SESSIONS: \$\{\{ inputs\.sessions \}\}/g)).toHaveLength(2);
+    const defaultSessions = scenarioSessionCount(G9_NORMAL_SCENARIO);
+    expect(options).toContain(defaultSessions);
+  });
+
+  it('records the Postgres start time before load and checks it before evidence is written', () => {
     expect(workflow).toContain(
-      `Run synchronized ${Math.min(...sizes)}/${Math.max(...sizes)}-session shard with generator telemetry`
+      'postmaster-start: ${{ steps.postmaster.outputs.postmaster-start }}'
     );
+    expect(workflow).toContain('run: pnpm exec tsx scripts/load-postmaster-check.ts');
+    expect(workflow.indexOf('id: postmaster')).toBeLessThan(workflow.indexOf('id: window'));
+    // The AFTER read lives in the platform job (end of sampling), and the
+    // comparison in aggregation; no cleanup-job compare can publish PASS first.
+    const platformStart = workflow.indexOf('\n  platform:\n');
+    const platformJob = workflow.slice(platformStart, workflow.indexOf('\n  shard:\n'));
+    expect(platformJob).toContain(
+      'LOAD_TEST_POSTMASTER_BEFORE: ${{ needs.prepare.outputs.postmaster-start }}'
+    );
+    expect(workflow).not.toContain('load-postmaster-check.ts compare');
+    expect(workflow).not.toContain('Fail the run if Postgres restarted');
   });
 
   it('samples the platform from a browser-free job whose artifact name pairs', () => {

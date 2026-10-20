@@ -3,6 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
+import { buttonVariants } from '@/components/ui/button';
 import AppHeader from './AppHeader';
 import { usePageEditAction, usePageEditTargetStore } from '@/features/actions/pageEditTarget';
 import { generatedPremium } from '@/features/premium/__tests__/fixtures/generatedPremium';
@@ -491,6 +492,35 @@ describe('AppHeader Actions trigger — the wordmark has to fit beside it', () =
     const trigger = screen.getByTestId('header-actions-trigger');
     expect(visibleText(trigger)).toBe('Actions');
     expect(screen.getByRole('button', { name: /^actions$/i })).toBe(trigger);
+  });
+});
+
+/** Classes `default` emits that `outline` does not: the solid primary fill. */
+function solidFillClasses(): string[] {
+  const outline = new Set(buttonVariants({ variant: 'outline', size: 'touch' }).split(/\s+/));
+  return buttonVariants({ variant: 'default', size: 'touch' })
+    .split(/\s+/)
+    .filter(token => !outline.has(token));
+}
+
+describe('AppHeader Actions menu trigger style (MYK9-1268)', () => {
+  it.each([
+    ['labelled (sm and up)', true],
+    ['icon-only (below sm)', false],
+  ])('uses the solid primary variant, not the outline, when %s', (_name, labelled) => {
+    mockLabelBreakpoint(labelled);
+    render(<AppHeader />, { initialRoute: SHOW_ROUTE });
+
+    const trigger = screen.getByTestId('header-actions-trigger');
+    const fill = solidFillClasses();
+    expect(fill).toContain('bg-primary');
+    expect(trigger).toHaveClass(...fill);
+    // The grey outline's own classes are gone, and the 44px touch size stays.
+    expect(trigger).not.toHaveClass('bg-secondary');
+    expect(trigger).not.toHaveClass('border');
+    expect(trigger).toHaveClass('min-h-11');
+    // The shared focus ring is still on the filled button.
+    expect(trigger).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-ring');
   });
 });
 

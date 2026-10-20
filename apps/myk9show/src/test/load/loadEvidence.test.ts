@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { scaleScenarioToSessions } from './loadSessionSizing';
 import { G9_NORMAL_SCENARIO, scenarioSessionCount } from './loadScenario';
 import { LOAD_SHOWS, LOAD_TOTAL_ENTRY_COUNT, LOAD_TOTAL_RING_COUNT } from './loadFixture';
 
@@ -102,6 +103,8 @@ const observation: LoadObservation = {
 
 const evaluation: LoadEvaluation = {
   passed: true,
+  verdict: 'pass',
+  noVerdictReasons: [],
   gateEligible: true,
   informational: false,
   gate: 'G9',
@@ -162,5 +165,15 @@ describe('load evidence', () => {
     expect(renderLoadEvidenceMarkdown(evidence)).toContain(
       'Backend-latency attribution from browser timings: VALID'
     );
+  });
+
+  it('claims no supported ceiling for a passing reduced run', () => {
+    const evidence = buildLoadEvidence({
+      target: { mode: 'e2e', projectRef: 'approved', computeTier: 'Micro', gateEligible: true },
+      scenario: scaleScenarioToSessions(G9_NORMAL_SCENARIO, 50),
+      observation,
+      evaluation: { ...evaluation, gateEligible: false, informational: true },
+    });
+    expect(evidence.supportedCeiling).toBe('Not established');
   });
 });

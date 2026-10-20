@@ -11,6 +11,8 @@ import {
 } from './loadSessionLifecycle';
 import { DISTRIBUTED_G9_SHARD_COUNT } from './loadShard';
 import type { PersistenceFailure } from './loadPersistence';
+import type { ApiErrorCount } from './loadErrorCodes';
+import { noVerdictReasons, verdictOf, type LoadVerdict } from './loadVerdict';
 
 export interface ResourceSamplingFailure {
   kind: 'http' | 'timeout' | 'transport' | 'invalid-counters';
@@ -73,6 +75,13 @@ export interface PlatformObservation {
     attempts: number;
     succeeded: number;
   };
+  /**
+   * Share of resource / connection samples that landed, as first-class fields so
+   * an operator reads coverage without dividing attempts. Below 80% on either the
+   * run has NO VERDICT (see loadVerdict.ts).
+   */
+  resourceCoveragePercent?: number;
+  connectionCoveragePercent?: number;
 }
 
 export interface WorkflowFailureDetail {
@@ -92,9 +101,18 @@ export interface LoadObservation {
   requestCount: number;
   /** Of `requestCount`, how many an API-level virtual user issued. */
   virtualUserRequestCount?: number;
+  /**
+   * Virtual-reader ticks dropped because the previous pass was still running. A
+   * nonzero count means the target answered slower than the 60 s cadence and the
+   * readers backed off as the app does, so the request count understates an
+   * unthrottled load.
+   */
+  virtualUserSkippedPasses?: number;
   /** Of `requestCount`, how many came from a real browser context. */
   browserRequestCount?: number;
   failedRequestCount: number;
+  /** Failed requests by HTTP status and PostgREST/Postgres error code. */
+  apiErrorCounts?: readonly ApiErrorCount[];
   workflowFailures: number;
   workflowFailureDetails: readonly WorkflowFailureDetail[];
   scoringWriteP95Ms: number;
@@ -136,6 +154,10 @@ export interface LoadFailure {
 
 export interface LoadEvaluation {
   passed: boolean;
+  /** `no-verdict` is never a pass: the job still fails, but not on a threshold. */
+  verdict: LoadVerdict;
+  /** Why telemetry coverage was too low to judge. Empty unless `no-verdict`. */
+  noVerdictReasons: string[];
   gateEligible: boolean;
   informational: boolean;
   gate: LoadScenario['gate'];
@@ -242,9 +264,11 @@ export function evaluateLoadResult(
     failures.push('Persisted scoring results did not reconcile.');
   }
 
+  let coverageReasons: string[] = [];
   if (scenario.gate === 'G9') {
     const platform = observation.platform;
-    if (
+    coverageReasons = platform ? noVerdictReasons(platform) : [];
+    const telemetryMissing =
       !platform ||
       !finite(platform.peakCpuPercent) ||
       !finite(platform.peakIoPercent) ||
@@ -255,13 +279,33 @@ export function evaluateLoadResult(
       platform.peakConnections < 0 ||
       platform.connectionCap <= 0 ||
       platform.statementDeltas.length === 0 ||
-      (platform.resourceSampling !== undefined && platform.resourceSampling.succeeded <= 0)
-    ) {
+      (platform.resourceSampling !== undefined && platform.resourceSampling.succeeded <= 0);
+    // A measured value that PROVES a breach fails the run whatever else is
+    // missing; missing telemetry can only withhold a verdict, never earn a pass.
+    // For connections the proof is a lower bound: the exact peak when every probe
+    // landed, otherwise the highest peak the probes that did land observed. A lost
+    // resource or connection sample therefore never hides a measured 61 of 60, and
+    // a partial lower bound under the cap still cannot establish a pass (the
+    // missing exact peak keeps `telemetryMissing` true).
+    const capMeasured = !!platform && finite(platform.connectionCap) && platform.connectionCap > 0;
+    const connectionLowerBound = !platform
+      ? undefined
+      : finite(platform.peakConnections) && platform.peakConnections >= 0
+        ? platform.peakConnections
+        : platform.observedPeakConnections;
+    if (platform && capMeasured) {
+      if (platform.connectionCap !== scenario.targets.databaseConnectionCap) {
+        failures.push('Verified database connection cap did not match the scenario.');
+      } else if (
+        connectionLowerBound !== undefined &&
+        finite(connectionLowerBound) &&
+        connectionLowerBound > platform.connectionCap
+      ) {
+        failures.push('Peak database connections exceeded the verified cap.');
+      }
+    }
+    if (telemetryMissing && coverageReasons.length === 0) {
       failures.push('Required platform telemetry was missing.');
-    } else if (platform.connectionCap !== scenario.targets.databaseConnectionCap) {
-      failures.push('Verified database connection cap did not match the scenario.');
-    } else if (platform.peakConnections > platform.connectionCap) {
-      failures.push('Peak database connections exceeded the verified cap.');
     }
     if (!generatorAssessment.complete) {
       failures.push('Required per-runner generator evidence was missing or incomplete.');
@@ -280,7 +324,9 @@ export function evaluateLoadResult(
   return {
     // Only gating failures decide the verdict. Shape-dependent misses are
     // reported alongside, so the gate stays honest in both directions.
-    passed: failures.length === 0,
+    passed: failures.length === 0 && coverageReasons.length === 0,
+    verdict: verdictOf({ failures, noVerdictReasons: coverageReasons }),
+    noVerdictReasons: coverageReasons,
     pendingDerivation,
     gateEligible: scenario.gate === 'G9' && !scenario.informational,
     informational: scenario.informational,

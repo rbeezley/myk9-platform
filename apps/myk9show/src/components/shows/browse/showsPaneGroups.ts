@@ -3,8 +3,10 @@ import { getTrialTimezone } from '@/features/registries';
 import { calendarDateInTimeZone } from '@/utils/calendarDate';
 import { toLocalDateOnly } from '@/utils/date-format';
 
-const GROUP_ORDER = ['today', 'upcoming', 'past'] as const;
+const GROUP_ORDER = ['managing', 'today', 'upcoming', 'past'] as const;
 export type ShowsPaneGroupId = (typeof GROUP_ORDER)[number];
+/** Where a show sits on the calendar; `managing` is a viewer-relative section laid over it. */
+export type ShowsPaneTimeGroupId = Exclude<ShowsPaneGroupId, 'managing'>;
 
 export interface ShowsPaneGroup<T extends Show = Show> {
   id: ShowsPaneGroupId;
@@ -13,6 +15,7 @@ export interface ShowsPaneGroup<T extends Show = Show> {
 }
 
 const GROUP_LABELS: Record<ShowsPaneGroupId, string> = {
+  managing: 'Managing',
   today: 'Today',
   upcoming: 'Upcoming',
   past: 'Past',
@@ -32,7 +35,7 @@ function calendarDay(value: string | null | undefined): string {
  * strings against that day. A completed or cancelled show is over even if its dates still cover
  * today (the same rule as `useMyShows`).
  */
-export function showsPaneGroupFor(show: Show, now: Date): ShowsPaneGroupId {
+export function showsPaneGroupFor(show: Show, now: Date): ShowsPaneTimeGroupId {
   if (show.status === 'completed' || show.status === 'cancelled') return 'past';
   const start = calendarDay(show.startDate);
   if (!start) return 'upcoming';
@@ -47,18 +50,37 @@ export function showsPaneGroupFor(show: Show, now: Date): ShowsPaneGroupId {
 }
 
 /**
- * The Shows list's groups: Today, Upcoming (soonest first), Past (most recent first). In each
- * group the shows the viewer manages come first. Empty groups are left out.
+ * The Shows list's groups: Managing, Today, Upcoming (soonest first), Past (most recent first).
+ * Managing lists every show the viewer manages that is not over, today's first and then upcoming
+ * by start date; each show is listed once, so those shows are not repeated in Today or Upcoming.
+ * A managed show that is over stays in Past, pinned first there. Empty groups are left out, so
+ * `groups[0]` is Managing's first show whenever the viewer has a current one.
  *
- * `isManaged` decides the pinning; pass `() => false` for a viewer who manages nothing.
+ * `isManaged` decides membership; pass `() => false` for a viewer who manages nothing (a site
+ * admin manages every show, so the caller passes that too and gets no Managing section).
  */
 export function groupShowsForPane<T extends Show>(
   shows: readonly T[],
   isManaged: (show: T) => boolean,
   now: Date = new Date()
 ): ShowsPaneGroup<T>[] {
-  const buckets: Record<ShowsPaneGroupId, T[]> = { today: [], upcoming: [], past: [] };
-  for (const show of shows) buckets[showsPaneGroupFor(show, now)].push(show);
+  const buckets: Record<ShowsPaneGroupId, T[]> = {
+    managing: [],
+    today: [],
+    upcoming: [],
+    past: [],
+  };
+  // Today before upcoming inside Managing; the date sort then orders each half.
+  const managingRank = new Map<T, number>();
+  for (const show of shows) {
+    const group = showsPaneGroupFor(show, now);
+    if (group !== 'past' && isManaged(show)) {
+      buckets.managing.push(show);
+      managingRank.set(show, group === 'today' ? 0 : 1);
+    } else {
+      buckets[group].push(show);
+    }
+  }
 
   const byDate = (direction: 1 | -1) => (a: T, b: T) => {
     const managed = Number(isManaged(b)) - Number(isManaged(a));
@@ -66,6 +88,9 @@ export function groupShowsForPane<T extends Show>(
     const date = calendarDay(a.startDate).localeCompare(calendarDay(b.startDate)) * direction;
     return date !== 0 ? date : a.name.localeCompare(b.name);
   };
+  buckets.managing.sort(
+    (a, b) => (managingRank.get(a) ?? 1) - (managingRank.get(b) ?? 1) || byDate(1)(a, b)
+  );
   buckets.today.sort(byDate(1));
   buckets.upcoming.sort(byDate(1));
   buckets.past.sort(byDate(-1));

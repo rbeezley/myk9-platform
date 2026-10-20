@@ -1,4 +1,4 @@
-name: Isolated batch 3 scoring verification
+name: Isolated scoring and paperwork verification
 
 on:
   workflow_dispatch:
@@ -99,7 +99,7 @@ jobs:
       - name: Compile proof tests
         working-directory: apps/myk9show
         run: pnpm exec tsc --noEmit -p tsconfig.show-day.json
-      - name: Scoring persistence and placement/print parity
+      - name: Scoring persistence, paperwork and time-display parity
         working-directory: apps/myk9show
         run: pnpm exec playwright test --config=playwright.batch3.config.ts --workers=1 --retries=0 --fail-on-flaky-tests
         env:

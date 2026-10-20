@@ -28,7 +28,7 @@ import { CREATE_HREFS, type CreateGates } from './createGates';
  * React state the pure resolver has no access to. `useCurrentActions` binds
  * each one to a real callback; nothing else may invent a command.
  */
-export type ActionCommand = 'publish-premium' | 'edit-object' | 'page-export' | 'page-extra';
+export type ActionCommand = 'edit-object' | 'page-export' | 'page-extra';
 
 /**
  * The objects whose DETAIL page owns an Edit panel (the show's own Edit is a
@@ -341,18 +341,6 @@ function buildShowActions(
       href: `/shows/${encoded}/entries`,
       group: 'show',
       icon: 'entry-forms',
-    },
-    {
-      // Runs the Premium List card's OWN flow, from whatever section the
-      // secretary is on. It was a link to the card's anchor, which the router
-      // could not honour: a pushed hash is not fragment navigation, so at
-      // 375px nothing scrolled at all and from another section the card
-      // arrived unhighlighted.
-      id: 'show-generate-publish-premium',
-      label: 'Generate & publish premium',
-      command: 'publish-premium',
-      group: 'show',
-      icon: 'premium',
     },
     ...(CLOSED_SHOW_STATUSES.has(viewer.showStatus ?? '')
       ? []

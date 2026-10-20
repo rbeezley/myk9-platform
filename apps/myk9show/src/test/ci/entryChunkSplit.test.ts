@@ -106,9 +106,9 @@ describe('entry chunk split', () => {
   it('walks the real graph (positive control)', () => {
     expect(entry.files.size).toBeGreaterThan(500);
     expect(entry.externals.has('react')).toBe(true);
-    expect(entry.files.has(resolve(srcRoot, 'features/premium/premiumPublishCoordinator.ts'))).toBe(
-      true
-    );
+    // A deep file the header pulls in statically. (It was premiumPublishCoordinator.ts until
+    // MYK9-1298 removed the Actions premium row, which took that out of the entry chunk.)
+    expect(entry.files.has(resolve(srcRoot, 'features/actions/actionRegistry.ts'))).toBe(true);
   });
 
   it('keeps the PDF publish path out of the entry closure', () => {

@@ -212,7 +212,7 @@ export function buildReadyForShowDay(input: ReadyForShowDayInput): ReadyForShowD
           ...offlineBase,
           status: 'fail',
           detail:
-            'This device is not saved for offline use. Use the Offline ready button at the top of the page.',
+            'This device is not saved for offline use. Use the Save for show day button at the top of the page.',
         };
 
   const lines: ReadyLine[] = [

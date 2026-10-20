@@ -48,6 +48,9 @@ interface ShowStatusPillProps {
    * an explicit true reads as off, matching the server (the trigger refuses a
    * show whose stored value is true either way). */
   onlineEntriesEnabled: boolean | null | undefined;
+  /** Render the status as plain text in a sentence (the header's status line, MYK9-1282) instead
+   * of a coloured pill. The status-change menu is the same either way. */
+  plain?: boolean;
 }
 
 /**
@@ -83,6 +86,7 @@ export function ShowStatusPill({
   entryOpenDate,
   entryCloseDate,
   onlineEntriesEnabled,
+  plain = false,
 }: ShowStatusPillProps) {
   const { mutateAsync, isPending } = useUpdateShowMutation();
   const navigate = useNavigate();
@@ -196,7 +200,11 @@ export function ShowStatusPill({
 
   const pill = (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold ${config.className}`}
+      className={
+        plain
+          ? 'inline-flex items-center gap-1 font-medium text-foreground'
+          : `inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold ${config.className}`
+      }
     >
       {config.label}
       {transitions.length > 0 && <ChevronDown className="h-3 w-3 opacity-70" />}
@@ -210,7 +218,18 @@ export function ShowStatusPill({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild disabled={isPending}>
-        <button aria-label={config.label}>{pill}</button>
+        <button
+          aria-label={config.label}
+          // Plain, in a line of small text: the pseudo-element stretches the target to 44px
+          // (docs/INTENT.md) without taking any layout space.
+          className={
+            plain
+              ? "relative before:absolute before:-inset-x-1 before:-inset-y-3 before:content-['']"
+              : undefined
+          }
+        >
+          {pill}
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {transitions.map(({ label, next }) => (

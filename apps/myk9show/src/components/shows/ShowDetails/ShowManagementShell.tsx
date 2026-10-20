@@ -8,7 +8,7 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ShowHeader } from './ShowHeader';
 import { ShowHeaderControls } from './ShowHeaderControls';
-import { PublishAttentionChip } from './PublishAttentionChip';
+import { ShowStatusLine } from './ShowStatusLine';
 import { PUBLISH_PANEL_ANCHORS, ShowDetailsPanel } from './ShowDetailsPanel';
 import { useShowDetailsDisclosure } from './useShowDetailsDisclosure';
 import { SHOW_TAB_STRIP_CLASS } from './showStickyLayout';
@@ -237,14 +237,13 @@ function AuthorizedShowManagementShell({
             parent={showHeroParent(show, { viewer: heroViewer })}
             entryCount={detailsEntryCount}
             controls={headerControls}
-            attention={
-              isOverview ? (
-                <PublishAttentionChip
-                  showId={show.id}
-                  canManageShow={canManageShow}
-                  onOpen={details.openPanel}
-                />
-              ) : undefined
+            status={
+              <ShowStatusLine
+                show={show}
+                canManageShow={canManageShow}
+                showPublishing={isOverview}
+                onOpenPublishing={details.openPanel}
+              />
             }
             detailsOpen={details.open}
             onToggleDetails={details.toggle}

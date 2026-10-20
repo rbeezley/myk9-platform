@@ -4,12 +4,11 @@ import type { PublishInfo } from './usePublishInfo';
 /**
  * What the premium publish control should say and whether it may be used.
  *
- * ONE derivation, because there are two controls: the Premium List card's own
- * button on Overview and the header Actions menu item, which offers the flow
- * from every section (MYK9-630). They disagreed in a way only the menu could be
- * wrong about -- with the premium published and current the card renders NO
- * publish button, while the menu still offered an enabled item that would
- * regenerate a live PDF nobody asked to change.
+ * ONE derivation for the Premium List card's button on Overview, which is the
+ * one publish verb (MYK9-1298 removed the header Actions menu item that once
+ * offered it from every section, MYK9-630). With the premium published and
+ * current the card renders NO publish button, so nothing can regenerate a live
+ * PDF nobody asked to change.
  */
 export interface PremiumPublishAction {
   label: string;

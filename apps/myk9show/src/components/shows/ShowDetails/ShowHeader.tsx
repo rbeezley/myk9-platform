@@ -17,10 +17,10 @@ interface ShowHeaderProps {
   parent?: HeroParent | undefined;
   /** `null` while entry counts are unavailable, so no false zero shows. */
   entryCount: number | null;
-  /** Offline readiness, live status, presence and the status pill: the same controls as the full hero. */
+  /** The device line (offline copy), live status and presence. */
   controls: React.ReactNode;
-  /** Something that needs attention (an unpublished premium list), in the line under the name. */
-  attention?: React.ReactNode;
+  /** The show's one status line (status, plus a publishing nudge), under the name. */
+  status?: React.ReactNode;
   /** Whether the details panel is open, and the chevron that toggles it. */
   detailsOpen: boolean;
   onToggleDetails: () => void;
@@ -42,7 +42,7 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
   parent,
   entryCount,
   controls,
-  attention,
+  status,
   detailsOpen,
   onToggleDetails,
 }) => {
@@ -75,7 +75,7 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
           {facts.map(fact => (
             <span key={fact}>{fact}</span>
           ))}
-          {attention}
+          {status}
         </p>
       </div>
       {/* DOM order (name, chevron, controls) is the phone reading and tab order; lg moves the chevron last. */}

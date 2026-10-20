@@ -237,7 +237,6 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
       'Add Trial',
       'Add classes',
       'Open Entry Forms',
-      'Generate & publish premium',
       'Close out show',
       'Add Show',
       'Add Dog',
@@ -546,67 +545,18 @@ describe('AppHeader Actions menu trigger style (MYK9-1268)', () => {
 });
 
 describe('AppHeader Actions menu — the two items that are not plain destinations', () => {
-  it('runs the premium flow from a non-Overview section, without navigating', async () => {
-    // Round-3 review: this was a link to `/shows/:id#setup-publish-premium`.
-    // The router pushes a hash without fragment navigation, so at 375x812
-    // nothing scrolled (scrollY stayed 159 with the card at top 924) and from
-    // another section the card arrived unhighlighted. It runs the card's own
-    // flow now, from wherever the secretary is standing.
-    const user = userEvent.setup();
-    render(
-      <>
-        <AppHeader />
-        <LocationProbe />
-      </>,
-      { initialRoute: SECTION_ROUTE }
-    );
-
-    await user.click(screen.getByRole('button', { name: /^actions$/i }));
-    const menu = await screen.findByRole('menu');
-    await user.click(within(menu).getByTestId('header-action-show-generate-publish-premium'));
-
-    await waitFor(() => expect(premiumEdges.generate).toHaveBeenCalledWith('show-1'));
-    await waitFor(() =>
-      expect(premiumEdges.runPremiumPublishOperation).toHaveBeenCalledWith(
-        expect.objectContaining({
-          showId: 'show-1',
-          mode: 'generated',
-          intentKey: 'generated-current-sources',
-          inkSaver: false,
-          createPremium: expect.any(Function),
-        })
-      )
-    );
-    // And it did NOT move the secretary off the section they were working on.
-    expect(screen.getByTestId('probe-pathname')).toHaveTextContent(SECTION_ROUTE);
-  });
-
-  it('shows the actionable correction when publishing from the header fails', async () => {
-    premiumEdges.generate.mockRejectedValueOnce(
-      new Error('Premium generation is only supported for AKC and UKC shows (got: null)')
-    );
+  it('has no premium publish row: the details-panel card is the one verb (MYK9-1298)', async () => {
     const user = userEvent.setup();
     render(<AppHeader />, { initialRoute: SECTION_ROUTE });
 
     await user.click(screen.getByRole('button', { name: /^actions$/i }));
     const menu = await screen.findByRole('menu');
-    await user.click(within(menu).getByTestId('header-action-show-generate-publish-premium'));
-
-    await waitFor(() =>
-      expect(notificationsMock.error).toHaveBeenCalledWith(
-        "Set this show's organization to AKC or UKC in Show settings, then try again."
-      )
-    );
-  });
-
-  it('is not a link at all, so there is no hash for the router to drop', async () => {
-    const user = userEvent.setup();
-    render(<AppHeader />, { initialRoute: SECTION_ROUTE });
-
-    await user.click(screen.getByRole('button', { name: /^actions$/i }));
-    const menu = await screen.findByRole('menu');
-    const item = within(menu).getByTestId('header-action-show-generate-publish-premium');
-    expect(item.closest('a')).toBeNull();
+    // Positive control: the menu is open and still lists the show's own items.
+    expect(within(menu).getByTestId('header-action-show-settings')).toBeInTheDocument();
+    expect(
+      within(menu).queryByTestId('header-action-show-generate-publish-premium')
+    ).not.toBeInTheDocument();
+    expect(within(menu).queryByText(/publish premium/i)).not.toBeInTheDocument();
   });
 
   it('opens the edit panel over the current section, without leaving it (MYK9-736)', async () => {
@@ -657,67 +607,6 @@ describe('AppHeader Actions menu — the two items that are not plain destinatio
         '?queue=needs-review&q=rex&edit=true'
       )
     );
-  });
-});
-
-describe('the premium item says what the Premium List card says', () => {
-  async function openMenu() {
-    const user = userEvent.setup();
-    render(<AppHeader />, { initialRoute: SECTION_ROUTE });
-    await user.click(screen.getByRole('button', { name: /^actions$/i }));
-    const menu = await screen.findByRole('menu');
-    return {
-      user,
-      item: within(menu).getByTestId('header-action-show-generate-publish-premium'),
-    };
-  }
-
-  it('is GREYED when the premium is published and up to date', async () => {
-    // The card renders no publish button at all in this state. The menu used to
-    // offer an enabled item that would regenerate a live PDF.
-    premiumEdges.publishInfo = {
-      publishedLocator: 'https://example.test/premium.pdf',
-      publishedAt: '2026-09-01T10:00:00Z',
-      updatedAt: '2026-09-01T10:00:00Z',
-      experienceIsPublished: true,
-    };
-
-    const { item } = await openMenu();
-    expect(item).toHaveAttribute('data-disabled');
-    expect(item).toHaveTextContent('Premium is published and up to date');
-  });
-
-  it('is GREYED while the publish read has not resolved', async () => {
-    premiumEdges.publishInfo = undefined as never;
-
-    const { item } = await openMenu();
-    expect(item).toHaveAttribute('data-disabled');
-    expect(item).toHaveTextContent('Checking the premium');
-  });
-
-  it('shows the offline reason in the paused publish menu item', async () => {
-    premiumEdges.publishInfo = undefined as never;
-    premiumEdges.publishFetchStatus = 'paused';
-
-    const { item } = await openMenu();
-    expect(item).toHaveAttribute('data-disabled');
-    expect(item).toHaveTextContent("You're offline — publishing needs a connection");
-  });
-
-  it('is enabled and says "Republish premium" when the show data moved on', async () => {
-    premiumEdges.publishInfo = {
-      publishedLocator: 'https://example.test/premium.pdf',
-      publishedAt: '2026-09-01T10:00:00Z',
-      updatedAt: '2026-09-02T10:00:00Z',
-      experienceIsPublished: true,
-    };
-
-    const { user, item } = await openMenu();
-    expect(item).not.toHaveAttribute('data-disabled');
-    expect(item).toHaveTextContent('Republish premium');
-
-    await user.click(item);
-    await waitFor(() => expect(premiumEdges.generate).toHaveBeenCalledWith('show-1'));
   });
 });
 

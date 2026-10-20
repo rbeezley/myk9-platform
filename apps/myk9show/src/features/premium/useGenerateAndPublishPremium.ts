@@ -80,12 +80,10 @@ export interface GenerateAndPublishPremium {
 }
 
 /**
- * THE premium generate-and-publish flow. One implementation, two callers: the
- * Premium List card's button and the header Actions menu's "Generate & publish
- * premium". The menu item used to be a link to the card's anchor, which was a
- * promise the router could not keep -- `pushState` is not fragment navigation,
- * so from another section the card was never scrolled to or highlighted, and at
- * 375px nothing moved at all.
+ * THE premium generate-and-publish flow. The Premium List card's button
+ * is its one caller since MYK9-1298 removed the header Actions menu row (which
+ * had replaced a hash link the router could not honour: `pushState` is not
+ * fragment navigation, so nothing scrolled).
  */
 export function useGenerateAndPublishPremium(showId: string): GenerateAndPublishPremium {
   const queryClient = useQueryClient();

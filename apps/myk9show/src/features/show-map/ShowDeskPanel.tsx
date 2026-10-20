@@ -192,8 +192,8 @@ export default function ShowDeskPanel({
           className="rounded-md border bg-muted/40 px-4 py-3 text-sm text-muted-foreground"
           role="status"
         >
-          Show-day work has not started. Setup and entry work remain available from their normal
-          pages.
+          Show-day work has not started. Entries are on the Entry Forms tab, and show setup is here
+          on Overview.
         </div>
       )}
       {canManageShow && (

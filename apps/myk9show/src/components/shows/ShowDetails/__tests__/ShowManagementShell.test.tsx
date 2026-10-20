@@ -114,12 +114,12 @@ vi.mock('@/features/show-live-sync/LiveUpdateIndicator', () => ({
   LiveUpdateIndicator: () => <div data-testid="live-indicator" />,
 }));
 vi.mock('@/features/offline-readiness/OfflineReadyBadge', () => ({
-  OfflineReadyBadge: ({ showId }: { showId: string }) => (
-    <div data-testid="offline-ready-badge" data-show-id={showId} />
+  OfflineReadyBadge: ({ showId, note }: { showId: string; note?: string }) => (
+    <div data-testid="offline-ready-badge" data-show-id={showId} data-note={note} />
   ),
 }));
 vi.mock('@/components/shows/ShowDetails/ShowSyncStatus', () => ({
-  ShowSyncStatus: () => <div data-testid="sync-status" />,
+  useSyncNote: () => ({ label: 'All changes saved', needsAttention: false }),
 }));
 vi.mock('@/features/premium/PremiumDownloadCard', () => ({
   PremiumDownloadCard: ({
@@ -318,7 +318,11 @@ describe('ShowManagementShell', () => {
   it('mounts offline readiness and the sync status on the show home', () => {
     renderShell();
     expect(screen.getByTestId('offline-ready-badge')).toHaveAttribute('data-show-id', 'show-1');
-    expect(screen.getByTestId('sync-status')).toBeInTheDocument();
+    // The sync status is folded into the one device line, not a second chip.
+    expect(screen.getByTestId('offline-ready-badge')).toHaveAttribute(
+      'data-note',
+      'All changes saved'
+    );
   });
 
   // The deleted Show Day header warned when show data changed after the
@@ -527,7 +531,11 @@ describe('ShowManagementShell', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Test Show' })).toBeInTheDocument();
     // Offline readiness and the status pill must not be lost with the hero.
     expect(screen.getByTestId('offline-ready-badge')).toBeInTheDocument();
-    expect(screen.getByTestId('sync-status')).toBeInTheDocument();
+    // The sync status is folded into the one device line, not a second chip.
+    expect(screen.getByTestId('offline-ready-badge')).toHaveAttribute(
+      'data-note',
+      'All changes saved'
+    );
     expect(screen.getByTestId('status-pill')).toBeInTheDocument();
     // The host club is read, not linked: a link would need a 44px target (docs/INTENT.md).
     expect(screen.getByText('Bergen KC')).toBeInTheDocument();

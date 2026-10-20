@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
-import { usePremiumPublishControl } from '@/features/premium/usePremiumPublishControl';
 import { useShowStore } from '@/store/showStore';
 import { usePageEditTargetStore } from './pageEditTarget';
 import { resolveCreateGates } from './createGates';
@@ -63,18 +62,6 @@ export function useCurrentActions(): CurrentActions {
     showId ? state.shows.find(show => show.id === showId)?.status : undefined
   );
   const showStatus = storedShowStatus ?? queriedShow?.status;
-
-  // The one control behind the `publish-premium` command -- the same read,
-  // derivation and flow the Premium List card renders, so the menu can never
-  // offer a publish the card has withdrawn. Called unconditionally (hooks
-  // rules) with an empty id off a show route, or with the show-management gate
-  // closed while scope resolves. `true`: this menu is manager-only, so
-  // staleness is always the viewer's business here.
-  const premium = usePremiumPublishControl(
-    showId ?? '',
-    true,
-    scope.status === 'resolved' && scope.canManage
-  );
 
   // The detail page on screen, when it registered an Edit it lets this viewer use.
   const pageTarget = usePageEditTargetStore(state => state.target);
@@ -161,28 +148,9 @@ export function useCurrentActions(): CurrentActions {
           const exported = pageExports.find(item => `page-export-${item.id}` === action.id);
           return exported ? { ...action, run: exported.run } : action;
         }
-        if (action.command !== 'publish-premium') return action;
-        return {
-          ...action,
-          // Label AND availability come from the shared derivation, not from
-          // the registry's static text: "Republish premium" when the show data
-          // moved on, greyed with a reason when there is nothing to publish.
-          label: premium.action.label,
-          run: premium.run,
-          ...(premium.action.disabledReason
-            ? { disabledReason: premium.action.disabledReason }
-            : {}),
-        };
+        return action;
       }),
-    [
-      resolved,
-      search,
-      pageTarget,
-      pageExports,
-      premium.action.label,
-      premium.action.disabledReason,
-      premium.run,
-    ]
+    [resolved, search, pageTarget, pageExports]
   );
 
   const groups = useMemo(

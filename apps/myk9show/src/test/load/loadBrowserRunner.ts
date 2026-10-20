@@ -1,4 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { signInAsExhibitor, signInAsSecretary } from '../e2e/helpers/testUsers';
 import { assertApplicationTarget } from './loadAppTarget';
@@ -15,6 +14,7 @@ import {
   LOAD_SHOW_ENTRY_COUNT,
   LOAD_SHOW_ID,
 } from './loadFixture';
+import { assertCanonicalFixture } from './loadFixturePreflight';
 import { LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT } from './loadClassColumns';
 import { planGeneration } from './loadGenerationPlan';
 import {
@@ -654,25 +654,6 @@ async function timedGoto(page: Page, path: string, metrics: LoadMetrics): Promis
   const startedAt = performance.now();
   await page.goto(path, { waitUntil: 'domcontentloaded' });
   metrics.recordPageDuration(performance.now() - startedAt);
-}
-
-async function assertCanonicalFixture(): Promise<void> {
-  const url = process.env.VITE_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Missing Supabase fixture-preflight credentials.');
-  const client = createClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
-  });
-  const { count, error } = await client
-    .from('entries')
-    .select('id', { count: 'exact', head: true })
-    .eq('show_id', LOAD_SHOW_ID);
-  if (error) throw new Error(`Could not preflight the load fixture: ${error.message}`);
-  if (count !== LOAD_SHOW_ENTRY_COUNT) {
-    throw new Error(
-      `Load fixture requires exactly ${LOAD_SHOW_ENTRY_COUNT} demo-show entries; found ${count ?? 0}.`
-    );
-  }
 }
 
 function delay(milliseconds: number): Promise<void> {

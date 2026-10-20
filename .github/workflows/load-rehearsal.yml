@@ -603,12 +603,15 @@ jobs:
             exit 1
           }
           # Restoration must prove every show returned to its seeded state, not
-          # just the first. A rehearsal writes to all four.
+          # just the first. A rehearsal writes to all four. The lean reseed removes
+          # the whole load fixture, so every generated entry and all three extra
+          # shows must be gone: 0|0|0. (Until MYK9-1271 this reused the prepare
+          # step's expectation, so a correct restore always failed here.)
           multi="$(psql \
             "postgresql://postgres.${LOAD_TEST_PROJECT_REF}@${LOAD_TEST_DB_HOST}:${LOAD_TEST_ADMIN_DB_PORT}/postgres" \
             -X -v ON_ERROR_STOP=1 -At -F '|' \
             -c "SELECT count(*), count(*) FILTER (WHERE is_scored), (SELECT count(*) FROM public.shows WHERE id >= 'a1090000-0000-0000-0010-000000000000'::uuid AND id < 'a1090000-0000-0000-0011-000000000000'::uuid) FROM public.entries WHERE id >= 'a1090000-0000-0000-0002-000000000000'::uuid AND id < 'a1090000-0000-0000-0003-000000000000'::uuid;")"
-          [[ "$multi" == "1260|0|3" ]] || {
+          [[ "$multi" == "0|0|0" ]] || {
             echo "Multi-show cleanup postcondition failed: $multi" >&2
             exit 1
           }

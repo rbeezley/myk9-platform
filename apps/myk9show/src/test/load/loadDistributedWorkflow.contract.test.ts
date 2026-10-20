@@ -115,6 +115,11 @@ describe('manual distributed load workflow', () => {
     const restore = workflow.slice(workflow.indexOf('Restore canonical seed'));
     expect(restore).not.toContain('seed-load-fixture.sql');
     expect(restore).toContain('"13|0|0"');
+    // The restore removes the fixture on every show, so the multi-show check
+    // must expect nothing left; the prepare value 1260|0|3 here failed every
+    // correct restore (MYK9-1271).
+    expect(restore).toContain('[[ "$multi" == "0|0|0" ]]');
+    expect(restore).not.toContain('1260|0|3');
     expect(workflow).toContain(
       "has_function_privilege('authenticated', 'public.ringside_update_entry(uuid,jsonb,integer)', 'EXECUTE')"
     );

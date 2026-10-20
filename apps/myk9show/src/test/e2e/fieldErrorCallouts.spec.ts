@@ -11,9 +11,6 @@ import { signInAsAdmin, signInAsExhibitor, signInAsSecretary } from './helpers/t
  * READ-ONLY. Every case submits a form with the failing field empty, so the client refuses it
  * before any request. The shared-staging write guard is installed on every page as a second
  * line of defence, and each case asserts that it blocked nothing.
- *
- * Add Promo Code is neither converted nor covered: AddPromoCodeDialog is not mounted anywhere in
- * the app today (its PromoCodesSection has no caller), so there is no real route to open it from.
  */
 
 const VIEWPORTS = [

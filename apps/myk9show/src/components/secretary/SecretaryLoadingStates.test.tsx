@@ -1,27 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { FinancialSummary } from './FinancialSummary';
-import { PromoCodesSection } from './PromoCodesSection';
 
 const trialEntriesState = vi.hoisted(() => ({
   data: [] as unknown[],
   isLoading: false,
 }));
 
-const promoCodeState = vi.hoisted(() => ({
-  show: { data: [] as unknown[], isLoading: false },
-  trial: { data: [] as unknown[], isLoading: false },
-}));
-
 vi.mock('@/hooks/queries/useTrialEntries', () => ({
   useTrialEntries: () => trialEntriesState,
-}));
-
-vi.mock('@/hooks/queries/usePromoCodeDatabase', () => ({
-  usePromoCodesByShowQuery: () => promoCodeState.show,
-  usePromoCodesByTrialQuery: () => promoCodeState.trial,
-  useCreatePromoCodeMutation: () => ({ mutate: vi.fn(), isPending: false }),
-  useDeletePromoCodeMutation: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -31,11 +18,9 @@ vi.mock('@/hooks/useAuthContext', () => ({
 beforeEach(() => {
   trialEntriesState.data = [];
   trialEntriesState.isLoading = false;
-  promoCodeState.show = { data: [], isLoading: false };
-  promoCodeState.trial = { data: [], isLoading: false };
 });
 
-describe('Secretary financial and promo sections — loading state skeleton convergence', () => {
+describe('Secretary financial summary — loading state skeleton convergence', () => {
   it('renders a skeleton, not a spinner, while the trial financial summary is loading', () => {
     trialEntriesState.isLoading = true;
 
@@ -52,21 +37,5 @@ describe('Secretary financial and promo sections — loading state skeleton conv
       screen.queryByRole('status', { name: /loading financial summary/i })
     ).not.toBeInTheDocument();
     expect(screen.getByText(/entry fees, discounts, and payment status overview/i)).toBeTruthy();
-  });
-
-  it('renders a table skeleton, not a spinner, while promo codes are loading', () => {
-    promoCodeState.show = { data: [], isLoading: true };
-
-    render(<PromoCodesSection showId="show-1" />);
-
-    expect(screen.getByRole('status', { name: /loading promo codes/i })).toBeInTheDocument();
-    expect(document.querySelector('.animate-spin')).toBeNull();
-  });
-
-  it('removes the promo-code skeleton for the loaded empty state', () => {
-    render(<PromoCodesSection showId="show-1" />);
-
-    expect(screen.queryByRole('status', { name: /loading promo codes/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/no promo codes yet/i)).toBeTruthy();
   });
 });

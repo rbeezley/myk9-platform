@@ -80,7 +80,7 @@ export async function searchForSeededDog(page: Page, dog: SeededSearchDog): Prom
 }
 
 /**
- * The demo show's entry window is `CURRENT_DATE - 16 .. + 76` (`seed-demo.sql`
+ * The demo show's entry window is `CURRENT_DATE - 16 .. + 38` (`seed-demo.sql`
  * section 2) — deliberately relative, so "today" is always inside it. A spec
  * that pinned `page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'))`
  * was therefore guaranteed to fall outside the window the moment staging was
@@ -90,7 +90,7 @@ export async function searchForSeededDog(page: Page, dog: SeededSearchDog): Prom
  * Returns the override when `QA_REGISTRATION_TIME` is set (a hand run pinning a
  * specific moment), and `null` otherwise, meaning "use real time" — which the
  * seed's relative window guarantees is inside the entry period *for the first
- * 76 days after a reseed*. Past that the whole sweep goes red with the same
+ * 38 days after a reseed*. Past that the whole sweep goes red with the same
  * "not accepting online entries yet" symptom; reseed rather than reaching for
  * the override, because `page.clock` fakes only the BROWSER clock and the
  * server's own entry-window guard still sees real time — a spec can then pass

@@ -274,7 +274,7 @@ a whole sweep on 2026-09-15 (MYK9-545) and are now guarded in
   from the picker's own `"N of M dogs shown"` status line, or assert the floor
   `SEEDED_EXHIBITOR_DOG_COUNT`, never today's staging total.
 - **No spec may pin an absolute clock date.** The demo show's entry window is
-  `CURRENT_DATE - 16 .. + 76` (`seed-demo.sql` § 2), deliberately relative so
+  `CURRENT_DATE - 16 .. + 38` (`seed-demo.sql` § 2), deliberately relative so
   today is always inside it. Four specs called
   `page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'))`, which fell
   outside the window on every reseed after that date, and the exhibitor wizard
@@ -294,9 +294,9 @@ a whole sweep on 2026-09-15 (MYK9-545) and are now guarded in
 "Tolerates drift" is not "has no fixture dependency". Three remain, and the
 first one is a clock bomb:
 
-- **The sweep expires 76 days after the last reseed.** `applyRegistrationClock`
+- **The sweep expires 38 days after the last reseed.** `applyRegistrationClock`
   defaults to real time precisely because the window is relative — but the
-  window is `CURRENT_DATE - 16 .. + 76`, so once staging has gone 77 days
+  window is `CURRENT_DATE - 16 .. + 38`, so once staging has gone 39 days
   without a reseed every exhibitor-path spec goes red with exactly the symptom
   MYK9-545 diagnosed: "This show is not accepting online entries yet." Reseed;
   do not reach for the override.
@@ -320,7 +320,7 @@ first one is a clock bomb:
 
 **Specs that must run only on a freshly reseeded database: none**, in the sense
 that none needs a pristine dog roster or the absence of walk debris. Every spec
-in the directory does need a reseed within the last 76 days, per the first
+in the directory does need a reseed within the last 38 days, per the first
 bullet above. If a new spec needs more than that, note it here rather than
 letting the sweep fail for whoever runs it next.
 

@@ -8,7 +8,7 @@ import { must, ok } from './waitlistJourneyFixture';
  * client with `waitlistAdmin()`, which refuses any Supabase host that is not on this machine.
  */
 
-/** `seed-demo.sql` section 2: Heartland Scent Work Classic (AKC), entries open CURRENT_DATE - 16 .. + 76. */
+/** `seed-demo.sql` section 2: Heartland Scent Work Classic (AKC), entries open CURRENT_DATE - 16 .. + 38. */
 export const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
 /** `seed-demo.sql` section 3: Trial 2 of the show above. */
 export const TRIAL_ID = 'dededede-0000-0000-0000-000000000022';

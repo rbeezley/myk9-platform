@@ -260,9 +260,9 @@ ON CONFLICT (club_id, organization) DO UPDATE SET number = EXCLUDED.number;
 -- Stripe Connect sandbox account for Load Club 1 (Green Country Scent Work Club) ONLY.
 --
 -- Why club 1 and not all three: the load shows' entry window is open
--- (CURRENT_DATE + 76), so this is the only show in the fixture set that an
--- exhibitor can both enter AND pay for -- Heartland's window closes at
--- CURRENT_DATE + 1. Without this row the recurring exhibitor task walk cannot
+-- (CURRENT_DATE + 38), so this is the only show in the fixture set that an
+-- exhibitor can both enter AND pay for -- Heartland's window also closes at
+-- CURRENT_DATE + 38 (both before their shows start, MYK9-1281). Without this row the recurring exhibitor task walk cannot
 -- reach checkout at all, and role task 3 ("pay entry fees") goes unwalked; it
 -- did on 2026-09-04. See MYK9-388.
 --
@@ -322,7 +322,7 @@ SELECT
   'AKC',
   show_description,
   ((CURRENT_DATE + 45)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 47)::timestamp AT TIME ZONE 'UTC'),
-  ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 76)::timestamp AT TIME ZONE 'UTC'),
+  ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 38)::timestamp AT TIME ZONE 'UTC'),
   format('%s00 Fairgrounds Road, Tulsa, OK 74101', s),
   'Tulsa', 'Oklahoma',
   36.15, -95.99,
@@ -695,6 +695,46 @@ BEGIN
   IF v_total <> 1 THEN
     RAISE EXCEPTION
       'MYK9-109 expected exactly 1 payable load club (sandbox), found %', v_total;
+  END IF;
+END $$;
+
+-- MYK9-1281: date coherence of the three load shows. A load show must close
+-- entries before it starts and hold its trials inside its own date range, and
+-- no two live shows may share a name and a start date.
+DO $$
+DECLARE
+  v_bad text;
+BEGIN
+  SELECT s.name INTO v_bad
+  FROM public.shows s
+  WHERE s.id >= 'a1090000-0000-0000-0010-000000000000'::uuid
+    AND s.id <  'a1090000-0000-0000-0011-000000000000'::uuid
+    AND s.deleted_at IS NULL
+    AND (
+      (s.entry_close_date AT TIME ZONE 'UTC')::date > (s.start_date AT TIME ZONE 'UTC')::date
+      OR EXISTS (
+        SELECT 1 FROM public.trials t
+        WHERE t.show_id = s.id
+          AND (t.date < (s.start_date AT TIME ZONE 'UTC')::date OR t.date > (s.end_date AT TIME ZONE 'UTC')::date)
+      )
+    )
+  LIMIT 1;
+
+  IF v_bad IS NOT NULL THEN
+    RAISE EXCEPTION 'MYK9-1281 load show "%" is date-inconsistent (entries close after the show starts, or a trial falls outside its dates)', v_bad;
+  END IF;
+
+  SELECT a.name INTO v_bad
+  FROM public.shows a
+  JOIN public.shows b ON b.id <> a.id AND b.name = a.name
+   AND b.start_date = a.start_date AND b.deleted_at IS NULL
+  WHERE a.id >= 'a1090000-0000-0000-0010-000000000000'::uuid
+    AND a.id <  'a1090000-0000-0000-0011-000000000000'::uuid
+    AND a.deleted_at IS NULL
+  LIMIT 1;
+
+  IF v_bad IS NOT NULL THEN
+    RAISE EXCEPTION 'MYK9-1281 two live shows share the name "%" and a start date', v_bad;
   END IF;
 END $$;
 

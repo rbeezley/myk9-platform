@@ -55,7 +55,7 @@
 --     CURRENT_DATE + 28                 armbands assigned
 --     CURRENT_DATE + 31..33, +44, +48   messages, email history
 --     CURRENT_DATE + 45..47             the show runs (4 trials)
---     CURRENT_DATE + 76                 entry window closes
+--     CURRENT_DATE + 38                 entry window closes (before any show starts, MYK9-1281)
 --
 --   One exception, section 19: the show-day fixture runs from TODAY to TODAY + 6
 --   in the show's own timezone (America/Chicago), read from now() rather than
@@ -416,7 +416,8 @@ WHERE class_id IN (
 -- Armbands hang off the seeded show (and reference dogs/entries) — clear by show
 -- before deleting entries/dogs so their FKs can't block.
 DELETE FROM public.armbands WHERE show_id = 'dededede-0000-0000-0000-000000000010';
--- Show-day fixture shows (section 19) are never deleted, so their armbands are
+-- Show-day fixture shows (section 19) are deleted only when nothing of a
+-- person's hangs off them (below, MYK9-1281), so a survivor's armbands are
 -- not cleared by a show delete: the retired fixed show ...014 and every show
 -- public.seed_demo_restore_show_day_fixture() minted (id range
 -- dededede-0000-0000-0731-*, MYK9-731). Clear every armband on them that holds
@@ -518,6 +519,73 @@ WHERE id >= 'dededede-0000-0000-0731-000000000000'::uuid
 -- of every parent delete, and the drift check that the function names every
 -- show and dog id-space this section deletes.
 SELECT public.seed_demo_assert_no_paid_strays();
+
+-- MYK9-1281: retire the show-day fixture SHOWS the reseed has outgrown. Section
+-- 19 calls public.seed_demo_restore_show_day_fixture(), which is insert-only
+-- (MYK9-731: it never updates or deletes) and is "ready" only while a fixture
+-- show still carries its minted entries. The entry delete above just removed
+-- those, so no fixture is ever ready at reseed time and EVERY reseed minted a
+-- new "Heartland Scent Work Week" show; the old ones piled up on Find Shows
+-- (six by 2026-10-20, four on the same dates).
+-- Two layers, two jobs. The SKIP LIST protects data: a fixture show is left
+-- alone when anything that carries money or a person's own work hangs off it,
+-- matched by show_id OR through one of the show's classes or trials (a waitlist
+-- join counts as a person's work; entries.
+-- show_id is nullable; entry_cart_items hangs off classes with NO ACTION, which
+-- would block the shows -> trials -> classes cascade with 23503). refund_requests
+-- is ON DELETE SET NULL, so deleting would silently strip its show link. The
+-- per-show EXCEPTION sub-block protects the RESEED: an FK nobody listed keeps
+-- that one show and warns, and never aborts the run (ON_ERROR_STOP).
+-- Everything else on a deleted show (trials, classes, armbands, judge
+-- assignments, announcements, visibility settings, lifecycle email steps)
+-- cascades from shows. It runs AFTER the paid-stray guard so the guard still
+-- sees every fixture show. The retired fixed show ...014 is outside this id
+-- range and is not touched.
+DO $$
+DECLARE
+  v_show record;
+  v_hangs boolean;
+BEGIN
+  FOR v_show IN
+    SELECT s.id, s.name
+    FROM public.shows s
+    WHERE s.id >= 'dededede-0000-0000-0731-000000000000'::uuid
+      AND s.id <  'dededede-0000-0000-0732-000000000000'::uuid
+  LOOP
+    SELECT
+      EXISTS (SELECT 1 FROM public.entries e
+              WHERE e.show_id = v_show.id
+                 OR e.trial_id IN (SELECT t.id FROM public.trials t WHERE t.show_id = v_show.id)
+                 OR e.class_id IN (SELECT c.id FROM public.classes c
+                                   JOIN public.trials t ON t.id = c.trial_id
+                                   WHERE t.show_id = v_show.id))
+      OR EXISTS (SELECT 1 FROM public.enrollments en WHERE en.show_id = v_show.id)
+      OR EXISTS (SELECT 1 FROM public.waitlist_entries we
+                 WHERE we.class_id IN (SELECT c.id FROM public.classes c
+                                       JOIN public.trials t ON t.id = c.trial_id
+                                       WHERE t.show_id = v_show.id))
+      OR EXISTS (SELECT 1 FROM public.entry_cart_items eci
+                 WHERE eci.class_id IN (SELECT c.id FROM public.classes c
+                                        JOIN public.trials t ON t.id = c.trial_id
+                                        WHERE t.show_id = v_show.id))
+      OR EXISTS (SELECT 1 FROM public.stripe_orders so WHERE so.show_id = v_show.id)
+      OR EXISTS (SELECT 1 FROM public.show_payments sp WHERE sp.show_id = v_show.id)
+      OR EXISTS (SELECT 1 FROM public.show_payouts spo WHERE spo.show_id = v_show.id)
+      OR EXISTS (SELECT 1 FROM public.entry_payment_links epl WHERE epl.show_id = v_show.id)
+      OR EXISTS (SELECT 1 FROM public.show_money_locks sml WHERE sml.show_id = v_show.id)
+      OR EXISTS (SELECT 1 FROM public.refund_requests rr WHERE rr.show_id = v_show.id)
+      OR EXISTS (SELECT 1 FROM public.trial_packet_snapshots tps WHERE tps.show_id = v_show.id)
+    INTO v_hangs;
+
+    IF NOT v_hangs THEN
+      BEGIN
+        DELETE FROM public.shows WHERE id = v_show.id;
+      EXCEPTION WHEN foreign_key_violation OR restrict_violation THEN
+        RAISE WARNING 'seed-demo: kept fixture show % (%): %', v_show.id, v_show.name, SQLERRM;
+      END;
+    END IF;
+  END LOOP;
+END $$;
 
 -- waitlist_entries.dog_id has no ON DELETE action (pg_constraint confdeltype='a'),
 -- unlike entries.dog_id which cascades. A stray waitlist join for a load-range dog
@@ -1059,7 +1127,10 @@ ON CONFLICT (club_id, person_id) DO UPDATE
 --    status/registration_status enum for "accepting" -- the gate is purely
 --    status='published' + the date window.
 --
---    The window is CURRENT_DATE - 16 .. + 76, so it always contains today. It was
+--    The window is CURRENT_DATE - 16 .. + 38, so it always contains today and
+--    closes BEFORE the earliest show starts (+ 45; MYK9-1281: it used to run to
+--    + 76, so every published show closed entries after it ran). Section 0's
+--    sibling postcondition at the end of this file keeps it that way. It was
 --    previously the fixed pair '2026-06-01' .. '2026-09-01', chosen to contain the
 --    launch-gate walk date of 2026-06-17 -- and it duly expired on 2026-09-01, at
 --    which point nothing on staging was enterable and the exhibitor's two most
@@ -1107,7 +1178,7 @@ VALUES (
   'AKC',
   'A two-day AKC Scent Work demo trial used to showcase the myK9Show experience.',
   ((CURRENT_DATE + 45)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 47)::timestamp AT TIME ZONE 'UTC'),
-  ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 76)::timestamp AT TIME ZONE 'UTC'),
+  ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 38)::timestamp AT TIME ZONE 'UTC'),
   '100 Dog Show Lane, Tulsa, OK 74101',
   'Tulsa', 'Oklahoma',
   36.15, -95.99,
@@ -1206,7 +1277,7 @@ VALUES
     'UKC',
     'A one-day UKC Nosework demo trial. Single-registry by rule (MYK9-490); the club''s AKC weekend is a separate show.',
     ((CURRENT_DATE + 52)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 52)::timestamp AT TIME ZONE 'UTC'),
-    ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 76)::timestamp AT TIME ZONE 'UTC'),
+    ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 38)::timestamp AT TIME ZONE 'UTC'),
     '100 Dog Show Lane, Tulsa, OK 74101',
     'Tulsa', 'Oklahoma',
     36.15, -95.99,
@@ -1227,7 +1298,7 @@ VALUES
     'ASCA',
     'A one-day ASCA Scent Detection demo trial. Single-registry by rule (MYK9-490); the club''s AKC weekend is a separate show.',
     ((CURRENT_DATE + 53)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 53)::timestamp AT TIME ZONE 'UTC'),
-    ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 76)::timestamp AT TIME ZONE 'UTC'),
+    ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 38)::timestamp AT TIME ZONE 'UTC'),
     '100 Dog Show Lane, Tulsa, OK 74101',
     'Tulsa', 'Oklahoma',
     36.15, -95.99,
@@ -2595,8 +2666,8 @@ VALUES
 -- (docs/operations/staging-reseed.md). It is INSERT-ONLY: if a ready fixture
 -- already covers today it returns it and writes nothing, otherwise it inserts a
 -- brand-new fixture show with fresh ids in the range dededede-0000-0000-0731-*.
--- It never updates or deletes an existing row, so older fixture shows simply
--- age into the past. Section 0 has already removed every entry it minted, so a
+-- It never updates or deletes an existing row; the reseed's section 0 retires
+-- stale fixture shows nothing of a person's hangs off (MYK9-1281). Section 0 has already removed every entry it minted, so a
 -- reseed always gets a fresh fixture. Walks find it with
 -- public.seed_demo_show_day_fixture_today(), never by a fixed id.
 --
@@ -2649,6 +2720,74 @@ BEGIN
   IF v_load_rows <> 0 THEN
     RAISE EXCEPTION 'seed-demo expected no MYK9-109 load-fixture rows after a reseed, found %', v_load_rows;
   END IF;
+END $$;
+
+-- Date-coherence postcondition (MYK9-1281). Seed-owned shows are the four fixed
+-- demo shows ...010-...013 (NOT the retired ...014, which a walk can add trials
+-- to and which can share a name with a same-day fixture) plus the ONE fixture show
+-- public.seed_demo_show_day_fixture_today() returns. A surviving older
+-- ...0731-... fixture show (kept because a walk or club touched it) is not the
+-- seed's to fail on, so the close-before-start and trial-range checks are
+-- EXCEPTIONs over the seed-owned set only. The duplicate name + start date check
+-- is an EXCEPTION only when BOTH shows are seed-owned; a pair with a surviving
+-- fixture show is a WARNING naming both ids, so a reseed is never blocked by a
+-- show a person touched (same-day walk enrolls, reseed mints a second fixture).
+DO $$
+DECLARE
+  v_bad text;
+  v_fixture uuid := public.seed_demo_show_day_fixture_today();
+  r record;
+BEGIN
+  CREATE TEMP TABLE _seed_owned_shows ON COMMIT DROP AS
+  SELECT s.id
+  FROM public.shows s
+  WHERE s.deleted_at IS NULL
+    AND (s.id IN ('dededede-0000-0000-0000-000000000010'::uuid,
+                'dededede-0000-0000-0000-000000000011'::uuid,
+                'dededede-0000-0000-0000-000000000012'::uuid,
+                'dededede-0000-0000-0000-000000000013'::uuid)
+         OR s.id = v_fixture);
+
+  SELECT s.name INTO v_bad
+  FROM public.shows s
+  JOIN _seed_owned_shows o ON o.id = s.id
+  WHERE (s.entry_close_date AT TIME ZONE 'UTC')::date > (s.start_date AT TIME ZONE 'UTC')::date
+  LIMIT 1;
+  IF v_bad IS NOT NULL THEN
+    RAISE EXCEPTION 'seed-demo show "%" closes entries after it starts (MYK9-1281)', v_bad;
+  END IF;
+
+  SELECT s.name INTO v_bad
+  FROM public.shows s
+  JOIN _seed_owned_shows o ON o.id = s.id
+  JOIN public.trials t ON t.show_id = s.id
+  WHERE t.deleted_at IS NULL
+    AND (t.date < (s.start_date AT TIME ZONE 'UTC')::date
+         OR t.date > (s.end_date AT TIME ZONE 'UTC')::date)
+  LIMIT 1;
+  IF v_bad IS NOT NULL THEN
+    RAISE EXCEPTION 'seed-demo show "%" has a trial dated outside its start/end range (MYK9-1281)', v_bad;
+  END IF;
+
+  FOR r IN
+    SELECT a.id AS a_id, b.id AS b_id, a.name,
+           (a.id IN (SELECT id FROM _seed_owned_shows)
+            AND b.id IN (SELECT id FROM _seed_owned_shows)) AS both_owned
+    FROM public.shows a
+    JOIN public.shows b ON b.id > a.id AND b.name = a.name
+     AND b.start_date = a.start_date AND b.deleted_at IS NULL
+    WHERE a.deleted_at IS NULL
+      AND (a.id IN (SELECT id FROM _seed_owned_shows)
+           OR b.id IN (SELECT id FROM _seed_owned_shows)
+           OR (a.id >= 'dededede-0000-0000-0731-000000000000'::uuid
+               AND a.id < 'dededede-0000-0000-0732-000000000000'::uuid))
+  LOOP
+    IF r.both_owned THEN
+      RAISE EXCEPTION 'seed-demo: two live shows share the name "%" and a start date (MYK9-1281)', r.name;
+    ELSE
+      RAISE WARNING 'seed-demo: shows % and % share the name "%" and a start date; one is a surviving fixture show a person touched (MYK9-1281)', r.a_id, r.b_id, r.name;
+    END IF;
+  END LOOP;
 END $$;
 
 

@@ -233,7 +233,7 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
   page,
 }) => {
   // MYK9-545: the fallback used to be a fixed '2026-05-15'. The seed's entry
-  // window is relative (CURRENT_DATE - 16 .. + 76), so after any reseed past
+  // window is relative (CURRENT_DATE - 16 .. + 38), so after any reseed past
   // that date the wizard rendered "This show is not accepting online entries
   // yet" and step 1 never appeared. Real time is always inside the window;
   // QA_REGISTRATION_TIME still pins a moment for a hand run.

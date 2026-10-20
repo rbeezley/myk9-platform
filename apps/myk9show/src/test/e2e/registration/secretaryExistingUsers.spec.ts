@@ -62,7 +62,7 @@ test.describe('Secretary registration for existing users', () => {
     // "no shared-staging writes" claim true by construction here too.
     await installSharedStagingWriteGuard(page, { strictRpcWrites: true });
     // The seed's entry window is relative to the reseed date
-    // (CURRENT_DATE - 16 .. + 76), so a pinned absolute date expires.
+    // (CURRENT_DATE - 16 .. + 38), so a pinned absolute date expires.
     await applyRegistrationClock(page);
     await signInAsSecretary(page, '/secretary/dashboard');
     await gotoRegistration(page);

@@ -295,12 +295,6 @@ vi.mock('@/features/show-map/ShowMapTab', () => ({
 vi.mock('@/components/shows/EntryList', () => ({
   EntryList: () => <div data-testid="entry-list">EntryList</div>,
 }));
-vi.mock('@/components/shows/ArmbandLookup', () => ({
-  ArmbandLookup: () => null,
-}));
-vi.mock('@/hooks/queries/useArmbandLookup', () => ({
-  useArmbandCount: () => ({ data: 0 }),
-}));
 
 // Mock shared primitives to pass through
 vi.mock('@/components/common/PageShell', () => ({

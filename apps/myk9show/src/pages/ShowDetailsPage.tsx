@@ -36,7 +36,6 @@ import {
 } from './ShowDetailsPage.tabDefs';
 import { useShowResults } from '@/hooks/queries/useShowResults';
 import { getEntryStatus, isEntryWindowNotOpen } from '@/utils/entryStatusUtils';
-import { useArmbandCount } from '@/hooks/queries/useArmbandLookup';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -116,7 +115,6 @@ const ShowDetailsPage: React.FC = () => {
     return null;
   }, [currentShow, readsReplica, id, shows]);
 
-  const { data: armbandCount } = useArmbandCount(actualCurrentShow?.id);
   const canManageShow = useShowManageGate(actualCurrentShow?.clubId);
   const {
     data: secretaryEntries,
@@ -551,7 +549,6 @@ const ShowDetailsPage: React.FC = () => {
           show={actualCurrentShow}
           showId={showId}
           breadcrumbs={breadcrumbs}
-          armbandCount={armbandCount}
           catalogEntryCount={catalogEntryCount}
           canonicalShowHref={canonicalShowHref}
           activeManagementSection={activeManagementSection}

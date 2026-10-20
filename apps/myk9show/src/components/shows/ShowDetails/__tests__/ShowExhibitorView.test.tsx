@@ -56,9 +56,6 @@ vi.mock('@/components/common/DetailHero', () => ({
 }));
 vi.mock('@/components/shows/ShowDateBlock', () => ({ ShowDateBlock: () => null }));
 vi.mock('@/components/shows/overview/QuickInfoCards', () => ({ QuickInfoCards: () => null }));
-vi.mock('@/components/shows/ArmbandLookup', () => ({
-  ArmbandLookup: () => <div data-testid="armband-lookup" />,
-}));
 vi.mock('@/components/common/LoadingSkeleton', () => ({
   LoadingSkeleton: () => <div data-testid="loading-skeleton" />,
 }));
@@ -211,11 +208,6 @@ describe('ShowExhibitorView', () => {
   it('renders the entry-status badge', () => {
     renderView({ entryStatus: makeEntryStatus({ label: 'Closing Soon' }) });
     expect(screen.getByText('Closing Soon')).toBeInTheDocument();
-  });
-
-  it('does not render the staff armband lookup', () => {
-    renderView();
-    expect(screen.queryByTestId('armband-lookup')).toBeNull();
   });
 
   it('surfaces the closed message when entries cannot be entered', () => {

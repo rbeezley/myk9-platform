@@ -44,7 +44,6 @@ import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { applyShowFormDataToPremium } from './showFormPremiumSync';
-import { ShowPageHeaderActions } from './ShowPageHeaderActions';
 import { showHeroParent } from './showHeroParent';
 import type { HeroViewer } from '@/components/common/heroParentLink';
 
@@ -59,7 +58,6 @@ export interface ShowManagementShellProps {
   /** From the fast-loader; gates the delete dialog (null on a list-fallback load). */
   showId: string | null;
   breadcrumbs: React.ComponentProps<typeof PageHeader>['breadcrumbs'];
-  armbandCount: number | undefined;
   catalogEntryCount: number;
   canonicalShowHref: string;
   activeManagementSection: string | undefined;
@@ -131,7 +129,6 @@ function AuthorizedShowManagementShell({
   show,
   showId,
   breadcrumbs,
-  armbandCount,
   catalogEntryCount,
   canonicalShowHref,
   activeManagementSection,
@@ -230,12 +227,7 @@ function AuthorizedShowManagementShell({
     <>
       <PageShell>
         <>
-          <PageHeader
-            breadcrumbs={breadcrumbs}
-            title={show.name || 'Show Details'}
-            omitTitle
-            actions={<ShowPageHeaderActions showId={show.id} armbandCount={armbandCount} />}
-          />
+          <PageHeader breadcrumbs={breadcrumbs} title={show.name || 'Show Details'} omitTitle />
 
           <ShowHeader
             name={show.name || 'Untitled Show'}

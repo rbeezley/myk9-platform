@@ -86,10 +86,11 @@ MYK9-731) is **insert-only**:
     announcements.
 - It never updates or deletes an existing row. Older fixture shows, including
   the retired `...014`, stay as they are and age into the past. A **reseed**
-  does retire the stale ones (MYK9-1281): section 0 (after the paid-stray guard) deletes each fixture show
-  that carries no entry, enrollment, order, payment or packet snapshot, so
-  exactly one `Heartland Scent Work Week` survives a reseed. One a walk or a
-  club entered is kept. `...014` is never touched.
+  retires the stale ones (MYK9-1281): section 0 (after the paid-stray guard)
+  deletes each fixture show nothing of a person's hangs off, then section 19
+  mints one fresh fixture. A fixture show someone entered, enrolled in or paid
+  for is kept (the reseed logs a warning if a show it tried to delete is held by
+  an unlisted constraint). `...014` is never touched.
 - Section 19 of `seed-demo.sql` calls the same function, so the reseed and the
   restore cannot drift apart.
 

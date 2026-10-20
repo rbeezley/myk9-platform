@@ -260,9 +260,9 @@ ON CONFLICT (club_id, organization) DO UPDATE SET number = EXCLUDED.number;
 -- Stripe Connect sandbox account for Load Club 1 (Green Country Scent Work Club) ONLY.
 --
 -- Why club 1 and not all three: the load shows' entry window is open
--- (CURRENT_DATE + 76), so this is the only show in the fixture set that an
--- exhibitor can both enter AND pay for -- Heartland's window closes at
--- CURRENT_DATE + 1. Without this row the recurring exhibitor task walk cannot
+-- (CURRENT_DATE + 38), so this is the only show in the fixture set that an
+-- exhibitor can both enter AND pay for -- Heartland's window also closes at
+-- CURRENT_DATE + 38 (both before their shows start, MYK9-1281). Without this row the recurring exhibitor task walk cannot
 -- reach checkout at all, and role task 3 ("pay entry fees") goes unwalked; it
 -- did on 2026-09-04. See MYK9-388.
 --

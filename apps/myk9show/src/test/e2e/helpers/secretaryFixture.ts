@@ -116,10 +116,17 @@ export interface SecretaryFixtureOptions {
   changeClass?: boolean;
   /** MYK9-1266: extra classes only make the schedule taller (a spec that scrolls it); none by default. */
   extraClasses?: number;
+  /** Additional trial headings exercise long schedules and their accessible action labels. */
+  extraTrials?: number;
 }
 
 function buildRows(clubId: string, options: SecretaryFixtureOptions = {}) {
   const dates = showDates();
+  if (options.extraTrials) {
+    dates.end_date = isoDate(
+      Date.parse(`${dates.start_date}T00:00:00.000Z`) + options.extraTrials * DAY_MS
+    );
+  }
 
   const trial: TrialRow & Record<string, unknown> = {
     id: TRIAL_ID,
@@ -170,6 +177,22 @@ function buildRows(clubId: string, options: SecretaryFixtureOptions = {}) {
         created_at: STAMP,
         updated_at: STAMP,
       }));
+
+  const extraTrials = Array.from({ length: options.extraTrials ?? 0 }, (_, index) => ({
+    ...trial,
+    id: `f1f1f1f1-0000-0000-0000-${String(300 + index).padStart(12, '0')}`,
+    name: `Trial ${index + 2}`,
+    trial_number: String(index + 2),
+    date: isoDate(Date.parse(`${dates.start_date}T00:00:00.000Z`) + (index + 1) * DAY_MS),
+  }));
+  classes.push(
+    ...extraTrials.map((extraTrial, index) => ({
+      ...classes[0]!,
+      id: `f1f1f1f1-0000-0000-0000-${String(400 + index).padStart(12, '0')}`,
+      trial_id: extraTrial.id,
+    }))
+  );
+  const trials = [trial, ...(changeClassTrial ? [changeClassTrial] : []), ...extraTrials];
 
   const show: ShowRow & Record<string, unknown> = {
     id: SECRETARY_FIXTURE_SHOW_ID,
@@ -244,16 +267,10 @@ function buildRows(clubId: string, options: SecretaryFixtureOptions = {}) {
       cover_image_url: null,
       accent_color: null,
     },
-    trials: [
-      { ...trial, class: classes.filter(c => c.trial_id === TRIAL_ID) },
-      ...(changeClassTrial
-        ? [{ ...changeClassTrial, class: classes.filter(c => c.trial_id === changeClassTrial.id) }]
-        : []),
-    ],
+    trials: trials.map(row => ({ ...row, class: classes.filter(c => c.trial_id === row.id) })),
     judge_assignments: [],
   };
 
-  const trials = changeClassTrial ? [trial, changeClassTrial] : [trial];
   const entries = options.changeClass
     ? buildChangeClassEntries(SECRETARY_FIXTURE_SHOW_ID, TRIAL_ID)
     : [];

@@ -80,6 +80,8 @@ export function MasterDetailLayout({
   return (
     // The group sets an inline `height: 100%`, which beats a height class on it, so the fixed
     // height lives on this wrapper. Each pane then scrolls on its own inside it.
+    // Position the scrollers so absolute children (including sr-only labels) stay contained
+    // instead of extending the document and letting the whole workspace scroll out of view.
     <div className={heightClassName} data-testid="master-detail-layout">
       <ResizablePanelGroup orientation="horizontal" {...defaultLayout}>
         {/* Fixed slots (false when folded), so the detail panel keeps its position. */}
@@ -92,13 +94,17 @@ export function MasterDetailLayout({
           >
             <div role="region" aria-label={listLabel} className="flex h-full flex-col pr-1">
               {listHeader && <div className="shrink-0 pb-3">{listHeader}</div>}
-              <div className="min-h-0 flex-1 overflow-y-auto">{list}</div>
+              <div className="relative min-h-0 flex-1 overflow-y-auto">{list}</div>
             </div>
           </ResizablePanel>
         )}
         {!listHidden && <ResizableHandle aria-label={`Resize ${listLabel} and ${detailLabel}`} />}
         <ResizablePanel id="detail" minSize="40%">
-          <div role="region" aria-label={detailLabel} className="h-full overflow-y-auto pl-1">
+          <div
+            role="region"
+            aria-label={detailLabel}
+            className="relative h-full overflow-y-auto pl-1"
+          >
             <EmbeddedDetailProvider value>{detail}</EmbeddedDetailProvider>
           </div>
         </ResizablePanel>

@@ -27,10 +27,11 @@ async function open(
   page: Page,
   cockpitMaxWidth: number | null,
   layout: 'split' | 'stacked',
-  width = 1440
+  width = 1440,
+  extraTrials = 0
 ) {
   await page.setViewportSize({ width, height: 700 });
-  await installSecretaryCockpitFixture(page, { extraClasses: 14 });
+  await installSecretaryCockpitFixture(page, { extraClasses: 14, extraTrials });
   await signInAsSecretary(page, '/');
   await page.goto(`/shows/${SECRETARY_FIXTURE_SHOW_ID}?focus=${SECRETARY_FIXTURE_CLASS_IDS[0]}`);
   if (cockpitMaxWidth !== null) {
@@ -350,4 +351,33 @@ test('a newly focused class opens at the top of the split panel', async ({ page 
   await expect(page.getByRole('heading', { level: 2, name: 'Interior Novice A' })).toBeVisible();
   expect(await panel.evaluate(el => el.scrollTop)).toBe(0);
   await expect(page.getByTestId('focused-class-header')).toBeInViewport();
+});
+
+test('long split panes cannot scroll the page into blank space and the class fills the available height', async ({
+  page,
+}) => {
+  await open(page, null, 'split', 1464, 6);
+  const show = page.getByRole('region', { name: 'Show', exact: true });
+  const panel = page.getByTestId('cockpit-split-focus');
+  const header = page.getByTestId('focused-class-header');
+  for (const height of [635, 900]) {
+    await page.setViewportSize({ width: 1464, height });
+    // Hidden action labels in the later trials must stay inside the show scrollport.
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.scrollHeight - innerHeight))
+      .toBeLessThanOrEqual(1);
+    await show.evaluate(el => el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }));
+    await panel.evaluate(el => el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }));
+    // Scrolling outside the panes must not move the workspace upward and expose a blank band.
+    await page.evaluate(() =>
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' })
+    );
+    expect(await page.evaluate(() => scrollY)).toBe(0);
+    await expect(header).toBeInViewport();
+    const geometry = await probe(page);
+    expect(geometry?.panel?.scrollTop ?? 0).toBeGreaterThan(40);
+    expect(geometry?.hitInsideBlock).toBe(true);
+    // The class reaches the bottom of the show pane, leaving only its normal 1rem gutter.
+    expect((geometry?.viewBottom ?? 0) - (geometry?.panel?.bottom ?? 0)).toBeCloseTo(16, 0);
+  }
 });

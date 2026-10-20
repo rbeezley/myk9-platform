@@ -33,7 +33,6 @@ export const WIZARD_SURFACE_PATHS = [
   '/secretary/create-show',
   '/secretary/create-show/wizard',
   '/secretary/shows/:showId',
-  '/secretary/settings',
   '/shows/:id',
   '/shows/:id/*',
 ] as const;

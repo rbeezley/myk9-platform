@@ -49,7 +49,6 @@ const RegistrationWizardPage = lazyWithRetry(() => import('@/pages/RegistrationW
 const VolunteerSchedulingPage = lazyWithRetry(
   () => import('@/pages/secretary/VolunteerSchedulingPage')
 );
-const ShowSettingsPage = lazyWithRetry(() => import('@/pages/secretary/ShowSettingsPage'));
 const SecretaryMessagesPage = lazyWithRetry(
   () => import('@/features/messages/pages/SecretaryMessagesPage')
 );
@@ -426,18 +425,8 @@ export const SecretaryRoutes = () => (
       }
     />
 
-    <Route
-      path="/secretary/settings"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ShowSettingsPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
+    {/* Show Settings was an unlinked page; its cards moved into the Edit show details panel (IA-1). */}
+    <Route path="/secretary/settings" element={<Navigate to="/secretary/dashboard" replace />} />
 
     {/* Class management (previously standalone, now inside unified layout) */}
     <Route path="/trials/:trialId/classes/create" element={<LegacyTrialClassCreateRedirect />} />

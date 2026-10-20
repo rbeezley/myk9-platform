@@ -9,6 +9,7 @@ import {
 } from '@/features/show-workbench/publishReadiness';
 import { getShowStyle } from '@/features/registries';
 import { cn } from '@/lib/utils';
+import { ShowSettingsCards } from './ShowSettingsCards';
 import { AboutThisShowCard } from '@/components/shows/overview/AboutThisShowCard';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { Show } from '@/types/show-types';
@@ -86,6 +87,8 @@ export const ShowDetailsPanel: React.FC<ShowDetailsPanelProps> = ({
         </div>
       )}
       {showPublishing && <AboutThisShowCard show={show} judges={judges} />}
+      {/* Mounted only while open: the cards read on mount, and a closed panel shows nothing. */}
+      {canManageShow && open && <ShowSettingsCards showId={show.id} />}
     </section>
   </div>
 );

@@ -10,8 +10,8 @@ export function blockedActionFor(
   if (!first || targets.length !== 1) return undefined;
   if (kind === 'show') {
     // Cancel lives on the Managing tab's bulk bar ("Mark cancelled"), which every
-    // role that can manage a show can open. Show Settings (/secretary/settings) is
-    // secretary-only, so a club admin sent there is turned away.
+    // role that can manage a show can open. The retired Show Settings page
+    // (/secretary/settings) was secretary-only, so a club admin sent there was turned away.
     return { to: '/shows?tab=managing' };
   }
   const showId = first.context?.showId;

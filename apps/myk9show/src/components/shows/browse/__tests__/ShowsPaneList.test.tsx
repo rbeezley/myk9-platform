@@ -201,7 +201,12 @@ describe('ShowsPaneList', () => {
   });
 
   it('pins nothing for a site admin, who manages every show', () => {
-    auth.userWithRoles = { id: 'admin', roles: ['site_admin'], scopes: [] };
+    // A realistic admin also holds a club scope; only the isAdmin guard keeps Managing empty.
+    auth.userWithRoles = {
+      ...secretaryOf('club-x'),
+      id: 'admin',
+      roles: ['site_admin', 'secretary'],
+    };
     auth.isAdmin = true;
     data.shows = [
       show({

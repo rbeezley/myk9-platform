@@ -164,6 +164,14 @@ describe('groupShowsForPane', () => {
       ]);
     });
 
+    it('puts a managed today show before a managed upcoming show with no start date', () => {
+      const undated = makeShow({ id: 'mine-later', startDate: '', endDate: '', name: 'A' });
+      const today = makeShow({ id: 'mine-today', startDate: '2026-10-15', endDate: '2026-10-15' });
+      expect(groupIds([undated, today], now, isMine)).toEqual([
+        { id: 'managing', shows: ['mine-today', 'mine-later'] },
+      ]);
+    });
+
     it('omits Managing for a viewer who manages nothing, such as a site admin', () => {
       const ids = groupShowsForPane(shows, () => false, now).map(g => g.id);
       expect(ids).toEqual(['today', 'upcoming', 'past']);

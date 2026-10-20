@@ -7,6 +7,9 @@ import {
   mergeApiErrorCounts,
 } from './loadErrorCodes';
 import { LoadMetrics } from './loadMetrics';
+import { LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT } from './loadClassColumns';
+import { LoadVirtualUser } from './loadVirtualUser';
+import { FIXTURE_ANON_KEY, FIXTURE_URL } from './loadVirtualUser.fixtures';
 
 describe('error code extraction', () => {
   it.each([
@@ -193,5 +196,44 @@ describe('error codes in load metrics', () => {
     const observation = observationOf(metrics);
     expect(observation.failedRequestCount).toBe(1);
     expect(observation.apiErrorCounts).toEqual([{ status: 503, code: 'none', count: 1 }]);
+  });
+});
+
+describe('virtual reader to metrics', () => {
+  // The producer, not just the tally: a reader whose failed response reached the
+  // metrics as status 0 would mislabel every overload error as a transport failure.
+  it('carries the HTTP status and Postgres code from a real reader pass', async () => {
+    const failing = (async () =>
+      new Response(JSON.stringify({ code: 'PGRST003', message: 'fixture' }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' },
+      })) as unknown as typeof fetch;
+    const user = new LoadVirtualUser(
+      {
+        supabaseUrl: FIXTURE_URL,
+        anonKey: FIXTURE_ANON_KEY,
+        accessToken: 'fixture-token',
+        role: 'exhibitor',
+        fetchImpl: failing,
+      },
+      LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT
+    );
+    vi.useFakeTimers();
+    let samples;
+    try {
+      const pass = user.syncOnce();
+      await vi.runAllTimersAsync();
+      samples = (await pass).samples;
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const metrics = new LoadMetrics();
+    for (const sample of samples) metrics.recordVirtualUserRequest(sample);
+
+    expect(samples.length).toBeGreaterThan(0);
+    expect(observationOf(metrics).apiErrorCounts).toEqual([
+      { status: 503, code: 'PGRST003', count: samples.length },
+    ]);
   });
 });

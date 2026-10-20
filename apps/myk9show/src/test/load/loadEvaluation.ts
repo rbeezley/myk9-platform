@@ -101,6 +101,13 @@ export interface LoadObservation {
   requestCount: number;
   /** Of `requestCount`, how many an API-level virtual user issued. */
   virtualUserRequestCount?: number;
+  /**
+   * Virtual-reader ticks dropped because the previous pass was still running. A
+   * nonzero count means the target answered slower than the 60 s cadence and the
+   * readers backed off as the app does, so the request count understates an
+   * unthrottled load.
+   */
+  virtualUserSkippedPasses?: number;
   /** Of `requestCount`, how many came from a real browser context. */
   browserRequestCount?: number;
   failedRequestCount: number;

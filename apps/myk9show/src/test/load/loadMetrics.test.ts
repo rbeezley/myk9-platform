@@ -72,6 +72,30 @@ describe('load metrics', () => {
     expect(observation.pageP95Ms).toBe(123);
   });
 
+  it('counts skipped virtual-reader polls in the shard observation without counting them as requests', () => {
+    const metrics = new LoadMetrics();
+    metrics.recordVirtualUserRequest({ durationMs: 10, ok: true });
+    metrics.recordVirtualUserSkippedPass();
+    metrics.recordVirtualUserSkippedPass();
+    const observation = metrics.buildObservation({
+      concurrentSessions: 1,
+      ringsideSessions: 0,
+      ...sessionEvidence(0),
+      elapsedMs: 1_000,
+      maxReplicationQueueDepth: 0,
+      finalReplicationQueueDepth: 0,
+      queueTelemetryFailures: 0,
+      expectedPersistedScores: 0,
+      persistedScores: null,
+    });
+
+    // A skipped poll sent nothing, so it is not a request and cannot be a failure.
+    expect(observation.virtualUserSkippedPasses).toBe(2);
+    expect(observation.virtualUserRequestCount).toBe(1);
+    expect(observation.requestCount).toBe(1);
+    expect(observation.failedRequestCount).toBe(0);
+  });
+
   it('uses nearest-rank percentiles without mutating samples', () => {
     const samples = [100, 20, 80, 40, 60];
     expect(percentile(samples, 95)).toBe(100);

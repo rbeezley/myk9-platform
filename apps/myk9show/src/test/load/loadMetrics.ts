@@ -65,6 +65,8 @@ export class LoadMetrics {
    * coverage it does not have.
    */
   private virtualUserRequestCount = 0;
+  /** Virtual-reader ticks dropped because the previous pass had not finished. */
+  private virtualUserSkippedPasses = 0;
   private serializationFailures = 0;
   private workflowFailures = 0;
   private readonly workflowFailureDetails = new Map<string, WorkflowFailureDetail>();
@@ -204,6 +206,11 @@ export class LoadMetrics {
     this.apiErrors.record(sample.status ?? 0, sample.code);
   }
 
+  /** A reader's tick was skipped, as the app skips a poll that fires into a running pass. */
+  recordVirtualUserSkippedPass(): void {
+    this.virtualUserSkippedPasses += 1;
+  }
+
   buildObservation(input: {
     concurrentSessions: number;
     ringsideSessions: number;
@@ -245,6 +252,7 @@ export class LoadMetrics {
       generator: { shards: [input.generator] },
       requestCount: this.requestCount,
       virtualUserRequestCount: this.virtualUserRequestCount,
+      virtualUserSkippedPasses: this.virtualUserSkippedPasses,
       browserRequestCount: this.requestCount - this.virtualUserRequestCount,
       failedRequestCount: this.failedRequestCount,
       apiErrorCounts: this.apiErrors.entries(),

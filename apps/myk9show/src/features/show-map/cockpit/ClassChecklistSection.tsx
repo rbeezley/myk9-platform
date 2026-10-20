@@ -72,7 +72,7 @@ export function ClassChecklistSection({
   timeZone: string;
   onCommand: (commandId: string) => void;
 }) {
-  // MYK9-1032/1031: preliminary results, ribbon labels and the judge's sign-off link to the class on Results.
+  // MYK9-1032/1031: preliminary results, result labels and the judge's sign-off link to the class on Results.
   const resultsHref = getCockpitResultsControlHref({
     showId,
     trialId: sourceClass.trialId,

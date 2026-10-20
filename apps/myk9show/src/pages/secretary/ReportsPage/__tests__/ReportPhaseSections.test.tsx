@@ -57,7 +57,7 @@ describe('ReportPhaseSections', () => {
       expect(sizes).toEqual({ before: 13, during: 11, after: 12, anytime: 1 });
     });
 
-    it('lists Result Labels under During the show, not Before or After (MYK9-1233)', () => {
+    it('lists Result labels under During the show, not Before or After (MYK9-1233)', () => {
       expect(reportRegistry.find(r => r.id === 'result-labels')?.phase).toBe('during');
       render(<ReportPhaseSections {...defaultProps} trials={[]} />);
       const during = screen.getByRole('region', { name: PHASE_COPY.during.label });
@@ -338,7 +338,7 @@ describe('report registry names', () => {
     'judge-entry-counts': 'Judge Entry Counts',
     'waitlist-report': 'Waitlist Report',
     'steward-report': "Steward's Report",
-    'result-labels': 'Result Labels',
+    'result-labels': 'Result labels',
     'akc-judge-report': "AKC Judge's Report",
     'trial-secretary-certification': 'AKC Trial Secretary Certification',
     'judge-supply-checklist': 'Judge Supply Checklists',

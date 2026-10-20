@@ -48,6 +48,18 @@ describe('ShowResultsSection (MYK9-1031: the class list, with Submit and Close b
     );
   });
 
+  it('shows one back link: to the show when the secretary came from it, else to the class list (MYK9-1263)', async () => {
+    const { unmount } = renderAt('?step=submit');
+    await screen.findByRole('link', { name: 'All classes' });
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+    unmount();
+
+    renderAt(`?step=submit&returnTo=${encodeURIComponent('/shows/show-1')}`);
+    expect(await screen.findByRole('link', { name: 'Back to show' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'All classes' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+  });
+
   it('falls back to the class list for an unknown step', async () => {
     renderAt('?step=bogus');
 

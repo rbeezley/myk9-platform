@@ -25,7 +25,7 @@ export interface ResultsClassState {
    */
   releasedAt: string | null | undefined;
   /**
-   * The results sheet AND the ribbon labels both have a current print confirmation.
+   * The results sheet AND the result labels both have a current print confirmation.
    * `null` means the print history could not be read, which proves nothing either way.
    */
   paperworkPrinted: boolean | null;

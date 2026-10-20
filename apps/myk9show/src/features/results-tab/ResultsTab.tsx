@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ArrowRight, CheckCircle2, ListChecks } from 'lucide-react';
-import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import { ListChecks } from 'lucide-react';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
@@ -18,13 +18,13 @@ import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 import type { ResultsClassRow } from './buildResultsClassRows';
 import { ResultsClassDetail } from './ResultsClassDetail';
 import { ResultsClassList } from './ResultsClassList';
+import { ResultsFinishRow } from './ResultsFinishRow';
 import { ResultsJudgeSignOff } from './ResultsJudgeSignOff';
 import { buildJudgeSignOffGroup } from './judgeSignOffGroup';
 import { ResultsTabToolbar } from './ResultsTabToolbar';
 import { ResultsVisibilitySheet } from './ResultsVisibilitySheet';
 import { matchesResultsStatusFilter } from './resultsNextAction';
 import {
-  getResultsStepHref,
   readResultsTabUrlState,
   writeResultsTabUrlState,
   type ResultsTabUrlState,
@@ -48,8 +48,8 @@ function rowMatchesSearch(row: ResultsClassRow, rawQuery: string): boolean {
 }
 
 /**
- * Every class that ran has been released and the judge has signed off on it: time to point at
- * Submit and Close.
+ * Every class that ran has been released and the judge has signed off on it: time for the finish row to
+ * call for Submit and Close.
  */
 function everyClassReleasedAndInitialed(rows: readonly ResultsClassRow[]): boolean {
   // Every class that ran, plus any class that owes the judge's sign-off without having a dog to
@@ -330,36 +330,17 @@ export default function ResultsTab() {
           </AlertDescription>
         </Alert>
       )}
-      {everyClassReleasedAndInitialed(rows) && (
-        <Alert>
-          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-          <AlertTitle>Every class is released and signed off</AlertTitle>
-          <AlertDescription className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span>Next: submit the results to the registry, then close the show.</span>
-            <Link
-              to={getResultsStepHref(showId, 'submit')}
-              className="inline-flex min-h-11 items-center gap-1 font-medium text-primary hover:underline"
-            >
-              Submit to registry
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-            <Link
-              to={getResultsStepHref(showId, 'close')}
-              className="inline-flex min-h-11 items-center gap-1 font-medium text-primary hover:underline"
-            >
-              Close the show
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          </AlertDescription>
-        </Alert>
-      )}
+      <ResultsFinishRow
+        showId={showId}
+        trials={trials}
+        allDone={everyClassReleasedAndInitialed(rows)}
+      />
       <MasterDetailLayout
         id="results-classes"
         listLabel="Classes"
         detailLabel="Class results"
         listHeader={
           <ResultsTabToolbar
-            showId={showId}
             state={state}
             trials={trials}
             rows={rows}

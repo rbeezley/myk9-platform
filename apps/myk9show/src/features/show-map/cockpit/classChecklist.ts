@@ -155,7 +155,7 @@ export function buildClassChecklist(input: ClassChecklistInput): ClassChecklistI
     { id: 'class-started', label: 'Class started', state: started },
     scoring,
     resultsItem('results-sheet', 'Preliminary results', input, countsKnown),
-    resultsItem('result-labels', 'Ribbon labels', input, countsKnown),
+    resultsItem('result-labels', 'Result labels', input, countsKnown),
     // Initials stay as on main until MYK9-1031 part 2 gives Results a sign-off slot to land on.
     signatureItem(input, countsKnown),
   ];

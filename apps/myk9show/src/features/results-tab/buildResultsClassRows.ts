@@ -107,7 +107,7 @@ export interface ResultsClassRow {
   /** The phase's label, in the registry's wording where it differs (initials or signature). */
   phaseLabel: string;
   nextAction: ResultsNextAction;
-  /** Results sheet and ribbon labels, as the Overview paperwork row builds them. */
+  /** Results sheet and result labels, as the Overview paperwork row builds them. */
   paperwork: readonly SecretaryCockpitPaperwork[];
   /** False when print status could not be read; the UI says so rather than hiding the buttons. */
   paperworkAvailable: boolean;

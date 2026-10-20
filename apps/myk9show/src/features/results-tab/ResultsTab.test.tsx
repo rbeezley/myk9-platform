@@ -17,6 +17,9 @@ const SYNC = {
   _syncStatus: 'synced',
 } as const;
 
+const FINISH_DONE_TEXT =
+  'Every class is released and signed off. Submit the results, then close the show.';
+
 const trial = {
   id: 'trial-1',
   showId: 'show-1',
@@ -306,8 +309,8 @@ describe('ResultsTab list', () => {
     hook.value = { ...hook.value, rows: initialed };
     renderAt();
 
-    expect(screen.getByText('Every class is released and signed off')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Submit to registry/ })).toHaveAttribute(
+    expect(screen.getByText(FINISH_DONE_TEXT)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Submit to AKC/ })).toHaveAttribute(
       'href',
       '/shows/show-1/results?step=submit'
     );
@@ -332,12 +335,12 @@ describe('ResultsTab list', () => {
     hook.value = { ...hook.value, rows: build(null) };
     const first = renderAt();
     expect(screen.getByRole('link', { name: 'Initials: Containers Novice' })).toBeInTheDocument();
-    expect(screen.queryByText('Every class is released and signed off')).not.toBeInTheDocument();
+    expect(screen.queryByText(FINISH_DONE_TEXT)).not.toBeInTheDocument();
     first.unmount();
 
     hook.value = { ...hook.value, rows: build('2026-10-10T21:00:00Z') };
     renderAt('?status=all');
-    expect(screen.getByText('Every class is released and signed off')).toBeInTheDocument();
+    expect(screen.getByText(FINISH_DONE_TEXT)).toBeInTheDocument();
   });
 
   it('holds the banner back while a class holding only unaccepted entries is still to run', () => {
@@ -368,7 +371,7 @@ describe('ResultsTab list', () => {
     };
     renderAt();
 
-    expect(screen.queryByText('Every class is released and signed off')).not.toBeInTheDocument();
+    expect(screen.queryByText(FINISH_DONE_TEXT)).not.toBeInTheDocument();
   });
 
   it('holds the banner back when a released, signed class has been reopened by a late entry', () => {
@@ -391,7 +394,7 @@ describe('ResultsTab list', () => {
     hook.value = { ...hook.value, rows };
     renderAt();
 
-    expect(screen.queryByText('Every class is released and signed off')).not.toBeInTheDocument();
+    expect(screen.queryByText(FINISH_DONE_TEXT)).not.toBeInTheDocument();
   });
 
   it('holds the banner back while a released class still waits for the judge', () => {
@@ -401,7 +404,7 @@ describe('ResultsTab list', () => {
     };
     renderAt();
 
-    expect(screen.queryByText('Every class is released and signed off')).not.toBeInTheDocument();
+    expect(screen.queryByText(FINISH_DONE_TEXT)).not.toBeInTheDocument();
   });
 });
 
@@ -466,9 +469,9 @@ describe('ResultsTab detail', () => {
     renderAt('?status=all&classId=class-released');
 
     expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
-    expect(screen.getByText('Print the results sheet and ribbon labels')).toBeInTheDocument();
+    expect(screen.getByText('Print the results sheet and result labels')).toBeInTheDocument();
     expect(screen.getByText('Results sheet')).toBeInTheDocument();
-    expect(screen.getByText('Ribbon labels')).toBeInTheDocument();
+    expect(screen.getByText('Result labels')).toBeInTheDocument();
   });
 
   it('keeps the print actions and says print status is unknown, with Retry, when history is unreadable', async () => {
@@ -946,18 +949,23 @@ describe('ResultsTab Release asks the server', () => {
 });
 
 describe('ResultsTab toolbar', () => {
-  it('keeps Submit and Close reachable from More, and Visibility settings opens the sheet', async () => {
+  it('shows Submit and Close without opening More, and Visibility settings opens the sheet', async () => {
     const { user } = renderAt();
 
-    await user.click(screen.getByRole('button', { name: 'More' }));
-    expect(screen.getByRole('link', { name: 'Submit to registry' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Submit to AKC/ })).toHaveAttribute(
       'href',
       '/shows/show-1/results?step=submit'
     );
-    expect(screen.getByRole('link', { name: 'Close the show' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Close the show/ })).toHaveAttribute(
       'href',
       '/shows/show-1/results?step=close'
     );
+    expect(screen.getByText('After every class is released')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'More' }));
+    // More holds Visibility settings only: Submit and Close are not offered a second time.
+    expect(screen.getAllByRole('link', { name: /Submit to/ })).toHaveLength(1);
+    expect(screen.getAllByRole('link', { name: /Close the show/ })).toHaveLength(1);
 
     await user.click(screen.getByRole('button', { name: 'Visibility settings' }));
     expect(screen.getByTestId('visibility-sheet')).toBeInTheDocument();
@@ -998,7 +1006,7 @@ describe('ResultsTab toolbar', () => {
     const { user } = renderAt();
 
     await user.click(screen.getByRole('combobox', { name: 'Show' }));
-    expect(screen.getByRole('option', { name: /Needs printing/ })).toHaveTextContent('1');
+    expect(await screen.findByRole('option', { name: /Needs printing/ })).toHaveTextContent('1');
   });
 });
 

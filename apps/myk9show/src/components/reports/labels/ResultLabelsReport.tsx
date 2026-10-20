@@ -116,7 +116,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
       prefs.offsetTop,
       prefs.offsetLeft
     );
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Result Labels</title><style>${css}</style></head><body>${sheetsHtml}</body></html>`;
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Result labels</title><style>${css}</style></head><body>${sheetsHtml}</body></html>`;
 
     iframe.contentDocument?.open();
     iframe.contentDocument?.write(html);

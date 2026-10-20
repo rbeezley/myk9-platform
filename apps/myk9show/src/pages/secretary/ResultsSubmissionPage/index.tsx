@@ -42,7 +42,6 @@ import {
   buildRegistrySubmissionOptions,
   chooseDefaultSubmissionOptionKey,
 } from './submissionOptions';
-import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -372,7 +371,6 @@ export default function ResultsSubmissionPage() {
 
   return (
     <div className="container mx-auto py-6 space-y-8" data-testid="results-submission-page">
-      <ShowDeskReturnLink showId={showId} />
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Submit Results</h1>

@@ -35,7 +35,7 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
     printable('result-labels', 'Result labels'),
   ];
 
-  it('links preliminary results and ribbon labels to the class on Results, as links not actions', () => {
+  it('links preliminary results and result labels to the class on Results, as links not actions', () => {
     render(
       <ClassChecklistSection
         showId="show-1"

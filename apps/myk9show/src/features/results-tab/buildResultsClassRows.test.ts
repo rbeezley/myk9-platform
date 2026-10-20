@@ -515,7 +515,7 @@ describe('class start-time order (replica shape "h:mm AM")', () => {
 });
 
 describe('results paperwork helpers', () => {
-  it('keeps only the results sheet and ribbon labels', () => {
+  it('keeps only the results sheet and result labels', () => {
     const items = [
       paperwork('check-in-sheet', 'current'),
       paperwork('results-sheet', 'current'),

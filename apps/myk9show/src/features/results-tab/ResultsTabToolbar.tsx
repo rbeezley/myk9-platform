@@ -1,5 +1,4 @@
 import { MoreHorizontal, Printer } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
 import { ListFilterBar, type ListFilterField } from '@/components/list-toolkit';
 import { Button } from '@/components/ui/button';
@@ -12,10 +11,9 @@ import {
   RESULTS_STATUS_FILTER_OPTIONS,
   type ResultsStatusFilterId,
 } from './resultsNextAction';
-import { getResultsStepHref, type ResultsTabUrlState } from './resultsTabRoutes';
+import type { ResultsTabUrlState } from './resultsTabRoutes';
 
 interface ResultsTabToolbarProps {
-  showId: string;
   state: ResultsTabUrlState;
   trials: readonly SyncableTrial[];
   /** Every class in the show, so the status counts do not shrink with the other filters. */
@@ -33,12 +31,11 @@ function trialOptionLabel(trial: SyncableTrial): string {
 }
 
 /**
- * Filter bar (search, Trial, status), the More menu and the primary Print all ready (a shortcut to the Needs printing filter), on the same
+ * Filter bar (search, Trial, status), the More menu (Visibility settings) and the primary Print all ready (a shortcut to the Needs printing filter), on the same
  * list toolkit the Entry Forms tab uses. Density is not offered: the rows are two short lines and
  * the shared control only reshapes the Entry Forms queue.
  */
 export function ResultsTabToolbar({
-  showId,
   state,
   trials,
   rows,
@@ -101,12 +98,6 @@ export function ResultsTabToolbar({
               onClick={onOpenVisibility}
             >
               Visibility settings
-            </Button>
-            <Button asChild variant="outline" size="sm" className="min-h-11 w-full justify-start">
-              <Link to={getResultsStepHref(showId, 'submit')}>Submit to registry</Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="min-h-11 w-full justify-start">
-              <Link to={getResultsStepHref(showId, 'close')}>Close the show</Link>
             </Button>
           </PopoverContent>
         </Popover>

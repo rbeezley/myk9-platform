@@ -64,7 +64,7 @@ export function ReportPreviewBody(props: ReportPreviewBodyProps) {
     return (
       <div className="w-full">
         <LabelModeHeader
-          title="Result Labels"
+          title="Result labels"
           subtitle="Pick a trial and class, set the sort, then Print the result labels."
         />
         <ResultLabelsReport

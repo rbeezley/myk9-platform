@@ -17,7 +17,7 @@ import { signInAsSecretary } from '../helpers/testUsers';
  * MYK9-1031, plan-results-tab-redesign Phase 7: ONE secretary journey through the Results tab on
  * the show-day fixture show (`seed_demo_restore_show_day_fixture`, MYK9-731):
  *
- *   scored class -> verified against the paper -> released -> results sheet and ribbon labels printed -> judge
+ *   scored class -> verified against the paper -> released -> results sheet and result labels printed -> judge
  *   initialed -> reload reads released + initialed.
  *
  * Why seeded-only: every step writes (scores, the check, Release, the print records, the judge's
@@ -242,7 +242,7 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
       await expect(releaseButton).toBeEnabled({ timeout: 20_000 });
       await releaseButton.click();
       await expect(page.getByText('Results released').first()).toBeVisible({ timeout: 20_000 });
-      await expect(detail.getByText('Print the results sheet and ribbon labels')).toBeVisible({
+      await expect(detail.getByText('Print the results sheet and result labels')).toBeVisible({
         timeout: 20_000,
       });
       // MYK9-1217: at 1280x720 the "Scores marked..." and "Results released" toasts used to dock
@@ -291,17 +291,17 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
         .toBe('toasts up, 0 off screen');
     });
 
-    await test.step('6. print the Results sheet and Ribbon labels from their reports', async () => {
+    await test.step('6. print the Results sheet and Result labels from their reports', async () => {
       await printFromResults(page, detail, 'Results sheet', 'results-sheet');
       await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
-      await printFromResults(page, detail, 'Ribbon labels', 'result-labels');
+      await printFromResults(page, detail, 'Result labels', 'result-labels');
     });
 
     await test.step('7. back on Results: both read printed, record the judge initials', async () => {
       await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
       // A print Reports just recorded must read Printed here too, not Stale: the two pages
       // fingerprint the class from different read paths (buildReportPaperworkDescriptor).
-      for (const label of ['Results sheet', 'Ribbon labels']) {
+      for (const label of ['Results sheet', 'Result labels']) {
         await expect(paperworkRow(detail, label).getByText(/^Printed /)).toBeVisible({
           timeout: 30_000,
         });

@@ -37,7 +37,7 @@ describe('buildClassChecklist', () => {
       ['class-started', 'Class started'],
       ['scoring-complete', 'Scoring complete'],
       ['results-sheet', 'Preliminary results'],
-      ['result-labels', 'Ribbon labels'],
+      ['result-labels', 'Result labels'],
       ['judge-signature', "Judge's initials collected"],
     ]);
   });
@@ -68,7 +68,7 @@ describe('buildClassChecklist', () => {
     expect(item?.paperwork?.printHref).toBe('/print/check-in-sheet');
   });
 
-  it('links preliminary results, ribbon labels and the initials to Results and keeps the pre-scoring items as they were (MYK9-1032)', () => {
+  it('links preliminary results, result labels and the initials to Results and keeps the pre-scoring items as they were (MYK9-1032)', () => {
     const items = buildClassChecklist({
       ...NOT_STARTED,
       resultsHref: '/shows/s/results?classId=c',

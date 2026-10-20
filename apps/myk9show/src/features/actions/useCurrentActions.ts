@@ -5,7 +5,7 @@ import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { usePremiumPublishControl } from '@/features/premium/usePremiumPublishControl';
 import { useShowStore } from '@/store/showStore';
 import { usePageEditTargetStore } from './pageEditTarget';
-import { createHrefFor, resolveCreateGates } from './createGates';
+import { resolveCreateGates } from './createGates';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import { groupActions, listHeading, pageObjectHeading, type ActionGroup } from './actionGroups';
 import {
@@ -145,10 +145,6 @@ export function useCurrentActions(): CurrentActions {
         // A search-only destination keeps the section's own query params.
         if (action.href?.startsWith('?')) {
           return { ...action, href: mergeSearchOnlyHref(action.href, search) };
-        }
-        // Add Dog / Person / Club on its own list or record opens the panel where the viewer is.
-        if (action.group === 'create' && action.href) {
-          return { ...action, href: createHrefFor(action.id, action.href, pathname, search) };
         }
         // One of the page's other actions (Change Photo, Suspend account...), run by the page.
         if (action.command === 'page-extra') {

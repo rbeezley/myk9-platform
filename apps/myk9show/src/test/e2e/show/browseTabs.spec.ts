@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsJudge, signInAsSecretary } from '../uat/shared/auth';
+import { signInAsExhibitor } from '../helpers/testUsers';
 import { openActionsMenu, chooseAction } from '../helpers/actionsMenu';
 
 /**
@@ -119,19 +120,14 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
     await expect(menu.getByRole('menuitem', { name: 'Export CSV' })).toBeVisible();
     await page.keyboard.press('Escape');
 
-    // Add Club opens beside the open club, and Cancel leaves the club and its URL as they were.
-    const urlBefore = page.url();
+    // Add always opens over the list, at every width; Cancel returns to that list.
     await chooseAction(page, 'Add Club');
     const panel = page.getByRole('dialog', { name: /Add Club/ });
     await expect(panel).toBeVisible();
+    await expect(page).toHaveURL(/\/clubs$/);
     await panel.getByRole('button', { name: 'Cancel' }).click();
     await expect(panel).toBeHidden();
-    expect(page.url()).toBe(urlBefore);
-    await expect(details).toBeVisible();
-
-    // Close goes back to the list, its search still applied.
-    await details.getByRole('link', { name: 'Close club' }).click();
-    await expect(page).toHaveURL(/\/clubs\?search=Heartland$/);
+    await expect(page).toHaveURL(/\/clubs$/);
     await expect(page.getByText('Select a club to see its details')).toBeVisible();
   });
 
@@ -147,7 +143,12 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
       await signInAsSecretary(page, path);
       await expect(page.getByRole('region', { name: /list$/ })).toBeVisible({ timeout: 20_000 });
       await expect(page.getByRole('button', { name: `Add ${noun}`, exact: true })).toHaveCount(0);
+      const details = page.getByRole('region', { name: `${noun} details` });
+      await expect(details.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible();
+      await expect(page.locator('h1')).toHaveClass('sr-only');
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
       const menu = await openActionsMenu(page);
+      await expect(menu.getByRole('menuitem', { name: /^Select/ })).toHaveCount(0);
       await expect(menu.getByRole('menuitem', { name: `Add ${noun}` })).toBeVisible();
       await page.keyboard.press('Escape');
     });
@@ -225,6 +226,21 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
       timeout: 20_000,
     });
     await expectNoSidewaysScroll(page);
+    await page.setViewportSize({ width: 375, height: 844 });
+    await chooseAction(page, 'Add Club');
+    await expect(page).toHaveURL(/\/clubs$/);
+    const panel = page.getByRole('dialog', { name: /Add Club/ });
+    await expect(panel).toBeVisible();
+    await panel.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page).toHaveURL(/\/clubs$/);
+  });
+
+  test('an exhibitor can reach Add Dog through Actions on the Dogs list', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 844 });
+    await signInAsExhibitor(page, '/dogs');
+    const menu = await openActionsMenu(page);
+    await expect(menu.getByRole('menuitem', { name: 'Add Dog', exact: true })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: /^Select/ })).toHaveCount(0);
   });
 
   test('a judge browses Shows and their own dogs, and never People or Clubs', async ({ page }) => {

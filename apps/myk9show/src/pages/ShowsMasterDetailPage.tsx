@@ -47,8 +47,12 @@ const SHOWS_LIST_SIZE = {
 };
 // The fixed header and page padding are the only chrome; each pane scrolls on its own. Folded,
 // the "Shows" button row (2.75rem button + 0.75rem gap) comes off the height too.
-const SPLIT_HEIGHT = 'h-[calc(100dvh-var(--app-top-inset,3rem)-2rem)] min-h-[28rem]';
-const FOLDED_HEIGHT = 'h-[calc(100dvh-var(--app-top-inset,3rem)-5.5rem)] min-h-[28rem]';
+// `--pane-scroll-h` (PANE_SCROLL_HEIGHT_VAR) republishes the same height for the focused-class panel,
+// which sizes itself to the pane it scrolls in; it must be declared here, above PANE_TOP_INSET.
+const SPLIT_HEIGHT =
+  'h-[calc(100dvh-var(--app-top-inset,3rem)-2rem)] min-h-[28rem] [--pane-scroll-h:calc(100dvh-var(--app-top-inset,3rem)-2rem)]';
+const FOLDED_HEIGHT =
+  'h-[calc(100dvh-var(--app-top-inset,3rem)-5.5rem)] min-h-[28rem] [--pane-scroll-h:calc(100dvh-var(--app-top-inset,3rem)-5.5rem)]';
 // Inside a pane, the show page's sticky header and tab strip pin to the pane's top, not under the
 // app header: every sticky offset there is written against `--app-top-inset`.
 const PANE_TOP_INSET = { '--app-top-inset': '0px' } as CSSProperties;

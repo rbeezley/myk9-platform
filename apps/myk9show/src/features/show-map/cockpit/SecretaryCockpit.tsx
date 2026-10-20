@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { CalendarDays, Plus } from 'lucide-react';
 import { Link, useLocation, useNavigationType } from 'react-router-dom';
 import { useTrialRowActions } from '@/components/shows/tabs/useTrialRowActions';
@@ -7,6 +7,12 @@ import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClass
 import { Button } from '@/components/ui/button';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { cn } from '@/lib/utils';
+import {
+  FOCUSED_CLASS_PANEL_CLASS,
+  FOCUSED_CLASS_PIN_QUERY,
+  type FocusedClassPinMode,
+} from '@/components/shows/ShowDetails/showStickyLayout';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useElementWidth } from '@/hooks/useElementWidth';
 import { COCKPIT_SPLIT_COLUMNS, isCockpitSplit } from './cockpitSplit';
 
@@ -85,6 +91,8 @@ export function SecretaryCockpit({
   // panel to its column in the layout effect, before paint. The panel remounts then; the editor
   // it would lose is held here (useFocusedClassSetupActions), and nothing is visible in between.
   const isSplit = isCockpitSplit(gridWidth);
+  const canPin = useMediaQuery(FOCUSED_CLASS_PIN_QUERY);
+  const pinMode: FocusedClassPinMode = !canPin ? 'none' : isSplit ? 'panel' : 'page';
   const model = buildSecretaryCockpitModel(snapshot, state);
   const focusedId = model.focusedClass?.id;
   const sourceClass = snapshot.classes.find(classItem => classItem.id === focusedId) ?? null;
@@ -95,6 +103,12 @@ export function SecretaryCockpit({
   const focusedClassIsVisible = model.trialGroups.some(group =>
     group.classes.some(classItem => classItem.id === focusedId)
   );
+  // The split's panel scrolls itself and is not remounted per class, so a newly focused class
+  // would open at the previous class's scroll position, its controls under the pinned header.
+  const splitPanelRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (splitPanelRef.current) splitPanelRef.current.scrollTop = 0;
+  }, [focusedId]);
   const focusedPanel = model.focusedClass ? (
     <SecretaryCockpitFocusedClass
       showId={snapshot.showId}
@@ -103,7 +117,7 @@ export function SecretaryCockpit({
       trial={trial}
       attention={focusedAttention}
       timeZone={snapshot.timeZone}
-      sticky={isSplit}
+      pinMode={pinMode}
       canManageShow={canManageShow}
       onCommand={onCommand}
       {...(runOrder !== undefined && { runOrder })}
@@ -248,7 +262,14 @@ export function SecretaryCockpit({
           </div>
         )}
         {isSplit && model.focusedClass && (
-          <div className="col-start-2 row-start-2" data-testid="cockpit-split-focus">
+          <div
+            ref={splitPanelRef}
+            className={cn(
+              'col-start-2 row-start-2',
+              pinMode === 'panel' && FOCUSED_CLASS_PANEL_CLASS
+            )}
+            data-testid="cockpit-split-focus"
+          >
             {focusedPanel}
           </div>
         )}

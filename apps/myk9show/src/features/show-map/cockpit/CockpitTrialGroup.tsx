@@ -87,7 +87,9 @@ export function CockpitTrialGroup({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
+      {/* overflow-clip, not -hidden: hidden makes this a scroll container and the focused
+          class's pinned header (inline when stacked) would pin to it instead of the page. */}
+      <div className="overflow-clip rounded-xl border bg-card text-card-foreground shadow-sm">
         <div className="flex flex-wrap items-center border-b sm:flex-nowrap">
           <CollapsibleTrigger
             id={getCockpitAnchorElementId(group.trialId)}
@@ -112,7 +114,8 @@ export function CockpitTrialGroup({
             <div className="flex items-center gap-1 px-2 pb-2 sm:pb-0">{trialActions}</div>
           )}
         </div>
-        <CollapsibleContent className="[&>div]:p-0">
+        {/* Clip, not hidden, for the same reason as the card above. */}
+        <CollapsibleContent className="overflow-clip [&>div]:p-0">
           <div className="flex flex-col gap-2 p-3">
             {group.classes.map((classItem, classIndex) => {
               const focused = model.focusedClass?.id === classItem.id;

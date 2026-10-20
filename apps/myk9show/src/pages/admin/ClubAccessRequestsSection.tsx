@@ -34,7 +34,7 @@ function ReviewCard({
   const handleReview = async (decision: 'approved' | 'denied') => {
     try {
       setBusy(true);
-      await reviewClubAccessRequest({
+      const clubId = await reviewClubAccessRequest({
         requestId: request.id,
         decision,
         existingClubId: decision === 'approved' && clubChoice !== 'new' ? clubChoice : null,
@@ -47,9 +47,15 @@ function ReviewCard({
       // MYK9-1310: approval authorizes the club in the same transaction (the approving
       // site admin is the human who decides it may exist), so there is no second step.
       // The club list still changes: a new club appears, or an attached one leaves
-      // "Clubs awaiting authorization".
+      // "Clubs awaiting authorization". The publish gate (ShowStatusPill / ShowEditPanel)
+      // reads authorized_at from its own ['club-authorization', clubId] cache, which
+      // nothing else refreshes: drop it too, or an attached club's show keeps refusing
+      // Publish until that cache happens to go stale (Codex review of #3151).
       if (decision === 'approved') {
         void queryClient.invalidateQueries({ queryKey: clubQueryKeys.lists() });
+        if (clubId) {
+          void queryClient.invalidateQueries({ queryKey: ['club-authorization', clubId] });
+        }
       }
       await onReviewed();
     } catch (error) {

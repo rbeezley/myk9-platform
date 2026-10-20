@@ -117,6 +117,22 @@ describe('ClubAccessRequestsSection', () => {
     await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['clubs', 'list'] }));
   });
 
+  // The publish gate caches authorized_at under its own key; approval authorizes the
+  // club, so that cache must go too, keyed by the club the RPC returned.
+  it("drops the approved club's publish-gate authorization cache", async () => {
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    const { user } = render(<ClubAccessRequestsSection />, {
+      initialRoute: '/admin/onboarding',
+      queryClient,
+    });
+    await user.click(await screen.findByRole('button', { name: /approve and give club access/i }));
+
+    await waitFor(() =>
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['club-authorization', 'club-1'] })
+    );
+  });
+
   it('does not offer an authorize link after a denial', async () => {
     vi.mocked(reviewClubAccessRequest).mockResolvedValue(null);
     const { user } = render(<ClubAccessRequestsSection />, { initialRoute: '/admin/onboarding' });

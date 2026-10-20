@@ -26,8 +26,8 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
 3. **Preflight.** One `get_issue` call proves the Linear connector works. If it's down, stop: a
    run that can't write Linear can't leave it accurate. Check that `codex --version` answers; if
    it doesn't, say before starting that any `independent`-tier PR will wait unmerged.
-4. **Ledger.** Keep `<scratchpad>/orchestrate-run.md` with one row per issue: id, tier, worktree,
-   branch, PR, outcome and reason. Update it at every state change, so a compacted context or a
+4. **Ledger.** Keep `<scratchpad>/orchestrate-run.md` with one row per issue: id, premise,
+   approach, tier, worktree, branch, PR, outcome and reason. Update it at every state change, so a compacted context or a
    crash can resume from it.
 5. **Continuous mode only: keep the Mac awake.** Call `request_keep_awake` (the `ccd_host` tool)
    so the machine can't sleep mid-merge. If it's unavailable, say so before starting.
@@ -55,6 +55,9 @@ review and suites all count).
 - **Already fixed?** If the fix may already be on `main`, a `haiku` agent checks. If it is,
   comment with the evidence (commit or PR, and where the criterion holds), set Done after
   checking every criterion, and move on.
+- **True, and fixed how?** Run "Verify, then weigh" from `../SKILL.md`: reproduce the claim
+  on `main`, check it against archived issues and INTENT, and write the `premise:` and
+  `approach:` ledger fields. `not reproducible` and `by design` are pre-work holds.
 - **Pre-work holds:** skip the issue with a comment, leave its state unchanged and add the
   `needs-richard` label when any of these hold:
   - it touches money (payments, refunds, fees, money guards);
@@ -186,11 +189,12 @@ asking:
 2. **Summary**, as the final message (and a push notification when the owner is away):
 
 ```markdown
-| Issue    | Outcome            | PR    | Reason / owed                    |
-| -------- | ------------------ | ----- | -------------------------------- |
-| MYK9-123 | merged · Done      | #2870 | —                                |
-| MYK9-456 | merged · In Review | #2871 | browser walk of /at-show scoring |
-| MYK9-789 | held · Todo        | —     | touches refunds (needs-richard)  |
+| Issue    | Outcome            | PR    | Reason / owed                            |
+| -------- | ------------------ | ----- | ---------------------------------------- |
+| MYK9-123 | merged · Done      | #2870 | —                                        |
+| MYK9-456 | merged · In Review | #2871 | browser walk of /at-show scoring         |
+| MYK9-789 | held · Todo        | —     | touches refunds (needs-richard)          |
+| MYK9-321 | held · Todo        | —     | not reproducible on main (needs-richard) |
 ```
 
 Follow it with the orchestration stats from `../SKILL.md` and one line listing every judgement
@@ -199,13 +203,15 @@ run, and mark each `refill` issue in the table (e.g. `MYK9-321 (refill)`).
 
 ## Common mistakes
 
-| Mistake                                                    | Instead                                                        |
-| ---------------------------------------------------------- | -------------------------------------------------------------- |
-| Trusting Linear's auto-Done after the merge                | Always re-read and set Done or In Review yourself              |
-| Picking from Backlog, or grading issues up front           | Todo only; risk is judged from the diff at ship time           |
-| Handing a refund fix to sonnet "because it's small"        | Money is held, whatever its size                               |
-| Letting the implementer push, open the PR or post the gate | The orchestrator owns every shared-system write                |
-| Retrying a red CI a third time                             | Hold at In Review after two attempts                           |
-| Removing a merge-pending worktree                          | Keep it; `/cleanup` after GitHub merges                        |
-| Ending an overnight run when the approved list is done     | Continuous mode refills from Todo until a stop condition holds |
-| Reusing the run-start Todo list for refills                | Re-query; the board changes overnight                          |
+| Mistake                                                    | Instead                                                          |
+| ---------------------------------------------------------- | ---------------------------------------------------------------- |
+| Trusting Linear's auto-Done after the merge                | Always re-read and set Done or In Review yourself                |
+| Dispatching the issue's criteria without reproducing them  | Reproduce on `main` first; hold what you cannot see              |
+| Building the issue's Recommendation as written             | Weigh an alternative; the criteria are the contract, not the fix |
+| Picking from Backlog, or grading issues up front           | Todo only; risk is judged from the diff at ship time             |
+| Handing a refund fix to sonnet "because it's small"        | Money is held, whatever its size                                 |
+| Letting the implementer push, open the PR or post the gate | The orchestrator owns every shared-system write                  |
+| Retrying a red CI a third time                             | Hold at In Review after two attempts                             |
+| Removing a merge-pending worktree                          | Keep it; `/cleanup` after GitHub merges                          |
+| Ending an overnight run when the approved list is done     | Continuous mode refills from Todo until a stop condition holds   |
+| Reusing the run-start Todo list for refills                | Re-query; the board changes overnight                            |

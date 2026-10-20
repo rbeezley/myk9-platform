@@ -36,6 +36,8 @@ The root agent MUST NOT delegate proposal/design judgment.
 
 Dispatch only independent, bounded batches.
 
+Before each batch, verify then weigh: if the batch fixes a reported defect, reproduce it on the current tree first and check the claim against archived Linear issues (`includeArchived: true`) and `// INTENT:` comments; a claim that does not reproduce, or reverses a Done decision, is held for the owner, not built. Record in the prompt the fix chosen and the alternative rejected (delete or link instead of a new surface, data instead of UI, copy instead of code, root cause instead of symptom); the task text is the contract, its suggested fix is not.
+
 Use `spawn_agent({ task_name, message, fork_turns: "all" })`. Each prompt includes:
 
 1. Worktree absolute path and exact `tasks.md` checkbox text.
@@ -78,5 +80,6 @@ Report batches, review rounds, migration audits, and root-agent implementation.
 - Delegating the proposal because sub-agents are available.
 - Claiming a cheaper model was selected.
 - Checking tasks from a report without reading the diff.
+- Building a task's suggested fix without reproducing the defect or weighing an alternative.
 - Letting an implementation agent edit `tasks.md` or perform shared-system writes.
 - Spawning dependent batches in parallel.

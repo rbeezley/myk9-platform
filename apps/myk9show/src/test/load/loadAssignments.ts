@@ -60,6 +60,17 @@ function target(ring: LoadRingAssignment, dogNumber: number): LoadSessionTarget 
   };
 }
 
+/** Global ring ordinal of a show's first ring. */
+function firstRingOrdinal(showIndex: number): number {
+  let ordinal = 0;
+  for (const show of LOAD_SHOWS) {
+    if (show.index === showIndex) return ordinal;
+    ordinal += show.ringCount;
+  }
+  /* c8 ignore next -- every show index comes from LOAD_SHOWS itself. */
+  throw new Error(`Unknown show index ${showIndex}.`);
+}
+
 /** The first ring of a given show, used by per-show workloads. */
 function firstRingOfShow(showIndex: number): LoadRingAssignment {
   let ordinal = 0;
@@ -76,7 +87,12 @@ function firstRingOfShow(showIndex: number): LoadRingAssignment {
  * being scored — spreading them over idle classes would measure nothing, because
  * contention is the property under test.
  */
-function targetFor(kind: LoadWorkloadKind, index: number): LoadSessionTarget {
+function targetFor(
+  kind: LoadWorkloadKind,
+  index: number,
+  scoredRings: number,
+  scoredShows: readonly number[]
+): LoadSessionTarget {
   switch (kind) {
     // One session per ring, each on a distinct class. Starts at dog 1.
     case 'ringside-scoring':
@@ -86,12 +102,12 @@ function targetFor(kind: LoadWorkloadKind, index: number): LoadSessionTarget {
     // entry that show's first ring is scoring. This is the realistic case of two
     // writers on one entry — a secretary correcting behind the judge.
     case 'scoring-correction':
-      return target(firstRingOfShow(index % LOAD_SHOWS.length), 1);
+      return target(firstRingOfShow(scoredShows[index % scoredShows.length]), 1);
 
     // One per ring, on the class that ring is scoring. Works from the last dog
     // backwards so it contends on the class row without colliding on an entry.
     case 'steward-check-in': {
-      const ring = loadRingAssignment(index % LOAD_TOTAL_RING_COUNT);
+      const ring = loadRingAssignment(index % scoredRings);
       const dogs = LOAD_SHOWS[ring.showIndex].dogCount;
       return target(ring, dogs - CHECK_IN_FIRST_DOG_FROM_END);
     }
@@ -99,16 +115,16 @@ function targetFor(kind: LoadWorkloadKind, index: number): LoadSessionTarget {
     // Spread across every ring, so each actively-scored class sees more than one
     // check-in writer during its opening burst.
     case 'exhibitor-check-in': {
-      const ring = loadRingAssignment(index % LOAD_TOTAL_RING_COUNT);
+      const ring = loadRingAssignment(index % scoredRings);
       const dogs = LOAD_SHOWS[ring.showIndex].dogCount;
-      const lap = Math.floor(index / LOAD_TOTAL_RING_COUNT) + 1;
+      const lap = Math.floor(index / scoredRings) + 1;
       return target(ring, Math.max(1, dogs - lap));
     }
 
     // One secretary per show, editing a class while it is being scored. The only
     // lock holder that never reaches the class row through the entries trigger.
     case 'secretary-class-edit':
-      return target(firstRingOfShow(index % LOAD_SHOWS.length), 1);
+      return target(firstRingOfShow(scoredShows[index % scoredShows.length]), 1);
 
     case 'run-order-read':
       return target(loadRingAssignment(index % LOAD_TOTAL_RING_COUNT), 1);
@@ -124,6 +140,22 @@ export function buildSessionAssignments(
   smoke = false
 ): LoadSessionAssignment[] {
   const assignments: LoadSessionAssignment[] = [];
+  // Scorers take the first rings, so a reduced scenario scores fewer than all of
+  // them. Writers that exist to contend with a scorer must land only on classes a
+  // scorer actually works, or a reduced baseline understates contention. At the
+  // full size every ring and show is scored and this changes nothing.
+  const scoredRings = Math.max(
+    1,
+    Math.min(
+      LOAD_TOTAL_RING_COUNT,
+      scenario.workloads
+        .filter(workload => workload.kind === 'ringside-scoring')
+        .reduce((total, workload) => total + (smoke ? 1 : workload.sessions), 0)
+    )
+  );
+  const scoredShows = LOAD_SHOWS.filter(show => firstRingOrdinal(show.index) < scoredRings).map(
+    show => show.index
+  );
   for (const workload of scenario.workloads) {
     const sessions = smoke ? 1 : workload.sessions;
     for (let index = 0; index < sessions; index += 1) {
@@ -132,7 +164,7 @@ export function buildSessionAssignments(
         role: workload.role,
         index,
         sequence: assignments.length,
-        target: targetFor(workload.kind, index),
+        target: targetFor(workload.kind, index, scoredRings, scoredShows),
       });
     }
   }

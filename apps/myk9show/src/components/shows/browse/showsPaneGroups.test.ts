@@ -119,22 +119,66 @@ describe('groupShowsForPane', () => {
     ]);
   });
 
-  it('pins the shows the viewer manages first in every group', () => {
-    const managed = new Set(['mine-today', 'mine-later', 'mine-old']);
+  describe('Managing section', () => {
+    const managed = new Set(['mine-today', 'mine-later', 'mine-soon', 'mine-old', 'mine-done']);
+    const isMine = (show: Show) => managed.has(show.id);
     const shows = [
       makeShow({ id: 'other-today', startDate: '2026-10-14', endDate: '2026-10-16', name: 'A' }),
       makeShow({ id: 'mine-today', startDate: '2026-10-15', endDate: '2026-10-15', name: 'B' }),
       makeShow({ id: 'other-soon', startDate: '2026-10-20', endDate: '2026-10-20', name: 'C' }),
       makeShow({ id: 'mine-later', startDate: '2026-12-20', endDate: '2026-12-20', name: 'D' }),
+      makeShow({ id: 'mine-soon', startDate: '2026-11-05', endDate: '2026-11-05', name: 'G' }),
       makeShow({ id: 'other-recent', startDate: '2026-10-01', endDate: '2026-10-01', name: 'E' }),
       makeShow({ id: 'mine-old', startDate: '2026-01-01', endDate: '2026-01-01', name: 'F' }),
+      makeShow({
+        id: 'mine-done',
+        status: 'completed',
+        startDate: '2026-10-15',
+        endDate: '2026-10-16',
+        name: 'H',
+      }),
     ];
 
-    expect(groupIds(shows, now, show => managed.has(show.id))).toEqual([
-      { id: 'today', shows: ['mine-today', 'other-today'] },
-      { id: 'upcoming', shows: ['mine-later', 'other-soon'] },
-      { id: 'past', shows: ['mine-old', 'other-recent'] },
-    ]);
+    it('lists managed current shows once, today first then soonest, and keeps the rest below', () => {
+      expect(groupIds(shows, now, isMine)).toEqual([
+        { id: 'managing', shows: ['mine-today', 'mine-soon', 'mine-later'] },
+        { id: 'today', shows: ['other-today'] },
+        { id: 'upcoming', shows: ['other-soon'] },
+        { id: 'past', shows: ['mine-done', 'mine-old', 'other-recent'] },
+      ]);
+      const all = groupShowsForPane(shows, isMine, now).flatMap(g => g.shows.map(s => s.id));
+      expect(new Set(all).size).toBe(shows.length);
+    });
+
+    it('exposes the first managed show as the first item of the first group', () => {
+      const [first] = groupShowsForPane(shows, isMine, now);
+      expect(first.id).toBe('managing');
+      expect(first.shows[0].id).toBe('mine-today');
+    });
+
+    it('sends a managed today show to Managing and a managed past show to Past', () => {
+      const two = [shows[1], shows[6]];
+      expect(groupIds(two, now, isMine)).toEqual([
+        { id: 'managing', shows: ['mine-today'] },
+        { id: 'past', shows: ['mine-old'] },
+      ]);
+    });
+
+    it('omits Managing for a viewer who manages nothing, such as a site admin', () => {
+      const ids = groupShowsForPane(shows, () => false, now).map(g => g.id);
+      expect(ids).toEqual(['today', 'upcoming', 'past']);
+    });
+
+    it('omits Managing when every managed show is over', () => {
+      expect(groupIds([shows[6], shows[7]], now, isMine)).toEqual([
+        { id: 'past', shows: ['mine-done', 'mine-old'] },
+      ]);
+    });
+
+    it('lists a managed draft as current in Managing', () => {
+      const draft = makeShow({ id: 'mine-later', status: 'draft', startDate: '2026-12-20' });
+      expect(groupIds([draft], now, isMine)).toEqual([{ id: 'managing', shows: ['mine-later'] }]);
+    });
   });
 
   it('returns no groups for no shows', () => {

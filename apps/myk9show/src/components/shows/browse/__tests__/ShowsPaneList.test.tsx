@@ -71,7 +71,7 @@ describe('ShowsPaneList', () => {
     vi.useRealTimers();
   });
 
-  it('groups shows Today, Upcoming and Past with the viewer’s own shows first', () => {
+  it('puts the viewer’s current shows in a Managing section first, then the rest unchanged', () => {
     data.shows = [
       show({
         id: 'a',
@@ -105,14 +105,17 @@ describe('ShowsPaneList', () => {
     renderList('d');
 
     expect(screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent)).toEqual([
+      'Managing',
       'Today',
       'Upcoming',
       'Past',
     ]);
-    expect(rowNames(screen.getByRole('list', { name: 'Today shows' }))).toEqual([
-      'My Today',
-      'Other Today',
-    ]);
+    const managing = screen.getByRole('list', { name: 'Managing shows' });
+    expect(rowNames(managing)).toEqual(['My Today']);
+    expect(within(managing).getByRole('link')).not.toHaveTextContent('Managing');
+    expect(rowNames(screen.getByRole('list', { name: 'Today shows' }))).toEqual(['Other Today']);
+    expect(rowNames(screen.getByRole('list', { name: 'Upcoming shows' }))).toEqual(['Other Soon']);
+    expect(screen.getAllByRole('link', { name: /My Today/ })).toHaveLength(1);
     const past = screen.getByRole('list', { name: 'Past shows' });
     const pastRow = within(past).getByRole('link', { name: /My Spring/ });
     expect(pastRow).toHaveAttribute('href', '/shows/d');
@@ -192,8 +195,9 @@ describe('ShowsPaneList', () => {
       }),
     ];
     renderList();
-    const row = within(screen.getByRole('list', { name: 'Upcoming shows' })).getByRole('link');
-    expect(row).toHaveTextContent('Managing · Draft · Nov 20, 2026');
+    const row = within(screen.getByRole('list', { name: 'Managing shows' })).getByRole('link');
+    expect(row).toHaveTextContent('Draft · Nov 20, 2026');
+    expect(row).not.toHaveTextContent('Managing');
   });
 
   it('pins nothing for a site admin, who manages every show', () => {
@@ -210,5 +214,30 @@ describe('ShowsPaneList', () => {
     ];
     renderList();
     expect(screen.getByRole('link', { name: /Any Show/ })).not.toHaveTextContent('Managing');
+    expect(screen.queryByRole('heading', { name: 'Managing' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument();
+  });
+
+  it('filters the Managing section by search like every other group', async () => {
+    const user = userEvent.setup();
+    data.shows = [
+      show({
+        id: 'a',
+        name: 'Alpha Trial',
+        clubId: 'club-mine',
+        startDate: '2026-11-01',
+        endDate: '2026-11-01',
+      }),
+      show({
+        id: 'b',
+        name: 'Beta Trial',
+        clubId: 'club-mine',
+        startDate: '2026-11-02',
+        endDate: '2026-11-02',
+      }),
+    ];
+    renderList();
+    await user.type(screen.getByRole('textbox', { name: 'Search the shows list' }), 'beta');
+    expect(rowNames(screen.getByRole('list', { name: 'Managing shows' }))).toEqual(['Beta Trial']);
   });
 });

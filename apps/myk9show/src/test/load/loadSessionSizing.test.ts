@@ -180,4 +180,39 @@ describe('session sizing', () => {
     expect(() => parseSessionSize({ LOAD_TEST_SESSIONS: '99' })).toThrow(/must be one of/);
     expect(() => parseSessionSize({ LOAD_TEST_SESSIONS: 'lots' })).toThrow(/must be one of/);
   });
+
+  it.each([...G9_SESSION_SIZES])(
+    'puts every contending writer on a class with an active scorer at %i sessions',
+    size => {
+      const assignments = buildSessionAssignments(
+        scaleScenarioToSessions(G9_NORMAL_SCENARIO, size)
+      );
+      const scored = new Set(
+        assignments.filter(a => a.kind === 'ringside-scoring').map(a => a.target.classId)
+      );
+      const contending = assignments.filter(a =>
+        [
+          'steward-check-in',
+          'exhibitor-check-in',
+          'scoring-correction',
+          'secretary-class-edit',
+        ].includes(a.kind)
+      );
+      expect(contending.length).toBeGreaterThan(0);
+      for (const assignment of contending) {
+        expect(scored.has(assignment.target.classId)).toBe(true);
+      }
+    }
+  );
+
+  it('leaves the 358 placement exactly as the unscaled scenario builds it', () => {
+    expect(
+      buildSessionAssignments(scaleScenarioToSessions(G9_NORMAL_SCENARIO, 358)).map(a => a.target)
+    ).toEqual(buildSessionAssignments(G9_NORMAL_SCENARIO).map(a => a.target));
+    // Pinned from the pre-change placement rule: check-ins spread over all 20 rings.
+    const checkIns = buildSessionAssignments(G9_NORMAL_SCENARIO).filter(
+      a => a.kind === 'exhibitor-check-in'
+    );
+    expect(new Set(checkIns.map(a => a.target.classId)).size).toBe(20);
+  });
 });

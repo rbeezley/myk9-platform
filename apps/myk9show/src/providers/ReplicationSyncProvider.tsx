@@ -99,7 +99,7 @@ interface ReplicationSyncProviderProps {
 }
 
 // All replicated tables with their names
-const REPLICATED_TABLES = [
+export const REPLICATED_TABLES = [
   { name: 'shows', table: replicatedShowsTable },
   { name: 'trials', table: replicatedTrialsTable },
   { name: 'classes', table: replicatedClassesTable },

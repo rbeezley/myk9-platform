@@ -105,6 +105,51 @@ describe('request set', () => {
   });
 });
 
+describe('error samples', () => {
+  // supabase-js retries 503s and network failures with backoff, as it does in the
+  // app; fake timers let the retries run out without waiting seconds.
+  async function syncWithRetries(user: LoadVirtualUser) {
+    vi.useFakeTimers();
+    try {
+      const pass = user.syncOnce();
+      await vi.runAllTimersAsync();
+      return (await pass).samples;
+    } finally {
+      vi.useRealTimers();
+    }
+  }
+
+  const failing = (status: number, code: string) =>
+    (async () =>
+      new Response(JSON.stringify({ code, message: 'fixture' }), {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      })) as unknown as typeof fetch;
+
+  it.each([
+    [503, 'PGRST003'],
+    [500, '57014'],
+  ])('records HTTP %i and code %s from the response', async (status, code) => {
+    const samples = await syncWithRetries(reader(failing(status, code)));
+    expect(samples.length).toBeGreaterThan(0);
+    for (const sample of samples) {
+      expect(sample).toMatchObject({ ok: false, status, code });
+    }
+  });
+
+  it('leaves a transport failure at status 0 with no code', async () => {
+    const down = (async () => {
+      throw new TypeError('fetch failed');
+    }) as unknown as typeof fetch;
+    const samples = await syncWithRetries(reader(down));
+    expect(samples.length).toBeGreaterThan(0);
+    for (const sample of samples) {
+      expect(sample.status).toBe(0);
+      expect(sample.code).toBeUndefined();
+    }
+  });
+});
+
 describe('watermark advancement', () => {
   function datedServer(urls: string[]) {
     return (async (input: RequestInfo | URL, init?: RequestInit) => {

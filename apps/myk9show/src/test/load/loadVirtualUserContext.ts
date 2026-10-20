@@ -15,14 +15,18 @@ export interface VirtualUserRequestSample {
   readonly table: string;
   readonly durationMs: number;
   readonly ok: boolean;
+  /** HTTP status; 0 for a transport failure that never produced a response. */
   readonly status: number;
+  /** PostgREST/Postgres error code (PGRST003, 57014) when the server sent one. */
+  readonly code?: string;
 }
 
 /** A PostgREST builder's result, structurally: builders are thenables, not Promises. */
 interface PostgrestResult {
   readonly data: unknown;
   readonly count?: number | null;
-  readonly error: { readonly message: string } | null;
+  readonly status?: number;
+  readonly error: { readonly message: string; readonly code?: string } | null;
 }
 
 export interface RequestOutcome<T> {
@@ -69,13 +73,19 @@ export class PassRecorder {
     if (this.signal.aborted) return failed();
     const startedAt = Date.now();
     try {
-      const { data, count, error } = await run();
+      const { data, count, error, status } = await run();
       const durationMs = Date.now() - startedAt;
       if (error) {
         // supabase-js converts a rejected fetch into an `error` result rather
         // than throwing, so the abort arrives here rather than in the catch.
         if (this.signal.aborted) return failed();
-        this.samples.push({ table: label, durationMs, ok: false, status: 0 });
+        this.samples.push({
+          table: label,
+          durationMs,
+          ok: false,
+          status: status ?? 0,
+          ...(error.code ? { code: error.code } : {}),
+        });
         return failed();
       }
       this.samples.push({ table: label, durationMs, ok: true, status: 200 });

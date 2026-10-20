@@ -6,18 +6,7 @@ import {
 } from '@myk9/replication';
 import { supabase } from '@/services/database/supabaseClient';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
-import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
-import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
-import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
-import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
-import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
-import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
-import { replicatedShowDeskPeopleTable } from '@/services/replication/ReplicatedShowDeskPeopleTable';
-import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTable';
-import { replicatedJudgeAssignmentsTable } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
-import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
-import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
-import { replicatedPaperworkPrintsTable } from '@/services/replication/ReplicatedPaperworkPrintsTable';
+import { REPLICATED_TABLES } from '@/providers/ReplicationSyncProvider';
 import { LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT } from './loadClassColumns';
 import { LoadVirtualUser, VIRTUAL_USER_SYNC_INTERVAL_MS } from './loadVirtualUser';
 import {
@@ -68,21 +57,8 @@ vi.mock('@/services/database/supabaseClient', async () => {
   };
 });
 
-/** `REPLICATED_TABLES` in ReplicationSyncProvider, in its order. */
-const APP_POLL_TABLES = [
-  replicatedShowsTable,
-  replicatedTrialsTable,
-  replicatedClassesTable,
-  replicatedEntriesTable,
-  replicatedDogsTable,
-  replicatedDogRegistrationsTable,
-  replicatedShowDeskPeopleTable,
-  replicatedClubsTable,
-  replicatedJudgeAssignmentsTable,
-  replicatedArmbandsTable,
-  replicatedWaitlistEntriesTable,
-  replicatedPaperworkPrintsTable,
-] as const;
+/** The provider's own list, so a table added there is in the capture the moment it exists. */
+const APP_POLL_TABLES = REPLICATED_TABLES.map(({ table }) => table);
 
 /** The provider's untargeted pass: every table's `sync` with the app's empty scope, at once. */
 async function captureAppPass(options: FakePostgrestOptions = {}): Promise<string[]> {
@@ -199,18 +175,12 @@ describe("virtual reader replays the application's real poll", () => {
     expect(app.filter(line => line.includes('/rest/v1/clubs'))).toHaveLength(1);
   });
 
-  it('syncs the tables the poll syncs, no more', () => {
-    expect(READER_TABLE_PASSES.map(pass => pass.table)).toEqual([
-      'shows',
-      'trials',
-      'classes',
-      'dogs',
-      'dog_registrations',
-      'clubs',
-      'judge_assignments',
-      'armbands',
-      'waitlist_entries',
-    ]);
+  it('accounts for every table the provider syncs, so a new one cannot go unmirrored', () => {
+    // These three issue nothing on the unscoped poll (see loadVirtualUserTables.ts).
+    const silent = ['entries', 'people', 'paperwork_prints'];
+    const mirrored = READER_TABLE_PASSES.map(pass => pass.table);
+
+    expect([...mirrored, ...silent].sort()).toEqual(REPLICATED_TABLES.map(t => t.name).sort());
   });
 });
 

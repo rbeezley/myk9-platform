@@ -7,7 +7,8 @@ import type { ClubReadinessStatus } from '@/store/clubStore';
  * separately from the club replica. Every write path to authorized_at goes
  * through here so the key is spelled once.
  */
-export function clubAuthorizationQueryKey(clubId: string) {
+export function clubAuthorizationQueryKey(clubId: string | undefined) {
+  // `undefined` is the disabled useClubAuthorization query's key, unchanged from before.
   return ['club-authorization', clubId] as const;
 }
 

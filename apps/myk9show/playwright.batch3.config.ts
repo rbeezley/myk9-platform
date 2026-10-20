@@ -3,7 +3,7 @@ import base from './playwright.show-day.config';
 
 export default defineConfig({
   ...base,
-  testMatch: '**/batch3Scoring.spec.ts',
+  testMatch: ['**/batch3Scoring.spec.ts', '**/batch4Paperwork.spec.ts'],
   projects: [{ name: 'isolated-batch3-proof' }],
   timeout: 6 * 60_000,
 });

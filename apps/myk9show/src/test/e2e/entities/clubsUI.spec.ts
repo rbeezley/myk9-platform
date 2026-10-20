@@ -122,7 +122,10 @@ async function submitCreateClub(page: Page, expectedName: string) {
   // MYK9-931: Add Club only shows on the last tab; Next walks there.
   const next = page.getByRole('button', { name: /^Next:/ });
   while (await next.isVisible()) await next.click();
-  await chooseAction(page, 'Add Club');
+  await page
+    .getByRole('dialog', { name: 'Add Club' })
+    .getByRole('button', { name: 'Add Club', exact: true })
+    .click();
   await page.waitForURL(/\/clubs\/[0-9a-f-]{36}$/, { timeout: 15000 });
 
   const insertResponse = await insertResponsePromise.catch(() => null);

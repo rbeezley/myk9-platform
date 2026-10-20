@@ -33,7 +33,8 @@ import { awaitIdentity, deferred, installExhibitorProfile } from './exhibitorPro
 
 export const SECRETARY_FIXTURE_SHOW_ID = 'f1f1f1f1-0000-0000-0000-000000000101';
 const TRIAL_ID = 'f1f1f1f1-0000-0000-0000-000000000111';
-const CLASS_IDS = [
+/** The fixture trial's classes, in display order; a spec focuses one with `?focus=`. */
+export const SECRETARY_FIXTURE_CLASS_IDS = [
   'f1f1f1f1-0000-0000-0000-000000000121',
   'f1f1f1f1-0000-0000-0000-000000000122',
 ] as const;
@@ -113,6 +114,8 @@ function showDates() {
 export interface SecretaryFixtureOptions {
   /** MYK9-1265: Buried Novice A/Advanced/Excellent/Master in trial 1, a second trial, one entry. */
   changeClass?: boolean;
+  /** MYK9-1266: extra classes only make the schedule taller (a spec that scrolls it); none by default. */
+  extraClasses?: number;
 }
 
 function buildRows(clubId: string, options: SecretaryFixtureOptions = {}) {
@@ -139,11 +142,17 @@ function buildRows(clubId: string, options: SecretaryFixtureOptions = {}) {
   const changeClassTrial = options.changeClass
     ? buildChangeClassTrial2({ id: SECRETARY_FIXTURE_SHOW_ID, date: dates.start_date })
     : undefined;
+  const extra = Array.from({ length: options.extraClasses ?? 0 }, (_, i) => ({
+    id: `f1f1f1f1-0000-0000-0000-${String(200 + i).padStart(12, '0')}`,
+    name: `Extra Novice ${i + 1}`,
+    element: 'Exterior',
+  }));
   const classes: Array<ClassRow & Record<string, unknown>> = options.changeClass
     ? (buildChangeClassClasses(TRIAL_ID) as unknown as Array<ClassRow & Record<string, unknown>>)
     : [
-        { id: CLASS_IDS[0], name: 'Container Novice A', element: 'Container' },
-        { id: CLASS_IDS[1], name: 'Interior Novice A', element: 'Interior' },
+        { id: SECRETARY_FIXTURE_CLASS_IDS[0], name: 'Container Novice A', element: 'Container' },
+        { id: SECRETARY_FIXTURE_CLASS_IDS[1], name: 'Interior Novice A', element: 'Interior' },
+        ...extra,
       ].map((c, index) => ({
         ...c,
         trial_id: TRIAL_ID,
@@ -301,16 +310,16 @@ export async function installSecretaryFixture(
   // mail-in wizard cannot resolve the owner of the dog it just found.
   await installExhibitorProfile(page);
 
-  await page.route('**/rest/v1/shows?*', route => serveBuilt(route, b => [b.showWithEmbeds]));
-  await page.route('**/rest/v1/trials?*', route => serveBuilt(route, b => b.trials));
-  await page.route('**/rest/v1/classes?*', route => serveBuilt(route, b => b.classes));
+  await page.route('**/rest/v1/shows{,?*}', route => serveBuilt(route, b => [b.showWithEmbeds]));
+  await page.route('**/rest/v1/trials{,?*}', route => serveBuilt(route, b => b.trials));
+  await page.route('**/rest/v1/classes{,?*}', route => serveBuilt(route, b => b.classes));
   if (options.changeClass) {
     await page.route('**/rest/v1/view_authenticated_entry_results*', route =>
       serveBuilt(route, b => b.entries)
     );
   }
-  await page.route('**/rest/v1/dogs?*', route => serveBuilt(route, b => [b.dog]));
+  await page.route('**/rest/v1/dogs{,?*}', route => serveBuilt(route, b => [b.dog]));
   // `searchAllDogs` resolves registration matches first and folds the ids into
   // the dog query; served empty, so the name match alone must find the dog.
-  await page.route('**/rest/v1/dog_registrations?*', route => serve(route, []));
+  await page.route('**/rest/v1/dog_registrations{,?*}', route => serve(route, []));
 }

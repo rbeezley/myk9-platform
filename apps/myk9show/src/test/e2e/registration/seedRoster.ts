@@ -80,7 +80,7 @@ export async function searchForSeededDog(page: Page, dog: SeededSearchDog): Prom
 }
 
 /**
- * The demo show's entry window is `CURRENT_DATE - 16 .. + 76` (`seed-demo.sql`
+ * The demo show's entry window is `CURRENT_DATE - 16 .. + 38` (`seed-demo.sql`
  * section 2) — deliberately relative, so "today" is always inside it. A spec
  * that pinned `page.clock.setFixedTime(new Date('2026-05-15T12:00:00.000Z'))`
  * was therefore guaranteed to fall outside the window the moment staging was

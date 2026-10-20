@@ -373,6 +373,9 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     expect(seed).not.toMatch(/DELETE FROM public\.trial_packet_snapshots/);
     for (const shows of showsDeletes) {
       const ids = uuidsIn(shows.text);
+      // MYK9-1281: the stale fixture-show delete carries its preflight inside
+      // itself (NOT EXISTS), skipping a show with a snapshot rather than refusing.
+      if (/NOT EXISTS \(SELECT 1 FROM public\.trial_packet_snapshots\b/.test(shows.text)) continue;
       const partner = preflights.filter(p => ids.some(id => p.text.includes(`'${id}'`)));
       expect(
         partner.length,

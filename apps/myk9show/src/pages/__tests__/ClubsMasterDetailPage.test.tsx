@@ -208,12 +208,14 @@ describe('Clubs list with a detail pane', () => {
     expect(detailMounts.count).toBe(1);
   });
 
-  it('opens Add Club beside an open club and closes it without touching the URL', async () => {
+  it('opens Add Club (from the Actions menu) beside an open club and closes it without touching the URL', async () => {
     const user = userEvent.setup();
     mockViewportWidth(1440);
     renderAt('/clubs/c2');
 
-    await user.click(screen.getByRole('button', { name: 'Add Club' }));
+    // The page has no Add Club button; the header menu's item is this link.
+    expect(screen.queryByRole('button', { name: 'Add Club' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: 'Add a club from elsewhere' }));
     expect(screen.getByRole('dialog', { name: 'Add Club panel' })).toBeInTheDocument();
     expect(screen.getByText('the open club')).toBeInTheDocument();
 

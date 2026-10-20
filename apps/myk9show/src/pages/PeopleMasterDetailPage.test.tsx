@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Link, Route, Routes } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
@@ -44,6 +44,10 @@ describe('PeopleMasterDetailPage', () => {
     expect(screen.getByText('people list (split)')).toBeInTheDocument();
     expect(screen.getByText('Select a person to see their details')).toBeInTheDocument();
     expect(screen.queryByText('person detail')).not.toBeInTheDocument();
+    // With nothing open, the right pane carries the trail (Home > People) and the page's one h1.
+    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(trail).getByText('People')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
   it('shows the full list at /people on a narrow screen', () => {
@@ -51,6 +55,7 @@ describe('PeopleMasterDetailPage', () => {
     renderAt('/people');
     expect(screen.getByText('people list (full)')).toBeInTheDocument();
     expect(screen.queryByText('Select a person to see their details')).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
   });
 
   it('shows the list and the person together at /people/:id on a wide screen', () => {

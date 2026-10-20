@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LIST_NAVIGATION_STATE } from './listNavigation';
 
@@ -34,10 +34,18 @@ export function useSelectMode({
   // Opening a record ends select mode, so it shows beside the list. The focused table row is about
   // to unmount; without the focus call, focus falls to the body.
   const navigate = useNavigate();
+  // The toggle sits in the list toolbar, which the layout remounts when the split replaces the
+  // full-width table, so focus is put back once the new toggle exists, not on the old node.
+  const refocusToggle = useRef(false);
+  useEffect(() => {
+    if (!refocusToggle.current) return;
+    refocusToggle.current = false;
+    buttonRef.current?.focus();
+  });
   const openRecord = useCallback(
     (href: string) => {
       exitSelectMode();
-      buttonRef.current?.focus();
+      refocusToggle.current = true;
       navigate(href, { state: LIST_NAVIGATION_STATE });
     },
     [exitSelectMode, navigate]

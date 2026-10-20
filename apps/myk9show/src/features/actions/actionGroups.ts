@@ -66,7 +66,9 @@ export function groupActions(
  * 44px once the cart badge showed ("myK9S...", owner decision 2026-10-08). Anything else --
  * a page, show or list item, or a staff create -- keeps the button.
  */
-export function headerShowsActions(groups: readonly ActionGroup[]): boolean {
+export function headerShowsActions(groups: readonly ActionGroup[], onDogsPage = false): boolean {
   const ids = groups.flatMap(group => group.actions.map(action => action.id));
-  return ids.length > 0 && !(ids.length === 1 && ids[0] === 'create-dog');
+  // On the Dogs pages the menu is the only door to Add Dog (the page button moved into it,
+  // MYK9-1267), so an exhibitor keeps it there.
+  return ids.length > 0 && (onDogsPage || !(ids.length === 1 && ids[0] === 'create-dog'));
 }

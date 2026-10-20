@@ -1,6 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { signInAsAdmin, signInAsExhibitor } from '../helpers/testUsers';
-import { actionsTrigger, chooseAction } from '../helpers/actionsMenu';
+import { actionsTrigger, chooseAction, openActionsMenu } from '../helpers/actionsMenu';
 
 /**
  * Comprehensive UI test for the Clubs section.
@@ -45,7 +45,7 @@ async function gotoClubsBrowse(page: Page) {
 }
 
 async function openCreateClubDialog(page: Page) {
-  await page.getByRole('button', { name: 'Add Club' }).click();
+  await chooseAction(page, 'Add Club');
   await expect(page.getByRole('dialog', { name: 'Add Club' })).toBeVisible();
 }
 
@@ -122,7 +122,10 @@ async function submitCreateClub(page: Page, expectedName: string) {
   // MYK9-931: Add Club only shows on the last tab; Next walks there.
   const next = page.getByRole('button', { name: /^Next:/ });
   while (await next.isVisible()) await next.click();
-  await page.getByRole('button', { name: 'Add Club', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Add Club' })
+    .getByRole('button', { name: 'Add Club', exact: true })
+    .click();
   await page.waitForURL(/\/clubs\/[0-9a-f-]{36}$/, { timeout: 15000 });
 
   const insertResponse = await insertResponsePromise.catch(() => null);
@@ -145,7 +148,12 @@ test.describe('Clubs UI — Browse Page', () => {
 
   test('loads club list with header and toolbar', async ({ page }) => {
     await gotoClubsBrowse(page);
-    await expect(page.getByRole('button', { name: 'Add Club' })).toBeVisible();
+    // Add Club lives in the header Actions menu, not on the page (MYK9-1267).
+    await expect(page.getByRole('button', { name: 'Add Club' })).toHaveCount(0);
+    await expect(
+      (await openActionsMenu(page)).getByRole('menuitem', { name: 'Add Club' })
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
     await expect(page.getByRole('textbox', { name: /Search clubs by name/ })).toBeVisible();
     // The Club Type filter was cut (MYK9-906); target view toggles by exact
     // aria-label ("Table view" not "Table", which also matches "Reset table view").
@@ -331,7 +339,14 @@ test.describe('Clubs UI — Non-admin permissions', () => {
 
   test('exhibitor cannot create, edit branding, or delete clubs', async ({ page }) => {
     await page.goto('/clubs', { waitUntil: 'networkidle' });
-    await expect(page.getByRole('button', { name: 'Add Club' })).not.toBeVisible();
+    // No Add Club on the page, and none in the Actions menu for an exhibitor.
+    await expect(page.getByRole('button', { name: 'Add Club' })).toHaveCount(0);
+    if (await actionsTrigger(page).isVisible()) {
+      await expect(
+        (await openActionsMenu(page)).getByRole('menuitem', { name: 'Add Club' })
+      ).toHaveCount(0);
+      await page.keyboard.press('Escape');
+    }
 
     await page
       .getByRole('link', { name: new RegExp(CLUB_C_NAME) })

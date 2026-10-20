@@ -34,4 +34,30 @@ describe('ListToolbarLayout', () => {
     );
     expect(order(container)).toEqual(['filters', 'views', 'applied', 'count']);
   });
+
+  it('puts the select action on the search row, in both widths', () => {
+    for (const compact of [true, false]) {
+      const { unmount } = render(
+        <ListToolbarLayout compact={compact} {...parts} selectAction={<button>Select</button>} />
+      );
+      // filters sit in their own slot (a width floor beside a record); the row is that slot's parent.
+      const slot = screen.getByText('filters').parentElement as HTMLElement;
+      const row = slot.parentElement as HTMLElement;
+      expect(row).toContainElement(screen.getByRole('button', { name: 'Select' }));
+      expect(row.contains(screen.getByText('views'))).toBe(compact);
+      // Beside a record the row wraps rather than squeezing search to nothing (MYK9-1267 review).
+      expect(row).toHaveClass('flex-wrap');
+      expect(slot.className.includes('min-w-[12rem]')).toBe(compact);
+      unmount();
+    }
+  });
+
+  it('keeps the select action mounted when the toolbar goes compact and back', () => {
+    const { rerender } = render(
+      <ListToolbarLayout compact={false} {...parts} selectAction={<button>Select</button>} />
+    );
+    const button = screen.getByRole('button', { name: 'Select' });
+    rerender(<ListToolbarLayout compact {...parts} selectAction={<button>Select</button>} />);
+    expect(screen.getByRole('button', { name: 'Select' })).toBe(button);
+  });
 });

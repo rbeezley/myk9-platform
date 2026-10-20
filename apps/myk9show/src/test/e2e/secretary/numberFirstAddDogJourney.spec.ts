@@ -21,6 +21,7 @@ import {
   TRIAL_ID,
 } from './numberFirstAddDogFixture';
 import { waitlistAdmin } from './waitlistJourneyFixture';
+import { chooseAction } from '../helpers/actionsMenu';
 
 /**
  * Suite category: nightly (stateful, seeded Playwright Regression only).
@@ -69,10 +70,7 @@ async function findDogByNumber(page: Page, number: string) {
 }
 
 async function openAddDogFromDogsPage(page: Page) {
-  await page
-    .getByRole('button', { name: /^Add Dog$/ })
-    .first()
-    .click();
+  await chooseAction(page, 'Add Dog');
 }
 
 test.describe('Number-first Add Dog: a held entry is listed, kept off the run sheet, released by its number', () => {

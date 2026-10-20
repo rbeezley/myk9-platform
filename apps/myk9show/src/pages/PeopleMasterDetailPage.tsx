@@ -11,6 +11,7 @@ const PeopleMasterDetailPage: React.FC = () => (
     Detail={PersonDetailPage}
     EmptyIcon={Users}
     emptyText="Select a person to see their details"
+    crumb={{ label: 'People', href: '/people' }}
   />
 );
 

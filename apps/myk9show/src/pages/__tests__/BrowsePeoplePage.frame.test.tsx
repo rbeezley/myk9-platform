@@ -62,13 +62,12 @@ describe('BrowsePeoplePage list frame', () => {
     data = baseData();
   });
 
-  it('sits in the shared page frame, with the PageHeader breadcrumb and title', () => {
+  it('sits in the shared page frame, with the page title but no trail above the list', () => {
     render(<BrowsePeoplePage />);
 
     expect(screen.getByTestId('app-shell-page')).toBeInTheDocument();
-    const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(crumbs).getByRole('link', { name: 'Home' })).toBeInTheDocument();
-    expect(within(crumbs).getByText('People')).toBeInTheDocument();
+    // The trail lives in the detail column (MasterDetailRoute); this list column has none.
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'People' })).toBeInTheDocument();
   });
 

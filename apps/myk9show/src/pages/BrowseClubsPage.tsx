@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { Plus, Building2 } from 'lucide-react';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWrapper';
@@ -24,7 +23,6 @@ import { refreshScopesAfterClubUpload } from '@/components/clubs/refreshScopesAf
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { BrowseTabs } from '@/components/layout/BrowseTabs';
-import { PageHeader } from '@/components/common/PageHeader';
 import {
   ListEmptyState,
   ListFilterBar,
@@ -116,9 +114,6 @@ const BrowseClubsPage: React.FC<BrowseClubsPageProps> = ({ detail = null }) => {
       exportRowsCsv('clubs', CLUB_EXPORT_HEADERS, clubExportRows(filteredClubs, clubShowCounts)),
   });
 
-  // Breadcrumbs for PageHeader
-  const breadcrumbs = useMemo(() => [{ label: 'Clubs', href: '/clubs' }], []);
-
   // Handle club creation
   const handleClubCreated = useCallback(
     async (clubData: Partial<Club>, { runSelfNavigation }: EditPanelSaveContext) => {
@@ -182,20 +177,9 @@ const BrowseClubsPage: React.FC<BrowseClubsPageProps> = ({ detail = null }) => {
     [addClub, selectClub, routerNavigate, searchParams, refreshPermissions, closeCreatePanel]
   );
 
-  const actionButton = useMemo(
-    () =>
-      canCreateClub ? (
-        <Button onClick={openCreatePanel}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Club
-        </Button>
-      ) : null,
-    [canCreateClub, openCreatePanel]
-  );
-
-  const pageHeader = (
-    <PageHeader breadcrumbs={breadcrumbs} title="Clubs" actions={actionButton} showTitle />
-  );
+  // The title and trail live in the detail column. Only with no detail beside it (an empty
+  // directory, a phone) does the list carry the page's one h1.
+  const pageTitle = <h1 className="sr-only">Clubs</h1>;
 
   const renderContent = () => {
     if (splitOpen && filteredClubs.length > 0) {
@@ -279,7 +263,6 @@ const BrowseClubsPage: React.FC<BrowseClubsPageProps> = ({ detail = null }) => {
     <PageShell ContentWrapper={BrowseTabs} {...(splitOpen ? { maxWidth: 'max-w-[110rem]' } : {})}>
       {splitOpen ? (
         <>
-          {pageHeader}
           <MasterDetailLayout
             id="clubs"
             listLabel="Clubs list"
@@ -304,7 +287,7 @@ const BrowseClubsPage: React.FC<BrowseClubsPageProps> = ({ detail = null }) => {
           {/* Offline guest: the signed-out directory is online-only (MYK9-747) */}
           {isOffline && !isLoading && !hasError && (
             <>
-              {pageHeader}
+              {pageTitle}
               <ClubsOfflineState
                 description="Connect to the internet to browse clubs."
                 onRetry={handleRetry}
@@ -315,7 +298,7 @@ const BrowseClubsPage: React.FC<BrowseClubsPageProps> = ({ detail = null }) => {
           {/* Normal content */}
           {!isLoading && !hasError && !isOffline && (
             <>
-              {pageHeader}
+              {pageTitle}
               <MasterDetailLayout
                 id="clubs"
                 listLabel="Clubs list"

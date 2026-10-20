@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { waitFor } from '@testing-library/react';
 import { screen, render } from '@/test/utils/testUtils';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 import BrowsePeoplePage from '../BrowsePeoplePage';
 
@@ -56,8 +56,17 @@ vi.mock('@/components/users/browse', () => ({
       </button>
     </>
   ),
-  PeopleListToolbar: ({ resultLineExtra }: { resultLineExtra?: React.ReactNode }) => (
-    <div>{resultLineExtra}</div>
+  PeopleListToolbar: ({
+    resultLineExtra,
+    selectAction,
+  }: {
+    resultLineExtra?: React.ReactNode;
+    selectAction?: React.ReactNode;
+  }) => (
+    <div>
+      {selectAction}
+      {resultLineExtra}
+    </div>
   ),
   PeopleBulkBar: ({ selectedPeople }: { selectedPeople: unknown[] }) => (
     <div data-testid="people-bulk-bar">{selectedPeople.length} selected</div>
@@ -81,7 +90,13 @@ vi.mock('@/components/panels/edit', () => ({
 
 function LocationProbe() {
   const location = useLocation();
-  return <div data-testid="current-location">{location.pathname}</div>;
+  return (
+    <>
+      <div data-testid="current-location">{location.pathname}</div>
+      {/* What the header Actions menu's Add Person item is: a link to the create panel. */}
+      <Link to="/people?add=true">Add Person from the menu</Link>
+    </>
+  );
 }
 
 const renderWide = () =>
@@ -154,7 +169,7 @@ describe('BrowsePeoplePage select mode (wide, split)', () => {
 
     it('after creating a person while selecting', async () => {
       await tickThenReenter(async () => {
-        await userEvent.click(screen.getByRole('button', { name: 'Add Person' }));
+        await userEvent.click(screen.getByRole('link', { name: 'Add Person from the menu' }));
         await userEvent.click(screen.getByRole('button', { name: 'save new person' }));
         // The new person opens beside the list: select mode is over.
         await waitFor(() =>

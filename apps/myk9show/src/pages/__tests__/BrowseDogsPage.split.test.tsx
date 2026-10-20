@@ -109,6 +109,18 @@ describe('BrowseDogsPage beside an open dog', () => {
     expect(screen.getByRole('link', { name: /Max/ })).toHaveAttribute('aria-current', 'page');
   });
 
+  it('puts Select on the search row, labelled "Select", and reads "Done" while selecting', async () => {
+    renderSplit();
+    const select = screen.getByRole('button', { name: 'Select dogs' });
+    expect(select).toHaveTextContent(/^Select$/);
+    expect(select.parentElement).toContainElement(screen.getByPlaceholderText(/^Search dogs/));
+    expect(screen.queryByRole('button', { name: 'Add Dog' })).not.toBeInTheDocument();
+
+    await userEvent.click(select);
+    const done = screen.getByRole('button', { name: 'Done' });
+    expect(done.parentElement).toContainElement(screen.getByPlaceholderText(/^Search dogs/));
+  });
+
   it('swaps to the full-width table in select mode and back on Done', async () => {
     renderSplit();
     await userEvent.click(screen.getByRole('button', { name: 'Select dogs' }));

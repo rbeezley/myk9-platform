@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CREATE_HREFS, resolveCreateGates } from '@/features/actions/createGates';
+import { CREATE_HREFS, createHrefFor, resolveCreateGates } from '@/features/actions/createGates';
 import { DEFAULT_ROLE_PERMISSIONS, UserRole } from '@/types/auth-types';
 
 // Each role's permissions as the RBAC tables grant them (`people:create` comes from
@@ -43,5 +43,36 @@ describe('resolveCreateGates', () => {
       person: '/people?add=true',
       club: '/clubs?create=true',
     });
+  });
+});
+
+describe('createHrefFor', () => {
+  it.each([
+    ['create-club', '/clubs', 'create=true'],
+    ['create-dog', '/dogs', 'add=true'],
+    ['create-person', '/people', 'add=true'],
+  ] as const)('%s opens in place on its own record, keeping path and search', (id, base, param) => {
+    const href =
+      id === 'create-club'
+        ? CREATE_HREFS.club
+        : id === 'create-dog'
+          ? CREATE_HREFS.dog
+          : CREATE_HREFS.person;
+    expect(createHrefFor(id, href, `${base}/abc`, '?search=x')).toBe(
+      `${base}/abc?search=x&${param}`
+    );
+    expect(createHrefFor(id, href, base, '')).toBe(`${base}?${param}`);
+  });
+
+  it('keeps the plain href off its own list, and for other actions', () => {
+    expect(createHrefFor('create-club', CREATE_HREFS.club, '/dogs/1', '?search=x')).toBe(
+      '/clubs?create=true'
+    );
+    expect(createHrefFor('create-club', CREATE_HREFS.club, '/clubsy', '')).toBe(
+      '/clubs?create=true'
+    );
+    expect(createHrefFor('create-show', CREATE_HREFS.show, '/clubs/1', '?a=b')).toBe(
+      CREATE_HREFS.show
+    );
   });
 });

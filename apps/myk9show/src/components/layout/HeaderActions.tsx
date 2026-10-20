@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,10 +43,12 @@ const LABEL_BREAKPOINT_QUERY = '(min-width: 640px)';
  */
 export function HeaderActions() {
   const { groups } = useCurrentActions();
+  const { pathname } = useLocation();
   // Fail narrow: without matchMedia we render the icon, which always fits.
   const showsLabel = useMediaQuery(LABEL_BREAKPOINT_QUERY, false);
 
-  if (!headerShowsActions(groups)) return null;
+  if (!headerShowsActions(groups, pathname === '/dogs' || pathname.startsWith('/dogs/')))
+    return null;
 
   return (
     <DropdownMenu>

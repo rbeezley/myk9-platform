@@ -37,7 +37,8 @@ async function gotoPeopleBrowse(page: Page) {
   await page.goto('/people', { waitUntil: 'networkidle' });
   // h1 is sr-only; assert via the breadcrumb.
   await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Add Person' })).toBeVisible();
+  // Add Person lives in the header Actions menu, not on the page (MYK9-1267).
+  await expect(page.getByRole('button', { name: 'Add Person' })).toHaveCount(0);
 }
 
 // ---------------------------------------------------------------------------
@@ -115,7 +116,7 @@ test.describe('People UI — Create (secretary)', () => {
 
   test('Create Person A — opens panel, fills, saves, navigates to detail', async ({ page }) => {
     await gotoPeopleBrowse(page);
-    await page.getByRole('button', { name: 'Add Person' }).click();
+    await chooseAction(page, 'Add Person');
 
     // The dialog opens with Basic Info tab.
     const dialog = page.getByRole('dialog', { name: 'Add Person' });
@@ -160,7 +161,7 @@ test.describe('People UI — Create (secretary)', () => {
 
   test('Create Person B (kept in directory for delete-then-confirm)', async ({ page }) => {
     await gotoPeopleBrowse(page);
-    await page.getByRole('button', { name: 'Add Person' }).click();
+    await chooseAction(page, 'Add Person');
     const dialog = page.getByRole('dialog', { name: 'Add Person' });
     await expect(dialog).toBeVisible();
     await page.getByRole('textbox', { name: /First Name/ }).fill(PERSON_B_FIRST);
@@ -187,7 +188,7 @@ test.describe('People UI — Create (secretary)', () => {
 
   test('Create rejects submission when required fields are empty', async ({ page }) => {
     await gotoPeopleBrowse(page);
-    await page.getByRole('button', { name: 'Add Person' }).click();
+    await chooseAction(page, 'Add Person');
     await expect(page.getByRole('dialog', { name: 'Add Person' })).toBeVisible();
     // Fill ONLY last name (no first name, no email). That gives the form
     // hasChanges=true so Save is enabled, but it remains schema-invalid
@@ -273,7 +274,7 @@ test.describe('People UI — Add Dog with Person as Owner (secretary)', () => {
     await page.getByRole('link', { name: new RegExp(PERSON_A_LAST) }).click();
     await page.waitForURL(/\/people\/[^/]+/);
 
-    await page.getByRole('button', { name: 'Add Dog', exact: true }).click();
+    await chooseAction(page, 'Add Dog');
     await expect(page.getByRole('dialog', { name: 'Add Dog' })).toBeVisible();
 
     // No registration number is part of this check; a secretary may skip it (MYK9-1162).
@@ -450,7 +451,7 @@ test.describe('People UI — Admin CRUD lifecycle', () => {
     page,
   }) => {
     await gotoPeopleBrowse(page);
-    await page.getByRole('button', { name: 'Add Person' }).click();
+    await chooseAction(page, 'Add Person');
     await expect(page.getByRole('dialog', { name: 'Add Person' })).toBeVisible();
 
     await page.getByRole('textbox', { name: /First Name/ }).fill(ADMIN_PERSON_FIRST);

@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsJudge, signInAsSecretary } from '../uat/shared/auth';
-import { openActionsMenu } from '../helpers/actionsMenu';
+import { openActionsMenu, chooseAction } from '../helpers/actionsMenu';
 
 /**
  * MYK9-1227 (docs/plan-sidebar-browse-pane.md, phase 3): one Browse rail item for Shows, Dogs,
@@ -121,7 +121,7 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
 
     // Add Club opens beside the open club, and Cancel leaves the club and its URL as they were.
     const urlBefore = page.url();
-    await page.getByRole('button', { name: 'Add Club' }).click();
+    await chooseAction(page, 'Add Club');
     const panel = page.getByRole('dialog', { name: /Add Club/ });
     await expect(panel).toBeVisible();
     await panel.getByRole('button', { name: 'Cancel' }).click();
@@ -134,6 +134,24 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
     await expect(page).toHaveURL(/\/clubs\?search=Heartland$/);
     await expect(page.getByText('Select a club to see its details')).toBeVisible();
   });
+
+  for (const [path, noun] of [
+    ['/dogs', 'Dog'],
+    ['/people', 'Person'],
+    ['/clubs', 'Club'],
+  ] as const) {
+    test(`at 1440 ${path} has no page-level Add ${noun} button; it is in the Actions menu (read-only)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await signInAsSecretary(page, path);
+      await expect(page.getByRole('region', { name: /list$/ })).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByRole('button', { name: `Add ${noun}`, exact: true })).toHaveCount(0);
+      const menu = await openActionsMenu(page);
+      await expect(menu.getByRole('menuitem', { name: `Add ${noun}` })).toBeVisible();
+      await page.keyboard.press('Escape');
+    });
+  }
 
   test('the tablist and its selected tab pass axe', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });

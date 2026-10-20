@@ -33,6 +33,8 @@ interface PeopleListToolbarProps {
   resultLineExtra?: ReactNode;
   /** Beside an open person: search and view on one row, the count only while narrowed. */
   compact?: boolean;
+  /** The Select/Done toggle, on the search row. */
+  selectAction?: ReactNode;
 }
 
 export function PeopleListToolbar({
@@ -44,6 +46,7 @@ export function PeopleListToolbar({
   hasActiveFilters,
   resultLineExtra,
   compact = false,
+  selectAction,
 }: PeopleListToolbarProps) {
   const views = useMemo(() => buildPeopleViews(people), [people]);
 
@@ -72,6 +75,7 @@ export function PeopleListToolbar({
       compact={compact}
       viewTabs={viewTabs}
       filterBar={filterBar}
+      selectAction={selectAction}
       resultLine={
         <ListResultLine
           shown={matchCount}

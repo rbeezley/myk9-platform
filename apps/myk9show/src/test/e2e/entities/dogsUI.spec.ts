@@ -176,8 +176,12 @@ test.describe('Dogs UI — Browse (secretary)', () => {
   test('browse page loads with dog cards and filter toolbar', async ({ page }) => {
     await gotoDogsBrowse(page);
 
-    // "Add Dog" button visible for secretary
-    await expect(page.getByRole('button', { name: 'Add Dog', exact: true })).toBeVisible();
+    // Add Dog lives in the header Actions menu, not on the page (MYK9-1267).
+    await expect(page.getByRole('button', { name: 'Add Dog', exact: true })).toHaveCount(0);
+    await expect(
+      (await openHeaderActionsMenu(page)).getByRole('menuitem', { name: 'Add Dog' })
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
 
     // The labelled "Show:" view select replaces the old filter chips (MYK9-906);
     // Breed, Sex and Owner filters were cut (search still covers them).
@@ -227,7 +231,7 @@ test.describe('Dogs UI — Create (secretary)', () => {
 
   test('Add Dog A — panel opens, fills, submits, lands on detail page', async ({ page }) => {
     await gotoDogsBrowse(page);
-    await page.getByRole('button', { name: 'Add Dog', exact: true }).click();
+    await chooseAction(page, 'Add Dog');
     await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
 
     // Dog A stays registration-free: the serial Registrations tests below add its AKC and UKC
@@ -265,7 +269,7 @@ test.describe('Dogs UI — Create (secretary)', () => {
 
   test('Add Dog B — panel submits and lands on detail page', async ({ page }) => {
     await gotoDogsBrowse(page);
-    await page.getByRole('button', { name: 'Add Dog', exact: true }).click();
+    await chooseAction(page, 'Add Dog');
     await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
 
     // Registration comes first (MYK9-1162): registry and number, Find dog, details.
@@ -315,7 +319,7 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
 
   test('exhibitor creates, edits, and deletes their own dog', async ({ page }) => {
     await gotoMyDogsBrowse(page);
-    await page.getByRole('button', { name: 'Add Dog' }).click();
+    await chooseAction(page, 'Add Dog');
     await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
 
     // An exhibitor cannot skip the registration (MYK9-1162).

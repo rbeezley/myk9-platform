@@ -171,15 +171,12 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     expect(shell).toBeTruthy();
   });
 
-  it('renders breadcrumb with "Dogs" link via PageHeader', () => {
+  it('keeps the title and trail out of the list column (they live in the detail column)', () => {
     renderPage();
-    // PageHeader includes a breadcrumb nav
-    const nav = screen.getByLabelText('Breadcrumb');
-    expect(nav).toBeInTheDocument();
-    // The breadcrumb should contain "Dogs" text (within the nav)
-    const dogsInBreadcrumb = nav.querySelector('.text-foreground');
-    expect(dogsInBreadcrumb).toBeTruthy();
-    expect(dogsInBreadcrumb!.textContent).toBe('Dogs');
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
+    // No detail beside the list here, so the list carries the page's one h1, screen-reader only.
+    expect(screen.getByRole('heading', { level: 1, name: 'Dogs' })).toHaveClass('sr-only');
+    expect(screen.queryByRole('button', { name: 'Add Dog' })).not.toBeInTheDocument();
   });
 
   it('renders ErrorState when hook returns error', () => {

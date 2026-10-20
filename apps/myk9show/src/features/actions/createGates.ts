@@ -38,3 +38,31 @@ export function resolveCreateGates(auth: {
       auth.hasRole(UserRole.SITE_ADMIN),
   };
 }
+
+const CREATE_ACTION_KINDS = {
+  'create-dog': 'dog',
+  'create-person': 'person',
+  'create-club': 'club',
+} as const;
+
+/**
+ * Where a Create item goes from `pathname`. On its own list or one of its records (`/clubs`,
+ * `/clubs/:id`) the panel opens IN PLACE: the current path and search are kept and only the
+ * create param is added, so the open record and the list's search survive. Anywhere else, the
+ * plain href. THE one rule for Dog, Person and Club; the list pages read the param from the URL.
+ */
+export function createHrefFor(
+  actionId: string,
+  href: string,
+  pathname: string,
+  search: string
+): string {
+  const kind = CREATE_ACTION_KINDS[actionId as keyof typeof CREATE_ACTION_KINDS];
+  if (!kind) return href;
+  const target = new URL(CREATE_HREFS[kind], 'http://placeholder');
+  const onItsList = pathname === target.pathname || pathname.startsWith(`${target.pathname}/`);
+  if (!onItsList) return href;
+  const params = new URLSearchParams(search);
+  target.searchParams.forEach((value, key) => params.set(key, value));
+  return `${pathname}?${params.toString()}`;
+}

@@ -168,6 +168,20 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
               ).length
           )
       ).toBe(0);
+      // Positive control for the negative menu pin below: Select is a list tool, on the search row.
+      if (noun !== 'Club') {
+        const select = page
+          .getByRole('region', { name: /list$/ })
+          .getByRole('button', { name: /Select (dogs|people)/ });
+        await expect(select).toBeVisible();
+        const selectTop = (await select.boundingBox())!.y;
+        const rowTop = (await page
+          .getByRole('region', { name: /list$/ })
+          .getByRole('textbox')
+          .first()
+          .boundingBox())!.y;
+        expect(Math.abs(selectTop - rowTop)).toBeLessThanOrEqual(8);
+      }
       // With a record open, its trail is inside the detail region too.
       await page.getByRole('region', { name: /list$/ }).getByRole('link').first().click();
       await expect(page).toHaveURL(new RegExp(`${path}/[\\w-]+`));
@@ -175,12 +189,40 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
         timeout: 20_000,
       });
       await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toHaveCount(1);
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
       await page.goto(path);
       await expect(details.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible();
       const menu = await openActionsMenu(page);
       await expect(menu.getByRole('menuitem', { name: /^Select/ })).toHaveCount(0);
       await expect(menu.getByRole('menuitem', { name: `Add ${noun}` })).toBeVisible();
       await page.keyboard.press('Escape');
+    });
+  }
+
+  for (const path of ['/dogs', '/people', '/clubs'] as const) {
+    test(`at 375 ${path}: the list has no trail and one sr-only h1; an open record has one trail and one h1 (read-only)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 375, height: 812 });
+      await signInAsSecretary(page, path);
+      // A phone's tables have no row links: a row opens its record on a click of its name.
+      const firstRow =
+        path === '/clubs'
+          ? page.getByText('Heartland Scent Work Club').first()
+          : page
+              .locator(`a[href^="${path}/"]`)
+              .or(page.getByRole('row').nth(1).getByRole('cell').nth(1))
+              .first();
+      await expect(firstRow).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toHaveCount(0);
+      await expect(page.locator('h1')).toHaveCount(1);
+      await expect(page.locator('h1')).toHaveClass('sr-only');
+      await firstRow.click();
+      await expect(page).toHaveURL(new RegExp(`${path}/[\\w-]+`));
+      await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toHaveCount(1, {
+        timeout: 20_000,
+      });
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     });
   }
 

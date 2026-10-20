@@ -4,7 +4,7 @@
  * their inputs (auth context, the users query, the people store) are mocked.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { User } from '@/types/user-types';
 
@@ -47,6 +47,7 @@ vi.mock('@/components/users/UserDetails/UserDetailsView', () => ({
 }));
 
 import PersonDetailPage from '../PersonDetailPage';
+import { DetailCrumbContext } from '@/components/layout/DetailStateHeader';
 
 function renderAt(id: string) {
   return render(
@@ -132,5 +133,38 @@ describe('PersonDetailPage with unresolved inputs (MYK9-930)', () => {
 
     expect(screen.getByRole('heading', { name: "You can't open this person" })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Person Not Found' })).not.toBeInTheDocument();
+  });
+});
+
+describe('PersonDetailPage states that are not ready keep the page heading and trail (MYK9-1267)', () => {
+  const renderInRoute = (id: string) =>
+    render(
+      <DetailCrumbContext.Provider value={{ label: 'People', href: '/people' }}>
+        <MemoryRouter initialEntries={[`/people/${id}`]}>
+          <Routes>
+            <Route path="/people/:id" element={<PersonDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </DetailCrumbContext.Provider>
+    );
+
+  it('loading: exactly one h1 and the Home > People trail', () => {
+    usersQuery.value = { ...usersQuery.value, data: [], isLoading: true };
+    people.value = [];
+    renderInRoute('p-1');
+    expect(screen.queryByTestId('details')).not.toBeInTheDocument();
+    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(trail).getByText('People')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it('error: exactly one h1 and the trail', () => {
+    usersQuery.value = { ...usersQuery.value, data: [], error: new Error('boom') };
+    people.value = [];
+    renderInRoute('p-1');
+    expect(screen.getByText("Couldn't load this person.")).toBeInTheDocument();
+    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(trail).getByText('People')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 });

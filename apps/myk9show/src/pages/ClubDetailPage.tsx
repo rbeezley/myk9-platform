@@ -4,6 +4,7 @@ import { ClubDetails } from '@/components/clubs/ClubDetails';
 import { ClubsOfflineState } from '@/components/clubs/ClubsOfflineState';
 import { DetailPageSkeleton } from '@/components/common/SkeletonLoaders';
 import { NotFoundState } from '@/components/common/NotFoundState';
+import { DetailStateHeader } from '@/components/layout/DetailStateHeader';
 import { PageShell } from '@/components/common/PageShell';
 import { Button } from '@/components/ui/button';
 import { useClubDetailData } from '@/hooks/useClubDetailData';
@@ -18,12 +19,18 @@ const ClubDetailPage: React.FC = () => {
   const { club, status, isGuest, retry } = useClubDetailData(id);
 
   if (status === 'loading') {
-    return <DetailPageSkeleton />;
+    return (
+      <>
+        <DetailStateHeader />
+        <DetailPageSkeleton />
+      </>
+    );
   }
 
   if (status === 'offline') {
     return (
       <PageShell maxWidth="max-w-xl">
+        <DetailStateHeader />
         <ClubsOfflineState
           description="Connect to the internet to see this club."
           onRetry={retry}
@@ -35,6 +42,7 @@ const ClubDetailPage: React.FC = () => {
   if (status === 'unavailable') {
     return (
       <PageShell maxWidth="max-w-xl">
+        <DetailStateHeader omitTitle />
         <div className="flex flex-col items-center gap-4 py-10 text-center">
           <h1 className="text-2xl font-semibold">Club details are unavailable</h1>
           <p className="text-muted-foreground">
@@ -57,6 +65,7 @@ const ClubDetailPage: React.FC = () => {
   if (status === 'not-found') {
     return (
       <PageShell>
+        <DetailStateHeader omitTitle />
         <NotFoundState entityName="Club" backTo="/clubs" backLabel="Back to Clubs" />
       </PageShell>
     );

@@ -5,6 +5,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { PageTransition } from '@/components/common/PageTransition';
 import { PageHeader } from '@/components/common/PageHeader';
 import { MASTER_DETAIL_QUERY } from './MasterDetailLayout';
+import { DetailCrumbContext } from './DetailStateHeader';
 
 interface MasterDetailRouteProps {
   /** The browse page; given `detail` it renders the split (compact list beside it). */
@@ -44,7 +45,9 @@ export const MasterDetailRoute: React.FC<MasterDetailRouteProps> = ({
   const record = id ? (
     <PageTransition>
       {/* Keyed so a record's own state (a just-created dog, open panels) never leaks to the next. */}
-      <Detail key={id} />
+      <DetailCrumbContext.Provider value={crumb}>
+        <Detail key={id} />
+      </DetailCrumbContext.Provider>
     </PageTransition>
   ) : null;
 

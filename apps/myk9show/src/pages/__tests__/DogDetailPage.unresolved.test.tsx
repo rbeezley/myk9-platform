@@ -4,7 +4,7 @@
  * people store are mocked.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 const auth = vi.hoisted(() => ({
@@ -48,6 +48,7 @@ vi.mock('@/components/dogs/DogDetailsMain', () => ({
 }));
 
 import DogDetailPage from '../DogDetailPage';
+import { DetailCrumbContext } from '@/components/layout/DetailStateHeader';
 
 function renderAt(id: string) {
   return render(
@@ -120,5 +121,37 @@ describe('DogDetailPage with unresolved inputs (MYK9-930)', () => {
 
     expect(screen.getByRole('heading', { name: "You can't open this dog" })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Dog Not Found' })).not.toBeInTheDocument();
+  });
+});
+
+describe('DogDetailPage states that are not ready keep the page heading and trail (MYK9-1267)', () => {
+  const renderInRoute = (id: string) =>
+    render(
+      <DetailCrumbContext.Provider value={{ label: 'Dogs', href: '/dogs' }}>
+        <MemoryRouter initialEntries={[`/dogs/${id}`]}>
+          <Routes>
+            <Route path="/dogs/:id" element={<DogDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </DetailCrumbContext.Provider>
+    );
+
+  it('loading: exactly one h1 and the Home > Dogs trail', () => {
+    store.dogs = [];
+    renderInRoute('dog-1');
+    expect(screen.queryByTestId('dog-page')).not.toBeInTheDocument();
+    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(trail).getByText('Dogs')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it('error: exactly one h1 (the error text is not a second one) and the trail', () => {
+    store.dogs = [];
+    store.error = new Error('offline');
+    renderInRoute('dog-1');
+    expect(screen.getByText("Couldn't load this dog.")).toBeInTheDocument();
+    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(trail).getByText('Dogs')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 });

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { DetailStateHeader } from '@/components/layout/DetailStateHeader';
 import { PageShell } from '@/components/common/PageShell';
 import { NotFoundState } from '@/components/common/NotFoundState';
 import { ErrorState } from '@/components/common/ErrorState';
@@ -99,12 +100,14 @@ const DogDetailPage: React.FC = () => {
     case 'loading':
       return (
         <PageShell>
+          <DetailStateHeader />
           <DogPageSkeleton />
         </PageShell>
       );
     case 'error':
       return (
         <PageShell>
+          <DetailStateHeader />
           <ErrorState
             message="Couldn't load this dog."
             description={getUserFriendlyError(error, 'Check your connection and try again.')}
@@ -115,6 +118,7 @@ const DogDetailPage: React.FC = () => {
     case 'denied':
       return (
         <PageShell>
+          <DetailStateHeader omitTitle />
           <NotFoundState
             entityName="Dog"
             heading="You can't open this dog"
@@ -127,6 +131,7 @@ const DogDetailPage: React.FC = () => {
     case 'notFound':
       return (
         <PageShell>
+          <DetailStateHeader omitTitle />
           <NotFoundState entityName="Dog" backTo="/dogs" backLabel="Back to Dogs" />
         </PageShell>
       );

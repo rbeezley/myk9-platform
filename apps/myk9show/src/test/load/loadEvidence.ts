@@ -9,6 +9,8 @@ import {
 import type { ResolvedLoadTarget } from './loadTarget';
 import { LOAD_SHOWS, LOAD_TOTAL_ENTRY_COUNT } from './loadFixture';
 import { assessGeneratorShard } from './loadGeneratorSampler';
+import { formatApiErrorCounts } from './loadErrorCodes';
+import { verdictLabel } from './loadVerdict';
 
 /**
  * Peaks are now accepted at partial coverage, so a reader must be able to see
@@ -73,7 +75,7 @@ export function buildLoadEvidence(input: {
       configuredRingsideSessions,
     },
     supportedCeiling:
-      input.evaluation.passed && input.target.gateEligible
+      input.evaluation.passed && input.evaluation.gateEligible && input.target.gateEligible
         ? // One scorer per ring across concurrent shows. "a show of N entries"
           // described a single-show fixture and would now understate the shape.
           `${configuredRingsideSessions} concurrent rings across ${LOAD_SHOWS.length} shows and ${LOAD_TOTAL_ENTRY_COUNT} entries`
@@ -84,7 +86,11 @@ export function buildLoadEvidence(input: {
 }
 
 export function renderLoadEvidenceMarkdown(evidence: LoadRunEvidence): string {
-  const result = evidence.evaluation.passed ? 'PASS' : 'FAIL';
+  const result = verdictLabel(evidence.evaluation.verdict);
+  const noVerdict =
+    evidence.evaluation.noVerdictReasons.length === 0
+      ? ''
+      : `- No verdict: ${evidence.evaluation.noVerdictReasons.join(' ')}\n`;
   const failures =
     evidence.evaluation.failures.length === 0
       ? '- None'
@@ -132,10 +138,10 @@ export function renderLoadEvidenceMarkdown(evidence: LoadRunEvidence): string {
   return `# MYK9-109 / MYK9-126 load rehearsal evidence
 
 - Result: ${result}
-- Generated: ${evidence.generatedAt}
+${noVerdict}- Generated: ${evidence.generatedAt}
 - Target: ${evidence.target.mode} / ${evidence.target.projectRef}
 - Compute tier: ${evidence.target.computeTier}
-- Scenario: ${evidence.scenario.id}, ${evidence.scenario.durationMs} ms
+- Scenario: ${evidence.scenario.id}, ${evidence.scenario.durationMs} ms, ${evidence.scenario.configuredSessions} sessions
 - Browser behavior: ${evidence.scenario.browserBehaviorVersion}
 - Seed: ${evidence.seedSize} entries
 - Supported ceiling: ${evidence.supportedCeiling}
@@ -147,6 +153,7 @@ export function renderLoadEvidenceMarkdown(evidence: LoadRunEvidence): string {
 - Page p95 (interpret with generator evidence): ${evidence.observation.pageP95Ms} ms
 - Requests/failures/workflow failures: ${evidence.observation.requestCount} / ${evidence.observation.failedRequestCount} / ${evidence.observation.workflowFailures}
 - Requests by generator (browser/API virtual user): ${evidence.observation.browserRequestCount ?? evidence.observation.requestCount} / ${evidence.observation.virtualUserRequestCount ?? 0} — an API virtual user issues the same requests but never paints, so it cannot catch a client-side rendering regression
+- Virtual-reader polls skipped (previous pass still running): ${evidence.observation.virtualUserSkippedPasses ?? 0}
 - Error rate / throughput / availability: ${evidence.observation.errorRate} / ${evidence.observation.throughputRps} rps / ${evidence.observation.availabilityPercent}%
 - SQLSTATE 40001: ${evidence.observation.serializationFailures} / ${evidence.observation.scoringWriteAttempts} (${evidence.evaluation.derived.serializationFailureRate})
 - Retries attempted/succeeded/exhausted: ${evidence.observation.retryAttempts} / ${evidence.observation.retrySuccesses} / ${evidence.observation.exhaustedRetries}
@@ -158,6 +165,7 @@ export function renderLoadEvidenceMarkdown(evidence: LoadRunEvidence): string {
 - Observed connections peak (lower bound): ${platform?.observedPeakConnections ?? 'missing'}
 - Database connections peak/cap: ${platform?.peakConnections ?? 'missing'} / ${platform?.connectionCap ?? 'missing'}
 - Sampling coverage resource/connection: ${samplingCoverage(platform?.resourceSampling)} / ${samplingCoverage(platform?.connectionSampling)}
+- API errors by code (status): ${formatApiErrorCounts(evidence.observation.apiErrorCounts)}
 - pg_stat_statements deltas: ${platform?.statementDeltas.length ?? 0}
 - Scheduled/health-snapshot write deltas: ${platform?.scheduledWriteCapture ? (platform.scheduledWriteCapture.enabled ? ((platform.scheduledWriteDeltas?.map(delta => `${delta.source}=${delta.writes} ${delta.unit}`).join(', ') || '0') ?? 'missing') : 'disabled') : 'missing'}
 - Backend-latency attribution from browser timings: ${evidence.evaluation.derived.generatorAttributionValid ? 'VALID' : 'INVALID — generator evidence was incomplete or saturated'}

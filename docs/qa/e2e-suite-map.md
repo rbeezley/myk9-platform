@@ -349,7 +349,9 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 
 ## Feature Audit
 
-`apps/myk9show/src/test/e2e/verification/batch3Scoring.spec.ts` verifies MYK9-1246/MYK9-1230/MYK9-1234: independent one/multiple-entry paper scoring, assigned-judge single-entry persistence, and two-class Check Scores/Fix/report-preview parity. Dedicated `playwright.batch3.config.ts` and Isolated batch 3 scoring verification CI run on every pull request or manual dispatch, with runner-only accounts, network probes and whole-stack teardown. Never target shared staging.
+`apps/myk9show/src/test/e2e/verification/batch4Paperwork.spec.ts` verifies MYK9-1225's stored/secretary/judge centisecond parity and MYK9-1244's Overview batch preview, real Chromium print lifecycle, persistent row/Reports agreement and Undo at 375px/1280px. It shares the short `playwright.batch3.config.ts` job and fresh disposable-class builder with batch 3. Headless Chromium does not establish native print-dialog cancellation; that operator gate remains explicit. No shared target is permitted.
+
+`apps/myk9show/src/test/e2e/verification/batch3Scoring.spec.ts` verifies MYK9-1246/MYK9-1230/MYK9-1234: independent one/multiple-entry paper scoring, assigned-judge single-entry persistence, and two-class Check Scores/Fix/report-preview parity. Dedicated `playwright.batch3.config.ts` and Isolated scoring and paperwork verification CI run on every pull request or manual dispatch, with runner-only accounts, network probes and whole-stack teardown. Never target shared staging.
 
 MYK9-427 location fallback replay:
 `apps/myk9show/src/test/e2e/viewer-location-fallback.spec.ts` exercises the signed-in

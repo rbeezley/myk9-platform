@@ -4,6 +4,7 @@ import type { GeneratorShardObservation } from './loadGeneratorSampler';
 import type { LoadWorkloadKind } from './loadScenario';
 import type { LoadSessionLifecycleObservation } from './loadSessionLifecycle';
 import type { PersistenceFailure } from './loadPersistence';
+import { ApiErrorTally, extractApiErrorCode, type VirtualUserErrorSample } from './loadErrorCodes';
 
 interface RequestAttempt {
   entryId?: string;
@@ -64,16 +65,21 @@ export class LoadMetrics {
    * coverage it does not have.
    */
   private virtualUserRequestCount = 0;
+  /** Virtual-reader ticks dropped because the previous pass had not finished. */
+  private virtualUserSkippedPasses = 0;
   private serializationFailures = 0;
   private workflowFailures = 0;
   private readonly workflowFailureDetails = new Map<string, WorkflowFailureDetail>();
   private readonly responseTasks = new Set<Promise<void>>();
+  private readonly apiErrors = new ApiErrorTally();
 
   async attach(page: Page): Promise<void> {
     const session = await page.context().newCDPSession(page);
     await session.send('Network.enable');
     const requests = new Map<string, CdpRequestMetadata>();
-    const failedScoringResponses = new Set<string>();
+    // Failed responses whose body is read for the error code (and, for scoring,
+    // the serialization marker). Keyed by request so loadingFinished can find it.
+    const failedResponses = new Map<string, { status: number; scoring: boolean }>();
 
     session.on('Network.requestWillBeSent', (event: CdpRequestWillBeSent) => {
       requests.set(event.requestId, {
@@ -95,7 +101,15 @@ export class LoadMetrics {
 
       this.requestCount += 1;
       if (isApi) this.apiDurations.push(durationMs);
-      if (!succeeded) this.failedRequestCount += 1;
+      if (!succeeded) {
+        this.failedRequestCount += 1;
+        if (isApi)
+          failedResponses.set(event.requestId, {
+            status: event.response.status,
+            scoring: isScoring,
+          });
+        else this.apiErrors.record(event.response.status);
+      }
       if (!isScoring) return;
 
       this.scoringDurations.push(durationMs);
@@ -103,16 +117,27 @@ export class LoadMetrics {
         entryId: scoringEntryId(request.postData),
         succeeded,
       });
-      if (!succeeded) failedScoringResponses.add(event.requestId);
     });
     session.on('Network.loadingFailed', (event: CdpLoadingEvent) => {
+      // A failed-status response can still end in loadingFailed (body never
+      // delivered). It was already counted at responseReceived; keep its known
+      // status with no code rather than losing it from the tally.
+      const failedResponse = failedResponses.get(event.requestId);
+      if (failedResponse) {
+        failedResponses.delete(event.requestId);
+        this.apiErrors.record(failedResponse.status);
+        return;
+      }
       if (!requests.delete(event.requestId)) return;
       this.requestCount += 1;
       this.failedRequestCount += 1;
+      this.apiErrors.record(0);
     });
     session.on('Network.loadingFinished', (event: CdpLoadingEvent) => {
-      if (!failedScoringResponses.delete(event.requestId)) return;
-      this.observeFailedScoringBody(session, event.requestId);
+      const failed = failedResponses.get(event.requestId);
+      if (!failed) return;
+      failedResponses.delete(event.requestId);
+      this.observeFailedResponseBody(session, event.requestId, failed);
     });
   }
 
@@ -172,11 +197,25 @@ export class LoadMetrics {
    * as a browser request — one observation, both generation modes — while keeping
    * its own count for the evidence split.
    */
-  recordVirtualUserRequest(sample: { durationMs: number; ok: boolean }): void {
+  recordVirtualUserRequest(sample: VirtualUserErrorSample): void {
     this.requestCount += 1;
     this.virtualUserRequestCount += 1;
     this.apiDurations.push(sample.durationMs);
+    // Failed samples are the FINAL outcome per logical request: they drive
+    // failedRequestCount and availability. The code tally is NOT fed from here;
+    // the reader's fetch layer reports every non-2xx response through
+    // recordApiError, so a retried request is never counted twice.
     if (!sample.ok) this.failedRequestCount += 1;
+  }
+
+  /** One non-2xx response (status 0: none arrived) seen by a reader's fetch. */
+  recordApiError(observation: { status: number; code?: string }): void {
+    this.apiErrors.record(observation.status, observation.code);
+  }
+
+  /** A reader's tick was skipped, as the app skips a poll that fires into a running pass. */
+  recordVirtualUserSkippedPass(): void {
+    this.virtualUserSkippedPasses += 1;
   }
 
   buildObservation(input: {
@@ -220,8 +259,10 @@ export class LoadMetrics {
       generator: { shards: [input.generator] },
       requestCount: this.requestCount,
       virtualUserRequestCount: this.virtualUserRequestCount,
+      virtualUserSkippedPasses: this.virtualUserSkippedPasses,
       browserRequestCount: this.requestCount - this.virtualUserRequestCount,
       failedRequestCount: this.failedRequestCount,
+      apiErrorCounts: this.apiErrors.entries(),
       workflowFailures: this.workflowFailures,
       workflowFailureDetails: [...this.workflowFailureDetails.values()],
       scoringWriteP95Ms: percentile(this.scoringDurations, 95),
@@ -248,16 +289,25 @@ export class LoadMetrics {
     };
   }
 
-  private observeFailedScoringBody(session: CDPSession, requestId: string): void {
+  private observeFailedResponseBody(
+    session: CDPSession,
+    requestId: string,
+    failed: { status: number; scoring: boolean }
+  ): void {
     const task = session
       .send('Network.getResponseBody', { requestId })
       .then(result => {
         const body = typeof result.body === 'string' ? result.body : '';
-        if (body.includes('40001') || body.toLowerCase().includes('serialization')) {
+        this.apiErrors.record(failed.status, extractApiErrorCode(body));
+        if (
+          failed.scoring &&
+          (body.includes('40001') || body.toLowerCase().includes('serialization'))
+        ) {
           this.serializationFailures += 1;
         }
       })
-      .catch(() => undefined)
+      // The body can be evicted or unavailable; the failure is still counted.
+      .catch(() => this.apiErrors.record(failed.status))
       .finally(() => this.responseTasks.delete(task));
     this.responseTasks.add(task);
   }

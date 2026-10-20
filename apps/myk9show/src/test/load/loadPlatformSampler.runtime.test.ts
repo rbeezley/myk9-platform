@@ -444,5 +444,8 @@ describe('runtime platform evidence', () => {
     // Broad failure, not a single blip.
     expect(result.resourceSampling?.succeeded).toBe(1);
     expect(Number.isNaN(result.peakCpuPercent)).toBe(true);
+    // Coverage is a first-class field, not something to divide out of attempts.
+    expect(result.resourceCoveragePercent).toBe(50);
+    expect(result.connectionCoveragePercent).toBe(100);
   });
 });

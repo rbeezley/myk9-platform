@@ -1,24 +1,34 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import {
+  PassRecorder,
+  type ReaderContext,
+  type VirtualUserRequestSample,
+} from './loadVirtualUserContext';
+import { observingFetch, type ApiErrorObservation } from './loadVirtualUserFetch';
+import { runReaderPass } from './loadVirtualUserTables';
+
+export type { VirtualUserRequestSample } from './loadVirtualUserContext';
 
 /**
  * API-level virtual reader.
  *
- * Readers are the bulk of a show-day workload — roughly 270 of 358 sessions — and
+ * Readers are the bulk of a show-day workload, roughly 270 of 358 sessions, and
  * 270 Chromium contexts do not fit on sixteen free runners. A reader's load on the
- * backend is HTTP: replication delta polls and PostgREST reads. This issues those,
- * at the real cadence, with its own watermark.
+ * backend is HTTP: the requests the app's 60 s replication pass makes. This issues
+ * those, at the real cadence, with its own watermarks.
  *
  * It does NOT reuse `syncReplicatedTable`, though that was the first design.
  * `ReplicatedTable` imports a module-level `databaseManager` singleton, so every
- * table instance in one process shares one IndexedDB — and therefore one watermark
+ * table instance in one process shares one IndexedDB, and therefore one watermark
  * set. Two hundred and seventy virtual users would have collectively issued about
  * one delta query per table per minute instead of 270, understating reader load by
  * more than two orders of magnitude while appearing to work.
  *
- * Because the queries are restated here rather than shared, `loadVirtualUser
- * .fidelity.test.ts` captures the URLs the real replicated tables put on the wire
- * and asserts these match. A virtual user whose request pattern has drifted from
- * the application measures a fiction.
+ * Because the queries are restated here (`loadVirtualUserTables.ts`) rather than
+ * shared, `loadVirtualUser.fidelity.test.ts` runs the REAL replicated tables
+ * against a recording server and asserts this reader puts the same requests on the
+ * wire. A virtual user whose request pattern has drifted from the application
+ * measures a fiction.
  */
 
 /** Matches `SYNC_INTERVAL_MS` in packages/replication. */
@@ -30,20 +40,14 @@ export interface LoadVirtualUserOptions {
   readonly supabaseUrl: string;
   readonly anonKey: string;
   readonly accessToken: string;
-  readonly showId: string;
-  /** Present for scoped class sync; absent drives the unscoped path staff take. */
-  readonly trialId?: string;
-  /** Present for an exhibitor's owner-scoped dog sync. */
-  readonly ownerId?: string;
+  /**
+   * Which role's token this reader carries. It does not change the requests: the
+   * app's poll is unscoped, so what each role receives is decided by RLS alone.
+   */
   readonly role: VirtualUserRole;
   readonly fetchImpl?: typeof fetch;
-}
-
-export interface VirtualUserRequestSample {
-  readonly table: string;
-  readonly durationMs: number;
-  readonly ok: boolean;
-  readonly status: number;
+  /** Every non-2xx response the reader's fetch saw, retried or not. */
+  readonly onApiError?: (observation: ApiErrorObservation) => void;
 }
 
 export interface VirtualUserSyncResult {
@@ -51,32 +55,29 @@ export interface VirtualUserSyncResult {
   readonly rows: number;
 }
 
-/**
- * Column list for the classes delta. Mirrors `CLASS_AUTHENTICATED_COLUMN_SELECT`
- * plus the judge-assignment embed. `select('*')` fails 42501 here: authenticated
- * holds no SELECT on `num_hides` (migration 20260731160000), so a star select asks
- * for a column the role cannot read.
- */
-const CLASS_SELECT_SUFFIX =
-  'judge_assignments!judge_assignments_class_id_fkey(person_id, people!inner(first_name, last_name))';
-
 interface TableWatermark {
   since: number;
 }
 
 export class LoadVirtualUser {
   private readonly client: SupabaseClient;
+  /** Error-body reads still running; settled before a pass reports. */
+  private readonly errorReads = new Set<Promise<void>>();
   private readonly watermarks = new Map<string, TableWatermark>();
   /**
-   * EVERY poll still running, not just the newest.
+   * Every poll still running. The tick guard below keeps this to one at a time,
+   * but drain() still waits on whatever is here rather than assuming it.
    *
-   * A sync slower than the interval — the overload case, and the last rehearsal
-   * measured ~140s syncs against a 60s cadence — means the next tick starts
-   * another while the first is unfinished. A single handle let drain() wait only
-   * for the last one, so older requests settled after the metrics and lifecycle
-   * were captured and kept reaching shared staging past the workload boundary.
+   * Before the guard, a sync slower than the interval (the overload case; the last
+   * rehearsal measured ~140s syncs against a 60s cadence) let the next tick start
+   * another while the first was unfinished, so a single handle let drain() wait
+   * only for the last one and older requests settled after the metrics and
+   * lifecycle were captured, still reaching shared staging past the workload
+   * boundary.
    */
   private readonly inFlight = new Set<Promise<void>>();
+  /** Ticks that fired while the previous pass was still running, and so did nothing. */
+  private skipped = 0;
 
   /**
    * Cancels outstanding requests at the workload boundary.
@@ -85,7 +86,7 @@ export class LoadVirtualUser {
    * until the shard step timeout, so the run writes no artifact at all; the
    * wait also folds the poll's latency into elapsedMs and lets requests keep
    * reaching shared staging after the approved window closed. Aborting ends all
-   * three — the boundary is a boundary, not a request to please finish.
+   * three: the boundary is a boundary, not a request to please finish.
    */
   private readonly abort = new AbortController();
   private timer: ReturnType<typeof setInterval> | undefined;
@@ -98,17 +99,27 @@ export class LoadVirtualUser {
       auth: { persistSession: false, autoRefreshToken: false },
       global: {
         headers: { Authorization: `Bearer ${options.accessToken}` },
-        ...(options.fetchImpl ? { fetch: options.fetchImpl } : {}),
+        fetch: observingFetch(
+          options.fetchImpl ?? ((...args) => fetch(...args)),
+          observation => options.onApiError?.(observation),
+          this.abort.signal,
+          this.errorReads
+        ),
       },
     });
-    // Epoch 0 makes the first pass a full hydration, as a cold device does.
-    for (const table of ['classes', 'view_authenticated_entry_results', 'dogs']) {
-      this.watermarks.set(table, { since: 0 });
-    }
   }
 
-  private sinceIso(table: string): string {
-    return new Date(this.watermarks.get(table)?.since ?? 0).toISOString();
+  /** Ticks skipped because the previous pass had not finished. */
+  get skippedPasses(): number {
+    return this.skipped;
+  }
+
+  /** Epoch 0 (an unseen table) makes the first pass a full hydration, as a cold device does. */
+  private sinceIso(table: string, bufferMs: number): string {
+    const watermark = this.watermarks.get(table)?.since ?? 0;
+    // The engine's overlap: re-read a little before the watermark so a row
+    // committed late behind it is not missed.
+    return new Date(watermark > bufferMs ? watermark - bufferMs : 0).toISOString();
   }
 
   private advance(table: string, rows: readonly { updated_at?: string }[]): void {
@@ -122,104 +133,41 @@ export class LoadVirtualUser {
     this.watermarks.set(table, { since: max });
   }
 
-  /**
-   * PostgREST builders are thenables rather than Promises, and the class column
-   * list is assembled at runtime so the generated-type parser cannot verify it.
-   * Accept the builder's shape structurally.
-   */
-  private async timed<T>(
-    table: string,
-    run: () => PromiseLike<{ data: unknown; error: { message: string } | null }>
-  ): Promise<{ sample?: VirtualUserRequestSample; rows: T[] }> {
-    // A pass aborted mid-flight must not issue its remaining queries: those are
-    // precisely the requests that would reach shared staging after the window.
-    // No sample at all: a request the harness cancelled is not an observation of
-    // the system. Recording it as a failure invents failures the target never
-    // produced — with a 60s cadence over 600s the last tick commonly straddles
-    // the boundary, so every reader would contribute three, which across the
-    // fleet is enough to push availability under its target on a healthy run.
-    if (this.abort.signal.aborted) return { rows: [] };
-    const startedAt = Date.now();
-    try {
-      const { data, error } = await run();
-      const durationMs = Date.now() - startedAt;
-      if (error) {
-        // supabase-js converts a rejected fetch into an `error` result rather
-        // than throwing, so the abort arrives here rather than in the catch.
-        if (this.abort.signal.aborted) return { rows: [] };
-        return { sample: { table, durationMs, ok: false, status: 0 }, rows: [] };
-      }
-      return {
-        sample: { table, durationMs, ok: true, status: 200 },
-        rows: (data ?? []) as T[],
-      };
-    } catch (error) {
-      // Same reasoning for a request aborted mid-flight rather than before it
-      // began: the cancellation is ours, not a defect in the target.
-      if (this.abort.signal.aborted || (error as { name?: string })?.name === 'AbortError') {
-        return { rows: [] };
-      }
-      return {
-        sample: { table, durationMs: Date.now() - startedAt, ok: false, status: 0 },
-        rows: [],
-      };
-    }
-  }
-
-  /** One delta pass across the tables a reader session replicates. */
+  /** One pass across the tables the app's poll replicates, all at once as the app does. */
   async syncOnce(): Promise<VirtualUserSyncResult> {
-    const samples: VirtualUserRequestSample[] = [];
-    let rows = 0;
-
-    const classes = await this.timed<{ updated_at?: string }>('classes', () => {
-      let query = this.client
-        .from('classes')
-        .select(`${this.classColumnSelect}, ${CLASS_SELECT_SUFFIX}`)
-        .gt('updated_at', this.sinceIso('classes'))
-        .order('updated_at', { ascending: true });
-      if (this.options.trialId) query = query.eq('trial_id', this.options.trialId);
-      return query.abortSignal(this.abort.signal);
-    });
-    if (classes.sample) samples.push(classes.sample);
-    this.advance('classes', classes.rows);
-    rows += classes.rows.length;
-
-    const entries = await this.timed<{ updated_at?: string }>(
-      'view_authenticated_entry_results',
-      () =>
-        this.client
-          .from('view_authenticated_entry_results')
-          .select('*')
-          .gt('updated_at', this.sinceIso('view_authenticated_entry_results'))
-          .order('updated_at', { ascending: true })
-          .eq('show_id', this.options.showId)
-          .abortSignal(this.abort.signal)
-    );
-    if (entries.sample) samples.push(entries.sample);
-    this.advance('view_authenticated_entry_results', entries.rows);
-    rows += entries.rows.length;
-
-    const dogs = await this.timed<{ updated_at?: string }>('dogs', () => {
-      let query = this.client
-        .from('dogs')
-        .select('*')
-        .gt('updated_at', this.sinceIso('dogs'))
-        .order('updated_at', { ascending: true });
-      // Staff have no owner scope, so their dog sync is unscoped and pulls deltas
-      // from every show on the platform. That cost is a thing under test.
-      if (this.options.ownerId) query = query.eq('owner_id', this.options.ownerId);
-      return query.abortSignal(this.abort.signal);
-    });
-    if (dogs.sample) samples.push(dogs.sample);
-    this.advance('dogs', dogs.rows);
-    rows += dogs.rows.length;
-
-    return { samples, rows };
+    const recorder = new PassRecorder(this.abort.signal);
+    const context: ReaderContext = {
+      client: this.client,
+      signal: this.abort.signal,
+      classColumnSelect: this.classColumnSelect,
+      sinceIso: (table, bufferMs) => this.sinceIso(table, bufferMs),
+      advance: (table, rows) => this.advance(table, rows),
+      tally: rows => {
+        recorder.rows += rows;
+      },
+      request: (label, run) => recorder.request(label, run),
+    };
+    await runReaderPass(context);
+    await Promise.allSettled([...this.errorReads]);
+    return { samples: recorder.samples, rows: recorder.rows };
   }
 
-  start(onSync: (result: VirtualUserSyncResult) => void, onError?: (error: unknown) => void): void {
+  start(
+    onSync: (result: VirtualUserSyncResult) => void,
+    onError?: (error: unknown) => void,
+    onSkip?: () => void
+  ): void {
     if (this.timer) return;
     this.timer = setInterval(() => {
+      // The app never overlaps passes: `ReplicationSyncProvider` returns at once
+      // while one is in flight. A tick that fires into a slow pass is dropped, and
+      // counted, so a struggling database cannot make the harness send more than
+      // a device would.
+      if (this.inFlight.size > 0) {
+        this.skipped += 1;
+        onSkip?.();
+        return;
+      }
       const pending: Promise<void> = this.syncOnce()
         .then(onSync, error => onError?.(error))
         .finally(() => {

@@ -1,7 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsJudge, signInAsSecretary } from '../uat/shared/auth';
-import { openActionsMenu } from '../helpers/actionsMenu';
+import { signInAsExhibitor } from '../helpers/testUsers';
+import { openActionsMenu, chooseAction } from '../helpers/actionsMenu';
 
 /**
  * MYK9-1227 (docs/plan-sidebar-browse-pane.md, phase 3): one Browse rail item for Shows, Dogs,
@@ -119,21 +120,111 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
     await expect(menu.getByRole('menuitem', { name: 'Export CSV' })).toBeVisible();
     await page.keyboard.press('Escape');
 
-    // Add Club opens beside the open club, and Cancel leaves the club and its URL as they were.
-    const urlBefore = page.url();
-    await page.getByRole('button', { name: 'Add Club' }).click();
+    // Add always opens over the list, at every width; Cancel returns to that list.
+    await chooseAction(page, 'Add Club');
     const panel = page.getByRole('dialog', { name: /Add Club/ });
     await expect(panel).toBeVisible();
+    await expect(page).toHaveURL(/\/clubs$/);
     await panel.getByRole('button', { name: 'Cancel' }).click();
     await expect(panel).toBeHidden();
-    expect(page.url()).toBe(urlBefore);
-    await expect(details).toBeVisible();
-
-    // Close goes back to the list, its search still applied.
-    await details.getByRole('link', { name: 'Close club' }).click();
-    await expect(page).toHaveURL(/\/clubs\?search=Heartland$/);
+    await expect(page).toHaveURL(/\/clubs$/);
     await expect(page.getByText('Select a club to see its details')).toBeVisible();
   });
+
+  for (const [path, noun] of [
+    ['/dogs', 'Dog'],
+    ['/people', 'Person'],
+    ['/clubs', 'Club'],
+  ] as const) {
+    test(`at 1440 ${path} has no page-level Add ${noun} button; it is in the Actions menu (read-only)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await signInAsSecretary(page, path);
+      await expect(page.getByRole('region', { name: /list$/ })).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByRole('button', { name: `Add ${noun}`, exact: true })).toHaveCount(0);
+      const details = page.getByRole('region', { name: `${noun} details` });
+      await expect(details.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible();
+      await expect(page.locator('h1')).toHaveClass('sr-only');
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+      // The list starts directly under the Browse tabs: search top within 40px of the tablist bottom.
+      const tabsBottom =
+        (await tablist(page).boundingBox())!.y + (await tablist(page).boundingBox())!.height;
+      const searchTop = (await page
+        .getByRole('region', { name: /list$/ })
+        .getByRole('textbox')
+        .first()
+        .boundingBox())!.y;
+      expect(searchTop - tabsBottom).toBeGreaterThanOrEqual(0);
+      expect(searchTop - tabsBottom).toBeLessThanOrEqual(40);
+      // No visible h1 on the empty list page (the one h1 is screen-reader only).
+      expect(
+        await page
+          .locator('h1')
+          .evaluateAll(
+            nodes =>
+              nodes.filter(
+                n => n.getBoundingClientRect().width > 1 && getComputedStyle(n).clip === 'auto'
+              ).length
+          )
+      ).toBe(0);
+      // Positive control for the negative menu pin below: Select is a list tool, on the search row.
+      if (noun !== 'Club') {
+        const select = page
+          .getByRole('region', { name: /list$/ })
+          .getByRole('button', { name: /Select (dogs|people)/ });
+        await expect(select).toBeVisible();
+        const selectTop = (await select.boundingBox())!.y;
+        const rowTop = (await page
+          .getByRole('region', { name: /list$/ })
+          .getByRole('textbox')
+          .first()
+          .boundingBox())!.y;
+        expect(Math.abs(selectTop - rowTop)).toBeLessThanOrEqual(8);
+      }
+      // With a record open, its trail is inside the detail region too.
+      await page.getByRole('region', { name: /list$/ }).getByRole('link').first().click();
+      await expect(page).toHaveURL(new RegExp(`${path}/[\\w-]+`));
+      await expect(details.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toHaveCount(1);
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+      await page.goto(path);
+      await expect(details.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible();
+      const menu = await openActionsMenu(page);
+      await expect(menu.getByRole('menuitem', { name: /^Select/ })).toHaveCount(0);
+      await expect(menu.getByRole('menuitem', { name: `Add ${noun}` })).toBeVisible();
+      await page.keyboard.press('Escape');
+    });
+  }
+
+  for (const path of ['/dogs', '/people', '/clubs'] as const) {
+    test(`at 375 ${path}: the list has no trail and one sr-only h1; an open record has one trail and one h1 (read-only)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 375, height: 812 });
+      await signInAsSecretary(page, path);
+      // A phone's tables have no row links: a row opens its record on a click of its name.
+      const firstRow =
+        path === '/clubs'
+          ? page.getByText('Heartland Scent Work Club').first()
+          : page
+              .locator(`a[href^="${path}/"]`)
+              .or(page.getByRole('row').nth(1).getByRole('cell').nth(1))
+              .first();
+      await expect(firstRow).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toHaveCount(0);
+      await expect(page.locator('h1')).toHaveCount(1);
+      await expect(page.locator('h1')).toHaveClass('sr-only');
+      await firstRow.click();
+      await expect(page).toHaveURL(new RegExp(`${path}/[\\w-]+`));
+      await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toHaveCount(1, {
+        timeout: 20_000,
+      });
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+    });
+  }
 
   test('the tablist and its selected tab pass axe', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -207,6 +298,53 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
       timeout: 20_000,
     });
     await expectNoSidewaysScroll(page);
+    await page.setViewportSize({ width: 375, height: 844 });
+    await chooseAction(page, 'Add Club');
+    await expect(page).toHaveURL(/\/clubs$/);
+    const panel = page.getByRole('dialog', { name: /Add Club/ });
+    await expect(panel).toBeVisible();
+    await panel.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page).toHaveURL(/\/clubs$/);
+  });
+
+  // MYK9-1267 review: beside an open record the list toolbar holds search, Select and the view
+  // menu in a ~330-490px pane. The row wraps rather than squeezing search to nothing (read-only).
+  for (const width of [1024, 1440]) {
+    test(`at ${width} the toolbar beside an open record keeps a usable search box`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      for (const [path, listName] of [
+        ['/dogs', 'Dog list'],
+        ['/people', 'People list'],
+      ] as const) {
+        await signInAsSecretary(page, path);
+        const list = page.getByRole('region', { name: listName });
+        await list.locator(`a[href^="${path}/"]`).first().click();
+        await expect(page).toHaveURL(new RegExp(`${path}/[\\w-]+`));
+        const search = list.getByRole('textbox').first();
+        const select = list.getByRole('button', { name: /Select (dogs|people)/ });
+        await expect(select).toBeVisible();
+        const [searchBox, selectBox, listBox] = await Promise.all([
+          search.boundingBox(),
+          select.boundingBox(),
+          list.boundingBox(),
+        ]);
+        expect(searchBox?.width ?? 0).toBeGreaterThanOrEqual(180);
+        // Nothing spills out of the pane sideways.
+        expect((selectBox?.x ?? 0) + (selectBox?.width ?? 0)).toBeLessThanOrEqual(
+          (listBox?.x ?? 0) + (listBox?.width ?? 0) + 1
+        );
+      }
+    });
+  }
+
+  test('an exhibitor can reach Add Dog through Actions on the Dogs list', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 844 });
+    await signInAsExhibitor(page, '/dogs');
+    const menu = await openActionsMenu(page);
+    await expect(menu.getByRole('menuitem', { name: 'Add Dog', exact: true })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: /^Select/ })).toHaveCount(0);
   });
 
   test('a judge browses Shows and their own dogs, and never People or Clubs', async ({ page }) => {

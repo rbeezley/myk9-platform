@@ -7,25 +7,28 @@
 
 Duplication question (CLAUDE.md § consolidate): every phase removes a door or a page. Nothing here adds a surface; the only additions are four existing cards moving into the Edit show panel because their current page is unreachable.
 
-## Gate 0 — owner decisions (before any phase)
+## Gate 0 — owner decisions (answered 2026-10-20)
 
-1. **Approve the deletion list** as written, or strike rows.
-2. **IA-1 home:** which Edit show tab takes per-show withdrawal policy, venue location and venue Wi-Fi; whether Refund all entries sits there or beside the status pill's cancel path. It moves money, so the existing `RefundAllEntriesCard` mounts unchanged (refunds stay human-approved).
-3. **IA-5:** where a class lives once it is complete. Option 1: Overview's focused class owns check, release, print and initials, and Results keeps the cross-class list, Submit and Close. Option 2: today's split, with the ping-pong links replaced by one "Continue on Results" link. Recommendation: Option 1, but only with MYK9-958's real-secretary observation or the owner's judgment.
-4. **IA-9:** does the trial page stay for managers? Recommendation: for managers it becomes a link into the workbench filtered by trial, and per-trial Financials moves next to Reports' Financial Report.
+1. **Deletion list: approved** with three review edits (venue location is a wizard-owned pin, not a stranded card; the size is ~1,900 lines; a counted control inventory is an exit criterion).
+2. **IA-1 home:** per-show withdrawal policy and venue Wi-Fi go into the Edit show details panel. Refund all entries sits beside the status pill's cancel path; the existing `RefundAllEntriesCard` mounts unchanged (refunds stay human-approved). `VenueLocationCard` is deleted; a show with no pin gets a readiness-checklist prompt that opens the wizard's Basics location.
+3. **IA-5: Option 1.** Overview's focused class owns check, release, print and initials; Results keeps the cross-class list, Submit and Close. Condition: mount the existing `ResultsClassDetail` inside the focused-class panel as-is. If that proves impossible without a rewrite, fall back to Option 2 (one "Continue on Results" link) and say so on the issue.
+4. **IA-9:** for managers the trial page becomes a link into the workbench filtered by trial; per-trial Financials moves next to Reports' Financial Report.
+
+Owner framing (2026-10-20): the direction has changed before and must not change again. This plan finishes the current direction (`plan-secretary-show-home.md`, `plan-show-tools-into-actions.md`) by removing what accreted around it; it adds no surface and moves nothing except the stranded settings and the class lifecycle. Every deletion removes a door, never a capability: attention chips, readiness checks, printed-state tracking, live counts and one-tap release all stay.
 
 ## Phase A — free deletions and stranded capabilities
 
 Entry: Gate 0 items 1 and 2. Each bullet is its own PR.
 
-1. **Re-home and delete Show Settings (IA-1, IA-8).** Mount the four orphan cards in the Edit show panel keyed on the route's show id, not `selectedShowId`. Delete `ShowSettingsPage`, its route and its `config/surface.ts` entry, and the two forwarder cards.
-   - Tests: a render test per card in its new home on a real show id (red on `main`); a route test that `/secretary/settings` redirects to the dashboard.
+1. **Re-home and delete Show Settings (IA-1, IA-8).** Mount the withdrawal-policy and Wi-Fi cards in the Edit show details panel and the refund-all card beside the status pill's cancel path, keyed on the route's show id, not `selectedShowId`. Delete `VenueLocationCard` and add the pin-less readiness prompt. Delete `ShowSettingsPage`, its route, its `config/surface.ts` entry, the two forwarder cards, and its rows in `test/e2e/qa/measurementSweepRoutes.ts` and `test/e2e/route-health-by-role.spec.ts`.
+   - Tests: a render test per card in its new home on a real show id (red on `main`); a route test that `/secretary/settings` redirects to the dashboard; an armband-label test that the Wi-Fi set in the new home prints.
 2. **Delete the orphan pages (IA-8).** Remove `/secretary/pipeline/:trialId` (`TrialPipelineDetail`, `PipelineColumn`, `TrialPipelineCard`, stage navigation) and `/shows/:id/trials/:tid/classes/:cid/secretary` (`SecretaryClassDashboard`, `ClassPipelineCard`). Keep `useMissionControlData` and the utilities it imports. Old URLs redirect to `/shows/:id` (or the class page) rather than 404.
    - Tests: route redirects; the dashboard test still passes; `statusIconSources.test.ts` entries updated.
 3. **One premium verb, one access-codes card, header copy (IA-10, IA-11, IA-2 copy).** Remove the Actions "Generate & publish premium" row and the manager-branch `ShowAccessCodesCard` in `ShowOverviewTab`. Replace "their normal pages" and the status-pill/chip pair per MYK9-1282.
    - Tests: Actions registry snapshot; a render test that a published show with an unpublished premium shows one status line.
+4. **Secretary phase spec in `docs/INTENT.md`** (docs only, lands with this plan). The six phases and what lives in each, so every later issue, agent and audit maps a surface to a phase or is rejected. The orchestrate skill's verify-then-weigh gate checks proposals against it.
 
-Exit: no route without an incoming link in this surface; the four capabilities reachable in two clicks from the show; `pnpm qa:code-quality-ratchet` shows the drop.
+Exit: no route without an incoming link in this surface; the three capabilities reachable in two clicks from the show; `pnpm qa:code-quality-ratchet` shows a drop of roughly 1,900 lines; a counted inventory of the Overview's controls above the fold at 375px and 1280px, recorded on the phase issue as the baseline for Phase B.
 
 ## Phase B — one door per verb
 
@@ -35,15 +38,15 @@ Entry: Phase A merged.
 2. **Fold the "Your show" row (IA-4).** Add Trial and Select classes become Actions rows; "Enter results from scoresheet" stays only in the focused class's Class work.
 3. **Single release path (IA-7).** Browser-verify that the Visibility settings sheet shows `ResultsBulkBar`; if so, remove release from the embedded page and keep the visibility controls.
 
-Exit: Overview's body has no button row (render test asserting none); every tool opens alone from the Actions menu; one release control per class.
+Exit: Overview's body has no button row (render test asserting none); every tool opens alone from the Actions menu; one release control per class; the Overview control count at 375px and 1280px is below the Phase A baseline, recorded on the phase issue.
 
 ## Phase C — where am I, and one home per class
 
 Entry: Gate 0 items 3 and 4.
 
 1. **MYK9-1269 with MYK9-1293 item 1 folded in (IA-3).** The current-show rail item is active inside its show; Browse is not. The breadcrumb's first crumb for a manager is Manage, not Shows.
-2. **IA-5 per the decision.**
-3. **IA-9 per the decision.**
+2. **IA-5, Option 1.** Mount `ResultsClassDetail` inside the focused-class panel; Results keeps the cross-class list, Submit and Close; the ping-pong links go. If it cannot mount as-is, Option 2 with one handoff link, recorded on the issue.
+3. **IA-9.** The trial page becomes a link for managers; per-trial Financials moves beside Reports' Financial Report.
 
 Exit: on a managed show the rail and breadcrumb name the show; a class's whole lifecycle completes without a tab switch (Option 1) or with exactly one handoff link (Option 2).
 

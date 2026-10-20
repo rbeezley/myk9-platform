@@ -8,6 +8,7 @@ import { DetailPageSkeleton } from '@/components/common/SkeletonLoaders';
 import { ErrorState } from '@/components/common/ErrorState';
 import { NotFoundState } from '@/components/common/NotFoundState';
 import { resolveDetailPageState } from './detailPageState';
+import { DetailStateHeader } from '@/components/layout/DetailStateHeader';
 import { PageShell } from '@/components/common/PageShell';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 
@@ -64,10 +65,16 @@ const PersonDetailPage: React.FC = () => {
 
   switch (state) {
     case 'loading':
-      return <DetailPageSkeleton />;
+      return (
+        <>
+          <DetailStateHeader headingOnly />
+          <DetailPageSkeleton />
+        </>
+      );
     case 'error':
       return (
         <PageShell>
+          <DetailStateHeader />
           <ErrorState
             message="Couldn't load this person."
             description={getUserFriendlyError(readError, 'Check your connection and try again.')}
@@ -81,6 +88,7 @@ const PersonDetailPage: React.FC = () => {
     case 'denied':
       return (
         <PageShell>
+          <DetailStateHeader omitTitle />
           <NotFoundState
             entityName="Person"
             heading="You can't open this person"
@@ -93,6 +101,7 @@ const PersonDetailPage: React.FC = () => {
     case 'notFound':
       return (
         <PageShell>
+          <DetailStateHeader omitTitle />
           <NotFoundState entityName="Person" backTo="/people" backLabel="Back to People" />
         </PageShell>
       );

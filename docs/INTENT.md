@@ -39,6 +39,21 @@ The secretary carries the most stress. The software should absorb complexity, no
 
 **Anti-patterns to avoid:** Confirmation dialogs for routine actions. Multi-step forms. Technical error messages. Anything that makes the user feel like they need to "learn the software."
 
+#### The secretary's six phases (standing spec, 2026-10-20)
+
+A secretary's work on one show runs in six phases. Each phase has one home in the workbench. A proposed page, tab, sheet, card or button must name the phase it serves and the home it lives in; if that home already does the job, the proposal is a link to it, not a second door. If it fits no phase, it is rejected. Audits and the orchestrate skill's verify-then-weigh gate check proposals against this table; do not re-derive it.
+
+| Phase                    | What the secretary does                                                                | Home                                                                       |
+| ------------------------ | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| The show itself          | Details, dates, venue, Wi-Fi, withdrawal policy, publishing, status, cancel and refund | The show wizard and the Edit show details panel; status pill in the header |
+| Entries                  | Review, payment, waitlist, move-ups, pulls, late entries                               | Entries tab (one home for approve)                                         |
+| The day                  | Schedule, start a class, check-in, people at the show, access codes, incidents         | Overview cockpit; tools open one at a time from the Actions menu           |
+| A class, start to finish | Run order, scoring, complete, check, release, print, judge initials                    | Overview's focused class panel (paper scoring is its own page)             |
+| Paperwork                | What to print today; the full library                                                  | Overview's class checklist for today; Reports for the library              |
+| After                    | Submit to the registry, close the show, money                                          | Results tab (cross-class list, Submit, Close); Financial Report in Reports |
+
+Source: `docs/ia-review-secretary-show-workbench.md` § Mental Model Check, and the owner decisions on MYK9-953, MYK9-959 and the 2026-10-20 review.
+
 ### Judge — _"Invisible technology"_
 
 The judge's eyes should be on the dog, not the screen. Every interaction should be muscle-memory fast.

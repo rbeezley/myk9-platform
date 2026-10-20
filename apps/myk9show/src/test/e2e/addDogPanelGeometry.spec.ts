@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { signInAsSecretary } from './uat/shared/auth';
 import { harnessKnownAnswers, measureAddDogPanel } from './helpers/addDogPanelGeometry';
+import { chooseAction } from './helpers/actionsMenu';
 
 /**
  * MYK9-1121 — rendered geometry of the Add Dog slide-out (Dogs page) from 320px
@@ -23,10 +24,7 @@ const PHOTO_AND_GAP = 96 + 16;
 
 async function openAddDog(page: Page) {
   await signInAsSecretary(page, '/dogs');
-  await page
-    .getByRole('button', { name: /^Add Dog$/ })
-    .first()
-    .click();
+  await chooseAction(page, 'Add Dog');
 }
 
 for (const width of WIDTHS) {

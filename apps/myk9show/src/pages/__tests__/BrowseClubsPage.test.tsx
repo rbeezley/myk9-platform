@@ -202,15 +202,6 @@ describe('BrowseClubsPage (shared primitives migration)', () => {
     expect(shell).toBeTruthy();
   });
 
-  it('renders breadcrumb with "Clubs" link via PageHeader', () => {
-    renderPage();
-    const nav = screen.getByLabelText('Breadcrumb');
-    expect(nav).toBeInTheDocument();
-    const clubsInBreadcrumb = nav.querySelector('.text-foreground');
-    expect(clubsInBreadcrumb).toBeTruthy();
-    expect(clubsInBreadcrumb!.textContent).toBe('Clubs');
-  });
-
   it('renders ErrorState when hook returns error', () => {
     mockBrowseClubsReturn = {
       ...mockBrowseClubsReturn,
@@ -320,7 +311,7 @@ describe('BrowseClubsPage (shared primitives migration)', () => {
 
 // ── Add Club button role-gate tests ─────────────────────────────────────────
 
-describe('BrowseClubsPage — Add Club button visibility', () => {
+describe('BrowseClubsPage — no page-level title or Add Club button', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
@@ -340,7 +331,7 @@ describe('BrowseClubsPage — Add Club button visibility', () => {
     };
   });
 
-  it('shows a visible Clubs title above the list', () => {
+  it('carries only a screen-reader h1 and no trail: both live in the detail column', () => {
     mockAuthReturn = {
       user: { id: 'admin-user' },
       userWithRoles: { roles: ['site_admin'] },
@@ -348,41 +339,23 @@ describe('BrowseClubsPage — Add Club button visibility', () => {
 
     renderPage();
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Clubs' })).not.toHaveClass('sr-only');
+    expect(screen.getByRole('heading', { level: 1, name: 'Clubs' })).toHaveClass('sr-only');
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
   });
 
-  it('shows Add Club button when user is a site admin', () => {
-    mockAuthReturn = {
-      user: { id: 'admin-user' },
-      userWithRoles: { roles: ['site_admin'] },
-    };
+  it.each([['site_admin'], ['secretary'], ['club_admin']])(
+    'renders no Add Club button for a %s: it is in the header Actions menu',
+    role => {
+      mockAuthReturn = {
+        user: { id: 'staff-user' },
+        userWithRoles: { roles: [role] },
+      };
 
-    renderPage();
+      renderPage();
 
-    expect(screen.getByRole('button', { name: /add club/i })).toBeInTheDocument();
-  });
-
-  it('shows Add Club button when user is a secretary', () => {
-    mockAuthReturn = {
-      user: { id: 'secretary-user' },
-      userWithRoles: { roles: ['secretary'] },
-    };
-
-    renderPage();
-
-    expect(screen.getByRole('button', { name: /add club/i })).toBeInTheDocument();
-  });
-
-  it('shows Add Club button when user is a club admin', () => {
-    mockAuthReturn = {
-      user: { id: 'club-admin-user' },
-      userWithRoles: { roles: ['club_admin'] },
-    };
-
-    renderPage();
-
-    expect(screen.getByRole('button', { name: /add club/i })).toBeInTheDocument();
-  });
+      expect(screen.queryByRole('button', { name: /add club/i })).not.toBeInTheDocument();
+    }
+  );
 
   it('hides Add Club button when user is unauthenticated', () => {
     mockAuthReturn = {

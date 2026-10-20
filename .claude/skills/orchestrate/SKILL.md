@@ -40,6 +40,36 @@ agent on it before your own review. Migrations are never pushed in an orchestrat
 Codex reviews and your own full test or Playwright runs. Lightweight `gh` watchers don't count.
 Count before every spawn or resume, and queue the work when you're at 3.
 
+## Verify, then weigh (before any worktree, state change or dispatch)
+
+An issue or task is a claim, written at one moment by one reader. Nothing is spent on it until
+both of these are done and recorded in the ledger row (`premise:` and `approach:`).
+
+1. **Reproduce the claim on current `main`.** Run what the issue names: the e2e spec, the
+   browser at the stated route and width, the SQL, the failing test. Read the code the issue
+   blames. Then check the premise against what already exists: `list_issues` with
+   `includeArchived: true` on the route or symptom (a Done issue may hold the opposite
+   decision), the `// INTENT:` comments and `docs/INTENT.md` section for that surface, and the
+   consolidation rule in CLAUDE.md. Record one of:
+   - `confirmed` — proceed.
+   - `partly true: <what holds>` — the dispatch carries only the criteria that still hold, and
+     the triage comment names the ones dropped and why.
+   - `not reproducible` or `by design: <issue or INTENT citation>` — comment with the evidence,
+     add `needs-richard`, leave the state, move on. A symptom you could not see is not fixed by
+     code; an implementer handed the criteria verbatim would undo the earlier decision.
+2. **Weigh at least one alternative to the fix the issue suggests.** The Recommendation is one
+   reader's idea; the acceptance criteria are the contract. Write the `approach:` line before
+   dispatch: the fix chosen, the alternative considered, and why. The alternatives to try first,
+   in this order: do nothing and close with evidence; fix the data or seed, not the UI; change
+   the copy, not the code; link to the surface that already does it, not a new page; fix the
+   root cause the repro exposed, not the symptom. If the chosen approach changes what the
+   criteria ask for, that is a product decision: hold with `needs-richard`.
+
+In OpenSpec mode the proposal and design are where the weighing happened; reproduce only for a
+task that fixes a reported defect. Why this gate exists: the 2026-10-20 usability walk's first
+draft of a Find Shows finding asked to reverse MYK9-952, a Done decision that 13 E2E specs
+depend on; only an archived-issue search caught it (`docs/qa/usability-walk-new-user-2026-10-20.md`).
+
 ## Dispatch protocol
 
 Where the implementer works depends on the mode. Two implementers never work in one worktree at
@@ -54,20 +84,23 @@ the same time.
 The dispatch prompt is self-contained and has these parts, in order:
 
 1. Worktree absolute path and the exact task text: the `tasks.md` items verbatim, or the Linear
-   issue's description and acceptance criteria verbatim.
-2. Pointers: change artifacts or linked plan, relevant `docs/INTENT.md` sections and
+   issue's description and acceptance criteria verbatim (minus any criterion triage dropped).
+2. **Premise and approach**, copied from the ledger row: what was reproduced and where, the
+   fix chosen, the alternative rejected and why. The implementer builds the decided thing, not
+   the issue's Recommendation.
+3. Pointers: change artifacts or linked plan, relevant `docs/INTENT.md` sections and
    `// INTENT:` comments, and the files you expect it to touch.
-3. Project rules: TypeScript only, files under 500 lines, the replication layer is never
+4. Project rules: TypeScript only, files under 500 lines, the replication layer is never
    bypassed in core flows, shadcn/ui on Base UI, tests for new logic, assertion-first for
    value-sensitive bugs, the custom render from `src/test/utils/testUtils.tsx`.
-4. Scope fence: "Change only what the task requires. No opportunistic refactors. Do not touch
+5. Scope fence: "Change only what the task requires. No opportunistic refactors. Do not touch
    `tasks.md`, migrations or Linear. Do not deploy, push, open a PR, spawn sub-agents, run a
    review or post a `Review gate:` comment. Do not run the full app suite; run the affected
    test files. Run `pnpm exec prettier --write` on every file you touch. Commit `wip:` before
    any verification that takes longer than a minute. Use bounded waits only (the Bash tool's timeout, or
    `for i in $(seq 1 40)`; macOS has no `timeout` command), never open-ended `sleep` loops, and
    wait for your tests to finish before you end your turn."
-5. The report format below, as its final message.
+6. The report format below, as its final message.
 
 ```
 FILES: <paths touched>
@@ -86,6 +119,8 @@ commands check `main`, not the proposed change.
 1. `git -C <worktree> diff origin/main...HEAD` plus the uncommitted diff. Read the actual code.
 2. Checklist (all must pass):
    - [ ] Does only what the task or criteria say (no scope creep, no drive-by refactors)
+   - [ ] Implements the `approach:` recorded at triage. A diff that took a different route
+         needs the alternatives re-weighed, not a silent acceptance
    - [ ] Meets every acceptance criterion or spec delta, not just the title
    - [ ] `// INTENT:` comments and the role feeling (`docs/INTENT.md`) preserved
    - [ ] No new surface that duplicates an existing page (the consolidation rule)

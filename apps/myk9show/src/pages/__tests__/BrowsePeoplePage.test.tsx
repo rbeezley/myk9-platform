@@ -127,12 +127,12 @@ describe('BrowsePeoplePage', () => {
     };
   });
 
-  it('shows a visible People title and an "Add Person" button', () => {
+  it('has a screen-reader-only h1 and no Add Person button: that is in the header Actions menu', () => {
     render(<BrowsePeoplePage />);
 
     const title = screen.getByRole('heading', { level: 1, name: 'People' });
-    expect(title).not.toHaveClass('sr-only');
-    expect(screen.getByRole('button', { name: 'Add Person' })).toBeInTheDocument();
+    expect(title).toHaveClass('sr-only');
+    expect(screen.queryByRole('button', { name: 'Add Person' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /new person/i })).not.toBeInTheDocument();
   });
 

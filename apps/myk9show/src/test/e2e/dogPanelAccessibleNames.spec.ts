@@ -38,10 +38,7 @@ for (const vp of VIEWPORTS) {
 
     test('Add Dog names its sex combobox and photo action', async ({ page }) => {
       await signInAsExhibitor(page, '/dogs');
-      await page
-        .getByRole('button', { name: /Add Dog/i })
-        .first()
-        .click();
+      await chooseAction(page, 'Add Dog');
       await expect(page.getByRole('heading', { name: 'Add Dog' })).toBeVisible();
       // An exhibitor starts with the registration and cannot skip it (MYK9-1162); the Sex
       // field is on the Essential step that follows.

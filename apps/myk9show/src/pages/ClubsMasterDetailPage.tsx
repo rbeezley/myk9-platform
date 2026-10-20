@@ -11,6 +11,7 @@ const ClubsMasterDetailPage: React.FC = () => (
     Detail={ClubDetailPage}
     EmptyIcon={Building2}
     emptyText="Select a club to see its details"
+    crumb={{ label: 'Clubs', href: '/clubs' }}
   />
 );
 

@@ -1,12 +1,13 @@
 import React from 'react';
 import { Route, Routes } from 'react-router-dom';
-import { act, screen } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import { onlineManager } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient, render } from '@/test/utils/testUtils';
 import { PUBLIC_CLUB_DETAIL_QUERY_KEY } from '@/hooks/useClubDetailData';
 import type { Club } from '@/types/club-types';
 import ClubDetailPage from '../ClubDetailPage';
+import { DetailCrumbContext } from '@/components/layout/DetailStateHeader';
 
 const state = vi.hoisted(() => ({
   clubs: [] as Club[],
@@ -264,5 +265,69 @@ describe('ClubDetailPage signed-out viewer (MYK9-747)', () => {
     await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByTestId('club-details')).toHaveTextContent('Heartland Club');
     expect(state.ensureClubsReady).not.toHaveBeenCalled();
+  });
+});
+
+describe('ClubDetailPage states that are not ready keep the page heading and trail (MYK9-1267)', () => {
+  it('loading: exactly one sr-only h1 and no second trail over the skeleton', () => {
+    render(
+      <DetailCrumbContext.Provider value={{ label: 'Clubs', href: '/clubs' }}>
+        <Routes>
+          <Route path="/clubs/:id" element={<ClubDetailPage />} />
+        </Routes>
+      </DetailCrumbContext.Provider>,
+      { initialRoute: '/clubs/club-1' }
+    );
+    expect(screen.getByTestId('detail-skeleton')).toBeInTheDocument();
+    // The skeleton paints its own placeholder trail, so no second, real one is stacked on it.
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
+    const [h1] = screen.getAllByRole('heading', { level: 1 });
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(h1).toHaveTextContent('Clubs');
+    expect(h1).toHaveClass('sr-only');
+  });
+
+  const renderInRoute = (path: string) =>
+    render(
+      <DetailCrumbContext.Provider value={{ label: 'Clubs', href: '/clubs' }}>
+        <Routes>
+          <Route path="/clubs/:id" element={<ClubDetailPage />} />
+        </Routes>
+      </DetailCrumbContext.Provider>,
+      { initialRoute: path, queryClient: createTestQueryClient() }
+    );
+
+  it("not found: the state's own h1 is the only one, with the trail", () => {
+    state.clubReadiness = 'fresh';
+    renderInRoute('/clubs/missing-club');
+    expect(screen.getByRole('heading', { level: 1, name: 'Club Not Found' })).toBeInTheDocument();
+    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(trail).getByText('Clubs')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it("unavailable: the state's own h1 is the only one, with the trail", () => {
+    state.clubReadiness = 'unavailable';
+    renderInRoute('/clubs/club-1');
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Club details are unavailable' })
+    ).toBeInTheDocument();
+    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(trail).getByText('Clubs')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it('offline: the trail plus the sr-only h1, since the offline state paints none', () => {
+    auth.value = { user: null, userWithRoles: null, loading: false };
+    onlineManager.setOnline(false);
+    state.clubs = [club];
+    renderInRoute('/clubs/club-1');
+    expect(screen.getByText("You're offline")).toBeInTheDocument();
+    const [h1] = screen.getAllByRole('heading', { level: 1 });
+    expect(h1).toHaveTextContent('Clubs');
+    expect(h1).toHaveClass('sr-only');
+    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(trail).getByText('Clubs')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 });

@@ -32,7 +32,6 @@ import { UserRole } from '@/types/auth-types';
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { BrowseTabs } from '@/components/layout/BrowseTabs';
-import { PageHeader } from '@/components/common/PageHeader';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ListPagination } from '@/components/common/ListPagination';
@@ -205,7 +204,6 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
       ? 'Search your dogs by name or breed...'
       : 'Search dogs by name, breed, or owner...';
   const pageTitle = ownDogsOnly ? 'My Dogs' : 'Dogs';
-  const breadcrumbs = useMemo(() => [{ label: pageTitle, href: '/dogs' }], [pageTitle]);
 
   const openCreateDogPanel = useCallback(() => {
     const params = new URLSearchParams(searchParams);
@@ -231,27 +229,16 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
   // Select mode is only offered where the split exists, to staff (the exhibitor roster has no bulk
   // actions); the narrow page keeps its table/cards toggle.
   const showSelectMode = splitCapable && canBulkManageDogs;
-  const actionButtons =
-    showSelectMode || canCreateDogs ? (
-      <>
-        {showSelectMode && (
-          <SelectModeButton
-            selectMode={selectMode}
-            onEnter={enterSelectMode}
-            onExit={exitSelectMode}
-            buttonRef={buttonRef}
-            noun="dogs"
-            purpose="act on several dogs or export"
-          />
-        )}
-        {canCreateDogs && (
-          <Button onClick={openCreateDogPanel}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Dog
-          </Button>
-        )}
-      </>
-    ) : undefined;
+  const selectAction = showSelectMode ? (
+    <SelectModeButton
+      selectMode={selectMode}
+      onEnter={enterSelectMode}
+      onExit={exitSelectMode}
+      buttonRef={buttonRef}
+      noun="dogs"
+      purpose="act on several dogs or export"
+    />
+  ) : undefined;
 
   const renderCards = () => (
     <>
@@ -387,12 +374,9 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
       {(emptyListStatus ||
         (!isLoading && !isResolvingIdentity && !(hasError && dogs.length === 0))) && (
         <>
-          <PageHeader
-            breadcrumbs={breadcrumbs}
-            title={pageTitle}
-            actions={actionButtons}
-            showTitle
-          />
+          {/* The title and trail live in the detail column. Only with no detail beside it (an
+              empty roster, select mode, a phone) does the list carry the page's one h1. */}
+          {!splitOpen && <h1 className="sr-only">{pageTitle}</h1>}
 
           {hasError && !emptyListStatus && (
             <div
@@ -415,6 +399,7 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
               emptyListStatus ? undefined : (
                 <ListToolbarLayout
                   compact={splitOpen}
+                  selectAction={selectAction}
                   viewTabs={
                     <ListViewTabs
                       label="Dog views"

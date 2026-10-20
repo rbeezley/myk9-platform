@@ -79,6 +79,27 @@ beforeEach(() => {
   publishInfoRead.mockResolvedValue({ data: null, error: null });
 });
 
+describe('Create actions always open the list panel', () => {
+  it.each([
+    ['dogs', 'create-dog', '/dogs?add=true'],
+    ['people', 'create-person', '/people?add=true'],
+    ['clubs', 'create-club', '/clubs?create=true'],
+  ])('%s Add leaves the record route at every width', (section, actionId, href) => {
+    const { result } = renderHook(() => useCurrentActions(), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <MemoryRouter initialEntries={[`/${section}/record?search=kept`]}>
+            {children}
+          </MemoryRouter>
+        </QueryClientProvider>
+      ),
+    });
+    expect(result.current.actions.find(action => action.id === actionId)?.href).toBe(href);
+  });
+});
+
 /**
  * `useCurrentActions` grants nothing unless the ownership answer is FINAL.
  *

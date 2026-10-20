@@ -59,6 +59,13 @@ describe('headerShowsActions', () => {
     );
   });
 
+  it('keeps the button for an Add Dog-only menu on the Dogs pages, where it is the only door', () => {
+    expect(headerShowsActions(groupActions([action('create-dog', 'create')], HEADINGS), true)).toBe(
+      true
+    );
+    expect(headerShowsActions([], true)).toBe(false);
+  });
+
   it('hides it when there is nothing at all', () => {
     expect(headerShowsActions([])).toBe(false);
   });

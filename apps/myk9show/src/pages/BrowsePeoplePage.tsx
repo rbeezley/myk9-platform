@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Plus, Users } from 'lucide-react';
 import { PageShell } from '@/components/common/PageShell';
 import { BrowseTabs } from '@/components/layout/BrowseTabs';
-import { PageHeader } from '@/components/common/PageHeader';
 import { ListEmptyState, ListViewToggle } from '@/components/list-toolkit';
 import { ErrorState } from '@/components/common/ErrorState';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -108,8 +107,6 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
 
   const canCreatePeople =
     !rbacLoading && resolveCreateGates({ hasRole, hasPermission }).canCreatePeople;
-
-  const breadcrumbs = useMemo(() => [{ label: 'People', href: '/people' }], []);
 
   const openCreatePersonDialog = useCallback(() => {
     const params = new URLSearchParams(searchParams);
@@ -233,15 +230,8 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
     }
   };
 
-  const addPersonButton = canCreatePeople ? (
-    <Button onClick={openCreatePersonDialog}>
-      <Plus className="h-4 w-4 mr-2" />
-      Add Person
-    </Button>
-  ) : null;
-
   // Select mode is only offered where the split exists; the narrow page is always the table.
-  const selectModeButton = splitCapable ? (
+  const selectAction = splitCapable ? (
     <SelectModeButton
       selectMode={selectMode}
       onEnter={enterSelectMode}
@@ -250,7 +240,7 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
       noun="people"
       purpose="copy emails or export"
     />
-  ) : null;
+  ) : undefined;
 
   const skeleton = <BrowsePeopleSkeleton viewMode={viewMode === 'cards' ? 'grid' : 'table'} />;
   const loadError = <ErrorState message="We couldn't load people." onRetry={handleRetry} />;
@@ -279,17 +269,9 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
       {(emptyListStatus ||
         ((!isLoading || people.length > 0) && !(error && people.length === 0))) && (
         <>
-          <PageHeader
-            breadcrumbs={breadcrumbs}
-            title="People"
-            actions={
-              <>
-                {selectModeButton}
-                {addPersonButton}
-              </>
-            }
-            showTitle
-          />
+          {/* The title and trail live in the detail column. Only with no detail beside it (an
+              empty roster, select mode, a phone) does the list carry the page's one h1. */}
+          {!splitOpen && <h1 className="sr-only">People</h1>}
 
           {error && !emptyListStatus && (
             <div
@@ -318,6 +300,7 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
                   onClearAll={clearAllFilters}
                   hasActiveFilters={hasActiveFilters}
                   compact={splitOpen}
+                  selectAction={selectAction}
                   resultLineExtra={
                     splitCapable ? undefined : (
                       <ListViewToggle active={viewMode} onChange={setViewMode} />

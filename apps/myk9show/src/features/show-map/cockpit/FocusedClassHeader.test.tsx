@@ -5,12 +5,17 @@ import {
   FOCUSED_CLASS_HEADER_CLASS_IN_PANEL,
   FOCUSED_CLASS_PANEL_CLASS,
   FOCUSED_CLASS_HEADER_HEIGHT_VAR,
+  FOCUSED_CLASS_PIN_QUERY,
   SHOW_HEADER_CLASS,
   SHOW_TAB_STRIP_CLASS,
 } from '@/components/shows/ShowDetails/showStickyLayout';
 import { FocusedClassHeader } from './FocusedClassHeader';
 
 describe('FocusedClassHeader', () => {
+  it('keeps the owner-approved 1024px pin floor', () => {
+    expect(FOCUSED_CLASS_PIN_QUERY).toBe('(min-width: 1024px)');
+  });
+
   it('does not pin when the cockpit disables pinning below its viewport floor', () => {
     render(
       <FocusedClassHeader eyebrow="Focused Class" title="Buried Novice A" facts="" pinMode="none" />

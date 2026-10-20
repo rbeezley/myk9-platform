@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { CalendarDays, Plus } from 'lucide-react';
 import { Link, useLocation, useNavigationType } from 'react-router-dom';
 import { useTrialRowActions } from '@/components/shows/tabs/useTrialRowActions';
@@ -103,6 +103,12 @@ export function SecretaryCockpit({
   const focusedClassIsVisible = model.trialGroups.some(group =>
     group.classes.some(classItem => classItem.id === focusedId)
   );
+  // The split's panel scrolls itself and is not remounted per class, so a newly focused class
+  // would open at the previous class's scroll position, its controls under the pinned header.
+  const splitPanelRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (splitPanelRef.current) splitPanelRef.current.scrollTop = 0;
+  }, [focusedId]);
   const focusedPanel = model.focusedClass ? (
     <SecretaryCockpitFocusedClass
       showId={snapshot.showId}
@@ -257,6 +263,7 @@ export function SecretaryCockpit({
         )}
         {isSplit && model.focusedClass && (
           <div
+            ref={splitPanelRef}
             className={cn(
               'col-start-2 row-start-2',
               pinMode === 'panel' && FOCUSED_CLASS_PANEL_CLASS

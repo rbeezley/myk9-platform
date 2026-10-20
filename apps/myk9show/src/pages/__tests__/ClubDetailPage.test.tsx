@@ -1,6 +1,6 @@
 import React from 'react';
 import { Route, Routes } from 'react-router-dom';
-import { act, screen, within } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import { onlineManager } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient, render } from '@/test/utils/testUtils';
@@ -269,7 +269,7 @@ describe('ClubDetailPage signed-out viewer (MYK9-747)', () => {
 });
 
 describe('ClubDetailPage states that are not ready keep the page heading and trail (MYK9-1267)', () => {
-  it('loading: exactly one h1 and the Home > Clubs trail', () => {
+  it('loading: exactly one sr-only h1 and no second trail over the skeleton', () => {
     render(
       <DetailCrumbContext.Provider value={{ label: 'Clubs', href: '/clubs' }}>
         <Routes>
@@ -279,8 +279,11 @@ describe('ClubDetailPage states that are not ready keep the page heading and tra
       { initialRoute: '/clubs/club-1' }
     );
     expect(screen.getByTestId('detail-skeleton')).toBeInTheDocument();
-    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(trail).getByText('Clubs')).toHaveAttribute('aria-current', 'page');
+    // The skeleton paints its own placeholder trail, so no second, real one is stacked on it.
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
+    const [h1] = screen.getAllByRole('heading', { level: 1 });
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(h1).toHaveTextContent('Clubs');
+    expect(h1).toHaveClass('sr-only');
   });
 });

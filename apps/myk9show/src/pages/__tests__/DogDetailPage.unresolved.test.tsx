@@ -136,13 +136,16 @@ describe('DogDetailPage states that are not ready keep the page heading and trai
       </DetailCrumbContext.Provider>
     );
 
-  it('loading: exactly one h1 and the Home > Dogs trail', () => {
+  it('loading: exactly one sr-only h1 and no second trail over the skeleton', () => {
     store.dogs = [];
     renderInRoute('dog-1');
     expect(screen.queryByTestId('dog-page')).not.toBeInTheDocument();
-    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(trail).getByText('Dogs')).toHaveAttribute('aria-current', 'page');
+    // The skeleton paints its own placeholder trail, so no second, real one is stacked on it.
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
+    const [h1] = screen.getAllByRole('heading', { level: 1 });
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(h1).toHaveTextContent('Dogs');
+    expect(h1).toHaveClass('sr-only');
   });
 
   it('error: exactly one h1 (the error text is not a second one) and the trail', () => {

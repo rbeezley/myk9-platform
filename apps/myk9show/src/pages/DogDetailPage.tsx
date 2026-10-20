@@ -100,7 +100,7 @@ const DogDetailPage: React.FC = () => {
     case 'loading':
       return (
         <PageShell>
-          <DetailStateHeader />
+          <DetailStateHeader headingOnly />
           <DogPageSkeleton />
         </PageShell>
       );

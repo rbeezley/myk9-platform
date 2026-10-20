@@ -21,7 +21,7 @@ const ClubDetailPage: React.FC = () => {
   if (status === 'loading') {
     return (
       <>
-        <DetailStateHeader />
+        <DetailStateHeader headingOnly />
         <DetailPageSkeleton />
       </>
     );

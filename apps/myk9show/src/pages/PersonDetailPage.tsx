@@ -67,7 +67,7 @@ const PersonDetailPage: React.FC = () => {
     case 'loading':
       return (
         <>
-          <DetailStateHeader />
+          <DetailStateHeader headingOnly />
           <DetailPageSkeleton />
         </>
       );

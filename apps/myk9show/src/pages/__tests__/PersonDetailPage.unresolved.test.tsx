@@ -148,14 +148,17 @@ describe('PersonDetailPage states that are not ready keep the page heading and t
       </DetailCrumbContext.Provider>
     );
 
-  it('loading: exactly one h1 and the Home > People trail', () => {
+  it('loading: exactly one sr-only h1 and no second trail over the skeleton', () => {
     usersQuery.value = { ...usersQuery.value, data: [], isLoading: true };
     people.value = [];
     renderInRoute('p-1');
     expect(screen.queryByTestId('details')).not.toBeInTheDocument();
-    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(trail).getByText('People')).toHaveAttribute('aria-current', 'page');
+    // The skeleton paints its own placeholder trail, so no second, real one is stacked on it.
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
+    const [h1] = screen.getAllByRole('heading', { level: 1 });
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(h1).toHaveTextContent('People');
+    expect(h1).toHaveClass('sr-only');
   });
 
   it('error: exactly one h1 and the trail', () => {

@@ -20,7 +20,7 @@ beforeEach(() => {
   trialEntriesState.isLoading = false;
 });
 
-describe('Secretary financial summary — loading state skeleton convergence', () => {
+describe('FinancialSummary loading and loaded-empty states', () => {
   it('renders a skeleton, not a spinner, while the trial financial summary is loading', () => {
     trialEntriesState.isLoading = true;
 

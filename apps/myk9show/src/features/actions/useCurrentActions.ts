@@ -176,7 +176,6 @@ export function useCurrentActions(): CurrentActions {
       }),
     [
       resolved,
-      pathname,
       search,
       pageTarget,
       pageExports,

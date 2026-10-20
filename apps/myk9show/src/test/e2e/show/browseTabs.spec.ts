@@ -147,6 +147,36 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
       await expect(details.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible();
       await expect(page.locator('h1')).toHaveClass('sr-only');
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+      // The list starts directly under the Browse tabs: search top within 40px of the tablist bottom.
+      const tabsBottom =
+        (await tablist(page).boundingBox())!.y + (await tablist(page).boundingBox())!.height;
+      const searchTop = (await page
+        .getByRole('region', { name: /list$/ })
+        .getByRole('textbox')
+        .first()
+        .boundingBox())!.y;
+      expect(searchTop - tabsBottom).toBeGreaterThanOrEqual(0);
+      expect(searchTop - tabsBottom).toBeLessThanOrEqual(40);
+      // No visible h1 on the empty list page (the one h1 is screen-reader only).
+      expect(
+        await page
+          .locator('h1')
+          .evaluateAll(
+            nodes =>
+              nodes.filter(
+                n => n.getBoundingClientRect().width > 1 && getComputedStyle(n).clip === 'auto'
+              ).length
+          )
+      ).toBe(0);
+      // With a record open, its trail is inside the detail region too.
+      await page.getByRole('region', { name: /list$/ }).getByRole('link').first().click();
+      await expect(page).toHaveURL(new RegExp(`${path}/[\\w-]+`));
+      await expect(details.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toHaveCount(1);
+      await page.goto(path);
+      await expect(details.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible();
       const menu = await openActionsMenu(page);
       await expect(menu.getByRole('menuitem', { name: /^Select/ })).toHaveCount(0);
       await expect(menu.getByRole('menuitem', { name: `Add ${noun}` })).toBeVisible();

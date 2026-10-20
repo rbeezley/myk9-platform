@@ -323,6 +323,27 @@ describe('AppHeader Actions menu — exhibitor on the same route', () => {
     expect(screen.queryByTestId('header-actions-trigger')).toBeNull();
   });
 
+  it.each(['/dogs', '/dogs/d1'])(
+    'keeps the button for an Add Dog-only exhibitor on %s, where it is the only door (MYK9-1267)',
+    async path => {
+      viewer.canManage = false;
+      viewer.canOperate = false;
+      viewer.isStaff = false;
+      viewer.dogCreateOnly = true;
+      const user = userEvent.setup();
+
+      render(<AppHeader />, { initialRoute: path });
+      await user.click(screen.getByTestId('header-actions-trigger'));
+      const menu = await screen.findByRole('menu');
+
+      expect(
+        within(menu)
+          .getAllByRole('menuitem')
+          .map(item => item.textContent?.trim())
+      ).toEqual(['Add Dog']);
+    }
+  );
+
   it('shows it to that exhibitor on their own dog page, where Edit dog joins Add Dog', async () => {
     viewer.canManage = false;
     viewer.canOperate = false;

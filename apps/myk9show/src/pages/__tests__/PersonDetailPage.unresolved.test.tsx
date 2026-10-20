@@ -170,4 +170,23 @@ describe('PersonDetailPage states that are not ready keep the page heading and t
     expect(within(trail).getByText('People')).toHaveAttribute('aria-current', 'page');
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
+
+  it("not found: the state's own h1 is the only one, with the trail", () => {
+    renderInRoute('nobody');
+    expect(screen.getByRole('heading', { level: 1, name: 'Person Not Found' })).toBeInTheDocument();
+    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(trail).getByText('People')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it("denied: the state's own h1 is the only one, with the trail", () => {
+    auth.value = { userWithRoles: { id: 'auth-9', databaseUserId: 'p-9' }, roles: ['exhibitor'] };
+    renderInRoute('p-1');
+    expect(
+      screen.getByRole('heading', { level: 1, name: "You can't open this person" })
+    ).toBeInTheDocument();
+    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(trail).getByText('People')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
 });

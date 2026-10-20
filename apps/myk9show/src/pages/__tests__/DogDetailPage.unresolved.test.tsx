@@ -157,4 +157,22 @@ describe('DogDetailPage states that are not ready keep the page heading and trai
     expect(within(trail).getByText('Dogs')).toHaveAttribute('aria-current', 'page');
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
+
+  it("not found: the state's own h1 is the only one, with the trail", () => {
+    renderInRoute('ghost');
+    expect(screen.getByRole('heading', { level: 1, name: 'Dog Not Found' })).toBeInTheDocument();
+    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(trail).getByText('Dogs')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it("denied: the state's own h1 is the only one, with the trail", () => {
+    renderInRoute('dog-2');
+    expect(
+      screen.getByRole('heading', { level: 1, name: "You can't open this dog" })
+    ).toBeInTheDocument();
+    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(trail).getByText('Dogs')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
 });

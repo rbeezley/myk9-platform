@@ -127,6 +127,39 @@ describe('manual distributed load workflow', () => {
     expect(secondPacketCleanup).toBeLessThan(secondSeed);
   });
 
+  it('still restores after a failed packet clear, relying on the seed to refuse atomically (MYK9-126)', () => {
+    const cleanupJob = workflow.slice(workflow.indexOf('\n  cleanup:'));
+    const step = (name: string) => {
+      const start = cleanupJob.indexOf(`- name: ${name}`);
+      const next = cleanupJob.indexOf('- name:', start + 1);
+      return cleanupJob.slice(start, next === -1 ? undefined : next);
+    };
+    expect(step('Abort and drain in-flight scoring work')).toContain('id: drain');
+    expect(step('Clear canonical trial packet snapshots')).toMatch(/timeout-minutes: \d/);
+    expect(step('Restore canonical seed')).toContain(
+      "if: ${{ !cancelled() && steps.drain.outcome == 'success' }}"
+    );
+    expect(step('Verify restored postcondition')).toContain(
+      "if: ${{ !cancelled() && steps.reseed.outcome == 'success' }}"
+    );
+
+    // The premise: every packet preflight RAISEs inside the seed's one transaction,
+    // so leftover snapshots abort the reseed before it changes anything.
+    const seed = readFileSync(resolve(process.cwd(), '../../supabase/seed-demo.sql'), 'utf8');
+    const begin = seed.indexOf('\nBEGIN;');
+    const commit = seed.lastIndexOf('\nCOMMIT;');
+    const preflights = [
+      ...seed.matchAll(/RAISE EXCEPTION 'seed-demo preflight: remove [^']*trial packet/g),
+    ];
+    expect(preflights.length).toBeGreaterThanOrEqual(3);
+    expect(seed.slice(0, begin)).not.toMatch(/^\s*(DELETE|UPDATE|INSERT)\b/m);
+    for (const preflight of preflights) {
+      expect(preflight.index).toBeGreaterThan(begin);
+      expect(preflight.index).toBeLessThan(commit);
+    }
+    expect(seed.indexOf('\nCOMMIT;')).toBe(commit);
+  });
+
   it('approval-gates the preparation job once and offers a realistic preparation window', () => {
     expect(workflow.match(/environment: load-rehearsal/g)).toHaveLength(1);
     expect(workflow).toContain("default: '25'");

@@ -141,6 +141,19 @@ export function aggregateLoadShardArtifacts(
   const observations = artifacts.map(artifact => artifact.observation);
   const requestCount = sum(observations, observation => observation.requestCount);
   const failedRequestCount = sum(observations, observation => observation.failedRequestCount);
+  // Optional on a shard observation, so a hand-picked merge drops them silently
+  // (run 39390552156 rendered 0 virtual-user requests). A shard that predates the
+  // split issued only browser requests.
+  const virtualUserRequestCount = sum(
+    observations,
+    observation => observation.virtualUserRequestCount ?? 0
+  );
+  const browserRequestCount = sum(
+    observations,
+    observation =>
+      observation.browserRequestCount ??
+      observation.requestCount - (observation.virtualUserRequestCount ?? 0)
+  );
   const workflowFailures = sum(observations, observation => observation.workflowFailures);
   const workflowFailureDetails = mergeWorkflowFailureDetails(
     observations.flatMap(observation => [...observation.workflowFailureDetails])
@@ -214,6 +227,8 @@ export function aggregateLoadShardArtifacts(
       sessionLifecycle,
       generator,
       requestCount,
+      virtualUserRequestCount,
+      browserRequestCount,
       failedRequestCount,
       workflowFailures,
       workflowFailureDetails,

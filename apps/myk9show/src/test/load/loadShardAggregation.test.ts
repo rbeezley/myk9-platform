@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { evaluateLoadResult, type LoadObservation } from './loadEvaluation';
+import { buildLoadEvidence, renderLoadEvidenceMarkdown } from './loadEvidence';
 import type { LoadMetricSamples } from './loadMetrics';
 import type { LoadPlatformArtifact } from './loadPlatformArtifact';
 import {
@@ -370,6 +371,36 @@ describe('distributed load aggregation', () => {
     expect(() =>
       aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, platformArtifact())
     ).toThrow();
+  });
+
+  it('sums the virtual-user request split through to the rendered evidence (MYK9-126)', () => {
+    // Run 39390552156 reported 0 virtual-user requests while every shard carried ~250.
+    const counts = new Map([
+      [0, 240],
+      [1, 280],
+    ]);
+    const artifacts = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) => {
+      const artifact = shardArtifact(index);
+      const virtualUserRequestCount = counts.get(index) ?? 0;
+      artifact.observation.virtualUserRequestCount = virtualUserRequestCount;
+      artifact.observation.browserRequestCount = PER_SHARD_REQUESTS - virtualUserRequestCount;
+      return artifact;
+    });
+    const { observation } = aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, undefined);
+
+    expect(observation.virtualUserRequestCount).toBe(520);
+    expect(observation.browserRequestCount).toBe(
+      PER_SHARD_REQUESTS * DISTRIBUTED_G9_SHARD_COUNT - 520
+    );
+    const evidence = buildLoadEvidence({
+      target,
+      scenario: G9_NORMAL_SCENARIO,
+      observation,
+      evaluation: evaluateLoadResult(G9_NORMAL_SCENARIO, observation),
+    });
+    expect(renderLoadEvidenceMarkdown(evidence)).toContain(
+      `(browser/API virtual user): ${PER_SHARD_REQUESTS * DISTRIBUTED_G9_SHARD_COUNT - 520} / 520 `
+    );
   });
 
   it('still aggregates every valid shard when the sampler produced nothing', () => {

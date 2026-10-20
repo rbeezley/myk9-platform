@@ -490,7 +490,8 @@ jobs:
     needs: [prepare, shard, platform, aggregate]
     if: ${{ always() && needs.prepare.outputs.restore-required == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    # Room for the packet step's worst case on top of the drain and the restore.
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v7
@@ -523,6 +524,7 @@ jobs:
           psql --version
 
       - name: Abort and drain in-flight scoring work
+        id: drain
         env:
           SUPABASE_DB_URL: postgresql://postgres.${{ env.LOAD_TEST_PROJECT_REF }}@${{ env.LOAD_TEST_DB_HOST }}:${{ env.LOAD_TEST_ADMIN_DB_PORT }}/postgres
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -532,11 +534,24 @@ jobs:
           pnpm --filter @myk9/show exec tsx scripts/load-cleanup.ts
 
       - name: Clear canonical trial packet snapshots
+        # Outlives the script's own worst case (worstCaseCleanupMs, ~9 min when
+        # every call times out on every attempt), so a failure always logs its
+        # reason instead of being killed mid-retry.
+        timeout-minutes: 10
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: pnpm --filter @myk9/show exec tsx scripts/load-packet-cleanup.ts
 
+      # Runs even when the packet clear failed (run 39390552156 left the demo show
+      # at 518|504|0 because it did not). That is safe: seed-demo.sql is one
+      # transaction whose preflight RAISEs while any trial_packet_snapshots row
+      # still references a show it replaces (show_id is RESTRICT), so leftover
+      # packets abort the reseed with nothing changed, and a clear that succeeded
+      # behind a lost response lets the restore finish. The job stays red either
+      # way. It still waits on the drain: a reseed under live scoring writes races.
       - name: Restore canonical seed
+        id: reseed
+        if: ${{ !cancelled() && steps.drain.outcome == 'success' }}
         env:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
@@ -546,6 +561,7 @@ jobs:
             -f supabase/seed-demo.sql
 
       - name: Verify restored postcondition
+        if: ${{ !cancelled() && steps.reseed.outcome == 'success' }}
         env:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |

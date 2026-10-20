@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildSessionAssignments } from './loadAssignments';
 import { G9_NORMAL_SCENARIO } from './loadScenario';
+import { DEFAULT_RETRY_POLICY, worstCaseCleanupMs } from './loadPacketCleanupRetry';
 import { DISTRIBUTED_G9_SHARD_COUNT, selectShardAssignments } from './loadShard';
 
 describe('manual distributed load workflow', () => {
@@ -125,6 +126,48 @@ describe('manual distributed load workflow', () => {
     const secondSeed = workflow.lastIndexOf('Restore canonical seed');
     expect(firstPacketCleanup).toBeLessThan(firstSeed);
     expect(secondPacketCleanup).toBeLessThan(secondSeed);
+  });
+
+  it('still restores after a failed packet clear, relying on the seed to refuse atomically (MYK9-126)', () => {
+    const cleanupJob = workflow.slice(workflow.indexOf('\n  cleanup:'));
+    const step = (name: string) => {
+      const start = cleanupJob.indexOf(`- name: ${name}`);
+      const next = cleanupJob.indexOf('- name:', start + 1);
+      return cleanupJob.slice(start, next === -1 ? undefined : next);
+    };
+    expect(step('Abort and drain in-flight scoring work')).toContain('id: drain');
+    // The step must outlive the script's own retries, with a minute for install
+    // and startup, and the job must still have room for the drain and restore.
+    const stepMinutes = Number(
+      /timeout-minutes: (\d+)/.exec(step('Clear canonical trial packet snapshots'))?.[1]
+    );
+    expect(stepMinutes * 60_000).toBeGreaterThanOrEqual(
+      worstCaseCleanupMs(DEFAULT_RETRY_POLICY) + 60_000
+    );
+    const jobMinutes = Number(/timeout-minutes: (\d+)/.exec(cleanupJob)?.[1]);
+    expect(jobMinutes).toBeGreaterThanOrEqual(stepMinutes + 8);
+    expect(step('Restore canonical seed')).toContain(
+      "if: ${{ !cancelled() && steps.drain.outcome == 'success' }}"
+    );
+    expect(step('Verify restored postcondition')).toContain(
+      "if: ${{ !cancelled() && steps.reseed.outcome == 'success' }}"
+    );
+
+    // The premise: every packet preflight RAISEs inside the seed's one transaction,
+    // so leftover snapshots abort the reseed before it changes anything.
+    const seed = readFileSync(resolve(process.cwd(), '../../supabase/seed-demo.sql'), 'utf8');
+    const begin = seed.indexOf('\nBEGIN;');
+    const commit = seed.lastIndexOf('\nCOMMIT;');
+    const preflights = [
+      ...seed.matchAll(/RAISE EXCEPTION 'seed-demo preflight: remove [^']*trial packet/g),
+    ];
+    expect(preflights.length).toBeGreaterThanOrEqual(3);
+    expect(seed.slice(0, begin)).not.toMatch(/^\s*(DELETE|UPDATE|INSERT)\b/m);
+    for (const preflight of preflights) {
+      expect(preflight.index).toBeGreaterThan(begin);
+      expect(preflight.index).toBeLessThan(commit);
+    }
+    expect(seed.indexOf('\nCOMMIT;')).toBe(commit);
   });
 
   it('approval-gates the preparation job once and offers a realistic preparation window', () => {

@@ -13,6 +13,8 @@ import {
 } from '@/services/database/club-access-requests';
 import { formatShortDate } from '@/lib/format/dates';
 import { getSafeWebsiteLink } from '@/lib/websiteUrl';
+import { refreshClubAuthorization } from '@/features/clubs/refreshClubAuthorization';
+import { useClubStore } from '@/store/clubStore';
 import { formatClubRegistryNumbers } from '@/utils/clubRegistryNumbers';
 
 function ReviewCard({
@@ -29,6 +31,7 @@ function ReviewCard({
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const queryClient = useQueryClient();
+  const ensureClubsReady = useClubStore(s => s.ensureClubsReady);
   const websiteLink = getSafeWebsiteLink(request.requestedClubWebsite);
 
   const handleReview = async (decision: 'approved' | 'denied') => {
@@ -47,14 +50,12 @@ function ReviewCard({
       // MYK9-1310: approval authorizes the club in the same transaction (the approving
       // site admin is the human who decides it may exist), so there is no second step.
       // The club list still changes: a new club appears, or an attached one leaves
-      // "Clubs awaiting authorization". The publish gate (ShowStatusPill / ShowEditPanel)
-      // reads authorized_at from its own ['club-authorization', clubId] cache, which
-      // nothing else refreshes: drop it too, or an attached club's show keeps refusing
-      // Publish until that cache happens to go stale (Codex review of #3151).
+      // "Clubs awaiting authorization". The club replica and the publish gate's cache
+      // refresh the same way the club page's own Authorize action does.
       if (decision === 'approved') {
         void queryClient.invalidateQueries({ queryKey: clubQueryKeys.lists() });
         if (clubId) {
-          void queryClient.invalidateQueries({ queryKey: ['club-authorization', clubId] });
+          await refreshClubAuthorization({ queryClient, ensureClubsReady, clubId });
         }
       }
       await onReviewed();

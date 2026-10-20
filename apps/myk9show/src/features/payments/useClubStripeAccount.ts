@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { clubAuthorizationQueryKey } from '@/features/clubs/refreshClubAuthorization';
 import { supabase } from '@/lib/supabase';
 import { cacheStrategies } from '@/lib/queryClient';
 
@@ -182,7 +183,7 @@ export async function fetchClubAuthorization(
 
 export function useClubAuthorization(clubId: string | undefined) {
   return useQuery({
-    queryKey: ['club-authorization', clubId],
+    queryKey: clubAuthorizationQueryKey(clubId),
     queryFn: () => fetchClubAuthorization(clubId!),
     enabled: !!clubId,
     ...cacheStrategies.moderate,

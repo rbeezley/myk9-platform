@@ -11,6 +11,13 @@ const mocks = vi.hoisted(() => ({
   requests: vi.fn(),
   review: vi.fn(),
   clubs: vi.fn(),
+  ensureClubsReady: vi.fn(),
+}));
+
+vi.mock('@/store/clubStore', () => ({
+  useClubStore: (
+    selector: (state: { ensureClubsReady: typeof mocks.ensureClubsReady }) => unknown
+  ) => selector({ ensureClubsReady: mocks.ensureClubsReady }),
 }));
 
 vi.mock('@/services/database/club-access-requests', () => ({
@@ -48,6 +55,7 @@ describe('ClubAccessRequestsSection', () => {
     vi.mocked(getPendingClubAccessRequests).mockResolvedValue([request]);
     vi.mocked(reviewClubAccessRequest).mockResolvedValue('club-1');
     mocks.clubs.mockReturnValue([{ id: 'club-2', name: 'Existing Dog Club' }]);
+    mocks.ensureClubsReady.mockResolvedValue({ status: 'fresh', clubs: [] });
   });
 
   it('shows a pending new-club request and the review choices', async () => {
@@ -117,9 +125,10 @@ describe('ClubAccessRequestsSection', () => {
     await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['clubs', 'list'] }));
   });
 
-  // The publish gate caches authorized_at under its own key; approval authorizes the
-  // club, so that cache must go too, keyed by the club the RPC returned.
-  it("drops the approved club's publish-gate authorization cache", async () => {
+  // Approval authorizes the club on the server; this device must refresh the same two
+  // caches the club page's own Authorize action does: a forced replica resync for
+  // /clubs/:id, and the publish gate's per-club cache (Codex review of #3151).
+  it('resyncs the approved club and drops its publish-gate authorization cache', async () => {
     const queryClient = new QueryClient();
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     const { user } = render(<ClubAccessRequestsSection />, {
@@ -128,6 +137,12 @@ describe('ClubAccessRequestsSection', () => {
     });
     await user.click(await screen.findByRole('button', { name: /approve and give club access/i }));
 
+    await waitFor(() =>
+      expect(mocks.ensureClubsReady).toHaveBeenCalledWith({
+        requestedClubId: 'club-1',
+        force: true,
+      })
+    );
     await waitFor(() =>
       expect(invalidate).toHaveBeenCalledWith({ queryKey: ['club-authorization', 'club-1'] })
     );
@@ -140,6 +155,7 @@ describe('ClubAccessRequestsSection', () => {
 
     await waitFor(() => expect(reviewClubAccessRequest).toHaveBeenCalled());
     expect(screen.queryByRole('link', { name: /authorize this club/i })).not.toBeInTheDocument();
+    expect(mocks.ensureClubsReady).not.toHaveBeenCalled();
   });
 
   it('denies a request with an optional review note', async () => {

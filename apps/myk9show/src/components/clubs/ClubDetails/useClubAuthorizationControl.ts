@@ -19,6 +19,7 @@
 import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { setClubAuthorization } from '@/services/database/clubs';
+import { refreshClubAuthorization } from '@/features/clubs/refreshClubAuthorization';
 import { useClubStore } from '@/store/clubStore';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
@@ -36,24 +37,16 @@ export function useClubAuthorizationControl(club: Club | null | undefined, isSit
       setIsUpdating(true);
       try {
         await setClubAuthorization(clubId, authorized);
-        // set_club_authorization()'s UPDATE bumps clubs.updated_at
-        // (clubs_version_increment / update_clubs_updated_at), so a forced
-        // resync picks up the new authorized_at on the next incremental
-        // pull — this is how the badge/menu item reflect the change
-        // immediately instead of waiting for the next background sync.
-        const readiness = await ensureClubsReady({ requestedClubId: clubId, force: true });
-        // useClubAuthorization (useClubStripeAccount.ts) caches the SAME
-        // authorized_at under a separate react-query key for the publish
-        // gate (ShowStatusPill / ShowEditPanel). That cache has its own
-        // moderate staleTime and is never touched by the replication sync
-        // above, so without this a show's publish UI could keep reading a
-        // stale authorization state after a site admin authorizes/revokes
-        // the club from THIS page, until the cache happens to go stale.
-        await queryClient.invalidateQueries({ queryKey: ['club-authorization', clubId] });
+        // Replica resync plus the publish gate's cache: see refreshClubAuthorization.
+        const readinessStatus = await refreshClubAuthorization({
+          queryClient,
+          ensureClubsReady,
+          clubId,
+        });
         const done = authorized ? 'Club authorized.' : 'Club authorization revoked.';
         // The change is saved either way; only a fresh resync means the header
         // and menu on this page already show it (MYK9-750).
-        if (readiness.status === 'fresh') notifications.success(done);
+        if (readinessStatus === 'fresh') notifications.success(done);
         else
           notifications.warning(
             `${done} This page could not refresh yet; reload to see the change.`

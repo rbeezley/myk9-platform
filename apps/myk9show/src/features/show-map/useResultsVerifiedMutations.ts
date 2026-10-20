@@ -71,7 +71,7 @@ export function useResultsVerifiedMutations() {
       });
     },
     onSuccess: (_data, claim) => {
-      toast.success('Scores marked as matching the paper');
+      toast.success('Scores checked');
       refreshClass(claim.trialId);
     },
     onError: (error, claim) => {

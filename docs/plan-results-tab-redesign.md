@@ -5,6 +5,8 @@
 **Date:** 2026-10-06 · **Linear:** to file, one issue per phase (§ Issues) · **Design:** [canvas](https://claude.ai/artifact/NaX22uZzaDEderD4GxKVQC) (private; boards "Where each secretary task lives", "Results tab · A revised with Entry Forms parts", "Reports tab · Before, During, After")
 **Read first:** [`INTENT.md`](INTENT.md) § Trial Secretary, [`plan-secretary-show-actions.md`](plan-secretary-show-actions.md) (MYK9-630, which made Results a tab and Submit a step of it), [`plan-secretary-show-home.md`](plan-secretary-show-home.md) (Overview as the home), [`plan-master-detail-lists.md`](plan-master-detail-lists.md) (the list-left, detail-right layout).
 
+> **2026-10-19 (MYK9-1264):** the per-dog "matches the paper" ticks and the "Scores match the paper" button are gone. One tap on Release results from Needs checking saves the check (same fingerprint guard, same "checked by" stamp) and releases through the unchanged server-read preflight. The text below describes the design as first built.
+
 ## Problem
 
 The Results tab (`pages/secretary/ShowResultsSection.tsx`) has three steps: Review & release (`ResultsControlPage`), Submit to registry (`ResultsSubmissionPage`) and Close the show (`ShowCloseStep`). None of them shows the scores. A secretary who wants to check a class against the paper score sheets has to go to the class page (`/shows/:showId/trials/:trialId/classes/:classId`) through the Show Map.

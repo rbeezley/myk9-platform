@@ -101,7 +101,6 @@ function renderDetail({ embedded, released }: { embedded: boolean; released: boo
       releasing={false}
       onRelease={vi.fn()}
       onRetry={vi.fn()}
-      onVerify={vi.fn()}
       onUndoVerify={vi.fn()}
       verifying={false}
       online

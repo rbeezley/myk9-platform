@@ -8,7 +8,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { configure, getConfig } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 
 import { render, screen, waitFor } from '@/test/utils/testUtils';
@@ -204,7 +203,7 @@ describe('Results tab on the real replicated class rows', () => {
     await waitFor(() => expect(screen.getByText('Ready to release')).toBeInTheDocument());
   });
 
-  it('a check recorded in the replica unlocks Release, and removing it locks Release again', async () => {
+  it('a check recorded in the replica shows who checked, and removing it brings the one-tap Release back', async () => {
     render(
       <Routes>
         <Route path="/shows/:id/results" element={<ResultsTab />} />
@@ -214,17 +213,18 @@ describe('Results tab on the real replicated class rows', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
     );
-    expect(screen.getByText(/Scores checked against the paper by you/)).toBeInTheDocument();
+    expect(screen.getByText(/Scores checked by you/)).toBeInTheDocument();
 
     await downloadClassWithoutCheck('class-open');
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled()
+      expect(screen.queryByText(/Scores checked by you/)).not.toBeInTheDocument()
     );
-    expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument();
+    expect(screen.getByText('Release the results')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled();
   });
 
-  it('keeps verification reachable after release: released and unchecked shows the checklist, not Release', async () => {
+  it('keeps verification reachable after release: released and unchecked offers Confirm scores, not a second Release', async () => {
     await downloadClassWithoutCheck('class-released');
     render(
       <Routes>
@@ -233,10 +233,8 @@ describe('Results tab on the real replicated class rows', () => {
       { initialRoute: '/shows/show-1/results?status=all&classId=class-released' }
     );
 
-    await waitFor(() =>
-      expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument()
-    );
-    expect(screen.getByRole('checkbox', { name: /matches the paper/ })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Confirm the scores')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Confirm scores' })).toBeInTheDocument();
     expect(screen.getByText(/already released/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
   });
@@ -347,19 +345,17 @@ describe('Results tab on the real replicated class rows', () => {
   });
 
   describe('a class row this device has not synced (MYK9-1113)', () => {
-    const SAVE_CHECK = { name: 'Scores match the paper' };
+    const SAVE_CHECK = { name: 'Release results' };
 
-    /** The class has no check yet; the secretary ticks the dog, so Verify is ready to click. */
-    async function renderUncheckedAndTick() {
+    /** The class has no check yet; the one-tap Release is ready to click. */
+    async function renderUnchecked() {
       await downloadClassWithoutCheck('class-open');
-      const user = userEvent.setup();
       render(
         <Routes>
           <Route path="/shows/:id/results" element={<ResultsTab />} />
         </Routes>,
         { initialRoute: '/shows/show-1/results?status=all&classId=class-open' }
       );
-      await user.click(await screen.findByRole('checkbox', { name: /matches the paper/ }));
       await waitFor(() => expect(screen.getByRole('button', SAVE_CHECK)).toBeEnabled());
     }
 
@@ -385,14 +381,13 @@ describe('Results tab on the real replicated class rows', () => {
       });
     }
 
-    it('says a queued class change must sync first, keeps the ticks, and unlocks when it syncs', async () => {
-      await renderUncheckedAndTick();
+    it('says a queued class change must sync first, and unlocks when it syncs', async () => {
+      await renderUnchecked();
 
       await replicatedClassesTable.updateClass('class-open', { classStatus: 'Completed' });
 
       await waitFor(() => expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled());
       expect(screen.getByText(/Waiting for this class.s changes to sync/)).toBeInTheDocument();
-      expect(screen.getByRole('checkbox', { name: /matches the paper/ })).toBeChecked();
 
       // The upload is acknowledged, then an ordinary class sync brings the server's check down.
       await replicatedClassesTable.markAsSynced('class-open');
@@ -403,14 +398,12 @@ describe('Results tab on the real replicated class rows', () => {
         false
       );
 
-      await waitFor(() =>
-        expect(screen.getByText(/Scores checked against the paper by you/)).toBeInTheDocument()
-      );
+      await waitFor(() => expect(screen.getByText(/Scores checked by you/)).toBeInTheDocument());
       expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled();
     });
 
     it('recovers from waiting when the queue empties without a table notice (Take theirs discard, upload ack)', async () => {
-      await renderUncheckedAndTick();
+      await renderUnchecked();
       // Some transitions empty this class's queue without notifying the classes table: Take
       // theirs discards the queued write after its replace has notified; an upload ack marks
       // the row synced with a raw write. Hold "unsynced" through one real notice, then clear
@@ -437,14 +430,13 @@ describe('Results tab on the real replicated class rows', () => {
         expect(
           screen.queryByText(/Waiting for this class.s changes to sync/)
         ).not.toBeInTheDocument();
-        expect(screen.getByRole('checkbox', { name: /matches the paper/ })).toBeChecked();
       } finally {
         spy.mockRestore();
       }
     });
 
     it('names an unresolved conflict and points at the Keep mine / Take theirs choice, then unlocks once resolved', async () => {
-      await renderUncheckedAndTick();
+      await renderUnchecked();
 
       await conflictClass('class-open');
 
@@ -453,14 +445,11 @@ describe('Results tab on the real replicated class rows', () => {
       expect(screen.getByText(/Keep mine or Take theirs/)).toBeInTheDocument();
       // A dismissed notice is not a dead end: the copy says how to bring it back.
       expect(screen.getByText(/reload the page to bring it back/)).toBeInTheDocument();
-      expect(screen.getByRole('checkbox', { name: /matches the paper/ })).toBeChecked();
 
       // Take theirs: the server's row, check included, replaces the local one.
       await replicatedClassesTable.resolveReplicationConflict('class-open', 'take-remote');
 
-      await waitFor(() =>
-        expect(screen.getByText(/Scores checked against the paper by you/)).toBeInTheDocument()
-      );
+      await waitFor(() => expect(screen.getByText(/Scores checked by you/)).toBeInTheDocument());
       expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled();
       expect(screen.queryByText(/changed elsewhere/)).not.toBeInTheDocument();
     });

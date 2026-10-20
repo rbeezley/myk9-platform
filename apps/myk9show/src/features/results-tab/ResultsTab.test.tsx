@@ -655,133 +655,138 @@ describe('ResultsTab judge sign-off', () => {
   });
 });
 
-describe('ResultsTab paper check', () => {
+describe('ResultsTab one-tap release (MYK9-1264)', () => {
   const unchecked = () => buildRows({ checked: false });
-  const tick = (user: { click: (el: Element) => Promise<void> }) =>
-    user.click(screen.getByRole('checkbox', { name: 'Rex matches the paper' }));
+  const canonicalOf = (id: string) => hook.value.rows.find(row => row.id === id)!.resultsCanonical;
 
-  it('keeps Release disabled until every dog is ticked and the scores are confirmed', async () => {
+  it('one tap saves the check for the current results, THEN releases', async () => {
     hook.value = { ...hook.value, rows: unchecked() };
     const { user } = renderAt('?status=all&classId=class-ready');
 
-    expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
-    const confirm = screen.getByRole('button', { name: 'Scores match the paper' });
-    expect(confirm).toBeDisabled();
+    expect(screen.getByText('Release the results')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Scores match the paper' })
+    ).not.toBeInTheDocument();
+    // The class-sync read settles a beat after mount; tapping earlier is a disabled no-op.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
+    );
+    await user.click(screen.getByRole('button', { name: 'Release results' }));
 
-    await tick(user);
-    await waitFor(() => expect(confirm).toBeEnabled());
-    expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
-
-    await user.click(confirm);
+    await waitFor(() => expect(releaseMutate).toHaveBeenCalledTimes(1));
     expect(verifyMutate).toHaveBeenCalledWith({
       classId: 'class-ready',
       trialId: 'trial-1',
       showId: 'show-1',
-      canonical: hook.value.rows.find(row => row.id === 'class-ready')!.resultsCanonical,
+      canonical: canonicalOf('class-ready'),
     });
-    expect(releaseMutate).not.toHaveBeenCalled();
+    // Order: check saved, then the server asked, then the release queued.
+    const verifyOrder = verifyMutate.mock.invocationCallOrder[0]!;
+    const readOrder = serverCheck.read.mock.invocationCallOrder[0]!;
+    const releaseOrder = releaseMutate.mock.invocationCallOrder[0]!;
+    expect(verifyOrder).toBeLessThan(readOrder);
+    expect(readOrder).toBeLessThan(releaseOrder);
+    expect(releaseMutate).toHaveBeenCalledWith(
+      { classIds: ['class-ready'], showId: 'show-1' },
+      expect.anything()
+    );
   });
 
-  it('sends the results text the ticks were made against, not whatever is displayed at click time', async () => {
-    hook.value = { ...hook.value, rows: unchecked() };
-    const { user } = renderAt('?status=all&classId=class-ready');
-    await tick(user);
-    const ticked = hook.value.rows.find(row => row.id === 'class-ready')!.resultsCanonical;
-
-    // The ticks are the only record of what was looked at.
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
-    );
-    await user.click(screen.getByRole('button', { name: 'Scores match the paper' }));
-    expect(verifyMutate).toHaveBeenCalledWith(expect.objectContaining({ canonical: ticked }));
-  });
-
-  it('a correction that changes the displayed rows lapses every tick', async () => {
-    hook.value = { ...hook.value, rows: unchecked() };
-    const { user, rerender } = renderAt('?status=all&classId=class-ready');
-    await tick(user);
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
-    );
-
-    // A download changes a hashed column that is not shown (same visible row, new canonical text).
-    hook.value = {
-      ...hook.value,
-      rows: unchecked().map(row =>
-        row.id === 'class-ready' ? { ...row, resultsCanonical: `${row.resultsCanonical}!` } : row
-      ),
-    };
-    rerender(
-      <Routes>
-        <Route path="/shows/:id/results" element={<ResultsTab />} />
-      </Routes>
-    );
-
-    expect(screen.getByRole('checkbox', { name: 'Rex matches the paper' })).not.toBeChecked();
-    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeDisabled();
-  });
-
-  it('a corrected score needs checking again: a tick is only good for the result it was made on', async () => {
-    hook.value = { ...hook.value, rows: unchecked() };
-    const { user, rerender } = renderAt('?status=all&classId=class-ready');
-    await tick(user);
-
-    hook.value = {
-      ...hook.value,
-      rows: unchecked().map(row =>
-        row.id === 'class-ready'
-          ? { ...row, entries: row.entries.map(item => ({ ...item, resultLabel: 'NQ' })) }
-          : row
-      ),
-    };
-    rerender(
-      <Routes>
-        <Route path="/shows/:id/results" element={<ResultsTab />} />
-      </Routes>
-    );
-
-    expect(screen.getByRole('checkbox', { name: 'Rex matches the paper' })).not.toBeChecked();
-  });
-
-  it('when the server says the scores moved (MK015), the ticks start over', async () => {
+  it('does not release when the server says the scores moved (MK015)', async () => {
     verifyMutate.mockRejectedValueOnce({ code: 'MK015', message: 'changed' });
     hook.value = { ...hook.value, rows: unchecked() };
     const { user } = renderAt('?status=all&classId=class-ready');
-    await tick(user);
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
-    );
-    await user.click(screen.getByRole('button', { name: 'Scores match the paper' }));
 
+    // The class-sync read settles a beat after mount; tapping earlier is a disabled no-op.
     await waitFor(() =>
-      expect(screen.getByRole('checkbox', { name: 'Rex matches the paper' })).not.toBeChecked()
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
+    );
+    await user.click(screen.getByRole('button', { name: 'Release results' }));
+
+    await waitFor(() => expect(verifyMutate).toHaveBeenCalledTimes(1));
+    expect(serverCheck.read).not.toHaveBeenCalled();
+    expect(releaseMutate).not.toHaveBeenCalled();
+    // The tab is usable again, not stuck releasing.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
     );
   });
 
-  it('keeps ticks when the save fails for any other reason', async () => {
+  it('does not release when the check cannot be saved for any other reason', async () => {
     verifyMutate.mockRejectedValueOnce(new Error('network down'));
     hook.value = { ...hook.value, rows: unchecked() };
     const { user } = renderAt('?status=all&classId=class-ready');
-    await tick(user);
+
+    // The class-sync read settles a beat after mount; tapping earlier is a disabled no-op.
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
     );
-    await user.click(screen.getByRole('button', { name: 'Scores match the paper' }));
+    await user.click(screen.getByRole('button', { name: 'Release results' }));
 
     await waitFor(() => expect(verifyMutate).toHaveBeenCalledTimes(1));
-    expect(screen.getByRole('checkbox', { name: 'Rex matches the paper' })).toBeChecked();
+    expect(releaseMutate).not.toHaveBeenCalled();
   });
 
-  it('offline: dogs can still be ticked, but saving the check waits for a connection', async () => {
-    net.online = false;
+  it('checked but the release fails: says the scores are checked and not released yet', async () => {
+    releaseMutate.mockImplementation((_vars: unknown, options: { onError: () => void }) =>
+      options.onError()
+    );
     hook.value = { ...hook.value, rows: unchecked() };
     const { user } = renderAt('?status=all&classId=class-ready');
-    await tick(user);
 
-    expect(screen.getByRole('checkbox', { name: 'Rex matches the paper' })).toBeChecked();
-    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeDisabled();
-    expect(screen.getByText('Connect to save the check')).toBeInTheDocument();
+    // The class-sync read settles a beat after mount; tapping earlier is a disabled no-op.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
+    );
+    await user.click(screen.getByRole('button', { name: 'Release results' }));
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'Could not release the results. Try Release again. The scores are checked, not released yet.'
+      )
+    );
+  });
+
+  it('checked but a correction is still syncing: releases nothing and says it is checked', async () => {
+    unsyncedNow.check.mockResolvedValue(true);
+    hook.value = { ...hook.value, rows: unchecked() };
+    const { user } = renderAt('?status=all&classId=class-ready');
+
+    // The class-sync read settles a beat after mount; tapping earlier is a disabled no-op.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
+    );
+    await user.click(screen.getByRole('button', { name: 'Release results' }));
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'Waiting for score changes to sync. The scores are checked, not released yet.'
+      )
+    );
+    expect(releaseMutate).not.toHaveBeenCalled();
+  });
+
+  it('offline: the tap is disabled with the reason and calls nothing', () => {
+    net.online = false;
+    hook.value = { ...hook.value, rows: unchecked() };
+    renderAt('?status=all&classId=class-ready');
+
+    expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
+    expect(screen.getByText('Connect to release from here')).toBeInTheDocument();
+    expect(verifyMutate).not.toHaveBeenCalled();
+  });
+
+  it('a class whose scores need a reload cannot be released from here', () => {
+    hook.value = {
+      ...hook.value,
+      rows: unchecked().map(row =>
+        row.id === 'class-ready' ? { ...row, resultsCanonical: null } : row
+      ),
+    };
+    renderAt('?status=all&classId=class-ready');
+
+    expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
     expect(verifyMutate).not.toHaveBeenCalled();
   });
 
@@ -792,53 +797,52 @@ describe('ResultsTab paper check', () => {
     expect(screen.getByRole('button', { name: 'Undo check' })).toBeDisabled();
   });
 
-  it('a class not marked Completed gets a hint to Overview instead of the checklist', () => {
+  it('a class not marked Completed gets a hint to Overview and no Release', () => {
     hook.value = {
       ...hook.value,
       rows: buildRows({ checked: false, readyStatus: 'In Progress' }),
     };
     renderAt('?status=all&classId=class-ready');
 
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Scores match the paper' })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Mark Class Complete on Overview/ })).toHaveAttribute(
       'href',
       '/shows/show-1?focus=class-ready'
     );
+    expect(verifyMutate).not.toHaveBeenCalled();
+    expect(releaseMutate).not.toHaveBeenCalled();
+  });
+
+  it('a class not fully scored has no Release and calls nothing', () => {
+    renderAt('?status=all&classId=class-ring');
+
+    expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open on Overview' })).toBeInTheDocument();
+    expect(verifyMutate).not.toHaveBeenCalled();
+    expect(releaseMutate).not.toHaveBeenCalled();
   });
 
   it('a checked class shows who checked it, offers Release, and can take the check back', async () => {
     const { user } = renderAt('?status=all&classId=class-ready');
 
-    expect(screen.getByText(/Scores checked against the paper by you/)).toBeInTheDocument();
+    expect(screen.getByText(/Scores checked by you/)).toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Undo check' }));
     expect(undoMutate).toHaveBeenCalledWith({ classId: 'class-ready', trialId: 'trial-1' });
   });
 
-  it('a released class whose check was undone shows the checklist again, and no second Release', async () => {
+  it('a released class whose check was undone confirms with one tap and is not released twice', async () => {
     media.wide = true;
     hook.value = { ...hook.value, rows: buildRows({ releasedChecked: false }) };
     const { user } = renderAt('?status=all&classId=class-released');
 
-    expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument();
-    expect(screen.getByText(/already released/)).toBeInTheDocument();
+    expect(screen.getByText('Confirm the scores')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
-    await tick(user);
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
-    );
-    expect(screen.getByRole('link', { name: 'Check scores: Containers Open' })).toBeInTheDocument();
-  });
+    await user.click(screen.getByRole('button', { name: 'Confirm scores' }));
 
-  it('never releases a class that is not checked', () => {
-    hook.value = { ...hook.value, rows: unchecked() };
-    renderAt('?status=all&classId=class-ready');
-
-    expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
+    await waitFor(() => expect(verifyMutate).toHaveBeenCalledTimes(1));
     expect(releaseMutate).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: 'Check scores: Containers Open' })).toBeInTheDocument();
   });
 });
 
@@ -919,7 +923,7 @@ describe('ResultsTab Release asks the server', () => {
     expect(releaseMutate).not.toHaveBeenCalled();
   });
 
-  it('is disabled offline, with the reason; Print and ticks are untouched', () => {
+  it('is disabled offline, with the reason; Print is untouched', () => {
     net.online = false;
     renderAt('?status=all&classId=class-ready');
 
@@ -1010,35 +1014,27 @@ describe('ResultsTab toolbar', () => {
   });
 });
 
-describe('ResultsTab paper check while the class sync state is unknown (MYK9-1175)', () => {
+describe('ResultsTab one-tap release while the class sync state is unknown (MYK9-1175)', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  const tickAll = (user: { click: (el: Element) => Promise<void> }) =>
-    user.click(screen.getByRole('checkbox', { name: 'Rex matches the paper' }));
-
-  it('keeps Scores match the paper disabled, with quiet copy, until the first read lands', async () => {
+  it('keeps Release disabled, with quiet copy, until the first read lands', () => {
     vi.spyOn(replicatedClassesTable, 'getReplicatedRow').mockReturnValue(new Promise(() => {}));
     vi.spyOn(replicatedClassesTable, 'hasUnsyncedLocalWork').mockReturnValue(new Promise(() => {}));
     hook.value = { ...hook.value, rows: buildRows({ checked: false }) };
-    const { user } = renderAt('?status=all&classId=class-ready');
+    renderAt('?status=all&classId=class-ready');
 
-    await tickAll(user);
-
-    // No waitFor: the button must already be disabled the moment every dog is ticked.
-    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
     expect(screen.getByText('Checking this class…')).toBeInTheDocument();
   });
 
-  it('enables the same ticked class once the read resolves settled', async () => {
+  it('enables the same class once the read resolves settled', async () => {
     hook.value = { ...hook.value, rows: buildRows({ checked: false }) };
-    const { user } = renderAt('?status=all&classId=class-ready');
-
-    await tickAll(user);
+    renderAt('?status=all&classId=class-ready');
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
     );
     expect(screen.queryByText('Checking this class…')).not.toBeInTheDocument();
   });

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle2, Circle } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -6,7 +6,6 @@ import { useEmbeddedDetail } from '@/components/layout/embeddedDetail';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -17,11 +16,10 @@ import {
 } from '@/components/ui/table';
 import { CockpitPaperworkRow } from '@/features/show-map/cockpit/CockpitPaperworkRow';
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
-import { isStaleResultsError } from '@/features/show-map/resultsVerifiedMutations';
 import { formatTime } from '@/lib/format/dates';
 import { useReserveBottomAbove } from '@/hooks/useReserveBottomAbove';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
-import type { ResultsClassRow, ResultsEntryRow } from './buildResultsClassRows';
+import type { ResultsClassRow } from './buildResultsClassRows';
 import { PrintStatusUnavailable } from './PrintStatusUnavailable';
 import { ResultsStatusChip } from './ResultsClassList';
 import { getFixScoreHref, getOverviewFocusHref } from './resultsTabRoutes';
@@ -39,12 +37,7 @@ interface ResultsClassDetailProps {
   onRelease: () => void;
   /** Refetches every read; offered where print status could not be read. */
   onRetry: () => void;
-  /**
-   * Saves "scores match the paper" for the results text the user ticked (`canonical`). Rejects
-   * when the server refuses (the caller has already told the user why).
-   */
-  onVerify: (canonical: string) => Promise<unknown>;
-  /** Removes that check. */
+  /** Removes the saved check. */
   onUndoVerify: () => void;
   verifying: boolean;
   /** Saving or removing the check needs the server; ticking the dogs does not. */
@@ -59,11 +52,6 @@ interface ResultsClassDetailProps {
   judgeSignOffSlot?: ReactNode | undefined;
 }
 
-/** What a tick vouches for. A correction changes it, so the dog needs checking again. */
-function resultSignature(entry: ResultsEntryRow): string {
-  return [entry.placement, entry.resultLabel, entry.timeLabel, entry.faults].join('|');
-}
-
 interface PrimaryWorkProps extends Pick<
   ResultsClassDetailProps,
   | 'showId'
@@ -74,9 +62,7 @@ interface PrimaryWorkProps extends Pick<
   | 'releaseBlockedReason'
   | 'verifyBlockedReason'
 > {
-  tickedCount: number;
   verifying: boolean;
-  onVerify: () => void;
 }
 
 function PrimaryWork({
@@ -87,9 +73,7 @@ function PrimaryWork({
   online,
   releaseBlockedReason,
   verifyBlockedReason,
-  tickedCount,
   verifying,
-  onVerify,
 }: PrimaryWorkProps) {
   const { phase } = row;
   const noun = judgeSignOffWording(row.registryId).nextActionLabel.toLowerCase();
@@ -108,36 +92,36 @@ function PrimaryWork({
       </Button>
     );
   } else if (phase === 'needs-checking') {
-    const allTicked = row.entries.length > 0 && tickedCount === row.entries.length;
     const released = Boolean(row.releasedAt);
     // The server records a check only on a Completed class. Mark Class Complete is Overview's
     // action, so the hint links there rather than offering a second way to complete a class.
     const blocked = !row.statusCompleted
       ? null
       : !online
-        ? 'Connect to save the check'
+        ? 'Connect to release from here'
         : row.resultsCanonical === null
-          ? 'These scores need a reload before they can be checked'
-          : verifyBlockedReason;
-    title = 'Check the scores against the paper';
-    body = `Tick each dog below when it matches its paper score sheet (${tickedCount} of ${row.entries.length}). Fix anything that is off first.${released ? ' These results are already released.' : ' Release unlocks once the scores are checked.'}`;
+          ? 'These scores need a reload before they can be released'
+          : (verifyBlockedReason ?? releaseBlockedReason);
+    title = released ? 'Confirm the scores' : 'Release the results';
+    body = released
+      ? 'These results are already released. The scores were changed since they were last checked: look them over, then confirm.'
+      : 'Look the scores over and fix anything that is off. Release saves the check and makes them visible to exhibitors.';
     action = row.statusCompleted ? (
       <div className="space-y-1">
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            className="min-h-11"
-            disabled={!allTicked || verifying || releasing || blocked !== null}
-            onClick={onVerify}
-          >
-            {verifying ? 'Saving…' : 'Scores match the paper'}
-          </Button>
-          {!released && (
-            <Button type="button" variant="outline" className="min-h-11" disabled>
-              Release results
-            </Button>
-          )}
-        </div>
+        <Button
+          type="button"
+          className="min-h-11"
+          disabled={verifying || releasing || blocked !== null}
+          onClick={onRelease}
+        >
+          {verifying
+            ? 'Saving…'
+            : releasing
+              ? 'Releasing…'
+              : released
+                ? 'Confirm scores'
+                : 'Release results'}
+        </Button>
         {blocked && <p className="text-xs text-muted-foreground">{blocked}</p>}
       </div>
     ) : (
@@ -155,7 +139,7 @@ function PrimaryWork({
     );
   } else if (phase === 'ready-to-release') {
     title = 'Release the results';
-    body = 'The scores are checked against the paper. Release makes them visible to exhibitors.';
+    body = 'The scores are checked. Release makes them visible to exhibitors.';
     action = (
       <div className="space-y-1">
         <Button
@@ -231,7 +215,7 @@ function VerifiedLine({
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-success/5 px-3 py-2 text-sm">
       <span className="flex items-center gap-2">
         <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
-        Scores checked against the paper by {by}
+        Scores checked by {by}
         {at ? ` at ${at}` : ''}
       </span>
       <span className="flex flex-wrap items-center gap-2">
@@ -252,16 +236,7 @@ function VerifiedLine({
   );
 }
 
-interface TickColumn {
-  isTicked: (entry: ResultsEntryRow) => boolean;
-  onToggle: (entry: ResultsEntryRow, checked: boolean) => void;
-}
-
-function ResultsTable({
-  showId,
-  row,
-  tickColumn,
-}: Pick<ResultsClassDetailProps, 'showId' | 'row'> & { tickColumn: TickColumn | null }) {
+function ResultsTable({ showId, row }: Pick<ResultsClassDetailProps, 'showId' | 'row'>) {
   // Only a scope RESOLVED as non-operator falls back to the ringside flow; while it resolves,
   // the paper page's own route guard is the safety net.
   const manageScope = useShowManageScope(showId);
@@ -282,7 +257,6 @@ function ResultsTable({
             <TableHead>Result</TableHead>
             <TableHead>Time</TableHead>
             <TableHead>Faults</TableHead>
-            {tickColumn && <TableHead>Matches paper</TableHead>}
             <TableHead>
               <span className="sr-only">Fix</span>
             </TableHead>
@@ -302,17 +276,6 @@ function ResultsTable({
               <TableCell>{entry.resultLabel}</TableCell>
               <TableCell className="font-mono">{entry.timeLabel || '—'}</TableCell>
               <TableCell>{entry.faults ?? '—'}</TableCell>
-              {tickColumn && (
-                <TableCell>
-                  <label className="inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center">
-                    <Checkbox
-                      checked={tickColumn.isTicked(entry)}
-                      onCheckedChange={checked => tickColumn.onToggle(entry, checked)}
-                      aria-label={`${entry.dogName} matches the paper`}
-                    />
-                  </label>
-                </TableCell>
-              )}
               <TableCell>
                 <Link
                   to={getFixScoreHref(showId, row.id, entry.entryId, canOperate)}
@@ -337,7 +300,6 @@ export function ResultsClassDetail({
   releasing,
   onRelease,
   onRetry,
-  onVerify,
   onUndoVerify,
   verifying,
   online,
@@ -347,38 +309,6 @@ export function ResultsClassDetail({
   judgeSignOffSlot,
 }: ResultsClassDetailProps) {
   const embedded = useEmbeddedDetail();
-  // Ephemeral checklist, bound to the DISPLAY: the ticks remember the results text of the rows
-  // they were made on (`resultsCanonical`), and when the displayed rows change (a correction, here
-  // or downloaded) every tick lapses. A tick is also only good for the result it was made on.
-  const [ticked, setTicked] = useState<{ canonical: string | null; marks: Record<string, string> }>(
-    {
-      canonical: row.resultsCanonical,
-      marks: {},
-    }
-  );
-  const marks = ticked.canonical === row.resultsCanonical ? ticked.marks : {};
-  const isTicked = (entry: ResultsEntryRow) => marks[entry.entryId] === resultSignature(entry);
-  const tickedCount = row.entries.filter(isTicked).length;
-  const tickColumn: TickColumn | null =
-    row.phase === 'needs-checking' && row.statusCompleted && row.resultsCanonical !== null
-      ? {
-          isTicked,
-          onToggle: (entry, checked) => {
-            const next = { ...marks };
-            if (checked) next[entry.entryId] = resultSignature(entry);
-            else delete next[entry.entryId];
-            setTicked({ canonical: row.resultsCanonical, marks: next });
-          },
-        }
-      : null;
-  const handleVerify = () => {
-    // The text the ticks were made against is what gets saved; nothing is re-read now. If the
-    // server says the scores moved since (MK015), the ticks no longer vouch for anything.
-    if (ticked.canonical === null) return;
-    onVerify(ticked.canonical).catch(error => {
-      if (isStaleResultsError(error)) setTicked({ canonical: row.resultsCanonical, marks: {} });
-    });
-  };
   const { search } = useLocation();
   const backParams = new URLSearchParams(search);
   backParams.delete('classId');
@@ -430,9 +360,7 @@ export function ResultsClassDetail({
         online={online}
         releaseBlockedReason={releaseBlockedReason}
         verifyBlockedReason={verifyBlockedReason}
-        tickedCount={tickedCount}
         verifying={verifying}
-        onVerify={handleVerify}
       />
       {row.verifiedAt && row.phase !== 'needs-checking' && (
         <VerifiedLine
@@ -445,7 +373,7 @@ export function ResultsClassDetail({
           onUndo={onUndoVerify}
         />
       )}
-      <ResultsTable showId={showId} row={row} tickColumn={tickColumn} />
+      <ResultsTable showId={showId} row={row} />
       {judgeSignOffSlot}
 
       {row.expectedCount > 0 && (

@@ -184,7 +184,12 @@ describe('ClubDetailPage show list for a signed-out guest (MYK9-768)', () => {
 
     const { user } = renderPage();
 
-    await user.click(await screen.findByRole('button', { name: 'Try again' }));
+    // MYK9-1274: wait for the error state by its cheap text marker before the
+    // role query. Polling findByRole walks the whole page's accessibility tree
+    // on every tick, which starved the two async hops (club read, then the
+    // failed shows read) under a loaded shuffled run and timed out at 1s.
+    expect(await screen.findByText("We couldn't load this club's shows")).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
 
     expect(await screen.findByText('Spring Scent Trial')).toBeInTheDocument();
     expect(screen.queryByText('Secret Draft Trial')).not.toBeInTheDocument();

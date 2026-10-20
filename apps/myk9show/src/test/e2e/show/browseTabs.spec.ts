@@ -307,6 +307,38 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
     await expect(page).toHaveURL(/\/clubs$/);
   });
 
+  // MYK9-1267 review: beside an open record the list toolbar holds search, Select and the view
+  // menu in a ~330-490px pane. The row wraps rather than squeezing search to nothing (read-only).
+  for (const width of [1024, 1440]) {
+    test(`at ${width} the toolbar beside an open record keeps a usable search box`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      for (const [path, listName] of [
+        ['/dogs', 'Dog list'],
+        ['/people', 'People list'],
+      ] as const) {
+        await signInAsSecretary(page, path);
+        const list = page.getByRole('region', { name: listName });
+        await list.locator(`a[href^="${path}/"]`).first().click();
+        await expect(page).toHaveURL(new RegExp(`${path}/[\\w-]+`));
+        const search = list.getByRole('textbox').first();
+        const select = list.getByRole('button', { name: /Select (dogs|people)/ });
+        await expect(select).toBeVisible();
+        const [searchBox, selectBox, listBox] = await Promise.all([
+          search.boundingBox(),
+          select.boundingBox(),
+          list.boundingBox(),
+        ]);
+        expect(searchBox?.width ?? 0).toBeGreaterThanOrEqual(180);
+        // Nothing spills out of the pane sideways.
+        expect((selectBox?.x ?? 0) + (selectBox?.width ?? 0)).toBeLessThanOrEqual(
+          (listBox?.x ?? 0) + (listBox?.width ?? 0) + 1
+        );
+      }
+    });
+  }
+
   test('an exhibitor can reach Add Dog through Actions on the Dogs list', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 844 });
     await signInAsExhibitor(page, '/dogs');

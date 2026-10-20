@@ -3,28 +3,23 @@ import { differenceInDays } from 'date-fns';
 import { ArrowRight, Pencil, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/base/Chip';
-import { formatShowDateRange, toLocalDate } from '@/lib/format/dates';
+import { toLocalDate } from '@/lib/format/dates';
+import { ShowDateVenueLine } from './ShowDateVenueLine';
+import type { TodayClassCounts } from './todayClassCounts';
 import type { Show } from '@/types/show-types';
 import type { ShowPhase } from '@/hooks/useMyShows';
 
 interface ShowPhaseCardProps {
   show: Show;
   phase: ShowPhase;
-  /** Class stats — only used for the today phase */
-  liveClassCount?: number | undefined;
-  notStartedCount?: number | undefined;
-  closedCount?: number | undefined;
+  /** This show's class stats, today phase only; null/omitted hides the line. */
+  classCounts?: TodayClassCounts | null | undefined;
 }
 
 // Setup and Show Day are the show home now (MYK9-957).
 const workbenchHref = (showId: string) => `/shows/${showId}`;
 
-function TodayCard({
-  show,
-  liveClassCount = 0,
-  notStartedCount = 0,
-  closedCount = 0,
-}: Pick<ShowPhaseCardProps, 'show' | 'liveClassCount' | 'notStartedCount' | 'closedCount'>) {
+function TodayCard({ show, classCounts }: Pick<ShowPhaseCardProps, 'show' | 'classCounts'>) {
   return (
     <div className="flex items-center gap-4 rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-4">
       <div className="flex-1 min-w-0">
@@ -34,9 +29,13 @@ function TodayCard({
           </Chip>
         </div>
         <p className="text-base font-semibold text-foreground truncate">{show.name}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {liveClassCount} live · {notStartedCount} not started · {closedCount} closed
-        </p>
+        <ShowDateVenueLine show={show} />
+        {classCounts && (
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {classCounts.live} live · {classCounts.notStarted} not started · {classCounts.closed}{' '}
+            closed
+          </p>
+        )}
       </div>
       <Button asChild size="touch" className="shrink-0">
         <Link to={workbenchHref(show.id)}>
@@ -83,9 +82,7 @@ function UpcomingCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
             )}
         </div>
         <p className="text-base font-semibold text-foreground truncate">{show.name}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {formatShowDateRange(show.startDate, show.endDate)} · {show.location}
-        </p>
+        <ShowDateVenueLine show={show} />
       </div>
       <Button asChild variant="outline" size="touch" className="shrink-0">
         <Link to={workbenchHref(show.id)}>
@@ -105,11 +102,9 @@ function DraftCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
           <Chip color="amber" size="sm">
             Draft
           </Chip>
-          <span className="text-xs text-muted-foreground">
-            {formatShowDateRange(show.startDate, show.endDate)}
-          </span>
         </div>
         <p className="text-base font-semibold text-foreground truncate">{show.name}</p>
+        <ShowDateVenueLine show={show} />
         <p className="text-xs text-muted-foreground mt-0.5">
           Not visible to exhibitors until published
         </p>
@@ -129,9 +124,7 @@ function PastCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
     <div className="flex items-center gap-4 rounded-xl border border-border bg-card px-5 py-3">
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground truncate">{show.name}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {formatShowDateRange(show.startDate, show.endDate)} · {show.location}
-        </p>
+        <ShowDateVenueLine show={show} />
       </div>
       <Button asChild variant="ghost" size="touch" className="shrink-0 text-muted-foreground">
         <Link to={workbenchHref(show.id)}>
@@ -143,23 +136,10 @@ function PastCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
   );
 }
 
-export function ShowPhaseCard({
-  show,
-  phase,
-  liveClassCount,
-  notStartedCount,
-  closedCount,
-}: ShowPhaseCardProps) {
+export function ShowPhaseCard({ show, phase, classCounts }: ShowPhaseCardProps) {
   switch (phase) {
     case 'today':
-      return (
-        <TodayCard
-          show={show}
-          liveClassCount={liveClassCount}
-          notStartedCount={notStartedCount}
-          closedCount={closedCount}
-        />
-      );
+      return <TodayCard show={show} classCounts={classCounts} />;
     case 'upcoming':
       return <UpcomingCard show={show} />;
     case 'draft':

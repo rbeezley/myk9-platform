@@ -3,6 +3,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SecretaryDashboardPage } from '../index';
 import { ScopeType } from '@/types/auth-types';
+import { useTrialStore } from '@/store/trialStore';
+import { showFactory } from '@/test/utils/factories';
 
 const mockUseMissionControlData = vi.fn();
 let mockPendingEntries: Array<{
@@ -203,5 +205,63 @@ describe('SecretaryDashboardPage', () => {
     // No FilterChips remnants from the per-show task filter (D2) or the
     // per-show message filter (D3b). FilterChips.tsx itself is deleted in D5.
     expect(screen.queryByText('All Shows')).not.toBeInTheDocument();
+  });
+
+  it('gives two same-named Today shows their own date range, venue and class counts', () => {
+    const dayKey = (offset: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      return [d.getFullYear(), d.getMonth() + 1, d.getDate()]
+        .map((n, idx) => String(n).padStart(idx === 0 ? 4 : 2, '0'))
+        .join('-');
+    };
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const showA = showFactory.build({
+      id: 'show-a',
+      name: 'Heartland Scent Work Week',
+      startDate: dayKey(-1),
+      endDate: dayKey(1),
+      location: 'Des Moines, IA',
+      status: 'in_progress',
+    });
+    const showB = showFactory.build({
+      id: 'show-b',
+      name: 'Heartland Scent Work Week',
+      startDate: dayKey(0),
+      endDate: dayKey(2),
+      location: 'Omaha, NE',
+      status: 'in_progress',
+    });
+    mockUseMissionControlData.mockReturnValue({ shows: [showA, showB], isLoading: false });
+    const prior = useTrialStore.getState();
+    useTrialStore.setState({
+      trials: [
+        { id: 'ta', showId: 'show-a', trialDate: dayKey(0), timezone },
+        { id: 'tb', showId: 'show-b', trialDate: dayKey(0), timezone },
+      ] as unknown as typeof prior.trials,
+      trialClasses: {
+        ta: [{ id: 'a1', status: 'in_progress' }],
+        tb: [
+          { id: 'b1', status: 'upcoming' },
+          { id: 'b2', status: 'upcoming' },
+          { id: 'b3', status: 'completed', isScoringFinalized: true },
+        ],
+      } as unknown as typeof prior.trialClasses,
+    });
+
+    try {
+      renderPage();
+
+      const cardFor = (venue: string) => screen.getByText(new RegExp(venue)).closest('div')!;
+      const cardA = cardFor('Des Moines, IA');
+      const cardB = cardFor('Omaha, NE');
+      expect(cardA).not.toBe(cardB);
+      expect(cardA).toHaveTextContent('1 live · 0 not started · 0 closed');
+      expect(cardB).toHaveTextContent('0 live · 2 not started · 1 closed');
+      expect(cardA).toHaveTextContent(/\d{4} · Des Moines, IA/);
+      expect(cardB).toHaveTextContent(/\d{4} · Omaha, NE/);
+    } finally {
+      useTrialStore.setState({ trials: prior.trials, trialClasses: prior.trialClasses });
+    }
   });
 });

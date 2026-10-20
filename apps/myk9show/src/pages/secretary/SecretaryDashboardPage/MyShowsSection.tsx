@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ShowPhaseCard } from './ShowPhaseCard';
 import type { Show } from '@/types/show-types';
 import type { ShowPhase } from '@/hooks/useMyShows';
+import type { TodayClassCounts } from './todayClassCounts';
 
 // Reserve vertical space while the shows query is in flight so the rest of
 // the dashboard (tabs, task list, message list) doesn't get pushed down once
@@ -30,10 +31,8 @@ interface MyShowsSectionProps {
   shows: Show[];
   /** Whether the section starts collapsed (past shows) */
   defaultCollapsed?: boolean;
-  /** Class stats forwarded to today cards */
-  liveClassCount?: number | undefined;
-  notStartedCount?: number | undefined;
-  closedCount?: number | undefined;
+  /** Per-show class stats forwarded to today cards; missing/null hides the line. */
+  classCountsByShow?: ReadonlyMap<string, TodayClassCounts | null> | undefined;
 }
 
 export function MyShowsSection({
@@ -42,9 +41,7 @@ export function MyShowsSection({
   subtitle,
   shows,
   defaultCollapsed = false,
-  liveClassCount,
-  notStartedCount,
-  closedCount,
+  classCountsByShow,
 }: MyShowsSectionProps) {
   const [open, setOpen] = useState(!defaultCollapsed);
 
@@ -90,9 +87,7 @@ export function MyShowsSection({
               key={show.id}
               show={show}
               phase={phase}
-              liveClassCount={liveClassCount}
-              notStartedCount={notStartedCount}
-              closedCount={closedCount}
+              classCounts={classCountsByShow?.get(show.id)}
             />
           ))}
         </div>

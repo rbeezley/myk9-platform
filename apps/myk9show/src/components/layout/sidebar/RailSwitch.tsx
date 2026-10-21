@@ -23,6 +23,7 @@ export function RailSwitch({ items, isActive }: RailSwitchProps) {
       <PopoverTrigger asChild>
         <button
           type="button"
+          aria-label="Switch show"
           className="mx-auto -mt-1 flex min-h-11 w-full items-center justify-center rounded-lg px-1 text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           Switch

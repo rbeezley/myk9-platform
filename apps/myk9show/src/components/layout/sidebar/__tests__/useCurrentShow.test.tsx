@@ -8,10 +8,13 @@ import { ScopeType } from '@/types/auth-types';
 import { useCurrentShow } from '../useCurrentShow';
 
 const data = { shows: [] as Show[] };
-const auth = { userWithRoles: null as unknown, isAdmin: false };
+const auth = { user: null as unknown, userWithRoles: null as unknown, isAdmin: false };
 
-vi.mock('@/hooks/useBrowseShowsList', () => ({
-  useBrowseShowsList: () => ({ shows: data.shows }),
+vi.mock('@/store/showStore', () => ({
+  useShowStore: (select: (state: { shows: Show[] }) => unknown) => select({ shows: data.shows }),
+}));
+vi.mock('@/store/trialStore', () => ({
+  useTrialStore: (select: (state: { trials: unknown[] }) => unknown) => select({ trials: [] }),
 }));
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => auth }));
 
@@ -57,6 +60,7 @@ describe('useCurrentShow', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-15T16:00:00Z'));
     data.shows = [other, mineSoon, mine];
+    auth.user = { id: 'user-1' };
     auth.userWithRoles = secretaryOf('club-mine');
     auth.isAdmin = false;
   });
@@ -70,6 +74,16 @@ describe('useCurrentShow', () => {
   it('is none for a site admin, who manages every show', () => {
     auth.isAdmin = true;
     expect(renderCurrent().result.current.currentShow).toBeNull();
+  });
+
+  it.each([
+    ['signed out', null],
+    ['a ringside passcode session', { id: 'anon-1', is_anonymous: true }],
+  ])('reads no shows for %s, even when the store holds some', (_label, user) => {
+    auth.user = user;
+    const { result } = renderCurrent();
+    expect(result.current.currentShow).toBeNull();
+    expect(result.current.managingShows).toEqual([]);
   });
 
   it('is none for a viewer who manages no show', () => {

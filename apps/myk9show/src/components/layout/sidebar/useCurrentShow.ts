@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { matchPath, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useBrowseShowsList } from '@/hooks/useBrowseShowsList';
+import { isAccountSession } from '@/hooks/guestServerRead';
+import { useShowStore } from '@/store/showStore';
+import { useTrialStore } from '@/store/trialStore';
+import { withEntryWindowTimeZones } from '@/utils/entryWindowZones';
 import { groupShowsForPane, REGROUP_INTERVAL_MS } from '@/components/shows/browse/showsPaneGroups';
 import { ShowPermissionValidator } from '@/utils/permissionValidation';
 import { getUserManagedShows } from '@/utils/show-relationships';
@@ -14,6 +17,8 @@ import {
   writeLastOpenedShowId,
 } from './currentShow';
 
+const NO_SHOWS: Show[] = [];
+
 export interface CurrentShowState {
   currentShow: Show | null;
   /** Managed shows not yet over, in Managing order; the Switch menu lists these. */
@@ -22,14 +27,19 @@ export interface CurrentShowState {
 }
 
 /**
- * The current show for the rail, read from the shows replica (`useBrowseShowsList`) so it works
+ * The current show for the rail, read from the shows replica (the shows store) so it works
  * offline. "Manages" is what the Shows list's Managing section means (`getUserManagedShows`); a
  * site admin manages every show, so nothing is singled out and they get no item. Also remembers
  * the last managed show opened, however the viewer got there, for the fallback rule.
  */
 export function useCurrentShow(): CurrentShowState {
-  const { userWithRoles, isAdmin } = useAuthContext();
-  const { shows } = useBrowseShowsList();
+  const { user, userWithRoles, isAdmin } = useAuthContext();
+  // Guests never read the shared replica and must not be given an online read here (INTENT
+  // MYK9-780 in useBrowseShowsList.ts); the account replica is already loaded by the auth-gated sync.
+  const readsReplica = isAccountSession(user);
+  const rawShows = useShowStore(s => (readsReplica ? s.shows : NO_SHOWS));
+  const trials = useTrialStore(s => s.trials);
+  const shows = useMemo(() => withEntryWindowTimeZones(rawShows, trials), [rawShows, trials]);
   const { pathname } = useLocation();
   const [now, setNow] = useState(() => new Date());
   const [choice, setChoice] = useState<string | null>(readCurrentShowChoice);

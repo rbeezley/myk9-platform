@@ -91,11 +91,12 @@ describe('current show rail item', () => {
     );
 
     expect(showLink()).toHaveAttribute('href', '/shows/show-1');
-    await user.click(screen.getByRole('button', { name: 'Switch' }));
+    await user.click(screen.getByRole('button', { name: 'Switch show' }));
     expect(screen.queryByRole('link', { name: LONG })).not.toBeInTheDocument();
     await user.click(screen.getByRole('link', { name: 'Fall Classic' }));
 
     expect(onChooseShow).toHaveBeenCalledWith('show-2');
+    expect(screen.queryByRole('link', { name: 'Fall Classic' })).not.toBeInTheDocument();
   });
 
   it('does not remember a plain click on the current show as a Switch choice', async () => {

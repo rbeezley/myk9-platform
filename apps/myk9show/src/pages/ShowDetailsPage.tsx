@@ -410,8 +410,8 @@ const ShowDetailsPage: React.FC = () => {
 
   // Breadcrumbs for PageHeader
   const breadcrumbs = useMemo(
-    () => showBreadcrumbs(canManageShow, actualCurrentShow?.name, id),
-    [canManageShow, actualCurrentShow?.name, id]
+    () => showBreadcrumbs(canManageShow, actualCurrentShow, id),
+    [canManageShow, actualCurrentShow, id]
   );
 
   // Tab definitions for PrimaryTabs (must be before early returns — rules of hooks)

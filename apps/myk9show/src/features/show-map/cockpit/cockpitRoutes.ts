@@ -207,6 +207,25 @@ export function getShowHomeHref({
 }
 
 /**
+ * MYK9-1320: the workbench for ONE trial. `day` set to the trial's date opens every trial on that
+ * day, and `anchor` scrolls to this trial's header. A trial with no date keeps the All days view,
+ * where the anchor still finds its header.
+ */
+export function getShowHomeTrialHref(
+  showId: string,
+  trial: { id: string; date?: string | null | undefined }
+): string {
+  return getShowHomeHref({
+    showId,
+    state: {
+      filter: 'all',
+      selectedDay: trial.date?.match(/^\d{4}-\d{2}-\d{2}$/)?.[0] ?? ALL_DAYS,
+      anchor: trial.id,
+    },
+  });
+}
+
+/**
  * Where a "back" link from a cockpit deep link returns, and what it is called.
  * Accepts the show home (`/shows/:id`) of the expected show, and the retired
  * Show Day URLs (`/show-day`, `/show-desk`) a `returnTo` in an open tab may

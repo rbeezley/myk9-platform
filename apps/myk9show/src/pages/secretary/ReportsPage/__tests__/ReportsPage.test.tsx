@@ -1,5 +1,5 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import ReportsPage, { resolveInitialReportId, resolveInitialReportScope } from '../index';
 
@@ -199,6 +199,13 @@ vi.mock('../reportPreviewUtils', () => ({
   printIframe: vi.fn(() => true),
 }));
 
+// MYK9-1320: the trial's money is the same FinancialSummary the trial page's Financials tab was.
+vi.mock('@/components/secretary/FinancialSummary', () => ({
+  FinancialSummary: ({ trialId }: { trialId: string }) => (
+    <div data-testid="financial-summary" data-trial-id={trialId} />
+  ),
+}));
+
 vi.mock('../ReportPreview', () => ({
   ReportPreview: (props: { trialId: string; classId: string }) => (
     <div data-testid="report-preview" data-trial-id={props.trialId} data-class-id={props.classId}>
@@ -217,6 +224,34 @@ describe('ReportsPage', () => {
     mockPrintState.isError = false;
     mockPrintState.syncFailed = false;
     toastSpy.called.mockClear();
+  });
+
+  describe('Trial financials (MYK9-1320)', () => {
+    it('renders the trial FinancialSummary when the page is scoped to a trial', () => {
+      render(<ReportsPage />, { initialRoute: '/shows/show-1/reports?trialId=trial-1' });
+
+      const card = screen.getByTestId('trial-financials-card');
+      expect(within(card).getByTestId('financial-summary')).toHaveAttribute(
+        'data-trial-id',
+        'trial-1'
+      );
+      expect(within(card).getByText(/Trial financials: Trial 1/)).toBeInTheDocument();
+    });
+
+    it('asks for a trial, and offers each one, when none is picked', async () => {
+      render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
+
+      const card = screen.getByTestId('trial-financials-card');
+      expect(within(card).queryByTestId('financial-summary')).not.toBeInTheDocument();
+      expect(within(card).getByText(/Pick a trial/)).toBeInTheDocument();
+
+      await userEvent.click(within(card).getByRole('button', { name: 'Trial 2' }));
+
+      expect(within(card).getByTestId('financial-summary')).toHaveAttribute(
+        'data-trial-id',
+        'trial-2'
+      );
+    });
   });
 
   it('renders "Reports" title', () => {

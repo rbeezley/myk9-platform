@@ -1,3 +1,4 @@
+import { getShowHomeTrialHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import type { RelatedContextLinkItem } from '@/components/common/RelatedContextLinks';
 
 export interface EntryManagementRelatedLinksInput {
@@ -13,7 +14,7 @@ export interface EntryManagementRelatedLinksInput {
 
 /**
  * Related-context links shown near Entry Management's existing
- * When a trial filter is active, link to Trial Details;
+ * When a trial filter is active, link to that trial on the Overview (MYK9-1320);
  * when a class filter is also active, link to that class's Class Details
  * page. Built entirely from loaded filter state — no new queries.
  */
@@ -31,8 +32,8 @@ export function buildEntryManagementRelatedLinks({
   const items: RelatedContextLinkItem[] = [
     {
       key: 'trial-details',
-      label: 'Trial Details',
-      href: `/shows/${encodeURIComponent(showId)}/trials/${encodeURIComponent(trialFilter)}`,
+      label: 'Trial on Overview',
+      href: getShowHomeTrialHref(showId, { id: trialFilter }),
     },
   ];
 

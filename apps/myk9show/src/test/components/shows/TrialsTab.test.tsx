@@ -282,6 +282,6 @@ describe('TrialsTab', () => {
     const stats = { t1: { classCount: 5, entryCount: 42, completedClasses: 0 } };
     render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
     fireEvent.click(screen.getByText('Trial 1'));
-    expect(mockNavigate).toHaveBeenCalledWith('/shows/show-1/trials/t1');
+    expect(mockNavigate).toHaveBeenCalledWith('/shows/show-1?day=2026-05-10&anchor=t1');
   });
 });

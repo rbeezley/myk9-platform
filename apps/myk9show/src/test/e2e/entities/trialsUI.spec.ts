@@ -1,7 +1,6 @@
 import { fillTrialStartTime } from '../helpers/wizardTrial';
 import { test, expect, Page } from '@playwright/test';
 import { signInAsSecretary } from '../helpers/testUsers';
-import { chooseAction } from '../helpers/actionsMenu';
 
 /**
  * UI tests for the Trials feature (secretary role).
@@ -179,6 +178,15 @@ async function fetchTrialChildCounts(
   }, trialId);
 }
 
+/** The trial heading's menu on the show home (MYK9-1320): Edit Trial opens the edit panel. */
+async function openTrialEdit(page: Page) {
+  await page
+    .getByRole('button', { name: /^Trial actions for / })
+    .first()
+    .click();
+  await page.getByRole('menuitem', { name: 'Edit Trial' }).click();
+}
+
 // ─── Edit Trial ───────────────────────────────────────────────────────────────
 
 test.describe('Trial Details — Edit', () => {
@@ -194,11 +202,12 @@ test.describe('Trial Details — Edit', () => {
   });
 
   test('renames a trial via the edit panel and persists the change', async ({ page }) => {
-    await page.goto(`/shows/${seed.showId}/trials/${seed.trialId}`);
+    await page.goto(`/shows/${seed.showId}?anchor=${seed.trialId}`);
     await page.waitForLoadState('networkidle');
 
-    // "Edit trial" in the header Actions menu opens the TrialEditPanel (MYK9-928).
-    await chooseAction(page, 'Edit trial');
+    // MYK9-1320: a manager's trial page is the show home; the trial heading menu opens the
+    // TrialEditPanel.
+    await openTrialEdit(page);
     await expect(page.getByText('Edit Trial', { exact: false })).toBeVisible();
 
     const newName = `E2E Trial Renamed ${RUN_ID}`;
@@ -246,12 +255,12 @@ test.describe('Trial Details — Delete', () => {
   test('confirmation dialog warns that classes and entries will also be deleted', async ({
     page,
   }) => {
-    await page.goto(`/shows/${seed.showId}/trials/${seed.trialId}`);
+    await page.goto(`/shows/${seed.showId}?anchor=${seed.trialId}`);
     await page.waitForLoadState('networkidle');
 
-    // Delete trial is the Edit panel's footer button, never a header menu item (CRUD standard
-    // Phase 3): open the panel from the Actions menu, then press it.
-    await chooseAction(page, 'Edit trial');
+    // Delete trial is the Edit panel's footer button, never a menu item (CRUD standard
+    // Phase 3): open the panel from the trial heading menu, then press it.
+    await openTrialEdit(page);
     await page.getByRole('button', { name: 'Delete trial', exact: true }).click();
 
     // The shared delete dialog (CRUD standard Phase 2).
@@ -275,17 +284,16 @@ test.describe('Trial Details — Delete', () => {
   });
 
   test('deletes the trial and cascades to classes and entries', async ({ page }) => {
-    await page.goto(`/shows/${seed.showId}/trials/${seed.trialId}`);
+    await page.goto(`/shows/${seed.showId}?anchor=${seed.trialId}`);
     await page.waitForLoadState('networkidle');
 
-    await chooseAction(page, 'Edit trial');
+    await openTrialEdit(page);
     await page.getByRole('button', { name: 'Delete trial', exact: true }).click();
 
     const dialog = page.getByRole('alertdialog', { name: /^Delete the trial / });
     await expect(dialog).toBeVisible();
 
-    // A soft delete through soft_delete_trial (never a hard DELETE on /rest/v1/trials)
-    // before we expect navigation off the trial page.
+    // A soft delete through soft_delete_trial (never a hard DELETE on /rest/v1/trials).
     const deleteResponsePromise = page.waitForResponse(
       resp =>
         resp.url().includes('/rest/v1/rpc/soft_delete_trial') &&
@@ -298,12 +306,6 @@ test.describe('Trial Details — Delete', () => {
     await expect(confirm).toBeEnabled();
     await confirm.click();
     await deleteResponsePromise;
-
-    // After the delete, the page should redirect off the trial detail URL
-    // (back to the parent show or shows list).
-    await page.waitForURL(url => !url.pathname.includes(`/trials/${seed.trialId}`), {
-      timeout: 15000,
-    });
 
     // The cascade chain should have removed every child row.
     await expect(async () => {
@@ -329,7 +331,7 @@ test.describe('Trial Details — date display regression', () => {
     if (seed) await cleanupSeed(page, seed);
   });
 
-  test('trial detail never shows "Invalid Date" — date stored as YYYY-MM-DD not ISO string', async ({
+  test('trial heading never shows "Invalid Date" — date stored as YYYY-MM-DD not ISO string', async ({
     page,
   }) => {
     // Regression guard for: wizard createTrial() was passing the full ISO
@@ -337,6 +339,7 @@ test.describe('Trial Details — date display regression', () => {
     // then used as `trialDate + "T00:00:00"`, yielding an unparseable string
     // and rendering "Invalid Date" in the DetailHero metadata.
     // Fixed in useShowCreationWizardActions.ts: format(dateTime, 'yyyy-MM-dd').
+    // The trial's own page now sends a manager to the show home (MYK9-1320), so the date shows there.
     await page.goto(`/shows/${seed.showId}/trials/${seed.trialId}`);
     await page.waitForLoadState('networkidle');
 

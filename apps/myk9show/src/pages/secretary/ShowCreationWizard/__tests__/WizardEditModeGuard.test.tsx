@@ -116,7 +116,7 @@ describe('hasUnsavedEditWork', () => {
 
 describe('getEditModeReturnPath', () => {
   it('returns to the resolved launching trial', () => {
-    expect(getEditModeReturnPath('s1', 't9')).toBe('/shows/s1/trials/t9');
+    expect(getEditModeReturnPath('s1', 't9')).toBe('/shows/s1?anchor=t9');
   });
 
   it('returns to the show without a resolved trial', () => {

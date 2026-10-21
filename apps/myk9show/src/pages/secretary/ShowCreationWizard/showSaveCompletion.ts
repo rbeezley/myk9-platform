@@ -1,3 +1,4 @@
+import { getShowHomeTrialHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import type { NavigateFunction } from 'react-router-dom';
 import type { ShowPasscodes } from '@myk9/core';
 import type { EditMode, ShowStatus } from './show-creation-wizard-types';
@@ -37,7 +38,7 @@ interface FinishShowSaveOptions {
  * her -- rather than the show page. Otherwise the show page, as before.
  */
 export function getEditModeReturnPath(showId: string, focusTrialId: string | null): string {
-  return focusTrialId ? `/shows/${showId}/trials/${focusTrialId}` : `/shows/${showId}`;
+  return focusTrialId ? getShowHomeTrialHref(showId, { id: focusTrialId }) : `/shows/${showId}`;
 }
 
 export async function createDraftShow(

@@ -22,6 +22,7 @@ import { StatusBadge, getStatusDescriptor } from '@/components/status';
 import { usePageExportAction } from '@/features/actions/pageEditTarget';
 import { getAddTrialsHref } from '@/pages/secretary/ShowCreationWizard/addTrialsHref';
 import { exportRowsCsv } from '@/utils/downloadCsv';
+import { getShowHomeTrialHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import {
   activeTrialsTabViewId,
@@ -332,11 +333,14 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
               <Card
                 key={trial.id}
                 className="cursor-pointer overflow-hidden border border-border bg-card shadow-sm transition-all hover:shadow-md hover:border-primary/30"
-                onClick={() => navigate(`/shows/${showId}/trials/${trial.id}`)}
+                onClick={() =>
+                  navigate(getShowHomeTrialHref(showId, { id: trial.id, date: trial.trialDate }))
+                }
                 role="button"
                 tabIndex={0}
                 onKeyDown={e =>
-                  e.key === 'Enter' && navigate(`/shows/${showId}/trials/${trial.id}`)
+                  e.key === 'Enter' &&
+                  navigate(getShowHomeTrialHref(showId, { id: trial.id, date: trial.trialDate }))
                 }
               >
                 <div className="p-4">
@@ -420,7 +424,9 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           tableId="trialsTab"
           columns={trialColumns}
           data={tableData}
-          onRowClick={row => navigate(`/shows/${showId}/trials/${row.id}`)}
+          onRowClick={row =>
+            navigate(getShowHomeTrialHref(showId, { id: row.id, date: row.trialDate }))
+          }
         />
       )}
       {trialDialogs}

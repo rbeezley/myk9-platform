@@ -47,7 +47,7 @@ function LocationProbe() {
  * | ------------------------------------ | --------------------------------------------- |
  * | Trials: Add Trial                    | Actions menu "Add Trial"                      |
  * | Trials: row Edit / Delete            | Trial heading menu (Edit); edit panel footer (Delete) |
- * | Trials: row opens the trial page     | Trial heading menu "Trial details"            |
+ * | Trials: row opens the trial page     | The home itself; menu "Trial financials" (MYK9-1320) |
  * | Classes: Add Classes                 | Trial heading "Add Classes"                   |
  * | Classes: row Edit / Delete           | Class panel "Edit class"; edit panel footer (Delete) |
  * | Classes: status change               | Class panel / row status control (unchanged)  |
@@ -63,7 +63,7 @@ describe('show home carries every Setup action (MYK9-956)', () => {
   }
 
   // Delete lives only in the edit panels' footers on the show home (owner, 2026-10-03).
-  it('gives each trial heading Add Classes and an Edit / Trial details menu, no Delete', async () => {
+  it('gives each trial heading Add Classes and an Edit / Trial financials menu, no Delete', async () => {
     const { user } = renderCockpit(true);
 
     expect(screen.getByRole('link', { name: /add classes to trial 1/i })).toHaveAttribute(
@@ -74,7 +74,7 @@ describe('show home carries every Setup action (MYK9-956)', () => {
     await screen.findByRole('menuitem', { name: 'Edit Trial' });
     expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
       'Edit Trial',
-      'Trial details',
+      'Trial financials',
     ]);
   });
 

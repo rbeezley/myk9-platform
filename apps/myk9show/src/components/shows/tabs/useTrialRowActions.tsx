@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { FileText } from 'lucide-react';
+import { DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { hydrateThenResolve } from '@/utils/hydrateThenResolve';
@@ -8,6 +8,7 @@ import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import { TrialManagementDialogs } from '@/components/trials/TrialDetail/TrialManagementDialogs';
+import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
 import { SetupRowActionsMenu } from './SetupRowActionsMenu';
 
 /**
@@ -87,12 +88,18 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
         {...(withDetails && {
           extraActions: [
             {
-              id: 'trial-details',
-              label: 'Trial details',
-              icon: <FileText />,
+              // MYK9-1320: the trial's own page is gone for managers (the home is its page), so
+              // the menu's second stop is the trial's money, on Reports.
+              id: 'trial-financials',
+              label: 'Trial financials',
+              icon: <DollarSign />,
               onSelect: () =>
                 navigate(
-                  `/shows/${encodeURIComponent(showId)}/trials/${encodeURIComponent(trialId)}`
+                  `/shows/${encodeURIComponent(showId)}/reports?${getReportScopeSearchParams({
+                    kind: 'trial',
+                    showId,
+                    trialId,
+                  }).toString()}`
                 ),
             },
           ],

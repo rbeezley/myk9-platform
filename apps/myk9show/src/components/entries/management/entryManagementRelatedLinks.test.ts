@@ -33,7 +33,7 @@ describe('buildEntryManagementRelatedLinks', () => {
       loadedTrialClassIds: ['class-1'],
     });
     expect(links).toEqual([
-      { key: 'trial-details', label: 'Trial Details', href: '/shows/show-1/trials/trial-1' },
+      { key: 'trial-details', label: 'Trial on Overview', href: '/shows/show-1?anchor=trial-1' },
     ]);
   });
 
@@ -46,7 +46,7 @@ describe('buildEntryManagementRelatedLinks', () => {
       loadedTrialClassIds: ['class-1', 'class-2'],
     });
     expect(links).toEqual([
-      { key: 'trial-details', label: 'Trial Details', href: '/shows/show-1/trials/trial-1' },
+      { key: 'trial-details', label: 'Trial on Overview', href: '/shows/show-1?anchor=trial-1' },
       {
         key: 'class-details',
         label: 'Class Details',
@@ -66,7 +66,7 @@ describe('buildEntryManagementRelatedLinks', () => {
       loadedTrialClassIds: ['class-1', 'class-2'],
     });
     expect(links).toEqual([
-      { key: 'trial-details', label: 'Trial Details', href: '/shows/show-1/trials/trial-1' },
+      { key: 'trial-details', label: 'Trial on Overview', href: '/shows/show-1?anchor=trial-1' },
     ]);
   });
 
@@ -80,7 +80,7 @@ describe('buildEntryManagementRelatedLinks', () => {
       loadedTrialClassIds: ['class-1'],
     });
     for (const link of links) {
-      expect(link.href.startsWith(`/shows/${currentShowId}/`)).toBe(true);
+      expect(link.href).toMatch(new RegExp(`^/shows/${currentShowId}[/?]`));
     }
   });
 });

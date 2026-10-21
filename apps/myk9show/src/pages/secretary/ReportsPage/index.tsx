@@ -27,6 +27,7 @@ import type { ReportDbEntry } from '@/lib/reports/types';
 import { useHostedReportData } from './useHostedReportData';
 import { blockedPrintMessage, resolvePrintReadiness } from './reportReadinessCopy';
 import { ReportPrintStatus } from './ReportPrintStatus';
+import { TrialFinancialsCard } from './TrialFinancialsCard';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
 
@@ -342,6 +343,12 @@ export default function ReportsPage() {
           handleReportTypeChange(value);
           focusControls();
         }}
+      />
+
+      <TrialFinancialsCard
+        trialId={trialId}
+        trials={trialOptions}
+        onPickTrial={handleTrialChange}
       />
 
       <ReportPrintStatus

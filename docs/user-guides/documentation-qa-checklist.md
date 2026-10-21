@@ -92,7 +92,7 @@ For every screenshot embedded in the guide:
 - [ ] Every error, warning, or "what if" scenario mentioned in the guide was triggered in the live app and behaves as described
 - [ ] Empty states (no shows, no entries, no dogs) are verified for any section that mentions them
 - [ ] The guide does not describe a "contact support" escalation path without a working contact method in place
-- [ ] For show-day sections: offline behavior was triggered (disable network in DevTools) and the guide's description of "Offline ready" matches what the app actually shows
+- [ ] For show-day sections: offline behavior was triggered (disable network in DevTools) and the guide's description of the device line ("Offline copy: saved on this device" / "not saved on this device" with "Save for show day") matches what the app actually shows
 
 ---
 

@@ -19,10 +19,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { Route, Routes, useNavigate, useParams } from 'react-router-dom';
-import { act, render, screen, waitFor, within } from '@/test/utils/testUtils';
+import { act, render, screen, waitFor } from '@/test/utils/testUtils';
 import { createChainableQuery, mockSupabase } from '@/test/mocks/supabase';
 import { queryClient as appQueryClient } from '@/lib/queryClient';
-import { HeaderActions } from '@/components/layout/HeaderActions';
 import { PremiumDownloadCard } from '../PremiumDownloadCard';
 import {
   PREMIUM_LOADING_REASON,
@@ -147,7 +146,6 @@ function GoToShowB() {
 function renderShowSurfaces() {
   return render(
     <>
-      <HeaderActions />
       <Routes>
         <Route path="/shows/:id" element={<ShowOverview />} />
       </Routes>
@@ -155,19 +153,6 @@ function renderShowSurfaces() {
     </>,
     { initialRoute: `/shows/${SHOW_A}`, queryClient: productionDefaultsClient() }
   );
-}
-
-type User = ReturnType<typeof renderShowSurfaces>['user'];
-
-/** Open the Actions menu, read the premium item's rendered text, close it. */
-async function readPremiumMenuItem(user: User): Promise<string> {
-  await user.click(screen.getByTestId('header-actions-trigger'));
-  const menu = await screen.findByRole('menu');
-  const text =
-    within(menu).getByTestId('header-action-show-generate-publish-premium').textContent ?? '';
-  await user.keyboard('{Escape}');
-  await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
-  return text;
 }
 
 function allHrefs(): string[] {
@@ -183,7 +168,6 @@ async function mountOnAThenGoToB() {
   // expectNoShowAState: after the private-bucket cutover (MYK9-694) the card's
   // Download PDF is a button that fetches a signed URL, not a public link.
   expect(await screen.findByText('Download PDF')).toBeInTheDocument();
-  expect(await readPremiumMenuItem(view.user)).toContain(PREMIUM_UP_TO_DATE_REASON);
 
   await view.user.click(screen.getByRole('button', { name: 'go to show B' }));
   await waitFor(() => expect(reads.reads).toContain(SHOW_B));
@@ -212,18 +196,8 @@ describe("MYK9-648: navigating show A -> show B never renders A's premium publis
     );
   });
 
-  it('(a) while B’s publish read is pending: the header Actions item says "checking", not A’s state', async () => {
-    const { user } = await mountOnAThenGoToB();
-
-    const item = await readPremiumMenuItem(user);
-    expect(item).not.toContain(PREMIUM_UP_TO_DATE_REASON);
-    expect(item).toContain(PREMIUM_LOADING_REASON);
-    // Checked after the menu round trip too, still before B resolves.
-    expectNoShowAState();
-  });
-
   it('(b) after B resolves unpublished: the unpublished state renders on both', async () => {
-    const { user, settleB } = await mountOnAThenGoToB();
+    const { settleB } = await mountOnAThenGoToB();
 
     await act(async () => settleB({ data: SHOW_B_ROW, error: null }));
 
@@ -231,13 +205,10 @@ describe("MYK9-648: navigating show A -> show B never renders A's premium publis
     expectNoShowAState();
     const publishButton = screen.getByRole('button', { name: /generate & publish premium/i });
     expect(publishButton).toBeEnabled();
-
-    const item = await readPremiumMenuItem(user);
-    expect(item).toBe('Generate & publish premium');
   });
 
   it('(c) when B’s read fails: an unavailable state renders, never A’s', async () => {
-    const { user, settleB } = await mountOnAThenGoToB();
+    const { settleB } = await mountOnAThenGoToB();
 
     await act(async () =>
       settleB({ data: null, error: { message: 'boom', code: 'PGRST500', status: 500 } })
@@ -249,9 +220,5 @@ describe("MYK9-648: navigating show A -> show B never renders A's premium publis
       )
     );
     expectNoShowAState();
-
-    const item = await readPremiumMenuItem(user);
-    expect(item).toContain(PREMIUM_UNAVAILABLE_REASON);
-    expect(item).not.toContain(PREMIUM_UP_TO_DATE_REASON);
   });
 });

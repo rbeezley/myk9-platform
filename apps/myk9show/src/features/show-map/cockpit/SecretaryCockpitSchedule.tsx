@@ -61,7 +61,7 @@ export function SecretaryCockpitSchedule({
               {model.day.isToday && !model.day.allDays ? "Today's schedule" : 'Show schedule'}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Select a Class to focus it. Filters apply to this schedule only.
+              Pick a class to see its checklist. Filters apply to this schedule only.
             </p>
           </div>
           {model.trialGroups.some(group => group.nowMarkerIndex !== null) && (

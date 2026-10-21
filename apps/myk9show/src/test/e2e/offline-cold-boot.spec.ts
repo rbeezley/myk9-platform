@@ -139,8 +139,10 @@ test.describe('offline cold boot', () => {
 
     // The at-show page hydrates the show through syncAtShowData on mount.
     // Wait for the readiness badge to settle rather than a fixed sleep.
-    const readyBadge = page.getByRole('status').filter({ hasText: /offline ready/i });
-    const primeButton = page.getByRole('button', { name: /not offline ready/i });
+    const readyBadge = page
+      .getByRole('status')
+      .filter({ hasText: /offline ready|offline copy: saved/i });
+    const primeButton = page.getByRole('button', { name: /save for show day/i });
 
     await expect(readyBadge.or(primeButton).first()).toBeVisible({ timeout: 45_000 });
 
@@ -196,8 +198,8 @@ test.describe('offline cold boot', () => {
     await expect(
       page
         .getByRole('status')
-        .filter({ hasText: /offline ready/i })
-        .or(page.getByRole('button', { name: /not offline ready/i }))
+        .filter({ hasText: /offline ready|offline copy: saved/i })
+        .or(page.getByRole('button', { name: /save for show day/i }))
         .first()
     ).toBeVisible({ timeout: 45_000 });
 
@@ -215,10 +217,12 @@ test.describe('offline cold boot', () => {
     await page.reload({ waitUntil: 'domcontentloaded' });
 
     // Must NOT claim the device is ready for a show it no longer holds.
-    await expect(page.getByRole('button', { name: /not offline ready/i })).toBeVisible({
+    await expect(page.getByRole('button', { name: /save for show day/i })).toBeVisible({
       timeout: 45_000,
     });
-    await expect(page.getByRole('status').filter({ hasText: /offline ready/i })).toHaveCount(0);
+    await expect(
+      page.getByRole('status').filter({ hasText: /offline ready|offline copy: saved/i })
+    ).toHaveCount(0);
   });
   // MYK9-347. The exhibitor half of this arc, and a different failure from the
   // secretary one above: nothing crashed and nothing was denied — the app was
@@ -393,7 +397,7 @@ test.describe('offline cold boot', () => {
 });
 
 /**
- * The readiness badge reads "Offline ready". On failure, name the signals the
+ * The readiness badge reads "Offline copy: saved on this device". On failure, name the signals the
  * not-ready badge reports as missing (MYK9-766: it once flipped back to not
  * ready with no clue why). With `primeWhenNotReady`, a not-ready badge is
  * clicked to prime the device, re-decided on every poll.
@@ -404,7 +408,7 @@ async function expectOfflineReady(page: Page, timeout: number, primeWhenNotReady
   // appears meanwhile and losing the diagnosis.
   const ready = page
     .getByRole('status')
-    .filter({ hasText: /offline ready/i })
+    .filter({ hasText: /offline ready|offline copy: saved/i })
     .first();
   const notReady = page.locator('[data-offline-missing]');
   await expect

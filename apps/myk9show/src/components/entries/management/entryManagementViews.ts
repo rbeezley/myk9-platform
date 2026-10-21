@@ -10,7 +10,18 @@
  * `WaitlistManagementPage` data-hook restructure.
  */
 import type { ListView } from '@/components/list-toolkit';
-import type { ShowRegistrationQueueCounts } from './showRegistrationProjection';
+import type {
+  ShowRegistrationQueue,
+  ShowRegistrationQueueCounts,
+} from './showRegistrationProjection';
+
+/** The one spelling of each queue's name: the Show: menu and the empty-queue message share it. */
+export const SHOW_REGISTRATION_QUEUE_LABELS: Record<ShowRegistrationQueue, string> = {
+  'needs-review': 'Needs review',
+  'missing-information': 'Missing info',
+  'payment-due': 'Payment due',
+  all: 'All',
+};
 
 export interface EntryManagementViewCounts {
   queueCounts: ShowRegistrationQueueCounts;
@@ -28,14 +39,22 @@ export interface EntryManagementViewCounts {
 
 export function buildEntryManagementViews(counts: EntryManagementViewCounts): ListView[] {
   return [
-    { id: 'needs-review', label: 'Needs review', count: counts.queueCounts['needs-review'] },
+    {
+      id: 'needs-review',
+      label: SHOW_REGISTRATION_QUEUE_LABELS['needs-review'],
+      count: counts.queueCounts['needs-review'],
+    },
     {
       id: 'missing-information',
-      label: 'Missing info',
+      label: SHOW_REGISTRATION_QUEUE_LABELS['missing-information'],
       count: counts.queueCounts['missing-information'],
     },
-    { id: 'payment-due', label: 'Payment due', count: counts.queueCounts['payment-due'] },
-    { id: 'all', label: 'All', count: counts.queueCounts.all },
+    {
+      id: 'payment-due',
+      label: SHOW_REGISTRATION_QUEUE_LABELS['payment-due'],
+      count: counts.queueCounts['payment-due'],
+    },
+    { id: 'all', label: SHOW_REGISTRATION_QUEUE_LABELS.all, count: counts.queueCounts.all },
     {
       id: 'waitlist',
       label: 'Waitlist',

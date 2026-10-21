@@ -15,6 +15,7 @@ import {
 } from './showRegistrationProjection';
 import { getRegistrationReviewLabel } from './reviewStateLabels';
 import { EntryFormTrialClasses } from './EntryFormTrialClasses';
+import type { EntryQueueEmptyCopy } from './entryQueueEmptyState';
 
 /**
  * Below this measured width (px) the queue stacks each registration into a
@@ -54,6 +55,8 @@ interface EntryRegistrationQueueProps {
    * the secretary hunting through filters that were never the cause.
    */
   showHasNoRegistrations?: boolean;
+  /** What to say when no form is listed; derived by `describeEmptyEntryQueue`. */
+  emptyCopy?: EntryQueueEmptyCopy;
   pageIndex: number;
   pageCount: number;
   onPageChange: (pageIndex: number) => void;
@@ -137,6 +140,7 @@ export function EntryRegistrationQueue({
   rangeEnd,
   total,
   showHasNoRegistrations = false,
+  emptyCopy,
   pageIndex,
   pageCount,
   onPageChange,
@@ -147,6 +151,12 @@ export function EntryRegistrationQueue({
   // environments without layout).
   const { ref, width } = useElementWidth<HTMLElement>();
   const viewportCompact = !useMediaQuery('(min-width: 768px)', true);
+  const empty: EntryQueueEmptyCopy = emptyCopy ?? {
+    heading: showHasNoRegistrations ? 'No entries yet' : 'No matches',
+    body: showHasNoRegistrations
+      ? 'Entries will appear here as exhibitors enter, or you can add one.'
+      : 'No entry forms match this search or filter.',
+  };
   const compact = width === null ? viewportCompact : width < ENTRY_QUEUE_STACKED_MAX_WIDTH;
   return (
     <section
@@ -190,14 +200,8 @@ export function EntryRegistrationQueue({
 
       {groups.length === 0 ? (
         <div className="px-5 py-12 text-center">
-          <p className="font-semibold">
-            {showHasNoRegistrations ? 'No entries yet' : 'No matches'}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {showHasNoRegistrations
-              ? 'Entries will appear here as exhibitors enter, or you can add one.'
-              : 'Try another queue, scope, or search.'}
-          </p>
+          <p className="font-semibold">{empty.heading}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{empty.body}</p>
         </div>
       ) : (
         <div role="list" aria-label="Entry form work queue">

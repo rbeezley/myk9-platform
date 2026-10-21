@@ -31,6 +31,12 @@ export interface EntryManagementCockpitState {
    * the others in menu order (docs/plan-entries-filter-button.md, settled rule 1).
    */
   queues: ShowRegistrationQueue[];
+  /**
+   * Whether the URL (or a legacy param) names a queue. When it does not, `queues` is only the
+   * placeholder `['needs-review']` and `useEntryManagementCockpit` replaces it with the derived
+   * default (MYK9-1276); the derived value is never written back to the URL.
+   */
+  queuesNamed: boolean;
   search: string;
   trialIds: string[];
   classIds: string[];
@@ -118,25 +124,27 @@ export function toggleQueueSelection(
   return canonical.length > 0 ? canonical : ['all'];
 }
 
-function getQueues(source: URLSearchParams): ShowRegistrationQueue[] {
+function getQueues(source: URLSearchParams): {
+  queues: ShowRegistrationQueue[];
+  named: boolean;
+} {
+  const named = (queues: ShowRegistrationQueue[]) => ({ queues, named: true });
   const canonical = canonicalQueues(parseListParam(source.get('queue')));
-  if (canonical.length > 0) return canonical;
-  if (source.get('payment') === 'pending') return ['payment-due'];
+  if (canonical.length > 0) return named(canonical);
+  if (source.get('payment') === 'pending') return named(['payment-due']);
 
   const legacy = source.get('attention') ?? source.get('entryTab');
-  if (legacy === 'missing_information') return ['missing-information'];
-  if (legacy === 'all' || legacy === 'accepted' || legacy === 'issues') return ['all'];
-  return ['needs-review'];
+  if (legacy === 'missing_information') return named(['missing-information']);
+  if (legacy === 'all' || legacy === 'accepted' || legacy === 'issues') return named(['all']);
+  // The "Review N pending" links ask for Needs review by name.
+  if (legacy === 'pending') return named(['needs-review']);
+  return { queues: ['needs-review'], named: false };
 }
 
 /** The ids in a list param, dropping any the loaded list does not know (kept while unknown). */
 function getIds(raw: string | null, known: ReadonlySet<string> | undefined): string[] {
   const ids = parseListParam(raw);
   return known ? ids.filter(id => known.has(id)) : ids;
-}
-
-function isDefaultQueues(queues: readonly ShowRegistrationQueue[]): boolean {
-  return queues.length === 1 && queues[0] === 'needs-review';
 }
 
 function setListParam(params: URLSearchParams, key: string, values: readonly string[]): void {
@@ -166,7 +174,7 @@ export function normalizeEntryManagementCockpitParams(
   const tab: EntryManagementCockpitTab = getLegacyException(source)
     ? 'exceptions'
     : 'registrations';
-  const queues = getQueues(source);
+  const { queues, named: queuesNamed } = getQueues(source);
   const rawSearch = source.get('search') ?? source.get('person') ?? '';
   const search = rawSearch.trim() ? rawSearch : '';
   const trialIds =
@@ -187,7 +195,7 @@ export function normalizeEntryManagementCockpitParams(
     params.set('tab', 'exceptions');
     if (exception !== 'move-ups') params.set('exception', exception);
   } else {
-    if (!isDefaultQueues(queues)) setListParam(params, 'queue', queues);
+    if (queuesNamed) setListParam(params, 'queue', queues);
     if (search) params.set('search', search);
     setListParam(params, 'trial', trialIds);
     setListParam(params, 'class', classIds);
@@ -200,6 +208,7 @@ export function normalizeEntryManagementCockpitParams(
       tab,
       exception,
       queues,
+      queuesNamed,
       search,
       trialIds,
       classIds,
@@ -215,8 +224,9 @@ export function writeCockpitQueues(
   const next = new URLSearchParams(source);
   const canonical = canonicalQueues(queues);
   const written = canonical.length > 0 ? canonical : (['all'] as const);
-  if (isDefaultQueues(written)) next.delete('queue');
-  else setListParam(next, 'queue', written);
+  // A queue the user picks is always written, Needs review included: it is the only way an
+  // explicit pick differs from "no queue", which opens on the derived default (MYK9-1276).
+  setListParam(next, 'queue', written);
   next.delete('registration');
   return next;
 }

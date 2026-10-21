@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  deriveDefaultResultsStatus,
   deriveResultsNextAction,
   deriveResultsPhase,
   matchesResultsStatusFilter,
   RESULTS_STATUS_FILTER_OPTIONS,
+  type ResultsClassPhase,
   type ResultsClassState,
 } from './resultsNextAction';
 
@@ -207,5 +209,23 @@ describe('matchesResultsStatusFilter', () => {
     expect(matchesResultsStatusFilter('needs-initials', 'needs-printing')).toBe(false);
     expect(matchesResultsStatusFilter('done', 'needs-printing')).toBe(false);
     expect(matchesResultsStatusFilter('needs-checking', 'needs-checking')).toBe(true);
+  });
+});
+
+describe('deriveDefaultResultsStatus', () => {
+  const row = (phase: ResultsClassPhase) => ({ phase });
+
+  it('opens on All when the view has classes and none needs the secretary', () => {
+    expect(deriveDefaultResultsStatus([row('done'), row('not-started'), row('in-ring')])).toBe(
+      'all'
+    );
+  });
+
+  it('keeps Needs me when any class in the view needs the secretary', () => {
+    expect(deriveDefaultResultsStatus([row('done'), row('ready-to-release')])).toBe('needs-me');
+  });
+
+  it('keeps Needs me when nothing is in the view (not loaded, or no classes)', () => {
+    expect(deriveDefaultResultsStatus([])).toBe('needs-me');
   });
 });

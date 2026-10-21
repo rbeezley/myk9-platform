@@ -13,6 +13,10 @@ import {
   type ShowRegistrationQueue,
 } from '@/components/entries/management/showRegistrationProjection';
 import {
+  countListedForms,
+  deriveDefaultQueues,
+} from '@/components/entries/management/entryQueueDefault';
+import {
   writeCockpitException,
   writeCockpitFocus,
   writeCockpitQueues,
@@ -43,11 +47,44 @@ function useStableList<T>(list: readonly T[]): readonly T[] {
 
 export function useEntryManagementCockpit({
   groups,
-  state,
+  state: urlState,
   trialClassIds,
   canValidateFocus = true,
 }: UseEntryManagementCockpitOptions) {
   const [, setSearchParams] = useSearchParams();
+  const classIds = useStableList(urlState.classIds);
+  const scopedTrialClassIds = urlState.trialIds.length > 0 ? trialClassIds : undefined;
+  // THE one place the default queue is decided (MYK9-1276): when the URL names no queue, the
+  // effective one is derived from what the table would list in the current scope, so
+  // `cockpit.state.queues` stays the single source of queue state. Until the forms have loaded
+  // the default stays Needs review. Never written to the URL.
+  const defaultQueues = useMemo(
+    () =>
+      urlState.queuesNamed
+        ? urlState.queues
+        : deriveDefaultQueues(
+            canValidateFocus
+              ? countListedForms(groups, {
+                  search: urlState.search,
+                  classIds: classIds,
+                  trialClassIds: scopedTrialClassIds,
+                })
+              : null
+          ),
+    [
+      urlState.queuesNamed,
+      urlState.queues,
+      urlState.search,
+      canValidateFocus,
+      groups,
+      classIds,
+      scopedTrialClassIds,
+    ]
+  );
+  const state = useMemo(
+    () => ({ ...urlState, queues: [...defaultQueues] }),
+    [urlState, defaultQueues]
+  );
   const viewKey = [
     state.tab,
     state.exception,
@@ -57,8 +94,6 @@ export function useEntryManagementCockpit({
     state.classIds.join(','),
   ].join('|');
   const queues = useStableList(state.queues);
-  const classIds = useStableList(state.classIds);
-  const scopedTrialClassIds = state.trialIds.length > 0 ? trialClassIds : undefined;
   const [pageState, setPageState] = useState({ viewKey, pageIndex: 0 });
   if (pageState.viewKey !== viewKey) {
     setPageState({ viewKey, pageIndex: 0 });

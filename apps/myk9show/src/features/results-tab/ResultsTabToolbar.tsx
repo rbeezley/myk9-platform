@@ -11,10 +11,10 @@ import {
   RESULTS_STATUS_FILTER_OPTIONS,
   type ResultsStatusFilterId,
 } from './resultsNextAction';
-import type { ResultsTabUrlState } from './resultsTabRoutes';
+import type { ResultsTabUrlState, ResultsTabViewState } from './resultsTabRoutes';
 
 interface ResultsTabToolbarProps {
-  state: ResultsTabUrlState;
+  state: ResultsTabViewState;
   trials: readonly SyncableTrial[];
   /** Every class in the show, so the status counts do not shrink with the other filters. */
   rows: readonly ResultsClassRow[];

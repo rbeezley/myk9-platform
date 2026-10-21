@@ -130,6 +130,7 @@ function Harness({
     tab: 'registrations',
     exception: 'move-ups',
     queues: ['needs-review'],
+    queuesNamed: false,
     search: options.search ?? '',
     trialIds: options.trialId ? [options.trialId] : [],
     classIds: options.classId ? [options.classId] : [],

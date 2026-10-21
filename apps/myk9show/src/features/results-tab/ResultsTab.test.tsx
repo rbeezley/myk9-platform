@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
 
 import { replicatedClassesTable } from '@/services/replication';
 import { render, screen, waitFor, within } from '@/test/utils/testUtils';
@@ -201,10 +201,22 @@ vi.mock('./ResultsVisibilitySheet', () => ({
     open ? <div data-testid="visibility-sheet" /> : null,
 }));
 
+function LocationProbe() {
+  return <output data-testid="location-search">{useLocation().search}</output>;
+}
+
 function renderAt(search = '') {
   return render(
     <Routes>
-      <Route path="/shows/:id/results" element={<ResultsTab />} />
+      <Route
+        path="/shows/:id/results"
+        element={
+          <>
+            <ResultsTab />
+            <LocationProbe />
+          </>
+        }
+      />
     </Routes>,
     { initialRoute: `/shows/show-1/results${search}` }
   );
@@ -293,9 +305,49 @@ describe('ResultsTab list', () => {
 
   it('says nothing needs the secretary only when the scores loaded and none do', () => {
     hook.value = { ...hook.value, rows: buildRows().filter(row => row.phase === 'done') };
-    renderAt();
+    renderAt('?status=needs-me');
 
     expect(screen.getByText('Nothing needs you right now.')).toBeInTheDocument();
+  });
+
+  it('lands on the class list, not an empty Needs me, and leaves the URL alone (MYK9-1276)', () => {
+    hook.value = { ...hook.value, rows: buildRows().filter(row => row.phase === 'done') };
+    renderAt();
+
+    const list = screen.getByRole('list', { name: 'Classes' });
+    expect(within(list).getAllByRole('listitem').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Nothing needs you right now.')).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Show' })).toHaveTextContent('All classes');
+    expect(screen.getByTestId('location-search')).toHaveTextContent(/^$/);
+  });
+
+  it('judges the landing on the trial in view: a trial with nothing to do opens on All', () => {
+    hook.value = {
+      ...hook.value,
+      rows: buildRows().map(row =>
+        row.phase === 'done' ? { ...row, trialId: 'trial-quiet' } : row
+      ),
+    };
+    renderAt('?trialId=trial-quiet');
+
+    expect(screen.getByRole('combobox', { name: 'Show' })).toHaveTextContent('All classes');
+    expect(screen.getByRole('list', { name: 'Classes' })).toBeInTheDocument();
+  });
+
+  it('keeps an explicit status=needs-me, and writes it when the secretary picks Needs me', async () => {
+    hook.value = { ...hook.value, rows: buildRows().filter(row => row.phase === 'done') };
+    const first = renderAt('?status=needs-me');
+    expect(screen.getByRole('combobox', { name: 'Show' })).toHaveTextContent('Needs me');
+    expect(screen.getByTestId('location-search')).toHaveTextContent('?status=needs-me');
+    first.unmount();
+
+    const { user } = renderAt();
+    await user.click(screen.getByRole('combobox', { name: 'Show' }));
+    await user.click(await screen.findByRole('option', { name: /Needs me/ }));
+    await waitFor(() =>
+      expect(screen.getByTestId('location-search')).toHaveTextContent('?status=needs-me')
+    );
+    expect(screen.getByRole('combobox', { name: 'Show' })).toHaveTextContent('Needs me');
   });
 
   it('points at Submit and Close once every class is released and initialed', () => {

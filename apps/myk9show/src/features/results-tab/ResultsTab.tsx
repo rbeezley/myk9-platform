@@ -23,11 +23,12 @@ import { ResultsJudgeSignOff } from './ResultsJudgeSignOff';
 import { buildJudgeSignOffGroup } from './judgeSignOffGroup';
 import { ResultsTabToolbar } from './ResultsTabToolbar';
 import { ResultsVisibilitySheet } from './ResultsVisibilitySheet';
-import { matchesResultsStatusFilter } from './resultsNextAction';
+import { deriveDefaultResultsStatus, matchesResultsStatusFilter } from './resultsNextAction';
 import {
   readResultsTabUrlState,
   writeResultsTabUrlState,
   type ResultsTabUrlState,
+  type ResultsTabViewState,
 } from './resultsTabRoutes';
 import { classRowSyncBlockedReason, useClassRowSyncState } from './useClassRowSyncState';
 import { classHasUnsyncedScores, useClassUnsyncedScores } from './useClassUnsyncedScores';
@@ -83,8 +84,24 @@ export default function ResultsTab() {
   const params = useParams<{ showId?: string; id?: string }>();
   const showId = params.showId ?? params.id ?? '';
   const [searchParams, setSearchParams] = useSearchParams();
-  const state = readResultsTabUrlState(searchParams);
+  const urlState = readResultsTabUrlState(searchParams);
   const { rows, trials, readState, retry, refreshFailed } = useResultsTabData(showId);
+  // The default status is derived live from the rows the view would list and never written to the
+  // URL; a status the URL names always wins (MYK9-1276).
+  const defaultStatus = useMemo(
+    () =>
+      deriveDefaultResultsStatus(
+        readState === 'ready'
+          ? rows.filter(
+              row =>
+                (urlState.trialId === null || row.trialId === urlState.trialId) &&
+                rowMatchesSearch(row, urlState.search)
+            )
+          : []
+      ),
+    [readState, rows, urlState.search, urlState.trialId]
+  );
+  const state: ResultsTabViewState = { ...urlState, status: urlState.status ?? defaultStatus };
   const release = useReleaseResults();
   const { pathname, search } = useLocation();
   const judgeSignOff = useJudgeSignOffMutations();

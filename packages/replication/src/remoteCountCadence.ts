@@ -7,6 +7,7 @@
  * slower cadence instead. The 24 h forced full sync is unaffected.
  */
 
+import { countCoveredRows } from './replicaCoverage';
 import type { SyncScope } from './syncReplicatedTable.types';
 
 /** Default gap between counts for one table scope: about ten minutes. */
@@ -179,4 +180,20 @@ export async function beginRemoteCountPass(
         remotePageSize
       ),
   };
+}
+
+/**
+ * The replica holds fewer covered rows than the last count recorded: an
+ * acknowledged delete. The count is due now so `expectedRemoteRows` stays true
+ * for readers that compare it with the local rows. Growth never forces a count.
+ */
+export function coverageFell(
+  localRows: readonly { id: string }[],
+  pendingDeleteIds: ReadonlySet<string> | undefined,
+  lastExpectedRemoteRows: number | undefined
+): boolean {
+  return (
+    lastExpectedRemoteRows !== undefined &&
+    countCoveredRows(localRows, pendingDeleteIds) < lastExpectedRemoteRows
+  );
 }

@@ -140,6 +140,31 @@ describe('syncReplicatedTable remote count cadence (MYK9-1301)', () => {
     expect(adapter.getRemoteRowCount).toHaveBeenCalledTimes(3);
   });
 
+  it('an acknowledged delete refreshes expectedRemoteRows on the next pass, not after the interval', async () => {
+    const state = { ...whole };
+    const adapter = adapterFor(state);
+    await syncReplicatedTable(table, adapter); // counts 2
+    await expect(table.getSyncMetadata()).resolves.toMatchObject({ expectedRemoteRows: 2 });
+
+    // The device deleted row 2 and its DELETE was acknowledged: no pending delete remains.
+    await table.delete('2');
+    state.count = 1;
+    nowOffset += 60_000;
+    await syncReplicatedTable(table, adapter);
+
+    expect(adapter.getRemoteRowCount).toHaveBeenCalledTimes(2);
+    await expect(table.getSyncMetadata()).resolves.toMatchObject({ expectedRemoteRows: 1 });
+  });
+
+  it('a server-side addition (more local rows than the last count) does not force a count', async () => {
+    const adapter = adapterFor({ ...whole });
+    await syncReplicatedTable(table, adapter);
+    await table.set('3', { id: '3', name: 'Added' });
+    nowOffset += 60_000;
+    await syncReplicatedTable(table, adapter);
+    expect(adapter.getRemoteRowCount).toHaveBeenCalledTimes(1);
+  });
+
   it('the 24h self-heal full sync counts (one HEAD) so its stale cleanup runs', async () => {
     const state = { ...whole };
     const adapter = adapterFor(state);

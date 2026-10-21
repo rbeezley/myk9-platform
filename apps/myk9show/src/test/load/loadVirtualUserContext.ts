@@ -45,6 +45,14 @@ export interface ReaderContext {
   sinceIso(table: string, bufferMs: number): string;
   /** Move a table's watermark to the newest server `updated_at` in `rows`. */
   advance(table: string, rows: readonly { updated_at?: string }[]): void;
+  /**
+   * Whether this pass owes `table` its `count: exact` HEAD. Mirrors the engine's
+   * count cadence (MYK9-1301): first pass, then every 10 minutes, or every pass
+   * when the app's `replicationCountCadence` flag is off.
+   */
+  countDue(table: string): boolean;
+  /** A count of `table` succeeded; the cadence restarts from now. */
+  countTaken(table: string): void;
   /** Count rows a pass downloaded, for the pass result. */
   tally(rows: number): void;
   /** Issue one request, record a sample for it, and never throw. */

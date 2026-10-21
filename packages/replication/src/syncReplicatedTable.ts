@@ -6,7 +6,7 @@ import { anyRowNotOwnedBy, scopeStampDirective } from './rowOwnership';
 import { describeError } from './error-message';
 import { countCoveredRows, getCoveredRemoteIds } from './replicaCoverage';
 import { runStaleCleanup } from './syncStaleCleanup';
-import { beginRemoteCountPass } from './remoteCountCadence';
+import { beginRemoteCountPass, coverageFell } from './remoteCountCadence';
 import {
   configureConflictSurfacing as _configureConflictSurfacing,
   isConflictSurfacingEnabled,
@@ -162,18 +162,19 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     const lastFullSyncAt = metadata?.lastFullSyncAt || 0;
     const fullSyncStale = lastFullSyncAt > 0 && Date.now() - lastFullSyncAt > fullSyncIntervalMs;
 
+    // Read before the count: a DELETE landing after it can only read the count lower.
+    const pendingDeleteIds = await adapter.getPendingDeleteIds?.({ scope }).catch(() => undefined);
     const forced =
       options.forceFullSync === true ||
       localRows.length === 0 ||
       scopeNotStampedByMe ||
       fullSyncStale;
-    const count = await beginRemoteCountPass(table, adapter, scope, forced);
+    const fell = coverageFell(localRows, pendingDeleteIds, metadata?.expectedRemoteRows);
+    const count = await beginRemoteCountPass(table, adapter, scope, forced || fell);
     const expectedRemoteRows =
       typeof count.rawCount === 'number' && Number.isFinite(count.rawCount) && count.rawCount >= 0
         ? Math.floor(count.rawCount)
         : undefined;
-    // After the count: a DELETE that lands in between then reads short, never over.
-    const pendingDeleteIds = await adapter.getPendingDeleteIds?.({ scope }).catch(() => undefined);
 
     // Compare the server count with the rows this device accounts for: never a
     // pending local create (MYK9-752), always a pending delete (MYK9-762).

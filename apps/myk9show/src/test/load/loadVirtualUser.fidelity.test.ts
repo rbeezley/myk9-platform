@@ -4,12 +4,18 @@ import {
   databaseManager,
   REPLICATION_INCREMENTAL_BUFFER_MS,
   REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+  DEFAULT_REMOTE_COUNT_INTERVAL_MS,
+  shouldCountRemoteRows,
 } from '@myk9/replication';
 import { supabase } from '@/services/database/supabaseClient';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
 import { REPLICATED_TABLES } from '@/providers/ReplicationSyncProvider';
 import { LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT } from './loadClassColumns';
-import { LoadVirtualUser, VIRTUAL_USER_SYNC_INTERVAL_MS } from './loadVirtualUser';
+import {
+  LoadVirtualUser,
+  REMOTE_COUNT_INTERVAL_MS,
+  VIRTUAL_USER_SYNC_INTERVAL_MS,
+} from './loadVirtualUser';
 import {
   INCREMENTAL_BUFFER_MS,
   INCREMENTAL_BUFFER_MS_HIGH_CHURN,
@@ -201,5 +207,60 @@ describe('constants the reader copies from the application', () => {
   it('overlaps each delta with the same buffer the engine uses', () => {
     expect(INCREMENTAL_BUFFER_MS).toBe(REPLICATION_INCREMENTAL_BUFFER_MS);
     expect(INCREMENTAL_BUFFER_MS_HIGH_CHURN).toBe(REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN);
+  });
+});
+
+// MYK9-1301: the engine counts on a cadence, so the reader must, or the
+// before/after rehearsal measures a count the app no longer sends.
+describe("virtual reader follows the engine's count cadence", () => {
+  const COUNTED_TABLES = ['shows', 'trials', 'classes', 'judge_assignments', 'waitlist_entries'];
+
+  async function countHeads(passMinutes: number[], countEveryPass: boolean): Promise<number> {
+    const server = createFakePostgrest();
+    const user = new LoadVirtualUser(
+      {
+        supabaseUrl: FIXTURE_URL,
+        anonKey: FIXTURE_ANON_KEY,
+        accessToken: 'fixture-secretary-token',
+        role: 'secretary',
+        fetchImpl: server.fetch,
+        countEveryPass,
+      },
+      LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT
+    );
+    const realNow = Date.now();
+    const clock = vi.spyOn(Date, 'now');
+    for (const minute of passMinutes) {
+      clock.mockReturnValue(realNow + minute * 60_000);
+      await user.syncOnce();
+    }
+    return server.requests
+      .map(normalizeRequest)
+      .filter(request => COUNTED_TABLES.some(t => request.startsWith(`HEAD /rest/v1/${t}`))).length;
+  }
+
+  const minutes = Array.from({ length: 12 }, (_, i) => i);
+
+  it('shares the engine interval', () => {
+    expect(REMOTE_COUNT_INTERVAL_MS).toBe(DEFAULT_REMOTE_COUNT_INTERVAL_MS);
+    expect(
+      shouldCountRemoteRows({
+        lastCountedAt: 1,
+        now: 1 + REMOTE_COUNT_INTERVAL_MS,
+        intervalMs: DEFAULT_REMOTE_COUNT_INTERVAL_MS,
+        countEveryPass: false,
+        reconnectEpoch: 0,
+        lastCountedEpoch: 0,
+        previousDeltaWasFullPage: false,
+      })
+    ).toBe(true);
+  });
+
+  it('counts twice across 11 simulated minutes: the first pass and after the interval', async () => {
+    expect(await countHeads(minutes, false)).toBe(2 * COUNTED_TABLES.length);
+  });
+
+  it('counts on every pass when the flag is off', async () => {
+    expect(await countHeads(minutes, true)).toBe(minutes.length * COUNTED_TABLES.length);
   });
 });

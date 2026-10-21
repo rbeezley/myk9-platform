@@ -25,6 +25,8 @@ export interface VirtualUserFleetOptions {
   readonly accessTokenFor: (role: 'exhibitor' | 'secretary', showIndex: number) => string;
   /** Column list for the classes delta, mirroring the application's own. */
   readonly classColumnSelect: string;
+  /** Count every pass (the app's `replicationCountCadence` flag off), for the A/B arm. */
+  readonly countEveryPass?: boolean;
   readonly onSample: (sample: VirtualUserRequestSample) => void;
   /** Every non-2xx response a reader's fetch saw, including retried ones. */
   readonly onApiError?: (observation: ApiErrorObservation) => void;
@@ -71,6 +73,7 @@ export class VirtualUserFleet {
           accessToken: options.accessTokenFor(role, assignment.target.showIndex),
           role,
           ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
+          ...(options.countEveryPass ? { countEveryPass: true } : {}),
           ...(options.onApiError ? { onApiError: options.onApiError } : {}),
         },
         options.classColumnSelect

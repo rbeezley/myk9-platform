@@ -31,6 +31,9 @@ export type { VirtualUserRequestSample } from './loadVirtualUserContext';
  * measures a fiction.
  */
 
+/** Matches `DEFAULT_REMOTE_COUNT_INTERVAL_MS` in packages/replication (fidelity-tested). */
+export const REMOTE_COUNT_INTERVAL_MS = 10 * 60_000;
+
 /** Matches `SYNC_INTERVAL_MS` in packages/replication. */
 export const VIRTUAL_USER_SYNC_INTERVAL_MS = 60_000;
 
@@ -46,6 +49,11 @@ export interface LoadVirtualUserOptions {
    */
   readonly role: VirtualUserRole;
   readonly fetchImpl?: typeof fetch;
+  /**
+   * Count every pass, as the app does with `replicationCountCadence` off. Default
+   * false: the engine's cadence (first pass, then every `REMOTE_COUNT_INTERVAL_MS`).
+   */
+  readonly countEveryPass?: boolean;
   /** Every non-2xx response the reader's fetch saw, retried or not. */
   readonly onApiError?: (observation: ApiErrorObservation) => void;
 }
@@ -64,6 +72,8 @@ export class LoadVirtualUser {
   /** Error-body reads still running; settled before a pass reports. */
   private readonly errorReads = new Set<Promise<void>>();
   private readonly watermarks = new Map<string, TableWatermark>();
+  /** When each table was last counted; absent until its first successful count. */
+  private readonly lastCountedAt = new Map<string, number>();
   /**
    * Every poll still running. The tick guard below keeps this to one at a time,
    * but drain() still waits on whatever is here rather than assuming it.
@@ -142,6 +152,17 @@ export class LoadVirtualUser {
       classColumnSelect: this.classColumnSelect,
       sinceIso: (table, bufferMs) => this.sinceIso(table, bufferMs),
       advance: (table, rows) => this.advance(table, rows),
+      countDue: table => {
+        const last = this.lastCountedAt.get(table);
+        return (
+          this.options.countEveryPass === true ||
+          !last ||
+          Date.now() - last >= REMOTE_COUNT_INTERVAL_MS
+        );
+      },
+      countTaken: table => {
+        this.lastCountedAt.set(table, Date.now());
+      },
       tally: rows => {
         recorder.rows += rows;
       },

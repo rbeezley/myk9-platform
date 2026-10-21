@@ -153,6 +153,7 @@ export {
   configureRemoteCountCadence,
   markRealtimeReconnected,
   resetRemoteCountCadenceForTests,
+  shouldCountRemoteRows,
   type RemoteCountCadenceConfig,
 } from './remoteCountCadence';
 export { refetchDirtyRowsById } from './refetchDirtyRowsById';

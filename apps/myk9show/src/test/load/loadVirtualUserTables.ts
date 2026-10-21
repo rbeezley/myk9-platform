@@ -58,9 +58,11 @@ async function takeCount(
   table: string,
   narrow: Narrow = q => q
 ): Promise<void> {
-  await ctx.request(`${table} (count)`, () =>
+  if (!ctx.countDue(table)) return;
+  const out = await ctx.request(`${table} (count)`, () =>
     narrow(ctx.client.from(table).select('id', COUNT)).abortSignal(ctx.signal)
   );
+  if (out.ok && out.count !== null) ctx.countTaken(table);
 }
 
 /** A delta read with no pagination, filtered by `narrow`, advancing the watermark. */

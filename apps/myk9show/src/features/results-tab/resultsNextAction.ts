@@ -165,6 +165,21 @@ export function matchesResultsStatusFilter(
   return phases === null || phases.has(phase);
 }
 
+/**
+ * The status the list opens on when the URL names none (MYK9-1276). Derived live, never written to
+ * the URL: Needs me, unless the view (trial and search applied) has classes and none needs the
+ * secretary, in which case an empty list would hide classes that exist, so it opens on All.
+ * `rowsInView` is empty until the rows have loaded, which keeps the default.
+ */
+export function deriveDefaultResultsStatus(
+  rowsInView: readonly { phase: ResultsClassPhase }[]
+): ResultsStatusFilterId {
+  const anyNeedsMe = rowsInView.some(row =>
+    matchesResultsStatusFilter(row.phase, DEFAULT_RESULTS_STATUS_FILTER)
+  );
+  return rowsInView.length > 0 && !anyNeedsMe ? 'all' : DEFAULT_RESULTS_STATUS_FILTER;
+}
+
 export const RESULTS_STATUS_FILTER_OPTIONS: readonly {
   id: ResultsStatusFilterId;
   label: string;

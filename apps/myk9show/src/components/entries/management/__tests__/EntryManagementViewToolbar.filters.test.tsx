@@ -13,6 +13,7 @@ const BASE_STATE: EntryManagementCockpitState = {
   tab: 'registrations',
   exception: 'move-ups',
   queues: ['all'],
+  queuesNamed: true,
   search: '',
   trialIds: [],
   classIds: [],

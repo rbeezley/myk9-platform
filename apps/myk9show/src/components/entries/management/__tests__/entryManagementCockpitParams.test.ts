@@ -85,11 +85,16 @@ describe('normalizeEntryManagementCockpitParams', () => {
     [
       'attention=pending&person=Poppy',
       { queues: ['needs-review'], tab: 'registrations', exception: 'move-ups', search: 'Poppy' },
-      'search=Poppy',
+      'queue=needs-review&search=Poppy',
     ],
     [
       'queue=unsupported',
-      { queues: ['needs-review'], tab: 'registrations', exception: 'move-ups' },
+      {
+        queues: ['needs-review'],
+        queuesNamed: false,
+        tab: 'registrations',
+        exception: 'move-ups',
+      },
       '',
     ],
   ])('normalizes legacy "%s" into the cockpit contract', (raw, expectedState, expectedQuery) => {
@@ -126,7 +131,7 @@ describe('normalizeEntryManagementCockpitParams', () => {
     expect(next.toString()).toBe(
       'trial=trial-1&class=class-1&queue=payment-due&search=Poppy&registration=registration-1'
     );
-    expect(writeCockpitQueues(next, ['needs-review']).has('queue')).toBe(false);
+    expect(writeCockpitQueues(next, ['needs-review']).get('queue')).toBe('needs-review');
     expect(writeCockpitSearch(next, '').has('search')).toBe(false);
     expect(writeCockpitFocus(next, null).has('registration')).toBe(false);
   });
@@ -204,7 +209,7 @@ describe('normalizeEntryManagementCockpitParams', () => {
         ['needs-review', 'payment-due'],
         'queue=needs-review%2Cpayment-due',
       ],
-      ['queue=needs-review,needs-review,bogus', ['needs-review'], ''],
+      ['queue=needs-review,needs-review,bogus', ['needs-review'], 'queue=needs-review'],
       ['queue=payment-due,all', ['all'], 'queue=all'],
       ['queue=bogus&payment=pending', ['payment-due'], 'queue=payment-due'],
     ])('reads "%s" in menu order, All winning', (raw, queues, query) => {
@@ -262,9 +267,23 @@ describe('normalizeEntryManagementCockpitParams', () => {
       expect(normalizeEntryManagementCockpitParams(next).state.classIds).toEqual(['c1', 'c2']);
     });
 
-    it('writes the default queue as no param, and an empty list as All', () => {
-      expect(writeCockpitQueues(params('queue=all'), ['needs-review']).toString()).toBe('');
+    it('writes a picked queue, Needs review included, and an empty list as All (MYK9-1276)', () => {
+      expect(writeCockpitQueues(params('queue=all'), ['needs-review']).toString()).toBe(
+        'queue=needs-review'
+      );
       expect(writeCockpitQueues(params(), []).toString()).toBe('queue=all');
+    });
+
+    it('keeps an explicit queue=needs-review through normalization and marks it named', () => {
+      const normalized = normalizeEntryManagementCockpitParams(params('queue=needs-review'));
+      expect(normalized.state).toMatchObject({ queues: ['needs-review'], queuesNamed: true });
+      expect(normalized.params.toString()).toBe('queue=needs-review');
+    });
+
+    it('leaves a URL that names no queue without one, marked unnamed', () => {
+      const normalized = normalizeEntryManagementCockpitParams(params('search=Poppy'));
+      expect(normalized.state).toMatchObject({ queues: ['needs-review'], queuesNamed: false });
+      expect(normalized.params.toString()).toBe('search=Poppy');
     });
   });
 

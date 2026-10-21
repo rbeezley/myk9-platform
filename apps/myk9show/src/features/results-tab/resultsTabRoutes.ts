@@ -7,18 +7,20 @@
  */
 import { ALL_DAYS, getShowHomeHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import { getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
-import {
-  DEFAULT_RESULTS_STATUS_FILTER,
-  isResultsStatusFilterId,
-  type ResultsStatusFilterId,
-} from './resultsNextAction';
+import { isResultsStatusFilterId, type ResultsStatusFilterId } from './resultsNextAction';
 
 export interface ResultsTabUrlState {
   classId: string | null;
   trialId: string | null;
   search: string;
-  status: ResultsStatusFilterId;
+  /** What the URL names; `null` when it names none, so the page derives the default (MYK9-1276). */
+  status: ResultsStatusFilterId | null;
 }
+
+/** The URL state with the status resolved: the URL's own, else the page's derived default. */
+export type ResultsTabViewState = Omit<ResultsTabUrlState, 'status'> & {
+  status: ResultsStatusFilterId;
+};
 
 export function readResultsTabUrlState(params: URLSearchParams): ResultsTabUrlState {
   const status = params.get('status');
@@ -26,11 +28,11 @@ export function readResultsTabUrlState(params: URLSearchParams): ResultsTabUrlSt
     classId: params.get('classId')?.trim() || null,
     trialId: params.get('trialId')?.trim() || null,
     search: params.get('q') ?? '',
-    status: isResultsStatusFilterId(status) ? status : DEFAULT_RESULTS_STATUS_FILTER,
+    status: isResultsStatusFilterId(status) ? status : null,
   };
 }
 
-/** Writes `next` over `previous`, dropping defaults and leaving `step` (and anything else) alone. */
+/** Writes `next` over `previous` (a picked status is always written, Needs me included), leaving `step` (and anything else) alone. */
 export function writeResultsTabUrlState(
   previous: URLSearchParams,
   next: Partial<ResultsTabUrlState>
@@ -44,10 +46,7 @@ export function writeResultsTabUrlState(
   if ('trialId' in next) set('trialId', next.trialId ?? null);
   if ('search' in next) set('q', next.search?.trim() ? next.search : null);
   if ('status' in next) {
-    set(
-      'status',
-      next.status && next.status !== DEFAULT_RESULTS_STATUS_FILTER ? next.status : null
-    );
+    set('status', next.status ?? null);
   }
   return params;
 }

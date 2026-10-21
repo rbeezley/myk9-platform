@@ -13,6 +13,10 @@ import {
   type ShowRegistrationQueue,
 } from '@/components/entries/management/showRegistrationProjection';
 import {
+  countListedForms,
+  deriveDefaultQueues,
+} from '@/components/entries/management/entryQueueDefault';
+import {
   writeCockpitException,
   writeCockpitFocus,
   writeCockpitQueues,
@@ -32,6 +36,7 @@ interface UseEntryManagementCockpitOptions {
 }
 
 const getGroupKey = (group: ShowRegistrationGroup) => group.groupKey;
+const PRE_LOAD_DEFAULT_QUEUES = deriveDefaultQueues(null);
 
 /** The same array while its contents are the same, so a caller that rebuilds state each render
  * does not recompute every count. */
@@ -43,22 +48,70 @@ function useStableList<T>(list: readonly T[]): readonly T[] {
 
 export function useEntryManagementCockpit({
   groups,
-  state,
+  state: urlState,
   trialClassIds,
   canValidateFocus = true,
 }: UseEntryManagementCockpitOptions) {
   const [, setSearchParams] = useSearchParams();
+  const classIds = useStableList(urlState.classIds);
+  const scopedTrialClassIds = urlState.trialIds.length > 0 ? trialClassIds : undefined;
+  // THE one place the default queue is decided (MYK9-1276): when the URL names no queue, the
+  // default is decided ONCE per scope, from the first loaded forms (All when Needs review would
+  // list nothing and All has forms), and kept until the scope or the show changes. Arrivals,
+  // refreshes and load errors never flip it, so the open form and ticked rows stay put; the
+  // Needs review count in the Show menu still rises. Until the forms have loaded the default is
+  // Needs review. `cockpit.state.queues` stays the single source of queue state, and the
+  // decided default is never written to the URL.
+  const scopeKey = [
+    urlState.tab,
+    urlState.exception,
+    urlState.search,
+    urlState.trialIds.join(','),
+    urlState.classIds.join(','),
+  ].join('|');
+  const showId = groups[0]?.entries[0]?.showId ?? null;
+  const [landing, setLanding] = useState<{
+    scopeKey: string;
+    showId: string | null;
+    queues: readonly ShowRegistrationQueue[];
+  } | null>(null);
+  const landingFits =
+    landing !== null && landing.scopeKey === scopeKey && landing.showId === showId;
+  // Decided only on loaded forms, and on a trial's classes once they are known: a landing taken
+  // before either would be kept for the whole scope.
+  const scopeIsKnown = urlState.trialIds.length === 0 || trialClassIds !== undefined;
+  if (!urlState.queuesNamed && canValidateFocus && scopeIsKnown && !landingFits) {
+    setLanding({
+      scopeKey,
+      showId,
+      queues: deriveDefaultQueues(
+        countListedForms(groups, {
+          search: urlState.search,
+          classIds,
+          trialClassIds: scopedTrialClassIds,
+        })
+      ),
+    });
+  }
+  const defaultQueues = urlState.queuesNamed
+    ? urlState.queues
+    : landingFits && landing
+      ? landing.queues
+      : PRE_LOAD_DEFAULT_QUEUES;
+  const state = useMemo(
+    () => ({ ...urlState, queues: [...defaultQueues] }),
+    [urlState, defaultQueues]
+  );
+  // A search lists its matches whatever the queue, so the queue is not part of the view then.
   const viewKey = [
     state.tab,
     state.exception,
-    state.queues.join(','),
+    state.search.trim() ? '' : state.queues.join(','),
     state.search,
     state.trialIds.join(','),
     state.classIds.join(','),
   ].join('|');
   const queues = useStableList(state.queues);
-  const classIds = useStableList(state.classIds);
-  const scopedTrialClassIds = state.trialIds.length > 0 ? trialClassIds : undefined;
   const [pageState, setPageState] = useState({ viewKey, pageIndex: 0 });
   if (pageState.viewKey !== viewKey) {
     setPageState({ viewKey, pageIndex: 0 });

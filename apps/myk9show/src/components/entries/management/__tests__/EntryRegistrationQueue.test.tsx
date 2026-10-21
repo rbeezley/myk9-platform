@@ -398,3 +398,42 @@ describe('EntryRegistrationQueue payment channel', () => {
     expect(screen.getByText('Paid online')).toBeInTheDocument();
   });
 });
+
+describe('EntryRegistrationQueue empty state', () => {
+  const renderEmpty = (emptyCopy?: { heading: string; body: string }) => {
+    stubMatchMedia(true);
+    return render(
+      <EntryRegistrationQueue
+        groups={[]}
+        focusedKey={null}
+        selectedKeys={new Set()}
+        allSelected={false}
+        partiallySelected={false}
+        onFocus={vi.fn()}
+        onToggle={vi.fn()}
+        onToggleAll={vi.fn()}
+        rangeStart={0}
+        rangeEnd={0}
+        total={0}
+        {...(emptyCopy ? { emptyCopy } : {})}
+        pageIndex={0}
+        pageCount={1}
+        onPageChange={vi.fn()}
+      />
+    );
+  };
+
+  it('names the count in All instead of telling the secretary to try another queue', () => {
+    renderEmpty({ heading: 'Nothing needs review', body: '14 entry forms are in All.' });
+
+    expect(screen.getByText('Nothing needs review')).toBeInTheDocument();
+    expect(screen.getByText('14 entry forms are in All.')).toBeInTheDocument();
+    expect(screen.queryByText(/another queue/)).toBeNull();
+  });
+
+  it('falls back to a plain sentence with no queue wording', () => {
+    renderEmpty();
+
+    expect(screen.getByText('No entry forms match this search or filter.')).toBeInTheDocument();
+  });
+});

@@ -9,6 +9,7 @@ import { useJuniorDeclaredEntryIds } from '@/hooks/useJuniorDeclaredEntryIds';
 import type { useEntryManagementCockpit } from '@/hooks/useEntryManagementCockpit';
 import { useEntryDecisionLifecycleEmails } from '@/features/lifecycle-emails';
 import { EntryRegistrationQueue } from './EntryRegistrationQueue';
+import { describeEmptyEntryQueue } from './entryQueueEmptyState';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { getEntryRegistrationRowId } from './showRegistrationProjection';
 import { EntryFocusedRegistration } from './EntryFocusedRegistration';
@@ -310,6 +311,11 @@ export function EntryManagementCockpit({
             rangeEnd={cockpit.page.rangeEnd}
             total={cockpit.page.total}
             showHasNoRegistrations={showHasNoRegistrations}
+            emptyCopy={describeEmptyEntryQueue(
+              cockpit.state,
+              cockpit.queueTotals.registrationCount,
+              cockpit.queueCounts.all
+            )}
             pageIndex={cockpit.page.pageIndex}
             pageCount={cockpit.page.pageCount}
             onPageChange={cockpit.setPageIndex}

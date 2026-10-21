@@ -208,10 +208,10 @@ const ShowDetailsPage: React.FC = () => {
 
   // ONE notion of "we do not yet know who this viewer is": RBAC is still
   // loading AND no roles have arrived. `!rbacLoading` alone is NOT it --
-  // `useRbacLifecycle` flips `isLoading` back to true on its 5-minute refresh
-  // and on every `online` event while PRESERVING `userWithRoles`, so a narrower
+  // `useRbacLifecycle` flips `isLoading` back to true on every refresh
+  // (focus, `online`, auth event, 15-minute safety net) while PRESERVING `userWithRoles`, so a narrower
   // predicate would drop an exhibitor's My Entries tab (and flip the body back
-  // to Overview) mid-session, every five minutes. Same predicate the audience
+  // to Overview) mid-session. Same predicate the audience
   // gate uses, and the same shape as `areRolesResolved` in App.tsx.
   const viewerRolesUnresolved = rbacLoading && !userWithRoles;
 

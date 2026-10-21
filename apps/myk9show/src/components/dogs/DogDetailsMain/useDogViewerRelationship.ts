@@ -14,8 +14,9 @@ const IDENTITY_WAIT_MS = 10_000;
  * keeps a cold offline boot useful).
  *
  * `pending` ends at the first resolution for this account and never returns:
- * RBAC refreshes every five minutes and sets `rbacLoading` while keeping its
- * roles, and unmounting the page on each refresh would lose the user's state.
+ * RBAC refreshes in the background (focus, reconnect, auth events, a 15 min
+ * safety net; MYK9-1308) while keeping its roles, and unmounting the page on
+ * each refresh would lose the user's state.
  * It also ends when the viewer is offline or after IDENTITY_WAIT_MS, so a lookup
  * that can never finish does not leave a blank page.
  */

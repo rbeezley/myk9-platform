@@ -1,7 +1,18 @@
+/**
+ * Staleness bound (MYK9-1308): a suspension or role change takes effect on the
+ * next window focus or tab-visible (at most once per RBAC_FOCUS_REFRESH_GAP_MS),
+ * the next reconnect, the next TOKEN_REFRESHED / USER_UPDATED, or at most
+ * RBAC_SAFETY_NET_MS on a screen that stays visible (ringside tablet, kiosk).
+ * The safety net also invalidates the identity query, so identity keeps no
+ * interval of its own. Refreshes read fresh and REPLACE the service cache on
+ * success; they never clear it first, so a failed refresh keeps the old roles.
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { ensureError } from '@myk9/core';
 import { logger } from '@/services/LoggingService';
 import { isTransientBrowserFetchError } from '@/services/rbac/PermissionChecker';
+import { useAuthEventRefresh } from './useAuthEventRefresh';
 import { rbacService } from '@/services/rbac/RBACService';
 import {
   clearRbacPermissionsCache,
@@ -85,6 +96,11 @@ function isAbortError(error: unknown): boolean {
   return false;
 }
 
+/** Minimum spacing between focus/visibility-driven refreshes. */
+export const RBAC_FOCUS_REFRESH_GAP_MS = 60 * 1000;
+/** Slow safety net for a screen that never refocuses or reconnects. */
+export const RBAC_SAFETY_NET_MS = 15 * 60 * 1000;
+
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => window.setTimeout(resolve, ms));
 }
@@ -93,6 +109,8 @@ export function useRbacLifecycle(userId: string | undefined) {
   const currentUserIdRef = useRef(userId);
   const requestGenerationRef = useRef(0);
   const [state, setState] = useState<RbacState>(EMPTY_STATE);
+  const queryClient = useQueryClient();
+  const refreshNowRef = useRef<() => void>(() => undefined);
   currentUserIdRef.current = userId;
 
   // Clear the PRIOR user's persisted permissions whenever the authenticated
@@ -120,9 +138,11 @@ export function useRbacLifecycle(userId: string | undefined) {
 
     let stale = false;
 
+    let lastLoadAt = Date.now();
     const load = async (
       attempt = 0,
-      requestGeneration = ++requestGenerationRef.current
+      requestGeneration = ++requestGenerationRef.current,
+      bypassCache = false
     ): Promise<void> => {
       const isCurrentRequest = () =>
         !stale &&
@@ -130,13 +150,21 @@ export function useRbacLifecycle(userId: string | undefined) {
         requestGenerationRef.current === requestGeneration;
 
       try {
+        // Silent background refresh: once roles are loaded for this user, keep
+        // the state as is (no loading flip, so HomeRedirect and gated routes
+        // do not flash a fallback) and replace it on success.
         setState(previous =>
           previous.userId === userId
-            ? { ...previous, isLoading: true, error: null }
+            ? previous.lastRefreshed !== null
+              ? previous
+              : { ...previous, isLoading: true, error: null }
             : { ...EMPTY_STATE, userId, isLoading: true }
         );
-        const data = await rbacService.getUserPermissions(userId);
+        const data = bypassCache
+          ? await rbacService.getUserPermissions(userId, undefined, { bypassCache })
+          : await rbacService.getUserPermissions(userId);
         if (isCurrentRequest()) {
+          lastLoadAt = Date.now();
           saveRbacPermissionsCache(userId, data);
           setState(toLoadedState(userId, data));
         }
@@ -144,7 +172,7 @@ export function useRbacLifecycle(userId: string | undefined) {
         if (!isCurrentRequest()) return;
         if ((isAbortError(error) || isTransientBrowserFetchError(error)) && attempt < 3) {
           await delay(250 * (attempt + 1));
-          if (isCurrentRequest()) await load(attempt + 1, requestGeneration);
+          if (isCurrentRequest()) await load(attempt + 1, requestGeneration, bypassCache);
           return;
         }
         logger.error('Failed to load RBAC data:', 'app', {}, ensureError(error));
@@ -176,32 +204,50 @@ export function useRbacLifecycle(userId: string | undefined) {
       }
     };
 
-    void load();
-    const refreshInterval = window.setInterval(
-      () => {
-        rbacService.clearUserCache(userId);
-        void load();
-      },
-      5 * 60 * 1000
-    );
-
-    // Refresh as soon as connectivity returns instead of waiting out the
-    // interval — cache-hydrated (offline cold boot) roles should go live
-    // promptly, as RbacOfflineNotice promises (MYK9-200).
-    const handleOnline = () => {
-      rbacService.clearUserCache(userId);
-      void load();
+    // lastLoadAt is stamped on success only, so a failed refresh leaves the
+    // gap open and the next focus retries.
+    const refresh = () => {
+      void load(0, ++requestGenerationRef.current, true);
     };
-    window.addEventListener('online', handleOnline);
+    void load();
+
+    // Focus-driven, not timer-driven: refresh when the tab comes back, at most
+    // once per gap so a flickering focus does not re-fetch each time.
+    const refreshIfDue = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (Date.now() - lastLoadAt < RBAC_FOCUS_REFRESH_GAP_MS) return;
+      refresh();
+    };
+    document.addEventListener('visibilitychange', refreshIfDue);
+    window.addEventListener('focus', refreshIfDue);
+
+    // Refresh as soon as connectivity returns — cache-hydrated (offline cold
+    // boot) roles should go live promptly, as RbacOfflineNotice promises
+    // (MYK9-200). Not gated: the last attempt may have failed offline.
+    window.addEventListener('online', refresh);
+    const refreshWithIdentity = () => {
+      refresh();
+      void queryClient.invalidateQueries({ queryKey: ['userProfile', userId] });
+    };
+    refreshNowRef.current = refreshWithIdentity;
+    // Skip while hidden: the visibilitychange listener refreshes on show.
+    const safetyNet = window.setInterval(() => {
+      if (document.visibilityState !== 'hidden') refreshWithIdentity();
+    }, RBAC_SAFETY_NET_MS);
 
     return () => {
       stale = true;
       requestGenerationRef.current += 1;
       rbacService.clearUserCache(userId);
-      window.clearInterval(refreshInterval);
-      window.removeEventListener('online', handleOnline);
+      window.clearInterval(safetyNet);
+      document.removeEventListener('visibilitychange', refreshIfDue);
+      window.removeEventListener('focus', refreshIfDue);
+      window.removeEventListener('online', refresh);
+      refreshNowRef.current = () => undefined;
     };
-  }, [userId]);
+  }, [userId, queryClient]);
+
+  useAuthEventRefresh(userId, refreshNowRef);
 
   const refreshPermissions = useCallback(async (): Promise<void> => {
     if (!userId) return;
@@ -210,8 +256,7 @@ export function useRbacLifecycle(userId: string | undefined) {
       currentUserIdRef.current === userId && requestGenerationRef.current === requestGeneration;
 
     try {
-      rbacService.clearUserCache(userId);
-      const data = await rbacService.getUserPermissions(userId);
+      const data = await rbacService.getUserPermissions(userId, undefined, { bypassCache: true });
       if (isCurrentRequest()) {
         saveRbacPermissionsCache(userId, data);
         setState(toLoadedState(userId, data));

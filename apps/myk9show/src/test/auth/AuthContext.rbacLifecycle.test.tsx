@@ -111,64 +111,6 @@ describe('AuthContext RBAC lifecycle', () => {
     });
   });
 
-  it('refreshes RBAC roles on a five-minute interval', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    mockRbacService.getUserPermissions
-      .mockResolvedValueOnce({
-        roles: [
-          {
-            role_id: 'role-secretary',
-            role: { name: UserRole.SECRETARY, display_name: 'Secretary' },
-            is_active: true,
-          },
-        ],
-        permissions: [],
-        effectivePermissions: [PERMISSIONS.SHOW_MANAGE],
-        effectivePermissionScopes: [],
-      })
-      .mockResolvedValueOnce({
-        roles: [
-          {
-            role_id: 'role-exhibitor',
-            role: { name: UserRole.EXHIBITOR, display_name: 'Exhibitor' },
-            is_active: true,
-          },
-        ],
-        permissions: [],
-        effectivePermissions: [PERMISSIONS.DOG_CREATE],
-        effectivePermissionScopes: [],
-      });
-
-    const TestComponent = () => {
-      const auth = useAuthContext();
-      return <span data-testid="user-roles">{auth.userWithRoles?.roles.join(', ')}</span>;
-    };
-
-    renderWithAuthProvider(<TestComponent />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('user-roles')).toHaveTextContent(UserRole.SECRETARY);
-    });
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(60_000);
-    });
-
-    expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(1);
-    expect(mockRbacService.clearUserCache).not.toHaveBeenCalled();
-    expect(screen.getByTestId('user-roles')).toHaveTextContent(UserRole.SECRETARY);
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(240_000);
-    });
-
-    await waitFor(() => {
-      expect(mockRbacService.clearUserCache).toHaveBeenCalledWith(mockUser.id);
-      expect(screen.getByTestId('user-roles')).toHaveTextContent(UserRole.EXHIBITOR);
-      expect(screen.getByTestId('user-roles')).not.toHaveTextContent(UserRole.SECRETARY);
-    });
-  });
-
   it('exposes detailed RBAC state and invalidates before explicit refresh', async () => {
     mockRbacService.getUserPermissions.mockResolvedValue({
       roles: [
@@ -265,9 +207,12 @@ describe('AuthContext RBAC lifecycle', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
 
     await waitFor(() => {
-      expect(mockRbacService.clearUserCache).toHaveBeenCalledWith(mockUser.id);
-      expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(2);
+      expect(mockRbacService.getUserPermissions).toHaveBeenLastCalledWith(mockUser.id, undefined, {
+        bypassCache: true,
+      });
     });
+    expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(2);
+    expect(mockRbacService.clearUserCache).not.toHaveBeenCalledWith(mockUser.id);
   });
 
   it('does not expose prior-user RBAC state while the next user loads', async () => {
@@ -1120,7 +1065,8 @@ describe('AuthContext RBAC lifecycle', () => {
     });
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 1000);
+      await vi.advanceTimersByTimeAsync(61_000);
+      window.dispatchEvent(new Event('focus'));
     });
 
     await waitFor(() => {

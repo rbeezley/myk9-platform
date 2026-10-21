@@ -136,3 +136,45 @@ describe('usePersonIdentity durable pairing', () => {
     expect(result.current.personId).toBeNull();
   });
 });
+
+describe('usePersonIdentity refresh cadence (MYK9-1308)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    maybeSingle.mockReset();
+    maybeSingle.mockResolvedValue({ data: profile, error: null });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('does not poll: no refetch after five idle minutes', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { result } = renderIdentity(newClient());
+    await waitFor(() => expect(result.current.personIdentityState).toBe('resolved'));
+    expect(maybeSingle).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+    });
+    expect(maybeSingle).toHaveBeenCalledTimes(1);
+  });
+
+  it('refetches on window focus once the data is stale, and picks up a suspension', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
+    });
+    const { result } = renderIdentity(queryClient);
+    await waitFor(() => expect(result.current.personIdentityState).toBe('resolved'));
+
+    maybeSingle.mockResolvedValue({ data: { ...profile, status: 'suspended' }, error: null });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(61_000);
+      document.dispatchEvent(new Event('visibilitychange', { bubbles: true }));
+    });
+    await waitFor(() => expect(result.current.userProfile?.status).toBe('suspended'));
+    expect(maybeSingle).toHaveBeenCalledTimes(2);
+    expect(result.current.personIdentityState).toBe('resolved');
+  });
+});

@@ -235,3 +235,92 @@ describe('PermissionChecker single-permission cache', () => {
     expect(mockRpc).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('PermissionChecker bypass refresh (MYK9-1308)', () => {
+  const eff = (code: string) => [{ permission_code: code, permission_name: code }];
+
+  it('does not serve a per-permission answer cached before a successful refresh that removed it', async () => {
+    mockRpc.mockImplementation((name: string) =>
+      Promise.resolve({ data: name === 'user_has_permission' ? true : [], error: null })
+    );
+    const checker = new PermissionChecker();
+    await expect(checker.checkPermission('user-1', 'show:manage')).resolves.toBe(true);
+
+    mockRpc.mockImplementation((name: string) =>
+      Promise.resolve({ data: name === 'user_has_permission' ? false : [], error: null })
+    );
+    await checker.getUserPermissions('user-1', undefined, { bypassCache: true });
+    await expect(checker.checkPermission('user-1', 'show:manage')).resolves.toBe(false);
+  });
+
+  it('keeps the per-permission answer and the old access entry when the refresh fails', async () => {
+    mockRpc.mockImplementation((name: string) =>
+      Promise.resolve({ data: name === 'user_has_permission' ? true : eff('a'), error: null })
+    );
+    const checker = new PermissionChecker();
+    await checker.checkPermission('user-1', 'show:manage');
+    await checker.getUserPermissions('user-1');
+
+    mockRpc.mockRejectedValue(new Error('network unavailable'));
+    await expect(
+      checker.getUserPermissions('user-1', undefined, { bypassCache: true })
+    ).rejects.toThrow('network unavailable');
+
+    mockRpc.mockClear();
+    await expect(checker.checkPermission('user-1', 'show:manage')).resolves.toBe(true);
+    const cached = await checker.getUserPermissions('user-1');
+    expect(cached.effectivePermissions).toEqual(['a']);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
+
+  it('leaves the newer result in the cache when overlapping bypass loads resolve out of order', async () => {
+    let releaseFirst: (() => void) | undefined;
+    let call = 0;
+    mockRpc.mockImplementation((name: string) => {
+      if (name !== 'get_effective_permissions') return Promise.resolve({ data: [], error: null });
+      call += 1;
+      if (call === 1) {
+        return new Promise(resolve => {
+          releaseFirst = () => resolve({ data: eff('old'), error: null });
+        });
+      }
+      return Promise.resolve({ data: eff('new'), error: null });
+    });
+    const checker = new PermissionChecker();
+
+    const first = checker.getUserPermissions('user-1', undefined, { bypassCache: true });
+    await vi.waitFor(() => expect(releaseFirst).toBeDefined());
+    const second = await checker.getUserPermissions('user-1', undefined, { bypassCache: true });
+    expect(second.effectivePermissions).toEqual(['new']);
+    releaseFirst?.();
+    await first;
+
+    const cached = await checker.getUserPermissions('user-1');
+    expect(cached.effectivePermissions).toEqual(['new']);
+  });
+
+  it('leaves the bypass result in the cache when a slower initial load resolves after it', async () => {
+    let releaseFirst: (() => void) | undefined;
+    let call = 0;
+    mockRpc.mockImplementation((name: string) => {
+      if (name !== 'get_effective_permissions') return Promise.resolve({ data: [], error: null });
+      call += 1;
+      if (call === 1) {
+        return new Promise(resolve => {
+          releaseFirst = () => resolve({ data: eff('old'), error: null });
+        });
+      }
+      return Promise.resolve({ data: eff('new'), error: null });
+    });
+    const checker = new PermissionChecker();
+
+    const initial = checker.getUserPermissions('user-1');
+    await vi.waitFor(() => expect(releaseFirst).toBeDefined());
+    await checker.getUserPermissions('user-1', undefined, { bypassCache: true });
+    releaseFirst?.();
+    await initial;
+
+    const cached = await checker.getUserPermissions('user-1');
+    expect(cached.effectivePermissions).toEqual(['new']);
+  });
+});

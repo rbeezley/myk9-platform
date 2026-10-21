@@ -62,6 +62,61 @@ describe('request set', () => {
     }
   });
 
+  describe('armbands (MYK9-1300)', () => {
+    const T1 = '2026-10-21T10:00:00.123456+00:00';
+    const armband = (id: string) => ({ id, is_available: false, updated_at: T1 });
+    /** Answers armband row reads from `pages` in order (500 for `'fail'`), everything else `[]`. */
+    const armbandServer = (urls: string[], pages: (unknown[] | 'fail')[]) =>
+      (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = input.toString();
+        urls.push(url);
+        const rowRead =
+          url.includes('/armbands?') && url.includes('select=*') && init?.method !== 'HEAD';
+        const page = rowRead ? (pages.shift() ?? []) : [];
+        return page === 'fail'
+          ? new Response('{"message":"fixture"}', { status: 500 })
+          : new Response(JSON.stringify(page), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            });
+      }) as unknown as typeof fetch;
+    const armbandReads = (urls: string[]) =>
+      urls.filter(url => url.includes('/armbands?') && url.includes('select=*'));
+
+    it('switches to the delta once it holds an armband, with no assigned-only filter', async () => {
+      const urls: string[] = [];
+      const user = reader(armbandServer(urls, [[armband('a1')]]));
+      await user.syncOnce();
+      await user.syncOnce();
+
+      const [cold, warm] = armbandReads(urls);
+      expect(cold).toContain('is_available=eq.false');
+      expect(cold).not.toContain('updated_at=gt.');
+      expect(warm).toContain(
+        `updated_at=gt.${encodeURIComponent(new Date(Date.parse(T1) - 60_000).toISOString())}`
+      );
+      expect(warm).not.toContain('is_available');
+    });
+
+    it('reads in full again after a later page of the cold read failed', async () => {
+      const urls: string[] = [];
+      const fullPage = Array.from({ length: 1000 }, (_, i) =>
+        armband(`a${String(i).padStart(4, '0')}`)
+      );
+      const user = reader(armbandServer(urls, [fullPage, 'fail', [armband('b1')]]));
+      await user.syncOnce();
+      await user.syncOnce();
+
+      const reads = armbandReads(urls);
+      expect(reads).toHaveLength(3);
+      expect(reads[1]).toContain('or=');
+      // Nothing applied by the failed pass: the next read is the cold one again.
+      expect(reads[2]).toContain('is_available=eq.false');
+      expect(reads[2]).not.toContain('or=');
+      expect(reads[2]).not.toContain('updated_at=gt.');
+    });
+  });
+
   it('runs the class enrichment reads only when the classes delta returns rows', async () => {
     const quiet = createFakePostgrest();
     const empty: string[] = [];

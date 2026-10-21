@@ -256,6 +256,7 @@ async function syncArmbands(ctx: ReaderContext): Promise<void> {
   await countedDelta(ctx, 'armbands', assigned, async () => {
     if (!cold) return readKeysetDelta(ctx, 'armbands', '*');
     const rows: TimestampedRow[] = [];
+    let firstPage: TimestampedRow[] = [];
     let cursor: { updatedAt: string; id: string } | undefined;
     for (;;) {
       const page = await ctx.request<TimestampedRow>('armbands', () => {
@@ -272,13 +273,16 @@ async function syncArmbands(ctx: ReaderContext): Promise<void> {
           .range(0, KEYSET_PAGE_SIZE - 1)
           .abortSignal(ctx.signal);
       });
+      // A failed page fails the pass with nothing applied, as the engine's throw
+      // does, so the next pass is cold again.
       if (!page.ok) return null;
-      if (!cursor) ctx.advance('armbands', page.rows);
+      if (!cursor) firstPage = page.rows;
       rows.push(...page.rows);
       const last = page.rows.at(-1);
       if (page.rows.length < KEYSET_PAGE_SIZE || !last?.updated_at || !last.id) break;
       cursor = { updatedAt: String(last.updated_at), id: String(last.id) };
     }
+    ctx.advance('armbands', firstPage);
     ctx.tally(rows.length);
     return rows;
   });

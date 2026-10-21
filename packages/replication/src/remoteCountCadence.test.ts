@@ -35,6 +35,11 @@ describe('shouldCountRemoteRows (MYK9-1301)', () => {
     expect(shouldCountRemoteRows({ ...base, now: at + base.intervalMs - 1 })).toBe(false);
     expect(shouldCountRemoteRows({ ...base, now: at + base.intervalMs })).toBe(true);
   });
+  it('counts when the device clock moved backward since the last count', () => {
+    const at = base.lastCountedAt as number;
+    expect(shouldCountRemoteRows({ ...base, now: at - 60 * 60_000 })).toBe(true);
+  });
+
   it('counts on the first pass after a reconnect', () => {
     expect(shouldCountRemoteRows({ ...base, reconnectEpoch: 1 })).toBe(true);
     expect(shouldCountRemoteRows({ ...base, lastCountedEpoch: undefined })).toBe(true);

@@ -32,6 +32,10 @@ export interface ShouldCountRemoteRowsInput {
 export function shouldCountRemoteRows(input: ShouldCountRemoteRowsInput): boolean {
   if (input.countEveryPass) return true;
   if (!input.lastCountedAt) return true;
+  // The clock is Date.now(): a device clock that moves BACKWARD must never
+  // suppress the count past its bound (a one-hour correction would otherwise
+  // hold it for seventy minutes), so a now before the last count is "due".
+  if (input.now < input.lastCountedAt) return true;
   if (input.now - input.lastCountedAt >= input.intervalMs) return true;
   if (input.reconnectEpoch !== input.lastCountedEpoch) return true;
   return input.previousDeltaWasFullPage;

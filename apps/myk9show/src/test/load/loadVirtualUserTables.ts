@@ -243,17 +243,45 @@ async function syncJudgeAssignments(ctx: ReaderContext): Promise<void> {
   );
 }
 
-/** Armbands have no `updated_at`: every pass downloads every unavailable armband. */
+/**
+ * Armbands (MYK9-1300): a cold reader, or one holding no armband, takes the full
+ * read of assigned rows the engine forces for an empty replica; a warm reader
+ * reads the keyset delta, released rows included. Both are keyset-paged, and a
+ * multi-page full read lifts the watermark from its first page only. The
+ * count-mismatch and 24 h full-sync branches are not modelled.
+ */
 async function syncArmbands(ctx: ReaderContext): Promise<void> {
-  const out = await ctx.request<TimestampedRow>('armbands', () =>
-    ctx.client
-      .from('armbands')
-      .select('*')
-      .eq('is_available', false)
-      .order('created_at', { ascending: true })
-      .abortSignal(ctx.signal)
-  );
-  if (out.ok) ctx.tally(out.rows.length);
+  const assigned: Narrow = query => query.eq('is_available', false);
+  const cold = ctx.sinceIso('armbands', 0) === new Date(0).toISOString();
+  await countedDelta(ctx, 'armbands', assigned, async () => {
+    if (!cold) return readKeysetDelta(ctx, 'armbands', '*');
+    const rows: TimestampedRow[] = [];
+    let cursor: { updatedAt: string; id: string } | undefined;
+    for (;;) {
+      const page = await ctx.request<TimestampedRow>('armbands', () => {
+        const query = assigned(ctx.client.from('armbands').select('*'));
+        return (
+          cursor
+            ? query.or(
+                `updated_at.gt.${cursor.updatedAt},and(updated_at.eq.${cursor.updatedAt},id.gt.${cursor.id})`
+              )
+            : query
+        )
+          .order('updated_at', { ascending: true })
+          .order('id', { ascending: true })
+          .range(0, KEYSET_PAGE_SIZE - 1)
+          .abortSignal(ctx.signal);
+      });
+      if (!page.ok) return null;
+      if (!cursor) ctx.advance('armbands', page.rows);
+      rows.push(...page.rows);
+      const last = page.rows.at(-1);
+      if (page.rows.length < KEYSET_PAGE_SIZE || !last?.updated_at || !last.id) break;
+      cursor = { updatedAt: String(last.updated_at), id: String(last.id) };
+    }
+    ctx.tally(rows.length);
+    return rows;
+  });
 }
 
 async function syncWaitlistEntries(ctx: ReaderContext): Promise<void> {

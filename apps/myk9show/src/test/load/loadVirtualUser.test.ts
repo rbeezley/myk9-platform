@@ -47,15 +47,19 @@ describe('request set', () => {
     for (const url of deltas) expect(url).toContain(`updated_at=gt.${epoch}`);
   });
 
-  it('downloads every unavailable armband on every pass, as the app does', async () => {
+  it('reads assigned armbands in full while it holds none, as the app does for an empty replica', async () => {
     const urls: string[] = [];
     const user = reader(emptyServer(urls));
     await user.syncOnce();
     await user.syncOnce();
 
-    const armbands = urls.filter(url => url.includes('/armbands?'));
+    // Row reads only: the engine's count is a separate `select=id` HEAD.
+    const armbands = urls.filter(url => url.includes('/armbands?') && url.includes('select=*'));
     expect(armbands).toHaveLength(2);
-    for (const url of armbands) expect(url).not.toContain('updated_at');
+    for (const url of armbands) {
+      expect(url).toContain('is_available=eq.false');
+      expect(url).not.toContain('updated_at=gt.');
+    }
   });
 
   it('runs the class enrichment reads only when the classes delta returns rows', async () => {

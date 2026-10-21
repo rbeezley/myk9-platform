@@ -348,8 +348,26 @@ test.describe('Clubs UI — Non-admin permissions', () => {
     // the exhibitor can open, so take the first row of the list.
     await page.locator('a[href^="/clubs/"]').first().click();
     await page.waitForURL(/\/clubs\/[0-9a-f-]{36}$/);
-    // An exhibitor has no page action at all, so the header Actions menu is absent (MYK9-928).
-    await expect(actionsTrigger(page)).toHaveCount(0);
+    // Every club action lives in the header Actions menu (MYK9-928). Since the Create
+    // group (MYK9-1063) and the list's Export CSV, that menu also opens for an
+    // exhibitor with items that are not about the club, so "no trigger" stopped
+    // meaning "no club permissions". Assert the permission surface by name instead:
+    // none of the club management items may be offered. Delete sits in the Edit
+    // panel's footer, so no Edit club means no Delete club either.
+    if (await actionsTrigger(page).isVisible()) {
+      const menu = await openActionsMenu(page);
+      for (const name of [
+        'Edit club',
+        'Delete club',
+        'Change Photo',
+        'Authorize Club',
+        'Revoke Authorization',
+        'Add Show for this club',
+      ]) {
+        await expect(menu.getByRole('menuitem', { name, exact: true })).toHaveCount(0);
+      }
+      await page.keyboard.press('Escape');
+    }
     // Nor any ⋮ on the card: Change Photo and Authorize live in that header menu.
     await expect(page.getByRole('button', { name: 'Club options' })).toHaveCount(0);
   });

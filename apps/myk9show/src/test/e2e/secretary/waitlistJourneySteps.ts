@@ -49,7 +49,7 @@ export async function expectOnMyShows(
 
 /** The exhibitor (already on the show's register page) puts Willow on the full class's wait list. */
 export async function joinFullClassAsWillow(exhibitor: Page, admin: SupabaseClient) {
-  await expect(exhibitor.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
+  await expect(exhibitor.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible({
     timeout: 20_000,
   });
   await exhibitor.getByRole('checkbox', { name: /^Select Willow$/ }).click();

@@ -36,6 +36,6 @@ describe('CartPage live region', () => {
   });
 
   it('announces the empty transition, which has no heading to focus', () => {
-    expect(source).toContain('Your cart is now empty.');
+    expect(source).toContain('Your entry is now empty.');
   });
 });

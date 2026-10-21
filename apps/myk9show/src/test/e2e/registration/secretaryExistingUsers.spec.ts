@@ -71,7 +71,7 @@ test.describe('Secretary registration for existing users', () => {
   test('renders secretary-mode search and keeps Next disabled until a dog is selected', async ({
     page,
   }) => {
-    await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible();
     await expect(page.getByPlaceholder(/Search all dogs/i)).toBeVisible();
     await expect(page.getByRole('button', { name: /^Next/ })).toBeDisabled();
 

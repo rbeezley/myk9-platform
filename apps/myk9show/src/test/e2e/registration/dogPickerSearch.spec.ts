@@ -115,7 +115,7 @@ for (const viewport of [
       timeout: 15000,
     });
     await page.getByRole('button', { name: 'Back', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible();
     await search.fill(callName);
     await expect(dog).toBeChecked();
   });

@@ -18,7 +18,7 @@ export const getShowStatus = (date: string, isUpcoming: boolean): ShowStatus => 
   const daysUntil = Math.ceil((showDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
   if (!isUpcoming) return { status: 'completed', label: 'Completed' };
-  if (daysUntil > 30) return { status: 'registration', label: 'Registration Open' };
+  if (daysUntil > 30) return { status: 'registration', label: 'Entries Open' };
   if (daysUntil > 0) return { status: 'upcoming', label: 'Upcoming' };
   return { status: 'upcoming', label: 'This Week' };
 };

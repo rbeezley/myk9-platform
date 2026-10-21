@@ -82,7 +82,7 @@ describe('DogSelectionStepEnhanced — registration-number wording follows the s
       `Search all dogs by name, breed, or ${expected}...`
     );
     expect(
-      screen.getByText(`Search by name, breed, or ${expected} to find a dog to register.`)
+      screen.getByText(`Search by name, breed, or ${expected} to find a dog to enter.`)
     ).toBeInTheDocument();
 
     // No other registry's name may leak into the picker's copy.

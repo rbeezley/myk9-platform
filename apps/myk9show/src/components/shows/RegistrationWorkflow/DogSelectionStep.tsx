@@ -235,7 +235,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
       <div className="space-y-4">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-lg font-semibold">Select Dogs to Register</h3>
+            <h3 className="text-lg font-semibold">Select Dogs to Enter</h3>
             <p className="text-sm text-muted-foreground mt-1">
               Choose which dogs you want to enter in this show. You can select multiple dogs.
             </p>

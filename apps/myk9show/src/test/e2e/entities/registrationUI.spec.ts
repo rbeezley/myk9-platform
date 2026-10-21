@@ -48,7 +48,7 @@ const SUPABASE_ANON_KEY =
 
 async function gotoRegistrationWizard(page: Page) {
   await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'networkidle' });
-  await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Enter This Show' })).toBeVisible({
     timeout: 15000,
   });
 }
@@ -96,7 +96,7 @@ test.describe('Registration Wizard — Browse + RBAC guard', () => {
     // The "Step 1 of 5" text appears in two places (vertical sidebar + main content
     // header); .first() matches either reliably.
     await expect(page.getByText(/Step 1 of 5/).first()).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible();
 
     // advancedSearch flag → "Search all dogs..." placeholder is present.
     // (Bulk Select / Create New buttons render conditionally on visibleDogs.length;
@@ -231,7 +231,7 @@ test.describe('Registration Wizard — Mail-in entry happy path', () => {
     expect(rpcResponse.status()).toBeLessThan(300);
 
     // ─── Step 5: Confirmation ──────────────────────────────────────────────
-    await expect(page.getByRole('heading', { name: /Registration Confirmed!/i })).toBeVisible({
+    await expect(page.getByRole('heading', { name: /Entry Confirmed!/i })).toBeVisible({
       timeout: 30000,
     });
     // Confirmation # badge is rendered with the registration number.

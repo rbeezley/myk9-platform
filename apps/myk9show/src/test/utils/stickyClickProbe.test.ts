@@ -42,7 +42,7 @@ describe('probeStepForViewport', () => {
   });
 
   it('stays smaller than the gap the wizard chrome leaves on a phone', () => {
-    // 393x727 with a tall "Your entries" drawer leaves ~193px between the
+    // 393x727 with a tall "Your entry" drawer leaves ~193px between the
     // wizard header and the entries bar. A step at or above that strides over
     // the only clickable band, which is exactly how the first cut failed.
     expect(probeStepForViewport(727)).toBeLessThan(193);

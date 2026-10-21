@@ -289,7 +289,7 @@ export async function clickClearOfStickyChrome(page: Page, target: Locator): Pro
 }
 
 export async function selectFirstDogAndContinue(page: Page): Promise<void> {
-  await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible({
     timeout: 20000,
   });
   const namedDogOptions = page.locator('[role="checkbox"][aria-label^="Select "]');

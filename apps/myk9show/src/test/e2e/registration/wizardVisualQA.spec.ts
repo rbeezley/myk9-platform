@@ -46,7 +46,7 @@ function captureConsoleErrors(page: Page) {
 }
 
 async function assertWizardShell(page: Page, consoleErrors: string[]) {
-  await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Enter This Show' })).toBeVisible({
     timeout: 20000,
   });
   await expect(page.getByTestId('registration-wizard-header')).toBeVisible();
@@ -75,7 +75,7 @@ async function assertWizardShell(page: Page, consoleErrors: string[]) {
 }
 
 async function selectFirstDog(page: Page) {
-  await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible({
     timeout: 15000,
   });
   const namedDogOptions = page.locator('[role="checkbox"][aria-label^="Select "]');
@@ -144,7 +144,7 @@ async function releaseWalkClass(page: Page) {
     await expect(dialog).toBeHidden();
   }
   const classes = page.getByRole('heading', { name: 'Select Classes', exact: true });
-  const dogs = page.getByRole('heading', { name: 'Select Dogs to Register' });
+  const dogs = page.getByRole('heading', { name: 'Select Dogs to Enter' });
   const dogOptions = page.locator('[role="checkbox"][aria-label^="Select "]');
   for (let hop = 0; hop < 3 && !(await classes.isVisible()); hop += 1) {
     if (await dogs.isVisible()) {
@@ -244,7 +244,7 @@ test('registration wizard covers dog, class, and payment states', async ({ page 
   await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible();
 
   await backToStep(page, 'Select Classes');
-  await backToStep(page, 'Select Dogs to Register');
+  await backToStep(page, 'Select Dogs to Enter');
   await expect(page.locator('[role="checkbox"][aria-checked="true"]').first()).toBeVisible();
 
   await page.screenshot({
@@ -264,7 +264,7 @@ test('registration wizard covers dog, class, and payment states', async ({ page 
 test('the only exit from the wizard meets the 44px touch floor', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
-  await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Enter This Show' })).toBeVisible({
     timeout: 20000,
   });
   // Measured 181x40 before the fix: size="default" is h-10, despite its
@@ -284,7 +284,7 @@ test('dark-mode muted captions clear WCAG AA on the composited wizard surfaces',
     localStorage.setItem('myK9Q_settings', JSON.stringify({ theme: 'dark' }));
   });
   await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
-  await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Enter This Show' })).toBeVisible({
     timeout: 20000,
   });
 
@@ -529,7 +529,7 @@ async function assertStepTitlesFitOneLine(page: Page, width: number, expectedSte
 test.describe('wizard step titles never break mid-word', () => {
   test('exhibitor variant keeps every step title on one line', async ({ page }) => {
     await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
-    await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Enter This Show' })).toBeVisible({
       timeout: 30000,
     });
     for (const width of STEP_TITLE_WIDTHS) {
@@ -711,7 +711,7 @@ test('phone sticky chrome takes at most a third of the viewport once scrolled', 
 }) => {
   await page.setViewportSize({ width: 393, height: 727 });
   await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
-  await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible({
     timeout: 20000,
   });
   await expect(page.locator('[role="checkbox"][aria-label^="Select "]').first()).toBeVisible({
@@ -782,7 +782,7 @@ test('the desktop entries panel is the only place the total appears', async ({ p
     // Spec scenario "Only one place shows the total": the bottom-of-page
     // DogCartSummary / OverallCartSummary are gone, not merely hidden.
     await expect(page.getByText(/Cart Total \(/)).toHaveCount(0);
-    await expect(page.getByText(/classes? in cart/)).toHaveCount(0);
+    await expect(page.getByText(/classes? in your entry/)).toHaveCount(0);
 
     // The panel's card is a sticky box in a STRETCHED column, so it can travel
     // the full height of the content card beside it.
@@ -867,7 +867,7 @@ test.describe('dog picker checkbox geometry', () => {
     }) => {
       await page.setViewportSize({ width, height: 900 });
       await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
-      await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
+      await expect(page.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible({
         timeout: 30000,
       });
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ShoppingCart } from 'lucide-react';
+import { ChevronDown, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { PlatformFeeRates } from '@/store/cartStore.helpers';
@@ -166,15 +166,11 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
           is the sticky element. A sticky box can only travel inside its
           containing block, so a content-height column would scroll away with
           the page however the sticky is written. */}
-      <aside
-        data-testid="entries-panel"
-        aria-label="Your entries"
-        className="hidden h-full lg:block"
-      >
+      <aside data-testid="entries-panel" aria-label="Your entry" className="hidden h-full lg:block">
         <div className="sticky top-[calc(var(--registration-header-height,0px)+1.5rem)] space-y-4 rounded-xl border border-border bg-card p-5 shadow-sm">
           <div className="flex items-center gap-2">
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">Your entries</h2>
+            <ClipboardList className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">Your entry</h2>
           </div>
           <div className="max-h-[50vh] overflow-y-auto">{lines}</div>
           {totalsBlock}
@@ -196,7 +192,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
         // display:none and therefore measures 0.
         ref={actionBarRef}
         data-testid="entries-panel-bar"
-        aria-label="Your entries"
+        aria-label="Your entry"
         className="sticky bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur lg:hidden"
       >
         {detailsOpen && (
@@ -212,7 +208,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
         {/* No vertical padding on a phone: the 44px Details button already sets
             the row height, and every pixel here is taken from the step (MYK9-622). */}
         <div className="flex min-h-11 items-center gap-2 px-4 sm:py-1.5">
-          <ShoppingCart className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <ClipboardList className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span data-testid="entries-panel-total" className="min-w-0 truncate text-sm font-medium">
             {classCount} class{classCount === 1 ? '' : 'es'} ·{' '}
             <span className="tabular-nums">{headline}</span>

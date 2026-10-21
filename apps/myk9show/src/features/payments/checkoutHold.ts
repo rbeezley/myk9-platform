@@ -17,7 +17,7 @@ import { STORAGE_KEYS } from '@/constants/storageKeys';
 export const CHECKOUT_HOLD_PAY_LINE = "We're holding your spots for 30 minutes while you pay.";
 
 export const CHECKOUT_HOLD_ENDED_MESSAGE =
-  'Your 30-minute hold ended. Your cart is saved; check out again to re-check spots.';
+  'Your 30-minute hold ended. Your entry is saved; check out again to re-check spots.';
 
 interface StoredCheckoutHold {
   sessionId: string;

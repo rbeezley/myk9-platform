@@ -41,7 +41,7 @@ test('a reload on Select classes restores the step, the dog and the selected cla
   await page.reload();
 
   // The step heading — not the cart — is the claim. Before the fix this read
-  // "Select Dogs to Register".
+  // "Select Dogs to Enter".
   await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
     timeout: 30000,
   });

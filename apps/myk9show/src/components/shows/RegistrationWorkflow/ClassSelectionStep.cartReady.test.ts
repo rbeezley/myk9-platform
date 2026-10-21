@@ -80,7 +80,7 @@ describe('isCartReady consults the opener, not only the store', () => {
     // could not be opened.
     const input = {
       ...storeAgrees,
-      cartOpen: { kind: 'failed', error: 'Your cart is taking too long to open.' },
+      cartOpen: { kind: 'failed', error: 'Your entry is taking too long to open.' },
     } satisfies CartReadinessInput;
 
     expect(isCartReady(input)).toBe(false);

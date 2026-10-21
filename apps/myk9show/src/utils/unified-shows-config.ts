@@ -95,7 +95,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
       id: 'all',
       label: 'Browse All',
       icon: Globe,
-      description: 'Browse and register for available shows',
+      description: 'Browse and enter available shows',
       getCount: shows => shows.filter(s => ShowPermissionValidator.canView(user, s)).length,
       filterShows: shows => shows.filter(s => ShowPermissionValidator.canView(user, s)),
     });

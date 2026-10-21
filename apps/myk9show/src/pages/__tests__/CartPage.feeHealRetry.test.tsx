@@ -17,7 +17,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 
 const HEAL_MESSAGE =
-  'Entry fees were updated to current show pricing — review your cart and try again.';
+  'Entry fees were updated to current show pricing — review your entry and try again.';
 
 const createEntryCheckoutSessionMock = vi.hoisted(() => vi.fn());
 const loadActiveCartMock = vi.hoisted(() => vi.fn());

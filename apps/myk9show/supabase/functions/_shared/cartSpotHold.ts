@@ -77,7 +77,7 @@ export type CartLeaseClaim =
 export const CHECKOUT_IN_PROGRESS_CODE = 'checkout_in_progress';
 
 export const CHECKOUT_IN_PROGRESS_MESSAGE =
-  'Checkout is already starting for this cart. One moment, then try again.';
+  'Checkout is already starting for this entry. One moment, then try again.';
 
 /** Claim the cart's checkout, or learn that another request holds it. */
 export async function claimCartCheckout(
@@ -218,7 +218,7 @@ export class CartChangedError extends Error {
 }
 
 export const CART_CHANGED_MESSAGE =
-  'Your cart changed while checkout was starting. Please try again.';
+  'Your entry changed while checkout was starting. Please try again.';
 
 export const CART_HOLD_UNAVAILABLE_MESSAGE =
   'We could not hold your spots just now. Nothing was charged. Please try again in a moment.';
@@ -279,6 +279,6 @@ export function describeRefusedLines(
 
   const list = named.map(({ dog, cls }) => `${dog} in ${cls}`).join(', ');
   return named.some(({ line }) => line.allow_waitlist && !line.denial_reason)
-    ? `Spots just filled for ${list}, so nothing was charged. Your cart shows which can join a wait list; remove the others to continue.`
-    : `Spots just filled for ${list}, so nothing was charged. Remove them from your cart to continue.`;
+    ? `Spots just filled for ${list}, so nothing was charged. Your entry shows which can join a wait list; remove the others to continue.`
+    : `Spots just filled for ${list}, so nothing was charged. Remove them from your entry to continue.`;
 }

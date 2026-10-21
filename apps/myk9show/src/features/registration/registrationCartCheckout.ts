@@ -69,7 +69,7 @@ export async function submitRegistrationCartCheckout({
   // (review C P2-2) — on an empty cart this is a zero-row DELETE.
   const cleared = await deps.clearCart();
   if (!cleared) {
-    throw new Error('Failed to clear existing cart. Please try again.');
+    throw new Error('Failed to clear your existing entry. Please try again.');
   }
 
   // A declaration only counts on a show that has a junior tier. Dropped otherwise
@@ -88,7 +88,7 @@ export async function submitRegistrationCartCheckout({
     for (const item of items) {
       const added = await deps.addItem(item);
       if (!added) {
-        throw new Error('Failed to add entry to cart');
+        throw new Error('Failed to add entry');
       }
       addedCount++;
     }

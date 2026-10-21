@@ -113,7 +113,7 @@ test.describe('Browse entries', () => {
     // MYK9-1242: one Add Entry, straight to the secretary flow; no "who are you entering" choice.
     await page.getByRole('button', { name: 'Add Entry', exact: true }).click();
     await page.waitForURL(`**/secretary/register/${LIVE_SECRETARY_SHOW_ID}`, { timeout: 10_000 });
-    await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible({
       timeout: 15_000,
     });
   });

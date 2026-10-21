@@ -34,7 +34,7 @@ export interface ClassAvailabilityForGate {
 }
 
 export const CART_CLASS_CLOSED_MESSAGE =
-  'A class in your cart has closed or filled since you added it. Review your cart and try again.';
+  'A class you picked has closed or filled since you added it. Review your entry and try again.';
 
 /** Class ids of the cart's NEW lines, the only ones the gate reads. */
 export function newLineClassIds(items: readonly CartLineForClassGate[]): string[] {
@@ -97,7 +97,7 @@ export async function releasePriorSessionForClassGate(
   const unsafe = (diagnostic: string): PriorSessionRelease => ({
     kind: 'blocked',
     status: 503,
-    error: 'We could not safely update your cart. Please try again in a moment.',
+    error: 'We could not safely update your entry. Please try again in a moment.',
     diagnostic,
   });
 
@@ -115,7 +115,7 @@ export async function releasePriorSessionForClassGate(
       kind: 'blocked',
       status: 409,
       error:
-        'Your payment for this cart is already processing. Give it a few seconds, then check My Entries.',
+        'Your payment for this entry is already processing. Give it a few seconds, then check My Entries.',
       diagnostic: `Checkout Session ${existing.id} is complete`,
     };
   }
@@ -154,7 +154,7 @@ export async function classGateRefusal(
     if (error) {
       return {
         status: 503,
-        error: 'We could not safely update your cart. Please try again in a moment.',
+        error: 'We could not safely update your entry. Please try again in a moment.',
         diagnostic: `Could not unlink session ${priorSessionId}: ${JSON.stringify(error)}`,
       };
     }

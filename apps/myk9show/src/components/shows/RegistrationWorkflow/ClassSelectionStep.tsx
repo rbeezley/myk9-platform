@@ -474,7 +474,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
       isCartReady: cartReady,
       onBlockedByCart,
       notifyAdded: () =>
-        toast.success('Added to cart', { description: 'Class added to your cart' }),
+        toast.success('Added to your entry', { description: 'Class added to your entry' }),
       notifyError: message => toast.error(message),
     });
   };
@@ -507,7 +507,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         <Alert variant="destructive">
           <Info className="h-4 w-4" />
           <AlertDescription className="flex flex-wrap items-center gap-3">
-            <span>We couldn’t open your cart, so classes can’t be selected yet.</span>
+            <span>We couldn’t open your entry, so classes can’t be selected yet.</span>
             <Button
               type="button"
               size="sm"

@@ -373,7 +373,7 @@ export default function CheckoutSuccessPage() {
       ? 'Payment Refunded'
       : 'Entry Submitted Successfully!';
   const pageDescription = isWaitlistOnlySuccess
-    ? 'Your wait list request has been recorded for the full classes in this cart.'
+    ? 'Your wait list request has been recorded for the full classes in this entry.'
     : isFullOverflowRefund
       ? 'The remaining spots filled before your paid entries could be created.'
       : 'Your payment has been processed and your entries are confirmed.';

@@ -222,7 +222,7 @@ export async function toggleClassSelection({
         setAddingItem(null);
       }
       if (!removed) {
-        notifyError('Failed to remove from cart');
+        notifyError('Failed to remove from your entry');
         return;
       }
     }
@@ -241,7 +241,7 @@ export async function toggleClassSelection({
     setAddingItem(null);
   }
   if (!added) {
-    notifyError('Failed to add to cart');
+    notifyError('Failed to add to your entry');
     return;
   }
   notifyAdded();

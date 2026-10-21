@@ -3,9 +3,9 @@ import { logger } from '@/services/LoggingService';
 import type { EnsureCartResult } from '@/store/cartStore.types';
 
 /** Caption on a chip whose cart has not opened YET. */
-export const CART_PENDING_REASON = 'Loading your cart…';
+export const CART_PENDING_REASON = 'Loading your entry…';
 /** Caption on a chip whose cart will not open at all, until Try again. */
-export const CART_UNAVAILABLE_REASON = 'Your cart could not be opened';
+export const CART_UNAVAILABLE_REASON = 'Your entry could not be opened';
 
 /**
  * Is the cart this step is about to mutate the cart for THIS show and

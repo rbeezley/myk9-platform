@@ -139,7 +139,7 @@ test.describe('Number-first Add Dog: a held entry is listed, kept off the run sh
 
     await test.step('2. in the entry wizard, "No registration number yet" adds a dog and selects it', async () => {
       await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
+      await expect(page.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible({
         timeout: 30_000,
       });
       await page.getByRole('button', { name: /Create New/ }).click();

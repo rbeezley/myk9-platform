@@ -250,7 +250,7 @@ describe('ClassSelectionStep — withdrawn re-entry (MYK9-982)', () => {
 
     expect(await screen.findByText('Advanced')).toBeInTheDocument();
     expect(screen.queryByText('Withdrawn from this class')).not.toBeInTheDocument();
-    // The chip stays aria-disabled ("Loading your cart…") until ensureCart resolves, so wait
+    // The chip stays aria-disabled ("Loading your entry…") until ensureCart resolves, so wait
     // for the cart rather than asserting on the first paint.
     await waitFor(() =>
       expect(screen.getByRole('checkbox')).not.toHaveAttribute('aria-disabled', 'true')

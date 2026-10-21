@@ -45,7 +45,7 @@ describe('ClosedClassRemovedNotice', () => {
 
     expect(
       screen.getByText(
-        'We took 2 classes out of your saved cart, so you will not be charged for them.'
+        'We took 2 classes out of your saved entry, so you will not be charged for them.'
       )
     ).toBeInTheDocument();
     expect(

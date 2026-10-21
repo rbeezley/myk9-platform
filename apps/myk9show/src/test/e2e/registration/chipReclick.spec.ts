@@ -38,7 +38,7 @@ const EVIDENCE = '../../.logs/evidence-530';
 
 /** The dog tab's cart badge, whose title reads "N class(es) in cart". */
 function cartBadgeCount(page: import('@playwright/test').Page) {
-  return page.locator('[title$="in cart"], [title$="in cart"] >> visible=true');
+  return page.locator('[title$="in your entry"], [title$="in your entry"] >> visible=true');
 }
 
 async function cartCount(page: import('@playwright/test').Page): Promise<number> {
@@ -115,7 +115,8 @@ test('select, re-click to deselect, select again — no error, count correct thr
   // A 23505 surfaces as a console error from the cart store's logger, so this
   // is the regression's own signature and not a generic tidiness assertion.
   const duplicates = consoleErrors.filter(
-    e => /23505|duplicate key|entry_cart_items_unique/.test(e) || /Failed to add to cart/.test(e)
+    e =>
+      /23505|duplicate key|entry_cart_items_unique/.test(e) || /Failed to add to your entry/.test(e)
   );
   expect(duplicates, 'no duplicate-insert error may appear').toEqual([]);
 });

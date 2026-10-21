@@ -121,7 +121,7 @@ import CartPage from '@/pages/CartPage';
 const FILLED =
   'Novice Container just filled, so nothing was charged. Remove Ziva from Novice Container to continue.';
 const HOLD_ENDED =
-  'Your 30-minute hold ended. Your cart is saved; check out again to re-check spots.';
+  'Your 30-minute hold ended. Your entry is saved; check out again to re-check spots.';
 
 beforeEach(() => {
   vi.clearAllMocks();

@@ -208,7 +208,7 @@ export function buildRegistrationEntryBlankDownloads(
     if (!currentShow || !dog || !selectedClass || !trial || !outcome.entryId) {
       unavailable.push({
         key,
-        reason: 'We could not assemble this entry blank from the completed registration.',
+        reason: 'We could not assemble this entry blank.',
       });
       continue;
     }

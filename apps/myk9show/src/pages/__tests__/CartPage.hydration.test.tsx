@@ -3,7 +3,7 @@
  *
  * A direct visit (refresh, deep link, new device) mounts CartPage before the
  * profile resolves and the in-memory cart store hydrates. Without the gate, the
- * "Your cart is empty" zero-state flashes over a cart that is still loading.
+ * "Nothing in your entry yet" zero-state flashes over a cart that is still loading.
  * The gate must render the loading state while EITHER the profile or the cart
  * store is loading and there are no items yet, and fall through to the empty
  * zero-state only once both have settled.
@@ -55,17 +55,17 @@ describe('CartPage hydration gate', () => {
   it('shows the loading state, not the empty zero-state, while the cart store hydrates', () => {
     cartState.isLoading = true;
     render(<CartPage />);
-    expect(screen.getByRole('status', { name: 'Loading cart' })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading your entry' })).toBeInTheDocument();
     expect(document.querySelector('.animate-spin')).toBeNull();
-    expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();
+    expect(screen.queryByText('Nothing in your entry yet')).not.toBeInTheDocument();
   });
 
   it('shows the loading state while the exhibitor profile is still resolving', () => {
     profileState.isLoading = true;
     render(<CartPage />);
-    expect(screen.getByRole('status', { name: 'Loading cart' })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading your entry' })).toBeInTheDocument();
     expect(document.querySelector('.animate-spin')).toBeNull();
-    expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();
+    expect(screen.queryByText('Nothing in your entry yet')).not.toBeInTheDocument();
   });
 
   it('shows the loading state on the first frame: profile resolved with an id but the cart-load effect has not started', () => {
@@ -79,9 +79,9 @@ describe('CartPage hydration gate', () => {
     cartState.loadInitiated = false;
     cartState.items = [];
     render(<CartPage />);
-    expect(screen.getByRole('status', { name: 'Loading cart' })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading your entry' })).toBeInTheDocument();
     expect(document.querySelector('.animate-spin')).toBeNull();
-    expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();
+    expect(screen.queryByText('Nothing in your entry yet')).not.toBeInTheDocument();
   });
 
   it('falls through to the empty zero-state once a profiled load completes with no items', () => {
@@ -93,8 +93,8 @@ describe('CartPage hydration gate', () => {
     cartState.loadInitiated = true;
     cartState.items = [];
     render(<CartPage />);
-    expect(screen.getByText('Your cart is empty')).toBeInTheDocument();
-    expect(screen.queryByRole('status', { name: 'Loading cart' })).not.toBeInTheDocument();
+    expect(screen.getByText('Nothing in your entry yet')).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Loading your entry' })).not.toBeInTheDocument();
   });
 
   it('shows the empty zero-state for a visitor with no exhibitor profile', () => {
@@ -102,8 +102,8 @@ describe('CartPage hydration gate', () => {
     profileState.profile = null;
     profileState.isLoading = false;
     render(<CartPage />);
-    expect(screen.getByText('Your cart is empty')).toBeInTheDocument();
-    expect(screen.queryByRole('status', { name: 'Loading cart' })).not.toBeInTheDocument();
+    expect(screen.getByText('Nothing in your entry yet')).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Loading your entry' })).not.toBeInTheDocument();
   });
 
   it('passes the fee-card recovery scope into cart hydration on a direct visit', () => {
@@ -117,6 +117,6 @@ describe('CartPage hydration gate', () => {
       showId: 'open-show',
       recoveryEntryIds: ['entry-3', 'entry-1', 'entry-3'],
     });
-    expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();
+    expect(screen.queryByText('Nothing in your entry yet')).not.toBeInTheDocument();
   });
 });

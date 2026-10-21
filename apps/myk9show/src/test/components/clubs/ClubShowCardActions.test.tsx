@@ -92,7 +92,7 @@ describe('club show card actions', () => {
     expect(await screen.findByRole('menu')).toBeInTheDocument();
     expect(onViewShowDetails).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('menuitem', { name: 'Register' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Enter' }));
     expect(onRegisterForShow).toHaveBeenCalledWith('show-upcoming');
     expect(onViewShowDetails).not.toHaveBeenCalled();
   });

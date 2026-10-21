@@ -210,8 +210,8 @@ export function FeesPage() {
               {state === 'loading'
                 ? 'Loading the current service fee\u2026'
                 : state === 'absent'
-                  ? 'No service fee is configured right now, so there are no figures to show. The fee shown in your cart before you pay is always the fee you are charged.'
-                  : 'We could not load the current service fee just now, so the figures are not shown rather than guessed. The fee shown in your cart before you pay is always the fee you are charged.'}
+                  ? 'No service fee is configured right now, so there are no figures to show. The fee shown at checkout before you pay is always the fee you are charged.'
+                  : 'We could not load the current service fee just now, so the figures are not shown rather than guessed. The fee shown at checkout before you pay is always the fee you are charged.'}
             </p>
           )}
           <p className="text-sm text-muted-foreground">

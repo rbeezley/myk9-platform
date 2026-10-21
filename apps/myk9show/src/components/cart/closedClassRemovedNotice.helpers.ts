@@ -32,8 +32,8 @@ export function paymentLinkNoticeCopy(outcome: PaymentLinkOutcome): {
     return {
       heading:
         requested === 1
-          ? 'The entry in your payment link is not in your cart.'
-          : `None of the ${requested} entries in your payment link are in your cart.`,
+          ? 'The entry in your payment link is not part of this checkout.'
+          : `None of the ${requested} entries in your payment link are part of this checkout.`,
       sentences,
       addBack: stillUnpaid === 0 ? null : stillUnpaid === 1 ? 'it' : 'them',
       linkToMyEntries: true,
@@ -42,12 +42,12 @@ export function paymentLinkNoticeCopy(outcome: PaymentLinkOutcome): {
 
   if (stillUnpaid > 0) {
     sentences.push(
-      `${stillUnpaid} still ${needs(stillUnpaid)} paying. Check out this cart first, then open your payment link again.`
+      `${stillUnpaid} still ${needs(stillUnpaid)} paying. Check out these entries first, then open your payment link again.`
     );
   }
   const missing = unavailable + stillUnpaid;
   return {
-    heading: `${missing} of the ${requested} entries in your payment link ${isAre(missing)} not in this cart.`,
+    heading: `${missing} of the ${requested} entries in your payment link ${isAre(missing)} not part of this checkout.`,
     sentences,
     addBack: null,
     linkToMyEntries: unavailable > 0,

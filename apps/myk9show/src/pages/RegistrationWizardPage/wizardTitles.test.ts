@@ -10,8 +10,8 @@ import { resolveWizardTitles } from './wizardTitles';
 describe('resolveWizardTitles', () => {
   it('names the exhibitor front door, with no on-behalf sub-line', () => {
     expect(resolveWizardTitles({ isLateEntryMode: false, isInsideSidebar: false })).toEqual({
-      workflowLabel: 'Register',
-      sidebarTitle: 'Register for Show',
+      workflowLabel: 'Enter',
+      sidebarTitle: 'Enter This Show',
       workflowSubtitle: undefined,
     });
   });

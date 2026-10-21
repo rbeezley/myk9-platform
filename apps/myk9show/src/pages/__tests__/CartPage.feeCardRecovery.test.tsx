@@ -547,7 +547,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
     expect(unsupportedFilter).toBeNull();
     const checkout = await screen.findByRole('button', { name: 'Pay $96.30 and confirm entries' });
     expect(checkout).toBeEnabled();
-    expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();
+    expect(screen.queryByText('Nothing in your entry yet')).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Remove' })).toHaveLength(3);
     for (const entry of entries) {
       const heading = screen.getByRole('heading', { name: entry.dog, level: 3 });

@@ -145,7 +145,7 @@ test.describe('Secretary Entry Creation', () => {
     expect(rpcResp.status()).toBe(200);
 
     // ── Step 5: Confirmation ──────────────────────────────────────────────
-    await page.waitForSelector('text=Registration Confirmed', { timeout: 10000 });
+    await page.waitForSelector('text=Entry Confirmed', { timeout: 10000 });
     await expect(page.getByText(/confirmation #:/i)).toBeVisible();
 
     // No blocking console errors (cart errors and email CORS are non-blocking)

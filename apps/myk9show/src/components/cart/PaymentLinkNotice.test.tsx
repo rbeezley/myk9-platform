@@ -39,24 +39,24 @@ describe('PaymentLinkNotice', () => {
     setup({ payableIds: [] }, null);
 
     expect(
-      screen.getByText('None of the 3 entries in your payment link are in your cart.')
+      screen.getByText('None of the 3 entries in your payment link are part of this checkout.')
     ).toBeInTheDocument();
     expect(
       screen.getByText('3 are already paid, withdrawn, or no longer open for payment.')
     ).toBeInTheDocument();
     expect(myEntriesLink()).toHaveAttribute('href', '/exhibitor/entries');
-    expect(screen.queryByRole('button', { name: /back to your cart/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /back to your entry/ })).toBeNull();
   });
 
   it('some-missing with a still-unpaid entry points at checking out this cart', () => {
     setup({ payableIds: ['e1', 'e2', 'e3'] }, ['e1', 'e2']);
 
     expect(
-      screen.getByText('1 of the 3 entries in your payment link is not in this cart.')
+      screen.getByText('1 of the 3 entries in your payment link is not part of this checkout.')
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        '1 still needs paying. Check out this cart first, then open your payment link again.'
+        '1 still needs paying. Check out these entries first, then open your payment link again.'
       )
     ).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'My Entries' })).toBeNull();
@@ -66,7 +66,7 @@ describe('PaymentLinkNotice', () => {
     setup({ payableIds: ['e1', 'e2'] }, ['e1']);
 
     expect(
-      screen.getByText('2 of the 3 entries in your payment link are not in this cart.')
+      screen.getByText('2 of the 3 entries in your payment link are not part of this checkout.')
     ).toBeInTheDocument();
     expect(
       screen.getByText('1 is already paid, withdrawn, or no longer open for payment.')
@@ -78,20 +78,20 @@ describe('PaymentLinkNotice', () => {
   it('removing the last line switches to the empty-cart copy with an add-back action', () => {
     const onAddBack = vi.fn();
     setup({ payableIds: ['e1', 'e2', 'e3'] }, ['e1', 'e2'], onAddBack);
-    expect(screen.getByText(/Check out this cart first/)).toBeInTheDocument();
+    expect(screen.getByText(/Check out these entries first/)).toBeInTheDocument();
 
     // What `removeItem` leaves behind once the last line is gone.
     act(() => {
       useCartStore.setState({ cart: { id: 'cart-1', items: [] } as never });
     });
 
-    expect(screen.queryByText(/Check out this cart first/)).toBeNull();
+    expect(screen.queryByText(/Check out these entries first/)).toBeNull();
     expect(
-      screen.getByText('None of the 3 entries in your payment link are in your cart.')
+      screen.getByText('None of the 3 entries in your payment link are part of this checkout.')
     ).toBeInTheDocument();
     expect(screen.getByText('3 still need paying.')).toBeInTheDocument();
     expect(myEntriesLink()).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Add them back to your cart' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add them back to your entry' }));
     expect(onAddBack).toHaveBeenCalledTimes(1);
   });
 
@@ -102,9 +102,9 @@ describe('PaymentLinkNotice', () => {
       useCartStore.setState({ cart: null });
     });
 
-    expect(screen.queryByText(/Check out this cart first/)).toBeNull();
+    expect(screen.queryByText(/Check out these entries first/)).toBeNull();
     expect(screen.getByText('3 still need paying.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add them back to your cart' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add them back to your entry' })).toBeInTheDocument();
   });
 
   it('a single still-unpaid entry on an empty cart reads in the singular', () => {
@@ -115,10 +115,10 @@ describe('PaymentLinkNotice', () => {
     render(<PaymentLinkNotice linkKey="e1" onAddBack={vi.fn()} />);
 
     expect(
-      screen.getByText('The entry in your payment link is not in your cart.')
+      screen.getByText('The entry in your payment link is not part of this checkout.')
     ).toBeInTheDocument();
     expect(screen.getByText('1 still needs paying.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add it back to your cart' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add it back to your entry' })).toBeInTheDocument();
   });
 
   it('renders nothing when every linked entry is in the cart, or after a failed load', () => {
@@ -149,7 +149,7 @@ describe('PaymentLinkNotice', () => {
   it('every control in the notice meets the 44px touch floor', () => {
     setup({ payableIds: ['e1', 'e2', 'e3'] }, [], vi.fn());
 
-    const addBack = screen.getByRole('button', { name: 'Add them back to your cart' });
+    const addBack = screen.getByRole('button', { name: 'Add them back to your entry' });
     expect(addBack).toHaveClass('min-h-11');
     expect(addBack).not.toHaveClass('h-8');
     expect(myEntriesLink()).toHaveClass('min-h-11');

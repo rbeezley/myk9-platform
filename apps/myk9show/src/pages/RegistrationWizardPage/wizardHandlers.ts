@@ -108,9 +108,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     if (isLastStep) {
       markStepComplete(currentStep);
       notifications.success(
-        isLateEntryMode
-          ? 'Late entry completed successfully'
-          : 'Registration completed successfully'
+        isLateEntryMode ? 'Late entry completed successfully' : 'Entry submitted successfully'
       );
       navigate(resolveRegistrationCompletionPath(showId, isLateEntryMode, state.isInsideSidebar));
       return;
@@ -122,7 +120,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     // worst possible silent failure on this page. Say so and stay put.
     if (currentStepId === 'payment' && !(registrationId && currentRegistration)) {
       notifications.error(
-        'We could not find this registration to submit. Go back to the dog step and reselect your dogs, then try again.'
+        'We could not find this entry to submit. Go back to the dog step and reselect your dogs, then try again.'
       );
       return;
     }

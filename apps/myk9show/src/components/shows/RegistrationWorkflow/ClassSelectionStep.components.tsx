@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight, Info, CheckCircle2, ShoppingCart } from 'lucide-react';
+import { ChevronRight, Info, CheckCircle2, ClipboardList } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -60,9 +60,9 @@ export const DogTabTrigger: React.FC<DogTabTriggerProps> = ({
             'h-5 px-1.5 text-xs flex items-center gap-0.5',
             isActive && 'bg-primary text-primary-foreground'
           )}
-          title={`${cartCount} class${cartCount !== 1 ? 'es' : ''} in cart`}
+          title={`${cartCount} class${cartCount !== 1 ? 'es' : ''} in your entry`}
         >
-          <ShoppingCart className="h-3 w-3" />
+          <ClipboardList className="h-3 w-3" />
           {cartCount}
         </Badge>
       )}
@@ -243,7 +243,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
             )}
             {cls.isSelected && !cls.isAlreadyEntered && (
               <Badge variant="outline" className="h-5 text-xs text-foreground">
-                In cart
+                In your entry
               </Badge>
             )}
             {singleDescription && (
@@ -471,7 +471,7 @@ const LevelChip: React.FC<LevelChipProps> = ({
       )}
       {isSelected && !isAlreadyEntered && (
         <Badge variant="outline" className="h-5 text-xs text-foreground">
-          In cart
+          In your entry
         </Badge>
       )}
       {registrationGuidance && (
@@ -498,7 +498,7 @@ export const NoTrialsAlert: React.FC<NoTrialsAlertProps> = ({ isOrganizer }) => 
     <Info className="h-4 w-4" />
     <AlertDescription>
       {isOrganizer
-        ? 'This show has no trials yet. Add trials in the show management page before registering entries.'
+        ? 'This show has no trials yet. Add trials in the show management page before entering dogs.'
         : 'No trials found for this show. Please contact the show organizer.'}
     </AlertDescription>
   </Alert>
@@ -519,7 +519,7 @@ export const NoClassesAlert: React.FC<NoClassesAlertProps> = ({ trialCount, isOr
       No classes available yet. Found {trialCount} trial{trialCount !== 1 ? 's' : ''} but no classes
       assigned.{' '}
       {isOrganizer
-        ? 'Add classes in the show management page before registering entries.'
+        ? 'Add classes in the show management page before entering dogs.'
         : 'Please contact the show organizer.'}
     </AlertDescription>
   </Alert>

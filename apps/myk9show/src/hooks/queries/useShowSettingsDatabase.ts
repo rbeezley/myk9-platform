@@ -13,8 +13,6 @@ import { supabase } from '@/services/database/supabaseClient';
 import { cacheStrategies } from '@/lib/queryClient';
 import { markUnreachableIfTransportFailure } from '@/lib/serverReachability';
 import {
-  resolveVisibilityCascade,
-  resolveCheckinCascade,
   resolvePreset,
   type VisibilitySettings,
   type VisibilityOverride,
@@ -258,73 +256,6 @@ export function useClassOverrides(showId: string | null) {
     queryKey: settingsQueryKeys.classOverrides(showId!),
     queryFn: () => fetchClassOverrides(showId!),
     enabled: !!showId,
-    retry: visibilityQueryRetry,
-    ...cacheStrategies.moderate,
-  });
-}
-
-/**
- * Resolve effective visibility for a class through the full cascade.
- * Fetches show settings + trial override + class override, then resolves.
- */
-async function fetchClassEffectiveSettings(
-  classId: string,
-  trialId: string,
-  showId: string
-): Promise<{ visibility: VisibilitySettings; selfCheckinEnabled: boolean }> {
-  // Fetch all three levels in parallel
-  const [showResult, trialResult, classResult] = await Promise.all([
-    untypedSupabase
-      .from('show_visibility_settings')
-      .select('*')
-      .eq('show_id', showId)
-      .maybeSingle(),
-    untypedSupabase
-      .from('trial_visibility_overrides')
-      .select('*')
-      .eq('trial_id', trialId)
-      .maybeSingle(),
-    untypedSupabase
-      .from('class_visibility_overrides')
-      .select('*')
-      .eq('class_id', classId)
-      .maybeSingle(),
-  ]);
-
-  throwIfReadFailed(showResult);
-  throwIfReadFailed(trialResult);
-  throwIfReadFailed(classResult);
-
-  const showSettings = showResult.data
-    ? rowToVisibilitySettings(showResult.data as ShowSettingsRow)
-    : resolvePreset('standard', 'show');
-  const showCheckin = (showResult.data as ShowSettingsRow | null)?.self_checkin_enabled ?? true;
-
-  const trialOverride = trialResult.data
-    ? rowToOverride(trialResult.data as OverrideRow)
-    : undefined;
-  const trialCheckin = (trialResult.data as OverrideRow | null)?.self_checkin_enabled ?? null;
-
-  const classOverride = classResult.data
-    ? rowToOverride(classResult.data as OverrideRow)
-    : undefined;
-  const classCheckin = (classResult.data as OverrideRow | null)?.self_checkin_enabled ?? null;
-
-  return {
-    visibility: resolveVisibilityCascade(showSettings, trialOverride, classOverride),
-    selfCheckinEnabled: resolveCheckinCascade(showCheckin, trialCheckin, classCheckin),
-  };
-}
-
-export function useClassEffectiveSettings(
-  classId: string | null,
-  trialId: string | null,
-  showId: string | null
-) {
-  return useQuery({
-    queryKey: [...settingsQueryKeys.classOverride(classId!), trialId!, showId!],
-    queryFn: () => fetchClassEffectiveSettings(classId!, trialId!, showId!),
-    enabled: !!classId && !!trialId && !!showId,
     retry: visibilityQueryRetry,
     ...cacheStrategies.moderate,
   });

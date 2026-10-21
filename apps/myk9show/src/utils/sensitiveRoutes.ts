@@ -21,8 +21,6 @@ const SENSITIVE_PATH_PATTERNS: readonly RegExp[] = [
   /^\/at-show(\/|$)/,
   // Secretary/judge scoring: the class entries list and each scoresheet.
   /^\/scoring\//,
-  // Secretary's live class dashboard (judges and secretaries during a class).
-  /^\/shows\/[^/]+\/trials\/[^/]+\/classes\/[^/]+\/secretary(\/|$)/,
   // TV display: unattended, nobody to answer a prompt or a form.
   /^\/tv\//,
 ];

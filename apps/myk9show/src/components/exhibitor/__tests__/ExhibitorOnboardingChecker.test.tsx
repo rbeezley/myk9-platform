@@ -165,7 +165,6 @@ describe('ExhibitorOnboardingChecker', () => {
     ['TV display', '/tv/show-1'],
     ['scoring entries list', '/scoring/classes/c1/entries'],
     ['scoring scoresheet', '/scoring/classes/c1/entries/e1'],
-    ['live class dashboard', '/shows/s1/trials/t1/classes/c1/secretary'],
     ['checkout', '/checkout/success'],
   ])('never redirects from the %s (%s)', (_family, pathname) => {
     mockPathname = pathname;

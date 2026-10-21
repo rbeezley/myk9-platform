@@ -121,7 +121,7 @@ interface ClassOverrideUpdate {
  * - `'visibility'` nulls only the preset + timing columns (preserves check-in).
  * - `'checkin'` nulls only `self_checkin_enabled` (preserves visibility).
  * - `'all'` nulls everything — the historical behavior, and the default so existing
- *   callers (SettingsOverrideCard) are unchanged.
+ *   callers are unchanged.
  *
  * Independence relies on OMITTING the other facet's columns from the upsert payload,
  * not setting them to null: PostgREST upsert only writes the columns present, so on

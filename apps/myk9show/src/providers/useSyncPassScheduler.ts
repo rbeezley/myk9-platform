@@ -1,6 +1,7 @@
 import { useEffect, type MutableRefObject } from 'react';
 import { logger } from '@/services/LoggingService';
 import { createSyncPassScheduler } from './syncPassScheduler';
+import type { UploadSyncTarget } from './ringsideUploadSyncTargets';
 import { nextPollDelayMs, onCadenceChange } from './syncCadence';
 
 /**
@@ -15,7 +16,7 @@ import { nextPollDelayMs, onCadenceChange } from './syncCadence';
  */
 export function useSyncPassScheduler(
   autoSync: boolean,
-  triggerSyncRef: MutableRefObject<(() => Promise<void>) | undefined>
+  triggerSyncRef: MutableRefObject<((targets?: UploadSyncTarget[]) => Promise<void>) | undefined>
 ): void {
   useEffect(() => {
     const scheduler = createSyncPassScheduler({
@@ -68,8 +69,13 @@ export function useSyncPassScheduler(
         scheduler.requestDeferred();
         return;
       }
+      // A realtime change nudge names the tables that changed (MYK9-1304): a
+      // scoped pass, which never touches this scheduler's clock or `canRun`.
+      const targets = (event as CustomEvent<{ targets?: UploadSyncTarget[] } | undefined>).detail
+        ?.targets;
       logger.info('Sync requested via event', 'replication');
-      triggerSyncRef.current?.();
+      if (targets?.length) void triggerSyncRef.current?.(targets);
+      else void triggerSyncRef.current?.();
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('replication:sync-requested', handleSyncRequest);

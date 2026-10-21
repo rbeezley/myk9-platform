@@ -4,13 +4,15 @@ import type { MutableRefObject } from 'react';
 import { SYNC_INTERVAL_MS } from '@myk9/replication';
 import { features } from '@/config/features';
 import { markOnline, markShowChannel, resetSyncCadence, setCadenceRandom } from '../syncCadence';
+import type { UploadSyncTarget } from '../ringsideUploadSyncTargets';
 import { useSyncPassScheduler } from '../useSyncPassScheduler';
 
 const mutableFeatures = features as { replicationSubscribedCadence: boolean };
 const SLOW_MS = 240_000; // rng 0.5
 
-let trigger: ReturnType<typeof vi.fn<() => Promise<void>>>;
-let triggerRef: MutableRefObject<(() => Promise<void>) | undefined>;
+type Trigger = (targets?: UploadSyncTarget[]) => Promise<void>;
+let trigger: ReturnType<typeof vi.fn<Trigger>>;
+let triggerRef: MutableRefObject<Trigger | undefined>;
 
 const mount = () => renderHook(() => useSyncPassScheduler(true, triggerRef));
 const advance = (ms: number) => act(() => void vi.advanceTimersByTime(ms));
@@ -21,7 +23,7 @@ beforeEach(() => {
   resetSyncCadence();
   mutableFeatures.replicationSubscribedCadence = true;
   setCadenceRandom(() => 0.5);
-  trigger = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+  trigger = vi.fn<Trigger>().mockResolvedValue(undefined);
   triggerRef = { current: trigger };
 });
 
@@ -126,6 +128,37 @@ describe('useSyncPassScheduler cadence', () => {
     const { unmount } = mount();
     unmount();
     advance(SLOW_MS);
+    expect(trigger).not.toHaveBeenCalled();
+  });
+});
+
+describe('useSyncPassScheduler sync requests', () => {
+  it('a request carrying targets runs a scoped pass with exactly those targets', () => {
+    mount();
+    const targets: UploadSyncTarget[] = [{ name: 'entries', scopeId: 'show-1' }];
+    act(() => {
+      window.dispatchEvent(new CustomEvent('replication:sync-requested', { detail: { targets } }));
+    });
+    expect(trigger).toHaveBeenCalledTimes(1);
+    expect(trigger).toHaveBeenCalledWith(targets);
+  });
+
+  it('a bare request runs the full pass with no arguments', () => {
+    mount();
+    act(() => {
+      window.dispatchEvent(new Event('replication:sync-requested'));
+    });
+    expect(trigger).toHaveBeenCalledTimes(1);
+    expect(trigger.mock.calls[0]).toEqual([]);
+  });
+
+  it('a deferred request still waits for the scheduler gap and carries no targets', () => {
+    mount();
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('replication:sync-requested', { detail: { deferred: true } })
+      );
+    });
     expect(trigger).not.toHaveBeenCalled();
   });
 });

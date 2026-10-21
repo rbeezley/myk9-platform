@@ -93,6 +93,14 @@ export const features = {
   // stays at 60 s. KILL SWITCH: false = fixed 60 s poll, the pre-MYK9-1305
   // behaviour. The 24 h full sync and the `since` buffer are unaffected.
   replicationSubscribedCadence: true,
+
+  // Scoped realtime nudges (MYK9-1304). A show-channel change broadcast syncs
+  // only the tables that changed for that show (entries, the show's classes,
+  // paperwork prints), at most once per show every 5 s plus a 0-3 s per-device
+  // jitter, instead of a full 12-table pass. KILL SWITCH: false = a change nudge
+  // runs the full pass immediately, the pre-MYK9-1304 behaviour. Reconnect
+  // nudges are unaffected.
+  replicationScopedNudges: true,
 } as const;
 
 export type Features = typeof features;

@@ -1,7 +1,7 @@
 import type { UploadCompleteEventDetail } from '@myk9/replication';
 
 export interface UploadSyncTarget {
-  name: 'entries' | 'classes';
+  name: 'entries' | 'classes' | 'paperwork_prints';
   scopeId: string;
 }
 

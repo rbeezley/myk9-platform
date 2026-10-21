@@ -207,14 +207,22 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
       await scoreFromPaper(page, classId);
     });
 
-    await test.step('3. open the class on Results once the server has completed it', async () => {
+    await test.step('3. hand the class to Results from Overview once the server has completed it', async () => {
       // Scoring the last dog completes the class on the server (refresh_class_scoring_state; every
-      // fixture class is status_source 'derived'). Until that reaches this device the detail reads
-      // "Mark Class Complete on Overview", and completing it by hand from the stale row collides
-      // with the server's own completion ("This record was changed elsewhere"), which leaves the
-      // class row unsynced. So wait for the sync; each load re-reads the show's classes.
+      // fixture class is status_source 'derived'). Overview offers "Continue on Results" only for
+      // a complete class (MYK9-1319), and until the completion reaches this device the Results
+      // detail asks for it to be marked complete; completing it by hand from the stale row
+      // collides with the server's own completion ("This record was changed elsewhere"), which
+      // leaves the class row unsynced. So wait for the sync; each load re-reads the show's classes.
       await expect(async () => {
-        await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
+        await page.goto(
+          `/shows/${encodeURIComponent(showId)}?focus=${encodeURIComponent(classId)}`,
+          {
+            waitUntil: 'domcontentloaded',
+          }
+        );
+        await page.getByRole('link', { name: 'Continue on Results' }).click({ timeout: 10_000 });
+        await expect(page).toHaveURL(new RegExp(`/results\\?.*classId=${classId}`));
         await expect(releaseButton).toBeVisible({ timeout: 10_000 });
       }).toPass({ timeout: 90_000 });
     });

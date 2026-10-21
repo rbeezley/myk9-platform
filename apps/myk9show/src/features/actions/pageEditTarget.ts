@@ -43,6 +43,8 @@ export interface PageExport {
 
 /** The show page's tools and attention glance, as the header Actions menu shows them. */
 export interface ShowToolsRegistration {
+  /** The show these tools belong to; the header ignores them on any other show's route. */
+  showId: string;
   tools: readonly ShowToolItem[];
   /** Passed through from the page's `computeShowDeskActionable`; never recomputed here. */
   attention: ShowDeskActionable;
@@ -203,7 +205,8 @@ export function usePageExportAction({ id, enabled, run }: PageExportActionOption
 export function useShowDeskToolsRegistration(
   tools: readonly ShowToolItem[],
   attention: ShowDeskActionable,
-  enabled: boolean
+  enabled: boolean,
+  showId: string | undefined
 ): void {
   const { count, tone, incomplete } = attention;
   // Only the header's metadata, never `content`: a new ReactNode each render would re-register.
@@ -222,11 +225,13 @@ export function useShowDeskToolsRegistration(
   const stableItems = useMemo(() => items, [itemsKey]);
 
   useEffect(() => {
-    if (!enabled || stableItems.length === 0) return;
+    if (!enabled || !showId || stableItems.length === 0) return;
     const owner = Symbol('show-tools');
-    usePageEditTargetStore
-      .getState()
-      .registerShowTools(owner, { tools: stableItems, attention: { count, tone, incomplete } });
+    usePageEditTargetStore.getState().registerShowTools(owner, {
+      showId,
+      tools: stableItems,
+      attention: { count, tone, incomplete },
+    });
     return () => usePageEditTargetStore.getState().clearShowTools(owner);
-  }, [enabled, stableItems, count, tone, incomplete]);
+  }, [enabled, showId, stableItems, count, tone, incomplete]);
 }

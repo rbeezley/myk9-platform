@@ -76,7 +76,13 @@ export function useCurrentActions(): CurrentActions {
     () => (pageExportIds === '' ? [] : pageExportIds.split('|')),
     [pageExportIds]
   );
-  const showToolsRegistration = usePageEditTargetStore(state => state.showTools);
+  const registeredShowTools = usePageEditTargetStore(state => state.showTools);
+  // Another show's tools (a registration left over from a page that is leaving) are not this
+  // route's: rows and badge are used only for the show the route names.
+  const showToolsRegistration =
+    registeredShowTools && showId !== undefined && registeredShowTools.showId === showId
+      ? registeredShowTools
+      : null;
   const showTools = showToolsRegistration?.tools;
   const pageKind = pageTarget?.kind;
   const pageAddClassesHref = pageTarget?.addClassesHref;

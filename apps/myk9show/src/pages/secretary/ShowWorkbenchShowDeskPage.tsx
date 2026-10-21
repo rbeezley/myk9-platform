@@ -378,15 +378,29 @@ export function ShowWorkbenchShowDeskPage() {
     secretaryOnlyReason,
   ]);
 
+  // Which body this page renders. The early returns below and the header registration read the
+  // SAME booleans, so the Actions menu never offers a `?tool=` row while no panel exists.
+  const deskLoading = isLoading || !currentShow;
+  const scheduleUnavailable =
+    !scheduleHasConfirmedSnapshot && (scheduleReadFailed || scheduleReadPending);
+  // Settled, no data, no error: the read never happened (paused offline, or
+  // disabled). Everything below derives from `showEntries`, so rendering the
+  // desk here would state a zero it never read -- the exact thing the copy in
+  // both these branches promises not to do.
+  const entriesFailed = showEntriesIsError && showEntries.length === 0;
+  const deskRenders = !deskLoading && !showEntriesLoading && !scheduleUnavailable && !entriesFailed;
+
   // The header Actions menu lists these tools and carries their attention badge while this
-  // page is mounted, for the viewer who manages the show (the gate `useCurrentActions` uses).
+  // page is mounted, for the viewer who manages the show (the gate `useCurrentActions` uses)
+  // and only while the desk body, which owns the panel, is on screen.
   useShowDeskToolsRegistration(
     showDeskTools,
     actionable,
-    manageScope.status === 'resolved' && manageScope.canManage
+    manageScope.status === 'resolved' && manageScope.canManage && deskRenders,
+    currentShow?.id
   );
 
-  if (isLoading || !currentShow) {
+  if (deskLoading || !currentShow) {
     return <LoadingSkeleton variant="cards" count={2} />;
   }
 
@@ -394,7 +408,7 @@ export function ShowWorkbenchShowDeskPage() {
     return <LoadingSkeleton variant="cards" count={2} />;
   }
 
-  if (!scheduleHasConfirmedSnapshot && (scheduleReadFailed || scheduleReadPending)) {
+  if (scheduleUnavailable) {
     return (
       <ShowDeskScheduleUnavailable
         hasConfirmedSnapshot={scheduleHasConfirmedSnapshot}
@@ -405,11 +419,7 @@ export function ShowWorkbenchShowDeskPage() {
     );
   }
 
-  // Settled, no data, no error: the read never happened (paused offline, or
-  // disabled). Everything below derives from `showEntries`, so rendering the
-  // desk here would state a zero it never read -- the exact thing the copy in
-  // both these branches promises not to do.
-  if (showEntriesIsError && showEntries.length === 0) {
+  if (entriesFailed) {
     return (
       <ShowDeskEntriesFailed
         pausedWhat="Entry counts, People at show, and Show Map are"

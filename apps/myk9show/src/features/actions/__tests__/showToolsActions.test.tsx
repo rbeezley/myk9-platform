@@ -75,14 +75,18 @@ const viewer: ActionViewer = {
 };
 const route = { kind: 'show', showId: SHOW_ID, shellMounted: true } as const;
 
-function wrapper({ children }: { children: ReactNode }) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return (
-    <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[`/shows/${SHOW_ID}?trial=t1`]}>{children}</MemoryRouter>
-    </QueryClientProvider>
-  );
+function wrapperAt(entry: string) {
+  return function Wrapper({ children }: { children: ReactNode }) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return (
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={[entry]}>{children}</MemoryRouter>
+      </QueryClientProvider>
+    );
+  };
 }
+
+const wrapper = wrapperAt(`/shows/${SHOW_ID}?trial=t1`);
 
 beforeEach(() => {
   usePageEditTargetStore.setState({
@@ -162,7 +166,9 @@ describe('resolveActions with registered show tools', () => {
 describe('useShowDeskToolsRegistration', () => {
   it('registers the tools and the page-computed attention while mounted', () => {
     const attention = { count: 3, tone: 'urgent', incomplete: true } as const;
-    const { unmount } = renderHook(() => useShowDeskToolsRegistration(TOOLS, attention, true));
+    const { unmount } = renderHook(() =>
+      useShowDeskToolsRegistration(TOOLS, attention, true, SHOW_ID)
+    );
     const registered = usePageEditTargetStore.getState().showTools;
     expect(registered?.attention).toEqual(attention);
     expect(registered?.tools.map(tool => tool.id)).toEqual(TOOLS.map(tool => tool.id));
@@ -178,7 +184,7 @@ describe('useShowDeskToolsRegistration', () => {
 
   it('registers nothing until the viewer is resolved and manages the show', () => {
     const { rerender } = renderHook(
-      ({ enabled }) => useShowDeskToolsRegistration(TOOLS, IDLE, enabled),
+      ({ enabled }) => useShowDeskToolsRegistration(TOOLS, IDLE, enabled, SHOW_ID),
       { initialProps: { enabled: false } }
     );
     expect(usePageEditTargetStore.getState().showTools).toBeNull();
@@ -187,9 +193,9 @@ describe('useShowDeskToolsRegistration', () => {
   });
 
   it('does not let a stale cleanup wipe a newer registration', () => {
-    const first = renderHook(() => useShowDeskToolsRegistration(TOOLS, IDLE, true));
+    const first = renderHook(() => useShowDeskToolsRegistration(TOOLS, IDLE, true, SHOW_ID));
     const second = renderHook(() =>
-      useShowDeskToolsRegistration(TOOLS.slice(0, 1), { ...IDLE, count: 1 }, true)
+      useShowDeskToolsRegistration(TOOLS.slice(0, 1), { ...IDLE, count: 1 }, true, SHOW_ID)
     );
     first.unmount();
     expect(usePageEditTargetStore.getState().showTools?.tools).toHaveLength(1);
@@ -199,7 +205,7 @@ describe('useShowDeskToolsRegistration', () => {
 
   it('keeps the registration across re-renders that change only tool content', () => {
     const { rerender } = renderHook(
-      ({ tools }) => useShowDeskToolsRegistration(tools, IDLE, true),
+      ({ tools }) => useShowDeskToolsRegistration(tools, IDLE, true, SHOW_ID),
       { initialProps: { tools: TOOLS.map(tool => ({ ...tool })) } }
     );
     const before = usePageEditTargetStore.getState().showTools;
@@ -213,7 +219,7 @@ describe('useCurrentActions with registered show tools', () => {
     act(() => {
       usePageEditTargetStore
         .getState()
-        .registerShowTools(Symbol('t'), { tools: TOOLS, attention: IDLE });
+        .registerShowTools(Symbol('t'), { showId: SHOW_ID, tools: TOOLS, attention: IDLE });
     });
     const { result } = renderHook(() => useCurrentActions(), { wrapper });
     const row = result.current.actions.find(a => a.id === 'show-tool-access-codes');
@@ -229,7 +235,20 @@ describe('useCurrentActions with registered show tools', () => {
     act(() => {
       usePageEditTargetStore
         .getState()
-        .registerShowTools(Symbol('t'), { tools: TOOLS, attention: IDLE });
+        .registerShowTools(Symbol('t'), { showId: SHOW_ID, tools: TOOLS, attention: IDLE });
+    });
+    const { result } = renderHook(() => useCurrentActions(), { wrapper });
+    expect(result.current.actions.some(a => a.id.startsWith('show-tool-'))).toBe(false);
+    expect(result.current.showToolsAttention).toBeNull();
+  });
+
+  it('ignores a registration for another show', () => {
+    act(() => {
+      usePageEditTargetStore.getState().registerShowTools(Symbol('t'), {
+        showId: 'some-other-show',
+        tools: TOOLS,
+        attention: { count: 4, tone: 'urgent', incomplete: false },
+      });
     });
     const { result } = renderHook(() => useCurrentActions(), { wrapper });
     expect(result.current.actions.some(a => a.id.startsWith('show-tool-'))).toBe(false);
@@ -237,7 +256,7 @@ describe('useCurrentActions with registered show tools', () => {
   });
 
   it('drops the rows when the show page unmounts', () => {
-    const page = renderHook(() => useShowDeskToolsRegistration(TOOLS, IDLE, true));
+    const page = renderHook(() => useShowDeskToolsRegistration(TOOLS, IDLE, true, SHOW_ID));
     const { result } = renderHook(() => useCurrentActions(), { wrapper });
     expect(result.current.actions.some(a => a.id === 'show-tool-volunteers')).toBe(true);
     page.unmount();
@@ -248,7 +267,9 @@ describe('useCurrentActions with registered show tools', () => {
 describe('HeaderActions trigger badge', () => {
   function register(attention: { count: number; tone: 'urgent' | 'routine'; incomplete: boolean }) {
     act(() => {
-      usePageEditTargetStore.getState().registerShowTools(Symbol('t'), { tools: TOOLS, attention });
+      usePageEditTargetStore
+        .getState()
+        .registerShowTools(Symbol('t'), { showId: SHOW_ID, tools: TOOLS, attention });
     });
     render(<HeaderActions />, { wrapper });
   }
@@ -290,5 +311,56 @@ describe('HeaderActions trigger badge', () => {
       'href',
       `/secretary/volunteers?showId=${SHOW_ID}`
     );
+  });
+
+  it('names the trigger Actions with the badge text inside it', () => {
+    register({ count: 2, tone: 'urgent', incomplete: false });
+    const trigger = screen.getByRole('button', { name: /^Actions/ });
+    expect(trigger).toBe(screen.getByTestId('header-actions-trigger'));
+    expect(trigger).toContainElement(screen.getByTestId('header-actions-badge'));
+    expect(trigger).toHaveAccessibleName(/Actions.*2 items need attention/);
+  });
+
+  it('shows no badge off a show route, even with a registration in the store', () => {
+    act(() => {
+      usePageEditTargetStore.getState().registerShowTools(Symbol('t'), {
+        showId: SHOW_ID,
+        tools: TOOLS,
+        attention: { count: 2, tone: 'urgent', incomplete: false },
+      });
+    });
+    render(<HeaderActions />, { wrapper: wrapperAt('/dogs') });
+    // Positive control: the menu itself is there.
+    expect(screen.getByTestId('header-actions-trigger')).toBeInTheDocument();
+    expect(screen.queryByTestId('header-actions-badge')).not.toBeInTheDocument();
+  });
+
+  it('shows no badge while the viewer scope is unresolved', () => {
+    scope.status = 'resolving';
+    act(() => {
+      usePageEditTargetStore.getState().registerShowTools(Symbol('t'), {
+        showId: SHOW_ID,
+        tools: TOOLS,
+        attention: { count: 2, tone: 'urgent', incomplete: false },
+      });
+    });
+    render(<HeaderActions />, { wrapper });
+    expect(screen.queryByTestId('header-actions-badge')).not.toBeInTheDocument();
+  });
+
+  it('greys a tool the viewer cannot use, with its reason', async () => {
+    act(() => {
+      usePageEditTargetStore.getState().registerShowTools(Symbol('t'), {
+        showId: SHOW_ID,
+        tools: [{ ...TOOLS[2]!, disabledReason: 'Trial secretary access only' }],
+        attention: IDLE,
+      });
+    });
+    render(<HeaderActions />, { wrapper });
+    await userEvent.click(screen.getByTestId('header-actions-trigger'));
+    const row = await screen.findByTestId('header-action-show-tool-volunteers');
+    expect(row).toHaveAttribute('aria-disabled', 'true');
+    expect(row).toHaveTextContent('Trial secretary access only');
+    expect(row).not.toHaveAttribute('href');
   });
 });

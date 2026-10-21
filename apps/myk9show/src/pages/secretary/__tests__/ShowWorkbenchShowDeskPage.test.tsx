@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ShowWorkbenchShowDeskPage } from '@/pages/secretary/ShowWorkbenchShowDeskPage';
 import type { ReactNode } from 'react';
 import { queryKeys } from '@/lib/queryClient';
+import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
 
 const getEntriesForShowMock = vi.hoisted(() => vi.fn());
 /**
@@ -208,6 +209,7 @@ function renderPage(initialEntries?: unknown[]) {
 
 describe('ShowWorkbenchShowDeskPage', () => {
   beforeEach(() => {
+    usePageEditTargetStore.setState({ showTools: null, showToolsOwner: null });
     getEntriesForShowMock.mockReset();
     trialStoreState.trials = [];
     trialStoreState.trialClasses = {};
@@ -235,6 +237,8 @@ describe('ShowWorkbenchShowDeskPage', () => {
 
     expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
     expect(screen.queryByTestId('show-desk-panel')).not.toBeInTheDocument();
+    // No panel exists to open, so the header must not offer ?tool= rows yet.
+    expect(usePageEditTargetStore.getState().showTools).toBeNull();
   });
 
   it('feeds Show Desk and People roster from the same show-scoped entries', async () => {
@@ -270,6 +274,9 @@ describe('ShowWorkbenchShowDeskPage', () => {
     renderPage();
 
     expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
+    // Once the desk body renders, its tools reach the header for this show.
+    expect(usePageEditTargetStore.getState().showTools?.showId).toBe('show-1');
+    expect(usePageEditTargetStore.getState().showTools?.tools).toHaveLength(8);
     expect(screen.getByTestId('panel-entry-count')).toHaveTextContent('8');
     expect(screen.getByTestId('panel-class-entry-counts')).toHaveTextContent('8');
     expect(screen.getByTestId('panel-class-scored-counts')).toHaveTextContent('3');
@@ -358,6 +365,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
     expect(await screen.findByText("Couldn't load the show schedule.")).toBeInTheDocument();
     expect(screen.queryByTestId('show-desk-panel')).not.toBeInTheDocument();
     expect(screen.queryByText(/No Classes are scheduled/i)).not.toBeInTheDocument();
+    expect(usePageEditTargetStore.getState().showTools).toBeNull();
     expect(screen.queryByText(/Show-day work has not started/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry schedule' }));

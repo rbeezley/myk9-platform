@@ -139,6 +139,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     const adapter: SyncReplicatedTableAdapter<JudgeAssignmentJoinedRow, ReplicatedJudgeAssignment> =
       {
         ...this.getRowRefetchAdapter(),
+        remotePageSize: JUDGE_ASSIGNMENTS_PAGE_SIZE,
         getRemoteRowCount: async () => {
           try {
             const { count, error } = await supabase

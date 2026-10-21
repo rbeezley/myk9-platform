@@ -6,6 +6,7 @@ import { anyRowNotOwnedBy, scopeStampDirective } from './rowOwnership';
 import { describeError } from './error-message';
 import { countCoveredRows, getCoveredRemoteIds } from './replicaCoverage';
 import { runStaleCleanup } from './syncStaleCleanup';
+import { beginRemoteCountPass } from './remoteCountCadence';
 import {
   configureConflictSurfacing as _configureConflictSurfacing,
   isConflictSurfacingEnabled,
@@ -151,16 +152,6 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
 
     const localRows = await getLocalRowsForScope();
 
-    const rawExpectedRemoteRows = await adapter.getRemoteRowCount?.({ scope });
-    const expectedRemoteRows =
-      typeof rawExpectedRemoteRows === 'number' &&
-      Number.isFinite(rawExpectedRemoteRows) &&
-      rawExpectedRemoteRows >= 0
-        ? Math.floor(rawExpectedRemoteRows)
-        : undefined;
-    // After the count: a DELETE that lands in between then reads short, never over.
-    const pendingDeleteIds = await adapter.getPendingDeleteIds?.({ scope }).catch(() => undefined);
-
     // Periodic self-heal. The server-authoritative watermark below removes the
     // systemic drop, but a *partially* stale replica (most rows present, a few
     // missing) would never re-run a full sync on its own — `forceFullSync` would
@@ -170,6 +161,19 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     const fullSyncIntervalMs = options.fullSyncIntervalMs ?? DEFAULT_FULL_SYNC_INTERVAL_MS;
     const lastFullSyncAt = metadata?.lastFullSyncAt || 0;
     const fullSyncStale = lastFullSyncAt > 0 && Date.now() - lastFullSyncAt > fullSyncIntervalMs;
+
+    const forced =
+      options.forceFullSync === true ||
+      localRows.length === 0 ||
+      scopeNotStampedByMe ||
+      fullSyncStale;
+    const count = await beginRemoteCountPass(table, adapter, scope, forced);
+    const expectedRemoteRows =
+      typeof count.rawCount === 'number' && Number.isFinite(count.rawCount) && count.rawCount >= 0
+        ? Math.floor(count.rawCount)
+        : undefined;
+    // After the count: a DELETE that lands in between then reads short, never over.
+    const pendingDeleteIds = await adapter.getPendingDeleteIds?.({ scope }).catch(() => undefined);
 
     // Compare the server count with the rows this device accounts for: never a
     // pending local create (MYK9-752), always a pending delete (MYK9-762).
@@ -182,13 +186,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       adapter.cleanupStaleRowsOnFullSync === true &&
       expectedRemoteRows !== undefined &&
       countServerBackedRows(localRows) > expectedRemoteRows;
-    const forceFullSync =
-      options.forceFullSync === true ||
-      localRows.length === 0 ||
-      partialReplica ||
-      overReplica ||
-      fullSyncStale ||
-      scopeNotStampedByMe;
+    const forceFullSync = forced || partialReplica || overReplica;
 
     // Observability: a full sync triggered by an empty local replica that metadata
     // says previously held rows is an unexpected eviction/heal — the silent failure
@@ -375,8 +373,11 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     // both ends. The cache settles the stamp from this (see scopeStampDirective).
     let wholeDownload = false;
     if (accountOwned) {
+      // A count skipped by the cadence proves nothing about completeness.
       const fetchComplete =
-        expectedRemoteRows === undefined || coveredServerIds.size >= expectedRemoteRows;
+        expectedRemoteRows === undefined
+          ? !count.skipped
+          : coveredServerIds.size >= expectedRemoteRows;
       wholeDownload =
         fetchComplete &&
         !skippedForeignUnsentRow &&
@@ -416,6 +417,8 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     const scopeSyncedBy = accountOwned
       ? scopeStampDirective(writtenIds, syncingAuthUserId, wholeDownload)
       : undefined;
+
+    count.record(remoteRows.length, adapter.remotePageSize);
 
     await table.updateSyncMetadata(
       {

@@ -159,7 +159,6 @@ export const queryKeys = {
   showTrials: (showId: string) => ['shows', showId, 'trials'] as const,
   showClasses: (showId: string) => ['shows', showId, 'classes'] as const,
   showEntries: (showId: string) => ['shows', showId, 'entries'] as const,
-  showPromoCodes: (showId: string) => ['shows', showId, 'promo-codes'] as const,
   showFinancialSummary: (showId: string) => ['shows', showId, 'financial-summary'] as const,
   /** Under `show(id)`, so every waitlist mutation's show invalidation refreshes it (MYK9-717). */
   showWaitlistReport: (showId: string) => ['shows', showId, 'waitlist-report'] as const,
@@ -190,7 +189,6 @@ export const queryKeys = {
 
   // Trials
   trial: (id: string) => ['trials', id] as const,
-  trialPromoCodes: (trialId: string) => ['trials', trialId, 'promo-codes'] as const,
   trialEntries: (trialId: string) => ['trials', trialId, 'entries'] as const,
 
   // Pipeline

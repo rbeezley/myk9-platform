@@ -33,7 +33,6 @@ export function resolveShowFinancialRows<T extends TrialFinancialEntryRow>(
       paymentStatus: root.paymentStatus,
       comped: root.comped,
       compedReason: root.compedReason,
-      promoCode: root.promoCode,
     };
   });
 

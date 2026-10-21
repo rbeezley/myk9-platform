@@ -50,7 +50,6 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
         const dog = e.dog;
         const owner = dog?.owner;
         const cls = e.class;
-        const promo = e.promo_code;
         const raw = e as unknown as Record<string, unknown>;
 
         return {
@@ -65,7 +64,6 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
           className: cls?.name || 'Unknown',
           entryFee: (raw.entry_fee as number) || 0,
           discountAmount: (raw.discount_amount as number) || 0,
-          promoCode: promo ? promo.code : null,
           paymentStatus: (raw.payment_status as string) || 'pending',
           comped: (raw.comped as boolean) || false,
           compedReason: raw.comped_reason as string | null,
@@ -167,7 +165,6 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
       Class: e.className,
       'Entry Fee': e.entryFee.toFixed(2),
       Discount: e.discountAmount.toFixed(2),
-      'Promo Code': e.promoCode || '',
       'Payment Status': e.comped ? 'Comped' : e.paymentStatus,
       Comped: e.comped ? 'Yes' : 'No',
       'Comp Reason': e.compedReason || '',
@@ -179,7 +176,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
     return (
       <div role="status" aria-label="Loading financial summary" className="space-y-4">
         <CardGridSkeleton items={5} />
-        <TableSkeleton rows={6} columns={7} />
+        <TableSkeleton rows={6} columns={6} />
       </div>
     );
   }
@@ -341,7 +338,6 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
                     <TableHead>Class</TableHead>
                     <TableHead className="text-right">Fee</TableHead>
                     <TableHead className="text-right">Discount</TableHead>
-                    <TableHead>Promo</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -357,15 +353,6 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
                           <span className="text-orange-600">
                             -${entry.discountAmount.toFixed(2)}
                           </span>
-                        ) : (
-                          '—'
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {entry.promoCode ? (
-                          <Badge variant="outline" className="font-mono text-xs">
-                            {entry.promoCode}
-                          </Badge>
                         ) : (
                           '—'
                         )}

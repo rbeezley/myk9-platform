@@ -367,12 +367,6 @@ const SHOW_FINANCIALS_SELECT_WITH_LINK = `
       registration:registration_id (
         ${ENROLLMENT_FINANCIAL_SELECT}
       ),
-      promo_code:promo_code_id (
-        id,
-        code,
-        discount_type,
-        discount_value
-      ),
       trial:trial_id (
         id,
         name
@@ -402,12 +396,6 @@ const SHOW_FINANCIALS_SELECT = `
       ),
       registration:registration_id (
         ${ENROLLMENT_FINANCIAL_SELECT}
-      ),
-      promo_code:promo_code_id (
-        id,
-        code,
-        discount_type,
-        discount_value
       ),
       trial:trial_id (
         id,
@@ -439,12 +427,6 @@ const TRIAL_ENTRIES_SELECT_WITH_LINK = `
       ),
       registration:registration_id (
         ${ENROLLMENT_FINANCIAL_SELECT}
-      ),
-      promo_code:promo_code_id (
-        id,
-        code,
-        discount_type,
-        discount_value
       )
     `;
 
@@ -472,12 +454,6 @@ const TRIAL_ENTRIES_SELECT = `
       ),
       registration:registration_id (
         ${ENROLLMENT_FINANCIAL_SELECT}
-      ),
-      promo_code:promo_code_id (
-        id,
-        code,
-        discount_type,
-        discount_value
       )
     `;
 
@@ -867,7 +843,7 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
   });
 };
 
-// Get entries by show ID with financial joins (promo_code, trial name).
+// Get entries by show ID with financial joins (trial name).
 // MYK9-761: summed as money, so a never-synced show is read online or reported
 // as an error, the same rule as the staff report read above.
 export const getEntriesByShowForFinancials = async (showId: string) => {
@@ -890,33 +866,9 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
       // Build trial lookup map
       const trialsMap = new Map(trials.map(t => [t.id, { id: t.id, name: t.name }]));
 
-      // Collect unique promo_code_ids for batch PostgREST fetch
-      // promoCodeId is not in the ReplicatedEntry type but may exist on the raw object
-      const promoCodeIds = [
-        ...new Set(
-          entries
-            .map(e => (e as unknown as Record<string, unknown>).promoCodeId as string | undefined)
-            .filter((id): id is string => !!id)
-        ),
-      ];
-
-      // Batch-fetch promo codes from PostgREST (not replicated)
-      let promoCodesMap = new Map<string, Record<string, unknown>>();
-      if (promoCodeIds.length > 0) {
-        const { data: promoCodes } = await supabase
-          .from('promo_codes')
-          .select('id, code, discount_type, discount_value')
-          .in('id', promoCodeIds);
-        if (promoCodes) {
-          promoCodesMap = buildMapFromArray(promoCodes, pc => pc.id);
-        }
-      }
-
       const sortedEntries = sortedCopy(entries, compareDateDesc(getEntryCreatedSortValue));
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
       const data = await mapReplicatedEntriesWithHandlerIdentity(sortedEntries, dogsMap, entry => {
-        const raw = entry as unknown as Record<string, unknown>;
-        const promoCodeId = raw.promoCodeId as string | undefined;
         const cls = entry.classId ? classesMap.get(entry.classId) : null;
         const trialRow = cls?.trialId ? (trialsMap.get(cls.trialId) ?? null) : null;
         return mapReplicatedEntryToDbRow(entry, {
@@ -925,7 +877,6 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
           registration: entry.registrationId
             ? (enrollmentsMap.get(entry.registrationId) ?? null)
             : null,
-          promoCode: promoCodeId ? (promoCodesMap.get(promoCodeId) ?? null) : null,
           trial: trialRow,
         });
       });

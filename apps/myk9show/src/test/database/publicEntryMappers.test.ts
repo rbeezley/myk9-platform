@@ -65,7 +65,6 @@ describe('public entry mappers', () => {
     expect(publicRowToRawEntryRow(makeRow()).dog?.owner).toBeNull();
     expect(publicRowToRawEntryRow(makeRow()).judge_notes).toBeNull();
     expect(publicRowToTrialEntryRow(makeRow()).dog?.owner).toBeNull();
-    expect(publicRowToTrialEntryRow(makeRow()).promo_code).toBeNull();
     expect(publicRowToShowEntryRow(makeRow()).dog?.owner).toBeNull();
     expect(publicRowToShowEntryRow(makeRow()).payment_status).toBeNull();
     expect(publicRowToShowEntryRow(makeRow()).entry_fee).toBeNull();

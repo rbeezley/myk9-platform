@@ -136,7 +136,7 @@ const TrialDetailsPage: React.FC = () => {
 
   // Tab state — URL-synced. Pass only the tabs this visitor may see so a
   // hidden management tab in `?tab=` falls back to 'overview' instead of
-  // rendering its panel (PromoCodes/Financials) to a non-staff visitor.
+  // rendering its panel (Financials) to a non-staff visitor.
   const allowedTabIds = canManageTrial ? TAB_IDS : AUTHENTICATED_TAB_IDS;
   const [activeTab, setActiveTab] = useUrlTab(allowedTabIds, 'overview');
 

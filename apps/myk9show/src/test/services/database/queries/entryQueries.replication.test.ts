@@ -92,7 +92,7 @@ const { mockViewRows } = vi.hoisted(() => ({
   mockViewRows: { current: [] as Record<string, unknown>[] },
 }));
 
-// Mock supabase client (for fetchMissingArmbands, promo_codes fallback, and the
+// Mock supabase client (for fetchMissingArmbands and the
 // view_authenticated_entry_results read in postgrestGetUserEntries).
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -445,15 +445,6 @@ describe('entryQueries (replication)', () => {
       const trial = row.trial as Record<string, unknown>;
       expect(trial.id).toBe('trial-1');
       expect(trial.name).toBe('Trial 1');
-    });
-
-    it('sets promo_code to null when entry has no promo code', async () => {
-      setupListMocks();
-
-      const result = await getEntriesByShowForFinancials('show-1');
-
-      const row = result.data[0] as Record<string, unknown>;
-      expect(row.promo_code).toBeNull();
     });
   });
 

@@ -14,7 +14,6 @@ function row(
     className: 'Interior Novice A',
     entryFee: 35,
     discountAmount: 0,
-    promoCode: null,
     paymentStatus: 'paid',
     comped: false,
     compedReason: null,

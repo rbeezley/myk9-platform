@@ -1,6 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { signInAsAdmin, signInAsExhibitor } from '../helpers/testUsers';
-import { actionsTrigger, chooseAction, openActionsMenu } from '../helpers/actionsMenu';
+import { chooseAction, openActionsMenu } from '../helpers/actionsMenu';
 
 /**
  * Comprehensive UI test for the Clubs section.
@@ -21,6 +21,16 @@ import { actionsTrigger, chooseAction, openActionsMenu } from '../helpers/action
  */
 
 test.describe.configure({ mode: 'serial' });
+
+// Clubs is a list with a detail pane from lg (MYK9-1228), and this spec asserts that
+// shape: the short search placeholder, no Cards/Table toggle beside the pane, compact
+// rows as links. CI's chromium project runs at 1280; the narrow projects in the local
+// matrix render the cards/table list instead, which BrowseClubsPage.test.tsx and
+// ClubsMasterDetailPage.test.tsx cover.
+test.skip(
+  ({ viewport }) => (viewport?.width ?? 0) < 1024,
+  'clubsUI asserts the lg+ list-plus-detail-pane layout'
+);
 
 const RUN_ID = Date.now();
 const CLUB_A_NAME = `E2E Club A ${RUN_ID}`;
@@ -155,25 +165,19 @@ test.describe('Clubs UI — Browse Page', () => {
       (await openActionsMenu(page)).getByRole('menuitem', { name: 'Add Club' })
     ).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.getByRole('textbox', { name: /Search clubs by name/ })).toBeVisible();
-    // The Club Type filter was cut (MYK9-906); target view toggles by exact
-    // aria-label ("Table view" not "Table", which also matches "Reset table view").
-    await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
-  });
-
-  test('view toggle switches between cards and table', async ({ page }) => {
-    await gotoClubsBrowse(page);
-    await page.getByRole('button', { name: 'Table view', exact: true }).click();
-    // In table mode, the Cards toggle should still be present to switch back.
-    await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Cards view', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
+    // Beside the detail pane the placeholder is the short "Search clubs"; the long
+    // "by name, city, or state" form only renders below lg (MYK9-1228).
+    await expect(page.getByPlaceholder(/^Search clubs/)).toBeVisible();
+    // Clubs is a list with a detail pane from lg, like Dogs and People (MYK9-1228):
+    // beside a club the list is always compact, so there is no Cards/Table toggle.
+    // The Club Type filter was cut earlier (MYK9-906).
+    await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toHaveCount(0);
   });
 
   test('search input filters list', async ({ page }) => {
     await gotoClubsBrowse(page);
-    const search = page.getByRole('textbox', { name: /Search clubs by name/ });
+    const search = page.getByPlaceholder(/^Search clubs/);
     await search.fill('NoMatchXYZ123');
     await expect(page.getByText(/No clubs match your search or filters/i)).toBeVisible();
     await page.getByRole('button', { name: 'Show all clubs' }).click();
@@ -249,18 +253,20 @@ test.describe('Clubs UI — Create', () => {
     await submitCreateClub(page, CLUB_C_NAME);
   });
 
+  // Beside the detail pane each club is one compact row: a link named by the club,
+  // not a card with a heading (MYK9-1228).
   test('all three clubs appear in browse list', async ({ page }) => {
     await gotoClubsBrowse(page);
-    await expect(page.getByRole('heading', { name: CLUB_A_NAME })).toBeVisible();
-    await expect(page.getByRole('heading', { name: CLUB_B_NAME })).toBeVisible();
-    await expect(page.getByRole('heading', { name: CLUB_C_NAME })).toBeVisible();
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_A_NAME) })).toBeVisible();
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_B_NAME) })).toBeVisible();
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_C_NAME) })).toBeVisible();
   });
 
   test('search finds Club A by name', async ({ page }) => {
     await gotoClubsBrowse(page);
-    await page.getByRole('textbox', { name: /Search clubs by name/ }).fill(CLUB_A_NAME);
-    await expect(page.getByRole('heading', { name: CLUB_A_NAME })).toBeVisible();
-    await expect(page.getByRole('heading', { name: CLUB_B_NAME })).not.toBeVisible();
+    await page.getByPlaceholder(/^Search clubs/).fill(CLUB_A_NAME);
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_A_NAME) })).toBeVisible();
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_B_NAME) })).toHaveCount(0);
   });
 
   test('form validation — Next is blocked until the club has a name', async ({ page }) => {
@@ -337,24 +343,64 @@ test.describe('Clubs UI — Non-admin permissions', () => {
 
   test('exhibitor cannot create, edit branding, or delete clubs', async ({ page }) => {
     await page.goto('/clubs', { waitUntil: 'networkidle' });
-    // No Add Club on the page, and none in the Actions menu for an exhibitor.
+    // No Add Club on the page, and none in the Actions menu for an exhibitor. The menu
+    // itself is always there for an exhibitor on /clubs (Export CSV, Add Dog), so open
+    // it unconditionally rather than skip the check when the trigger is late.
     await expect(page.getByRole('button', { name: 'Add Club' })).toHaveCount(0);
-    if (await actionsTrigger(page).isVisible()) {
-      await expect(
-        (await openActionsMenu(page)).getByRole('menuitem', { name: 'Add Club' })
-      ).toHaveCount(0);
-      await page.keyboard.press('Escape');
-    }
+    await expect(
+      (await openActionsMenu(page)).getByRole('menuitem', { name: 'Add Club' })
+    ).toHaveCount(0);
+    await page.keyboard.press('Escape');
 
-    await page
-      .getByRole('link', { name: new RegExp(CLUB_C_NAME) })
-      .first()
-      .click();
+    // The clubs this run created are not visible to an exhibitor: `clubs_select`
+    // shows an outsider only clubs that are authorized or have a public show, and a
+    // freshly created club is neither. The permission assertions hold for any club
+    // the exhibitor can open, so take the first row of the list (the compact list is
+    // the <ul aria-label="Clubs">), and say so plainly if the exhibitor sees none.
+    const rows = page.getByRole('list', { name: 'Clubs' }).getByRole('link');
+    await expect(rows.first(), 'the exhibitor must see at least one club').toBeVisible();
+    await rows.first().click();
     await page.waitForURL(/\/clubs\/[0-9a-f-]{36}$/);
-    // An exhibitor has no page action at all, so the header Actions menu is absent (MYK9-928).
-    await expect(actionsTrigger(page)).toHaveCount(0);
-    // Nor any ⋮ on the card: Change Photo and Authorize live in that header menu.
-    await expect(page.getByRole('button', { name: 'Club options' })).toHaveCount(0);
+    // The club's own page actions register only once the club has rendered, so wait
+    // for the detail pane's close link before reading the menu.
+    await expect(page.getByRole('link', { name: 'Close club' })).toBeVisible();
+    // Every club action lives in the header Actions menu (MYK9-928). Since the Create
+    // group (MYK9-1063) and the list's Export CSV, that menu also opens for an
+    // exhibitor with items that are not about the club, so "no trigger" stopped
+    // meaning "no club permissions". Assert the permission surface by name instead:
+    // none of the club page actions (actionRegistry `Edit club`, clubPageActions
+    // extras) may be offered. Delete has no menu item of its own; it is the Edit
+    // panel's footer button, so no Edit club means no Delete club either.
+    // An exhibitor always has this menu beside the clubs list (Export CSV, Add Dog), so
+    // open it unconditionally: openActionsMenu waits for the trigger, which keeps a
+    // not-yet-rendered trigger from silently skipping the checks below.
+    const menu = await openActionsMenu(page);
+    const items = menu.getByRole('menuitem');
+    // The club's own page actions register in an effect after the club renders, and
+    // the permissions behind them can resolve later still. Read the menu only once its
+    // item list has held still across two reads, so a late-registering "Edit club"
+    // cannot slip in after the absence checks ran.
+    await expect
+      .poll(
+        async () => {
+          const before = await items.allInnerTexts();
+          await page.waitForTimeout(250);
+          const after = await items.allInnerTexts();
+          return before.length > 0 && JSON.stringify(before) === JSON.stringify(after);
+        },
+        { message: 'the Actions menu should settle with at least one item' }
+      )
+      .toBe(true);
+    for (const name of [
+      'Edit club',
+      'Change Photo',
+      'Authorize Club',
+      'Revoke Authorization',
+      'Add Show for this club',
+    ]) {
+      await expect(menu.getByRole('menuitem', { name, exact: true })).toHaveCount(0);
+    }
+    await page.keyboard.press('Escape');
   });
 });
 
@@ -400,7 +446,11 @@ test.describe('Clubs UI — Delete (only Club C, as platform admin)', () => {
     await confirm.click();
 
     await page.waitForURL(/\/clubs(\?|$|#)/, { timeout: 10000 });
-    await expect(page.getByRole('heading', { name: CLUB_C_NAME })).not.toBeVisible();
+    // Beside the pane a club is a row link, not a heading; the detail heading is gone
+    // with the navigation, so the row is the thing that must have left. Club A first,
+    // so the zero count is read from a loaded list.
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_A_NAME) })).toBeVisible();
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_C_NAME) })).toHaveCount(0);
 
     // Confirm Supabase actually accepted the DELETE (RLS would silently return
     // 0 rows for an unauthorized user — admin should get the row back).
@@ -411,14 +461,17 @@ test.describe('Clubs UI — Delete (only Club C, as platform admin)', () => {
 
   test('Club A and Club B persist after Club C deletion', async ({ page }) => {
     await gotoClubsBrowse(page);
-    await expect(page.getByRole('heading', { name: CLUB_A_NAME })).toBeVisible();
-    await expect(page.getByRole('heading', { name: CLUB_B_NAME })).toBeVisible();
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_A_NAME) })).toBeVisible();
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_B_NAME) })).toBeVisible();
     // The optimistic local delete + Supabase mutation can take a beat to flush.
     // Poll the browse list (with reloads) until Club C disappears, rather than
     // relying on Playwright's retry to absorb the gap.
     await expect(async () => {
       await page.reload({ waitUntil: 'networkidle' });
-      await expect(page.getByRole('heading', { name: CLUB_C_NAME })).toHaveCount(0);
+      // Positive control in the same iteration: the list has loaded (A is there)
+      // before Club C's absence counts.
+      await expect(page.getByRole('link', { name: new RegExp(CLUB_A_NAME) })).toBeVisible();
+      await expect(page.getByRole('link', { name: new RegExp(CLUB_C_NAME) })).toHaveCount(0);
     }).toPass({ timeout: 15000 });
   });
 });

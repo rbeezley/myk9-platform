@@ -21,7 +21,8 @@ function trialLabel(trial: { name: string; trial_number: string }): string {
  * Financial Report.
  */
 export function TrialFinancialsCard({ trialId, trials, onPickTrial }: TrialFinancialsCardProps) {
-  const picked = trialId !== 'all' ? trials.find(t => t.id === trialId) : undefined;
+  // A trial id that is not in the list (still loading, or stale) counts as none picked.
+  const picked = trials.find(t => t.id === trialId);
 
   return (
     <Card className="mb-6" data-testid="trial-financials-card">
@@ -31,8 +32,8 @@ export function TrialFinancialsCard({ trialId, trials, onPickTrial }: TrialFinan
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {picked || trialId !== 'all' ? (
-          <FinancialSummary trialId={trialId} />
+        {picked ? (
+          <FinancialSummary trialId={picked.id} />
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">

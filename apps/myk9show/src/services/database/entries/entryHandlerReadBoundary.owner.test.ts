@@ -10,7 +10,7 @@ vi.mock('./handlerHydration', () => ({ loadHandlerPeople }));
 import { mapReplicatedEntriesWithHandlerIdentity } from './entryHandlerReadBoundary';
 
 const dog = { id: 'dog-1', name: 'Cooper', callName: 'Cooper', ownerId: 'person-1' };
-const entry = { id: 'entry-1', dogId: 'dog-1' } as ReplicatedEntry;
+const entry = { id: 'entry-1', dogId: 'dog-1', dogOwnerId: 'person-1' } as ReplicatedEntry;
 
 function run() {
   const dogsMap = new Map([['dog-1', dog as unknown as ReplicatedDog]]);
@@ -34,6 +34,8 @@ describe('replicated entry reads: owner names', () => {
 
     const [row] = await run();
 
+    // The read asks for the owner's person row, so the names come from the real hydration path.
+    expect(loadHandlerPeople).toHaveBeenCalledWith(expect.arrayContaining(['person-1']));
     expect((row?.dog as { owner: unknown }).owner).toMatchObject({
       id: 'person-1',
       first_name: 'Jordan',

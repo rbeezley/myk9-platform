@@ -1,11 +1,8 @@
-import { useSyncExternalStore } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { getEntriesByTrial, type PublicEntryRow } from '@/services/database/entries';
-import {
-  getHandlerPeopleHydrationRevision,
-  subscribeHandlerPeopleHydration,
-} from '@/services/database/entries/handlerHydration';
+import { subscribeHandlerPeopleHydration } from '@/services/database/entries/handlerHydration';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
 /** Row shape returned by getEntriesByTrial (snake_case DB columns). */
@@ -85,22 +82,25 @@ export function publicRowToTrialEntryRow(row: PublicEntryRow): TrialEntryRow {
 export const useTrialEntries = (trialId: string) => {
   const { user, loading } = useAuthContext();
   const isAnon = !user || user.is_anonymous === true;
-  // Owner names arrive from a people hydration that can finish after the first read; re-read when
-  // one lands so a cold device shows owners instead of blanks (MYK9-1320).
-  const peopleRevision = useSyncExternalStore(
-    subscribeHandlerPeopleHydration,
-    getHandlerPeopleHydrationRevision,
-    getHandlerPeopleHydrationRevision
-  );
+  const queryClient = useQueryClient();
+  const enabled = !!trialId && !loading && !isAnon;
+  // Owner names arrive from a people hydration that can finish after the first read. Invalidate
+  // (never re-key) so the rows already on screen stay while the refetch runs (MYK9-1320).
+  useEffect(() => {
+    if (!enabled) return;
+    return subscribeHandlerPeopleHydration(() => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.trialEntries(trialId) });
+    });
+  }, [enabled, queryClient, trialId]);
 
   return useQuery<TrialEntryRow[]>({
-    queryKey: [...queryKeys.trialEntries(trialId), isAnon ? 'public' : 'auth', peopleRevision],
+    queryKey: [...queryKeys.trialEntries(trialId), isAnon ? 'public' : 'auth'],
     queryFn: async () => {
       const { data, error } = await getEntriesByTrial(trialId);
       if (error) throw error;
       return data as unknown as TrialEntryRow[];
     },
-    enabled: !!trialId && !loading && !isAnon,
+    enabled,
     ...cacheStrategies.dynamic,
   });
 };

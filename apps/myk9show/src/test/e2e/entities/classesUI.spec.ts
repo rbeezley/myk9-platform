@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, Locator } from '@playwright/test';
 import { signInAsSecretary } from '../helpers/testUsers';
 
 /**
@@ -43,19 +43,27 @@ async function gotoTrial(page: Page) {
  * the "Edit Class" panel (SetupClassDialogs.tsx -> ClassEditPanel), and Delete class is that
  * panel's footer button (EditPanelDelete.tsx:66), which opens the shared delete alertdialog.
  */
-async function focusClassOnHome(page: Page, nameMatcher: RegExp) {
-  // A class row in the schedule (CockpitTrialGroup.tsx:147 selects the row on click).
-  await page.getByText(nameMatcher).first().click();
-  await expect(page.getByRole('button', { name: /^Edit class / }).first()).toBeVisible({
-    timeout: 15000,
-  });
+/** A class's schedule ROW, by its anchor id (CockpitTrialGroup.tsx:145 `getCockpitAnchorElementId`). */
+const classRowById = (page: Page, classId: string) =>
+  page.locator(`[id="cockpit-anchor-${classId}"]`);
+
+/** The schedule row whose text matches. Trial headers carry the same id prefix but not a class name. */
+const classRowByName = (page: Page, nameMatcher: RegExp) =>
+  page.locator('[id^="cockpit-anchor-"]').filter({ hasText: nameMatcher }).first();
+
+/**
+ * Click the ROW's own padding (not a control inside it) so the row selects the class
+ * (CockpitTrialGroup.tsx:146-148), then wait for THAT class's "Edit class <name>" button
+ * (FocusedClassSetupActions.tsx:35, aria-label `Edit class ${classLabel}`).
+ */
+async function focusClassRow(row: Locator, editButton: Locator) {
+  await expect(row).toBeVisible({ timeout: 15000 });
+  await row.click({ position: { x: 6, y: 6 } });
+  await expect(editButton).toBeVisible({ timeout: 15000 });
 }
 
-async function openClassEditPanel(page: Page) {
-  await page
-    .getByRole('button', { name: /^Edit class / })
-    .first()
-    .click();
+async function openClassEditPanel(page: Page, editButton: Locator) {
+  await editButton.click();
   const editDialog = page.getByRole('dialog', { name: 'Edit Class' });
   await expect(editDialog).toBeVisible();
   return editDialog;
@@ -114,8 +122,9 @@ test.describe('Classes UI — Edit class judge', () => {
     // Setup: Container Master in this fixture has Richard Beezley assigned
     // from earlier walkthrough runs.
     await gotoTrial(page);
-    await focusClassOnHome(page, /Container Master/i);
-    const editDialog = await openClassEditPanel(page);
+    const editButton = page.getByRole('button', { name: /^Edit class Container Master/i });
+    await focusClassRow(classRowByName(page, /Container Master/i), editButton);
+    const editDialog = await openClassEditPanel(page, editButton);
 
     // Judge combobox shows the resolved name, not the raw UUID.
     const judgeCombo = editDialog.getByRole('combobox', { name: /Judge/i });
@@ -137,8 +146,9 @@ test.describe('Classes UI — Delete class confirmation', () => {
     await gotoTrial(page);
 
     // Open Delete on Container Master: the Edit Class panel's footer button.
-    await focusClassOnHome(page, /Container Master/i);
-    const editDialog = await openClassEditPanel(page);
+    const editButton = page.getByRole('button', { name: /^Edit class Container Master/i });
+    await focusClassRow(classRowByName(page, /Container Master/i), editButton);
+    const editDialog = await openClassEditPanel(page, editButton);
     await editDialog.getByRole('button', { name: 'Delete class', exact: true }).click();
 
     // The shared delete dialog (CRUD standard Phase 2): honest about Undo.
@@ -161,8 +171,10 @@ test.describe('Classes UI — Delete class confirmation', () => {
     await alert.getByRole('button', { name: 'Keep it', exact: true }).click();
     await expect(alert).toHaveCount(0);
 
-    // Class still exists on the Overview.
-    await expect(page.getByText(/Container Master/i).first()).toBeVisible();
+    // Close the panel, then the class is still on the schedule (the row, not the open panel).
+    await editDialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(editDialog).toHaveCount(0);
+    await expect(classRowByName(page, /Container Master/i)).toBeVisible();
     expect(deleteFired).toBe(false);
   });
 });
@@ -327,10 +339,16 @@ test.describe('Classes UI — Delete class cascade', () => {
     // Drive the UI: open the show home focused on the seeded class (`focus` is the cockpit's
     // class param), then Edit class -> the panel's Delete class.
     await page.goto(`/shows/${seed.showId}?focus=${seed.classId}`, { waitUntil: 'networkidle' });
-    await expect(page.getByRole('button', { name: /^Edit class / }).first()).toBeVisible({
-      timeout: 15000,
-    });
-    const editDialog = await openClassEditPanel(page);
+    // The shared Golden Path show holds other classes, and the cockpit silently focuses another
+    // one when `focus` does not resolve. Prove the focused class IS the seeded one before the
+    // destructive click: its row is on the schedule, and the URL (which the cockpit rewrites to
+    // the class it really focused) still names it.
+    const seededRow = classRowById(page, seed.classId);
+    await expect(seededRow).toBeVisible({ timeout: 15000 });
+    await expect(page).toHaveURL(new RegExp(`focus=${seed.classId}`));
+    const editButton = page.getByRole('button', { name: /^Edit class / });
+    await expect(editButton).toHaveCount(1);
+    const editDialog = await openClassEditPanel(page, editButton);
     await editDialog.getByRole('button', { name: 'Delete class', exact: true }).click();
 
     const alert = page.getByRole('alertdialog', { name: /^Delete the class / });
@@ -367,7 +385,7 @@ test.describe('Classes UI — Delete class cascade', () => {
       expect(after.entryDeletedAts.every(d => d !== null)).toBe(true);
     }).toPass({ timeout: 10000 });
 
-    // The deleted class is gone from the Overview: nothing is focused to edit any more.
-    await expect(page.getByRole('button', { name: /^Edit class / })).toHaveCount(0);
+    // The deleted class's row is gone from the Overview (other fixture classes stay).
+    await expect(classRowById(page, seed.classId)).toHaveCount(0);
   });
 });

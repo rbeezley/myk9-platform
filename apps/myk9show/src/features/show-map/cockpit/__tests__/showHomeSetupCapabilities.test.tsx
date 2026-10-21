@@ -12,6 +12,12 @@ vi.mock('@/components/shows/tabs/SetupClassesSection', () => ({
   SetupClassesSection: () => <div data-testid="class-management" />,
 }));
 
+vi.mock('@/features/judge-supplies/JudgeSuppliesLauncher', () => ({
+  JudgeSuppliesLauncher: ({ trialId }: { trialId: string }) => (
+    <div data-testid="judge-supplies" data-trial-id={trialId} />
+  ),
+}));
+
 const snapshot: SecretaryCockpitSnapshot = {
   showId: 'show-1',
   timeZone: 'America/Chicago',
@@ -34,6 +40,11 @@ const snapshot: SecretaryCockpitSnapshot = {
     },
   ],
 };
+
+function Where() {
+  const location = useLocation();
+  return <div data-testid="where">{`${location.pathname}${location.search}`}</div>;
+}
 
 function LocationProbe() {
   return <div data-testid="search">{useLocation().search}</div>;
@@ -74,8 +85,57 @@ describe('show home carries every Setup action (MYK9-956)', () => {
     await screen.findByRole('menuitem', { name: 'Edit Trial' });
     expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
       'Edit Trial',
+      'Entry forms',
+      'Judge supplies',
       'Trial financials',
     ]);
+  });
+
+  // MYK9-1320: the trial's own page is gone for managers, so the heading menu is their door to
+  // what it held: Entry Forms for the trial, its money on Reports, and Judge supplies.
+  describe('trial heading menu doors (MYK9-1320)', () => {
+    function renderWithPath() {
+      return render(
+        <>
+          <Routes>
+            <Route
+              path="/shows/:id"
+              element={<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />}
+            />
+            <Route path="*" element={null} />
+          </Routes>
+          <Where />
+        </>,
+        { initialRoute: '/shows/show-1' }
+      );
+    }
+    async function pick(user: Awaited<ReturnType<typeof renderWithPath>>['user'], name: string) {
+      await user.click(screen.getByRole('button', { name: /trial actions for trial 1/i }));
+      await user.click(await screen.findByRole('menuitem', { name }));
+    }
+
+    it('Trial financials opens Reports scoped to the trial', async () => {
+      const { user } = renderWithPath();
+      await pick(user, 'Trial financials');
+      expect(screen.getByTestId('where')).toHaveTextContent(
+        '/shows/show-1/reports?trialId=trial-1'
+      );
+    });
+
+    it('Entry forms opens Entry Forms filtered to the trial', async () => {
+      const { user } = renderWithPath();
+      await pick(user, 'Entry forms');
+      expect(screen.getByTestId('where')).toHaveTextContent(
+        /^\/shows\/show-1\/entries\?.*trial=trial-1/
+      );
+    });
+
+    it('Judge supplies opens the supplies UI for that trial, for a manager only', async () => {
+      const { user } = renderWithPath();
+      expect(screen.queryByTestId('judge-supplies')).toBeNull();
+      await pick(user, 'Judge supplies');
+      expect(screen.getByTestId('judge-supplies')).toHaveAttribute('data-trial-id', 'trial-1');
+    });
   });
 
   it('gives the class panel Edit class, with Delete left to the edit panel', () => {

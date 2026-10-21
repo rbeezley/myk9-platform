@@ -339,11 +339,17 @@ test.describe('Trial Details — date display regression', () => {
     // then used as `trialDate + "T00:00:00"`, yielding an unparseable string
     // and rendering "Invalid Date" in the DetailHero metadata.
     // Fixed in useShowCreationWizardActions.ts: format(dateTime, 'yyyy-MM-dd').
-    // The trial's own page now sends a manager to the show home (MYK9-1320), so the date shows there.
+    // The trial's own page sends a manager to the show home (MYK9-1320), where the date is on
+    // the trial's heading.
     await page.goto(`/shows/${seed.showId}/trials/${seed.trialId}`);
-    await page.waitForLoadState('networkidle');
+    await expect(page).toHaveURL(new RegExp(`anchor=${seed.trialId}`), { timeout: 15000 });
 
-    await expect(page.getByText('Invalid Date')).not.toBeVisible({ timeout: 5000 });
+    // Positive control first: the heading rendered, and it carries a date (digits), so the
+    // negative below cannot pass on a page that never showed the trial.
+    const heading = page.locator(`[id="cockpit-anchor-${seed.trialId}"]`);
+    await expect(heading).toBeVisible({ timeout: 15000 });
+    await expect(heading).toContainText(/\d/);
+    await expect(page.getByText('Invalid Date')).toHaveCount(0);
   });
 });
 

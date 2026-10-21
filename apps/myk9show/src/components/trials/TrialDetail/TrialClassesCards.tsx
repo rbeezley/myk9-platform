@@ -15,10 +15,6 @@ interface TrialClassesCardsProps {
   classes: TrialClass[];
   showId: string;
   trialId: string;
-  /** Staff-only gate for the per-card edit menu. Deny by default. */
-  canManage?: boolean;
-  onEditClass: (classItem: TrialClass) => void;
-  onDeleteClass: (classItem: TrialClass) => void;
 }
 
 /**
@@ -43,14 +39,7 @@ function formatStartTime(startTime: string | undefined): string | undefined {
  * Displays trial classes as cards using the shared ClassCard component
  * from @myk9/ui for UX consistency with myK9Q.
  */
-export function TrialClassesCards({
-  classes,
-  showId,
-  trialId,
-  canManage = false,
-  onEditClass,
-  onDeleteClass: _onDeleteClass,
-}: TrialClassesCardsProps) {
+export function TrialClassesCards({ classes, showId, trialId }: TrialClassesCardsProps) {
   const navigate = useNavigate();
 
   // Favorites store
@@ -124,11 +113,6 @@ export function TrialClassesCards({
                 onCardClick={() =>
                   startTransition(() => navigate(getClassDetailHref(showId, trialId, classItem.id)))
                 }
-                {...(canManage && {
-                  onMenuClick: () => {
-                    onEditClass(classItem);
-                  },
-                })}
               />
             </div>
           </ClassDetailsPopover>

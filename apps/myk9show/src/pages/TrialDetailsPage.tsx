@@ -12,7 +12,6 @@ import { TrialEntriesTable } from '@/components/trials/TrialDetail/TrialEntriesT
 import { Calendar, LayoutDashboard, ClipboardList, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getShowHomeTrialHref } from '@/features/show-map/cockpit/cockpitRoutes';
-import { UserRole } from '@/types/auth-types';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 
 // Shared primitives
@@ -35,9 +34,6 @@ import { StatusIcon, getStatusDescriptor } from '@/components/status';
 // useUrlTab validates `?tab=` against this list, so a retired tab (the old
 // `?tab=financials` deep link) falls back to Overview instead of rendering nothing.
 const TAB_IDS = ['overview', 'entries'] as const;
-
-// Class edit/delete live in the workbench; this view is only ever read-only (canManage is false).
-const NO_CLASS_ACTION = () => undefined;
 
 /**
  * Hero title and subtitle for a trial: the shared trial label, with the trial number added as a
@@ -66,6 +62,7 @@ const TrialDetailsPage: React.FC = () => {
   const {
     currentTrial,
     parentShow,
+    parentShowLoading,
     fallbackTrialResolved,
     fallbackTrialError,
     refetchFallbackTrial,
@@ -82,13 +79,16 @@ const TrialDetailsPage: React.FC = () => {
     userWithRoles,
     clubId: parentShow?.clubId,
   });
-  // A staff-role holder whose show has not resolved yet reads as a non-manager (the club is
-  // unknown), so hold the skeleton instead of flashing the public view before the redirect.
+  // A staff-role holder whose show is still being READ looks like a non-manager (the club is
+  // unknown), so hold the skeleton instead of flashing the public view before the redirect. Once
+  // that read has settled without a show (errored, not found, offline), fall through to the
+  // read-only view rather than waiting forever.
   const manageScopeResolving =
     !canManageTrial &&
     !parentShow &&
+    parentShowLoading &&
     !!currentTrial &&
-    (isSecretary || isAdmin || hasRole(UserRole.CLUB_ADMIN));
+    !!user;
 
   const [activeTab, setActiveTab] = useUrlTab(TAB_IDS, 'overview');
 
@@ -336,13 +336,7 @@ const TrialDetailsPage: React.FC = () => {
 
             <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setActiveTab}>
               <TabsContent value="overview">
-                <TrialDetailsMain
-                  trial={trialWithClasses}
-                  statistics={trialStatistics}
-                  canManage={false}
-                  onEditClass={NO_CLASS_ACTION}
-                  onDeleteClass={NO_CLASS_ACTION}
-                />
+                <TrialDetailsMain trial={trialWithClasses} statistics={trialStatistics} />
               </TabsContent>
 
               <TabsContent value="entries">

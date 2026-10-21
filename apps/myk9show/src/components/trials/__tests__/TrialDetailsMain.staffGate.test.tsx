@@ -33,39 +33,21 @@ const trial = {
   classes: [] as TrialClass[],
 } as Trial & { classes?: TrialClass[] };
 
-function renderMain(canManage?: boolean) {
-  return render(
-    <TrialDetailsMain
-      trial={trial}
-      statistics={statistics}
-      {...(canManage !== undefined && { canManage })}
-      onEditClass={vi.fn()}
-      onDeleteClass={vi.fn()}
-    />
-  );
+function renderMain() {
+  return render(<TrialDetailsMain trial={trial} statistics={statistics} />);
 }
 
+// MYK9-1320: a manager never reaches this view (the trial page redirects them), and Judge
+// supplies moved to the Overview trial heading menu, so this view renders no supplies for anyone.
 describe('TrialDetailsMain judge supplies gate', () => {
-  it('renders judge supplies for staff', () => {
-    renderMain(true);
-
-    expect(screen.getByTestId('judge-supplies-section')).toBeInTheDocument();
-  });
-
-  it('hides judge supplies from an exhibitor', () => {
-    renderMain(false);
-
-    expect(screen.queryByTestId('judge-supplies-section')).not.toBeInTheDocument();
-  });
-
-  it('denies by default when no gate is passed', () => {
+  it('never renders judge supplies (they live in the Overview trial heading menu)', () => {
     renderMain();
 
     expect(screen.queryByTestId('judge-supplies-section')).not.toBeInTheDocument();
   });
 
   it('keeps the schedule timeline visible to exhibitors', () => {
-    renderMain(false);
+    renderMain();
 
     expect(screen.getByTestId('trial-timeline')).toBeInTheDocument();
   });

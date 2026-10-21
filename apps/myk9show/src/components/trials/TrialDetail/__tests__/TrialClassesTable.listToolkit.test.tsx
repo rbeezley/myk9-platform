@@ -30,16 +30,7 @@ const make = (id: string, element: string): TrialClass => ({
 const classes = [make('c1', 'Containers'), make('c2', 'Interior')];
 
 const renderTable = (props: Partial<React.ComponentProps<typeof TrialClassesTable>> = {}) =>
-  render(
-    <TrialClassesTable
-      classes={classes}
-      showId="s1"
-      trialId="t1"
-      onEditClass={vi.fn()}
-      onDeleteClass={vi.fn()}
-      {...props}
-    />
-  );
+  render(<TrialClassesTable classes={classes} showId="s1" trialId="t1" {...props} />);
 
 describe('TrialClassesTable list toolkit', () => {
   beforeEach(() => {
@@ -70,21 +61,15 @@ describe('TrialClassesTable list toolkit', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Showing all 2 classes.');
   });
 
-  it('opens a manager on the table and a visitor on cards (decision 8), and remembers the pick', async () => {
-    const manager = renderTable({ canManage: true });
-    expect(manager.container.querySelector('table')).not.toBeNull();
-    await manager.user.click(screen.getByRole('button', { name: 'Cards view' }));
-    expect(manager.container.querySelector('table')).toBeNull();
-    manager.unmount();
-
-    // The same visitor on a later visit: her choice wins over the role's default.
-    const again = renderTable({ canManage: true });
-    expect(again.container.querySelector('table')).toBeNull();
-    again.unmount();
-
-    localStorage.clear();
-    const visitor = renderTable({ canManage: false });
+  it('opens on cards for the read-only visitor, and remembers her own pick', async () => {
+    const visitor = renderTable();
     expect(visitor.container.querySelector('table')).toBeNull();
+    await visitor.user.click(screen.getByRole('button', { name: 'Table view' }));
+    expect(visitor.container.querySelector('table')).not.toBeNull();
+    visitor.unmount();
+
+    const again = renderTable();
+    expect(again.container.querySelector('table')).not.toBeNull();
   });
 
   it('uses the one empty-state wording', () => {
@@ -97,16 +82,6 @@ describe('TrialClassesTable list toolkit', () => {
     const { user } = renderTable();
     await user.click(screen.getByText('Interior'));
     expect(navigate).toHaveBeenCalledWith('/shows/s1/trials/t1/classes/c2');
-  });
-
-  it('opens the one class-detail URL from the row menu View item', async () => {
-    localStorage.setItem('view-pref-trial-classes', 'table');
-    const { user } = renderTable({ canManage: true });
-    await user.click(screen.getAllByRole('button', { name: 'Class actions' })[0]!);
-    await user.click(await screen.findByRole('menuitem', { name: /view details/i }));
-    expect(navigate).toHaveBeenCalledWith(
-      expect.stringMatching(/^\/shows\/s1\/trials\/t1\/classes\//)
-    );
   });
 
   it('opens the one class-detail URL from a card', async () => {

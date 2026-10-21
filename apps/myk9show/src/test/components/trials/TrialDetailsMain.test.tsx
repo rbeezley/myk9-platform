@@ -95,12 +95,6 @@ const mockStatisticsNoCompleted: TrialStatisticsData = {
   qualifiedRate: { percent: 0, qualified: 0, total: 0, percentChange: 0 },
 };
 
-const mockHandlers = {
-  onEditClass: vi.fn(),
-  onDeleteClass: vi.fn(),
-  onAddClassesFromTemplate: vi.fn(),
-};
-
 describe('TrialDetailsMain', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -108,9 +102,7 @@ describe('TrialDetailsMain', () => {
 
   describe('Statistics Cards - Contextual Subtitles', () => {
     it('displays contextual subtitle instead of percent change for judges', () => {
-      renderWithProviders(
-        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
-      );
+      renderWithProviders(<TrialDetailsMain trial={mockTrial} statistics={mockStatistics} />);
 
       // Should show "1 active" instead of "+50%"
       expect(screen.getByText('1 active')).toBeInTheDocument();
@@ -118,18 +110,14 @@ describe('TrialDetailsMain', () => {
     });
 
     it('shows progress text for classes card', () => {
-      renderWithProviders(
-        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
-      );
+      renderWithProviders(<TrialDetailsMain trial={mockTrial} statistics={mockStatistics} />);
 
       // Should show "3 of 12 completed"
       expect(screen.getByText('3 of 12 completed')).toBeInTheDocument();
     });
 
     it('shows scored count for entries card', () => {
-      renderWithProviders(
-        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
-      );
+      renderWithProviders(<TrialDetailsMain trial={mockTrial} statistics={mockStatistics} />);
 
       // Should show "24 scored"
       expect(screen.getByText('24 scored')).toBeInTheDocument();
@@ -137,11 +125,7 @@ describe('TrialDetailsMain', () => {
 
     it('hides Qualified Rate card when no completed classes', () => {
       renderWithProviders(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatisticsNoCompleted}
-          {...mockHandlers}
-        />
+        <TrialDetailsMain trial={mockTrial} statistics={mockStatisticsNoCompleted} />
       );
 
       // Should not show Qualified Rate card
@@ -149,9 +133,7 @@ describe('TrialDetailsMain', () => {
     });
 
     it('shows Qualified Rate card when classes are completed', () => {
-      renderWithProviders(
-        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
-      );
+      renderWithProviders(<TrialDetailsMain trial={mockTrial} statistics={mockStatistics} />);
 
       // Should show Qualified Rate
       expect(screen.getByText('Qualified Rate')).toBeInTheDocument();
@@ -160,11 +142,7 @@ describe('TrialDetailsMain', () => {
 
     it('shows "None active" when no judges are active', () => {
       renderWithProviders(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatisticsNoCompleted}
-          {...mockHandlers}
-        />
+        <TrialDetailsMain trial={mockTrial} statistics={mockStatisticsNoCompleted} />
       );
 
       expect(screen.getByText('None active')).toBeInTheDocument();
@@ -173,17 +151,13 @@ describe('TrialDetailsMain', () => {
 
   describe('Timeline Section', () => {
     it('renders the timeline heading', () => {
-      renderWithProviders(
-        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
-      );
+      renderWithProviders(<TrialDetailsMain trial={mockTrial} statistics={mockStatistics} />);
 
       expect(screen.getByText('Timeline')).toBeInTheDocument();
     });
 
     it('renders the TrialTimeline component with correct trialId', () => {
-      renderWithProviders(
-        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
-      );
+      renderWithProviders(<TrialDetailsMain trial={mockTrial} statistics={mockStatistics} />);
 
       expect(screen.getByTestId('trial-timeline')).toBeInTheDocument();
       expect(screen.getByText('Timeline for trial-1')).toBeInTheDocument();
@@ -192,17 +166,13 @@ describe('TrialDetailsMain', () => {
 
   describe('Classes Section', () => {
     it('renders the classes heading', () => {
-      renderWithProviders(
-        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
-      );
+      renderWithProviders(<TrialDetailsMain trial={mockTrial} statistics={mockStatistics} />);
 
       expect(screen.getByText('Classes')).toBeInTheDocument();
     });
 
     it('renders the TrialClassesTable component', () => {
-      renderWithProviders(
-        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
-      );
+      renderWithProviders(<TrialDetailsMain trial={mockTrial} statistics={mockStatistics} />);
 
       expect(screen.getByTestId('trial-classes-table')).toBeInTheDocument();
     });
@@ -210,9 +180,7 @@ describe('TrialDetailsMain', () => {
 
   describe('Statistics Cards - Values', () => {
     it('displays correct stat values', () => {
-      renderWithProviders(
-        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
-      );
+      renderWithProviders(<TrialDetailsMain trial={mockTrial} statistics={mockStatistics} />);
 
       // Judges total
       expect(screen.getByText('Judges')).toBeInTheDocument();
@@ -223,9 +191,7 @@ describe('TrialDetailsMain', () => {
     });
 
     it('displays contextual subtitles for each stat card', () => {
-      renderWithProviders(
-        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
-      );
+      renderWithProviders(<TrialDetailsMain trial={mockTrial} statistics={mockStatistics} />);
 
       // Judges subtitle: "1 active"
       expect(screen.getByText('1 active')).toBeInTheDocument();
@@ -238,9 +204,7 @@ describe('TrialDetailsMain', () => {
     });
 
     it('displays qualified rate details when completed classes exist', () => {
-      renderWithProviders(
-        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
-      );
+      renderWithProviders(<TrialDetailsMain trial={mockTrial} statistics={mockStatistics} />);
 
       // Qualified Rate subtitle: "18 of 24 qualified"
       expect(screen.getByText('18 of 24 qualified')).toBeInTheDocument();

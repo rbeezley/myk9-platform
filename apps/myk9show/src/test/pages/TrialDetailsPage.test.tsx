@@ -101,11 +101,15 @@ vi.mock('@/hooks/queries/useTrialsDatabase', () => ({
 }));
 
 let mockFallbackShow: Record<string, unknown> | null = null;
+let mockFallbackShowLoading = false;
 const showQueryCalls: string[] = [];
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useShowQuery: (id: string) => {
     showQueryCalls.push(id);
-    return { data: id ? mockFallbackShow : undefined };
+    return {
+      data: id ? mockFallbackShow : undefined,
+      isLoading: Boolean(id) && mockFallbackShowLoading,
+    };
   },
 }));
 
@@ -248,6 +252,7 @@ describe('TrialDetailsPage', () => {
     mockFallbackTrialPending = false;
     mockTrialQueryError = false;
     mockFallbackShow = null;
+    mockFallbackShowLoading = false;
     trialQueryCalls.length = 0;
     showQueryCalls.length = 0;
     mockAuthContext.user = null;
@@ -466,12 +471,31 @@ describe('TrialDetailsPage', () => {
       mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
       mockSelectedTrialId = 'trial-1';
       mockShows = []; // the parent show (and so its club) has not arrived
+      mockFallbackShowLoading = true; // and its by-id read is still in flight
 
       renderPage('/shows/show-1/trials/trial-1');
 
       expect(screen.getByRole('status', { name: 'Loading trial details' })).toBeInTheDocument();
       expect(screen.queryByTestId('show-page')).not.toBeInTheDocument();
       expect(screen.queryByTestId('trial-details-main')).not.toBeInTheDocument();
+    });
+
+    it('falls through to the read-only view once the show read settles without a show', () => {
+      mockAuthContext.user = { id: 'user-1' };
+      mockAuthContext.isSecretary = true;
+      mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
+      mockSelectedTrialId = 'trial-1';
+      mockShows = [];
+      mockFallbackShow = null; // read settled: errored, not found or offline
+      mockFallbackShowLoading = false;
+
+      renderPage('/shows/show-1/trials/trial-1');
+
+      expect(
+        screen.queryByRole('status', { name: 'Loading trial details' })
+      ).not.toBeInTheDocument();
+      expect(screen.getByTestId('trial-details-main')).toBeInTheDocument();
+      expect(screen.queryByTestId('show-page')).not.toBeInTheDocument();
     });
 
     it('keeps a viewer scoped to another club on the public view', () => {

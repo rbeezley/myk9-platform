@@ -116,7 +116,7 @@ describe('wizard step set per edit mode (MYK9-899)', () => {
     search = 'showId=show-1&mode=add-classes&trialId=trial-1';
     await backFromClasses(['trial-1', 'trial-2']);
     expect(screen.getByTestId('step-content')).toHaveTextContent('focus-trial-1');
-    expect(navigate).toHaveBeenCalledWith('/shows/show-1/trials/trial-1');
+    expect(navigate).toHaveBeenCalledWith('/shows/show-1?anchor=trial-1');
   });
 
   it('add-classes: a deleted or foreign trialId falls back everywhere (picker and Back)', async () => {
@@ -197,11 +197,11 @@ describe('wizard step set per edit mode (MYK9-899)', () => {
       const { user } = await openWithClasses([cls('Container')]);
       const backButtons = screen.getAllByRole('button', { name: /^back$/i });
       await user.click(backButtons[0]!); // header Back (Close)
-      expect(navigate).toHaveBeenCalledWith('/shows/show-1/trials/trial-1');
+      expect(navigate).toHaveBeenCalledWith('/shows/show-1?anchor=trial-1');
       expect(screen.queryByText('Unsaved Changes')).not.toBeInTheDocument();
       navigate.mockClear();
       await user.click(backButtons[backButtons.length - 1]!); // step Back
-      expect(navigate).toHaveBeenCalledWith('/shows/show-1/trials/trial-1');
+      expect(navigate).toHaveBeenCalledWith('/shows/show-1?anchor=trial-1');
       expect(screen.queryByText('Unsaved Changes')).not.toBeInTheDocument();
     });
 

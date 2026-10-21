@@ -9,9 +9,11 @@ import { judgeKey, type JudgeKey, type TrialJudgeSupplyRow } from './types';
 
 export interface JudgeSuppliesSectionProps {
   trialId: string;
+  /** Hand the editor to the caller (it mounts the dialog outside this card) instead of opening it here. */
+  onEditJudge?: (judge: JudgeKey) => void;
 }
 
-export function JudgeSuppliesSection({ trialId }: JudgeSuppliesSectionProps) {
+export function JudgeSuppliesSection({ trialId, onEditJudge }: JudgeSuppliesSectionProps) {
   const judgesQuery = useTrialJudges(trialId);
   const registryQuery = useTrialRegistry(trialId);
   const supplies = useTrialJudgeSupplies(trialId);
@@ -68,7 +70,7 @@ export function JudgeSuppliesSection({ trialId }: JudgeSuppliesSectionProps) {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setOpenJudge(judge)}
+                    onClick={() => (onEditJudge ? onEditJudge(judge) : setOpenJudge(judge))}
                     aria-label={`Edit supplies for ${judge.judge_name}`}
                   >
                     Edit

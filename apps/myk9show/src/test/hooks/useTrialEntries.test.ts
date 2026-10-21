@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
 import { createTestQueryClient } from '@/test/utils/testUtils';
@@ -13,6 +13,14 @@ vi.mock('@/services/database/entries', () => ({
 // Authenticated viewer → hook takes the full table-read path (getEntriesByTrial).
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'u1' }, loading: false }),
+}));
+
+const hydration = vi.hoisted(() => ({ listeners: new Set<() => void>() }));
+vi.mock('@/services/database/entries/handlerHydration', () => ({
+  subscribeHandlerPeopleHydration: (listener: () => void) => {
+    hydration.listeners.add(listener);
+    return () => hydration.listeners.delete(listener);
+  },
 }));
 
 import { getEntriesByTrial } from '@/services/database/entries';
@@ -60,5 +68,34 @@ describe('useTrialEntries', () => {
     });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
+  });
+
+  it('refetches when people hydration lands, keeping the rows on screen meanwhile (MYK9-1320)', async () => {
+    mockGetEntriesByTrial.mockReset();
+    mockGetEntriesByTrial.mockResolvedValueOnce({ data: [{ id: 'e1' }], error: null });
+    let release: (value: { data: unknown[]; error: null }) => void = () => {};
+    mockGetEntriesByTrial.mockImplementationOnce(
+      () => new Promise(resolve => (release = resolve as typeof release)) as never
+    );
+
+    const seen: Array<unknown> = [];
+    const { result } = renderHook(
+      () => {
+        const query = useTrialEntries('trial-1');
+        seen.push(query.data);
+        return query;
+      },
+      { wrapper: createWrapper() }
+    );
+    await waitFor(() => expect(result.current.data).toEqual([{ id: 'e1' }]));
+    seen.length = 0;
+
+    act(() => hydration.listeners.forEach(listener => listener()));
+    await waitFor(() => expect(mockGetEntriesByTrial).toHaveBeenCalledTimes(2));
+    expect(result.current.data).toEqual([{ id: 'e1' }]);
+
+    await act(async () => release({ data: [{ id: 'e1' }, { id: 'e2' }], error: null }));
+    await waitFor(() => expect(result.current.data).toHaveLength(2));
+    expect(seen).not.toContain(undefined);
   });
 });

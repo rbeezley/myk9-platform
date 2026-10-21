@@ -49,14 +49,7 @@ describe('trial class table Not set (MYK9-930)', () => {
   });
 
   it('reads Not set, muted, for a class with no judge and no start time', () => {
-    render(
-      <TrialClassesTable
-        showId="s1"
-        classes={[blank]}
-        onEditClass={vi.fn()}
-        onDeleteClass={vi.fn()}
-      />
-    );
+    render(<TrialClassesTable showId="s1" classes={[blank]} />);
 
     const notSet = screen.getAllByText('Not set');
     expect(notSet).toHaveLength(2);
@@ -65,14 +58,7 @@ describe('trial class table Not set (MYK9-930)', () => {
   });
 
   it('positive control: a filled class shows its judge and no Not set', () => {
-    render(
-      <TrialClassesTable
-        showId="s1"
-        classes={[filled]}
-        onEditClass={vi.fn()}
-        onDeleteClass={vi.fn()}
-      />
-    );
+    render(<TrialClassesTable showId="s1" classes={[filled]} />);
 
     expect(screen.getByText('Jane Smith')).toBeInTheDocument();
     expect(screen.queryByText('Not set')).not.toBeInTheDocument();
@@ -81,15 +67,7 @@ describe('trial class table Not set (MYK9-930)', () => {
 
 describe('trial class cards Not set (MYK9-930)', () => {
   it('says Not set, not TBD, for a class with no judge', () => {
-    render(
-      <TrialClassesCards
-        classes={[blank]}
-        showId="s1"
-        trialId="t1"
-        onEditClass={vi.fn()}
-        onDeleteClass={vi.fn()}
-      />
-    );
+    render(<TrialClassesCards classes={[blank]} showId="s1" trialId="t1" />);
 
     expect(screen.getByTestId('class-card')).toHaveTextContent('Judge: Not set');
     expect(screen.queryByText(/TBD/)).not.toBeInTheDocument();

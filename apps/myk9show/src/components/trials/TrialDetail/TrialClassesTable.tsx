@@ -1,14 +1,9 @@
 import { useState, useMemo, startTransition } from 'react';
-import ClassRowActionsMenu from '@/components/classes/ClassRowActionsMenu';
 import { useNavigate } from 'react-router-dom';
 import { TrialClass } from '../types/trial.types';
 import { type ColumnDef, type SortingFn } from '@tanstack/react-table';
-import {
-  DataTable,
-  filterByListSearch,
-  type DataTableColumnMeta,
-} from '@/components/ui/data-table';
-import { Layers, Plus } from 'lucide-react';
+import { DataTable, filterByListSearch } from '@/components/ui/data-table';
+import { Layers } from 'lucide-react';
 import {
   ListEmptyState,
   ListFilterBar,
@@ -49,32 +44,16 @@ interface TrialClassesTableProps {
   /** The show the trial belongs to; every class row opens the one class-detail URL under it. */
   showId: string;
   trialId?: string;
-  /** Staff-only gate for create/edit/delete affordances. Deny by default. */
-  canManage?: boolean;
-  onAddClassesFromTemplate?: () => void;
-  onEditClass: (classItem: TrialClass) => void;
-  onDeleteClass: (classItem: TrialClass) => void;
 }
 
-export const TrialClassesTable = ({
-  classes,
-  showId,
-  trialId,
-  canManage = false,
-  onAddClassesFromTemplate,
-  onEditClass,
-  onDeleteClass,
-}: TrialClassesTableProps) => {
+export const TrialClassesTable = ({ classes, showId, trialId }: TrialClassesTableProps) => {
   const navigate = useNavigate();
   // Staff open on the table, a visitor on cards; her own choice is remembered (decision 8).
-  const [viewMode, setViewMode] = useViewPreference('trial-classes', defaultListView(canManage));
+  const [viewMode, setViewMode] = useViewPreference('trial-classes', defaultListView(false));
   const [search, setSearch] = useState('');
   const searchText = search.trim();
   const openClass = (classId: string) =>
     startTransition(() => navigate(getClassDetailHref(showId, trialId ?? '', classId)));
-  // Only staff may add classes — gate the handler at the source so the
-  // empty-state and header buttons never render for read-only visitors.
-  const canAddClasses = canManage && onAddClassesFromTemplate !== undefined;
 
   const columns: ColumnDef<TrialClass, unknown>[] = useMemo(
     () => [
@@ -158,36 +137,8 @@ export const TrialClassesTable = ({
           />
         ),
       },
-      // Edit/delete row actions are staff-only; read-only visitors never see them.
-      ...(canManage
-        ? [
-            {
-              id: 'actions',
-              header: 'Actions',
-              enableSorting: false,
-              enableHiding: false,
-              cell: ({ row }) => {
-                const cls = row.original;
-                return (
-                  <div className="text-right" onClick={e => e.stopPropagation()}>
-                    <ClassRowActionsMenu
-                      onView={() =>
-                        startTransition(() =>
-                          navigate(getClassDetailHref(showId, trialId ?? '', cls.id))
-                        )
-                      }
-                      onEdit={() => onEditClass(cls)}
-                      onDelete={() => onDeleteClass(cls)}
-                    />
-                  </div>
-                );
-              },
-              meta: { interactive: true } satisfies DataTableColumnMeta,
-            } satisfies ColumnDef<TrialClass, unknown>,
-          ]
-        : []),
     ],
-    [canManage, onEditClass, onDeleteClass, showId, trialId, navigate]
+    []
   );
 
   // The one search, read from the columns the table renders (so it finds what the table shows).
@@ -203,16 +154,8 @@ export const TrialClassesTable = ({
         noun={CLASS_NOUN}
         filtered={false}
         onShowAll={() => setSearch('')}
-        description={
-          canManage
-            ? 'Add classes to start managing entries and scores'
-            : 'Classes for this trial have not been published yet'
-        }
-        action={
-          canAddClasses
-            ? { label: 'Add Classes', onClick: onAddClassesFromTemplate, icon: Plus }
-            : null
-        }
+        description="Classes for this trial have not been published yet"
+        action={null}
       />
     );
   }
@@ -226,7 +169,6 @@ export const TrialClassesTable = ({
           searchPlaceholder="Search classes..."
           fields={[]}
         />
-        {/* Add classes is the header Actions menu's; the empty state above keeps its own button. */}
         <ListResultLine
           shown={visibleClasses.length}
           total={classes.length}
@@ -248,14 +190,7 @@ export const TrialClassesTable = ({
           action={null}
         />
       ) : viewMode === 'cards' ? (
-        <TrialClassesCards
-          classes={visibleClasses}
-          showId={showId}
-          trialId={trialId || ''}
-          canManage={canManage}
-          onEditClass={onEditClass}
-          onDeleteClass={onDeleteClass}
-        />
+        <TrialClassesCards classes={visibleClasses} showId={showId} trialId={trialId || ''} />
       ) : (
         <DataTable<TrialClass>
           tableId="trialClasses"

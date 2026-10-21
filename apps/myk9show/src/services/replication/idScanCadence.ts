@@ -47,7 +47,12 @@ export function idScanKey(tableName: string, scopeValue?: string): string {
   return scopeValue ? `${tableName}:${scopeValue}` : tableName;
 }
 
-/** Pure-ish rule: true when this pass must run the id scan. */
+/**
+ * True when this pass must run the id scan. A scan that is due owes its debt
+ * until it completes: the stamp is dropped here, so a due scan that then fails
+ * (or is skipped) leaves the next pass scanning again instead of waiting out
+ * the hour behind a stamp that predates the trigger (Codex, MYK9-1302).
+ */
 export function shouldRunIdScan(
   key: string,
   input: { result: { operation?: string }; now?: number }
@@ -55,11 +60,14 @@ export function shouldRunIdScan(
   if (!features.replicationDogIdCadence) return true;
   const stamp = lastCompletedAt.get(key);
   if (stamp === undefined) return true;
-  if (input.result.operation === 'full-sync') return true;
   const now = input.now ?? Date.now();
-  // A clock that moved backwards must never hold the scan past its bound.
-  if (now < stamp) return true;
-  return now - stamp >= ID_SCAN_INTERVAL_MS;
+  const due =
+    input.result.operation === 'full-sync' ||
+    // A clock that moved backwards must never hold the scan past its bound.
+    now < stamp ||
+    now - stamp >= ID_SCAN_INTERVAL_MS;
+  if (due) lastCompletedAt.delete(key);
+  return due;
 }
 
 /**

@@ -90,4 +90,15 @@ describe('id scan cadence', () => {
     markIdScanCompleted('dogs', idScanEpoch(), T0);
     expect(shouldRunIdScan('dogs', { result: incremental, now: T0 + 1_000 })).toBe(false);
   });
+
+  it('a due scan that does not complete keeps the debt: the next incremental pass scans again', () => {
+    markIdScanCompleted('dogs', idScanEpoch(), T0);
+    // Due because the engine pass was a full sync; the scan then fails (no completion).
+    expect(shouldRunIdScan('dogs', { result: { operation: 'full-sync' }, now: T0 + 1_000 })).toBe(
+      true
+    );
+    expect(shouldRunIdScan('dogs', { result: incremental, now: T0 + 2_000 })).toBe(true);
+    markIdScanCompleted('dogs', idScanEpoch(), T0 + 2_000);
+    expect(shouldRunIdScan('dogs', { result: incremental, now: T0 + 3_000 })).toBe(false);
+  });
 });

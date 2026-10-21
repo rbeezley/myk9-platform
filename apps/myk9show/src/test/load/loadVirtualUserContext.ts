@@ -59,9 +59,10 @@ export interface ReaderContext {
    * The app's id-scan cadence for `table` (`services/replication/idScanCadence.ts`,
    * MYK9-1302): the dogs, dog_registrations and clubs id reads run on the first
    * pass and then hourly. `scan` says whether this pass sends them; call `record`
-   * after a scan COMPLETED (a failed or truncated read leaves the debt). The
-   * engine's forced full-sync branch (empty replica, count mismatch, 24 h) is not
-   * modelled: the reader stands for a device that holds rows.
+   * after a scan COMPLETED (a failed or truncated read leaves the debt). An
+   * empty replica scans every pass, as the app does after the full sync the
+   * engine forces for it; the count-mismatch and 24 h full-sync branches are not
+   * modelled.
    */
   idScanGate(table: string): {
     readonly scan: boolean;

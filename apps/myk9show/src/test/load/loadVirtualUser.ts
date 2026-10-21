@@ -215,8 +215,12 @@ export class LoadVirtualUser {
       idScanGate: table => {
         const stamp = this.idScannedAt.get(table);
         const now = Date.now();
+        // An empty local replica makes the engine run a full sync on every pass,
+        // and the app scans after every full sync (Codex, MYK9-1302).
+        const emptyReplica = (this.rowsSeen.get(table) ?? 0) === 0;
         const scan =
           this.options.idScanEveryPass === true ||
+          emptyReplica ||
           stamp === undefined ||
           now < stamp ||
           now - stamp >= VIRTUAL_USER_ID_SCAN_INTERVAL_MS;

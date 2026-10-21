@@ -25,6 +25,11 @@ export interface FakePostgrestOptions {
    * not empty (an empty replica forces a count on every pass, as the engine does).
    */
   readonly seedCountedTables?: boolean;
+  /**
+   * Answer the dogs, dog_registrations and clubs deltas with one row, so the
+   * reader's replica is not empty (an empty replica scans ids on every pass).
+   */
+  readonly seedScannedTables?: boolean;
   /** Answer this table's delta with a full page (1000 rows), as a capped delta arrives. */
   readonly fullPageDeltaTable?: string;
   /** Fail this table's GETs (the delta) with a 500 while its HEAD count still answers. */
@@ -32,6 +37,7 @@ export interface FakePostgrestOptions {
 }
 
 const COUNTED_TABLES = ['shows', 'trials', 'classes', 'judge_assignments', 'waitlist_entries'];
+const SCANNED_TABLES = ['dogs', 'dog_registrations', 'clubs'];
 
 export interface FakePostgrest {
   readonly fetch: typeof fetch;
@@ -73,6 +79,9 @@ export function createFakePostgrest(options: FakePostgrestOptions = {}): FakePos
       );
     }
     if (options.seedCountedTables && method === 'GET' && COUNTED_TABLES.includes(table)) {
+      return json([{ id: `${table}-seed`, updated_at: '2026-01-01T00:00:00.000Z' }]);
+    }
+    if (options.seedScannedTables && method === 'GET' && SCANNED_TABLES.includes(table)) {
       return json([{ id: `${table}-seed`, updated_at: '2026-01-01T00:00:00.000Z' }]);
     }
     // Head count: the engine only needs the header.

@@ -329,9 +329,10 @@ describe("virtual reader follows the engine's count cadence", () => {
 describe("virtual reader follows the application's id-scan cadence (MYK9-1302)", () => {
   async function idScans(
     passMinutes: number[],
-    idScanEveryPass: boolean
+    idScanEveryPass: boolean,
+    { seed = true }: { seed?: boolean } = {}
   ): Promise<Record<string, number>> {
-    const server = createFakePostgrest({ seedCountedTables: true });
+    const server = createFakePostgrest({ seedCountedTables: true, seedScannedTables: seed });
     const user = new LoadVirtualUser(
       {
         supabaseUrl: FIXTURE_URL,
@@ -366,5 +367,13 @@ describe("virtual reader follows the application's id-scan cadence (MYK9-1302)",
 
   it('scans on every pass when the flag is off', async () => {
     expect(await idScans([0, 1, 2], true)).toEqual({ dogs: 3, dog_registrations: 3, clubs: 3 });
+  });
+
+  it('scans on every pass while the replica is empty, as the app does after each forced full sync', async () => {
+    expect(await idScans([0, 1, 2], false, { seed: false })).toEqual({
+      dogs: 3,
+      dog_registrations: 3,
+      clubs: 3,
+    });
   });
 });

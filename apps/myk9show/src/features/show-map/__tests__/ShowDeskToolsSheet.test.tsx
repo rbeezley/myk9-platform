@@ -4,7 +4,7 @@ import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard'
 import { notifications } from '@/lib/notifications';
 import { mockSupabase } from '@/test/mocks/supabase';
 import { render } from '@/test/utils/testUtils';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ShowDeskToolsMenu } from '../ShowDeskToolsMenu';
 import { ShowDeskToolPanel, type ShowDeskToolSection } from '../ShowDeskToolsSheet';
 
@@ -37,7 +37,15 @@ function mockRegenerateRpc() {
 
 function LocationProbe() {
   const location = useLocation();
-  return <div data-testid="location">{`${location.pathname}${location.search}`}</div>;
+  const navigate = useNavigate();
+  return (
+    <>
+      <div data-testid="location">{`${location.pathname}${location.search}`}</div>
+      <button type="button" onClick={() => navigate(-1)}>
+        Browser back
+      </button>
+    </>
+  );
 }
 
 // INTENT: the panel holds ONE tool, keyed by `?tool=<id>`; the Tools button is
@@ -173,6 +181,39 @@ describe('ShowDeskToolPanel and ShowDeskToolsMenu', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /tools/i })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1?tool=not-a-tool');
+  });
+
+  it('opens from the menu as a new history entry, so Back closes it and keeps the other params', async () => {
+    const { user } = renderDesk({ route: '/shows/show-1?phase=day' });
+
+    await user.click(screen.getByRole('button', { name: /tools/i }));
+    await screen.findByRole('menu');
+    await user.click(screen.getByRole('menuitem', { name: /volunteers/i }));
+    expect(await screen.findByRole('dialog', { name: 'Volunteers' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Browser back', hidden: true }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/shows\/show-1\?phase=day$/);
+  });
+
+  it('closes by replacing the history entry, so Back after closing does not reopen the tool', async () => {
+    const { user } = renderDesk({ route: '/shows/show-1?phase=day' });
+
+    await user.click(screen.getByRole('button', { name: /tools/i }));
+    await screen.findByRole('menu');
+    await user.click(screen.getByRole('menuitem', { name: /volunteers/i }));
+    const dialog = await screen.findByRole('dialog', { name: 'Volunteers' });
+    await user.click(within(dialog).getByRole('button', { name: /close/i }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/shows\/show-1\?phase=day$/);
+
+    await user.click(screen.getByRole('button', { name: 'Browser back', hidden: true }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('location')).not.toHaveTextContent('tool=');
   });
 
   it('removes the tool param, keeping the rest, when Escape is pressed', async () => {
@@ -186,13 +227,13 @@ describe('ShowDeskToolPanel and ShowDeskToolsMenu', () => {
     expect(screen.getByTestId('location')).not.toHaveTextContent('tool=');
   });
 
-  it('removes the tool param when the close button is clicked', async () => {
-    const { user } = renderDesk({ route: '/shows/show-1?tool=access-codes' });
+  it('removes the tool param, keeping the rest, when the close button is clicked', async () => {
+    const { user } = renderDesk({ route: '/shows/show-1?tool=access-codes&phase=day' });
 
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /close/i }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(screen.getByTestId('location')).not.toHaveTextContent('tool=');
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/shows\/show-1\?phase=day$/);
   });
 
   it('uses the wide layout only for a tool that asks for it', async () => {

@@ -68,10 +68,12 @@ export function HideResultsButton({
             Exhibitors and spectators will stop seeing these results. A page someone already has
             open keeps showing them until it is reloaded. You can release them again at any time.
           </AlertDialogDescription>
+          {/* Things can change while the dialog is open (connection, settings, a release). */}
+          {blockedReason && <p className="text-sm text-muted-foreground">{blockedReason}</p>}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={hiding}>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onHide} disabled={hiding}>
+          <AlertDialogAction onClick={onHide} disabled={hiding || blockedReason !== null}>
             Hide results
           </AlertDialogAction>
         </AlertDialogFooter>

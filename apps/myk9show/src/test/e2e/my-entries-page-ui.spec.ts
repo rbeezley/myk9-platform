@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { signInAsExhibitor } from './helpers/testUsers';
-import { installExhibitorFixture } from './helpers/exhibitorFixture';
+import { entriesAcrossThreeShows, installExhibitorFixture } from './helpers/exhibitorFixture';
 
 /**
  * E2E Tests for My Shows Page UI/UX Improvements
@@ -20,7 +20,9 @@ import { installExhibitorFixture } from './helpers/exhibitorFixture';
 // specs assert on layout and filters, not on what staging happens to hold
 // (docs/plan-hermetic-e2e-fixtures.md).
 async function login(page: Page) {
-  await installExhibitorFixture(page);
+  // Three shows: the When / Status rail these specs read appears from the
+  // exhibitor's third show (MYK9-1286).
+  await installExhibitorFixture(page, { entries: entriesAcrossThreeShows() });
   await signInAsExhibitor(page, '/exhibitor/entries');
 }
 

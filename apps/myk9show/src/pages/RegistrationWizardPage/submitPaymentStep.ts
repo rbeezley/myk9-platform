@@ -95,6 +95,8 @@ export interface SubmitPaymentStepContext {
     updates: { status: ShowRegistration['status'] }
   ) => void;
   triggerSync: () => void;
+  /** Refresh the exhibitor's account-today-entries cache after their own online filing. */
+  invalidateOwnTodayEntries: () => void;
   navigate: (path: string) => void;
   discardDraftsWithoutFinalSave: (handledClasses: HandledDraftClass[]) => void;
 }
@@ -224,6 +226,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       },
     });
     if (submissionResult.aborted) return;
+    if (ctx.currentWorkflowMode === 'exhibitor') ctx.invalidateOwnTodayEntries();
     ctx.setRegistrationNumber(submissionResult.registrationNumber);
     ctx.setEntryOutcomes(submissionResult.entryOutcomes ?? []);
     ctx.discardDraftsWithoutFinalSave(

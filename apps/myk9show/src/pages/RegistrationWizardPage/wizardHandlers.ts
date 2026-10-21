@@ -22,6 +22,7 @@ import {
 import type { StepId } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
 import { selectedDogsOwner } from '@/features/registration/selectedDogsOwner';
 import { resolveRegistrationCompletionPath } from '../RegistrationWizardPage.routes';
+import { invalidateAccountTodayEntries } from '@/features/show-today/accountTodayEntriesKey';
 import { submitPaymentStep } from './submitPaymentStep';
 import { defaultPaymentForMode, type RegistrationWizardState } from './useRegistrationWizardState';
 import type { SavedDraft } from '@/hooks/useDraftPersistence';
@@ -30,6 +31,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
   const {
     showId,
     userId,
+    queryClient,
     navigate,
     isLateEntryMode,
     exitTarget,
@@ -193,6 +195,9 @@ export function createWizardHandlers(state: RegistrationWizardState) {
           setCurrentStep,
           updateShowRegistration: (id, updates) => updateShowRegistration(id, updates),
           triggerSync,
+          invalidateOwnTodayEntries: () => {
+            void invalidateAccountTodayEntries(queryClient, userId);
+          },
           navigate: path => navigate(path),
           discardDraftsWithoutFinalSave,
         });

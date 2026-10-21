@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@/test/utils/testUtils';
+import { act, renderHook, waitFor } from '@/test/utils/testUtils';
 import { describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
@@ -35,7 +35,7 @@ vi.mock('@/services/replication', () => ({
   replicatedShowsTable: mocks.shows,
 }));
 
-import { useAccountTodayEntries } from './accountTodayEntries';
+import { invalidateAccountTodayEntries, useAccountTodayEntries } from './accountTodayEntries';
 
 describe('useAccountTodayEntries', () => {
   it('shares the initial RPC and non-emitting subscriptions across duplicate consumers', async () => {
@@ -69,7 +69,7 @@ describe('useAccountTodayEntries', () => {
     }
   });
 
-  it('answers one sync burst spread across ~1.2 s with one RPC, and a later write with one more', async () => {
+  it('refetches within 30 s of a replica write, once for a burst, and again for a later write', async () => {
     mocks.rpc.mockClear();
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const wrapper = ({ children }: { children: ReactNode }) => (
@@ -82,21 +82,44 @@ describe('useAccountTodayEntries', () => {
         return vi.fn();
       }) as never);
     }
-    const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
     const { result, unmount } = renderHook(() => useAccountTodayEntries(), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mocks.rpc).toHaveBeenCalledTimes(1);
 
-    for (const write of writes) {
-      write();
-      await pause(400);
-    }
-    await pause(1700);
-    expect(mocks.rpc).toHaveBeenCalledTimes(2);
+    vi.useFakeTimers();
+    try {
+      for (const write of writes) {
+        write();
+        await vi.advanceTimersByTimeAsync(400);
+      }
+      await vi.advanceTimersByTimeAsync(28_000);
+      expect(mocks.rpc).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(mocks.rpc).toHaveBeenCalledTimes(2);
 
-    writes[0]?.();
-    await pause(1700);
-    expect(mocks.rpc).toHaveBeenCalledTimes(3);
+      writes[0]?.();
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(mocks.rpc).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
     unmount();
-  }, 15_000);
+  });
+
+  it('refetches immediately when the own-entry helper invalidates, with no replica write', async () => {
+    mocks.rpc.mockClear();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    const { result, unmount } = renderHook(() => useAccountTodayEntries(), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await invalidateAccountTodayEntries(queryClient, 'user-1');
+    });
+    await waitFor(() => expect(mocks.rpc).toHaveBeenCalledTimes(2));
+    unmount();
+  });
 });

@@ -13,6 +13,11 @@ import { fromPartial } from '@total-typescript/shoehorn';
 
 // Mock supabase
 const mockRpc = vi.fn().mockResolvedValue({ error: null });
+const mockAuth = vi.hoisted(() => ({ user: { id: 'user-1' } as { id: string } | null }));
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => mockAuth,
+}));
+
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     rpc: (...args: unknown[]) => mockRpc(...args),
@@ -118,6 +123,42 @@ describe('useCheckInMutation', () => {
 
     expect(mockUpdateSelfCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
     expect(mockUpdateReplicatedCheckInStatus).not.toHaveBeenCalled();
+  });
+
+  it('skips the account-today refresh for a passcode session with no signed-in user', async () => {
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue();
+    mockAuth.user = null;
+    try {
+      const { result } = renderHook(() => useCheckInMutation({ writer: 'self-checkin-rpc' }), {
+        wrapper,
+      });
+      await act(async () => {
+        await result.current.mutateAsync({ entryId: 'entry-1', newStatus: 'checked-in' });
+      });
+      expect(invalidate).not.toHaveBeenCalledWith(
+        expect.objectContaining({ queryKey: expect.arrayContaining(['account-today-entries']) })
+      );
+    } finally {
+      mockAuth.user = { id: 'user-1' };
+    }
+  });
+
+  it('invalidates the account-today-entries key after a successful self check-in only', async () => {
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue();
+    const self = renderHook(() => useCheckInMutation({ writer: 'self-checkin-rpc' }), { wrapper });
+    await act(async () => {
+      await self.result.current.mutateAsync({ entryId: 'entry-1', newStatus: 'checked-in' });
+    });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['account-today-entries', 'user-1'] });
+
+    invalidate.mockClear();
+    const staff = renderHook(() => useCheckInMutation(), { wrapper });
+    await act(async () => {
+      await staff.result.current.mutateAsync({ entryId: 'entry-1', newStatus: 'checked-in' });
+    });
+    expect(invalidate).not.toHaveBeenCalledWith({
+      queryKey: ['account-today-entries', 'user-1'],
+    });
   });
 
   it('should optimistically update cached ShowDayClass arrays', async () => {

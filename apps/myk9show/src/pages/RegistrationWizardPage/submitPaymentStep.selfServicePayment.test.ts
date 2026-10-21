@@ -178,6 +178,7 @@ function makeContext(overrides: Partial<SubmitPaymentStepContext> = {}): SubmitP
     setCurrentStep: vi.fn(),
     updateShowRegistration: vi.fn(),
     triggerSync: vi.fn(),
+    invalidateOwnTodayEntries: vi.fn(),
     navigate: vi.fn(),
     discardDraftsWithoutFinalSave: vi.fn(),
     ...overrides,

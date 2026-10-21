@@ -226,7 +226,7 @@ describe('ReportsPage', () => {
 
   it('explains the printed mark once under the title', () => {
     render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
-    expect(screen.getByText(/Print marks a report as printed/)).toBeInTheDocument();
+    expect(screen.getByText(/choose Mark printed on the notice that follows/)).toBeInTheDocument();
   });
 
   it('renders while report classes and entries are still loading', () => {

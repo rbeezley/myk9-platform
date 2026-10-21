@@ -72,8 +72,10 @@ describe('dog roster query cache (MYK9-1303)', () => {
     const queries = queryClient.getQueryCache().getAll();
     expect(queries).toHaveLength(2);
     for (const query of queries) {
-      expect(query.options.staleTime).toBe(FIVE_MINUTES);
-      expect(query.options.gcTime).toBeGreaterThanOrEqual(FIVE_MINUTES);
+      // The cache widens the options type; the roster hooks set both fields.
+      const options = query.options as { staleTime?: number; gcTime?: number };
+      expect(options.staleTime).toBe(FIVE_MINUTES);
+      expect(options.gcTime).toBeGreaterThanOrEqual(FIVE_MINUTES);
     }
   });
 

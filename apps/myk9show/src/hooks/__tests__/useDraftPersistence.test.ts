@@ -7,7 +7,7 @@
  * drafts, and loadDraft must refuse drafts whose payload userId doesn't match.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useDraftPersistence } from '../useDraftPersistence';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
@@ -606,5 +606,33 @@ describe('useDraftPersistence — cross-user scoping', () => {
       selectedDogsCount: 2,
       completed: true,
     });
+  });
+});
+
+describe('useDraftPersistence — hasUnsavedChanges follows autosave', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useShowRegistrationStore.getState().clearDraftData();
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('is unsaved after a pick, saved after the autosave interval, unsaved again after a change', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const { result } = renderHook(() =>
+      useDraftPersistence(SHOW_ID, USER_A, 'dog-selection', { autoSaveInterval: 1000 })
+    );
+    expect(result.current.hasUnsavedChanges).toBe(true);
+
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+    expect(result.current.lastAutoSave).not.toBeNull();
+    expect(result.current.hasUnsavedChanges).toBe(false);
+
+    act(() => seedDraftData({ selectedDogs: ['dog-1', 'dog-2'] }));
+    expect(result.current.hasUnsavedChanges).toBe(true);
   });
 });

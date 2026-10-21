@@ -270,7 +270,7 @@ export function useDraftPersistence(
     // dogless payload can never be resumed (DraftManager only offers drafts
     // with selectedDogsCount > 0), so it is never worth writing — neither over
     // an unfinished entry on this device nor over the draft just resumed.
-    // Drafts are discarded deliberately through deleteDraft/clearAllDrafts.
+    // A stale draft is discarded deliberately, through Start over on the resume prompt (deleteDraft).
     if (!dataToSave.selectedDogs?.length) return;
 
     // Check if data has changed since last save
@@ -412,11 +412,18 @@ export function useDraftPersistence(
   // draftsVersion is a dependency because saveableData also reads
   // handledAfterSubmitRef, which discardDraftsWithoutFinalSave mutates while
   // bumping that counter — without it the memo would hold a pre-submit answer.
-  const hasUnsavedChanges = useMemo(
-    () => !!(draftData && Object.keys(draftData).length > 0 && saveableData(draftData)),
+  // "Unsaved" means the payload autosave WOULD write differs from what it last
+  // wrote. lastAutoSaveTime is a dependency because autosave advances
+  // lastSavedDataRef without touching draftData, so without it the memo would
+  // hold the pre-save answer and the "Saved" indicator would never appear. A
+  // dogless payload is never written (see autoSave), so it is not "unsaved".
+  const hasUnsavedChanges = useMemo(() => {
+    if (!draftData || Object.keys(draftData).length === 0) return false;
+    const pending = saveableData(draftData);
+    if (!pending?.selectedDogs?.length) return false;
+    return JSON.stringify(pending) !== lastSavedDataRef.current;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [draftData, saveableData, draftsVersion]
-  );
+  }, [draftData, saveableData, draftsVersion, lastAutoSaveTime]);
 
   return {
     // Draft operations

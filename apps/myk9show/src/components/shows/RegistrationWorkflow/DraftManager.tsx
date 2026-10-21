@@ -5,6 +5,8 @@ import { notifications } from '@/lib/notifications';
 
 interface DraftManagerProps {
   loadDraft: (draftId: string) => SavedDraft | null;
+  /** Start over: discards a saved entry so it stops prompting on every visit. */
+  deleteDraft: (draftId: string) => void;
   availableDrafts: DraftMetadata[];
   hasUnsavedChanges: boolean;
   onDraftLoaded?: (draft: SavedDraft) => boolean | void;
@@ -19,6 +21,7 @@ interface DraftManagerProps {
 
 export function DraftManager({
   loadDraft,
+  deleteDraft,
   availableDrafts,
   hasUnsavedChanges,
   onDraftLoaded,
@@ -71,13 +74,22 @@ export function DraftManager({
                       : 'Your entry is saved here. Reconnect and try loading your dogs.'}
             </p>
           </div>
-          <Button
-            className="min-h-11 shrink-0"
-            onClick={retryDogs ? onRetryDogs : () => handleLoadDraft(latestEntryDraft.id)}
-            disabled={retryDogs ? !onRetryDogs : !dogsReady}
-          >
-            {retryDogs ? 'Retry loading dogs' : 'Resume entry'}
-          </Button>
+          <div className="flex shrink-0 flex-col-reverse gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              className="min-h-11"
+              onClick={() => deleteDraft(latestEntryDraft.id)}
+            >
+              Start over
+            </Button>
+            <Button
+              className="min-h-11 shrink-0"
+              onClick={retryDogs ? onRetryDogs : () => handleLoadDraft(latestEntryDraft.id)}
+              disabled={retryDogs ? !onRetryDogs : !dogsReady}
+            >
+              {retryDogs ? 'Retry loading dogs' : 'Resume entry'}
+            </Button>
+          </div>
         </section>
       )}
     </div>

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
@@ -21,9 +22,11 @@ const savedDraft: SavedDraft = { metadata, data: { selectedDogs: ['dog-1'] } };
 function renderManager(overrides: Partial<React.ComponentProps<typeof DraftManager>> = {}) {
   const loadDraft = vi.fn(() => savedDraft);
   const onDraftLoaded = vi.fn(() => true);
+  const deleteDraft = vi.fn();
   render(
     <DraftManager
       loadDraft={loadDraft}
+      deleteDraft={deleteDraft}
       availableDrafts={[metadata]}
       hasUnsavedChanges={false}
       onDraftLoaded={onDraftLoaded}
@@ -31,7 +34,7 @@ function renderManager(overrides: Partial<React.ComponentProps<typeof DraftManag
       {...overrides}
     />
   );
-  return { loadDraft, onDraftLoaded };
+  return { loadDraft, onDraftLoaded, deleteDraft };
 }
 
 describe('DraftManager reentry', () => {
@@ -51,6 +54,47 @@ describe('DraftManager reentry', () => {
     expect(screen.queryByRole('button', { name: /Save Draft/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Load Draft/ })).not.toBeInTheDocument();
     expect(screen.getByText('Saved')).toBeInTheDocument();
+  });
+
+  it('shows the Saved indicator only while nothing is waiting to be autosaved', () => {
+    const { unmount } = render(
+      <DraftManager
+        loadDraft={vi.fn(() => savedDraft)}
+        deleteDraft={vi.fn()}
+        availableDrafts={[]}
+        hasUnsavedChanges
+      />
+    );
+    expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+    unmount();
+    renderManager({ showResume: false, hasUnsavedChanges: false });
+    expect(screen.getByText('Saved')).toBeInTheDocument();
+  });
+
+  it('Start over discards the saved entry and the prompt goes away', () => {
+    const deleteDraft = vi.fn();
+    function Harness() {
+      const [drafts, setDrafts] = useState([metadata]);
+      return (
+        <DraftManager
+          loadDraft={vi.fn(() => savedDraft)}
+          deleteDraft={id => {
+            deleteDraft(id);
+            setDrafts([]);
+          }}
+          availableDrafts={drafts}
+          hasUnsavedChanges={false}
+          showResume
+        />
+      );
+    }
+    render(<Harness />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start over' }));
+
+    expect(deleteDraft).toHaveBeenCalledWith('draft-1');
+    expect(screen.queryByText('Continue your entry?')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Resume entry' })).not.toBeInTheDocument();
   });
 
   it('does not offer an empty or completed entry as resumable', () => {

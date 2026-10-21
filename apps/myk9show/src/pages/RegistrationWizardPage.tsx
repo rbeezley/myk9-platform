@@ -62,6 +62,7 @@ function RegistrationWizardContent() {
     currentWorkflowMode,
     handleStepClick,
     draftLoad,
+    draftDelete,
     availableDrafts,
     hasUnsavedChanges,
     handleDraftLoaded,
@@ -332,6 +333,7 @@ function RegistrationWizardContent() {
               {!isLastStep && (
                 <DraftManager
                   loadDraft={draftLoad}
+                  deleteDraft={draftDelete}
                   availableDrafts={availableDrafts}
                   hasUnsavedChanges={!!hasUnsavedChanges}
                   onDraftLoaded={handleDraftLoaded}

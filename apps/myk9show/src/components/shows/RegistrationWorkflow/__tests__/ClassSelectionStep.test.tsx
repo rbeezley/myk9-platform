@@ -142,8 +142,6 @@ describe('ElementCard — wait list badge', () => {
   });
 });
 
-// ─── Single-class variant ──────────────────────────────────────────────────────
-
 describe('ElementCard — checkbox accessible names (MYK9-1290)', () => {
   it('names a level chip checkbox for the dog and class', () => {
     render(<ElementCard {...defaultProps} />);
@@ -156,6 +154,8 @@ describe('ElementCard — checkbox accessible names (MYK9-1290)', () => {
     expect(screen.getByRole('checkbox')).toHaveAccessibleName(/^Enter Rex in Container/);
   });
 });
+
+// ─── Single-class variant ──────────────────────────────────────────────────────
 
 describe('ElementCard (single-class) — wait list badge', () => {
   const singleClassLevel: LevelInfo = {

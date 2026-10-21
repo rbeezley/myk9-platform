@@ -5,7 +5,7 @@
  * This is the state that made MYK9-509 a money problem rather than an
  * annoyance: the exhibitor is one click from paying, the cart holds the fees,
  * and before the fix the reload dropped them on "Select dogs" with
- * `paymentMethod` gone. Nothing here clicks Load Draft — the restore has to
+ * `paymentMethod` gone. Nothing here uses the resume prompt — the restore has to
  * happen on mount, from the same-tab marker alone, which is what a reload is.
  *
  * Sibling to `RegistrationWizardPage.draftLoad.test.tsx`, which drives
@@ -106,7 +106,7 @@ vi.mock('@/hooks/useExhibitorProfile', () => ({
 // its very first render (localStorage is read synchronously there) and the
 // loader it calls. `RegistrationWizardPage.draftLoad.test.tsx` mocks only the
 // write side because it drives `onDraftLoaded` by hand; this file is about the
-// wizard restoring WITHOUT anyone touching Load Draft.
+// wizard restoring WITHOUT anyone touching the resume prompt.
 const mockActivateDraft = vi.fn();
 const mockDraftState: { availableDrafts: unknown[]; saved: SavedDraft | null } = {
   availableDrafts: [],
@@ -116,11 +116,9 @@ vi.mock('@/hooks/useDraftPersistence', () => ({
   useDraftPersistence: () => ({
     activateDraft: mockActivateDraft,
     deactivateDraft: vi.fn(),
-    saveDraft: vi.fn(),
     loadDraft: vi.fn(() => mockDraftState.saved),
     deleteDraft: vi.fn(),
     availableDrafts: mockDraftState.availableDrafts,
-    clearAllDrafts: vi.fn(),
     discardDraftsWithoutFinalSave: vi.fn(),
     hasUnsavedChanges: false,
   }),

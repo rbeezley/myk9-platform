@@ -19,6 +19,7 @@ import {
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import { idScanEpoch, idScanKey, markIdScanCompleted, shouldRunIdScan } from './idScanCadence';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { deriveDeceasedColumns } from '@/services/mappers/dogMappers';
 import type { Database } from '@/types/supabase';
@@ -288,7 +289,10 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     // forever. Reconcile against the live id set instead. Side-effect only and
     // fully guarded: a failure here must never turn a successful download into a
     // failed sync.
-    if (result.success) {
+    if (
+      result.success &&
+      shouldRunIdScan(idScanKey(this.getTableName(), syncScopeId), { result })
+    ) {
       try {
         const removed = await this.reconcileDeleted(syncScopeId || undefined);
         if (removed > 0) {
@@ -329,6 +333,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
    */
   async reconcileDeleted(scopeValue?: string): Promise<number> {
     const PAGE_SIZE = 1000;
+    const startedEpoch = idScanEpoch();
     // Bound the loop so a server that keeps returning full pages can't spin forever.
     const MAX_PAGES = 100;
     const liveIds = new Set<string>();
@@ -356,7 +361,11 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
 
       if (data.length < PAGE_SIZE) {
         // Short page → we have the complete live id set; safe to reconcile.
-        return this.removeStaleEntries(liveIds);
+        // A dirty dog the server deleted stays until its write settles; the next
+        // due scan (within the hour) prunes it, so the completed read is stamped.
+        const removed = await this.removeStaleEntries(liveIds);
+        markIdScanCompleted(idScanKey(this.getTableName(), scopeValue), startedEpoch);
+        return removed;
       }
 
       // Advance the cursor to the last id of this full page.

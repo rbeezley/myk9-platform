@@ -40,6 +40,13 @@ export type { VirtualUserRequestSample } from './loadVirtualUserContext';
 export const VIRTUAL_USER_SYNC_INTERVAL_MS = 60_000;
 
 /**
+ * Matches `ID_SCAN_INTERVAL_MS` in `services/replication/idScanCadence.ts`
+ * (restated: that module reaches `@/` aliases this runner does not resolve;
+ * `loadVirtualUser.fidelity.test.ts` pins the two).
+ */
+export const VIRTUAL_USER_ID_SCAN_INTERVAL_MS = 60 * 60_000;
+
+/**
  * The subscribed cadence (MYK9-1305): uniform in [min, max]. Restated, not imported
  * from `providers/syncCadence`, which reaches `@/` aliases this runner does not
  * resolve; `loadVirtualUser.fidelity.test.ts` pins both to the app's exports.
@@ -64,6 +71,12 @@ export interface LoadVirtualUserOptions {
    * false: the engine's cadence (first pass, then every `REMOTE_COUNT_INTERVAL_MS`).
    */
   readonly countEveryPass?: boolean;
+  /**
+   * true: the dogs, dog_registrations and clubs id scans run on every pass (the
+   * pre-MYK9-1302 behaviour, `features.replicationDogIdCadence` off).
+   * false: the app's cadence (the first pass, then every `VIRTUAL_USER_ID_SCAN_INTERVAL_MS`).
+   */
+  readonly idScanEveryPass?: boolean;
   /**
    * Poll on the subscribed cadence (3 to 5 min, jittered), as an app with a
    * SUBSCRIBED show channel and `replicationSubscribedCadence` on does. Default
@@ -94,6 +107,8 @@ export class LoadVirtualUser {
   private readonly countOwners = new Map<string, object>();
   /** Rows this reader has ever received per table: an empty replica forces the engine to count every pass. */
   private readonly rowsSeen = new Map<string, number>();
+  /** When each table's id scan last completed on this reader (the app's device-session stamp). */
+  private readonly idScannedAt = new Map<string, number>();
   /**
    * Every poll still running. The tick guard below keeps this to one at a time,
    * but drain() still waits on whatever is here rather than assuming it.
@@ -195,6 +210,25 @@ export class LoadVirtualUser {
               fetchedRows,
               POSTGREST_MAX_ROWS
             ),
+        };
+      },
+      idScanGate: table => {
+        const stamp = this.idScannedAt.get(table);
+        const now = Date.now();
+        // An empty local replica makes the engine run a full sync on every pass,
+        // and the app scans after every full sync (Codex, MYK9-1302).
+        const emptyReplica = (this.rowsSeen.get(table) ?? 0) === 0;
+        const scan =
+          this.options.idScanEveryPass === true ||
+          emptyReplica ||
+          stamp === undefined ||
+          now < stamp ||
+          now - stamp >= VIRTUAL_USER_ID_SCAN_INTERVAL_MS;
+        return {
+          scan,
+          record: () => {
+            this.idScannedAt.set(table, Date.now());
+          },
         };
       },
       tally: rows => {

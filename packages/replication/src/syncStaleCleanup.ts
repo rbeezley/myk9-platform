@@ -70,3 +70,11 @@ export async function runStaleCleanup<TRemote, TLocal extends { id: string }>(
   });
   return { removed, completed: true };
 }
+
+/** True when a count below the local server-backed rows must force a full sync. */
+export function overReplicaWatched(adapter: {
+  cleanupStaleRowsOnFullSync?: boolean;
+  detectOverReplica?: boolean;
+}): boolean {
+  return adapter.cleanupStaleRowsOnFullSync === true || adapter.detectOverReplica === true;
+}

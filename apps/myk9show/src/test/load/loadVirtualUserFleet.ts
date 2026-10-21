@@ -27,6 +27,7 @@ export interface VirtualUserFleetOptions {
   readonly classColumnSelect: string;
   /** Count every pass (the app's `replicationCountCadence` flag off), for the A/B arm. */
   readonly countEveryPass?: boolean;
+  readonly idScanEveryPass?: boolean;
   /** Poll on the subscribed cadence (MYK9-1305 A/B arm). */
   readonly subscribedCadence?: boolean;
   readonly onSample: (sample: VirtualUserRequestSample) => void;
@@ -76,6 +77,7 @@ export class VirtualUserFleet {
           role,
           ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
           ...(options.countEveryPass ? { countEveryPass: true } : {}),
+          ...(options.idScanEveryPass ? { idScanEveryPass: true } : {}),
           ...(options.subscribedCadence ? { subscribedCadence: true } : {}),
           ...(options.onApiError ? { onApiError: options.onApiError } : {}),
         },

@@ -13,6 +13,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ReplicatedDogsTable, type ReplicatedDog } from '../ReplicatedDogsTable';
+import { resetIdScanCadence } from '../idScanCadence';
 import type { ReplicatedRow, SyncMetadata } from '@myk9/replication';
 
 /** Mock IndexedDB shape used by ReplicatedTable.init() */
@@ -116,6 +117,7 @@ describe('ReplicatedDogsTable', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resetIdScanCadence();
 
     // Create fresh instance for each test
     dogsTable = new ReplicatedDogsTable();

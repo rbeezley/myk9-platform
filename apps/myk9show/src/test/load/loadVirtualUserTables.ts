@@ -135,8 +135,16 @@ async function readKeysetDelta<T extends TimestampedRow>(
   return rows;
 }
 
-/** Every visible id, keyset-paged on id, as the dogs and registrations id scans read. */
-async function scanIds(ctx: ReaderContext, table: string, narrow: Narrow = q => q): Promise<void> {
+/**
+ * Every visible id, keyset-paged on id, as the dogs and registrations id scans
+ * read. True when the scan completed (a short page); a failed page or the page
+ * cap leaves it incomplete, and the app then leaves its cadence debt owed.
+ */
+async function scanIds(
+  ctx: ReaderContext,
+  table: string,
+  narrow: Narrow = q => q
+): Promise<boolean> {
   let lastId: string | undefined;
   for (let page = 0; page < ID_SCAN_MAX_PAGES; page++) {
     const out = await ctx.request<{ id: string }>(`${table} (id scan)`, () => {
@@ -144,9 +152,18 @@ async function scanIds(ctx: ReaderContext, table: string, narrow: Narrow = q => 
       if (lastId !== undefined) query = query.gt('id', lastId);
       return query.order('id', { ascending: true }).limit(KEYSET_PAGE_SIZE).abortSignal(ctx.signal);
     });
-    if (!out.ok || out.rows.length < KEYSET_PAGE_SIZE) return;
+    if (!out.ok) return false;
+    if (out.rows.length < KEYSET_PAGE_SIZE) return true;
     lastId = String(out.rows[out.rows.length - 1].id);
   }
+  return false;
+}
+
+/** The id scan when the app's cadence says it is due (MYK9-1302), stamped only on completion. */
+async function scanIdsWhenDue(ctx: ReaderContext, table: string, narrow?: Narrow): Promise<void> {
+  const gate = ctx.idScanGate(table);
+  if (!gate.scan) return;
+  if (await scanIds(ctx, table, narrow)) gate.record();
 }
 
 const live: Narrow = query => query.is('deleted_at', null);
@@ -180,29 +197,41 @@ async function syncClasses(ctx: ReaderContext): Promise<void> {
 }
 
 async function syncDogs(ctx: ReaderContext): Promise<void> {
+  // No engine count on dogs yet (MYK9-1321): the fetch is one request capped at
+  // PostgREST's 1000 rows, so a count above that would read as partial every pass.
   const rows = await readDelta(ctx, 'dogs', '*', INCREMENTAL_BUFFER_MS);
   // Tombstones are invisible to the delta (RLS hides soft-deleted dogs), so the
-  // app re-reads every live id after a good download. Staff see every dog.
-  if (rows) await scanIds(ctx, 'dogs', live);
+  // app re-reads every live id after a good download, when the id-scan cadence
+  // says so. Staff see every dog.
+  if (rows) await scanIdsWhenDue(ctx, 'dogs', live);
 }
 
 async function syncDogRegistrations(ctx: ReaderContext): Promise<void> {
-  const rows = await readKeysetDelta(ctx, 'dog_registrations', DOG_REGISTRATION_SELECT);
+  const rows = await countedDelta(
+    ctx,
+    'dog_registrations',
+    q => q,
+    () => readKeysetDelta(ctx, 'dog_registrations', DOG_REGISTRATION_SELECT)
+  );
   // The id pass also fetches ids this device lacks; a warm replica lacks none.
-  if (rows) await scanIds(ctx, 'dog_registrations');
+  if (rows) await scanIdsWhenDue(ctx, 'dog_registrations');
 }
 
 async function syncClubs(ctx: ReaderContext): Promise<void> {
   const rows = await readDelta(ctx, 'clubs', '*', INCREMENTAL_BUFFER_MS, live);
   if (!rows) return;
-  // reconcileVisibility: a count to prove the id set is not truncated, then the ids.
+  // reconcileVisibility, when the id-scan cadence says it is due: a count to
+  // prove the id set is not truncated, then the ids.
+  const gate = ctx.idScanGate('clubs');
+  if (!gate.scan) return;
   const out = await ctx.request('clubs (count)', () =>
     live(ctx.client.from('clubs').select('id', COUNT)).abortSignal(ctx.signal)
   );
   if (!out.ok || out.count === null || out.count > KEYSET_PAGE_SIZE) return;
-  await ctx.request('clubs (id scan)', () =>
+  const ids = await ctx.request('clubs (id scan)', () =>
     live(ctx.client.from('clubs').select('id')).limit(KEYSET_PAGE_SIZE).abortSignal(ctx.signal)
   );
+  if (ids.ok) gate.record();
 }
 
 async function syncJudgeAssignments(ctx: ReaderContext): Promise<void> {

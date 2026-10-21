@@ -9,6 +9,7 @@ import { databaseManager, REPLICATION_STORES } from '@myk9/replication';
 import { ReplicatedDogRegistrationsTable } from '../ReplicatedDogRegistrationsTable';
 import { ReplicatedDogsTable, type ReplicatedDog } from '../ReplicatedDogsTable';
 import { DOG_REGISTRATION_ID_PASS_MAX_PAGES } from '../dogRegistrationsIdPass';
+import { ID_SCAN_INTERVAL_MS } from '../idScanCadence';
 import {
   installRegistrationsServer,
   newServer,
@@ -378,5 +379,79 @@ describe('placeholder twins by creation instant', () => {
     await table.removeResolvedPlaceholders();
 
     expect(await table.get(placeholder!.id)).toBeNull();
+  });
+});
+
+describe('registrations ID pass cadence (MYK9-1302)', () => {
+  it('prunes on the first pass, skips an intermediate pass, and prunes again when an hour is up', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      serverShows();
+      await table.sync();
+      expect(await table.getAllLocalIds()).toEqual(new Set(['reg-kept']));
+
+      // A second registration disappears on the server: not scanned right away.
+      await table.applyServerRows([serverRow({ id: 'reg-late', organization: 'UKC' })]);
+      installRegistrationsServer(newServer({ idPages: [[{ id: 'reg-kept' }]] }));
+      vi.setSystemTime(Date.now() + 60_000);
+      await table.sync();
+      expect(await table.getAllLocalIds()).toContain('reg-late');
+
+      vi.setSystemTime(Date.now() + ID_SCAN_INTERVAL_MS);
+      await table.sync();
+      expect(await table.getAllLocalIds()).toEqual(new Set(['reg-kept']));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a server count below the local rows forces a full sync and an id pass despite a fresh stamp', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      serverShows();
+      await table.sync();
+      await table.applyServerRows([serverRow({ id: 'reg-late', organization: 'UKC' })]);
+
+      // reg-late was removed on the server: the count (1) is below the two local
+      // rows. The engine's count runs about every ten minutes (MYK9-1301), so it is due.
+      installRegistrationsServer(newServer({ idPages: [[{ id: 'reg-kept' }]], remoteCount: 1 }));
+      vi.setSystemTime(Date.now() + 11 * 60_000);
+      const result = await table.sync();
+
+      expect(result.operation).toBe('full-sync');
+      expect(await table.getAllLocalIds()).toEqual(new Set(['reg-kept']));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not scan an intermediate pass when the count agrees with the local rows', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      serverShows();
+      await table.sync();
+      const quiet = newServer({ idPages: [[{ id: 'reg-kept' }]], remoteCount: 1 });
+      installRegistrationsServer(quiet);
+      vi.setSystemTime(Date.now() + 11 * 60_000);
+      const result = await table.sync();
+
+      expect(result.operation).toBe('incremental-sync');
+      expect(quiet.calls.filter(call => call.method === 'count')).toHaveLength(1);
+      // The id pass is a bare `select('id')`; the delta selects the row columns.
+      const idReads = quiet.calls.filter(call => call.method === 'select' && call.args[0] === 'id');
+      expect(idReads).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('leaves the scan owed when the pass kept a row for the next pass', async () => {
+    await placeholderFor('dog-offline');
+    serverShows();
+    const scan = vi.spyOn(table, 'reconcileWithServerIds');
+    await table.sync();
+    await table.sync();
+    // The placeholder is never removed by the id set, so nothing was stamped.
+    expect(scan).toHaveBeenCalledTimes(2);
   });
 });

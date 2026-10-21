@@ -78,11 +78,12 @@ describe('virtual user fleet', () => {
     const samples: VirtualUserRequestSample[] = [];
     const { fleet } = fleetFor(5, sample => samples.push(sample));
     await fleet.hydrate();
-    // Seventeen requests per reader on an empty server: a count and a delta for
-    // shows, trials, classes, judge_assignments and waitlist_entries (10); the dogs
-    // and dog_registrations deltas, each followed by an id scan (4); the clubs delta
-    // and count (2, its id scan needs a readable count); and the one armbands read.
-    expect(samples).toHaveLength(5 * 17);
+    // Eighteen requests per reader on an empty server: a count and a delta for
+    // shows, trials, classes, judge_assignments, waitlist_entries and
+    // dog_registrations (12); the dogs delta (1); the first-pass id scans of dogs
+    // and dog_registrations (2, MYK9-1302); the clubs delta and count (2, its id
+    // scan needs a readable count); and the one armbands read.
+    expect(samples).toHaveLength(5 * 18);
   });
 
   it('reports every sample to the collector', async () => {

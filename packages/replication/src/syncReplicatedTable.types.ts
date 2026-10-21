@@ -121,6 +121,13 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
    */
   cleanupStaleRowsOnFullSync?: boolean;
   /**
+   * A server count below the device's server-backed rows forces a full sync,
+   * but the engine does NOT clean stale rows itself; the table's own post-sync
+   * id scan prunes with its guards (MYK9-1302). Mutually exclusive with
+   * cleanupStaleRowsOnFullSync in practice.
+   */
+  detectOverReplica?: boolean;
+  /**
    * Independent proof that the scope really holds zero server rows, from a
    * source NOT subject to the RLS the fetch and `getRemoteRowCount` read
    * through. The count and the fetch share one policy, so a transient RLS gap

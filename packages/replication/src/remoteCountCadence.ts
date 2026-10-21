@@ -189,11 +189,12 @@ export async function beginRemoteCountPass(
  */
 export function coverageFell(
   localRows: readonly { id: string }[],
-  pendingDeleteIds: ReadonlySet<string> | undefined,
   lastExpectedRemoteRows: number | undefined
 ): boolean {
+  // Pending deletes are not read here (the engine reads them after the count, so
+  // the count and that read stay ordered): a queued delete costs an extra count
+  // until it uploads, never a missed one.
   return (
-    lastExpectedRemoteRows !== undefined &&
-    countCoveredRows(localRows, pendingDeleteIds) < lastExpectedRemoteRows
+    lastExpectedRemoteRows !== undefined && countCoveredRows(localRows) < lastExpectedRemoteRows
   );
 }

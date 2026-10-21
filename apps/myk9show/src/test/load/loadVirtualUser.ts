@@ -98,6 +98,9 @@ interface TableWatermark {
   since: number;
 }
 
+/** Tables whose app adapter sets no `remotePageSize`, so a full page never owes a count. */
+const UNCAPPED_COUNT_TABLES: ReadonlySet<string> = new Set(['armbands']);
+
 export class LoadVirtualUser {
   private readonly client: SupabaseClient;
   /** Error-body reads still running; settled before a pass reports. */
@@ -208,7 +211,8 @@ export class LoadVirtualUser {
               undefined,
               { ...decision, count: counted },
               fetchedRows,
-              POSTGREST_MAX_ROWS
+              // The adapter's remotePageSize: armbands page to completion and set none.
+              UNCAPPED_COUNT_TABLES.has(table) ? undefined : POSTGREST_MAX_ROWS
             ),
         };
       },

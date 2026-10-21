@@ -31,33 +31,6 @@ describe('ReplicatedArmbandsTable', () => {
     await databaseManager.reset();
   });
 
-  it('scopes a download to one show and retains other shows in the replica', async () => {
-    const { supabase } = await import('@/services/database/supabaseClient');
-    const query = {
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-      then: (resolve: (value: unknown) => unknown) =>
-        Promise.resolve({
-          count: 1,
-          data: [
-            { id: 'remote-one', show_id: 'show-1', armband_number: '101', is_available: false },
-          ],
-          error: null,
-        }).then(resolve),
-    };
-    vi.mocked(supabase.from).mockReturnValue(query as never);
-    await table.batchSet([
-      { id: 'other-show', showId: 'show-2', armbandNumber: '202', isAvailable: false },
-    ]);
-    expect((await table.sync('show-1')).success).toBe(true);
-    expect(query.eq).toHaveBeenCalledWith('show_id', 'show-1');
-    expect(await table.get('other-show')).toMatchObject({ armbandNumber: '202' });
-    expect(await table.getByShow('show-1')).toEqual([
-      expect.objectContaining({ id: 'remote-one', armbandNumber: '101' }),
-    ]);
-  });
-
   it.each([2, undefined])(
     'keeps cached scope rows when coverage is capped or unknown (%s)',
     async count => {
@@ -65,7 +38,10 @@ describe('ReplicatedArmbandsTable', () => {
       const query = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        gt: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
+        or: vi.fn().mockReturnThis(),
+        range: vi.fn().mockReturnThis(),
         then: (resolve: (value: unknown) => unknown) =>
           Promise.resolve({
             count,

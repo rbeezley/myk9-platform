@@ -47,15 +47,111 @@ describe('request set', () => {
     for (const url of deltas) expect(url).toContain(`updated_at=gt.${epoch}`);
   });
 
-  it('downloads every unavailable armband on every pass, as the app does', async () => {
+  it('reads assigned armbands in full while it holds none, as the app does for an empty replica', async () => {
     const urls: string[] = [];
     const user = reader(emptyServer(urls));
     await user.syncOnce();
     await user.syncOnce();
 
-    const armbands = urls.filter(url => url.includes('/armbands?'));
+    // Row reads only: the engine's count is a separate `select=id` HEAD.
+    const armbands = urls.filter(url => url.includes('/armbands?') && url.includes('select=*'));
     expect(armbands).toHaveLength(2);
-    for (const url of armbands) expect(url).not.toContain('updated_at');
+    for (const url of armbands) {
+      expect(url).toContain('is_available=eq.false');
+      expect(url).not.toContain('updated_at=gt.');
+    }
+  });
+
+  describe('armbands (MYK9-1300)', () => {
+    const T1 = '2026-10-21T10:00:00.123456+00:00';
+    const armband = (id: string) => ({ id, is_available: false, updated_at: T1 });
+    /** Answers armband row reads from `pages` in order (500 for `'fail'`), everything else `[]`. */
+    const armbandServer = (urls: string[], pages: (unknown[] | 'fail')[]) =>
+      (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = input.toString();
+        urls.push(url);
+        const rowRead =
+          url.includes('/armbands?') && url.includes('select=*') && init?.method !== 'HEAD';
+        const page = rowRead ? (pages.shift() ?? []) : [];
+        // A count HEAD answers with a readable total, as PostgREST does.
+        if (init?.method === 'HEAD') {
+          return new Response(null, { status: 200, headers: { 'Content-Range': '*/1' } });
+        }
+        return page === 'fail'
+          ? new Response('{"message":"fixture"}', { status: 500 })
+          : new Response(JSON.stringify(page), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            });
+      }) as unknown as typeof fetch;
+    const armbandReads = (urls: string[]) =>
+      urls.filter(url => url.includes('/armbands?') && url.includes('select=*'));
+
+    it('switches to the delta once it holds an armband, with no assigned-only filter', async () => {
+      const urls: string[] = [];
+      const user = reader(armbandServer(urls, [[armband('a1')]]));
+      await user.syncOnce();
+      await user.syncOnce();
+
+      const [cold, warm] = armbandReads(urls);
+      expect(cold).toContain('is_available=eq.false');
+      expect(cold).not.toContain('updated_at=gt.');
+      expect(warm).toContain(
+        `updated_at=gt.${encodeURIComponent(new Date(Date.parse(T1) - 60_000).toISOString())}`
+      );
+      expect(warm).not.toContain('is_available');
+    });
+
+    it('a full page of armbands never owes the next pass a count, as the app sets no page size', async () => {
+      const urls: string[] = [];
+      const fullPage = Array.from({ length: 1000 }, (_, i) =>
+        armband(`w${String(i).padStart(4, '0')}`)
+      );
+      const user = reader(armbandServer(urls, [[armband('a1')], fullPage, []]));
+      await user.syncOnce();
+      await user.syncOnce();
+      await user.syncOnce();
+
+      // The session's first pass counts; a full delta page must not add one.
+      const counts = urls.filter(url => url.includes('/armbands?') && url.includes('select=id'));
+      expect(counts).toHaveLength(1);
+    });
+
+    it('lifts the watermark from the first page of a multi-page cold read only', async () => {
+      const urls: string[] = [];
+      const T2 = '2026-10-21T10:30:00.000000+00:00';
+      const fullPage = Array.from({ length: 1000 }, (_, i) =>
+        armband(`p${String(i).padStart(4, '0')}`)
+      );
+      const user = reader(
+        armbandServer(urls, [fullPage, [{ id: 'q1', is_available: false, updated_at: T2 }]])
+      );
+      await user.syncOnce();
+      await user.syncOnce();
+
+      const warm = armbandReads(urls)[2];
+      expect(warm).toContain(
+        `updated_at=gt.${encodeURIComponent(new Date(Date.parse(T1) - 60_000).toISOString())}`
+      );
+    });
+
+    it('reads in full again after a later page of the cold read failed', async () => {
+      const urls: string[] = [];
+      const fullPage = Array.from({ length: 1000 }, (_, i) =>
+        armband(`a${String(i).padStart(4, '0')}`)
+      );
+      const user = reader(armbandServer(urls, [fullPage, 'fail', [armband('b1')]]));
+      await user.syncOnce();
+      await user.syncOnce();
+
+      const reads = armbandReads(urls);
+      expect(reads).toHaveLength(3);
+      expect(reads[1]).toContain('or=');
+      // Nothing applied by the failed pass: the next read is the cold one again.
+      expect(reads[2]).toContain('is_available=eq.false');
+      expect(reads[2]).not.toContain('or=');
+      expect(reads[2]).not.toContain('updated_at=gt.');
+    });
   });
 
   it('runs the class enrichment reads only when the classes delta returns rows', async () => {

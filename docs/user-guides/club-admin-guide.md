@@ -76,12 +76,12 @@ The **Shows** page lists every show your club is hosting or has hosted. Shows ar
 
 **You manage your club's shows.** Opening one of your club's shows gives you the same four tabs a secretary gets, and each tab is a real page with its own address, not a panel:
 
-| Tab          | What you can do there                                                                                                                                              |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Overview** | The show home: the schedule, each class's work and checklist, trials and classes (add, edit, delete, Select classes); its tools are in the header **Actions** menu |
-| **Entries**  | Approve entries, record payments, handle pulls, refunds, move-ups and the waitlist                                                                                 |
-| **Results**  | Review and release results, submit them to the registry, then close the show                                                                                       |
-| **Reports**  | Print any of the show's reports, grouped by **Before the show**, **During the show**, **After the show**, and **Anytime**                                          |
+| Tab          | What you can do there                                                                                                                                                                 |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Overview** | The show home: the schedule, each class's work and checklist, trials and classes (add, edit, delete); Add Trial, Select classes and the show tools are in the header **Actions** menu |
+| **Entries**  | Approve entries, record payments, handle pulls, refunds, move-ups and the waitlist                                                                                                    |
+| **Results**  | Review and release results, submit them to the registry, then close the show                                                                                                          |
+| **Reports**  | Print any of the show's reports, grouped by **Before the show**, **During the show**, **After the show**, and **Anytime**                                                             |
 
 The **Actions** menu in the top bar has **Edit show**, which opens the show's edit panel. It appears only for shows you manage; it does not expand your permissions.
 

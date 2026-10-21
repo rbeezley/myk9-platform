@@ -7,10 +7,20 @@ import {
   type ShowChangeListener,
   type ShowChangeStatusListener,
 } from '@/features/show-live-sync/showChangeSignal';
+import {
+  clearShowChannel,
+  markShowChannel,
+  registerShowChannelMount,
+} from '@/providers/syncCadence';
 import { showLiveSyncEnabled, useShowLiveSync } from '@/features/show-live-sync/useShowLiveSync';
 
 vi.mock('@myk9/replication', () => ({ markRealtimeReconnected: vi.fn() }));
 vi.mock('@/config/features', () => ({ features: { showLiveSync: true } }));
+vi.mock('@/providers/syncCadence', () => ({
+  registerShowChannelMount: vi.fn((showId: string) => `${showId}#token`),
+  markShowChannel: vi.fn(),
+  clearShowChannel: vi.fn(),
+}));
 vi.mock('@/features/show-live-sync/showChangeSignal', () => ({
   subscribeToShowChanges: vi.fn(),
 }));
@@ -152,5 +162,23 @@ describe('useShowLiveSync', () => {
 
     expect(unsubscribe).toHaveBeenCalledOnce();
     expect(dispatchedSyncEvents()).toHaveLength(0);
+  });
+
+  it('marks the show subscribed or not from the channel status and clears it on unmount (MYK9-1305)', () => {
+    const { unmount } = renderHook(() => useShowLiveSync('show-1'));
+
+    act(() => {
+      statusListener?.('SUBSCRIBED');
+    });
+    expect(markShowChannel).toHaveBeenLastCalledWith('show-1#token', true);
+
+    act(() => {
+      statusListener?.('CLOSED');
+    });
+    expect(markShowChannel).toHaveBeenLastCalledWith('show-1#token', false);
+
+    unmount();
+    expect(clearShowChannel).toHaveBeenCalledWith('show-1#token');
+    expect(registerShowChannelMount).toHaveBeenCalledWith('show-1');
   });
 });

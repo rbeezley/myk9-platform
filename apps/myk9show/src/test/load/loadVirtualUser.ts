@@ -33,7 +33,10 @@ export type { VirtualUserRequestSample } from './loadVirtualUserContext';
  * measures a fiction.
  */
 
-/** Matches `SYNC_INTERVAL_MS` in packages/replication. */
+/**
+ * The no-channel cadence: the app's poll while offline or with no SUBSCRIBED show
+ * channel. Matches `SYNC_INTERVAL_MS` in packages/replication.
+ */
 export const VIRTUAL_USER_SYNC_INTERVAL_MS = 60_000;
 
 /**
@@ -42,6 +45,14 @@ export const VIRTUAL_USER_SYNC_INTERVAL_MS = 60_000;
  * `loadVirtualUser.fidelity.test.ts` pins the two).
  */
 export const VIRTUAL_USER_ID_SCAN_INTERVAL_MS = 60 * 60_000;
+
+/**
+ * The subscribed cadence (MYK9-1305): uniform in [min, max]. Restated, not imported
+ * from `providers/syncCadence`, which reaches `@/` aliases this runner does not
+ * resolve; `loadVirtualUser.fidelity.test.ts` pins both to the app's exports.
+ */
+export const VIRTUAL_USER_SLOW_POLL_MIN_MS = 180_000;
+export const VIRTUAL_USER_SLOW_POLL_MAX_MS = 300_000;
 
 export type VirtualUserRole = 'exhibitor' | 'secretary';
 
@@ -66,6 +77,14 @@ export interface LoadVirtualUserOptions {
    * false: the app's cadence (the first pass, then every `VIRTUAL_USER_ID_SCAN_INTERVAL_MS`).
    */
   readonly idScanEveryPass?: boolean;
+  /**
+   * Poll on the subscribed cadence (3 to 5 min, jittered), as an app with a
+   * SUBSCRIBED show channel and `replicationSubscribedCadence` on does. Default
+   * false: the 60 s no-channel cadence. The reader joins no channel either way.
+   */
+  readonly subscribedCadence?: boolean;
+  /** Draws the slow delay; defaults to Math.random. Test seam. */
+  readonly random?: () => number;
   /** Every non-2xx response the reader's fetch saw, retried or not. */
   readonly onApiError?: (observation: ApiErrorObservation) => void;
 }
@@ -115,7 +134,8 @@ export class LoadVirtualUser {
    * three: the boundary is a boundary, not a request to please finish.
    */
   private readonly abort = new AbortController();
-  private timer: ReturnType<typeof setInterval> | undefined;
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private running = false;
 
   constructor(
     private readonly options: LoadVirtualUserOptions,
@@ -222,8 +242,15 @@ export class LoadVirtualUser {
     onError?: (error: unknown) => void,
     onSkip?: () => void
   ): void {
-    if (this.timer) return;
-    this.timer = setInterval(() => {
+    if (this.running) return;
+    this.running = true;
+    const arm = () => {
+      this.timer = setTimeout(() => {
+        tick();
+        if (this.running) arm();
+      }, this.nextDelayMs());
+    };
+    const tick = () => {
       // The app never overlaps passes: `ReplicationSyncProvider` returns at once
       // while one is in flight. A tick that fires into a slow pass is dropped, and
       // counted, so a struggling database cannot make the harness send more than
@@ -239,15 +266,26 @@ export class LoadVirtualUser {
           this.inFlight.delete(pending);
         });
       this.inFlight.add(pending);
-    }, VIRTUAL_USER_SYNC_INTERVAL_MS);
+    };
+    arm();
+  }
+
+  private nextDelayMs(): number {
+    if (!this.options.subscribedCadence) return VIRTUAL_USER_SYNC_INTERVAL_MS;
+    const draw = (this.options.random ?? Math.random)();
+    return (
+      VIRTUAL_USER_SLOW_POLL_MIN_MS +
+      Math.floor(draw * (VIRTUAL_USER_SLOW_POLL_MAX_MS - VIRTUAL_USER_SLOW_POLL_MIN_MS + 1))
+    );
   }
 
   stop(): void {
+    this.running = false;
     if (this.timer) {
-      clearInterval(this.timer);
+      clearTimeout(this.timer);
       this.timer = undefined;
     }
-    // Abort AFTER clearing the interval so no new poll can be scheduled.
+    // Abort AFTER clearing the timer so no new poll can be scheduled.
     if (!this.abort.signal.aborted) this.abort.abort();
   }
 

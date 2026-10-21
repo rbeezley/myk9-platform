@@ -196,6 +196,7 @@ export async function runBrowserLoad(
         classColumnSelect: LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT,
         countEveryPass: process.env.LOAD_TEST_COUNT_EVERY_PASS === 'true',
         idScanEveryPass: process.env.LOAD_TEST_ID_SCAN_EVERY_PASS === 'true',
+        subscribedCadence: process.env.LOAD_TEST_SUBSCRIBED_CADENCE === 'true',
         onSample: sample => metrics.recordVirtualUserRequest(sample),
         onApiError: observation => metrics.recordApiError(observation),
         onSkippedPass: () => metrics.recordVirtualUserSkippedPass(),

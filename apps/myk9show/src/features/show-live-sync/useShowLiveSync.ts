@@ -3,12 +3,18 @@
  *
  * Broadcast carries no row data. It only asks ReplicationSyncProvider to run
  * its existing incremental sync, keeping the offline-first replica authoritative.
- * The provider's 60-second poll remains the correctness fallback.
+ * The provider's poll remains the correctness fallback: 60 s, or 3-5 min while
+ * the show channel is SUBSCRIBED (MYK9-1305).
  */
 
 import { useEffect } from 'react';
 import { markRealtimeReconnected } from '@myk9/replication';
 import { features } from '@/config/features';
+import {
+  clearShowChannel,
+  markShowChannel,
+  registerShowChannelMount,
+} from '@/providers/syncCadence';
 import { subscribeToShowChanges } from './showChangeSignal';
 
 const NUDGE_DEBOUNCE_MS = 400;
@@ -23,6 +29,7 @@ export function useShowLiveSync(showId: string | undefined): void {
   useEffect(() => {
     if (!enabled || !showId) return undefined;
 
+    const mountToken = registerShowChannelMount(showId);
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     let hasConnected = false;
     let explicitPending = false;
@@ -50,6 +57,8 @@ export function useShowLiveSync(showId: string | undefined): void {
       showId,
       () => nudgeSync(),
       status => {
+        // MYK9-1305: the 3-5 min poll holds only while the channel is SUBSCRIBED.
+        markShowChannel(mountToken, status === 'SUBSCRIBED');
         if (status !== 'SUBSCRIBED') return;
         if (hasConnected) {
           // MYK9-1301: events may have been missed, so the next count pass runs
@@ -64,6 +73,7 @@ export function useShowLiveSync(showId: string | undefined): void {
     return () => {
       if (debounceTimer) clearTimeout(debounceTimer);
       unsubscribe();
+      clearShowChannel(mountToken);
     };
   }, [enabled, showId]);
 }

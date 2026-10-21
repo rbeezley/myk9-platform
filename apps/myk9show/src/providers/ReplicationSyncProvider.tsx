@@ -64,6 +64,7 @@ import {
   splitPermanentScoreAuthorizationFailures,
   DOWNLOAD_SYNC_FAILURE_TOAST_ID,
 } from './replicationSyncFormatters';
+import { markOnline } from './syncCadence';
 import { useSyncPassScheduler } from './useSyncPassScheduler';
 import { useDiscardRevertCacheSync } from './useDiscardRevertCacheSync';
 import { useRegistrationsReplicaCacheSync } from './useRegistrationsReplicaCacheSync';
@@ -557,6 +558,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       hasStartedFlush.current = false; // Reset so StrictMode remount can re-trigger
     };
   }, []);
+
+  // Feeds the poll cadence (MYK9-1305); declared before the scheduler so it
+  // runs first on mount.
+  useEffect(() => {
+    markOnline(isOnline);
+  }, [isOnline]);
 
   // Poll, tab-visible and sync-requested wiring; see useSyncPassScheduler.
   useSyncPassScheduler(autoSync, triggerSyncRef);

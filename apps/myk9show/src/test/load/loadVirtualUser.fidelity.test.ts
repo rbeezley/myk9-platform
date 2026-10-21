@@ -9,9 +9,12 @@ import { supabase } from '@/services/database/supabaseClient';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
 import { REPLICATED_TABLES } from '@/providers/ReplicationSyncProvider';
 import { LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT } from './loadClassColumns';
+import { SLOW_POLL_MAX_MS, SLOW_POLL_MIN_MS } from '@/providers/syncCadence';
 import {
   LoadVirtualUser,
   VIRTUAL_USER_ID_SCAN_INTERVAL_MS,
+  VIRTUAL_USER_SLOW_POLL_MAX_MS,
+  VIRTUAL_USER_SLOW_POLL_MIN_MS,
   VIRTUAL_USER_SYNC_INTERVAL_MS,
 } from './loadVirtualUser';
 import {
@@ -205,6 +208,11 @@ describe('constants the reader copies from the application', () => {
   it("re-scans ids at the application's interval", async () => {
     const { ID_SCAN_INTERVAL_MS } = await import('@/services/replication/idScanCadence');
     expect(VIRTUAL_USER_ID_SCAN_INTERVAL_MS).toBe(ID_SCAN_INTERVAL_MS);
+  });
+
+  it('polls the subscribed cadence over the same bounds as the app (MYK9-1305)', () => {
+    expect(VIRTUAL_USER_SLOW_POLL_MIN_MS).toBe(SLOW_POLL_MIN_MS);
+    expect(VIRTUAL_USER_SLOW_POLL_MAX_MS).toBe(SLOW_POLL_MAX_MS);
   });
 
   it('overlaps each delta with the same buffer the engine uses', () => {

@@ -94,7 +94,7 @@ describe('club page Actions menu: Manage members and Payments (MYK9-1293)', () =
     usePageEditTargetStore.setState({ target: null, owner: null, exports: [] });
   });
 
-  it('offers a club admin of this club both entries, and each opens its page', async () => {
+  it('offers a club admin of this club both entries, and Manage members opens its page', async () => {
     mockAuth.userWithRoles = adminOf(CLUB_A);
     validated.value = ready(CLUB_A);
     renderPage(CLUB_A);
@@ -116,27 +116,34 @@ describe('club page Actions menu: Manage members and Payments (MYK9-1293)', () =
   });
 
   it.each([
-    ['a viewer without the club_admin scope', null, ready(CLUB_A)],
-    ['an admin of this club while the validated club is another', adminOf(CLUB_B), ready(CLUB_A)],
-    ['an admin whose club context is still resolving', adminOf(CLUB_A), { status: 'loading' }],
-  ] as const)('offers neither to %s', async (_label, user, context) => {
+    [
+      'an admin of club B viewing club B while the validated club is A',
+      CLUB_B,
+      adminOf(CLUB_B),
+      ready(CLUB_A),
+    ],
+    [
+      'an admin of this club whose club context is still resolving',
+      CLUB_A,
+      adminOf(CLUB_A),
+      { status: 'loading' } as ValidatedClubContext,
+    ],
+  ])('offers neither to %s', async (_label, viewedClub, user, context) => {
     mockAuth.userWithRoles = user;
-    validated.value = context as ValidatedClubContext;
-    renderPage(CLUB_B);
-    // Nothing else registers for this viewer, so the Actions button may be absent.
-    expect(screen.queryByRole('menuitem', { name: /Manage members/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /Payments/ })).not.toBeInTheDocument();
-  });
-
-  it('offers neither to an admin of club B viewing club B while the validated club is A', async () => {
-    mockAuth.userWithRoles = adminOf(CLUB_B);
-    validated.value = ready(CLUB_A);
-    renderPage(CLUB_B);
-    // Edit club still registers for this admin, so the menu exists and must lack both.
+    validated.value = context;
+    renderPage(viewedClub);
+    // Edit club still registers for this admin, so the menu opens: the positive control.
     await openMenu();
 
     expect(await screen.findByRole('menuitem', { name: /Edit/ })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /Manage members/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /Payments/ })).not.toBeInTheDocument();
+  });
+
+  it('offers a viewer without the club_admin scope no Actions menu at all', () => {
+    validated.value = ready(CLUB_A);
+    renderPage(CLUB_A);
+
+    expect(screen.queryByTestId('header-actions-trigger')).not.toBeInTheDocument();
   });
 });

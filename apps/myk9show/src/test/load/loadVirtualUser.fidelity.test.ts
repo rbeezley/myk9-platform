@@ -9,7 +9,13 @@ import { supabase } from '@/services/database/supabaseClient';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
 import { REPLICATED_TABLES } from '@/providers/ReplicationSyncProvider';
 import { LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT } from './loadClassColumns';
-import { LoadVirtualUser, VIRTUAL_USER_SYNC_INTERVAL_MS } from './loadVirtualUser';
+import { SLOW_POLL_MAX_MS, SLOW_POLL_MIN_MS } from '@/providers/syncCadence';
+import {
+  LoadVirtualUser,
+  VIRTUAL_USER_SLOW_POLL_MAX_MS,
+  VIRTUAL_USER_SLOW_POLL_MIN_MS,
+  VIRTUAL_USER_SYNC_INTERVAL_MS,
+} from './loadVirtualUser';
 import {
   INCREMENTAL_BUFFER_MS,
   INCREMENTAL_BUFFER_MS_HIGH_CHURN,
@@ -196,6 +202,11 @@ describe('constants the reader copies from the application', () => {
   it('polls at the replication layer cadence', async () => {
     const { SYNC_INTERVAL_MS } = await import('@myk9/replication');
     expect(VIRTUAL_USER_SYNC_INTERVAL_MS).toBe(SYNC_INTERVAL_MS);
+  });
+
+  it('polls the subscribed cadence over the same bounds as the app (MYK9-1305)', () => {
+    expect(VIRTUAL_USER_SLOW_POLL_MIN_MS).toBe(SLOW_POLL_MIN_MS);
+    expect(VIRTUAL_USER_SLOW_POLL_MAX_MS).toBe(SLOW_POLL_MAX_MS);
   });
 
   it('overlaps each delta with the same buffer the engine uses', () => {

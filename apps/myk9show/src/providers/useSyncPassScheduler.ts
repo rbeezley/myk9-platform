@@ -1,7 +1,7 @@
 import { useEffect, type MutableRefObject } from 'react';
-import { SYNC_INTERVAL_MS } from '@myk9/replication';
 import { logger } from '@/services/LoggingService';
 import { createSyncPassScheduler } from './syncPassScheduler';
+import { nextPollDelayMs, onCadenceChange } from './syncCadence';
 
 /**
  * Wires the triggers that start an UNTARGETED full sync pass: the background
@@ -22,8 +22,38 @@ export function useSyncPassScheduler(
       run: () => void triggerSyncRef.current?.(),
       canRun: () => document.visibilityState !== 'hidden',
     });
-    // Keeps data fresh and recovers from any failed startup sync.
-    const interval = autoSync ? setInterval(scheduler.requestUntargeted, SYNC_INTERVAL_MS) : null;
+    // Keeps data fresh and recovers from any failed startup sync. A re-armed
+    // timeout chain (not a fixed interval) so the delay follows the realtime
+    // state (MYK9-1305): 3-5 min while a show channel is SUBSCRIBED, 60 s
+    // otherwise. A pass that throws never changes the next delay.
+    let lastTickAt = Date.now();
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+    const armPoll = (delayMs: number) => {
+      if (pollTimer) clearTimeout(pollTimer);
+      pollTimer = setTimeout(tick, Math.max(0, delayMs));
+    };
+    function tick() {
+      pollTimer = null;
+      lastTickAt = Date.now();
+      try {
+        scheduler.requestUntargeted();
+      } catch (error) {
+        logger.warn('Poll tick failed', 'replication', { error });
+      } finally {
+        armPoll(nextPollDelayMs());
+      }
+    }
+    // The cadence flipped: re-time the pending tick from the LAST tick, so a
+    // drop to unsubscribed/offline is back on 60 s within one tick (at once when
+    // that is already overdue). A rejoin pass is the deferred nudge, not this.
+    const stopCadenceWatch = autoSync
+      ? onCadenceChange(() => {
+          // Clamped: a backward clock step must not stretch the delay past the cadence.
+          const elapsed = Math.max(0, Date.now() - lastTickAt);
+          armPoll(nextPollDelayMs() - elapsed);
+        })
+      : null;
+    if (autoSync) armPoll(nextPollDelayMs());
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') scheduler.requestUntargeted();
     };
@@ -44,7 +74,8 @@ export function useSyncPassScheduler(
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('replication:sync-requested', handleSyncRequest);
     return () => {
-      if (interval) clearInterval(interval);
+      if (pollTimer) clearTimeout(pollTimer);
+      stopCadenceWatch?.();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('replication:sync-requested', handleSyncRequest);
       scheduler.dispose();

@@ -211,6 +211,59 @@ describe('watermark advancement', () => {
   });
 });
 
+describe('subscribed cadence (MYK9-1305)', () => {
+  const make = (subscribedCadence: boolean) =>
+    new LoadVirtualUser(
+      {
+        supabaseUrl: FIXTURE_URL,
+        anonKey: FIXTURE_ANON_KEY,
+        accessToken: 'token',
+        role: 'exhibitor',
+        fetchImpl: createFakePostgrest().fetch,
+        subscribedCadence,
+        random: () => 0.5,
+      },
+      LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT
+    );
+
+  it('waits the jittered slow delay, not 60 s, and re-arms after each tick', async () => {
+    vi.useFakeTimers();
+    try {
+      const user = make(true);
+      const passes = vi.fn();
+      user.start(passes);
+      await vi.advanceTimersByTimeAsync(VIRTUAL_USER_SYNC_INTERVAL_MS * 3);
+      expect(passes).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(240_000 - VIRTUAL_USER_SYNC_INTERVAL_MS * 3);
+      for (let tick = 0; tick < 100; tick += 1) await Promise.resolve();
+      expect(passes).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(240_000);
+      for (let tick = 0; tick < 100; tick += 1) await Promise.resolve();
+      expect(passes).toHaveBeenCalledTimes(2);
+      user.stop();
+      await user.drain();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps 60 s when the option is off', async () => {
+    vi.useFakeTimers();
+    try {
+      const user = make(false);
+      const passes = vi.fn();
+      user.start(passes);
+      await vi.advanceTimersByTimeAsync(VIRTUAL_USER_SYNC_INTERVAL_MS);
+      for (let tick = 0; tick < 100; tick += 1) await Promise.resolve();
+      expect(passes).toHaveBeenCalledTimes(1);
+      user.stop();
+      await user.drain();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe('tick guard', () => {
   it('sends nothing new while a pass is waiting on the database', async () => {
     vi.useFakeTimers();

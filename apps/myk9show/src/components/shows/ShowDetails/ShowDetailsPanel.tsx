@@ -33,8 +33,10 @@ interface ShowDetailsPanelProps {
   /**
    * INTENT: the publish row lives on Overview ONLY (Richard, decision 2). It was an always-on row
    * on every section, which put the same two cards in front of a secretary who had navigated to
-   * Reports or Results to do something else; the header Actions menu's "Generate & publish
-   * premium" is the way back to it from anywhere.
+   * Reports or Results to do something else. MYK9-1298 removed the header Actions menu's
+   * "Generate & publish premium" row on purpose: this panel's card is the ONE publish verb,
+   * reached from the Overview status-line nudge and the readiness line. The trade-off: off
+   * Overview there is no publish shortcut; the way back is the Overview tab.
    */
   showPublishing: boolean;
 }

@@ -13,14 +13,11 @@ export interface CommandMenuCommands {
    * (`features/actions`), so the two doors can never disagree (MYK9-630).
    * Empty off a show route.
    *
-   * Items the registry returns greyed are OMITTED, and that stays true now that
-   * "Generate & publish premium" greys itself mid-publish and when the premium
-   * is already up to date (MYK9-630 round 5): the palette has no disabled row
-   * and no place to put the reason, so a row you can select but that does
+   * Items the registry returns greyed are OMITTED: the palette has no disabled
+   * row and no place to put the reason, so a row you can select but that does
    * nothing is worse than an absent one. The header menu shows the item with
-   * its reason, and it is the surface a secretary reaches for when they want to
-   * know WHY something is unavailable. Revisit if the palette grows a disabled
-   * row that can carry a sublabel. */
+   * its reason. Revisit if the palette grows a disabled row that can carry a
+   * sublabel. */
   actionCommands: CommandMenuCommand[];
   /** The header's Create group (Add Show, Add Dog, Add Person, Add Club), with its gates, so
    * the palette's own create commands can never offer a different set. */

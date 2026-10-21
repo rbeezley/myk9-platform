@@ -135,13 +135,9 @@ describe('resolveActions — secretary on a show', () => {
     expect(details?.href).toBe(`/shows/${SHOW_ID}?edit=true`);
   });
 
-  it('runs the premium flow as a command, never as a hash link', () => {
-    // A pushed hash is not fragment navigation: at 375x812 nothing scrolled at
-    // all, and from another section the card arrived unhighlighted. The item is
-    // a side effect now, bound to the card's own flow by `useCurrentActions`.
-    const premium = actions.find(action => action.id === 'show-generate-publish-premium');
-    expect(premium?.command).toBe('publish-premium');
-    expect(premium?.href).toBeUndefined();
+  it('offers no premium publish row: the details-panel card is the one verb (MYK9-1298)', () => {
+    expect(actions.some(action => action.id === 'show-generate-publish-premium')).toBe(false);
+    expect(actions.some(action => /publish premium/i.test(action.label))).toBe(false);
     expect(actions.some(action => action.href?.includes('#'))).toBe(false);
   });
 
@@ -152,7 +148,6 @@ describe('resolveActions — secretary on a show', () => {
       'show-add-new-trial',
       'show-add-classes',
       'show-open-entry-management',
-      'show-generate-publish-premium',
       'show-close-out',
     ]);
   });
@@ -164,7 +159,6 @@ describe('resolveActions — secretary on a show', () => {
       `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-trials`,
       `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-classes`,
       `/shows/${SHOW_ID}/entries`,
-      undefined, // the premium flow is a command, not a place
       `/shows/${SHOW_ID}/results?step=close`, // the Results section's close-out step
     ]);
   });
@@ -218,8 +212,8 @@ describe('resolveActions — club admin on a show', () => {
   const actions = inGroup(resolveActions(SHOW_CONTEXT, clubAdmin), 'show');
 
   // "Open Show Day" went with the tab (MYK9-957): the show home is the page this menu opens over.
-  it('keeps the same eight items', () => {
-    expect(actions).toHaveLength(8);
+  it('keeps the same seven items', () => {
+    expect(actions).toHaveLength(7);
   });
 
   // MYK9-1242: only the secretary's choice went away. A club admin cannot reach the

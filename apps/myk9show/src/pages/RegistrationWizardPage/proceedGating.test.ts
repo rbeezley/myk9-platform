@@ -82,6 +82,14 @@ describe('proceedBlockedReason', () => {
     });
   });
 
+  describe('payment with no classes (MYK9-1289)', () => {
+    it('blocks Submit when the entry has zero classes, even with everything else ready', () => {
+      expect(proceedBlockedReason(ctx({ stepId: 'payment', entryCount: 0 }))).toBe(
+        'No classes left. Go back to Classes to pick one.'
+      );
+    });
+  });
+
   describe('handler-assignment', () => {
     it('blocks with zero entries', () => {
       expect(proceedBlockedReason(ctx({ stepId: 'handler-assignment', entryCount: 0 }))).toBe(

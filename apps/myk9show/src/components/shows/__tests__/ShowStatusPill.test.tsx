@@ -170,6 +170,17 @@ describe('ShowStatusPill', () => {
       expect(await screen.findByText('Move to Draft')).toBeInTheDocument();
     });
 
+    it('plain variant: text in a line, no pill chrome, 44px target, menu still opens (MYK9-1282)', async () => {
+      render(<ShowStatusPill {...WINDOW} showId="show-1" status="published" plain />);
+      const trigger = screen.getByRole('button', { name: /published/i });
+      const label = trigger.firstElementChild as HTMLElement;
+      expect(label.className).not.toMatch(/\b(bg-|border|rounded-md|px-3)/);
+      // The pseudo-element stretches the hit target to 44px without taking layout space.
+      expect(trigger.className).toContain('before:-inset-y-3');
+      fireEvent.click(trigger);
+      expect(await screen.findByText('Move to Draft')).toBeInTheDocument();
+    });
+
     it('disables the trigger button while mutation is pending', () => {
       mockedUseMutation.mockReturnValue({
         mutateAsync,

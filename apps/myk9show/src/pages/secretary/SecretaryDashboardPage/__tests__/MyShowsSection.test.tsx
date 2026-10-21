@@ -74,6 +74,33 @@ describe('MyShowsSection', () => {
     expect(screen.getByText('Show c')).toBeInTheDocument();
   });
 
+  it('passes each today card its own class counts', () => {
+    const a = showFactory.build({
+      id: 'a',
+      name: 'Show a',
+      startDate: FUTURE,
+      location: 'Ames, IA',
+    });
+    const b = showFactory.build({
+      id: 'b',
+      name: 'Show b',
+      startDate: FUTURE,
+      location: 'Omaha, NE',
+    });
+    renderSection({
+      phase: 'today',
+      shows: [a, b],
+      classCountsByShow: new Map([
+        ['a', { live: 2, notStarted: 3, closed: 4 }],
+        ['b', null],
+      ]),
+    });
+    expect(screen.getByText(/Ames, IA$/)).toBeInTheDocument();
+    expect(screen.getByText(/Omaha, NE$/)).toBeInTheDocument();
+    expect(screen.getByText('2 live · 3 not started · 4 closed')).toBeInTheDocument();
+    expect(screen.getAllByText(/live ·/)).toHaveLength(1);
+  });
+
   it('toggle button has aria-expanded attribute', () => {
     renderSection({ defaultCollapsed: false });
     expect(screen.getByRole('button')).toHaveAttribute('aria-expanded', 'true');

@@ -436,7 +436,7 @@ describe('useOfflineReadiness', () => {
 
   // MYK9-769: getAll() turned a failed device read into [], and with a table
   // hydrated at 0 expected rows that read as "ready". A failed read is not
-  // hydrated: the badge says "Not offline ready" and keeps its Save now.
+  // hydrated: the badge says "Offline copy: not saved on this device" and keeps Save for show day.
   it('is not ready, and names the judge assignments, when their read fails', async () => {
     primeAllSignals();
     authState.isJudge = true;
@@ -696,7 +696,7 @@ describe('useOfflineReadiness', () => {
 
   // MYK9-766: the at-show page hydrates through syncAtShowData, which never
   // advances the provider's lastSyncAt. A badge that checked before that sync
-  // wrote its rows stayed "Not offline ready" for a device that was ready.
+  // wrote its rows stayed "not saved on this device" for a device that was ready.
   it("rechecks when the at-show page's own sync settles", async () => {
     const { result } = renderHook(() => useOfflineReadiness('show-1'));
     await waitFor(() => {

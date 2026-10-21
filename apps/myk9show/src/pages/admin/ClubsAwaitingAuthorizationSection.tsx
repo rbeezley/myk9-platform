@@ -6,10 +6,11 @@ import { formatShortDate } from '@/lib/format/dates';
 import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
 
 /**
- * MYK9-855: club authorization is a separate site-admin decision (MYK9-572),
- * and approving a request does not do it. This keeps every club that still
- * needs it listed on the existing Onboarding page, so it survives a reload.
- * It only links to `/clubs/:id`, where the one Authorize action lives.
+ * MYK9-855: club authorization is a separate site-admin decision (MYK9-572) for
+ * a club a secretary created themselves from the show wizard. Since MYK9-1310,
+ * approving a request and a site admin's own Add Club authorize the club at
+ * once, so this list holds only the self-service clubs still waiting. It
+ * links to `/clubs/:id`, where the one Authorize action lives.
  *
  * Online-only, like the request queue above it: this is an admin to-do list,
  * so it reads the server rather than this device's club replica, whose copy

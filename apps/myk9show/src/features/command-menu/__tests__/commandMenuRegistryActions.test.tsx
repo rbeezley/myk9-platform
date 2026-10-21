@@ -64,15 +64,10 @@ describe('command palette show actions come from the action registry', () => {
       }
     );
 
-    // The premium item is ABSENT here, and deliberately: with no publish read
-    // resolved its state is unknown, `useCurrentActions` greys it rather than
-    // guess, and the palette drops greyed items because it has no disabled row
-    // and nowhere to put the reason. The header menu is where the reason shows.
+    // There is no premium publish row anywhere: the details-panel card is the one verb.
     // The Create group is absent too: the palette renders it as its own commands, with
     // their keyboard shortcuts (`createActions`, pinned below).
-    const expectedInPalette = expected.filter(
-      a => a.command !== 'publish-premium' && a.group !== 'create'
-    );
+    const expectedInPalette = expected.filter(a => a.group !== 'create');
     expect(result.current.actionCommands.map(c => c.label)).toEqual(
       expectedInPalette.map(a => a.label)
     );

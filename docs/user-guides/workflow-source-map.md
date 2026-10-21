@@ -157,6 +157,7 @@ redirect:
 **Alternate route:** `/shows/new` redirects here for callers using the conventional creation URL.
 **Note:** Re-verified 2026-09-30 (MYK9-887/889/890) for `/secretary/create-show/wizard`. Step 1's Host Club field (`HostClubField.tsx`) names the selected club ("Hosting club: …") and offers "Not the right club? Add Club" as the exception; when the user holds no create grant for the chosen club it shows an advisory yellow notice (never blocks Next; the create RPC stays authoritative), silenced for a club just created via the `clubCreated=1` return flag. The route guard is sourced from `CREATE_SHOW_WIZARD_ROLES`, widened 2026-09-30 (MYK9-895) to admit club admins, matching the create RPC's `is_club_admin(club)` arm; after creation `/shows/:id` management already admits them via `useShowManageScope`, but `/secretary/dashboard` and the other `/secretary/*` routes stay secretary/site-admin only. Earlier: re-verified 2026-09-01 after adding the `/shows/new` redirect.
 **Source-map note:** Re-verified 2026-10-01 (MYK9-899). The wizard route and its create flow are unchanged; the wizard's `add-classes` mode now also opens at `?showId=&mode=add-classes&trialId=` (class step on the launching trial, Show Details and Trials unreachable) and is where every Add Classes door lands. Secretary Guide § 1/§ 2 re-read against this head; `/secretary/dashboard` (the legacy redirects' not-found fallback) is unchanged.
+**Source-map note:** Re-verified 2026-10-20 (MYK9-1297). The wizard route and create flow are unchanged; `/secretary/dashboard` is only the not-found fallback of the new legacy pipeline and class-dashboard redirects (`routes/LegacyPipelineRedirects.tsx`).
 **Docs target:** Secretary Guide § Setup, KB: `create-a-show.md`
 
 ### 13. Monitor all shows (cross-show triage)
@@ -167,6 +168,7 @@ redirect:
 **Source-map note:** Re-verified 2026-09-18 (MYK9-630 phase 2). The dashboard itself is unchanged; its per-show cards now link at `/shows/:id/show-day` instead of `/show-desk`. Secretary Guide § Dashboard ("Before you start") was rewritten against this head to name the six tabs and carries a dated rename note for readers with old bookmarks. The `/shows/:id` token appears here because the cards build that link.
 **Source-map note:** Re-verified 2026-10-01 (MYK9-899). The dashboard is unchanged; the only new references are the legacy class-create redirects' not-found fallback to `/secretary/dashboard`.
 **Source-map note:** Re-verified 2026-10-03 (MYK9-957). The dashboard is unchanged; its per-show cards link at the show home `/shows/:id` now that Show Day is part of Overview. Secretary Guide § Before you start names the four tabs and carries a dated "Changed, October 2026" note for old bookmarks.
+**Source-map note:** Re-verified 2026-10-20 (MYK9-1297, with MYK9-1277 merged). The dashboard route is unchanged; the only new references are the not-found fallback of the legacy pipeline and class-dashboard redirects. MYK9-1277 added a date-and-venue line and per-show class counts to the cards; Secretary Guide § Dashboard does not describe card contents, so no guide text changes.
 **Docs target:** Secretary Guide § Dashboard
 
 ### 14. Manage a specific show (setup and configuration)
@@ -227,6 +229,7 @@ redirect:
 **Canonical routes:** `/secretary/dashboard`, `/shows/:showId` (Tools sheet; was `/show-day` before MYK9-957)
 **Why this does not duplicate another page:** The dashboard and Show Desk already own the two distinct task scopes, so the legacy route is only a compatibility redirect.
 **Source-map note:** Re-verified 2026-10-01 (MYK9-899). The task decision is unchanged; `/secretary/dashboard` is only the not-found fallback of the legacy class-create redirects.
+**Source-map note:** Re-verified 2026-10-20 (MYK9-1297). The task decision is unchanged; `/secretary/dashboard` is only the not-found fallback of the legacy pipeline and class-dashboard redirects.
 
 ### Waitlist
 

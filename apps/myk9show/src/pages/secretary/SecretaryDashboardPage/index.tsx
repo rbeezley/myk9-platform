@@ -5,6 +5,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { usePendingEntries } from '@/hooks/queries/usePendingEntries';
 import { useMissionControlData } from '@/features/pipeline/hooks/useMissionControlData';
 import { useMyShows } from '@/hooks/useMyShows';
+import { useTrialStore } from '@/store/trialStore';
 import {
   emptyAttentionCounts,
   getEntryAttention,
@@ -16,6 +17,7 @@ import { filterEntryEligibleShows } from './entryEligibleShows';
 import { DashboardQuickLinks } from './DashboardQuickLinks';
 import { MyShowsSection, MyShowsSectionSkeleton } from './MyShowsSection';
 import { TasksTab } from './TasksTab';
+import { getTodayClassCounts } from './todayClassCounts';
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -27,7 +29,7 @@ function greeting(): string {
 export function SecretaryDashboardPage() {
   const { firstName, hasRole, userWithRoles } = useAuthContext();
 
-  const { shows, classesByStage, isLoading: showsLoading } = useMissionControlData();
+  const { shows, isLoading: showsLoading } = useMissionControlData();
 
   const { today, upcoming, draft, past, attentionNeeded: showAttentionItems } = useMyShows(shows);
 
@@ -82,9 +84,12 @@ export function SecretaryDashboardPage() {
     ...showAttentionItems,
   ];
 
-  const liveClassCount = classesByStage.get('in-progress')?.length ?? 0;
-  const notStartedCount = classesByStage.get('not-started')?.length ?? 0;
-  const closedCount = classesByStage.get('closed')?.length ?? 0;
+  const allTrials = useTrialStore(s => s.trials);
+  const allTrialClasses = useTrialStore(s => s.trialClasses);
+  const classCountsByShow = useMemo(
+    () => new Map(today.map(s => [s.id, getTodayClassCounts(s.id, allTrials, allTrialClasses)])),
+    [today, allTrials, allTrialClasses]
+  );
 
   // first show's clubId; used by TasksTab to scope new tasks
   const clubId = shows[0]?.clubId ?? '';
@@ -133,9 +138,7 @@ export function SecretaryDashboardPage() {
           title="Happening today"
           subtitle="Check-in is open. Tap to manage rings and results."
           shows={today}
-          liveClassCount={liveClassCount}
-          notStartedCount={notStartedCount}
-          closedCount={closedCount}
+          classCountsByShow={classCountsByShow}
         />
         <MyShowsSection
           phase="upcoming"

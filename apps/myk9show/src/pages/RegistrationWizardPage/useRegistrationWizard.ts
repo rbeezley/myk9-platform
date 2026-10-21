@@ -10,11 +10,12 @@
  * The page component renders against this hook's merged return.
  */
 
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useRegistrationWizardState } from './useRegistrationWizardState';
 import { createWizardHandlers } from './wizardHandlers';
 import { useWizardDraftRehydration } from './useWizardDraftRehydration';
 import { useWizardRegistrationOwner } from './useWizardRegistrationOwner';
+import { useEmptyEntryReturn } from './useEmptyEntryReturn';
 
 export function useRegistrationWizard() {
   const state = useRegistrationWizardState();
@@ -67,5 +68,19 @@ export function useRegistrationWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dogsLoading, dogs, currentWorkflowConfig.steps, registrationData.selectedDogs.length]);
 
-  return { ...state, ...handlers, rehydrationSettled };
+  const { setAgreedToEntryAgreement } = state;
+  // Same reset as Back and a step-indicator jump off Payment (wizardHandlers).
+  const resetEntryAgreement = useCallback(
+    () => setAgreedToEntryAgreement(false),
+    [setAgreedToEntryAgreement]
+  );
+  const emptyEntryNoticeShown = useEmptyEntryReturn({
+    currentStepId: state.currentStepId,
+    entryCount: state.classSelections.reduce((n, s) => n + s.selectedClasses.length, 0),
+    stepIds: currentWorkflowConfig.steps,
+    setCurrentStep: state.setCurrentStep,
+    onLeavePayment: resetEntryAgreement,
+  });
+
+  return { ...state, ...handlers, rehydrationSettled, emptyEntryNoticeShown };
 }

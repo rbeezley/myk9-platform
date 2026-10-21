@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -131,7 +131,6 @@ describe('useCurrentActions — ownership must be resolved before anything is of
       'show-add-new-trial',
       'show-add-classes',
       'show-open-entry-management',
-      'show-generate-publish-premium',
       'show-close-out',
     ]);
   });
@@ -143,23 +142,11 @@ describe('useCurrentActions — ownership must be resolved before anything is of
     expect(aboveCreate(result.current.actions)).toEqual([]);
   });
 
-  it.each([
-    ['exhibitor', 'resolved', false],
-    ['manager scope unresolved', 'resolving', true],
-  ] as const)('does not request publish info for %s', async (_label, status, canManage) => {
-    scope.status = status;
-    scope.canManage = canManage;
-
+  it('never reads publish info: the details-panel card is the one premium verb (MYK9-1298)', async () => {
     renderHook(() => useCurrentActions(), { wrapper });
 
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(publishInfoRead).not.toHaveBeenCalled();
-  });
-
-  it('requests publish info once after management scope resolves', async () => {
-    renderHook(() => useCurrentActions(), { wrapper });
-
-    await waitFor(() => expect(publishInfoRead).toHaveBeenCalledTimes(1));
   });
 });
 

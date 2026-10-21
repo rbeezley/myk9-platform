@@ -271,6 +271,29 @@ describe('ShowDeskPanel cockpit', () => {
     expect(screen.getAllByRole('heading', { name: 'Interior Advanced' })).not.toHaveLength(0);
   });
 
+  it('uses plain words in the setup note and the schedule hint (MYK9-1282)', () => {
+    render(
+      <ShowDeskPanel
+        show={show}
+        trials={[{ ...trial, status: 'Scheduled' } as SyncableTrial]}
+        classes={[
+          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' },
+        ]}
+        entries={[]}
+        canManageShow
+        scopeNow={new Date('2026-06-01T15:00:00.000Z')}
+      />,
+      { initialRoute: '/shows/show-1/show-day' }
+    );
+
+    expect(screen.getByText(/Pick a class to see its checklist/)).toBeInTheDocument();
+    expect(screen.queryByText(/Select a Class to focus it/)).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Show-day work has not started. Entries are on the Entry Forms tab, and show setup is here on Overview.'
+    );
+    expect(document.body.textContent).not.toMatch(/their normal pages/);
+  });
+
   it('keeps Class work available even when it is not an attention item', () => {
     render(
       <ShowDeskPanel

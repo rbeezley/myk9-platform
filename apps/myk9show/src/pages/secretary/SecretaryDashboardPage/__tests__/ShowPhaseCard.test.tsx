@@ -22,16 +22,52 @@ function renderCard(props: Parameters<typeof ShowPhaseCard>[0]) {
 describe('ShowPhaseCard — today', () => {
   it('shows "Live today" chip', () => {
     const show = makeShow({ id: 's1', startDate: TODAY, status: 'in_progress' });
-    renderCard({ show, phase: 'today', liveClassCount: 3, notStartedCount: 2, closedCount: 1 });
+    renderCard({ show, phase: 'today', classCounts: { live: 3, notStarted: 2, closed: 1 } });
     expect(screen.getByText('Live today')).toBeInTheDocument();
   });
 
   it('shows class stage stats', () => {
     const show = makeShow({ id: 's1', startDate: TODAY, status: 'in_progress' });
-    renderCard({ show, phase: 'today', liveClassCount: 4, notStartedCount: 1, closedCount: 2 });
+    renderCard({ show, phase: 'today', classCounts: { live: 4, notStarted: 1, closed: 2 } });
     expect(screen.getByText(/4 live/)).toBeInTheDocument();
     expect(screen.getByText(/1 not started/)).toBeInTheDocument();
     expect(screen.getByText(/2 closed/)).toBeInTheDocument();
+  });
+
+  it('omits the class stats line when counts are unknown (no 0/0/0)', () => {
+    const show = makeShow({ id: 's1', startDate: TODAY, status: 'in_progress' });
+    renderCard({ show, phase: 'today', classCounts: null });
+    expect(screen.queryByText(/live ·/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/not started/)).not.toBeInTheDocument();
+  });
+
+  it('tells two same-named shows on the same day apart by date range and venue', () => {
+    const a = makeShow({
+      id: 'a',
+      name: 'Heartland Scent Work Week',
+      startDate: '2030-08-01',
+      endDate: '2030-08-03',
+      location: 'Des Moines, IA',
+      status: 'in_progress',
+    });
+    const b = makeShow({
+      id: 'b',
+      name: 'Heartland Scent Work Week',
+      startDate: '2030-08-02',
+      endDate: '2030-08-04',
+      location: 'Omaha, NE',
+      status: 'in_progress',
+    });
+    render(
+      <MemoryRouter>
+        <ShowPhaseCard show={a} phase="today" />
+        <ShowPhaseCard show={b} phase="today" />
+      </MemoryRouter>
+    );
+    expect(screen.getByText(/Aug 1–3, 2030/)).toBeInTheDocument();
+    expect(screen.getByText(/Des Moines, IA/)).toBeInTheDocument();
+    expect(screen.getByText(/Aug 2–4, 2030/)).toBeInTheDocument();
+    expect(screen.getByText(/Omaha, NE/)).toBeInTheDocument();
   });
 
   it('links to the workbench Show Desk sub-route', () => {
@@ -100,6 +136,18 @@ describe('ShowPhaseCard — draft', () => {
     const show = makeShow({ id: 's6', startDate: FUTURE, status: 'draft' });
     renderCard({ show, phase: 'draft' });
     expect(screen.getByText('Draft')).toBeInTheDocument();
+  });
+
+  it('shows the date range and venue', () => {
+    const show = makeShow({
+      id: 's6b',
+      startDate: '2030-09-01',
+      endDate: '2030-09-02',
+      location: 'Ames, IA',
+      status: 'draft',
+    });
+    renderCard({ show, phase: 'draft' });
+    expect(screen.getByText('Sep 1–2, 2030 · Ames, IA')).toBeInTheDocument();
   });
 
   it('shows "Continue setup" CTA', () => {

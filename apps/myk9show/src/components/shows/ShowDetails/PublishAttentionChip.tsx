@@ -9,6 +9,9 @@ interface PublishAttentionChipProps {
 }
 
 /**
+ * The publishing nudge, as the tail of the header's status line (MYK9-1282): "Published ·
+ * premium list not yet published". Plain amber text, not a second chip beside a status pill.
+ *
  * Collapsing the publishing cards under the header must not hide a task: while the premium list
  * or the landing page is unpublished, the header says so and opens the panel on click. Once both
  * are published it renders nothing. It reads the same publish state the cards do.
@@ -25,20 +28,23 @@ export const PublishAttentionChip: React.FC<PublishAttentionChipProps> = ({
   );
   if (!canManageShow || infoState !== 'ready') return null;
   const label = !hasPublishedPremium
-    ? 'Premium not published'
+    ? 'premium list not yet published'
     : landingUnpublished
-      ? 'Landing page not published'
+      ? 'landing page not yet published'
       : null;
   if (!label) return null;
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      // Small to sit in the line under the name; the pseudo-element stretches the target to 44px
-      // (docs/INTENT.md) without taking any layout space.
-      className="relative inline-flex h-5 items-center rounded-full border border-warning/30 bg-warning/10 px-2 text-xs font-medium text-warning before:absolute before:-inset-x-1 before:-inset-y-3 before:content-[''] hover:bg-warning/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      {label}
-    </button>
+    <>
+      <span aria-hidden="true">·</span>
+      <button
+        type="button"
+        onClick={onOpen}
+        // Small to sit in the line under the name; the pseudo-element stretches the target to 44px
+        // (docs/INTENT.md) without taking any layout space.
+        className="relative inline-flex items-center font-medium text-warning underline-offset-2 before:absolute before:-inset-x-1 before:-inset-y-3 before:content-[''] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {label}
+      </button>
+    </>
   );
 };

@@ -81,7 +81,7 @@ async function gatherReadiness(
     // boot can leave useMyAtShowJudgeAssignments equally blind).
     // A failed device read is NOT hydrated (MYK9-769): getAll() used to hand
     // back [] for it, which with 0 expected rows claimed "ready". Failing the
-    // scope closed keeps the badge's truthful "Not offline ready · Save now".
+    // scope closed keeps the badge's truthful "Offline copy: not saved on this device" with its "Save for show day" action.
     const [assignmentsMeta, assignmentRows] = await Promise.all([
       replicatedJudgeAssignmentsTable.getSyncMetadata() as Promise<ScopedMeta | null>,
       readJudgeAssignmentsOrThrow().catch(() => null),
@@ -179,7 +179,7 @@ export function useOfflineReadiness(showId: string | undefined) {
     window.addEventListener('focus', handleRecheck);
     // The at-show page hydrates this show through syncAtShowData, which never
     // advances lastSyncAt. Without this, a check that ran before those rows
-    // landed left a ready device reading "Not offline ready" (MYK9-766).
+    // landed left a ready device reading "not saved on this device" (MYK9-766).
     const unsubscribeSettled = showId ? subscribeAtShowSyncSettled(showId, handleRecheck) : null;
     return () => {
       generationRef.current += 1;

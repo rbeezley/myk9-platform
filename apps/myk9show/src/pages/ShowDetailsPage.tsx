@@ -13,6 +13,7 @@ import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { isAccountSession, isPublicGuest } from '@/hooks/guestServerRead';
 import { useShowManageGate } from './ShowDetailsPage.viewer';
+import { showBreadcrumbs } from './ShowDetailsPage.breadcrumbs';
 import { useTrialStore } from '@/store/trialStore';
 import { resolveEntryClassInventory } from './ShowDetailsPage.entryInventory';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
@@ -409,11 +410,8 @@ const ShowDetailsPage: React.FC = () => {
 
   // Breadcrumbs for PageHeader
   const breadcrumbs = useMemo(
-    () => [
-      { label: 'Shows', href: '/shows' },
-      { label: actualCurrentShow?.name || 'Show Details', href: `/shows/${id}` },
-    ],
-    [actualCurrentShow?.name, id]
+    () => showBreadcrumbs(canManageShow, actualCurrentShow?.name, id),
+    [canManageShow, actualCurrentShow?.name, id]
   );
 
   // Tab definitions for PrimaryTabs (must be before early returns — rules of hooks)

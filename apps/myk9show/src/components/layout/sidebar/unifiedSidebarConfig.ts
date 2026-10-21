@@ -32,12 +32,15 @@ import {
   LifeBuoy,
   Flag,
   LayoutList,
+  CalendarCheck,
 } from 'lucide-react';
 import { UserRole, USER_ROLE_HIERARCHY } from '@/types/auth-types';
 import { ROLE_LABELS } from '@/services/rbac/roleUiConstants';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
 import type { SidebarConfig, NavGroup, NavItem, NavRailLink, NavRailMenu } from './types';
 import { browseTabsForRoles, isExhibitorOnlyRoles } from './browseTabs';
+import { truncateRailTitle } from './currentShow';
+import type { Show } from '@/types/show-types';
 
 export interface ClubContext {
   clubId: string;
@@ -77,10 +80,49 @@ const CLUB_RAIL_MENU: NavRailMenu = { id: 'club', title: 'My Club', icon: Flag }
 const BROWSE_RAIL_LINK: NavRailLink = { id: 'browse', title: 'Browse', icon: LayoutList };
 const MY_SHOWS_RAIL_LINK: NavRailLink = { id: 'my-shows', title: 'My Shows', icon: FileText };
 
+export interface CurrentShowNav {
+  currentShow: Pick<Show, 'id' | 'name'> | null;
+  /** Managed shows not yet over, soonest first; more than one turns on Switch. */
+  managingShows: readonly Pick<Show, 'id' | 'name'>[];
+  onChooseShow: (id: string) => void;
+}
+
+function currentShowItem(
+  show: Pick<Show, 'id' | 'name'>,
+  onChooseShow?: (id: string) => void,
+  description?: string
+): NavItem {
+  const short = truncateRailTitle(show.name);
+  return {
+    title: show.name,
+    // Only when it differs: the accessible name is "short: full" for a shortened label.
+    ...(short === show.name ? {} : { railTitle: short, tooltip: show.name }),
+    href: `/shows/${show.id}`,
+    icon: CalendarCheck,
+    ...(description ? { description } : {}),
+    // Only a Switch pick is remembered; opening the current show must not pin it.
+    ...(onChooseShow ? { onSelect: () => onChooseShow(show.id) } : {}),
+  };
+}
+
+/** The current show first, then the other managed shows (Switch's list), each opening its Overview. */
+function currentShowGroup({ currentShow, managingShows, onChooseShow }: CurrentShowNav): NavGroup {
+  const others = managingShows.filter(show => show.id !== currentShow?.id);
+  return {
+    title: 'Current show',
+    railSwitch: true,
+    items: [
+      ...(currentShow ? [currentShowItem(currentShow, undefined, 'Your current show')] : []),
+      ...others.map(show => currentShowItem(show, onChooseShow)),
+    ],
+  };
+}
+
 export function buildUnifiedSidebarConfig(
   userRoles: readonly UserRole[],
   clubContext?: ClubContext,
-  firstName?: string | null
+  firstName?: string | null,
+  currentShowNav?: CurrentShowNav
 ): SidebarConfig {
   const groups: NavGroup[] = [];
   const hasSiteAdmin = hasAnyRole(userRoles, [UserRole.SITE_ADMIN]);
@@ -226,6 +268,10 @@ export function buildUnifiedSidebarConfig(
         items: browseTabs,
       });
     }
+
+    // 4b. The current show, right under Browse: a secretary or club admin's way back into the one
+    // show being worked (MYK9-1269). Absent when the viewer manages none.
+    if (currentShowNav?.currentShow) groups.push(currentShowGroup(currentShowNav));
 
     // 5. My Club section. Stable account destinations remain available while
     // club-scoped routes wait for validated context.

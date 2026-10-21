@@ -76,7 +76,10 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({
                         // Multiple static nav items can intentionally share the same fallback href.
                         key={`${groupIndex}:${item.title}:${item.href}`}
                         to={item.href}
-                        onClick={onCloseMobile}
+                        onClick={() => {
+                          item.onSelect?.();
+                          onCloseMobile?.();
+                        }}
                         aria-label={item.title}
                         aria-current={active ? 'page' : undefined}
                         className={cn(

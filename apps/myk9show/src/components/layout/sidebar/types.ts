@@ -17,6 +17,10 @@ export interface NavItem {
    * lines (a show's name). The full title stays in the accessible name.
    */
   railTitle?: string;
+  /** Hover text for the rail link, set only where the visible label is shortened. */
+  tooltip?: string;
+  /** Runs when the item is chosen (the current-show Switch remembers the pick). */
+  onSelect?: () => void;
 }
 
 /**
@@ -45,6 +49,11 @@ export interface NavGroup {
   items: NavItem[];
   railMenu?: NavRailMenu;
   railLink?: NavRailLink;
+  /**
+   * The current-show group: `items[0]` is the current show (the rail link); any further items are
+   * the other managed shows, listed in the rail's Switch menu. The drawer lists them all.
+   */
+  railSwitch?: boolean;
 }
 
 export interface SidebarConfig {

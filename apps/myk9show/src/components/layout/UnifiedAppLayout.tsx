@@ -18,6 +18,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClubStore } from '@/store/clubStore';
 import { useRegisterAppShellMobileNav } from './useAppShellMobileNav';
 import { buildUnifiedSidebarConfig } from './sidebar/unifiedSidebarConfig';
+import { useCurrentShow } from './sidebar/useCurrentShow';
 import { useRememberBrowseList } from './sidebar/useRememberBrowseList';
 import type { ClubContext } from './sidebar/unifiedSidebarConfig';
 import { useCurrentValidatedClubContext } from '@/hooks/useValidatedClubContext';
@@ -44,9 +45,15 @@ export const UnifiedAppLayout: React.FC = () => {
       clubName: validatedClubContext.clubName,
     };
   }, [validatedClubContext]);
+  const { currentShow, managingShows, chooseShow } = useCurrentShow();
   const sidebarConfig = useMemo(
-    () => buildUnifiedSidebarConfig(roles, clubContext, firstName),
-    [roles, clubContext, firstName]
+    () =>
+      buildUnifiedSidebarConfig(roles, clubContext, firstName, {
+        currentShow,
+        managingShows,
+        onChooseShow: chooseShow,
+      }),
+    [roles, clubContext, firstName, currentShow, managingShows, chooseShow]
   );
   useRememberBrowseList(sidebarConfig);
   const { mobileOpen, setMobileOpen } = useSidebarLayoutState();

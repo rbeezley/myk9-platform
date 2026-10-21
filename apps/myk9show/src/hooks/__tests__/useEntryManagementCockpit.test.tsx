@@ -81,48 +81,90 @@ describe('useEntryManagementCockpit', () => {
     expect(search).toBe('?view=cards&queue=all');
   });
 
-  it('holds a derived default while a form is open or rows are ticked, then re-derives', async () => {
-    const accepted = (index: number) => ({ ...entry(index), entryStatus: EntryStatus.ACCEPTED });
+  it('decides the default once per scope: arrivals and load errors never flip it', () => {
+    const accepted = (index: number) => ({
+      ...entry(index, 'class-a'),
+      entryStatus: EntryStatus.ACCEPTED,
+    });
     const settledGroups = groupEntriesByShowRegistration([accepted(1), accepted(2)]);
-    const arrivedGroups = groupEntriesByShowRegistration([accepted(1), accepted(2), entry(3)]);
+    const arrivedGroups = groupEntriesByShowRegistration([
+      accepted(1),
+      accepted(2),
+      entry(3, 'class-b'),
+    ]);
     let search = '';
     const { result, rerender } = renderHook(
-      ({ groups }) => {
+      ({ groups, canValidateFocus }) => {
         const [searchParams, setSearchParams] = useSearchParams();
         return {
           cockpit: useEntryManagementCockpit({
             groups,
+            canValidateFocus,
             state: normalizeEntryManagementCockpitParams(searchParams).state,
           }),
           setSearchParams,
         };
       },
       {
-        initialProps: { groups: settledGroups },
+        initialProps: { groups: settledGroups, canValidateFocus: true },
         wrapper: wrapper('/?registration=registration-1', value => {
           search = value;
         }),
       }
     );
     expect(result.current.cockpit.state.queues).toEqual(['all']);
+    act(() => result.current.cockpit.selection.selectItems(settledGroups.slice(1, 2)));
 
-    // A pending form arrives while registration-1 is open: the view stays on All.
-    rerender({ groups: arrivedGroups });
+    // A pending form arrives: the view, the open form and the ticked row stay put; the count rises.
+    rerender({ groups: arrivedGroups, canValidateFocus: true });
+    expect(result.current.cockpit.state.queues).toEqual(['all']);
+    expect(result.current.cockpit.queueCounts['needs-review']).toBe(1);
+
+    // A refresh fails and recovers: still All, still open, still ticked.
+    rerender({ groups: arrivedGroups, canValidateFocus: false });
+    rerender({ groups: arrivedGroups, canValidateFocus: true });
     expect(result.current.cockpit.state.queues).toEqual(['all']);
     expect(result.current.cockpit.state.registrationKey).toBe('registration-1');
+    expect(result.current.cockpit.selection.selectedIds.size).toBe(1);
     expect(search).toBe('?registration=registration-1');
 
-    // Ticked rows hold it too, and survive the arrival.
-    act(() => result.current.setSearchParams(new URLSearchParams()));
-    rerender({ groups: settledGroups });
-    act(() => result.current.cockpit.selection.selectItems(settledGroups.slice(0, 1)));
-    rerender({ groups: arrivedGroups });
-    expect(result.current.cockpit.state.queues).toEqual(['all']);
-    expect(result.current.cockpit.selection.selectedIds.size).toBe(1);
+    // A new scope decides afresh: class-b holds only the pending form.
+    act(() => result.current.setSearchParams(new URLSearchParams('class=class-b')));
+    expect(result.current.cockpit.state.queues).toEqual(['needs-review']);
+  });
 
-    // Done working: the default follows the forms again.
-    act(() => result.current.cockpit.selection.clearSelection());
-    await waitFor(() => expect(result.current.cockpit.state.queues).toEqual(['needs-review']));
+  it('waits for the trial classes before deciding, and decides afresh for another show', () => {
+    const accepted = (index: number, classId: string, showId = 'show-1') => ({
+      ...entry(index, classId),
+      showId,
+      entryStatus: EntryStatus.ACCEPTED,
+    });
+    const showOne = groupEntriesByShowRegistration([accepted(1, 'class-a'), entry(2, 'class-b')]);
+    const { result, rerender } = renderHook(
+      ({ groups, trialClassIds }) => {
+        const [searchParams] = useSearchParams();
+        return useEntryManagementCockpit({
+          groups,
+          trialClassIds,
+          state: normalizeEntryManagementCockpitParams(searchParams).state,
+        });
+      },
+      {
+        initialProps: {
+          groups: showOne,
+          trialClassIds: undefined as readonly string[] | undefined,
+        },
+        wrapper: wrapper('/?trial=trial-a'),
+      }
+    );
+    // The trial's classes are unknown: the whole show has a pending form, but no landing yet.
+    rerender({ groups: showOne, trialClassIds: ['class-a'] });
+    expect(result.current.state.queues).toEqual(['all']);
+
+    // Another show's forms replace these: its own landing, Needs review for its pending form.
+    const showTwo = groupEntriesByShowRegistration([{ ...entry(3, 'class-a'), showId: 'show-2' }]);
+    rerender({ groups: showTwo, trialClassIds: ['class-a'] });
+    expect(result.current.state.queues).toEqual(['needs-review']);
   });
 
   it('does not hold the pre-load placeholder: a deep link to an accepted form stays open', () => {

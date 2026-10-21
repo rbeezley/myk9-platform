@@ -36,6 +36,7 @@ interface UseEntryManagementCockpitOptions {
 }
 
 const getGroupKey = (group: ShowRegistrationGroup) => group.groupKey;
+const PRE_LOAD_DEFAULT_QUEUES = deriveDefaultQueues(null);
 
 /** The same array while its contents are the same, so a caller that rebuilds state each render
  * does not recompute every count. */
@@ -55,35 +56,12 @@ export function useEntryManagementCockpit({
   const classIds = useStableList(urlState.classIds);
   const scopedTrialClassIds = urlState.trialIds.length > 0 ? trialClassIds : undefined;
   // THE one place the default queue is decided (MYK9-1276): when the URL names no queue, the
-  // effective one is derived from what the table would list in the current scope, so
-  // `cockpit.state.queues` stays the single source of queue state. Until the forms have loaded
-  // the default stays Needs review. Never written to the URL.
-  const liveDefaultQueues = useMemo(
-    () =>
-      urlState.queuesNamed
-        ? urlState.queues
-        : deriveDefaultQueues(
-            canValidateFocus
-              ? countListedForms(groups, {
-                  search: urlState.search,
-                  classIds: classIds,
-                  trialClassIds: scopedTrialClassIds,
-                })
-              : null
-          ),
-    [
-      urlState.queuesNamed,
-      urlState.queues,
-      urlState.search,
-      canValidateFocus,
-      groups,
-      classIds,
-      scopedTrialClassIds,
-    ]
-  );
-  // While the secretary has a form open or rows ticked, a derived default holds still: a pending
-  // form arriving must not flip All to Needs review and close the open form or clear the
-  // selection under them. It re-derives once they are done, or when the scope changes.
+  // default is decided ONCE per scope, from the first loaded forms (All when Needs review would
+  // list nothing and All has forms), and kept until the scope or the show changes. Arrivals,
+  // refreshes and load errors never flip it, so the open form and ticked rows stay put; the
+  // Needs review count in the Show menu still rises. Until the forms have loaded the default is
+  // Needs review. `cockpit.state.queues` stays the single source of queue state, and the
+  // decided default is never written to the URL.
   const scopeKey = [
     urlState.tab,
     urlState.exception,
@@ -91,14 +69,37 @@ export function useEntryManagementCockpit({
     urlState.trialIds.join(','),
     urlState.classIds.join(','),
   ].join('|');
-  const [heldDefault, setHeldDefault] = useState<{
+  const showId = groups[0]?.entries[0]?.showId ?? null;
+  const [landing, setLanding] = useState<{
     scopeKey: string;
+    showId: string | null;
     queues: readonly ShowRegistrationQueue[];
   } | null>(null);
-  const defaultQueues =
-    !urlState.queuesNamed && heldDefault?.scopeKey === scopeKey
-      ? heldDefault.queues
-      : liveDefaultQueues;
+  const landingFits =
+    landing !== null &&
+    landing.scopeKey === scopeKey &&
+    (showId === null || landing.showId === showId);
+  // Decided only on loaded forms, and on a trial's classes once they are known: a landing taken
+  // before either would be kept for the whole scope.
+  const scopeIsKnown = urlState.trialIds.length === 0 || trialClassIds !== undefined;
+  if (!urlState.queuesNamed && canValidateFocus && scopeIsKnown && !landingFits) {
+    setLanding({
+      scopeKey,
+      showId,
+      queues: deriveDefaultQueues(
+        countListedForms(groups, {
+          search: urlState.search,
+          classIds,
+          trialClassIds: scopedTrialClassIds,
+        })
+      ),
+    });
+  }
+  const defaultQueues = urlState.queuesNamed
+    ? urlState.queues
+    : landingFits && landing
+      ? landing.queues
+      : PRE_LOAD_DEFAULT_QUEUES;
   const state = useMemo(
     () => ({ ...urlState, queues: [...defaultQueues] }),
     [urlState, defaultQueues]
@@ -141,13 +142,6 @@ export function useEntryManagementCockpit({
     pruneToItems: true,
     resetKey: viewKey,
   });
-  const isWorking = Boolean(state.registrationKey) || selection.selectedIds.size > 0;
-  // Only a default derived from loaded forms is held: before they load it is a placeholder.
-  if (urlState.queuesNamed || !isWorking || !canValidateFocus) {
-    if (heldDefault !== null) setHeldDefault(null);
-  } else if (heldDefault?.scopeKey !== scopeKey) {
-    setHeldDefault({ scopeKey, queues: liveDefaultQueues });
-  }
   const visibleSelection = getVisiblePageSelectionState(
     builtPage.page.items,
     selection.selectedIds

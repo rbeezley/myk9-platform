@@ -162,8 +162,19 @@ test.describe('Phase 2: Database Record Validation', () => {
     for (const { role, expectedAccess } of userRoles) {
       console.log(`Testing ${role} access patterns...`);
 
-      // Sign out any existing session
+      // Really sign out: /sign-in shows an "already signed in" card to a live session (MYK9-1280),
+      // so drop the saved session (cookies, web storage, IndexedDB) and reload signed out.
       await page.goto('/sign-in');
+      await page.context().clearCookies();
+      await page.evaluate(async () => {
+        localStorage.clear();
+        sessionStorage.clear();
+        for (const db of (await indexedDB.databases?.()) ?? []) {
+          if (db.name) indexedDB.deleteDatabase(db.name);
+        }
+      });
+      await page.goto('/sign-in');
+      await expect(page.getByTestId('credential-input')).toBeVisible();
 
       // Sign in as this role
       await testSetup.signIn(role);

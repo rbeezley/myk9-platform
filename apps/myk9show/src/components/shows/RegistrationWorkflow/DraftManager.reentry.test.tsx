@@ -113,6 +113,7 @@ describe('DraftManager reentry', () => {
     const { rerender } = render(
       <DraftManager
         loadDraft={vi.fn(() => savedDraft)}
+        deleteDraft={vi.fn()}
         availableDrafts={[metadata]}
         hasUnsavedChanges={false}
         showResume
@@ -126,6 +127,7 @@ describe('DraftManager reentry', () => {
     rerender(
       <DraftManager
         loadDraft={vi.fn(() => savedDraft)}
+        deleteDraft={vi.fn()}
         availableDrafts={[metadata]}
         hasUnsavedChanges={false}
         showResume
@@ -140,6 +142,7 @@ describe('DraftManager reentry', () => {
     rerender(
       <DraftManager
         loadDraft={vi.fn(() => savedDraft)}
+        deleteDraft={vi.fn()}
         availableDrafts={[metadata]}
         hasUnsavedChanges={false}
         showResume

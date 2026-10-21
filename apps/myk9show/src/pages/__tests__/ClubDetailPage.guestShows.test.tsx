@@ -42,6 +42,12 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => auth.value,
 }));
 
+// The club page's validated-club gate (MYK9-1293) reads roles the partial auth mock above does not
+// supply; a guest has no club context, so the hook's own answer would be 'not-applicable'.
+vi.mock('@/hooks/useValidatedClubContext', () => ({
+  useCurrentValidatedClubContext: () => ({ status: 'not-applicable' }),
+}));
+
 vi.mock('@/store/clubStore', () => {
   const value = {
     get clubs() {

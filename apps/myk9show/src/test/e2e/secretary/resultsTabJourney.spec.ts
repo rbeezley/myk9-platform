@@ -304,6 +304,8 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
       const hideButton = detail.getByRole('button', { name: 'Hide results' });
       await expect(hideButton).toBeVisible({ timeout: 20_000 });
       await expect(releaseButton).toHaveCount(0);
+      // Enabled only once the After Review override has been read back (and while online).
+      await expect(hideButton).toBeEnabled({ timeout: 20_000 });
       await hideButton.click();
       const confirm = page.getByRole('alertdialog');
       await expect(confirm.getByText(`Hide results for ${CLASS_NAME}?`)).toBeVisible();
@@ -317,7 +319,15 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
 
     await test.step('7. release again with one tap, so the print and initials steps start released', async () => {
       const hideButton = detail.getByRole('button', { name: 'Hide results' });
-      await expect(releaseButton).toBeEnabled({ timeout: 20_000 });
+      // Hide is a replicated write that uploads in the background. Reload until the class reads
+      // "Not released" from the synced rows, so Release starts from the un-release having landed.
+      await expect(async () => {
+        await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
+        await expect(detail.getByText('Not released', { exact: true }).first()).toBeVisible({
+          timeout: 10_000,
+        });
+        await expect(releaseButton).toBeEnabled({ timeout: 10_000 });
+      }).toPass({ timeout: 60_000 });
       await releaseButton.click();
       await expect(detail.getByText('Print the results sheet and result labels')).toBeVisible({
         timeout: 20_000,

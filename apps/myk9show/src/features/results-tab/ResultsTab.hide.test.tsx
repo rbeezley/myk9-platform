@@ -98,6 +98,14 @@ vi.mock('@/hooks/useShowManageScope', () => ({
 const timing = vi.hoisted(() => ({
   show: 'manual_release' as string,
   settings: 'ready' as 'ready' | 'loading' | 'error',
+  trialOverrides: [] as unknown[],
+  classOverrides: [] as unknown[],
+}));
+const pending = vi.hoisted(() => ({ release: false, verify: false, unrelease: false }));
+const net = vi.hoisted(() => ({ online: true }));
+vi.mock('@/hooks/useNetworkStatus', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/hooks/useNetworkStatus')>()),
+  useIsOnline: () => net.online,
 }));
 vi.mock('@/hooks/queries/useShowSettingsDatabase', () => ({
   useShowSettings: () => ({
@@ -115,17 +123,17 @@ vi.mock('@/hooks/queries/useShowSettingsDatabase', () => ({
     isLoading: timing.settings === 'loading',
     isError: timing.settings === 'error',
   }),
-  useTrialOverrides: () => ({ data: [] }),
-  useClassOverrides: () => ({ data: [] }),
+  useTrialOverrides: () => ({ data: timing.trialOverrides }),
+  useClassOverrides: () => ({ data: timing.classOverrides }),
 }));
 
 const releaseMutate = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/mutations/useReleaseResults', () => ({
-  useReleaseResults: () => ({ mutate: releaseMutate, isPending: false }),
+  useReleaseResults: () => ({ mutate: releaseMutate, isPending: pending.release }),
 }));
 const unreleaseMutate = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/mutations/useUnreleaseResults', () => ({
-  useUnreleaseResults: () => ({ mutate: unreleaseMutate, isPending: false }),
+  useUnreleaseResults: () => ({ mutate: unreleaseMutate, isPending: pending.unrelease }),
 }));
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn() }));
@@ -139,7 +147,7 @@ vi.mock('@/features/show-map/useResultsVerifiedMutations', () => ({
   useResultsVerifiedMutations: () => ({
     verifyAsync: vi.fn(),
     undo: vi.fn(),
-    isPending: false,
+    isPending: pending.verify,
     refreshClass: vi.fn(),
   }),
 }));
@@ -171,6 +179,12 @@ beforeEach(() => {
   scope.canOperate = true;
   timing.show = 'manual_release';
   timing.settings = 'ready';
+  timing.trialOverrides = [];
+  timing.classOverrides = [];
+  pending.release = false;
+  pending.verify = false;
+  pending.unrelease = false;
+  net.online = true;
 });
 
 describe('Results class detail: Hide results (MYK9-1318)', () => {
@@ -251,20 +265,101 @@ describe('Results class detail: Hide results (MYK9-1318)', () => {
     expect(hideButton()).not.toBeInTheDocument();
   });
 
-  it('a released class on Immediately timing is not offered Hide: it would change nothing', () => {
-    timing.show = 'immediate';
-    hook.rows = [buildRow('2026-10-10T16:00:00Z')];
+  const RELEASED = '2026-10-10T16:00:00Z';
+  const AFTER_REVIEW_LINE =
+    'This class shows results as they are scored. Set it to After Review in Visibility settings to hide them.';
+
+  it('a released class under manual release, online and idle has Hide enabled and no reason line', () => {
+    hook.rows = [buildRow(RELEASED)];
     mount();
-    expect(hideButton()).not.toBeInTheDocument();
+    expect(hideButton()).toBeEnabled();
+    expect(screen.queryByText(/Wait for the current action/)).not.toBeInTheDocument();
+    expect(screen.queryByText(AFTER_REVIEW_LINE)).not.toBeInTheDocument();
   });
 
-  it.each(['loading', 'error'] as const)(
-    'offers no Hide while the visibility settings are %s',
-    state => {
-      timing.settings = state;
-      hook.rows = [buildRow('2026-10-10T16:00:00Z')];
-      mount();
-      expect(hideButton()).not.toBeInTheDocument();
-    }
-  );
+  it('a released class on Immediately timing keeps Hide, disabled, with the After Review line', () => {
+    timing.show = 'immediate';
+    hook.rows = [buildRow(RELEASED)];
+    mount();
+    expect(hideButton()).toBeDisabled();
+    expect(screen.getByText(AFTER_REVIEW_LINE)).toBeInTheDocument();
+  });
+
+  it('offline: Hide is disabled with the connection line, even under manual release', () => {
+    net.online = false;
+    hook.rows = [buildRow(RELEASED)];
+    mount();
+    expect(hideButton()).toBeDisabled();
+    expect(screen.getByText('Needs a connection to hide results.')).toBeInTheDocument();
+  });
+
+  it('while the visibility settings load: disabled with the checking line', () => {
+    timing.settings = 'loading';
+    hook.rows = [buildRow(RELEASED)];
+    mount();
+    expect(hideButton()).toBeDisabled();
+    expect(screen.getByText("Checking this class's visibility settings.")).toBeInTheDocument();
+  });
+
+  it('settings failed with no data: disabled with the could-not-read line', () => {
+    timing.settings = 'error';
+    hook.rows = [buildRow(RELEASED)];
+    mount();
+    expect(hideButton()).toBeDisabled();
+    expect(screen.getByText("Could not read this class's visibility settings.")).toBeInTheDocument();
+  });
+
+  it.each([
+    ['releasing', 'release'],
+    ['verifying', 'verify'],
+  ] as const)('while %s, Hide is disabled', (_label, key) => {
+    pending[key] = true;
+    hook.rows = [buildRow(RELEASED)];
+    mount();
+    expect(hideButton()).toBeDisabled();
+  });
+
+  it('while hiding, Release results is disabled on a ready-to-release row', () => {
+    pending.unrelease = true;
+    hook.rows = [buildRow(null)];
+    mount();
+    expect(releaseButton()).toBeDisabled();
+  });
+
+  it('reads the class override by the class id and the trial override by the trial id', () => {
+    timing.show = 'immediate';
+    hook.rows = [buildRow(RELEASED)];
+    // Entries keyed by swapped ids (the class id in the trial slot and the reverse) must not match.
+    timing.classOverrides = [
+      { classId: 'trial-1', trialId: 'class-1', override: { placement: 'manual_release' } },
+    ];
+    timing.trialOverrides = [{ trialId: 'class-1', override: { placement: 'manual_release' } }];
+    const swapped = mount();
+    expect(hideButton()).toBeDisabled();
+    swapped.unmount();
+
+    timing.classOverrides = [
+      { classId: 'class-1', trialId: 'trial-1', override: { placement: 'manual_release' } },
+    ];
+    timing.trialOverrides = [];
+    const byClass = mount();
+    expect(hideButton()).toBeEnabled();
+    byClass.unmount();
+
+    timing.classOverrides = [];
+    timing.trialOverrides = [{ trialId: 'trial-1', override: { placement: 'manual_release' } }];
+    mount();
+    expect(hideButton()).toBeEnabled();
+  });
+
+  it('toasts the failure when the un-release rejects', async () => {
+    hook.rows = [buildRow(RELEASED)];
+    unreleaseMutate.mockImplementationOnce((_vars, opts) => opts.onError(new Error('x')));
+    const { user } = mount();
+    await user.click(hideButton()!);
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Hide results' })
+    );
+    expect(toast.error).toHaveBeenCalledWith('Could not hide the results. Try again.');
+  });
 });

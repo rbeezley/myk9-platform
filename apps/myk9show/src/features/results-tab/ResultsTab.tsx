@@ -184,7 +184,7 @@ export default function ResultsTab() {
     } else if (row.phase !== 'ready-to-release') {
       return;
     }
-    if (releaseBlockedReason !== null) return;
+    if (releaseBlockedReason !== null || unrelease.isPending) return;
     const generationAtClick = checkGeneration.current;
     // Held for the WHOLE verify and preflight, so Undo and the button stay disabled until the
     // release is queued or the preflight gives up.
@@ -261,7 +261,9 @@ export default function ResultsTab() {
     }
   };
 
-  const handleHide = (row: ResultsClassRow) =>
+  const handleHide = (row: ResultsClassRow) => {
+    // The button is disabled in these states; this keeps a stale click from racing a release.
+    if (release.isPending || releaseChecking || verification.isPending || !isOnline) return;
     unrelease.mutate(
       { classIds: [row.id], showId },
       {
@@ -272,6 +274,7 @@ export default function ResultsTab() {
         onError: () => toast.error('Could not hide the results. Try again.'),
       }
     );
+  };
 
   if (readState === 'loading') {
     return (

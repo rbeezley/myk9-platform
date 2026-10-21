@@ -33,17 +33,31 @@ export function classHasManualReleaseTiming(
 }
 
 /**
- * Whether Hide results can change anything for this class. False while any of the three reads has
- * no data (loading, or failed with nothing cached): a control whose effect is unknown is not shown.
+ * What Hide results can do for this class. `manual` and `not-manual` need all three reads;
+ * `unknown` is a read still loading, `unreadable` a read that failed with nothing cached. Neither
+ * is ever treated as manual: a control whose effect is unknown does not act.
  */
+export type ClassReleaseTiming = 'manual' | 'not-manual' | 'unknown' | 'unreadable';
+
 export function useClassManualReleaseTiming(
   showId: string,
   classId: string,
   trialId: string
-): boolean {
-  const settings = useShowSettings(showId).data;
-  const trialOverrides = useTrialOverrides(showId).data;
-  const classOverrides = useClassOverrides(showId).data;
-  if (!settings || !trialOverrides || !classOverrides) return false;
-  return classHasManualReleaseTiming(settings, trialOverrides, classOverrides, classId, trialId);
+): ClassReleaseTiming {
+  const show = useShowSettings(showId);
+  const trials = useTrialOverrides(showId);
+  const classes = useClassOverrides(showId);
+  const settings = show.data;
+  const trialOverrides = trials.data;
+  const classOverrides = classes.data;
+  if (!settings || !trialOverrides || !classOverrides) {
+    const failedWithNoData =
+      (!settings && show.isError) ||
+      (!trialOverrides && trials.isError) ||
+      (!classOverrides && classes.isError);
+    return failedWithNoData ? 'unreadable' : 'unknown';
+  }
+  return classHasManualReleaseTiming(settings, trialOverrides, classOverrides, classId, trialId)
+    ? 'manual'
+    : 'not-manual';
 }

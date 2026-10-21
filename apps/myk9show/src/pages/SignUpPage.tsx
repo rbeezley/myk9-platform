@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { AlreadySignedInCard, isSignedInAccount } from './AlreadySignedInCard';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { AppleIcon } from '@/components/icons/AppleIcon';
 import { GoogleIcon } from '@/components/icons/GoogleIcon';
@@ -27,6 +28,7 @@ const SignUp: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const {
+    user,
     signUp,
     resendConfirmationEmail,
     signInWithGoogle,
@@ -175,6 +177,7 @@ const SignUp: React.FC = () => {
     }
   };
 
+  if (!emailSent && isSignedInAccount(user, authLoading)) return <AlreadySignedInCard />;
   if (emailSent) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background px-2 pt-20">

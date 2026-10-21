@@ -20,6 +20,7 @@ import { useUserStore } from '@/store/userStore';
 import AvailabilityFormFields from '@/components/judges/AvailabilityFormFields';
 
 import type { UserEditPanelProps, UserFormData } from './UserEditPanel.types';
+import type { EditPanelSaveContext } from './EditPanelWrapper.types';
 import {
   userFormSchema,
   userCreateFormSchema,
@@ -369,11 +370,12 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   // Handle save — persist profile data. Role assignments have their own
   // scope-aware surface in User Management.
   const handleSave = useCallback(
-    async (formData: UserFormData) => {
+    async (formData: UserFormData, context: EditPanelSaveContext) => {
       const userData = formDataToUser(formData);
 
       if (onSave) {
-        await onSave(userData);
+        // Forward the context so a create can route to its record inside runSelfNavigation.
+        await onSave(userData, context);
       }
     },
     [onSave]

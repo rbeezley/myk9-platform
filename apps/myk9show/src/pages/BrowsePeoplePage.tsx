@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { MasterDetailLayout } from '@/components/layout/MasterDetailLayout';
 import { SelectModeButton } from '@/components/layout/SelectModeButton';
@@ -34,6 +34,7 @@ import { useUserStore, PersonInput } from '@/store/userStore';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
 import type { User } from '@/types/user-types';
+import type { EditPanelSaveContext } from '@/components/panels/edit/EditPanelWrapper.types';
 import { resolveCreateGates } from '@/features/actions/createGates';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
@@ -114,7 +115,22 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
     setSearchParams(params, { replace: true });
   }, [searchParams, setSearchParams]);
 
+  // Set when a create navigates to the new record. EditPanelWrapper calls onClose AGAIN after
+  // onSave resolves, with this render's stale searchParams (add=true still set); without this
+  // guard that second call rewrites the URL back to the list and undoes the navigation.
+  const createdNavigatedRef = useRef(false);
+
+  // A stale flag (the wrapper's close never ran) must not swallow the next Cancel; reset on every
+  // open, which also covers the `?add=true` deep link that bypasses openCreatePersonDialog.
+  useEffect(() => {
+    if (showCreatePersonDialog) createdNavigatedRef.current = false;
+  }, [showCreatePersonDialog]);
+
   const closeCreatePersonDialog = useCallback(() => {
+    if (createdNavigatedRef.current) {
+      createdNavigatedRef.current = false;
+      return;
+    }
     if (!searchParams.has('add')) return;
     const params = new URLSearchParams(searchParams);
     params.delete('add');
@@ -141,7 +157,7 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
 
   // Handle user creation
   const handleCreateUser = useCallback(
-    async (userData: Partial<User>) => {
+    async (userData: Partial<User>, context?: EditPanelSaveContext) => {
       const streetValue = userData.address || userData.streetAddress || '';
       const newPersonInput: PersonInput = {
         firstName: userData.firstName || '',
@@ -158,7 +174,6 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
       };
 
       const newUser = await addUser(newPersonInput);
-      closeCreatePersonDialog();
       // Seed the cache synchronously so PersonDetailPage finds the new user
       // immediately. Without this, navigation races the cache refresh and
       // PersonDetailPage's not-found guard ping-pongs back to /people.
@@ -172,9 +187,16 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       // Select mode hides the detail pane, so the new person would open unseen.
       exitSelectMode();
-      navigate(`/people/${newUser.id}`, { replace: true });
+      // /people/<id> carries no search, so it also drops `add`; the wrapper's close must not undo it.
+      // List filters (q=) are dropped on purpose: the new person may not match the active filter,
+      // and the list would hide the record just opened (row links keep them via peopleFiltersQuery).
+      createdNavigatedRef.current = true;
+      // Inside the panel's self-navigation wrapper so the unsaved-changes guard stands down.
+      const go = () => navigate(`/people/${newUser.id}`, { replace: true });
+      if (context) context.runSelfNavigation(go);
+      else go();
     },
-    [addUser, closeCreatePersonDialog, exitSelectMode, navigate, queryClient]
+    [addUser, exitSelectMode, navigate, queryClient]
   );
 
   // Render view content

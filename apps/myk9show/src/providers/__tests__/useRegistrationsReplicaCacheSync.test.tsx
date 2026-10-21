@@ -116,7 +116,11 @@ describe('a burst of replica changes', () => {
   // Past the shared table's own debounce plus the listener's coalescing window.
   const SETTLE_MS = NOTIFY_DEBOUNCE_MS + 400;
   const settle = () => new Promise(resolve => setTimeout(resolve, SETTLE_MS));
+  // The four other-read filters. The dog rosters (MYK9-1303) are refreshed on a leading edge
+  // plus one trailing per window: one more filter on the first refresh, none on the next
+  // (the later change lands inside the window). See useRegistrationsReplicaCacheSync.roster.test.tsx.
   const FILTERS_PER_REFRESH = 4;
+  const ROSTER_LEADING_FILTERS = 1;
 
   function spyOnRefreshes() {
     const queryClient = mountListener();
@@ -135,14 +139,15 @@ describe('a burst of replica changes', () => {
     await replicatedDogRegistrationsTable.notifyChanged();
     await settle();
 
-    expect(cancels).toHaveBeenCalledTimes(FILTERS_PER_REFRESH);
-    await waitFor(() => expect(invalidations).toHaveBeenCalledTimes(FILTERS_PER_REFRESH));
+    const first = FILTERS_PER_REFRESH + ROSTER_LEADING_FILTERS;
+    expect(cancels).toHaveBeenCalledTimes(first);
+    await waitFor(() => expect(invalidations).toHaveBeenCalledTimes(first));
 
     await replicatedDogRegistrationsTable.notifyChanged();
     await settle();
 
-    expect(cancels).toHaveBeenCalledTimes(FILTERS_PER_REFRESH * 2);
-    await waitFor(() => expect(invalidations).toHaveBeenCalledTimes(FILTERS_PER_REFRESH * 2));
+    expect(cancels).toHaveBeenCalledTimes(first + FILTERS_PER_REFRESH);
+    await waitFor(() => expect(invalidations).toHaveBeenCalledTimes(first + FILTERS_PER_REFRESH));
   });
 
   it('is dropped when the listener unmounts first', async () => {

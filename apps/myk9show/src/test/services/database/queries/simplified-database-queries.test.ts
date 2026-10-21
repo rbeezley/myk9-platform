@@ -80,7 +80,10 @@ describe('Database Queries Integration Tests', () => {
       const result = await getAllDogs(TEST_PERSON_ID);
       const duration = Date.now() - startTime;
 
-      expect(result.data).toEqual(mockData);
+      // The roster attaches `owner` (null: no people row matches) and `registrations` itself (MYK9-1303).
+      expect(result.data).toEqual(
+        mockData.map(dog => ({ ...dog, owner: null, registrations: [] }))
+      );
       expect(result.error).toBeNull();
       expect(duration).toBeLessThan(200);
       expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
@@ -107,7 +110,7 @@ describe('Database Queries Integration Tests', () => {
       const result = await searchDogs(searchTerm, TEST_PERSON_ID);
       const duration = Date.now() - startTime;
 
-      expect(result.data).toEqual(mockData);
+      expect(result.data).toEqual(mockData.map(dog => ({ ...dog, registrations: [] })));
       expect(result.error).toBeNull();
       expect(duration).toBeLessThan(200);
     });

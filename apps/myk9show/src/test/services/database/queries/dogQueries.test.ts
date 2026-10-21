@@ -74,18 +74,12 @@ describe('Dog Queries', () => {
   });
 
   describe('getAllDogs', () => {
-    it('should fetch all dogs with owner information successfully', async () => {
+    it('should fetch all dogs successfully', async () => {
       const mockData = [
         {
           id: '1',
           name: 'Buddy',
           breed: 'Golden Retriever',
-          owner: {
-            id: 'owner-1',
-            first_name: 'John',
-            last_name: 'Doe',
-            email: 'john@example.com',
-          },
         },
       ];
 
@@ -95,7 +89,10 @@ describe('Dog Queries', () => {
       const result = await getAllDogs(TEST_PERSON_ID);
       const duration = Date.now() - startTime;
 
-      expect(result.data).toEqual(mockData);
+      // The roster attaches `owner` (null: no people row matches) and `registrations` itself (MYK9-1303).
+      expect(result.data).toEqual(
+        mockData.map(dog => ({ ...dog, owner: null, registrations: [] }))
+      );
       expect(result.error).toBeNull();
       expect(duration).toBeLessThan(200);
       expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
@@ -210,7 +207,7 @@ describe('Dog Queries', () => {
 
       const result = await getDogsByOwner(ownerId);
 
-      expect(result.data).toEqual(mockData);
+      expect(result.data).toEqual(mockData.map(dog => ({ ...dog, registrations: [] })));
       expect(result.error).toBeNull();
     });
 
@@ -395,7 +392,7 @@ describe('Dog Queries', () => {
       const result = await searchDogs(searchTerm, TEST_PERSON_ID);
       const duration = Date.now() - startTime;
 
-      expect(result.data).toEqual(mockData);
+      expect(result.data).toEqual(mockData.map(dog => ({ ...dog, registrations: [] })));
       expect(result.error).toBeNull();
       expect(duration).toBeLessThan(200);
     });

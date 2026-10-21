@@ -121,19 +121,19 @@ describe('owner address on the dog roster read (MYK9-1010)', () => {
     expect(dog.ownerName).toBe('Pat Owner');
   });
 
-  it('PostgREST fallback: the owner embed asks for the address columns', async () => {
+  it('server read: the owner batch read asks for the address columns, with no embed on dogs', async () => {
     mockDogsTable.getAllDogsWithStatus.mockResolvedValue({ rows: [], cold: true });
+    peopleRows.push(OWNER_ROW);
     postgrestDogRows.push({
       id: 'dog-1',
       name: 'Bella',
       call_name: 'Bell',
       owner_id: 'person-1',
-      owner: OWNER_ROW,
-      registrations: [],
     });
 
     const { data } = await getAllDogs('person-1');
-    const dogsSelect = selects.find(s => s.table === 'dogs')?.columns ?? '';
+    expect(selects.find(s => s.table === 'dogs')?.columns).toBe('*');
+    const dogsSelect = selects.find(s => s.table === 'people')?.columns ?? '';
     for (const column of ['street_address', 'city', 'state', 'zip_code']) {
       expect(dogsSelect).toContain(column);
     }

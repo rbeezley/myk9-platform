@@ -399,6 +399,8 @@ describe('getAllDogs registration completeness', () => {
       },
     ]);
 
+    mockServerIn.mockResolvedValue({ data: [embeddedRegistration], error: null });
+
     const result = await getAllDogs('person-1', true);
 
     expect(result.data?.[0]?.registrations).toEqual([embeddedRegistration]);

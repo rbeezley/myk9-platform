@@ -22,6 +22,7 @@ import {
 } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { registrationToDbRow } from '@/services/replication/dogRegistrationRows';
 import { assertRegistrationEditable } from '@/services/database/registrations/editGuard';
+import { invalidateDogRosters } from './dogRosterMeta';
 
 // Get registration by ID with full details
 export const useRegistrationQuery = (id: string, enabled = true) => {
@@ -198,12 +199,17 @@ export const useValidateRegistrationNumber = (
 // device is online, so they work offline and a refusal reaches the
 // Retry/Discard toast. `networkMode: 'always'`: a queued write is the save, so
 // it must not sit paused offline. An edit is online-only (below). The dog's
-// registration reads refresh through the replica listener
-// (useRegistrationsReplicaCacheSync).
+// registration reads and the other dog reads refresh through the replica
+// listener (useRegistrationsReplicaCacheSync); the dog rosters are also
+// refreshed here at once, since the listener coalesces them (MYK9-1303).
 const invalidateRegistrationSummaries = (
   queryClient: ReturnType<typeof useQueryClient>,
   organization: string | null | undefined
 ) => {
+  // The dog rosters carry each dog's registrations; the replica listener
+  // coalesces their refresh (leading edge, then one per 15 s window), so a write
+  // here refreshes them at once.
+  void invalidateDogRosters(queryClient);
   if (organization) {
     queryClient.invalidateQueries({ queryKey: ['registrations', 'organization', organization] });
   }
@@ -262,8 +268,9 @@ export const useUpdateRegistrationMutation = () => {
       // Update specific registration cache
       queryClient.setQueryData(queryKeys.registration(id), data);
 
-      // The dog's registrations and the dog reads refresh through the replica
-      // listener: updateRegistration mirrors the saved row into the replica.
+      // The dog's registrations and the other dog reads refresh through the replica
+      // listener (updateRegistration mirrors the saved row into the replica); the
+      // rosters are refreshed at once below.
 
       // If organization changed, invalidate organization queries
       if (data?.organization || updates.organization) {
@@ -277,6 +284,7 @@ export const useUpdateRegistrationMutation = () => {
 
       // Invalidate statistics
       queryClient.invalidateQueries({ queryKey: ['dog_registrations', 'statistics'] });
+      void invalidateDogRosters(queryClient);
     },
   });
 };

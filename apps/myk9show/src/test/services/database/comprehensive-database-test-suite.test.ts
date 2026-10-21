@@ -106,7 +106,10 @@ describe('Comprehensive Database Test Suite', () => {
       const allDogsResult = await getAllDogs(TEST_PERSON_ID);
       const getAllDuration = Date.now() - startTime;
 
-      expect(allDogsResult.data).toEqual(mockDogData);
+      // The roster attaches `owner` (null: no people row matches) and `registrations` itself (MYK9-1303).
+      expect(allDogsResult.data).toEqual(
+        mockDogData.map(dog => ({ ...dog, owner: null, registrations: [] }))
+      );
       expect(allDogsResult.error).toBeNull();
       expect(getAllDuration).toBeLessThan(200);
 

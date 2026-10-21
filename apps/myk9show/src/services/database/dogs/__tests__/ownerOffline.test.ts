@@ -49,7 +49,10 @@ vi.mock('@/services/database/supabaseClient', () => ({
             server.peopleError
               ? { data: null, error: server.peopleError }
               : server.online
-                ? { data: [], error: null }
+                ? {
+                    data: (server.dogs as { owner?: unknown }[]).map(d => d.owner).filter(Boolean),
+                    error: null,
+                  }
                 : { data: null, error: failure }
           );
         chain.then = (resolve: (v: unknown) => unknown, reject: (r: unknown) => unknown) => {

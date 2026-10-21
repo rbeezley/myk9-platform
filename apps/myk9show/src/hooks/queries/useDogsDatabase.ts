@@ -17,6 +17,7 @@ import { mapDatabaseToDog } from '@/services/mappers/dogMappers';
 import { useCurrentPersonId } from '@/hooks/useCurrentPersonId';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { deriveDogRosterScope } from '@/utils/dogRosterScope';
+import { DOG_ROSTER_META } from './dogRosterMeta';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 
 /**
@@ -27,6 +28,18 @@ import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
  * reconnect (Codex final round on MYK9-1090).
  */
 const DOG_READ_NETWORK_MODE = 'offlineFirst' as const;
+
+/**
+ * The two roster reads (`useDogsQuery`, `useDogsByOwnerQuery`) share one fetch
+ * per key across every mount, and a remount inside the window does not refetch
+ * (MYK9-1303). A dog write still invalidates `['dogs']` and the owner's list.
+ * These server reads cost ~1 s each under show-day load, so the window is
+ * stated here rather than inherited from `cacheStrategies.moderate`.
+ */
+export const DOG_ROSTER_QUERY_TIMING = {
+  staleTime: 5 * 60 * 1000,
+  gcTime: 10 * 60 * 1000,
+} as const;
 
 // Get all dogs visible to the current user.
 // The canonical roster predicate controls both the replication and online paths.
@@ -78,7 +91,8 @@ export const useDogsQuery = () => {
     enabled: scope === 'all' || (scope === 'own' && !!personId),
     // Replica-backed: runs offline instead of pausing (see DOG_READ_NETWORK_MODE).
     networkMode: DOG_READ_NETWORK_MODE,
-    ...cacheStrategies.moderate, // 5 minutes stale, 10 minutes cache
+    ...DOG_ROSTER_QUERY_TIMING,
+    meta: DOG_ROSTER_META,
   });
 
   // React Query reports `isLoading: false` for a disabled query with no data
@@ -114,7 +128,8 @@ export const useDogsByOwnerQuery = (ownerId: string, enabled = true) => {
     },
     enabled: !!ownerId && enabled,
     networkMode: DOG_READ_NETWORK_MODE,
-    ...cacheStrategies.moderate,
+    ...DOG_ROSTER_QUERY_TIMING,
+    meta: DOG_ROSTER_META,
   });
 };
 

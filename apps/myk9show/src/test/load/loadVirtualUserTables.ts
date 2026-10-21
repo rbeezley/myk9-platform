@@ -252,6 +252,10 @@ async function syncJudgeAssignments(ctx: ReaderContext): Promise<void> {
  */
 async function syncArmbands(ctx: ReaderContext): Promise<void> {
   const assigned: Narrow = query => query.eq('is_available', false);
+  // Cold = no watermark yet. armbands.updated_at is NOT NULL, so a read that
+  // returned rows always moves it; only an empty read leaves the reader cold.
+  // Not modelled: a warm reader whose every armband is later released, which the
+  // app (holding no rows again) would also read in full.
   const cold = ctx.sinceIso('armbands', 0) === new Date(0).toISOString();
   await countedDelta(ctx, 'armbands', assigned, async () => {
     if (!cold) return readKeysetDelta(ctx, 'armbands', '*');

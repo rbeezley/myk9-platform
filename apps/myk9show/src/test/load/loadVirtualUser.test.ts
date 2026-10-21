@@ -73,6 +73,10 @@ describe('request set', () => {
         const rowRead =
           url.includes('/armbands?') && url.includes('select=*') && init?.method !== 'HEAD';
         const page = rowRead ? (pages.shift() ?? []) : [];
+        // A count HEAD answers with a readable total, as PostgREST does.
+        if (init?.method === 'HEAD') {
+          return new Response(null, { status: 200, headers: { 'Content-Range': '*/1' } });
+        }
         return page === 'fail'
           ? new Response('{"message":"fixture"}', { status: 500 })
           : new Response(JSON.stringify(page), {
@@ -96,6 +100,39 @@ describe('request set', () => {
         `updated_at=gt.${encodeURIComponent(new Date(Date.parse(T1) - 60_000).toISOString())}`
       );
       expect(warm).not.toContain('is_available');
+    });
+
+    it('a full page of armbands never owes the next pass a count, as the app sets no page size', async () => {
+      const urls: string[] = [];
+      const fullPage = Array.from({ length: 1000 }, (_, i) =>
+        armband(`w${String(i).padStart(4, '0')}`)
+      );
+      const user = reader(armbandServer(urls, [[armband('a1')], fullPage, []]));
+      await user.syncOnce();
+      await user.syncOnce();
+      await user.syncOnce();
+
+      // The session's first pass counts; a full delta page must not add one.
+      const counts = urls.filter(url => url.includes('/armbands?') && url.includes('select=id'));
+      expect(counts).toHaveLength(1);
+    });
+
+    it('lifts the watermark from the first page of a multi-page cold read only', async () => {
+      const urls: string[] = [];
+      const T2 = '2026-10-21T10:30:00.000000+00:00';
+      const fullPage = Array.from({ length: 1000 }, (_, i) =>
+        armband(`p${String(i).padStart(4, '0')}`)
+      );
+      const user = reader(
+        armbandServer(urls, [fullPage, [{ id: 'q1', is_available: false, updated_at: T2 }]])
+      );
+      await user.syncOnce();
+      await user.syncOnce();
+
+      const warm = armbandReads(urls)[2];
+      expect(warm).toContain(
+        `updated_at=gt.${encodeURIComponent(new Date(Date.parse(T1) - 60_000).toISOString())}`
+      );
     });
 
     it('reads in full again after a later page of the cold read failed', async () => {

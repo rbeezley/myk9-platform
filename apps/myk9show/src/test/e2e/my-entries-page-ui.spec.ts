@@ -38,7 +38,10 @@ async function navigateToMyShows(page: Page) {
     timeout: 15000,
   });
   // ...and for the fixture's entries to render, so an absence assertion below
-  // (`toHaveCount(0)`) is made against a loaded page, never an empty shell.
+  // (`toHaveCount(0)`) is made against a loaded page, never an empty shell. The
+  // rail is the signal only because `login()` seeds three shows: it renders from
+  // the exhibitor's third show (MYK9-1286), so the default two-show fixture
+  // would time out here.
   await expect(page.getByTestId('entry-filter-strip')).toBeVisible({ timeout: 15000 });
 }
 

@@ -73,13 +73,13 @@ test.describe('Secretary show management UI', () => {
     await page.getByRole('button', { name: 'Show details', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Premium List' }).first()).toBeVisible();
 
-    const toolsPanel = await openToolsPanel(page);
-    await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toHaveCount(0);
+    const toolsMenu = await openToolsMenu(page);
+    await expect(toolsMenu.getByRole('menuitem', { name: /Message Show/i })).toHaveCount(0);
     // MYK9-954: two groups; Add entries moved to the Entries tab.
-    await expect(toolsPanel.getByRole('heading', { name: 'Show day' })).toBeVisible();
-    await expect(toolsPanel.getByRole('heading', { name: 'Show logistics' })).toBeVisible();
-    await expect(toolsPanel.getByRole('button', { name: /Add entries/i })).toHaveCount(0);
-    await toolsPanel.getByRole('button', { name: /close/i }).click();
+    await expect(toolsMenu.getByText('Show day', { exact: true })).toBeVisible();
+    await expect(toolsMenu.getByText('Show logistics', { exact: true })).toBeVisible();
+    await expect(toolsMenu.getByRole('menuitem', { name: /Add entries/i })).toHaveCount(0);
+    await page.keyboard.press('Escape');
     await expect(page.getByRole('heading', { name: 'Show Map' })).toHaveCount(0);
 
     await expectBrowserHealthClean(testInfo);
@@ -87,11 +87,14 @@ test.describe('Secretary show management UI', () => {
 
   test('keeps incident actions visibly guarded before mutation', async ({ page }, testInfo) => {
     await openShowDesk(page);
-    const toolsPanel = await openToolsPanel(page);
+    const toolsMenu = await openToolsMenu(page);
 
+    await expect(toolsMenu.getByRole('menuitem', { name: /Message Show/i })).toHaveCount(0);
+
+    await toolsMenu.getByRole('menuitem', { name: /Incident log/i }).click();
+    const toolsPanel = page.getByRole('dialog', { name: 'Incident log' });
+    await expect(toolsPanel).toBeVisible({ timeout: 10000 });
     await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toHaveCount(0);
-
-    await toolsPanel.getByRole('button', { name: /Incident log/i }).click();
     const incidentLog = toolsPanel.getByRole('region', { name: 'Incident log' });
     const saveIncident = incidentLog.getByRole('button', { name: /Save incident/i });
     await expect(saveIncident).toBeDisabled();
@@ -126,11 +129,11 @@ async function openShowDesk(page: Page) {
   });
 }
 
-async function openToolsPanel(page: Page) {
+async function openToolsMenu(page: Page) {
   await page.getByRole('button', { name: /^Tools/ }).click();
-  const toolsPanel = page.getByRole('dialog', { name: /show tools/i });
-  await expect(toolsPanel).toBeVisible({ timeout: 10000 });
-  return toolsPanel;
+  const toolsMenu = page.getByRole('menu');
+  await expect(toolsMenu).toBeVisible({ timeout: 10000 });
+  return toolsMenu;
 }
 
 async function expectBrowserHealthClean(testInfo: TestInfo) {

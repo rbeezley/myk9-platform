@@ -1,28 +1,21 @@
-import { ChevronRight, Wrench } from 'lucide-react';
-import { useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import type { ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
-import { loadOpenToolIds, saveOpenToolIds } from './showDeskToolsState';
-import type { ShowDeskActionableTone } from './showDeskActionable';
 
 /**
  * The two Tools groups (owner, 2026-10-02 — MYK9-954). Every other job the
- * sheet used to hold now lives where the work happens: Add entries on Entries,
+ * panel used to hold now lives where the work happens: Add entries on Entries,
  * Show closeout as Results step 3, the delay script on the class's expected
  * start. A tool must name its group, so a new one cannot land ungrouped.
  */
-const SHOW_DESK_TOOL_GROUPS = [
+export const SHOW_DESK_TOOL_GROUPS = [
   { id: 'show-day', label: 'Show day' },
   { id: 'show-logistics', label: 'Show logistics' },
 ] as const;
@@ -35,254 +28,60 @@ export interface ShowDeskToolSection {
   title: string;
   summary: string;
   content: ReactNode;
-  defaultOpen?: boolean;
   attentionLabel?: string;
   layout?: 'compact' | 'wide';
 }
 
-interface ShowDeskToolsSheetProps {
-  showId: string;
-  // Total number of tools available — used as the default fallback badge
-  // when no actionable count is supplied.
-  toolCount?: number;
-  // Optional actionable count aggregated across every attention-worthy tool
-  // (reportable incidents + hospitality reminders + open tasks — see
-  // computeShowDeskActionable). When provided and > 0, the badge shows this
-  // number; when absent or 0, the badge falls back to `toolCount` in a muted
-  // style. Plan B3 spec: "make the badge a meaningful 'you have unread/open
-  // items' signal, not just decoration."
-  actionableCount?: number;
-  // Tone for the actionable badge. 'urgent' (reportable/urgent incidents) is
-  // alarming/red; 'routine' (reminders, open tasks) is ambient. Defaults to
-  // 'urgent' to preserve the original incident-only behavior for callers that
-  // pass a count without a tone.
-  actionableTone?: ShowDeskActionableTone;
-  /** At least one attention source could not be read, so the count is a floor. */
-  actionableIncomplete?: boolean;
+/** The URL contract every deep link relies on: `?tool=<id>` opens exactly that tool. */
+export const SHOW_DESK_TOOL_PARAM = 'tool';
+
+interface ShowDeskToolPanelProps {
   tools: readonly ShowDeskToolSection[];
-  requestedToolId?: string;
 }
 
-// INTENT: Phase B3 — collapse the 7 scattered desk-tool cards from the
-// legacy Today tab into a single right-anchored slide-out sheet. Closed by
-// default; opens on click. Stays open over the tree without disturbing
-// layout (overlay, not push). Outside-click, X button, and Escape all close.
-// The sheet owns only the section shell; the caller still composes each tool's
+// INTENT: a slide-out holds one thing; the menu is the index (docs/INTENT.md,
+// "Dialog or Slide-Out: Decision vs Work"). The panel is keyed entirely by the
+// URL: `?tool=<id>` opens that tool, closing (X, Escape, outside click) removes
+// the param with `replace`, and opening from a link pushes history so Back
+// closes it. An unknown id stays closed. The caller still composes each tool's
 // content so this component never needs judge, class, incident, or access-code
 // data dependencies.
-export function ShowDeskToolsSheet({ ...props }: ShowDeskToolsSheetProps) {
-  const [searchParams] = useSearchParams();
-  const effectiveRequestedToolId = props.requestedToolId ?? searchParams.get('tool') ?? undefined;
+export function ShowDeskToolPanel({ tools }: ShowDeskToolPanelProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedId = searchParams.get(SHOW_DESK_TOOL_PARAM);
+  const tool = requestedId ? tools.find(candidate => candidate.id === requestedId) : undefined;
 
-  return (
-    <ShowDeskToolsSheetState
-      key={effectiveRequestedToolId ?? ''}
-      {...props}
-      effectiveRequestedToolId={effectiveRequestedToolId}
-    />
-  );
-}
-
-function ShowDeskToolsSheetState({
-  effectiveRequestedToolId,
-  showId,
-  toolCount,
-  actionableCount,
-  actionableTone = 'urgent',
-  actionableIncomplete = false,
-  tools,
-}: ShowDeskToolsSheetProps & { effectiveRequestedToolId: string | undefined }) {
-  const effectiveToolCount = toolCount ?? tools.length;
-  const hasActionable = typeof actionableCount === 'number' && actionableCount > 0;
-  // Nothing was counted AND at least one source could not be read. Falling back
-  // to the idle tool count here is the failure this guards: the badge's own
-  // contract is "muted idle so an idle tool-count never reads as a pending
-  // signal", and an unread count rendered exactly that during an outage.
-  const signalsUnknown = Boolean(actionableIncomplete) && !hasActionable;
-  const badgeValue = hasActionable ? actionableCount : signalsUnknown ? '?' : effectiveToolCount;
-  const badgeAriaLabel = hasActionable
-    ? `${actionableCount} ${actionableCount === 1 ? 'item needs' : 'items need'} attention${
-        actionableIncomplete ? ', and some could not be checked' : ''
-      }`
-    : signalsUnknown
-      ? 'Cannot check whether anything needs attention'
-      : `${effectiveToolCount} tools available`;
-  // Urgent → destructive (red, alarming). Routine actionable → secondary
-  // (ambient "you have items"). Unknown → outline with a warning border, so it
-  // reads as "unchecked" rather than "clear". Nothing actionable → outline
-  // (muted idle), so an idle tool-count never reads as a pending signal.
-  const badgeVariant = !hasActionable
-    ? 'outline'
-    : actionableTone === 'urgent'
-      ? 'destructive'
-      : 'secondary';
-  const badgeTone = hasActionable ? actionableTone : signalsUnknown ? 'unknown' : 'idle';
-  const toolStateSignature = JSON.stringify(
-    tools.map(tool => ({
-      id: tool.id,
-      ...(tool.defaultOpen !== undefined && { defaultOpen: tool.defaultOpen }),
-      ...(tool.attentionLabel !== undefined && { attentionLabel: tool.attentionLabel }),
-      ...(tool.layout !== undefined && { layout: tool.layout }),
-    }))
-  );
-
-  const requestedToolExists = tools.some(tool => tool.id === effectiveRequestedToolId);
-  const [open, setOpen] = useState(requestedToolExists);
-
-  return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="min-h-11 gap-2">
-          <Wrench className="h-4 w-4" aria-hidden="true" />
-          Tools
-          <Badge
-            variant={badgeVariant}
-            className={signalsUnknown ? 'border-warning/60 text-warning' : undefined}
-            data-testid="show-desk-tools-badge"
-            data-tone={badgeTone}
-          >
-            <span aria-hidden="true">{badgeValue}</span>
-            <span className="sr-only">{badgeAriaLabel}</span>
-          </Badge>
-        </Button>
-      </SheetTrigger>
-      <ShowDeskToolsSheetContent
-        key={`${showId}:${toolStateSignature}:${effectiveRequestedToolId ?? ''}`}
-        showId={showId}
-        tools={tools}
-        {...(requestedToolExists && effectiveRequestedToolId
-          ? { requestedToolId: effectiveRequestedToolId }
-          : {})}
-      />
-    </Sheet>
-  );
-}
-
-function ShowDeskToolsSheetContent({
-  showId,
-  tools,
-  requestedToolId,
-}: {
-  showId: string;
-  tools: readonly ShowDeskToolSection[];
-  requestedToolId?: string;
-}) {
-  const [openToolIds, setOpenToolIds] = useState<Set<string>>(
-    () =>
-      new Set([...loadOpenToolIds(showId, tools), ...(requestedToolId ? [requestedToolId] : [])])
-  );
-
-  const activeWideTool = tools.some(
-    tool => tool.layout === 'wide' && (openToolIds.has(tool.id) || tool.id === requestedToolId)
-  );
-
-  return (
-    <SheetContent
-      side="right"
-      className={cn(
-        'flex w-full flex-col gap-0 overflow-hidden p-0',
-        activeWideTool ? 'sm:max-w-2xl lg:max-w-3xl xl:max-w-4xl' : 'sm:max-w-md'
-      )}
-      aria-label="Tools panel"
-      data-layout={activeWideTool ? 'wide' : 'compact'}
-    >
-      <SheetHeader className="border-b px-6 py-4 text-left">
-        <SheetTitle>Show tools</SheetTitle>
-        <SheetDescription>
-          Show-day lookups and codes, plus volunteers, hospitality, tasks, and incidents.
-        </SheetDescription>
-      </SheetHeader>
-      <ShowDeskToolSections
-        showId={showId}
-        tools={tools}
-        openToolIds={openToolIds}
-        setOpenToolIds={setOpenToolIds}
-        {...(requestedToolId ? { requestedToolId } : {})}
-      />
-    </SheetContent>
-  );
-}
-
-function ShowDeskToolSections({
-  showId,
-  tools,
-  openToolIds,
-  setOpenToolIds,
-  requestedToolId,
-}: {
-  showId: string;
-  tools: readonly ShowDeskToolSection[];
-  openToolIds: Set<string>;
-  setOpenToolIds: Dispatch<SetStateAction<Set<string>>>;
-  requestedToolId?: string;
-}) {
-  const toggleTool = (toolId: string, open: boolean) => {
-    setOpenToolIds(current => {
-      const next = new Set(current);
-      if (open) next.add(toolId);
-      else next.delete(toolId);
-      saveOpenToolIds(showId, [...next]);
-      return next;
-    });
-  };
-
-  const renderTool = (tool: ShowDeskToolSection) => {
-    const isOpen = openToolIds.has(tool.id) || tool.id === requestedToolId;
-
-    return (
-      <Collapsible
-        key={tool.id}
-        open={isOpen}
-        onOpenChange={open => toggleTool(tool.id, open)}
-        className="rounded-md border bg-background"
-      >
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <ChevronRight
-              className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', {
-                'rotate-90': isOpen,
-              })}
-              aria-hidden="true"
-            />
-            <span className="min-w-0 flex-1">
-              <span className="block font-medium leading-none text-foreground">{tool.title}</span>
-              <span className="mt-1 block text-sm text-muted-foreground">{tool.summary}</span>
-            </span>
-            {tool.attentionLabel && (
-              <Badge variant="destructive" className="shrink-0">
-                {tool.attentionLabel}
-              </Badge>
-            )}
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="border-t p-4">{tool.content}</div>
-        </CollapsibleContent>
-      </Collapsible>
+  const handleOpenChange = (open: boolean) => {
+    if (open) return;
+    setSearchParams(
+      current => {
+        const next = new URLSearchParams(current);
+        next.delete(SHOW_DESK_TOOL_PARAM);
+        return next;
+      },
+      { replace: true }
     );
   };
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto px-6 py-4">
-      {SHOW_DESK_TOOL_GROUPS.map(group => {
-        const groupTools = tools.filter(tool => tool.group === group.id);
-        if (groupTools.length === 0) return null;
-        const headingId = `show-desk-tools-group-${group.id}`;
-        return (
-          <section key={group.id} aria-labelledby={headingId} className="space-y-3">
-            <h3
-              id={headingId}
-              className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-            >
-              {group.label}
-            </h3>
-            {groupTools.map(renderTool)}
-          </section>
-        );
-      })}
-    </div>
+    <Sheet open={tool !== undefined} onOpenChange={handleOpenChange}>
+      {tool && (
+        <SheetContent
+          side="right"
+          className={cn(
+            'flex w-full flex-col gap-0 overflow-hidden p-0',
+            tool.layout === 'wide' ? 'sm:max-w-2xl lg:max-w-3xl xl:max-w-4xl' : 'sm:max-w-md'
+          )}
+          data-layout={tool.layout === 'wide' ? 'wide' : 'compact'}
+          data-testid="show-desk-tool-panel"
+        >
+          <SheetHeader className="border-b px-6 py-4 text-left">
+            <SheetTitle>{tool.title}</SheetTitle>
+            <SheetDescription>{tool.summary}</SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-4">{tool.content}</div>
+        </SheetContent>
+      )}
+    </Sheet>
   );
 }

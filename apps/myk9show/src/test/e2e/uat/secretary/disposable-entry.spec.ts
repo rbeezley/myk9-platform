@@ -129,7 +129,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await page.getByRole('link', { name: 'Open Check-in desk' }).click();
     await expect(page).toHaveURL(new RegExp(`/shows/${seed.showId}\\?tool=people-at-show`));
 
-    const toolsDialog = page.getByRole('dialog', { name: 'Show tools' });
+    const toolsDialog = page.getByRole('dialog', { name: 'People at show' });
     await expect(toolsDialog).toBeVisible();
     // The roster's search has no aria-label, so its name is its placeholder.
     await toolsDialog

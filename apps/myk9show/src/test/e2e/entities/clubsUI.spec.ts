@@ -1,6 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { signInAsAdmin, signInAsExhibitor } from '../helpers/testUsers';
-import { actionsTrigger, chooseAction, openActionsMenu } from '../helpers/actionsMenu';
+import { chooseAction, openActionsMenu } from '../helpers/actionsMenu';
 
 /**
  * Comprehensive UI test for the Clubs section.
@@ -343,14 +343,14 @@ test.describe('Clubs UI — Non-admin permissions', () => {
 
   test('exhibitor cannot create, edit branding, or delete clubs', async ({ page }) => {
     await page.goto('/clubs', { waitUntil: 'networkidle' });
-    // No Add Club on the page, and none in the Actions menu for an exhibitor.
+    // No Add Club on the page, and none in the Actions menu for an exhibitor. The menu
+    // itself is always there for an exhibitor on /clubs (Export CSV, Add Dog), so open
+    // it unconditionally rather than skip the check when the trigger is late.
     await expect(page.getByRole('button', { name: 'Add Club' })).toHaveCount(0);
-    if (await actionsTrigger(page).isVisible()) {
-      await expect(
-        (await openActionsMenu(page)).getByRole('menuitem', { name: 'Add Club' })
-      ).toHaveCount(0);
-      await page.keyboard.press('Escape');
-    }
+    await expect(
+      (await openActionsMenu(page)).getByRole('menuitem', { name: 'Add Club' })
+    ).toHaveCount(0);
+    await page.keyboard.press('Escape');
 
     // The clubs this run created are not visible to an exhibitor: `clubs_select`
     // shows an outsider only clubs that are authorized or have a public show, and a
@@ -371,22 +371,36 @@ test.describe('Clubs UI — Non-admin permissions', () => {
     // none of the club page actions (actionRegistry `Edit club`, clubPageActions
     // extras) may be offered. Delete has no menu item of its own; it is the Edit
     // panel's footer button, so no Edit club means no Delete club either.
-    if (await actionsTrigger(page).isVisible()) {
-      const menu = await openActionsMenu(page);
-      // Positive control: the menu opened with real items, so the absences below are
-      // read from a rendered menu and not from a selector that drifted.
-      await expect(menu.getByRole('menuitem').first()).toBeVisible();
-      for (const name of [
-        'Edit club',
-        'Change Photo',
-        'Authorize Club',
-        'Revoke Authorization',
-        'Add Show for this club',
-      ]) {
-        await expect(menu.getByRole('menuitem', { name, exact: true })).toHaveCount(0);
-      }
-      await page.keyboard.press('Escape');
+    // An exhibitor always has this menu beside the clubs list (Export CSV, Add Dog), so
+    // open it unconditionally: openActionsMenu waits for the trigger, which keeps a
+    // not-yet-rendered trigger from silently skipping the checks below.
+    const menu = await openActionsMenu(page);
+    const items = menu.getByRole('menuitem');
+    // The club's own page actions register in an effect after the club renders, and
+    // the permissions behind them can resolve later still. Read the menu only once its
+    // item list has held still across two reads, so a late-registering "Edit club"
+    // cannot slip in after the absence checks ran.
+    await expect
+      .poll(
+        async () => {
+          const before = await items.allInnerTexts();
+          await page.waitForTimeout(250);
+          const after = await items.allInnerTexts();
+          return before.length > 0 && JSON.stringify(before) === JSON.stringify(after);
+        },
+        { message: 'the Actions menu should settle with at least one item' }
+      )
+      .toBe(true);
+    for (const name of [
+      'Edit club',
+      'Change Photo',
+      'Authorize Club',
+      'Revoke Authorization',
+      'Add Show for this club',
+    ]) {
+      await expect(menu.getByRole('menuitem', { name, exact: true })).toHaveCount(0);
     }
+    await page.keyboard.press('Escape');
   });
 });
 
@@ -433,7 +447,9 @@ test.describe('Clubs UI — Delete (only Club C, as platform admin)', () => {
 
     await page.waitForURL(/\/clubs(\?|$|#)/, { timeout: 10000 });
     // Beside the pane a club is a row link, not a heading; the detail heading is gone
-    // with the navigation, so the row is the thing that must have left.
+    // with the navigation, so the row is the thing that must have left. Club A first,
+    // so the zero count is read from a loaded list.
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_A_NAME) })).toBeVisible();
     await expect(page.getByRole('link', { name: new RegExp(CLUB_C_NAME) })).toHaveCount(0);
 
     // Confirm Supabase actually accepted the DELETE (RLS would silently return

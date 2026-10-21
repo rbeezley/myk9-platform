@@ -132,7 +132,10 @@ describe('RBAC refresh cadence (MYK9-1308)', () => {
     expect(mockRbacService.getUserPermissions).toHaveBeenLastCalledWith(mockUser.id, undefined, {
       bypassCache: true,
     });
-    expect(spy).toHaveBeenCalledWith({ queryKey: ['userProfile', mockUser.id] });
+    expect(spy).toHaveBeenCalledWith(
+      { queryKey: ['userProfile', mockUser.id] },
+      { cancelRefetch: false }
+    );
     expect(mockRbacService.clearUserCache).not.toHaveBeenCalled();
   });
 
@@ -183,7 +186,10 @@ describe('RBAC refresh cadence (MYK9-1308)', () => {
       window.dispatchEvent(new Event('focus'));
     });
     expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(2);
-    expect(spy).toHaveBeenCalledWith({ queryKey: ['userProfile', mockUser.id] });
+    expect(spy).toHaveBeenCalledWith(
+      { queryKey: ['userProfile', mockUser.id] },
+      { cancelRefetch: false }
+    );
     await act(async () => release?.());
   });
 
@@ -193,7 +199,10 @@ describe('RBAC refresh cadence (MYK9-1308)', () => {
     await advance(GAP_MS + 1000);
     await fire(window, 'focus');
     await waitFor(() =>
-      expect(spy).toHaveBeenCalledWith({ queryKey: ['userProfile', mockUser.id] })
+      expect(spy).toHaveBeenCalledWith(
+        { queryKey: ['userProfile', mockUser.id] },
+        { cancelRefetch: false }
+      )
     );
   });
 

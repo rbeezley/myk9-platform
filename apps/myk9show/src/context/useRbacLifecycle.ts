@@ -209,15 +209,24 @@ export function useRbacLifecycle(userId: string | undefined) {
     // joins it (visibilitychange + focus arrive together); the marker clears
     // on success AND failure.
     let refreshInFlight: Promise<void> | null = null;
-    const refresh = () => {
-      if (refreshInFlight) return;
+    // Returns true when this call STARTED a load (a joined request returns false).
+    const refresh = (): boolean => {
+      if (refreshInFlight) return false;
       refreshInFlight = load(0, ++requestGenerationRef.current, true).finally(() => {
         refreshInFlight = null;
       });
+      return true;
     };
+    // Identity rides along only when a load actually starts, so paired events
+    // cost one profile read too; cancelRefetch: false keeps a profile read that
+    // is already in flight instead of restarting it (the HTTP request cannot
+    // be aborted, so a restart would reach the database twice).
     const refreshWithIdentity = () => {
-      refresh();
-      void queryClient.invalidateQueries({ queryKey: ['userProfile', userId] });
+      if (!refresh()) return;
+      void queryClient.invalidateQueries(
+        { queryKey: ['userProfile', userId] },
+        { cancelRefetch: false }
+      );
     };
     void load();
 

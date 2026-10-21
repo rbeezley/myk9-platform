@@ -141,10 +141,10 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
       : []),
   ];
 
-  // P2-B: visible to ANY viewer who can see this club at all (clubs_select
-  // already scopes that) -- a club's own admin/secretary needs to know WHY
-  // publish is blocked just as much as a site admin does. Only the
-  // Authorize/Revoke MENU items above stay site-admin-only.
+  // P2-B: a club's own admin/secretary needs to know WHY publish is blocked just as much as a
+  // site admin does. isClubAuthorized arrives only for club staff and site admins (gated in
+  // useClubDetailsState, MYK9-1314); outsiders get undefined. Only the Authorize/Revoke MENU
+  // items above stay site-admin-only.
   const badges: HeroBadge[] = [
     ...(club.clubType
       ? [

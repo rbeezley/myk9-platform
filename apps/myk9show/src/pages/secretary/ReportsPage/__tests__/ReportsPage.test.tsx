@@ -269,6 +269,23 @@ describe('ReportsPage', () => {
         'trial-2'
       );
     });
+
+    it('keeps every trial offered after a pick, so another trial is one tap away', async () => {
+      render(<ReportsPage />, { initialRoute: '/shows/show-1/reports?financialsTrial=trial-1' });
+
+      const card = screen.getByTestId('trial-financials-card');
+      expect(within(card).getByRole('button', { name: 'Trial 1' })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
+
+      await userEvent.click(within(card).getByRole('button', { name: 'Trial 2' }));
+
+      expect(within(card).getByTestId('financial-summary')).toHaveAttribute(
+        'data-trial-id',
+        'trial-2'
+      );
+    });
   });
 
   it('renders "Reports" title', () => {

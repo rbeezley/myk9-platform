@@ -31,17 +31,21 @@ export function JudgeSuppliesLauncher({ trialId, onClose }: JudgeSuppliesLaunche
           <JudgeSuppliesSection trialId={trialId} onEditJudge={setJudge} />
         </DialogContent>
       </Dialog>
-      {judge && (
-        <ManageJudgeSuppliesDialog
-          open
-          onOpenChange={open => {
-            if (!open) onClose();
-          }}
-          trialId={trialId}
-          judge={judge}
-          registryId={registryQuery.data ?? null}
-        />
-      )}
+      {/* The `contents` wrapper keeps the host's `space-y-*` margin off the slide-over's fixed
+          backdrop, as in JudgeSuppliesSection (its INTENT comment). */}
+      <div className="contents">
+        {judge && (
+          <ManageJudgeSuppliesDialog
+            open
+            onOpenChange={open => {
+              if (!open) onClose();
+            }}
+            trialId={trialId}
+            judge={judge}
+            registryId={registryQuery.data ?? null}
+          />
+        )}
+      </div>
     </>
   );
 }

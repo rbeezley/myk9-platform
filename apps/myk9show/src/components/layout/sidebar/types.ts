@@ -39,9 +39,14 @@ export interface NavRailMenu {
  * the group's items (`BrowseTabs`).
  */
 export interface NavRailLink {
-  id: 'browse' | 'my-shows';
+  id: 'browse' | 'my-shows' | 'my-club';
   title: string;
   icon: React.ComponentType<{ className?: string }>;
+  /**
+   * Where the link goes. Absent means the item used last (Browse's rule); set, the link always
+   * opens this page and is current on any of the group's items (My Club: the club page).
+   */
+  href?: string;
 }
 
 export interface NavGroup {

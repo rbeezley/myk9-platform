@@ -8,6 +8,9 @@ import type { Club } from '@/types/club-types';
 
 const mocks = vi.hoisted(() => ({ updateClub: vi.fn(), saveNumbers: vi.fn() }));
 
+vi.mock('@/hooks/useValidatedClubContext', () => ({
+  useCurrentValidatedClubContext: () => ({ status: 'not-applicable' }),
+}));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ userWithRoles: null, hasPermission: () => false }),
 }));

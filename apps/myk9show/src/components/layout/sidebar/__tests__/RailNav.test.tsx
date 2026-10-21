@@ -9,12 +9,11 @@ vi.mock('@/components/layout/AccountMenuContent', () => ({
   AccountMenuContent: () => null,
 }));
 
-const CLUB = { clubId: 'club-1', clubName: 'Heartland Club' };
-
+// No club context: the club is still resolving, so My Club stays the menu (no page to open).
 function renderClubAdminRail(initialRoute = '/dogs') {
   const config = buildUnifiedSidebarConfig(
     [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.EXHIBITOR],
-    CLUB,
+    undefined,
     'Jordan'
   );
   return render(<RoleSidebar config={config} variant="rail" />, { initialRoute });
@@ -35,7 +34,7 @@ describe('RailNav', () => {
     await user.click(screen.getByRole('button', { name: 'My Club' }));
 
     const panel = await screen.findByRole('dialog', { name: 'My Club' });
-    for (const title of ['Our Shows', 'Members', 'Payments', 'Club Profile']) {
+    for (const title of ['Members', 'Payments']) {
       expect(panel).toHaveTextContent(title);
     }
     expect(panel).toHaveTextContent('Bank account and show payouts');

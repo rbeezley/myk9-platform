@@ -47,7 +47,7 @@ describe('Browse rail item', () => {
     renderRail([UserRole.SECRETARY, UserRole.CLUB_ADMIN], '/clubs/club-1');
 
     expect(browseLink()).not.toHaveAttribute('aria-current');
-    expect(screen.getByRole('button', { name: 'My Club' })).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByRole('link', { name: 'My Club' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('opens Shows the first time', () => {

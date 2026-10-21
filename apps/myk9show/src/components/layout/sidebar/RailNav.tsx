@@ -122,6 +122,15 @@ interface RailGroupLinkProps {
  * (`BrowseTabs`).
  */
 function RailGroupLink({ link, items, isActive }: RailGroupLinkProps) {
+  if (link.href) {
+    // A fixed destination (My Club: the club page), current on any page of the group.
+    return (
+      <RailLink
+        item={{ title: link.title, href: link.href, icon: link.icon }}
+        active={items.some(item => isActive(item.href))}
+      />
+    );
+  }
   const activeItem = items.find(item => isActive(item.href));
   const activeId = activeItem ? browseTabForPath(activeItem.href) : null;
 

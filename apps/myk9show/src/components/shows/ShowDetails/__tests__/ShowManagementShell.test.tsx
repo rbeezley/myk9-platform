@@ -193,8 +193,12 @@ vi.mock('@/components/shows/overview/AboutThisShowCard', () => ({
   AboutThisShowCard: () => <div data-testid="about-this-show" />,
 }));
 vi.mock('@/store/showStore', () => ({
-  useShowStore: (selector: (s: { updateShow: typeof saveHarness.updateShow }) => unknown) =>
-    selector({ updateShow: saveHarness.updateShow }),
+  useShowStore: (
+    selector?: (s: { updateShow: typeof saveHarness.updateShow; shows: never[] }) => unknown
+  ) => {
+    const state = { updateShow: saveHarness.updateShow, shows: [] };
+    return selector ? selector(state) : state;
+  },
 }));
 
 function makeShow(): Show {

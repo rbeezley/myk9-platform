@@ -83,7 +83,6 @@ const SECRETARY_ROUTES: RouteSpec[] = [
   { label: 'wizard', path: '/secretary/create-show/wizard' },
   { label: 'entries', path: `/shows/${SEEDED_SHOW}/entries` },
   { label: 'reports', path: `/shows/${SEEDED_SHOW}/reports` },
-  { label: 'settings', path: '/secretary/settings' },
   { label: 'people', path: '/people' },
   {
     label: 'workbench',

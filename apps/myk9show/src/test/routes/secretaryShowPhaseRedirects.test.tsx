@@ -268,6 +268,13 @@ describe('secretary show phase redirects', () => {
     });
   });
 
+  it('redirects the retired Show Settings page to the dashboard, not the store-selected show', async () => {
+    renderSecretaryRoutes('/secretary/settings');
+
+    expect(await screen.findByTestId('secretary-dashboard')).toBeInTheDocument();
+    expect(screen.queryByTestId('canonical-show-route')).not.toBeInTheDocument();
+  });
+
   it('redirects legacy waitlist to the selected show exception and explains the consolidation', async () => {
     renderSecretaryRoutes('/secretary/waitlist');
 

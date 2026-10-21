@@ -230,8 +230,8 @@ redirect:
 
 ### Tasks
 
-**Decision:** Personal task work belongs on the secretary dashboard; per-show task work belongs in each show's Tools sheet, not a standalone `/secretary/tasks` page.
-**Canonical routes:** `/secretary/dashboard`, `/shows/:showId` (Tools sheet; was `/show-day` before MYK9-957)
+**Decision:** Personal task work belongs on the secretary dashboard; per-show task work belongs in each show's Tasks and notes tool (Overview → Actions), not a standalone `/secretary/tasks` page.
+**Canonical routes:** `/secretary/dashboard`, `/shows/:showId` (Actions → Tasks and notes, `?tool=tasks-notes`; was `/show-day` before MYK9-957)
 **Why this does not duplicate another page:** The dashboard and Show Desk already own the two distinct task scopes, so the legacy route is only a compatibility redirect.
 **Source-map note:** Re-verified 2026-10-01 (MYK9-899). The task decision is unchanged; `/secretary/dashboard` is only the not-found fallback of the legacy class-create redirects.
 **Source-map note:** Re-verified 2026-10-20 (MYK9-1297). The task decision is unchanged; `/secretary/dashboard` is only the not-found fallback of the legacy pipeline and class-dashboard redirects.

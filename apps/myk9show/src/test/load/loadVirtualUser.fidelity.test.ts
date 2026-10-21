@@ -9,7 +9,11 @@ import { supabase } from '@/services/database/supabaseClient';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
 import { REPLICATED_TABLES } from '@/providers/ReplicationSyncProvider';
 import { LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT } from './loadClassColumns';
-import { LoadVirtualUser, VIRTUAL_USER_SYNC_INTERVAL_MS } from './loadVirtualUser';
+import {
+  LoadVirtualUser,
+  VIRTUAL_USER_ID_SCAN_INTERVAL_MS,
+  VIRTUAL_USER_SYNC_INTERVAL_MS,
+} from './loadVirtualUser';
 import {
   INCREMENTAL_BUFFER_MS,
   INCREMENTAL_BUFFER_MS_HIGH_CHURN,
@@ -198,6 +202,11 @@ describe('constants the reader copies from the application', () => {
     expect(VIRTUAL_USER_SYNC_INTERVAL_MS).toBe(SYNC_INTERVAL_MS);
   });
 
+  it("re-scans ids at the application's interval", async () => {
+    const { ID_SCAN_INTERVAL_MS } = await import('@/services/replication/idScanCadence');
+    expect(VIRTUAL_USER_ID_SCAN_INTERVAL_MS).toBe(ID_SCAN_INTERVAL_MS);
+  });
+
   it('overlaps each delta with the same buffer the engine uses', () => {
     expect(INCREMENTAL_BUFFER_MS).toBe(REPLICATION_INCREMENTAL_BUFFER_MS);
     expect(INCREMENTAL_BUFFER_MS_HIGH_CHURN).toBe(REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN);
@@ -306,5 +315,48 @@ describe("virtual reader follows the engine's count cadence", () => {
     // 0: first count. 11: due, HEAD ok but the delta fails: not recorded.
     // 12: still due, so it counts again.
     expect(headsOf(requests, 'waitlist_entries')).toBe(3);
+  });
+});
+
+describe("virtual reader follows the application's id-scan cadence (MYK9-1302)", () => {
+  async function idScans(
+    passMinutes: number[],
+    idScanEveryPass: boolean
+  ): Promise<Record<string, number>> {
+    const server = createFakePostgrest({ seedCountedTables: true });
+    const user = new LoadVirtualUser(
+      {
+        supabaseUrl: FIXTURE_URL,
+        anonKey: FIXTURE_ANON_KEY,
+        accessToken: 'fixture-secretary-token',
+        role: 'secretary',
+        fetchImpl: server.fetch,
+        ...(idScanEveryPass ? { idScanEveryPass: true } : {}),
+      },
+      LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT
+    );
+    const realNow = Date.now();
+    const clock = vi.spyOn(Date, 'now');
+    for (const minute of passMinutes) {
+      clock.mockReturnValue(realNow + minute * 60_000);
+      await user.syncOnce();
+    }
+    const requests = server.requests.map(normalizeRequest);
+    const scans = (table: string) =>
+      requests.filter(line => new RegExp(`GET /rest/v1/${table} .*select=id$`).test(line)).length;
+    return {
+      dogs: scans('dogs'),
+      dog_registrations: scans('dog_registrations'),
+      clubs: scans('clubs'),
+    };
+  }
+
+  it('scans on the first pass only within the hour, and again once the hour is up', async () => {
+    expect(await idScans([0, 1, 2], false)).toEqual({ dogs: 1, dog_registrations: 1, clubs: 1 });
+    expect(await idScans([0, 1, 61], false)).toEqual({ dogs: 2, dog_registrations: 2, clubs: 2 });
+  });
+
+  it('scans on every pass when the flag is off', async () => {
+    expect(await idScans([0, 1, 2], true)).toEqual({ dogs: 3, dog_registrations: 3, clubs: 3 });
   });
 });

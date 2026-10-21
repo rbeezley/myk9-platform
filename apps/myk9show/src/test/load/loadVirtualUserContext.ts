@@ -55,6 +55,18 @@ export interface ReaderContext {
     readonly count: boolean;
     record(counted: boolean, fetchedRows: number): void;
   };
+  /**
+   * The app's id-scan cadence for `table` (`services/replication/idScanCadence.ts`,
+   * MYK9-1302): the dogs, dog_registrations and clubs id reads run on the first
+   * pass and then hourly. `scan` says whether this pass sends them; call `record`
+   * after a scan COMPLETED (a failed or truncated read leaves the debt). The
+   * engine's forced full-sync branch (empty replica, count mismatch, 24 h) is not
+   * modelled: the reader stands for a device that holds rows.
+   */
+  idScanGate(table: string): {
+    readonly scan: boolean;
+    record(): void;
+  };
   /** Count rows a pass downloaded, for the pass result. */
   tally(rows: number): void;
   /** Issue one request, record a sample for it, and never throw. */

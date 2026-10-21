@@ -28,6 +28,8 @@ import {
   type SyncResult,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
+import { countRemoteRegistrations } from './registrationsRemoteCount';
+import { idScanEpoch, idScanKey, markIdScanCompleted, shouldRunIdScan } from './idScanCadence';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { replicatedDogsTable } from './ReplicatedDogsTable';
 import {
@@ -160,6 +162,8 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     try {
       const adapter: SyncReplicatedTableAdapter<DogRegistrationRow, ReplicatedDogRegistration> = {
         ...this.getRowRefetchAdapter(),
+        getRemoteRowCount: countRemoteRegistrations,
+        detectOverReplica: true,
         fetchRemoteRows: async ({ since }) => {
           const rows = await fetchChangedRegistrations(since);
           for (const row of rows) downloaded.add(String(row.id));
@@ -186,9 +190,11 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       // Side effect only: a failure here never turns a good download into a
       // failed sync.
       try {
-        const idPass = await this.reconcileWithServerIds(fence);
-        if (idPass && idPass.removed + idPass.fetched > 0) {
-          logger.log(`[${this.getTableName()}] ID pass`, idPass);
+        if (shouldRunIdScan(idScanKey(this.getTableName()), { result })) {
+          const idPass = await this.reconcileWithServerIds(fence);
+          if (idPass && idPass.removed + idPass.fetched > 0) {
+            logger.log(`[${this.getTableName()}] ID pass`, idPass);
+          }
         }
       } catch (err) {
         logger.warn(`[${this.getTableName()}] ID pass skipped`, err);
@@ -223,6 +229,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
    */
   async reconcileWithServerIds(fence?: number): Promise<RegistrationIdPassResult | null> {
     const token = fence ?? this.deletionFence.open();
+    const startedEpoch = idScanEpoch();
     try {
       const db = await this.init();
       const snapshot = await snapshotRegistrationRevisions(db, this.getTableName());
@@ -232,7 +239,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
         return null;
       }
 
-      const { deleted } = await pruneRegistrationsMissingFromServer(
+      const { deleted, kept } = await pruneRegistrationsMissingFromServer(
         db,
         this.getTableName(),
         serverIds,
@@ -245,6 +252,9 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       const missing = [...serverIds].filter(id => !localIds.has(id));
       const fetchedRows = missing.length > 0 ? await fetchRegistrationsWhere('id', missing) : [];
       const fetched = await this.applyServerRows(fetchedRows);
+      // Rows kept for "the next pass" (queued, dirty, written mid-pass) leave the
+      // debt owed, so the next pass scans again instead of waiting an hour.
+      if (kept.length === 0) markIdScanCompleted(idScanKey(this.getTableName()), startedEpoch);
       return { removed: deleted.length, fetched };
     } finally {
       if (fence === undefined) this.deletionFence.close(token);

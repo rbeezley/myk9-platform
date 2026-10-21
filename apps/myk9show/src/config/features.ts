@@ -86,6 +86,14 @@ export const features = {
   // full-page delta, instead of every 60 s pass. KILL SWITCH: false = count on
   // every pass, the pre-MYK9-1301 behaviour. The 24 h full sync is unaffected.
   replicationCountCadence: true,
+
+  // Id scan cadence (MYK9-1302). The unscoped id scans of `dogs`,
+  // `dog_registrations` and `clubs` (rows removed on the server) run on the
+  // first pass after a reload or an account change, after an engine full sync
+  // (for dog_registrations that includes a server count below the local rows,
+  // about every 10 min), and at most hourly, instead of every pass. KILL SWITCH:
+  // false = scan on every pass, the pre-MYK9-1302 behaviour.
+  replicationDogIdCadence: true,
 } as const;
 
 export type Features = typeof features;

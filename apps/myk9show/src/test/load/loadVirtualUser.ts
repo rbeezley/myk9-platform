@@ -36,6 +36,13 @@ export type { VirtualUserRequestSample } from './loadVirtualUserContext';
 /** Matches `SYNC_INTERVAL_MS` in packages/replication. */
 export const VIRTUAL_USER_SYNC_INTERVAL_MS = 60_000;
 
+/**
+ * Matches `ID_SCAN_INTERVAL_MS` in `services/replication/idScanCadence.ts`
+ * (restated: that module reaches `@/` aliases this runner does not resolve;
+ * `loadVirtualUser.fidelity.test.ts` pins the two).
+ */
+export const VIRTUAL_USER_ID_SCAN_INTERVAL_MS = 60 * 60_000;
+
 export type VirtualUserRole = 'exhibitor' | 'secretary';
 
 export interface LoadVirtualUserOptions {
@@ -53,6 +60,12 @@ export interface LoadVirtualUserOptions {
    * false: the engine's cadence (first pass, then every `REMOTE_COUNT_INTERVAL_MS`).
    */
   readonly countEveryPass?: boolean;
+  /**
+   * true: the dogs, dog_registrations and clubs id scans run on every pass (the
+   * pre-MYK9-1302 behaviour, `features.replicationDogIdCadence` off).
+   * false: the app's cadence (the first pass, then every `VIRTUAL_USER_ID_SCAN_INTERVAL_MS`).
+   */
+  readonly idScanEveryPass?: boolean;
   /** Every non-2xx response the reader's fetch saw, retried or not. */
   readonly onApiError?: (observation: ApiErrorObservation) => void;
 }
@@ -75,6 +88,8 @@ export class LoadVirtualUser {
   private readonly countOwners = new Map<string, object>();
   /** Rows this reader has ever received per table: an empty replica forces the engine to count every pass. */
   private readonly rowsSeen = new Map<string, number>();
+  /** When each table's id scan last completed on this reader (the app's device-session stamp). */
+  private readonly idScannedAt = new Map<string, number>();
   /**
    * Every poll still running. The tick guard below keeps this to one at a time,
    * but drain() still waits on whatever is here rather than assuming it.
@@ -175,6 +190,21 @@ export class LoadVirtualUser {
               fetchedRows,
               POSTGREST_MAX_ROWS
             ),
+        };
+      },
+      idScanGate: table => {
+        const stamp = this.idScannedAt.get(table);
+        const now = Date.now();
+        const scan =
+          this.options.idScanEveryPass === true ||
+          stamp === undefined ||
+          now < stamp ||
+          now - stamp >= VIRTUAL_USER_ID_SCAN_INTERVAL_MS;
+        return {
+          scan,
+          record: () => {
+            this.idScannedAt.set(table, Date.now());
+          },
         };
       },
       tally: rows => {

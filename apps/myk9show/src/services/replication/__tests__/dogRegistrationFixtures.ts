@@ -49,6 +49,8 @@ export interface RegistrationsServer {
   changePages: DogRegistrationRow[][];
   /** Pages answered to the ID pass, in order; an Error answers as a PostgREST error. */
   idPages: Array<Array<{ id: string }> | Error>;
+  /** Answer to the `count: exact` HEAD; unset = the count is unavailable (no count this pass). */
+  remoteCount?: number;
   /** Rows the server holds, answered to `.in('id' | 'dog_id', …)` reads. */
   rows: DogRegistrationRow[];
   /** Answer every read by id (hydration, row refetch) with an error. */
@@ -76,7 +78,20 @@ export function installRegistrationsServer(server: RegistrationsServer): void {
         return builder;
       };
     const builder: Record<string, unknown> = {
-      select: chain('select'),
+      select: (...args: unknown[]) => {
+        if ((args[1] as { head?: boolean } | undefined)?.head) {
+          record('count', args);
+          return {
+            then: (resolve: (v: unknown) => unknown) =>
+              resolve(
+                server.remoteCount === undefined
+                  ? { count: null, error: { message: 'count not simulated' } }
+                  : { count: server.remoteCount, error: null }
+              ),
+          };
+        }
+        return chain('select')(...args);
+      },
       gt: chain('gt'),
       or: chain('or'),
       eq: chain('eq'),

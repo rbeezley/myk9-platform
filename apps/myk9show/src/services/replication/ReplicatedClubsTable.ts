@@ -19,6 +19,7 @@ import {
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import { idScanEpoch, idScanKey, markIdScanCompleted, shouldRunIdScan } from './idScanCadence';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 
 /**
@@ -285,7 +286,10 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
         return result;
       }
       try {
-        const removed = await this.reconcileVisibility();
+        // MYK9-1302: the count and id read run when due, not after every pass.
+        const removed = shouldRunIdScan(idScanKey(this.getTableName()), { result })
+          ? await this.reconcileVisibility()
+          : 0;
         if (removed > 0) {
           logger.log(`[${this.getTableName()}] reconcileVisibility removed ${removed} stale rows`);
           this._forceFullSyncNext = true;
@@ -324,6 +328,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
    */
   async reconcileVisibility(): Promise<number> {
     const PAGE_SIZE = 1000;
+    const startedEpoch = idScanEpoch();
 
     const { count, error: countError } = await supabase
       .from('clubs')
@@ -354,7 +359,9 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     }
 
     const liveIds = new Set(data.map(row => String((row as { id: string }).id)));
-    return this.removeStaleEntries(liveIds);
+    const removed = await this.removeStaleEntries(liveIds);
+    markIdScanCompleted(idScanKey(this.getTableName()), startedEpoch);
+    return removed;
   }
 
   /**

@@ -27,6 +27,7 @@ export interface VirtualUserFleetOptions {
   readonly classColumnSelect: string;
   /** Count every pass (the app's `replicationCountCadence` flag off), for the A/B arm. */
   readonly countEveryPass?: boolean;
+  readonly idScanEveryPass?: boolean;
   readonly onSample: (sample: VirtualUserRequestSample) => void;
   /** Every non-2xx response a reader's fetch saw, including retried ones. */
   readonly onApiError?: (observation: ApiErrorObservation) => void;
@@ -74,6 +75,7 @@ export class VirtualUserFleet {
           role,
           ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
           ...(options.countEveryPass ? { countEveryPass: true } : {}),
+          ...(options.idScanEveryPass ? { idScanEveryPass: true } : {}),
           ...(options.onApiError ? { onApiError: options.onApiError } : {}),
         },
         options.classColumnSelect

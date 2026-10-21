@@ -14,6 +14,7 @@ import { ReplicatedTable } from '@myk9/replication';
 // this a new unscoped exhibitor key would ship green (MYK9-429).
 import '@/lib/viewerScopeGuard';
 import { resetHonouredAnchorForTests } from '@/features/show-map/cockpit/cockpitAnchorHonoured';
+import { resetIdScanCadence } from '@/services/replication/idScanCadence';
 import {
   IDBFactory as FDBFactory,
   IDBDatabase as FDBDatabase,
@@ -159,6 +160,8 @@ beforeEach(() => {
   resetAllStores();
   // Module-level 'anchor already scrolled' record (MYK9-1218) must not leak between tests.
   resetHonouredAnchorForTests();
+  // Device-session id-scan stamps (MYK9-1302) must not leak between tests.
+  resetIdScanCadence();
   if (hasDom) installDefaultMatchMedia();
   // Reset Supabase mock to defaults
   resetMockSupabase();

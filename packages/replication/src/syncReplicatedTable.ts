@@ -5,7 +5,7 @@ import { reconcileDirtyRemoteRow } from './reconcileDirtyRemoteRow';
 import { anyRowNotOwnedBy, scopeStampDirective } from './rowOwnership';
 import { describeError } from './error-message';
 import { countCoveredRows, getCoveredRemoteIds } from './replicaCoverage';
-import { runStaleCleanup } from './syncStaleCleanup';
+import { overReplicaWatched, runStaleCleanup } from './syncStaleCleanup';
 import { beginRemoteCountPass, coverageFell } from './remoteCountCadence';
 import {
   configureConflictSurfacing as _configureConflictSurfacing,
@@ -184,7 +184,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     // More server-backed rows here than on the server: something was deleted
     // there. Only acted on when a full sync can clean it up (MYK9-775).
     const overReplica =
-      adapter.cleanupStaleRowsOnFullSync === true &&
+      overReplicaWatched(adapter) &&
       expectedRemoteRows !== undefined &&
       countServerBackedRows(localRows) > expectedRemoteRows;
     const forceFullSync = forced || partialReplica || overReplica;
@@ -446,7 +446,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     // than leave the deleted row until the next one (MYK9-775, Codex P2).
     // Bounded: the re-run is already a full sync, so it cannot recurse.
     if (
-      adapter.cleanupStaleRowsOnFullSync &&
+      overReplicaWatched(adapter) &&
       !forceFullSync &&
       expectedRemoteRows !== undefined &&
       countServerBackedRows(await getLocalRowsForScope()) > expectedRemoteRows

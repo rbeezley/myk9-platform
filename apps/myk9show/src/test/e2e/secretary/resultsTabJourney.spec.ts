@@ -319,8 +319,8 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
 
     await test.step('7. release again with one tap, so the print and initials steps start released', async () => {
       const hideButton = detail.getByRole('button', { name: 'Hide results' });
-      // Hide is a replicated write that uploads in the background. Reload until the class reads
-      // "Not released" from the synced rows, so Release starts from the un-release having landed.
+      // Hide and Release are both replicated class writes; the later one wins. Reload until the
+      // class reads "Not released" and Release is offered, so the step starts from a settled page.
       await expect(async () => {
         await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
         await expect(detail.getByText('Not released', { exact: true }).first()).toBeVisible({

@@ -306,7 +306,9 @@ describe('Results class detail: Hide results (MYK9-1318)', () => {
     hook.rows = [buildRow(RELEASED)];
     mount();
     expect(hideButton()).toBeDisabled();
-    expect(screen.getByText("Could not read this class's visibility settings.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Could not read this class's visibility settings.")
+    ).toBeInTheDocument();
   });
 
   it.each([

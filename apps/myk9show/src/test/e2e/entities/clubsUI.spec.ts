@@ -155,25 +155,19 @@ test.describe('Clubs UI — Browse Page', () => {
       (await openActionsMenu(page)).getByRole('menuitem', { name: 'Add Club' })
     ).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.getByRole('textbox', { name: /Search clubs by name/ })).toBeVisible();
-    // The Club Type filter was cut (MYK9-906); target view toggles by exact
-    // aria-label ("Table view" not "Table", which also matches "Reset table view").
-    await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
-  });
-
-  test('view toggle switches between cards and table', async ({ page }) => {
-    await gotoClubsBrowse(page);
-    await page.getByRole('button', { name: 'Table view', exact: true }).click();
-    // In table mode, the Cards toggle should still be present to switch back.
-    await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Cards view', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
+    // Beside the detail pane the placeholder is the short "Search clubs"; the long
+    // "by name, city, or state" form only renders below lg (MYK9-1228).
+    await expect(page.getByPlaceholder(/^Search clubs/)).toBeVisible();
+    // Clubs is a list with a detail pane from lg, like Dogs and People (MYK9-1228):
+    // beside a club the list is always compact, so there is no Cards/Table toggle.
+    // The Club Type filter was cut earlier (MYK9-906).
+    await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toHaveCount(0);
   });
 
   test('search input filters list', async ({ page }) => {
     await gotoClubsBrowse(page);
-    const search = page.getByRole('textbox', { name: /Search clubs by name/ });
+    const search = page.getByPlaceholder(/^Search clubs/);
     await search.fill('NoMatchXYZ123');
     await expect(page.getByText(/No clubs match your search or filters/i)).toBeVisible();
     await page.getByRole('button', { name: 'Show all clubs' }).click();
@@ -249,18 +243,20 @@ test.describe('Clubs UI — Create', () => {
     await submitCreateClub(page, CLUB_C_NAME);
   });
 
+  // Beside the detail pane each club is one compact row: a link named by the club,
+  // not a card with a heading (MYK9-1228).
   test('all three clubs appear in browse list', async ({ page }) => {
     await gotoClubsBrowse(page);
-    await expect(page.getByRole('heading', { name: CLUB_A_NAME })).toBeVisible();
-    await expect(page.getByRole('heading', { name: CLUB_B_NAME })).toBeVisible();
-    await expect(page.getByRole('heading', { name: CLUB_C_NAME })).toBeVisible();
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_A_NAME) })).toBeVisible();
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_B_NAME) })).toBeVisible();
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_C_NAME) })).toBeVisible();
   });
 
   test('search finds Club A by name', async ({ page }) => {
     await gotoClubsBrowse(page);
-    await page.getByRole('textbox', { name: /Search clubs by name/ }).fill(CLUB_A_NAME);
-    await expect(page.getByRole('heading', { name: CLUB_A_NAME })).toBeVisible();
-    await expect(page.getByRole('heading', { name: CLUB_B_NAME })).not.toBeVisible();
+    await page.getByPlaceholder(/^Search clubs/).fill(CLUB_A_NAME);
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_A_NAME) })).toBeVisible();
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_B_NAME) })).toHaveCount(0);
   });
 
   test('form validation — Next is blocked until the club has a name', async ({ page }) => {
@@ -346,10 +342,11 @@ test.describe('Clubs UI — Non-admin permissions', () => {
       await page.keyboard.press('Escape');
     }
 
-    await page
-      .getByRole('link', { name: new RegExp(CLUB_C_NAME) })
-      .first()
-      .click();
+    // The clubs this run created are not visible to an exhibitor: `clubs_select`
+    // shows an outsider only clubs that are authorized or have a public show, and a
+    // freshly created club is neither. The permission assertions hold for any club
+    // the exhibitor can open, so take the first row of the list.
+    await page.locator('a[href^="/clubs/"]').first().click();
     await page.waitForURL(/\/clubs\/[0-9a-f-]{36}$/);
     // An exhibitor has no page action at all, so the header Actions menu is absent (MYK9-928).
     await expect(actionsTrigger(page)).toHaveCount(0);
@@ -411,14 +408,14 @@ test.describe('Clubs UI — Delete (only Club C, as platform admin)', () => {
 
   test('Club A and Club B persist after Club C deletion', async ({ page }) => {
     await gotoClubsBrowse(page);
-    await expect(page.getByRole('heading', { name: CLUB_A_NAME })).toBeVisible();
-    await expect(page.getByRole('heading', { name: CLUB_B_NAME })).toBeVisible();
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_A_NAME) })).toBeVisible();
+    await expect(page.getByRole('link', { name: new RegExp(CLUB_B_NAME) })).toBeVisible();
     // The optimistic local delete + Supabase mutation can take a beat to flush.
     // Poll the browse list (with reloads) until Club C disappears, rather than
     // relying on Playwright's retry to absorb the gap.
     await expect(async () => {
       await page.reload({ waitUntil: 'networkidle' });
-      await expect(page.getByRole('heading', { name: CLUB_C_NAME })).toHaveCount(0);
+      await expect(page.getByRole('link', { name: new RegExp(CLUB_C_NAME) })).toHaveCount(0);
     }).toPass({ timeout: 15000 });
   });
 });

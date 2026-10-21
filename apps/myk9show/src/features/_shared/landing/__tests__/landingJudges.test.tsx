@@ -150,6 +150,9 @@ describe('Headline placeholder', () => {
   it('is shown only when the show has no confirmed assignments', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null });
     render(<HeadlineLandingPage show={show} trial={trial1} allTrials={[trial1, trial2]} />);
-    await waitFor(() => expect(screen.getByText('Judges to be announced')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Judges to be announced.' })).toBeTruthy()
+    );
+    expect(screen.queryByText('The bench is set.')).toBeNull();
   });
 });

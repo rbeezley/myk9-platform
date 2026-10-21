@@ -1,3 +1,4 @@
+import { formatEntryLimit } from '@/features/_shared/landing/entryLimit';
 import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -119,7 +120,7 @@ function Hero({
 }) {
   const mailInOnly = useLandingMailInOnly();
   const countdown = useCountdown(data.entryCloseDate, data.timezone);
-  const totalRuns = data.entryLimit ? `${data.entryLimit} runs` : 'Limit TBD';
+  const totalRuns = formatEntryLimit(data.entryLimit);
   const title = getHeroTitleParts(data.showName);
 
   return (
@@ -213,27 +214,30 @@ function Hero({
 function Judges({ data }: { data: HeritageLandingData }) {
   // A loading or failed judge read is not "no judges": show nothing rather than the placeholder.
   if ((data.judgesState ?? 'ready') !== 'ready') return null;
-  const judges =
-    data.judges.length > 0
-      ? data.judges
-      : [{ id: 'tbd', name: 'Judges to be announced', city: null, trials: [], elements: [] }];
+  const judges = data.judges;
 
   return (
     <section className="hd-section" id="judges">
-      <SectionHead index={1} kicker="Approved judging panel" title="The bench is set." />
-      <div className="hd-judges">
-        {judges.map(judge => (
-          <div className="hd-judge" key={judge.id}>
-            <div className="role">{joinOrFallback(judge.trials, 'Trials TBD')}</div>
-            <h3 className="name">{judge.name}</h3>
-            <div className="city">{judge.city ?? 'Assignment details will be posted here'}</div>
-            <div className="panel">
-              <span className="panel-label">Element panel</span>
-              {joinOrFallback(judge.elements, 'Elements assigned by trial')}
+      <SectionHead
+        index={1}
+        kicker={judges.length > 0 ? 'Approved judging panel' : 'Judging panel'}
+        title={judges.length > 0 ? 'The bench is set.' : 'Judges to be announced.'}
+      />
+      {judges.length > 0 && (
+        <div className="hd-judges">
+          {judges.map(judge => (
+            <div className="hd-judge" key={judge.id}>
+              <div className="role">{joinOrFallback(judge.trials, 'Trials TBD')}</div>
+              <h3 className="name">{judge.name}</h3>
+              <div className="city">{judge.city ?? 'Assignment details will be posted here'}</div>
+              <div className="panel">
+                <span className="panel-label">Element panel</span>
+                {joinOrFallback(judge.elements, 'Elements assigned by trial')}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -265,9 +269,7 @@ function Particulars({ data }: { data: HeritageLandingData }) {
             <tr>
               <th>Entry limit</th>
               <td>
-                <span className="accent">
-                  {data.entryLimit ? `${data.entryLimit} runs` : 'TBD'}
-                </span>
+                <span className="accent">{formatEntryLimit(data.entryLimit)}</span>
               </td>
             </tr>
             <tr>
@@ -364,7 +366,7 @@ function Roster({ data }: { data: HeritageLandingData }) {
               <tbody>
                 <tr>
                   <th>Total</th>
-                  <td>{data.entryLimit ? `${data.entryLimit} runs` : 'Limit TBD'}</td>
+                  <td>{formatEntryLimit(data.entryLimit)}</td>
                 </tr>
                 <tr>
                   <th>Status</th>

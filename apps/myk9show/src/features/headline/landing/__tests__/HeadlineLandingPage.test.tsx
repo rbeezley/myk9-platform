@@ -9,6 +9,21 @@ const landingDataState = vi.hoisted(() => ({
   entryCount: 137,
   entryLimit: 360 as number | null,
   entryClosed: false,
+  judges: [
+    {
+      id: 'judge-1',
+      name: 'Cynthia Beagles',
+      city: 'Austin, TX',
+      trials: ['I'],
+      elements: ['Containers', 'Interiors'],
+    },
+  ] as Array<{
+    id: string;
+    name: string;
+    city: string | null;
+    trials: string[];
+    elements: string[];
+  }>,
 }));
 
 vi.mock('@/features/headline/fonts', () => ({
@@ -47,15 +62,7 @@ vi.mock('@/features/heritage/landing/useHeritageLandingData', () => ({
       { id: 'trial-1', trialNumber: 1, date: '2026-06-12', judgeName: 'Cynthia Beagles' },
       { id: 'trial-2', trialNumber: 2, date: '2026-06-13', judgeName: 'Marcus Whitfield' },
     ],
-    judges: [
-      {
-        id: 'judge-1',
-        name: 'Cynthia Beagles',
-        city: 'Austin, TX',
-        trials: ['I'],
-        elements: ['Containers', 'Interiors'],
-      },
-    ],
+    judges: landingDataState.judges,
     entryCount: landingDataState.entryCount,
     entryLimit: landingDataState.entryLimit,
     fees: [{ label: 'First entry', amount: '$25.00' }],
@@ -88,6 +95,15 @@ describe('HeadlineLandingPage', () => {
     landingDataState.entryCount = 137;
     landingDataState.entryLimit = 360;
     landingDataState.entryClosed = false;
+    landingDataState.judges = [
+      {
+        id: 'judge-1',
+        name: 'Cynthia Beagles',
+        city: 'Austin, TX',
+        trials: ['I'],
+        elements: ['Containers', 'Interiors'],
+      },
+    ];
     if (originalTimezone) {
       process.env.TZ = originalTimezone;
     } else {
@@ -107,6 +123,26 @@ describe('HeadlineLandingPage', () => {
       'href',
       '/shows/show-1/register'
     );
+  });
+
+  it('titles the judges section by what the data says', () => {
+    const { unmount } = render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+    expect(screen.getByRole('heading', { name: 'The bench is set.' })).toBeTruthy();
+    expect(screen.queryByText('Judges to be announced.')).toBeNull();
+    unmount();
+
+    landingDataState.judges = [];
+    render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+    expect(screen.getByRole('heading', { name: 'Judges to be announced.' })).toBeTruthy();
+    expect(screen.queryByText('The bench is set.')).toBeNull();
+    expect(screen.queryByText('Judges to be announced')).toBeNull();
+  });
+
+  it('states the entry limit in plain words', () => {
+    landingDataState.entryLimit = null;
+    render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+    expect(screen.getAllByText('No entry limit').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Limit TBD/)).toBeNull();
   });
 
   it('keeps both wide tables in keyboard-reachable scroll regions', () => {

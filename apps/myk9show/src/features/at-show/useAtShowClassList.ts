@@ -5,6 +5,7 @@
  * organization (needed by `findPairedSectionedClass` to decide A/B pairing).
  */
 
+import { formatShowDateRange } from '@/lib/format/dates';
 import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -29,6 +30,10 @@ export interface UseAtShowClassListResult {
   nextUpByClassId: Map<string, AtShowNextUpPreview>;
   organization: string;
   showName: string;
+  /** "Aug 1–3, 2030" from the replicated show, or null when it has no renderable date. */
+  showDateLabel: string | null;
+  /** Venue / location line from the replicated show, or null. */
+  showLocation: string | null;
   /** Owning club, needed to match the show-desk route's club-scoped gate. */
   clubId: string | undefined;
   isLoading: boolean;
@@ -182,6 +187,8 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     nextUpByClassId,
     organization: showQuery.data?.organization ?? '',
     showName: showQuery.data?.name ?? '',
+    showDateLabel: formatShowDateRange(showQuery.data?.startDate, showQuery.data?.endDate) || null,
+    showLocation: showQuery.data?.location || null,
     clubId: showQuery.data?.clubId ?? undefined,
     // Gate on BOTH queries: `organization` drives A/B pairing, so the page must
     // not group/render with the default ('') before the show metadata lands.

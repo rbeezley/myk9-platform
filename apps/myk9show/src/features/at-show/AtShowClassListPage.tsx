@@ -77,6 +77,8 @@ export const AtShowClassListPage: React.FC = () => {
     nextUpByClassId,
     organization,
     showName,
+    showDateLabel,
+    showLocation,
     clubId,
     isLoading,
     error,
@@ -390,6 +392,9 @@ export const AtShowClassListPage: React.FC = () => {
     return (
       <AtShowMyEntriesToday
         showId={showId as string}
+        showName={showName}
+        showDateLabel={showDateLabel}
+        venue={showLocation}
         {...myEntryDetails}
         onSeeAllClasses={() => setManualView('all')}
       />

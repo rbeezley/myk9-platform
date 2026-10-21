@@ -55,6 +55,7 @@ describe('AtShowMyEntriesToday — status badge falls back to the staff-grade la
     const { container } = render(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={[entry({ checkInStatus: status, isScored: status === 'completed' })]}
         isLoading={false}
         dataUpdatedAt={1}
@@ -73,6 +74,7 @@ describe('AtShowMyEntriesToday — status badge falls back to the staff-grade la
     render(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={[entry({ checkInStatus: 'conflict' })]}
         isLoading={false}
         dataUpdatedAt={1}
@@ -91,6 +93,7 @@ describe('AtShowMyEntriesToday — own result on the existing row (MYK9-1026)', 
     render(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={entries}
         isLoading={false}
         dataUpdatedAt={1}
@@ -156,6 +159,7 @@ describe('AtShowMyEntriesToday — own result on the existing row (MYK9-1026)', 
     render(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={[entry({ isScored: true, checkInStatus: 'completed' })]}
         isLoading={false}
         dataUpdatedAt={1}
@@ -183,6 +187,7 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
     render(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={[entry({ checkInStatus: 'no-status' })]}
         isLoading={false}
         dataUpdatedAt={1}
@@ -204,6 +209,7 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
     render(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={[entry({ checkInStatus: 'no-status' })]}
         isLoading={false}
         dataUpdatedAt={1}
@@ -227,6 +233,7 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
     render(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={[entry({ checkInStatus: 'no-status' })]}
         isLoading={false}
         dataUpdatedAt={1}
@@ -249,6 +256,7 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
     const { rerender } = render(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={[entry({ checkInStatus: 'no-status' })]}
         isLoading={false}
         dataUpdatedAt={1}
@@ -269,6 +277,7 @@ describe('AtShowMyEntriesToday — check-in gives visible feedback', () => {
     rerender(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={[entry({ checkInStatus: 'no-status' })]}
         isLoading={false}
         dataUpdatedAt={2}
@@ -293,6 +302,7 @@ describe('AtShowMyEntriesToday — a failed device read', () => {
     render(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={[]}
         isLoading={false}
         dataUpdatedAt={0}
@@ -315,6 +325,7 @@ describe('AtShowMyEntriesToday — a failed device read', () => {
     render(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={[entry({})]}
         isLoading={false}
         dataUpdatedAt={1}
@@ -342,6 +353,7 @@ describe('AtShowMyEntriesToday — never offers a check-in the server will refus
     render(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={[entry({ selfCheckinState: 'not-allowed' })]}
         isLoading={false}
         dataUpdatedAt={1}
@@ -359,6 +371,7 @@ describe('AtShowMyEntriesToday — never offers a check-in the server will refus
     render(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={[entry({ selfCheckinState: 'allowed' })]}
         isLoading={false}
         dataUpdatedAt={1}
@@ -379,6 +392,7 @@ describe('AtShowMyEntriesToday — never offers a check-in the server will refus
     render(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={[entry({ selfCheckinState: 'unknown' })]}
         isLoading={false}
         dataUpdatedAt={1}
@@ -403,6 +417,7 @@ describe('AtShowMyEntriesToday — row shows trial context (MYK9-800 finding #2)
     render(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={[entry({ trialLabel: 'Trial 2 · Sun, Sep 27' })]}
         isLoading={false}
         dataUpdatedAt={1}
@@ -419,6 +434,7 @@ describe('AtShowMyEntriesToday — row shows trial context (MYK9-800 finding #2)
     render(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={[entry({ trialLabel: null })]}
         isLoading={false}
         dataUpdatedAt={1}
@@ -439,6 +455,7 @@ describe('AtShowMyEntriesToday — back navigation (MYK9-800 finding #3)', () =>
     render(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={[entry({})]}
         isLoading={false}
         dataUpdatedAt={1}
@@ -450,5 +467,40 @@ describe('AtShowMyEntriesToday — back navigation (MYK9-800 finding #3)', () =>
 
     const backLink = await screen.findByRole('link', { name: /Back to dashboard/ });
     expect(backLink).toHaveAttribute('href', '/');
+  });
+});
+
+describe('AtShowMyEntriesToday — names the show above the heading (MYK9-1287)', () => {
+  const renderToday = (showDateLabel: string | null, venue: string | null = null) =>
+    render(
+      <AtShowMyEntriesToday
+        showId="show-1"
+        showName="Spring Scent Trial"
+        showDateLabel={showDateLabel}
+        venue={venue}
+        entries={[entry({})]}
+        isLoading={false}
+        dataUpdatedAt={1}
+        loadFailed={false}
+        onRetry={vi.fn()}
+        onSeeAllClasses={vi.fn()}
+      />
+    );
+
+  it('renders the show name, date and venue before the "Your dogs today" heading', () => {
+    renderToday('Aug 1-3, 2030', 'Des Moines, IA');
+
+    const heading = screen.getByRole('heading', { name: 'Your dogs today' });
+    for (const text of ['Spring Scent Trial', 'Aug 1-3, 2030', 'Des Moines, IA']) {
+      const node = screen.getByText(text);
+      expect(node.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+  });
+
+  it('renders no date or venue line when there is none', () => {
+    renderToday(null);
+
+    expect(screen.getByText('Spring Scent Trial')).toBeInTheDocument();
+    expect(screen.getByTestId('at-show-identity').querySelectorAll('p')).toHaveLength(1);
   });
 });

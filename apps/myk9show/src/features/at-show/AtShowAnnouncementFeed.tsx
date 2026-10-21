@@ -55,9 +55,10 @@ export function AtShowAnnouncementFeed({
           onClick={() => setIsOpen(open => !open)}
           className="flex min-h-11 w-full items-center gap-2 px-4 py-2 text-left text-sm font-medium md:min-h-12 text-muted-foreground hover:text-foreground"
           aria-expanded={isOpen}
+          aria-label={isOpen ? 'Hide announcements' : 'Show announcements'}
         >
           <Megaphone className="h-4 w-4" aria-hidden />
-          <span>Show announcements</span>
+          <span>Announcements</span>
           {unreadCount > 0 && (
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">
               {unreadCount}

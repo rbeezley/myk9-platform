@@ -37,6 +37,10 @@ const ALL_DOGS_VIEW = '__all-dogs__';
 
 export interface AtShowMyEntriesTodayProps {
   showId: string;
+  showName: string;
+  /** Pre-formatted date range (replica data); null renders no date line. */
+  showDateLabel?: string | null;
+  venue?: string | null;
   entries: AtShowEntryDetail[];
   isLoading: boolean;
   /** From `useMyAtShowEntryDetails` — changes only when a fresh fetch lands. */
@@ -64,6 +68,9 @@ function AtShowMyEntriesTodaySkeleton() {
 
 export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
   showId,
+  showName,
+  showDateLabel = null,
+  venue = null,
   entries,
   isLoading,
   dataUpdatedAt,
@@ -206,6 +213,13 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
         <ArrowLeft className="h-4 w-4" aria-hidden />
         Back to dashboard
       </Link>
+      {(showName || showDateLabel || venue) && (
+        <div className="mb-3 text-center" data-testid="at-show-identity">
+          {showName && <p className="text-base font-semibold">{showName}</p>}
+          {showDateLabel && <p className="text-sm text-muted-foreground">{showDateLabel}</p>}
+          {venue && <p className="text-sm text-muted-foreground">{venue}</p>}
+        </div>
+      )}
       <h1 className="mb-1 text-center text-lg font-semibold">Your dogs today</h1>
 
       {isLoading ? (

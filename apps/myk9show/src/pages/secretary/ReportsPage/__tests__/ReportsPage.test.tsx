@@ -224,6 +224,11 @@ describe('ReportsPage', () => {
     expect(screen.getByText('Reports')).toBeInTheDocument();
   });
 
+  it('explains the printed mark once under the title', () => {
+    render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
+    expect(screen.getByText(/Print marks a report as printed/)).toBeInTheDocument();
+  });
+
   it('renders while report classes and entries are still loading', () => {
     mockReportState.isLoading = true;
 

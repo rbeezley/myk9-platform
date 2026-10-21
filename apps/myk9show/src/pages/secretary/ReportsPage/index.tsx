@@ -313,7 +313,9 @@ export default function ReportsPage() {
         <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Print check-in sheets, catalogs, official forms, and labels. Pick a report below, narrow
-          it to a trial or class, then print or download.
+          it to a trial or class, then print or download. Print marks a report as printed; until
+          then it reads Not confirmed printed, and the class checklist on Overview shows the same
+          mark.
         </p>
       </div>
       {linkShowId && (

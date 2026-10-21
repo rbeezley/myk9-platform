@@ -35,56 +35,51 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
     printable('result-labels', 'Result labels'),
   ];
 
-  it('links preliminary results and result labels to the class on Results, as links not actions', () => {
+  const renderSection = (sourceClass: SecretaryCockpitClass) =>
     render(
       <ClassChecklistSection
         showId="show-1"
-        sourceClass={completeClass}
+        sourceClass={sourceClass}
         paperwork={paperwork}
         timeZone="America/New_York"
         onCommand={vi.fn()}
       />
     );
+
+  it('shows the after-scoring items as status, with one Continue on Results link for a complete class (MYK9-1319)', () => {
+    renderSection(completeClass);
     const items = within(screen.getByRole('region', { name: 'Class checklist' })).getAllByRole(
       'listitem'
     );
-    for (const index of [4, 5]) {
-      const link = within(items[index]!).getByRole('link');
-      const url = new URL(link.getAttribute('href')!, 'https://x.test');
-      expect(url.pathname).toBe('/shows/show-1/results');
-      expect(url.searchParams.get('classId')).toBe('c1');
-      expect(url.searchParams.get('trialId')).toBe('t1');
-      // The Results tab itself reads this URL back to the same class.
-      expect(readResultsTabUrlState(url.searchParams)).toMatchObject({
-        classId: 'c1',
-        trialId: 't1',
-      });
+    for (const index of [4, 5, 6]) {
+      expect(within(items[index]!).queryByRole('link')).toBeNull();
       expect(within(items[index]!).queryByRole('button')).toBeNull();
     }
-  });
-
-  it('links the initials item to the class on Results, with no Undo of its own', () => {
-    render(
-      <ClassChecklistSection
-        showId="show-1"
-        sourceClass={{ ...completeClass, wrapUpStatus: SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE }}
-        paperwork={paperwork}
-        timeZone="America/New_York"
-        onCommand={vi.fn()}
-      />
-    );
-    const items = within(screen.getByRole('region', { name: 'Class checklist' })).getAllByRole(
-      'listitem'
-    );
-    const link = within(items[6]!).getByRole('link');
+    const links = screen
+      .queryAllByRole('link')
+      .filter(link => (link.getAttribute('href') ?? '').includes('/results'));
+    expect(links).toHaveLength(1);
+    const link = screen.getByRole('link', { name: 'Continue on Results' });
+    expect(links[0]).toBe(link);
     const url = new URL(link.getAttribute('href')!, 'https://x.test');
     expect(url.pathname).toBe('/shows/show-1/results');
     expect(url.searchParams.get('classId')).toBe('c1');
+    expect(url.searchParams.get('trialId')).toBe('t1');
+    // The Results tab itself reads this URL back to the same class.
     expect(readResultsTabUrlState(url.searchParams)).toMatchObject({
       classId: 'c1',
       trialId: 't1',
     });
-    expect(within(items[6]!).queryByRole('button')).toBeNull();
+  });
+
+  it('has no link into Results for a class that is not complete', () => {
+    renderSection({ ...completeClass, lifecycle: 'in-progress', wrapUpStatus: null });
+    expect(screen.queryByRole('link', { name: 'Continue on Results' })).toBeNull();
+    expect(
+      screen
+        .queryAllByRole('link')
+        .filter(link => (link.getAttribute('href') ?? '').includes('/results'))
+    ).toHaveLength(0);
   });
 
   it('offers print only for check-in and score sheets, never the results sheet or result labels', () => {

@@ -43,6 +43,7 @@ export function TimelineStep({
       id={step.id}
       className="lc-row"
       data-peak={step.peak ? 'true' : undefined}
+      data-last={isLast ? 'true' : undefined}
       data-revealed={revealed ? 'true' : 'false'}
     >
       <div className="lc-main">

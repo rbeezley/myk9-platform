@@ -55,7 +55,7 @@ test.describe('Slice 5: audited-path regression', () => {
     // The cart must resolve to a definite state. A perpetual spinner or a blank
     // page is the actual failure mode this path guards against.
     const hasItems = (await page.getByRole('button', { name: /^Remove/i }).count()) > 0;
-    const looksEmpty = /empty|nothing in your cart|no items/i.test(body);
+    const looksEmpty = /empty|nothing in your entry|nothing in your cart|no items/i.test(body);
 
     expect(
       hasItems || looksEmpty,

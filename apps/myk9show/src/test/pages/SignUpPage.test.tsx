@@ -220,7 +220,8 @@ describe('SignUpPage', () => {
         </MemoryRouter>
       );
 
-      expect(screen.getByText(/request access as/i)).toBeInTheDocument();
+      expect(screen.queryByText(/request access as/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/show secretary \(needs approval\)/i)).toBeInTheDocument();
       expect(
         screen.getByText(/club officer and secretary access requires approval/i)
       ).toBeInTheDocument();

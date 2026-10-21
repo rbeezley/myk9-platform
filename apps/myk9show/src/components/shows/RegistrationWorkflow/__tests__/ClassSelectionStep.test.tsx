@@ -98,7 +98,7 @@ describe('ElementCard — wait list badge', () => {
     const levels: LevelInfo[] = [{ ...baseLevel, isSelected: true }];
     render(<ElementCard {...defaultProps} levels={levels} />);
 
-    expect(screen.getByText('In cart')).toBeInTheDocument();
+    expect(screen.getByText('In your entry')).toBeInTheDocument();
     expect(screen.queryByText('Already entered')).toBeNull();
   });
 
@@ -226,7 +226,7 @@ describe('ElementCard (single-class) — wait list badge', () => {
       />
     );
 
-    expect(screen.getByText('In cart')).toBeInTheDocument();
+    expect(screen.getByText('In your entry')).toBeInTheDocument();
   });
 });
 
@@ -278,6 +278,7 @@ vi.mock('@/hooks/useReplicationSync', () => ({
   }),
 }));
 
+import { toast } from 'sonner';
 import { ClassSelectionStep } from '@/components/shows/RegistrationWorkflow/ClassSelectionStep';
 
 const SHOW_ID = 'show-1';
@@ -987,7 +988,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
   it('(i) a cart that failed to open says so and offers a retry, instead of inert chips (MYK9-581)', async () => {
     // The opener can fail for a reason the exhibitor can act on (offline, a
     // denied entries read). Before this, `isLoading` simply never cleared and
-    // every chip stayed disabled behind "Loading your cart…" with nothing said.
+    // every chip stayed disabled behind "Loading your entry…" with nothing said.
     //
     // `error: null` is the load-bearing half: the store's error flag is NOT
     // set on every failing path (`createCart`'s 23505 branch resolves null
@@ -1007,7 +1008,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
       />
     );
 
-    expect(await screen.findByText(/couldn’t open your cart/i)).toBeInTheDocument();
+    expect(await screen.findByText(/couldn’t open your entry/i)).toBeInTheDocument();
     const retry = screen.getByRole('button', { name: /try again/i });
 
     await waitFor(() => expect(ensureCart).toHaveBeenCalledTimes(1));
@@ -1018,7 +1019,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
 
   it('(i2) a failed open stops the chips claiming to be loading, and a pending one does not (MYK9-581)', async () => {
     // The round-3 restructure had two halves; shipping only the alert left every
-    // chip captioned "Loading your cart…" forever underneath it, including as
+    // chip captioned "Loading your entry…" forever underneath it, including as
     // the accessible description a screen reader reads (review D1). Nothing is
     // loading once the opener has answered.
     mockCartStore({
@@ -1038,12 +1039,12 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
 
     const chip = await screen.findByRole('checkbox', { name: /enter rex in .*novice a/i });
     expect(chip).toHaveAttribute('aria-disabled', 'true');
-    await waitFor(() => expect(screen.queryAllByText(/loading your cart/i)).toEqual([]));
+    await waitFor(() => expect(screen.queryAllByText(/loading your entry/i)).toEqual([]));
     // ...and it still says WHY, so the chip is not silently inert either.
     expect(screen.getAllByText(/could not be opened/i).length).toBeGreaterThan(0);
   });
 
-  it('(i3) while the opener is still in flight the chips do say "Loading your cart…"', async () => {
+  it('(i3) while the opener is still in flight the chips do say "Loading your entry…"', async () => {
     // Positive control for (i2): the caption is not simply gone.
     mockCartStore({ cart: null, ensureCart: vi.fn().mockReturnValue(new Promise(() => {})) });
 
@@ -1057,7 +1058,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
     );
 
     await screen.findByRole('checkbox', { name: /enter rex in .*novice a/i });
-    expect(screen.getAllByText(/loading your cart/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/loading your entry/i).length).toBeGreaterThan(0);
     expect(screen.queryAllByText(/could not be opened/i)).toEqual([]);
   });
 
@@ -1107,7 +1108,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
     const chip = await screen.findByRole('checkbox', { name: /enter rex in .*novice a/i });
     expect(chip).toHaveAttribute('aria-disabled', 'true');
     // Every disabled chip says why, the same way a full or started one does.
-    expect(screen.getAllByText(/loading your cart/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/loading your entry/i).length).toBeGreaterThan(0);
     expect(chip).toHaveAttribute('aria-describedby', `chip-reason-${NEW_CLASS_ID}`);
 
     await user.click(chip);
@@ -1158,6 +1159,9 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
     expect(addItem).toHaveBeenCalledWith(
       expect.objectContaining({ dogId: DOG_ID, classId: NEW_CLASS_ID })
     );
+    expect(toast.success).toHaveBeenCalledWith('Added to your entry', {
+      description: 'Class added to your entry',
+    });
     expect(onSelectionChange).toHaveBeenCalled();
   });
 });

@@ -11,7 +11,7 @@ import {
   CreditCard,
   RefreshCw,
   AlertCircle,
-  ShoppingCart,
+  ClipboardList,
   ArrowRight,
   Loader2,
   Lock,
@@ -162,7 +162,7 @@ export function CartSummary({
     <Card className={cn('', className)}>
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
-          <ShoppingCart className="h-5 w-5" />
+          <ClipboardList className="h-5 w-5" />
           Order Summary
         </CardTitle>
       </CardHeader>
@@ -195,7 +195,7 @@ export function CartSummary({
                 accepting wait list entries
               </p>
               <p className="text-xs mt-0.5">
-                Remove {blockedCount === 1 ? 'it' : 'them'} from your cart to continue to payment.
+                Remove {blockedCount === 1 ? 'it' : 'them'} from your entry to continue to payment.
               </p>
             </div>
           </div>

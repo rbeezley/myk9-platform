@@ -69,7 +69,7 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
     case 'dog-selection':
       if (ctx.selectedDogsCount === 0) return 'Select at least one dog to continue.';
       if (!ctx.ownerSelectionOk) {
-        return 'All dogs in one registration must share the same owner. Remove the mismatched dogs or register them separately.';
+        return 'All dogs in one entry must share the same owner. Remove the mismatched dogs or enter them separately.';
       }
       return null;
     case 'class-selection':

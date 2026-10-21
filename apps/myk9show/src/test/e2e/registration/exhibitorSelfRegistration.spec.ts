@@ -151,7 +151,7 @@ async function preventSharedEntryWrites(page: Page, captured: CapturedWrites, se
  * The one running entries panel (MYK9-483 / #2210). Above 1024px it is the
  * sticky aside; below it the aside is `display:none` and the same totals live
  * inside the collapsed bottom bar, mounted only while Details is expanded.
- * Both carry `aria-label="Your entries"`, so a page-level `getByText` on a
+ * Both carry `aria-label="Your entry"`, so a page-level `getByText` on a
  * total is ambiguous — always scope to one of them.
  */
 function entriesTotals(page: Page) {
@@ -213,7 +213,7 @@ async function selectFirstAvailableClass(page: Page) {
 }
 
 async function selectFirstAvailableDog(page: Page) {
-  await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible({
     timeout: 15000,
   });
 
@@ -244,7 +244,7 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
   await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
 
   await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/register`));
-  await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Enter This Show' })).toBeVisible({
     timeout: 15000,
   });
   await expect(page.getByText('Step 1 of 4', { exact: true })).toBeVisible();
@@ -342,7 +342,7 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
 // past the viewport and the page scrolled sideways. The cart is served from
 // route mocks, so this reaches /cart without the wizard walk above or any
 // shared-staging write.
-test('the cart fits a 390px phone with Clear Cart still reachable', async ({ page }) => {
+test('the cart fits a 390px phone with Clear Entry still reachable', async ({ page }) => {
   // Real UUID shapes: the cart's reconciliation reads `entries` by these ids,
   // and PostgREST rejects a non-UUID with a 400 that leaves the cart loading.
   const MOCK_DOG_ID = '00000000-0000-4000-8000-00000000e2d1';
@@ -398,7 +398,7 @@ test('the cart fits a 390px phone with Clear Cart still reachable', async ({ pag
   await page.setViewportSize({ width: 390, height: 844 });
   await signInAsExhibitor(page, '/cart');
 
-  const clearCart = page.getByRole('button', { name: 'Clear Cart' });
+  const clearCart = page.getByRole('button', { name: 'Clear Entry' });
   await expect(clearCart).toBeVisible({ timeout: 20000 });
   await expectNoHorizontalScroll(page, '/cart at 390px');
   const box = await clearCart.boundingBox();

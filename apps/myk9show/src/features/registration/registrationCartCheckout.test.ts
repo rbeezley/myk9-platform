@@ -79,7 +79,7 @@ describe('submitRegistrationCartCheckout', () => {
         },
         deps,
       })
-    ).rejects.toThrow('Failed to add entry to cart');
+    ).rejects.toThrow('Failed to add entry');
 
     expect(deps.abandonCart).toHaveBeenCalledTimes(1);
     expect(deps.navigate).not.toHaveBeenCalled();
@@ -180,7 +180,7 @@ describe('submitRegistrationCartCheckout', () => {
         },
         deps,
       })
-    ).rejects.toThrow('Failed to clear existing cart');
+    ).rejects.toThrow('Failed to clear your existing entry');
 
     expect(deps.addItem).not.toHaveBeenCalled();
     expect(deps.navigate).not.toHaveBeenCalled();
@@ -210,7 +210,7 @@ describe('submitRegistrationCartCheckout', () => {
         },
         deps,
       })
-    ).rejects.toThrow('Failed to add entry to cart');
+    ).rejects.toThrow('Failed to add entry');
 
     expect(deps.abandonCart).not.toHaveBeenCalled();
     expect(deps.navigate).not.toHaveBeenCalled();

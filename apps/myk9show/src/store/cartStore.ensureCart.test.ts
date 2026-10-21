@@ -3,7 +3,7 @@
  *
  * The registration wizard's class step holds this one promise and renders from
  * it. When the opener could resolve a bare `null` while the store's `error`
- * stayed null, the step sat at "Loading your cart…" forever with every chip
+ * stayed null, the step sat at "Loading your entry…" forever with every chip
  * inert and nothing said — a hang, not an error. `loadActiveCart` has SIX
  * exits that resolve `null` without setting an error, so guarding one path at
  * a time kept finding the next one; the result type is what removes the class.
@@ -372,7 +372,7 @@ describe("the opener's log names the real failure, not its own generic sentence"
       'Failed to open cart',
       'cartStore',
       { showId: SHOW_ID, exhibitorId: EXHIBITOR_ID },
-      expect.objectContaining({ message: 'Failed to create cart' })
+      expect.objectContaining({ message: 'Failed to create your entry' })
     );
     expect(vi.mocked(logger.error)).not.toHaveBeenCalledWith(
       'Failed to open cart',

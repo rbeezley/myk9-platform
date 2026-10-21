@@ -560,14 +560,14 @@ describe('ResultsTab detail', () => {
     expect(hook.value.retry).toHaveBeenCalledTimes(1);
   });
 
-  it('sends an unfinished class back to Overview from its Primary work card', () => {
+  it('says an unfinished class is run on Overview, with no link back from its Primary work card', () => {
     renderAt('?status=all&classId=class-ring');
 
     expect(screen.getByText('Still in the ring')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Open on Overview/ })).toHaveAttribute(
-      'href',
-      '/shows/show-1?focus=class-ring'
-    );
+    expect(
+      screen.getByText('This class is run and marked complete on Overview.')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /on Overview/ })).not.toBeInTheDocument();
   });
 });
 
@@ -867,7 +867,7 @@ describe('ResultsTab one-tap release (MYK9-1264)', () => {
     expect(screen.getByRole('button', { name: 'Undo check' })).toBeDisabled();
   });
 
-  it('a class not marked Completed gets a hint to Overview and no Release', () => {
+  it('a class not marked Completed gets a plain hint about Overview and no Release', () => {
     hook.value = {
       ...hook.value,
       rows: buildRows({ checked: false, readyStatus: 'In Progress' }),
@@ -875,10 +875,12 @@ describe('ResultsTab one-tap release (MYK9-1264)', () => {
     renderAt('?status=all&classId=class-ready');
 
     expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Mark Class Complete on Overview/ })).toHaveAttribute(
-      'href',
-      '/shows/show-1?focus=class-ready'
-    );
+    expect(
+      screen.getByText(/Mark it complete on\s+Overview, then its scores can be checked here/)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: /Mark Class Complete on Overview/ })
+    ).not.toBeInTheDocument();
     expect(verifyMutate).not.toHaveBeenCalled();
     expect(releaseMutate).not.toHaveBeenCalled();
   });
@@ -887,7 +889,7 @@ describe('ResultsTab one-tap release (MYK9-1264)', () => {
     renderAt('?status=all&classId=class-ring');
 
     expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open on Overview' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open on Overview' })).not.toBeInTheDocument();
     expect(verifyMutate).not.toHaveBeenCalled();
     expect(releaseMutate).not.toHaveBeenCalled();
   });

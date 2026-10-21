@@ -270,7 +270,7 @@ function ShowCalendarComponent({
                       }}
                       className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
-                      Register for This Show
+                      Enter This Show
                     </Button>
                   )}
                   <Button

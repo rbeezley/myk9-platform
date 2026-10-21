@@ -30,11 +30,6 @@ export interface ClassChecklistItem {
   detail?: string;
   /** Present on print items that have something to print, so print and Mark printed stay. */
   paperwork?: SecretaryCockpitPaperwork;
-  /**
-   * After-scoring items (MYK9-1032) are status only on Overview: they link to the class on
-   * Results, where the work is done, rather than offering print or sign-off controls here.
-   */
-  href?: string;
 }
 
 export interface ClassChecklistInput {
@@ -46,8 +41,6 @@ export interface ClassChecklistInput {
   paperwork: readonly SecretaryCockpitPaperwork[];
   /** The show's registry; selects initials (AKC) or signature wording. */
   registryId?: string | null | undefined;
-  /** The class selected on the Results tab; set on the after-scoring items (MYK9-1032). */
-  resultsHref?: string | null | undefined;
 }
 
 const PRINT_STATE: Record<SecretaryCockpitPaperwork['state'], ClassChecklistState> = {
@@ -84,8 +77,9 @@ function printItem(
 }
 
 /**
- * An after-scoring item: its state still reads from the print record, but the print controls
- * live on Results, so the item carries a link instead of the paperwork row.
+ * An after-scoring item (MYK9-1032): its state still reads from the print record, but the print
+ * controls live on Results, so it is status only here and carries no paperwork row. The class has
+ * one handoff to Results, below the checklist (MYK9-1319).
  */
 function resultsItem(
   id: ClassChecklistItemId,
@@ -93,21 +87,13 @@ function resultsItem(
   input: ClassChecklistInput,
   entriesKnown: boolean
 ): ClassChecklistItem {
-  return withResultsHref(printItem(id, label, input.paperwork, entriesKnown, false), input);
-}
-
-function withResultsHref(item: ClassChecklistItem, input: ClassChecklistInput): ClassChecklistItem {
-  return input.resultsHref ? { ...item, href: input.resultsHref } : item;
+  return printItem(id, label, input.paperwork, entriesKnown, false);
 }
 
 /**
  * Status only on Overview (MYK9-1031): the judge's sign-off is recorded and undone on the class's
- * Judge sign-off section on Results, which this item links to.
+ * Judge sign-off section on Results.
  */
-function signatureItem(input: ClassChecklistInput, entriesKnown: boolean): ClassChecklistItem {
-  return withResultsHref(signatureStatus(input, entriesKnown), input);
-}
-
 function signatureStatus(input: ClassChecklistInput, entriesKnown: boolean): ClassChecklistItem {
   const wording = judgeSignOffWording(input.registryId);
   const base = { id: 'judge-signature' as const, label: wording.checklistLabel };
@@ -157,7 +143,7 @@ export function buildClassChecklist(input: ClassChecklistInput): ClassChecklistI
     resultsItem('results-sheet', 'Preliminary results', input, countsKnown),
     resultsItem('result-labels', 'Result labels', input, countsKnown),
     // Initials stay as on main until MYK9-1031 part 2 gives Results a sign-off slot to land on.
-    signatureItem(input, countsKnown),
+    signatureStatus(input, countsKnown),
   ];
 }
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle2, CircleHelp, Clock3, Printer, RefreshCw } from 'lucide-react';
+import { ArrowRight, CheckCircle2, CircleHelp, Clock3, Printer, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
@@ -40,17 +40,7 @@ function ChecklistStepRow({ item }: { item: ClassChecklistItem }) {
     >
       <div className="flex items-center gap-2 font-medium">
         <StateIcon state={item.state} />
-        {item.href ? (
-          <Link
-            to={item.href}
-            className="inline-flex min-h-11 items-center underline-offset-4 hover:underline"
-            aria-label={`${item.label} — open in Results`}
-          >
-            {item.label}
-          </Link>
-        ) : (
-          item.label
-        )}
+        {item.label}
       </div>
       <span className="text-xs text-muted-foreground">{item.detail ?? STATE_TEXT[item.state]}</span>
     </div>
@@ -72,7 +62,7 @@ export function ClassChecklistSection({
   timeZone: string;
   onCommand: (commandId: string) => void;
 }) {
-  // MYK9-1032/1031: preliminary results, result labels and the judge's sign-off link to the class on Results.
+  // MYK9-1319: the after-scoring items are status only; a complete class has ONE handoff to Results.
   const resultsHref = getCockpitResultsControlHref({
     showId,
     trialId: sourceClass.trialId,
@@ -82,7 +72,7 @@ export function ClassChecklistSection({
       state: { filter: 'all', focusedClassId: sourceClass.id },
     }),
   });
-  const items = buildClassChecklist({ ...sourceClass, paperwork, resultsHref });
+  const items = buildClassChecklist({ ...sourceClass, paperwork });
   const checklistIds = new Set<string>(items.map(item => item.id));
   const otherPaperwork = paperwork.filter(item => !checklistIds.has(item.reportId));
   const summary = summarizeClassChecklist(items);
@@ -190,6 +180,17 @@ export function ClassChecklistSection({
               </li>
             ))}
           </ol>
+          {/* INTENT: starting and scoring end on Overview; check, release, print and initials
+              happen on Results. This is the one handoff between them, offered once the class is
+              complete (MYK9-1319). */}
+          {sourceClass.lifecycle === 'complete' && (
+            <Button asChild variant="outline" className="mt-2 min-h-11 gap-2">
+              <Link to={resultsHref}>
+                Continue on Results
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          )}
         </section>
       )}
       <ClassPrintPanel

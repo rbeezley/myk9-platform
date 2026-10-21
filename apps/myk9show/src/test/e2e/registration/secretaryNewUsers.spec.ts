@@ -152,7 +152,7 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
       timeout: 15000,
     }
   );
-  await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible();
 
   await page.getByRole('button', { name: /Create New/i }).click();
   await page.getByRole('menuitem', { name: /Exhibitor & Dog/i }).click();

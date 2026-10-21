@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, CheckCircle2, Circle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Circle } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useEmbeddedDetail } from '@/components/layout/embeddedDetail';
@@ -24,7 +24,7 @@ import { useClassManualReleaseTiming } from './classManualReleaseTiming';
 import { HideResultsButton, hideBlockedReason } from './HideResultsButton';
 import { PrintStatusUnavailable } from './PrintStatusUnavailable';
 import { ResultsStatusChip } from './ResultsClassList';
-import { getFixScoreHref, getOverviewFocusHref } from './resultsTabRoutes';
+import { getFixScoreHref } from './resultsTabRoutes';
 
 const THEN_LABEL: Record<string, string> = {
   'results-sheet': 'Results sheet',
@@ -59,7 +59,6 @@ interface ResultsClassDetailProps {
 
 interface PrimaryWorkProps extends Pick<
   ResultsClassDetailProps,
-  | 'showId'
   | 'row'
   | 'releasing'
   | 'hiding'
@@ -72,7 +71,6 @@ interface PrimaryWorkProps extends Pick<
 }
 
 function PrimaryWork({
-  showId,
   row,
   releasing,
   hiding,
@@ -90,18 +88,17 @@ function PrimaryWork({
   if (phase === 'not-started' || phase === 'in-ring') {
     title = phase === 'in-ring' ? 'Still in the ring' : 'Not started yet';
     body = `${row.scoredCount} of ${row.expectedCount} scored. Results are checked and released here once scoring is complete.`;
+    // Starting and completing a class is Overview's work. Overview hands the class here once it
+    // is complete, so this card says where the earlier steps happen and does not link back.
     action = (
-      <Button asChild variant="outline" className="min-h-11 gap-2">
-        <Link to={getOverviewFocusHref(showId, row.id)}>
-          Open on Overview
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </Link>
-      </Button>
+      <p className="text-xs text-muted-foreground">
+        This class is run and marked complete on Overview.
+      </p>
     );
   } else if (phase === 'needs-checking') {
     const released = Boolean(row.releasedAt);
     // The server records a check only on a Completed class. Mark Class Complete is Overview's
-    // action, so the hint links there rather than offering a second way to complete a class.
+    // action, so the hint says so rather than offering a second way to complete a class.
     const blocked = !row.statusCompleted
       ? null
       : !online
@@ -134,14 +131,9 @@ function PrimaryWork({
     ) : (
       <div className="space-y-1">
         <p className="text-xs text-muted-foreground">
-          The class is not marked complete, so the check cannot be saved yet.
+          The class is not marked complete, so the check cannot be saved yet. Mark it complete on
+          Overview, then its scores can be checked here.
         </p>
-        <Button asChild variant="outline" className="min-h-11 gap-2">
-          <Link to={getOverviewFocusHref(showId, row.id)}>
-            Mark Class Complete on Overview
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
-        </Button>
       </div>
     );
   } else if (phase === 'ready-to-release') {
@@ -367,7 +359,6 @@ export function ResultsClassDetail({
       </header>
 
       <PrimaryWork
-        showId={showId}
         row={row}
         releasing={releasing}
         hiding={hiding}

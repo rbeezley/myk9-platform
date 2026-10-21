@@ -21,7 +21,7 @@ describe('the owner-approved hold copy', () => {
 
   it('says the cart is saved and spots are re-checked when the hold ends', () => {
     expect(CHECKOUT_HOLD_ENDED_MESSAGE).toBe(
-      'Your 30-minute hold ended. Your cart is saved; check out again to re-check spots.'
+      'Your 30-minute hold ended. Your entry is saved; check out again to re-check spots.'
     );
   });
 });

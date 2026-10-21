@@ -550,7 +550,7 @@ describe('DogSelectionStep', () => {
     await user.click(screen.getByRole('button', { name: /add a new dog/i }));
     expect(screen.getByTestId('add-dog-panel')).toBeInTheDocument();
     // Still on the dog step — this is a panel opened in place, not a route change.
-    expect(screen.getByText('Select Dogs to Register')).toBeInTheDocument();
+    expect(screen.getByText('Select Dogs to Enter')).toBeInTheDocument();
   });
 
   it('returns to the wizard with a newly created eligible dog selected, keeping prior selections', async () => {

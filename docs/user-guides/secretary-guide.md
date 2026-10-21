@@ -243,6 +243,7 @@ To put one dog in a specific spot, open **Run order → Reorder manually...**. E
 - Print items have **Print** (or **Reprint**). It opens a preview in a panel beside the Overview, so you never leave the page. When the print window closes, the sheet is recorded as printed and the row reads **Printed 2:14 PM · Undo**. Cancelling the print window records it too, so tap **Undo** if nothing came out.
 - To print the check-in and score sheets together, tick the box beside each one and tap **Print selected**.
 - An item that changed after printing reads **Needs reprint** (an amber square) — for example score sheets after a class change.
+- Preliminary results, Result labels and Judge sign-off are status only on Overview. Once the class is complete, tap **Continue on Results** under the checklist to check and release the scores, print those two sheets and record the judge's initials.
 - Items can be done in any order; nothing blocks anything else.
 
 ## 15 · Ringside access codes

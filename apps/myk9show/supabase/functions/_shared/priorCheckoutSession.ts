@@ -68,7 +68,7 @@ export async function resolveCheckoutSession<T extends CheckoutSessionLike>({
         kind: 'blocked',
         status: 409,
         error:
-          'Your payment for this cart is already processing. Give it a few seconds, then check My Entries.',
+          'Your payment for this entry is already processing. Give it a few seconds, then check My Entries.',
         reason: 'complete',
         diagnostic: `Checkout Session ${existing.id} is complete`,
       };

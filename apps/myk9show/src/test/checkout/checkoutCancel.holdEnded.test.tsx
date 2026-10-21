@@ -27,7 +27,7 @@ vi.mock('@/store/cartStore', () => ({
 import CheckoutCancelPage from '@/pages/CheckoutCancelPage';
 
 const HOLD_ENDED =
-  'Your 30-minute hold ended. Your cart is saved; check out again to re-check spots.';
+  'Your 30-minute hold ended. Your entry is saved; check out again to re-check spots.';
 
 beforeEach(() => {
   verifyCheckoutSessionMock.mockResolvedValue({
@@ -51,7 +51,7 @@ describe('CheckoutCancelPage — the hold ended (MYK9-1012)', () => {
     expect(await screen.findByRole('heading', { name: 'Your hold ended' })).toBeInTheDocument();
     expect(screen.getByText(HOLD_ENDED)).toBeInTheDocument();
     expect(screen.queryByText(/payment cancelled/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /return to cart/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /return to your entry/i })).toBeInTheDocument();
   });
 
   // MYK9-1073: the help list under the message must not say the selections are

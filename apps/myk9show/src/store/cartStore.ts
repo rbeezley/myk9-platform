@@ -167,7 +167,7 @@ export const useCartStore = create<CartState>()(
 
             return cartWithDetails;
           } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to load cart';
+            const message = error instanceof Error ? error.message : 'Failed to load your entry';
             write({ error: message, isLoading: false });
             logger.error(
               'Failed to load cart',
@@ -467,7 +467,7 @@ export const useCartStore = create<CartState>()(
 
             return cartWithDetails;
           } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to create cart';
+            const message = error instanceof Error ? error.message : 'Failed to create your entry';
             write({ error: message, isLoading: false });
             logger.error(
               'Failed to create cart',
@@ -494,7 +494,7 @@ export const useCartStore = create<CartState>()(
               loadInitiated: get().loadInitiated,
               isLoading: get().isLoading,
             });
-            write({ error: 'No active cart' });
+            write({ error: 'No active entry' });
             return false;
           }
 
@@ -615,7 +615,7 @@ export const useCartStore = create<CartState>()(
           const write = guardedSet<CartState>(set, guard);
           const { cart } = get();
           if (!cart) {
-            write({ error: 'No active cart' });
+            write({ error: 'No active entry' });
             return false;
           }
 
@@ -691,7 +691,7 @@ export const useCartStore = create<CartState>()(
           const write = guardedSet<CartState>(set, guard);
           const { cart } = get();
           if (!cart) {
-            write({ error: 'No active cart' });
+            write({ error: 'No active entry' });
             return false;
           }
 
@@ -788,7 +788,7 @@ export const useCartStore = create<CartState>()(
           const write = guardedSet<CartState>(set, guard);
           const { cart } = get();
           if (!cart) {
-            write({ error: 'No active cart' });
+            write({ error: 'No active entry' });
             return false;
           }
 
@@ -879,7 +879,7 @@ export const useCartStore = create<CartState>()(
 
             return true;
           } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to clear cart';
+            const message = error instanceof Error ? error.message : 'Failed to clear your entry';
             write({ error: message });
             logger.error('Failed to clear cart', 'cartStore', {}, ensureError(error));
             return false;
@@ -919,7 +919,7 @@ export const useCartStore = create<CartState>()(
 
             return true;
           } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to abandon cart';
+            const message = error instanceof Error ? error.message : 'Failed to abandon your entry';
             write({ error: message });
             logger.error('Failed to abandon cart', 'cartStore', {}, ensureError(error));
             return false;
@@ -952,7 +952,7 @@ export const useCartStore = create<CartState>()(
           const write = guardedSet<CartState>(set, guard);
           const { cart } = get();
           if (!cart) {
-            write({ error: 'No active cart' });
+            write({ error: 'No active entry' });
             return null;
           }
 

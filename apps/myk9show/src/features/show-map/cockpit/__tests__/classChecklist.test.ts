@@ -68,21 +68,13 @@ describe('buildClassChecklist', () => {
     expect(item?.paperwork?.printHref).toBe('/print/check-in-sheet');
   });
 
-  it('links preliminary results, result labels and the initials to Results and keeps the pre-scoring items as they were (MYK9-1032)', () => {
-    const items = buildClassChecklist({
-      ...NOT_STARTED,
-      resultsHref: '/shows/s/results?classId=c',
-    });
+  it('makes the after-scoring items status only: no row carries a link, and only the pre-scoring print rows keep paperwork (MYK9-1319)', () => {
+    const items = buildClassChecklist(NOT_STARTED);
     const byId = Object.fromEntries(items.map(item => [item.id, item]));
+    for (const item of items) expect(item).not.toHaveProperty('href');
     for (const id of ['results-sheet', 'result-labels']) {
-      expect(byId[id]?.href).toBe('/shows/s/results?classId=c');
       expect(byId[id]?.paperwork).toBeUndefined();
     }
-    for (const id of ['check-in-sheet', 'scoresheet', 'class-started', 'scoring-complete']) {
-      expect(byId[id]?.href).toBeUndefined();
-    }
-    // MYK9-1031: Results carries the judge sign-off now, so the initials item links there too.
-    expect(byId['judge-signature']?.href).toBe('/shows/s/results?classId=c');
     expect(byId['check-in-sheet']?.paperwork).toBeDefined();
     expect(byId.scoresheet?.paperwork).toBeDefined();
   });
@@ -90,7 +82,6 @@ describe('buildClassChecklist', () => {
   it('keeps the status of a linked print item from its print record', () => {
     const items = buildClassChecklist({
       ...NOT_STARTED,
-      resultsHref: '/r',
       paperwork: [paper('results-sheet', 'current'), paper('result-labels', 'stale')],
     });
     expect(items.find(item => item.id === 'results-sheet')?.state).toBe('done');

@@ -39,12 +39,12 @@ export function resolveWizardTitles({
   isInsideSidebar,
 }: WizardTitleModes): WizardTitles {
   return {
-    workflowLabel: isLateEntryMode ? 'Late entry' : isInsideSidebar ? 'Add entry' : 'Register',
+    workflowLabel: isLateEntryMode ? 'Late entry' : isInsideSidebar ? 'Add entry' : 'Enter',
     sidebarTitle: isLateEntryMode
       ? 'Add late entry'
       : isInsideSidebar
         ? 'Add entry'
-        : 'Register for Show',
+        : 'Enter This Show',
     workflowSubtitle: isInsideSidebar
       ? 'Enter a dog for any exhibitor, including yourself.'
       : undefined,

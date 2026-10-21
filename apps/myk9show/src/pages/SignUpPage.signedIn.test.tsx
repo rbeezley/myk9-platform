@@ -42,5 +42,9 @@ describe('SignUpPage when already signed in (MYK9-1280)', () => {
 
     expect(screen.queryByText('You are signed in')).not.toBeInTheDocument();
     expect(document.querySelector('input[type="password"]')).not.toBeNull();
+    // MYK9-1278: exhibitor access needs no approval, so nothing here says "request".
+    expect(screen.queryByText(/request access/i)).not.toBeInTheDocument();
+    expect(screen.getByText('I am…')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Exhibitor (I show dogs)' })).toBeInTheDocument();
   });
 });

@@ -44,17 +44,17 @@ vi.mock('@/hooks/useAuthContext', () => ({
 }));
 
 describe('CartPage when the re-check emptied the cart', () => {
-  it('explains the removal above "Your cart is empty"', () => {
+  it('explains the removal above "Nothing in your entry yet"', () => {
     render(<CartPage />);
 
-    expect(screen.getByText('Your cart is empty')).toBeInTheDocument();
+    expect(screen.getByText('Nothing in your entry yet')).toBeInTheDocument();
     expect(
       screen.getByText('Rover in Exterior Master: this class was cancelled.')
     ).toBeInTheDocument();
   });
 
   // MYK9-873: a payment link whose lookup FAILED with no cart shell left lands
-  // here too; the retryable error must show, not a bare "Your cart is empty".
+  // here too; the retryable error must show, not a bare "Nothing in your entry yet".
   it('shows the cart error on the empty-cart branch', () => {
     const saved = { cart: cartState.cart, error: cartState.error };
     cartState.cart = null;
@@ -63,7 +63,7 @@ describe('CartPage when the re-check emptied the cart', () => {
     try {
       render(<CartPage />);
 
-      expect(screen.getByText('Your cart is empty')).toBeInTheDocument();
+      expect(screen.getByText('Nothing in your entry yet')).toBeInTheDocument();
       expect(screen.getByRole('alert')).toHaveTextContent(
         'We could not check the entries in your payment link. Please reload the page to try again.'
       );

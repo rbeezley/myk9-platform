@@ -284,21 +284,44 @@ const seedAuthWithPerson = () =>
     isAuthenticated: true,
   });
 
-// Seed one loaded entry so the page renders its full stat/tab layout instead of
-// the no-entry FirstRunZeroState. The row is unscored/unreleased to avoid the
-// result-reveal dialog firing during structural assertions.
-const seedLoadedEntry = () => {
+/** One unscored result row per show (`show-1`..`show-N`), distinct ids so each is its own show. */
+const makeShowRows = (showCount: number, overrides: Record<string, unknown> = {}) =>
+  Array.from({ length: showCount }, (_, i) => {
+    const n = i + 1;
+    return makeResultRow({
+      id: `entry-${n}`,
+      registration_id: `reg-${n}`,
+      show_id: `show-${n}`,
+      class_id: `class-${n}`,
+      show: {
+        id: `show-${n}`,
+        name: `Show ${n}`,
+        start_date: '2026-09-14',
+        end_date: '2026-09-14',
+        entry_close_date: '2026-09-01',
+        venue_name: 'Fairgrounds',
+        city: 'Denver',
+        state: 'CO',
+      },
+      class: { id: `class-${n}`, name: 'Container Novice A', class_number: '101' },
+      registration: { id: `reg-${n}`, confirmation_number: `ABC12${n}` },
+      is_scored: false,
+      result_status: null,
+      final_placement: null,
+      class_results_released_at: null,
+      ...overrides,
+    });
+  });
+
+// Seed loaded entries so the page renders its full stat/tab layout instead of
+// the no-entry FirstRunZeroState. Rows are unscored/unreleased to avoid the
+// result-reveal dialog firing during structural assertions. Defaults to three
+// shows: the filter rail only appears from the third (MYK9-1286).
+const seedLoadedEntry = (showCount = 3) => {
   seedAuthWithPerson();
   (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
     source: 'confirmed',
-    data: [
-      makeResultRow({
-        is_scored: false,
-        result_status: null,
-        final_placement: null,
-        class_results_released_at: null,
-      }),
-    ],
+    data: makeShowRows(showCount),
     error: null,
   });
 };
@@ -518,6 +541,52 @@ describe('MyEntriesPage UI Improvements', () => {
         expect(axis).not.toHaveClass('overflow-x-auto');
       }
     });
+  });
+
+  describe('Filter rail threshold (MYK9-1286)', () => {
+    const timeRail = () => screen.queryByRole('radiogroup', { name: /filter by time/i });
+
+    it.each([500, 1440])('hides the rail for two shows at %ipx', async width => {
+      mockViewportWidth(width);
+      seedLoadedEntry(2);
+      renderWithProviders(<MyEntriesPage />, '/exhibitor/entries');
+
+      await screen.findAllByText('Show 1');
+      expect(timeRail()).toBeNull();
+    });
+
+    it('keeps the rail for two shows when a deep link narrows the list', async () => {
+      seedLoadedEntry(2);
+      renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?tab=upcoming');
+
+      expect(await screen.findByRole('radiogroup', { name: /filter by time/i })).toBeVisible();
+    });
+
+    it('shows the rail from the third show', async () => {
+      seedLoadedEntry(3);
+      renderWithProviders(<MyEntriesPage />, '/exhibitor/entries');
+
+      expect(await screen.findByRole('radiogroup', { name: /filter by time/i })).toBeVisible();
+    });
+
+    it.each([500, 1440])(
+      'keeps the rail and the focused All chip after the deep-linked narrowing is undone at %ipx',
+      async width => {
+        const user = userEvent.setup();
+        mockViewportWidth(width);
+        seedLoadedEntry(2);
+        renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?tab=upcoming');
+
+        const rail = await screen.findByRole('radiogroup', { name: /filter by time/i });
+        const all = within(rail).getByRole('radio', { name: /^All/i });
+        all.focus();
+        await user.keyboard('{Enter}');
+
+        expect(all).toBeInTheDocument();
+        expect(document.activeElement).toBe(all);
+        expect(timeRail()).not.toBeNull();
+      }
+    );
   });
 
   describe('Mobile information density', () => {
@@ -1390,7 +1459,7 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
     mockUseCurrentUserPersonId.mockReturnValue(null);
     seedAuthWithPerson();
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: [makeResultRow(submittedEntry)],
+      data: makeShowRows(3, submittedEntry),
       error: null,
     });
     seedPosition([junisPosition]);
@@ -1490,19 +1559,21 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
   });
 
   it('announces the held position in All and Upcoming, even with no entry row', async () => {
+    // No entries at all, so the rail is hidden by default (MYK9-1286); the Upcoming deep link
+    // brings it up and the latch keeps it for the switch to All.
     (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: [],
       error: null,
       source: 'confirmed',
     });
     const user = userEvent.setup();
-    renderWithProviders(<MyEntriesPage />);
+    renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?tab=upcoming');
 
     const section = await screen.findByTestId('entries-filter-section');
     const timeAxis = within(section).getByRole('radiogroup', { name: /filter by time/i });
-    expect(within(timeAxis).getByRole('radio', { name: /^all\s*1$/i })).toBeInTheDocument();
     expect(within(section).getByRole('status')).toHaveTextContent('1 wait list position');
-    await user.click(within(timeAxis).getByRole('radio', { name: /upcoming/i }));
+    await user.click(within(timeAxis).getByRole('radio', { name: /^all/i }));
+    expect(within(timeAxis).getByRole('radio', { name: /^all\s*1$/i })).toBeInTheDocument();
     expect(within(section).getByRole('status')).toHaveTextContent('1 wait list position');
   });
 

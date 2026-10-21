@@ -113,7 +113,7 @@ function currentShowGroup({ currentShow, managingShows, onChooseShow }: CurrentS
     railSwitch: true,
     items: [
       ...(currentShow ? [currentShowItem(currentShow, undefined, 'Your current show')] : []),
-      ...others.map(show => currentShowItem(show, onChooseShow)),
+      ...others.map(show => currentShowItem(show, onChooseShow, 'Switch to this show')),
     ],
   };
 }

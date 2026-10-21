@@ -223,23 +223,17 @@ To reach the at-show surface, just open `/at-show/:showId` for the test show as 
 - [ ] Navigate to the Show Workbench and click **Show Desk** tab
 - [ ] Show Map tree (trials / classes) is visible
 - [ ] Next Best Action card is visible (guidance reflects setup phase, not wrap-up)
-- [ ] Tools panel is accessible (e.g. via a side sheet or panel)
+- [ ] Show tools are listed in the header Actions menu (Show day / Show logistics) and each opens in its own panel
 
 **Issue:** ______________________________________________________________________
 
-### 4.2 — Verify Tools Panel Contents
+### 4.2 — Verify the Show Tools in the Actions Menu
 
-- [ ] Open the tools panel / side sheet on Show Desk
-- [ ] The following cards are present:
-  - [ ] Late Entry action
-  - [ ] Judge Hospitality
-  - [ ] Quick Broadcast
-  - [ ] Class Broadcast
-  - [ ] Incident Log
-  - [ ] Schedule Slip Script
-  - [ ] **Show Access Codes** — view the QR code and passcode; if no plaintext codes are displayed, use **Generate new codes** and confirm the regenerated codes appear
-  - [ ] Volunteers
-  - [ ] Tasks & Notes
+- [ ] On the show's Overview, open the header **Actions** menu
+- [ ] **Show day** lists: People at show, Self check-in, Access codes, Emergency trial packet
+- [ ] **Show logistics** lists: Volunteers, Judge hospitality, Tasks and notes, Incident log
+- [ ] Each row opens its own panel holding only that tool (Volunteers opens the Volunteers page)
+- [ ] **Access codes** — view the QR code and passcode; if no plaintext codes are displayed, use **Generate new codes** and confirm the regenerated codes appear
 
 **Issue:** ______________________________________________________________________
 
@@ -254,7 +248,7 @@ To reach the at-show surface, just open `/at-show/:showId` for the test show as 
 
 ### 4.4 — Day-of / Late Entry
 
-- [ ] From the Show Desk tools panel, open **Late Entry** action
+- [ ] On **Entry Forms**, choose **Add Entry**
 - [ ] Find or create a dog record (using the exhibitor search or inline creation)
 - [ ] Assign to an available class and record payment
 - [ ] Save — entry appears in the class
@@ -308,16 +302,16 @@ To reach the at-show surface, just open `/at-show/:showId` for the test show as 
 
 ### 4.10 — Log an Incident [ADDED]
 
-- [ ] From Show Desk tools, open the **Incident Log** card
+- [ ] From the header Actions menu, open **Incident log** (Show logistics)
 - [ ] Add an entry: select a dog/handler, select an incident type, save
-- [ ] Close the tools panel and scroll to the closeout section
+- [ ] Close the panel and scroll to the closeout section
 - [ ] **Incident Closeout Summary** shows the logged incident
 
 **Issue:** ______________________________________________________________________
 
 ### 4.11 — Schedule Slip Broadcast
 
-- [ ] From Show Desk tools, open **Schedule Slip Script**
+- [ ] On Overview, focus a class whose expected start is running late and choose **Announce the delay**
 - [ ] Generate a PA script for a ring running behind
 - [ ] Optionally broadcast the message via **Quick Broadcast**
 - [ ] Message appears in the Show Desk broadcast lane
@@ -481,7 +475,7 @@ To reach the at-show surface, just open `/at-show/:showId` for the test show as 
 - [ ] Open an incognito window (no session)
 - [ ] Navigate to `/at-show/:showId`
 - [ ] `AtShowAccessGate` should redirect to **SmartSignInPage** or show a passcode entry form
-- [ ] Enter the show passcode (obtain from Show Access Codes card in Show Desk tools)
+- [ ] Enter the show passcode (obtain from Actions › Show day › Access codes)
 - [ ] After passcode entry, the Class List renders without requiring a full account sign-in
 
 **Issue:** ______________________________________________________________________
@@ -504,7 +498,7 @@ To reach the at-show surface, just open `/at-show/:showId` for the test show as 
 
 ### 7.2 — Trigger a Notification from Show Desk
 
-- [ ] As Secretary, open the Schedule Slip Script card in Show Desk tools
+- [ ] As Secretary, on Overview, open **Announce the delay** on a class running late
 - [ ] Generate and broadcast a message with push enabled
 - [ ] On the subscribed device / browser: a push notification arrives within ~30 seconds
 

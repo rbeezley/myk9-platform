@@ -17,6 +17,7 @@ import {
   signInAsSecretary,
   type TestUser,
 } from '../helpers/testUsers';
+import { openActionsMenu } from '../helpers/actionsMenu';
 import { LIVE_SECRETARY_SHOW_ID, LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 
 /**
@@ -128,10 +129,10 @@ async function assertSecretaryStates(page: Page) {
   await page.goto(`/shows/${LIVE_SECRETARY_SHOW_ID}`, {
     waitUntil: 'domcontentloaded',
   });
-  const toolsPanelTrigger = page.getByRole('button', { name: /^Tools/ });
-  await expect(toolsPanelTrigger).toBeVisible();
-  await toolsPanelTrigger.click();
-  await page.getByRole('menuitem').first().click();
+  // The show tools are rows in the header Actions menu (MYK9-1262).
+  const toolsMenu = await openActionsMenu(page);
+  await expect(toolsMenu.getByTestId('header-action-show-tool-incident-log')).toBeVisible();
+  await toolsMenu.getByTestId('header-action-show-tool-incident-log').click();
   const toolsPanel = page.getByTestId('show-desk-tool-panel');
   await expect(toolsPanel).toBeVisible();
   await page.keyboard.press('Escape');

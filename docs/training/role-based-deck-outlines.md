@@ -154,7 +154,7 @@ Slides 5–6 content overlaps with Overview slides 14–15 but frames the inform
 | --- | ----------------------------- | ------------------------------------------------------------------------------------ | -------------------- | ------------------------------------ |
 | 1   | At the ring — Judge & Steward | Opening frame                                                                        | None                 | Unique                               |
 | 2   | Two ways in                   | Staff account or passcode — passcode needs no account                                | J-01 (blocked)       | **Reuse:** Overview slide 12 content |
-| 3   | How to get the passcode       | Secretary generates from Show Desk → Tools → Show Access Codes → share QR or text    | J-01 (blocked)       | Unique                               |
+| 3   | How to get the passcode       | Secretary generates from Actions → Show day → Access codes → share QR or text        | J-01 (blocked)       | Unique                               |
 | 4   | Your class list               | All trials and classes for today's show                                              | J-02 (blocked)       | Unique                               |
 | 5   | The entry list                | Run order: dog name, armband, handler                                                | J-03 (blocked)       | Unique                               |
 | 6   | Scoring a dog                 | Timer → Q or NQ → Save (five taps)                                                   | J-04, J-05 (blocked) | Unique                               |
@@ -167,7 +167,7 @@ Slides 5–6 content overlaps with Overview slides 14–15 but frames the inform
 | ----------------------------------------------------- | -------------------------------------------------------- |
 | Ringside Quickstart (printable)                       | `docs/user-guides/judge-steward-quickstart.md` (planned) |
 | KB: (TBD — from quickstart outline friction findings) |                                                          |
-| Secretary: Share Show Access Codes                    | Show Desk → Tools panel → Show Access Codes              |
+| Secretary: Share Show Access Codes                    | Show page → Actions menu → Show day → Access codes       |
 | Support contact                                       | [placeholder]                                            |
 
 ### Slides shared with Overview Deck

@@ -36,7 +36,7 @@ export function judgeHospitalityStorageKey(showId: string): string {
 }
 
 // Hospitality state lives in localStorage, which is not reactive. The Show Desk
-// Tools trigger badge (rendered outside this card) needs to recompute its
+// Actions trigger badge (rendered outside this card) needs to recompute its
 // "N reminders" glance when the secretary toggles a checkbox inside the open
 // sheet. writeJudgeHospitalityState fires this event on every persist so
 // useJudgeHospitalityReminderCount can re-read without polling.

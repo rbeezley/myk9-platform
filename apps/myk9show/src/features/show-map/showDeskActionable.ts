@@ -1,5 +1,5 @@
-// INTENT: The Show Desk Tools sheet is closed by default. Its trigger badge is
-// the secretary's only "is anything waiting?" glance while the wrench is shut.
+// INTENT: Each show tool opens in its own panel, closed by default. The badge on the header
+// Actions trigger is the secretary's only "is anything waiting?" glance while every panel is shut.
 // Historically only the incident card's attention surfaced here; hospitality
 // reminders and open tasks were computed INSIDE their cards and stayed
 // invisible until the sheet was opened — defeating the calm "everything is
@@ -32,7 +32,7 @@ export interface ShowDeskActionable {
    * At least one input could not be read, so `count` is a FLOOR, not a total.
    *
    * This matters more here than almost anywhere else on the page. The badge is
-   * the secretary's only "is anything waiting?" glance while the wrench is
+   * the secretary's only "is anything waiting?" glance while the Actions menu is
    * shut, and the incidents and tasks queries both pause offline. Summing
    * unknowns as zero produced a calm, idle badge during exactly the crisis this
    * signal exists to surface -- an urgent incident logged by a steward could

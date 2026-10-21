@@ -1,8 +1,8 @@
 # Plan: fold the show page Tools slide-out into the header Actions menu
 
-> **Status:** Active
+> **Status:** Complete
 
-Owner-approved direction (2026-10-09), held until after the Oct 10 test show on the planner's advice: the change touches the app-wide header and the action registry on the secretary's show-day surface, and it could not be browser-walked in the run that planned it (the in-app browser was not signed in). Tracked on MYK9-1085 (ledger). Rule it serves: [`docs/INTENT.md`](INTENT.md) § "Dialog or Slide-Out: Decision vs Work" ("a slide-out holds one thing; the menu is the index").
+Owner-approved direction (2026-10-09), held until after the Oct 10 test show on the planner's advice: the change touches the app-wide header and the action registry on the secretary's show-day surface, and it could not be browser-walked in the run that planned it (the in-app browser was not signed in). Tracked on MYK9-1085 (ledger). Rule it serves: [`docs/INTENT.md`](../INTENT.md) § "Dialog or Slide-Out: Decision vs Work" ("a slide-out holds one thing; the menu is the index").
 
 ## Target design
 

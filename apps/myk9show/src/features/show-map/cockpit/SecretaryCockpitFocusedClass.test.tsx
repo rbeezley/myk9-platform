@@ -252,7 +252,7 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
   });
 });
 
-// MYK9-954: the Tools "Schedule slip script" moved to where the delay is set.
+// MYK9-954: the old Tools "Schedule slip script" moved to where the delay is set.
 describe('SecretaryCockpitFocusedClass delay announcement', () => {
   function renderPanel(source: SecretaryCockpitClass, canManageShow = true) {
     return render(

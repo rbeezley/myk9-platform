@@ -199,9 +199,11 @@ redirect:
 ### 17. Run the show desk on show day
 
 **Outcome:** Secretary or club admin handles check-in, scratches, and move-ups from one page; late entry and paper scoring are secretary-only.
-**Canonical route:** `/shows/:showId` (Overview, with **Tools**)
+**Canonical route:** `/shows/:showId` (Overview; its tools are rows in the header **Actions** menu)
 **Entry point:** The show's Overview tab, or Secretary Dashboard when show is live today
 **Source-map note:** Re-verified 2026-10-03 (MYK9-957). The Show Day tab is folded into Overview; `/shows/:id/show-day` redirects to the home and keeps its day, filter, focus and `?tool=`. The guides now say **Overview → Tools** and **Overview → click the class**.
+
+**Source-map note:** 2026-10-21 (MYK9-1262). The Tools button is gone: each show tool is a row in the header Actions menu (Show day / Show logistics) and opens in its own panel. The guides now say **Overview → Actions**.
 **Docs target:** Secretary Guide § Show Day, Club Admin Guide § 2 — Your Club's Shows, KB: `handle-a-scratch.md`, `handle-move-up.md`
 
 ### 18. Generate reports
@@ -228,8 +230,8 @@ redirect:
 
 ### Tasks
 
-**Decision:** Personal task work belongs on the secretary dashboard; per-show task work belongs in each show's Tools sheet, not a standalone `/secretary/tasks` page.
-**Canonical routes:** `/secretary/dashboard`, `/shows/:showId` (Tools sheet; was `/show-day` before MYK9-957)
+**Decision:** Personal task work belongs on the secretary dashboard; per-show task work belongs in each show's Tasks and notes tool (Overview → Actions), not a standalone `/secretary/tasks` page.
+**Canonical routes:** `/secretary/dashboard`, `/shows/:showId` (Actions → Tasks and notes, `?tool=tasks-notes`; was `/show-day` before MYK9-957)
 **Why this does not duplicate another page:** The dashboard and Show Desk already own the two distinct task scopes, so the legacy route is only a compatibility redirect.
 **Source-map note:** Re-verified 2026-10-01 (MYK9-899). The task decision is unchanged; `/secretary/dashboard` is only the not-found fallback of the legacy class-create redirects.
 **Source-map note:** Re-verified 2026-10-20 (MYK9-1297). The task decision is unchanged; `/secretary/dashboard` is only the not-found fallback of the legacy pipeline and class-dashboard redirects.

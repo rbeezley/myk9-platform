@@ -22,7 +22,7 @@ interface TasksNotesCardProps {
   clubId: string;
 }
 
-// INTENT: Show Desk Tools sheet's per-show task manager (D2 of the dashboard
+// INTENT: The show's Tasks and notes tool: the per-show task manager (D2 of the dashboard
 // refocus). Owns the full create/edit/delete flow for tasks scoped to this
 // show — previously this card just showed a count and bounced to the
 // dashboard with `?showId=`, but D2 removes that round-trip and makes this

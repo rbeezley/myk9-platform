@@ -117,7 +117,7 @@ describe('ShowOverviewTab', () => {
     expect(screen.getByTestId('show-access-codes')).toHaveAttribute('data-can-regenerate', 'false');
   });
 
-  // MYK9-954: a manager's codes (and the reset) live in Tools -> Show day, so
+  // MYK9-954: a manager's codes (and the reset) live in Actions -> Show day -> Access codes, so
   // the Overview no longer carries a second copy for them.
   it('leaves access codes to Tools for managers', () => {
     render(<ShowOverviewTab show={fullShow} isAuthenticated canManageShow />);

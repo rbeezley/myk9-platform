@@ -19,7 +19,7 @@ Link each post to the KB article it supplements — do not duplicate full KB ste
 **Related guide:** `docs/user-guides/secretary-guide.md` § 7 Show Desk
 **Related KB:** `handle-a-scratch`, `handle-move-up`
 **Support-deflection value:** High — the most common "how does this actually work?" demo question.
-**Screenshot needed:** S-15 (Show Map), S-19 (Tools panel)
+**Screenshot needed:** S-15 (Show Map), S-19 (Overview Actions menu show tools)
 **Status:** Blocked on Phase 0 (screenshots) — outline ready
 
 ---

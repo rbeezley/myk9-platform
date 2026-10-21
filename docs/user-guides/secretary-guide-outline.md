@@ -233,7 +233,7 @@
 
 **Add a late entry / walk-in:**
 
-1. Open the **Tools** panel → click **Late Entry**.
+1. On **Entry Forms**, choose **Add Entry**.
 2. Find or create the exhibitor record → assign a class → record payment → Save.
 
 **Enter scores from paper scoresheets (when ringside app is not in use):**
@@ -241,10 +241,10 @@
 1. From the Show Map, click a class row → **Enter Scores**.
 2. For each dog: select Pass / NQ / Absent, enter time if applicable → Save.
 
-**Tools panel (Show Desk side sheet):**
-Available from the Tools panel: Quick Broadcast, Class Broadcast, Schedule Slip Script, Incident Log, Show Access Codes, Tasks & Notes, Volunteers.
+**Show tools (header Actions menu, under Show day and Show logistics):**
+Available from the Actions menu: under Show day, People at show, Self check-in, Access codes and Emergency trial packet; under Show logistics, Volunteers, Judge hospitality, Tasks and notes and Incident log.
 
-**Screenshots:** Show Desk overview with Show Map; scratch dialog; change-class dialog; late entry dialog; Tools panel.
+**Screenshots:** Show Desk overview with Show Map; scratch dialog; change-class dialog; late entry dialog; Actions menu show tools.
 
 **KB articles this section generates:**
 

@@ -157,7 +157,7 @@ export function SecretaryDashboardPage() {
         <MyShowsSection phase="past" title="Past shows" shows={past} defaultCollapsed />
       </div>
 
-      {/* Personal tasks — per-show tasks live in each show's Tools sheet. */}
+      {/* Personal tasks; per-show tasks live in each show's Tasks and notes tool. */}
       <div className="flex-1 border-t px-5 py-4">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Personal tasks

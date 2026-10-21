@@ -205,7 +205,9 @@ describe('TasksTab — personal-only', () => {
 
     render(<TasksTab clubId="club-1" />, { wrapper });
     expect(
-      screen.getByText(/No personal tasks\. Per-show tasks live in each show's Tools sheet\./i)
+      screen.getByText(
+        /No personal tasks\. Per-show tasks are in each show's Actions menu, under Tasks and notes\./i
+      )
     ).toBeInTheDocument();
   });
 

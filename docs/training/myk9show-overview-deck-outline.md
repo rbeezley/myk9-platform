@@ -124,10 +124,10 @@ _Reused in:_ Secretary Onboarding Deck (slide 4)
 
 - Show Map: hierarchical view of trials → classes → entries
 - Tap any entry: check in, scratch, or move up from the row actions
-- Tools panel side sheet: announcements, access codes, incident log, late entry
+- Actions menu show tools (Show day / Show logistics): people at show, self check-in, access codes, emergency trial packet, volunteers, judge hospitality, tasks and notes, incident log
 - Guided next-action card at the top tells you what needs attention
 
-🖼️ **Screenshots needed:** Show Map with class rows (shot S-15), Tools panel (shot S-19).
+🖼️ **Screenshots needed:** Show Map with class rows (shot S-15), show tools in the Actions menu (shot S-19).
 **Account:** `secretary@myk9t.com` | **Show:** Heritage Scent Work (seeded) | **Viewport:** 1280 × 800
 
 _Reused in:_ Secretary Onboarding Deck (slide 5)
@@ -194,7 +194,7 @@ _Reused in:_ Exhibitor Onboarding Deck (slide 5)
 **Key message:** Judges and stewards enter via show passcode (no account required) and score dogs on a phone or tablet — even without signal.
 **Talking points:**
 
-- Secretary generates and shares the passcode from Show Desk → Tools → Show Access Codes
+- Secretary generates and shares the passcode from Actions → Show day → Access codes
 - Judge or steward scans QR code or types the passcode → instant ringside access
 - Class list → entry list in run order → tap to open scoresheet → timer → Q/NQ → Save
 - Scores go to the secretary's results view when signal returns
@@ -309,7 +309,7 @@ _Update all links when the docs site is live at `help.myk9show.com`._
 | S-07      | 7     | Entry Management Needs review cockpit          | needs recapture                                                            |
 | S-09      | 7     | Registration selection + floating actions      | needs recapture                                                            |
 | S-15      | 8     | Show Desk — Show Map with class rows           | ready                                                                      |
-| S-19      | 8     | Show Desk — Tools panel                        | ready                                                                      |
+| S-19      | 8     | Overview — Actions menu show tools             | needs retake (Tools button removed, MYK9-1262)                             |
 | S-20      | 9     | Results Control — all classes complete         | ready                                                                      |
 | S-22      | 9     | Submit Results — preflight summary             | ready                                                                      |
 | E-01      | 10    | Shows list with entry status badges            | ready                                                                      |

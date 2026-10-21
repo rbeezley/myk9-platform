@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 interface PhaseShellProps {
   title: string;
-  /** Right-aligned slot for page-level actions (e.g. the tools sheet button). */
+  /** Right-aligned slot for page-level actions (e.g. a setup link). */
   actions?: ReactNode;
 }
 

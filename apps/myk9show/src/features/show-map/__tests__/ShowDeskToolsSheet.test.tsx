@@ -4,7 +4,9 @@ import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard'
 import { notifications } from '@/lib/notifications';
 import { mockSupabase } from '@/test/mocks/supabase';
 import { render } from '@/test/utils/testUtils';
-import { ShowDeskToolsSheet } from '../ShowDeskToolsSheet';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ShowDeskToolsMenu } from '../ShowDeskToolsMenu';
+import { ShowDeskToolPanel, type ShowDeskToolSection } from '../ShowDeskToolsSheet';
 
 vi.mock('qrcode.react', () => ({
   QRCodeSVG: () => <svg data-testid="qr-code" />,
@@ -33,209 +35,224 @@ function mockRegenerateRpc() {
   });
 }
 
-// INTENT: Sheet is a pure container — these tests verify the trigger /
-// open / close behavior + the badge contract, not the seven tools' own
-// rendering. Each tool already has its own test file.
-describe('ShowDeskToolsSheet', () => {
+function LocationProbe() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return (
+    <>
+      <div data-testid="location">{`${location.pathname}${location.search}`}</div>
+      <button type="button" onClick={() => navigate(-1)}>
+        Browser back
+      </button>
+    </>
+  );
+}
+
+// INTENT: the panel holds ONE tool, keyed by `?tool=<id>`; the Tools button is
+// only the index. These tests verify the entry points, the URL contract, the
+// close behavior and the badge contract, not the tools' own rendering. Each tool
+// already has its own test file.
+describe('ShowDeskToolPanel and ShowDeskToolsMenu', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
   });
 
-  function makeTools() {
+  function makeTools(): ShowDeskToolSection[] {
     return [
       {
-        id: 'add-entries',
-        group: 'show-day' as const,
-        title: 'Add entries',
-        summary: 'Choose own, paper, or late entries',
-        defaultOpen: true,
-        content: <div data-testid="add-entries-tool">Add entries content</div>,
+        id: 'people-at-show',
+        group: 'show-day',
+        title: 'People at show',
+        summary: 'Look up exhibitors',
+        layout: 'wide',
+        content: <div data-testid="people-tool">People content</div>,
       },
       {
         id: 'access-codes',
-        group: 'show-day' as const,
+        group: 'show-day',
         title: 'Access codes',
         summary: 'Share judge and ringside entry codes',
         attentionLabel: 'Needs review',
         content: <div data-testid="access-codes-tool">Access code content</div>,
       },
       {
-        id: 'broadcast',
-        group: 'show-logistics' as const,
-        title: 'Schedule slip script',
-        summary: 'Draft calm wording for schedule changes',
-        content: <div data-testid="broadcast-tool">Broadcast content</div>,
+        id: 'volunteers',
+        group: 'show-logistics',
+        title: 'Volunteers',
+        summary: 'Track helper assignments and gaps',
+        content: <div data-testid="volunteers-tool">Volunteers content</div>,
       },
     ];
   }
 
-  function renderSheet(props?: {
-    toolCount?: number;
+  function renderDesk(props?: {
+    route?: string;
+    tools?: ShowDeskToolSection[];
     actionableCount?: number;
     actionableTone?: 'urgent' | 'routine';
     actionableIncomplete?: boolean;
-    showId?: string;
-    requestedToolId?: string;
   }) {
+    const tools = props?.tools ?? makeTools();
     return render(
-      <ShowDeskToolsSheet
-        showId={props?.showId ?? 'show-1'}
-        tools={makeTools()}
-        toolCount={props?.toolCount}
-        {...(props?.actionableCount !== undefined && { actionableCount: props.actionableCount })}
-        {...(props?.actionableTone !== undefined && { actionableTone: props.actionableTone })}
-        {...(props?.actionableIncomplete !== undefined && {
-          actionableIncomplete: props.actionableIncomplete,
-        })}
-        {...(props?.requestedToolId !== undefined && {
-          requestedToolId: props.requestedToolId,
-        })}
-      />
+      <>
+        <ShowDeskToolsMenu
+          tools={tools}
+          {...(props?.actionableCount !== undefined && { actionableCount: props.actionableCount })}
+          {...(props?.actionableTone !== undefined && { actionableTone: props.actionableTone })}
+          {...(props?.actionableIncomplete !== undefined && {
+            actionableIncomplete: props.actionableIncomplete,
+          })}
+        />
+        <ShowDeskToolPanel tools={tools} />
+        <LocationProbe />
+      </>,
+      { initialRoute: props?.route ?? '/shows/show-1' }
     );
   }
 
-  it('renders the Tools trigger button with a default badge matching tool count', () => {
-    renderSheet();
+  it('keeps the panel closed by default and shows no tool content', () => {
+    renderDesk();
 
-    const trigger = screen.getByRole('button', { name: /tools/i });
-    expect(trigger).toBeInTheDocument();
-    const badge = screen.getByTestId('show-desk-tools-badge');
-    expect(badge).toHaveTextContent('3');
-    expect(badge).toHaveTextContent('3 tools available');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('people-tool')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('access-codes-tool')).not.toBeInTheDocument();
   });
 
-  it('keeps the sheet closed by default (tool content not rendered)', () => {
-    renderSheet();
-
-    expect(screen.queryByRole('dialog', { name: /show tools/i })).not.toBeInTheDocument();
-    expect(screen.queryByTestId('add-entries-tool')).not.toBeInTheDocument();
-  });
-
-  it('opens a requested tool directly for cross-page deep links', () => {
-    renderSheet({ requestedToolId: 'broadcast' });
-
-    expect(screen.getByRole('dialog', { name: /show tools/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /schedule slip script/i })).toHaveAttribute(
-      'aria-expanded',
-      'true'
-    );
-    expect(screen.getByTestId('broadcast-tool')).toBeInTheDocument();
-  });
-
-  it('opens the sheet on trigger click and renders collapsed tool sections', async () => {
-    const { user } = renderSheet();
+  it('lists the tools under Show day and Show logistics, in that order, with attention labels', async () => {
+    const { user } = renderDesk();
 
     await user.click(screen.getByRole('button', { name: /tools/i }));
+    await screen.findByRole('menu');
 
-    expect(screen.getByRole('dialog', { name: /show tools/i })).toBeInTheDocument();
-    expect(screen.getByRole('dialog', { name: /show tools/i })).toHaveAttribute(
-      'data-layout',
-      'compact'
-    );
-    expect(screen.getByText(/show-day lookups and codes/i)).toBeInTheDocument();
-    expect(screen.queryByText(/show messages/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /add entries/i })).toHaveAttribute(
-      'aria-expanded',
-      'true'
-    );
-    expect(screen.getByRole('button', { name: /schedule slip script/i })).toHaveAttribute(
-      'aria-expanded',
-      'false'
-    );
-    expect(screen.getByTestId('add-entries-tool')).toBeInTheDocument();
-    expect(screen.queryByTestId('broadcast-tool')).not.toBeInTheDocument();
-  });
-
-  it('groups the tools under Show day and Show logistics, in that order', async () => {
-    const { user } = renderSheet();
-
-    await user.click(screen.getByRole('button', { name: /tools/i }));
-
-    const groups = screen.getAllByRole('region');
-    expect(groups.map(group => group.getAttribute('aria-labelledby'))).toEqual([
+    const groups = screen.getAllByRole('group');
+    expect(groups.map(group => group.getAttribute('data-testid'))).toEqual([
       'show-desk-tools-group-show-day',
       'show-desk-tools-group-show-logistics',
     ]);
     const [showDay, logistics] = groups;
-    expect(within(showDay!).getByRole('heading', { name: 'Show day' })).toBeInTheDocument();
-    expect(within(showDay!).getByRole('button', { name: /access codes/i })).toBeInTheDocument();
-    expect(within(logistics!).getByRole('heading', { name: 'Show logistics' })).toBeInTheDocument();
-    expect(
-      within(logistics!).getByRole('button', { name: /schedule slip script/i })
-    ).toBeInTheDocument();
+    expect(within(showDay!).getByText('Show day')).toBeInTheDocument();
+    expect(within(showDay!).getByRole('menuitem', { name: /people at show/i })).toBeInTheDocument();
+    expect(within(showDay!).getByRole('menuitem', { name: /access codes/i })).toHaveTextContent(
+      'Needs review'
+    );
+    expect(within(logistics!).getByText('Show logistics')).toBeInTheDocument();
+    expect(within(logistics!).getByRole('menuitem', { name: /volunteers/i })).toBeInTheDocument();
   });
 
-  it('uses the wide drawer layout only while a wide tool is open', async () => {
-    const { user } = render(
-      <ShowDeskToolsSheet
-        showId="show-1"
-        tools={[
-          {
-            id: 'access-codes',
-            group: 'show-day',
-            title: 'Access codes',
-            summary: 'Share judge and ringside entry codes',
-            defaultOpen: true,
-            content: <div>Access code content</div>,
-          },
-          {
-            id: 'people-at-show',
-            group: 'show-day',
-            title: 'People at show',
-            summary: 'Look up exhibitors',
-            layout: 'wide',
-            content: <div>People roster</div>,
-          },
-        ]}
-      />
-    );
+  it.each([
+    ['people-at-show', 'People at show', 'people-tool'],
+    ['access-codes', 'Access codes', 'access-codes-tool'],
+    ['volunteers', 'Volunteers', 'volunteers-tool'],
+  ])('opens only %s from its menu row', async (id, title, contentTestId) => {
+    const { user } = renderDesk({ route: '/shows/show-1?phase=day' });
 
     await user.click(screen.getByRole('button', { name: /tools/i }));
+    await screen.findByRole('menu');
+    await user.click(screen.getByRole('menuitem', { name: new RegExp(title, 'i') }));
 
-    expect(screen.getByRole('dialog', { name: /show tools/i })).toHaveAttribute(
-      'data-layout',
-      'compact'
-    );
-
-    await user.click(screen.getByRole('button', { name: /people at show/i }));
-
-    expect(screen.getByRole('dialog', { name: /show tools/i })).toHaveAttribute(
-      'data-layout',
-      'wide'
-    );
+    expect(await screen.findByRole('dialog', { name: title })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(`tool=${id}`);
+    // The link merges into the current params instead of dropping them.
+    expect(screen.getByTestId('location')).toHaveTextContent('phase=day');
+    expect(screen.getByTestId(contentTestId)).toBeInTheDocument();
+    for (const other of ['people-tool', 'access-codes-tool', 'volunteers-tool']) {
+      if (other !== contentTestId) expect(screen.queryByTestId(other)).not.toBeInTheDocument();
+    }
   });
 
-  it('closes the sheet when Escape is pressed', async () => {
-    const { user } = renderSheet();
+  it('shows the tool title and summary in the panel header', () => {
+    renderDesk({ route: '/shows/show-1?tool=access-codes' });
+
+    const dialog = screen.getByRole('dialog', { name: 'Access codes' });
+    expect(within(dialog).getByText('Share judge and ringside entry codes')).toBeInTheDocument();
+  });
+
+  it('opens the requested tool directly from a deep link', () => {
+    renderDesk({ route: '/shows/show-1?tool=volunteers' });
+
+    expect(screen.getByRole('dialog', { name: 'Volunteers' })).toBeInTheDocument();
+    expect(screen.getByTestId('volunteers-tool')).toBeInTheDocument();
+    expect(screen.queryByTestId('people-tool')).not.toBeInTheDocument();
+  });
+
+  it('stays closed, without crashing, for an unknown tool id', () => {
+    renderDesk({ route: '/shows/show-1?tool=not-a-tool' });
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /tools/i })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1?tool=not-a-tool');
+  });
+
+  it('opens from the menu as a new history entry, so Back closes it and keeps the other params', async () => {
+    const { user } = renderDesk({ route: '/shows/show-1?phase=day' });
 
     await user.click(screen.getByRole('button', { name: /tools/i }));
-    expect(screen.getByRole('dialog', { name: /show tools/i })).toBeInTheDocument();
+    await screen.findByRole('menu');
+    await user.click(screen.getByRole('menuitem', { name: /volunteers/i }));
+    expect(await screen.findByRole('dialog', { name: 'Volunteers' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Browser back', hidden: true }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/shows\/show-1\?phase=day$/);
+  });
+
+  it('closes by replacing the history entry, so Back after closing does not reopen the tool', async () => {
+    const { user } = renderDesk({ route: '/shows/show-1?phase=day' });
+
+    await user.click(screen.getByRole('button', { name: /tools/i }));
+    await screen.findByRole('menu');
+    await user.click(screen.getByRole('menuitem', { name: /volunteers/i }));
+    const dialog = await screen.findByRole('dialog', { name: 'Volunteers' });
+    await user.click(within(dialog).getByRole('button', { name: /close/i }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/shows\/show-1\?phase=day$/);
+
+    await user.click(screen.getByRole('button', { name: 'Browser back', hidden: true }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('location')).not.toHaveTextContent('tool=');
+  });
+
+  it('removes the tool param, keeping the rest, when Escape is pressed', async () => {
+    const { user } = renderDesk({ route: '/shows/show-1?phase=day&tool=volunteers' });
+    expect(screen.getByRole('dialog', { name: 'Volunteers' })).toBeInTheDocument();
 
     await user.keyboard('{Escape}');
 
-    expect(screen.queryByRole('dialog', { name: /show tools/i })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1?phase=day');
+    expect(screen.getByTestId('location')).not.toHaveTextContent('tool=');
   });
 
-  it('shows the actionable count in destructive style when > 0', () => {
-    renderSheet({ actionableCount: 3 });
+  it('removes the tool param, keeping the rest, when the close button is clicked', async () => {
+    const { user } = renderDesk({ route: '/shows/show-1?tool=access-codes&phase=day' });
 
-    const badge = screen.getByTestId('show-desk-tools-badge');
-    expect(badge).toHaveTextContent('3');
-    expect(badge).toHaveTextContent('3 items need attention');
-    // The count must reach assistive tech through the TRIGGER's name, not just
-    // the badge: an aria-label on the button used to replace it entirely.
-    expect(screen.getByRole('button', { name: /3 items need attention/i })).toBeInTheDocument();
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /close/i }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/shows\/show-1\?phase=day$/);
   });
 
-  it('singularizes the actionable label when count is 1', () => {
-    renderSheet({ actionableCount: 1 });
+  it('uses the wide layout only for a tool that asks for it', async () => {
+    const wide = renderDesk({ route: '/shows/show-1?tool=people-at-show' });
+    expect(screen.getByRole('dialog', { name: 'People at show' })).toHaveAttribute(
+      'data-layout',
+      'wide'
+    );
+    wide.unmount();
 
-    expect(screen.getByTestId('show-desk-tools-badge')).toHaveTextContent('1 item needs attention');
+    renderDesk({ route: '/shows/show-1?tool=access-codes' });
+    expect(screen.getByRole('dialog', { name: 'Access codes' })).toHaveAttribute(
+      'data-layout',
+      'compact'
+    );
   });
 
-  it('falls back to the muted tool-count badge when actionableCount is 0', () => {
-    renderSheet({ actionableCount: 0 });
+  it('renders the Tools button with a default badge matching tool count', () => {
+    renderDesk();
 
     const badge = screen.getByTestId('show-desk-tools-badge');
     expect(badge).toHaveTextContent('3');
@@ -243,15 +260,38 @@ describe('ShowDeskToolsSheet', () => {
     expect(badge).toHaveAttribute('data-tone', 'idle');
   });
 
+  it('shows the actionable count when > 0', () => {
+    renderDesk({ actionableCount: 3 });
+
+    const badge = screen.getByTestId('show-desk-tools-badge');
+    expect(badge).toHaveTextContent('3 items need attention');
+    // The count must reach assistive tech through the TRIGGER's name, not just
+    // the badge: an aria-label on the button used to replace it entirely.
+    expect(screen.getByRole('button', { name: /3 items need attention/i })).toBeInTheDocument();
+  });
+
+  it('singularizes the actionable label when count is 1', () => {
+    renderDesk({ actionableCount: 1 });
+
+    expect(screen.getByTestId('show-desk-tools-badge')).toHaveTextContent('1 item needs attention');
+  });
+
+  it('falls back to the muted tool-count badge when actionableCount is 0', () => {
+    renderDesk({ actionableCount: 0 });
+
+    const badge = screen.getByTestId('show-desk-tools-badge');
+    expect(badge).toHaveTextContent('3 tools available');
+    expect(badge).toHaveAttribute('data-tone', 'idle');
+  });
+
   /**
    * Audit H2. The badge is the secretary's only "is anything waiting?" glance
-   * while the wrench is shut, and the incident and task queries both pause
+   * while the panel is shut, and the incident and task queries both pause
    * offline. Summing unread sources as zero rendered the calm idle tool-count
-   * during exactly the outage this signal exists to surface -- an urgent
-   * incident logged by a steward could not raise it.
+   * during exactly the outage this signal exists to surface.
    */
   it('says it could not check, rather than showing the idle tool count', () => {
-    renderSheet({ actionableCount: 0, actionableIncomplete: true });
+    renderDesk({ actionableCount: 0, actionableIncomplete: true });
 
     const badge = screen.getByTestId('show-desk-tools-badge');
     expect(badge).toHaveAttribute('data-tone', 'unknown');
@@ -261,7 +301,7 @@ describe('ShowDeskToolsSheet', () => {
   });
 
   it('still reports a known count as a floor when one source is unreadable', () => {
-    renderSheet({ actionableCount: 2, actionableTone: 'routine', actionableIncomplete: true });
+    renderDesk({ actionableCount: 2, actionableTone: 'routine', actionableIncomplete: true });
 
     const badge = screen.getByTestId('show-desk-tools-badge');
     expect(badge).toHaveTextContent('2');
@@ -271,134 +311,47 @@ describe('ShowDeskToolsSheet', () => {
   });
 
   it('uses the urgent tone for incident-driven attention', () => {
-    renderSheet({ actionableCount: 2, actionableTone: 'urgent' });
+    renderDesk({ actionableCount: 2, actionableTone: 'urgent' });
 
-    const badge = screen.getByTestId('show-desk-tools-badge');
-    expect(badge).toHaveTextContent('2');
-    expect(badge).toHaveAttribute('data-tone', 'urgent');
+    expect(screen.getByTestId('show-desk-tools-badge')).toHaveAttribute('data-tone', 'urgent');
   });
 
   it('uses the ambient routine tone for hospitality/task attention', () => {
-    renderSheet({ actionableCount: 4, actionableTone: 'routine' });
+    renderDesk({ actionableCount: 4, actionableTone: 'routine' });
 
     const badge = screen.getByTestId('show-desk-tools-badge');
-    expect(badge).toHaveTextContent('4');
     expect(badge).toHaveAttribute('data-tone', 'routine');
     expect(badge).toHaveTextContent('4 items need attention');
   });
 
   it('defaults an untoned actionable count to the urgent tone', () => {
-    renderSheet({ actionableCount: 1 });
+    renderDesk({ actionableCount: 1 });
 
     expect(screen.getByTestId('show-desk-tools-badge')).toHaveAttribute('data-tone', 'urgent');
   });
 
-  it('expands and collapses a single tool section', async () => {
-    const { user } = renderSheet();
-
-    await user.click(screen.getByRole('button', { name: /tools/i }));
-    await user.click(screen.getByRole('button', { name: /schedule slip script/i }));
-
-    expect(screen.getByRole('button', { name: /schedule slip script/i })).toHaveAttribute(
-      'aria-expanded',
-      'true'
-    );
-    expect(screen.getByTestId('broadcast-tool')).toBeInTheDocument();
-    expect(screen.getByTestId('add-entries-tool')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /add entries/i }));
-
-    expect(screen.getByRole('button', { name: /add entries/i })).toHaveAttribute(
-      'aria-expanded',
-      'false'
-    );
-    expect(screen.queryByTestId('add-entries-tool')).not.toBeInTheDocument();
-  });
-
-  it('toggles a section from the keyboard', async () => {
-    const { user } = renderSheet();
-
-    await user.click(screen.getByRole('button', { name: /tools/i }));
-    const scheduleSlipScript = screen.getByRole('button', { name: /schedule slip script/i });
-    scheduleSlipScript.focus();
-    await user.keyboard('{Enter}');
-
-    expect(screen.getByTestId('broadcast-tool')).toBeInTheDocument();
-  });
-
-  it('persists open sections per show', async () => {
-    const { user, unmount } = renderSheet({ showId: 'show-1' });
-
-    await user.click(screen.getByRole('button', { name: /tools/i }));
-    await user.click(screen.getByRole('button', { name: /schedule slip script/i }));
-    unmount();
-
-    const second = renderSheet({ showId: 'show-1' });
-    await second.user.click(screen.getByRole('button', { name: /tools/i }));
-
-    expect(screen.getByTestId('broadcast-tool')).toBeInTheDocument();
-  });
-
-  it('keeps saved state scoped by show', async () => {
-    window.localStorage.setItem('show-desk-tools:show-1', JSON.stringify(['broadcast']));
-
-    const { user } = renderSheet({ showId: 'show-2' });
-    await user.click(screen.getByRole('button', { name: /tools/i }));
-
-    expect(screen.queryByTestId('broadcast-tool')).not.toBeInTheDocument();
-    expect(screen.getByTestId('add-entries-tool')).toBeInTheDocument();
-  });
-
-  it('falls back to defaults when saved state is corrupted', async () => {
-    window.localStorage.setItem('show-desk-tools:show-1', 'not json');
-    const { user } = renderSheet({ showId: 'show-1' });
-
-    await user.click(screen.getByRole('button', { name: /tools/i }));
-
-    expect(screen.getByTestId('add-entries-tool')).toBeInTheDocument();
-    expect(screen.getByTestId('access-codes-tool')).toBeInTheDocument();
-  });
-
-  it('shows attention labels on collapsed headers without forcing saved sections open', async () => {
-    window.localStorage.setItem('show-desk-tools:show-1', JSON.stringify(['add-entries']));
-    const { user } = renderSheet({ showId: 'show-1' });
-
-    await user.click(screen.getByRole('button', { name: /tools/i }));
-
-    expect(screen.getByText('Needs review')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /access codes/i })).toHaveAttribute(
-      'aria-expanded',
-      'false'
-    );
-    expect(screen.queryByTestId('access-codes-tool')).not.toBeInTheDocument();
-  });
-
-  it('lets Show Access Codes regenerate from inside the nested tools sheet', async () => {
+  it('lets Show Access Codes regenerate from inside the one-tool panel', async () => {
     mockRegenerateRpc();
 
-    const { user } = render(
-      <ShowDeskToolsSheet
-        showId="show-1"
-        tools={[
-          {
-            id: 'access-codes',
-            group: 'show-day',
-            title: 'Access codes',
-            summary: 'Share judge and ringside entry codes',
-            content: (
-              <ShowAccessCodesCard
-                showId="63165809-e025-25c6-6cf9-979f63165809"
-                showName="Spring Trial"
-                canRegenerate
-              />
-            ),
-          },
-        ]}
-      />
-    );
+    const { user } = renderDesk({
+      route: '/shows/show-1?tool=access-codes',
+      tools: [
+        {
+          id: 'access-codes',
+          group: 'show-day',
+          title: 'Access codes',
+          summary: 'Share judge and ringside entry codes',
+          content: (
+            <ShowAccessCodesCard
+              showId="63165809-e025-25c6-6cf9-979f63165809"
+              showName="Spring Trial"
+              canRegenerate
+            />
+          ),
+        },
+      ],
+    });
 
-    await user.click(screen.getByRole('button', { name: /tools/i }));
-    await user.click(screen.getByRole('button', { name: /access codes/i }));
     await user.click(screen.getByRole('button', { name: /generate new codes/i }));
     await user.click(await screen.findByRole('button', { name: /^generate$/i }));
 

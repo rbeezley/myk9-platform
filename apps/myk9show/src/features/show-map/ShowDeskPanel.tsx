@@ -7,7 +7,8 @@ import { SecretaryCockpit } from './cockpit/SecretaryCockpit';
 import { buildSecretaryCockpitSnapshot } from './cockpit/buildSecretaryCockpitSnapshot';
 import { ReadyForShowDaySection } from './cockpit/ReadyForShowDaySection';
 import { useShowClassPaperwork } from './cockpit/useShowClassPaperwork';
-import { ShowDeskToolsSheet, type ShowDeskToolSection } from './ShowDeskToolsSheet';
+import { ShowDeskToolsMenu } from './ShowDeskToolsMenu';
+import { ShowDeskToolPanel, type ShowDeskToolSection } from './ShowDeskToolsSheet';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
 import { useMoveUpTargets } from './useMoveUpTargets';
@@ -176,8 +177,7 @@ export default function ShowDeskPanel({
             <div className="flex flex-wrap items-center gap-2">
               {canManageShow && <ShowHomeSetupLinks showId={show.id} />}
               {canManageShow && <ShowHomePaperScores classes={classes} />}
-              <ShowDeskToolsSheet
-                showId={show.id}
+              <ShowDeskToolsMenu
                 tools={tools}
                 {...(actionableCount !== undefined && { actionableCount })}
                 {...(actionableTone !== undefined && { actionableTone })}
@@ -187,6 +187,7 @@ export default function ShowDeskPanel({
           ) : undefined
         }
       />
+      {tools && <ShowDeskToolPanel tools={tools} />}
       {desk.status === 'setup' && (
         <div
           className="rounded-md border bg-muted/40 px-4 py-3 text-sm text-muted-foreground"

@@ -6,8 +6,7 @@
  * is expanded — identical to the page's pre-collapse behavior. Collapsing is an
  * additive "reduce the list" affordance layered on top.
  *
- * Mirrors the shape of `features/show-map/showDeskToolsState.ts`: a per-show
- * localStorage key and defensive try/catch. We intentionally do NOT prune
+ * Uses a per-show localStorage key and a defensive try/catch. We intentionally do NOT prune
  * against the currently-present trials at load time — the picker's data loads
  * asynchronously, so at first render there are no trial ids to validate
  * against, and filtering then would discard a judge's saved collapse state

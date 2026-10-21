@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { MasterDetailLayout } from '@/components/layout/MasterDetailLayout';
 import { SelectModeButton } from '@/components/layout/SelectModeButton';
@@ -114,7 +114,16 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
     setSearchParams(params, { replace: true });
   }, [searchParams, setSearchParams]);
 
+  // Set when a create navigates to the new record. EditPanelWrapper calls onClose AGAIN after
+  // onSave resolves, with this render's stale searchParams (add=true still set); without this
+  // guard that second call rewrites the URL back to the list and undoes the navigation.
+  const createdNavigatedRef = useRef(false);
+
   const closeCreatePersonDialog = useCallback(() => {
+    if (createdNavigatedRef.current) {
+      createdNavigatedRef.current = false;
+      return;
+    }
     if (!searchParams.has('add')) return;
     const params = new URLSearchParams(searchParams);
     params.delete('add');
@@ -158,7 +167,6 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
       };
 
       const newUser = await addUser(newPersonInput);
-      closeCreatePersonDialog();
       // Seed the cache synchronously so PersonDetailPage finds the new user
       // immediately. Without this, navigation races the cache refresh and
       // PersonDetailPage's not-found guard ping-pongs back to /people.
@@ -172,9 +180,11 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       // Select mode hides the detail pane, so the new person would open unseen.
       exitSelectMode();
+      // /people/<id> carries no search, so it also drops `add`; the wrapper's close must not undo it.
+      createdNavigatedRef.current = true;
       navigate(`/people/${newUser.id}`, { replace: true });
     },
-    [addUser, closeCreatePersonDialog, exitSelectMode, navigate, queryClient]
+    [addUser, exitSelectMode, navigate, queryClient]
   );
 
   // Render view content

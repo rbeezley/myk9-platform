@@ -3,6 +3,9 @@ import { getTrialTimezone } from '@/features/registries';
 import { calendarDateInTimeZone } from '@/utils/calendarDate';
 import { toLocalDateOnly } from '@/utils/date-format';
 
+/** Show days turn over at each show's own midnight, not the viewer's, so callers re-group on this timer. */
+export const REGROUP_INTERVAL_MS = 5 * 60 * 1000;
+
 const GROUP_ORDER = ['managing', 'today', 'upcoming', 'past'] as const;
 export type ShowsPaneGroupId = (typeof GROUP_ORDER)[number];
 /** Where a show sits on the calendar; `managing` is a viewer-relative section laid over it. */

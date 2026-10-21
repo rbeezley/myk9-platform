@@ -11,10 +11,7 @@ import { ShowPermissionValidator } from '@/utils/permissionValidation';
 import { getUserManagedShows } from '@/utils/show-relationships';
 import { formatShowDateRange } from '@/lib/format/dates';
 import type { Show } from '@/types/show-types';
-import { groupShowsForPane } from './showsPaneGroups';
-
-// Show days turn over at each show's own midnight, not the viewer's, so re-group on a timer.
-const REGROUP_INTERVAL_MS = 5 * 60 * 1000;
+import { groupShowsForPane, REGROUP_INTERVAL_MS } from './showsPaneGroups';
 
 interface ShowsPaneListProps {
   /** The show open in the detail pane, if any. */

@@ -484,6 +484,7 @@ export type Database = {
           is_available: boolean | null
           show_id: string
           trial_id: string | null
+          updated_at: string
           version: number
         }
         Insert: {
@@ -496,6 +497,7 @@ export type Database = {
           is_available?: boolean | null
           show_id: string
           trial_id?: string | null
+          updated_at?: string
           version?: number
         }
         Update: {
@@ -508,6 +510,7 @@ export type Database = {
           is_available?: boolean | null
           show_id?: string
           trial_id?: string | null
+          updated_at?: string
           version?: number
         }
         Relationships: [

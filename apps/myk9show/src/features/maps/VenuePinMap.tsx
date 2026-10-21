@@ -85,7 +85,8 @@ export function VenuePinMap({ value, onChange, address, locator, className }: Ve
   return (
     <div className={className}>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        {/* MYK9-686: a missing pin is stated, never silent — exhibitors see no map without it. */}
+        {/* MYK9-686: a missing pin is stated, never silent — exhibitors see no map without it.
+            MYK9-1295: an empty form (no address yet) gets a neutral helper, not the warning. */}
         <p
           className={
             value || !address.trim() ? 'text-sm text-muted-foreground' : 'text-sm text-warning'
@@ -93,7 +94,9 @@ export function VenuePinMap({ value, onChange, address, locator, className }: Ve
         >
           {value
             ? 'Drag the pin to fine-tune the venue location.'
-            : 'No map pin yet — locate the address or click the map to place it.'}
+            : address.trim()
+              ? 'No map pin yet — locate the address or click the map to place it.'
+              : 'Enter the venue address, then locate it to place the map pin.'}
         </p>
         <Button
           type="button"

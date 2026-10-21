@@ -67,7 +67,9 @@ export type ActionIconName =
   | 'authorize'
   | 'revoke'
   | 'close-out'
-  | 'reports';
+  | 'reports'
+  | 'members'
+  | 'payments';
 
 /**
  * One more thing a detail page lets this viewer do to its object, beyond Edit: Change Photo,

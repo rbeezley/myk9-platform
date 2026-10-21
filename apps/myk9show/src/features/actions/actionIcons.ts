@@ -7,6 +7,7 @@ import {
   Download,
   Flag,
   FileText,
+  Landmark,
   Layers,
   ListPlus,
   PawPrint,
@@ -17,6 +18,7 @@ import {
   ShieldOff,
   Ticket,
   UserPlus,
+  Users,
   type LucideIcon,
 } from 'lucide-react';
 import type { ActionIconName } from './actionRegistry';
@@ -44,4 +46,6 @@ export const ACTION_ICONS: Readonly<Record<ActionIconName, LucideIcon>> = {
   revoke: ShieldOff,
   'close-out': Flag,
   reports: Printer,
+  members: Users,
+  payments: Landmark,
 };

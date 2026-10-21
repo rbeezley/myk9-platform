@@ -154,6 +154,8 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
       '/club-admin/payments',
       '/clubs/club-1',
     ]);
+    expect(group?.railLink).toMatchObject({ id: 'my-club', href: '/clubs/club-1' });
+    expect(group?.railMenu).toBeUndefined();
     expect(group?.items.find(item => item.title === 'Club Profile')?.description).toBeUndefined();
     expect(group?.items.find(item => item.title === 'Members')?.description).toBeUndefined();
   });
@@ -161,10 +163,13 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   it('club admin keeps stable My Club links without validated context', () => {
     const config = buildUnifiedSidebarConfig([UserRole.CLUB_ADMIN]);
 
-    expect(config.groups.find(g => g.title === 'My Club')?.items.map(item => item.href)).toEqual([
+    const group = config.groups.find(g => g.title === 'My Club');
+    expect(group?.items.map(item => item.href)).toEqual([
       '/club-admin/members',
       '/club-admin/payments',
     ]);
+    expect(group?.railLink).toBeUndefined();
+    expect(group?.railMenu).toBeDefined();
   });
 
   it('manage sidebar omits standalone Entries, Reports, Results, and Submit Results', () => {

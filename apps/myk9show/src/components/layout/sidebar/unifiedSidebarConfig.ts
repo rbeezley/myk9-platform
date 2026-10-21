@@ -304,9 +304,20 @@ export function buildUnifiedSidebarConfig(
         });
       }
 
+      // With a validated club the rail item is a link to the club page (MYK9-1293); a menu that
+      // never navigates reads as broken. Without one there is no page to open, so keep the menu.
       groups.push({
         title: 'My Club',
-        railMenu: CLUB_RAIL_MENU,
+        ...(clubContext
+          ? {
+              railLink: {
+                id: 'my-club',
+                title: 'My Club',
+                icon: Flag,
+                href: `/clubs/${clubContext.clubId}`,
+              } satisfies NavRailLink,
+            }
+          : { railMenu: CLUB_RAIL_MENU }),
         items: myClubItems,
       });
     }

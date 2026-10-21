@@ -30,15 +30,32 @@ function resolveTheme(mode: ThemeMode): ResolvedTheme {
   return mode;
 }
 
+// The device-level settings store (read by theme-init.js) keeps its own copy
+// of the choice. Honor it when this provider has not written its key yet.
+function readSettingsStoreMode(): ThemeMode | null {
+  try {
+    const raw = localStorage.getItem('myK9Q_settings');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { state?: { settings?: { theme?: unknown } } };
+    const saved = parsed?.state?.settings?.theme;
+    if (saved === 'auto') return 'system';
+    return saved === 'light' || saved === 'dark' ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+// INTENT: the app opens LIGHT until the person chooses. With nothing saved the
+// OS dark setting must not apply; 'system' is an explicit, saved choice only.
 function readStoredMode(): ThemeMode {
   if (typeof window === 'undefined') {
-    return 'system';
+    return 'light';
   }
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved === 'light' || saved === 'dark' || saved === 'system') {
     return saved;
   }
-  return 'system';
+  return readSettingsStoreMode() ?? 'light';
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

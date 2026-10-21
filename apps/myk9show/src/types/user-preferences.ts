@@ -207,7 +207,7 @@ export interface UseUserPreferencesReturn {
 
 // Default preferences
 export const DEFAULT_THEME_PREFERENCES: ThemePreferences = {
-  mode: 'system',
+  mode: 'light', // INTENT: opens light until the person chooses; 'system' is an opt-in
   colorScheme: 'clay',
   fontSize: 'medium',
   reduceMotion: false,

@@ -67,7 +67,7 @@ interface SettingsState {
 
 const defaultSettings: AppSettings = {
   // Display
-  theme: 'auto',
+  theme: 'light', // INTENT: opens light until the person chooses; 'auto' is an opt-in
   accentColor: 'clay',
 
   // Performance
@@ -121,7 +121,7 @@ export const useSettingsStore = create<SettingsState>()(
 
         resetSettings: () => {
           set({ settings: defaultSettings });
-          applyTheme('auto');
+          applyTheme(defaultSettings.theme);
           applyAccentColor('clay');
         },
 
@@ -175,7 +175,7 @@ export const useSettingsStore = create<SettingsState>()(
               state.settings.accentColor = ACCENT_V1_TO_V2[raw];
             }
             applyAccentColor(state.settings.accentColor || 'clay');
-            applyTheme(state.settings.theme || 'auto');
+            applyTheme(state.settings.theme || defaultSettings.theme);
           }
         },
       }

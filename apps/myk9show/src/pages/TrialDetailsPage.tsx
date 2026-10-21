@@ -84,11 +84,7 @@ const TrialDetailsPage: React.FC = () => {
   // that read has settled without a show (errored, not found, offline), fall through to the
   // read-only view rather than waiting forever.
   const manageScopeResolving =
-    !canManageTrial &&
-    !parentShow &&
-    parentShowLoading &&
-    !!currentTrial &&
-    !!user;
+    !canManageTrial && !parentShow && parentShowLoading && !!currentTrial && !!user;
 
   const [activeTab, setActiveTab] = useUrlTab(TAB_IDS, 'overview');
 

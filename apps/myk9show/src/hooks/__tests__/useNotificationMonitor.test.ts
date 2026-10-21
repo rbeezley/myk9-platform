@@ -94,6 +94,8 @@ vi.mock('@myk9/notifications', () => ({
 vi.mock('@/features/at-show/dogFavoritesSync', () => ({
   useFavoriteArmbandsByShow: () => new Map<string, ReadonlySet<number>>(),
 }));
+// The channel-status hook has its own tests; here it would add a second subscriber.
+vi.mock('@/hooks/useShowChannelsLive', () => ({ useShowChannelsLive: () => false }));
 vi.mock('@/utils/conflictDetection', () => ({ detectConflicts: vi.fn(() => []) }));
 
 /** The first snapshot after mount is a silent baseline (MYK9-735); alerts need a change after it. */

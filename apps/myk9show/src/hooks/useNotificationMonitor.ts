@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useNotificationDelivery } from '@/hooks/useNotificationDelivery';
+import { useShowChannelsLive } from '@/hooks/useShowChannelsLive';
+import { fetchNotificationSnapshot } from '@/hooks/notificationSnapshotSources';
 import { useShowDayData } from '@/hooks/queries/useShowDayData';
 import { useShowStore } from '@/store/showStore';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
@@ -26,6 +27,8 @@ import type { ShowEntry } from '@/store/entry-store-types';
 
 const DEDUP_WINDOW_MS = 60_000;
 const REFRESH_DEBOUNCE_MS = 400;
+// Stable identity for "no shows", so the channel hook does not resubscribe each render.
+const EMPTY_SHOW_IDS: readonly string[] = [];
 
 interface EntryRow {
   id: string;
@@ -133,38 +136,29 @@ export function useNotificationMonitor(): void {
     [userDogIds, favoriteArmbandsByShow]
   );
 
+  // Poll only with something to watch (MYK9-1306). The 30 s poll is the fallback
+  // for a missed broadcast, so it stops while every show channel is subscribed
+  // (the signal effect below nudges a refetch on each change) and resumes the
+  // moment one drops or the device goes offline. Broadcast is at-most-once, so a
+  // channel returning to SUBSCRIBED also triggers one refresh (effect below) to
+  // catch up on signals sent during the gap. Channels are opened only when the
+  // monitor is actually watching, never for a user with nothing to watch.
+  const hasWatched = useMemo(() => watchSetSize(watchSet) > 0, [watchSet]);
+  const queryEnabled = showIds.length > 0 && preferences.enabled && hasWatched;
+  const channelsLive = useShowChannelsLive(
+    preferences.enabled && userWithRoles && hasWatched ? showIds : EMPTY_SHOW_IDS
+  );
+
   const snapshotQuery = useQuery({
     queryKey: ['notification-monitor', 'entries', showIds],
     queryFn: async (): Promise<NotificationSnapshot> => {
       const startedAt = Date.now();
       if (showIds.length === 0) return { entries: [], classes: [], startedAt };
-
-      const { data: classRows, error: classError } = await supabase
-        .from('classes')
-        .select(
-          `id, name, status, is_scoring_finalized, results_released_at,
-         trial:trials!inner(show_id)`
-        )
-        .in('trial.show_id', showIds);
-      if (classError) throw classError;
-
-      const classIds = (classRows ?? []).map((row: { id: string }) => row.id);
-      if (classIds.length === 0) return { entries: [], classes: classRows ?? [], startedAt };
-
-      const { data: entryRows, error: entryError } = await supabase
-        .from('view_authenticated_entry_results')
-        .select(
-          `id, dog_id, class_id, show_id, check_in_status, armband, is_scored, result_status,
-         dog_call_name`
-        )
-        .in('class_id', classIds);
-      if (entryError) throw entryError;
-
-      return { entries: entryRows ?? [], classes: classRows ?? [], startedAt };
+      return { ...(await fetchNotificationSnapshot(showIds)), startedAt };
     },
-    enabled: showIds.length > 0 && preferences.enabled,
+    enabled: queryEnabled,
     staleTime: 30_000,
-    refetchInterval: 30_000,
+    refetchInterval: channelsLive ? false : 30_000,
   });
 
   const lastYourTurnAlert = useRef<Map<string, number>>(new Map());
@@ -411,12 +405,7 @@ export function useNotificationMonitor(): void {
   useEffect(() => {
     // Nothing to watch means nothing to poll for — but "nothing" is now the
     // union: a user who owns no dogs still gets alerts for favorited armbands.
-    if (
-      !preferences.enabled ||
-      !userWithRoles ||
-      showIds.length === 0 ||
-      watchSetSize(watchSet) === 0
-    ) {
+    if (!preferences.enabled || !userWithRoles || showIds.length === 0 || !hasWatched) {
       return undefined;
     }
 
@@ -435,7 +424,8 @@ export function useNotificationMonitor(): void {
         const result = await refetchSnapshot();
         if (!disposed && result.data) processSnapshot(result.data);
       } catch {
-        // The 30-second query poll and next signal repair a transient failure.
+        // The next signal, the 30-second poll while channels are down, or the
+        // rejoin refresh repairs a transient failure.
       } finally {
         inFlight = false;
         if (!disposed && pending) {
@@ -461,5 +451,27 @@ export function useNotificationMonitor(): void {
       if (timer) clearTimeout(timer);
       for (const unsubscribe of unsubscribes) unsubscribe();
     };
-  }, [preferences.enabled, userWithRoles, showIds, watchSet, refetchSnapshot, processSnapshot]);
+  }, [preferences.enabled, userWithRoles, showIds, hasWatched, refetchSnapshot, processSnapshot]);
+
+  // While the query is disabled no snapshot is processed, so the observed state
+  // would freeze and the first snapshot after re-enabling would alert on
+  // everything that happened meanwhile (INTENT MYK9-735). Drop it, and refresh on
+  // re-enable so the next snapshot is the silent baseline even when unchanged.
+  const wasQueryEnabledRef = useRef(queryEnabled);
+  useEffect(() => {
+    if (!queryEnabled) observedRef.current = null;
+    else if (!wasQueryEnabledRef.current) refreshNowRef.current?.();
+    wasQueryEnabledRef.current = queryEnabled;
+  }, [queryEnabled]);
+
+  // Catch up when a channel returns to SUBSCRIBED: the interval was off, and
+  // signals sent during the gap are lost. Skipped before the first baseline,
+  // whose own initial fetch already covers it.
+  const wasLiveRef = useRef(false);
+  useEffect(() => {
+    if (channelsLive && !wasLiveRef.current && observedRef.current !== null) {
+      refreshNowRef.current?.();
+    }
+    wasLiveRef.current = channelsLive;
+  }, [channelsLive]);
 }

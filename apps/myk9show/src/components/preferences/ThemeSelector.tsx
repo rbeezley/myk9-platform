@@ -161,7 +161,7 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
         </CardHeader>
         <CardContent>
           <RadioGroup
-            value={preferences?.mode || 'system'}
+            value={preferences?.mode || 'light'}
             onValueChange={handleModeChange}
             className="grid grid-cols-3 gap-4"
           >

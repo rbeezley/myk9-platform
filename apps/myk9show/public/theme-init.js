@@ -10,7 +10,18 @@
     if (settings.state && settings.state.settings) settings = settings.state.settings;
     else if (settings.settings) settings = settings.settings;
 
-    var theme = settings.theme || 'auto';
+    // INTENT: the app opens LIGHT until the person chooses. With nothing saved
+    // the OS dark setting must NOT apply (the homepage and public show pages
+    // are fixed light; a dark-OS visitor must not bounce between palettes).
+    // A saved choice (Light, Dark or System/auto) wins. ThemeContext's own key
+    // ('theme', where the header toggle writes) is the most recent React-side
+    // write, so it is read first; 'system' there means 'auto' here.
+    var contextMode = localStorage.getItem('theme');
+    if (contextMode === 'system') contextMode = 'auto';
+    if (contextMode !== 'light' && contextMode !== 'dark' && contextMode !== 'auto') {
+      contextMode = null;
+    }
+    var theme = contextMode || settings.theme || 'light';
     var isDark =
       theme === 'dark' ||
       (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);

@@ -79,6 +79,38 @@ describe('ThemeContext', () => {
     expect(root.classList.contains('dark')).toBe(true);
   });
 
+  it('opens light for a dark-OS visitor with nothing saved', () => {
+    vi.stubGlobal('matchMedia', createMatchMediaMock(true).matchMedia);
+    const { result } = renderHook(() => useTheme(), { wrapper });
+
+    expect(result.current.mode).toBe('light');
+    expect(result.current.theme).toBe('light');
+    expect(root.classList.contains('theme-light')).toBe(true);
+    expect(root.classList.contains('dark')).toBe(false);
+  });
+
+  it('follows a dark OS when System was saved', () => {
+    localStorage.setItem('theme', 'system');
+    vi.stubGlobal('matchMedia', createMatchMediaMock(true).matchMedia);
+    const { result } = renderHook(() => useTheme(), { wrapper });
+
+    expect(result.current.mode).toBe('system');
+    expect(result.current.theme).toBe('dark');
+    expect(root.classList.contains('theme-dark')).toBe(true);
+  });
+
+  it('honors a choice saved only in the settings store (device-level theme)', () => {
+    localStorage.setItem(
+      'myK9Q_settings',
+      JSON.stringify({ state: { settings: { theme: 'dark' } } })
+    );
+    vi.stubGlobal('matchMedia', createMatchMediaMock(false).matchMedia);
+    const { result } = renderHook(() => useTheme(), { wrapper });
+
+    expect(result.current.mode).toBe('dark');
+    expect(root.classList.contains('theme-dark')).toBe(true);
+  });
+
   it('resolves system mode from prefers-color-scheme and keeps the trio synced', () => {
     const { fireChange, matchMedia } = createMatchMediaMock(true); // OS is dark
     vi.stubGlobal('matchMedia', matchMedia);

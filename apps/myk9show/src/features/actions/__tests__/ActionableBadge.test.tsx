@@ -31,4 +31,8 @@ describe('ActionableBadge', () => {
     expect(badge).toHaveAttribute('data-tone', 'routine');
     expect(badge).toHaveTextContent('2 items need attention, and some could not be checked');
   });
+  it('treats a count with no tone as urgent', () => {
+    render(<ActionableBadge count={1} />);
+    expect(screen.getByTestId('actionable-badge')).toHaveAttribute('data-tone', 'urgent');
+  });
 });

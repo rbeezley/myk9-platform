@@ -173,12 +173,12 @@ export default function VolunteerSchedulingPage() {
         {/* F32: this used to say "Choose a show from the sidebar", but the sidebar
             has no show picker -- it carries a single link to the current live show,
             and following it navigates away from Volunteers. Name the path that
-            actually works: the page needs ?showId=, which Show Desk's Tools sheet
-            appends. */}
+            actually works: the page needs ?showId=, which the show page's Actions
+            menu row (Show logistics, Volunteers) appends. */}
         <p className="mt-1 max-w-md text-sm text-muted-foreground">
           Volunteer scheduling is per show. Open the show you want, then choose{' '}
-          <span className="font-medium text-foreground">Tools &rarr; Volunteers</span> on its Show
-          Desk.
+          <span className="font-medium text-foreground">Actions &rarr; Volunteers</span> on its
+          Overview.
         </p>
         <Link
           to="/secretary/dashboard"

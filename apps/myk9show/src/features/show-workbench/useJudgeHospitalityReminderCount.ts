@@ -15,8 +15,8 @@ function readReminderCount(showId: string, judges: readonly JudgeHospitalityJudg
 }
 
 // INTENT: Reactive read of the (localStorage-backed) hospitality reminder count
-// for the Show Desk Tools trigger badge. Subscribes to the persist event fired
-// by writeJudgeHospitalityState so toggling a checkbox inside the open sheet
+// for the Actions trigger badge. Subscribes to the persist event fired
+// by writeJudgeHospitalityState so toggling a checkbox inside the open panel
 // keeps the closed-trigger glance current — and to `storage` so a second tab
 // stays in sync. JudgeHospitalityCard remains the editing owner; this hook only
 // observes.

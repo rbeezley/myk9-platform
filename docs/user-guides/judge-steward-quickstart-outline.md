@@ -56,7 +56,7 @@ The final `judge-steward-quickstart.md` should be:
 4. You are in — no account needed.
 
 **How the secretary gets the passcode:**
-Show page → Actions menu → Show day → **Show Access Codes** → share the QR code or the plaintext passcode.
+Show page → Actions menu → Show day → **Access codes** → share the QR code or the plaintext passcode.
 
 **Screenshots:** SmartSignInPage showing passcode entry; QR code card in Show Desk tools.
 
@@ -139,13 +139,13 @@ Show page → Actions menu → Show day → **Show Access Codes** → share the 
 
 ## Section 6 — When Things Go Wrong
 
-| Symptom                                         | What to do                                                                      |
-| ----------------------------------------------- | ------------------------------------------------------------------------------- |
-| "I can't find my class"                         | Check with the secretary — the class may not have been published yet            |
-| "The passcode doesn't work"                     | Ask the secretary for the current code (they regenerate from Show Access Codes) |
-| "My scores aren't showing up for the secretary" | Check the offline banner — scores sync when connection restores                 |
-| "The timer reset itself"                        | Restart timing; scores are saved manually (tap Save), not auto-saved            |
-| "The app is completely unresponsive"            | Close and reopen the browser tab; if you used the QR code, scan it again        |
+| Symptom                                         | What to do                                                                                      |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| "I can't find my class"                         | Check with the secretary — the class may not have been published yet                            |
+| "The passcode doesn't work"                     | Ask the secretary for the current code (they regenerate from Actions › Show day › Access codes) |
+| "My scores aren't showing up for the secretary" | Check the offline banner — scores sync when connection restores                                 |
+| "The timer reset itself"                        | Restart timing; scores are saved manually (tap Save), not auto-saved                            |
+| "The app is completely unresponsive"            | Close and reopen the browser tab; if you used the QR code, scan it again                        |
 
 ---
 
@@ -154,7 +154,7 @@ Show page → Actions menu → Show day → **Show Access Codes** → share the 
 - Role intent: `docs/INTENT.md` § Judge, Steward
 - At-show route shape: `project_atshow_route_shape.md` in memory
 - Secretary golden path § Part 6 — full at-show walkthrough
-- Secretary-side: Show Access Codes card in Show Desk tools
+- Secretary-side: Access codes, from the show page's Actions menu (Show day)
 
 ## QA-Draft Friction Findings
 

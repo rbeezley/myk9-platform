@@ -29,7 +29,7 @@ interface TasksTabProps {
 }
 
 // Personal tasks only (show_id IS NULL). Per-show tasks are managed in
-// each show's Tools sheet via TasksNotesCard — see D2 of plan-dashboard-refocus.md.
+// each show's Tasks and notes tool (Actions menu) via TasksNotesCard — see D2 of plan-dashboard-refocus.md.
 export function TasksTab({ clubId }: TasksTabProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
@@ -182,7 +182,7 @@ export function TasksTab({ clubId }: TasksTabProps) {
           {visible.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               {tasks.length === 0
-                ? "No personal tasks. Per-show tasks live in each show's Tools sheet."
+                ? "No personal tasks. Per-show tasks are in each show's Actions menu, under Tasks and notes."
                 : 'No tasks match your search.'}
             </p>
           ) : (

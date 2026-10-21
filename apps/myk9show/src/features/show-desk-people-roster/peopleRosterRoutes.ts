@@ -7,8 +7,8 @@ import type { PeopleRosterFilter } from './peopleRoster';
  * queue-based cockpit (`entryManagementCockpitParams.ts` has no concept of
  * `mode`), but `getEntryManagementHref({ mode: 'day-of' })` kept being called
  * — landing on the registration review queue, which has no check-in control.
- * The check-in controls a secretary needs already live here, under Show Desk
- * → Tools → People at show (`ShowWorkbenchShowDeskPage.tsx`), so this links
+ * The check-in controls a secretary needs already live here, under the show's
+ * Actions menu → People at show (`ShowWorkbenchShowDeskPage.tsx`), so this links
  * there instead of rebuilding a day-of mode Entry Management already
  * abandoned (CLAUDE.md "consolidate, don't duplicate" — a deep link to the
  * existing surface, not a second implementation).

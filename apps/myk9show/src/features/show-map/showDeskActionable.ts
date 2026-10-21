@@ -1,5 +1,5 @@
-// INTENT: The Show Desk Tools sheet is closed by default. Its trigger badge is
-// the secretary's only "is anything waiting?" glance while the Actions menu is shut.
+// INTENT: Each show tool opens in its own panel, closed by default. The badge on the header
+// Actions trigger is the secretary's only "is anything waiting?" glance while every panel is shut.
 // Historically only the incident card's attention surfaced here; hospitality
 // reminders and open tasks were computed INSIDE their cards and stayed
 // invisible until the sheet was opened — defeating the calm "everything is

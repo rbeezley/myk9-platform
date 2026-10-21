@@ -165,10 +165,10 @@ export default function ShowDeskPanel({
       <PhaseShell
         title="Your show"
         actions={
-          tools && tools.length > 0 ? (
+          canManageShow ? (
             <div className="flex flex-wrap items-center gap-2">
-              {canManageShow && <ShowHomeSetupLinks showId={show.id} />}
-              {canManageShow && <ShowHomePaperScores classes={classes} />}
+              <ShowHomeSetupLinks showId={show.id} />
+              <ShowHomePaperScores classes={classes} />
             </div>
           ) : undefined
         }

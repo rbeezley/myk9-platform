@@ -17,7 +17,9 @@ describe('describeEmptyEntryQueue', () => {
   });
 
   it('uses the singular for one form', () => {
-    expect(describeEmptyEntryQueue(base, 1, 1).body).toBe('1 entry form is in All. Choose All from the Show menu to see it.');
+    expect(describeEmptyEntryQueue(base, 1, 1).body).toBe(
+      '1 entry form is in All. Choose All from the Show menu to see it.'
+    );
   });
 
   it('names another single queue by the menu label, and several as "these queues"', () => {

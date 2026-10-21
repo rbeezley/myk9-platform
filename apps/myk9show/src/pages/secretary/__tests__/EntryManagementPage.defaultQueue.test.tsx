@@ -141,7 +141,9 @@ describe('EntryManagementPage default queue (MYK9-1276)', () => {
     renderAt('/shows/show-1/entries?queue=needs-review');
 
     expect(await screen.findByText('Nothing needs review')).toBeInTheDocument();
-    expect(screen.getByText('2 entry forms are in All. Choose All from the Show menu to see them.')).toBeInTheDocument();
+    expect(
+      screen.getByText('2 entry forms are in All. Choose All from the Show menu to see them.')
+    ).toBeInTheDocument();
     expect(screen.getByTestId('location-search')).toHaveTextContent('?queue=needs-review');
   });
 
@@ -153,11 +155,7 @@ describe('EntryManagementPage default queue (MYK9-1276)', () => {
         ],
         ...overrides,
       });
-    data.entries = [
-      entry('e1', { entryStatus: EntryStatus.PENDING }),
-      entry('e2'),
-      inClass2('e3'),
-    ];
+    data.entries = [entry('e1', { entryStatus: EntryStatus.PENDING }), entry('e2'), inClass2('e3')];
     const bare = renderAt('/shows/show-1/entries?class=class-2');
     expect(await listedForms()).toHaveLength(1);
     expect(screen.getByTestId('location-search')).toHaveTextContent('?class=class-2');

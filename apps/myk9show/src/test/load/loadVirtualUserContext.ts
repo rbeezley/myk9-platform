@@ -46,13 +46,15 @@ export interface ReaderContext {
   /** Move a table's watermark to the newest server `updated_at` in `rows`. */
   advance(table: string, rows: readonly { updated_at?: string }[]): void;
   /**
-   * Whether this pass owes `table` its `count: exact` HEAD. Mirrors the engine's
-   * count cadence (MYK9-1301): first pass, then every 10 minutes, or every pass
-   * when the app's `replicationCountCadence` flag is off.
+   * The engine's count cadence for `table` (the package's own `decideRemoteCount`
+   * and `recordRemoteCountPass`, MYK9-1301). `count` says whether this pass sends
+   * the HEAD. After the table's pass SUCCEEDS call `record` with whether the HEAD
+   * succeeded and how many rows the delta returned; a failed pass records nothing.
    */
-  countDue(table: string): boolean;
-  /** A count of `table` succeeded; the cadence restarts from now. */
-  countTaken(table: string): void;
+  countGate(table: string): {
+    readonly count: boolean;
+    record(counted: boolean, fetchedRows: number): void;
+  };
   /** Count rows a pass downloaded, for the pass result. */
   tally(rows: number): void;
   /** Issue one request, record a sample for it, and never throw. */

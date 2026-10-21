@@ -1,4 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { decideRemoteCount, recordRemoteCountPass } from '@myk9/replication';
+import { POSTGREST_MAX_ROWS } from '../../services/replication/postgrestMaxRows';
 import {
   PassRecorder,
   type ReaderContext,
@@ -30,9 +32,6 @@ export type { VirtualUserRequestSample } from './loadVirtualUserContext';
  * wire. A virtual user whose request pattern has drifted from the application
  * measures a fiction.
  */
-
-/** Matches `DEFAULT_REMOTE_COUNT_INTERVAL_MS` in packages/replication (fidelity-tested). */
-export const REMOTE_COUNT_INTERVAL_MS = 10 * 60_000;
 
 /** Matches `SYNC_INTERVAL_MS` in packages/replication. */
 export const VIRTUAL_USER_SYNC_INTERVAL_MS = 60_000;
@@ -72,8 +71,8 @@ export class LoadVirtualUser {
   /** Error-body reads still running; settled before a pass reports. */
   private readonly errorReads = new Set<Promise<void>>();
   private readonly watermarks = new Map<string, TableWatermark>();
-  /** When each table was last counted; absent until its first successful count. */
-  private readonly lastCountedAt = new Map<string, number>();
+  /** The engine's cadence state is keyed by owner object: one per table, per reader. */
+  private readonly countOwners = new Map<string, object>();
   /** Rows this reader has ever received per table: an empty replica forces the engine to count every pass. */
   private readonly rowsSeen = new Map<string, number>();
   /**
@@ -155,18 +154,28 @@ export class LoadVirtualUser {
       classColumnSelect: this.classColumnSelect,
       sinceIso: (table, bufferMs) => this.sinceIso(table, bufferMs),
       advance: (table, rows) => this.advance(table, rows),
-      countDue: table => {
-        const last = this.lastCountedAt.get(table);
-        return (
-          this.options.countEveryPass === true ||
-          !last ||
-          // Mirrors the engine: an empty local replica is a forced count on every pass.
-          (this.rowsSeen.get(table) ?? 0) === 0 ||
-          Date.now() - last >= REMOTE_COUNT_INTERVAL_MS
-        );
-      },
-      countTaken: table => {
-        this.lastCountedAt.set(table, Date.now());
+      countGate: table => {
+        let owner = this.countOwners.get(table);
+        if (!owner) {
+          owner = {};
+          this.countOwners.set(table, owner);
+        }
+        // The engine's own forced count: an empty local replica counts every pass.
+        const forced = (this.rowsSeen.get(table) ?? 0) === 0;
+        const decision = decideRemoteCount(owner, undefined, forced, {
+          ...(this.options.countEveryPass ? { everyPass: true } : {}),
+        });
+        return {
+          count: decision.count,
+          record: (counted, fetchedRows) =>
+            recordRemoteCountPass(
+              owner,
+              undefined,
+              { ...decision, count: counted },
+              fetchedRows,
+              POSTGREST_MAX_ROWS
+            ),
+        };
       },
       tally: rows => {
         recorder.rows += rows;

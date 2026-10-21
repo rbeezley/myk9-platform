@@ -52,17 +52,33 @@ type Narrow = (query: any) => any;
 
 const COUNT = { count: 'exact', head: true } as const;
 
-/** `select('id', head)` against `table`, result ignored: a failed count never fails a sync. */
+/** `select('id', head)` against `table`; true when it returned a count. A failed count never fails a sync. */
 async function takeCount(
   ctx: ReaderContext,
   table: string,
   narrow: Narrow = q => q
-): Promise<void> {
-  if (!ctx.countDue(table)) return;
+): Promise<boolean> {
   const out = await ctx.request(`${table} (count)`, () =>
     narrow(ctx.client.from(table).select('id', COUNT)).abortSignal(ctx.signal)
   );
-  if (out.ok && out.count !== null) ctx.countTaken(table);
+  return out.ok && out.count !== null;
+}
+
+/**
+ * A table the engine counts: HEAD only when the cadence says so, then the delta,
+ * then the cadence is told how it went, and only if the delta succeeded.
+ */
+async function countedDelta<T>(
+  ctx: ReaderContext,
+  table: string,
+  narrow: Narrow,
+  readDeltaRows: () => Promise<T[] | null>
+): Promise<T[] | null> {
+  const gate = ctx.countGate(table);
+  const counted = gate.count ? await takeCount(ctx, table, narrow) : false;
+  const rows = await readDeltaRows();
+  if (rows) gate.record(counted, rows.length);
+  return rows;
 }
 
 /** A delta read with no pagination, filtered by `narrow`, advancing the watermark. */
@@ -136,22 +152,29 @@ async function scanIds(ctx: ReaderContext, table: string, narrow: Narrow = q => 
 const live: Narrow = query => query.is('deleted_at', null);
 
 async function syncShows(ctx: ReaderContext): Promise<void> {
-  await takeCount(ctx, 'shows', live);
-  await readDelta(ctx, 'shows', '*', INCREMENTAL_BUFFER_MS, live);
+  await countedDelta(ctx, 'shows', live, () =>
+    readDelta(ctx, 'shows', '*', INCREMENTAL_BUFFER_MS, live)
+  );
 }
 
 async function syncTrials(ctx: ReaderContext): Promise<void> {
-  await takeCount(ctx, 'trials', live);
-  await readDelta(ctx, 'trials', '*', INCREMENTAL_BUFFER_MS);
+  await countedDelta(ctx, 'trials', live, () =>
+    readDelta(ctx, 'trials', '*', INCREMENTAL_BUFFER_MS)
+  );
 }
 
 async function syncClasses(ctx: ReaderContext): Promise<void> {
-  await takeCount(ctx, 'classes');
-  const rows = await readDelta<TimestampedRow & EnrichableClassRow>(
+  const rows = await countedDelta(
     ctx,
     'classes',
-    `${ctx.classColumnSelect}, ${CLASS_JUDGE_EMBED}`,
-    INCREMENTAL_BUFFER_MS_HIGH_CHURN
+    q => q,
+    () =>
+      readDelta<TimestampedRow & EnrichableClassRow>(
+        ctx,
+        'classes',
+        `${ctx.classColumnSelect}, ${CLASS_JUDGE_EMBED}`,
+        INCREMENTAL_BUFFER_MS_HIGH_CHURN
+      )
   );
   if (rows && rows.length > 0) await enrichClassRows(ctx, rows);
 }
@@ -183,8 +206,12 @@ async function syncClubs(ctx: ReaderContext): Promise<void> {
 }
 
 async function syncJudgeAssignments(ctx: ReaderContext): Promise<void> {
-  await takeCount(ctx, 'judge_assignments');
-  await readKeysetDelta(ctx, 'judge_assignments', JUDGE_ASSIGNMENT_SELECT);
+  await countedDelta(
+    ctx,
+    'judge_assignments',
+    q => q,
+    () => readKeysetDelta(ctx, 'judge_assignments', JUDGE_ASSIGNMENT_SELECT)
+  );
 }
 
 /** Armbands have no `updated_at`: every pass downloads every unavailable armband. */
@@ -201,8 +228,12 @@ async function syncArmbands(ctx: ReaderContext): Promise<void> {
 }
 
 async function syncWaitlistEntries(ctx: ReaderContext): Promise<void> {
-  await takeCount(ctx, 'waitlist_entries');
-  await readDelta(ctx, 'waitlist_entries', '*', INCREMENTAL_BUFFER_MS);
+  await countedDelta(
+    ctx,
+    'waitlist_entries',
+    q => q,
+    () => readDelta(ctx, 'waitlist_entries', '*', INCREMENTAL_BUFFER_MS)
+  );
 }
 
 /** The tables the poll reads, in the provider's order. The provider runs them concurrently. */

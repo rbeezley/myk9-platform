@@ -151,6 +151,9 @@ export { countCoveredRows } from './replicaCoverage';
 export {
   DEFAULT_REMOTE_COUNT_INTERVAL_MS,
   configureRemoteCountCadence,
+  decideRemoteCount,
+  recordRemoteCountPass,
+  type RemoteCountDecision,
   markRealtimeReconnected,
   resetRemoteCountCadenceForTests,
   shouldCountRemoteRows,

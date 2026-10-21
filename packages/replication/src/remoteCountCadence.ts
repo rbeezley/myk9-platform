@@ -115,7 +115,9 @@ export interface RemoteCountDecision {
 export function decideRemoteCount(
   owner: object,
   scopeValue: string | undefined,
-  forced: boolean
+  forced: boolean,
+  /** Per-call override so a caller (the load harness) never mutates the global config. */
+  overrides?: { everyPass?: boolean }
 ): RemoteCountDecision {
   const state = stateFor(owner, scopeValue);
   const count =
@@ -124,7 +126,7 @@ export function decideRemoteCount(
       lastCountedAt: state.lastCountedAt,
       now: Date.now(),
       intervalMs: config.intervalMs,
-      countEveryPass: config.everyPass,
+      countEveryPass: overrides?.everyPass ?? config.everyPass,
       reconnectEpoch,
       lastCountedEpoch: state.lastCountedEpoch,
       previousDeltaWasFullPage: state.lastDeltaWasFullPage === true,

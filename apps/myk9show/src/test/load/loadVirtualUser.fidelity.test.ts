@@ -4,18 +4,12 @@ import {
   databaseManager,
   REPLICATION_INCREMENTAL_BUFFER_MS,
   REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
-  DEFAULT_REMOTE_COUNT_INTERVAL_MS,
-  shouldCountRemoteRows,
 } from '@myk9/replication';
 import { supabase } from '@/services/database/supabaseClient';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
 import { REPLICATED_TABLES } from '@/providers/ReplicationSyncProvider';
 import { LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT } from './loadClassColumns';
-import {
-  LoadVirtualUser,
-  REMOTE_COUNT_INTERVAL_MS,
-  VIRTUAL_USER_SYNC_INTERVAL_MS,
-} from './loadVirtualUser';
+import { LoadVirtualUser, VIRTUAL_USER_SYNC_INTERVAL_MS } from './loadVirtualUser';
 import {
   INCREMENTAL_BUFFER_MS,
   INCREMENTAL_BUFFER_MS_HIGH_CHURN,
@@ -247,21 +241,6 @@ describe("virtual reader follows the engine's count cadence", () => {
 
   const minutes = Array.from({ length: 12 }, (_, i) => i);
 
-  it('shares the engine interval', () => {
-    expect(REMOTE_COUNT_INTERVAL_MS).toBe(DEFAULT_REMOTE_COUNT_INTERVAL_MS);
-    expect(
-      shouldCountRemoteRows({
-        lastCountedAt: 1,
-        now: 1 + REMOTE_COUNT_INTERVAL_MS,
-        intervalMs: DEFAULT_REMOTE_COUNT_INTERVAL_MS,
-        countEveryPass: false,
-        reconnectEpoch: 0,
-        lastCountedEpoch: 0,
-        previousDeltaWasFullPage: false,
-      })
-    ).toBe(true);
-  });
-
   it('counts twice across 11 simulated minutes: the first pass and after the interval', async () => {
     expect(await countHeads(minutes, false)).toBe(2 * COUNTED_TABLES.length);
   });
@@ -275,5 +254,57 @@ describe("virtual reader follows the engine's count cadence", () => {
 
   it('counts on every pass when the flag is off', async () => {
     expect(await countHeads(minutes, true)).toBe(minutes.length * COUNTED_TABLES.length);
+  });
+
+  type MutableOptions = { -readonly [K in keyof FakePostgrestOptions]: FakePostgrestOptions[K] };
+
+  /** One reader over `server`, passes at the given simulated minutes; `before` runs ahead of each. */
+  async function runPasses(
+    options: MutableOptions,
+    passMinutes: number[],
+    before: (minute: number) => void
+  ): Promise<string[]> {
+    const server = createFakePostgrest(options);
+    const user = new LoadVirtualUser(
+      {
+        supabaseUrl: FIXTURE_URL,
+        anonKey: FIXTURE_ANON_KEY,
+        accessToken: 'fixture-secretary-token',
+        role: 'secretary',
+        fetchImpl: server.fetch,
+      },
+      LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT
+    );
+    const realNow = Date.now();
+    const clock = vi.spyOn(Date, 'now');
+    for (const minute of passMinutes) {
+      clock.mockReturnValue(realNow + minute * 60_000);
+      before(minute);
+      await user.syncOnce();
+    }
+    return server.requests.map(normalizeRequest);
+  }
+
+  const headsOf = (requests: string[], table: string) =>
+    requests.filter(request => request.startsWith(`HEAD /rest/v1/${table}`)).length;
+
+  it('counts again after a delta that filled a page, until a count succeeds', async () => {
+    const options: MutableOptions = { seedCountedTables: true, fullPageDeltaTable: 'trials' };
+    const requests = await runPasses(options, [0, 1, 2, 3], minute => {
+      if (minute >= 1) options.fullPageDeltaTable = undefined;
+    });
+    // Pass 0 counts (first) and sees a full page; pass 1 counts (debt) and sees a
+    // short one; passes 2 and 3 are inside the interval.
+    expect(headsOf(requests, 'trials')).toBe(2);
+  });
+
+  it('does not stamp the count when its table pass then fails, so the next pass counts again', async () => {
+    const options: MutableOptions = { seedCountedTables: true };
+    const requests = await runPasses(options, [0, 11, 12], minute => {
+      options.failDeltaTable = minute === 11 ? 'waitlist_entries' : undefined;
+    });
+    // 0: first count. 11: due, HEAD ok but the delta fails: not recorded.
+    // 12: still due, so it counts again.
+    expect(headsOf(requests, 'waitlist_entries')).toBe(3);
   });
 });

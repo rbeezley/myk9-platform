@@ -25,6 +25,10 @@ export interface FakePostgrestOptions {
    * not empty (an empty replica forces a count on every pass, as the engine does).
    */
   readonly seedCountedTables?: boolean;
+  /** Answer this table's delta with a full page (1000 rows), as a capped delta arrives. */
+  readonly fullPageDeltaTable?: string;
+  /** Fail this table's GETs (the delta) with a 500 while its HEAD count still answers. */
+  readonly failDeltaTable?: string;
 }
 
 const COUNTED_TABLES = ['shows', 'trials', 'classes', 'judge_assignments', 'waitlist_entries'];
@@ -57,6 +61,17 @@ export function createFakePostgrest(options: FakePostgrestOptions = {}): FakePos
     );
     const table = url.pathname.replace('/rest/v1/', '').split('/')[0];
     if (table === options.failTable) return json({ message: 'fixture failure' }, 500);
+    if (table === options.failDeltaTable && method === 'GET') {
+      return json({ message: 'fixture delta failure' }, 500);
+    }
+    if (table === options.fullPageDeltaTable && method === 'GET') {
+      return json(
+        Array.from({ length: 1000 }, (_, i) => ({
+          id: `${table}-full-${i}`,
+          updated_at: '2026-01-01T00:00:00.000Z',
+        }))
+      );
+    }
     if (options.seedCountedTables && method === 'GET' && COUNTED_TABLES.includes(table)) {
       return json([{ id: `${table}-seed`, updated_at: '2026-01-01T00:00:00.000Z' }]);
     }

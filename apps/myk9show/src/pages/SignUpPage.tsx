@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
-import { AlreadySignedInCard, isSignedInAccount } from './AlreadySignedInCard';
+import { AlreadySignedInCard } from './AlreadySignedInCard';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { AppleIcon } from '@/components/icons/AppleIcon';
 import { GoogleIcon } from '@/components/icons/GoogleIcon';
@@ -11,7 +11,7 @@ import {
   type TurnstileChallengeHandle,
 } from '@/components/security/TurnstileChallenge';
 import { getTurnstileSiteKey } from '@/config/turnstile';
-import { buildSignInPathForRedirect, getSignInReturnTo } from './SignInPage.helpers';
+import { buildSignInPathForRedirect, getSignInReturnTo, isSignedIn } from './SignInPage.helpers';
 
 /** Seconds to disable the resend button, aligned with Supabase's email rate limit. */
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -177,7 +177,7 @@ const SignUp: React.FC = () => {
     }
   };
 
-  if (!emailSent && isSignedInAccount(user, authLoading)) return <AlreadySignedInCard />;
+  if (!emailSent && isSignedIn(user, authLoading)) return <AlreadySignedInCard />;
   if (emailSent) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background px-2 pt-20">

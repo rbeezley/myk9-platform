@@ -1,3 +1,4 @@
+import { isAccountSession } from '@/hooks/guestServerRead';
 export const SIGN_IN_REDIRECT_STORAGE_KEY = 'myk9.signIn.redirectTo';
 
 export function normalizeSignInRedirect(value: string | null): string | null {
@@ -11,6 +12,11 @@ export function normalizeSignInRedirect(value: string | null): string | null {
   } catch {
     return null;
   }
+}
+
+/** True once auth has resolved and the session is a real account (not anonymous ringside). */
+export function isSignedIn(user: Parameters<typeof isAccountSession>[0], authLoading: boolean) {
+  return !authLoading && isAccountSession(user);
 }
 
 export function getSignInReturnTo(searchParams: URLSearchParams): string {

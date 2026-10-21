@@ -6,47 +6,37 @@ interface ActionableBadgeProps {
   count?: ShowDeskActionable['count'] | undefined;
   tone?: ShowDeskActionable['tone'] | undefined;
   incomplete?: boolean | undefined;
-  /**
-   * What to show when nothing is waiting and every source was read: the number of tools, as
-   * the show page's Tools button does. Absent renders nothing, which is the calm answer on
-   * the header Actions trigger.
-   */
-  idleCount?: number | undefined;
   className?: string | undefined;
   'data-testid'?: string;
 }
 
 /**
  * The attention glance for the show tools: how many things are waiting, in what tone, and
- * whether the count is a floor. Shared by the header Actions trigger and the show page's Tools
- * button so the two can never read the same data differently (MYK9-1262).
+ * whether the count is a floor. Rendered on the header Actions trigger (MYK9-1262).
  *
- * Urgent is alarming (red), routine is ambient, unknown is "unchecked" (warning border, `?`),
- * idle is muted. An unread source must never render as a calm idle signal during an outage,
- * which is why `incomplete` with nothing counted shows `?` rather than the idle number.
+ * Urgent is alarming (red), routine is ambient, unknown is "unchecked" (warning border, `?`).
+ * Nothing waiting with every source read renders nothing. An unread source must never read as
+ * calm during an outage, which is why `incomplete` with nothing counted shows `?`, not nothing.
  */
 export function ActionableBadge({
   count,
   tone = 'urgent',
   incomplete = false,
-  idleCount,
   className,
   'data-testid': testId = 'actionable-badge',
 }: ActionableBadgeProps) {
   const hasActionable = typeof count === 'number' && count > 0;
   const signalsUnknown = incomplete && !hasActionable;
-  if (!hasActionable && !signalsUnknown && idleCount === undefined) return null;
+  if (!hasActionable && !signalsUnknown) return null;
 
-  const value = hasActionable ? count : signalsUnknown ? '?' : idleCount;
+  const value = hasActionable ? count : '?';
   const label = hasActionable
     ? `${count} ${count === 1 ? 'item needs' : 'items need'} attention${
         incomplete ? ', and some could not be checked' : ''
       }`
-    : signalsUnknown
-      ? 'Cannot check whether anything needs attention'
-      : `${idleCount} tools available`;
+    : 'Cannot check whether anything needs attention';
   const variant = !hasActionable ? 'outline' : tone === 'urgent' ? 'destructive' : 'secondary';
-  const dataTone = hasActionable ? tone : signalsUnknown ? 'unknown' : 'idle';
+  const dataTone = hasActionable ? tone : 'unknown';
 
   return (
     <Badge

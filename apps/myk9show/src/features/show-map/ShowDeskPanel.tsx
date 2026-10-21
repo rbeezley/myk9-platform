@@ -7,7 +7,6 @@ import { SecretaryCockpit } from './cockpit/SecretaryCockpit';
 import { buildSecretaryCockpitSnapshot } from './cockpit/buildSecretaryCockpitSnapshot';
 import { ReadyForShowDaySection } from './cockpit/ReadyForShowDaySection';
 import { useShowClassPaperwork } from './cockpit/useShowClassPaperwork';
-import { ShowDeskToolsMenu } from './ShowDeskToolsMenu';
 import { ShowDeskToolPanel, type ShowDeskToolSection } from './ShowDeskToolsSheet';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
@@ -18,7 +17,6 @@ import { computeShowDeskStatus } from './showDeskStatus';
 import { getRankedActions } from './showMapActions';
 import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { useShowMapWorkbenchState } from './useShowMapWorkbenchState';
-import type { ShowDeskActionableTone } from './showDeskActionable';
 import type { BuildShowMapTreeInput } from './showMapTypes';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import { ShowHomeSetupLinks } from './ShowHomeSetupLinks';
@@ -28,9 +26,6 @@ interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   canManageShow: boolean;
   scopeNow?: Date | undefined;
   tools?: readonly ShowDeskToolSection[];
-  actionableCount?: number | undefined;
-  actionableTone?: ShowDeskActionableTone | undefined;
-  actionableIncomplete?: boolean | undefined;
   /** Entered/pending per class for the schedule rows (MYK9-943); absent until read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
 }
@@ -47,9 +42,6 @@ export default function ShowDeskPanel({
   canManageShow,
   scopeNow,
   tools,
-  actionableCount,
-  actionableTone,
-  actionableIncomplete,
   entryBreakdownByClassId,
 }: ShowDeskPanelProps) {
   const location = useLocation();
@@ -177,12 +169,6 @@ export default function ShowDeskPanel({
             <div className="flex flex-wrap items-center gap-2">
               {canManageShow && <ShowHomeSetupLinks showId={show.id} />}
               {canManageShow && <ShowHomePaperScores classes={classes} />}
-              <ShowDeskToolsMenu
-                tools={tools}
-                {...(actionableCount !== undefined && { actionableCount })}
-                {...(actionableTone !== undefined && { actionableTone })}
-                {...(actionableIncomplete !== undefined && { actionableIncomplete })}
-              />
             </div>
           ) : undefined
         }

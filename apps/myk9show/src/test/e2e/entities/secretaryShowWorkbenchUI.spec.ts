@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { openActionsMenu } from '../helpers/actionsMenu';
 import { signInAsSecretary } from '../uat/shared/auth';
 import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
 import {
@@ -13,7 +14,7 @@ import {
  * Feature-audit smoke for the canonical secretary show management routes.
  *
  * This intentionally avoids posting announcements, messages, incidents, or late
- * entries. It proves the real secretary show home (Overview, with its Tools sheet)
+ * entries. It proves the real secretary show home (Overview, with its show tools in the header Actions menu)
  * renders without console errors or owned 4xx/5xx responses.
  */
 
@@ -74,11 +75,15 @@ test.describe('Secretary show management UI', () => {
     await expect(page.getByRole('heading', { name: 'Premium List' }).first()).toBeVisible();
 
     const toolsMenu = await openToolsMenu(page);
-    await expect(toolsMenu.getByRole('menuitem', { name: /Message Show/i })).toHaveCount(0);
-    // MYK9-954: two groups; Add entries moved to the Entries tab.
-    await expect(toolsMenu.getByText('Show day', { exact: true })).toBeVisible();
-    await expect(toolsMenu.getByText('Show logistics', { exact: true })).toBeVisible();
-    await expect(toolsMenu.getByRole('menuitem', { name: /Add entries/i })).toHaveCount(0);
+    // MYK9-954: two tool groups; Add entries moved to the Entries tab.
+    const showDay = toolsMenu.getByTestId('header-action-group-show-day');
+    const logistics = toolsMenu.getByTestId('header-action-group-show-logistics');
+    await expect(showDay.getByText('Show day', { exact: true })).toBeVisible();
+    await expect(logistics.getByText('Show logistics', { exact: true })).toBeVisible();
+    for (const group of [showDay, logistics]) {
+      await expect(group.getByRole('menuitem', { name: /Message Show/i })).toHaveCount(0);
+      await expect(group.getByRole('menuitem', { name: /Add entries/i })).toHaveCount(0);
+    }
     await page.keyboard.press('Escape');
     await expect(page.getByRole('heading', { name: 'Show Map' })).toHaveCount(0);
 
@@ -89,9 +94,13 @@ test.describe('Secretary show management UI', () => {
     await openShowDesk(page);
     const toolsMenu = await openToolsMenu(page);
 
-    await expect(toolsMenu.getByRole('menuitem', { name: /Message Show/i })).toHaveCount(0);
+    await expect(
+      toolsMenu.getByTestId('header-action-group-show-day').getByRole('menuitem', {
+        name: /Message Show/i,
+      })
+    ).toHaveCount(0);
 
-    await toolsMenu.getByRole('menuitem', { name: /Incident log/i }).click();
+    await toolsMenu.getByTestId('header-action-show-tool-incident-log').click();
     const toolsPanel = page.getByRole('dialog', { name: 'Incident log' });
     await expect(toolsPanel).toBeVisible({ timeout: 10000 });
     await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toHaveCount(0);
@@ -124,16 +133,20 @@ async function openShowDesk(page: Page) {
   // The retired Show Day URL still lands on the home (MYK9-957 redirect).
   await signInAsSecretary(page, `/shows/${SHOW_ID}/show-day`);
   await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}(?:\\?|$)`));
-  await expect(page.getByRole('button', { name: /^Tools/ })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Show schedule' })).toBeVisible({
     timeout: 15000,
   });
+  await expect(page.getByTestId('header-actions-trigger')).toBeVisible();
 }
 
+/** The show tools are rows in the header Actions menu, in two sections (MYK9-1262). */
 async function openToolsMenu(page: Page) {
-  await page.getByRole('button', { name: /^Tools/ }).click();
-  const toolsMenu = page.getByRole('menu');
-  await expect(toolsMenu).toBeVisible({ timeout: 10000 });
-  return toolsMenu;
+  const menu = await openActionsMenu(page);
+  // The rows register once the show page has its data, so wait for the first one.
+  await expect(menu.getByTestId('header-action-show-tool-incident-log')).toBeVisible({
+    timeout: 10000,
+  });
+  return menu;
 }
 
 async function expectBrowserHealthClean(testInfo: TestInfo) {

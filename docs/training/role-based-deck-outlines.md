@@ -167,7 +167,7 @@ Slides 5–6 content overlaps with Overview slides 14–15 but frames the inform
 | ----------------------------------------------------- | -------------------------------------------------------- |
 | Ringside Quickstart (printable)                       | `docs/user-guides/judge-steward-quickstart.md` (planned) |
 | KB: (TBD — from quickstart outline friction findings) |                                                          |
-| Secretary: Share Show Access Codes                    | Show Desk → Tools panel → Show Access Codes              |
+| Secretary: Share Show Access Codes                    | Show page → Actions menu → Show day → Show Access Codes  |
 | Support contact                                       | [placeholder]                                            |
 
 ### Slides shared with Overview Deck

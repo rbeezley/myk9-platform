@@ -56,7 +56,7 @@ The final `judge-steward-quickstart.md` should be:
 4. You are in — no account needed.
 
 **How the secretary gets the passcode:**
-Show Desk → Tools panel → **Show Access Codes** → share the QR code or the plaintext passcode.
+Show page → Actions menu → Show day → **Show Access Codes** → share the QR code or the plaintext passcode.
 
 **Screenshots:** SmartSignInPage showing passcode entry; QR code card in Show Desk tools.
 

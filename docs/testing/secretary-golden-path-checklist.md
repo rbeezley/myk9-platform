@@ -223,7 +223,7 @@ To reach the at-show surface, just open `/at-show/:showId` for the test show as 
 - [ ] Navigate to the Show Workbench and click **Show Desk** tab
 - [ ] Show Map tree (trials / classes) is visible
 - [ ] Next Best Action card is visible (guidance reflects setup phase, not wrap-up)
-- [ ] Tools panel is accessible (e.g. via a side sheet or panel)
+- [ ] Show tools are listed in the header Actions menu (Show day / Show logistics) and each opens in its own panel
 
 **Issue:** ______________________________________________________________________
 

@@ -124,7 +124,7 @@ _Reused in:_ Secretary Onboarding Deck (slide 4)
 
 - Show Map: hierarchical view of trials → classes → entries
 - Tap any entry: check in, scratch, or move up from the row actions
-- Tools panel side sheet: announcements, access codes, incident log, late entry
+- Actions menu show tools (Show day / Show logistics): announcements, access codes, incident log, late entry
 - Guided next-action card at the top tells you what needs attention
 
 🖼️ **Screenshots needed:** Show Map with class rows (shot S-15), Tools panel (shot S-19).

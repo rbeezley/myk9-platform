@@ -219,8 +219,8 @@ export function ShowWorkbenchShowDeskPage() {
   }, [incidentSummary]);
 
   // Aggregate every attention-worthy tool into one ambient signal for the
-  // closed Tools trigger badge. Without this, hospitality reminders and open
-  // tasks were invisible until the secretary opened the wrench. Tasks share the
+  // Actions trigger badge. Without this, hospitality reminders and open
+  // tasks were invisible until the secretary opened a tool. Tasks share the
   // React Query cache with TasksNotesCard; hospitality reads the same
   // localStorage the card writes (kept live via useJudgeHospitalityReminderCount).
   const hospitalityReminderCount = useJudgeHospitalityReminderCount(
@@ -231,7 +231,7 @@ export function ShowWorkbenchShowDeskPage() {
   const showTasks = useMemo(() => showTasksData ?? EMPTY_TASKS, [showTasksData]);
   /**
    * `null` when the tasks read did not succeed. Both this and the incident
-   * count feed the closed Tools badge, which is the secretary's only "is
+   * count feed the Actions trigger badge, which is the secretary's only "is
    * anything waiting?" glance -- so an unread source has to withhold the
    * count rather than contribute a zero to it.
    */
@@ -449,9 +449,6 @@ export function ShowWorkbenchShowDeskPage() {
           entries={showMapEntries}
           canManageShow
           tools={showDeskTools}
-          actionableCount={actionable.count}
-          actionableTone={actionable.tone}
-          actionableIncomplete={actionable.incomplete}
           entryBreakdownByClassId={entryBreakdownByClassId}
         />
       </Suspense>

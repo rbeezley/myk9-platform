@@ -142,7 +142,8 @@ export function useEntryManagementCockpit({
     resetKey: viewKey,
   });
   const isWorking = Boolean(state.registrationKey) || selection.selectedIds.size > 0;
-  if (urlState.queuesNamed || !isWorking) {
+  // Only a default derived from loaded forms is held: before they load it is a placeholder.
+  if (urlState.queuesNamed || !isWorking || !canValidateFocus) {
     if (heldDefault !== null) setHeldDefault(null);
   } else if (heldDefault?.scopeKey !== scopeKey) {
     setHeldDefault({ scopeKey, queues: liveDefaultQueues });

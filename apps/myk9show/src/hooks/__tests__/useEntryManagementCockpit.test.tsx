@@ -125,6 +125,60 @@ describe('useEntryManagementCockpit', () => {
     await waitFor(() => expect(result.current.cockpit.state.queues).toEqual(['needs-review']));
   });
 
+  it('does not hold the pre-load placeholder: a deep link to an accepted form stays open', () => {
+    const accepted = (index: number) => ({ ...entry(index), entryStatus: EntryStatus.ACCEPTED });
+    let search = '';
+    const { result, rerender } = renderHook(
+      ({ groups, canValidateFocus }) => {
+        const [searchParams] = useSearchParams();
+        return useEntryManagementCockpit({
+          groups,
+          canValidateFocus,
+          state: normalizeEntryManagementCockpitParams(searchParams).state,
+        });
+      },
+      {
+        initialProps: {
+          groups: [] as ReturnType<typeof groupEntriesByShowRegistration>,
+          canValidateFocus: false,
+        },
+        wrapper: wrapper('/?registration=registration-1', value => {
+          search = value;
+        }),
+      }
+    );
+    rerender({
+      groups: groupEntriesByShowRegistration([accepted(1), accepted(2)]),
+      canValidateFocus: true,
+    });
+
+    expect(result.current.state.queues).toEqual(['all']);
+    expect(result.current.state.registrationKey).toBe('registration-1');
+    expect(search).toBe('?registration=registration-1');
+  });
+
+  it('keeps the selection when the queue changes during a search, which lists matches regardless', () => {
+    const groups = groupEntriesByShowRegistration([entry(1), entry(2)]);
+    const { result } = renderHook(
+      () => {
+        const [searchParams, setSearchParams] = useSearchParams();
+        return {
+          cockpit: useEntryManagementCockpit({
+            groups,
+            state: normalizeEntryManagementCockpitParams(searchParams).state,
+          }),
+          setSearchParams,
+        };
+      },
+      { wrapper: wrapper('/?search=Dog') }
+    );
+    act(() => result.current.cockpit.selection.selectItems(groups.slice(0, 1)));
+    act(() => result.current.setSearchParams(new URLSearchParams('search=Dog&queue=all')));
+
+    expect(result.current.cockpit.state.queues).toEqual(['all']);
+    expect(result.current.cockpit.selection.selectedIds.size).toBe(1);
+  });
+
   it('resets page and selection when the queue changes while memoizing counts', async () => {
     const entries = Array.from({ length: 55 }, (_, index) => entry(index));
     const groups = groupEntriesByShowRegistration(entries);

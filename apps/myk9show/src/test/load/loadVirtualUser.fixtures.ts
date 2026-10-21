@@ -20,7 +20,14 @@ export interface FakePostgrestOptions {
   readonly fullDogIdPage?: boolean;
   /** Fail every request to this table with a 500. */
   readonly failTable?: string;
+  /**
+   * Answer every counted table's delta with one row, so the reader's replica is
+   * not empty (an empty replica forces a count on every pass, as the engine does).
+   */
+  readonly seedCountedTables?: boolean;
 }
+
+const COUNTED_TABLES = ['shows', 'trials', 'classes', 'judge_assignments', 'waitlist_entries'];
 
 export interface FakePostgrest {
   readonly fetch: typeof fetch;
@@ -50,6 +57,9 @@ export function createFakePostgrest(options: FakePostgrestOptions = {}): FakePos
     );
     const table = url.pathname.replace('/rest/v1/', '').split('/')[0];
     if (table === options.failTable) return json({ message: 'fixture failure' }, 500);
+    if (options.seedCountedTables && method === 'GET' && COUNTED_TABLES.includes(table)) {
+      return json([{ id: `${table}-seed`, updated_at: '2026-01-01T00:00:00.000Z' }]);
+    }
     // Head count: the engine only needs the header.
     if (method === 'HEAD')
       return new Response(null, { status: 200, headers: { 'Content-Range': '*/0' } });

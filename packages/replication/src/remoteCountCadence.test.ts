@@ -74,6 +74,27 @@ describe('remote count cadence config holder', () => {
     resetRemoteCountCadenceForTests();
     expect(getRealtimeReconnectEpoch()).toBe(0);
   });
+  it('keeps full-page count debt until a count succeeds', () => {
+    const owner = {};
+    // A full page arrives on a pass that counted successfully: debt recorded.
+    recordRemoteCountPass(owner, 's', { count: true, epoch: 0 }, 1000, 1000);
+    // The next pass counts (debt) but the count FAILS, and its delta is short.
+    const d1 = decideRemoteCount(owner, 's', false);
+    expect(d1.count).toBe(true);
+    recordRemoteCountPass(owner, 's', { ...d1, count: false }, 3, 1000);
+    // Debt survives the failed count: the following pass still counts.
+    expect(decideRemoteCount(owner, 's', false).count).toBe(true);
+    // A successful count clears it.
+    recordRemoteCountPass(
+      owner,
+      's',
+      { ...decideRemoteCount(owner, 's', false), count: true },
+      3,
+      1000
+    );
+    expect(decideRemoteCount(owner, 's', false).count).toBe(false);
+  });
+
   it('tracks state per owner and scope', () => {
     const a = {};
     const b = {};

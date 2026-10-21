@@ -74,6 +74,8 @@ export class LoadVirtualUser {
   private readonly watermarks = new Map<string, TableWatermark>();
   /** When each table was last counted; absent until its first successful count. */
   private readonly lastCountedAt = new Map<string, number>();
+  /** Rows this reader has ever received per table: an empty replica forces the engine to count every pass. */
+  private readonly rowsSeen = new Map<string, number>();
   /**
    * Every poll still running. The tick guard below keeps this to one at a time,
    * but drain() still waits on whatever is here rather than assuming it.
@@ -141,6 +143,7 @@ export class LoadVirtualUser {
       if (Number.isFinite(parsed) && parsed > max) max = parsed;
     }
     this.watermarks.set(table, { since: max });
+    this.rowsSeen.set(table, (this.rowsSeen.get(table) ?? 0) + rows.length);
   }
 
   /** One pass across the tables the app's poll replicates, all at once as the app does. */
@@ -157,6 +160,8 @@ export class LoadVirtualUser {
         return (
           this.options.countEveryPass === true ||
           !last ||
+          // Mirrors the engine: an empty local replica is a forced count on every pass.
+          (this.rowsSeen.get(table) ?? 0) === 0 ||
           Date.now() - last >= REMOTE_COUNT_INTERVAL_MS
         );
       },

@@ -145,7 +145,10 @@ export function recordRemoteCountPass(
     state.lastCountedAt = Date.now();
     state.lastCountedEpoch = decision.epoch;
   }
-  state.lastDeltaWasFullPage = remotePageSize !== undefined && fetchedRows >= remotePageSize;
+  // A full page is count debt: it stays owed until a count SUCCEEDS, so a count
+  // that failed on the triggered pass is not forgiven by a later short delta.
+  const fullPage = remotePageSize !== undefined && fetchedRows >= remotePageSize;
+  state.lastDeltaWasFullPage = fullPage || (state.lastDeltaWasFullPage === true && !decision.count);
 }
 
 export interface RemoteCountPass {

@@ -215,8 +215,12 @@ describe('constants the reader copies from the application', () => {
 describe("virtual reader follows the engine's count cadence", () => {
   const COUNTED_TABLES = ['shows', 'trials', 'classes', 'judge_assignments', 'waitlist_entries'];
 
-  async function countHeads(passMinutes: number[], countEveryPass: boolean): Promise<number> {
-    const server = createFakePostgrest();
+  async function countHeads(
+    passMinutes: number[],
+    countEveryPass: boolean,
+    { seed = true, table }: { seed?: boolean; table?: string } = {}
+  ): Promise<number> {
+    const server = createFakePostgrest({ seedCountedTables: seed });
     const user = new LoadVirtualUser(
       {
         supabaseUrl: FIXTURE_URL,
@@ -236,7 +240,9 @@ describe("virtual reader follows the engine's count cadence", () => {
     }
     return server.requests
       .map(normalizeRequest)
-      .filter(request => COUNTED_TABLES.some(t => request.startsWith(`HEAD /rest/v1/${t}`))).length;
+      .filter(request =>
+        (table ? [table] : COUNTED_TABLES).some(t => request.startsWith(`HEAD /rest/v1/${t}`))
+      ).length;
   }
 
   const minutes = Array.from({ length: 12 }, (_, i) => i);
@@ -258,6 +264,13 @@ describe("virtual reader follows the engine's count cadence", () => {
 
   it('counts twice across 11 simulated minutes: the first pass and after the interval', async () => {
     expect(await countHeads(minutes, false)).toBe(2 * COUNTED_TABLES.length);
+  });
+
+  it('counts an empty table on every pass, as the engine forces for an empty replica', async () => {
+    expect(await countHeads(minutes, false, { seed: false, table: 'waitlist_entries' })).toBe(
+      minutes.length
+    );
+    expect(await countHeads(minutes, false, { seed: true, table: 'waitlist_entries' })).toBe(2);
   });
 
   it('counts on every pass when the flag is off', async () => {

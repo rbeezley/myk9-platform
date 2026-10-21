@@ -14,6 +14,7 @@ import { friendlySaveError } from '@/utils/friendlySaveError';
 import { uploadClubCover, deleteImage } from '@/services/imageUploadService';
 import { getActiveClubMembers, getClubMembers } from '@/services/database/club-memberships/members';
 import { canCreateShowForClub, computeClubPermissions, hasClubAdminScope } from './clubPermissions';
+import { hasClubStaffGrant } from '@/utils/roleScopes';
 import { usePageEditAction } from '@/features/actions/pageEditTarget';
 import { canOpenCreateShowWizard } from '@/routes/createShowWizardAccess';
 import { useClubAuthorizationControl } from './useClubAuthorizationControl';
@@ -97,6 +98,10 @@ export function useClubDetailsState(selectedClub: Club | null) {
   const canAddShow =
     canOpenCreateShowWizard(userWithRoles?.roles) &&
     canCreateShowForClub(userWithRoles, selectedClub?.id);
+
+  const isClubStaff =
+    isSiteAdmin ||
+    (selectedClub ? hasClubStaffGrant(userWithRoles, { clubId: selectedClub.id }) : false);
 
   // MYK9-572: site-admin-only control, independent of computeClubPermissions.
   const authorizationControl = useClubAuthorizationControl(selectedClub, isSiteAdmin);
@@ -414,6 +419,12 @@ export function useClubDetailsState(selectedClub: Club | null) {
     canDeleteClub,
     canAddShow,
     ...authorizationControl, // MYK9-572: authorize/revoke control (site-admin only)
+    // MYK9-1314: the Unauthorized badge and "Pending myK9 authorization" notice were written
+    // for club staff (MYK9-855). An outsider can neither build shows nor is waiting on
+    // anything, so withhold the state from them; ClubHeader renders undefined as no badge.
+    // Staff = site admin or hasClubStaffGrant (club admin or either secretary role) on this club. Active
+    // non-admin members are not covered: the hook has no people id (people.id is never auth.uid()).
+    isClubAuthorized: isClubStaff ? authorizationControl.isClubAuthorized : undefined,
     showRevokeConfirm,
     setShowRevokeConfirm,
     // Edit panel

@@ -364,6 +364,10 @@ test.describe('Clubs UI — Non-admin permissions', () => {
     // The club's own page actions register only once the club has rendered, so wait
     // for the detail pane's close link before reading the menu.
     await expect(page.getByRole('link', { name: 'Close club' })).toBeVisible();
+    // MYK9-1314: the staff-facing authorization notice is not shown to an outsider.
+    // Weak control: this list may hold only authorized clubs. The unit test
+    // ClubDetails.authorizationNotice.test.tsx is the real guard.
+    await expect(page.getByText(/Pending myK9 authorization/)).toHaveCount(0);
     // Every club action lives in the header Actions menu (MYK9-928). Since the Create
     // group (MYK9-1063) and the list's Export CSV, that menu also opens for an
     // exhibitor with items that are not about the club, so "no trigger" stopped

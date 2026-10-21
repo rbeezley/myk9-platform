@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { createBrowserRouter, createRoutesFromElements, Navigate, Route } from 'react-router-dom';
+import { createBrowserRouter, createRoutesFromElements, Route } from 'react-router-dom';
 import App from './App';
 import { AdminRoutes } from './routes/adminRoutes';
 import { JudgeSidebarRoutes } from './routes/judgeRoutes';
@@ -7,6 +7,7 @@ import { SecretaryRoutes } from './routes/secretaryRoutes';
 import { ClubAdminRoutes } from './routes/clubAdminRoutes';
 import { PublicRoutes } from './routes/publicRoutes';
 import { AtShowRoutes } from './routes/atShowRoutes';
+import { AuthAliasRoutes } from './routes/authAliasRoutes';
 import { UnifiedAppLayout } from './components/layout/UnifiedAppLayout';
 import { WizardSurfaceGate } from './components/WizardSurfaceGate';
 import { PageLoadingFallback } from './components/common/PageLoadingFallback';
@@ -67,7 +68,7 @@ export const router = createBrowserRouter(
             </PageTransition>
           }
         />
-        <Route path="/login" element={<Navigate to="/sign-in" replace />} />
+        {AuthAliasRoutes()}
         <Route
           path="/sign-up"
           element={

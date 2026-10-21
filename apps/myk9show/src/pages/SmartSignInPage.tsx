@@ -6,6 +6,7 @@ import {
   buildSignUpPathForRedirect,
   getShowEntryRedirectShowId,
   getSignInReturnTo,
+  isSignedIn,
   persistSignInRedirect,
 } from './SignInPage.helpers';
 import {
@@ -14,6 +15,7 @@ import {
   resolveLiveHint,
   resolveSignInHeading,
 } from './SmartSignInPage.helpers';
+import { AlreadySignedInCard } from './AlreadySignedInCard';
 import { SignInCredentialForm } from './SignInCredentialForm';
 import { PasscodeDetailsForm } from './PasscodeDetailsForm';
 import { LockedCredentialChip } from './LockedCredentialChip';
@@ -316,6 +318,10 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
     setPassword('');
     setError('');
   };
+
+  // MYK9-1280: a signed-in account at /sign-in gets a card, not a credential form. The at-show
+  // passcode entry (passcodeOnly) is how a signed-in account joins a show, so it keeps its form.
+  if (!passcodeOnly && isSignedIn(user, authLoading)) return <AlreadySignedInCard />;
 
   // Two different insets, because the fixed chrome is not one thing.
   //

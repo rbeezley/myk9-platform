@@ -70,6 +70,7 @@ redirect:
 **Source-map note:** Re-verified 2026-09-13 after public class previews changed their anonymous data boundary; the guide-facing account flow is unchanged.
 **Source-map note:** Re-verified 2026-10-16 (MYK9-1227). The Browse tablist above `/dogs` is drawn only for staff roles; a first-time exhibitor sees the same My Dogs page as before, so the account flow is unchanged.
 **Source-map note:** Re-verified 2026-10-16 (MYK9-1245). Exhibitor-only accounts now open My Shows / My Dogs from one **My Shows** rail item (tabs at `/exhibitor/entries` and `/dogs`); Find Shows (`/shows`) is reached from the page header's **Enter a Show**; from `lg` `/exhibitor/entries` is a list of shows with the selected show's entries beside it. Exhibitor Guide § Account Setup starts from a show detail page; Section 3 now reads "Go to **My Shows**, then choose the **My Dogs** tab", which matches.
+**Source-map note:** Re-verified 2026-10-21 (MYK9-1280). `/sign-up` and `/sign-in` now show a signed-in account a short card (who is signed in, Continue or Go to your dashboard, Join a show with a passcode, Sign out) instead of the credential form; `/signup` joins `/login` as an alias that keeps the query string. A first-time exhibitor is signed out, so the guide's account flow is unchanged; the Account Setup section needs no new step.
 **Docs target:** Exhibitor Guide § Account Setup, KB: `create-account.md`
 
 ### 2a. Manage profile, preferences, and account settings

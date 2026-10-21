@@ -63,13 +63,23 @@ vi.mock('@/services/replication/heldRingsideScores', () => ({
   adoptHeldRingsideScoresForLiveClaim: () => adoptHeldScoresMock(),
 }));
 
-let mockUser: { id: string; is_anonymous?: boolean } | null = null;
+let mockUser: { id: string; email?: string; is_anonymous?: boolean } | null = null;
+const signOutMock = vi.fn();
+vi.mock('@/hooks/useGlobalSyncStatus', () => ({
+  useGlobalSyncStatus: () => ({ status: 'synced', queueSize: 0, isOnline: true }),
+}));
+vi.mock('@/hooks/useNetworkStatus', () => ({
+  useNetworkStatus: () => ({ isOnline: true }),
+}));
 const signInMock = vi.fn();
 const signInWithGoogleMock = vi.fn();
 const signInWithAppleMock = vi.fn();
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: mockUser,
+    userWithRoles: null,
+    getUserRoles: () => [],
+    signOut: signOutMock,
     firstName: 'Jane',
     signIn: signInMock,
     signInWithGoogle: signInWithGoogleMock,
@@ -458,7 +468,7 @@ describe('SmartSignInPage', () => {
       showName: 'Spring Trial',
     });
     const user = userEvent.setup();
-    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+    render(<SmartSignInPage passcodeOnly />, { initialRoute: '/sign-in' });
 
     await user.type(screen.getByTestId('credential-input'), 'j9f3b');
     await user.click(screen.getByTestId('continue-button'));
@@ -489,7 +499,7 @@ describe('SmartSignInPage', () => {
       showName: 'QR Trial',
     });
     const user = userEvent.setup();
-    render(<SmartSignInPage />, { initialRoute: '/at-show?code=S7QR9' });
+    render(<SmartSignInPage passcodeOnly />, { initialRoute: '/at-show?code=S7QR9' });
 
     await user.click(screen.getByTestId('continue-button'));
 
@@ -518,7 +528,7 @@ describe('SmartSignInPage', () => {
       showName: 'Spring Trial',
     });
     const user = userEvent.setup();
-    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+    render(<SmartSignInPage passcodeOnly />, { initialRoute: '/sign-in' });
 
     const input = screen.getByTestId('credential-input');
     await user.type(input, 'J9F3B');
@@ -584,5 +594,31 @@ describe('SmartSignInPage', () => {
     // re-navigation.
     expect(screen.getByTestId('passcode-continue-button')).toBeInTheDocument();
     expect(screen.queryByTestId('credential-input')).not.toBeInTheDocument();
+  });
+  describe('already signed in (MYK9-1280)', () => {
+    it('shows the signed-in card, with no credential form, for an account session', () => {
+      mockUser = { id: 'user-1', email: 'jane@example.com' };
+      render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+      expect(screen.getByRole('heading', { name: 'You are signed in' })).toBeInTheDocument();
+      expect(screen.getByText('Signed in as jane@example.com')).toBeInTheDocument();
+      expect(screen.queryByTestId('credential-input')).not.toBeInTheDocument();
+      expect(document.querySelector('input[type="email"], input[type="password"]')).toBeNull();
+    });
+
+    it('still shows the form for an anonymous ringside session', () => {
+      mockUser = { id: 'anon-1', is_anonymous: true };
+      render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+      expect(screen.getByTestId('credential-input')).toBeInTheDocument();
+      expect(screen.queryByText('You are signed in')).not.toBeInTheDocument();
+    });
+
+    it('shows the form when signed out', () => {
+      render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+      expect(screen.getByTestId('credential-input')).toBeInTheDocument();
+      expect(screen.queryByText('You are signed in')).not.toBeInTheDocument();
+    });
   });
 });

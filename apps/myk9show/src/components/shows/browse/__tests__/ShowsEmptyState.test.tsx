@@ -46,4 +46,61 @@ describe('ShowsEmptyState (MYK9-1152)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show all shows' }));
     expect(onShowAll).toHaveBeenCalledTimes(1);
   });
+
+  describe('with past shows (MYK9-1283)', () => {
+    const past = { count: 2, monthLabel: 'October 2026' };
+    const sentence = (text: string) => (_: string, el: Element | null) =>
+      el?.tagName === 'P' && el.textContent === text;
+
+    it('names the past shows for a signed-out visitor and links to them, keeping the sign-up steps', () => {
+      const onShowPast = vi.fn();
+      render(
+        <ShowsEmptyState filtered={false} onShowAll={vi.fn()} past={past} onShowPast={onShowPast} />
+      );
+      expect(screen.queryByText('No shows yet')).toBeNull();
+      expect(screen.getByText('No upcoming shows')).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          sentence('2 past shows, the most recent in October 2026. See October 2026')
+        )
+      ).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'See October 2026' }));
+      expect(onShowPast).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('link', { name: CREATE_ACCOUNT.label })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: ADD_YOUR_CLUB.label })).toBeInTheDocument();
+    });
+
+    it('says "1 past show" for one', () => {
+      render(
+        <ShowsEmptyState
+          filtered={false}
+          onShowAll={vi.fn()}
+          past={{ count: 1, monthLabel: 'October 2026' }}
+          onShowPast={vi.fn()}
+        />
+      );
+      expect(
+        screen.getByText(sentence('1 past show, the most recent in October 2026. See October 2026'))
+      ).toBeInTheDocument();
+    });
+
+    it('gives a signed-in viewer the same past copy, with no sign-up offer', () => {
+      auth.user = { id: 'signed-in' };
+      render(
+        <ShowsEmptyState filtered={false} onShowAll={vi.fn()} past={past} onShowPast={vi.fn()} />
+      );
+      expect(
+        screen.getByText(
+          sentence('2 past shows, the most recent in October 2026. See October 2026')
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('link')).toBeNull();
+    });
+
+    it('lets the filtered state win over past shows', () => {
+      render(<ShowsEmptyState filtered onShowAll={vi.fn()} past={past} onShowPast={vi.fn()} />);
+      expect(screen.getByText('No shows match your search or filters.')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /past shows/ })).toBeNull();
+    });
+  });
 });

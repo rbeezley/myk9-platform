@@ -7,6 +7,7 @@
 
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { LucideIcon, AlertTriangle, RefreshCw, HelpCircle } from 'lucide-react';
 import { PremiumButton } from './PremiumButton';
 import { IconContainer } from './IconContainer';
@@ -31,7 +32,7 @@ export type EmptyStateAction =
 export interface EmptyStateProps {
   icon: LucideIcon;
   title: string;
-  description?: string;
+  description?: ReactNode;
   /** Explicitly use null when the surface has no sensible next action. */
   action: EmptyStateAction | null;
   secondaryAction?:

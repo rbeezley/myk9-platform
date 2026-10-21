@@ -63,6 +63,10 @@ import { MonthScrubber } from '@/components/shows/browse/MonthScrubber';
 import { ShowLocationField } from '@/components/shows/browse/ShowLocationField';
 import { ShowsMapPanel } from '@/components/shows/browse/ShowsMapPanel';
 import { ShowsEmptyState } from '@/components/shows/browse/ShowsEmptyState';
+import {
+  pastEmptyStateProps,
+  summarizePastShows,
+} from '@/components/shows/browse/pastShowsSummary';
 import { useViewerLocation } from '@/features/location/useViewerLocation';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { getBrowseShowsCountUserId, getBrowseShowsTabCount } from '@/utils/browseShowsUtils';
@@ -183,6 +187,12 @@ const BrowseShowsPage: React.FC = () => {
   );
 
   const enhancedShows = allEnhancedShows;
+  // Nothing upcoming but past shows exist: the empty state names and links them (MYK9-1283).
+  const [now] = useState(() => new Date());
+  const pastShows = useMemo(
+    () => summarizePastShows(monthScopedShows, now),
+    [monthScopedShows, now]
+  );
   const countUserId = useMemo(() => getBrowseShowsCountUserId(user), [user]);
 
   // Bulk selection for shows
@@ -394,7 +404,20 @@ const BrowseShowsPage: React.FC = () => {
   // Render shows in different view modes
   const renderShowsView = () => {
     if (enhancedShows.length === 0 && viewMode !== 'map') {
-      return <ShowsEmptyState filtered={hasActiveFilters} onShowAll={clearAllFilters} />;
+      const pastProps = pastEmptyStateProps({
+        summary: pastShows,
+        month: filters.month,
+        hasActiveFilters,
+        isEmpty: true,
+      });
+      return (
+        <ShowsEmptyState
+          filtered={hasActiveFilters}
+          onShowAll={clearAllFilters}
+          past={pastProps?.past}
+          onShowPast={pastProps ? () => handleMonthChange(pastProps.monthKey) : undefined}
+        />
+      );
     }
 
     switch (viewMode) {

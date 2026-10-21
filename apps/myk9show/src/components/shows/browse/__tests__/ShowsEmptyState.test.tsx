@@ -46,4 +46,50 @@ describe('ShowsEmptyState (MYK9-1152)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show all shows' }));
     expect(onShowAll).toHaveBeenCalledTimes(1);
   });
+
+  describe('with past shows (MYK9-1283)', () => {
+    const past = { count: 2, monthLabel: 'October 2026' };
+    const sentence = (text: string) => (_: string, el: Element | null) =>
+      el?.tagName === 'P' && el.textContent === text;
+
+    it('names the past shows for a signed-out visitor and links to them, keeping the sign-up steps', () => {
+      const onShowPast = vi.fn();
+      render(
+        <ShowsEmptyState filtered={false} onShowAll={vi.fn()} past={past} onShowPast={onShowPast} />
+      );
+      expect(screen.queryByText('No shows yet')).toBeNull();
+      expect(
+        screen.getByText(sentence('No upcoming shows. 2 past shows: see October 2026.'))
+      ).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'October 2026' }));
+      expect(onShowPast).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('link', { name: CREATE_ACCOUNT.label })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: ADD_YOUR_CLUB.label })).toBeInTheDocument();
+    });
+
+    it('says "1 past show" for one', () => {
+      render(
+        <ShowsEmptyState
+          filtered={false}
+          onShowAll={vi.fn()}
+          past={{ count: 1, monthLabel: 'October 2026' }}
+          onShowPast={vi.fn()}
+        />
+      );
+      expect(
+        screen.getByText(sentence('No upcoming shows. 1 past show: see October 2026.'))
+      ).toBeInTheDocument();
+    });
+
+    it('gives a signed-in viewer the same past copy, with no sign-up offer', () => {
+      auth.user = { id: 'signed-in' };
+      render(
+        <ShowsEmptyState filtered={false} onShowAll={vi.fn()} past={past} onShowPast={vi.fn()} />
+      );
+      expect(
+        screen.getByText(sentence('No upcoming shows. 2 past shows: see October 2026.'))
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('link')).toBeNull();
+    });
+  });
 });

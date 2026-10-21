@@ -1,4 +1,5 @@
 import { Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ListEmptyState } from '@/components/list-toolkit';
 import { ADD_YOUR_CLUB, CREATE_ACCOUNT } from '@/components/landing/lifecycle/landingCtas';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -9,6 +10,7 @@ const SHOW_NOUN = ['show', 'shows'] as const;
 const SHOWS_EMPTY_SIGNED_IN =
   'Shows will appear here as they are added. Try searching by discipline or club name above.';
 // Signed out: the homepage's "Find a show" lands here, so it must offer a next step.
+const PAST_TITLE = 'Nothing coming up';
 const SHOWS_EMPTY_GUEST = 'Shows appear here as clubs publish them.';
 
 /**
@@ -20,11 +22,26 @@ const SHOWS_EMPTY_GUEST = 'Shows appear here as clubs publish them.';
 export function ShowsEmptyState({
   filtered,
   onShowAll,
+  past,
+  onShowPast,
 }: {
   filtered: boolean;
   onShowAll: () => void;
+  /** Nothing is upcoming but past shows exist (MYK9-1283): say so instead of "No shows yet". */
+  past?: { count: number; monthLabel: string };
+  onShowPast?: () => void;
 }) {
   const { user } = useAuthContext();
+  const pastDescription =
+    past && !filtered ? (
+      <>
+        No upcoming shows. {past.count} past {past.count === 1 ? 'show' : 'shows'}: see{' '}
+        <Button variant="link" className="h-auto p-0 align-baseline" onClick={onShowPast}>
+          {past.monthLabel}
+        </Button>
+        .
+      </>
+    ) : null;
   if (user || filtered) {
     return (
       <ListEmptyState
@@ -32,7 +49,8 @@ export function ShowsEmptyState({
         noun={SHOW_NOUN}
         filtered={filtered}
         onShowAll={onShowAll}
-        description={SHOWS_EMPTY_SIGNED_IN}
+        description={pastDescription ?? SHOWS_EMPTY_SIGNED_IN}
+        {...(pastDescription ? { title: PAST_TITLE } : {})}
         action={null}
       />
     );
@@ -43,7 +61,8 @@ export function ShowsEmptyState({
       noun={SHOW_NOUN}
       filtered={false}
       onShowAll={onShowAll}
-      description={SHOWS_EMPTY_GUEST}
+      description={pastDescription ?? SHOWS_EMPTY_GUEST}
+      {...(pastDescription ? { title: PAST_TITLE } : {})}
       action={{ label: CREATE_ACCOUNT.label, href: CREATE_ACCOUNT.to }}
       secondaryAction={{ label: ADD_YOUR_CLUB.label, href: `/${ADD_YOUR_CLUB.href}` }}
     />

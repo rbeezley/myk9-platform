@@ -11,6 +11,7 @@
  */
 
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate, useMatch, useSearchParams } from 'react-router-dom';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
 import {
@@ -319,6 +320,7 @@ export function useRegistrationWizardState() {
   } = useShowRegistrationStore();
 
   // Draft persistence
+  const queryClient = useQueryClient();
   const userId = user?.id || 'anonymous';
   const clampedStep = Math.min(currentStep, currentWorkflowConfig.steps.length - 1);
   const currentStepId: StepId = currentWorkflowConfig.steps[clampedStep];
@@ -598,6 +600,7 @@ export function useRegistrationWizardState() {
 
     // Identity / permissions
     userId,
+    queryClient,
     canAssignArmbands,
     exhibitorProfile,
     triggerSync,

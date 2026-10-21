@@ -15,8 +15,13 @@ interface SharedSubscription {
   unsubscribes: Array<() => void>;
 }
 
-// A sync's replica writes land more than 100 ms apart (~5 RPCs in 2 s on one page load, MYK9-1066).
-export const ACCOUNT_TODAY_COALESCE_MS = 1500;
+// MYK9-1307: at most one invalidation per 30 s window. The first write after an idle period
+// schedules ONE invalidation; later writes inside the window do not reschedule it, so a change
+// shows at most 30 s after the first write and continuous writes cannot starve the refetch.
+// History: this was a 1.5 s trailing debounce (MYK9-1066, a sync's replica writes land more than
+// 100 ms apart), which still fired every quiet 1.5 s under steady writes (308 RPCs in the
+// sessions=50 baseline).
+export const ACCOUNT_TODAY_COALESCE_MS = 30_000;
 
 export function createAccountTodayEntriesSubscriptionRegistry(
   sources: readonly AccountTodaySubscriptionSource[],
@@ -42,7 +47,7 @@ export function createAccountTodayEntriesSubscriptionRegistry(
       };
       const invalidate = () => {
         if (created.disposed) return;
-        if (created.timer) clearTimeout(created.timer);
+        if (created.timer) return;
         created.timer = setTimeout(() => {
           created.timer = null;
           if (created.disposed) return;

@@ -14,6 +14,9 @@ const checkIn = vi.hoisted(() => ({
 }));
 
 vi.mock('@/services/show-day/checkInStatus', () => checkIn);
+// The hook reads the signed-in user to refresh the account-today cache (MYK9-1307); these tests
+// are about the offline writer, so a fixed signed-in user is enough.
+vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => ({ user: { id: 'user-1' } }) }));
 
 import { createAppQueryClient } from '@/lib/queryClient';
 import { useCheckInMutation } from './useCheckInMutation';

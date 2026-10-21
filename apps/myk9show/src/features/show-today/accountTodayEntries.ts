@@ -14,10 +14,13 @@ import {
   type AccountTodayEntryId,
 } from './accountTodayEntries.helpers';
 import type { HydratedAccountTodayEntry } from './showTodayBanner.helpers';
+import {
+  accountTodayEntriesQueryKey,
+  invalidateAccountTodayEntries,
+} from './accountTodayEntriesKey';
 import { createAccountTodayEntriesSubscriptionRegistry } from './accountTodayEntriesSubscriptions';
 
-export const accountTodayEntriesQueryKey = (userId: string | undefined) =>
-  ['account-today-entries', userId ?? 'anonymous'] as const;
+export { accountTodayEntriesQueryKey, invalidateAccountTodayEntries };
 
 const accountTodaySubscriptions = createAccountTodayEntriesSubscriptionRegistry([
   replicatedEntriesTable,
@@ -25,6 +28,12 @@ const accountTodaySubscriptions = createAccountTodayEntriesSubscriptionRegistry(
   replicatedTrialsTable,
   replicatedShowsTable,
 ]);
+
+// The 60 s remount/refocus refresh is the backstop for own-entry paths that write no replica row
+// (card checkout's post-return entry creation, edits, withdrawals). Replica-write invalidations are
+// coalesced to one per 30 s window (MYK9-1307); explicit invalidations make the wizard submit and
+// self check-in immediate.
+export const ACCOUNT_TODAY_STALE_MS = 60_000;
 
 interface UseAccountTodayEntriesOptions {
   enabled?: boolean;
@@ -73,7 +82,7 @@ export function useAccountTodayEntries(options: UseAccountTodayEntriesOptions = 
     queryKey,
     queryFn: fetchHydratedAccountTodayEntries,
     enabled,
-    staleTime: 60_000,
+    staleTime: ACCOUNT_TODAY_STALE_MS,
   });
 }
 

@@ -78,4 +78,47 @@ describe('account-today shared replication subscriptions', () => {
 
     expect(invalidate).not.toHaveBeenCalled();
   });
+
+  it('fires one invalidation 30 s after the first write, however many land inside the window', async () => {
+    const sources = [source()];
+    const registry = createAccountTodayEntriesSubscriptionRegistry(sources);
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue();
+    registry.retain(queryClient, ['account-today-entries', 'user-1']);
+    const write = vi.mocked(sources[0].subscribe).mock.calls[0]?.[0];
+
+    write?.([]);
+    await vi.advanceTimersByTimeAsync(10_000);
+    write?.([]);
+    await vi.advanceTimersByTimeAsync(10_000);
+    write?.([]);
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(invalidate).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(invalidate).toHaveBeenCalledOnce();
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(invalidate).toHaveBeenCalledOnce();
+  });
+
+  it('opens a new window for a write after an idle period', async () => {
+    const sources = [source()];
+    const registry = createAccountTodayEntriesSubscriptionRegistry(sources);
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue();
+    registry.retain(queryClient, ['account-today-entries', 'user-1']);
+    const write = vi.mocked(sources[0].subscribe).mock.calls[0]?.[0];
+
+    write?.([]);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(invalidate).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(15_000);
+    write?.([]);
+    await vi.advanceTimersByTimeAsync(29_999);
+    expect(invalidate).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(invalidate).toHaveBeenCalledTimes(2);
+  });
 });

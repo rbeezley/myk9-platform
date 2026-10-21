@@ -71,6 +71,7 @@ function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext> = {}):
     markStepComplete: vi.fn(),
     setCurrentStep: vi.fn(),
     updateShowRegistration: vi.fn(),
+    invalidateOwnTodayEntries: vi.fn(),
     triggerSync: vi.fn(() => {
       order.push('triggerSync');
     }),
@@ -225,6 +226,21 @@ describe('submitPaymentStep', () => {
     expect(submitShowRegistrationMock).toHaveBeenCalledTimes(1);
     expect(ctx.cart.clearCart).toHaveBeenCalledTimes(1);
     expect(order).toEqual(['clearCart', 'triggerSync']);
+  });
+
+  it('refreshes the exhibitor account-today cache after their own online filing, not staff filing or failure', async () => {
+    const own = makeContextAndOrder();
+    await submitPaymentStep(own.ctx);
+    expect(own.ctx.invalidateOwnTodayEntries).toHaveBeenCalledTimes(1);
+
+    const staff = makeContextAndOrder({ currentWorkflowMode: 'secretary_new' });
+    await submitPaymentStep(staff.ctx);
+    expect(staff.ctx.invalidateOwnTodayEntries).not.toHaveBeenCalled();
+
+    const failed = makeContextAndOrder();
+    submitShowRegistrationMock.mockRejectedValueOnce(new Error('boom'));
+    await submitPaymentStep(failed.ctx);
+    expect(failed.ctx.invalidateOwnTodayEntries).not.toHaveBeenCalled();
   });
 
   it('keeps the cart and the payment step when submission fails', async () => {

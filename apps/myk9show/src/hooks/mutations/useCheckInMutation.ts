@@ -14,6 +14,8 @@ import {
   updateSelfCheckInStatus,
   type CheckInWriter,
 } from '@/services/show-day/checkInStatus';
+import { invalidateAccountTodayEntries } from '@/features/show-today/accountTodayEntriesKey';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import type { ShowDayDetailRow } from '@/types/show-day-types';
 
 interface CheckInMutationInput {
@@ -60,6 +62,7 @@ async function updateCheckInStatus(
 
 export function useCheckInMutation(options: UseCheckInMutationOptions = {}) {
   const queryClient = useQueryClient();
+  const { user } = useAuthContext();
   const writer = options.writer ?? 'replicated';
 
   return useMutation<void, Error, CheckInMutationInput, CheckInMutationContext>({
@@ -141,6 +144,15 @@ export function useCheckInMutation(options: UseCheckInMutationOptions = {}) {
         for (const [key, data] of context.previousClassEntries) {
           queryClient.setQueryData(key, data);
         }
+      }
+    },
+
+    onSuccess: () => {
+      // Self check-in is an RPC that never writes the entries replica, so every self
+      // check-in surface refreshes the signed-in exhibitor's account-today cache here,
+      // not by opting in at the call site (MYK9-1307).
+      if (writer === 'self-checkin-rpc' && user?.id) {
+        void invalidateAccountTodayEntries(queryClient, user.id);
       }
     },
 

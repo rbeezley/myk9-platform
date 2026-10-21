@@ -147,6 +147,7 @@ describe('resolveActions — secretary on a show', () => {
       'show-add-mail-in-entry',
       'show-add-new-trial',
       'show-add-classes',
+      'show-select-classes',
       'show-open-entry-management',
       'show-close-out',
     ]);
@@ -158,6 +159,7 @@ describe('resolveActions — secretary on a show', () => {
       `/secretary/register/${SHOW_ID}`,
       `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-trials`,
       `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-classes`,
+      `/shows/${SHOW_ID}?select=classes`, // absolute: lands on Overview in selection mode (MYK9-1317)
       `/shows/${SHOW_ID}/entries`,
       `/shows/${SHOW_ID}/results?step=close`, // the Results section's close-out step
     ]);
@@ -212,8 +214,8 @@ describe('resolveActions — club admin on a show', () => {
   const actions = inGroup(resolveActions(SHOW_CONTEXT, clubAdmin), 'show');
 
   // "Open Show Day" went with the tab (MYK9-957): the show home is the page this menu opens over.
-  it('keeps the same seven items', () => {
-    expect(actions).toHaveLength(7);
+  it('keeps the same items plus Select classes (MYK9-1317)', () => {
+    expect(actions).toHaveLength(8);
   });
 
   // MYK9-1242: only the secretary's choice went away. A club admin cannot reach the
@@ -233,7 +235,7 @@ describe('resolveActions — club admin on a show', () => {
   it('lets an owning-club admin without the secretary role add trials and classes (MYK9-928)', () => {
     // The old Setup toolbar buttons were gated on show management, and the wizard admits
     // CLUB_ADMIN, so the relocated items are too.
-    for (const id of ['show-add-new-trial', 'show-add-classes']) {
+    for (const id of ['show-add-new-trial', 'show-add-classes', 'show-select-classes']) {
       const item = actions.find(a => a.id === id);
       expect(item, id).toBeDefined();
       expect(item?.disabledReason, id).toBeUndefined();

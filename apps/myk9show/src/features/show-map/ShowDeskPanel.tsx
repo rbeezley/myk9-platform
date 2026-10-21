@@ -1,8 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 
-import { PhaseShell } from '@/features/show-workbench/PhaseShell';
-
 import { SecretaryCockpit } from './cockpit/SecretaryCockpit';
 import { buildSecretaryCockpitSnapshot } from './cockpit/buildSecretaryCockpitSnapshot';
 import { ReadyForShowDaySection } from './cockpit/ReadyForShowDaySection';
@@ -19,8 +17,6 @@ import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { useShowMapWorkbenchState } from './useShowMapWorkbenchState';
 import type { BuildShowMapTreeInput } from './showMapTypes';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
-import { ShowHomeSetupLinks } from './ShowHomeSetupLinks';
-import { ShowHomePaperScores } from './ShowHomePaperScores';
 
 interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   canManageShow: boolean;
@@ -162,17 +158,10 @@ export default function ShowDeskPanel({
 
   return (
     <div className="space-y-4">
-      <PhaseShell
-        title="Your show"
-        actions={
-          canManageShow ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <ShowHomeSetupLinks showId={show.id} />
-              <ShowHomePaperScores classes={classes} />
-            </div>
-          ) : undefined
-        }
-      />
+      {/* INTENT: no button row here (MYK9-1317). Add Trial and Select classes are Actions-menu
+          rows; paper scoring is per class, in the focused class's Class work. The heading stays
+          for screen readers and the load-readiness probe. */}
+      <h2 className="sr-only">Your show</h2>
       {tools && <ShowDeskToolPanel tools={tools} />}
       {desk.status === 'setup' && (
         <div

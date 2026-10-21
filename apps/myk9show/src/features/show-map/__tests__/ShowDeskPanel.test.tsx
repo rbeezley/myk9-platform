@@ -324,6 +324,34 @@ describe('ShowDeskPanel cockpit', () => {
     expect(screen.getAllByRole('link', { name: /class reports/i })).not.toHaveLength(0);
   });
 
+  it('renders no Your show button row: setup verbs live in Actions, scoring in Class work (MYK9-1317)', () => {
+    render(
+      <ShowDeskPanel
+        show={show}
+        trials={[trial]}
+        classes={[
+          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' },
+          { id: 'class-2', trialId: 'trial-1', name: 'Container Advanced', status: 'Scheduled' },
+        ]}
+        entries={[]}
+        canManageShow
+        scopeNow={now}
+      />,
+      { initialRoute: '/shows/show-1' }
+    );
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Your show' })).toBeInTheDocument();
+    for (const name of [/^add trial$/i, /^select classes$/i]) {
+      expect(screen.queryByRole('link', { name })).toBeNull();
+      expect(screen.queryByRole('button', { name })).toBeNull();
+    }
+    // Paper scoring is per class: the one door is the focused class's Class work, never a
+    // show-level button that would have needed a class picker.
+    const paperDoors = screen.getAllByRole('link', { name: /^enter results from scoresheet$/i });
+    expect(paperDoors).toHaveLength(1);
+    expect(paperDoors[0]).toHaveAttribute('href', expect.stringContaining('/scoring/classes/'));
+  });
+
   it('deep-links actionable entry attention to its canonical owner page', () => {
     render(
       <ShowDeskPanel

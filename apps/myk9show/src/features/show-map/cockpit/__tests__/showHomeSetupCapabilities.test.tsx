@@ -5,8 +5,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { HomeClassSelection } from '@/components/shows/ShowDetails/HomeClassSelection';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
-import { getAddTrialsHref } from '@/pages/secretary/ShowCreationWizard/addTrialsHref';
-import { ShowHomeSetupLinks } from '../../ShowHomeSetupLinks';
 import { SecretaryCockpit } from '../SecretaryCockpit';
 import type { SecretaryCockpitSnapshot } from '../secretaryCockpitTypes';
 
@@ -47,13 +45,13 @@ function LocationProbe() {
  *
  * | Setup action                         | On the home                                   |
  * | ------------------------------------ | --------------------------------------------- |
- * | Trials: Add Trial                    | Header "Add Trial"                            |
+ * | Trials: Add Trial                    | Actions menu "Add Trial"                      |
  * | Trials: row Edit / Delete            | Trial heading menu (Edit); edit panel footer (Delete) |
  * | Trials: row opens the trial page     | Trial heading menu "Trial details"            |
  * | Classes: Add Classes                 | Trial heading "Add Classes"                   |
  * | Classes: row Edit / Delete           | Class panel "Edit class"; edit panel footer (Delete) |
  * | Classes: status change               | Class panel / row status control (unchanged)  |
- * | Classes: judge, waitlist, bulk bar   | "Select classes" (Class Management in place)  |
+ * | Classes: judge, waitlist, bulk bar   | Actions menu "Select classes" (in place)      |
  * | Classes: row opens class details     | Class panel "View entries and results"        |
  */
 describe('show home carries every Setup action (MYK9-956)', () => {
@@ -93,19 +91,6 @@ describe('show home carries every Setup action (MYK9-956)', () => {
     expect(screen.queryByRole('link', { name: /add classes/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /trial actions/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /edit class/i })).toBeNull();
-  });
-
-  it('links the header to Add Trial and to Select classes', () => {
-    render(<ShowHomeSetupLinks showId="show-1" />, { initialRoute: '/shows/show-1' });
-
-    expect(screen.getByRole('link', { name: /add trial/i })).toHaveAttribute(
-      'href',
-      getAddTrialsHref('show-1')
-    );
-    expect(screen.getByRole('link', { name: /select classes/i })).toHaveAttribute(
-      'href',
-      '/shows/show-1?select=classes'
-    );
   });
 
   it('mounts Class Management in Select classes, and Done drops the mode and its params', async () => {

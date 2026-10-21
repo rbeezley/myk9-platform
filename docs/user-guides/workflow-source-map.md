@@ -179,6 +179,8 @@ redirect:
 **Outcome:** Secretary or club admin configures trials, classes, officials, and rings after initial creation.
 **Canonical route:** `/shows/:showId` (Overview; Select classes is `?select=classes`)
 **Source-map note:** Re-verified 2026-10-03 (MYK9-957). Setup is deleted: trials and classes are added, edited and deleted from the Overview schedule, and the per-class judge dropdown and bulk class actions live in Overview → Select classes. `/shows/:id/setup` redirects there. Secretary Guide § 1–2 and Club Admin Guide § 2 were updated to match.
+
+**Source-map note:** 2026-10-21 (MYK9-1317). Overview has no button row: Add Trial and Select classes are rows in the header Actions menu (Select classes links to `?select=classes` from any show tab), and paper scoring is on the focused class.
 **Source-map note:** Re-verified 2026-10-01 (MYK9-899). Add Classes (Setup → Classes, the trial page) now opens the show wizard's `add-classes` mode; the retired Class Creation page and Add Classes panel no longer exist, and their old URLs redirect. Secretary Guide § 2 gained the matching step.
 **Source-map note:** Re-verified 2026-10-01 (MYK9-924). Class Management is merged into `/shows/:id/setup` (Classes section): the per-class judge dropdown and bulk class status live there now, and the old `/shows/:id/classes/:trialId` URL redirects to it. Secretary Guide § Setup (Change a class's judge) and § 2 were updated to match.
 **Docs target:** Secretary Guide § Setup, Club Admin Guide § 2 — Your Club's Shows

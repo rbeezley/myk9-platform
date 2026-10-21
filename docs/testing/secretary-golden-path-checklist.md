@@ -311,7 +311,7 @@ To reach the at-show surface, just open `/at-show/:showId` for the test show as 
 
 ### 4.11 — Schedule Slip Broadcast
 
-- [ ] From Show Desk tools, open **Schedule Slip Script**
+- [ ] On Overview, focus a class whose expected start is running late and choose **Announce the delay**
 - [ ] Generate a PA script for a ring running behind
 - [ ] Optionally broadcast the message via **Quick Broadcast**
 - [ ] Message appears in the Show Desk broadcast lane
@@ -498,7 +498,7 @@ To reach the at-show surface, just open `/at-show/:showId` for the test show as 
 
 ### 7.2 — Trigger a Notification from Show Desk
 
-- [ ] As Secretary, open the Schedule Slip Script card in Show Desk tools
+- [ ] As Secretary, on Overview, open **Announce the delay** on a class running late
 - [ ] Generate and broadcast a message with push enabled
 - [ ] On the subscribed device / browser: a push notification arrives within ~30 seconds
 

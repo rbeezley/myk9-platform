@@ -89,7 +89,7 @@ The **Actions** menu in the top bar has **Edit show**, which opens the show's ed
 
 - **Typing in entries on someone's behalf.** **Add entry** (Actions menu) and **Add late entry** (Entries → More) are shown to you greyed out, with the reason **"Trial secretary access only"** — visible, so you can see they exist, but not yours to use.
 - **Entering scores from paper.** **Enter results from scoresheet**, on the Overview class panel, is greyed out for the same reason. Scoring belongs to the judge and the secretary; you can read every score on the Results tab.
-- **Volunteer scheduling.** **Open volunteer scheduling** in Overview → Tools is greyed out for the same reason; the scheduling page itself is the secretary's.
+- **Volunteer scheduling.** **Open volunteer scheduling** in the show's Actions menu (Show logistics → Volunteers) is greyed out for the same reason; the scheduling page itself is the secretary's.
 
 If you follow a link into one of those pages anyway, you land on a page that says **"Trial secretary access only"** and explains why, with a way back — not a dead end.
 

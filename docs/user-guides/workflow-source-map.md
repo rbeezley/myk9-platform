@@ -202,6 +202,8 @@ redirect:
 **Canonical route:** `/shows/:showId` (Overview, with **Tools**)
 **Entry point:** The show's Overview tab, or Secretary Dashboard when show is live today
 **Source-map note:** Re-verified 2026-10-03 (MYK9-957). The Show Day tab is folded into Overview; `/shows/:id/show-day` redirects to the home and keeps its day, filter, focus and `?tool=`. The guides now say **Overview → Tools** and **Overview → click the class**.
+
+**Source-map note:** 2026-10-21 (MYK9-1262). The Tools button is gone: each show tool is a row in the header Actions menu (Show day / Show logistics) and opens in its own panel. The guides now say **Overview → Actions**.
 **Docs target:** Secretary Guide § Show Day, Club Admin Guide § 2 — Your Club's Shows, KB: `handle-a-scratch.md`, `handle-move-up.md`
 
 ### 18. Generate reports

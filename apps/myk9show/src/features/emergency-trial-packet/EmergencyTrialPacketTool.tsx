@@ -81,7 +81,7 @@ function completePacketRows(input: {
 
 /**
  * The emergency packet is a readiness tool, not a report choice. Keep its
- * existing panel intact and mount that one UI in Show Desk's tools sheet.
+ * existing panel intact and mount that one UI in the show's Emergency trial packet tool (Actions menu).
  * Reports links here instead of owning a second packet surface.
  */
 export function EmergencyTrialPacketTool({ show }: EmergencyTrialPacketToolProps) {

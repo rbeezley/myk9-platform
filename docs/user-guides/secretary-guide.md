@@ -34,7 +34,7 @@ Open a show and you get **one row of four tabs**. Everything in this guide lives
 | **Results**  | Three steps: review and release results, submit them to the registry, then close the show.                                                                 |
 | **Reports**  | Printing: labels, check-in sheets, score sheets, catalogs and registry reports.                                                                            |
 
-**Overview → Tools** holds the rest, in two groups:
+**Overview → Actions** holds the rest, in two groups:
 
 | Show day                                                                    | Show logistics                                        |
 | --------------------------------------------------------------------------- | ----------------------------------------------------- |
@@ -247,11 +247,11 @@ To put one dog in a specific spot, open **Run order → Reorder manually...**. E
 
 ## 15 · Ringside access codes
 
-**Overview → Tools → Access codes.** Separate codes for Admin, Judge, Steward, and Exhibitor. Copy a code, copy a share link, print a slip, or generate new codes if one gets out.
+**Overview → Actions → Access codes.** Separate codes for Admin, Judge, Steward, and Exhibitor. Copy a code, copy a share link, print a slip, or generate new codes if one gets out.
 
 ## 16 · Volunteers, judge hospitality, and the paper fallback
 
-All under **Overview → Tools**:
+All under **Overview → Actions**:
 
 - **Volunteers** — add volunteers and assign them to per-class slots grouped by trial.
 - **Judge hospitality** — judge meals, breaks and show-day notes.
@@ -274,9 +274,9 @@ All under **Overview → Tools**:
 
 To check in an exhibitor's dog:
 
-- **Overview → Tools → People at show** — look the exhibitor up, then **Check in** (or **Check in all eligible**).
+- **Overview → Actions → People at show** — look the exhibitor up, then **Check in** (or **Check in all eligible**).
 - Or for one class: **Overview → click the class → View entries and results** opens the class's run sheet, with a check-in status on every dog's row.
-- **Overview → Tools → Self check-in** lets exhibitors check themselves in, by show, trial or class.
+- **Overview → Actions → Self check-in** lets exhibitors check themselves in, by show, trial or class.
 
 ## 19 · Change a dog's class
 
@@ -298,7 +298,7 @@ Per dog, record the result (Q, NQ, ABS, EX), the search time, and any faults. Se
 
 ## 21 · Log an incident
 
-**Overview → Tools → Incident log.** Record what happened while the details are fresh. Closeout reads the log and lists reportable incidents as a concern.
+**Overview → Actions → Incident log.** Record what happened while the details are fresh. Closeout reads the log and lists reportable incidents as a concern.
 
 ## 22 · Print the results sheet
 

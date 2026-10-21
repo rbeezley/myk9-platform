@@ -58,7 +58,7 @@ The final `judge-steward-quickstart.md` should be:
 **How the secretary gets the passcode:**
 Show page → Actions menu → Show day → **Access codes** → share the QR code or the plaintext passcode.
 
-**Screenshots:** SmartSignInPage showing passcode entry; QR code card in Show Desk tools.
+**Screenshots:** SmartSignInPage showing passcode entry; the Access codes panel (Actions → Show day → Access codes).
 
 **Stability note:** Passcode path is stable (golden path § 6.10). The show access codes card requires the flag to be enabled.
 

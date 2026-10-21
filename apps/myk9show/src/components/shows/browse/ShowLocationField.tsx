@@ -40,7 +40,6 @@ export function ShowLocationField({
 
   const label = location ? location.label : isResolvingLocation ? 'Finding you…' : 'Anywhere';
   const isApproximate = location?.source === 'ip';
-  const accessibleName = isApproximate ? `Near: ${label} (approximate)` : `Near: ${label}`;
 
   const submitTyped = async (event: FormEvent) => {
     event.preventDefault();
@@ -71,7 +70,6 @@ export function ShowLocationField({
       <PopoverTrigger asChild nativeButton>
         <button
           type="button"
-          aria-label={accessibleName}
           data-testid="near-field"
           className={cn(
             'inline-flex h-11 w-full items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm shadow-card transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto',
@@ -79,12 +77,23 @@ export function ShowLocationField({
           )}
         >
           <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span className="text-muted-foreground">Near</span>
+          {/* The visible text is the accessible name ("Near: Tulsa, OK (approximate)"); an
+              aria-label that differs from it fails axe's label-content-name-mismatch. */}
+          <span className="text-muted-foreground">
+            Near<span className="sr-only">:</span>
+          </span>{' '}
           <span className="max-w-56 truncate font-medium text-foreground">{label}</span>
           {isApproximate && (
-            <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
-              approximate
-            </span>
+            <>
+              {' '}
+              <span className="sr-only">(approximate)</span>
+              <span
+                aria-hidden="true"
+                className="hidden shrink-0 text-xs text-muted-foreground sm:inline"
+              >
+                approximate
+              </span>
+            </>
           )}
         </button>
       </PopoverTrigger>

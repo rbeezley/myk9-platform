@@ -231,9 +231,12 @@ test.describe('header wordmark fits', () => {
           'Account menu',
           ...(cartCount > 0 ? ['Shopping cart'] : []),
         ]) {
+          // The bell's name grows a count when unread messages exist ("Message Center 3 unread").
+          const accessibleName =
+            name === 'Message Center' ? /^Message Center( \d+\+? unread)?$/ : name;
           const bounds = await page
             .locator('nav')
-            .getByRole('button', { name, exact: true })
+            .getByRole('button', { name: accessibleName, exact: true })
             .boundingBox();
           expect(bounds, `${name} must be visible`).not.toBeNull();
           expect(bounds!.width, `${name} touch width`).toBeGreaterThanOrEqual(44);

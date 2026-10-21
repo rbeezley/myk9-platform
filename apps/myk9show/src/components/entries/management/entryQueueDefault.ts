@@ -15,8 +15,9 @@ export interface ListedFormCounts {
 /**
  * The queue Entry Forms opens on when the URL names none (MYK9-1276): Needs review, unless it
  * would list nothing while All would list forms, in which case an empty table would hide forms
- * that exist. `null` (the forms have not loaded) keeps Needs review. Derived live in render and
- * never written to the URL; a queue the URL names always wins over it.
+ * that exist. `null` (the forms have not loaded) keeps Needs review. The cockpit hook decides it
+ * once per scope and show from the first loaded forms and keeps it (arrivals and refreshes never
+ * flip it); it is never written to the URL, and a queue the URL names always wins over it.
  */
 export function deriveDefaultQueues(listed: ListedFormCounts | null): ShowRegistrationQueue[] {
   return listed !== null && listed.needsReview === 0 && listed.all > 0 ? ['all'] : ['needs-review'];

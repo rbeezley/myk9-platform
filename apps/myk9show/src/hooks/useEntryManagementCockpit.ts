@@ -76,9 +76,7 @@ export function useEntryManagementCockpit({
     queues: readonly ShowRegistrationQueue[];
   } | null>(null);
   const landingFits =
-    landing !== null &&
-    landing.scopeKey === scopeKey &&
-    (showId === null || landing.showId === showId);
+    landing !== null && landing.scopeKey === scopeKey && landing.showId === showId;
   // Decided only on loaded forms, and on a trial's classes once they are known: a landing taken
   // before either would be kept for the whole scope.
   const scopeIsKnown = urlState.trialIds.length === 0 || trialClassIds !== undefined;

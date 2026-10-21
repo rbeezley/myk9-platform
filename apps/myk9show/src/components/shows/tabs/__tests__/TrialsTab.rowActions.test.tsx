@@ -233,7 +233,7 @@ describe.each(['cards', 'table'])('TrialsTab row actions (%s view)', view => {
 
     await user.keyboard('{Escape}');
     await user.click(screen.getByText('Saturday Trial 1'));
-    expect(mockNavigate).toHaveBeenCalledWith('/shows/s1/trials/t1');
+    expect(mockNavigate).toHaveBeenCalledWith('/shows/s1?day=2026-05-09&anchor=t1');
   });
 });
 

@@ -1,266 +1,86 @@
 import { test, expect } from '@playwright/test';
-import type { Page } from '@playwright/test';
-import { signInAsSecretary } from './helpers/testUsers';
-import { openActionsMenu } from './helpers/actionsMenu';
+import { signInAsExhibitor, signInAsSecretary } from './helpers/testUsers';
 
 /**
- * E2E Tests for Trials Page UI/UX Improvements
+ * The trial URL (`/shows/:showId/trials/:trialId`) after MYK9-1320.
  *
- * Tests the following features:
- * - Statistics cards show contextual information (not misleading percent changes)
- * - Trial info card does not show Order field
- * - Edit trial is the header Actions menu's first item, with no page-level Edit button
- * - Trial navigation (prev/next) when multiple trials exist
- * - Empty state shows icon and improved messaging
- * - Search has shortened placeholder
- * - In Progress status badge has animation
+ * A manager no longer gets a trial page: the URL redirects into the workbench (the Overview with
+ * the trial open, or Entry Forms filtered to it), and the trial heading menu there is the door to
+ * what the page held. Everyone else keeps the read-only Overview and Entries view.
  */
 
-// Helper function to login — delegates to the shared SmartSignInPage flow.
-async function login(page: Page) {
-  await signInAsSecretary(page);
-}
+const SHOW_ID = '4ad95cdc-2c04-4386-8e0b-07b9111fcac3'; // Test Golden Path Show
+const TRIAL_ID = '0c300700-10a6-4a80-9f82-ccd3e6d80f5c'; // Saturday Trial 1
+const TRIAL_URL = `/shows/${SHOW_ID}/trials/${TRIAL_ID}`;
 
-// Helper to navigate to a trial page
-async function navigateToTrialPage(page: Page) {
-  // Navigate to shows first
-  await page.goto('/shows', { waitUntil: 'networkidle' });
+/** The trial's collapsible heading on the Overview (CockpitTrialGroup.tsx:95 anchor id). */
+const trialHeading = (page: import('@playwright/test').Page) =>
+  page.locator(`[id="cockpit-anchor-${TRIAL_ID}"]`);
 
-  // Click on the first show to view its details
-  const showCard = page.locator('.myk9-show-sidebar-item').first();
-  if (await showCard.isVisible()) {
-    await showCard.click();
-    await page.waitForLoadState('networkidle');
-  }
-
-  // Navigate to a trial if available
-  const trialLink = page.locator('a[href*="/trials/"]').first();
-  if (await trialLink.isVisible()) {
-    await trialLink.click();
-    await page.waitForLoadState('networkidle');
-  }
-}
-
-test.describe('Trials Page - Statistics Cards', () => {
+test.describe('Trial URL - manager', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page);
+    await signInAsSecretary(page);
   });
 
-  test('statistics cards should not show misleading percent changes', async ({ page }) => {
-    await navigateToTrialPage(page);
+  test('redirects into the Overview with the trial open', async ({ page }) => {
+    await page.goto(TRIAL_URL);
 
-    // StatCard renders icon in [data-slot="icon"]; subtitles are plain text beneath the value
-    const statIcons = page.locator('[data-slot="icon"]');
-
-    // If we have stat cards, they should have contextual subtitles, not percent changes
-    if (
-      await statIcons
-        .first()
-        .isVisible({ timeout: 5000 })
-        .catch(() => false)
-    ) {
-      // Stat cards should not contain hardcoded misleading trend percentages
-      const fakeTrends = ['+5%', '+12%', '-3%', '+8%'];
-      for (const trend of fakeTrends) {
-        const trendElement = page.locator(`text="${trend}"`);
-        await expect(trendElement).toHaveCount(0);
-      }
-    }
+    await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}\\?.*anchor=${TRIAL_ID}`), {
+      timeout: 15000,
+    });
+    await expect(trialHeading(page)).toBeVisible({ timeout: 15000 });
   });
 
-  test('Qualified Rate card should only show when classes are completed', async ({ page }) => {
-    await navigateToTrialPage(page);
+  test('the Entries deep link lands on Entry Forms filtered to the trial', async ({ page }) => {
+    await page.goto(`${TRIAL_URL}?tab=entries`);
 
-    // StatCard icons are rendered in [data-slot="icon"]
-    const statIcons = page.locator('[data-slot="icon"]');
-
-    if (
-      await statIcons
-        .first()
-        .isVisible({ timeout: 5000 })
-        .catch(() => false)
-    ) {
-      // If there's a Qualified Rate card, it should have qualified data in its subtitle
-      const qualifiedCard = page.locator('text=Qualified Rate');
-
-      if (await qualifiedCard.isVisible({ timeout: 2000 }).catch(() => false)) {
-        // The subtitle text "qualified" should be present near the card
-        const qualifiedText = page.locator('text=/qualified/i');
-        await expect(qualifiedText.first()).toBeVisible();
-      }
-    }
-  });
-});
-
-test.describe('Trials Page - Trial Info Card', () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+    await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/entries\\?.*trial=${TRIAL_ID}`), {
+      timeout: 15000,
+    });
   });
 
-  test('trial info card should not display Order field', async ({ page }) => {
-    await navigateToTrialPage(page);
+  test('the retired Financials deep link lands on the Overview, not a 404', async ({ page }) => {
+    await page.goto(`${TRIAL_URL}?tab=financials`);
 
-    const infoCard = page.locator('.myk9-show-info-card');
-
-    if (await infoCard.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // Look for "Order" label - it should NOT exist
-      const orderLabel = infoCard.locator('.myk9-show-info-label:has-text("Order")');
-      await expect(orderLabel).not.toBeVisible();
-    }
+    await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}\\?.*anchor=${TRIAL_ID}`), {
+      timeout: 15000,
+    });
+    await expect(page.getByText(/doesn't exist|not found/i)).toHaveCount(0);
   });
 
-  test('trial info card should display Total Classes field', async ({ page }) => {
-    await navigateToTrialPage(page);
-
-    const infoCard = page.locator('.myk9-show-info-card');
-
-    if (await infoCard.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // Look for "Total Classes" label
-      const totalClassesLabel = infoCard.locator('.myk9-show-info-label:has-text("Total Classes")');
-      await expect(totalClassesLabel).toBeVisible();
-    }
-  });
-});
-
-test.describe('Trials Page - Action Buttons', () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
-  });
-
-  test('Edit trial is the first item of the header Actions menu, not a page button', async ({
+  test('the trial heading menu holds the trial doors, Edit first, and Delete lives in the panel', async ({
     page,
   }) => {
-    await navigateToTrialPage(page);
-    test.skip(
-      !/\/trials\/[0-9a-f-]{36}/.test(page.url()),
-      'no trial reachable from the first show'
-    );
+    await page.goto(`/shows/${SHOW_ID}?anchor=${TRIAL_ID}`);
+    await expect(trialHeading(page)).toBeVisible({ timeout: 15000 });
 
-    // MYK9-928: no visible page-level Edit button.
-    await expect(page.locator('button[title="Edit Trial"]')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
+    await page
+      .getByRole('button', { name: /^Trial actions for / })
+      .first()
+      .click();
+    const items = page.getByRole('menuitem');
+    await expect(items.first()).toHaveText('Edit Trial');
+    await expect(items.filter({ hasText: 'Entry forms' })).toHaveCount(1);
+    await expect(items.filter({ hasText: 'Judge supplies' })).toHaveCount(1);
+    await expect(items.filter({ hasText: 'Trial financials' })).toHaveCount(1);
+    await expect(items.filter({ hasText: /delete/i })).toHaveCount(0);
 
-    const menu = await openActionsMenu(page);
-    await expect(menu.getByRole('menuitem').first()).toHaveText('Edit trial');
-  });
-
-  test('Delete is in the Edit panel footer, never in a header menu', async ({ page }) => {
-    await navigateToTrialPage(page);
-    test.skip(
-      !/\/trials\/[0-9a-f-]{36}/.test(page.url()),
-      'no trial reachable from the first show'
-    );
-
-    // CRUD standard Phase 3: no Delete on the page or in the Actions menu...
-    await expect(page.locator('button:has-text("Delete Trial")')).toHaveCount(0);
-    const menu = await openActionsMenu(page);
-    await expect(menu.getByRole('menuitem', { name: /delete/i })).toHaveCount(0);
-
-    // ...it is the Edit panel's footer button.
-    await menu.getByRole('menuitem', { name: 'Edit trial' }).click();
+    await items.first().click();
     await expect(page.getByRole('button', { name: 'Delete trial', exact: true })).toBeVisible();
   });
 });
 
-test.describe('Trials Page - Navigation', () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
-  });
+test.describe('Trial URL - exhibitor', () => {
+  test('keeps the read-only Overview and Entries view, with no Financials tab', async ({
+    page,
+  }) => {
+    await signInAsExhibitor(page);
+    await page.goto(`${TRIAL_URL}?tab=financials`);
 
-  test('should show trial navigation when multiple trials exist', async ({ page }) => {
-    await navigateToTrialPage(page);
-
-    // Check for navigation controls
-    const prevButton = page.locator('button[title="Previous Trial"]');
-    const nextButton = page.locator('button[title="Next Trial"]');
-
-    // If navigation exists (multiple trials), verify it's functional
-    if (await prevButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await expect(nextButton).toBeVisible();
-
-      // Should show current position (e.g., "1 of 3")
-      const positionText = page.locator('text=/\\d+ of \\d+/');
-      await expect(positionText).toBeVisible();
-    }
-  });
-
-  test('navigation buttons should be disabled appropriately at boundaries', async ({ page }) => {
-    await navigateToTrialPage(page);
-
-    const prevButton = page.locator('button[title="Previous Trial"]');
-
-    if (await prevButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // At first trial, prev should be disabled
-      const positionText = await page.locator('text=/\\d+ of \\d+/').textContent();
-      if (positionText?.startsWith('1 of')) {
-        await expect(prevButton).toBeDisabled();
-      }
-
-      // At last trial, next should be disabled
-      const nextButton = page.locator('button[title="Next Trial"]');
-      const totalMatch = positionText?.match(/of (\d+)/);
-      const currentMatch = positionText?.match(/^(\d+) of/);
-      if (totalMatch && currentMatch && currentMatch[1] === totalMatch[1]) {
-        await expect(nextButton).toBeDisabled();
-      }
-    }
-  });
-});
-
-test.describe('Trials Page - Classes Table', () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
-  });
-
-  test('empty state should show icon', async ({ page }) => {
-    await navigateToTrialPage(page);
-
-    // Check for empty state icon (if no classes)
-    const emptyStateIcon = page.locator('[data-testid="empty-state-icon"]');
-
-    // This test passes if either:
-    // 1. Classes exist (no empty state shown), or
-    // 2. Empty state shows with icon
-    const classesTable = page.locator('table');
-    const hasClasses = await classesTable.isVisible({ timeout: 3000 }).catch(() => false);
-
-    if (!hasClasses) {
-      // Should show empty state with icon
-      await expect(emptyStateIcon).toBeVisible();
-      await expect(page.locator('text=No classes yet')).toBeVisible();
-    }
-  });
-
-  test('search should have concise placeholder', async ({ page }) => {
-    await navigateToTrialPage(page);
-
-    const searchInput = page.locator('input[placeholder="Search classes..."]');
-
-    // If classes table is visible, search should have short placeholder
-    if (await searchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await expect(searchInput).toBeVisible();
-
-      // Should NOT have the long placeholder
-      const longPlaceholder = page.locator('input[placeholder*="element, level, section"]');
-      await expect(longPlaceholder).not.toBeVisible();
-    }
-  });
-});
-
-test.describe('Trials Page - Status Badge Animation', () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
-  });
-
-  test('In Progress status badge should have animation', async ({ page }) => {
-    await navigateToTrialPage(page);
-
-    const inProgressBadge = page.locator('.myk9-show-status-in-progress');
-
-    if (await inProgressBadge.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // Check that animation is applied
-      const animation = await inProgressBadge.evaluate(el => window.getComputedStyle(el).animation);
-      expect(animation).toContain('status-pulse');
-    }
+    // No redirect into the workbench, and the retired tab falls back to Overview.
+    await expect(page).toHaveURL(new RegExp(`/trials/${TRIAL_ID}`), { timeout: 15000 });
+    await expect(page.getByRole('tab', { name: /^Overview/ })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('tab', { name: /^Entries/ })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Financials/ })).toHaveCount(0);
   });
 });

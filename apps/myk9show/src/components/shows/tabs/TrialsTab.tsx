@@ -22,6 +22,7 @@ import { StatusBadge, getStatusDescriptor } from '@/components/status';
 import { usePageExportAction } from '@/features/actions/pageEditTarget';
 import { getAddTrialsHref } from '@/pages/secretary/ShowCreationWizard/addTrialsHref';
 import { exportRowsCsv } from '@/utils/downloadCsv';
+import { getShowHomeTrialHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import {
   activeTrialsTabViewId,
@@ -244,6 +245,15 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
     run: exportTrials,
   });
 
+  // A manager opens the trial in the workbench (MYK9-1320). Everyone else, and a viewer whose
+  // scope is still resolving, goes to the trial URL: the read-only page for a visitor, and its
+  // own redirect for a manager.
+  const openTrial = (trialId: string, trialDate: string | undefined) =>
+    navigate(
+      canManageThisShow
+        ? getShowHomeTrialHref(showId, { id: trialId, date: trialDate })
+        : `/shows/${showId}/trials/${trialId}`
+    );
   const openWizard = () => navigate(getAddTrialsHref(showId));
 
   return (
@@ -332,12 +342,10 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
               <Card
                 key={trial.id}
                 className="cursor-pointer overflow-hidden border border-border bg-card shadow-sm transition-all hover:shadow-md hover:border-primary/30"
-                onClick={() => navigate(`/shows/${showId}/trials/${trial.id}`)}
+                onClick={() => openTrial(trial.id, trial.trialDate)}
                 role="button"
                 tabIndex={0}
-                onKeyDown={e =>
-                  e.key === 'Enter' && navigate(`/shows/${showId}/trials/${trial.id}`)
-                }
+                onKeyDown={e => e.key === 'Enter' && openTrial(trial.id, trial.trialDate)}
               >
                 <div className="p-4">
                   <div className="flex gap-4 items-start">
@@ -420,7 +428,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           tableId="trialsTab"
           columns={trialColumns}
           data={tableData}
-          onRowClick={row => navigate(`/shows/${showId}/trials/${row.id}`)}
+          onRowClick={row => openTrial(row.id, row.trialDate)}
         />
       )}
       {trialDialogs}

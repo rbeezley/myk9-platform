@@ -1,3 +1,4 @@
+import { getShowHomeTrialHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import type { SupportTicket } from '@/features/support/supportTickets';
 
 export interface SupportInvestigationAction {
@@ -119,7 +120,7 @@ export function buildSupportInvestigationModel(ticket: SupportTicket): SupportIn
       id: 'trial-detail',
       label: 'Open trial',
       description: trialId,
-      href: `/shows/${encodeId(showId)}/trials/${encodeId(trialId)}`,
+      href: getShowHomeTrialHref(showId, { id: trialId }),
     });
   }
 

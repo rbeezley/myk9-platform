@@ -1,12 +1,10 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import TrialDetailsPage from '@/pages/TrialDetailsPage';
 import type { Trial } from '@/components/trials/types/trial.types';
-import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
-import { registeredPageActions, runPageAction } from '@/test/utils/pageActions';
 
 // ---------------------------------------------------------------------------
 // Lane 3.7 regression: a logged-out guest never syncs the trial store, so the
@@ -103,11 +101,15 @@ vi.mock('@/hooks/queries/useTrialsDatabase', () => ({
 }));
 
 let mockFallbackShow: Record<string, unknown> | null = null;
+let mockFallbackShowLoading = false;
 const showQueryCalls: string[] = [];
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useShowQuery: (id: string) => {
     showQueryCalls.push(id);
-    return { data: id ? mockFallbackShow : undefined };
+    return {
+      data: id ? mockFallbackShow : undefined,
+      isLoading: Boolean(id) && mockFallbackShowLoading,
+    };
   },
 }));
 
@@ -121,19 +123,8 @@ vi.mock('@/hooks/useTrialStats', () => ({
 
 // Heavy children / panels → stubs.
 vi.mock('@/components/trials/TrialDetailsMain', () => ({
-  default: ({ onAddClassesFromTemplate }: { onAddClassesFromTemplate?: () => void }) => (
-    <div data-testid="trial-details-main">
-      TrialDetailsMain
-      {onAddClassesFromTemplate && <button onClick={onAddClassesFromTemplate}>Add Classes</button>}
-    </div>
-  ),
+  default: () => <div data-testid="trial-details-main">TrialDetailsMain</div>,
 }));
-vi.mock('@/components/panels/edit/TrialEditPanel', () => ({
-  TrialEditPanel: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="trial-edit-panel" /> : null,
-}));
-vi.mock('@/components/panels/edit/ClassEditPanel', () => ({ ClassEditPanel: () => null }));
-vi.mock('@/components/secretary/FinancialSummary', () => ({ FinancialSummary: () => null }));
 vi.mock('@/components/trials/TrialDetail/TrialEntriesTable', () => ({
   TrialEntriesTable: () => <div data-testid="trial-entries-table" />,
 }));
@@ -222,9 +213,9 @@ function makeFallbackTrial(): Trial {
   };
 }
 
-function WizardLocation() {
+function LandedAt() {
   const location = useLocation();
-  return <div data-testid="wizard-location">{`${location.pathname}${location.search}`}</div>;
+  return <div data-testid="landed-at">{`${location.pathname}${location.search}`}</div>;
 }
 
 function renderPage(initialEntry = '/trials/trial-1') {
@@ -235,10 +226,17 @@ function renderPage(initialEntry = '/trials/trial-1') {
         <Routes>
           <Route path="/trials/:trialId" element={<TrialDetailsPage />} />
           <Route path="/shows" element={<div data-testid="shows-list" />} />
-          <Route path="/shows/:showId" element={<div data-testid="show-page" />} />
+          <Route
+            path="/shows/:showId"
+            element={
+              <div data-testid="show-page">
+                <LandedAt />
+              </div>
+            }
+          />
           <Route path="/shows/:showId/trials/:trialId" element={<TrialDetailsPage />} />
-          <Route path="/secretary/create-show/wizard" element={<WizardLocation />} />
-          <Route path="/shows/:showId/reports" element={<WizardLocation />} />
+          <Route path="/shows/:showId/entries" element={<LandedAt />} />
+          <Route path="/shows/:showId/reports" element={<LandedAt />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
@@ -254,6 +252,7 @@ describe('TrialDetailsPage', () => {
     mockFallbackTrialPending = false;
     mockTrialQueryError = false;
     mockFallbackShow = null;
+    mockFallbackShowLoading = false;
     trialQueryCalls.length = 0;
     showQueryCalls.length = 0;
     mockAuthContext.user = null;
@@ -271,7 +270,6 @@ describe('TrialDetailsPage', () => {
     mockAuthContext.isSecretary = false;
     mockAuthContext.isAdmin = false;
     mockAuthContext.hasRole.mockReturnValue(false);
-    usePageEditTargetStore.setState({ target: null, owner: null });
   });
 
   it('renders a skeleton while the trial fallback is still loading', () => {
@@ -360,9 +358,8 @@ describe('TrialDetailsPage', () => {
     expect(screen.getByText(/couldn't load this trial/i)).toBeInTheDocument();
   });
 
-  it('reads the warm store for an authenticated secretary without enabling the fallback', () => {
+  it('reads the warm store for an authenticated exhibitor without enabling the fallback', () => {
     mockAuthContext.user = { id: 'user-1' };
-    mockAuthContext.isSecretary = true;
     mockTrials = [
       {
         id: 'trial-1',
@@ -387,25 +384,9 @@ describe('TrialDetailsPage', () => {
     expect(showQueryCalls.every(arg => arg === '')).toBe(true);
   });
 
-  it('Add Classes opens the show wizard add-classes mode focused on this trial', async () => {
-    mockAuthContext.user = { id: 'user-1' };
-    mockAuthContext.isSecretary = true;
-    mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
-    mockSelectedTrialId = 'trial-1';
-    mockShows = [{ id: 'show-1', name: 'Heartland Scent Work Classic', clubId: 'club-1' }];
-
-    renderPage();
-    await userEvent.click(screen.getByRole('button', { name: 'Add Classes' }));
-
-    expect(screen.getByTestId('wizard-location')).toHaveTextContent(
-      '/secretary/create-show/wizard?showId=show-1&mode=add-classes&trialId=trial-1'
-    );
-  });
-
   describe('detail-page header (MYK9-930)', () => {
     function warmTrial() {
       mockAuthContext.user = { id: 'user-1' };
-      mockAuthContext.isSecretary = true;
       mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
       mockSelectedTrialId = 'trial-1';
       mockShows = [{ id: 'show-1', name: 'Heartland Scent Work Classic', clubId: 'club-1' }];
@@ -437,8 +418,8 @@ describe('TrialDetailsPage', () => {
     });
   });
 
-  describe('page actions live in the header Actions menu (MYK9-928)', () => {
-    function secretaryOnWarmStore() {
+  describe('a manager is sent into the workbench (MYK9-1320)', () => {
+    function managerOnWarmStore() {
       mockAuthContext.user = { id: 'user-1' };
       mockAuthContext.isSecretary = true;
       mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
@@ -446,65 +427,119 @@ describe('TrialDetailsPage', () => {
       mockShows = [{ id: 'show-1', name: 'Heartland Scent Work Classic', clubId: 'club-1' }];
     }
 
-    it('renders no Edit button in the hero, and registers Edit trial for the Actions menu', () => {
-      secretaryOnWarmStore();
-      renderPage();
+    it('lands on the Overview with the trial open (its day, anchored on the trial)', () => {
+      managerOnWarmStore();
+      renderPage('/shows/show-1/trials/trial-1');
 
-      expect(screen.queryByRole('button', { name: /^edit/i })).not.toBeInTheDocument();
-      expect(usePageEditTargetStore.getState().target).toMatchObject({
-        kind: 'trial',
-        addClassesHref:
-          '/secretary/create-show/wizard?showId=show-1&mode=add-classes&trialId=trial-1',
-      });
+      expect(screen.getByTestId('show-page')).toBeInTheDocument();
+      expect(screen.getByTestId('landed-at')).toHaveTextContent(
+        '/shows/show-1?day=2026-05-01&anchor=trial-1'
+      );
+      expect(screen.queryByTestId('trial-details-main')).not.toBeInTheDocument();
     });
 
-    it("offers Print reports, opening the show's Reports page on this trial (decision 6)", () => {
-      secretaryOnWarmStore();
-      renderPage();
+    it('resolves the show from the trial on the bare /trials/:id route', () => {
+      managerOnWarmStore();
+      renderPage('/trials/trial-1');
 
-      expect(registeredPageActions()).toEqual(['Edit trial', 'Print reports']);
-      runPageAction('Print reports');
-
-      expect(screen.getByTestId('wizard-location')).toHaveTextContent(
-        '/shows/show-1/reports?trialId=trial-1'
+      expect(screen.getByTestId('landed-at')).toHaveTextContent(
+        '/shows/show-1?day=2026-05-01&anchor=trial-1'
       );
     });
 
-    it('opens the trial Edit panel when the registered Edit runs', () => {
-      secretaryOnWarmStore();
-      renderPage();
-      expect(screen.queryByTestId('trial-edit-panel')).not.toBeInTheDocument();
+    it('sends the old Financials deep link to the Overview, not a 404', () => {
+      managerOnWarmStore();
+      renderPage('/shows/show-1/trials/trial-1?tab=financials');
 
-      act(() => usePageEditTargetStore.getState().target?.run());
-
-      expect(screen.getByTestId('trial-edit-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('landed-at')).toHaveTextContent(
+        '/shows/show-1?day=2026-05-01&anchor=trial-1'
+      );
     });
 
-    it('registers nothing for a viewer scoped to another club (the old button gate)', () => {
-      secretaryOnWarmStore();
+    it('sends the Entries deep link to Entry Forms filtered to the trial', () => {
+      managerOnWarmStore();
+      renderPage('/shows/show-1/trials/trial-1?tab=entries');
+
+      expect(screen.getByTestId('landed-at')).toHaveTextContent(
+        '/shows/show-1/entries?trial=trial-1'
+      );
+    });
+
+    it('does not redirect, or flash the public view, while the manage scope resolves', () => {
+      mockAuthContext.user = { id: 'user-1' };
+      mockAuthContext.isSecretary = true;
+      mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
+      mockSelectedTrialId = 'trial-1';
+      mockShows = []; // the parent show (and so its club) has not arrived
+      mockFallbackShowLoading = true; // and its by-id read is still in flight
+
+      renderPage('/shows/show-1/trials/trial-1');
+
+      expect(screen.getByRole('status', { name: 'Loading trial details' })).toBeInTheDocument();
+      expect(screen.queryByTestId('show-page')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('trial-details-main')).not.toBeInTheDocument();
+    });
+
+    it('falls through to the read-only view once the show read settles without a show', () => {
+      mockAuthContext.user = { id: 'user-1' };
+      mockAuthContext.isSecretary = true;
+      mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
+      mockSelectedTrialId = 'trial-1';
+      mockShows = [];
+      mockFallbackShow = null; // read settled: errored, not found or offline
+      mockFallbackShowLoading = false;
+
+      renderPage('/shows/show-1/trials/trial-1');
+
+      expect(
+        screen.queryByRole('status', { name: 'Loading trial details' })
+      ).not.toBeInTheDocument();
+      expect(screen.getByTestId('trial-details-main')).toBeInTheDocument();
+      expect(screen.queryByTestId('show-page')).not.toBeInTheDocument();
+    });
+
+    it('keeps a viewer scoped to another club on the public view', () => {
+      managerOnWarmStore();
       mockShows = [{ id: 'show-1', name: 'Heartland', clubId: 'someone-elses-club' }];
-      renderPage();
+      renderPage('/shows/show-1/trials/trial-1');
 
-      expect(usePageEditTargetStore.getState().target).toBeNull();
+      expect(screen.queryByTestId('show-page')).not.toBeInTheDocument();
+      expect(screen.getByTestId('trial-details-main')).toBeInTheDocument();
+    });
+  });
+
+  describe('the public view for a non-manager', () => {
+    function exhibitorOnWarmStore() {
+      mockAuthContext.user = { id: 'user-2' };
+      mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
+      mockSelectedTrialId = 'trial-1';
+      mockShows = [{ id: 'show-1', name: 'Heartland Scent Work Classic', clubId: 'club-1' }];
+    }
+
+    it('offers Overview and Entries tabs and no Financials tab', () => {
+      exhibitorOnWarmStore();
+      renderPage('/shows/show-1/trials/trial-1');
+
+      const tabs = within(screen.getByRole('navigation', { name: 'Trial sections' }));
+      expect(tabs.getByRole('button', { name: 'Overview' })).toBeInTheDocument();
+      expect(tabs.getByRole('button', { name: 'Entries' })).toBeInTheDocument();
+      expect(tabs.queryByRole('button', { name: 'Financials' })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('show-page')).not.toBeInTheDocument();
     });
 
-    it('registers nothing for a guest', () => {
-      mockTrials = [];
-      mockFallbackTrial = makeFallbackTrial();
-      mockFallbackShow = { id: 'show-1', name: 'Heartland', organization: 'AKC', clubId: 'club-1' };
-      renderPage();
+    it('renders for a ?tab=financials deep link instead of 404ing', () => {
+      exhibitorOnWarmStore();
+      renderPage('/shows/show-1/trials/trial-1?tab=financials');
 
-      expect(usePageEditTargetStore.getState().target).toBeNull();
+      expect(screen.getByTestId('hero-name')).toHaveTextContent('Trial 1');
+      expect(screen.queryByText(/doesn't exist/i)).not.toBeInTheDocument();
     });
 
-    it('withdraws the registration when the page unmounts', () => {
-      secretaryOnWarmStore();
-      const { unmount } = renderPage();
-      expect(usePageEditTargetStore.getState().target).not.toBeNull();
+    it('registers no header Actions and offers no Manage Entries button', () => {
+      exhibitorOnWarmStore();
+      renderPage('/shows/show-1/trials/trial-1');
 
-      unmount();
-
-      expect(usePageEditTargetStore.getState().target).toBeNull();
+      expect(screen.queryByRole('button', { name: /manage entries/i })).not.toBeInTheDocument();
     });
   });
 });

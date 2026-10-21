@@ -5,7 +5,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { formatTrialLabel } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getReportById } from '@/lib/reports/reportRegistry';
@@ -13,6 +12,7 @@ import { formatClassLabel } from '@/lib/utils';
 import { AlertTriangle, Download } from 'lucide-react';
 import type { TrialReportOption } from './reportScopedRegistries';
 import type { JudgeDayControl } from './useJudgeDayReportScope';
+import { formatTrialOptionLabel } from './trialOptionLabel';
 
 // Trial/class rows carry a non-null `name` (the canonical human label) plus
 // nullable element/level/section/trial_number columns. Build the option label
@@ -21,15 +21,6 @@ import type { JudgeDayControl } from './useJudgeDayReportScope';
 // trigger echo the raw value — that was the "dropdowns show UUIDs" bug,
 // TO-DOS 2026-06-09.) Both formatters carry a terminal fallback so the echo
 // stays impossible even in the degenerate case where every human field is blank.
-function formatTrialOptionLabel(trial: {
-  name: string;
-  trial_number: string;
-  date: string;
-}): string {
-  const base = formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number });
-  return trial.date ? `${base} · ${trial.date}` : base;
-}
-
 function formatClassOptionLabel(cls: {
   name: string;
   element: string;

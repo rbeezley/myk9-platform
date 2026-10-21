@@ -6,17 +6,11 @@ import type { LucideIcon } from 'lucide-react';
 import { Users, Trophy, Gavel } from 'lucide-react';
 import { TrialClassesTable } from './TrialDetail/TrialClassesTable';
 import { TrialTimeline } from '@/components/schedule';
-import { JudgeSuppliesSection } from '@/features/judge-supplies/JudgeSuppliesSection';
 import '@/styles/myk9-show-details.css';
 
 interface TrialDetailsMainProps {
   trial: Trial & { classes?: TrialClass[] };
   statistics: TrialStatisticsData;
-  /** Staff-only gate for create/edit/delete affordances. Deny by default. */
-  canManage?: boolean;
-  onAddClassesFromTemplate?: () => void;
-  onEditClass: (classItem: TrialClass) => void;
-  onDeleteClass: (classItem: TrialClass) => void;
 }
 
 const STAT_CONFIG: Record<string, { icon: LucideIcon; color: StatColor }> = {
@@ -26,14 +20,7 @@ const STAT_CONFIG: Record<string, { icon: LucideIcon; color: StatColor }> = {
   qualified: { icon: Trophy, color: 'emerald' },
 };
 
-const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
-  trial,
-  statistics,
-  canManage = false,
-  onAddClassesFromTemplate,
-  onEditClass,
-  onDeleteClass,
-}) => {
+const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({ trial, statistics }) => {
   // Build stats array with contextual subtitles
   const baseStats = [
     {
@@ -124,23 +111,8 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
           </div>
         </div>
 
-        <TrialClassesTable
-          classes={trial.classes || []}
-          showId={trial.showId}
-          trialId={trial.id}
-          canManage={canManage}
-          {...(onAddClassesFromTemplate !== undefined && { onAddClassesFromTemplate })}
-          onEditClass={onEditClass}
-          onDeleteClass={onDeleteClass}
-        />
+        <TrialClassesTable classes={trial.classes || []} showId={trial.showId} trialId={trial.id} />
       </div>
-
-      {/* Judge Supplies — staff-only. Per-judge supply lists are trial
-          operations, and every row carries an Edit control; exhibitors reaching
-          this public route saw and could open them (MYK9-123). The Timeline
-          above stays visible to everyone on purpose: the running order IS
-          exhibitor content, and it renders no mutation affordance. */}
-      {canManage && <JudgeSuppliesSection trialId={trial.id} />}
     </div>
   );
 };

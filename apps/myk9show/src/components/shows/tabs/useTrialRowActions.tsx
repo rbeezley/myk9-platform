@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { FileText } from 'lucide-react';
+import { ClipboardList, DollarSign, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { hydrateThenResolve } from '@/utils/hydrateThenResolve';
@@ -8,6 +8,8 @@ import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import { TrialManagementDialogs } from '@/components/trials/TrialDetail/TrialManagementDialogs';
+import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
+import { JudgeSuppliesLauncher } from '@/features/judge-supplies/JudgeSuppliesLauncher';
 import { SetupRowActionsMenu } from './SetupRowActionsMenu';
 
 /**
@@ -28,6 +30,8 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
     /** The request that started this action; a stale completion must not clear a newer one. */
     requestId: number;
   } | null>(null);
+  // The trial whose Judge supplies dialog is open (the old trial page's section, MYK9-1320).
+  const [suppliesTrialId, setSuppliesTrialId] = useState<string | null>(null);
   const parentShow = useShowStore(state => state.shows.find(show => show.id === showId));
   // The edit/delete actions write through the trial STORE, which is not always the source of
   // these rows (a cold store is fed by the server read instead). Hydrate the store first, and
@@ -87,12 +91,27 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
         {...(withDetails && {
           extraActions: [
             {
-              id: 'trial-details',
-              label: 'Trial details',
-              icon: <FileText />,
+              // The trial page's Entries tab, as a door into Entry Forms filtered to this trial.
+              id: 'trial-entry-forms',
+              label: 'Entry forms',
+              icon: <ClipboardList />,
+              onSelect: () => navigate(getEntryManagementHref({ showId, trialId })),
+            },
+            {
+              id: 'trial-judge-supplies',
+              label: 'Judge supplies',
+              icon: <Package />,
+              onSelect: () => setSuppliesTrialId(trialId),
+            },
+            {
+              // MYK9-1320: the trial's own page is gone for managers (the home is its page), so
+              // the menu's second stop is the trial's money, on Reports.
+              id: 'trial-financials',
+              label: 'Trial financials',
+              icon: <DollarSign />,
               onSelect: () =>
                 navigate(
-                  `/shows/${encodeURIComponent(showId)}/trials/${encodeURIComponent(trialId)}`
+                  `/shows/${encodeURIComponent(showId)}/reports?${new URLSearchParams({ financialsTrial: trialId }).toString()}`
                 ),
             },
           ],
@@ -122,5 +141,22 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
       />
     ) : null;
 
-  return { trialRowMenu, trialDialogs };
+  const suppliesDialog =
+    enabled && suppliesTrialId ? (
+      <JudgeSuppliesLauncher
+        key={suppliesTrialId}
+        trialId={suppliesTrialId}
+        onClose={() => setSuppliesTrialId(null)}
+      />
+    ) : null;
+
+  return {
+    trialRowMenu,
+    trialDialogs: (
+      <>
+        {trialDialogs}
+        {suppliesDialog}
+      </>
+    ),
+  };
 }

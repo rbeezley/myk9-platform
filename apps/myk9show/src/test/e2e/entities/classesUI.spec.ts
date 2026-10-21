@@ -1,6 +1,5 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, Locator } from '@playwright/test';
 import { signInAsSecretary } from '../helpers/testUsers';
-import { chooseAction } from '../helpers/actionsMenu';
 
 /**
  * UI test for the Classes-on-a-Trial workflow that the secretary uses.
@@ -27,12 +26,47 @@ test.describe.configure({ mode: 'serial' });
 
 const TEST_SHOW_ID = '4ad95cdc-2c04-4386-8e0b-07b9111fcac3'; // Test Golden Path Show
 const TEST_TRIAL_ID = '0c300700-10a6-4a80-9f82-ccd3e6d80f5c'; // Saturday Trial 1
-const TRIAL_URL = `/shows/${TEST_SHOW_ID}/trials/${TEST_TRIAL_ID}`;
+// MYK9-1320: a manager's trial page is the show home with the trial open.
+const TRIAL_URL = `/shows/${TEST_SHOW_ID}?anchor=${TEST_TRIAL_ID}`;
 
 async function gotoTrial(page: Page) {
   await page.goto(TRIAL_URL, { waitUntil: 'networkidle' });
-  // Wait until the classes table mounts (data hydrated from replication).
-  await expect(page.getByRole('heading', { name: /^Classes \(/ })).toBeVisible({ timeout: 15000 });
+  // The trial heading's Add Classes link mounts once the schedule hydrates from replication.
+  await expect(page.getByRole('link', { name: /^Add classes to / }).first()).toBeVisible({
+    timeout: 15000,
+  });
+}
+
+/**
+ * MYK9-1320: a manager's class edit and delete live on the Overview class panel. Selecting a class
+ * row focuses it (FocusedClassSetupActions.tsx: the "Edit class <name>" button), Edit class opens
+ * the "Edit Class" panel (SetupClassDialogs.tsx -> ClassEditPanel), and Delete class is that
+ * panel's footer button (EditPanelDelete.tsx:66), which opens the shared delete alertdialog.
+ */
+/** A class's schedule ROW, by its anchor id (CockpitTrialGroup.tsx:145 `getCockpitAnchorElementId`). */
+const classRowById = (page: Page, classId: string) =>
+  page.locator(`[id="cockpit-anchor-${classId}"]`);
+
+/** The schedule row whose text matches. Trial headers carry the same id prefix but not a class name. */
+const classRowByName = (page: Page, nameMatcher: RegExp) =>
+  page.locator('[id^="cockpit-anchor-"]').filter({ hasText: nameMatcher }).first();
+
+/**
+ * Click the ROW's own padding (not a control inside it) so the row selects the class
+ * (CockpitTrialGroup.tsx:146-148), then wait for THAT class's "Edit class <name>" button
+ * (FocusedClassSetupActions.tsx:35, aria-label `Edit class ${classLabel}`).
+ */
+async function focusClassRow(row: Locator, editButton: Locator) {
+  await expect(row).toBeVisible({ timeout: 15000 });
+  await row.click({ position: { x: 6, y: 6 } });
+  await expect(editButton).toBeVisible({ timeout: 15000 });
+}
+
+async function openClassEditPanel(page: Page, editButton: Locator) {
+  await editButton.click();
+  const editDialog = page.getByRole('dialog', { name: 'Edit Class' });
+  await expect(editDialog).toBeVisible();
+  return editDialog;
 }
 
 test.describe('Classes UI — Add Classes (show wizard, add-classes mode)', () => {
@@ -40,13 +74,16 @@ test.describe('Classes UI — Add Classes (show wizard, add-classes mode)', () =
     await signInAsSecretary(page);
   });
 
-  test("opens the wizard on this trial's Classes step and Back returns to the trial", async ({
+  test("opens the wizard on this trial's Classes step and Back returns to the trial on the show home", async ({
     page,
   }) => {
     await gotoTrial(page);
 
-    // MYK9-928: Add classes is the trial page's header Actions menu item.
-    await chooseAction(page, 'Add classes');
+    // The trial heading's Add Classes link on the show home (MYK9-1320).
+    await page
+      .getByRole('link', { name: /^Add classes to / })
+      .first()
+      .click();
 
     // MYK9-899: the one class-create flow is the wizard's add-classes mode, focused on the
     // trial the secretary launched from.
@@ -67,7 +104,7 @@ test.describe('Classes UI — Add Classes (show wizard, add-classes mode)', () =
     // Back leaves the wizard for the trial page (nothing was selected, so no prompt).
     const backButtons = page.getByRole('button', { name: /^Back$/ });
     await backButtons.last().click();
-    await expect(page).toHaveURL(new RegExp(`/shows/${TEST_SHOW_ID}/trials/${TEST_TRIAL_ID}$`), {
+    await expect(page).toHaveURL(new RegExp(`/shows/${TEST_SHOW_ID}\\?anchor=${TEST_TRIAL_ID}$`), {
       timeout: 15000,
     });
   });
@@ -85,14 +122,9 @@ test.describe('Classes UI — Edit class judge', () => {
     // Setup: Container Master in this fixture has Richard Beezley assigned
     // from earlier walkthrough runs.
     await gotoTrial(page);
-
-    const masterRow = page.getByRole('button', { name: /Container Master /i }).first();
-    await expect(masterRow).toBeVisible();
-    await masterRow.locator('..').getByRole('button').last().click();
-    await page.getByRole('menuitem', { name: /Edit Class/i }).click();
-
-    const editDialog = page.getByRole('dialog', { name: 'Edit Class' });
-    await expect(editDialog).toBeVisible();
+    const editButton = page.getByRole('button', { name: /^Edit class Container Master/i });
+    await focusClassRow(classRowByName(page, /Container Master/i), editButton);
+    const editDialog = await openClassEditPanel(page, editButton);
 
     // Judge combobox shows the resolved name, not the raw UUID.
     const judgeCombo = editDialog.getByRole('combobox', { name: /Judge/i });
@@ -113,10 +145,11 @@ test.describe('Classes UI — Delete class confirmation', () => {
   test('confirmation dialog warns and cancels without mutating data', async ({ page }) => {
     await gotoTrial(page);
 
-    // Open Delete on Container Master.
-    const masterRow = page.getByRole('button', { name: /Container Master /i }).first();
-    await masterRow.locator('..').getByRole('button').last().click();
-    await page.getByRole('menuitem', { name: /Delete Class/i }).click();
+    // Open Delete on Container Master: the Edit Class panel's footer button.
+    const editButton = page.getByRole('button', { name: /^Edit class Container Master/i });
+    await focusClassRow(classRowByName(page, /Container Master/i), editButton);
+    const editDialog = await openClassEditPanel(page, editButton);
+    await editDialog.getByRole('button', { name: 'Delete class', exact: true }).click();
 
     // The shared delete dialog (CRUD standard Phase 2): honest about Undo.
     const alert = page.getByRole('alertdialog', { name: /^Delete the class / });
@@ -138,8 +171,10 @@ test.describe('Classes UI — Delete class confirmation', () => {
     await alert.getByRole('button', { name: 'Keep it', exact: true }).click();
     await expect(alert).toHaveCount(0);
 
-    // Class still exists in the table.
-    await expect(page.getByRole('button', { name: /Container Master /i }).first()).toBeVisible();
+    // Close the panel, then the class is still on the schedule (the row, not the open panel).
+    await editDialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(editDialog).toHaveCount(0);
+    await expect(classRowByName(page, /Container Master/i)).toBeVisible();
     expect(deleteFired).toBe(false);
   });
 });
@@ -301,12 +336,20 @@ test.describe('Classes UI — Delete class cascade', () => {
     expect(before.classDeletedAt).toBeNull();
     expect(before.entryDeletedAts.every(d => d === null)).toBe(true);
 
-    // Drive the UI: open the trial, find the seeded class row, kebab → Delete.
-    await page.goto(`/shows/${seed.showId}/trials/${seed.trialId}`, { waitUntil: 'networkidle' });
-    const classRow = page.getByRole('button', { name: new RegExp(seed.className, 'i') }).first();
-    await expect(classRow).toBeVisible({ timeout: 15000 });
-    await classRow.locator('..').getByRole('button').last().click();
-    await page.getByRole('menuitem', { name: /Delete Class/i }).click();
+    // Drive the UI: open the show home focused on the seeded class (`focus` is the cockpit's
+    // class param), then Edit class -> the panel's Delete class.
+    await page.goto(`/shows/${seed.showId}?focus=${seed.classId}`, { waitUntil: 'networkidle' });
+    // The shared Golden Path show holds other classes, and the cockpit silently focuses another
+    // one when `focus` does not resolve. Prove the focused class IS the seeded one before the
+    // destructive click: its row is on the schedule, and the URL (which the cockpit rewrites to
+    // the class it really focused) still names it.
+    const seededRow = classRowById(page, seed.classId);
+    await expect(seededRow).toBeVisible({ timeout: 15000 });
+    await expect(page).toHaveURL(new RegExp(`focus=${seed.classId}`));
+    const editButton = page.getByRole('button', { name: /^Edit class / });
+    await expect(editButton).toHaveCount(1);
+    const editDialog = await openClassEditPanel(page, editButton);
+    await editDialog.getByRole('button', { name: 'Delete class', exact: true }).click();
 
     const alert = page.getByRole('alertdialog', { name: /^Delete the class / });
     await expect(alert).toBeVisible();
@@ -342,9 +385,7 @@ test.describe('Classes UI — Delete class cascade', () => {
       expect(after.entryDeletedAts.every(d => d !== null)).toBe(true);
     }).toPass({ timeout: 10000 });
 
-    // The deleted class no longer appears in the trial's class table.
-    await expect(page.getByRole('button', { name: new RegExp(seed.className, 'i') })).toHaveCount(
-      0
-    );
+    // The deleted class's row is gone from the Overview (other fixture classes stay).
+    await expect(classRowById(page, seed.classId)).toHaveCount(0);
   });
 });

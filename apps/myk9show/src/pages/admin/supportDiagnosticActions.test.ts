@@ -42,7 +42,7 @@ describe('buildSupportInvestigationModel', () => {
       expect.arrayContaining([
         expect.objectContaining({ id: 'reported-route', href: '/shows/show-1' }),
         expect.objectContaining({ id: 'show-workbench', href: '/shows/show-1' }),
-        expect.objectContaining({ id: 'trial-detail', href: '/shows/show-1/trials/trial-1' }),
+        expect.objectContaining({ id: 'trial-detail', href: '/shows/show-1?anchor=trial-1' }),
         expect.objectContaining({ id: 'entry-management', href: '/shows/show-1/entries' }),
         expect.objectContaining({
           id: 'user-roles',

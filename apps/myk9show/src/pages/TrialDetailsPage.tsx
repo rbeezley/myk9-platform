@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo } from 'react';
+import { Navigate, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTrialStore } from '@/store/trialStore';
 import { toTrialDetailClass } from './trialDetailClassProjection';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -7,26 +7,12 @@ import { canManageShowSurface } from '@/utils/roleScopes';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useTrialDetailData } from '@/hooks/useTrialDetailData';
 import TrialDetailsMain from '@/components/trials/TrialDetailsMain';
-import {
-  TrialManagementDialogs,
-  type TrialManagementDialogsHandle,
-} from '@/components/trials/TrialDetail/TrialManagementDialogs';
-import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import { TabsContent } from '@/components/ui/tabs';
-import { FinancialSummary } from '@/components/secretary/FinancialSummary';
 import { TrialEntriesTable } from '@/components/trials/TrialDetail/TrialEntriesTable';
-import type { TrialClass } from '@/components/trials/types/trial.types';
-import {
-  Calendar,
-  LayoutDashboard,
-  ClipboardList,
-  DollarSign,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react';
+import { Calendar, LayoutDashboard, ClipboardList, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getShowHomeTrialHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
-import { usePageEditAction } from '@/features/actions/pageEditTarget';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -44,14 +30,10 @@ import { useTrialStats, type EntryForStats } from '@/hooks/useTrialStats';
 import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
 import { deriveTrialCompositeStatus, deriveTrialStatusKey, formatTrialLabel } from '@myk9/core';
 import { StatusIcon, getStatusDescriptor } from '@/components/status';
-import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
 
-// The route is authentication-gated; management tabs are additionally scoped.
-// useUrlTab validates `?tab=` against this list, so hidden tabs cannot be
-// reached by deep link.
-const AUTHENTICATED_TAB_IDS = ['overview', 'entries'] as const;
-const MANAGEMENT_TAB_IDS = ['financials'] as const;
-const TAB_IDS = [...AUTHENTICATED_TAB_IDS, ...MANAGEMENT_TAB_IDS] as const;
+// useUrlTab validates `?tab=` against this list, so a retired tab (the old
+// `?tab=financials` deep link) falls back to Overview instead of rendering nothing.
+const TAB_IDS = ['overview', 'entries'] as const;
 
 /**
  * Hero title and subtitle for a trial: the shared trial label, with the trial number added as a
@@ -70,9 +52,9 @@ function trialHeroText(
 const TrialDetailsPage: React.FC = () => {
   const { trialId, showId } = useParams<{ trialId: string; showId?: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { trials, selectedTrialId, selectTrial } = useTrialStore();
   const { user, isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
-  const dialogsRef = useRef<TrialManagementDialogsHandle>(null);
 
   // Current trial + its parent show, with the anon/cold-store by-id fallback the
   // public trial page needs (the staff gate below scopes club_admin to this
@@ -80,15 +62,16 @@ const TrialDetailsPage: React.FC = () => {
   const {
     currentTrial,
     parentShow,
+    parentShowLoading,
     fallbackTrialResolved,
     fallbackTrialError,
     refetchFallbackTrial,
   } = useTrialDetailData(trialId);
 
-  // Authenticated route — exhibitors reach the overview from the show premium.
-  // Only staff may see create/edit/manage affordances; everyone else gets a
-  // read-only view. The club scoping (and why a global hasRole() is wrong for
-  // club_admin) lives in canManageShowSurface, shared with Class Details.
+  // The page is the public read-only view. A manager is sent into the workbench (MYK9-1320):
+  // classes and entries have homes there, and the trial's money is on Reports. The club
+  // scoping (and why a global hasRole() is wrong for club_admin) lives in canManageShowSurface,
+  // shared with Class Details.
   const canManageTrial = canManageShowSurface({
     isSecretary,
     isAdmin,
@@ -96,49 +79,14 @@ const TrialDetailsPage: React.FC = () => {
     userWithRoles,
     clubId: parentShow?.clubId,
   });
-  const entryManagementShowId = currentTrial?.showId || showId;
+  // A staff-role holder whose show is still being READ looks like a non-manager (the club is
+  // unknown), so hold the skeleton instead of flashing the public view before the redirect. Once
+  // that read has settled without a show (errored, not found, offline), fall through to the
+  // read-only view rather than waiting forever.
+  const manageScopeResolving =
+    !canManageTrial && !parentShow && parentShowLoading && !!currentTrial && !!user;
 
-  // Edit trial and Add classes are the header Actions menu's (MYK9-928), gated by this
-  // page's own staff gate, which the hero buttons they replace used. One class-create
-  // flow: the show wizard's add-classes mode, opened on this trial. No resolvable show
-  // means no flow to open, so the action is withheld, not dead.
-  const addClassesShowId = currentTrial?.showId || showId;
-  const addClassesHref = addClassesShowId
-    ? getAddClassesHref(addClassesShowId, trialId)
-    : undefined;
-  usePageEditAction({
-    kind: 'trial',
-    enabled: canManageTrial && !!currentTrial,
-    run: () => dialogsRef.current?.openEditTrial(),
-    addClassesHref,
-    title: currentTrial
-      ? formatTrialLabel({ name: currentTrial.name, trialNumber: currentTrial.trialNumber })
-      : undefined,
-    // The show's Reports page, scoped to this trial (CRUD standard decision 6). Behind the
-    // same staff gate as the reports route itself.
-    extras:
-      canManageTrial && addClassesShowId && trialId
-        ? [
-            {
-              id: 'reports',
-              label: 'Print reports',
-              icon: 'reports',
-              run: () =>
-                navigate(
-                  `/shows/${encodeURIComponent(addClassesShowId)}/reports?${getReportScopeSearchParams(
-                    { kind: 'trial', showId: addClassesShowId, trialId }
-                  ).toString()}`
-                ),
-            },
-          ]
-        : [],
-  });
-
-  // Tab state — URL-synced. Pass only the tabs this visitor may see so a
-  // hidden management tab in `?tab=` falls back to 'overview' instead of
-  // rendering its panel (Financials) to a non-staff visitor.
-  const allowedTabIds = canManageTrial ? TAB_IDS : AUTHENTICATED_TAB_IDS;
-  const [activeTab, setActiveTab] = useUrlTab(allowedTabIds, 'overview');
+  const [activeTab, setActiveTab] = useUrlTab(TAB_IDS, 'overview');
 
   // Get classes store (page only needs the list for trialWithClasses below; the
   // mutating actions live in TrialManagementDialogs).
@@ -219,15 +167,11 @@ const TrialDetailsPage: React.FC = () => {
   );
   const entryCount = trialStatistics.entries.total;
   const tabDefs: PrimaryTabDef[] = useMemo(() => {
-    const tabs: PrimaryTabDef[] = [
+    return [
       { id: 'overview', label: 'Overview', icon: LayoutDashboard },
       { id: 'entries', label: 'Entries', icon: ClipboardList, count: entryCount },
     ];
-    if (canManageTrial) {
-      tabs.push({ id: 'financials', label: 'Financials', icon: DollarSign });
-    }
-    return tabs;
-  }, [entryCount, canManageTrial]);
+  }, [entryCount]);
 
   // Breadcrumbs
   const breadcrumbs = useMemo(() => {
@@ -341,18 +285,25 @@ const TrialDetailsPage: React.FC = () => {
     );
   }
 
-  // Dialog triggers delegate to TrialManagementDialogs (it owns the dialog
-  // state + save/delete logic); the page only opens them via the ref.
-  // The section's own Add Classes button (header and empty state) stays beside the list.
-  const handleAddClassesFromTemplate = addClassesHref ? () => navigate(addClassesHref) : undefined;
-  const handleEditClass = (classItem: TrialClass) => dialogsRef.current?.openEditClass(classItem);
-  const handleDeleteClass = (classItem: TrialClass) =>
-    dialogsRef.current?.openDeleteClass(classItem);
+  // Manager: the workbench is the one home for this trial's classes and entries.
+  if (canManageTrial && currentTrial) {
+    const workbenchShowId = currentTrial.showId || showId || '';
+    // The Entries tab's deep link lands on Entry Forms filtered to this trial; anything else
+    // (Overview, the retired ?tab=financials) lands on the Overview with the trial open.
+    const target =
+      searchParams.get('tab') === 'entries'
+        ? getEntryManagementHref({ showId: workbenchShowId, trialId: currentTrial.id })
+        : getShowHomeTrialHref(workbenchShowId, {
+            id: currentTrial.id,
+            date: currentTrial.trialDate,
+          });
+    return <Navigate replace to={target} />;
+  }
 
   return (
     <>
       <PageShell>
-        {trialWithClasses ? (
+        {trialWithClasses && !manageScopeResolving ? (
           <>
             <PageHeader breadcrumbs={breadcrumbs} title={trialHero.title} omitTitle />
 
@@ -375,49 +326,17 @@ const TrialDetailsPage: React.FC = () => {
               secondaryActions={
                 <div className="flex items-center gap-2">
                   {showTrials.length > 1 && prevNextNav}
-                  {canManageTrial && entryManagementShowId && (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          navigate(
-                            getEntryManagementHref({
-                              showId: entryManagementShowId,
-                              trialId: trialId ?? null,
-                            })
-                          )
-                        }
-                      >
-                        <ClipboardList className="h-4 w-4 mr-2" />
-                        Manage Entries
-                      </Button>
-                    </>
-                  )}
                 </div>
               }
             />
 
             <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setActiveTab}>
               <TabsContent value="overview">
-                <TrialDetailsMain
-                  trial={trialWithClasses}
-                  statistics={trialStatistics}
-                  canManage={canManageTrial}
-                  {...(handleAddClassesFromTemplate && {
-                    onAddClassesFromTemplate: handleAddClassesFromTemplate,
-                  })}
-                  onEditClass={handleEditClass}
-                  onDeleteClass={handleDeleteClass}
-                />
+                <TrialDetailsMain trial={trialWithClasses} statistics={trialStatistics} />
               </TabsContent>
 
               <TabsContent value="entries">
                 <TrialEntriesTable trialId={trialWithClasses.id} />
-              </TabsContent>
-
-              <TabsContent value="financials">
-                <FinancialSummary trialId={trialWithClasses.id} />
               </TabsContent>
             </PrimaryTabs>
           </>
@@ -427,18 +346,6 @@ const TrialDetailsPage: React.FC = () => {
           </div>
         )}
       </PageShell>
-
-      {/* Outside PageShell: SlideOverPanel is not portaled, so inside the shell's `space-y-6` a
-          fixed overlay would pick up a 24px top margin. */}
-      {/* Staff-only management dialogs (add classes, edit/delete trial,
-          edit/delete class). The page triggers them via dialogsRef. */}
-      {canManageTrial && (
-        <TrialManagementDialogs
-          ref={dialogsRef}
-          currentTrial={currentTrial}
-          parentShow={parentShow}
-        />
-      )}
     </>
   );
 };

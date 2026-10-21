@@ -12,6 +12,8 @@ export interface TrialDetailData {
   currentTrial: TrialWithClasses | undefined;
   /** The trial's parent show: store row when warm, anon by-id fallback when cold. */
   parentShow: Show | undefined;
+  /** The parent show's by-id read is genuinely in flight (not errored, paused or settled empty). */
+  parentShowLoading: boolean;
   /** True once the anon trial fallback resolved successfully (distinguishes not-found from error). */
   fallbackTrialResolved: boolean;
   /** True when the anon trial fallback fetch failed (network / RLS / PostgREST). */
@@ -49,7 +51,7 @@ export function useTrialDetailData(trialId: string | undefined): TrialDetailData
   const storeShow = currentTrial ? shows.find(show => show.id === currentTrial.showId) : undefined;
   // Same cold-store gap for the parent show. Both routes that reach this hook
   // require a session; a guest would get useShowQuery's server read (MYK9-783).
-  const { data: fallbackShow } = useShowQuery(
+  const { data: fallbackShow, isLoading: fallbackShowLoading } = useShowQuery(
     !storeShow && currentTrial?.showId ? currentTrial.showId : ''
   );
   const parentShow = (storeShow ?? fallbackShow ?? undefined) as Show | undefined;
@@ -57,6 +59,7 @@ export function useTrialDetailData(trialId: string | undefined): TrialDetailData
   return {
     currentTrial,
     parentShow,
+    parentShowLoading: !storeShow && Boolean(fallbackShowLoading),
     fallbackTrialResolved,
     fallbackTrialError,
     refetchFallbackTrial: () => {

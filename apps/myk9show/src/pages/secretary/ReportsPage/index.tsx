@@ -27,6 +27,7 @@ import type { ReportDbEntry } from '@/lib/reports/types';
 import { useHostedReportData } from './useHostedReportData';
 import { blockedPrintMessage, resolvePrintReadiness } from './reportReadinessCopy';
 import { ReportPrintStatus } from './ReportPrintStatus';
+import { TrialFinancialsCard } from './TrialFinancialsCard';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
 
@@ -75,6 +76,11 @@ export default function ReportsPage() {
   const [trialId, setTrialId] = useState<string>(initialScope.trialId);
   const [classId, setClassId] = useState<string>(initialScope.classId);
   const [dogId, setDogId] = useState<string>(initialScope.dogId);
+  // The Trial financials card has its own pick (`financialsTrial`): it must not move the scope of
+  // the report below it, and `trialId` keeps meaning the report's trial.
+  const [financialsTrialId, setFinancialsTrialId] = useState<string>(
+    () => nonEmptyParam(searchParams, 'financialsTrial') ?? 'all'
+  );
   const { user } = useAuthContext();
   const [armbandDescriptor, setArmbandDescriptor] = useState<PaperworkDescriptor | null>(null);
   const effectiveScope = useMemo<ReportScope>(
@@ -342,6 +348,12 @@ export default function ReportsPage() {
           handleReportTypeChange(value);
           focusControls();
         }}
+      />
+
+      <TrialFinancialsCard
+        trialId={financialsTrialId}
+        trials={trialOptions}
+        onPickTrial={setFinancialsTrialId}
       />
 
       <ReportPrintStatus

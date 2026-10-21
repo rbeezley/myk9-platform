@@ -276,12 +276,30 @@ describe('TrialsTab', () => {
     expect(screen.getByText('Type')).toBeInTheDocument();
   });
 
-  it('navigates on table row click', () => {
-    mockViewMode = 'table';
-    const trials = [makeTrial({ id: 't1' })];
-    const stats = { t1: { classCount: 5, entryCount: 42, completedClasses: 0 } };
-    render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
-    fireEvent.click(screen.getByText('Trial 1'));
-    expect(mockNavigate).toHaveBeenCalledWith('/shows/show-1/trials/t1');
+  // MYK9-1320: a manager opens the trial in the workbench; everyone else (and a viewer whose
+  // scope is still resolving) goes to the trial URL, which is the read-only page for a visitor.
+  describe.each([
+    ['table', 'table'],
+    ['cards', 'cards'],
+  ])('opening a trial from the %s view', (_label, view) => {
+    const open = () => {
+      mockViewMode = view;
+      const trials = [makeTrial({ id: 't1' })];
+      const stats = { t1: { classCount: 5, entryCount: 42, completedClasses: 0 } };
+      render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
+      fireEvent.click(screen.getByText('Trial 1'));
+    };
+
+    it('sends a manager to the Overview with the trial open', () => {
+      mockCanManageThisShow = true;
+      open();
+      expect(mockNavigate).toHaveBeenCalledWith('/shows/show-1?day=2026-05-10&anchor=t1');
+    });
+
+    it('keeps a non-manager (or an unresolved viewer) on the trial URL', () => {
+      mockCanManageThisShow = false;
+      open();
+      expect(mockNavigate).toHaveBeenCalledWith('/shows/show-1/trials/t1');
+    });
   });
 });

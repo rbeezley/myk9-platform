@@ -148,4 +148,16 @@ describe('FinancialSummary (per trial)', () => {
       expect(screen.getByRole('option', { name: 'Comped (1)' })).toBeInTheDocument();
     });
   });
+
+  it('names an owner whose name has not hydrated Unknown, never an empty cell (MYK9-1320)', () => {
+    renderSummary([
+      rawEntry({
+        id: 'cold',
+        handler: null,
+        dog: { call_name: 'Cooper', owner: { first_name: null, last_name: null } },
+      }),
+    ]);
+
+    expect(screen.getByText('Unknown')).toBeInTheDocument();
+  });
 });

@@ -166,6 +166,8 @@ export interface SecretaryCockpitSnapshot {
 export interface SecretaryCockpitState {
   selectedDay?: string | undefined;
   focusedClassId?: string | undefined;
+  /** The URL's anchor; when it names a trial, that trial opens whatever the day (MYK9-1320). */
+  anchor?: string | undefined;
   filter: CockpitFilter;
 }
 

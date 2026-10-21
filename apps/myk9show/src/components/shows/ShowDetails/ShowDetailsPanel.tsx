@@ -90,7 +90,7 @@ export const ShowDetailsPanel: React.FC<ShowDetailsPanelProps> = ({
       )}
       {showPublishing && <AboutThisShowCard show={show} judges={judges} />}
       {/* Mounted only while open: the cards read on mount, and a closed panel shows nothing. */}
-      {canManageShow && open && <ShowSettingsCards showId={show.id} />}
+      {canManageShow && open && <ShowSettingsCards showId={show.id} showStatus={show.status} />}
     </section>
   </div>
 );

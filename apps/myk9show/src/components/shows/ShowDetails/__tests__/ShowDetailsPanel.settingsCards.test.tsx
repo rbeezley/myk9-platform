@@ -111,10 +111,10 @@ vi.mock('@/components/common/LazyComponents', () => ({
 
 const show = { id: ROUTE_SHOW_ID, name: 'Route Show', status: 'published' } as unknown as Show;
 
-function renderPanel(props: { canManageShow?: boolean; open?: boolean } = {}) {
+function renderPanel(props: { canManageShow?: boolean; open?: boolean; status?: string } = {}) {
   return render(
     <ShowDetailsPanel
-      show={show}
+      show={props.status ? ({ ...show, status: props.status } as Show) : show}
       canManageShow={props.canManageShow ?? true}
       entryCount={0}
       open={props.open ?? true}
@@ -169,8 +169,19 @@ describe('ShowDetailsPanel settings cards (IA-1)', () => {
     );
   });
 
+  it('keeps refund-all off a live show: it appears only once the show is cancelled', async () => {
+    renderPanel({ status: 'published' });
+    expect(await screen.findByText('Venue WiFi')).toBeInTheDocument();
+    expect(screen.queryByText('Refund all entries')).not.toBeInTheDocument();
+  });
+
+  it('shows refund-all for a cancelled show', async () => {
+    renderPanel({ status: 'cancelled' });
+    expect(await screen.findByText('Refund all entries')).toBeInTheDocument();
+  });
+
   it('refund-all reads the status of the route show and nothing about the store show', async () => {
-    renderPanel();
+    renderPanel({ status: 'cancelled' });
     expect(await screen.findByText('Refund all entries')).toBeInTheDocument();
     // `status` is the refund-all card's own read; the other cards select other columns.
     await waitFor(() => expect(db.reads).toContain(`shows:status:${ROUTE_SHOW_ID}`));

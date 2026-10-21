@@ -40,15 +40,24 @@ const ShowVenueWifi: React.FC<{ showId: string }> = ({ showId }) => {
 
 /**
  * The show-level settings that used to live on the unlinked /secretary/settings page (IA-1):
- * the venue map pin, the Wi-Fi the armband labels print, the per-show withdrawal policy, and the human-approved
- * refund-all for a cancelled show. Every card is keyed on the show the route opened, never on
- * the store's `selectedShowId`. Managers only.
+ * the venue map pin, the Wi-Fi the armband labels print, the per-show withdrawal policy, and the
+ * human-approved refund-all for a cancelled show. Every card is keyed on the show the route
+ * opened, never on the store's `selectedShowId`. Managers only.
+ *
+ * INTENT: refund-all appears only once the show is cancelled (owner decision, MYK9-1296). A live
+ * show never carries a "mark cancelled and refund everyone" control one click from its header.
+ * A show is cancelled through the Status select on the Edit show panel's Basic Info tab, or the
+ * Managing tab's "Mark Cancelled" bulk action (the header status pill offers no cancel), and the
+ * refund card then appears here. The card itself is unchanged and still re-reads the status from the server.
  */
-export const ShowSettingsCards: React.FC<{ showId: string }> = ({ showId }) => (
+export const ShowSettingsCards: React.FC<{ showId: string; showStatus: string }> = ({
+  showId,
+  showStatus,
+}) => (
   <div className="space-y-3" data-testid="show-settings-cards">
     <VenueLocationCard showId={showId} />
     <ShowVenueWifi showId={showId} />
     <WithdrawalPolicyCard scope="show" entityId={showId} />
-    <RefundAllEntriesCard showId={showId} />
+    {showStatus === 'cancelled' && <RefundAllEntriesCard showId={showId} />}
   </div>
 );

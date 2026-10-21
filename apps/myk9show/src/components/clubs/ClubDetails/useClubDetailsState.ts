@@ -4,6 +4,7 @@ import { useUrlTab } from '@/hooks/useUrlTab';
 import { useNavigate } from 'react-router-dom';
 import { useClubStore } from '@/store/clubStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useCurrentValidatedClubContext } from '@/hooks/useValidatedClubContext';
 import { UserRole } from '@/types/auth-types';
 import { Club } from '@/types/club-types';
 import { logger } from '@/services/LoggingService';
@@ -66,6 +67,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
 
   // Auth context for RBAC
   const { userWithRoles } = useAuthContext();
+  const validatedClub = useCurrentValidatedClubContext();
   const isSiteAdmin = userWithRoles?.roles?.includes(UserRole.SITE_ADMIN) ?? false;
 
   // RBAC permission checks — see computeClubPermissions for the rules.
@@ -163,7 +165,11 @@ export function useClubDetailsState(selectedClub: Club | null) {
           ...authorizationControl,
           canAddShow,
           canEditBranding,
-          canManageClubAdmin: canManageMembers,
+          // The members and payments pages resolve against the validated club, so offer them only on that club's own page.
+          canManageClubAdmin:
+            canManageMembers &&
+            validatedClub.status === 'ready' &&
+            validatedClub.clubId === selectedClub.id,
           onManageMembers: () => navigate('/club-admin/members'),
           onPayments: () => navigate('/club-admin/payments'),
           onAddShow: () => handleAddShow(),

@@ -43,10 +43,24 @@ describe('My Club rail item (MYK9-1293)', () => {
     expect(myClubLink()).not.toHaveAttribute('aria-current');
   });
 
-  it("keeps Browse from claiming the admin's own club page", () => {
-    renderRail('/clubs/club-1', CLUB);
+  it.each(['/clubs/club-1', '/shows?club=club-1'])(
+    "keeps Browse from claiming the admin's own club on %s",
+    route => {
+      renderRail(route, CLUB);
 
-    expect(screen.getByRole('link', { name: 'Browse' })).not.toHaveAttribute('aria-current');
+      expect(screen.getByRole('link', { name: 'Browse' })).not.toHaveAttribute('aria-current');
+    }
+  );
+
+  it('lists Our Shows, Members, Payments and Club Profile by name in the drawer', () => {
+    const config = buildUnifiedSidebarConfig(ROLES, CLUB, 'Jordan');
+    render(<RoleSidebar config={config} variant="drawer" />, {
+      initialRoute: '/secretary/dashboard',
+    });
+
+    for (const name of ['Our Shows', 'Members', 'Payments', 'Club Profile']) {
+      expect(screen.getByRole('link', { name: new RegExp(name) })).toBeInTheDocument();
+    }
   });
 
   it('stays the popover trigger while the club context is unresolved', () => {

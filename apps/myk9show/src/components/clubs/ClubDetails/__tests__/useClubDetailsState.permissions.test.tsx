@@ -27,6 +27,9 @@ const mockAuth = vi.hoisted(() => ({
   hasPermission: vi.fn<(code: string, scope?: unknown) => boolean>(() => false),
 }));
 
+vi.mock('@/hooks/useValidatedClubContext', () => ({
+  useCurrentValidatedClubContext: () => ({ status: 'not-applicable' }),
+}));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => mockAuth,
 }));

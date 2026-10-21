@@ -18,6 +18,9 @@ const CLUB_A = '11111111-1111-4111-8111-111111111111';
 
 const mocks = vi.hoisted(() => ({ updateClub: vi.fn(), error: vi.fn(), success: vi.fn() }));
 
+vi.mock('@/hooks/useValidatedClubContext', () => ({
+  useCurrentValidatedClubContext: () => ({ status: 'not-applicable' }),
+}));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ userWithRoles: null, hasPermission: () => false }),
 }));

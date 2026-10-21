@@ -9,6 +9,9 @@ import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Club } from '@/types/club-types';
 
+vi.mock('@/hooks/useValidatedClubContext', () => ({
+  useCurrentValidatedClubContext: () => ({ status: 'not-applicable' }),
+}));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ userWithRoles: null, hasPermission: () => false }),
 }));

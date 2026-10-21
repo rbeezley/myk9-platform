@@ -36,7 +36,18 @@ export function IssueStrip({
   const cells: Array<{ label: string; value: React.ReactNode } | null> = [
     dateValue ? { label: 'Dates', value: dateValue } : null,
     closeValue ? { label: 'Closes', value: closeValue } : null,
-    { label: 'Capacity', value: formatEntryLimit(entryLimit) },
+    {
+      label: 'Capacity',
+      // The gold accent on the unit stays for a set limit; "No entry limit" is plain text.
+      value:
+        entryLimit != null ? (
+          <>
+            {entryLimit} <em className="em-gold">runs</em>
+          </>
+        ) : (
+          formatEntryLimit(entryLimit)
+        ),
+    },
     licenseLanguage ? { label: 'License', value: licenseLanguage } : null,
   ];
 

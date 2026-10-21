@@ -57,6 +57,21 @@ describe('ShowPublicLanding frame (MYK9-1288)', () => {
     expect(document.title).toBe('Before');
   });
 
+  it('restores the original title after the show was renamed while mounted', () => {
+    const { rerender, unmount } = renderLanding(makeShow({ name: 'Spring Trial' }));
+    rerender(
+      <ShowPublicLanding
+        show={makeShow({ name: 'Spring Trial (moved)' })}
+        landingTrials={[]}
+        hasEntryClassInventory={null}
+        entryWindowNotOpen={false}
+      />
+    );
+    expect(document.title).toBe('Spring Trial (moved) | myK9Show');
+    unmount();
+    expect(document.title).toBe('Before');
+  });
+
   it('scrolls to the top on mount and again when the show changes', () => {
     const { rerender } = renderLanding(makeShow());
     expect(scrollTo).toHaveBeenCalledTimes(1);

@@ -4,7 +4,13 @@
 .landing-v2 .lc {
   container: lc-timeline / inline-size;
   background: var(--ivory-100, #f3efe6);
-  padding-block: clamp(3.5rem, 8vw, 6rem);
+  padding-block: clamp(3.5rem, 8vw, 6rem) 0;
+}
+/* The last step ends the section: the next section's own top padding is the only gap, so
+   the "Built by the team" heading is reached in one scroll of step 6. */
+.landing-v2 .lc-row[data-last='true'] .lc-main,
+.landing-v2 .lc-row[data-last='true'] .lc-meanwhile {
+  padding-bottom: 0;
 }
 .landing-v2 .lc-head {
   display: flex;

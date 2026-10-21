@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { signInAsExhibitor } from './helpers/testUsers';
-import { installExhibitorFixture } from './helpers/exhibitorFixture';
+import { entriesAcrossThreeShows, installExhibitorFixture } from './helpers/exhibitorFixture';
 
 /**
  * E2E Tests for My Shows Page UI/UX Improvements
@@ -20,7 +20,9 @@ import { installExhibitorFixture } from './helpers/exhibitorFixture';
 // specs assert on layout and filters, not on what staging happens to hold
 // (docs/plan-hermetic-e2e-fixtures.md).
 async function login(page: Page) {
-  await installExhibitorFixture(page);
+  // Three shows: the When / Status rail these specs read appears from the
+  // exhibitor's third show (MYK9-1286).
+  await installExhibitorFixture(page, { entries: entriesAcrossThreeShows() });
   await signInAsExhibitor(page, '/exhibitor/entries');
 }
 
@@ -36,7 +38,10 @@ async function navigateToMyShows(page: Page) {
     timeout: 15000,
   });
   // ...and for the fixture's entries to render, so an absence assertion below
-  // (`toHaveCount(0)`) is made against a loaded page, never an empty shell.
+  // (`toHaveCount(0)`) is made against a loaded page, never an empty shell. The
+  // rail is the signal only because `login()` seeds three shows: it renders from
+  // the exhibitor's third show (MYK9-1286), so the default two-show fixture
+  // would time out here.
   await expect(page.getByTestId('entry-filter-strip')).toBeVisible({ timeout: 15000 });
 }
 

@@ -53,6 +53,10 @@ import {
   getMyEntriesPresentation,
   type MyEntriesPresentation,
 } from './modules/entriesIdentityState';
+import {
+  countDistinctShows,
+  useEntryFilterStripVisible,
+} from './modules/entryFilterStripVisibility';
 
 const MyEntriesPage: React.FC = () => {
   const { user, firstName } = useAuthContext();
@@ -149,6 +153,11 @@ const MyEntriesPage: React.FC = () => {
 
   // From lg the filters live in the shows list pane and the dog strip is the My Dogs tab's job.
   const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
+  const showFilterStrip = useEntryFilterStripVisible({
+    distinctShowCount: countDistinctShows(entries),
+    selectedTab,
+    selectedStatus,
+  });
   const filterStrip = (
     <EntryFilterStrip
       selectedTab={selectedTab}
@@ -432,8 +441,9 @@ const MyEntriesPage: React.FC = () => {
                   />
 
                   {/* Two composable filter axes (When, Status), one node: in the page below lg, in
-                    the shows list pane from lg (`MyShowsSplit`), never both. */}
-                  {!isWide && filterStrip}
+                    the shows list pane from lg (`MyShowsSplit`), never both. Shown from the third show or
+                    when a filter is narrowing the list; once shown it stays for the mount (MYK9-1286). */}
+                  {!isWide && showFilterStrip && filterStrip}
 
                   <div className="space-y-4">
                     {/* Changing a filter changes the list silently for a
@@ -444,10 +454,10 @@ const MyEntriesPage: React.FC = () => {
                       {filteredResultAnnouncement}
                     </p>
                     {/* One show group per show, dog cards beneath (modules/, MYK9-482 D10). From lg it is
-                      always the split, even with no results, so the filter strip in its list pane
-                      never unmounts under the focused chip. */}
+                      always the split, even with no results, and the strip (when shown) is latched open
+                      (`useEntryFilterStripVisible`, MYK9-1286), so it never unmounts under the focused chip. */}
                     <MyShowsSplit
-                      filters={isWide ? filterStrip : undefined}
+                      filters={isWide && showFilterStrip ? filterStrip : undefined}
                       emptyState={
                         filteredEntries.length === 0 && waitlistSurface.allowEmptyState ? (
                           <EntriesEmptyState

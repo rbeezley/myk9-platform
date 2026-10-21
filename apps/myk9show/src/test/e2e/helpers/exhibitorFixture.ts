@@ -36,12 +36,14 @@ import { awaitIdentity, installExhibitorProfile } from './exhibitorProfileRoute'
 
 export const FIXTURE_SHOW_ID = 'f1f1f1f1-0000-0000-0000-000000000001';
 export const FIXTURE_PAST_SHOW_ID = 'f1f1f1f1-0000-0000-0000-000000000002';
+export const FIXTURE_SECOND_SHOW_ID = 'f1f1f1f1-0000-0000-0000-000000000003';
 export const FIXTURE_TRIAL_ID = 'f1f1f1f1-0000-0000-0000-000000000011';
 export const FIXTURE_CLASS_ID = 'f1f1f1f1-0000-0000-0000-000000000021';
 export const FIXTURE_DOG_ID = 'f1f1f1f1-0000-0000-0000-000000000031';
 
 export const FIXTURE_SHOW_NAME = 'Fixture Scent Work Trial';
 export const FIXTURE_PAST_SHOW_NAME = 'Fixture Completed Trial';
+export const FIXTURE_SECOND_SHOW_NAME = 'Fixture Second Trial';
 export const FIXTURE_DOG_CALL_NAME = 'Fixture';
 
 /**
@@ -223,6 +225,36 @@ const COMPLETED_ENTRY_OVERRIDES: Record<string, unknown> = {
     trials: [{ id: FIXTURE_TRIAL_ID, date: '2020-02-01', timezone: 'America/Chicago' }],
   },
 };
+
+/**
+ * A second upcoming entry at a THIRD show. My Shows hides its When / Status
+ * filter rail until the exhibitor's entries span three distinct shows
+ * (MYK9-1286), so a spec that reads the rail asks for this set explicitly;
+ * the two-show default stays for every other spec.
+ */
+const SECOND_SHOW_ENTRY_OVERRIDES: Record<string, unknown> = {
+  id: 'f1f1f1f1-0000-0000-0000-000000000053',
+  show_id: FIXTURE_SECOND_SHOW_ID,
+  armband: 103,
+  show: {
+    id: FIXTURE_SECOND_SHOW_ID,
+    name: FIXTURE_SECOND_SHOW_NAME,
+    deleted_at: null,
+    status: 'published',
+    start_date: '2099-03-10',
+    end_date: '2099-03-11',
+    entry_close_date: '2099-02-20',
+    venue_name: 'Fixture Fairgrounds',
+    city: 'Testville',
+    state: 'KS',
+    trials: [{ id: FIXTURE_TRIAL_ID, date: '2099-03-10', timezone: 'America/Chicago' }],
+  },
+};
+
+/** The default two entries plus one at a third show: two upcoming, one completed. */
+export function entriesAcrossThreeShows(): Array<Record<string, unknown>> {
+  return [entryRow(), entryRow(COMPLETED_ENTRY_OVERRIDES), entryRow(SECOND_SHOW_ENTRY_OVERRIDES)];
+}
 
 export interface ExhibitorFixtureOptions {
   /**

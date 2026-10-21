@@ -97,7 +97,8 @@ export function syncAtShowData(
       // to this show. An empty scope would fetch every visible changed class.
       ...showTrials.map(trial => replicatedClassesTable.sync(trial.id, ...syncArgs)),
       replicatedEntriesTable.sync(showId, ...syncArgs),
-      replicatedArmbandsTable.sync(showId),
+      // Armbands sync every show at once; see ReplicatedArmbandsTable.
+      replicatedArmbandsTable.sync('', ...syncArgs),
     ]);
     const failed = results.find(result => result.status === 'rejected');
     if (failed) throw failed.reason;
@@ -163,7 +164,7 @@ export async function syncAtShowChangeSignals(
 
   await Promise.all([
     ...(includesEntries
-      ? [replicatedEntriesTable.sync(showId), replicatedArmbandsTable.sync(showId)]
+      ? [replicatedEntriesTable.sync(showId), replicatedArmbandsTable.sync()]
       : []),
     ...[...trialIds].map(trialId => replicatedClassesTable.sync(trialId)),
   ]);

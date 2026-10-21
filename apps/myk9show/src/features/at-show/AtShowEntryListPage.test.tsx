@@ -235,7 +235,7 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
       expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-2');
       expect(replicatedClassesTable.sync).not.toHaveBeenCalledWith('');
       expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
-      expect(replicatedArmbandsTable.sync).toHaveBeenCalledWith('show-1');
+      expect(replicatedArmbandsTable.sync).toHaveBeenCalledWith('');
     });
   });
 
@@ -265,7 +265,7 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     await syncAtShowChangeSignals('show-1', [{ table: 'entries', classIds: ['class-1'] }]);
 
     expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
-    expect(replicatedArmbandsTable.sync).toHaveBeenCalledWith('show-1');
+    expect(replicatedArmbandsTable.sync).toHaveBeenCalledWith();
     expect(replicatedTrialsTable.sync).not.toHaveBeenCalled();
     expect(replicatedClassesTable.sync).not.toHaveBeenCalled();
   });

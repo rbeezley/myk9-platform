@@ -55,8 +55,8 @@ describe('syncAtShowData forceFullSync', () => {
     expect(trialsSync).toHaveBeenCalledWith('show-a', { forceFullSync: true });
     expect(classesSync).toHaveBeenCalledWith('trial-1', { forceFullSync: true });
     expect(entriesSync).toHaveBeenCalledWith('show-a', { forceFullSync: true });
-    // Armbands are always a full fetch, scoped to the same show.
-    expect(replicatedArmbandsTable.sync).toHaveBeenCalledWith('show-a');
+    // Armbands sync every show at once (MYK9-1300), forced as the other tables are.
+    expect(replicatedArmbandsTable.sync).toHaveBeenCalledWith('', { forceFullSync: true });
   });
 
   it('an ordinary call shares the sync already running', async () => {

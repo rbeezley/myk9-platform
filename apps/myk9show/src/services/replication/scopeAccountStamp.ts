@@ -30,15 +30,6 @@ export interface StampedScopeTable {
 
 export type ScopeOwnership = 'owned' | 'never-synced' | 'foreign' | 'unreadable';
 
-export interface ScopeOwnershipOptions {
-  /**
-   * Also consult the table-level stamp when the scope itself never synced: for
-   * a table the provider syncs both per show and without a scope (armbands),
-   * an unscoped sync by another account covers every show.
-   */
-  includeTableStamp?: boolean;
-}
-
 /** A replica read refused because the scope is not this account's whole download. */
 export class ForeignReplicaScopeError extends Error {
   constructor(scopeId: string) {
@@ -67,17 +58,10 @@ async function ownershipOf(
 
 export async function getScopeOwnership(
   table: StampedScopeTable,
-  scopeId: string,
-  options: ScopeOwnershipOptions = {}
+  scopeId: string
 ): Promise<ScopeOwnership> {
   try {
-    const scoped = await ownershipOf(await readMetadata(table, scopeId), table);
-    if (scoped) return scoped;
-    if (options.includeTableStamp) {
-      const tableLevel = await ownershipOf(await readMetadata(table), table);
-      if (tableLevel) return tableLevel;
-    }
-    return 'never-synced';
+    return (await ownershipOf(await readMetadata(table, scopeId), table)) ?? 'never-synced';
   } catch {
     return 'unreadable';
   }
@@ -103,10 +87,9 @@ const withheld = (ownership: ScopeOwnership) =>
  */
 export async function assertScopeNotForeign(
   table: StampedScopeTable,
-  scopeId: string,
-  options: ScopeOwnershipOptions = {}
+  scopeId: string
 ): Promise<void> {
-  if (withheld(await getScopeOwnership(table, scopeId, options))) {
+  if (withheld(await getScopeOwnership(table, scopeId))) {
     throw new ForeignReplicaScopeError(scopeId);
   }
 }

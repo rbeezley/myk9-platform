@@ -26,11 +26,12 @@ const { state } = vi.hoisted(() => ({
   state: {
     user: 'A' as 'A' | 'B' | null,
     offline: false,
-    // Who synced show-y's armbands scope (undefined: a pre-change cache).
-    scopeStampedBy: 'user-a' as string | undefined,
-    // A table-level (unscoped) sync, used when the scope itself never synced.
-    tableStampedBy: undefined as string | undefined,
-    scopeSynced: true,
+    // Armbands sync every show at once (MYK9-1300): the table-level stamp is
+    // the account that completed the download (undefined: a pre-change cache).
+    tableStampedBy: 'user-a' as string | undefined,
+    tableSynced: true,
+    // A per-show slot left by the per-show sync armbands had before MYK9-1300.
+    staleScopeStampedBy: undefined as string | undefined,
   },
 }));
 
@@ -66,16 +67,16 @@ vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
     ),
     getSyncMetadata: vi.fn(async (scopeValue?: string) => {
       if (scopeValue === undefined) {
-        return state.tableStampedBy
-          ? { tableName: 'armbands', totalRows: 2, syncedByAuthUserId: state.tableStampedBy }
+        return state.tableSynced
+          ? {
+              tableName: 'armbands',
+              totalRows: 2,
+              ...(state.tableStampedBy ? { syncedByAuthUserId: state.tableStampedBy } : {}),
+            }
           : null;
       }
-      return scopeValue === 'show-y' && state.scopeSynced
-        ? {
-            tableName: 'armbands',
-            totalRows: 2,
-            ...(state.scopeStampedBy ? { syncedByAuthUserId: state.scopeStampedBy } : {}),
-          }
+      return scopeValue === 'show-y' && state.staleScopeStampedBy
+        ? { tableName: 'armbands', totalRows: 2, syncedByAuthUserId: state.staleScopeStampedBy }
         : null;
     }),
     getCurrentAuthUserId: vi.fn(async () =>
@@ -136,9 +137,9 @@ import { getArmbandCountForShow, lookupDogByArmband } from '@/services/database/
 beforeEach(() => {
   state.user = 'A';
   state.offline = false;
-  state.scopeStampedBy = 'user-a';
-  state.tableStampedBy = undefined;
-  state.scopeSynced = true;
+  state.tableStampedBy = 'user-a';
+  state.tableSynced = true;
+  state.staleScopeStampedBy = undefined;
 });
 
 describe('armbands replica after an account switch (MYK9-1133)', () => {
@@ -187,7 +188,7 @@ describe('armbands replica after an account switch (MYK9-1133)', () => {
   });
 
   it('a pre-change cache (no stamp) is cold: the server answers online, an error offline', async () => {
-    state.scopeStampedBy = undefined;
+    state.tableStampedBy = undefined;
     expect((await getArmbandCountForShow('show-y')).count).toBe(0);
     state.offline = true;
     expect((await getArmbandCountForShow('show-y')).error).not.toBeNull();
@@ -199,27 +200,25 @@ describe('armbands replica after an account switch (MYK9-1133)', () => {
     expect((await getArmbandCountForShow('show-y')).error).not.toBeNull();
   });
 
-  describe('a show whose scope never synced', () => {
-    it("falls to the table-level stamp: another account's unscoped sync is foreign", async () => {
-      state.scopeSynced = false;
-      state.tableStampedBy = 'user-a';
+  describe('a per-show slot from before MYK9-1300', () => {
+    it("is ignored: the account's own all-shows download is read offline", async () => {
+      state.staleScopeStampedBy = 'user-b';
+      state.offline = true;
+      expect(await getArmbandCountForShow('show-y')).toEqual({ count: 2, error: null });
+    });
+
+    it("cannot vouch for another account's all-shows download", async () => {
+      state.staleScopeStampedBy = 'user-b';
       state.user = 'B';
       state.offline = true;
       expect((await getArmbandCountForShow('show-y')).error).not.toBeNull();
     });
+  });
 
-    it("the account's own unscoped sync is read as before", async () => {
-      state.scopeSynced = false;
-      state.tableStampedBy = 'user-a';
-      state.offline = true;
-      expect(await getArmbandCountForShow('show-y')).toEqual({ count: 2, error: null });
-    });
-
-    it('nothing synced at all is the unchanged cold path', async () => {
-      state.scopeSynced = false;
-      state.user = 'B';
-      state.offline = true;
-      expect(await getArmbandCountForShow('show-y')).toEqual({ count: 2, error: null });
-    });
+  it('nothing synced at all is the unchanged cold path', async () => {
+    state.tableSynced = false;
+    state.user = 'B';
+    state.offline = true;
+    expect(await getArmbandCountForShow('show-y')).toEqual({ count: 2, error: null });
   });
 });

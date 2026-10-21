@@ -14,7 +14,7 @@ Duplication question (CLAUDE.md § consolidate): every phase removes a door or a
 3. **IA-5: Option 1.** Overview's focused class owns check, release, print and initials; Results keeps the cross-class list, Submit and Close. Condition: mount the existing `ResultsClassDetail` inside the focused-class panel as-is. If that proves impossible without a rewrite, fall back to Option 2 (one "Continue on Results" link) and say so on the issue.
 4. **IA-9:** for managers the trial page becomes a link into the workbench filtered by trial; per-trial Financials moves next to Reports' Financial Report.
 
-Owner framing (2026-10-20): the direction has changed before and must not change again. This plan finishes the current direction (`plan-secretary-show-home.md`, `plan-show-tools-into-actions.md`) by removing what accreted around it; it adds no surface and moves nothing except the stranded settings and the class lifecycle. Every deletion removes a door, never a capability: attention chips, readiness checks, printed-state tracking, live counts and one-tap release all stay.
+Owner framing (2026-10-20): the direction has changed before and must not change again. This plan finishes the current direction (`plan-secretary-show-home.md`, `archive/plan-show-tools-into-actions.md`) by removing what accreted around it; it adds no surface and moves nothing except the stranded settings and the class lifecycle. Every deletion removes a door, never a capability: attention chips, readiness checks, printed-state tracking, live counts and one-tap release all stay.
 
 ## Phase A — free deletions and stranded capabilities (done 2026-10-21)
 
@@ -34,7 +34,7 @@ Exit: no route without an incoming link in this surface; the three capabilities 
 
 Entry: Phase A merged (met 2026-10-21). Issues: MYK9-1262, MYK9-1317, MYK9-1318, in that order.
 
-1. **Tools into Actions (IA-6).** Execute `plan-show-tools-into-actions.md` as written (MYK9-1262 becomes its issue). The Volunteers row links straight to `/secretary/volunteers?showId=`.
+1. **Tools into Actions (IA-6).** Execute `archive/plan-show-tools-into-actions.md` as written (MYK9-1262 becomes its issue). The Volunteers row links straight to `/secretary/volunteers?showId=`.
 2. **Fold the "Your show" row (IA-4).** Add Trial and Select classes become Actions rows; "Enter results from scoresheet" stays only in the focused class's Class work.
 3. **Single release path (IA-7).** Browser-verify that the Visibility settings sheet shows `ResultsBulkBar`; if so, remove release from the embedded page and keep the visibility controls.
 

@@ -81,6 +81,50 @@ describe('useEntryManagementCockpit', () => {
     expect(search).toBe('?view=cards&queue=all');
   });
 
+  it('holds a derived default while a form is open or rows are ticked, then re-derives', async () => {
+    const accepted = (index: number) => ({ ...entry(index), entryStatus: EntryStatus.ACCEPTED });
+    const settledGroups = groupEntriesByShowRegistration([accepted(1), accepted(2)]);
+    const arrivedGroups = groupEntriesByShowRegistration([accepted(1), accepted(2), entry(3)]);
+    let search = '';
+    const { result, rerender } = renderHook(
+      ({ groups }) => {
+        const [searchParams, setSearchParams] = useSearchParams();
+        return {
+          cockpit: useEntryManagementCockpit({
+            groups,
+            state: normalizeEntryManagementCockpitParams(searchParams).state,
+          }),
+          setSearchParams,
+        };
+      },
+      {
+        initialProps: { groups: settledGroups },
+        wrapper: wrapper('/?registration=registration-1', value => {
+          search = value;
+        }),
+      }
+    );
+    expect(result.current.cockpit.state.queues).toEqual(['all']);
+
+    // A pending form arrives while registration-1 is open: the view stays on All.
+    rerender({ groups: arrivedGroups });
+    expect(result.current.cockpit.state.queues).toEqual(['all']);
+    expect(result.current.cockpit.state.registrationKey).toBe('registration-1');
+    expect(search).toBe('?registration=registration-1');
+
+    // Ticked rows hold it too, and survive the arrival.
+    act(() => result.current.setSearchParams(new URLSearchParams()));
+    rerender({ groups: settledGroups });
+    act(() => result.current.cockpit.selection.selectItems(settledGroups.slice(0, 1)));
+    rerender({ groups: arrivedGroups });
+    expect(result.current.cockpit.state.queues).toEqual(['all']);
+    expect(result.current.cockpit.selection.selectedIds.size).toBe(1);
+
+    // Done working: the default follows the forms again.
+    act(() => result.current.cockpit.selection.clearSelection());
+    await waitFor(() => expect(result.current.cockpit.state.queues).toEqual(['needs-review']));
+  });
+
   it('resets page and selection when the queue changes while memoizing counts', async () => {
     const entries = Array.from({ length: 55 }, (_, index) => entry(index));
     const groups = groupEntriesByShowRegistration(entries);

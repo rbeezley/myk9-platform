@@ -12,12 +12,12 @@ describe('describeEmptyEntryQueue', () => {
   it('names the count in All when only the checked queue is empty', () => {
     expect(describeEmptyEntryQueue(base, 14, 14)).toEqual({
       heading: 'Nothing needs review',
-      body: '14 entry forms are in All.',
+      body: '14 entry forms are in All. Choose All from the Show menu to see them.',
     });
   });
 
   it('uses the singular for one form', () => {
-    expect(describeEmptyEntryQueue(base, 1, 1).body).toBe('1 entry form is in All.');
+    expect(describeEmptyEntryQueue(base, 1, 1).body).toBe('1 entry form is in All. Choose All from the Show menu to see it.');
   });
 
   it('names another single queue by the menu label, and several as "these queues"', () => {
@@ -42,7 +42,7 @@ describe('describeEmptyEntryQueue', () => {
   it('under a trial or class scope, still names the queue and counts All within the scope', () => {
     expect(describeEmptyEntryQueue(base, 14, 3)).toEqual({
       heading: 'Nothing needs review',
-      body: '3 entry forms are in All.',
+      body: '3 entry forms are in All. Choose All from the Show menu to see them.',
     });
     expect(describeEmptyEntryQueue(base, 14, 0).body).toBe('No entry forms match this filter.');
   });

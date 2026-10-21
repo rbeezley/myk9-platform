@@ -141,8 +141,33 @@ describe('EntryManagementPage default queue (MYK9-1276)', () => {
     renderAt('/shows/show-1/entries?queue=needs-review');
 
     expect(await screen.findByText('Nothing needs review')).toBeInTheDocument();
-    expect(screen.getByText('2 entry forms are in All.')).toBeInTheDocument();
+    expect(screen.getByText('2 entry forms are in All. Choose All from the Show menu to see them.')).toBeInTheDocument();
     expect(screen.getByTestId('location-search')).toHaveTextContent('?queue=needs-review');
+  });
+
+  it('judges the landing and the All count on the class in view, not the whole show', async () => {
+    const inClass2 = (id: string, overrides: Partial<EntryManagementEntry> = {}) =>
+      entry(id, {
+        classes: [
+          { id, classId: 'class-2', name: 'Open A', number: '2', fee: 25, status: 'entered' },
+        ],
+        ...overrides,
+      });
+    data.entries = [
+      entry('e1', { entryStatus: EntryStatus.PENDING }),
+      entry('e2'),
+      inClass2('e3'),
+    ];
+    const bare = renderAt('/shows/show-1/entries?class=class-2');
+    expect(await listedForms()).toHaveLength(1);
+    expect(screen.getByTestId('location-search')).toHaveTextContent('?class=class-2');
+    bare.unmount();
+
+    renderAt('/shows/show-1/entries?queue=needs-review&class=class-2');
+    expect(await screen.findByText('Nothing needs review')).toBeInTheDocument();
+    expect(
+      screen.getByText('1 entry form is in All. Choose All from the Show menu to see it.')
+    ).toBeInTheDocument();
   });
 
   it('writes and keeps Needs review when the secretary picks it from the Show: menu', async () => {

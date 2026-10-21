@@ -58,7 +58,7 @@ export function useEntryManagementCockpit({
   // effective one is derived from what the table would list in the current scope, so
   // `cockpit.state.queues` stays the single source of queue state. Until the forms have loaded
   // the default stays Needs review. Never written to the URL.
-  const defaultQueues = useMemo(
+  const liveDefaultQueues = useMemo(
     () =>
       urlState.queuesNamed
         ? urlState.queues
@@ -81,14 +81,33 @@ export function useEntryManagementCockpit({
       scopedTrialClassIds,
     ]
   );
+  // While the secretary has a form open or rows ticked, a derived default holds still: a pending
+  // form arriving must not flip All to Needs review and close the open form or clear the
+  // selection under them. It re-derives once they are done, or when the scope changes.
+  const scopeKey = [
+    urlState.tab,
+    urlState.exception,
+    urlState.search,
+    urlState.trialIds.join(','),
+    urlState.classIds.join(','),
+  ].join('|');
+  const [heldDefault, setHeldDefault] = useState<{
+    scopeKey: string;
+    queues: readonly ShowRegistrationQueue[];
+  } | null>(null);
+  const defaultQueues =
+    !urlState.queuesNamed && heldDefault?.scopeKey === scopeKey
+      ? heldDefault.queues
+      : liveDefaultQueues;
   const state = useMemo(
     () => ({ ...urlState, queues: [...defaultQueues] }),
     [urlState, defaultQueues]
   );
+  // A search lists its matches whatever the queue, so the queue is not part of the view then.
   const viewKey = [
     state.tab,
     state.exception,
-    state.queues.join(','),
+    state.search.trim() ? '' : state.queues.join(','),
     state.search,
     state.trialIds.join(','),
     state.classIds.join(','),
@@ -122,6 +141,12 @@ export function useEntryManagementCockpit({
     pruneToItems: true,
     resetKey: viewKey,
   });
+  const isWorking = Boolean(state.registrationKey) || selection.selectedIds.size > 0;
+  if (urlState.queuesNamed || !isWorking) {
+    if (heldDefault !== null) setHeldDefault(null);
+  } else if (heldDefault?.scopeKey !== scopeKey) {
+    setHeldDefault({ scopeKey, queues: liveDefaultQueues });
+  }
   const visibleSelection = getVisiblePageSelectionState(
     builtPage.page.items,
     selection.selectedIds

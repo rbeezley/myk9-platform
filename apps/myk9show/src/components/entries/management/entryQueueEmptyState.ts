@@ -38,6 +38,10 @@ export function describeEmptyEntryQueue(
       : state.queues.length === 1 && only
         ? `Nothing in ${SHOW_REGISTRATION_QUEUE_LABELS[only]}`
         : 'Nothing in these queues';
-  const noun = scopedAllCount === 1 ? 'entry form is' : 'entry forms are';
-  return { heading, body: `${scopedAllCount.toLocaleString()} ${noun} in All.` };
+  const one = scopedAllCount === 1;
+  const noun = one ? 'entry form is' : 'entry forms are';
+  return {
+    heading,
+    body: `${scopedAllCount.toLocaleString()} ${noun} in All. Choose All from the Show menu to see ${one ? 'it' : 'them'}.`,
+  };
 }

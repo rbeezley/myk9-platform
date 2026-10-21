@@ -334,6 +334,20 @@ describe('ResultsTab list', () => {
     expect(screen.getByRole('list', { name: 'Classes' })).toBeInTheDocument();
   });
 
+  it('judges the landing on the search in view: a search matching only finished classes opens on All', () => {
+    hook.value = {
+      ...hook.value,
+      rows: buildRows().map(row =>
+        row.phase === 'done' ? { ...row, name: `Quietsearch ${row.name}` } : row
+      ),
+    };
+    renderAt('?q=quietsearch');
+
+    expect(screen.getByRole('combobox', { name: 'Show' })).toHaveTextContent('All classes');
+    expect(screen.queryByText('No classes match these filters')).not.toBeInTheDocument();
+    expect(screen.getByTestId('location-search')).toHaveTextContent('?q=quietsearch');
+  });
+
   it('keeps an explicit status=needs-me, and writes it when the secretary picks Needs me', async () => {
     hook.value = { ...hook.value, rows: buildRows().filter(row => row.phase === 'done') };
     const first = renderAt('?status=needs-me');

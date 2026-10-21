@@ -1,7 +1,8 @@
 /**
  * useUnreleaseResults — clears results_released_at/results_released_by on classes.
  * Mirrors useReleaseResults' replicated per-class write and partial-failure surfacing,
- * so a secretary can return an already-released class to held-for-review.
+ * so a secretary can return an already-released class to held-for-review: Hide results on the
+ * Results class detail (MYK9-1318).
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -58,10 +59,9 @@ export function useUnreleaseResults() {
         queryClient.invalidateQueries({ queryKey: settingsQueryKeys.all });
       }
 
-      // NO toast here. `ResultsBulkBar` is the only layer that toasts these
-      // results: it owns the selection outcome the message describes ("the
-      // failed classes stayed selected so you can retry"), which this hook
-      // cannot see. Both layers used to toast, so one release produced two
+      // NO toast here. `ResultsTab` (the class detail's Hide results) is the only
+      // layer that toasts the outcome: it owns the message, which this hook cannot
+      // see. Both layers used to toast, so one action produced two
       // differently-worded messages and read as two separate operations.
     },
   });

@@ -271,7 +271,7 @@ Available from the Tools panel: Quick Broadcast, Class Broadcast, Schedule Slip 
 1. From the Show Desk, scroll to the **Closeout** section at the bottom.
 2. Click **Results & Check-In**.
 3. Review: confirm every class shows all entries with a result (Pass / NQ / Absent). No blanks.
-4. Toggle **Release Results** → results are now visible to exhibitors in their accounts.
+4. Open the class on Results and press **Release results** → results are now visible to exhibitors in their accounts. **Hide results** on the same class takes them back when its visibility is After Review.
 
 **Screenshots:** Results & Check-In with all classes showing complete results; release toggle.
 

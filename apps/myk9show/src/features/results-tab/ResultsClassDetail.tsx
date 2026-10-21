@@ -20,6 +20,8 @@ import { formatTime } from '@/lib/format/dates';
 import { useReserveBottomAbove } from '@/hooks/useReserveBottomAbove';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import type { ResultsClassRow } from './buildResultsClassRows';
+import { useClassManualReleaseTiming } from './classManualReleaseTiming';
+import { HideResultsButton } from './HideResultsButton';
 import { PrintStatusUnavailable } from './PrintStatusUnavailable';
 import { ResultsStatusChip } from './ResultsClassList';
 import { getFixScoreHref, getOverviewFocusHref } from './resultsTabRoutes';
@@ -35,6 +37,9 @@ interface ResultsClassDetailProps {
   timeZone: string;
   releasing: boolean;
   onRelease: () => void;
+  /** Takes a released class back to unreleased (MYK9-1318). */
+  onHide: () => void;
+  hiding: boolean;
   /** Refetches every read; offered where print status could not be read. */
   onRetry: () => void;
   /** Removes the saved check. */
@@ -299,6 +304,8 @@ export function ResultsClassDetail({
   timeZone,
   releasing,
   onRelease,
+  onHide,
+  hiding,
   onRetry,
   onUndoVerify,
   verifying,
@@ -308,6 +315,12 @@ export function ResultsClassDetail({
   currentUserId,
   judgeSignOffSlot,
 }: ResultsClassDetailProps) {
+  // Same rule as the Fix link: only a scope RESOLVED as non-operator is refused; while it
+  // resolves, the route guard is the safety net.
+  const manageScope = useShowManageScope(showId);
+  const holdsForManualRelease = useClassManualReleaseTiming(showId, row.id, row.trialId);
+  const canHide =
+    holdsForManualRelease && !(manageScope.status === 'resolved' && !manageScope.canOperate);
   const embedded = useEmbeddedDetail();
   const { search } = useLocation();
   const backParams = new URLSearchParams(search);
@@ -362,6 +375,14 @@ export function ResultsClassDetail({
         verifyBlockedReason={verifyBlockedReason}
         verifying={verifying}
       />
+      {/* Hide is offered only for a released class whose timing holds results for manual release
+          (clearing the release changes nothing otherwise). An unknown release state has no
+          releasedAt, so it offers neither Release nor Hide. */}
+      {canHide && released && (
+        <div className="flex justify-end">
+          <HideResultsButton className={row.name} hiding={hiding} onHide={onHide} />
+        </div>
+      )}
       {row.verifiedAt && row.phase !== 'needs-checking' && (
         <VerifiedLine
           row={row}

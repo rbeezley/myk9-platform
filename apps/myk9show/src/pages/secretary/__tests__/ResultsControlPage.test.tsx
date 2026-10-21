@@ -1,6 +1,7 @@
 // apps/myk9show/src/pages/secretary/__tests__/ResultsControlPage.test.tsx
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
+import { within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 
@@ -154,10 +155,6 @@ vi.mock('@/hooks/mutations/useShowSettingsMutations', () => ({
   useUpdateShowResultsPrivacy: () => ({ mutate: mockPrivacyMutate, isPending: false }),
 }));
 
-vi.mock('@/hooks/mutations/useReleaseResults', () => ({
-  useReleaseResults: () => ({ mutate: vi.fn(), isPending: false }),
-}));
-
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { id: 'user-1' } }),
 }));
@@ -274,6 +271,33 @@ describe('ResultsControlPage', () => {
 
     expect(screen.queryByRole('heading', { name: 'Results', level: 1 })).not.toBeInTheDocument();
     expect(screen.getByText('Result visibility')).toBeInTheDocument();
+  });
+
+  it('embedded (the Visibility settings sheet): a selected class offers Apply Preset but no release or hide control (MYK9-1318)', async () => {
+    const user = userEvent.setup();
+    render(
+      <Routes>
+        <Route path="/shows/:id/results" element={<ResultsControlPage embedded />} />
+      </Routes>,
+      { initialRoute: '/shows/show-1/results' }
+    );
+
+    await user.click(screen.getByRole('button', { name: /Trial A/ }));
+    await user.click(screen.getAllByRole('checkbox', { name: /^Select (?!all)/ })[0]);
+
+    const toolbar = await screen.findByRole('toolbar', { name: 'Bulk actions' });
+    expect(within(toolbar).getByRole('combobox')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /release/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /hide results/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/sticky/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_content, element) =>
+          element?.tagName === 'P' &&
+          element.textContent ===
+            'To release a class, open it on Results and press Release results.'
+      )
+    ).toBeInTheDocument();
   });
 
   it('renders all three preset cards', () => {

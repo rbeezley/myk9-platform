@@ -1,3 +1,4 @@
+import { formatEntryLimit } from '@/features/_shared/landing/entryLimit';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { BannerFlagBar } from '../../components/BannerFlagBar';
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
@@ -148,7 +149,7 @@ export function FlagMasthead({
         {[
           { label: 'Dates', value: dateRangeLabel || '—' },
           { label: 'Closes', value: closesLabel || 'TBA' },
-          { label: 'Capacity', value: entryLimit != null ? `${entryLimit} runs` : 'Open' },
+          { label: 'Capacity', value: formatEntryLimit(entryLimit) },
           { label: 'Venue', value: venueLabel || 'TBA' },
         ].map((cell, i, arr) => (
           <div

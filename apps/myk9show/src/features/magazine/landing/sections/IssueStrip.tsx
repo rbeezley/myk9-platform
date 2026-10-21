@@ -1,3 +1,4 @@
+import { formatEntryLimit } from '@/features/_shared/landing/entryLimit';
 import { formatEditorialDateRange, formatShortDate } from '../utils/dateFormat';
 // formatShortDate retained for the "Closes" cell which needs the full
 // "Jun 3, 2026" form rather than a bare range.
@@ -35,16 +36,7 @@ export function IssueStrip({
   const cells: Array<{ label: string; value: React.ReactNode } | null> = [
     dateValue ? { label: 'Dates', value: dateValue } : null,
     closeValue ? { label: 'Closes', value: closeValue } : null,
-    entryLimit != null
-      ? {
-          label: 'Capacity',
-          value: (
-            <>
-              {entryLimit} <em className="em-gold">runs</em>
-            </>
-          ),
-        }
-      : null,
+    { label: 'Capacity', value: formatEntryLimit(entryLimit) },
     licenseLanguage ? { label: 'License', value: licenseLanguage } : null,
   ];
 

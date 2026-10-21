@@ -1,3 +1,4 @@
+import { formatEntryLimit } from '@/features/_shared/landing/entryLimit';
 import { MonogramEmboss } from '../../components/MonogramEmboss';
 import { MonogramHeading } from '../../components/MonogramHeading';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
@@ -209,7 +210,7 @@ export function HeroBlock({
                   {entryLimit} <span style={META_EM}>runs</span>
                 </>
               ) : (
-                <span style={META_EM}>Open</span>
+                <span style={META_EM}>{formatEntryLimit(null)}</span>
               )}
             </span>
           </div>

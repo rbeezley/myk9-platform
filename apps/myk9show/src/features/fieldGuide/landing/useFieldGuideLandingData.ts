@@ -1,5 +1,6 @@
 /** Assembles Field Guide presentation metadata around the canonical landing facts. */
 
+import { formatEntryLimit } from '@/features/_shared/landing/entryLimit';
 import { useMemo } from 'react';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useLandingShowData } from '@/features/_shared/landing/useLandingShowData';
@@ -60,7 +61,7 @@ export function useFieldGuideLandingData(
           ? formatDateInTimezone(shared.confirmationDate, shared.timezone, 'monthDay')
           : 'TBA',
       },
-      { label: 'CAP', value: shared.entryLimit == null ? 'OPEN' : String(shared.entryLimit) },
+      { label: 'CAP', value: formatEntryLimit(shared.entryLimit).toUpperCase() },
     ];
     const fees = shared.fees.map(fee => ({
       ...fee,

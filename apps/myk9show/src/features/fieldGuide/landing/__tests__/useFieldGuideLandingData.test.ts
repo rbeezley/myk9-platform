@@ -80,7 +80,7 @@ describe('useFieldGuideLandingData', () => {
     expect(cells.find(c => c.label === 'OPENS')?.emphasis).toBeFalsy();
   });
 
-  it('falls back to "TBA" / "OPEN" when source dates are missing', () => {
+  it('falls back to "TBA" / "NO ENTRY LIMIT" when source dates are missing', () => {
     const show = makeShow({
       entryOpenDate: undefined as unknown as string,
       entryCloseDate: undefined as unknown as string,
@@ -91,7 +91,7 @@ describe('useFieldGuideLandingData', () => {
     const cells = result.current.quickRefCells;
     expect(cells.find(c => c.label === 'OPENS')?.value).toBe('TBA');
     expect(cells.find(c => c.label === 'CLOSES')?.value).toBe('TBA');
-    expect(cells.find(c => c.label === 'CAP')?.value).toBe('OPEN');
+    expect(cells.find(c => c.label === 'CAP')?.value).toBe('NO ENTRY LIMIT');
   });
 
   it('sorts trials by trial number and dedupes judges by name', () => {

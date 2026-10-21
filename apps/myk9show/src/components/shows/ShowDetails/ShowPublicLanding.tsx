@@ -16,6 +16,8 @@ import { MailInEntryNotice } from './MailInEntryNotice';
 import { acceptsOnlineEntries, isMailInOnlyShow } from '@/features/payments/onlineEntryGate';
 import { LandingMailInContext } from '@/features/_shared/landing/landingMailIn';
 import { PreviewExitBar } from './PreviewExitBar';
+import { AllShowsBar, useScrollToTopOnShow } from './ShowPublicLanding.frame';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import type { ClassInfo } from '@/components/shows/tabs/ClassesTab';
@@ -65,6 +67,8 @@ export function ShowPublicLanding({
   styleMode = 'public',
   onSaveDraftStyle,
 }: ShowPublicLandingProps) {
+  useScrollToTopOnShow(show.id);
+  useDocumentTitle(`${show.name} | myK9Show`);
   const draftStyle = getShowStyle(show);
   const publishedStyle =
     show.experienceIsPublished && show.experiencePublishedStyle
@@ -178,6 +182,7 @@ export function ShowPublicLanding({
   return (
     <>
       {isManagerDraftPreview && <PreviewExitBar showId={show.id} />}
+      {!isManagerDraftPreview && <AllShowsBar />}
       {styleEditorEnabled && (
         <PremiumStylePreviewControls
           committedStyle={committedStyle}

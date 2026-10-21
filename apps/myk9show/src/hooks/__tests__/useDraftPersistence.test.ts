@@ -635,4 +635,43 @@ describe('useDraftPersistence — hasUnsavedChanges follows autosave', () => {
     act(() => seedDraftData({ selectedDogs: ['dog-1', 'dog-2'] }));
     expect(result.current.hasUnsavedChanges).toBe(true);
   });
+
+  it('reads a restored draft as saved, not unsaved', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const writer = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+    let draftId: string | null = null;
+    act(() => {
+      draftId = writer.result.current.saveDraft('Saved entry');
+    });
+    const draft = writer.result.current.loadDraft(draftId!)!;
+    writer.unmount();
+
+    useShowRegistrationStore.getState().clearDraftData();
+    const { result } = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'dog-selection'));
+    act(() => {
+      result.current.activateDraft(draft);
+      seedDraftData(draft.data as Record<string, unknown>);
+    });
+
+    expect(result.current.hasUnsavedChanges).toBe(false);
+  });
+
+  it('writes a new draft when the same dogs are picked again after Start over', () => {
+    seedDraftData({ selectedDogs: ['dog-1'] });
+    const { result } = renderHook(() =>
+      useDraftPersistence(SHOW_ID, USER_A, 'dog-selection', { autoSaveInterval: 1000 })
+    );
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+    expect(result.current.availableDrafts).toHaveLength(1);
+
+    act(() => result.current.deleteDraft(result.current.availableDrafts[0]!.id));
+    expect(result.current.availableDrafts).toHaveLength(0);
+
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+    expect(result.current.availableDrafts).toHaveLength(1);
+  });
 });

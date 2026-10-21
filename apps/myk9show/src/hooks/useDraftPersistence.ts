@@ -201,16 +201,6 @@ export function useDraftPersistence(
     [getDraftKey, userId, log]
   );
 
-  const activateDraft = useCallback(
-    (draft: SavedDraft) => {
-      if (draft.metadata.showId === showId && draft.metadata.userId === userId) {
-        activeDraftMetadataRef.current = draft.metadata;
-        pendingRestoreDataRef.current = draftData;
-      }
-    },
-    [draftData, showId, userId]
-  );
-
   const deactivateDraft = () => {
     activeDraftMetadataRef.current = null;
     pendingRestoreDataRef.current = null;
@@ -227,6 +217,9 @@ export function useDraftPersistence(
         if (activeDraftMetadataRef.current?.id === draftId) {
           activeDraftMetadataRef.current = null;
           pendingRestoreDataRef.current = null;
+          // Otherwise re-picking the same dogs matches the stale ref and the
+          // autosave skips, leaving nothing on disk.
+          lastSavedDataRef.current = '';
         }
         setDraftsVersion(version => version + 1);
 
@@ -255,6 +248,21 @@ export function useDraftPersistence(
       }
     },
     [generateDraftMetadata, log]
+  );
+
+  const activateDraft = useCallback(
+    (draft: SavedDraft) => {
+      if (draft.metadata.showId === showId && draft.metadata.userId === userId) {
+        activeDraftMetadataRef.current = draft.metadata;
+        pendingRestoreDataRef.current = draftData;
+        // The restored payload IS what is on disk, so it is saved, not unsaved.
+        // Same serializer as hasUnsavedChanges. The version bump re-runs that
+        // memo whichever order the wizard applies the restore in.
+        lastSavedDataRef.current = JSON.stringify(saveableData(draft.data));
+        setDraftsVersion(version => version + 1);
+      }
+    },
+    [draftData, saveableData, showId, userId]
   );
 
   const autoSave = useCallback(() => {

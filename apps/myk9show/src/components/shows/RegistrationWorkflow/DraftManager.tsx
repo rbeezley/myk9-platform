@@ -32,9 +32,10 @@ export function DraftManager({
   identityPending = false,
   onRetryDogs,
 }: DraftManagerProps) {
-  const latestEntryDraft = showResume
-    ? availableDrafts.find(draft => (draft.selectedDogsCount ?? 0) > 0 && !draft.completed)
-    : undefined;
+  const resumableDrafts = showResume
+    ? availableDrafts.filter(draft => (draft.selectedDogsCount ?? 0) > 0 && !draft.completed)
+    : [];
+  const latestEntryDraft = resumableDrafts[0];
   // Retrying is only meaningful once we know WHO to load dogs for. Without a
   // resolved person there is no roster request to retry, so the panel waits
   // instead of offering a button that would fire an identity-less read.
@@ -49,7 +50,7 @@ export function DraftManager({
     // Same silent-failure shape on the way back in: a corrupt or evicted
     // payload returned null with no explanation.
     notifications.error(
-      'We could not open that draft — it may have been cleared by this browser. Start the entry again, or pick a different draft.'
+      'We could not open that draft. It may have been cleared by this browser. Start the entry again.'
     );
   };
 
@@ -71,23 +72,25 @@ export function DraftManager({
                     ? 'Your entry is saved here. Waiting for your dogs to load.'
                     : identityPending
                       ? 'Your entry is saved here. Waiting for your account to finish loading.'
-                      : 'Your entry is saved here. Reconnect and try loading your dogs.'}
+                      : 'Your entry is saved here. Reconnect and try loading your dogs.'}{' '}
+              Start over discards the saved entry.
             </p>
           </div>
-          <div className="flex shrink-0 flex-col-reverse gap-2 sm:flex-row">
-            <Button
-              variant="outline"
-              className="min-h-11"
-              onClick={() => deleteDraft(latestEntryDraft.id)}
-            >
-              Start over
-            </Button>
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
             <Button
               className="min-h-11 shrink-0"
               onClick={retryDogs ? onRetryDogs : () => handleLoadDraft(latestEntryDraft.id)}
               disabled={retryDogs ? !onRetryDogs : !dogsReady}
             >
               {retryDogs ? 'Retry loading dogs' : 'Resume entry'}
+            </Button>
+            {/* Every resumable draft goes, or the next older one would prompt. */}
+            <Button
+              variant="outline"
+              className="min-h-11"
+              onClick={() => resumableDrafts.forEach(draft => deleteDraft(draft.id))}
+            >
+              Start over
             </Button>
           </div>
         </section>

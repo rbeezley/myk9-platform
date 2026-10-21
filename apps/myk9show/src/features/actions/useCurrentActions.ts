@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { useShowStore } from '@/store/showStore';
-import { usePageEditTargetStore } from './pageEditTarget';
+import { usePageEditTargetStore, type ShowToolsRegistration } from './pageEditTarget';
 import { resolveCreateGates } from './createGates';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import { groupActions, listHeading, pageObjectHeading, type ActionGroup } from './actionGroups';
@@ -14,12 +14,15 @@ import {
   type AppAction,
   type ActionRouteContext,
 } from './actionRegistry';
+import { SHOW_DESK_TOOL_GROUP_HEADINGS } from './showToolActions';
 
 export interface CurrentActions {
   route: ActionRouteContext;
   actions: AppAction[];
   /** The same actions as labelled sections, in menu order. */
   groups: ActionGroup[];
+  /** The show page's attention glance, while it is mounted and registered; else null. */
+  showToolsAttention: ShowToolsRegistration['attention'] | null;
 }
 
 /**
@@ -73,6 +76,8 @@ export function useCurrentActions(): CurrentActions {
     () => (pageExportIds === '' ? [] : pageExportIds.split('|')),
     [pageExportIds]
   );
+  const showToolsRegistration = usePageEditTargetStore(state => state.showTools);
+  const showTools = showToolsRegistration?.tools;
   const pageKind = pageTarget?.kind;
   const pageAddClassesHref = pageTarget?.addClassesHref;
   const pageTitle = pageTarget?.title;
@@ -93,6 +98,7 @@ export function useCurrentActions(): CurrentActions {
             }
           : null,
         pageExports: exportIdList.map(id => ({ id })),
+        showTools,
         // Fail closed while ownership is still resolving: an empty list hides
         // the button, which is honest, where a flashed-then-withdrawn menu is
         // the mistake-anxiety bug docs/INTENT.md names.
@@ -120,6 +126,7 @@ export function useCurrentActions(): CurrentActions {
       pageExtras,
       addClassesTrialId,
       exportIdList,
+      showTools,
     ]
   );
 
@@ -158,11 +165,18 @@ export function useCurrentActions(): CurrentActions {
       groupActions(actions, {
         page: pageKind ? pageObjectHeading(pageKind, pageTitle) : 'This page',
         show: showName?.trim() || 'This show',
+        ...SHOW_DESK_TOOL_GROUP_HEADINGS,
         list: listHeading(exportIdList),
         create: 'Create',
       }),
     [actions, pageKind, pageTitle, showName, exportIdList]
   );
 
-  return { route, actions, groups };
+  // Only while the tools' rows are in the menu: the badge and the rows share one gate.
+  const showToolsAttention =
+    scope.status === 'resolved' && scope.canManage && route.kind === 'show'
+      ? (showToolsRegistration?.attention ?? null)
+      : null;
+
+  return { route, actions, groups, showToolsAttention };
 }

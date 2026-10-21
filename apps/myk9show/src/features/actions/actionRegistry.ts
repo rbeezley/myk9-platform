@@ -6,6 +6,7 @@ import { SHOW_SHELL_CHILD_SEGMENTS } from '@/routes/showManagementSections';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import { getAddTrialsHref } from '@/pages/secretary/ShowCreationWizard/addTrialsHref';
 import { TRIAL_SECRETARY_ONLY_REASON } from './trialSecretaryAccess';
+import { buildShowToolActions, type ShowToolItem } from './showToolActions';
 import { CREATE_HREFS, type CreateGates } from './createGates';
 
 /**
@@ -45,7 +46,14 @@ export type EditableObjectKind = 'trial' | 'class' | 'club' | 'dog' | 'person';
  * Create, which is the same on every page. Each section is headed by a name, never a
  * divider alone, so the viewer can tell what an item applies to.
  */
-export const ACTION_GROUP_ORDER = ['page', 'show', 'list', 'create'] as const;
+export const ACTION_GROUP_ORDER = [
+  'page',
+  'show',
+  'show-day',
+  'show-logistics',
+  'list',
+  'create',
+] as const;
 export type ActionGroupId = (typeof ACTION_GROUP_ORDER)[number];
 
 /** Resolved to a component by `actionIcons.ts`, so this module stays free of React. */
@@ -69,7 +77,8 @@ export type ActionIconName =
   | 'close-out'
   | 'reports'
   | 'members'
-  | 'payments';
+  | 'payments'
+  | 'tool';
 
 /**
  * One more thing a detail page lets this viewer do to its object, beyond Edit: Change Photo,
@@ -127,6 +136,8 @@ export interface AppAction {
   /** One icon per action, the same in the header menu and the command palette. */
   icon: ActionIconName;
   destructive?: boolean;
+  /** A short status pill shown after the label ("2 urgent"), never part of the search text. */
+  badge?: string;
   /**
    * Search-only synonyms for the command palette, never displayed. For words a
    * user will type that the label deliberately does not carry (MYK9-672).
@@ -178,6 +189,11 @@ export interface ActionViewer extends CreateGates {
    * list id. They form the menu's list section.
    */
   pageExports?: ReadonlyArray<{ id: string }> | undefined;
+  /**
+   * The show tools the show page registered (`useShowDeskToolsRegistration`), each a row in the
+   * Show day / Show logistics sections. Only the show page, only for a viewer who manages it.
+   */
+  showTools?: readonly ShowToolItem[] | undefined;
 }
 
 const SHOW_PATH = /^\/shows\/([^/]+)(?:\/|$)/;
@@ -472,5 +488,7 @@ export function resolveActions(route: ActionRouteContext, viewer: ActionViewer):
     group: 'list',
     icon: 'export',
   }));
-  return [...own, ...show, ...exports, ...buildCreateActions(viewer)];
+  const showTools =
+    route.kind === 'show' && viewer.canManageShow ? buildShowToolActions(viewer.showTools) : [];
+  return [...own, ...show, ...showTools, ...exports, ...buildCreateActions(viewer)];
 }

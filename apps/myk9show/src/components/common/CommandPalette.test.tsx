@@ -55,6 +55,8 @@ vi.mock('@/features/actions/useCurrentActions', async importOriginal => {
         groups: groupActions(actions, {
           page: 'This page',
           show: 'This show',
+          'show-day': 'Show day',
+          'show-logistics': 'Show logistics',
           list: 'This list',
           create: 'Create',
         }),

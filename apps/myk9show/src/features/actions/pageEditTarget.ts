@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { create } from 'zustand';
+import type { ShowDeskActionable } from '@/features/show-map/showDeskActionable';
 import type { EditableObjectKind, PageExtraItem } from './actionRegistry';
+import type { ShowToolItem } from './showToolActions';
 
 /**
  * What the detail page on screen has told the header Actions menu (MYK9-928).
@@ -39,8 +41,20 @@ export interface PageExport {
   run: () => void;
 }
 
+/** The show page's tools and attention glance, as the header Actions menu shows them. */
+export interface ShowToolsRegistration {
+  tools: readonly ShowToolItem[];
+  /** Passed through from the page's `computeShowDeskActionable`; never recomputed here. */
+  attention: ShowDeskActionable;
+}
+
 interface PageEditTargetState {
   target: PageEditTarget | null;
+  showTools: ShowToolsRegistration | null;
+  /** The registration that currently owns `showTools`, so a stale cleanup cannot clear a newer one. */
+  showToolsOwner: symbol | null;
+  registerShowTools: (owner: symbol, registration: ShowToolsRegistration) => void;
+  clearShowTools: (owner: symbol) => void;
   exports: PageExport[];
   /** The registration that currently owns `target`, so a stale cleanup cannot clear a newer one. */
   owner: symbol | null;
@@ -55,6 +69,13 @@ interface PageEditTargetState {
 
 export const usePageEditTargetStore = create<PageEditTargetState>(set => ({
   target: null,
+  showTools: null,
+  showToolsOwner: null,
+  registerShowTools: (owner, showTools) => set({ showToolsOwner: owner, showTools }),
+  clearShowTools: owner =>
+    set(state =>
+      state.showToolsOwner === owner ? { showToolsOwner: null, showTools: null } : state
+    ),
   exports: [],
   owner: null,
   addClassesTrialId: null,
@@ -170,4 +191,42 @@ export function usePageExportAction({ id, enabled, run }: PageExportActionOption
     usePageEditTargetStore.getState().registerExport({ key, id, run: () => runRef.current() });
     return () => usePageEditTargetStore.getState().clearExport(key);
   }, [id, enabled]);
+}
+
+/**
+ * Register the show page's tools for the header Actions menu, the command palette and the
+ * trigger badge while the page is mounted and `enabled` (the viewer manages this show, resolved:
+ * the gate `useCurrentActions` applies, so a row never appears and then vanishes). The tools'
+ * `content` stays in the page; the header gets only identity, wording and the attention the page
+ * already computed. The registration changes only when that metadata does.
+ */
+export function useShowDeskToolsRegistration(
+  tools: readonly ShowToolItem[],
+  attention: ShowDeskActionable,
+  enabled: boolean
+): void {
+  const { count, tone, incomplete } = attention;
+  // Only the header's metadata, never `content`: a new ReactNode each render would re-register.
+  const items: ShowToolItem[] = tools.map(
+    ({ id, group, title, attentionLabel, href, disabledReason }) => ({
+      id,
+      group,
+      title,
+      ...(attentionLabel ? { attentionLabel } : {}),
+      ...(href ? { href } : {}),
+      ...(disabledReason ? { disabledReason } : {}),
+    })
+  );
+  const itemsKey = JSON.stringify(items);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stableItems = useMemo(() => items, [itemsKey]);
+
+  useEffect(() => {
+    if (!enabled || stableItems.length === 0) return;
+    const owner = Symbol('show-tools');
+    usePageEditTargetStore
+      .getState()
+      .registerShowTools(owner, { tools: stableItems, attention: { count, tone, incomplete } });
+    return () => usePageEditTargetStore.getState().clearShowTools(owner);
+  }, [enabled, stableItems, count, tone, incomplete]);
 }

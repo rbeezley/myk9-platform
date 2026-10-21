@@ -290,10 +290,11 @@ describe('dog roster reads, server first (MYK9-1139)', () => {
       expect(mockDogsTable.getUnsentMutationIdsForRow).not.toHaveBeenCalled();
     });
 
-    it("uses the server's embedded registrations, not a merge with this device's queue", async () => {
+    it("uses the server's registrations, not a merge with this device's queue", async () => {
       const embedded = { id: 'reg-1', dog_id: 'dog-b', organization: 'AKC' };
+      server.registrations = { data: [embedded], error: null };
       server.dogs = {
-        data: [serverRow('dog-b', 'Bree', { registrations: [embedded] })],
+        data: [serverRow('dog-b', 'Bree')],
         error: null,
       };
 

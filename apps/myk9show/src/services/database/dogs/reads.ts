@@ -25,6 +25,7 @@ import { mergeUnsentWork } from '@/services/replication/dogRegistrationMerge';
 import { parseRestoreDogResult } from './restoreDogResult';
 import { DOG_READ_PAGE_SIZE, readAllDogPages, readRosterServerFirst } from './rosterRead';
 import { ownerNameCacheKey, recallOwnerNames, rememberOwnerNames } from './ownerNameCache';
+import { attachRosterRelations, groupRegistrationsByDog } from './serverRosterRows';
 import { serverUnreachable } from '../registrations/serverUnreachable';
 import { unsentWorkProvenByServer } from '../registrations/unsentWork';
 
@@ -63,27 +64,46 @@ interface OwnerRow {
 // complete. Inlined, not a constant: peopleJuniorHandlerPiiContract audits
 // every people column list.
 async function loadOwnersMap(
-  ownerIds: string[]
-): Promise<{ map: Map<string, OwnerRow>; recalled: Map<string, string>; readFailed: boolean }> {
+  ownerIds: string[],
+  cacheKey = ownerNameCacheKey()
+): Promise<{
+  map: Map<string, OwnerRow>;
+  recalled: Map<string, string>;
+  readFailed: boolean;
+  /** An error the server ANSWERED with (RLS, 4xx/5xx), as opposed to being unreachable. */
+  answeredError: unknown;
+}> {
   const map = new Map<string, OwnerRow>();
   // Device-remembered display names only. Never an owner row: the address is unknown offline.
   const recalled = new Map<string, string>();
-  if (ownerIds.length === 0) return { map, recalled, readFailed: false };
-  const cacheKey = ownerNameCacheKey();
+  if (ownerIds.length === 0) return { map, recalled, readFailed: false, answeredError: null };
   const uniqueIds = [...new Set(ownerIds)];
   let data: OwnerRow[] | null = null;
   let readFailed = serverUnreachable(null);
+  let answeredError: unknown = null;
   if (!readFailed) {
-    try {
-      const result = await supabase
-        .from('people')
-        .select('id, first_name, last_name, email, phone, street_address, city, state, zip_code')
-        .in('id', uniqueIds);
-      data = result.data as OwnerRow[] | null;
+    // Batched, in parallel: the filter travels in the URL, and the server roster now reads
+    // every owner this way (MYK9-1303, as MYK9-272 did for registrations).
+    const results = await Promise.all(
+      chunk(uniqueIds, ID_CHUNK_SIZE).map(async batch => {
+        try {
+          const result = await supabase
+            .from('people')
+            .select(
+              'id, first_name, last_name, email, phone, street_address, city, state, zip_code'
+            )
+            .in('id', batch);
+          return { rows: (result.data ?? []) as OwnerRow[], error: result.error, thrown: false };
+        } catch (error) {
+          return { rows: [] as OwnerRow[], error, thrown: true };
+        }
+      })
+    );
+    for (const result of results) {
+      data = [...(data ?? []), ...result.rows];
       // Only an unreachable server reads as offline; an answered error is not "offline".
-      readFailed = serverUnreachable(result.error);
-    } catch {
-      readFailed = true;
+      if (result.thrown || serverUnreachable(result.error)) readFailed = true;
+      else if (result.error) answeredError = answeredError ?? result.error;
     }
   }
   if (data) {
@@ -96,7 +116,7 @@ async function loadOwnersMap(
       if (!map.has(id)) recalled.set(id, `${owner.first_name} ${owner.last_name}`.trim());
     }
   }
-  return { map, recalled, readFailed };
+  return { map, recalled, readFailed, answeredError };
 }
 
 export function appendRegistrations(
@@ -218,15 +238,22 @@ async function readServerRegistrations(dogIds: string[]): Promise<{
     let firstError: unknown = null;
     let answered = 0;
     const unreachableDogIds: string[] = [];
-    for (const batch of chunk(dogIds, ID_CHUNK_SIZE)) {
-      const result = await supabase
-        .from('dog_registrations')
-        // Keep this list narrow: this read hydrates the dog roster and only
-        // needs identity/order fields plus the display metadata.
-        .select(
-          'dog_id, id, created_at, is_primary, registered_name, registration_number, registration_date, organization, variety, breed, status'
-        )
-        .in('dog_id', batch);
+    // In parallel, results consumed in batch order.
+    const batches = chunk(dogIds, ID_CHUNK_SIZE);
+    const results = await Promise.all(
+      batches.map(batch =>
+        supabase
+          .from('dog_registrations')
+          // Keep this list narrow: this read hydrates the dog roster and only
+          // needs identity/order fields plus the display metadata.
+          .select(
+            'dog_id, id, created_at, is_primary, registered_name, registration_number, registration_date, organization, variety, breed, status'
+          )
+          .in('dog_id', batch)
+      )
+    );
+    results.forEach((result, index) => {
+      const batch = batches[index]!;
       // Keep going after a failed batch, and return the rows that did
       // arrive alongside the error. #1490 established that a partial read
       // stays VISIBLE and is reported as incomplete rather than discarded;
@@ -236,7 +263,7 @@ async function readServerRegistrations(dogIds: string[]): Promise<{
       else answered++;
       if (result.error && serverUnreachable(result.error)) unreachableDogIds.push(...batch);
       rows.push(...((result.data ?? []) as Record<string, unknown>[]));
-    }
+    });
     return { data: rows, error: firstError, answered, unreachableDogIds };
   } catch (error) {
     return { data: null, error, answered: 0, unreachableDogIds: dogIds };
@@ -339,23 +366,7 @@ async function postgrestGetAllDogs(personId: string, showAll = false) {
   const buildQuery = () => {
     const query = supabase
       .from('dogs')
-      .select(
-        `
-      *,
-      owner:people!dogs_owner_id_fkey(
-        id,
-        first_name,
-        last_name,
-        email,
-        phone,
-        street_address,
-        city,
-        state,
-        zip_code
-      ),
-      registrations:dog_registrations(*)
-    `
-      )
+      .select('*')
       .is('deleted_at', null)
       .order(showAll ? 'id' : 'name', { ascending: true });
     return showAll ? query : query.or(ownedByPerson(personId));
@@ -383,17 +394,12 @@ async function postgrestGetAllDogs(personId: string, showAll = false) {
 }
 
 async function postgrestGetDogsByOwner(ownerId: string) {
+  // Registrations are attached by `loadDogRegistrations` (MYK9-1303), which
+  // reads the identity/order fields `mapDatabaseToDog` resolves the PRIMARY
+  // registration from; this read is dogs columns only.
   const { data, error } = await supabase
     .from('dogs')
-    // `My Dogs` is a generic surface, so `mapDatabaseToDog` resolves the PRIMARY
-    // registration. That needs the resolver's ordering/tiebreak fields
-    // (`created_at`, `id`) and the identity fields themselves — the old embed
-    // picked whichever registration PostgREST happened to return first, with no
-    // organization scoping at all. `is_primary` is live and selected so the
-    // generic resolver can honor the owner's primary registration.
-    .select(
-      '*, registrations:dog_registrations(id,created_at,is_primary,breed,variety,registered_name,registration_number,registration_date,organization,status)'
-    )
+    .select('*')
     .eq('owner_id', ownerId)
     .is('deleted_at', null)
     .order('name', { ascending: true });
@@ -435,7 +441,7 @@ async function postgrestSearchDogs(searchTerm: string, personId: string) {
 
   const { data, error } = await supabase
     .from('dogs')
-    .select('*, registrations:dog_registrations(*)')
+    .select('*')
     .or(ownedByPerson(personId))
     .or(orFilters.join(','))
     .is('deleted_at', null)
@@ -454,6 +460,29 @@ async function postgrestGetDogStatistics(personId: string) {
 
   if (error) throw createDatabaseError(error, 'dog', 'statistics');
   return { data: { total: count || 0 }, error: null };
+}
+
+/**
+ * Server dog rows plus their registrations (and owners, when asked), by batched
+ * id lookups instead of embeds (MYK9-1303). Server-only: no merge with this
+ * device's queue, and a registrations or answered owner failure fails the read.
+ */
+async function withServerRelations(
+  dogs: Record<string, unknown>[],
+  operation: string,
+  owners?: { cacheKey: ReturnType<typeof ownerNameCacheKey> }
+): Promise<Record<string, unknown>[]> {
+  const ownerIds = owners
+    ? dogs.map(d => d.owner_id).filter((id): id is string => typeof id === 'string')
+    : [];
+  const [ownerMaps, registrations] = await Promise.all([
+    owners ? loadOwnersMap(ownerIds, owners.cacheKey) : undefined,
+    dogs.length > 0 ? readServerRegistrations(dogs.map(d => String(d.id))) : undefined,
+  ]);
+  if (ownerMaps?.answeredError)
+    throw createDatabaseError(ownerMaps.answeredError, 'dog', operation);
+  if (registrations?.error) throw createDatabaseError(registrations.error, 'dog', operation);
+  return attachRosterRelations(dogs, groupRegistrationsByDog(registrations?.data ?? []), ownerMaps);
 }
 
 // ---------------------------------------------------------------------------
@@ -500,12 +529,9 @@ export const getAllDogs = async (personId: string, showAll = false) => {
     server: async () => {
       const cacheKey = ownerNameCacheKey();
       const result = await postgrestGetAllDogs(personId, showAll);
-      // MYK9-1189: keep the owner names this list shows, for the offline read.
-      rememberOwnerNames(
-        result.data.map(row => row.owner).filter((o): o is NonNullable<typeof o> => !!o),
-        cacheKey
-      );
-      return result;
+      // MYK9-1189: `loadOwnersMap` keeps the owner names this list shows, for the offline read,
+      // under the key taken BEFORE the dogs read, so an account switch mid-read cannot re-file them.
+      return { data: await withServerRelations(result.data, 'select_all', { cacheKey }) };
     },
     device: async () => {
       // A cold or unreadable local store returns zero rows with no error, which
@@ -530,7 +556,12 @@ export const getAllDogs = async (personId: string, showAll = false) => {
 // Get dogs by owner ID
 export const getDogsByOwner = async (ownerId: string) => {
   return readRosterServerFirst<Record<string, unknown>[]>({
-    server: () => postgrestGetDogsByOwner(ownerId),
+    server: async () => ({
+      data: await withServerRelations(
+        (await postgrestGetDogsByOwner(ownerId)).data,
+        'select_by_owner'
+      ),
+    }),
     device: async () => ({
       data: await hydrateWithRegistrations(await replicatedDogsTable.getDogsByOwner(ownerId)),
     }),
@@ -847,7 +878,12 @@ export const searchAllDogs = async (
 // Search dogs by name or breed, scoped to the given person's dogs
 export const searchDogs = async (searchTerm: string, personId: string) => {
   return readRosterServerFirst<Record<string, unknown>[]>({
-    server: () => postgrestSearchDogs(searchTerm, personId),
+    server: async () => ({
+      data: await withServerRelations(
+        (await postgrestSearchDogs(searchTerm, personId)).data,
+        'search'
+      ),
+    }),
     device: async () => {
       const results = await replicatedDogsTable.searchDogs(searchTerm);
       // Registrations ARE needed even though the original query was select('*'):

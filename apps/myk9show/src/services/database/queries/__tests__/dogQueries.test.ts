@@ -103,7 +103,12 @@ describe('Dog Queries', () => {
       const result = await getAllDogs(TEST_PERSON_ID);
 
       expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
-      expect(result.data).toEqual(mockDogs);
+      // The server read attaches owners and registrations from batched lookups
+      // (MYK9-1303); these mocks return the dog rows for every table, so no
+      // people or registration row matches.
+      expect(result.data).toEqual(
+        mockDogs.map(dog => ({ ...dog, owner: null, registrations: [] }))
+      );
       expect(result.error).toBeNull();
     });
 
@@ -380,7 +385,7 @@ describe('Dog Queries', () => {
       const result = await searchDogs(searchTerm, TEST_PERSON_ID);
 
       expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
-      expect(result.data).toEqual(mockResults);
+      expect(result.data).toEqual(mockResults.map(dog => ({ ...dog, registrations: [] })));
       expect(result.error).toBeNull();
     });
   });
@@ -511,7 +516,7 @@ describe('Dog Queries', () => {
       const result = await getDogsByOwner(ownerId);
 
       expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
-      expect(result.data).toEqual(mockDogs);
+      expect(result.data).toEqual(mockDogs.map(dog => ({ ...dog, registrations: [] })));
       expect(result.error).toBeNull();
     });
   });

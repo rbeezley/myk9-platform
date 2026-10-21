@@ -116,7 +116,7 @@ export function ShowOverviewTab({
           <ShareEvent shareData={shareData} />
           {/* Staff who are not managers (judges, stewards) see the codes the
               server projects for them. Managers have the full card, with the
-              reset, in Tools -> Show day (MYK9-954), so no second copy here. */}
+              reset, in Actions -> Show day -> Access codes (MYK9-954), so no second copy here. */}
           {isAuthenticated && !canManageShow && (
             <ShowAccessCodesCard showId={show.id} showName={show.name} canLoadCodes />
           )}

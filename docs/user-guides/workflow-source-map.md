@@ -199,7 +199,7 @@ redirect:
 ### 17. Run the show desk on show day
 
 **Outcome:** Secretary or club admin handles check-in, scratches, and move-ups from one page; late entry and paper scoring are secretary-only.
-**Canonical route:** `/shows/:showId` (Overview, with **Tools**)
+**Canonical route:** `/shows/:showId` (Overview; its tools are rows in the header **Actions** menu)
 **Entry point:** The show's Overview tab, or Secretary Dashboard when show is live today
 **Source-map note:** Re-verified 2026-10-03 (MYK9-957). The Show Day tab is folded into Overview; `/shows/:id/show-day` redirects to the home and keeps its day, filter, focus and `?tool=`. The guides now say **Overview → Tools** and **Overview → click the class**.
 

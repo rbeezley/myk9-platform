@@ -233,7 +233,7 @@
 
 **Add a late entry / walk-in:**
 
-1. Open the **Tools** panel → click **Late Entry**.
+1. On **Entry Forms**, choose **Add Entry**.
 2. Find or create the exhibitor record → assign a class → record payment → Save.
 
 **Enter scores from paper scoresheets (when ringside app is not in use):**

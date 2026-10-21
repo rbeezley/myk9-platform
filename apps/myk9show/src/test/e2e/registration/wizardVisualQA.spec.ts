@@ -2,11 +2,6 @@ import { expect, test, type Page } from '@playwright/test';
 import { signInAsExhibitor, signInAsSecretary } from '../helpers/testUsers';
 import { LIVE_REGISTRATION_SHOW_ID } from '../uat/shared/seededShows';
 import { CLASS_CHIP_NAME } from '../../e2e-helpers/classChipName';
-import {
-  openSaveDraftDialog,
-  saveDraftThroughDialog,
-  submitSaveDraftDialog,
-} from './wizardDraftDialog';
 import { assertContrastHarness, CONTRAST_OF } from './compositedContrast';
 import {
   addAnotherClass,
@@ -229,20 +224,10 @@ for (const scenario of VISUAL_MATRIX) {
       path: testInfo.outputPath(`registration-wizard-${scenario.name}-payment.png`),
       fullPage: true,
     });
-
-    const saveDialog = await openSaveDraftDialog(page);
-    await page.screenshot({
-      path: testInfo.outputPath(`registration-wizard-${scenario.name}-draft-dialog.png`),
-      fullPage: true,
-    });
-    await submitSaveDraftDialog(page, saveDialog, `Visual QA ${scenario.name}`);
-    await expect(page.getByRole('button', { name: /Load Draft \(1\)/ })).toBeVisible();
   });
 }
 
-test('registration wizard covers dog, class, payment, and draft dialog states', async ({
-  page,
-}, testInfo) => {
+test('registration wizard covers dog, class, and payment states', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: 'light' });
   await page.addInitScript(() => {
@@ -258,37 +243,12 @@ test('registration wizard covers dog, class, payment, and draft dialog states', 
   await selectFirstClass(page);
   await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible();
 
-  await saveDraftThroughDialog(page, 'Visual QA Draft');
-
-  // No wait for the toast to clear: MYK9-517 lifted the sonner stack above the
-  // entries bar, so Back is clickable WHILE "Draft saved" is on screen. That
-  // no-overlap claim is pinned by 'the draft toast never overlaps the phone
-  // entries bar' below; here Back only has to be reached, so it goes through
-  // the hit-test helper like every other click on the sticky bar (MYK9-763).
-  await expect(page.getByText('Draft saved')).toBeVisible();
-
-  await backToStep(page, 'Select Classes');
-  await backToStep(page, 'Select Dogs to Register');
-  const selectedDog = page.locator('[role="checkbox"][aria-checked="true"]').first();
-  await expect(selectedDog).toBeVisible();
-  await selectedDog.click();
-
-  const loadDraftButton = page.getByRole('button', { name: /Load Draft \(1\)/ });
-  await expect(loadDraftButton).toBeVisible();
-  await loadDraftButton.click();
-  const loadDialog = page.getByRole('dialog');
-  await expect(loadDialog).toContainText('Visual QA Draft');
-  await loadDialog.getByText('Visual QA Draft').click();
-  await loadDialog.getByRole('button', { name: 'Load Selected Draft' }).click();
-  await expect(page.getByText('Draft loaded successfully')).toBeVisible();
-  // The draft was saved on Payment, so it reopens there.
-  await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible();
   await backToStep(page, 'Select Classes');
   await backToStep(page, 'Select Dogs to Register');
   await expect(page.locator('[role="checkbox"][aria-checked="true"]').first()).toBeVisible();
 
   await page.screenshot({
-    path: testInfo.outputPath('registration-wizard-payment-and-draft.png'),
+    path: testInfo.outputPath('registration-wizard-payment-states.png'),
     fullPage: true,
   });
   await assertWizardShell(page, consoleErrors);
@@ -949,77 +909,6 @@ test.describe('dog picker checkbox geometry', () => {
       await expect.poll(async () => control.getAttribute('aria-checked')).toBe(before);
     });
   }
-});
-
-/**
- * MYK9-517. Below 1024px Back/Next live in the sticky entries bar and sonner is
- * docked to the same bottom edge, so "Draft saved" sat ON Next. The bar now
- * registers its measured height with the action-bar registry the toaster reads,
- * and this is the check that it did: two boxes, no intersection.
- */
-test('the draft toast never overlaps the phone entries bar', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
-  await selectFirstDog(page);
-  await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
-    timeout: 15000,
-  });
-
-  const bar = page.getByTestId('entries-panel-bar');
-  await expect(bar).toBeVisible();
-
-  await saveDraftThroughDialog(page, 'Toast Geometry QA');
-
-  const toast = page.getByText('Draft saved');
-  await expect(toast).toBeVisible();
-
-  // An unmounted sonner toast is in the DOM at `translateY(100%)` with
-  // `opacity: 0` — Playwright calls that visible, and its box is a full
-  // toast-height LOW, which reports an overlap that never reaches the screen.
-  // Wait for the mounted state and for the slide-in to settle before measuring.
-  const toastItem = toast.locator('xpath=ancestor-or-self::li[1]');
-  await expect(toastItem).toHaveAttribute('data-mounted', 'true', { timeout: 15000 });
-  await expect
-    .poll(async () => toastItem.evaluate(el => getComputedStyle(el).opacity), { timeout: 15000 })
-    .toBe('1');
-  let toastBox = (await toastItem.boundingBox())!;
-  await expect
-    .poll(
-      async () => {
-        const next = (await toastItem.boundingBox())!;
-        const settled = !!next && !!toastBox && Math.abs(next.y - toastBox.y) < 0.5;
-        toastBox = next;
-        return settled;
-      },
-      { timeout: 5000, intervals: [150] }
-    )
-    .toBe(true);
-
-  const barBox = (await bar.boundingBox())!;
-  expect(toastBox, 'the toast must be measurable').not.toBeNull();
-  expect(barBox, 'the entries bar must be measurable').not.toBeNull();
-
-  // Known answer: both boxes must be on screen, or "no intersection" is true
-  // for the wrong reason.
-  expect(toastBox.height, 'toast height').toBeGreaterThan(0);
-  expect(barBox.height, 'bar height').toBeGreaterThan(0);
-  expect(barBox.y, 'the bar must be inside the viewport').toBeLessThan(844);
-
-  const intersects =
-    toastBox.x < barBox.x + barBox.width &&
-    toastBox.x + toastBox.width > barBox.x &&
-    toastBox.y < barBox.y + barBox.height &&
-    toastBox.y + toastBox.height > barBox.y;
-  expect(
-    intersects,
-    `toast ${JSON.stringify(toastBox)} must clear bar ${JSON.stringify(barBox)}`
-  ).toBe(false);
-
-  // ...and Back is reachable while the toast is still up, which is what the
-  // exhibitor's thumb actually needs.
-  await expect(toast).toBeVisible();
-  await page.getByRole('button', { name: /^Back$/ }).click();
-  await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible();
 });
 
 /**

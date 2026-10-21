@@ -118,15 +118,5 @@ for (const viewport of [
     await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible();
     await search.fill(callName);
     await expect(dog).toBeChecked();
-    await page.getByRole('button', { name: 'Save Draft', exact: true }).click();
-    await page.getByLabel('Draft Title').fill('MYK9-369 search selection');
-    await page.getByRole('dialog').getByRole('button', { name: 'Save Draft', exact: true }).click();
-    await dog.click();
-    await expect(dog).not.toBeChecked();
-    await page.getByRole('button', { name: /Load Draft \(/ }).click();
-    await page.getByText('MYK9-369 search selection', { exact: true }).click();
-    await page.getByRole('button', { name: 'Load Selected Draft' }).click();
-    await search.fill(callName);
-    await expect(dog).toBeChecked();
   });
 }

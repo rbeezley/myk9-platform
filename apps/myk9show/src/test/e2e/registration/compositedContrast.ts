@@ -114,7 +114,7 @@ export const CONTRAST_OF = async (selector: string): Promise<ContrastReading | n
     if (cs.visibility === 'hidden') return false;
     if (!(el.textContent || '').trim()) return false;
     // WCAG 1.4.3 exempts inactive controls, and this app dims them with
-    // disabled:opacity-50 — "Load Draft (0)" measures 3.46:1 while disabled.
+    // disabled:opacity-50, which measures below 4.5:1 while disabled.
     return !el.closest('[disabled],[aria-disabled="true"],:disabled');
   });
   if (!els.length) return null;

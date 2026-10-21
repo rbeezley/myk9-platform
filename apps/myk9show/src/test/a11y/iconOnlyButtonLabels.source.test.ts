@@ -13,10 +13,6 @@ const requiredLabels: Array<{ file: string; labels: string[] }> = [
     file: 'apps/myk9show/src/components/shows/RegistrationWorkflow/DogSearchInterface.tsx',
     labels: ['Clear dog search'],
   },
-  {
-    file: 'apps/myk9show/src/components/shows/RegistrationWorkflow/DraftManager.tsx',
-    labels: ['Delete draft ${draft.title}'],
-  },
 ];
 
 describe('icon-only button label source guards', () => {

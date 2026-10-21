@@ -23,11 +23,8 @@ function renderManager(overrides: Partial<React.ComponentProps<typeof DraftManag
   const onDraftLoaded = vi.fn(() => true);
   render(
     <DraftManager
-      saveDraft={vi.fn(() => null)}
       loadDraft={loadDraft}
-      deleteDraft={vi.fn()}
       availableDrafts={[metadata]}
-      clearAllDrafts={vi.fn()}
       hasUnsavedChanges={false}
       onDraftLoaded={onDraftLoaded}
       showResume
@@ -48,16 +45,12 @@ describe('DraftManager reentry', () => {
     expect(screen.getByText(/select a dog below to start a different entry/i)).toBeInTheDocument();
   });
 
-  it('opens the saved drafts in a slide-out and loads the selected one', () => {
-    const { loadDraft } = renderManager({ showResume: false });
+  it('offers no manual save or load draft buttons and keeps the quiet saved indicator', () => {
+    renderManager({ showResume: false });
 
-    fireEvent.click(screen.getByRole('button', { name: /Load Draft/ }));
-    const panel = screen.getByRole('dialog', { name: 'Load Registration Draft' });
-    expect(panel.querySelector('.slide-over-panel')).not.toBeNull();
-
-    fireEvent.click(screen.getByText('My entry'));
-    fireEvent.click(screen.getByRole('button', { name: /Load Selected Draft/ }));
-    expect(loadDraft).toHaveBeenCalledWith('draft-1');
+    expect(screen.queryByRole('button', { name: /Save Draft/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Load Draft/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Saved')).toBeInTheDocument();
   });
 
   it('does not offer an empty or completed entry as resumable', () => {
@@ -75,11 +68,8 @@ describe('DraftManager reentry', () => {
     const onRetryDogs = vi.fn();
     const { rerender } = render(
       <DraftManager
-        saveDraft={vi.fn(() => null)}
         loadDraft={vi.fn(() => savedDraft)}
-        deleteDraft={vi.fn()}
         availableDrafts={[metadata]}
-        clearAllDrafts={vi.fn()}
         hasUnsavedChanges={false}
         showResume
         dogsReady={false}
@@ -91,11 +81,8 @@ describe('DraftManager reentry', () => {
     expect(screen.getByRole('button', { name: 'Resume entry' })).toBeDisabled();
     rerender(
       <DraftManager
-        saveDraft={vi.fn(() => null)}
         loadDraft={vi.fn(() => savedDraft)}
-        deleteDraft={vi.fn()}
         availableDrafts={[metadata]}
-        clearAllDrafts={vi.fn()}
         hasUnsavedChanges={false}
         showResume
         dogsReady={false}
@@ -108,11 +95,8 @@ describe('DraftManager reentry', () => {
 
     rerender(
       <DraftManager
-        saveDraft={vi.fn(() => null)}
         loadDraft={vi.fn(() => savedDraft)}
-        deleteDraft={vi.fn()}
         availableDrafts={[metadata]}
-        clearAllDrafts={vi.fn()}
         hasUnsavedChanges={false}
         showResume
         dogsReady={false}

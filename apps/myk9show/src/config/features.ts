@@ -86,6 +86,13 @@ export const features = {
   // full-page delta, instead of every 60 s pass. KILL SWITCH: false = count on
   // every pass, the pre-MYK9-1301 behaviour. The 24 h full sync is unaffected.
   replicationCountCadence: true,
+
+  // Slower poll while realtime is up (MYK9-1305). While a show channel is
+  // SUBSCRIBED and the device is online, the untargeted sync pass runs every
+  // 3-5 minutes (jittered) instead of every 60 s; offline or unsubscribed it
+  // stays at 60 s. KILL SWITCH: false = fixed 60 s poll, the pre-MYK9-1305
+  // behaviour. The 24 h full sync and the `since` buffer are unaffected.
+  replicationSubscribedCadence: true,
 } as const;
 
 export type Features = typeof features;

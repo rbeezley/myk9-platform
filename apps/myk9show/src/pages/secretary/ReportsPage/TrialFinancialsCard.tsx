@@ -1,17 +1,13 @@
 import { FinancialSummary } from '@/components/secretary/FinancialSummary';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatTrialLabel } from '@myk9/core';
+import { formatTrialOptionLabel } from './trialOptionLabel';
 
 interface TrialFinancialsCardProps {
   /** The Reports page's trial pick; `'all'` means no trial is picked. */
   trialId: string;
   trials: ReadonlyArray<{ id: string; name: string; trial_number: string; date: string }>;
   onPickTrial: (trialId: string) => void;
-}
-
-function trialLabel(trial: { name: string; trial_number: string }): string {
-  return formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number });
 }
 
 /**
@@ -28,7 +24,7 @@ export function TrialFinancialsCard({ trialId, trials, onPickTrial }: TrialFinan
     <Card className="mb-6" data-testid="trial-financials-card">
       <CardHeader>
         <CardTitle className="text-base">
-          {picked ? `Trial financials: ${trialLabel(picked)}` : 'Trial financials'}
+          {picked ? `Trial financials: ${formatTrialOptionLabel(picked)}` : 'Trial financials'}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -50,7 +46,7 @@ export function TrialFinancialsCard({ trialId, trials, onPickTrial }: TrialFinan
               className="min-h-11"
               onClick={() => onPickTrial(trial.id)}
             >
-              {trialLabel(trial)}
+              {formatTrialOptionLabel(trial)}
             </Button>
           ))}
         </div>

@@ -8,32 +8,14 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { SHOW_DESK_TOOL_PARAM, type ShowToolItem } from '@/features/actions/showToolActions';
 
-/**
- * The two Tools groups (owner, 2026-10-02 — MYK9-954). Every other job the
- * panel used to hold now lives where the work happens: Add entries on Entries,
- * Show closeout as Results step 3, the delay script on the class's expected
- * start. A tool must name its group, so a new one cannot land ungrouped.
- */
-export const SHOW_DESK_TOOL_GROUPS = [
-  { id: 'show-day', label: 'Show day' },
-  { id: 'show-logistics', label: 'Show logistics' },
-] as const;
-
-export type ShowDeskToolGroupId = (typeof SHOW_DESK_TOOL_GROUPS)[number]['id'];
-
-export interface ShowDeskToolSection {
-  id: string;
-  group: ShowDeskToolGroupId;
-  title: string;
+/** A show tool as the page composes it: the header's metadata plus the panel's content. */
+export interface ShowDeskToolSection extends ShowToolItem {
   summary: string;
   content: ReactNode;
-  attentionLabel?: string;
   layout?: 'compact' | 'wide';
 }
-
-/** The URL contract every deep link relies on: `?tool=<id>` opens exactly that tool. */
-export const SHOW_DESK_TOOL_PARAM = 'tool';
 
 interface ShowDeskToolPanelProps {
   tools: readonly ShowDeskToolSection[];

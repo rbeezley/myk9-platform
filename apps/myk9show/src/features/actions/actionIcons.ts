@@ -19,6 +19,7 @@ import {
   Ticket,
   UserPlus,
   Users,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react';
 import type { ActionIconName } from './actionRegistry';
@@ -48,4 +49,5 @@ export const ACTION_ICONS: Readonly<Record<ActionIconName, LucideIcon>> = {
   reports: Printer,
   members: Users,
   payments: Landmark,
+  tool: Wrench,
 };

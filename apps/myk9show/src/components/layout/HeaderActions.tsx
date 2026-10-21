@@ -16,6 +16,8 @@ import { useCurrentActions } from '@/features/actions/useCurrentActions';
 import { ACTION_ICONS } from '@/features/actions/actionIcons';
 import { headerShowsActions } from '@/features/actions/actionGroups';
 import type { AppAction } from '@/features/actions/actionRegistry';
+import { ActionableBadge } from '@/features/actions/ActionableBadge';
+import { Badge } from '@/components/ui/badge';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 const LABEL_BREAKPOINT_QUERY = '(min-width: 640px)';
@@ -47,7 +49,7 @@ const LABEL_BREAKPOINT_QUERY = '(min-width: 640px)';
  * Person and Club (MYK9-1267). Both the labelled and the icon-only trigger take it.
  */
 export function HeaderActions() {
-  const { groups } = useCurrentActions();
+  const { groups, showToolsAttention } = useCurrentActions();
   const { pathname } = useLocation();
   // Fail narrow: without matchMedia we render the icon, which always fits.
   const showsLabel = useMediaQuery(LABEL_BREAKPOINT_QUERY, false);
@@ -62,7 +64,7 @@ export function HeaderActions() {
           type="button"
           variant="default"
           size="touch"
-          className={cn('gap-1', showsLabel ? 'px-3' : 'min-w-11 justify-center px-2')}
+          className={cn('relative gap-1', showsLabel ? 'px-3' : 'min-w-11 justify-center px-2')}
           data-testid="header-actions-trigger"
         >
           {showsLabel ? (
@@ -75,6 +77,15 @@ export function HeaderActions() {
               <span className="sr-only">Actions</span>
               <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
             </>
+          )}
+          {showToolsAttention && (
+            // Pinned to the corner so it adds no width: the icon-only trigger has no room to
+            // give the wordmark back (header-wordmark-fits.spec.ts).
+            <ActionableBadge
+              {...showToolsAttention}
+              className="absolute -right-1 top-0 h-5 min-w-5 justify-center px-1 py-0 text-xs"
+              data-testid="header-actions-badge"
+            />
           )}
         </Button>
       </DropdownMenuTrigger>
@@ -120,7 +131,12 @@ function ActionItem({ action }: { action: AppAction }) {
       <DropdownMenuItem asChild className={tone}>
         <Link to={action.href} data-testid={testId}>
           {icon}
-          {action.label}
+          <span className="min-w-0 flex-1 truncate">{action.label}</span>
+          {action.badge && (
+            <Badge variant="destructive" className="shrink-0">
+              {action.badge}
+            </Badge>
+          )}
         </Link>
       </DropdownMenuItem>
     );

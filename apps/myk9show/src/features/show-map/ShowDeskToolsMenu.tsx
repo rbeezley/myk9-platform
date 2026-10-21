@@ -13,11 +13,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { ShowDeskActionableTone } from './showDeskActionable';
-import {
-  SHOW_DESK_TOOL_GROUPS,
-  SHOW_DESK_TOOL_PARAM,
-  type ShowDeskToolSection,
-} from './ShowDeskToolsSheet';
+import { ActionableBadge } from '@/features/actions/ActionableBadge';
+import { SHOW_DESK_TOOL_GROUPS, SHOW_DESK_TOOL_PARAM } from '@/features/actions/showToolActions';
+import type { ShowDeskToolSection } from './ShowDeskToolsSheet';
 
 interface ShowDeskToolsMenuProps {
   tools: readonly ShowDeskToolSection[];
@@ -47,28 +45,6 @@ export function ShowDeskToolsMenu({
   actionableIncomplete = false,
 }: ShowDeskToolsMenuProps) {
   const [searchParams] = useSearchParams();
-  const hasActionable = typeof actionableCount === 'number' && actionableCount > 0;
-  // Nothing was counted AND at least one source could not be read. Falling back
-  // to the idle tool count here is the failure this guards: an unread count
-  // must never render as a calm idle signal during an outage.
-  const signalsUnknown = actionableIncomplete && !hasActionable;
-  const badgeValue = hasActionable ? actionableCount : signalsUnknown ? '?' : tools.length;
-  const badgeAriaLabel = hasActionable
-    ? `${actionableCount} ${actionableCount === 1 ? 'item needs' : 'items need'} attention${
-        actionableIncomplete ? ', and some could not be checked' : ''
-      }`
-    : signalsUnknown
-      ? 'Cannot check whether anything needs attention'
-      : `${tools.length} tools available`;
-  // Urgent → destructive (red). Routine → secondary (ambient). Unknown → outline
-  // with a warning border ("unchecked", not "clear"). Idle → muted outline.
-  const badgeVariant = !hasActionable
-    ? 'outline'
-    : actionableTone === 'urgent'
-      ? 'destructive'
-      : 'secondary';
-  const badgeTone = hasActionable ? actionableTone : signalsUnknown ? 'unknown' : 'idle';
-
   const toolHref = (toolId: string) => {
     const next = new URLSearchParams(searchParams);
     next.set(SHOW_DESK_TOOL_PARAM, toolId);
@@ -86,15 +62,13 @@ export function ShowDeskToolsMenu({
         <Button type="button" variant="outline" size="sm" className="min-h-11 gap-2">
           <Wrench className="h-4 w-4" aria-hidden="true" />
           Tools
-          <Badge
-            variant={badgeVariant}
-            className={signalsUnknown ? 'border-warning/60 text-warning' : undefined}
+          <ActionableBadge
+            count={actionableCount}
+            tone={actionableTone}
+            incomplete={actionableIncomplete}
+            idleCount={tools.length}
             data-testid="show-desk-tools-badge"
-            data-tone={badgeTone}
-          >
-            <span aria-hidden="true">{badgeValue}</span>
-            <span className="sr-only">{badgeAriaLabel}</span>
-          </Badge>
+          />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">

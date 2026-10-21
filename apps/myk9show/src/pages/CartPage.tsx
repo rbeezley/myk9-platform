@@ -8,7 +8,7 @@
 import { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { continueShoppingTarget } from '@/features/registration/continueShoppingTarget';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { ShoppingCart, ArrowLeft, Trash2, AlertCircle, Eye, Info, X } from 'lucide-react';
+import { ClipboardList, ArrowLeft, Trash2, AlertCircle, Eye, Info, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
@@ -227,7 +227,7 @@ export default function CartPage() {
       }`;
       announcementSeqRef.current += 1;
       setRemovalAnnouncement(
-        `Removed ${what}.${wasLastItem ? ' Your cart is now empty.' : ''}${'\u200b'.repeat(
+        `Removed ${what}.${wasLastItem ? ' Your entry is now empty.' : ''}${'\u200b'.repeat(
           announcementSeqRef.current % 2
         )}`
       );
@@ -251,7 +251,7 @@ export default function CartPage() {
   const handleCheckout = async () => {
     if (checkoutInFlightRef.current) return;
     if (!cart?.id) {
-      setError('No cart found. Please add items to your cart.');
+      setError('No entry found. Please add a class to your entry.');
       return;
     }
     if (!profile?.id) {
@@ -337,7 +337,7 @@ export default function CartPage() {
         const removed = await removeItem(itemId);
         if (!removed) {
           setError(
-            'Your wait list request was saved, but we could not refresh the cart for payment. Please reload the cart before trying again.'
+            'Your wait list request was saved, but we could not refresh your entry for payment. Please reload the page before trying again.'
           );
           stopCheckingOut();
           return;
@@ -457,7 +457,7 @@ export default function CartPage() {
       <div className="bg-background pt-6">
         {liveRegion}
         <div className="max-w-4xl mx-auto px-4 py-8">
-          <div className="space-y-6 py-8" role="status" aria-label="Loading cart">
+          <div className="space-y-6 py-8" role="status" aria-label="Loading your entry">
             <div className="space-y-2">
               <Skeleton className="h-8 w-44" />
               <Skeleton className="h-4 w-72 max-w-full" />
@@ -489,11 +489,11 @@ export default function CartPage() {
                 1.08:1 on --background, so the circle was a void in both themes
                 and a border on it was equally inert. */}
             <div className="w-20 h-20 rounded-full bg-[color:var(--chip-stone-bg)] flex items-center justify-center mb-6">
-              <ShoppingCart className="h-10 w-10 text-muted-foreground" />
+              <ClipboardList className="h-10 w-10 text-muted-foreground" />
             </div>
-            <h1 className="text-2xl font-bold mb-2">Your cart is empty</h1>
+            <h1 className="text-2xl font-bold mb-2">Nothing in your entry yet</h1>
             <p className="text-muted-foreground mb-6 max-w-md">
-              Browse upcoming shows and add entries to your cart to get started.
+              Browse upcoming shows and pick a show to start your entry.
             </p>
             <Button onClick={() => navigate('/shows')} size="lg">
               <Eye className="h-4 w-4 mr-2" />
@@ -524,8 +524,8 @@ export default function CartPage() {
             </Button>
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
-                <ShoppingCart className="h-6 w-6" />
-                Your Cart
+                <ClipboardList className="h-6 w-6" />
+                Your Entry
               </h1>
               {cart.show && (
                 <p className="text-sm text-muted-foreground mt-1">
@@ -546,7 +546,7 @@ export default function CartPage() {
               className="min-h-[44px] text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="h-4 w-4 mr-1" />
-              Clear Cart
+              Clear Entry
             </Button>
           )}
         </div>
@@ -565,7 +565,7 @@ export default function CartPage() {
                     <span className="font-medium">
                       Checkout cancelled. Your card was not charged.
                     </span>{' '}
-                    Anything still in your cart is below.
+                    Anything still in your entry is below.
                   </>
                 )}{' '}
                 Any wait list requests you made are saved under{' '}
@@ -636,10 +636,10 @@ export default function CartPage() {
       <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Clear cart?</AlertDialogTitle>
+            <AlertDialogTitle>Clear entry?</AlertDialogTitle>
             <AlertDialogDescription>
               This will remove all {items.length} {items.length === 1 ? 'entry' : 'entries'} from
-              your cart. This action cannot be undone.
+              your entry. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -649,7 +649,7 @@ export default function CartPage() {
               disabled={isClearing}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isClearing ? 'Clearing...' : 'Clear Cart'}
+              {isClearing ? 'Clearing...' : 'Clear Entry'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -68,8 +68,8 @@ export function ClosedClassRemovedNotice({ className }: { className?: string }) 
 
   const heading =
     items.length === 1
-      ? 'We took a class out of your saved cart, so you will not be charged for it.'
-      : `We took ${items.length} classes out of your saved cart, so you will not be charged for them.`;
+      ? 'We took a class out of your saved entry, so you will not be charged for it.'
+      : `We took ${items.length} classes out of your saved entry, so you will not be charged for them.`;
 
   return (
     <CartRemovalNotice className={className} onDismiss={dismiss}>
@@ -133,7 +133,7 @@ export function PaymentLinkNotice({
       ))}
       {copy.addBack && onAddBack && (
         <Button variant="outline" size="touch" className="mt-2" onClick={onAddBack}>
-          {`Add ${copy.addBack} back to your cart`}
+          {`Add ${copy.addBack} back to your entry`}
         </Button>
       )}
       {copy.linkToMyEntries && (

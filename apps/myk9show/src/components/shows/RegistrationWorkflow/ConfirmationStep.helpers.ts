@@ -45,7 +45,7 @@ export function getConfirmationHeroCopy(
   // nuance is whether payment has been recorded yet.
   if (isRegistrationRecorded(entryStatus, paymentStatus)) {
     return {
-      title: 'Registration Confirmed',
+      title: 'Entry Confirmed',
       description: 'Your entry has been submitted and payment recorded.',
     };
   }
@@ -55,14 +55,14 @@ export function getConfirmationHeroCopy(
     // waitlisted). Do not tell an already-paid exhibitor that payment is due
     // at the show — that would be wrong.
     return {
-      title: 'Registration Submitted',
+      title: 'Entry Submitted',
       description: 'Your entry has been submitted and payment recorded.',
     };
   }
 
   // Submitted, payment still pending (the common check/cash path).
   return {
-    title: 'Registration Submitted',
+    title: 'Entry Submitted',
     description: 'Your entry has been submitted. Payment is due at the show.',
   };
 }
@@ -167,7 +167,7 @@ export function generateReceiptHtml(data: ReceiptData): string {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Registration Receipt - ${escapeHtml(data.registrationNumber)}</title>
+  <title>Entry Receipt - ${escapeHtml(data.registrationNumber)}</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -184,7 +184,7 @@ export function generateReceiptHtml(data: ReceiptData): string {
 </head>
 <body>
   <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #e5e7eb;">
-    <h1 style="font-size: 24px; margin: 0 0 5px 0;">Registration Receipt</h1>
+    <h1 style="font-size: 24px; margin: 0 0 5px 0;">Entry Receipt</h1>
     <p style="color: #666; margin: 0; font-size: 14px;">myK9Show</p>
   </div>
 

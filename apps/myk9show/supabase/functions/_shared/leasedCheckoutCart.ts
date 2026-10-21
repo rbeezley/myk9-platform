@@ -21,7 +21,7 @@ export async function checkoutLeasedCart<Cart extends { items: unknown }>(deps: 
   const { data: cart, error } = await deps.reload();
   if (error || !cart) {
     console.error('Cart not found under lease:', error);
-    return deps.respond({ error: 'Cart not found or expired' }, 404);
+    return deps.respond({ error: 'Your entry was not found or has expired' }, 404);
   }
   const addressRefusal = cartOwnerAddressRefusal(cart.items as OwnerAddressGateLine[]);
   if (addressRefusal) return deps.respond(addressRefusal, 422);

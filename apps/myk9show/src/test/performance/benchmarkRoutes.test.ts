@@ -53,7 +53,7 @@ describe('MYK9-843 route matrix', () => {
       ':not(:has-text("No entries are loaded"))'
     );
     expect(routes.find(route => route.id === 'exhibitor-cart')?.readySelector).toContain(
-      'Your cart is empty'
+      'Nothing in your entry yet'
     );
     expect(routes.find(route => route.id === 'admin-users')?.readySelector).toContain(
       'tr:not(:has(.animate-pulse))'

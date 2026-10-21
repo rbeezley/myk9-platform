@@ -172,7 +172,7 @@ describe('CartSummary — wait-list lines', () => {
       screen.getByText('A class is full and not accepting wait list entries')
     ).toBeInTheDocument();
     expect(
-      screen.getByText('Remove it from your cart to continue to payment.')
+      screen.getByText('Remove it from your entry to continue to payment.')
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /remove the full class to continue/i })

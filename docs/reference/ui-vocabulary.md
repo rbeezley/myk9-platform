@@ -65,12 +65,15 @@ Late-entry mode does **not** relax the entry-close deadline. That exemption is R
 
 `entry` / `entries` stays the noun for the record, everywhere it already appears: **My Entries**, **5 Entries**, **Entry Fees**, **Entries close Dec 1**, **Entries Management**. The rule governs verb phrases only.
 
+The in-progress set an exhibitor is building and paying for is **"your entry"** in copy ("Your entry" side panel, "Added to your entry", "Nothing in your entry yet"); the header badge reads **"Entry in progress"**. The `/cart` URL and the code (cart store, `Cart*` components) keep "cart". Where an entry sits _inside_ that set, copy avoids the container noun ("2 entries saved, not yet paid", not "2 entries in your entry").
+
 ## Where this is applied
 
 | Surface                              | Label                                                |
 | ------------------------------------ | ---------------------------------------------------- |
 | Show page — never entered            | Enter This Show                                      |
 | Show page — already entered          | Add Entry                                            |
+| Entry wizard — heading, breadcrumb   | Enter This Show / Enter                              |
 | My Entries → Actions menu            | Add entry                                            |
 | Entries Management — button          | Add Entry (club admin: Add entry for my dog)         |
 | Entries Management — More popover    | Late entry / Add late entry                          |

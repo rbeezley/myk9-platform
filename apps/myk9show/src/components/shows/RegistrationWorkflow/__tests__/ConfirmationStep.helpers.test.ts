@@ -138,21 +138,21 @@ describe('getConfirmationHeroCopy', () => {
   // Payment step's Next), so the copy is "submitted", never "ready to submit".
   it('confirms once the entry is accepted and payment is recorded', () => {
     expect(getConfirmationHeroCopy(EntryStatus.ACCEPTED, PaymentStatus.PAID_BY_CHECK)).toEqual({
-      title: 'Registration Confirmed',
+      title: 'Entry Confirmed',
       description: 'Your entry has been submitted and payment recorded.',
     });
   });
 
   it('frames a pending check/cash entry as submitted with payment due at the show', () => {
     expect(getConfirmationHeroCopy(EntryStatus.PENDING, PaymentStatus.PENDING)).toEqual({
-      title: 'Registration Submitted',
+      title: 'Entry Submitted',
       description: 'Your entry has been submitted. Payment is due at the show.',
     });
   });
 
   it('keeps a deferred-but-accepted unpaid entry in submitted / payment-due language', () => {
     expect(getConfirmationHeroCopy(EntryStatus.ACCEPTED, PaymentStatus.PENDING)).toEqual({
-      title: 'Registration Submitted',
+      title: 'Entry Submitted',
       description: 'Your entry has been submitted. Payment is due at the show.',
     });
   });
@@ -161,14 +161,14 @@ describe('getConfirmationHeroCopy', () => {
     // e.g. paid online but waitlisted / awaiting review — telling them payment
     // is due at the show would be wrong.
     expect(getConfirmationHeroCopy(EntryStatus.WAITLIST, PaymentStatus.PAID_ONLINE)).toEqual({
-      title: 'Registration Submitted',
+      title: 'Entry Submitted',
       description: 'Your entry has been submitted and payment recorded.',
     });
   });
 
   it('frames waived or already-received secretary payments as recorded once paid', () => {
     expect(getConfirmationHeroCopy(EntryStatus.ACCEPTED, PaymentStatus.PAID_BY_CASH)).toEqual({
-      title: 'Registration Confirmed',
+      title: 'Entry Confirmed',
       description: 'Your entry has been submitted and payment recorded.',
     });
   });

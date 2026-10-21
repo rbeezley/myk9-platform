@@ -17,7 +17,7 @@ import {
   XCircle,
   CheckCircle,
   Loader2,
-  ShoppingCart,
+  ClipboardList,
   ArrowLeft,
   ArrowRight,
   Eye,
@@ -133,7 +133,7 @@ export default function CheckoutCancelPage() {
             <p className="text-muted-foreground mt-2">
               {holdEnded
                 ? CHECKOUT_HOLD_ENDED_MESSAGE
-                : "Your payment was not completed. Don't worry - your cart has been saved."}
+                : "Your payment was not completed. Don't worry - your entry has been saved."}
             </p>
           </CardHeader>
 
@@ -141,11 +141,11 @@ export default function CheckoutCancelPage() {
             {/* Cart Status */}
             {itemCount > 0 && (
               <div className="flex items-center gap-3 p-4 rounded-lg border bg-muted/30">
-                <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                <ClipboardList className="h-5 w-5 text-muted-foreground" />
                 <div className="flex-1">
-                  <p className="font-medium">Your cart is waiting</p>
+                  <p className="font-medium">Your entry is waiting</p>
                   <p className="text-sm text-muted-foreground">
-                    {itemCount} {itemCount === 1 ? 'entry' : 'entries'} still in your cart
+                    {itemCount} {itemCount === 1 ? 'entry' : 'entries'} saved, not yet paid
                   </p>
                 </div>
               </div>
@@ -182,8 +182,8 @@ export default function CheckoutCancelPage() {
               button on itemCount made that banner unreachable in the normal flow.
             */}
             <Button className="w-full" onClick={() => navigate('/cart?checkout=cancelled')}>
-              <ShoppingCart className="h-4 w-4 mr-2" />
-              Return to Cart
+              <ClipboardList className="h-4 w-4 mr-2" />
+              Return to Your Entry
             </Button>
             {returnShowId ? (
               /*

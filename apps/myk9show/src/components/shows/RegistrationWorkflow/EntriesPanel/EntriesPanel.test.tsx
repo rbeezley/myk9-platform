@@ -91,6 +91,14 @@ function groupsFor(classCount: number, dogIds = ['dog-1']) {
   );
 }
 
+describe('EntriesPanel wording (MYK9-1278)', () => {
+  it('calls the side panel "Your entry", never a cart', () => {
+    renderPanel();
+    expect(screen.getAllByRole('heading', { name: 'Your entry' }).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/cart/i)).not.toBeInTheDocument();
+  });
+});
+
 function renderPanel(props: Partial<React.ComponentProps<typeof EntriesPanel>> = {}) {
   return render(<EntriesPanel groups={groupsFor(1)} {...props} />);
 }

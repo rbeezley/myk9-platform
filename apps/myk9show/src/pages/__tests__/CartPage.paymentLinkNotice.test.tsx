@@ -92,14 +92,14 @@ describe('CartPage payment-link notice (MYK9-873)', () => {
     cartState.paymentLinkFacts = null;
   });
 
-  it('with no cart at all, explains the link and offers My Entries above "Your cart is empty"', () => {
+  it('with no cart at all, explains the link and offers My Entries above "Nothing in your entry yet"', () => {
     cartState.paymentLinkFacts = { linkKey: 'e1,e2', linkIds: ['e2', 'e1'], payableIds: [] };
 
     render(<CartPage />, { initialRoute: LINK_ROUTE });
 
-    expect(screen.getByText('Your cart is empty')).toBeInTheDocument();
+    expect(screen.getByText('Nothing in your entry yet')).toBeInTheDocument();
     expect(
-      screen.getByText('None of the 2 entries in your payment link are in your cart.')
+      screen.getByText('None of the 2 entries in your payment link are part of this checkout.')
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'My Entries' })).toHaveAttribute(
       'href',
@@ -120,9 +120,9 @@ describe('CartPage payment-link notice (MYK9-873)', () => {
 
     expect(screen.getByRole('button', { name: 'Checkout' })).toBeInTheDocument();
     expect(
-      screen.getByText('1 of the 2 entries in your payment link is not in this cart.')
+      screen.getByText('1 of the 2 entries in your payment link is not part of this checkout.')
     ).toBeInTheDocument();
-    expect(screen.getByText(/Check out this cart first/)).toBeInTheDocument();
+    expect(screen.getByText(/Check out these entries first/)).toBeInTheDocument();
   });
 
   it('with the last line gone, "add back" re-runs the link load', async () => {
@@ -137,9 +137,9 @@ describe('CartPage payment-link notice (MYK9-873)', () => {
     const { user } = render(<CartPage />, { initialRoute: LINK_ROUTE });
     expect(loadActiveCart).toHaveBeenCalledTimes(1);
 
-    expect(screen.getByText('Your cart is empty')).toBeInTheDocument();
-    expect(screen.queryByText(/Check out this cart first/)).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Add them back to your cart' }));
+    expect(screen.getByText('Nothing in your entry yet')).toBeInTheDocument();
+    expect(screen.queryByText(/Check out these entries first/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Add them back to your entry' }));
 
     expect(loadActiveCart).toHaveBeenCalledTimes(2);
     expect(loadActiveCart).toHaveBeenLastCalledWith('exhibitor-1', {
@@ -153,7 +153,7 @@ describe('CartPage payment-link notice (MYK9-873)', () => {
 
     render(<CartPage />, { initialRoute: LINK_ROUTE });
 
-    expect(screen.getByText('Your cart is empty')).toBeInTheDocument();
+    expect(screen.getByText('Nothing in your entry yet')).toBeInTheDocument();
     expect(screen.queryByText(/payment link/)).toBeNull();
   });
 });

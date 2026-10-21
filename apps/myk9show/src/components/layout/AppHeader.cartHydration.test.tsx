@@ -76,7 +76,7 @@ describe('AppHeader cart badge', () => {
     activeCartItemCount.value = 3;
     render(<AppHeader />, { initialRoute: '/exhibitor/entries' });
 
-    expect(screen.getByRole('button', { name: /shopping cart/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /entry in progress/i })).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(loadActiveCart).not.toHaveBeenCalled();
     expect(loadCart).not.toHaveBeenCalled();
@@ -86,7 +86,7 @@ describe('AppHeader cart badge', () => {
     activeCartItemCount.value = 0;
     render(<AppHeader />, { initialRoute: '/exhibitor/entries' });
 
-    expect(screen.queryByRole('button', { name: /shopping cart/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /entry in progress/i })).not.toBeInTheDocument();
   });
 
   it('prefers the store count when the store owns a loaded cart (e.g. /cart)', () => {

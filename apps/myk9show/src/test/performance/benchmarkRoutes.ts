@@ -47,7 +47,7 @@ export function benchmarkRoutesFor(
       id: 'exhibitor-cart',
       role: 'exhibitor',
       path: '/cart',
-      readySelector: 'h1:has-text("Your Cart"), h1:has-text("Your cart is empty")',
+      readySelector: 'h1:has-text("Your Entry"), h1:has-text("Nothing in your entry yet")',
     },
     {
       id: 'secretary-overview',

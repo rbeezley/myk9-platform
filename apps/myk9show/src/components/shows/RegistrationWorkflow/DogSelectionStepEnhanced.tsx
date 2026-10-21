@@ -112,7 +112,7 @@ function getEmptyStateMessage(
       case 'recent':
         return 'No recently active dogs match this filter. Clear the filter or search by name, breed, or registration number.';
       default:
-        return `Search by name, breed, or ${registrationNumberLabel} to find a dog to register.`;
+        return `Search by name, breed, or ${registrationNumberLabel} to find a dog to enter.`;
     }
   }
   switch (activeQuickFilter) {
@@ -410,7 +410,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
     return (
       <div className="space-y-4">
         <div className="mb-4">
-          <h3 className="text-lg font-semibold">Select Dogs to Register</h3>
+          <h3 className="text-lg font-semibold">Select Dogs to Enter</h3>
           <p className="text-sm text-muted-foreground mt-1">
             Search and filter to find dogs, then select which ones to register.
             {` (Max: ${getMaxDogsPerRegistration()} dogs)`}

@@ -104,7 +104,7 @@ test('the handler name field accepts spaces, hyphens and apostrophes', async ({ 
   await preventSharedWrites(page);
   await signInAsSecretary(page, `/secretary/register/${SHOW_ID}`);
 
-  await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible({
     timeout: 15000,
   });
 

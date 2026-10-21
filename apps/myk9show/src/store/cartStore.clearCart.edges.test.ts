@@ -122,7 +122,7 @@ describe('clearCart when another tab fills the replacement slot', () => {
     rivalTabFillsTheSlot();
     release();
 
-    expect(await outcome).toBe('Failed to clear existing cart. Please try again.');
+    expect(await outcome).toBe('Failed to clear your existing entry. Please try again.');
     expect(addItem).not.toHaveBeenCalled();
     expect(navigate).not.toHaveBeenCalled();
   });

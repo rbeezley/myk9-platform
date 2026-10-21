@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { Search, ShoppingCart, Menu, Moon, Sun } from 'lucide-react';
+import { Search, ClipboardList, Menu, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CommandPalette } from '@/components/common/CommandPalette';
 import { KeyboardShortcutsOverlay } from '@/components/common/KeyboardShortcutsOverlay';
@@ -214,9 +214,9 @@ const AppHeader: React.FC = () => {
                     size="sm"
                     onClick={() => navigate('/cart')}
                     className="relative min-h-11 min-w-11 p-2"
-                    aria-label="Shopping cart"
+                    aria-label="Entry in progress"
                   >
-                    <ShoppingCart className="h-4 w-4" />
+                    <ClipboardList className="h-4 w-4" />
                     <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] font-medium flex items-center justify-center">
                       {cartItemCount > 9 ? '9+' : cartItemCount}
                     </span>

@@ -252,12 +252,12 @@ const SignUp: React.FC = () => {
           </Link>
         </div>
         <div className="mb-6 rounded-lg border border-border bg-muted/30 p-4">
-          <p className="mb-2 font-medium">Request access as…</p>
+          <p className="mb-2 font-medium">I am…</p>
           <div className="space-y-2">
             {[
               { value: 'exhibitor', label: 'Exhibitor (I show dogs)' },
-              { value: 'club_officer', label: 'Club officer / show host' },
-              { value: 'secretary', label: 'Show secretary' },
+              { value: 'club_officer', label: 'Club officer / show host (needs approval)' },
+              { value: 'secretary', label: 'Show secretary (needs approval)' },
             ].map(({ value, label }) => (
               <label key={value} className="flex min-h-11 items-center gap-2 cursor-pointer">
                 <input

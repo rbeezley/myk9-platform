@@ -334,7 +334,7 @@ describe('ConfirmationStep — capacity outcomes', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'No entries were added' })).toBeInTheDocument();
-    expect(screen.queryByText('Registration Submitted')).not.toBeInTheDocument();
+    expect(screen.queryByText('Entry Submitted')).not.toBeInTheDocument();
   });
 
   it('does not request payment when every selection is waitlisted', () => {

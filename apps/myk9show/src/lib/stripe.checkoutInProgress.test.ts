@@ -21,7 +21,7 @@ import {
   createEntryCheckoutSession,
 } from './stripe';
 
-const IN_PROGRESS = 'Checkout is already starting for this cart. One moment, then try again.';
+const IN_PROGRESS = 'Checkout is already starting for this entry. One moment, then try again.';
 
 function inProgress() {
   return {
@@ -90,7 +90,7 @@ describe('createEntryCheckoutSession — checkout already in progress', () => {
       data: null,
       error: {
         message: 'Edge Function returned a non-2xx status code',
-        context: { status: 409, json: async () => ({ error: 'Your cart changed.' }) },
+        context: { status: 409, json: async () => ({ error: 'Your entry changed.' }) },
       },
     });
 

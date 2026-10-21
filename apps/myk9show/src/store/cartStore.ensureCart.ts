@@ -34,10 +34,10 @@ export const ACTIVE_CART_UNIQUE_INDEX = 'entry_carts_active_show_exhibitor_uniqu
  * found nothing and a create that could not insert. Deliberately a sentence the
  * class step can render as-is.
  */
-export const CART_OPEN_FAILED_MESSAGE = 'We could not open your cart.';
+export const CART_OPEN_FAILED_MESSAGE = 'We could not open your entry.';
 
 /** Shown when the opener never settled at all, rather than failing. */
-export const CART_OPEN_TIMED_OUT_MESSAGE = 'Your cart is taking too long to open.';
+export const CART_OPEN_TIMED_OUT_MESSAGE = 'Your entry is taking too long to open.';
 
 /**
  * How long the opener may stay in flight before it is reported as `failed`.

@@ -43,7 +43,7 @@ test.describe('entry intent sign-in redirect', () => {
 
     await page.waitForURL(url => url.pathname === REGISTER_PATH, { timeout: 30000 });
     await expect(page).not.toHaveURL(/\/exhibitor\/entries/);
-    await expect(page.getByRole('heading', { name: 'Register for Show' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Enter This Show' })).toBeVisible({
       timeout: 30000,
     });
   });

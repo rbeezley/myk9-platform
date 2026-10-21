@@ -168,7 +168,7 @@ test.describe('Secretary Entry Walk', () => {
 
     await signInAsSecretary(page, `/secretary/register/${TEST_SHOW_ID}`);
     await page.goto(`/secretary/register/${TEST_SHOW_ID}`, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Select Dogs to Register' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible({
       timeout: 15000,
     });
 

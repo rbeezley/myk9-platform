@@ -204,7 +204,7 @@ test.describe('header wordmark fits', () => {
       const header = page.locator('nav').filter({
         has: page.getByRole('link', { name: 'myK9Show home', exact: true }),
       });
-      const cart = page.getByRole('button', { name: 'Shopping cart', exact: true });
+      const cart = page.getByRole('button', { name: 'Entry in progress', exact: true });
       if (cartCount > 0) await expect(cart).toBeVisible();
       else await expect(cart).toBeHidden();
 
@@ -229,7 +229,7 @@ test.describe('header wordmark fits', () => {
           'Search',
           'Message Center',
           'Account menu',
-          ...(cartCount > 0 ? ['Shopping cart'] : []),
+          ...(cartCount > 0 ? ['Entry in progress'] : []),
         ]) {
           // The bell's name grows a count when unread messages exist ("Message Center 3 unread").
           const accessibleName =

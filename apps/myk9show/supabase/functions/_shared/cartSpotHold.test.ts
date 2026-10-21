@@ -263,10 +263,10 @@ describe('describeRefusedLines: which dog, which class, nothing charged', () => 
   it('lists every refused line', () => {
     const rex: RefusedCartLine = { ...zivaFull, cart_item_id: 'item-rex', allow_waitlist: true };
     expect(describeRefusedLines([zivaFull, rex], items)).toBe(
-      'Spots just filled for Ziva in Novice Container, Rex in Advanced Interior, so nothing was charged. Your cart shows which can join a wait list; remove the others to continue.'
+      'Spots just filled for Ziva in Novice Container, Rex in Advanced Interior, so nothing was charged. Your entry shows which can join a wait list; remove the others to continue.'
     );
     expect(describeRefusedLines([zivaFull, { ...rex, allow_waitlist: false }], items)).toBe(
-      'Spots just filled for Ziva in Novice Container, Rex in Advanced Interior, so nothing was charged. Remove them from your cart to continue.'
+      'Spots just filled for Ziva in Novice Container, Rex in Advanced Interior, so nothing was charged. Remove them from your entry to continue.'
     );
   });
 

@@ -110,7 +110,7 @@ export function useRemoveEntryLine(
         if (cartItem) {
           const success = await removeItem(cartItem.id);
           if (!success) {
-            toast.error('Failed to remove from cart');
+            toast.error('Failed to remove from your entry');
             return;
           }
         }

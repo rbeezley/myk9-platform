@@ -94,7 +94,7 @@ export const UpcomingShowsTab: React.FC<UpcomingShowsTabProps> = ({
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onRegisterForShow(show.id)}>
                       <ExternalLink className="mr-2 h-4 w-4" />
-                      Register
+                      Enter
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

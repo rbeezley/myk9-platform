@@ -408,12 +408,12 @@ async function handleEntryCheckout(
   const { data: owned, error: ownedError } = await loadCheckoutCart(cart_id);
   if (ownedError || !owned) {
     console.error('Cart not found:', ownedError);
-    return corsResponse(corsHeaders, { error: 'Cart not found or expired' }, 404);
+    return corsResponse(corsHeaders, { error: 'Your entry was not found or has expired' }, 404);
   }
 
   // Verify ownership
   if (owned.exhibitor.auth_user_id !== authUserId) {
-    return corsResponse(corsHeaders, { error: 'Unauthorized access to cart' }, 403);
+    return corsResponse(corsHeaders, { error: 'You do not have access to this entry' }, 403);
   }
 
   // MYK9-1010: an AKC line needs its owner's full address (the marked catalog
@@ -545,7 +545,7 @@ async function checkoutUnderLease(
       }
       return corsResponse(
         corsHeaders,
-        { error: 'Could not recover this cart. Please try again.' },
+        { error: 'Could not recover this entry. Please try again.' },
         409
       );
     }
@@ -686,7 +686,7 @@ async function checkoutUnderLease(
         console.error(`Class gate read failed for cart ${cart_id}:`, availabilityError);
         return corsResponse(
           corsHeaders,
-          { error: 'Could not confirm the classes in your cart are still open. Please try again.' },
+          { error: 'Could not confirm the classes you picked are still open. Please try again.' },
           500
         );
       }
@@ -745,7 +745,7 @@ async function checkoutUnderLease(
     console.error(`Stored junior fee read failed for cart ${cart_id}:`, storedJuniorError);
     return corsResponse(
       corsHeaders,
-      { error: 'Could not confirm the entry fees for your cart. Please try again.' },
+      { error: 'Could not confirm the entry fees. Please try again.' },
       500
     );
   }
@@ -795,7 +795,7 @@ async function checkoutUnderLease(
     return corsResponse(
       corsHeaders,
       {
-        error: 'Entry fees were updated to current show pricing — review your cart and try again.',
+        error: 'Entry fees were updated to current show pricing — review your entry and try again.',
       },
       409
     );
@@ -822,7 +822,7 @@ async function checkoutUnderLease(
   );
 
   if (lineItems.length === 0) {
-    return corsResponse(corsHeaders, { error: 'Cart is empty' }, 400);
+    return corsResponse(corsHeaders, { error: 'Your entry is empty' }, 400);
   }
 
   // Calculate platform fee (if applicable). Item fees are verified equal to

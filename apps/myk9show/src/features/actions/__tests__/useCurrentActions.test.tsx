@@ -130,6 +130,7 @@ describe('useCurrentActions — ownership must be resolved before anything is of
       'show-add-mail-in-entry',
       'show-add-new-trial',
       'show-add-classes',
+      'show-select-classes',
       'show-open-entry-management',
       'show-close-out',
     ]);

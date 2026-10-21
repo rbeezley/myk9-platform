@@ -6,6 +6,7 @@ import { SHOW_SHELL_CHILD_SEGMENTS } from '@/routes/showManagementSections';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import { getAddTrialsHref } from '@/pages/secretary/ShowCreationWizard/addTrialsHref';
 import { TRIAL_SECRETARY_ONLY_REASON } from './trialSecretaryAccess';
+import { buildSelectClassesAction } from './selectClassesAction';
 import { buildShowToolActions, type ShowToolItem } from './showToolActions';
 import { CREATE_HREFS, type CreateGates } from './createGates';
 
@@ -62,6 +63,7 @@ export type ActionIconName =
   | 'add-entry'
   | 'add-trial'
   | 'add-classes'
+  | 'select-classes'
   | 'entry-forms'
   | 'premium'
   | 'export'
@@ -353,6 +355,7 @@ function buildShowActions(
       group: 'show',
       icon: 'add-classes',
     },
+    buildSelectClassesAction(showId),
     {
       id: 'show-open-entry-management',
       label: 'Open Entry Forms',

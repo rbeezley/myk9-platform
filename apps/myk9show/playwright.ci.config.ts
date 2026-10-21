@@ -231,6 +231,8 @@ const PR_SMOKE_SPECS = [
   '**/exhibitorReadPathCanary.spec.ts',
   '**/simple-connectivity.spec.ts',
   '**/landing-lifecycle.spec.ts',
+  // MYK9-1285: anonymous home page, step 6 of the story reaches the next heading at 1280 and 375.
+  '**/landing-timeline-end.spec.ts',
   '**/uat/secretary/qa-regression-proof.spec.ts',
   '**/uat/secretary/critical-path.spec.ts',
   '**/my-entries-page-ui.spec.ts',

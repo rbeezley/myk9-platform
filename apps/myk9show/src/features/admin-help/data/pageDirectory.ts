@@ -215,8 +215,9 @@ export const pageDirectory: readonly PageEntry[] = [
   // =========================
   {
     path: '/secretary/dashboard',
-    title: 'Secretary Dashboard (Mission Control)',
-    description: 'Pipeline of upcoming shows with Setup / Entries / Day-of / Closeout badges.',
+    title: 'Secretary Dashboard',
+    description:
+      'Cross-show home: shows happening today, upcoming, draft and past, with what needs attention and quick links.',
     roles: [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Shows',

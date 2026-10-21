@@ -32,7 +32,6 @@ function rawEntry(overrides: Record<string, unknown>) {
     entry_status: 'confirmed',
     dog: { call_name: 'Acorn', owner: { first_name: 'Jane', last_name: 'Handler' } },
     class: { name: 'Interior Novice A' },
-    promo_code: null,
     ...overrides,
   };
 }
@@ -88,6 +87,13 @@ describe('FinancialSummary (per trial)', () => {
   // MYK9-811: the raw <Select> payment-status filter moved onto the shared
   // list-toolkit filter bar.
   describe('payment-status filter (list toolkit)', () => {
+    it('lists exactly the six entry columns, with no promo column (MYK9-1299)', () => {
+      renderSummary([rawEntry({ id: 'a', dog: { call_name: 'Acorn' } })]);
+
+      const headers = screen.getAllByRole('columnheader').map(h => h.textContent?.trim());
+      expect(headers).toEqual(['Dog', 'Owner', 'Class', 'Fee', 'Discount', 'Status']);
+    });
+
     it('filters the entry table by the picked payment status', async () => {
       const { user } = renderSummary([
         rawEntry({ id: 'paid-1', payment_status: 'paid', dog: { call_name: 'Acorn' } }),

@@ -17,7 +17,6 @@ export interface TrialFinancialEntryRow {
   className: string;
   entryFee: number;
   discountAmount: number;
-  promoCode: string | null;
   paymentStatus: string;
   comped: boolean;
   compedReason: string | null;

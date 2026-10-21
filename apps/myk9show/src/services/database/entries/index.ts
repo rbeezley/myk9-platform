@@ -6,7 +6,6 @@ export * from './reads';
 export * from './publicReads';
 // updateEntryStatus excluded — conflicts with the secretary-signature version in secretary.ts.
 export {
-  applyPromoCodeToEntry,
   compEntry,
   createEntry,
   createMultipleEntries,

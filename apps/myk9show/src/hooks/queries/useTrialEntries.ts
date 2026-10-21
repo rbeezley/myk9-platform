@@ -32,17 +32,11 @@ export interface TrialEntryRow {
     entry_fee: number | null;
     trial_id: string;
   };
-  promo_code: {
-    id: string;
-    code: string;
-    discount_type: string | null;
-    discount_value: number | null;
-  } | null;
 }
 
 /**
  * Adapt a cascade-gated public view row into the TrialEntryRow shape. Owner,
- * class_number, entry_fee and promo_code are unavailable to anon (they are not
+ * class_number and entry_fee are unavailable to anon (they are not
  * exposed by the public view) and map to null.
  */
 export function publicRowToTrialEntryRow(row: PublicEntryRow): TrialEntryRow {
@@ -71,7 +65,6 @@ export function publicRowToTrialEntryRow(row: PublicEntryRow): TrialEntryRow {
       entry_fee: null,
       trial_id: row.trial_id ?? '',
     },
-    promo_code: null,
   };
 }
 

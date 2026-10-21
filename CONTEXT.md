@@ -243,11 +243,10 @@ person's action may issue one.
 _Avoid_: Order (in user-visible text; it is the internal Stripe name)
 
 **Promo Code**
-A discount token issued by a Club, scoped to a single Show or a single Trial.
-Has a code string, discount type (`percentage` | `flat`), discount value,
-optional usage limit, optional expiry, and a running usage count. Applied at
-checkout on an Entry form to reduce entry fees. Trial-scoped codes
-take priority over show-scoped codes when both match.
+A discount token a Club could once issue, scoped to a single Show or a single
+Trial. Inert: no screen creates, validates or redeems one, and nothing applies
+a discount at checkout. The `promo_codes` table is slated for removal
+(MYK9-1299, MYK9-312); do not build against it.
 
 **Announcement**
 A timed message posted by a Secretary or Club staff to the attendees of a
@@ -350,7 +349,7 @@ Replicated entities (cached in IndexedDB for offline reads): Entry, Class,
 Trial, Dog, Show, Armband.
 
 PostgREST-only entities (online reads): Club, Handler, Exhibitor, Volunteer,
-WaitList, Secretary tasks, Visibility settings, Achievement, Promo Code,
+WaitList, Secretary tasks, Visibility settings, Achievement,
 Announcement.
 
 **Replicated Table Sync**

@@ -23,7 +23,6 @@ export const mapReplicatedEntryToDbRow = (
     cls?: ReplicatedClass | null;
     show?: ReplicatedShow | null;
     registration?: Record<string, unknown> | null;
-    promoCode?: Record<string, unknown> | null;
     trial?: Record<string, unknown> | null;
   }
 ): Record<string, unknown> => {
@@ -118,11 +117,6 @@ export const mapReplicatedEntryToDbRow = (
 
   if (options?.registration !== undefined) {
     row.registration = options.registration;
-  }
-
-  // Attach promo_code sub-object when provided (already snake_case from PostgREST batch)
-  if (options?.promoCode !== undefined) {
-    row.promo_code = options.promoCode;
   }
 
   // Attach trial sub-object when provided (already snake_case)

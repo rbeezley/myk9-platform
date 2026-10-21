@@ -29,8 +29,8 @@ export function ShowsEmptyState({
   filtered: boolean;
   onShowAll: () => void;
   /** Nothing is upcoming but past shows exist (MYK9-1283): say so instead of "No shows yet". */
-  past?: { count: number; monthLabel: string };
-  onShowPast?: () => void;
+  past?: { count: number; monthLabel: string } | undefined;
+  onShowPast?: (() => void) | undefined;
 }) {
   const { user } = useAuthContext();
   const pastDescription =

@@ -2,7 +2,8 @@
  * The one empty state for every list (MYK9-929, M7). "No ‹objects› yet" when the list holds
  * nothing; "No ‹objects› match your search or filters." with a "Show all ‹objects›" button
  * (the same words as `ListResultLine`'s) when a search or filter hides every row.
- * A caller adds only its own description and first-step action; it never rewords the filtered title; `title` replaces only the empty one (MYK9-1283).
+ * A caller adds its own description, first-step action and, for a list that is empty but not
+ * blank (MYK9-1283), a `title`; it never rewords the filtered title.
  */
 
 import type { ReactNode } from 'react';

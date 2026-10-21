@@ -64,7 +64,7 @@ describe('ShowsEmptyState (MYK9-1152)', () => {
           sentence('2 past shows, the most recent in October 2026. See October 2026')
         )
       ).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'See 2 past shows in October 2026' }));
+      fireEvent.click(screen.getByRole('button', { name: 'See October 2026' }));
       expect(onShowPast).toHaveBeenCalledTimes(1);
       expect(screen.getByRole('link', { name: CREATE_ACCOUNT.label })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: ADD_YOUR_CLUB.label })).toBeInTheDocument();

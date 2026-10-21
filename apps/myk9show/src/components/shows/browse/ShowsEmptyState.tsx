@@ -41,7 +41,6 @@ export function ShowsEmptyState({
         <Button
           variant="link"
           className="inline-flex min-h-11 items-center px-1 align-middle text-[length:inherit] underline hover:translate-y-0"
-          aria-label={`See ${past.count} past ${past.count === 1 ? 'show' : 'shows'} in ${past.monthLabel}`}
           onClick={onShowPast}
         >
           See {past.monthLabel}

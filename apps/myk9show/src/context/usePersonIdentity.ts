@@ -53,8 +53,15 @@ export function usePersonIdentity(userId: string | undefined): {
     // fast navigation. A person profile is account-scoped, so that behavior
     // would briefly pair account B with account A's person id.
     placeholderData: () => undefined,
+    // MYK9-1308: no interval here. A suspension or profile change is picked up
+    // on the next window focus or tab-visible (at most once per staleTime), the
+    // next reconnect, the next TOKEN_REFRESHED / USER_UPDATED, or at most 15
+    // minutes on a screen that stays visible: useRbacLifecycle's safety net
+    // invalidates this key. The app-wide client turns focus refetch off, so opt
+    // in here.
     staleTime: 60 * 1000,
-    refetchInterval: 60 * 1000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
   const cachedPersonIdentity = useMemo(

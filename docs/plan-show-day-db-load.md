@@ -137,7 +137,7 @@ No schema change. Ordered by expected load removed per device.
 4. [ ] **Scan dog ids at most hourly**, or only on a count mismatch (`ReplicatedDogsTable.ts:293`).
 5. [ ] **Notification monitor:** enable it only with a non-empty watch set, drop `refetchInterval` while realtime is subscribed, and build its snapshot from the replica where possible.
 6. [ ] **`get_account_today_entries`:** a longer `staleTime`, and invalidation coalesced to at most every 30 s.
-7. [ ] **RBAC and identity:** stop clearing the cache before the 5 min refresh, refresh on focus instead of a timer, and drop identity's `refetchInterval`.
+7. [ ] **RBAC and identity:** stop clearing the cache before the 5 min refresh, refresh on focus instead of a timer, and drop identity's `refetchInterval`. Bound (implemented, MYK9-1308): a role change or suspension takes effect on the next focus or tab-visible (at most once per 60 s), next reconnect, next `TOKEN_REFRESHED`/`USER_UPDATED`, or at most 15 minutes on a screen that stays visible (one slow safety-net timer that also invalidates identity); a refresh replaces the RBAC cache on success and leaves it intact on failure.
 8. [ ] **An `updated_at` delta for armbands**, instead of re-downloading on every sync.
 
 Offline-first guard: every change keeps the replica correct with realtime down. The fallback cadence is only slower, never removed. Read `docs/INTENT.md` for ringside before touching the at-show paths.

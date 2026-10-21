@@ -111,11 +111,11 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   // check here, and each way of writing that check broke the other:
   //
   // - `if (rbacLoading) return null` UNMOUNTS the section on every warm refresh.
-  //   `useRbacLifecycle` re-runs `load()` on a 5-minute interval and on every
-  //   `online` event, and `load()` sets `isLoading: true` while PRESERVING the
+  //   `useRbacLifecycle` re-runs `load()` on focus, on every `online` event and on
+  //   a 15-minute safety net, and `load()` sets `isLoading: true` while PRESERVING the
   //   roles it already holds. A secretary on Entries lost their bulk selection,
-  //   search, page index, open detail pane and scroll position every five
-  //   minutes, and at a venue on every reconnect. Since MYK9-630 phase 2 these
+  //   search, page index, open detail pane and scroll position on every
+  //   refresh, and at a venue on every reconnect. Since MYK9-630 phase 2 these
   //   routes are the only door to the six tabs, so it covered all of them.
   // - Narrowing it to `rbacLoading && !userWithRoles` let the COLD auth window
   //   through instead. `useShowManageScope` computes `couldManageSomeShow` from

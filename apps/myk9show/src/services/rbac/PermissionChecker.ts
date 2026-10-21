@@ -97,6 +97,7 @@ export class PermissionChecker {
   private completeAccessInFlight = new Map<string, Promise<UserPermissionsResponse>>();
   private accessGeneration = new Map<string, number>();
   private accessEpoch = 0;
+  private bypassSeq = new Map<string, number>();
   private cacheTimeout = 5 * 60 * 1000; // 5 minutes
 
   /**
@@ -156,27 +157,52 @@ export class PermissionChecker {
    */
   async getUserPermissions(
     userId: string,
-    _scope?: { type: string; id: string }
+    _scope?: { type: string; id: string },
+    options?: { bypassCache?: boolean }
   ): Promise<UserPermissionsResponse> {
-    const cached = this.completeAccessCache.get(userId);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.result;
-    }
+    // bypassCache (MYK9-1308): a focus/online/explicit refresh must read the
+    // server, but must not clear first. The old entry stays until the fresh
+    // read succeeds and replaces it, so a failed refresh never leaves a window
+    // with no permissions. It also skips the in-flight join: a load that began
+    // before the change being refreshed for would hand back the old answer.
+    if (!options?.bypassCache) {
+      const cached = this.completeAccessCache.get(userId);
+      if (cached && cached.expiresAt > Date.now()) {
+        return cached.result;
+      }
 
-    const inFlight = this.completeAccessInFlight.get(userId);
-    if (inFlight) {
-      return inFlight;
+      const inFlight = this.completeAccessInFlight.get(userId);
+      if (inFlight) {
+        return inFlight;
+      }
     }
 
     const generation = this.accessGeneration.get(userId) ?? 0;
     const epoch = this.accessEpoch;
+    // A newer load of either kind supersedes an older one: only the newest may write.
+    const seq = (this.bypassSeq.get(userId) ?? 0) + 1;
+    this.bypassSeq.set(userId, seq);
     const load = this.loadUserPermissions(userId)
       .then(result => {
-        if (this.accessEpoch === epoch && (this.accessGeneration.get(userId) ?? 0) === generation) {
+        const superseded = this.bypassSeq.get(userId) !== seq;
+        if (
+          !superseded &&
+          this.accessEpoch === epoch &&
+          (this.accessGeneration.get(userId) ?? 0) === generation
+        ) {
+          // Only after a successful load: drop this user's per-permission
+          // answers so a revoked permission is not served from them (the old
+          // clear-first behaviour, minus the window with nothing cached).
           this.completeAccessCache.set(userId, {
             result,
             expiresAt: Date.now() + this.cacheTimeout,
           });
+          if (options?.bypassCache) {
+            this.deletePermissionEntries(userId);
+            // Advance the generation checkPermission compares, so a check that
+            // STARTED before this refresh cannot re-cache a revoked answer.
+            this.accessGeneration.set(userId, generation + 1);
+          }
         }
         return result;
       })
@@ -405,14 +431,14 @@ export class PermissionChecker {
     return `${userId}:${permission}:${scopeKey}`;
   }
 
-  clearUserCache(userId: string): void {
-    const keysToDelete: string[] = [];
-    for (const key of this.permissionCache.keys()) {
-      if (key.startsWith(`${userId}:`)) {
-        keysToDelete.push(key);
-      }
+  private deletePermissionEntries(userId: string): void {
+    for (const key of [...this.permissionCache.keys()]) {
+      if (key.startsWith(`${userId}:`)) this.permissionCache.delete(key);
     }
-    keysToDelete.forEach(key => this.permissionCache.delete(key));
+  }
+
+  clearUserCache(userId: string): void {
+    this.deletePermissionEntries(userId);
     this.completeAccessCache.delete(userId);
     this.completeAccessInFlight.delete(userId);
     this.accessGeneration.set(userId, (this.accessGeneration.get(userId) ?? 0) + 1);

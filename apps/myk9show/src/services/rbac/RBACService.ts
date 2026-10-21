@@ -85,9 +85,10 @@ export class RBACService {
 
   async getUserPermissions(
     userId: string,
-    scope?: { type: string; id: string }
+    scope?: { type: string; id: string },
+    options?: { bypassCache?: boolean }
   ): Promise<UserPermissionsResponse> {
-    return this.permissionChecker.getUserPermissions(userId, scope);
+    return this.permissionChecker.getUserPermissions(userId, scope, options);
   }
 
   async checkPermissionWithOrganization(

@@ -299,8 +299,8 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     await waitFor(() => expect(capturedShowResume).toBe(false));
 
     // Removing the dog puts the step back to empty, but the exhibitor emptied
-    // it on purpose — the saved entry stays available through Load Draft
-    // rather than the panel popping back up under their hands.
+    // it on purpose — the saved entry stays available through the resume
+    // prompt later, rather than the panel popping back up under their hands.
     act(() => capturedOnDogSelectionChange!([]));
     await waitFor(() => expect(capturedSelectedDogs).toEqual([]));
     expect(capturedShowResume).toBe(false);

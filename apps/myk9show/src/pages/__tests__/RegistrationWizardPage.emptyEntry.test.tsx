@@ -149,11 +149,9 @@ vi.mock('@/hooks/useReplicationSync', () => ({
 
 vi.mock('@/hooks/useDraftPersistence', () => ({
   useDraftPersistence: () => ({
-    saveDraft: vi.fn(),
     loadDraft: vi.fn(),
     deleteDraft: deleteDraftMock,
     availableDrafts: [],
-    clearAllDrafts: vi.fn(),
     discardDraftsWithoutFinalSave: discardDraftsWithoutFinalSaveMock,
     hasUnsavedChanges: false,
   }),

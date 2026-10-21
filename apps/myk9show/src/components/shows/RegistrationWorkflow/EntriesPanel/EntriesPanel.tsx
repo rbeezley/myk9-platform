@@ -189,8 +189,8 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
         //
         // The PAGE does not need to reserve that height; the sonner stack does.
         // Back/Next live in this bar below 1024px and the toaster is docked to
-        // the same bottom edge, so "Draft saved" landed on Next and intercepted
-        // the tap (MYK9-517). Registering here is the mechanism that already
+        // the same bottom edge, so a toast landed on Next and intercepted the tap
+        // (MYK9-517). Registering here is the mechanism that already
         // exists for exactly this (`actionBarStore`); it beats a route-scoped
         // toaster position, and it costs nothing at lg, where the bar is
         // display:none and therefore measures 0.

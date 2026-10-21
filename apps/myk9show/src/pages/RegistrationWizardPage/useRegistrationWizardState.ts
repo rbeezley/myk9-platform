@@ -329,13 +329,11 @@ export function useRegistrationWizardState() {
   }, [capacityCheckEnabled, currentStepId, refetchClassAvailability]);
 
   const {
-    saveDraft: draftSave,
     loadDraft: draftLoad,
     activateDraft,
     deactivateDraft,
     deleteDraft: draftDelete,
     availableDrafts,
-    clearAllDrafts,
     discardDraftsWithoutFinalSave,
     hasUnsavedChanges,
   } = useDraftPersistence(showId || '', userId, currentStepId, {
@@ -670,13 +668,11 @@ export function useRegistrationWizardState() {
     pendingDraftRegistrationRef,
 
     // Drafts
-    draftSave,
     draftLoad,
     activateDraft,
     deactivateDraft,
     draftDelete,
     availableDrafts,
-    clearAllDrafts,
     discardDraftsWithoutFinalSave,
     hasUnsavedChanges,
 

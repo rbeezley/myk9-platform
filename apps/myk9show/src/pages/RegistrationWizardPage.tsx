@@ -13,7 +13,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { notifications } from '@/lib/notifications';
 import { helpUrl } from '@/lib/help';
 import { cn } from '@/lib/utils';
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
@@ -62,11 +61,9 @@ function RegistrationWizardContent() {
     isLateEntryMode,
     currentWorkflowMode,
     handleStepClick,
-    draftSave,
     draftLoad,
     draftDelete,
     availableDrafts,
-    clearAllDrafts,
     hasUnsavedChanges,
     handleDraftLoaded,
     currentWorkflowConfig,
@@ -335,14 +332,11 @@ function RegistrationWizardContent() {
               </h2>
               {!isLastStep && (
                 <DraftManager
-                  saveDraft={draftSave}
                   loadDraft={draftLoad}
                   deleteDraft={draftDelete}
                   availableDrafts={availableDrafts}
-                  clearAllDrafts={clearAllDrafts}
                   hasUnsavedChanges={!!hasUnsavedChanges}
                   onDraftLoaded={handleDraftLoaded}
-                  onDraftSaved={() => notifications.success('Draft saved')}
                   showResume={
                     currentWorkflowMode === 'exhibitor' &&
                     currentStepId === 'dog-selection' &&

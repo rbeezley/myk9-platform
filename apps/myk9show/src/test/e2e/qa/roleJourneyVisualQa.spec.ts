@@ -111,13 +111,6 @@ async function assertRouteHealth(
 async function assertExhibitorStates(page: Page) {
   const next = page.getByRole('button', { name: /^Next$/ });
   await expect(next).toBeDisabled();
-  await expect(page.getByRole('button', { name: /Load Draft/ })).toBeDisabled();
-  await page.getByRole('button', { name: 'Save Draft' }).click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByLabel('Draft Title')).toBeVisible();
-  await dialog.getByRole('button', { name: 'Cancel' }).click();
-  await expect(dialog).not.toBeVisible();
 }
 
 async function assertSecretaryStates(page: Page) {

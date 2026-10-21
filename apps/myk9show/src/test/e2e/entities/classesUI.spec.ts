@@ -37,9 +37,29 @@ async function gotoTrial(page: Page) {
   });
 }
 
-// MYK9-1320 follow-up: the three test.fixme tests below drove the class row menu that lived on the
-// retired trial page for managers. Re-point them at the Overview class panel (Edit class, then the
-// edit panel's Delete).
+/**
+ * MYK9-1320: a manager's class edit and delete live on the Overview class panel. Selecting a class
+ * row focuses it (FocusedClassSetupActions.tsx: the "Edit class <name>" button), Edit class opens
+ * the "Edit Class" panel (SetupClassDialogs.tsx -> ClassEditPanel), and Delete class is that
+ * panel's footer button (EditPanelDelete.tsx:66), which opens the shared delete alertdialog.
+ */
+async function focusClassOnHome(page: Page, nameMatcher: RegExp) {
+  // A class row in the schedule (CockpitTrialGroup.tsx:147 selects the row on click).
+  await page.getByText(nameMatcher).first().click();
+  await expect(page.getByRole('button', { name: /^Edit class / }).first()).toBeVisible({
+    timeout: 15000,
+  });
+}
+
+async function openClassEditPanel(page: Page) {
+  await page
+    .getByRole('button', { name: /^Edit class / })
+    .first()
+    .click();
+  const editDialog = page.getByRole('dialog', { name: 'Edit Class' });
+  await expect(editDialog).toBeVisible();
+  return editDialog;
+}
 
 test.describe('Classes UI — Add Classes (show wizard, add-classes mode)', () => {
   test.beforeEach(async ({ page }) => {
@@ -87,23 +107,15 @@ test.describe('Classes UI — Edit class judge', () => {
     await signInAsSecretary(page);
   });
 
-  test.fixme('renders judge name (not UUID) when re-opening Edit on a saved class', async ({
-    page,
-  }) => {
+  test('renders judge name (not UUID) when re-opening Edit on a saved class', async ({ page }) => {
     // Regression: SelectTrigger fell back to the raw judge UUID when
     // assignedJudges loaded after the form mounted. Picking a previously-saved
     // judge re-opens the panel showing "Richard Beezley", not "08a66fc8-…".
     // Setup: Container Master in this fixture has Richard Beezley assigned
     // from earlier walkthrough runs.
     await gotoTrial(page);
-
-    const masterRow = page.getByRole('button', { name: /Container Master /i }).first();
-    await expect(masterRow).toBeVisible();
-    await masterRow.locator('..').getByRole('button').last().click();
-    await page.getByRole('menuitem', { name: /Edit Class/i }).click();
-
-    const editDialog = page.getByRole('dialog', { name: 'Edit Class' });
-    await expect(editDialog).toBeVisible();
+    await focusClassOnHome(page, /Container Master/i);
+    const editDialog = await openClassEditPanel(page);
 
     // Judge combobox shows the resolved name, not the raw UUID.
     const judgeCombo = editDialog.getByRole('combobox', { name: /Judge/i });
@@ -121,13 +133,13 @@ test.describe('Classes UI — Delete class confirmation', () => {
     await signInAsSecretary(page);
   });
 
-  test.fixme('confirmation dialog warns and cancels without mutating data', async ({ page }) => {
+  test('confirmation dialog warns and cancels without mutating data', async ({ page }) => {
     await gotoTrial(page);
 
-    // Open Delete on Container Master.
-    const masterRow = page.getByRole('button', { name: /Container Master /i }).first();
-    await masterRow.locator('..').getByRole('button').last().click();
-    await page.getByRole('menuitem', { name: /Delete Class/i }).click();
+    // Open Delete on Container Master: the Edit Class panel's footer button.
+    await focusClassOnHome(page, /Container Master/i);
+    const editDialog = await openClassEditPanel(page);
+    await editDialog.getByRole('button', { name: 'Delete class', exact: true }).click();
 
     // The shared delete dialog (CRUD standard Phase 2): honest about Undo.
     const alert = page.getByRole('alertdialog', { name: /^Delete the class / });
@@ -149,8 +161,8 @@ test.describe('Classes UI — Delete class confirmation', () => {
     await alert.getByRole('button', { name: 'Keep it', exact: true }).click();
     await expect(alert).toHaveCount(0);
 
-    // Class still exists in the table.
-    await expect(page.getByRole('button', { name: /Container Master /i }).first()).toBeVisible();
+    // Class still exists on the Overview.
+    await expect(page.getByText(/Container Master/i).first()).toBeVisible();
     expect(deleteFired).toBe(false);
   });
 });
@@ -306,18 +318,20 @@ test.describe('Classes UI — Delete class cascade', () => {
     if (seed) await cleanupSeededClass(page, seed);
   });
 
-  test.fixme('confirming the delete soft-deletes the class and its entries', async ({ page }) => {
+  test('confirming the delete soft-deletes the class and its entries', async ({ page }) => {
     // Sanity: pre-delete, neither the class nor its entries are soft-deleted.
     const before = await fetchSoftDeleteState(page, seed.classId, seed.entryIds);
     expect(before.classDeletedAt).toBeNull();
     expect(before.entryDeletedAts.every(d => d === null)).toBe(true);
 
-    // Drive the UI: open the trial, find the seeded class row, kebab → Delete.
-    await page.goto(`/shows/${seed.showId}/trials/${seed.trialId}`, { waitUntil: 'networkidle' });
-    const classRow = page.getByRole('button', { name: new RegExp(seed.className, 'i') }).first();
-    await expect(classRow).toBeVisible({ timeout: 15000 });
-    await classRow.locator('..').getByRole('button').last().click();
-    await page.getByRole('menuitem', { name: /Delete Class/i }).click();
+    // Drive the UI: open the show home focused on the seeded class (`focus` is the cockpit's
+    // class param), then Edit class -> the panel's Delete class.
+    await page.goto(`/shows/${seed.showId}?focus=${seed.classId}`, { waitUntil: 'networkidle' });
+    await expect(page.getByRole('button', { name: /^Edit class / }).first()).toBeVisible({
+      timeout: 15000,
+    });
+    const editDialog = await openClassEditPanel(page);
+    await editDialog.getByRole('button', { name: 'Delete class', exact: true }).click();
 
     const alert = page.getByRole('alertdialog', { name: /^Delete the class / });
     await expect(alert).toBeVisible();
@@ -353,9 +367,7 @@ test.describe('Classes UI — Delete class cascade', () => {
       expect(after.entryDeletedAts.every(d => d !== null)).toBe(true);
     }).toPass({ timeout: 10000 });
 
-    // The deleted class no longer appears in the trial's class table.
-    await expect(page.getByRole('button', { name: new RegExp(seed.className, 'i') })).toHaveCount(
-      0
-    );
+    // The deleted class is gone from the Overview: nothing is focused to edit any more.
+    await expect(page.getByRole('button', { name: /^Edit class / })).toHaveCount(0);
   });
 });

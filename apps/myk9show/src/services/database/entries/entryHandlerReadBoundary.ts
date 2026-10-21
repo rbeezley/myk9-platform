@@ -66,9 +66,32 @@ export async function mapReplicatedEntriesWithHandlerIdentity(
   const entriesWithOwners = entries.map(entry => withReplicatedDogOwner(entry, dogsMap));
   const people = await loadHandlerPeople(collectHandlerIdentityIds(entriesWithOwners));
   return entriesWithOwners.map(entry => ({
-    ...mapEntry(entry),
+    ...withOwnerNames(mapEntry(entry), people),
     handler_identity: projectEntryHandlerIdentity(entry, people),
   }));
+}
+
+/**
+ * A replicated dog row holds only `owner_id`, so the row mapper emits `dog.owner` with null names.
+ * The read has already hydrated the owner's person row for the handler projection, so fill the
+ * names from it: every replication-path reader then sees the same owner the PostgREST join gives
+ * (MYK9-1320). An owner not hydrated yet stays null rather than invented.
+ */
+function withOwnerNames(
+  row: Record<string, unknown>,
+  people: ReadonlyMap<string, HandlerPersonRow>
+): Record<string, unknown> {
+  const dog = recordFromUnknown(row.dog);
+  const owner = recordFromUnknown(dog?.owner);
+  const person = typeof owner?.id === 'string' ? people.get(owner.id) : undefined;
+  if (!dog || !owner || !person) return row;
+  return {
+    ...row,
+    dog: {
+      ...dog,
+      owner: { ...owner, first_name: person.first_name, last_name: person.last_name },
+    },
+  };
 }
 
 /** Adapt a joined PostgREST row to the same canonical projection as replica rows. */

@@ -1,6 +1,11 @@
+import { useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { getEntriesByTrial, type PublicEntryRow } from '@/services/database/entries';
+import {
+  getHandlerPeopleHydrationRevision,
+  subscribeHandlerPeopleHydration,
+} from '@/services/database/entries/handlerHydration';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
 /** Row shape returned by getEntriesByTrial (snake_case DB columns). */
@@ -80,9 +85,16 @@ export function publicRowToTrialEntryRow(row: PublicEntryRow): TrialEntryRow {
 export const useTrialEntries = (trialId: string) => {
   const { user, loading } = useAuthContext();
   const isAnon = !user || user.is_anonymous === true;
+  // Owner names arrive from a people hydration that can finish after the first read; re-read when
+  // one lands so a cold device shows owners instead of blanks (MYK9-1320).
+  const peopleRevision = useSyncExternalStore(
+    subscribeHandlerPeopleHydration,
+    getHandlerPeopleHydrationRevision,
+    getHandlerPeopleHydrationRevision
+  );
 
   return useQuery<TrialEntryRow[]>({
-    queryKey: [...queryKeys.trialEntries(trialId), isAnon ? 'public' : 'auth'],
+    queryKey: [...queryKeys.trialEntries(trialId), isAnon ? 'public' : 'auth', peopleRevision],
     queryFn: async () => {
       const { data, error } = await getEntriesByTrial(trialId);
       if (error) throw error;

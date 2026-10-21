@@ -58,9 +58,9 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
           movedFromEntryId: (raw.moved_from_entry_id as string | null) ?? null,
           handler: e.handler,
           dogName: dog?.call_name || dog?.name || 'Unknown',
-          ownerName: owner
-            ? `${owner.first_name || ''} ${owner.last_name || ''}`.trim()
-            : 'Unknown',
+          // An owner whose name has not hydrated reads as Unknown, never as an empty cell.
+          ownerName:
+            (owner ? `${owner.first_name || ''} ${owner.last_name || ''}`.trim() : '') || 'Unknown',
           className: cls?.name || 'Unknown',
           entryFee: (raw.entry_fee as number) || 0,
           discountAmount: (raw.discount_amount as number) || 0,

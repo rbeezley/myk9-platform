@@ -193,11 +193,16 @@ export class PermissionChecker {
           // Only after a successful load: drop this user's per-permission
           // answers so a revoked permission is not served from them (the old
           // clear-first behaviour, minus the window with nothing cached).
-          if (options?.bypassCache) this.deletePermissionEntries(userId);
           this.completeAccessCache.set(userId, {
             result,
             expiresAt: Date.now() + this.cacheTimeout,
           });
+          if (options?.bypassCache) {
+            this.deletePermissionEntries(userId);
+            // Advance the generation checkPermission compares, so a check that
+            // STARTED before this refresh cannot re-cache a revoked answer.
+            this.accessGeneration.set(userId, generation + 1);
+          }
         }
         return result;
       })

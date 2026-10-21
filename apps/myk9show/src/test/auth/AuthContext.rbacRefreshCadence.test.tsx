@@ -167,6 +167,36 @@ describe('RBAC refresh cadence (MYK9-1308)', () => {
     expect(loadingSeen.slice(before)).not.toContain(true);
   });
 
+  it('visibilitychange and focus in the same tick start one refresh, and it invalidates identity', async () => {
+    const spy = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+    await booted();
+    await advance(GAP_MS + 1000);
+    let release: (() => void) | undefined;
+    mockRbacService.getUserPermissions.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          release = () => resolve(accessForRole(UserRole.SECRETARY));
+        })
+    );
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(2);
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['userProfile', mockUser.id] });
+    await act(async () => release?.());
+  });
+
+  it('a window focus alone (no visibilitychange) invalidates identity through the RBAC path', async () => {
+    const spy = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+    await booted();
+    await advance(GAP_MS + 1000);
+    await fire(window, 'focus');
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith({ queryKey: ['userProfile', mockUser.id] })
+    );
+  });
+
   it('a failed focus refresh does not suppress the next focus', async () => {
     await booted();
     mockRbacService.getUserPermissions.mockRejectedValueOnce(new Error('boom: rpc down'));

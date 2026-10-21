@@ -323,4 +323,28 @@ describe('PermissionChecker bypass refresh (MYK9-1308)', () => {
     const cached = await checker.getUserPermissions('user-1');
     expect(cached.effectivePermissions).toEqual(['new']);
   });
+
+  it('does not re-cache a revoked answer from a check that started before a successful refresh', async () => {
+    let releaseCheck: (() => void) | undefined;
+    mockRpc.mockImplementation((name: string) => {
+      if (name === 'user_has_permission') {
+        return new Promise(resolve => {
+          releaseCheck = () => resolve({ data: true, error: null });
+        });
+      }
+      return Promise.resolve({ data: [], error: null });
+    });
+    const checker = new PermissionChecker();
+    const staleCheck = checker.checkPermission('user-1', 'show:manage');
+    await vi.waitFor(() => expect(releaseCheck).toBeDefined());
+
+    await checker.getUserPermissions('user-1', undefined, { bypassCache: true });
+    releaseCheck?.();
+    await expect(staleCheck).resolves.toBe(true);
+
+    mockRpc.mockImplementation((name: string) =>
+      Promise.resolve({ data: name === 'user_has_permission' ? false : [], error: null })
+    );
+    await expect(checker.checkPermission('user-1', 'show:manage')).resolves.toBe(false);
+  });
 });

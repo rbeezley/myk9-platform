@@ -205,9 +205,19 @@ export function useRbacLifecycle(userId: string | undefined) {
     };
 
     // lastLoadAt is stamped on success only, so a failed refresh leaves the
-    // gap open and the next focus retries.
+    // gap open and the next focus retries. A request while one is in flight
+    // joins it (visibilitychange + focus arrive together); the marker clears
+    // on success AND failure.
+    let refreshInFlight: Promise<void> | null = null;
     const refresh = () => {
-      void load(0, ++requestGenerationRef.current, true);
+      if (refreshInFlight) return;
+      refreshInFlight = load(0, ++requestGenerationRef.current, true).finally(() => {
+        refreshInFlight = null;
+      });
+    };
+    const refreshWithIdentity = () => {
+      refresh();
+      void queryClient.invalidateQueries({ queryKey: ['userProfile', userId] });
     };
     void load();
 
@@ -216,7 +226,9 @@ export function useRbacLifecycle(userId: string | undefined) {
     const refreshIfDue = () => {
       if (document.visibilityState === 'hidden') return;
       if (Date.now() - lastLoadAt < RBAC_FOCUS_REFRESH_GAP_MS) return;
-      refresh();
+      // Identity rides on every RBAC refresh: the query client's focus manager
+      // hears only visibilitychange, not a window focus on a visible tab.
+      refreshWithIdentity();
     };
     document.addEventListener('visibilitychange', refreshIfDue);
     window.addEventListener('focus', refreshIfDue);
@@ -225,10 +237,6 @@ export function useRbacLifecycle(userId: string | undefined) {
     // boot) roles should go live promptly, as RbacOfflineNotice promises
     // (MYK9-200). Not gated: the last attempt may have failed offline.
     window.addEventListener('online', refresh);
-    const refreshWithIdentity = () => {
-      refresh();
-      void queryClient.invalidateQueries({ queryKey: ['userProfile', userId] });
-    };
     refreshNowRef.current = refreshWithIdentity;
     // Skip while hidden: the visibilitychange listener refreshes on show.
     const safetyNet = window.setInterval(() => {

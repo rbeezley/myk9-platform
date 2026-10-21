@@ -223,6 +223,10 @@ function renderAt(search = '') {
 }
 
 beforeEach(() => {
+  // useClassRowSyncState reads the real classes replica (IndexedDB); under load that first read
+  // outlasts waitFor's 1s and a tap lands on the disabled button (MYK9-1316). Settle it in-memory.
+  vi.spyOn(replicatedClassesTable, 'getReplicatedRow').mockResolvedValue(null);
+  vi.spyOn(replicatedClassesTable, 'hasUnsyncedLocalWork').mockResolvedValue(false);
   media.wide = false;
   scope.canOperate = true;
   releaseMutate.mockReset();
@@ -904,6 +908,10 @@ describe('ResultsTab one-tap release (MYK9-1264)', () => {
 
     expect(screen.getByText('Confirm the scores')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
+    // The class-sync read settles a beat after mount; tapping earlier is a disabled no-op.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Confirm scores' })).toBeEnabled()
+    );
     await user.click(screen.getByRole('button', { name: 'Confirm scores' }));
 
     await waitFor(() => expect(verifyMutate).toHaveBeenCalledTimes(1));

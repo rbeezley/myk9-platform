@@ -7,6 +7,7 @@
  * Conflict Resolution: Server-authoritative
  */
 
+import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 import {
   ReplicatedTable,
   syncReplicatedTable,
@@ -46,7 +47,7 @@ export const JUDGE_ASSIGNMENT_SELECT = `id, person_id, show_id, trial_id, class_
              )`;
 
 /** PostgREST's max_rows (supabase/config.toml): one page of the sync fetch. */
-export const JUDGE_ASSIGNMENTS_PAGE_SIZE = 1000;
+export const JUDGE_ASSIGNMENTS_PAGE_SIZE = POSTGREST_MAX_ROWS;
 
 export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJudgeAssignment> {
   private _lastMutationId: string | null = null;

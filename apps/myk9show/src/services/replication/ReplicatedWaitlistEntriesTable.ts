@@ -11,6 +11,7 @@
  * - Incremental sync (waitlist_entries has updated_at column)
  */
 
+import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 import {
   ReplicatedTable,
   syncReplicatedTable,
@@ -108,6 +109,7 @@ export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWa
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<WaitlistEntryRow, ReplicatedWaitlistEntry> = {
+      remotePageSize: POSTGREST_MAX_ROWS,
       // Coverage self-heal (MYK9-660). An incremental sync only asks for rows
       // whose updated_at is past the watermark, so rows that become visible
       // because RLS widened (club admins reading their show's waitlist) are

@@ -60,7 +60,7 @@ export function getRemoteCountCadence(): Readonly<RemoteCountCadenceConfig> {
   return config;
 }
 
-/** A realtime channel re-subscribed: the next pass of every table counts. */
+/** A realtime channel re-subscribed or the device came back online: the next pass of every table counts. */
 export function markRealtimeReconnected(): void {
   reconnectEpoch += 1;
 }

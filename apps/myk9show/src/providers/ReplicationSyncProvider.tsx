@@ -26,6 +26,7 @@ import {
   ReplicatedTable,
   configureConflictSurfacing,
   configureRemoteCountCadence,
+  markRealtimeReconnected,
   type ReplicationConflictEventDetail,
   type UploadCompleteEventDetail,
 } from '@myk9/replication';
@@ -518,6 +519,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         wasOffline.current = true;
       } else if (wasOffline.current) {
         wasOffline.current = false;
+        // MYK9-1301: events may have been missed while offline, so the next pass counts.
+        markRealtimeReconnected();
         logger.info('Back online - restoring mutations and triggering sync', 'replication');
         const timer = setTimeout(async () => {
           await mutationManager.restoreMutationsFromLocalStorage();

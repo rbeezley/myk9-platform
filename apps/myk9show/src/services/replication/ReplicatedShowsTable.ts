@@ -8,6 +8,7 @@
  * - Local edits queue as mutations for later sync
  */
 
+import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 import {
   ReplicatedTable,
   syncReplicatedTable,
@@ -223,6 +224,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
 
     const adapter: SyncReplicatedTableAdapter<ShowRow, ReplicatedShow> = {
       ...this.getRowRefetchAdapter(),
+      remotePageSize: POSTGREST_MAX_ROWS,
       getRemoteRowCount: ({ scope }) => getLiveShowCount(scope.value),
       // A soft-deleted show is filtered out of every fetch, so it is never
       // overwritten or removed here. Once a full fetch proves complete against

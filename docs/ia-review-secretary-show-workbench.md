@@ -10,7 +10,7 @@
 
 ## Owner review (2026-10-20)
 
-Reviewed against `origin/main` by the session that ran the usability walk; every orphan route, stranded card and duplicate door below was re-checked by grep and holds. Three corrections are folded in below and marked **[review]**: venue location is not stranded (the wizard's edit mode carries the map pin), the deletion is about 1,900 lines including tests rather than 4,000, and the plan now carries a counted control inventory as an exit criterion because this audit measured structure, not controls. Deletion list approved with those edits; the Gate 0 decisions are recorded in the plan.
+Reviewed against `origin/main` by the session that ran the usability walk; every orphan route, stranded card and duplicate door below was re-checked by grep and holds. Corrections are folded in below and marked **[review]**: the deletion is about 1,900 lines including tests rather than 4,000, and the plan now carries a counted control inventory as an exit criterion because this audit measured structure, not controls. Deletion list approved with those edits; the Gate 0 decisions are recorded in the plan. One review edit was overturned by the Phase A run on 2026-10-21: the review claimed the wizard's edit mode carries the map pin, but the wizard has no edit mode for an existing show's location, so `VenueLocationCard` was stranded too and was re-homed, not deleted (MYK9-1296, #3155; cold-load check in MYK9-1313).
 
 ## Evidence limits — read first
 
@@ -83,7 +83,7 @@ Overview's focused class already lists the class's tracked paperwork (check-in s
 
 ### Task: refund every entry of a cancelled show; set the venue Wi-Fi; set a per-show withdrawal policy
 
-All three exist only on `/secretary/settings`, which nothing links to. **Verdict: Broken.** A secretary cannot reach them without typing a URL, and even then the page may open on the wrong show. Venue Wi-Fi matters more than it looks: the armband labels print it (`ArmbandLabelCell`), so today the labels cannot carry the Wi-Fi without a typed URL. **[review]** Venue location is a different case: the wizard's Basics section carries the map pin and the wizard has an edit mode, so `VenueLocationCard` is a retrofit for shows created before the map feature, not a stranded capability.
+All three exist only on `/secretary/settings`, which nothing links to. **Verdict: Broken.** A secretary cannot reach them without typing a URL, and even then the page may open on the wrong show. Venue Wi-Fi matters more than it looks: the armband labels print it (`ArmbandLabelCell`), so today the labels cannot carry the Wi-Fi without a typed URL. **[review, overturned 2026-10-21]** The review first read venue location as wizard-owned; the Phase A run found the wizard has no edit mode for an existing show's location, so `VenueLocationCard` was stranded too and now lives in the Edit show details panel.
 
 ### Task: review entries, close the show
 
@@ -113,14 +113,13 @@ Entry Forms is the single home of approve (`showMapRoutes.ts:36-46`), and every 
 
 **Mismatches:**
 
-| Capability                          | User expects in          | Actually lives in                           | Severity |
-| ----------------------------------- | ------------------------ | ------------------------------------------- | -------- |
-| Refund all entries (cancelled show) | The show itself          | Unreachable page                            | High     |
-| Wi-Fi, per-show withdrawal          | The show itself          | Unreachable page                            | High     |
-| Venue location (pre-map shows only) | The show itself          | Unreachable page; the wizard already has it | Low      |
-| Check and release a class's results | A class, start to finish | A different tab from the rest of the class  | High     |
-| Trial money                         | After / money            | The trial page's Financials tab only        | Med      |
-| "Where am I"                        | Managing my show         | Browse (rail and breadcrumb)                | Med      |
+| Capability                                 | User expects in          | Actually lives in                          | Severity |
+| ------------------------------------------ | ------------------------ | ------------------------------------------ | -------- |
+| Refund all entries (cancelled show)        | The show itself          | Unreachable page                           | High     |
+| Venue location, Wi-Fi, per-show withdrawal | The show itself          | Unreachable page                           | High     |
+| Check and release a class's results        | A class, start to finish | A different tab from the rest of the class | High     |
+| Trial money                                | After / money            | The trial page's Financials tab only       | Med      |
+| "Where am I"                               | Managing my show         | Browse (rail and breadcrumb)               | Med      |
 
 ## Step 4: Duplication & Orphan Scan
 
@@ -156,7 +155,7 @@ Scoring note: the rubric labels Fix invasiveness "INVERSE — lower is better". 
 
 | #     | Finding                                                                                                     | Step | Freq | Friction | Fix (inv) | Sum | Priority |
 | ----- | ----------------------------------------------------------------------------------------------------------- | ---- | ---- | -------- | --------- | --- | -------- |
-| IA-1  | Refund all entries, Wi-Fi and per-show withdrawal policy are unreachable; the venue-pin retrofit too        | 1, 2 | 2    | 5        | 4         | 11  | Critical |
+| IA-1  | Refund all entries, venue location, Wi-Fi, per-show withdrawal policy are unreachable                       | 1, 2 | 2    | 5        | 4         | 11  | Critical |
 | IA-2  | Header carries five status widgets plus a chip that read as contradictory                                   | 2    | 5    | 2        | 4         | 11  | Critical |
 | IA-3  | Inside a managed show the rail highlights Browse and the breadcrumb says Shows                              | 2, 3 | 5    | 2        | 4         | 11  | Critical |
 | IA-4  | Overview "Your show" button row duplicates Actions-menu verbs and per-class scoring                         | 4    | 4    | 2        | 5         | 11  | Critical |
@@ -174,31 +173,30 @@ Scoring note: the rubric labels Fix invasiveness "INVERSE — lower is better". 
 
 ## The deletion list
 
-| Surface                                                                                               | Verdict           | Home / reason                                                                                                                             | Finding |
-| ----------------------------------------------------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| `/secretary/pipeline/:trialId` + `PipelineColumn`, `TrialPipelineCard`, `ClassPipelineCard`, stage UI | **Goes**          | Unreachable; its stages duplicate the four tabs. Keep `useMissionControlData`.                                                            | IA-8    |
-| `/shows/:id/trials/:tid/classes/:cid/secretary` (`SecretaryClassDashboard`)                           | **Goes**          | Unreachable; duplicates Results and paper scoring                                                                                         | IA-8    |
-| `/secretary/settings` (`ShowSettingsPage`)                                                            | **Goes**          | After its four orphan cards move to the Edit show panel                                                                                   | IA-1, 8 |
-| Show Settings → venue Wi-Fi, per-show withdrawal policy                                               | **Merges**        | Edit show details panel (show-level facts). Owner decision 2026-10-20.                                                                    | IA-1    |
-| Show Settings → Refund all entries                                                                    | **Merges**        | Beside the status pill's Cancel path; the existing card mounts unchanged (refunds stay human-approved). Owner 2026-10-20                  | IA-1    |
-| Show Settings → `VenueLocationCard`                                                                   | **Goes** [review] | The wizard's Basics section already owns the pin (edit mode); pin-less shows get a readiness-checklist prompt into it                     | IA-1    |
-| Show Settings → Results visibility "Manage", Self check-in "Manage"                                   | **Goes**          | Forwarders to pages that already own them                                                                                                 | IA-1    |
-| `ShowAccessCodesCard` in `ShowOverviewTab` (manager branch) and Show Settings                         | **Goes**          | Tools → Access codes is the home; wizard success overlay keeps its moment                                                                 | IA-11   |
-| Overview "Your show" row: Add Trial, Select classes, Enter results from scoresheet, Tools             | **Merges**        | Actions menu (Add Trial, Select classes, tools); scoring stays per class                                                                  | IA-4, 6 |
-| Tools button and accordion sheet                                                                      | **Merges**        | Actions menu rows, one tool per panel (`plan-show-tools-into-actions.md`, owner-approved 2026-10-09)                                      | IA-6    |
-| Volunteers tool card                                                                                  | **Merges**        | Its Actions row links straight to `/secretary/volunteers?showId=`                                                                         | IA-6    |
-| Actions "Generate & publish premium"                                                                  | **Goes**          | The details panel's premium card is the one verb; chip and readiness line point at it                                                     | IA-10   |
-| `ResultsControlPage` bulk release inside the Visibility settings sheet                                | **Goes** (verify) | Release on the Results class detail only; the sheet keeps visibility                                                                      | IA-7    |
-| Header: sync status, offline badge, live-update indicator                                             | **Merges**        | One device line (MYK9-1282)                                                                                                               | IA-2    |
-| Header: status pill + publish attention chip                                                          | **Merges**        | One show status line (MYK9-1282)                                                                                                          | IA-2    |
-| Results "Open on Overview" / "Mark Class Complete on Overview" ping-pong                              | **Merges**        | Owner decision 2026-10-20: Option 1, the focused class owns the lifecycle, by mounting `ResultsClassDetail` there unchanged (see Phase C) | IA-5    |
-| Trial page Overview and Entries tabs (for managers)                                                   | **Merges**        | Owner decision 2026-10-20: a link into the workbench filtered by trial; per-trial Financials sits beside Reports' Financial Report        | IA-9    |
-| Overview cockpit, focused class, class checklist                                                      | **Stays**         | The day's home and the daily paperwork home                                                                                               | —       |
-| Entry Forms                                                                                           | **Stays**         | The one home of entries (fix the default queue, MYK9-1276)                                                                                | —       |
-| Results (cross-class list, Submit, Close)                                                             | **Stays**         | After-the-show home                                                                                                                       | —       |
-| Reports                                                                                               | **Stays**         | The print library; owner closed MYK9-959 without merging it                                                                               | IA-12   |
-| Class page, paper scoring, `/secretary/register`, messages, volunteers page                           | **Stays**         | Each is the canonical home of its job                                                                                                     | —       |
-| Header armband lookup, presence avatars, details disclosure                                           | **Stays**         | Single homes                                                                                                                              | —       |
+| Surface                                                                                               | Verdict            | Home / reason                                                                                                                                                                | Finding |
+| ----------------------------------------------------------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `/secretary/pipeline/:trialId` + `PipelineColumn`, `TrialPipelineCard`, `ClassPipelineCard`, stage UI | **Goes**           | Unreachable; its stages duplicate the four tabs. Keep `useMissionControlData`.                                                                                               | IA-8    |
+| `/shows/:id/trials/:tid/classes/:cid/secretary` (`SecretaryClassDashboard`)                           | **Goes**           | Unreachable; duplicates Results and paper scoring                                                                                                                            | IA-8    |
+| `/secretary/settings` (`ShowSettingsPage`)                                                            | **Gone** (#3155)   | Its four cards moved to the Edit show panel; the route redirects to the dashboard                                                                                            | IA-1, 8 |
+| Show Settings → venue location, venue Wi-Fi, per-show withdrawal policy                               | **Merged** (#3155) | Edit show details panel (show-level facts), keyed on the route show. Club admins of the owning club keep access (owner, 2026-10-21).                                         | IA-1    |
+| Show Settings → Refund all entries                                                                    | **Merged** (#3155) | Edit show details panel, shown only once the show is cancelled (status select or "Mark Cancelled"); the card mounts unchanged, refunds stay human-approved. Owner 2026-10-21 | IA-1    |
+| Show Settings → Results visibility "Manage", Self check-in "Manage"                                   | **Goes**           | Forwarders to pages that already own them                                                                                                                                    | IA-1    |
+| `ShowAccessCodesCard` in `ShowOverviewTab` (manager branch) and Show Settings                         | **Goes**           | Tools → Access codes is the home; wizard success overlay keeps its moment                                                                                                    | IA-11   |
+| Overview "Your show" row: Add Trial, Select classes, Enter results from scoresheet, Tools             | **Merges**         | Actions menu (Add Trial, Select classes, tools); scoring stays per class                                                                                                     | IA-4, 6 |
+| Tools button and accordion sheet                                                                      | **Merges**         | Actions menu rows, one tool per panel (`plan-show-tools-into-actions.md`, owner-approved 2026-10-09)                                                                         | IA-6    |
+| Volunteers tool card                                                                                  | **Merges**         | Its Actions row links straight to `/secretary/volunteers?showId=`                                                                                                            | IA-6    |
+| Actions "Generate & publish premium"                                                                  | **Goes**           | The details panel's premium card is the one verb; chip and readiness line point at it                                                                                        | IA-10   |
+| `ResultsControlPage` bulk release inside the Visibility settings sheet                                | **Goes** (verify)  | Release on the Results class detail only; the sheet keeps visibility                                                                                                         | IA-7    |
+| Header: sync status, offline badge, live-update indicator                                             | **Merges**         | One device line (MYK9-1282)                                                                                                                                                  | IA-2    |
+| Header: status pill + publish attention chip                                                          | **Merges**         | One show status line (MYK9-1282)                                                                                                                                             | IA-2    |
+| Results "Open on Overview" / "Mark Class Complete on Overview" ping-pong                              | **Merges**         | Owner decision 2026-10-20: Option 1, the focused class owns the lifecycle, by mounting `ResultsClassDetail` there unchanged (see Phase C)                                    | IA-5    |
+| Trial page Overview and Entries tabs (for managers)                                                   | **Merges**         | Owner decision 2026-10-20: a link into the workbench filtered by trial; per-trial Financials sits beside Reports' Financial Report                                           | IA-9    |
+| Overview cockpit, focused class, class checklist                                                      | **Stays**          | The day's home and the daily paperwork home                                                                                                                                  | —       |
+| Entry Forms                                                                                           | **Stays**          | The one home of entries (fix the default queue, MYK9-1276)                                                                                                                   | —       |
+| Results (cross-class list, Submit, Close)                                                             | **Stays**          | After-the-show home                                                                                                                                                          | —       |
+| Reports                                                                                               | **Stays**          | The print library; owner closed MYK9-959 without merging it                                                                                                                  | IA-12   |
+| Class page, paper scoring, `/secretary/register`, messages, volunteers page                           | **Stays**          | Each is the canonical home of its job                                                                                                                                        | —       |
+| Header armband lookup, presence avatars, details disclosure                                           | **Stays**          | Single homes                                                                                                                                                                 | —       |
 
 ## Re-triage of the held issues
 
@@ -241,5 +239,5 @@ Only the issues that touch this surface are decided here. The rest are on exhibi
 2. IA-4 / IA-6: Overview's button row and the Tools accordion duplicate the Actions menu — Critical / High.
 3. IA-5: a class's lifecycle is split across Overview and Results — High, needs an owner decision.
 
-**Recommended next phase:** Phase A — mostly deletions, about 1,900 lines out including tests (the dashboard's `useMissionControlData` and the pipeline's print and utility modules stay), three capabilities made reachable, and the secretary phase spec written into `docs/INTENT.md` so later work maps to it instead of re-deriving it.
+**Phase A shipped 2026-10-21** (#3155, #3156, #3157; MYK9-1312 removed the importer-less leftovers): the three orphan pages gone, four capabilities reachable from the show, one premium verb, one header status line, and the secretary phase spec in `docs/INTENT.md`. Baseline for Phase B: 22 controls at 375px and 36 at 1280px on the Overview (MYK9-1298). **Next:** Phase B (MYK9-1262, 1317, 1318), then Phase C (MYK9-1269, 1319, 1320).
 **Total estimated remediation effort:** 8–10 PRs across three phases.

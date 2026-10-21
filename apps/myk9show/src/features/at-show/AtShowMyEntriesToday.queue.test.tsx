@@ -54,6 +54,7 @@ function renderRow(detail: AtShowEntryDetail) {
   return render(
     <AtShowMyEntriesToday
       showId="show-1"
+      showName="Spring Scent Trial"
       entries={[detail]}
       isLoading={false}
       dataUpdatedAt={1}

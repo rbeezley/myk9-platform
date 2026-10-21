@@ -57,13 +57,19 @@ export function AtShowAnnouncementFeed({
           aria-expanded={isOpen}
         >
           <Megaphone className="h-4 w-4" aria-hidden />
-          <span>Show announcements</span>
+          <span>Announcements</span>
           {unreadCount > 0 && (
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">
+              {/* Separators: inline spans concatenate without spaces in the accessible name. */}
+              <span className="sr-only">, </span>
               {unreadCount}
+              <span className="sr-only"> unread</span>
             </span>
           )}
-          <span className="ml-auto text-sm">{isOpen ? 'Hide' : 'Show'}</span>
+          <span className="sr-only">, </span>
+          {/* "Open"/"Close", not "Show": at a dog show the bare word reads as the event
+              (MYK9-1287). The button's name is its visible text, count included. */}
+          <span className="ml-auto text-sm">{isOpen ? 'Close' : 'Open'}</span>
         </button>
         {isOpen && (
           <div className="max-h-64 overflow-y-auto border-t border-border/50">

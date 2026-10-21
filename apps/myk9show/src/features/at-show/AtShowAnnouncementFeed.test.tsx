@@ -57,7 +57,7 @@ describe('AtShowAnnouncementFeed', () => {
     );
 
     expect(screen.getByText('RINGSIDE CONTENT')).toBeInTheDocument();
-    expect(screen.queryByText('Show announcements')).not.toBeInTheDocument();
+    expect(screen.queryByText('Announcements')).not.toBeInTheDocument();
   });
 
   it('subscribes to the current show on mount', () => {
@@ -86,11 +86,11 @@ describe('AtShowAnnouncementFeed', () => {
     );
 
     // Banner renders collapsed by default, with the unread badge.
-    expect(screen.getByText('Show announcements')).toBeInTheDocument();
+    expect(screen.getByText('Announcements')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.queryByText('Ring 2 delayed 15 minutes')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /show announcements/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Announcements/ }));
 
     expect(screen.getByText('Ring 2 delayed 15 minutes')).toBeInTheDocument();
     // Underlying page content still renders alongside the feed (not replaced).
@@ -105,7 +105,7 @@ describe('AtShowAnnouncementFeed', () => {
         <div>RINGSIDE CONTENT</div>
       </AtShowAnnouncementFeed>
     );
-    fireEvent.click(screen.getByRole('button', { name: /show announcements/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Announcements/ }));
 
     expect(screen.queryByRole('button', { name: /compose/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
@@ -124,9 +124,30 @@ describe('AtShowAnnouncementFeed', () => {
         <div>RINGSIDE CONTENT</div>
       </AtShowAnnouncementFeed>
     );
-    fireEvent.click(screen.getByRole('button', { name: /show announcements/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Announcements/ }));
     fireEvent.click(screen.getByRole('article', { name: 'Ring 2 delayed 15 minutes' }));
 
     expect(markRead).toHaveBeenCalledWith('ann-1', 'passcode-anon-user-1');
+  });
+
+  it('names the toggle by what it does so "Show" cannot read as the dog show', () => {
+    useAnnouncementStore.setState({ announcements: [makeAnnouncement()], unreadCount: 1 });
+
+    render(
+      <AtShowAnnouncementFeed showId="show-1">
+        <div>RINGSIDE CONTENT</div>
+      </AtShowAnnouncementFeed>
+    );
+
+    // The name is the visible text: the label first, then the unread count, then the verb. jsdom
+    // trims the sr-only separators, so the match is whitespace-tolerant.
+    // "Open", never "Show", which at a dog show reads as the event (MYK9-1287).
+    const toggle = screen.getByRole('button', { name: /^Announcements,\s*1\s*unread,\s*Open$/ });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(toggle);
+    expect(
+      screen.getByRole('button', { name: /^Announcements,\s*1\s*unread,\s*Close$/ })
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryByRole('button', { name: /\bShow\b/ })).not.toBeInTheDocument();
   });
 });

@@ -81,6 +81,7 @@ function renderList(entries: AtShowEntryDetail[] = ENTRIES, loadFailed = false) 
   return render(
     <AtShowMyEntriesToday
       showId="show-1"
+      showName="Spring Scent Trial"
       entries={entries}
       isLoading={false}
       dataUpdatedAt={1}
@@ -135,6 +136,7 @@ describe('AtShowMyEntriesToday — one ordered list (MYK9-1046)', () => {
     view.rerender(
       <AtShowMyEntriesToday
         showId="show-1"
+        showName="Spring Scent Trial"
         entries={ENTRIES.filter(item => item.dogKey === 'dog-juni')}
         isLoading={false}
         dataUpdatedAt={1}

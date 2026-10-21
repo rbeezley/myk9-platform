@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, within } from '@/test/utils/testUtils';
 import { RoleSidebar } from '../RoleSidebar';
 import { buildUnifiedSidebarConfig } from '../unifiedSidebarConfig';
 import { UserRole } from '@/types/auth-types';
@@ -136,6 +136,6 @@ describe('RoleSidebar', () => {
 
     const account = screen.getByRole('button', { name: 'Account menu for Jamie, Site Admin' });
     expect(account).toHaveTextContent('Jamie');
-    expect(account).not.toHaveTextContent('Site Admin');
+    expect(within(account).getByText(', Site Admin')).toHaveClass('sr-only');
   });
 });

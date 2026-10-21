@@ -20,6 +20,8 @@ import { formatTime } from '@/lib/format/dates';
 import { useReserveBottomAbove } from '@/hooks/useReserveBottomAbove';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import type { ResultsClassRow } from './buildResultsClassRows';
+import { useClassManualReleaseTiming } from './classManualReleaseTiming';
+import { HideResultsButton, hideBlockedReason } from './HideResultsButton';
 import { PrintStatusUnavailable } from './PrintStatusUnavailable';
 import { ResultsStatusChip } from './ResultsClassList';
 import { getFixScoreHref, getOverviewFocusHref } from './resultsTabRoutes';
@@ -35,6 +37,9 @@ interface ResultsClassDetailProps {
   timeZone: string;
   releasing: boolean;
   onRelease: () => void;
+  /** Takes a released class back to unreleased (MYK9-1318). */
+  onHide: () => void;
+  hiding: boolean;
   /** Refetches every read; offered where print status could not be read. */
   onRetry: () => void;
   /** Removes the saved check. */
@@ -57,6 +62,7 @@ interface PrimaryWorkProps extends Pick<
   | 'showId'
   | 'row'
   | 'releasing'
+  | 'hiding'
   | 'onRelease'
   | 'online'
   | 'releaseBlockedReason'
@@ -69,6 +75,7 @@ function PrimaryWork({
   showId,
   row,
   releasing,
+  hiding,
   onRelease,
   online,
   releaseBlockedReason,
@@ -111,7 +118,7 @@ function PrimaryWork({
         <Button
           type="button"
           className="min-h-11"
-          disabled={verifying || releasing || blocked !== null}
+          disabled={verifying || releasing || hiding || blocked !== null}
           onClick={onRelease}
         >
           {verifying
@@ -145,7 +152,7 @@ function PrimaryWork({
         <Button
           type="button"
           className="min-h-11"
-          disabled={releasing || verifying || releaseBlockedReason !== null}
+          disabled={releasing || verifying || hiding || releaseBlockedReason !== null}
           onClick={onRelease}
         >
           {releasing ? 'Releasing…' : 'Release results'}
@@ -299,6 +306,8 @@ export function ResultsClassDetail({
   timeZone,
   releasing,
   onRelease,
+  onHide,
+  hiding,
   onRetry,
   onUndoVerify,
   verifying,
@@ -308,6 +317,11 @@ export function ResultsClassDetail({
   currentUserId,
   judgeSignOffSlot,
 }: ResultsClassDetailProps) {
+  // Same rule as the Fix link: only a scope RESOLVED as non-operator is refused; while it
+  // resolves, the route guard is the safety net.
+  const manageScope = useShowManageScope(showId);
+  const releaseTiming = useClassManualReleaseTiming(showId, row.id, row.trialId);
+  const canOperate = !(manageScope.status === 'resolved' && !manageScope.canOperate);
   const embedded = useEmbeddedDetail();
   const { search } = useLocation();
   const backParams = new URLSearchParams(search);
@@ -356,12 +370,30 @@ export function ResultsClassDetail({
         showId={showId}
         row={row}
         releasing={releasing}
+        hiding={hiding}
         onRelease={onRelease}
         online={online}
         releaseBlockedReason={releaseBlockedReason}
         verifyBlockedReason={verifyBlockedReason}
         verifying={verifying}
       />
+      {/* A released class always shows Hide; it is enabled only under manual release timing
+          (clearing the release changes nothing otherwise), online, and while nothing else runs.
+          An unknown release state has no releasedAt, so it offers neither Release nor Hide. */}
+      {canOperate && released && (
+        <div className="flex justify-end">
+          <HideResultsButton
+            className={row.name}
+            hiding={hiding}
+            blockedReason={hideBlockedReason({
+              online,
+              timing: releaseTiming,
+              busy: releasing || verifying,
+            })}
+            onHide={onHide}
+          />
+        </div>
+      )}
       {row.verifiedAt && row.phase !== 'needs-checking' && (
         <VerifiedLine
           row={row}

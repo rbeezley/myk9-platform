@@ -140,7 +140,7 @@ The last dog has run. Now you need to verify every result is correct, release th
 ### Steps
 
 1. You open `ResultsControlPage` → review each trial's classes; confirm all entries have a recorded result (pass / NQ / absent) → cross-check against paper scoresheets where needed.
-2. You toggle **Release Results** → results become visible to exhibitors in their accounts.
+2. You open the class on Results and press **Release results** → results become visible to exhibitors in their accounts. A released class offers **Hide results** on the same class when the class holds results for review (After Review).
 3. You open `ReportsPage` → generate the following in order:
    - Show Catalog (required AKC submission — printed and mailed to AKC along with the electronic results)
    - Results Catalog (full results per class, equivalent to mySWT §3.26)

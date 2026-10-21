@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
+import { useUnreleaseResults } from '@/hooks/mutations/useUnreleaseResults';
 import type { ResultsClassRow } from './buildResultsClassRows';
 import { ResultsClassDetail } from './ResultsClassDetail';
 import { ResultsClassList } from './ResultsClassList';
@@ -78,7 +79,7 @@ function everyClassReleasedAndInitialed(rows: readonly ResultsClassRow[]): boole
  * complete and on Results from then on; an unfinished class links back to Overview.
  *
  * The page owns only the URL state and the release call. Reads are `useResultsTabData`'s, and
- * Release is the mutation `ResultsBulkBar` has always used (`useReleaseResults`).
+ * Release is the `useReleaseResults` mutation; this is the one place a class is released (MYK9-1318).
  */
 export default function ResultsTab() {
   const params = useParams<{ showId?: string; id?: string }>();
@@ -103,6 +104,7 @@ export default function ResultsTab() {
   );
   const state: ResultsTabViewState = { ...urlState, status: urlState.status ?? defaultStatus };
   const release = useReleaseResults();
+  const unrelease = useUnreleaseResults();
   const { pathname, search } = useLocation();
   const judgeSignOff = useJudgeSignOffMutations();
   const { user } = useAuth();
@@ -182,7 +184,7 @@ export default function ResultsTab() {
     } else if (row.phase !== 'ready-to-release') {
       return;
     }
-    if (releaseBlockedReason !== null) return;
+    if (releaseBlockedReason !== null || unrelease.isPending) return;
     const generationAtClick = checkGeneration.current;
     // Held for the WHOLE verify and preflight, so Undo and the button stay disabled until the
     // release is queued or the preflight gives up.
@@ -259,6 +261,21 @@ export default function ResultsTab() {
     }
   };
 
+  const handleHide = (row: ResultsClassRow) => {
+    // The button is disabled in these states; this keeps a stale click from racing a release.
+    if (release.isPending || releaseChecking || verification.isPending || !isOnline) return;
+    unrelease.mutate(
+      { classIds: [row.id], showId },
+      {
+        onSuccess: ({ unreleased }) =>
+          unreleased.length > 0
+            ? toast.success('Results hidden')
+            : toast.error('Could not hide the results. Try again.'),
+        onError: () => toast.error('Could not hide the results. Try again.'),
+      }
+    );
+  };
+
   if (readState === 'loading') {
     return (
       <div className="mt-4">
@@ -327,6 +344,8 @@ export default function ResultsTab() {
       timeZone={timeZone}
       releasing={release.isPending || releaseChecking}
       onRelease={() => handleRelease(selected)}
+      onHide={() => handleHide(selected)}
+      hiding={unrelease.isPending}
       onRetry={retry}
       onUndoVerify={() => {
         checkGeneration.current += 1;

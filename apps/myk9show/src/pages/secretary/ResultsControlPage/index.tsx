@@ -1,8 +1,9 @@
 /**
  * Results Control Page
  *
- * Standalone secretary page for managing result visibility,
- * result visibility and releasing results with bulk operations.
+ * Result visibility for a show (presets, trial and class overrides, bulk Apply Preset). Mounted
+ * only as the Results tab's Visibility settings sheet; releasing and hiding happen on the class
+ * detail (MYK9-1318).
  */
 
 import { useEffect, useMemo, useCallback } from 'react';
@@ -49,7 +50,7 @@ function CardLoadError() {
 /**
  * `embedded` is the Results tab's "Visibility settings" sheet (MYK9-1031): the sheet supplies the
  * title and the tab owns navigation, so the page's own heading and return link stay out. Nothing
- * else changes, so the visibility cascade and the bulk release bar are the ones the page always had.
+ * else changes, so the visibility cascade and the bulk visibility bar are the ones the page always had.
  */
 export default function ResultsControlPage({ embedded = false }: { embedded?: boolean } = {}) {
   const params = useParams<{ showId?: string; id?: string }>();
@@ -147,75 +148,6 @@ export default function ResultsControlPage({ embedded = false }: { embedded?: bo
     [showClasses, bulkOps]
   );
 
-  // Adapter: drop specific class IDs from the selection (by id, not item)
-  const deselectClassesByIds = useCallback(
-    (classIds: string[]) => {
-      const idSet = new Set(classIds);
-      const toDeselect = showClasses.filter(c => idSet.has(c.id));
-      bulkOps.deselectItems(toDeselect);
-    },
-    [showClasses, bulkOps]
-  );
-
-  // Entity lookup maps depend only on the override/class data, not the
-  // selection — hoist them out of the selection-keyed memo below so a checkbox
-  // toggle re-runs only the `.some()` scan, not three Map rebuilds.
-  const classOverrideMap = useMemo(
-    () => new Map(classOverrides.map(o => [o.classId, o])),
-    [classOverrides]
-  );
-  const trialOverrideMap = useMemo(
-    () => new Map(trialOverrides.map(o => [o.trialId, o])),
-    [trialOverrides]
-  );
-  const classTrialMap = useMemo(
-    () => new Map(showClasses.map(c => [c.id, c.trialId])),
-    [showClasses]
-  );
-
-  // Does this class use manual_release timing on any field? Only those fields
-  // actually respond to clearing results_released_at — 'immediate' fields are
-  // always shown and 'class_complete' fields stay visible once the class is
-  // complete, so Hide Results has no visible effect on them (see
-  // shouldShowField in @myk9/secretary's visibility-cascade).
-  const classHasManualReleaseTiming = useCallback(
-    (classId: string): boolean => {
-      if (!settings) return false;
-
-      const classOverride = classOverrideMap.get(classId);
-      const trialId = classTrialMap.get(classId);
-      const trialOverride = trialId ? trialOverrideMap.get(trialId) : undefined;
-
-      const timingFields = ['placement', 'qualification', 'time', 'faults'] as const;
-      return timingFields.some(field => {
-        const effective =
-          classOverride?.override[field] ??
-          trialOverride?.override[field] ??
-          settings.visibility[field];
-        return effective === 'manual_release';
-      });
-    },
-    [classOverrideMap, trialOverrideMap, classTrialMap, settings]
-  );
-
-  // Check if any selected class uses manual_release timing on any field
-  const hasManualReleaseClasses = useMemo(() => {
-    return Array.from(bulkOps.selectedIds).some(classId => classHasManualReleaseTiming(classId));
-  }, [bulkOps.selectedIds, classHasManualReleaseTiming]);
-
-  // Check if any selected class currently has results released — gates "Hide Results".
-  // Also require manual_release timing: clearing results_released_at is a no-op
-  // for classes released solely via 'immediate'/'class_complete' timing, so
-  // offering "Hide Results" for those would be misleading.
-  const hasReleasedClasses = useMemo(() => {
-    return showClasses.some(
-      cls =>
-        bulkOps.selectedIds.has(cls.id) &&
-        Boolean(cls.results_released_at) &&
-        classHasManualReleaseTiming(cls.id)
-    );
-  }, [showClasses, bulkOps.selectedIds, classHasManualReleaseTiming]);
-
   return (
     <div className={embedded ? 'space-y-8' : 'container mx-auto py-6 space-y-8'}>
       {!embedded && <ShowDeskReturnLink showId={showId} />}
@@ -273,8 +205,8 @@ export default function ResultsControlPage({ embedded = false }: { embedded?: bo
               <Link to={`/shows/${showId}/results?step=submit`}>Go to Submit Results</Link>
             </Button>
             <p className="text-muted-foreground">
-              To release results, select classes below and use the sticky{' '}
-              <span className="font-medium">Release Results</span> bar.
+              To release a class, open it on Results and press{' '}
+              <span className="font-medium">Release results</span>.
             </p>
           </div>
         </CardContent>
@@ -366,9 +298,6 @@ export default function ResultsControlPage({ embedded = false }: { embedded?: bo
         allClassIds={allClassIds}
         onSelectAll={bulkOps.selectAll}
         onClearSelection={bulkOps.clearSelection}
-        onDeselectClasses={deselectClassesByIds}
-        hasManualReleaseClasses={hasManualReleaseClasses}
-        hasReleasedClasses={hasReleasedClasses}
       />
     </div>
   );

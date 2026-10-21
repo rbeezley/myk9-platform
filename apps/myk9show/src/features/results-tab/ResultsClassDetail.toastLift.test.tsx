@@ -100,6 +100,8 @@ function renderDetail({ embedded, released }: { embedded: boolean; released: boo
       timeZone="America/New_York"
       releasing={false}
       onRelease={vi.fn()}
+      onHide={vi.fn()}
+      hiding={false}
       onRetry={vi.fn()}
       onUndoVerify={vi.fn()}
       verifying={false}

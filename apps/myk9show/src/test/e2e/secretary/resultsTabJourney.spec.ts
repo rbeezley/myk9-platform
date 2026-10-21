@@ -17,7 +17,7 @@ import { signInAsSecretary } from '../helpers/testUsers';
  * MYK9-1031, plan-results-tab-redesign Phase 7: ONE secretary journey through the Results tab on
  * the show-day fixture show (`seed_demo_restore_show_day_fixture`, MYK9-731):
  *
- *   scored class -> checked and released with one tap -> results sheet and result labels printed -> judge
+ *   scored class -> checked and released with one tap -> hidden and released again -> results sheet and result labels printed -> judge
  *   initialed -> reload reads released + initialed.
  *
  * Why seeded-only: every step writes (scores, the check, Release, the print records, the judge's
@@ -275,13 +275,73 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
         .toBe('toasts up, 0 off screen');
     });
 
-    await test.step('5. print the Results sheet and Result labels from their reports', async () => {
+    await test.step('5. hold this class for review: set its own visibility to After Review', async () => {
+      // The fixture's show timing is open, where clearing a release changes nothing, so Hide
+      // results is offered only under manual release (MYK9-1318). After Review is manual release.
+      await page.getByRole('button', { name: 'More' }).first().click();
+      await page.getByRole('button', { name: 'Visibility settings' }).click();
+      const sheet = page.getByRole('dialog', { name: 'Visibility settings' });
+      await expect(sheet).toBeVisible({ timeout: 20_000 });
+      // Every fixture day has its own "Container Novice A"; the fixture class is today's, Trial 1.
+      // A collapsed trial renders no class rows, so after expanding only Trial 1 the class's own
+      // select is the one with this name.
+      await sheet.getByRole('button', { name: /^Trial 1\b/ }).click({ timeout: 30_000 });
+      const classSelect = sheet.getByRole('combobox', {
+        name: `Results visibility for ${CLASS_NAME}`,
+      });
+      await expect(classSelect).toHaveCount(1);
+      await classSelect.click();
+      await page.getByRole('option', { name: 'After Review' }).click();
+      await expect(page.getByText('Class visibility saved')).toBeVisible({ timeout: 20_000 });
+      await sheet.getByRole('button', { name: 'Close' }).click();
+      await expect(sheet).toBeHidden();
+      await expect(detail).toBeVisible();
+    });
+
+    await test.step('6. hide the results from the class detail and confirm', async () => {
+      // MYK9-1318: Hide results is the one way back from released. The saved check survives it,
+      // so Release is one tap again in the next step.
+      const hideButton = detail.getByRole('button', { name: 'Hide results' });
+      await expect(hideButton).toBeVisible({ timeout: 20_000 });
+      await expect(releaseButton).toHaveCount(0);
+      // Enabled only once the After Review override has been read back (and while online).
+      await expect(hideButton).toBeEnabled({ timeout: 20_000 });
+      await hideButton.click();
+      const confirm = page.getByRole('alertdialog');
+      await expect(confirm.getByText(`Hide results for ${CLASS_NAME}?`)).toBeVisible();
+      await confirm.getByRole('button', { name: 'Hide results' }).click();
+      await expect(detail.getByText('Not released', { exact: true }).first()).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(releaseButton).toBeVisible({ timeout: 20_000 });
+      await expect(hideButton).toHaveCount(0);
+    });
+
+    await test.step('7. release again with one tap, so the print and initials steps start released', async () => {
+      const hideButton = detail.getByRole('button', { name: 'Hide results' });
+      // Hide and Release are both replicated class writes; the later one wins. Reload until the
+      // class reads "Not released" and Release is offered, so the step starts from a settled page.
+      await expect(async () => {
+        await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
+        await expect(detail.getByText('Not released', { exact: true }).first()).toBeVisible({
+          timeout: 10_000,
+        });
+        await expect(releaseButton).toBeEnabled({ timeout: 10_000 });
+      }).toPass({ timeout: 60_000 });
+      await releaseButton.click();
+      await expect(detail.getByText('Print the results sheet and result labels')).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(hideButton).toBeVisible();
+    });
+
+    await test.step('8. print the Results sheet and Result labels from their reports', async () => {
       await printFromResults(page, detail, 'Results sheet', 'results-sheet');
       await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
       await printFromResults(page, detail, 'Result labels', 'result-labels');
     });
 
-    await test.step('6. back on Results: both read printed, record the judge initials', async () => {
+    await test.step('9. back on Results: both read printed, record the judge initials', async () => {
       await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
       // A print Reports just recorded must read Printed here too, not Stale: the two pages
       // fingerprint the class from different read paths (buildReportPaperworkDescriptor).
@@ -299,7 +359,7 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
       });
     });
 
-    await test.step('7. reload: released, checked and initialed', async () => {
+    await test.step('10. reload: released, checked and initialed', async () => {
       await page.reload({ waitUntil: 'domcontentloaded' });
       await expect(detail.getByText('Released', { exact: true }).first()).toBeVisible({
         timeout: 30_000,
@@ -314,7 +374,7 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
       await expect(detail.getByText('All done for this class')).toBeVisible();
     });
 
-    await test.step('8. the same class on a 375px phone fits the screen', async () => {
+    await test.step('11. the same class on a 375px phone fits the screen', async () => {
       await page.setViewportSize(PHONE);
       // The class is done now, so the default "Needs me" filter no longer lists it.
       const classLink = page

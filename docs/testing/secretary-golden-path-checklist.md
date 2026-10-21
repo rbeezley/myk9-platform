@@ -355,7 +355,7 @@ To reach the at-show surface, just open `/at-show/:showId` for the test show as 
 
 ### 5.4 — Release Results to Exhibitors
 
-- [ ] Toggle **Release Results** in Results Control
+- [ ] Open the class on Results and press **Release results** (Visibility settings no longer releases)
 - [ ] Results are now visible to exhibitor accounts
 
 **Issue:** ______________________________________________________________________

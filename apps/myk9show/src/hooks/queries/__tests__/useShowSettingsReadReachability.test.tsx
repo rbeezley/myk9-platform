@@ -31,12 +31,6 @@ vi.mock('@/services/database/supabaseClient', () => ({
 vi.mock('@/hooks/mutations/useShowSettingsMutations', () => ({
   useBulkUpdateClassOverrides: () => ({ mutate: vi.fn(), isPending: false }),
 }));
-vi.mock('@/hooks/mutations/useReleaseResults', () => ({
-  useReleaseResults: () => ({ mutate: vi.fn(), isPending: false }),
-}));
-vi.mock('@/hooks/mutations/useUnreleaseResults', () => ({
-  useUnreleaseResults: () => ({ mutate: vi.fn(), isPending: false }),
-}));
 vi.mock('@/hooks/useNetworkStatus', () => ({ useNetworkStatus: () => ({ isOnline: true }) }));
 
 function chainableQuery(resolved: Record<string, unknown>) {
@@ -106,9 +100,6 @@ describe('settings reads feed server reachability', () => {
           allClassIds={['a']}
           onSelectAll={vi.fn()}
           onClearSelection={vi.fn()}
-          onDeselectClasses={vi.fn()}
-          hasManualReleaseClasses
-          hasReleasedClasses={false}
         />
       </>
     );

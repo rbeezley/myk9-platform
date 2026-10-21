@@ -11,6 +11,13 @@ const mocks = vi.hoisted(() => ({
   requests: vi.fn(),
   review: vi.fn(),
   clubs: vi.fn(),
+  ensureClubsReady: vi.fn(),
+}));
+
+vi.mock('@/store/clubStore', () => ({
+  useClubStore: (
+    selector: (state: { ensureClubsReady: typeof mocks.ensureClubsReady }) => unknown
+  ) => selector({ ensureClubsReady: mocks.ensureClubsReady }),
 }));
 
 vi.mock('@/services/database/club-access-requests', () => ({
@@ -48,6 +55,7 @@ describe('ClubAccessRequestsSection', () => {
     vi.mocked(getPendingClubAccessRequests).mockResolvedValue([request]);
     vi.mocked(reviewClubAccessRequest).mockResolvedValue('club-1');
     mocks.clubs.mockReturnValue([{ id: 'club-2', name: 'Existing Dog Club' }]);
+    mocks.ensureClubsReady.mockResolvedValue({ status: 'fresh', clubs: [] });
   });
 
   it('shows a pending new-club request and the review choices', async () => {
@@ -57,7 +65,9 @@ describe('ClubAccessRequestsSection', () => {
     expect(screen.getByText(/Liz Beezley/)).toBeInTheDocument();
     expect(screen.getByText('Club numbers: AKC #4521 · UKC #U-88')).toBeInTheDocument();
     expect(
-      screen.getByText(/active member.*club-admin.*secretary\/show-manager access/i)
+      screen.getByText(
+        /active member.*club-admin.*secretary\/show-manager access.*authorizes the club/i
+      )
     ).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Create a new club' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Use Existing Dog Club' })).toBeInTheDocument();
@@ -91,19 +101,19 @@ describe('ClubAccessRequestsSection', () => {
     );
   });
 
-  // MYK9-855: approval never authorizes the club (that's the separate,
-  // deliberate MYK9-572 site-admin step on /clubs/:id) — the admin screen
-  // must hand off to it as a link, not leave the admin to find it themselves.
-  it('offers a link to authorize the club after approving a request', async () => {
+  // MYK9-1310: approval authorizes the club in the same transaction, so the
+  // MYK9-855 "authorize this club" hand-off is gone. Any such link would send the
+  // admin to a step that no longer exists.
+  it('does not offer a second authorize step after approving a request', async () => {
     const { user } = render(<ClubAccessRequestsSection />, { initialRoute: '/admin/onboarding' });
     await user.click(await screen.findByRole('button', { name: /approve and give club access/i }));
 
-    const authorizeLink = await screen.findByRole('link', { name: /authorize this club/i });
-    expect(authorizeLink).toHaveAttribute('href', '/clubs/club-1');
-    expect(screen.getByText(/pending myk9 authorization/i)).toBeInTheDocument();
+    await waitFor(() => expect(reviewClubAccessRequest).toHaveBeenCalled());
+    expect(screen.queryByRole('link', { name: /authorize this club/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/pending myk9 authorization/i)).not.toBeInTheDocument();
   });
 
-  it('refreshes the club list after approval so the club joins the authorization queue', async () => {
+  it('refreshes the club list after approval so the new or attached club shows up', async () => {
     const queryClient = new QueryClient();
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     const { user } = render(<ClubAccessRequestsSection />, {
@@ -115,6 +125,29 @@ describe('ClubAccessRequestsSection', () => {
     await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['clubs', 'list'] }));
   });
 
+  // Approval authorizes the club on the server; this device must refresh the same two
+  // caches the club page's own Authorize action does: a forced replica resync for
+  // /clubs/:id, and the publish gate's per-club cache (Codex review of #3151).
+  it('resyncs the approved club and drops its publish-gate authorization cache', async () => {
+    const queryClient = new QueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    const { user } = render(<ClubAccessRequestsSection />, {
+      initialRoute: '/admin/onboarding',
+      queryClient,
+    });
+    await user.click(await screen.findByRole('button', { name: /approve and give club access/i }));
+
+    await waitFor(() =>
+      expect(mocks.ensureClubsReady).toHaveBeenCalledWith({
+        requestedClubId: 'club-1',
+        force: true,
+      })
+    );
+    await waitFor(() =>
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['club-authorization', 'club-1'] })
+    );
+  });
+
   it('does not offer an authorize link after a denial', async () => {
     vi.mocked(reviewClubAccessRequest).mockResolvedValue(null);
     const { user } = render(<ClubAccessRequestsSection />, { initialRoute: '/admin/onboarding' });
@@ -122,6 +155,7 @@ describe('ClubAccessRequestsSection', () => {
 
     await waitFor(() => expect(reviewClubAccessRequest).toHaveBeenCalled());
     expect(screen.queryByRole('link', { name: /authorize this club/i })).not.toBeInTheDocument();
+    expect(mocks.ensureClubsReady).not.toHaveBeenCalled();
   });
 
   it('denies a request with an optional review note', async () => {

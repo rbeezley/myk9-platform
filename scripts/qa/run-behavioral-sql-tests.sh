@@ -197,6 +197,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1208_step_up_reauth_test.sql"
   "$TEST_DIR/myk9_1235_club_registry_numbers_test.sql"
   "$TEST_DIR/myk9_1254_lifecycle_jobs_column_acl_test.sql"
+  "$TEST_DIR/myk9_1310_approval_authorizes_club_test.sql"
 )
 
 for test_file in "${TEST_FILES[@]}"; do

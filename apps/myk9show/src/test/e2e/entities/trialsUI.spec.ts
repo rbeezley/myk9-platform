@@ -39,6 +39,8 @@ interface SeededTrial {
   trialId: string;
   classIds: string[];
   entryIds: string[];
+  /** The unique suffix in the seeded trial's name (`E2E Trial <suffix>`). */
+  nameSuffix: string;
 }
 
 /** ID of the seeded "June 2026 AKC Scent Work" show used as the parent for our test trials. */
@@ -137,6 +139,7 @@ async function seedTrial(
         trialId: trial.id,
         classIds,
         entryIds,
+        nameSuffix,
       };
     },
     { ...opts, showId: SEEDED_SHOW_ID }
@@ -178,13 +181,28 @@ async function fetchTrialChildCounts(
   }, trialId);
 }
 
-/** The trial heading's menu on the show home (MYK9-1320): Edit Trial opens the edit panel. */
-async function openTrialEdit(page: Page) {
-  await page
-    .getByRole('button', { name: /^Trial actions for / })
-    .first()
-    .click();
+/**
+ * The trial heading's menu on the show home (MYK9-1320): Edit Trial opens the edit panel.
+ * Scoped to the SEEDED trial's own heading (`#cockpit-anchor-<trialId>`, CockpitTrialGroup.tsx:95),
+ * never `.first()` across the show, so a destructive test cannot land on another trial.
+ */
+async function openTrialEdit(page: Page, seed: SeededTrial) {
+  const heading = page.locator(`[id="cockpit-anchor-${seed.trialId}"]`);
+  await expect(heading).toBeVisible({ timeout: 15000 });
+  // The menu button is the heading's sibling inside the same trial card.
+  const card = heading.locator('xpath=ancestor::div[contains(@class,"rounded-xl")][1]');
+  await card.getByRole('button', { name: /^Trial actions for / }).click();
   await page.getByRole('menuitem', { name: 'Edit Trial' }).click();
+  await expectPanelNamesSeededTrial(page, seed);
+}
+
+/**
+ * Before any destructive confirm: the open edit panel must be for the seeded trial. The panel's
+ * name field carries the seeded trial's name (set by seedTrial's nameSuffix).
+ */
+async function expectPanelNamesSeededTrial(page: Page, seed: SeededTrial) {
+  const nameField = page.getByRole('textbox', { name: /Trial Name|^Name/i }).first();
+  await expect(nameField).toHaveValue(new RegExp(seed.nameSuffix));
 }
 
 // ─── Edit Trial ───────────────────────────────────────────────────────────────
@@ -207,7 +225,7 @@ test.describe('Trial Details — Edit', () => {
 
     // MYK9-1320: a manager's trial page is the show home; the trial heading menu opens the
     // TrialEditPanel.
-    await openTrialEdit(page);
+    await openTrialEdit(page, seed);
     await expect(page.getByText('Edit Trial', { exact: false })).toBeVisible();
 
     const newName = `E2E Trial Renamed ${RUN_ID}`;
@@ -260,7 +278,7 @@ test.describe('Trial Details — Delete', () => {
 
     // Delete trial is the Edit panel's footer button, never a menu item (CRUD standard
     // Phase 3): open the panel from the trial heading menu, then press it.
-    await openTrialEdit(page);
+    await openTrialEdit(page, seed);
     await page.getByRole('button', { name: 'Delete trial', exact: true }).click();
 
     // The shared delete dialog (CRUD standard Phase 2).
@@ -287,7 +305,7 @@ test.describe('Trial Details — Delete', () => {
     await page.goto(`/shows/${seed.showId}?anchor=${seed.trialId}`);
     await page.waitForLoadState('networkidle');
 
-    await openTrialEdit(page);
+    await openTrialEdit(page, seed);
     await page.getByRole('button', { name: 'Delete trial', exact: true }).click();
 
     const dialog = page.getByRole('alertdialog', { name: /^Delete the trial / });

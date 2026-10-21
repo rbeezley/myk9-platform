@@ -8,7 +8,6 @@ import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import { TrialManagementDialogs } from '@/components/trials/TrialDetail/TrialManagementDialogs';
-import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { JudgeSuppliesLauncher } from '@/features/judge-supplies/JudgeSuppliesLauncher';
 import { SetupRowActionsMenu } from './SetupRowActionsMenu';
@@ -112,11 +111,7 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
               icon: <DollarSign />,
               onSelect: () =>
                 navigate(
-                  `/shows/${encodeURIComponent(showId)}/reports?${getReportScopeSearchParams({
-                    kind: 'trial',
-                    showId,
-                    trialId,
-                  }).toString()}`
+                  `/shows/${encodeURIComponent(showId)}/reports?${new URLSearchParams({ financialsTrial: trialId }).toString()}`
                 ),
             },
           ],

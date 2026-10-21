@@ -328,6 +328,7 @@ function buildTrialGroups(
   snapshot: SecretaryCockpitSnapshot,
   openDay: string | null,
   focusedClassId: string | undefined,
+  anchorId: string | undefined,
   filter: CockpitFilter,
   scopeTrials: readonly SecretaryCockpitTrial[],
   attentionCountByClass: ReadonlyMap<string, number>,
@@ -361,6 +362,7 @@ function buildTrialGroups(
         defaultOpen:
           openDay === null ||
           trial.date === openDay ||
+          trial.id === anchorId ||
           allClasses.some(cls => cls.id === focusedClassId),
         summary: {
           classCount: allClasses.length,
@@ -433,6 +435,7 @@ export function buildSecretaryCockpitModel(
       snapshot,
       allDays ? selectedDay : null,
       focused?.id,
+      state.anchor,
       state.filter,
       scopeTrials,
       attentionCountByClass,

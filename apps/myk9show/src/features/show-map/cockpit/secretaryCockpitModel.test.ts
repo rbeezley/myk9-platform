@@ -471,6 +471,20 @@ describe('buildSecretaryCockpitModel show home', () => {
     expect(model.daySchedule.map(row => row.id)).toContain('tomorrow');
   });
 
+  it('opens the trial the URL anchors on in All days, even on another day (MYK9-1320)', () => {
+    const model = buildSecretaryCockpitModel(makeSnapshot(), {
+      filter: 'all',
+      selectedDay: 'all',
+      anchor: 'trial-3',
+    });
+
+    expect(model.trialGroups.map(group => [group.trialId, group.defaultOpen])).toEqual([
+      ['trial-1', true],
+      ['trial-2', true],
+      ['trial-3', true],
+    ]);
+  });
+
   it('opens every trial when one day is chosen', () => {
     const model = buildSecretaryCockpitModel(makeSnapshot(), {
       filter: 'all',

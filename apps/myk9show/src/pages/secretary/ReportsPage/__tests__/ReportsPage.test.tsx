@@ -228,7 +228,7 @@ describe('ReportsPage', () => {
 
   describe('Trial financials (MYK9-1320)', () => {
     it('renders the trial FinancialSummary when the page is scoped to a trial', () => {
-      render(<ReportsPage />, { initialRoute: '/shows/show-1/reports?trialId=trial-1' });
+      render(<ReportsPage />, { initialRoute: '/shows/show-1/reports?financialsTrial=trial-1' });
 
       const card = screen.getByTestId('trial-financials-card');
       expect(within(card).getByTestId('financial-summary')).toHaveAttribute(
@@ -236,6 +236,23 @@ describe('ReportsPage', () => {
         'trial-1'
       );
       expect(within(card).getByText(/Trial financials: Trial 1/)).toBeInTheDocument();
+    });
+
+    it('keeps the card on its own param: it neither reads nor moves the report scope', async () => {
+      render(<ReportsPage />, { initialRoute: '/shows/show-1/reports?trialId=trial-2' });
+
+      const card = screen.getByTestId('trial-financials-card');
+      // `trialId` scopes the report below, not the card.
+      expect(within(card).queryByTestId('financial-summary')).not.toBeInTheDocument();
+      expect(screen.getByTestId('report-preview')).toHaveAttribute('data-trial-id', 'trial-2');
+
+      await userEvent.click(within(card).getByRole('button', { name: 'Trial 1' }));
+
+      expect(within(card).getByTestId('financial-summary')).toHaveAttribute(
+        'data-trial-id',
+        'trial-1'
+      );
+      expect(screen.getByTestId('report-preview')).toHaveAttribute('data-trial-id', 'trial-2');
     });
 
     it('asks for a trial, and offers each one, when none is picked', async () => {

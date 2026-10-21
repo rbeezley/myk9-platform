@@ -118,7 +118,7 @@ describe('show home carries every Setup action (MYK9-956)', () => {
       const { user } = renderWithPath();
       await pick(user, 'Trial financials');
       expect(screen.getByTestId('where')).toHaveTextContent(
-        '/shows/show-1/reports?trialId=trial-1'
+        '/shows/show-1/reports?financialsTrial=trial-1'
       );
     });
 

@@ -245,6 +245,15 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
     run: exportTrials,
   });
 
+  // A manager opens the trial in the workbench (MYK9-1320). Everyone else, and a viewer whose
+  // scope is still resolving, goes to the trial URL: the read-only page for a visitor, and its
+  // own redirect for a manager.
+  const openTrial = (trialId: string, trialDate: string | undefined) =>
+    navigate(
+      canManageThisShow
+        ? getShowHomeTrialHref(showId, { id: trialId, date: trialDate })
+        : `/shows/${showId}/trials/${trialId}`
+    );
   const openWizard = () => navigate(getAddTrialsHref(showId));
 
   return (
@@ -333,15 +342,10 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
               <Card
                 key={trial.id}
                 className="cursor-pointer overflow-hidden border border-border bg-card shadow-sm transition-all hover:shadow-md hover:border-primary/30"
-                onClick={() =>
-                  navigate(getShowHomeTrialHref(showId, { id: trial.id, date: trial.trialDate }))
-                }
+                onClick={() => openTrial(trial.id, trial.trialDate)}
                 role="button"
                 tabIndex={0}
-                onKeyDown={e =>
-                  e.key === 'Enter' &&
-                  navigate(getShowHomeTrialHref(showId, { id: trial.id, date: trial.trialDate }))
-                }
+                onKeyDown={e => e.key === 'Enter' && openTrial(trial.id, trial.trialDate)}
               >
                 <div className="p-4">
                   <div className="flex gap-4 items-start">
@@ -424,9 +428,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           tableId="trialsTab"
           columns={trialColumns}
           data={tableData}
-          onRowClick={row =>
-            navigate(getShowHomeTrialHref(showId, { id: row.id, date: row.trialDate }))
-          }
+          onRowClick={row => openTrial(row.id, row.trialDate)}
         />
       )}
       {trialDialogs}

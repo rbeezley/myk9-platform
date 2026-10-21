@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { showFactory } from '@/test/utils/factories';
-import { monthKeyLabel, summarizePastShows } from './pastShowsSummary';
+import { monthKeyLabel, pastEmptyStateProps, summarizePastShows } from './pastShowsSummary';
 
 const NOW = new Date('2026-10-20T15:00:00Z');
 const make = (startDate: string, endDate = startDate, status = 'published') =>
@@ -28,6 +28,11 @@ describe('summarizePastShows (MYK9-1283)', () => {
     expect(summary).toEqual({ count: 1, monthKey: '2026-10' });
   });
 
+  it('returns null when every past show has an unparseable start date', () => {
+    // A completed show with a bad date is past but has no month to open.
+    expect(summarizePastShows([make('', '', 'completed')], NOW)).toBeNull();
+  });
+
   it('returns null when nothing is past', () => {
     expect(summarizePastShows([make('2026-11-05')], NOW)).toBeNull();
     expect(summarizePastShows([], NOW)).toBeNull();
@@ -37,5 +42,30 @@ describe('summarizePastShows (MYK9-1283)', () => {
 describe('monthKeyLabel', () => {
   it('spells the month and year in full', () => {
     expect(monthKeyLabel('2026-10')).toBe('October 2026');
+  });
+});
+
+describe('pastEmptyStateProps', () => {
+  const base = {
+    summary: { count: 2, monthKey: '2026-10' },
+    month: 'all',
+    hasActiveFilters: false,
+    isEmpty: true,
+  };
+
+  it('gives the past props for the empty, unfiltered upcoming view', () => {
+    expect(pastEmptyStateProps(base)).toEqual({
+      past: { count: 2, monthLabel: 'October 2026' },
+      monthKey: '2026-10',
+    });
+  });
+
+  it.each([
+    ['a month is selected', { month: '2026-10' }],
+    ['filters are active', { hasActiveFilters: true }],
+    ['the list is not empty', { isEmpty: false }],
+    ['there are no past shows', { summary: null }],
+  ])('returns null when %s', (_name, override) => {
+    expect(pastEmptyStateProps({ ...base, ...override })).toBeNull();
   });
 });

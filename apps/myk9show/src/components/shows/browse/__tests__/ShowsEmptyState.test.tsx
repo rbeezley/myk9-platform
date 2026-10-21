@@ -58,10 +58,13 @@ describe('ShowsEmptyState (MYK9-1152)', () => {
         <ShowsEmptyState filtered={false} onShowAll={vi.fn()} past={past} onShowPast={onShowPast} />
       );
       expect(screen.queryByText('No shows yet')).toBeNull();
+      expect(screen.getByText('No upcoming shows')).toBeInTheDocument();
       expect(
-        screen.getByText(sentence('No upcoming shows. 2 past shows: see October 2026.'))
+        screen.getByText(
+          sentence('2 past shows, the most recent in October 2026. See October 2026')
+        )
       ).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'October 2026' }));
+      fireEvent.click(screen.getByRole('button', { name: 'See 2 past shows in October 2026' }));
       expect(onShowPast).toHaveBeenCalledTimes(1);
       expect(screen.getByRole('link', { name: CREATE_ACCOUNT.label })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: ADD_YOUR_CLUB.label })).toBeInTheDocument();
@@ -77,7 +80,7 @@ describe('ShowsEmptyState (MYK9-1152)', () => {
         />
       );
       expect(
-        screen.getByText(sentence('No upcoming shows. 1 past show: see October 2026.'))
+        screen.getByText(sentence('1 past show, the most recent in October 2026. See October 2026'))
       ).toBeInTheDocument();
     });
 
@@ -87,9 +90,17 @@ describe('ShowsEmptyState (MYK9-1152)', () => {
         <ShowsEmptyState filtered={false} onShowAll={vi.fn()} past={past} onShowPast={vi.fn()} />
       );
       expect(
-        screen.getByText(sentence('No upcoming shows. 2 past shows: see October 2026.'))
+        screen.getByText(
+          sentence('2 past shows, the most recent in October 2026. See October 2026')
+        )
       ).toBeInTheDocument();
       expect(screen.queryByRole('link')).toBeNull();
+    });
+
+    it('lets the filtered state win over past shows', () => {
+      render(<ShowsEmptyState filtered onShowAll={vi.fn()} past={past} onShowPast={vi.fn()} />);
+      expect(screen.getByText('No shows match your search or filters.')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /past shows/ })).toBeNull();
     });
   });
 });

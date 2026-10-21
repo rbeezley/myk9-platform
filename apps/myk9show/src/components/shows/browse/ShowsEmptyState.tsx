@@ -9,8 +9,9 @@ const SHOW_NOUN = ['show', 'shows'] as const;
 // Signed in: how the list fills, and where to look.
 const SHOWS_EMPTY_SIGNED_IN =
   'Shows will appear here as they are added. Try searching by discipline or club name above.';
+// Nothing upcoming, but past shows exist (MYK9-1283).
+const PAST_TITLE = 'No upcoming shows';
 // Signed out: the homepage's "Find a show" lands here, so it must offer a next step.
-const PAST_TITLE = 'Nothing coming up';
 const SHOWS_EMPTY_GUEST = 'Shows appear here as clubs publish them.';
 
 /**
@@ -35,11 +36,16 @@ export function ShowsEmptyState({
   const pastDescription =
     past && !filtered ? (
       <>
-        No upcoming shows. {past.count} past {past.count === 1 ? 'show' : 'shows'}: see{' '}
-        <Button variant="link" className="h-auto p-0 align-baseline" onClick={onShowPast}>
-          {past.monthLabel}
+        {past.count} past {past.count === 1 ? 'show' : 'shows'}, the most recent in{' '}
+        {past.monthLabel}.{' '}
+        <Button
+          variant="link"
+          className="inline-flex min-h-11 items-center px-1 align-middle text-[length:inherit] underline hover:translate-y-0"
+          aria-label={`See ${past.count} past ${past.count === 1 ? 'show' : 'shows'} in ${past.monthLabel}`}
+          onClick={onShowPast}
+        >
+          See {past.monthLabel}
         </Button>
-        .
       </>
     ) : null;
   if (user || filtered) {

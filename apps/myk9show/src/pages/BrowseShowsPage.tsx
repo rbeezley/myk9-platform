@@ -63,8 +63,10 @@ import { MonthScrubber } from '@/components/shows/browse/MonthScrubber';
 import { ShowLocationField } from '@/components/shows/browse/ShowLocationField';
 import { ShowsMapPanel } from '@/components/shows/browse/ShowsMapPanel';
 import { ShowsEmptyState } from '@/components/shows/browse/ShowsEmptyState';
-import { monthKeyLabel, summarizePastShows } from '@/components/shows/browse/pastShowsSummary';
-import { ALL_MONTHS_KEY } from '@/components/shows/browse/monthScrubber.helpers';
+import {
+  pastEmptyStateProps,
+  summarizePastShows,
+} from '@/components/shows/browse/pastShowsSummary';
 import { useViewerLocation } from '@/features/location/useViewerLocation';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { getBrowseShowsCountUserId, getBrowseShowsTabCount } from '@/utils/browseShowsUtils';
@@ -402,17 +404,18 @@ const BrowseShowsPage: React.FC = () => {
   // Render shows in different view modes
   const renderShowsView = () => {
     if (enhancedShows.length === 0 && viewMode !== 'map') {
-      const showPast = pastShows !== null && filters.month === ALL_MONTHS_KEY && !hasActiveFilters;
+      const pastProps = pastEmptyStateProps({
+        summary: pastShows,
+        month: filters.month,
+        hasActiveFilters,
+        isEmpty: true,
+      });
       return (
         <ShowsEmptyState
           filtered={hasActiveFilters}
           onShowAll={clearAllFilters}
-          {...(showPast
-            ? {
-                past: { count: pastShows.count, monthLabel: monthKeyLabel(pastShows.monthKey) },
-                onShowPast: () => handleMonthChange(pastShows.monthKey),
-              }
-            : {})}
+          past={pastProps?.past}
+          onShowPast={pastProps ? () => handleMonthChange(pastProps.monthKey) : undefined}
         />
       );
     }

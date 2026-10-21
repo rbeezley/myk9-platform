@@ -1,5 +1,5 @@
 import type { Show } from '@/types/show-types';
-import { monthKeyOf } from './monthScrubber.helpers';
+import { ALL_MONTHS_KEY, monthKeyOf } from './monthScrubber.helpers';
 import { showsPaneGroupFor } from './showsPaneGroups';
 
 export interface PastShowsSummary {
@@ -8,7 +8,10 @@ export interface PastShowsSummary {
   monthKey: string;
 }
 
-/** The past shows among `shows` (MYK9-1283), or null when there are none. */
+/**
+ * The past shows among `shows` (MYK9-1283), or null when there are none. Past shows with no
+ * parseable start date have no month to open, so they leave the summary null.
+ */
 export function summarizePastShows(shows: Show[], now: Date): PastShowsSummary | null {
   const past = shows.filter(show => showsPaneGroupFor(show, now) === 'past');
   let monthKey: string | null = null;
@@ -25,4 +28,27 @@ export function monthKeyLabel(monthKey: string): string {
     month: 'long',
     year: 'numeric',
   });
+}
+
+/**
+ * What the empty Browse Shows list shows about past shows: only for the unfiltered "upcoming"
+ * view (month 'all') that came up empty while past shows exist. `monthKey` is the month the
+ * page opens when the viewer follows the link.
+ */
+export function pastEmptyStateProps({
+  summary,
+  month,
+  hasActiveFilters,
+  isEmpty,
+}: {
+  summary: PastShowsSummary | null;
+  month: string;
+  hasActiveFilters: boolean;
+  isEmpty: boolean;
+}): { past: { count: number; monthLabel: string }; monthKey: string } | null {
+  if (!summary || !isEmpty || hasActiveFilters || month !== ALL_MONTHS_KEY) return null;
+  return {
+    past: { count: summary.count, monthLabel: monthKeyLabel(summary.monthKey) },
+    monthKey: summary.monthKey,
+  };
 }

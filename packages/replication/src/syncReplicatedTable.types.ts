@@ -34,6 +34,14 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
    * persisted separately from the local cache count so quota eviction cannot
    * make a partial replica appear complete.
    */
+  /**
+   * Rows `fetchRemoteRows` returns per page (MYK9-1301). A delta that fills a
+   * page may be truncated, so the next pass counts instead of waiting for the
+   * count cadence. Unpaginated app adapters set PostgREST's `max_rows` (1000,
+   * supabase/config.toml); omit it only when the adapter has no cap, and it never
+   * triggers the full-page count.
+   */
+  remotePageSize?: number;
   getRemoteRowCount?: (context: RemoteRowCountContext) => Promise<number | undefined>;
   /**
    * Which fetched rows belong to the population counted by getRemoteRowCount.

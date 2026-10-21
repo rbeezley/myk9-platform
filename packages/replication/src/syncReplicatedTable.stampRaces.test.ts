@@ -3,6 +3,7 @@ import { ReplicatedTable } from './core/ReplicatedTable';
 import { MutationManager } from './MutationManager';
 import { syncReplicatedTable, type SyncReplicatedTableAdapter } from './syncReplicatedTable';
 import { parseUpdatedAtMs } from './parseUpdatedAt';
+import { configureRemoteCountCadence } from './remoteCountCadence';
 import type { SyncResult } from './types';
 
 /**
@@ -74,6 +75,8 @@ describe('scope stamp races (MYK9-1148)', () => {
   };
 
   beforeEach(async () => {
+    // These tests sync one table repeatedly and rely on each pass counting (MYK9-1301).
+    configureRemoteCountCadence({ everyPass: true });
     const { databaseManager } = await import('./core/DatabaseManager');
     await databaseManager.reset();
     who.current = 'user-a';

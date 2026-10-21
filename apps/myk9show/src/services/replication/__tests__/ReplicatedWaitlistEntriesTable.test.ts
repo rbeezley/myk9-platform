@@ -13,6 +13,7 @@
  * standing in for RLS, and honours the real query shape the table issues.
  */
 import { createDatabaseError } from '@/services/database/databaseError';
+import { configureRemoteCountCadence } from '@myk9/replication';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 interface ServerRow {
@@ -129,6 +130,8 @@ async function waitlistIdsForClass(): Promise<string[]> {
 
 describe('ReplicatedWaitlistEntriesTable — MYK9-660 read path', () => {
   beforeEach(async () => {
+    // These tests sync one table repeatedly and rely on each pass counting (MYK9-1301).
+    configureRemoteCountCadence({ everyPass: true });
     // A second sync must begin after the first row's lastSyncedAt. Real clock
     // milliseconds can tie in this fast test; the production stale-row guard
     // correctly preserves a row on a tie because an upload may have raced it.

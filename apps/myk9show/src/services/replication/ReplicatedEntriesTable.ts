@@ -356,6 +356,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       // The server counts a deleted entry until its queued DELETE uploads; it
       // is not a missing row, and must not force every sync full (MYK9-762).
       getPendingDeleteIds: () => this.pendingDeletes.coveredIds(showScopeId),
+      remotePageSize: ENTRIES_REPLICATION_PAGE_SIZE,
       getRemoteRowCount: async () => {
         try {
           const { count, error } = await supabase

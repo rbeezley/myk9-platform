@@ -25,11 +25,14 @@ import {
 import {
   ReplicatedTable,
   configureConflictSurfacing,
+  configureRemoteCountCadence,
+  markRealtimeReconnected,
   type ReplicationConflictEventDetail,
   type UploadCompleteEventDetail,
 } from '@myk9/replication';
 import { toast } from 'sonner';
 import { showConflictSurfacingEnabled } from '@/features/show-presence/conflictSurfacingFlag';
+import { features } from '@/config/features';
 import { supabase } from '@/services/database/supabaseClient';
 
 // Import replicated table singletons
@@ -129,6 +132,10 @@ for (const { table } of REPLICATED_TABLES) {
 // Configure Phase 4 conflict surfacing at module load — evaluated once so the
 // flag state at startup governs the full session (consistent with kill-switch use).
 configureConflictSurfacing(showConflictSurfacingEnabled());
+
+// MYK9-1301: the per-table remote row count runs on a cadence; the flag's OFF
+// state counts on every pass again.
+configureRemoteCountCadence({ everyPass: !features.replicationCountCadence });
 
 /**
  * A full re-sync triggered by an empty replica that metadata says previously held
@@ -512,6 +519,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         wasOffline.current = true;
       } else if (wasOffline.current) {
         wasOffline.current = false;
+        // MYK9-1301: events may have been missed while offline, so the next pass counts.
+        markRealtimeReconnected();
         logger.info('Back online - restoring mutations and triggering sync', 'replication');
         const timer = setTimeout(async () => {
           await mutationManager.restoreMutationsFromLocalStorage();

@@ -3,6 +3,7 @@
  * select list, the server-to-local mapper, the read shape every reader gets,
  * and the allowlisted UPDATE payload.
  */
+import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 import type { ReplicatedRow } from '@myk9/replication';
 import type { Database } from '@/types/supabase';
 import {
@@ -19,7 +20,7 @@ export const DOG_REGISTRATION_SELECT =
   'id, dog_id, organization, registration_number, registration_date, verified, created_at, updated_at, registered_name, breed, variety, status, application_number, submission_date, certificate, is_primary, version';
 
 /** PostgREST's max_rows (supabase/config.toml): one page of every keyset fetch. */
-export const DOG_REGISTRATIONS_PAGE_SIZE = 1000;
+export const DOG_REGISTRATIONS_PAGE_SIZE = POSTGREST_MAX_ROWS;
 
 export type DogRegistrationRow = Omit<
   Database['public']['Tables']['dog_registrations']['Row'],

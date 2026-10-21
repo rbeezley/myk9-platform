@@ -1,4 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { decideRemoteCount, recordRemoteCountPass } from '@myk9/replication';
+import { POSTGREST_MAX_ROWS } from '../../services/replication/postgrestMaxRows';
 import {
   PassRecorder,
   type ReaderContext,
@@ -46,6 +48,11 @@ export interface LoadVirtualUserOptions {
    */
   readonly role: VirtualUserRole;
   readonly fetchImpl?: typeof fetch;
+  /**
+   * Count every pass, as the app does with `replicationCountCadence` off. Default
+   * false: the engine's cadence (first pass, then every `REMOTE_COUNT_INTERVAL_MS`).
+   */
+  readonly countEveryPass?: boolean;
   /** Every non-2xx response the reader's fetch saw, retried or not. */
   readonly onApiError?: (observation: ApiErrorObservation) => void;
 }
@@ -64,6 +71,10 @@ export class LoadVirtualUser {
   /** Error-body reads still running; settled before a pass reports. */
   private readonly errorReads = new Set<Promise<void>>();
   private readonly watermarks = new Map<string, TableWatermark>();
+  /** The engine's cadence state is keyed by owner object: one per table, per reader. */
+  private readonly countOwners = new Map<string, object>();
+  /** Rows this reader has ever received per table: an empty replica forces the engine to count every pass. */
+  private readonly rowsSeen = new Map<string, number>();
   /**
    * Every poll still running. The tick guard below keeps this to one at a time,
    * but drain() still waits on whatever is here rather than assuming it.
@@ -131,6 +142,7 @@ export class LoadVirtualUser {
       if (Number.isFinite(parsed) && parsed > max) max = parsed;
     }
     this.watermarks.set(table, { since: max });
+    this.rowsSeen.set(table, (this.rowsSeen.get(table) ?? 0) + rows.length);
   }
 
   /** One pass across the tables the app's poll replicates, all at once as the app does. */
@@ -142,6 +154,29 @@ export class LoadVirtualUser {
       classColumnSelect: this.classColumnSelect,
       sinceIso: (table, bufferMs) => this.sinceIso(table, bufferMs),
       advance: (table, rows) => this.advance(table, rows),
+      countGate: table => {
+        let owner = this.countOwners.get(table);
+        if (!owner) {
+          owner = {};
+          this.countOwners.set(table, owner);
+        }
+        // The engine's own forced count: an empty local replica counts every pass.
+        const forced = (this.rowsSeen.get(table) ?? 0) === 0;
+        const decision = decideRemoteCount(owner, undefined, forced, {
+          ...(this.options.countEveryPass ? { everyPass: true } : {}),
+        });
+        return {
+          count: decision.count,
+          record: (counted, fetchedRows) =>
+            recordRemoteCountPass(
+              owner,
+              undefined,
+              { ...decision, count: counted },
+              fetchedRows,
+              POSTGREST_MAX_ROWS
+            ),
+        };
+      },
       tally: rows => {
         recorder.rows += rows;
       },

@@ -7,6 +7,7 @@
  */
 
 import { useEffect } from 'react';
+import { markRealtimeReconnected } from '@myk9/replication';
 import { features } from '@/config/features';
 import { subscribeToShowChanges } from './showChangeSignal';
 
@@ -50,7 +51,12 @@ export function useShowLiveSync(showId: string | undefined): void {
       () => nudgeSync(),
       status => {
         if (status !== 'SUBSCRIBED') return;
-        if (hasConnected) nudgeSync(true);
+        if (hasConnected) {
+          // MYK9-1301: events may have been missed, so the next count pass runs
+          // even when a change coalesces this reconnect into a bare nudge.
+          markRealtimeReconnected();
+          nudgeSync(true);
+        }
         hasConnected = true;
       }
     );

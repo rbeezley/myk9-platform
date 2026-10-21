@@ -203,3 +203,108 @@ describe('constants the reader copies from the application', () => {
     expect(INCREMENTAL_BUFFER_MS_HIGH_CHURN).toBe(REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN);
   });
 });
+
+// MYK9-1301: the engine counts on a cadence, so the reader must, or the
+// before/after rehearsal measures a count the app no longer sends.
+describe("virtual reader follows the engine's count cadence", () => {
+  const COUNTED_TABLES = ['shows', 'trials', 'classes', 'judge_assignments', 'waitlist_entries'];
+
+  async function countHeads(
+    passMinutes: number[],
+    countEveryPass: boolean,
+    { seed = true, table }: { seed?: boolean; table?: string } = {}
+  ): Promise<number> {
+    const server = createFakePostgrest({ seedCountedTables: seed });
+    const user = new LoadVirtualUser(
+      {
+        supabaseUrl: FIXTURE_URL,
+        anonKey: FIXTURE_ANON_KEY,
+        accessToken: 'fixture-secretary-token',
+        role: 'secretary',
+        fetchImpl: server.fetch,
+        countEveryPass,
+      },
+      LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT
+    );
+    const realNow = Date.now();
+    const clock = vi.spyOn(Date, 'now');
+    for (const minute of passMinutes) {
+      clock.mockReturnValue(realNow + minute * 60_000);
+      await user.syncOnce();
+    }
+    return server.requests
+      .map(normalizeRequest)
+      .filter(request =>
+        (table ? [table] : COUNTED_TABLES).some(t => request.startsWith(`HEAD /rest/v1/${t}`))
+      ).length;
+  }
+
+  const minutes = Array.from({ length: 12 }, (_, i) => i);
+
+  it('counts twice across 11 simulated minutes: the first pass and after the interval', async () => {
+    expect(await countHeads(minutes, false)).toBe(2 * COUNTED_TABLES.length);
+  });
+
+  it('counts an empty table on every pass, as the engine forces for an empty replica', async () => {
+    expect(await countHeads(minutes, false, { seed: false, table: 'waitlist_entries' })).toBe(
+      minutes.length
+    );
+    expect(await countHeads(minutes, false, { seed: true, table: 'waitlist_entries' })).toBe(2);
+  });
+
+  it('counts on every pass when the flag is off', async () => {
+    expect(await countHeads(minutes, true)).toBe(minutes.length * COUNTED_TABLES.length);
+  });
+
+  type MutableOptions = { -readonly [K in keyof FakePostgrestOptions]: FakePostgrestOptions[K] };
+
+  /** One reader over `server`, passes at the given simulated minutes; `before` runs ahead of each. */
+  async function runPasses(
+    options: MutableOptions,
+    passMinutes: number[],
+    before: (minute: number) => void
+  ): Promise<string[]> {
+    const server = createFakePostgrest(options);
+    const user = new LoadVirtualUser(
+      {
+        supabaseUrl: FIXTURE_URL,
+        anonKey: FIXTURE_ANON_KEY,
+        accessToken: 'fixture-secretary-token',
+        role: 'secretary',
+        fetchImpl: server.fetch,
+      },
+      LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT
+    );
+    const realNow = Date.now();
+    const clock = vi.spyOn(Date, 'now');
+    for (const minute of passMinutes) {
+      clock.mockReturnValue(realNow + minute * 60_000);
+      before(minute);
+      await user.syncOnce();
+    }
+    return server.requests.map(normalizeRequest);
+  }
+
+  const headsOf = (requests: string[], table: string) =>
+    requests.filter(request => request.startsWith(`HEAD /rest/v1/${table}`)).length;
+
+  it('counts again after a delta that filled a page, until a count succeeds', async () => {
+    const options: MutableOptions = { seedCountedTables: true, fullPageDeltaTable: 'trials' };
+    const requests = await runPasses(options, [0, 1, 2, 3], minute => {
+      if (minute >= 1) options.fullPageDeltaTable = undefined;
+    });
+    // Pass 0 counts (first) and sees a full page; pass 1 counts (debt) and sees a
+    // short one; passes 2 and 3 are inside the interval.
+    expect(headsOf(requests, 'trials')).toBe(2);
+  });
+
+  it('does not stamp the count when its table pass then fails, so the next pass counts again', async () => {
+    const options: MutableOptions = { seedCountedTables: true };
+    const requests = await runPasses(options, [0, 11, 12], minute => {
+      options.failDeltaTable = minute === 11 ? 'waitlist_entries' : undefined;
+    });
+    // 0: first count. 11: due, HEAD ok but the delta fails: not recorded.
+    // 12: still due, so it counts again.
+    expect(headsOf(requests, 'waitlist_entries')).toBe(3);
+  });
+});

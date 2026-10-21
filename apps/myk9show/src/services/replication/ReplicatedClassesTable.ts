@@ -5,6 +5,7 @@
  * Classes are competition categories within a trial.
  */
 
+import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 import {
   ReplicatedTable,
   databaseManager,
@@ -686,6 +687,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
 
     const adapter: SyncReplicatedTableAdapter<EnrichedClassRow, ReplicatedClass> = {
       ...this.getRowRefetchAdapter(),
+      remotePageSize: POSTGREST_MAX_ROWS,
       getRemoteRowCount: async ({ scope }) => {
         try {
           let query = supabase.from('classes').select('id', { count: 'exact', head: true });

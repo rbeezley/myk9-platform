@@ -194,6 +194,7 @@ export async function runBrowserLoad(
             ? exhibitorAccessToken
             : (secretaryTokens.get(showIndex) ?? secretaryTokens.get(0) ?? ''),
         classColumnSelect: LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT,
+        countEveryPass: process.env.LOAD_TEST_COUNT_EVERY_PASS === 'true',
         onSample: sample => metrics.recordVirtualUserRequest(sample),
         onApiError: observation => metrics.recordApiError(observation),
         onSkippedPass: () => metrics.recordVirtualUserSkippedPass(),

@@ -79,6 +79,13 @@ export const features = {
   // half alone; the checklist is docs/operations/sms-10dlc-registration.md § 7.
   // Env override: VITE_SMS_RING_ALERTS=true.
   smsRingAlerts: false,
+
+  // Remote row count cadence (MYK9-1301). The replication engine's per-table
+  // `count: exact` HEAD (partial-replica and hard-delete detection) runs about
+  // every 10 minutes, on the first pass after a realtime reconnect, and after a
+  // full-page delta, instead of every 60 s pass. KILL SWITCH: false = count on
+  // every pass, the pre-MYK9-1301 behaviour. The 24 h full sync is unaffected.
+  replicationCountCadence: true,
 } as const;
 
 export type Features = typeof features;

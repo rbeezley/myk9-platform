@@ -148,6 +148,17 @@ export {
   countServerBackedRows,
 } from './syncReplicatedTable';
 export { countCoveredRows } from './replicaCoverage';
+export {
+  DEFAULT_REMOTE_COUNT_INTERVAL_MS,
+  configureRemoteCountCadence,
+  decideRemoteCount,
+  recordRemoteCountPass,
+  type RemoteCountDecision,
+  markRealtimeReconnected,
+  resetRemoteCountCadenceForTests,
+  shouldCountRemoteRows,
+  type RemoteCountCadenceConfig,
+} from './remoteCountCadence';
 export { refetchDirtyRowsById } from './refetchDirtyRowsById';
 export type { RowRefetchAdapter } from './refetchDirtyRowsById';
 export type {

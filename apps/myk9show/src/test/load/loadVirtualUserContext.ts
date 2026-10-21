@@ -45,6 +45,16 @@ export interface ReaderContext {
   sinceIso(table: string, bufferMs: number): string;
   /** Move a table's watermark to the newest server `updated_at` in `rows`. */
   advance(table: string, rows: readonly { updated_at?: string }[]): void;
+  /**
+   * The engine's count cadence for `table` (the package's own `decideRemoteCount`
+   * and `recordRemoteCountPass`, MYK9-1301). `count` says whether this pass sends
+   * the HEAD. After the table's pass SUCCEEDS call `record` with whether the HEAD
+   * succeeded and how many rows the delta returned; a failed pass records nothing.
+   */
+  countGate(table: string): {
+    readonly count: boolean;
+    record(counted: boolean, fetchedRows: number): void;
+  };
   /** Count rows a pass downloaded, for the pass result. */
   tally(rows: number): void;
   /** Issue one request, record a sample for it, and never throw. */

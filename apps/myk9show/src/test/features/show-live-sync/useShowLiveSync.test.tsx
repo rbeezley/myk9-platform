@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
+import { markRealtimeReconnected } from '@myk9/replication';
 import { features } from '@/config/features';
 import {
   subscribeToShowChanges,
@@ -8,6 +9,7 @@ import {
 } from '@/features/show-live-sync/showChangeSignal';
 import { showLiveSyncEnabled, useShowLiveSync } from '@/features/show-live-sync/useShowLiveSync';
 
+vi.mock('@myk9/replication', () => ({ markRealtimeReconnected: vi.fn() }));
 vi.mock('@/config/features', () => ({ features: { showLiveSync: true } }));
 vi.mock('@/features/show-live-sync/showChangeSignal', () => ({
   subscribeToShowChanges: vi.fn(),
@@ -124,6 +126,22 @@ describe('useShowLiveSync', () => {
     const events = dispatchedSyncEvents().map(([event]) => event as CustomEvent);
     expect(events).toHaveLength(1);
     expect(events[0]?.detail).toBeUndefined();
+  });
+
+  it('marks a realtime reconnect on a re-subscribe, even when a change coalesces it (MYK9-1301)', () => {
+    renderHook(() => useShowLiveSync('show-1'));
+    act(() => {
+      statusListener?.('SUBSCRIBED');
+    });
+    expect(markRealtimeReconnected).not.toHaveBeenCalled();
+
+    act(() => {
+      emitChange();
+      statusListener?.('SUBSCRIBED');
+      vi.advanceTimersByTime(400);
+    });
+
+    expect(markRealtimeReconnected).toHaveBeenCalledOnce();
   });
 
   it('unsubscribes and clears a pending nudge on unmount', () => {

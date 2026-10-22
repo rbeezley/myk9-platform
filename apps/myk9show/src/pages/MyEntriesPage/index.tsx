@@ -407,7 +407,6 @@ const MyEntriesPage: React.FC = () => {
                       balanceSummary.kind === 'unknown' ||
                       (balanceSummary.unresolvedShowIds?.length ?? 0) > 0
                     }
-                    currentFees={entryStats.currentFees}
                     amountDue={entryStats.currentAmountDue}
                     hasPastBalance={balanceSummary.onlineShowBalances.some(show => show.isPastShow)}
                     currentFeesHref={currentFeesHref}

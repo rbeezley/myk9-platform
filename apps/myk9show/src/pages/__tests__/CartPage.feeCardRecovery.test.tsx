@@ -252,7 +252,6 @@ describe('MYK9-423 fee-card payment recovery', () => {
         <>
           <section aria-label="My Shows balance">
             <CompactStatsRow
-              currentFees={summary.currentFeesCents / 100}
               amountDue={summary.amountDueCents / 100}
               currentFeesHref={buildEntryBalanceRecoveryHref(summary)}
               onNavigate={navigate}
@@ -542,7 +541,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
       { initialRoute: '/exhibitor/entries' }
     );
     await user.click(
-      screen.getByRole('button', { name: /Entry fees: \$90.00 due.*Finish payment/i })
+      screen.getByRole('button', { name: /Entry fees: you owe \$90.00.*Finish payment/i })
     );
     expect(unsupportedFilter).toBeNull();
     const checkout = await screen.findByRole('button', { name: 'Pay $96.30 and confirm entries' });

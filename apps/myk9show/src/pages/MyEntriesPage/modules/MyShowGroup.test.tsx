@@ -14,16 +14,26 @@ import {
   makeClass,
   makeRow,
   NOW,
+  onlineLedgerFor,
   openShowActions,
   toOrders,
 } from '@/test/fixtures/myShowsFixtures';
 import { parseShowDate } from './myEntriesStats.helpers';
 import { MyShowsList, type MyShowsListProps } from './MyShowsList';
 import type { MyEntry } from './my-entries-types';
+import type { PaidStripPayment } from './paidStripSeen';
 import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
 import { getEntryStatusKindForDisplay } from '@/services/entryDisplay/entryDisplaySelectors';
 
+// The paid strip reads the My Payments ledger (MYK9-1275). Each test sets the
+// ledger the webhook would have written for its rows.
+const ledger = vi.hoisted(() => ({ current: [] as PaidStripPayment[] }));
+vi.mock('@/features/payments/useMyPayments', () => ({
+  useMyPayments: () => ({ data: ledger.current }),
+}));
+
 function renderRows(rows: MyEntry[], overrides: Partial<MyShowsListProps> = {}) {
+  ledger.current = onlineLedgerFor(rows);
   const props: MyShowsListProps = {
     filteredEntries: toOrders(rows),
     source: 'confirmed',

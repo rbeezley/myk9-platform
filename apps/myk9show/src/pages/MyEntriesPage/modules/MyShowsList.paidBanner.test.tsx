@@ -10,9 +10,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { PaymentStatus } from '@/types/show-registration-types';
-import { makeClass, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtures';
+import {
+  makeClass,
+  makeRow,
+  NOW,
+  onlineLedgerFor,
+  toOrders,
+} from '@/test/fixtures/myShowsFixtures';
 import { MyShowsList, type MyShowsListProps } from './MyShowsList';
 import type { MyEntry } from './my-entries-types';
+import type { PaidStripPayment } from './paidStripSeen';
+
+// The paid strip reads the My Payments ledger (MYK9-1275). Each test sets the
+// ledger the webhook would have written for its rows.
+const ledger = vi.hoisted(() => ({ current: [] as PaidStripPayment[] }));
+vi.mock('@/features/payments/useMyPayments', () => ({
+  useMyPayments: () => ({ data: ledger.current }),
+}));
 
 /** Paid at a fixed instant inside the 14-day confirmation window relative to `NOW`. */
 const PAID_AT = new Date('2026-10-20T12:00:00Z');
@@ -117,6 +131,7 @@ function renderList(overrides: Partial<MyShowsListProps> = {}) {
 
 beforeEach(() => {
   localStorage.clear();
+  ledger.current = onlineLedgerFor(scenarioRows());
 });
 
 describe('MyShowsList — paid banner (MYK9-804 exact scenario)', () => {

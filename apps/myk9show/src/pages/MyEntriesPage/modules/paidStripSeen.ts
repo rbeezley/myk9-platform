@@ -13,7 +13,21 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { isPastShowEntry } from './myEntriesStats.helpers';
 import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
+import type { MyPayment } from '@/features/payments/useMyPayments';
 import type { EntryClass, MyEntry } from './my-entries-types';
+
+/**
+ * The slice of a My Payments ledger row the strip reads. `MyPayment` is the
+ * one producer, so the strip and the My Payments history quote the SAME
+ * `stripe_orders` row: its amount, its date, its covered entries (MYK9-1275).
+ */
+export type PaidStripPayment = Pick<
+  MyPayment,
+  'id' | 'status' | 'date' | 'amountCents' | 'entryIds'
+>;
+
+/** The one `stripe_orders.status` that means the charge settled. */
+const SETTLED_ORDER_STATUS = 'succeeded';
 
 const PREFIX = 'myk9:paid-strip-seen:';
 
@@ -100,7 +114,10 @@ export interface PaidStrip {
   paymentIds: string[];
   /** Dogs the payments covered, in card order, each once. */
   dogNames: string[];
-  /** What was paid across those rows, in cents. */
+  /**
+   * What was paid, in cents: the sum of the covering online orders'
+   * `amount_cents`, each counted once, exactly as My Payments lists them.
+   */
   amountCents: number;
   /** How many class rows the payment covers (one row is one dog in one class). */
   classCount: number;
@@ -111,35 +128,54 @@ export interface PaidStrip {
    */
   awaitingReview: boolean;
   /**
-   * When it was paid: the LATEST `submittedAt` among the orders that
-   * contributed a fresh row. An online order is paid at checkout, so
-   * submission IS the payment moment. `lastUpdated` was the first choice and
-   * is wrong for this: it moves with every later write (a check-in, a score,
-   * a secretary edit), so a show-day update turned every paid order back into
-   * a fresh confirmation.
+   * When it was paid: the LATEST date among the covering online orders, the
+   * same `paid_at ?? created_at` My Payments shows on each order's row. Never
+   * `lastUpdated`, which moves with every later write (a check-in, a score).
    */
   date: Date;
 }
 
 /**
- * Whether a class row's money arrived through the ONLINE cart. Cash, check,
- * secretary-recorded and waived rows never produce a strip: there was no
- * checkout to confirm, and no receipt email to point at.
+ * Whether this class row is still paid. Reads `rawPaymentStatus` (this row's
+ * own `entries.payment_status`, never folded against the order's
+ * registration) rather than `paymentStatus`: the folded value deliberately
+ * downgrades a truly paid row to PENDING whenever a SIBLING entry on the same
+ * registration still owes (MYK9-495's secretary-attention direction), which
+ * dropped a genuinely paid class off this banner (MYK9-804 round 2).
  *
- * Reads `rawPaymentStatus` (this row's own `entries.payment_status`, never
- * folded against the order's registration) rather than `paymentStatus` — the
- * folded value deliberately downgrades a truly paid row to PENDING whenever a
- * SIBLING entry on the same registration still owes (MYK9-495's
- * secretary-attention direction), which dropped a genuinely paid class off
- * this banner (MYK9-804 round 2).
+ * This alone does NOT mean the money came online: `mapPaymentStatus` maps the
+ * generic DB `'paid'` to PAID_ONLINE (see `paymentChannel.ts`, F18), so a
+ * secretary-marked check reads the same. The online fact is the covering
+ * order from `settledOrdersByEntryId` below.
  */
-function isPaidOnline(cls: EntryClass): boolean {
+function isStillPaid(cls: EntryClass): boolean {
   return groundTruthStatus(cls) === PaymentStatus.PAID_ONLINE;
 }
 
-/** Was this payment recent enough to still be worth confirming? */
-function isWithinWindow(order: MyEntry, now: Date): boolean {
-  return now.getTime() - order.submittedAt.getTime() <= PAID_STRIP_WINDOW_MS;
+interface SettledOrder {
+  payment: PaidStripPayment;
+  paidAt: Date;
+}
+
+/**
+ * Every entry id a settled, recent online order covers. Cash, check,
+ * secretary-recorded, waived and unknown-channel rows have no order, so they
+ * never produce a strip: there was no checkout to confirm, and no receipt
+ * email to point at.
+ */
+function settledOrdersByEntryId(
+  payments: readonly PaidStripPayment[],
+  now: Date
+): Map<string, SettledOrder> {
+  const byEntryId = new Map<string, SettledOrder>();
+  for (const payment of payments) {
+    if (payment.status.toLowerCase() !== SETTLED_ORDER_STATUS || !payment.date) continue;
+    const paidAt = new Date(payment.date);
+    if (Number.isNaN(paidAt.getTime())) continue;
+    if (now.getTime() - paidAt.getTime() > PAID_STRIP_WINDOW_MS) continue;
+    for (const entryId of payment.entryIds) byEntryId.set(entryId, { payment, paidAt });
+  }
+  return byEntryId;
 }
 
 /**
@@ -153,16 +189,21 @@ function isWithinWindow(order: MyEntry, now: Date): boolean {
  * @param hasSeen Injected so the pure derivation stays testable and the
  *   caller can keep an in-memory dismissal set, keyed by class row id,
  *   alongside the stored one.
+ * @param payments The exhibitor's My Payments ledger (`useMyPayments`).
+ *   `undefined` while it loads or when it cannot be read: no strip, since a
+ *   payment the ledger does not show must not be claimed here (MYK9-1275).
  */
 export function derivePaidStrip(
   orders: MyEntry[],
   now: Date,
-  hasSeen: (paymentId: string) => boolean
+  hasSeen: (paymentId: string) => boolean,
+  payments: readonly PaidStripPayment[] | undefined
 ): PaidStrip | null {
+  if (!payments || payments.length === 0) return null;
   interface FreshPayment {
     cls: EntryClass;
     dogName: string;
-    order: MyEntry;
+    settled: SettledOrder;
   }
   /** The slice `derivePaidStrip` actually reads off a dog — either the real
    * `MyEntryDogGroup` or the single-dog fallback for a hand-built fixture
@@ -172,20 +213,28 @@ export function derivePaidStrip(
     classes: EntryClass[];
   }
 
+  const settledByEntryId = settledOrdersByEntryId(payments, now);
   const fresh: FreshPayment[] = [];
   for (const order of orders) {
-    if (isPastShowEntry(order, now) || !isWithinWindow(order, now)) continue;
+    if (isPastShowEntry(order, now)) continue;
     const dogs: DogSlice[] =
       order.dogs.length > 0 ? order.dogs : [{ dogName: order.dogName, classes: order.classes }];
     for (const dog of dogs) {
       for (const cls of dog.classes) {
-        if (isPaidOnline(cls) && !hasSeen(cls.id)) {
-          fresh.push({ cls, dogName: dog.dogName, order });
+        const settled = settledByEntryId.get(cls.id);
+        if (settled && isStillPaid(cls) && !hasSeen(cls.id)) {
+          fresh.push({ cls, dogName: dog.dogName, settled });
         }
       }
     }
   }
   if (fresh.length === 0) return null;
+
+  // Each covering order once: an order paying for seven classes is one charge
+  // on My Payments, not seven.
+  const coveringOrders = [
+    ...new Map(fresh.map(payment => [payment.settled.payment.id, payment.settled])).values(),
+  ];
 
   const dogNames: string[] = [];
   for (const payment of fresh) {
@@ -198,11 +247,10 @@ export function derivePaidStrip(
     awaitingReview: fresh.some(payment =>
       isAwaitingSecretaryDecision(payment.cls.entryStatus, payment.cls.entryStatusKind)
     ),
-    amountCents: fresh.reduce((sum, payment) => sum + Math.round(payment.cls.fee * 100), 0),
-    date: fresh.reduce(
-      (latest, payment) =>
-        payment.order.submittedAt > latest ? payment.order.submittedAt : latest,
-      fresh[0].order.submittedAt
+    amountCents: coveringOrders.reduce((sum, settled) => sum + settled.payment.amountCents, 0),
+    date: coveringOrders.reduce(
+      (latest, settled) => (settled.paidAt > latest ? settled.paidAt : latest),
+      coveringOrders[0].paidAt
     ),
   };
 }

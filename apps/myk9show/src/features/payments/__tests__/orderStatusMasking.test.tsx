@@ -126,7 +126,6 @@ describe('the exhibitor money surfaces agree on the unmasked balance (MYK9-495)'
     const s = summary();
     render(
       <CompactStatsRow
-        currentFees={s.currentFeesCents / 100}
         amountDue={s.amountDueCents / 100}
         currentFeesHref={s.onlineShowBalances[0].paymentHref}
         onNavigate={vi.fn()}

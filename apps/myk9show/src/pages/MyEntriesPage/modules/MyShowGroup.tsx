@@ -34,7 +34,12 @@ import {
   formatPaidCoverage,
   formatShowHeaderDateRange,
 } from './myShowHeaderFormat';
-import { derivePaidStrip, hasSeenPaidStrip, markPaidStripSeen } from './paidStripSeen';
+import {
+  derivePaidStrip,
+  hasSeenPaidStrip,
+  markPaidStripSeen,
+  type PaidStripPayment,
+} from './paidStripSeen';
 import { deriveShowMoneyState, refundNotesByDog, type ShowMoneyKind } from './showMoneyState';
 import { UnconfirmedReadNotice } from './UnconfirmedReadNotice';
 
@@ -48,6 +53,12 @@ export interface MyShowGroupProps {
    * filters.
    */
   allOrders: MyEntry[];
+  /**
+   * The My Payments ledger (`useMyPayments`), `undefined` until it loads. The
+   * paid strip speaks only for class rows a settled online order in it covers,
+   * and quotes that order's amount and date (MYK9-1275).
+   */
+  onlinePayments: readonly PaidStripPayment[] | undefined;
   /**
    * Where the rows came from. Handed straight to `deriveShowMoneyState` and
    * read for nothing else here: this component renders money from `money.kind`
@@ -74,6 +85,7 @@ export interface MyShowGroupProps {
 export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   group,
   allOrders,
+  onlinePayments,
   source,
   now,
   selfCheckinByClassId,
@@ -104,7 +116,8 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
     : derivePaidStrip(
         allOrders,
         now,
-        paymentId => hasSeenPaidStrip(paymentId) || dismissed.has(paymentId)
+        paymentId => hasSeenPaidStrip(paymentId) || dismissed.has(paymentId),
+        onlinePayments
       );
 
   const orderStates = group.orders.map(order => ({

@@ -7,11 +7,13 @@ import {
   isAwaitingSecretaryDecision,
   hasSeenPaidStrip,
   markPaidStripSeen,
+  type PaidStripPayment,
 } from './paidStripSeen';
 import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
 import { getEntryStatusKindForDisplay } from '@/services/entryDisplay/entryDisplaySelectors';
 import type { EntryClass, MyEntry } from './my-entries-types';
 import { withFixtureKind } from '@/test/fixtures/entryClassKind';
+import { onlineLedgerFor } from '@/test/fixtures/myShowsFixtures';
 
 const NOW = new Date('2026-10-01T12:00:00Z');
 const SHOW_DATE = new Date('2026-10-24T00:00:00');
@@ -103,6 +105,8 @@ function makeRow(overrides: Partial<MyEntry> = {}): MyEntry {
 
 const neverSeen = () => false;
 
+const ledgerFor = onlineLedgerFor;
+
 describe('hasSeenPaidStrip / markPaidStripSeen', () => {
   it('remembers a dismissal under its own prefix', () => {
     expect(hasSeenPaidStrip('order-1')).toBe(false);
@@ -123,7 +127,12 @@ describe('hasSeenPaidStrip / markPaidStripSeen', () => {
 
 describe('derivePaidStrip', () => {
   it('shows the strip on the first visit after paying online', () => {
-    const strip = derivePaidStrip(groupEntriesByOrder([makeRow()], NOW), NOW, neverSeen);
+    const strip = derivePaidStrip(
+      groupEntriesByOrder([makeRow()], NOW),
+      NOW,
+      neverSeen,
+      ledgerFor(groupEntriesByOrder([makeRow()], NOW))
+    );
 
     expect(strip).toEqual({
       paymentIds: ['c1'],
@@ -140,12 +149,12 @@ describe('derivePaidStrip', () => {
   // exhibitor with 255 strips: it moves with every later write (check-in,
   // score, secretary edit), so a show-day update made every paid order look
   // freshly paid again.
-  it('dates the strip by submittedAt, never by lastUpdated', () => {
+  it('dates the strip by the payment, never by lastUpdated', () => {
     const submittedAt = new Date('2026-09-20T09:00:00Z');
     const lastUpdated = new Date('2026-10-01T06:30:00Z');
     const orders = groupEntriesByOrder([makeRow({ submittedAt, lastUpdated })], NOW);
 
-    const strip = derivePaidStrip(orders, NOW, neverSeen);
+    const strip = derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders));
 
     expect(strip?.date).toEqual(submittedAt);
     expect(strip?.date).not.toEqual(lastUpdated);
@@ -158,7 +167,7 @@ describe('derivePaidStrip', () => {
       NOW
     );
 
-    expect(derivePaidStrip(orders, NOW, neverSeen)).toBeNull();
+    expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))).toBeNull();
   });
 
   it('folds every fresh order at the show into ONE strip', () => {
@@ -187,7 +196,7 @@ describe('derivePaidStrip', () => {
       NOW
     );
 
-    expect(derivePaidStrip(orders, NOW, neverSeen)).toEqual({
+    expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))).toEqual({
       paymentIds: ['c1', 'c2', 'c3'],
       dogNames: ['Rex', 'Scout'],
       amountCents: 10000,
@@ -213,13 +222,13 @@ describe('derivePaidStrip', () => {
     );
     markPaidStripSeen('c1');
 
-    expect(derivePaidStrip(orders, NOW, hasSeenPaidStrip)).toMatchObject({
+    expect(derivePaidStrip(orders, NOW, hasSeenPaidStrip, ledgerFor(orders))).toMatchObject({
       paymentIds: ['c2'],
       dogNames: ['Scout'],
     });
 
     markPaidStripSeen('c2');
-    expect(derivePaidStrip(orders, NOW, hasSeenPaidStrip)).toBeNull();
+    expect(derivePaidStrip(orders, NOW, hasSeenPaidStrip, ledgerFor(orders))).toBeNull();
   });
 
   it("hides the strip once the show's last date has passed", () => {
@@ -228,21 +237,26 @@ describe('derivePaidStrip', () => {
       NOW
     );
 
-    expect(derivePaidStrip(orders, NOW, neverSeen)).toBeNull();
+    expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))).toBeNull();
   });
 
   it('still renders and dismisses in memory when storage throws', () => {
     const orders = groupEntriesByOrder([makeRow()], NOW);
     breakStorage();
 
-    expect(derivePaidStrip(orders, NOW, hasSeenPaidStrip)).not.toBeNull();
+    expect(derivePaidStrip(orders, NOW, hasSeenPaidStrip, ledgerFor(orders))).not.toBeNull();
 
     // The component's in-memory dismissal set still hides it for this load.
     const dismissed = new Set<string>();
     markPaidStripSeen('c1');
     dismissed.add('c1');
     expect(
-      derivePaidStrip(orders, NOW, id => dismissed.has(id) || hasSeenPaidStrip(id))
+      derivePaidStrip(
+        orders,
+        NOW,
+        id => dismissed.has(id) || hasSeenPaidStrip(id),
+        ledgerFor(orders)
+      )
     ).toBeNull();
   });
 
@@ -252,7 +266,7 @@ describe('derivePaidStrip', () => {
     const thirtyDaysAgo = new Date(NOW.getTime() - 30 * 24 * 60 * 60 * 1000);
     const orders = groupEntriesByOrder([makeRow({ submittedAt: thirtyDaysAgo })], NOW);
 
-    expect(derivePaidStrip(orders, NOW, neverSeen)).toBeNull();
+    expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))).toBeNull();
   });
 
   it('holds the window at 14 days', () => {
@@ -264,14 +278,16 @@ describe('derivePaidStrip', () => {
       derivePaidStrip(
         groupEntriesByOrder([makeRow({ submittedAt: justInside })], NOW),
         NOW,
-        neverSeen
+        neverSeen,
+        ledgerFor(groupEntriesByOrder([makeRow({ submittedAt: justInside })], NOW))
       )
     ).not.toBeNull();
     expect(
       derivePaidStrip(
         groupEntriesByOrder([makeRow({ submittedAt: justOutside })], NOW),
         NOW,
-        neverSeen
+        neverSeen,
+        ledgerFor(groupEntriesByOrder([makeRow({ submittedAt: justOutside })], NOW))
       )
     ).toBeNull();
   });
@@ -290,7 +306,7 @@ describe('derivePaidStrip', () => {
       NOW
     );
 
-    expect(derivePaidStrip(orders, NOW, neverSeen)).toBeNull();
+    expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))).toBeNull();
   });
 
   it('never produces a strip for a waived order', () => {
@@ -305,7 +321,7 @@ describe('derivePaidStrip', () => {
       NOW
     );
 
-    expect(derivePaidStrip(orders, NOW, neverSeen)).toBeNull();
+    expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))).toBeNull();
   });
 
   it('never produces a strip for an unpaid order', () => {
@@ -320,7 +336,7 @@ describe('derivePaidStrip', () => {
       NOW
     );
 
-    expect(derivePaidStrip(orders, NOW, neverSeen)).toBeNull();
+    expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))).toBeNull();
   });
 
   it('names every dog on a multi-dog order', () => {
@@ -332,7 +348,10 @@ describe('derivePaidStrip', () => {
       NOW
     );
 
-    expect(derivePaidStrip(orders, NOW, neverSeen)?.dogNames).toEqual(['Rex', 'Scout']);
+    expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))?.dogNames).toEqual([
+      'Rex',
+      'Scout',
+    ]);
   });
 });
 
@@ -364,7 +383,7 @@ describe('derivePaidStrip — reads the row-level ground truth, not the folded d
       NOW
     );
 
-    expect(derivePaidStrip(orders, NOW, neverSeen)).toEqual({
+    expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))).toEqual({
       paymentIds: ['c-ranger-paid'],
       dogNames: ['Ranger'],
       amountCents: 3000,
@@ -389,7 +408,15 @@ describe('derivePaidStrip — reads the row-level ground truth, not the folded d
       NOW
     );
 
-    expect(derivePaidStrip(orders, NOW, neverSeen)).toBeNull();
+    // An order still lists the row (e.g. refunded since); the row's own status wins.
+    const coveringOrder: PaidStripPayment = {
+      id: 'order-1',
+      status: 'succeeded',
+      date: PAID_AT.toISOString(),
+      amountCents: 4500,
+      entryIds: ['c1'],
+    };
+    expect(derivePaidStrip(orders, NOW, neverSeen, [coveringOrder])).toBeNull();
   });
 
   it('falls back to the display status when no raw status was carried (legacy/hand-built rows)', () => {
@@ -398,7 +425,7 @@ describe('derivePaidStrip — reads the row-level ground truth, not the folded d
       NOW
     );
 
-    expect(derivePaidStrip(orders, NOW, neverSeen)).not.toBeNull();
+    expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))).not.toBeNull();
   });
 
   it('counts only the paid class on a dog that also carries an unpaid sibling class in the same order', () => {
@@ -426,7 +453,7 @@ describe('derivePaidStrip — reads the row-level ground truth, not the folded d
       NOW
     );
 
-    const strip = derivePaidStrip(orders, NOW, neverSeen);
+    const strip = derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders));
     expect(strip?.paymentIds).toEqual(['c-ranger-paid']);
     expect(strip?.dogNames).toEqual(['Ranger']);
     expect(strip?.amountCents).toBe(3000);
@@ -558,7 +585,7 @@ describe('derivePaidStrip — the issue scenario (MYK9-804)', () => {
   }
 
   it('states $210 across 7 paid classes, naming all four paid dogs', () => {
-    const strip = derivePaidStrip(scenarioOrders(), NOW, neverSeen);
+    const strip = derivePaidStrip(scenarioOrders(), NOW, neverSeen, ledgerFor(scenarioOrders()));
 
     expect(strip?.amountCents).toBe(21000);
     expect(strip?.dogNames).toEqual(['Cooper', 'Scout', 'Willow', 'Ranger']);
@@ -571,15 +598,17 @@ describe('derivePaidStrip — the issue scenario (MYK9-804)', () => {
     // registration must not change what the FULL order set says was paid.
     const rangerOnly = fullOrders.filter(order => order.registrationId === 'r-mixed');
 
-    const full = derivePaidStrip(fullOrders, NOW, neverSeen);
-    const stillFull = derivePaidStrip(fullOrders, NOW, neverSeen);
+    const full = derivePaidStrip(fullOrders, NOW, neverSeen, ledgerFor(fullOrders));
+    const stillFull = derivePaidStrip(fullOrders, NOW, neverSeen, ledgerFor(fullOrders));
     expect(full).toEqual(stillFull);
     expect(full?.amountCents).toBe(21000);
 
     // Sanity: the narrowed subset alone would have under-counted, which is
     // exactly why the caller must always pass the FULL set, never a filtered
     // one — see `MyShowGroup.tsx`'s `allOrders` prop.
-    expect(derivePaidStrip(rangerOnly, NOW, neverSeen)?.amountCents).toBe(3000);
+    expect(derivePaidStrip(rangerOnly, NOW, neverSeen, ledgerFor(rangerOnly))?.amountCents).toBe(
+      3000
+    );
   });
 });
 
@@ -616,5 +645,114 @@ describe('isAwaitingSecretaryDecision (real raw statuses)', () => {
 
   it('does not count a pending entry once its check-in is in the ring', () => {
     expect(classify('pending', 'in-ring')).toBe(false);
+  });
+});
+
+// MYK9-1275: the strip claimed "Paid $210 ... Receipt sent to your email" for
+// entries a secretary had marked paid by check, while My Payments (which lists
+// `stripe_orders`) said "No payments yet". The strip now speaks only for rows a
+// settled online order covers, and quotes that order's amount and date.
+describe('derivePaidStrip — speaks only for orders My Payments lists (MYK9-1275)', () => {
+  const ORDER_PAID_AT = '2026-09-29T15:00:00Z';
+
+  function order(overrides: Partial<PaidStripPayment> = {}): PaidStripPayment {
+    return {
+      id: 'order-1',
+      status: 'succeeded',
+      date: ORDER_PAID_AT,
+      amountCents: 4725,
+      entryIds: ['c1'],
+      ...overrides,
+    };
+  }
+
+  it("quotes the order's own amount and date, not the class fees or submittedAt", () => {
+    const strip = derivePaidStrip(groupEntriesByOrder([makeRow()], NOW), NOW, neverSeen, [order()]);
+
+    expect(strip?.amountCents).toBe(4725);
+    expect(strip?.date).toEqual(new Date(ORDER_PAID_AT));
+  });
+
+  it('shows nothing for a paid row no online order covers (a bare "paid", method unknown)', () => {
+    const row = makeRow({
+      paymentMethod: null,
+      classes: [
+        makeClass({
+          paymentStatus: PaymentStatus.PAID_ONLINE,
+          rawPaymentStatus: PaymentStatus.PAID_ONLINE,
+          paymentMethod: null,
+        }),
+      ],
+    });
+
+    expect(derivePaidStrip(groupEntriesByOrder([row], NOW), NOW, neverSeen, [])).toBeNull();
+  });
+
+  it('shows nothing for a paid-by-check row, even with other orders on the account', () => {
+    const row = makeRow({
+      paymentMethod: 'check',
+      classes: [
+        makeClass({
+          paymentStatus: PaymentStatus.PAID_BY_CHECK,
+          rawPaymentStatus: PaymentStatus.PAID_BY_CHECK,
+          paymentMethod: 'check',
+        }),
+      ],
+    });
+
+    expect(
+      derivePaidStrip(groupEntriesByOrder([row], NOW), NOW, neverSeen, [
+        order({ entryIds: ['some-other-entry'] }),
+      ])
+    ).toBeNull();
+  });
+
+  it('shows nothing while the payment ledger has not loaded', () => {
+    expect(
+      derivePaidStrip(groupEntriesByOrder([makeRow()], NOW), NOW, neverSeen, undefined)
+    ).toBeNull();
+  });
+
+  it.each(['pending', 'processing', 'failed', 'cancelled', 'refunded'])(
+    'ignores an order whose status is %s',
+    status => {
+      expect(
+        derivePaidStrip(groupEntriesByOrder([makeRow()], NOW), NOW, neverSeen, [order({ status })])
+      ).toBeNull();
+    }
+  );
+
+  it('keys the 14-day window on the order date', () => {
+    const thirtyDaysAgo = new Date(NOW.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    expect(
+      derivePaidStrip(groupEntriesByOrder([makeRow()], NOW), NOW, neverSeen, [
+        order({ date: thirtyDaysAgo }),
+      ])
+    ).toBeNull();
+  });
+
+  it('sums each covering order once and dates the strip by the latest', () => {
+    const rows = [
+      makeRow({ id: 'e1', registrationId: 'r1', classes: [makeClass({ id: 'c1' })] }),
+      makeRow({
+        id: 'e2',
+        registrationId: 'r1',
+        dogId: 'd2',
+        dogName: 'Scout',
+        classes: [makeClass({ id: 'c2' })],
+      }),
+      makeRow({ id: 'e3', registrationId: 'r2', classes: [makeClass({ id: 'c3' })] }),
+    ];
+    const later = '2026-09-30T20:00:00Z';
+
+    const strip = derivePaidStrip(groupEntriesByOrder(rows, NOW), NOW, neverSeen, [
+      order({ id: 'order-1', amountCents: 9450, entryIds: ['c1', 'c2'] }),
+      order({ id: 'order-2', amountCents: 4725, entryIds: ['c3'], date: later }),
+    ]);
+
+    expect(strip?.amountCents).toBe(9450 + 4725);
+    expect(strip?.classCount).toBe(3);
+    expect(strip?.date).toEqual(new Date(later));
   });
 });

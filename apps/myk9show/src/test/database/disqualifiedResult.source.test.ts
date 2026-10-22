@@ -132,8 +132,9 @@ describe('result_text on every results view reads DQ for a disqualified entry', 
   it('view_authenticated_entry_results keeps owner-run and gains the DQ arm', () => {
     const view = latestViewDefinition('view_authenticated_entry_results');
     // MYK9-1162 re-emitted this view (appending awaiting_registration_number)
-    // from the 1011 body, so the DQ arm below must survive that rebuild.
-    expect(view.file).toBe('20261014214300_myk9_1162_held_entries.sql');
+    // from the 1011 body, and MYK9-1326 rebuilt it again without promo_code_id,
+    // so the DQ arm below must survive both rebuilds.
+    expect(view.file).toBe('20261022131700_myk9_1326_drop_entries_promo_code_id.sql');
     expect(view.body).toContain('AS awaiting_registration_number');
     expect(view.body).toContain(
       "(access.can_view_scores OR vis.qualification_visible) AND e.is_scored = true AND e.result_status = 'disqualified' THEN 'DQ'"
@@ -143,7 +144,8 @@ describe('result_text on every results view reads DQ for a disqualified entry', 
 
   it('view_entry_with_results carries security_invoker = true inline', () => {
     const view = latestViewDefinition('view_entry_with_results');
-    expect(view.file).toBe('20261011003700_myk9_1011_disqualified_result.sql');
+    // MYK9-1326 rebuilt it from the 1011 body without promo_code_id.
+    expect(view.file).toBe('20261022131700_myk9_1326_drop_entries_promo_code_id.sql');
     expect(view.body).toContain('WITH (security_invoker = true)');
     expect(view.body).toContain("e.result_status = 'disqualified' THEN 'DQ'");
     expect(view.body).not.toMatch(/SELECT\s+e\.\*/);

@@ -157,6 +157,34 @@ describe('useAccountNotifications', () => {
     expect(mockRefreshPermissions).not.toHaveBeenCalled();
   });
 
+  it('delivers a club awaiting authorization notice without an RBAC refresh', () => {
+    mockUseQueryResult.mockReturnValue({
+      data: {
+        userId: 'auth-user-1',
+        rows: [
+          {
+            id: 'notif-club-1',
+            type: 'club_awaiting_authorization',
+            message: 'Riverside KC was created by Pat Lee and is waiting for authorization.',
+            deep_link_url: '/clubs/club-1',
+            created_at: '2026-10-22T01:00:00.000Z',
+          },
+        ],
+      },
+    });
+
+    renderHook(() => useAccountNotifications());
+
+    expect(mockAddAlert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'notif-club-1',
+        title: 'Club waiting for authorization',
+        actionUrl: '/clubs/club-1',
+      })
+    );
+    expect(mockRefreshPermissions).not.toHaveBeenCalled();
+  });
+
   it('refreshes RBAC permissions after delivering a club_access_approved row', () => {
     mockUseQueryResult.mockReturnValue({
       data: { userId: 'auth-user-1', rows: [clubApprovedRow] },

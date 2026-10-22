@@ -81,4 +81,22 @@ describe('buildAccountNotificationPayload', () => {
       actionUrl: '/shows/show-1/entries?tab=waitlist',
     });
   });
+
+  it('titles a club-awaiting-authorization notice for site admins (MYK9-1315)', () => {
+    const payload = buildAccountNotificationPayload(
+      {
+        id: 'notif-club-1',
+        type: 'club_awaiting_authorization',
+        message: 'Riverside KC was created by Pat Lee and is waiting for authorization.',
+        deep_link_url: '/clubs/club-1',
+        created_at: '2026-10-22T01:00:00.000Z',
+      },
+      'auth-user-1'
+    );
+
+    expect(payload).toMatchObject({
+      title: 'Club waiting for authorization',
+      actionUrl: '/clubs/club-1',
+    });
+  });
 });

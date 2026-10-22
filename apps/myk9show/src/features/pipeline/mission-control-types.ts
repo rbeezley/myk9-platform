@@ -73,7 +73,6 @@ export interface ClassPipelineItem {
   status: string | null;
   stage: ClassPipelineStage;
   scored_count: number;
-  total_entries: number;
   is_scoring_finalized: boolean;
   /** True when secretary has reviewed results (enables Publish action) */
   is_results_reviewed: boolean;
@@ -81,14 +80,4 @@ export interface ClassPipelineItem {
   planned_start_time: string | null;
   /** Secretary-controlled sort order within the trial (for Kanban reorder) */
   display_order: number | null;
-}
-
-/** Stats computed for a show or trial context row */
-export interface ContextStats {
-  trialCount: number;
-  classCount: number;
-  scoredCount: number;
-  totalEntries: number;
-  percentComplete: number;
-  percentQualified: number | null;
 }

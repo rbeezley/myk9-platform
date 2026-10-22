@@ -248,33 +248,6 @@ export async function postgrestGetShowStatistics() {
   return { data: { total: count || 0 }, error: null };
 }
 
-export async function postgrestGetShowsWithEntryCounts() {
-  const { data, error } = await supabase
-    .from('shows')
-    .select(
-      `
-      *,
-      club:clubs(
-        id,
-        name,
-        logo_url,
-        cover_image_url,
-        accent_color
-      )
-    `
-    )
-    .is('deleted_at', null)
-    .order('start_date', { ascending: true });
-
-  if (error) throw createDatabaseError(error, 'show', 'select_with_entry_counts');
-  const dataWithCounts =
-    data?.map(show => ({
-      ...show,
-      entry_count: 0,
-    })) || [];
-  return { data: dataWithCounts, error: null };
-}
-
 export async function postgrestGetShowsByStatus(status: string) {
   const { data, error } = await supabase
     .from('shows')

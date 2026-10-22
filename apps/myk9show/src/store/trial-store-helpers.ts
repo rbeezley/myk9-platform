@@ -64,7 +64,6 @@ export function replicatedToTrialClass(replicated: ReplicatedClass): SyncableTri
     actualStartTime: replicated.actual_start_time,
     actualFinishTime: replicated.actual_end_time,
     status: (replicated.classStatus as SyncableTrialClass['status']) || 'Scheduled',
-    entries: 0, // Computed field (derived from entry data, not stored on class)
     isScoringFinalized: replicated.isScoringFinalized ?? false,
     isResultsReviewed: replicated.isResultsReviewed ?? false,
     displayOrder: replicated.displayOrder,
@@ -97,7 +96,6 @@ export function mergeTrialClassData(
     // row only means the judge lookup did not run, so the judge already held is kept.
     judgeId:
       replicated.judgeResolved === true ? base.judgeId : base.judgeId || existing.judgeId || '',
-    entries: existing.entries || 0,
   };
 }
 

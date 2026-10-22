@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SecretaryDashboardPage } from '../index';
@@ -7,6 +7,7 @@ import { useTrialStore } from '@/store/trialStore';
 import { showFactory } from '@/test/utils/factories';
 
 const mockUseMissionControlData = vi.fn();
+let mockEntryCounts: ReadonlyMap<string, number> = new Map();
 let mockPendingEntries: Array<{
   id: string;
   showId: string;
@@ -46,6 +47,11 @@ vi.mock('@/hooks/queries/usePendingEntries', () => ({
   usePendingEntries: () => ({ data: mockPendingEntries }),
 }));
 
+const mockUseShowEntryCounts = vi.hoisted(() => vi.fn());
+vi.mock('@/hooks/queries/useShowEntryCounts', () => ({
+  useShowEntryCounts: (ids: readonly string[]) => mockUseShowEntryCounts(ids),
+}));
+
 vi.mock('@/features/pipeline/hooks/useMissionControlData', () => ({
   useMissionControlData: () => mockUseMissionControlData(),
 }));
@@ -62,6 +68,8 @@ describe('SecretaryDashboardPage', () => {
   beforeEach(() => {
     localStorage.clear();
     mockPendingEntries = [];
+    mockEntryCounts = new Map();
+    mockUseShowEntryCounts.mockImplementation(() => mockEntryCounts);
     mockUseSecretaryTasks.mockReturnValue({ data: [] });
     mockUseMissionControlData.mockReturnValue({
       shows: [],
@@ -263,5 +271,36 @@ describe('SecretaryDashboardPage', () => {
     } finally {
       useTrialStore.setState({ trials: prior.trials, trialClasses: prior.trialClasses });
     }
+  });
+
+  it("shows each card its own show's real entry count and none for a show with no answer", () => {
+    const upcomingStart = new Date(Date.now() + 14 * 86_400_000).toISOString().split('T')[0];
+    const counted = showFactory.build({
+      id: 'show-counted',
+      name: 'Counted Show',
+      startDate: upcomingStart,
+      endDate: upcomingStart,
+      status: 'published',
+    });
+    const unknown = showFactory.build({
+      id: 'show-unknown',
+      name: 'Unknown Show',
+      startDate: upcomingStart,
+      endDate: upcomingStart,
+      status: 'published',
+    });
+    mockUseMissionControlData.mockReturnValue({ shows: [counted, unknown], isLoading: false });
+    mockEntryCounts = new Map([['show-counted', 5]]);
+
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /Upcoming/ }));
+
+    expect(mockUseShowEntryCounts).toHaveBeenCalledWith(
+      expect.arrayContaining(['show-counted', 'show-unknown'])
+    );
+    const lines = screen.getAllByTestId('show-card-entry-count');
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toHaveTextContent('5 entries');
+    expect(screen.queryByText(/^0 entries$/)).not.toBeInTheDocument();
   });
 });

@@ -17,7 +17,6 @@ describe('Show Integration - Import Validation', () => {
       useUpcomingShowsQuery,
       useShowsByDateRangeQuery,
       useShowStatisticsQuery,
-      useShowsWithEntryCountsQuery,
       useCreateShowMutation,
       useUpdateShowMutation,
       useShowManagement,
@@ -31,7 +30,6 @@ describe('Show Integration - Import Validation', () => {
     expect(useUpcomingShowsQuery).toBeDefined();
     expect(useShowsByDateRangeQuery).toBeDefined();
     expect(useShowStatisticsQuery).toBeDefined();
-    expect(useShowsWithEntryCountsQuery).toBeDefined();
     expect(useCreateShowMutation).toBeDefined();
     expect(useUpdateShowMutation).toBeDefined();
     expect(useShowManagement).toBeDefined();
@@ -67,7 +65,6 @@ describe('Show Integration - Import Validation', () => {
       useUpcomingShowsWithQuery,
       useShowsByDateRangeWithQuery,
       useShowStatisticsWithQuery,
-      useShowsWithEntryCountsCompat,
     } = await import('@/hooks/useShowStoreCompat');
 
     expect(useShowStoreCompat).toBeDefined();
@@ -78,7 +75,6 @@ describe('Show Integration - Import Validation', () => {
     expect(useUpcomingShowsWithQuery).toBeDefined();
     expect(useShowsByDateRangeWithQuery).toBeDefined();
     expect(useShowStatisticsWithQuery).toBeDefined();
-    expect(useShowsWithEntryCountsCompat).toBeDefined();
   });
 
   it('should import show database queries without errors', async () => {
@@ -93,7 +89,6 @@ describe('Show Integration - Import Validation', () => {
       getShowsByStatus,
       getUpcomingShows,
       getShowStatistics,
-      getShowsWithEntryCounts,
       getShowsByDateRange,
     } = await import('@/services/database/shows');
 
@@ -107,7 +102,6 @@ describe('Show Integration - Import Validation', () => {
     expect(getShowsByStatus).toBeDefined();
     expect(getUpcomingShows).toBeDefined();
     expect(getShowStatistics).toBeDefined();
-    expect(getShowsWithEntryCounts).toBeDefined();
     expect(getShowsByDateRange).toBeDefined();
   });
 });

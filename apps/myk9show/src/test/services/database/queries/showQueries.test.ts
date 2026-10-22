@@ -13,7 +13,6 @@ import {
   SHOW_HAS_STRIPE_ORDERS,
   searchShows,
   getShowStatistics,
-  getShowsWithEntryCounts,
   getShowsByStatus,
 } from '@/services/database/shows';
 import type { DbShowInsert, DbShowUpdate } from '@/types/database-mappings';
@@ -639,40 +638,6 @@ describe('Show Queries', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-    });
-  });
-
-  describe('getShowsWithEntryCounts', () => {
-    it('should fetch shows with entry counts successfully', async () => {
-      const mockData = [
-        {
-          id: '1',
-          name: 'Show with Entries',
-          club: { id: 'club-1', name: 'Club 1' },
-        },
-      ];
-
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
-
-      const result = await getShowsWithEntryCounts();
-
-      expect(result.data).toBeDefined();
-      expect(result.data[0].entry_count).toBe(0);
-      expect(result.error).toBeNull();
-    });
-
-    it('should add entry count to each show', async () => {
-      const mockData = [
-        { id: '1', name: 'Show 1', club: { id: 'club-1', name: 'Club 1' } },
-        { id: '2', name: 'Show 2', club: { id: 'club-2', name: 'Club 2' } },
-      ];
-
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
-
-      const result = await getShowsWithEntryCounts();
-
-      expect(result.data).toHaveLength(2);
-      expect(result.data.every(show => show.entry_count === 0)).toBe(true);
     });
   });
 

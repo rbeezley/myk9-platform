@@ -56,7 +56,6 @@ import {
   getUpcomingShows,
   getShowsByDateRange,
   getShowsByClub,
-  getShowsWithEntryCounts,
   getShowsByStatus,
   getSecretaryShows,
   searchShows,
@@ -371,31 +370,6 @@ describe('showQueries (replication)', () => {
       expect(result.data).toHaveLength(2);
       expect((result.data[0] as Record<string, unknown>).start_date).toBe('2026-06-01');
       expect((result.data[1] as Record<string, unknown>).start_date).toBe('2026-01-01');
-    });
-  });
-
-  // -----------------------------------------------------------------------
-  // getShowsWithEntryCounts
-  // -----------------------------------------------------------------------
-  describe('getShowsWithEntryCounts', () => {
-    it('adds entry_count: 0 to each row', async () => {
-      setupListMocks();
-
-      const result = await getShowsWithEntryCounts();
-
-      expect(result.data).toHaveLength(1);
-      expect((result.data[0] as Record<string, unknown>).entry_count).toBe(0);
-      // Should have club sub-object
-      expect((result.data[0] as Record<string, unknown>).club).toBeDefined();
-    });
-
-    it('returns empty array when no shows', async () => {
-      setupListMocks([], [], [], []);
-
-      const result = await getShowsWithEntryCounts();
-
-      expect(result.data).toEqual([]);
-      expect(result.error).toBeNull();
     });
   });
 

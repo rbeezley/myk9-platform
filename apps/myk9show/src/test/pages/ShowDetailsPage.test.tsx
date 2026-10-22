@@ -179,7 +179,6 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
     byClub: (clubId: string) => ['shows', 'club', clubId],
     byStatus: (status: string) => ['shows', 'status', status],
     upcoming: () => ['shows', 'upcoming'],
-    withEntryCounts: () => ['shows', 'withEntryCounts'],
   },
 }));
 
@@ -1136,7 +1135,6 @@ describe('ShowDetailsPage', () => {
     queryClient.setQueryData(['shows', 'club', 'club-1'], [mockShow]);
     queryClient.setQueryData(['shows', 'status', 'Upcoming'], [mockShow]);
     queryClient.setQueryData(['shows', 'upcoming'], [mockShow]);
-    queryClient.setQueryData(['shows', 'withEntryCounts'], [mockShow]);
 
     await user.click(screen.getByRole('radio', { name: 'Heritage' }));
     await user.click(screen.getByRole('button', { name: 'Save style' }));

@@ -185,3 +185,34 @@ describe('ShowPhaseCard — past', () => {
     expect(link).toHaveAttribute('href', '/shows/past-7');
   });
 });
+
+describe('ShowPhaseCard — entry count (MYK9-1311)', () => {
+  const phases = [
+    ['today', { startDate: TODAY, status: 'in_progress' }],
+    ['upcoming', { startDate: FUTURE, status: 'published' }],
+    ['draft', { startDate: FUTURE, status: 'draft' }],
+    ['past', { startDate: PAST, endDate: PAST, status: 'completed' }],
+  ] as const;
+
+  it.each(phases)('shows the real count on a %s card', (phase, overrides) => {
+    const show = makeShow({ id: 's1', ...overrides });
+    renderCard({ show, phase, entryCount: 5 });
+    expect(screen.getByTestId('show-card-entry-count')).toHaveTextContent('5 entries');
+  });
+
+  it('uses the singular for one entry and shows a genuine zero', () => {
+    const show = makeShow({ id: 's1', startDate: FUTURE, status: 'published' });
+    const { unmount } = renderCard({ show, phase: 'upcoming', entryCount: 1 });
+    expect(screen.getByTestId('show-card-entry-count')).toHaveTextContent('1 entry');
+    unmount();
+    renderCard({ show, phase: 'upcoming', entryCount: 0 });
+    expect(screen.getByTestId('show-card-entry-count')).toHaveTextContent('0 entries');
+  });
+
+  it.each(phases)('omits the line on a %s card when the count is unknown', (phase, overrides) => {
+    const show = makeShow({ id: 's1', ...overrides });
+    renderCard({ show, phase });
+    expect(screen.queryByTestId('show-card-entry-count')).not.toBeInTheDocument();
+    expect(screen.queryByText(/entr(y|ies)$/)).not.toBeInTheDocument();
+  });
+});

@@ -15,7 +15,7 @@ import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { ScopeType } from '@/types/auth-types';
 import { mapClassToStage, groupClassesByStage } from '../utils/classStageMapping';
 import { sortByDisplayOrder } from '../utils/pipelineReorder';
-import type { ClassPipelineItem, ContextStats } from '../mission-control-types';
+import type { ClassPipelineItem } from '../mission-control-types';
 
 export function useMissionControlData() {
   const { shows: rawShows, isLoading: showsLoading } = useShowStore();
@@ -112,7 +112,6 @@ export function useMissionControlData() {
         status: cls.status ?? null,
         stage: mapClassToStage(cls.status, isScoringFinalized),
         scored_count: cls.completedEntries ?? 0,
-        total_entries: cls.entries ?? 0,
         is_scoring_finalized: isScoringFinalized,
         is_results_reviewed: isResultsReviewed,
         start_time: cls.startTime || null,
@@ -124,41 +123,6 @@ export function useMissionControlData() {
 
   // Group by stage
   const classesByStage = useMemo(() => groupClassesByStage(pipelineClasses), [pipelineClasses]);
-
-  // Show-level stats (across ALL trials for the selected show)
-  const showStats = useMemo<ContextStats>(() => {
-    const trialCount = trials.length;
-    const classCount = pipelineClasses.length;
-    const scoredCount = pipelineClasses.reduce((s, c) => s + c.scored_count, 0);
-    const totalEntries = pipelineClasses.reduce((s, c) => s + c.total_entries, 0);
-    const percentComplete = totalEntries > 0 ? Math.round((scoredCount / totalEntries) * 100) : 0;
-
-    return {
-      trialCount,
-      classCount,
-      scoredCount,
-      totalEntries,
-      percentComplete,
-      percentQualified: null, // Needs entry-level scoring data — future enhancement
-    };
-  }, [trials, pipelineClasses]);
-
-  // Trial-level stats
-  const trialStats = useMemo<ContextStats>(() => {
-    const classCount = pipelineClasses.length;
-    const scoredCount = pipelineClasses.reduce((s, c) => s + c.scored_count, 0);
-    const totalEntries = pipelineClasses.reduce((s, c) => s + c.total_entries, 0);
-    const percentComplete = totalEntries > 0 ? Math.round((scoredCount / totalEntries) * 100) : 0;
-
-    return {
-      trialCount: 1,
-      classCount,
-      scoredCount,
-      totalEntries,
-      percentComplete,
-      percentQualified: null,
-    };
-  }, [pipelineClasses]);
 
   // Handle show change — reset trial selection
   const handleShowChange = useCallback((showId: string) => {
@@ -234,9 +198,5 @@ export function useMissionControlData() {
     pipelineClasses,
     classesByStage,
     hasLiveClasses,
-
-    // Stats
-    showStats,
-    trialStats,
   };
 }

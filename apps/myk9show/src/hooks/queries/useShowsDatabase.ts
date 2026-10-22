@@ -18,7 +18,6 @@ import {
   getShowsByStatus,
   getUpcomingShows,
   getShowStatistics,
-  getShowsWithEntryCounts,
   getShowsByDateRange,
 } from '@/services/database/shows';
 import {
@@ -40,7 +39,6 @@ export const showQueryKeys = {
   byStatus: (status: string) => [...showQueryKeys.all, 'status', status] as const,
   upcoming: () => [...showQueryKeys.all, 'upcoming'] as const,
   statistics: () => [...showQueryKeys.all, 'statistics'] as const,
-  withEntryCounts: () => [...showQueryKeys.all, 'withEntryCounts'] as const,
   byDateRange: (startDate: string, endDate: string) =>
     [...showQueryKeys.all, 'dateRange', startDate, endDate] as const,
   deleted: () => [...showQueryKeys.all, 'deleted'] as const,
@@ -214,24 +212,6 @@ export const useShowStatisticsQuery = () => {
   });
 };
 
-/**
- * Get shows with entry counts
- */
-export const useShowsWithEntryCountsQuery = () => {
-  return useQuery({
-    queryKey: showQueryKeys.withEntryCounts(),
-    queryFn: async () => {
-      const { data, error } = await getShowsWithEntryCounts();
-      if (error) throw error;
-      return data.map(show => ({
-        ...mapDatabaseToShow(show as unknown as Parameters<typeof mapDatabaseToShow>[0]),
-        entryCount: show.entry_count || 0,
-      }));
-    },
-    ...cacheStrategies.moderate,
-  });
-};
-
 // Mutation Hooks
 
 /**
@@ -271,7 +251,6 @@ export const useCreateShowMutation = () => {
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: showQueryKeys.statistics() });
       queryClient.invalidateQueries({ queryKey: showQueryKeys.upcoming() });
-      queryClient.invalidateQueries({ queryKey: showQueryKeys.withEntryCounts() });
     },
   });
 };
@@ -316,7 +295,6 @@ export const useUpdateShowMutation = () => {
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: showQueryKeys.statistics() });
       queryClient.invalidateQueries({ queryKey: showQueryKeys.upcoming() });
-      queryClient.invalidateQueries({ queryKey: showQueryKeys.withEntryCounts() });
     },
   });
 };
@@ -361,7 +339,6 @@ export const useRestoreShowMutation = () => {
       // Invalidate all related queries
       queryClient.invalidateQueries({ queryKey: showQueryKeys.deleted() });
       queryClient.invalidateQueries({ queryKey: showQueryKeys.statistics() });
-      queryClient.invalidateQueries({ queryKey: showQueryKeys.withEntryCounts() });
     },
   });
 };

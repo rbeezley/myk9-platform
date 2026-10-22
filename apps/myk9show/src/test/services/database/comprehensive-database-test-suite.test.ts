@@ -474,7 +474,7 @@ describe('Comprehensive Database Test Suite', () => {
         shows: {
           crud: ['getAllShows', 'getShowById', 'createShow', 'updateShow', 'deleteShow'],
           search: ['searchShows'],
-          analytics: ['getShowStatistics', 'getShowsWithEntryCounts'],
+          analytics: ['getShowStatistics'],
           specialized: [
             'getUpcomingShows',
             'getShowsByDateRange',

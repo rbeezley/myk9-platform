@@ -35,6 +35,59 @@ SELECT
   (SELECT count(*) FROM public.entries WHERE show_id = '${DEMO_SHOW_ID}');
 `;
 
+// MYK9-1331: the seeds must leave nothing cron-waitlist-expiration can turn into
+// an entry, or the */15 tick after every reseed moves the demo show off the 517
+// that loadFixturePreflight requires. This runs the cron's promotion path (its
+// candidate list, then promote_waitlist_entry_from_cron on every waiting row, a
+// superset of what the cron tries) and fails if any entry count changes. The
+// positive control then turns automatic offers on and requires the same path to
+// create an entry, so a check that cannot fail fails loudly instead. psql wraps
+// it in BEGIN/ROLLBACK, and the control rolls itself back, so nothing persists.
+export const WAITLIST_PROMOTION_POST_SEED_CHECK = `
+DO $$
+DECLARE
+  v_waiting integer;
+  v_before bigint;
+  v_after bigint;
+  v_control_after bigint;
+  v_row record;
+BEGIN
+  SELECT count(*) INTO v_waiting FROM public.waitlist_entries WHERE status = 'waiting';
+  IF v_waiting = 0 THEN
+    RAISE EXCEPTION 'MYK9-1331 check is vacuous: the seeds left no waiting wait-list row';
+  END IF;
+
+  SELECT count(*) INTO v_before FROM public.entries;
+  FOR v_row IN
+    SELECT waitlist_entry_id AS id FROM public.list_waitlist_offer_candidates()
+    UNION
+    SELECT id FROM public.waitlist_entries WHERE status = 'waiting'
+  LOOP
+    PERFORM public.promote_waitlist_entry_from_cron(v_row.id);
+  END LOOP;
+  SELECT count(*) INTO v_after FROM public.entries;
+  IF v_after <> v_before THEN
+    RAISE EXCEPTION 'MYK9-1331: the waitlist cron would add % entr(ies) to the seeded data',
+      v_after - v_before;
+  END IF;
+
+  BEGIN
+    UPDATE public.shows SET waitlist_auto_offer = true WHERE id = '${DEMO_SHOW_ID}';
+    FOR v_row IN SELECT id FROM public.waitlist_entries WHERE status = 'waiting' LOOP
+      PERFORM public.promote_waitlist_entry_from_cron(v_row.id);
+    END LOOP;
+    SELECT count(*) INTO v_control_after FROM public.entries;
+    RAISE EXCEPTION USING ERRCODE = 'XM131', MESSAGE = 'roll back the positive control';
+  EXCEPTION WHEN SQLSTATE 'XM131' THEN
+    NULL;
+  END;
+  IF v_control_after <= v_before THEN
+    RAISE EXCEPTION 'MYK9-1331 positive control: with automatic offers on, the cron path promoted nothing, so the check above proves nothing';
+  END IF;
+END;
+$$;
+`;
+
 export function parseSupabaseStatusEnv(output: string): Record<string, string> {
   const values: Record<string, string> = {};
 
@@ -267,6 +320,24 @@ function resetAndSeed(local: LocalSupabaseEnvironment, baseEnv: NodeJS.ProcessEn
   );
   seedIsolatedAccounts(local, jobEnv);
   runPostSeedAssertions(local, jobEnv);
+  runCommand(
+    'Post-seed wait-list promotion check (MYK9-1331)',
+    'psql',
+    [
+      local.dbUrl,
+      '-X',
+      '-q',
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-c',
+      'BEGIN',
+      '-c',
+      WAITLIST_PROMOTION_POST_SEED_CHECK,
+      '-c',
+      'ROLLBACK',
+    ],
+    jobEnv
+  );
 }
 
 function assertPreparationIntent(env: NodeJS.ProcessEnv) {

@@ -109,6 +109,8 @@ describe('buildSecretaryCockpitSnapshot', () => {
           entryCount: 0,
           scoredCount: 0,
           runListCount: 3,
+          judgeId: 'judge-1',
+          judgeName: 'Jane Judge',
         },
       ],
       tree,
@@ -123,6 +125,9 @@ describe('buildSecretaryCockpitSnapshot', () => {
     // Run order sorts pending dogs too, so its count travels separately
     // (#2712); dropping it here would hide the menu on a pending-heavy class.
     expect(cls?.runListCount).toBe(3);
+    // The class panel's judge picker selects by id (MYK9-1323); the name alone cannot.
+    expect(cls?.judgeId).toBe('judge-1');
+    expect(cls?.judgeName).toBe('Jane Judge');
   });
 
   it('groups by Trial, preserves scheduled time, and adds canonical class work links', () => {

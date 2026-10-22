@@ -46,6 +46,12 @@ const REGRESSION_SPECS = [
   // "Ranger" enterable in a Container / Novice A class. It fails at dog
   // selection if that seed drifts.
   '**/registration/handlerNameSpace.spec.ts',
+  // focusedClassHeaderPinned: the Overview's pinned class header (MYK9-1266) and the
+  // contained pane scroll that keeps the workspace from scrolling into a blank band.
+  // Layout only a real browser measures. Hermetic fixture, every write aborted.
+  // Verified both directions before promotion: green at head, and red with the
+  // pane scrollers' `relative` removed (1974px of outer-page overflow).
+  '**/secretary/focusedClassHeaderPinned.spec.ts',
   '**/authentication-validation.spec.ts',
   '**/slice2-dog-workspace-evidence.spec.ts',
   // The former entities/entriesUI suite targets the deleted table/card

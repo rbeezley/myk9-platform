@@ -366,6 +366,9 @@ test('long split panes cannot scroll the page into blank space and the class fil
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollHeight - innerHeight))
       .toBeLessThanOrEqual(1);
+    // Positive control: the panel really overflows at this height, so the scroll check below
+    // measures the layout rather than a fixture too short to scroll.
+    expect(await panel.evaluate(el => el.scrollHeight - el.clientHeight)).toBeGreaterThan(40);
     await show.evaluate(el => el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }));
     await panel.evaluate(el => el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }));
     // Scrolling outside the panes must not move the workspace upward and expose a blank band.
@@ -378,6 +381,8 @@ test('long split panes cannot scroll the page into blank space and the class fil
     expect(geometry?.panel?.scrollTop ?? 0).toBeGreaterThan(40);
     expect(geometry?.hitInsideBlock).toBe(true);
     // The class reaches the bottom of the show pane, leaving only its normal 1rem gutter.
-    expect((geometry?.viewBottom ?? 0) - (geometry?.panel?.bottom ?? 0)).toBeCloseTo(16, 0);
+    // ±2px: sub-pixel layout differs by device pixel ratio.
+    const gutter = (geometry?.viewBottom ?? 0) - (geometry?.panel?.bottom ?? 0);
+    expect(Math.abs(gutter - 16)).toBeLessThanOrEqual(2);
   }
 });

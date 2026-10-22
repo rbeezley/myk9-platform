@@ -190,6 +190,8 @@ function buildRows(clubId: string, options: SecretaryFixtureOptions = {}) {
       ...classes[0]!,
       id: `f1f1f1f1-0000-0000-0000-${String(400 + index).padStart(12, '0')}`,
       trial_id: extraTrial.id,
+      // A name of its own, so a role/name lookup never matches the focused class twice.
+      name: `Extra Trial ${index + 2} Class`,
     }))
   );
   const trials = [trial, ...(changeClassTrial ? [changeClassTrial] : []), ...extraTrials];

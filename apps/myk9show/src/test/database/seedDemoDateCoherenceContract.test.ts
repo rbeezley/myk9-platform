@@ -9,8 +9,8 @@ import { describe, expect, it } from 'vitest';
  * retires stale show-day fixture shows so a name + date is never duplicated.
  *
  * The date arithmetic is computed from the `CURRENT_DATE +/- N` offsets in the
- * file, not grepped for. What the SQL does on a database is checked by the
- * seed's own postcondition at reseed time.
+ * file, not grepped for. What the retire and assert functions do on a database
+ * is checked by a behavioural SQL test (MYK9-1309), not here.
  */
 
 const repoRoot = resolve(__dirname, '../../../../..');
@@ -108,123 +108,29 @@ describe('seed-demo date coherence (MYK9-1281)', () => {
     expect(t.date).toBeLessThanOrEqual(show!.end);
   });
 
-  it('section 0 retires a stale fixture show only when nothing of a person hangs off it', () => {
-    const start = seed.indexOf("s.id >= 'dededede-0000-0000-0731-000000000000'::uuid");
-    expect(start, 'fixture-show loop not found').toBeGreaterThan(-1);
-    const doStart = seed.lastIndexOf('DO $$', start);
-    const block = seed.slice(doStart, seed.indexOf('END $$;', start));
-    expect(block).toContain("s.id <  'dededede-0000-0000-0732-000000000000'::uuid");
+  // What the two MYK9-1281 behaviours DO is proven on a database by
+  // supabase/tests/myk9_1309_seed_fixture_functions_test.sql (MYK9-1309). The
+  // source text can only pin WHERE the seed calls them.
+  const call = (fn: string): number => {
+    const matches = [...seed.matchAll(new RegExp(`SELECT public\\.${fn}\\(\\);`, 'g'))];
+    expect(matches, `${fn}() must be called exactly once`).toHaveLength(1);
+    return matches[0].index!;
+  };
 
-    // The skip condition is ONE OR-joined disjunction of EXISTS terms, one per
-    // protected table, each correlated to the loop's show: no NOT, no literal TRUE.
-    const cond = /LOOP\s+SELECT\s+([\s\S]*?)\s+INTO v_hangs;/.exec(block)?.[1];
-    expect(cond, 'skip condition not found').toBeDefined();
-    expect(cond).not.toMatch(/\bNOT\b/i);
-    expect(cond).not.toMatch(/\b(TRUE|FALSE|AND)\b/i);
-    expect(cond).not.toMatch(/\d\s*=\s*\d/);
-    // The flag is set by that SELECT and nowhere else.
-    expect(block.match(/v_hangs\s*:=|INTO\s+v_hangs/gi)).toHaveLength(1);
-    const terms = cond!.split(/\n\s*OR\s+(?=EXISTS\b)/);
-    const tables: string[] = [];
-    for (const term of terms) {
-      const m = /^EXISTS \(SELECT 1 FROM public\.(\w+) \w+\s+WHERE[\s\S]*\)$/.exec(term.trim());
-      expect(m, `skip term is not a plain EXISTS(...): ${term}`).not.toBeNull();
-      // The paren EXISTS opens closes at the term's last character: nothing rides after it.
-      const body = term.trim();
-      let depth = 0;
-      let closedAt = -1;
-      for (let i = body.indexOf('('); i < body.length; i++) {
-        if (body[i] === '(') depth++;
-        if (body[i] === ')' && --depth === 0) {
-          closedAt = i;
-          break;
-        }
-      }
-      expect(closedAt, `trailing text after EXISTS(...): ${term}`).toBe(body.length - 1);
-      expect(term, `${m![1]} term is not correlated to the loop show`).toContain('v_show.id');
-      tables.push(m![1]);
-    }
-    expect([...tables].sort()).toEqual(
-      [
-        'entries',
-        'enrollments',
-        'waitlist_entries',
-        'entry_cart_items',
-        'stripe_orders',
-        'show_payments',
-        'show_payouts',
-        'entry_payment_links',
-        'show_money_locks',
-        'refund_requests',
-        'trial_packet_snapshots',
-      ].sort()
-    );
-    // Entries and cart items are matched through the show's trials and classes too.
-    expect(terms.find(t => t.includes('public.entries'))).toMatch(
-      /e\.trial_id IN[\s\S]*e\.class_id IN/
-    );
-    expect(terms.find(t => t.includes('public.entry_cart_items'))).toMatch(/eci\.class_id IN/);
-
-    // The one DELETE is keyed on the loop show alone, inside IF NOT v_hangs and
-    // its own sub-block that keeps the show and warns on an unlisted FK.
-    expect(block.match(/DELETE\s+FROM/gi)).toHaveLength(1);
-    // And no other statement in the file deletes a fixture-range show.
-    const fixtureShowDeletes = [...seed.matchAll(/DELETE\s+FROM\s+public\.shows\b[^;]*;/gi)].filter(
-      m => m[0].includes('0731') || /v_show\.id/.test(m[0])
-    );
-    expect(fixtureShowDeletes).toHaveLength(1);
-    expect(block).toMatch(/DELETE FROM public\.shows WHERE id = v_show\.id;/);
-    const guard = block.indexOf('IF NOT v_hangs THEN');
-    const sub = block.indexOf('BEGIN', guard);
-    const del = block.indexOf('DELETE FROM public.shows', sub);
-    const exc = block.indexOf('EXCEPTION WHEN foreign_key_violation OR restrict_violation', del);
-    expect(guard).toBeGreaterThan(-1);
-    expect(sub).toBeGreaterThan(guard);
-    expect(del).toBeGreaterThan(sub);
-    expect(exc).toBeGreaterThan(del);
-    expect(block.slice(exc)).toMatch(/THEN\s+RAISE WARNING 'seed-demo: kept fixture show/);
-    expect(block).not.toContain('000000000014');
-    // Runs right after the paid-stray guard call, which still sees every fixture show.
-    expect(doStart).toBeGreaterThan(
-      seed.indexOf('SELECT public.seed_demo_assert_no_paid_strays();')
+  it('section 0 calls the retire function after the paid-stray guard', () => {
+    const guard = call('seed_demo_assert_no_paid_strays');
+    const retire = call('seed_demo_retire_stale_fixture_shows');
+    expect(retire).toBeGreaterThan(guard);
+    // And before section 19 mints today's fixture.
+    expect(retire).toBeLessThan(
+      seed.indexOf('SELECT public.seed_demo_restore_show_day_fixture();')
     );
   });
 
-  it('ends with a postcondition that checks close/start, trial range and duplicate names', () => {
-    const idx = seed.indexOf('closes entries after it starts');
-    expect(idx, 'postcondition not found').toBeGreaterThan(-1);
-    const block = seed.slice(seed.lastIndexOf('DO $$', idx), seed.indexOf('END $$;', idx));
-    expect(block).toMatch(/entry_close_date[^>]*\)::date > \(s\.start_date/);
-    expect(block).toContain('has a trial dated outside its start/end range');
-    // The exact pair, with nothing between or after the two comparisons.
-    expect(block).toMatch(
-      /AND \(t\.date < \(s\.start_date AT TIME ZONE 'UTC'\)::date\s+OR t\.date > \(s\.end_date AT TIME ZONE 'UTC'\)::date\)\s+LIMIT 1;/
+  it('ends by calling the date-coherence assert function', () => {
+    const tail = seed.slice(call('seed_demo_assert_date_coherence'));
+    expect(tail.replace(/\s+/g, ' ').trim()).toBe(
+      'SELECT public.seed_demo_assert_date_coherence(); COMMIT;'
     );
-    // Both per-show checks read only the seed-owned set.
-    expect(block.match(/JOIN _seed_owned_shows o ON o\.id = s\.id/g)).toHaveLength(2);
-    // The set is exactly the four fixed ids or today's fixture: no other boolean rides along.
-    const setDef = /CREATE TEMP TABLE _seed_owned_shows[\s\S]*?;/.exec(block)?.[0] ?? '';
-    expect(setDef).toMatch(/AND \(s\.id IN \([^)]*\)\s+OR s\.id = v_fixture\);$/);
-    expect(setDef).not.toMatch(/\b(true|false)\b/i);
-    expect(block).toContain('share the name');
-    // Each check fails the reseed with RAISE EXCEPTION, guarded by its own finding.
-    for (const msg of [
-      'closes entries after it starts',
-      'has a trial dated outside its start/end range',
-    ]) {
-      expect(block, msg).toMatch(
-        new RegExp(`IF v_bad IS NOT NULL THEN\\s+RAISE EXCEPTION '[^']*${msg}`)
-      );
-    }
-    expect(block).toMatch(/IF r\.both_owned THEN\s+RAISE EXCEPTION '[^']*share the name/);
-    expect(block).toMatch(/ELSE\s+RAISE WARNING '[^']*share the name/);
-    expect(block).toContain('seed_demo_show_day_fixture_today()');
-    expect(block).toMatch(/b\.name = a\.name[\s\S]*b\.start_date = a\.start_date/);
-    expect(block).not.toContain("LIKE 'dededede-0000-0000-0000-%'");
-    for (const n of ['010', '011', '012', '013']) {
-      expect(block).toContain(`'dededede-0000-0000-0000-000000000${n}'::uuid`);
-    }
-    expect(block).not.toContain('000000000014');
-    expect(block).toContain("'dededede-0000-0000-0731-000000000000'::uuid");
   });
 });

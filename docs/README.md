@@ -62,6 +62,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [launch/go-live-2026-07-26.md](launch/go-live-2026-07-26.md)                                                     | Active    | Go-Live Gate Review — 2026-07-26 (delta: CI/advisor drift + owner gates)           |
 | [plan-admin-users-ux-fixes-2026-08-18.md](plan-admin-users-ux-fixes-2026-08-18.md)                               | Active    | Admin Users UX Fixes                                                               |
 | [plan-ai-natural-language-access.md](plan-ai-natural-language-access.md)                                         | Active    | AI Natural-Language Access Plan                                                    |
+| [plan-class-panel-judge.md](plan-class-panel-judge.md)                                                           | Active    | Class Panel Judge Picker — then delete Select classes                              |
 | [plan-core-object-ui-consistency.md](plan-core-object-ui-consistency.md)                                         | Active    | Core-Object UI Consistency                                                         |
 | [plan-junior-handler-fee-v2.md](plan-junior-handler-fee-v2.md)                                                   | Active    | Junior handler entry fee — restart plan (MYK9-662 v2)                              |
 | [plan-master-detail-lists.md](plan-master-detail-lists.md)                                                       | Active    | Master-Detail Lists — list left, detail right on wide screens                      |

@@ -348,7 +348,9 @@ BEGIN
       -- an exhibitor's own self-declaration, not age data. anon stays 0: the same
       -- migration REVOKEs the column from anon, and a direct client write cannot
       -- set it (trg_entries_junior_fee forces it false on insert, keeps OLD on update).
-      ('entries','authenticated',57),
+      -- 57 became 56 when entries.promo_code_id was dropped (20261022131700,
+      -- MYK9-1326): dropping a column drops its column grant with it.
+      ('entries','authenticated',56),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),
       ('dogs','anon',5),

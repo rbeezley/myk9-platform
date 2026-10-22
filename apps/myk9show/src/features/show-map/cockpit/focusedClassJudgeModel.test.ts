@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isJudgeChangeLocked, judgeLockReason } from './focusedClassJudge';
+import { isJudgeChangeLocked, judgeLockReason } from './focusedClassJudgeModel';
 import type { CockpitLifecycle } from './secretaryCockpitTypes';
 
 const lockInput = (

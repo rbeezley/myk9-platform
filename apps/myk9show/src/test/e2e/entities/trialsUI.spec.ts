@@ -15,7 +15,7 @@ import { signInAsSecretary } from '../helpers/testUsers';
  *   - Delete trial via the StandardDialog confirmation
  *       * Verifies the warning text explicitly mentions classes & entries
  *         (the delete cascades through the DB ON DELETE CASCADE chain on
- *         classes, entries, promo_codes, and pipeline tables).
+ *         classes, entries, and pipeline tables).
  *       * Verifies the trial, its classes, and its entries are actually gone
  *         from the DB after confirming.
  *

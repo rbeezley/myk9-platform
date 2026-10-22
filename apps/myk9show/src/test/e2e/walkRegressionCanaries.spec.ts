@@ -235,10 +235,12 @@ test('an owed entry is never reported as paid on My Shows or My Payments (MYK9-4
   await expect(feeButton, 'My Shows never confirmed a balance, so it hid the fee card').toBeVisible(
     { timeout: 30000 }
   );
+  // The two owed labels in CompactStatsRow (MYK9-1275 reworded "$X due" to "you owe $X");
+  // "paid in full" must never match.
   await expect(
     feeButton,
     `${owed.length} own entries are pending with a fee, so the fee card must show money due`
-  ).toHaveAccessibleName(/^Entry fees: \$[\d,]+\.\d{2} (due|outstanding)/);
+  ).toHaveAccessibleName(/^Entry fees: (you owe \$[\d,]+\.\d{2}|\$[\d,]+\.\d{2} outstanding)/);
 
   await page.goto('/exhibitor/payments');
   const heading = page.getByRole('heading', { name: 'Amount due' });

@@ -43,7 +43,7 @@ UTC.
 
 | Stream                | Last reviewed SHA                          | Window end           | Run by                    | Run date   |
 | --------------------- | ------------------------------------------ | -------------------- | ------------------------- | ---------- |
-| `daily-commit-review` | `48e3616c09d243d4f7c0c7b4f5b7c7ac991af880` | 2026-10-15T13:29:59Z | codex-daily-commit-review | 2026-10-20 |
+| `daily-commit-review` | `a21694dd70a551c0d93e8b51cdfa74fdd7da47ea` | 2026-10-15T23:49:14Z | codex-daily-commit-review | 2026-10-21 |
 
 If this row is ever `unset`, nobody has verified which commits the Codex daily stream has actually
 covered; the first run of either automation on this stream must take its default window and stamp a

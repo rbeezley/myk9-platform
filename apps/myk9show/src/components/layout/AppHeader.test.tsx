@@ -94,7 +94,7 @@ describe('AppHeader phone-width header consolidation', () => {
     const themeButton = screen.getByRole('button', { name: /switch to dark mode/i });
     expect(themeButton).toHaveClass('hidden', 'md:flex');
 
-    const askQButton = screen.getByRole('button', { name: /askq assistant/i });
+    const askQButton = screen.getByRole('button', { name: /ask for help/i });
     expect(askQButton).toHaveClass('hidden', 'md:flex');
   });
 
@@ -148,7 +148,7 @@ describe('AppHeader onboarding shell', () => {
     expect(screen.queryByRole('button', { name: /shopping cart/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /notifications/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /switch to dark mode/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /askq assistant/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /ask for help/i })).not.toBeInTheDocument();
   });
 });
 

@@ -268,7 +268,7 @@ const AppHeader: React.FC = () => {
                   </Button>
                 )}
 
-                {/* AskQ Assistant — desktop only below md; the labeled item in
+                {/* Ask for help (AskQ) — desktop only below md; the labeled item in
                     AccountMenuContent covers phone widths with the same handler. */}
                 {!isOnboardingRoute && (
                   <Button
@@ -276,7 +276,8 @@ const AppHeader: React.FC = () => {
                     size="sm"
                     onClick={toggleAskQ}
                     className="hidden md:flex min-h-11 min-w-11 rounded-lg p-2"
-                    aria-label="AskQ Assistant"
+                    aria-label="Ask for help"
+                    title="Ask for help (AskQ)"
                   >
                     <AskQIcon className="h-4 w-4" />
                   </Button>

@@ -393,7 +393,8 @@ export function AskQPanel() {
     <SlideOverPanel
       open={isOpen}
       onClose={handleClose}
-      title="AskQ Assistant"
+      title="Ask for help"
+      subtitle="AskQ"
       size="sm"
       headerActions={
         activeMode === 'operator-support' ? (

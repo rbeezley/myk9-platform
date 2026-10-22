@@ -2,8 +2,11 @@ import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { showEntryCountsQueryKey, useShowEntryCounts } from './useShowEntryCounts';
-import { invalidateDerivedQueries } from '@/providers/derivedQueryInvalidation';
+import {
+  SHOW_ENTRY_COUNTS_REFRESH_MS,
+  showEntryCountsQueryKey,
+  useShowEntryCounts,
+} from './useShowEntryCounts';
 import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
 import { supabase } from '@/lib/supabase-client';
 
@@ -107,7 +110,8 @@ describe('useShowEntryCounts refresh (MYK9-1311 review)', () => {
     expect(showEntryCountsQueryKey(['show-a'])[0]).not.toBe('entries');
   });
 
-  it('refetches when the entries table syncs or uploads', async () => {
+  it('refreshes itself on an interval while mounted, whatever path brought the entries', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.mocked(supabase.rpc)
       .mockResolvedValueOnce({
         data: [{ show_id: 'show-a', entry_count: 5 }],
@@ -133,9 +137,9 @@ describe('useShowEntryCounts refresh (MYK9-1311 review)', () => {
     const { result } = renderHook(() => useShowEntryCounts(['show-a']), { wrapper });
     await waitFor(() => expect(result.current.get('show-a')).toBe(5));
 
-    // What ReplicationSyncProvider runs after an entries sync or upload.
-    invalidateDerivedQueries(client, 'entries');
+    await vi.advanceTimersByTimeAsync(SHOW_ENTRY_COUNTS_REFRESH_MS + 10);
 
     await waitFor(() => expect(result.current.get('show-a')).toBe(6));
+    vi.useRealTimers();
   });
 });

@@ -13,9 +13,10 @@ import { useIsOnline } from '@/hooks/useNetworkStatus';
  */
 /** Root of every count query. NOT under `['entries']`: mutation hooks rewrite
  * every query under that prefix as an array of entry rows, and this cache holds
- * a Map. ReplicationSyncProvider invalidates this root explicitly whenever the
- * entries table syncs or uploads. */
+ * a Map. */
 export const SHOW_ENTRY_COUNTS_ROOT = 'show-entry-counts';
+
+export const SHOW_ENTRY_COUNTS_REFRESH_MS = 60_000;
 
 export const showEntryCountsQueryKey = (showIds: readonly string[]) =>
   [SHOW_ENTRY_COUNTS_ROOT, [...showIds].sort()] as const;
@@ -32,7 +33,12 @@ export function useShowEntryCounts(showIds: readonly string[]): ReadonlyMap<stri
       return new Map((rows ?? []).map(row => [row.show_id, Number(row.entry_count)] as const));
     },
     enabled: isOnline && showIds.length > 0,
+    // Entries change on other devices and through several sync paths, so the
+    // count refreshes itself: every minute while the dashboard is open, and
+    // when the window regains focus. One cheap RPC per open dashboard.
     staleTime: 30_000,
+    refetchInterval: SHOW_ENTRY_COUNTS_REFRESH_MS,
+    refetchOnWindowFocus: true,
   });
   return isOnline && data ? data : EMPTY_COUNTS;
 }

@@ -24,13 +24,18 @@ AS $$
   SELECT s.id AS show_id, count(e.id)::integer AS entry_count
   FROM (SELECT DISTINCT u.id FROM unnest(p_show_ids) AS u(id)) AS ids
   JOIN public.shows s ON s.id = ids.id
-  LEFT JOIN public.entries e ON e.show_id = s.id AND e.deleted_at IS NULL
+  LEFT JOIN public.entries e
+    ON e.show_id = s.id
+   AND e.deleted_at IS NULL
+   -- A move-up leaves its source row live with status 'moved'; the Entries
+   -- page drops it (isSupersededMoveUpEntry), so the count does too.
+   AND lower(btrim(coalesce(e.entry_status, ''))) <> 'moved'
   WHERE coalesce(public.can_manage_show(s.id), false)
   GROUP BY s.id;
 $$;
 
 COMMENT ON FUNCTION public.get_show_entry_counts(uuid[]) IS
-  'MYK9-1311: live entry count (deleted_at IS NULL, any status; the Entries page "Entries" total) for each requested show the caller can manage. Shows the caller cannot manage return no row.';
+  'MYK9-1311: live entry count (deleted_at IS NULL, any status except a superseded move-up source (moved); the Entries page "Entries" total) for each requested show the caller can manage. Shows the caller cannot manage return no row.';
 
 REVOKE ALL ON FUNCTION public.get_show_entry_counts(uuid[]) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_show_entry_counts(uuid[]) TO authenticated, service_role;

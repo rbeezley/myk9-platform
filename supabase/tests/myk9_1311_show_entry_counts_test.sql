@@ -27,7 +27,8 @@ SELECT
 FROM public.roles
 WHERE name = 'secretary';
 
--- Show A (managed): 2 live entries + 1 withdrawn (still counted) + 1 soft-deleted (not).
+-- Show A (managed): 2 live entries + 1 withdrawn (still counted) + 1 soft-deleted (not)
+-- + 1 superseded move-up source, status 'moved' (not; the Entries page drops it).
 -- Show B (managed): no entries at all -> a real 0 row.
 -- Show C (other club): 1 entry the secretary must not see counted.
 INSERT INTO public.shows (id, name, organization, club_id, status, start_date, end_date)
@@ -45,12 +46,15 @@ VALUES
   ('00000000-0000-0000-0000-000001311052', '00000000-0000-0000-0000-000001311031', '102', 'paid', 25),
   ('00000000-0000-0000-0000-000001311053', '00000000-0000-0000-0000-000001311031', '103', 'paid', 25),
   ('00000000-0000-0000-0000-000001311054', '00000000-0000-0000-0000-000001311031', '104', 'paid', 25),
-  ('00000000-0000-0000-0000-000001311055', '00000000-0000-0000-0000-000001311033', '201', 'paid', 25);
+  ('00000000-0000-0000-0000-000001311055', '00000000-0000-0000-0000-000001311033', '201', 'paid', 25),
+  ('00000000-0000-0000-0000-000001311056', '00000000-0000-0000-0000-000001311031', '105', 'paid', 25);
 
 UPDATE public.entries SET entry_status = 'withdrawn'
  WHERE id = '00000000-0000-0000-0000-000001311053';
 UPDATE public.entries SET deleted_at = now()
  WHERE id = '00000000-0000-0000-0000-000001311054';
+UPDATE public.entries SET entry_status = 'moved'
+ WHERE id = '00000000-0000-0000-0000-000001311056';
 
 -- 1. A secretary gets the real count for each managed show (withdrawn counted,
 --    soft-deleted not, empty show = real 0) and no row for the other club's show.
@@ -75,9 +79,9 @@ BEGIN
     '00000000-0000-0000-0000-000001311033'::uuid
   ]) WHERE show_id = '00000000-0000-0000-0000-000001311031';
   IF v_a IS DISTINCT FROM 3 THEN
-    RAISE EXCEPTION 'FAIL 1.1 show A count % (want 3: 2 live + 1 withdrawn, soft-deleted excluded)', v_a;
+    RAISE EXCEPTION 'FAIL 1.1 show A count % (want 3: 2 live + 1 withdrawn; soft-deleted and moved excluded)', v_a;
   END IF;
-  RAISE NOTICE 'PASS 1.1 a managed show counts live entries of any status and excludes soft-deleted';
+  RAISE NOTICE 'PASS 1.1 a managed show counts live entries of any status and excludes soft-deleted and moved';
 
   SELECT entry_count INTO v_b FROM public.get_show_entry_counts(ARRAY[
     '00000000-0000-0000-0000-000001311032'::uuid

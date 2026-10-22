@@ -88,7 +88,6 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   platform_waitlist: 'SELECT,INSERT',
   premium_generation_attempts: '',
   premium_generations: 'SELECT,INSERT',
-  promo_codes: 'SELECT,INSERT,UPDATE,DELETE',
   push_notification_queue: 'SELECT,INSERT,UPDATE,DELETE',
   push_subscriptions: 'SELECT,INSERT,UPDATE,DELETE',
   // MYK9-876: site admins read the approval queue (RLS); every write is a

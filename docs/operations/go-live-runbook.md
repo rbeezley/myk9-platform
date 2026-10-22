@@ -578,21 +578,21 @@ ORDER BY 2, 1;
 Triage that list into three buckets before exporting: **must restore to run the show**
 (`armbands`, `judge_assignments`, `show_passcodes`, `show_message_threads`, `show_messages`,
 `volunteers`, `volunteer_*_assignments`), **must restore for money**
-(`show_payouts`, `show_money_locks`, `stripe_orders`, `entry_payment_links`, `promo_codes` — and see
+(`show_payouts`, `show_money_locks`, `stripe_orders`, `entry_payment_links` — and see
 the money caveat in the exclusions below), and **can be regenerated or dropped**
 (`premium_generations`, `paperwork_prints`, `calendar_feed_tokens`, `dog_favorites`,
 `show_lifecycle_email_*`).
 
 **Do not assume a `show_id` column identifies the rows.** Check each table's own columns first.
-`promo_codes`, for one, has both `show_id` and `trial_id` and both are nullable — a trial-scoped code
-has a NULL `show_id`, so `WHERE show_id = :'show_id'` silently drops it. Filter on every route the
-table actually offers:
+A table that carries both a nullable `show_id` and a `trial_id` (the dropped `promo_codes` table was
+one, MYK9-1299) holds trial-scoped rows with a NULL `show_id`, so `WHERE show_id = :'show_id'`
+silently drops them. Filter on every route the table actually offers:
 
 ```sql
 -- Pattern for a dependent table with more than one route to the show.
-\copy (SELECT p.* FROM public.promo_codes p \
-       LEFT JOIN public.trials t ON t.id = p.trial_id \
-       WHERE p.show_id = :'show_id' OR t.show_id = :'show_id') TO 'r_promo_codes.csv' CSV HEADER
+\copy (SELECT x.* FROM public.<table> x \
+       LEFT JOIN public.trials t ON t.id = x.trial_id \
+       WHERE x.show_id = :'show_id' OR t.show_id = :'show_id') TO 'r_<table>.csv' CSV HEADER
 ```
 
 Grandchildren (depth ≥ 2) usually have no show link at all and must be scoped through their parent —

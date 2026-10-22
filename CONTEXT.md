@@ -245,8 +245,8 @@ _Avoid_: Order (in user-visible text; it is the internal Stripe name)
 **Promo Code**
 A discount token a Club could once issue, scoped to a single Show or a single
 Trial. Inert: no screen creates, validates or redeems one, and nothing applies
-a discount at checkout. The `promo_codes` table is slated for removal
-(MYK9-1299, MYK9-312); do not build against it.
+a discount at checkout. The `promo_codes` table and its RPCs were dropped
+(MYK9-1299, MYK9-312); `entries.promo_code_id` remains as an always-NULL column until the views that project it are rebuilt. Do not build against it.
 
 **Announcement**
 A timed message posted by a Secretary or Club staff to the attendees of a

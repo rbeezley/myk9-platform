@@ -29,23 +29,23 @@ describe('LegacyShowClassManagementRedirect', () => {
     );
   });
 
-  it('carries the trial, view and focus, and drops element, search and the return link', () => {
+  it('carries the trial and focus, and drops element, search and the return link', () => {
     renderAt(
       '/shows/show-1/classes/trial-1?status=completed&element=Interior&search=x&focus=c1&returnTo=%2Fshows%2Fshow-1%2Fshow-day'
     );
     expect(screen.getByTestId('landed')).toHaveTextContent(
-      '/shows/show-1?select=classes&view=completed&trialId=trial-1&focus=c1'
+      '/shows/show-1?select=classes&trialId=trial-1&focus=c1'
     );
   });
 
-  // Pending ("not completed") also holds in-progress classes; no narrower view exists, so the
-  // old not-started link is a deliberate widening (see LegacyClassManagementRedirect.tsx).
+  // Select classes is the show home's schedule now (MYK9-1324): only In progress has a schedule
+  // filter of its own, so every other old status opens the whole schedule.
   it.each([
-    ['not_started', '&view=pending'],
-    ['in_progress', '&view=in_progress'],
-    ['completed', '&view=completed'],
+    ['not_started', ''],
+    ['in_progress', '&filter=in-progress'],
+    ['completed', ''],
     ['all', ''],
-  ])('maps the %s lifecycle filter to its Classes view', (status, view) => {
+  ])('maps the %s lifecycle filter to the schedule filter', (status, view) => {
     renderAt(`/shows/show-1/classes/trial-1?status=${status}`);
     expect(screen.getByTestId('landed')).toHaveTextContent(
       `/shows/show-1?select=classes${view}&trialId=trial-1`

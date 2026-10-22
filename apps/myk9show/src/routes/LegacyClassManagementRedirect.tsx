@@ -3,11 +3,12 @@
  *
  * Judge assignment and bulk status live in the show home's Select classes (MYK9-957), so the
  * page's URLs land there:
- *   /shows/:id/classes/:trialId?status=…  ->  /shows/:id?select=classes&view=…&trialId=…
+ *   /shows/:id/classes/:trialId?status=…  ->  /shows/:id?select=classes&filter=…&trialId=…
  *   /trials/:trialId/classes              ->  the same, with the show looked up from the trial
  *
- * The trial, the lifecycle `status` filter (to the Classes view of the same name), `focus` and
- * `returnTo` carry over. Element, search and density have no URL form on Setup and are dropped.
+ * The trial, `focus` and `returnTo` carry over. The lifecycle `status` goes to a Classes view
+ * id, which `getSelectClassesHref` turns into the schedule's filter where one matches (only In
+ * progress; MYK9-1324). Element, search and density have no URL form on Setup and are dropped.
  */
 import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';

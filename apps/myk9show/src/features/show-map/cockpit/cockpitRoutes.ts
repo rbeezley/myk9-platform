@@ -1,4 +1,4 @@
-import { SELECT_CLASSES, SELECT_CLASSES_PARAMS } from '@/pages/secretary/selectClassesRoutes';
+import { SELECT_CLASSES } from '@/pages/secretary/selectClassesRoutes';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
 import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
@@ -255,9 +255,9 @@ export function leaveSelectClassesSearch(
   const back = resolveShowDeskReturn(previous.get('returnTo'), showId);
   if (back) return new URL(back.href, 'https://myk9.internal').searchParams;
   const params = new URLSearchParams(previous);
-  params.delete('select');
-  params.delete('returnTo');
-  for (const key of SELECT_CLASSES_PARAMS) params.delete(key);
+  // Only the mode's own params: `focus` and `filter` are the schedule's, so the focused class
+  // and the filter stay as they were.
+  for (const key of ['select', 'returnTo', 'trialId']) params.delete(key);
   return params;
 }
 

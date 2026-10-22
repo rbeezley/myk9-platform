@@ -120,20 +120,43 @@ describe('Select classes on the schedule (MYK9-1324)', () => {
     for (const name of ['Assign judge', 'Change status', 'Delete', 'Export']) {
       expect(screen.getByRole('button', { name })).toBeEnabled();
     }
+
+    // Done hands the schedule back with the class panel, and its judge picker, where it was.
+    await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(screen.getByRole('combobox', { name: /^Judge for / })).toBeInTheDocument();
   });
 
+  it('hides the inline class panel while selecting, so it never sits inside the tick list', () => {
+    renderCockpit('/shows/show-1?select=classes&focus=class-1');
+
+    expect(screen.queryByTestId('cockpit-inline-focus')).not.toBeInTheDocument();
+  });
+
   it('a row click ticks the row instead of focusing the class', async () => {
-    const { user } = renderCockpit();
-    const focusedBefore = screen.getByTestId('focused-class-header').textContent;
+    const { user } = renderCockpit('/shows/show-1?select=classes&focus=class-1');
 
     await user.click(within(row('class-2')).getByText('Interior Novice'));
-
     expect(tick('Interior Novice')).toBeChecked();
-    expect(screen.getByTestId('focused-class-header').textContent).toBe(focusedBefore);
-
     await user.click(row('class-2'));
     expect(tick('Interior Novice')).not.toBeChecked();
+
+    // After Done the class it was opened on is still the focused one.
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.getByTestId('focused-class-header')).toHaveTextContent('Container Novice');
+  });
+
+  it('a tick a filter hides is dropped for good, not hidden until the filter changes back', async () => {
+    const { user } = renderCockpit();
+    await user.click(tick('Container Novice'));
+
+    const filters = () => screen.getByRole('combobox', { name: 'Show: Schedule filters' });
+    await user.click(filters());
+    await user.click(await screen.findByRole('option', { name: /^In progress/ }));
+    await user.click(filters());
+    await user.click(await screen.findByRole('option', { name: /^All/ }));
+
+    expect(tick('Container Novice')).not.toBeChecked();
+    expect(screen.queryByRole('button', { name: 'Change status' })).not.toBeInTheDocument();
   });
 
   it('the trial heading ticks every visible class of its trial', async () => {

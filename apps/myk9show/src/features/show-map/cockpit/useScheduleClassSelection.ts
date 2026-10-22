@@ -57,8 +57,10 @@ export function useScheduleClassSelection(
     [model.trialGroups]
   );
   const visible = useMemo(() => new Set([...visibleByTrial.values()].flat()), [visibleByTrial]);
-  const selection =
-    active && !stale ? pruneSelection(held.selection, visible) : EMPTY_SCHEDULE_SELECTION;
+  const pruned = pruneSelection(held.selection, visible);
+  // A tick a filter hid is dropped for good, not hidden until the filter changes back.
+  if (!stale && pruned !== held.selection) setHeld({ dayKey, selection: pruned });
+  const selection = active && !stale ? pruned : EMPTY_SCHEDULE_SELECTION;
 
   const update = useCallback(
     (next: (current: ScheduleSelection) => ScheduleSelection) =>

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { ClassBulkActionsBar, type ClassBarItem } from '@/components/classes/ClassBulkActionsBar';
 import { UNASSIGNED_JUDGE_VALUE } from '@/components/classes/ClassJudgeSelect';
@@ -19,6 +19,24 @@ import type {
   SecretaryCockpitModel,
   ScheduledClassModel,
 } from './secretaryCockpitTypes';
+
+/**
+ * The panel's lock rule (MYK9-1323) read from the class row itself, so it holds for a class the
+ * current filter hides too: a toast's "Retry failed" can run after the schedule has moved on.
+ */
+function isJudgeLocked(cls: SecretaryCockpitClass): boolean {
+  const scored = cls.scoredCount ?? null;
+  return (
+    judgeLockReason({
+      lifecycle: { evidence: cls.lifecycle ? 'recorded' : 'unknown', value: cls.lifecycle ?? null },
+      progress: {
+        evidence: scored === null ? 'unknown' : 'recorded',
+        value: scored === null ? null : { completed: scored, total: cls.entryCount ?? scored },
+      },
+      actualStart: { evidence: 'recorded', value: cls.actualStart ?? null },
+    }) !== null
+  );
+}
 
 /**
  * Select classes' bulk bar on the show home's schedule (MYK9-1324): the Setup table's bar
@@ -49,7 +67,13 @@ export function ScheduleBulkBar({
     [classes]
   );
   const { bulkBusy, handleBulkStatusChange } = useClassBulkActions({ classesById });
-  const judge = useBulkJudgeAssignment(showId, judgeNamesFor);
+  // Read through a ref: a retry fires after later renders and must see the class as it is now.
+  const lockedById = useRef(new Map<string, boolean>());
+  useEffect(() => {
+    lockedById.current = new Map(classes.map(cls => [cls.id, isJudgeLocked(cls)]));
+  });
+  const isLockedNow = useCallback((classId: string) => lockedById.current.get(classId) ?? true, []);
+  const judge = useBulkJudgeAssignment(showId, judgeNamesFor, isLockedNow);
 
   const group = model.trialGroups.find(item => item.trialId === selection.selection.trialId);
   const scheduledById = new Map<string, ScheduledClassModel>(
@@ -75,16 +99,11 @@ export function ScheduleBulkBar({
     entryCount: source.entryCount ?? null,
     time: source.scheduledStart ?? null,
   }));
-  const judgeTargets: BulkJudgeClass[] = picked.map(({ source, scheduled }) => ({
+  const judgeTargets: BulkJudgeClass[] = picked.map(({ source }) => ({
     id: source.id,
     trialId: source.trialId,
     name: source.name,
-    locked:
-      judgeLockReason({
-        lifecycle: scheduled.lifecycle,
-        progress: scheduled.progress,
-        actualStart: { evidence: 'recorded', value: source.actualStart ?? null },
-      }) !== null,
+    locked: isJudgeLocked(source),
   }));
   const openCount = judgeTargets.filter(cls => !cls.locked).length;
   const busy = bulkBusy || judge.busy;

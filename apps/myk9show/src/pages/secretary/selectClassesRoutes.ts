@@ -8,12 +8,12 @@
 /** The `select` value that opens Select classes. */
 export const SELECT_CLASSES = 'classes';
 
-/** The Classes views a `?view=` value can open (`classesTabViews.ts`). */
-const CLASSES_VIEW_IDS = ['all', 'pending', 'in_progress', 'completed', 'mine'] as const;
-
-export function resolveSelectClassesView(raw: string | null): string {
-  return CLASSES_VIEW_IDS.find(id => id === raw) ?? 'all';
-}
+/**
+ * The schedule filter an old Classes view lands on (MYK9-1324). Select classes is a mode of the
+ * show home's schedule now, whose filters are not the table's views: only In progress has a
+ * match, and every other view opens the whole schedule.
+ */
+const SCHEDULE_FILTER_FOR_VIEW: Readonly<Record<string, string>> = { in_progress: 'in-progress' };
 
 /** The params Select classes owns; leaving it ("Done") clears them. */
 export const SELECT_CLASSES_PARAMS = ['view', 'trialId', 'focus'] as const;
@@ -26,8 +26,8 @@ interface SelectClassesHrefOptions {
 }
 
 /**
- * Where "manage this show's classes" lives. `view` opens a Classes view; 'all' is the default
- * and stays out of the URL.
+ * Where "manage this show's classes" lives. `view` is an old Classes view id; it becomes the
+ * schedule's `filter` when one matches.
  */
 export function getSelectClassesHref(
   showId: string,
@@ -35,8 +35,8 @@ export function getSelectClassesHref(
   options: SelectClassesHrefOptions = {}
 ): string {
   const params = new URLSearchParams({ select: SELECT_CLASSES });
-  const resolvedView = resolveSelectClassesView(view ?? null);
-  if (resolvedView !== 'all') params.set('view', resolvedView);
+  const filter = view ? SCHEDULE_FILTER_FOR_VIEW[view] : undefined;
+  if (filter) params.set('filter', filter);
   if (options.trialId) params.set('trialId', options.trialId);
   if (options.focusClassId) params.set('focus', options.focusClassId);
   return `/shows/${encodeURIComponent(showId)}?${params.toString()}`;

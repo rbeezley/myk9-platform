@@ -202,8 +202,11 @@ describe('Select classes on the schedule (MYK9-1324)', () => {
   const leave = (search: string) =>
     leaveSelectClassesSearch(new URLSearchParams(search), 'show-1').toString();
 
-  it('Done drops the mode and its params when nothing says where to go back', () => {
-    expect(leave('select=classes&trialId=trial-1&view=pending&focus=class-1')).toBe('');
+  it("Done drops only the mode's own params when nothing says where to go back", () => {
+    // `focus` and `filter` are the schedule's: the focused class and the filter stay.
+    expect(leave('select=classes&trialId=trial-1&focus=class-1&filter=in-progress')).toBe(
+      'focus=class-1&filter=in-progress'
+    );
   });
 
   it('Done restores the cockpit day, filter and focus it was opened from (Codex P2)', () => {

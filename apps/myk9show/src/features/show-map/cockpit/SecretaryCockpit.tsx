@@ -284,10 +284,14 @@ export function SecretaryCockpit({
           filter={state.filter}
           onFilterChange={filter => updateState({ filter })}
           onFocusClass={focusedClassId => updateState({ focusedClassId, anchor: focusedClassId })}
-          inlineFocusedContent={!isSplit && focusedClassIsVisible ? focusedPanel : undefined}
+          // Selecting, a row click ticks rather than focuses, so the focused class's panel would
+          // sit open in the middle of the list with no way to move or close it.
+          inlineFocusedContent={
+            !isSplit && focusedClassIsVisible && !selecting ? focusedPanel : undefined
+          }
           select={canManageShow ? selection : undefined}
         />
-        {!isSplit && !focusedClassIsVisible && model.focusedClass && (
+        {!isSplit && !focusedClassIsVisible && !selecting && model.focusedClass && (
           <div
             className="space-y-2"
             data-testid="cockpit-inline-focus"
@@ -312,7 +316,9 @@ export function SecretaryCockpit({
           </div>
         )}
       </div>
-      {selecting && (
+      {/* Mounted for managers even with nothing ticked, so a toast's "Retry failed" still reads
+          fresh classes after Done; the bar itself renders nothing without a selection. */}
+      {canManageShow && (
         <ScheduleBulkBar
           showId={snapshot.showId}
           model={model}

@@ -7,10 +7,16 @@ import { useQuery } from '@tanstack/react-query';
 import { getJudgesWithQualifications } from '@/services/database/judges';
 import { mapDatabaseToUser } from '@/services/mappers/userMappers';
 
+/**
+ * 'always': refetch on every window focus (the Edit Show reason below). 'when-stale': refetch
+ * on focus or reconnect only once staleTime has passed, for a show-day screen whose tablet
+ * switches apps and drops venue Wi-Fi all day.
+ */
+export type JudgeListRefresh = 'always' | 'when-stale';
+
 export const useJudgesWithQualifications = (
   enabled = true,
-  /** 'always' by default (the Edit Show reason below); a show-day screen passes `true`. */
-  refetchOnWindowFocus: boolean | 'always' = 'always'
+  refresh: JudgeListRefresh = 'always'
 ) => {
   return useQuery({
     queryKey: ['judges', 'withQualifications'],
@@ -23,7 +29,8 @@ export const useJudgesWithQualifications = (
     // Refetch whenever the window regains focus, even inside staleTime: the Edit
     // Show judge warning links to a judge record in another tab, and the
     // qualification added there must show when the secretary returns.
-    refetchOnWindowFocus,
+    refetchOnWindowFocus: refresh === 'always' ? 'always' : true,
+    ...(refresh === 'when-stale' && { refetchOnReconnect: true }),
     enabled,
   });
 };

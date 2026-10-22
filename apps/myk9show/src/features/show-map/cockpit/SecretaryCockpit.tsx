@@ -60,7 +60,7 @@ export function SecretaryCockpit({
     rowSnapshot.showId,
     canManageShow,
     rowSnapshot.classes,
-    true
+    'when-stale'
   );
   const { judgeIdFor, judgeNameFor } = judges;
   const snapshot = useMemo(
@@ -148,7 +148,7 @@ export function SecretaryCockpit({
               assignedJudgeId={sourceClass.judgeId ?? null}
               availableJudges={judges.availableJudges}
               judgeListStatus={judges.judgeListStatus}
-              lockReason={judgeLockReason(model.focusedClass.lifecycle)}
+              lockReason={judgeLockReason(model.focusedClass)}
               onJudgeChange={(_classId, judgeId) => judges.assignJudge(sourceClass, judgeId)}
             />
           ),

@@ -3,7 +3,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
-import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
+import {
+  useJudgesWithQualifications,
+  type JudgeListRefresh,
+} from '@/hooks/queries/useJudgesWithQualifications';
 import { selectQualifiedJudges } from '@/features/judges/qualifiedJudges';
 import { upsertClassJudgeAssignment } from '@/services/database/judges';
 import { UNASSIGNED_JUDGE_VALUE } from './ClassJudgeSelect';
@@ -42,17 +45,13 @@ export function useClassJudgeAssignment(
   canManage: boolean,
   /** Every class of the show, unfiltered: what judge-override expiry must see. */
   allClasses: readonly JudgeAssignableClass[],
-  /**
-   * The judge list's refetch on window focus. The show home passes `true` (only when stale):
-   * a tablet at a show switches apps constantly, and 'always' re-reads the whole directory
-   * each time.
-   */
-  refetchJudgesOnFocus: boolean | 'always' = 'always'
+  /** The show home passes 'when-stale': see `JudgeListRefresh`. */
+  judgeListRefresh: JudgeListRefresh = 'always'
 ) {
   const queryClient = useQueryClient();
   const showQuery = useShowQuery(canManage ? showId : '');
   const show = showQuery.data;
-  const judgesQuery = useJudgesWithQualifications(canManage, refetchJudgesOnFocus);
+  const judgesQuery = useJudgesWithQualifications(canManage, judgeListRefresh);
   // Scoped to the show's organization: assigning a judge here is what puts them on the show and
   // its registry paperwork, so an AKC show must not offer UKC- or ASCA-only judges.
   const availableJudges = useMemo(

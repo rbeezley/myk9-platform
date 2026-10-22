@@ -1,7 +1,6 @@
 import { normalizeJudgeId } from '@/components/classes/useClassJudgeAssignment';
 import type {
-  CockpitLifecycle,
-  EvidenceValue,
+  FocusedClassModel,
   SecretaryCockpitClass,
   SecretaryCockpitSnapshot,
 } from './secretaryCockpitTypes';
@@ -12,15 +11,25 @@ import type {
  * must not swap them; Edit class stays the way to change it then. A lifecycle the cockpit
  * cannot read counts as started.
  */
-export function isJudgeChangeLocked(lifecycle: EvidenceValue<CockpitLifecycle>): boolean {
-  return judgeLockReason(lifecycle) !== null;
+export function isJudgeChangeLocked(focused: JudgeLockInput): boolean {
+  return judgeLockReason(focused) !== null;
 }
 
+/** What the lock reads: the class's status, plus the evidence that it began anyway. */
+export type JudgeLockInput = Pick<FocusedClassModel, 'lifecycle' | 'progress' | 'actualStart'>;
+
 /** Why the judge cannot be changed here, in the panel's words; null while it can. */
-export function judgeLockReason(lifecycle: EvidenceValue<CockpitLifecycle>): string | null {
+export function judgeLockReason({
+  lifecycle,
+  progress,
+  actualStart,
+}: JudgeLockInput): string | null {
+  // A ringside device that is behind on sync leaves the status at not-started while dogs are
+  // already scored; a recorded start or a scored dog means the class began.
+  const begun = Boolean(actualStart.value) || (progress.value?.completed ?? 0) > 0;
   switch (lifecycle.value) {
     case 'not-started':
-      return null;
+      return begun ? 'Locked once the class starts. Use Edit class to change it.' : null;
     case 'in-progress':
     case 'complete':
       return 'Locked once the class starts. Use Edit class to change it.';

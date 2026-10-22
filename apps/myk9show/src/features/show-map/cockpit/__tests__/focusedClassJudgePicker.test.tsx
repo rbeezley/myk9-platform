@@ -170,10 +170,10 @@ describe('class panel judge picker (MYK9-1323)', () => {
     }
   });
 
-  it('reads the judge list without the every-focus refetch on the show home', () => {
+  it('reads the judge list refreshing only when stale on the show home', () => {
     renderCockpit(classOf({}));
 
-    expect(judgesQuery).toHaveBeenCalledWith(true, true);
+    expect(judgesQuery).toHaveBeenCalledWith(true, 'when-stale');
   });
 
   it('keeps the picker when a background refetch fails but the list is cached', () => {
@@ -217,6 +217,15 @@ describe('class panel judge picker (MYK9-1323)', () => {
     renderCockpit(
       classOf({ lifecycle: 'in-progress', judgeId: 'judge-1', judgeName: 'Jane Judge' })
     );
+
+    expect(screen.queryByRole('combobox', { name: /^Judge for/ })).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Locked once the class starts. Use Edit class to change it.')
+    ).toBeVisible();
+  });
+
+  it('locks a class whose status still reads not-started but already has a scored dog', () => {
+    renderCockpit(classOf({ scoredCount: 1, judgeId: 'judge-1', judgeName: 'Jane Judge' }));
 
     expect(screen.queryByRole('combobox', { name: /^Judge for/ })).not.toBeInTheDocument();
     expect(

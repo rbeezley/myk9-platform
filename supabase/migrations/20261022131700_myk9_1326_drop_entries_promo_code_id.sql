@@ -30,6 +30,11 @@
 -- Replicas keep a stale (always NULL) promo_code_id on rows synced before
 -- this file until the row next changes; no client code reads it.
 
+-- Fail fast rather than queue: the view drops hold ACCESS EXCLUSIVE until
+-- commit, and the column drop needs it on entries. If a long transaction holds
+-- entries, give up after 5s instead of stalling every read of these views.
+SET LOCAL lock_timeout = '5s';
+
 DROP VIEW public.view_authenticated_entry_results_replication;
 DROP VIEW public.view_authenticated_entry_results;
 DROP VIEW public.view_entry_with_results;

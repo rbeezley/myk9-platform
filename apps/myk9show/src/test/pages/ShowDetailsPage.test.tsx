@@ -1559,9 +1559,12 @@ describe('ShowDetailsPage', () => {
   // MYK9-986: the Select classes table, built from the page's own class rows on
   // the demo show's shape (scent_work trial, no start_time, one submitted and two
   // withdrawn entries on Exterior Excellent).
-  describe('Select classes table rows (MYK9-986)', () => {
+  // MYK9-1324 retired the manager's Select classes table (it is a mode of the show home's
+  // schedule now); the same rows still reach the public Classes tab's table view.
+  describe('Classes tab table rows (MYK9-986)', () => {
     it('shows the revised start, expected entries only, "Novice A" and no Ring column', async () => {
-      mockAuthContext.isSecretary = true;
+      mockAuthContext.isSecretary = false;
+      localStorage.setItem('view-pref-classes', 'table');
       mockTrials = [
         {
           id: 'trial-1',
@@ -1586,22 +1589,37 @@ describe('ShowDetailsPage', () => {
           },
         ],
       };
+      mockDogs = [{ id: 'dog-1', ownerId: 'person-1' }];
       mockShowEntries = [
-        { id: 'e1', show_id: 'show-1', class_id: 'class-ext', entry_status: 'submitted' },
+        // Owned by the viewer, so the page opens the exhibitor tabs rather than the landing.
+        {
+          id: 'e1',
+          show_id: 'show-1',
+          class_id: 'class-ext',
+          entry_status: 'submitted',
+          dog_id: 'dog-1',
+        },
         { id: 'e2', show_id: 'show-1', class_id: 'class-ext', entry_status: 'withdrawn' },
         { id: 'e3', show_id: 'show-1', class_id: 'class-ext', entry_status: 'withdrawn' },
       ];
 
-      renderPage('show-1', '', '?select=classes');
+      try {
+        renderPage('show-1', '', '?tab=classes');
 
-      const row = (await screen.findByRole('cell', { name: 'Exterior' })).closest('tr');
-      expect(row).not.toBeNull();
-      expect(
-        within(row as HTMLElement).getByRole('cell', { name: 'Novice A' })
-      ).toBeInTheDocument();
-      expect(within(row as HTMLElement).getByRole('cell', { name: '7:30 AM' })).toBeInTheDocument();
-      expect(within(row as HTMLElement).getByRole('cell', { name: '1' })).toBeInTheDocument();
-      expect(screen.queryByRole('columnheader', { name: /^Ring/ })).not.toBeInTheDocument();
+        await screen.findAllByText('Exterior');
+        const row = document.querySelector<HTMLElement>('tr[data-row-id="class-ext"]');
+        expect(row).not.toBeNull();
+        // The viewer's own class carries a "My entry" badge beside its element.
+        const cells = [...row!.querySelectorAll('td')].map(cell => cell.textContent?.trim());
+        expect(cells).toContain('ExteriorMy entry');
+        expect(cells).toContain('Novice A');
+        expect(cells).toContain('7:30 AM');
+        // Expected entries only: the two withdrawn entries are not counted.
+        expect(cells.at(-1)).toBe('1');
+        expect(screen.queryByRole('columnheader', { name: /^Ring/ })).not.toBeInTheDocument();
+      } finally {
+        localStorage.removeItem('view-pref-classes');
+      }
     });
   });
 });

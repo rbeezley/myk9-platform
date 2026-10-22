@@ -61,8 +61,15 @@ case "$*" in
         node -e 'const s=Date.parse(process.argv[2]);const c=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(JSON.stringify(c.filter(x=>Date.parse(x.updated_at)>=s)))' "$GH_FIXTURE_DIR/page-$page.json" "$since"
       else cat "$GH_FIXTURE_DIR/page-$page.json"; fi
     else echo '[]'; fi ;;
+  'api repos/owner/repo/issues/comments?sort=created&direction=desc&per_page=100&page='*)
+    page="$(printf '%s' "$*" | sed 's/.*page=//')"
+    if [ -f "$GH_FIXTURE_DIR/scan-$page.json" ]; then cat "$GH_FIXTURE_DIR/scan-$page.json"; else echo '[]'; fi ;;
   'api search/issues?q='*)
     if [ -f "$GH_FIXTURE_DIR/search-fail" ]; then echo 'search down' >&2; exit 1; fi
+    if [ -f "$GH_FIXTURE_DIR/search-proxy-refused" ]; then
+      echo 'gh: This GitHub API path is not available: sessions are bound to their configured repositories. Use repository-scoped endpoints (repos/{owner}/{repo}/...). (HTTP 403)' >&2
+      exit 1
+    fi
     page="$(printf '%s' "$*" | sed 's/.*page=//')"
     if [ "$page" = 1 ] && [ -f "$GH_FIXTURE_DIR/search.json" ]; then cat "$GH_FIXTURE_DIR/search.json"
     else echo '{"total_count":0,"incomplete_results":false,"items":[]}'; fi ;;
@@ -114,7 +121,23 @@ esac
     );
     return { code: result.status, output: `${result.stdout}${result.stderr}` };
   };
-  return { root, remote, calls, setComments, setPage, setIssue, setSearch, setPrComments, runPush };
+  // The newest-first feed the scan reads where the proxy refuses search (MYK9-1325).
+  const setScanPage = (page: number, comments: ReturnType<typeof comment>[]) =>
+    writeFileSync(join(root, `scan-${page}.json`), JSON.stringify(comments));
+  const refuseSearch = () => writeFileSync(join(root, 'search-proxy-refused'), '');
+  return {
+    root,
+    remote,
+    calls,
+    setComments,
+    setPage,
+    setIssue,
+    setSearch,
+    setPrComments,
+    setScanPage,
+    refuseSearch,
+    runPush,
+  };
 }
 
 describe('operator push hold', () => {
@@ -414,6 +437,104 @@ describe('operator push hold', () => {
       const f = fixture();
       noisyFeed(f);
       expect(f.runPush().code).toBe(0);
+    });
+  });
+
+  describe('Claude Code cloud session, where the proxy refuses search (MYK9-1325)', () => {
+    const at = (minute: number) => `2026-10-22T00:${String(minute).padStart(2, '0')}:00Z`;
+    const noise = (firstId: number, minute: number) =>
+      Array.from({ length: 100 }, (_, i) =>
+        comment(firstId + i, 'Review gate: ok', 'OWNER', at(minute))
+      );
+    const scanCalls = (f: ReturnType<typeof fixture>) =>
+      readFileSync(f.calls, 'utf8')
+        .split('\n')
+        .filter(line => line.includes('sort=created&direction=desc'));
+
+    it('allows the push when no directive exists anywhere, reading to the end of the feed', () => {
+      const f = fixture();
+      f.refuseSearch();
+      f.setScanPage(1, noise(1000, 50));
+      f.setScanPage(2, [comment(1, 'Review gate: ok', 'OWNER', at(1))]);
+      const result = f.runPush();
+      expect(result.code).toBe(0);
+      expect(scanCalls(f)).toHaveLength(2);
+    });
+
+    it('blocks on a trusted hold, however many comments came after it', () => {
+      const f = fixture();
+      f.refuseSearch();
+      for (let page = 1; page <= 30; page++) f.setScanPage(page, noise(page * 1000, 59 - page));
+      f.setScanPage(31, [comment(1, 'PUSH HOLD: deep hold', 'OWNER', at(10))]);
+      const result = f.runPush();
+      expect(result.code).toBe(1);
+      expect(result.output).toContain('deep hold');
+    });
+
+    it('a newer release lifts an older hold', () => {
+      const f = fixture();
+      f.refuseSearch();
+      f.setScanPage(1, [
+        comment(2, 'PUSH RELEASE', 'MEMBER', at(20), 8),
+        comment(1, 'PUSH HOLD: old hold', 'OWNER', at(10)),
+      ]);
+      expect(f.runPush().code).toBe(0);
+    });
+
+    it('a newer hold wins over an older release, and the scan stops there', () => {
+      const f = fixture();
+      f.refuseSearch();
+      // The hold, then older comments: once past the hold's second the scan has its answer.
+      f.setScanPage(1, [
+        comment(2, 'PUSH HOLD: newest', 'OWNER', at(30)),
+        ...noise(1000, 25).slice(0, 99),
+      ]);
+      f.setScanPage(2, [comment(1, 'PUSH RELEASE', 'MEMBER', at(20), 8)]);
+      const result = f.runPush();
+      expect(result.code).toBe(1);
+      expect(result.output).toContain('newest');
+      expect(scanCalls(f)).toHaveLength(1);
+    });
+
+    it('orders same-second directives by ID across a page boundary', () => {
+      const f = fixture();
+      f.refuseSearch();
+      f.setScanPage(1, [
+        ...noise(1000, 50).slice(0, 99),
+        comment(5, 'PUSH RELEASE', 'MEMBER', at(30), 8),
+      ]);
+      f.setScanPage(2, [comment(9, 'PUSH HOLD: same second, higher id', 'OWNER', at(30))]);
+      const result = f.runPush();
+      expect(result.code).toBe(1);
+      expect(result.output).toContain('same second, higher id');
+    });
+
+    it('ignores untrusted, quoted and non-PR directives and keeps scanning', () => {
+      const f = fixture();
+      f.refuseSearch();
+      f.setScanPage(1, [
+        comment(4, 'PUSH HOLD: on an issue', 'OWNER', at(40), 9),
+        comment(3, 'PUSH HOLD: outsider', 'NONE', at(35)),
+        comment(2, '> PUSH HOLD: quoted', 'OWNER', at(30)),
+        comment(1, 'PUSH RELEASE', 'OWNER', at(20)),
+      ]);
+      expect(f.runPush().code).toBe(0);
+    });
+
+    it('still fails closed when the scan cannot be read', () => {
+      const f = fixture();
+      f.refuseSearch();
+      writeFileSync(join(f.root, 'scan-1.json'), 'not JSON');
+      const result = f.runPush();
+      expect(result.code).not.toBe(0);
+      expect(result.output).toContain('could not verify operator hold state');
+    });
+
+    it('any other search failure still fails closed instead of scanning', () => {
+      const f = fixture();
+      writeFileSync(join(f.root, 'search-fail'), '');
+      expect(f.runPush().code).not.toBe(0);
+      expect(scanCalls(f)).toHaveLength(0);
     });
   });
 

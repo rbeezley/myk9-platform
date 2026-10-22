@@ -356,6 +356,16 @@ describe('buildEmergencyTrialPacketPdf', () => {
     expect(columnStarts[last] + columnWidths[last]).toBeLessThanOrEqual(215.9 - 14);
   });
 
+  it('prints a full-length handler name and call name whole on the check-in sheet', () => {
+    // A person's full name runs longer than a dog's call name, so Handler takes
+    // the width Call Name does not need (owner request, 2026-10-21).
+    const handler = 'Anqunetta Matthews-Lee';
+    const callName = 'Glory Joy';
+    const { texts } = renderPageOfKind('check-in', { handler, callName });
+    expect(texts).toContain(handler);
+    expect(texts).toContain(callName);
+  });
+
   // Every text column, not just breed. Guarding one field and leaving the
   // other six is the same bug with better odds.
   it.each([

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { resolveActions } from '@/features/actions/actionRegistry';
 import { buildContextualNavigationCommands } from '@/features/command-menu/contextualCommands';
-import { getCockpitClassManagementHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import { computeSetupReadinessSignals } from '@/features/show-workbench/setupReadinessSignals';
 import { buildClassDetailsRelatedLinks } from '@/pages/ClassDetailsPage/classDetailsRelatedLinks';
 import { getSelectClassesHref } from '@/pages/secretary/selectClassesRoutes';
@@ -55,13 +54,7 @@ function collectHrefs(): string[] {
   );
   hrefs.push(
     getSelectClassesHref('s1'),
-    getSelectClassesHref('s1', 'in_progress', { trialId: 't1', focusClassId: 'c1' }),
-    getCockpitClassManagementHref({
-      showId: 's1',
-      trialId: 't1',
-      classId: 'c1',
-      returnTo: '/shows/s1',
-    })
+    getSelectClassesHref('s1', 'in_progress', { trialId: 't1', focusClassId: 'c1' })
   );
   hrefs.push(
     ...computeSetupReadinessSignals({ show, trials, classes: [], judges: [] }).map(s => s.href)

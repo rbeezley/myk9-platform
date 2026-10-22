@@ -107,6 +107,18 @@ describe('Select classes on the schedule (MYK9-1324)', () => {
     expect(screen.queryByRole('heading', { name: 'Select classes' })).not.toBeInTheDocument();
   });
 
+  it("offers every bulk action the Select classes table had, plus Assign judge (inventory)", async () => {
+    const { user } = renderCockpit();
+    await user.click(tick('Container Novice'));
+
+    // The table's bar was Change status, Delete and Export; its per-row judge picker is now the
+    // class panel's (MYK9-1323), and bulk Assign judge is new here.
+    for (const name of ['Assign judge', 'Change status', 'Delete', 'Export']) {
+      expect(screen.getByRole('button', { name })).toBeEnabled();
+    }
+    expect(screen.getByRole('combobox', { name: /^Judge for / })).toBeInTheDocument();
+  });
+
   it('a row click ticks the row instead of focusing the class', async () => {
     const { user } = renderCockpit();
     const focusedBefore = screen.getByTestId('focused-class-header').textContent;

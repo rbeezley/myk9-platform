@@ -1,8 +1,4 @@
-import {
-  getSelectClassesHref,
-  SELECT_CLASSES,
-  SELECT_CLASSES_PARAMS,
-} from '@/pages/secretary/selectClassesRoutes';
+import { SELECT_CLASSES, SELECT_CLASSES_PARAMS } from '@/pages/secretary/selectClassesRoutes';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
 import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
@@ -98,26 +94,6 @@ export function getCockpitEntryManagementHref(input: {
   returnTo: string;
 }): string {
   return withReturnTo(getEntryManagementHref(input), input.returnTo);
-}
-
-/**
- * Select classes on the home, scoped to the class's trial and focused on it.
- * Both share `focus`/`view`, so `returnTo` carries the cockpit state that
- * Select classes' Done restores.
- */
-export function getCockpitClassManagementHref(input: {
-  showId: string;
-  trialId: string;
-  classId: string;
-  returnTo: string;
-}): string {
-  return withReturnTo(
-    getSelectClassesHref(input.showId, undefined, {
-      trialId: input.trialId,
-      focusClassId: input.classId,
-    }),
-    input.returnTo
-  );
 }
 
 export function getCockpitPaperScoringHref(input: { classId: string; returnTo: string }): string {

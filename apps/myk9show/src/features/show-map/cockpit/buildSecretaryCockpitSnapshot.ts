@@ -13,7 +13,6 @@ import type { ShowMapAction } from '../showMapActions';
 import type { ShowMapClassInput, ShowMapTree, ShowMapTrialInput } from '../showMapTypes';
 import {
   getCockpitClassDetailsHref,
-  getCockpitClassManagementHref,
   getCockpitPaperScoringHref,
   getCockpitReportHref,
 } from './cockpitRoutes';
@@ -172,16 +171,6 @@ function classWorkActions(input: {
       // SITE_ADMIN). A club admin manages this show but is none of those, so
       // this is the one class-work action that is not theirs (REV-2341 R-1).
       operatorOnly: true,
-    },
-    {
-      // F29b phase 2a: this used to be labelled "Run order and class setup" and pointed
-      // at class setup (now Setup → Classes), which has no run-order control -- the last hop
-      // of the dead end. Run order now lives on this panel, so the link keeps only the half it
-      // actually delivers.
-      id: `class-setup:${input.classId}`,
-      label: 'Class setup',
-      destination: { kind: 'href', href: getCockpitClassManagementHref(input) },
-      group: 'class-work',
     },
     {
       id: `reports:${input.classId}`,

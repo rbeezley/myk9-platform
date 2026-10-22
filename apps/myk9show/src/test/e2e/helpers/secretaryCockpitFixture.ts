@@ -5,12 +5,12 @@
  */
 import type { Page } from '@playwright/test';
 import { fulfillRows, isRead } from './postgrestRoute';
-import { installSecretaryFixture } from './secretaryFixture';
+import { installSecretaryFixture, type SecretaryFixtureOptions } from './secretaryFixture';
 
 /** `extraClasses` lengthens the schedule so a spec can scroll it beside the focused class. */
 export async function installSecretaryCockpitFixture(
   page: Page,
-  options: { extraClasses?: number } = {}
+  options: Pick<SecretaryFixtureOptions, 'extraClasses' | 'extraTrials'> = {}
 ): Promise<void> {
   await installSecretaryFixture(page, options);
   // The entries replica pulls `entries` and the results view; both served empty.

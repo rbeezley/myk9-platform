@@ -214,7 +214,7 @@ export function derivePaidStrip(
   }
 
   const settledByEntryId = settledOrdersByEntryId(payments, now);
-  const fresh: FreshPayment[] = [];
+  const candidates: FreshPayment[] = [];
   for (const order of orders) {
     if (isPastShowEntry(order, now)) continue;
     const dogs: DogSlice[] =
@@ -223,11 +223,28 @@ export function derivePaidStrip(
       for (const cls of dog.classes) {
         const settled = settledByEntryId.get(cls.id);
         if (settled && isStillPaid(cls) && !hasSeen(cls.id)) {
-          fresh.push({ cls, dogName: dog.dogName, settled });
+          candidates.push({ cls, dogName: dog.dogName, settled });
         }
       }
     }
   }
+
+  // The strip quotes whole orders, so it may only name whole orders: an order
+  // counts only when EVERY entry it paid for is still a paid, unseen row here.
+  // A partial refund (the order stays `succeeded`), a moved class or a
+  // half-dismissed order would otherwise pair the full charge with fewer
+  // classes ("Paid $63.00 for Willow's 1 class").
+  const candidateIdsByOrder = new Map<string, Set<string>>();
+  for (const payment of candidates) {
+    const orderId = payment.settled.payment.id;
+    const ids = candidateIdsByOrder.get(orderId) ?? new Set<string>();
+    ids.add(payment.cls.id);
+    candidateIdsByOrder.set(orderId, ids);
+  }
+  const fresh = candidates.filter(payment => {
+    const ids = candidateIdsByOrder.get(payment.settled.payment.id);
+    return payment.settled.payment.entryIds.every(entryId => ids?.has(entryId));
+  });
   if (fresh.length === 0) return null;
 
   // Each covering order once: an order paying for seven classes is one charge

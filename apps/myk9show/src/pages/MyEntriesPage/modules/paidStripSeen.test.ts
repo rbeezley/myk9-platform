@@ -756,3 +756,39 @@ describe('derivePaidStrip — speaks only for orders My Payments lists (MYK9-127
     expect(strip?.date).toEqual(new Date(later));
   });
 });
+
+describe('derivePaidStrip — names whole orders only (MYK9-1275 review)', () => {
+  const twoClassOrder: PaidStripPayment = {
+    id: 'order-2',
+    status: 'succeeded',
+    date: '2026-09-29T15:00:00Z',
+    amountCents: 6300,
+    entryIds: ['c1', 'c2'],
+  };
+  const paid = (id: string) =>
+    makeClass({
+      id,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      rawPaymentStatus: PaymentStatus.PAID_ONLINE,
+    });
+
+  it('pairs the whole charge with every class it paid for', () => {
+    const row = makeRow({ classes: [paid('c1'), paid('c2')] });
+    const strip = derivePaidStrip(groupEntriesByOrder([row], NOW), NOW, neverSeen, [twoClassOrder]);
+
+    expect(strip).toMatchObject({ amountCents: 6300, classCount: 2 });
+  });
+
+  it('shows nothing once one class of the order is refunded (the order stays succeeded)', () => {
+    const refunded = makeClass({
+      id: 'c2',
+      paymentStatus: PaymentStatus.REFUNDED,
+      rawPaymentStatus: PaymentStatus.REFUNDED,
+    });
+    const row = makeRow({ classes: [paid('c1'), refunded] });
+
+    expect(
+      derivePaidStrip(groupEntriesByOrder([row], NOW), NOW, neverSeen, [twoClassOrder])
+    ).toBeNull();
+  });
+});

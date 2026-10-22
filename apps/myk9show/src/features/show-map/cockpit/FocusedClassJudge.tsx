@@ -5,7 +5,7 @@ import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 /**
  * The class panel's Judge setting (MYK9-1323): the same picker and replicated write as
  * Setup → Classes, one tap instead of the Edit class form. Before the class starts only;
- * after that it reads as text and points at Edit class (see `isJudgeChangeLocked`).
+ * after that it reads as text and points at Edit class (see `judgeLockReason`).
  */
 export function FocusedClassJudge({
   showId,
@@ -15,7 +15,7 @@ export function FocusedClassJudge({
   assignedJudgeId,
   availableJudges,
   judgeListStatus,
-  locked,
+  lockReason,
   onJudgeChange,
 }: {
   showId: string;
@@ -25,18 +25,22 @@ export function FocusedClassJudge({
   assignedJudgeId: string | null;
   availableJudges: Array<{ id: string; name: string }>;
   judgeListStatus: JudgeListStatus;
-  locked: boolean;
+  /** Why the judge cannot be changed here (`judgeLockReason`); null while it can. */
+  lockReason: string | null;
   onJudgeChange: (classId: string, judgeId: string) => void;
 }) {
-  const name = <span className="font-medium">{judgeName || 'Judge not set'}</span>;
+  // A judge can be assigned before their name resolves; that is not "not set".
+  const name = (
+    <span className="font-medium">
+      {judgeName || (assignedJudgeId ? 'Judge assigned' : 'Judge not set')}
+    </span>
+  );
 
-  if (locked) {
+  if (lockReason) {
     return (
       <div className="space-y-1">
         {name}
-        <p className="text-xs text-muted-foreground">
-          Locked once the class starts. Use Edit class to change it.
-        </p>
+        <p className="text-xs text-muted-foreground">{lockReason}</p>
       </div>
     );
   }

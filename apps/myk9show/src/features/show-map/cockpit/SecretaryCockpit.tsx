@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { CalendarDays, Plus } from 'lucide-react';
 import { Link, useLocation, useNavigationType } from 'react-router-dom';
 import { useTrialRowActions } from '@/components/shows/tabs/useTrialRowActions';
@@ -24,7 +24,7 @@ import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { useFocusedClassSetupActions } from './FocusedClassSetupActions';
 import { useClassJudgeAssignment } from '@/components/classes/useClassJudgeAssignment';
 import { FocusedClassJudge } from './FocusedClassJudge';
-import { isJudgeChangeLocked, withAssignedJudges } from './focusedClassJudge';
+import { judgeLockReason, withAssignedJudges } from './focusedClassJudge';
 import { CockpitResultsHandoff } from './CockpitResultsHandoff';
 import { isEveryClassComplete } from './resultsHandoff';
 import { SecretaryCockpitSchedule } from './SecretaryCockpitSchedule';
@@ -56,8 +56,17 @@ export function SecretaryCockpit({
   const { state, updateState } = useSecretaryCockpitUrlState();
   // The class panel's judge picker (MYK9-1323). Held here so a split/stack remount of the panel
   // keeps a just-assigned judge, and applied to the snapshot so the schedule row shows it too.
-  const judges = useClassJudgeAssignment(rowSnapshot.showId, canManageShow, rowSnapshot.classes);
-  const snapshot = withAssignedJudges(rowSnapshot, judges.judgeIdFor, judges.availableJudges);
+  const judges = useClassJudgeAssignment(
+    rowSnapshot.showId,
+    canManageShow,
+    rowSnapshot.classes,
+    true
+  );
+  const { judgeIdFor, judgeNameFor } = judges;
+  const snapshot = useMemo(
+    () => withAssignedJudges(rowSnapshot, judgeIdFor, judgeNameFor),
+    [rowSnapshot, judgeIdFor, judgeNameFor]
+  );
   // Edit Trial and Trial details on each trial heading (MYK9-956); Delete is in the edit panel.
   const { trialRowMenu, trialDialogs } = useTrialRowActions(snapshot.showId, canManageShow);
   // Held here, not in the panel, so a split/stack switch cannot close an open editor.
@@ -139,7 +148,7 @@ export function SecretaryCockpit({
               assignedJudgeId={sourceClass.judgeId ?? null}
               availableJudges={judges.availableJudges}
               judgeListStatus={judges.judgeListStatus}
-              locked={isJudgeChangeLocked(model.focusedClass.lifecycle)}
+              lockReason={judgeLockReason(model.focusedClass.lifecycle)}
               onJudgeChange={(_classId, judgeId) => judges.assignJudge(sourceClass, judgeId)}
             />
           ),

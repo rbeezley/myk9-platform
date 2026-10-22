@@ -7,7 +7,11 @@ import { useQuery } from '@tanstack/react-query';
 import { getJudgesWithQualifications } from '@/services/database/judges';
 import { mapDatabaseToUser } from '@/services/mappers/userMappers';
 
-export const useJudgesWithQualifications = (enabled = true) => {
+export const useJudgesWithQualifications = (
+  enabled = true,
+  /** 'always' by default (the Edit Show reason below); a show-day screen passes `true`. */
+  refetchOnWindowFocus: boolean | 'always' = 'always'
+) => {
   return useQuery({
     queryKey: ['judges', 'withQualifications'],
     queryFn: async () => {
@@ -19,7 +23,7 @@ export const useJudgesWithQualifications = (enabled = true) => {
     // Refetch whenever the window regains focus, even inside staleTime: the Edit
     // Show judge warning links to a judge record in another tab, and the
     // qualification added there must show when the secretary returns.
-    refetchOnWindowFocus: 'always',
+    refetchOnWindowFocus,
     enabled,
   });
 };

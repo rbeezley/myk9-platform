@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isJudgeChangeLocked, withAssignedJudges } from './focusedClassJudge';
+import { isJudgeChangeLocked, judgeLockReason, withAssignedJudges } from './focusedClassJudge';
 import type {
   CockpitLifecycle,
   SecretaryCockpitClass,
@@ -18,6 +18,19 @@ describe('isJudgeChangeLocked', () => {
   ])('lifecycle %s → locked %s', (value, locked) => {
     expect(isJudgeChangeLocked({ evidence: value === null ? 'unknown' : 'recorded', value })).toBe(
       locked
+    );
+  });
+});
+
+describe('judgeLockReason', () => {
+  it.each<[CockpitLifecycle | null, RegExp]>([
+    ['in-progress', /once the class starts/],
+    ['complete', /once the class starts/],
+    ['cancelled', /cancelled/],
+    [null, /status loads/],
+  ])('lifecycle %s → %s', (value, reason) => {
+    expect(judgeLockReason({ evidence: value === null ? 'unknown' : 'recorded', value })).toMatch(
+      reason
     );
   });
 });
@@ -43,19 +56,19 @@ const snapshotOf = (classes: SecretaryCockpitClass[]): SecretaryCockpitSnapshot 
   classes,
 });
 
-const JUDGES = [{ id: 'judge-1', name: 'Jane Judge' }];
+const nameFor = (judgeId: string) => (judgeId === 'judge-1' ? 'Jane Judge' : null);
 
 describe('withAssignedJudges', () => {
   it('returns the same snapshot when no class has a pending assignment', () => {
     const snapshot = snapshotOf([cls({ judgeId: 'judge-1', judgeName: 'Jane Judge' })]);
 
-    expect(withAssignedJudges(snapshot, c => c.judgeId ?? null, JUDGES)).toBe(snapshot);
+    expect(withAssignedJudges(snapshot, c => c.judgeId ?? null, nameFor)).toBe(snapshot);
   });
 
   it("treats the row's 'TBD' and '' as no judge, not as a change", () => {
     const snapshot = snapshotOf([cls({ id: 'a', judgeId: 'TBD' }), cls({ id: 'b', judgeId: '' })]);
 
-    expect(withAssignedJudges(snapshot, () => null, JUDGES)).toBe(snapshot);
+    expect(withAssignedJudges(snapshot, () => null, nameFor)).toBe(snapshot);
   });
 
   it('carries a just-assigned judge, with its name, onto that class only', () => {
@@ -67,7 +80,7 @@ describe('withAssignedJudges', () => {
     const result = withAssignedJudges(
       snapshot,
       c => (c.id === 'class-1' ? 'judge-1' : null),
-      JUDGES
+      nameFor
     );
 
     expect(result.classes[0]).toMatchObject({ judgeId: 'judge-1', judgeName: 'Jane Judge' });
@@ -77,7 +90,7 @@ describe('withAssignedJudges', () => {
   it('clears the name when the judge was just unassigned', () => {
     const snapshot = snapshotOf([cls({ judgeId: 'judge-1', judgeName: 'Jane Judge' })]);
 
-    const result = withAssignedJudges(snapshot, () => null, JUDGES);
+    const result = withAssignedJudges(snapshot, () => null, nameFor);
 
     expect(result.classes[0]).toMatchObject({ judgeId: null, judgeName: null });
   });

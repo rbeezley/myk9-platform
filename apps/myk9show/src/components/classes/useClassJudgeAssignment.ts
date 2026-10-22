@@ -28,6 +28,8 @@ export function normalizeJudgeId(judgeId: string | null | undefined): string | n
 interface JudgeOverride {
   judgeId: string | null;
   from: string | null;
+  /** The picked judge's name, kept in case the judge list later drops them. */
+  judgeName: string | null;
 }
 
 /**
@@ -39,24 +41,33 @@ export function useClassJudgeAssignment(
   showId: string,
   canManage: boolean,
   /** Every class of the show, unfiltered: what judge-override expiry must see. */
-  allClasses: readonly JudgeAssignableClass[]
+  allClasses: readonly JudgeAssignableClass[],
+  /**
+   * The judge list's refetch on window focus. The show home passes `true` (only when stale):
+   * a tablet at a show switches apps constantly, and 'always' re-reads the whole directory
+   * each time.
+   */
+  refetchJudgesOnFocus: boolean | 'always' = 'always'
 ) {
   const queryClient = useQueryClient();
   const showQuery = useShowQuery(canManage ? showId : '');
   const show = showQuery.data;
-  const judgesQuery = useJudgesWithQualifications(canManage);
+  const judgesQuery = useJudgesWithQualifications(canManage, refetchJudgesOnFocus);
   // Scoped to the show's organization: assigning a judge here is what puts them on the show and
   // its registry paperwork, so an AKC show must not offer UKC- or ASCA-only judges.
   const availableJudges = useMemo(
     () => selectQualifiedJudges(judgesQuery.data, show?.organization),
     [judgesQuery.data, show?.organization]
   );
-  // Offline, React Query pauses the judge read instead of failing it; that is "unavailable" too,
-  // not a load still on its way.
+  // Offline, React Query pauses a read instead of failing it; that is "unavailable" too, not a
+  // load still on its way. The list needs both reads: the judges, and the show's registry.
+  // A failed background refetch keeps the cached list usable: only a read with nothing to show
+  // is unavailable.
   const judgesUnavailable =
-    judgesQuery.isError || (judgesQuery.fetchStatus === 'paused' && judgesQuery.data === undefined);
+    judgesQuery.data === undefined && (judgesQuery.isError || judgesQuery.fetchStatus === 'paused');
+  const showUnavailable = !show && (showQuery.isError || showQuery.fetchStatus === 'paused');
   const judgeListStatus: JudgeListStatus =
-    judgesUnavailable || showQuery.isError
+    judgesUnavailable || showUnavailable
       ? 'error'
       : judgesQuery.data === undefined || !show
         ? 'loading'
@@ -68,15 +79,29 @@ export function useClassJudgeAssignment(
   // another secretary changes it, the row wins and their change shows.
   const [assigned, setAssigned] = useState<Record<string, JudgeOverride>>({});
   const assignJudge = useMutation({
+    // The write is a local replicated write that syncs itself, so it must run offline too; the
+    // app's default 'online' mode would park it until reconnect and drop it on a reload.
+    networkMode: 'always',
     mutationFn: async ({ cls, judgeId }: { cls: JudgeAssignableClass; judgeId: string }) => {
       await upsertClassJudgeAssignment(showId, cls.id, judgeId);
       return cls;
     },
     onSuccess: (cls, { judgeId }) => {
-      setAssigned(previous => ({
-        ...previous,
-        [cls.id]: { judgeId: normalizeJudgeId(judgeId), from: normalizeJudgeId(cls.judgeId) },
-      }));
+      const picked = normalizeJudgeId(judgeId);
+      setAssigned(previous => {
+        // A second change before replication catches up keeps the ROW's judge as `from`: a
+        // caller may pass the class with the first override already applied, and recording that
+        // as `from` would read as "the row moved on" and drop the override (A -> B -> C showed A).
+        const live = previous[cls.id];
+        return {
+          ...previous,
+          [cls.id]: {
+            judgeId: picked,
+            from: live ? live.from : normalizeJudgeId(cls.judgeId),
+            judgeName: availableJudges.find(judge => judge.id === picked)?.name ?? null,
+          },
+        };
+      });
       queryClient.invalidateQueries({ queryKey: classKeys.byTrial(cls.trialId) });
       queryClient.invalidateQueries({ queryKey: ['shows', showId, 'publish-info'] });
     },
@@ -112,10 +137,20 @@ export function useClassJudgeAssignment(
     [assigned]
   );
 
+  // A name for an assigned judge id: the list's, or the one remembered when it was picked.
+  const judgeNameFor = useCallback(
+    (judgeId: string): string | null =>
+      availableJudges.find(judge => judge.id === judgeId)?.name ??
+      Object.values(assigned).find(override => override.judgeId === judgeId)?.judgeName ??
+      null,
+    [availableJudges, assigned]
+  );
+
   return {
     availableJudges,
     judgeListStatus,
     judgeIdFor,
+    judgeNameFor,
     assignJudge: (cls: JudgeAssignableClass, judgeId: string) =>
       assignJudge.mutate({ cls, judgeId }),
   };

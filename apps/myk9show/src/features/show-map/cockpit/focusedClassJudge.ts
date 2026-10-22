@@ -13,7 +13,22 @@ import type {
  * cannot read counts as started.
  */
 export function isJudgeChangeLocked(lifecycle: EvidenceValue<CockpitLifecycle>): boolean {
-  return lifecycle.value !== 'not-started';
+  return judgeLockReason(lifecycle) !== null;
+}
+
+/** Why the judge cannot be changed here, in the panel's words; null while it can. */
+export function judgeLockReason(lifecycle: EvidenceValue<CockpitLifecycle>): string | null {
+  switch (lifecycle.value) {
+    case 'not-started':
+      return null;
+    case 'in-progress':
+    case 'complete':
+      return 'Locked once the class starts. Use Edit class to change it.';
+    case 'cancelled':
+      return 'This class is cancelled. Use Edit class to change it.';
+    default:
+      return "Locked until the class's status loads. Use Edit class to change it.";
+  }
 }
 
 /**
@@ -25,14 +40,14 @@ export function isJudgeChangeLocked(lifecycle: EvidenceValue<CockpitLifecycle>):
 export function withAssignedJudges(
   snapshot: SecretaryCockpitSnapshot,
   judgeIdFor: (cls: SecretaryCockpitClass) => string | null,
-  judges: ReadonlyArray<{ id: string; name: string }>
+  judgeNameFor: (judgeId: string) => string | null
 ): SecretaryCockpitSnapshot {
   let changed = false;
   const classes = snapshot.classes.map(cls => {
     const judgeId = judgeIdFor(cls);
     if (judgeId === normalizeJudgeId(cls.judgeId)) return cls;
     changed = true;
-    const judgeName = judgeId === null ? null : (judges.find(j => j.id === judgeId)?.name ?? null);
+    const judgeName = judgeId === null ? null : judgeNameFor(judgeId);
     return { ...cls, judgeId, judgeName };
   });
   return changed ? { ...snapshot, classes } : snapshot;

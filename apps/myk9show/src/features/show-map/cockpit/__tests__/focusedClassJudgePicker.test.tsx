@@ -1,4 +1,5 @@
 import { screen, within } from '@testing-library/react';
+import { onlineManager } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
@@ -31,6 +32,13 @@ const BOB = {
   id: 'judge-2',
   firstName: 'Bob',
   lastName: 'Barker',
+  judgeQualifications: [{ status: 'Active', organization: 'AKC' }],
+};
+
+const CARL = {
+  id: 'judge-3',
+  firstName: 'Carl',
+  lastName: 'Cole',
   judgeQualifications: [{ status: 'Active', organization: 'AKC' }],
 };
 
@@ -94,6 +102,94 @@ describe('class panel judge picker (MYK9-1323)', () => {
     expect(await within(scheduleRow()).findByText(/Jane Judge/)).toBeInTheDocument();
   });
 
+  it('a second change before replication catches up keeps the newest judge (A -> B -> C)', async () => {
+    judgesQuery.mockReturnValue({ data: [JANE, BOB, CARL] });
+    const { user } = renderCockpit(classOf({ judgeId: 'judge-1', judgeName: 'Jane Judge' }));
+    const picker = () => screen.getByRole('combobox', { name: 'Judge for Container Novice' });
+
+    await user.click(picker());
+    await user.click(await screen.findByRole('option', { name: 'Bob Barker' }));
+    expect(await within(scheduleRow()).findByText(/Bob Barker/)).toBeInTheDocument();
+
+    // The class row still says Jane: replication has not caught up.
+    await user.click(picker());
+    await user.click(await screen.findByRole('option', { name: 'Carl Cole' }));
+
+    expect(upsertClassJudgeAssignment).toHaveBeenLastCalledWith('show-1', 'class-1', 'judge-3');
+    expect(await within(scheduleRow()).findByText(/Carl Cole/)).toBeInTheDocument();
+    expect(scheduleRow()).not.toHaveTextContent('Jane Judge');
+  });
+
+  it('the class row wins once replication catches up, and again when someone else changes it', async () => {
+    const { user, rerender } = renderCockpit(classOf({}));
+    await user.click(screen.getByRole('combobox', { name: 'Judge for Container Novice' }));
+    await user.click(await screen.findByRole('option', { name: 'Jane Judge' }));
+    expect(await within(scheduleRow()).findByText(/Jane Judge/)).toBeInTheDocument();
+
+    const rerenderWith = (judgeId: string, judgeName: string) =>
+      rerender(
+        <SecretaryCockpit
+          snapshot={snapshotOf(classOf({ judgeId, judgeName }))}
+          canManageShow
+          onCommand={vi.fn()}
+        />
+      );
+    rerenderWith('judge-1', 'Jane Judge');
+    expect(scheduleRow()).toHaveTextContent('Jane Judge');
+    rerenderWith('judge-2', 'Bob Barker');
+    expect(scheduleRow()).toHaveTextContent('Bob Barker');
+  });
+
+  it('keeps the picked name on the schedule row if the judge list later drops that judge', async () => {
+    const { user, rerender } = renderCockpit(classOf({}));
+    await user.click(screen.getByRole('combobox', { name: 'Judge for Container Novice' }));
+    await user.click(await screen.findByRole('option', { name: 'Bob Barker' }));
+    expect(await within(scheduleRow()).findByText(/Bob Barker/)).toBeInTheDocument();
+
+    judgesQuery.mockReturnValue({ data: [JANE] });
+    rerender(
+      <SecretaryCockpit snapshot={snapshotOf(classOf({}))} canManageShow onCommand={vi.fn()} />
+    );
+
+    expect(scheduleRow()).toHaveTextContent('Bob Barker');
+    expect(scheduleRow()).not.toHaveTextContent('Judge not set');
+  });
+
+  it('writes the judge while offline: the write is local and replicated, not parked', async () => {
+    const { user } = renderCockpit(classOf({}));
+    onlineManager.setOnline(false);
+    try {
+      await user.click(screen.getByRole('combobox', { name: 'Judge for Container Novice' }));
+      await user.click(await screen.findByRole('option', { name: 'Jane Judge' }));
+
+      await vi.waitFor(() =>
+        expect(upsertClassJudgeAssignment).toHaveBeenCalledWith('show-1', 'class-1', 'judge-1')
+      );
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
+  it('reads the judge list without the every-focus refetch on the show home', () => {
+    renderCockpit(classOf({}));
+
+    expect(judgesQuery).toHaveBeenCalledWith(true, true);
+  });
+
+  it('keeps the picker when a background refetch fails but the list is cached', () => {
+    judgesQuery.mockReturnValue({ data: [JANE, BOB], isError: true });
+    renderCockpit(classOf({}));
+
+    expect(screen.getByRole('combobox', { name: 'Judge for Container Novice' })).toBeVisible();
+  });
+
+  it('says a judge is assigned, not "not set", when the name has not resolved', () => {
+    renderCockpit(classOf({ lifecycle: 'in-progress', judgeId: 'judge-9', judgeName: null }));
+
+    const settings = screen.getByRole('region', { name: 'Class settings' });
+    expect(within(settings).getByText('Judge assigned')).toBeVisible();
+  });
+
   it("sends 'TBD' when the judge is unassigned", async () => {
     const { user } = renderCockpit(classOf({ judgeId: 'judge-1', judgeName: 'Jane Judge' }));
 
@@ -147,6 +243,13 @@ describe('class panel judge picker (MYK9-1323)', () => {
 
   it('treats a judge read paused offline as unavailable', () => {
     judgesQuery.mockReturnValue({ data: undefined, fetchStatus: 'paused' });
+    renderCockpit(classOf({ judgeId: 'judge-1', judgeName: 'Jane Judge' }));
+
+    expect(screen.getByText(/couldn.t load the judge list/i)).toBeVisible();
+  });
+
+  it("treats the show's read paused offline as unavailable too", () => {
+    showQuery.mockReturnValue({ data: undefined, fetchStatus: 'paused' });
     renderCockpit(classOf({ judgeId: 'judge-1', judgeName: 'Jane Judge' }));
 
     expect(screen.getByText(/couldn.t load the judge list/i)).toBeVisible();

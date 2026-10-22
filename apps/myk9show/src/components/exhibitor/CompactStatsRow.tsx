@@ -33,8 +33,6 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { CircleCheckBig, CreditCard } from 'lucide-react';
 
 interface CompactStatsRowProps {
-  /** Total fees across the exhibitor's current entries. */
-  currentFees: number;
   /** Amount still owed. `<= 0` is the paid-in-full state. */
   amountDue: number;
   /** Whether any portion of the balance belongs to a show that has ended. */
@@ -46,7 +44,6 @@ interface CompactStatsRowProps {
 }
 
 export function CompactStatsRow({
-  currentFees,
   amountDue,
   hasPastBalance = false,
   currentFeesHref,
@@ -68,7 +65,7 @@ export function CompactStatsRow({
             ? 'Entry fees: paid in full. View your payments.'
             : includesPastBalance
               ? `Entry fees: ${formatCurrency(amountDue)} outstanding. View payment details.`
-              : `Entry fees: ${formatCurrency(amountDue)} due of ${formatCurrency(currentFees)}. Finish payment.`
+              : `Entry fees: you owe ${formatCurrency(amountDue)}. Finish payment.`
         }
         className={cn(
           'group flex w-full flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 text-left shadow-sm',
@@ -101,19 +98,19 @@ export function CompactStatsRow({
                 Paid in full
               </span>
             ) : (
-              // The amount owed, and what it is owed against, on one line. This
-              // did not fit while the card was one quarter of a four-column
-              // grid — the space came from the deletion.
+              // One plain sentence: "You owe $90.00". The old "$90.00 due of
+              // $38,360.00 entered" set the debt against an all-time total the
+              // exhibitor had no use for (MYK9-1275). The amount is the same
+              // `amountDueCents` My Payments states under Amount due.
               <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                {!includesPastBalance && (
+                  <span className="text-sm text-muted-foreground">You owe</span>
+                )}
                 <span className="text-2xl font-bold leading-none text-warning tabular-nums">
                   {formatCurrency(amountDue)}
                 </span>
-                {includesPastBalance ? (
+                {includesPastBalance && (
                   <span className="text-sm text-muted-foreground">outstanding balance</span>
-                ) : (
-                  <span className="text-sm text-muted-foreground tabular-nums">
-                    due of {formatCurrency(currentFees)} entered
-                  </span>
                 )}
               </span>
             )}

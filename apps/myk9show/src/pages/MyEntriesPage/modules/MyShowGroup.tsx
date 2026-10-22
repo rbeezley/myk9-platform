@@ -29,12 +29,13 @@ import { MyShowDogCard } from './MyShowDogCard';
 import type { LeaveClassTarget, MyEntry } from './my-entries-types';
 import { deriveMyEntryCardState } from './myEntryCardState';
 import { isPastShowEntry } from './myEntriesStats.helpers';
+import { formatDogNamesPossessive, formatShowHeaderDateRange } from './myShowHeaderFormat';
 import {
-  formatDogNamesPossessive,
-  formatPaidCoverage,
-  formatShowHeaderDateRange,
-} from './myShowHeaderFormat';
-import { derivePaidStrip, hasSeenPaidStrip, markPaidStripSeen } from './paidStripSeen';
+  derivePaidStrip,
+  hasSeenPaidStrip,
+  markPaidStripSeen,
+  type PaidStripPayment,
+} from './paidStripSeen';
 import { deriveShowMoneyState, refundNotesByDog, type ShowMoneyKind } from './showMoneyState';
 import { UnconfirmedReadNotice } from './UnconfirmedReadNotice';
 
@@ -48,6 +49,12 @@ export interface MyShowGroupProps {
    * filters.
    */
   allOrders: MyEntry[];
+  /**
+   * The My Payments ledger (`useMyPayments`), `undefined` until it loads. The
+   * paid strip speaks only for class rows a settled online order in it covers,
+   * and quotes that order's amount and date (MYK9-1275).
+   */
+  onlinePayments: readonly PaidStripPayment[] | undefined;
   /**
    * Where the rows came from. Handed straight to `deriveShowMoneyState` and
    * read for nothing else here: this component renders money from `money.kind`
@@ -74,6 +81,7 @@ export interface MyShowGroupProps {
 export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   group,
   allOrders,
+  onlinePayments,
   source,
   now,
   selfCheckinByClassId,
@@ -104,7 +112,8 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
     : derivePaidStrip(
         allOrders,
         now,
-        paymentId => hasSeenPaidStrip(paymentId) || dismissed.has(paymentId)
+        paymentId => hasSeenPaidStrip(paymentId) || dismissed.has(paymentId),
+        onlinePayments
       );
 
   const orderStates = group.orders.map(order => ({
@@ -312,13 +321,21 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
           <div className="min-w-0">
             <p className="myk9-entries-strip-head">
               <Check className="h-3.5 w-3.5" aria-hidden="true" />
-              Paid {formatPaymentCents(paidStrip.amountCents, 'USD')} for{' '}
-              {formatPaidCoverage(paidStrip.dogNames, paidStrip.classCount)} on{' '}
+              {/* Echoes the My Payments row and nothing more: no dog names and
+                  no class count, which a refund or a partly fulfilled checkout
+                  makes false against the gross charge (MYK9-1275). */}
+              Paid {formatPaymentCents(paidStrip.amountCents, 'USD')} on{' '}
               {formatShortCalendarDate(paidStrip.date)}.
             </p>
             <p className="myk9-entries-strip-body">
               {paidStrip.awaitingReview && 'The secretary will review it next. '}
-              Receipt sent to your email.
+              Receipt sent to your email.{' '}
+              <Link
+                to="/exhibitor/payments"
+                className="inline-flex min-h-[44px] items-center font-medium underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              >
+                See My Payments
+              </Link>
             </p>
           </div>
           <Button

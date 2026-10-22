@@ -103,6 +103,10 @@ describe('AccountMenuContent developer tools', () => {
     vi.mocked(clearDevelopmentCache).mockClear();
   });
 
+  beforeEach(() => {
+    authState.roles.push(UserRole.SITE_ADMIN);
+  });
+
   afterEach(() => {
     process.env.NODE_ENV = originalNodeEnv;
     vi.restoreAllMocks();
@@ -121,6 +125,16 @@ describe('AccountMenuContent developer tools', () => {
 
     expect(await screen.findByRole('menuitem', { name: /reset data/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /clear cache/i })).toBeInTheDocument();
+  });
+
+  it('omits the developer group from an exhibitor-only account in development', () => {
+    process.env.NODE_ENV = 'development';
+    authState.roles.length = 0;
+    authState.roles.push(UserRole.EXHIBITOR);
+
+    renderOpenAccountMenu();
+
+    expect(screen.queryByRole('menuitem', { name: /developer/i })).not.toBeInTheDocument();
   });
 
   it('omits the developer group in production', () => {
@@ -184,7 +198,7 @@ describe('AccountMenuContent AskQ item (phone consolidation)', () => {
   it('fires the same AskQ handler as the header icon', async () => {
     const { user } = renderOpenAccountMenu();
 
-    const askQItem = screen.getByRole('menuitem', { name: 'AskQ' });
+    const askQItem = screen.getByRole('menuitem', { name: 'Ask for help' });
     expect(askQItem).toBeInTheDocument();
     expect(askQItem.querySelector('[data-icon="askq"]')).toBeInTheDocument();
     await user.click(askQItem);
@@ -256,7 +270,7 @@ describe('AccountMenuContent organization', () => {
     // pins that a real desktop viewport shows it in the header instead.
     expect(itemNames).toEqual([
       'Account',
-      'AskQ',
+      'Ask for help',
       'Dark mode',
       'Help & Guides',
       'About',

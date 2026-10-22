@@ -14,16 +14,26 @@ import {
   makeClass,
   makeRow,
   NOW,
+  onlineLedgerFor,
   openShowActions,
   toOrders,
 } from '@/test/fixtures/myShowsFixtures';
 import { parseShowDate } from './myEntriesStats.helpers';
 import { MyShowsList, type MyShowsListProps } from './MyShowsList';
 import type { MyEntry } from './my-entries-types';
+import type { PaidStripPayment } from './paidStripSeen';
 import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
 import { getEntryStatusKindForDisplay } from '@/services/entryDisplay/entryDisplaySelectors';
 
+// The paid strip reads the My Payments ledger (MYK9-1275). Each test sets the
+// ledger the webhook would have written for its rows.
+const ledger = vi.hoisted(() => ({ current: [] as PaidStripPayment[] }));
+vi.mock('@/features/payments/useMyPayments', () => ({
+  useMyPayments: () => ({ data: ledger.current }),
+}));
+
 function renderRows(rows: MyEntry[], overrides: Partial<MyShowsListProps> = {}) {
+  ledger.current = onlineLedgerFor(rows);
   const props: MyShowsListProps = {
     filteredEntries: toOrders(rows),
     source: 'confirmed',
@@ -207,26 +217,36 @@ describe('paid confirmation', () => {
   }
   const paidRows = [paidRow(1, EntryStatus.PENDING)];
 
-  it('shows one green strip with the dog, amount and date, and says the secretary is next', () => {
+  it('shows one green strip with the amount and date, and says the secretary is next', () => {
     renderRows(paidRows);
 
-    expect(screen.getByText(/Paid \$45\.00 for Willow's 1 class on/)).toBeInTheDocument();
     expect(
-      screen.getByText('The secretary will review it next. Receipt sent to your email.')
+      screen.getByText(/^Paid \$45\.00 on [A-Z][a-z]{2} \d{1,2}, \d{4}\.$/)
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(/^The secretary will review it next\. Receipt sent to your email\./)
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'See My Payments' })).toHaveAttribute(
+      'href',
+      '/exhibitor/payments'
+    );
   });
 
-  it('counts the classes the payment covers, not "entry"', () => {
+  // MYK9-1275: the strip echoes the My Payments row. A dog name or class count
+  // paired with the gross charge was false after a refund or a partly
+  // fulfilled checkout, so neither is said.
+  it('names no dog and no class count, only the charge', () => {
     renderRows([paidRow(7, EntryStatus.PENDING)]);
 
-    expect(screen.getByText(/Paid \$315\.00 for Willow's 7 classes on/)).toBeInTheDocument();
+    const head = screen.getByText(/^Paid \$315\.00 on /);
+    expect(head).not.toHaveTextContent(/Willow|class/);
   });
 
   it('drops "will review it next" once every covered entry is accepted', () => {
     renderRows([paidRow(7, EntryStatus.ACCEPTED)]);
 
-    expect(screen.getByText(/Paid \$315\.00 for Willow's 7 classes on/)).toBeInTheDocument();
-    expect(screen.getByText('Receipt sent to your email.')).toBeInTheDocument();
+    expect(screen.getByText(/^Paid \$315\.00 on /)).toBeInTheDocument();
+    expect(screen.getByText(/^Receipt sent to your email\./)).toBeInTheDocument();
     expect(screen.queryByText(/will review it next/)).not.toBeInTheDocument();
   });
 
@@ -297,11 +317,11 @@ describe('paid confirmation', () => {
     const { unmount } = renderRows(paidRows);
 
     await user.click(screen.getByRole('button', { name: 'Dismiss' }));
-    expect(screen.queryByText(/Paid .* for Willow's 1 class/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Paid \$45\.00 on /)).not.toBeInTheDocument();
 
     unmount();
     renderRows(paidRows);
-    expect(screen.queryByText(/Paid .* for Willow's 1 class/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Paid \$45\.00 on /)).not.toBeInTheDocument();
   });
 });
 

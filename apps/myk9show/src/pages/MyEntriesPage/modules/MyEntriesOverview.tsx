@@ -35,7 +35,6 @@ interface MyEntriesOverviewProps {
   showMoney: boolean;
   /** Explains why the money row is withheld instead of implying no balance. */
   moneyWarning?: boolean;
-  currentFees: number;
   amountDue: number;
   hasPastBalance: boolean;
   /** Targets the SAME debt `amountDue` describes — see the page's derivation. */
@@ -59,7 +58,6 @@ interface MyEntriesOverviewProps {
 export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
   showMoney,
   moneyWarning = false,
-  currentFees,
   amountDue,
   hasPastBalance,
   currentFeesHref,
@@ -81,7 +79,6 @@ export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
       {showMoney && (
         <div data-testid="entry-fee-balance" className="max-[720px]:order-2">
           <CompactStatsRow
-            currentFees={currentFees}
             amountDue={amountDue}
             hasPastBalance={hasPastBalance}
             currentFeesHref={currentFeesHref}

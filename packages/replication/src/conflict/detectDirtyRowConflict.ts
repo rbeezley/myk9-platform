@@ -84,6 +84,13 @@ export interface DirtyRowComparePolicy {
    * still surfaced.
    */
   serverWinsFields?: readonly string[];
+  /**
+   * MYK9-1327: fields that hold ONE value between them (a class's judge is its id, name parts
+   * and resolved flag). The 3-way merge keeps a group whole: when the device changed any field
+   * of a group, every field of that group keeps the device's value, so a part that happened
+   * to equal the base cannot be taken from the server and leave a half-replaced value.
+   */
+  fieldGroups?: readonly (readonly string[])[];
 }
 
 export interface DirtyRowConflictInput<T extends object> {
@@ -195,6 +202,7 @@ export function mergeNonConflictingServerFields<T extends object>({
   remote,
   ignoredFields = DEFAULT_IGNORED_FIELDS,
   instantFields = NO_INSTANT_FIELDS,
+  comparePolicy,
 }: DirtyRowConflictInput<T>): DirtyRowMergeResult<T> {
   const ignored = new Set(ignoredFields);
   const fields = new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)]);
@@ -203,9 +211,17 @@ export function mergeNonConflictingServerFields<T extends object>({
   const remoteRecord = remote as Record<string, unknown>;
   const merged: Record<string, unknown> = { ...localRecord };
   const appliedFields: string[] = [];
+  // A field of a group the device changed (any member) keeps the device's value: see fieldGroups.
+  const deviceOwned = new Set<string>();
+  for (const group of comparePolicy?.fieldGroups ?? []) {
+    const changed = group.some(
+      field => !deepEqual(localRecord[field], baseRecord[field], instantFields.has(field))
+    );
+    if (changed) for (const field of group) deviceOwned.add(field);
+  }
 
   for (const field of fields) {
-    if (ignored.has(field)) continue;
+    if (ignored.has(field) || deviceOwned.has(field)) continue;
 
     const baseValue = baseRecord[field];
     const localValue = localRecord[field];

@@ -20,17 +20,13 @@ export function useSetupClassManagement(
   showId: string,
   canManage: boolean,
   visibleClasses: ClassInfo[],
-  /** Every class of the show, unfiltered: what retries and judge-override expiry must see. */
+  /** Every class of the show, unfiltered: what a toast-driven retry must see. */
   allClasses: ClassInfo[],
   viewKey: string
 ) {
   const queryClient = useQueryClient();
   // Judge assignment is shared with the show home's class panel (MYK9-1323).
-  const { availableJudges, judgeIdFor, assignJudge } = useClassJudgeAssignment(
-    showId,
-    canManage,
-    allClasses
-  );
+  const { availableJudges, assignJudge } = useClassJudgeAssignment(showId, canManage);
 
   const getClassId = useCallback((cls: ClassInfo) => cls.id, []);
   const selection = useBulkSelection<ClassInfo>({
@@ -72,7 +68,6 @@ export function useSetupClassManagement(
     handleBulkStatusChange,
     handleStatusChange,
     availableJudges,
-    judgeIdFor,
     assignJudge: (cls: ClassInfo, judgeId: string) => assignJudge(cls, judgeId),
   };
 }

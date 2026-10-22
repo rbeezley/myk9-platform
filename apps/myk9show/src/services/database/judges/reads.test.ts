@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   replaceClassAssignment: vi.fn(async () => undefined),
   reassignClassAssignment: vi.fn(async () => undefined),
   updateClass: vi.fn(async () => 'mutation-1'),
+  getClassById: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
 }));
 
 vi.mock('@/services/replication', () => ({
@@ -18,6 +19,7 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedClassesTable: {
     updateClass: mocks.updateClass,
+    getClassById: mocks.getClassById,
   },
 }));
 
@@ -157,6 +159,83 @@ describe('upsertClassJudgeAssignment', () => {
     );
     // Must not fall back to a direct, offline-unsafe Supabase write.
     expect(untypedFromMocks.untypedFromMock).not.toHaveBeenCalledWith('classes');
+  });
+
+  // MYK9-1327: the class row every screen reads carries the new judge at once, offline and
+  // across a reload, instead of the old one until replication syncs.
+  it('writes the picked judge onto the local class row', async () => {
+    await upsertClassJudgeAssignment('show-1', 'class-1', 'judge-1', {
+      name: 'Jane Judge',
+      firstName: 'Jane',
+      lastName: 'Judge',
+    });
+
+    expect(mocks.updateClass).toHaveBeenCalledWith(
+      'class-1',
+      expect.objectContaining({
+        judgeId: 'judge-1',
+        judgeName: 'Jane Judge',
+        judgeFirstName: 'Jane',
+        judgeLastName: 'Judge',
+        judgeResolved: true,
+      })
+    );
+  });
+
+  it('clears the judge from the local class row on a removal', async () => {
+    await upsertClassJudgeAssignment('show-1', 'class-1', 'TBD');
+
+    const [, updates] = mocks.updateClass.mock.calls[0] as unknown as [
+      string,
+      Record<string, unknown>,
+    ];
+    expect(updates).toMatchObject({ judgeResolved: true });
+    expect(updates.judgeId).toBeUndefined();
+    expect(updates.judgeName).toBeUndefined();
+    expect(updates.judgeFirstName).toBeUndefined();
+    expect(updates.judgeLastName).toBeUndefined();
+  });
+
+  it("never leaves the previous judge's name beside a new judge when no name is given", async () => {
+    mocks.getClassById.mockResolvedValueOnce({
+      id: 'class-1',
+      judgeId: 'judge-old',
+      judgeName: 'Old Judge',
+      judgeFirstName: 'Old',
+      judgeLastName: 'Judge',
+    });
+
+    await upsertClassJudgeAssignment('show-1', 'class-1', 'judge-1');
+
+    const [, updates] = mocks.updateClass.mock.calls[0] as unknown as [
+      string,
+      Record<string, unknown>,
+    ];
+    expect(updates).toMatchObject({ judgeId: 'judge-1', judgeResolved: true });
+    expect(updates.judgeName).toBeUndefined();
+    expect(updates.judgeFirstName).toBeUndefined();
+  });
+
+  it("keeps the row's name when no name is given and the row already names that judge", async () => {
+    // The wizard creates the class with the judge's name, then writes the assignment.
+    mocks.getClassById.mockResolvedValueOnce({
+      id: 'class-1',
+      judgeId: 'judge-1',
+      judgeName: 'Jane Judge',
+      judgeFirstName: 'Jane',
+      judgeLastName: 'Judge',
+    });
+
+    await upsertClassJudgeAssignment('show-1', 'class-1', 'judge-1');
+
+    expect(mocks.updateClass).toHaveBeenCalledWith(
+      'class-1',
+      expect.objectContaining({
+        judgeId: 'judge-1',
+        judgeName: 'Jane Judge',
+        judgeFirstName: 'Jane',
+      })
+    );
   });
 
   it('wraps a replace failure in a judge_assignments database error', async () => {

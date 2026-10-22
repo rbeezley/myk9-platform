@@ -1,9 +1,4 @@
-import { normalizeJudgeId } from '@/components/classes/useClassJudgeAssignment';
-import type {
-  FocusedClassModel,
-  SecretaryCockpitClass,
-  SecretaryCockpitSnapshot,
-} from './secretaryCockpitTypes';
+import type { FocusedClassModel } from './secretaryCockpitTypes';
 
 /**
  * The class panel's judge picker is open only before the class starts (MYK9-1323). Once a class
@@ -38,26 +33,4 @@ export function judgeLockReason({
     default:
       return "Locked until the class's status loads. Use Edit class to change it.";
   }
-}
-
-/**
- * The snapshot with each class carrying the judge just assigned from the panel, until
- * replication catches the class row up. The schedule row and the panel both read the
- * snapshot, so neither shows the old judge in the meantime. Returns the same snapshot when
- * nothing differs, so memoised readers do not rebuild.
- */
-export function withAssignedJudges(
-  snapshot: SecretaryCockpitSnapshot,
-  judgeIdFor: (cls: SecretaryCockpitClass) => string | null,
-  judgeNameFor: (judgeId: string) => string | null
-): SecretaryCockpitSnapshot {
-  let changed = false;
-  const classes = snapshot.classes.map(cls => {
-    const judgeId = judgeIdFor(cls);
-    if (judgeId === normalizeJudgeId(cls.judgeId)) return cls;
-    changed = true;
-    const judgeName = judgeId === null ? null : judgeNameFor(judgeId);
-    return { ...cls, judgeId, judgeName };
-  });
-  return changed ? { ...snapshot, classes } : snapshot;
 }

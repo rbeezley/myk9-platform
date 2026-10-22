@@ -264,35 +264,27 @@ describe('ClassesTab Setup scope', () => {
     const rerenderWith = (rerender: (ui: React.ReactElement) => void, judgeId?: string) =>
       rerender(<ClassesTab classes={withJudge(judgeId)} showId="s1" userHasEntries={false} />);
 
-    it('shows the judge just assigned before the store catches up', async () => {
-      const { user } = renderTab();
-
-      await user.click(pickerOf('Judge for Class c1'));
-      await user.click(await screen.findByRole('option', { name: 'Jane Judge' }));
-
-      await waitFor(() => expect(pickerOf('Judge for Class c1')).toHaveTextContent('Jane Judge'));
-    });
-
-    it("shows another secretary's change instead of the stale assignment", async () => {
+    // MYK9-1327: the judge write puts the pick on the store's class row, so the picker has one
+    // source, the row, and no override of its own (store behavior: ReplicatedClassesTable.localJudge).
+    it('writes a pick, then shows whatever judge the class row carries', async () => {
       const { user, rerender } = renderTab();
       await user.click(pickerOf('Judge for Class c1'));
       await user.click(await screen.findByRole('option', { name: 'Jane Judge' }));
-      await waitFor(() => expect(pickerOf('Judge for Class c1')).toHaveTextContent('Jane Judge'));
-
-      rerenderWith(rerender, 'judge-2');
-
-      await waitFor(() => expect(pickerOf('Judge for Class c1')).toHaveTextContent('Joe Judge'));
-    });
-
-    it('shows the row once it has caught up with the assignment', async () => {
-      const { user, rerender } = renderTab();
-      await user.click(pickerOf('Judge for Class c1'));
-      await user.click(await screen.findByRole('option', { name: 'Jane Judge' }));
-      await waitFor(() => expect(pickerOf('Judge for Class c1')).toHaveTextContent('Jane Judge'));
+      await waitFor(() =>
+        expect(upsertClassJudgeAssignment).toHaveBeenCalledWith(
+          's1',
+          'c1',
+          'judge-1',
+          expect.objectContaining({ name: 'Jane Judge' })
+        )
+      );
 
       rerenderWith(rerender, 'judge-1');
-
       await waitFor(() => expect(pickerOf('Judge for Class c1')).toHaveTextContent('Jane Judge'));
+
+      // Another secretary's later change, once it syncs.
+      rerenderWith(rerender, 'judge-2');
+      await waitFor(() => expect(pickerOf('Judge for Class c1')).toHaveTextContent('Joe Judge'));
     });
   });
 });

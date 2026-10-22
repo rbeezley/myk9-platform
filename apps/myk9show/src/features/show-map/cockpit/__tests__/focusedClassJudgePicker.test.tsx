@@ -35,13 +35,6 @@ const BOB = {
   judgeQualifications: [{ status: 'Active', organization: 'AKC' }],
 };
 
-const CARL = {
-  id: 'judge-3',
-  firstName: 'Carl',
-  lastName: 'Cole',
-  judgeQualifications: [{ status: 'Active', organization: 'AKC' }],
-};
-
 const classOf = (overrides: Partial<SecretaryCockpitClass>): SecretaryCockpitClass => ({
   id: 'class-1',
   trialId: 'trial-1',
@@ -89,70 +82,39 @@ describe('class panel judge picker (MYK9-1323)', () => {
     upsertClassJudgeAssignment.mockResolvedValue(undefined);
   });
 
-  it('assigns the picked judge to the focused class and the schedule row shows it', async () => {
+  const JANE_NAME = { name: 'Jane Judge', firstName: 'Jane', lastName: 'Judge' };
+
+  it("assigns the picked judge, with the judge's name, to the focused class", async () => {
     const { user } = renderCockpit(classOf({}));
-    expect(scheduleRow()).toHaveTextContent('Judge not set');
 
     await user.click(screen.getByRole('combobox', { name: 'Judge for Container Novice' }));
     await user.click(await screen.findByRole('option', { name: 'Jane Judge' }));
 
+    // The name rides with the id onto the local class row (MYK9-1327): the row never reads
+    // "Judge not set" or the previous judge while it waits for the server.
     expect(upsertClassJudgeAssignment).toHaveBeenCalledTimes(1);
-    expect(upsertClassJudgeAssignment).toHaveBeenCalledWith('show-1', 'class-1', 'judge-1');
-    // Before replication catches the class row up, the row already names the new judge.
-    expect(await within(scheduleRow()).findByText(/Jane Judge/)).toBeInTheDocument();
-  });
-
-  it('a second change before replication catches up keeps the newest judge (A -> B -> C)', async () => {
-    judgesQuery.mockReturnValue({ data: [JANE, BOB, CARL] });
-    const { user } = renderCockpit(classOf({ judgeId: 'judge-1', judgeName: 'Jane Judge' }));
-    const picker = () => screen.getByRole('combobox', { name: 'Judge for Container Novice' });
-
-    await user.click(picker());
-    await user.click(await screen.findByRole('option', { name: 'Bob Barker' }));
-    expect(await within(scheduleRow()).findByText(/Bob Barker/)).toBeInTheDocument();
-
-    // The class row still says Jane: replication has not caught up.
-    await user.click(picker());
-    await user.click(await screen.findByRole('option', { name: 'Carl Cole' }));
-
-    expect(upsertClassJudgeAssignment).toHaveBeenLastCalledWith('show-1', 'class-1', 'judge-3');
-    expect(await within(scheduleRow()).findByText(/Carl Cole/)).toBeInTheDocument();
-    expect(scheduleRow()).not.toHaveTextContent('Jane Judge');
-  });
-
-  it('the class row wins once replication catches up, and again when someone else changes it', async () => {
-    const { user, rerender } = renderCockpit(classOf({}));
-    await user.click(screen.getByRole('combobox', { name: 'Judge for Container Novice' }));
-    await user.click(await screen.findByRole('option', { name: 'Jane Judge' }));
-    expect(await within(scheduleRow()).findByText(/Jane Judge/)).toBeInTheDocument();
-
-    const rerenderWith = (judgeId: string, judgeName: string) =>
-      rerender(
-        <SecretaryCockpit
-          snapshot={snapshotOf(classOf({ judgeId, judgeName }))}
-          canManageShow
-          onCommand={vi.fn()}
-        />
-      );
-    rerenderWith('judge-1', 'Jane Judge');
-    expect(scheduleRow()).toHaveTextContent('Jane Judge');
-    rerenderWith('judge-2', 'Bob Barker');
-    expect(scheduleRow()).toHaveTextContent('Bob Barker');
-  });
-
-  it('keeps the picked name on the schedule row if the judge list later drops that judge', async () => {
-    const { user, rerender } = renderCockpit(classOf({}));
-    await user.click(screen.getByRole('combobox', { name: 'Judge for Container Novice' }));
-    await user.click(await screen.findByRole('option', { name: 'Bob Barker' }));
-    expect(await within(scheduleRow()).findByText(/Bob Barker/)).toBeInTheDocument();
-
-    judgesQuery.mockReturnValue({ data: [JANE] });
-    rerender(
-      <SecretaryCockpit snapshot={snapshotOf(classOf({}))} canManageShow onCommand={vi.fn()} />
+    expect(upsertClassJudgeAssignment).toHaveBeenCalledWith(
+      'show-1',
+      'class-1',
+      'judge-1',
+      JANE_NAME
     );
+  });
 
+  it('shows whatever judge the class row carries, in the panel and on the schedule row', () => {
+    // The row is the one source: no override is held on top of it.
+    const { rerender } = renderCockpit(classOf({ judgeId: 'judge-2', judgeName: 'Bob Barker' }));
     expect(scheduleRow()).toHaveTextContent('Bob Barker');
-    expect(scheduleRow()).not.toHaveTextContent('Judge not set');
+
+    rerender(
+      <SecretaryCockpit
+        snapshot={snapshotOf(classOf({ judgeId: 'judge-1', judgeName: 'Jane Judge' }))}
+        canManageShow
+        onCommand={vi.fn()}
+      />
+    );
+    expect(scheduleRow()).toHaveTextContent('Jane Judge');
+    expect(scheduleRow()).not.toHaveTextContent('Bob Barker');
   });
 
   it('writes the judge while offline: the write is local and replicated, not parked', async () => {
@@ -163,7 +125,12 @@ describe('class panel judge picker (MYK9-1323)', () => {
       await user.click(await screen.findByRole('option', { name: 'Jane Judge' }));
 
       await vi.waitFor(() =>
-        expect(upsertClassJudgeAssignment).toHaveBeenCalledWith('show-1', 'class-1', 'judge-1')
+        expect(upsertClassJudgeAssignment).toHaveBeenCalledWith(
+          'show-1',
+          'class-1',
+          'judge-1',
+          JANE_NAME
+        )
       );
     } finally {
       onlineManager.setOnline(true);
@@ -196,7 +163,7 @@ describe('class panel judge picker (MYK9-1323)', () => {
     await user.click(screen.getByRole('combobox', { name: 'Judge for Container Novice' }));
     await user.click(await screen.findByRole('option', { name: 'Unassigned' }));
 
-    expect(upsertClassJudgeAssignment).toHaveBeenCalledWith('show-1', 'class-1', 'TBD');
+    expect(upsertClassJudgeAssignment).toHaveBeenCalledWith('show-1', 'class-1', 'TBD', undefined);
   });
 
   it('does not repeat the judge in the header facts once the setting shows it', () => {

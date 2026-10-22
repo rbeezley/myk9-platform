@@ -61,6 +61,7 @@ import {
 import {
   instantFieldsFor,
   mergeNonConflictingServerFields,
+  type DirtyRowComparePolicy,
 } from '../conflict/detectDirtyRowConflict';
 import type { ScopeStampDirective } from './scopeStamp';
 import { isConflictSurfacingEnabled } from '../conflictConfig';
@@ -990,6 +991,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       /** Rebuild a full Supabase UPDATE payload from the reconciled row, so a queued
        *  full-row UPDATE can be refreshed (not just the IDB row) and won't clobber. */
       rebuildPayload?: (local: T) => Record<string, unknown>;
+      /** The table's compare policy; the generic merge honors its `fieldGroups`. */
+      comparePolicy?: DirtyRowComparePolicy;
     }
   ): Promise<boolean> {
     const db = await this.init();
@@ -1033,6 +1036,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
         local: existingRow.data,
         remote: params.remote,
         instantFields: instantFieldsFor(this.tableName),
+        ...(params.comparePolicy && { comparePolicy: params.comparePolicy }),
       }).merged;
     const normalizedMerged = { ...mergedData, id: normalizedId } as T;
     for (const field of params.adoptRemoteFields ?? []) {

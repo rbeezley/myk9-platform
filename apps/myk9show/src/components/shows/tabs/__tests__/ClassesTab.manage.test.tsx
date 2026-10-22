@@ -111,7 +111,11 @@ describe.each(['table', 'cards'])('ClassesTab manager controls (%s view)', view 
     await user.click(await screen.findByRole('option', { name: 'Jane Judge' }));
 
     expect(upsertClassJudgeAssignment).toHaveBeenCalledTimes(1);
-    expect(upsertClassJudgeAssignment).toHaveBeenCalledWith('s1', 'c2', 'judge-1');
+    expect(upsertClassJudgeAssignment).toHaveBeenCalledWith('s1', 'c2', 'judge-1', {
+      name: 'Jane Judge',
+      firstName: 'Jane',
+      lastName: 'Judge',
+    });
   });
 
   it("offers only judges qualified for the show's registry", async () => {

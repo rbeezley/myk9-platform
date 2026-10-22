@@ -102,12 +102,12 @@ describe('useClassEditActions store refresh', () => {
 
     it('a real judge change writes the new assignment', async () => {
       await save({ id: 'c1', judgeId: 'j2' }, 'j1');
-      expect(upsertJudge).toHaveBeenCalledWith('s1', 'c1', 'j2');
+      expect(upsertJudge).toHaveBeenCalledWith('s1', 'c1', 'j2', undefined);
     });
 
     it('an explicit move to TBD is still honoured', async () => {
       await save({ id: 'c1', judgeId: 'TBD' }, 'j1');
-      expect(upsertJudge).toHaveBeenCalledWith('s1', 'c1', 'TBD');
+      expect(upsertJudge).toHaveBeenCalledWith('s1', 'c1', 'TBD', undefined);
     });
   });
 });

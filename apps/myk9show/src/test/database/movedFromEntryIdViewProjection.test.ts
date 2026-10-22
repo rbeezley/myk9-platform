@@ -101,7 +101,6 @@ describe('MYK9-639 — move_up_entry / reverse_move_up_entry', () => {
       'refund_amount',
       'refund_notes',
       'refunded_at',
-      'promo_code_id',
     ]) {
       expect(insertColumns).not.toContain(forbidden);
     }

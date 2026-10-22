@@ -126,14 +126,20 @@ export function SecretaryCockpitFocusedClass({
       >
         {/* What the secretary SETS for this class, laid out as a form, apart from
             the work below it (owner, 2026-10-03). */}
-        <section aria-labelledby="focused-class-settings" className="rounded-lg border bg-muted/30">
+        <section
+          aria-labelledby="focused-class-settings"
+          className="rounded-lg border bg-muted/30 [container-type:inline-size]"
+        >
           <h3
             id="focused-class-settings"
             className="border-b px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground"
           >
             Class settings
           </h3>
-          <dl className="grid grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)] items-center gap-x-4 gap-y-3 p-4 text-sm">
+          {/* Label beside value only where the card has room for both; narrower (a phone, or the
+              split's 360px focus column) each label sits above its value, so a control never runs
+              past the card's edge (MYK9-1322). */}
+          <dl className="grid grid-cols-1 items-center gap-x-4 gap-y-1 p-4 text-sm [@container(min-width:24rem)]:grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)] [@container(min-width:24rem)]:gap-y-3">
             <dt className="text-muted-foreground">Status</dt>
             <dd className="min-w-0">
               <ClassStatusControl
@@ -147,7 +153,9 @@ export function SecretaryCockpitFocusedClass({
                 canManageShow={canManageShow}
               />
             </dd>
-            <dt className="self-start pt-2 text-muted-foreground">Expected start</dt>
+            <dt className="mt-2 text-muted-foreground [@container(min-width:24rem)]:mt-0 [@container(min-width:24rem)]:self-start [@container(min-width:24rem)]:pt-2">
+              Expected start
+            </dt>
             <dd className="min-w-0 space-y-1">
               <ExpectedStartControl
                 classId={focused.id}
@@ -170,7 +178,9 @@ export function SecretaryCockpitFocusedClass({
                 />
               )}
             </dd>
-            <dt className="text-muted-foreground">Actual timing</dt>
+            <dt className="text-muted-foreground mt-2 [@container(min-width:24rem)]:mt-0">
+              Actual timing
+            </dt>
             <dd className="min-w-0 font-medium">
               {focused.actualStart.value
                 ? `Started ${formatTime(focused.actualStart.value, timeZone)}`
@@ -198,7 +208,9 @@ export function SecretaryCockpitFocusedClass({
                 below 2 entries. See docs/plan-f29b-operational-actions-home.md. */}
             {canManageShow && runOrder && (
               <>
-                <dt className="text-muted-foreground">Run order</dt>
+                <dt className="text-muted-foreground mt-2 [@container(min-width:24rem)]:mt-0">
+                  Run order
+                </dt>
                 <dd className="min-w-0">
                   <ShowMapRunOrderMenu
                     classId={focused.id}

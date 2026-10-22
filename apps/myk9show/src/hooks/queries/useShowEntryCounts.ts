@@ -23,7 +23,7 @@ export const showEntryCountsQueryKey = (showIds: readonly string[]) =>
 
 export function useShowEntryCounts(showIds: readonly string[]): ReadonlyMap<string, number> {
   const isOnline = useIsOnline();
-  const { data } = useQuery({
+  const { data, isError } = useQuery({
     queryKey: showEntryCountsQueryKey(showIds),
     queryFn: async () => {
       const { data: rows, error } = await supabase.rpc('get_show_entry_counts', {
@@ -40,7 +40,9 @@ export function useShowEntryCounts(showIds: readonly string[]): ReadonlyMap<stri
     refetchInterval: SHOW_ENTRY_COUNTS_REFRESH_MS,
     refetchOnWindowFocus: true,
   });
-  return isOnline && data ? data : EMPTY_COUNTS;
+  // A failed refresh keeps the last data in the cache; the count can no longer
+  // be vouched for, so it is unknown until a refresh succeeds.
+  return isOnline && data && !isError ? data : EMPTY_COUNTS;
 }
 
 const EMPTY_COUNTS: ReadonlyMap<string, number> = new Map();

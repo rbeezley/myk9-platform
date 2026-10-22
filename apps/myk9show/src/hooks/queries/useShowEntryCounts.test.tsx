@@ -142,4 +142,23 @@ describe('useShowEntryCounts refresh (MYK9-1311 review)', () => {
     await waitFor(() => expect(result.current.get('show-a')).toBe(6));
     vi.useRealTimers();
   });
+
+  it('hides a cached count once a later refresh fails', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce({
+        data: [{ show_id: 'show-a', entry_count: 5 }],
+        error: null,
+      } as never)
+      .mockResolvedValueOnce({ data: null, error: { message: 'boom' } } as never);
+    const { result } = renderHook(() => useShowEntryCounts(['show-a']), {
+      wrapper: makeWrapper(true),
+    });
+    await waitFor(() => expect(result.current.get('show-a')).toBe(5));
+
+    await vi.advanceTimersByTimeAsync(SHOW_ENTRY_COUNTS_REFRESH_MS + 10);
+
+    await waitFor(() => expect(result.current.has('show-a')).toBe(false));
+    vi.useRealTimers();
+  });
 });

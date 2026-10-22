@@ -13,6 +13,7 @@ export interface AccountNotificationRow {
 const ACCOUNT_NOTIFICATION_TITLES: Readonly<Record<string, string>> = {
   waitlist_auto_offer: 'Wait list offer sent',
   waitlist_mail_in_head: 'Mail-in dog needs an offer',
+  club_awaiting_authorization: 'Club waiting for authorization',
 };
 
 /**

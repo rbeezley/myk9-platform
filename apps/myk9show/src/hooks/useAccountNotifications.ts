@@ -24,13 +24,15 @@ export const ACCOUNT_NOTIFICATION_TYPES = [
   'club_access_approved',
   'waitlist_auto_offer',
   'waitlist_mail_in_head',
+  'club_awaiting_authorization',
 ] as const;
 const HANDLED_TYPES = new Set<string>(ACCOUNT_NOTIFICATION_TYPES);
 
 /**
  * Delivers durable `public.notifications` rows into the existing bell/Message
  * Center: club-access approval (MYK9-859), automatic wait list offers
- * (MYK9-1003), and mail-in heads needing a manual offer (MYK9-1021). A club approval also
+ * (MYK9-1003), mail-in heads needing a manual offer (MYK9-1021), and clubs
+ * waiting for a site admin's authorization (MYK9-1315). A club approval also
  * forces an RBAC refresh so the sidebar reflects the new role without a
  * sign-out.
  * The database row stays unread until the requester views or dismisses it,

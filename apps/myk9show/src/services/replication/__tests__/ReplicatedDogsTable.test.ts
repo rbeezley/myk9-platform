@@ -773,7 +773,8 @@ describe('ReplicatedDogsTable', () => {
           select: vi.fn().mockReturnThis(),
           gt: vi.fn().mockReturnThis(),
           order: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({ data: mockRemoteDogs, error: null }),
+          eq: vi.fn().mockReturnThis(),
+          range: vi.fn().mockResolvedValue({ data: mockRemoteDogs, error: null }),
         };
 
         vi.mocked(supabase.from).mockReturnValue(
@@ -815,7 +816,8 @@ describe('ReplicatedDogsTable', () => {
           select: vi.fn().mockReturnThis(),
           gt: vi.fn().mockReturnThis(),
           order: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          eq: vi.fn().mockReturnThis(),
+          range: vi.fn().mockResolvedValue({ data: [], error: null }),
         };
 
         vi.mocked(supabase.from).mockReturnValue(
@@ -841,7 +843,8 @@ describe('ReplicatedDogsTable', () => {
           select: vi.fn().mockReturnThis(),
           gt: vi.fn().mockReturnThis(),
           order: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({ data: mockRemoteDogs, error: null }),
+          eq: vi.fn().mockReturnThis(),
+          range: vi.fn().mockResolvedValue({ data: mockRemoteDogs, error: null }),
         };
 
         vi.mocked(supabase.from).mockReturnValue(
@@ -870,7 +873,8 @@ describe('ReplicatedDogsTable', () => {
           select: vi.fn().mockReturnThis(),
           gt: vi.fn().mockReturnThis(),
           order: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          eq: vi.fn().mockReturnThis(),
+          range: vi.fn().mockResolvedValue({ data: [], error: null }),
         };
 
         vi.mocked(supabase.from).mockReturnValue(
@@ -892,7 +896,8 @@ describe('ReplicatedDogsTable', () => {
           select: vi.fn().mockReturnThis(),
           gt: vi.fn().mockReturnThis(),
           order: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({
+          eq: vi.fn().mockReturnThis(),
+          range: vi.fn().mockResolvedValue({
             data: null,
             error: { message: 'Connection failed' },
           }),
@@ -950,7 +955,8 @@ describe('ReplicatedDogsTable', () => {
           select: vi.fn().mockReturnThis(),
           gt: vi.fn().mockReturnThis(),
           order: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({ data: [mockRemoteRow], error: null }),
+          eq: vi.fn().mockReturnThis(),
+          range: vi.fn().mockResolvedValue({ data: [mockRemoteRow], error: null }),
         };
 
         vi.mocked(supabase.from).mockReturnValue(
@@ -1002,7 +1008,8 @@ describe('ReplicatedDogsTable', () => {
           select: vi.fn().mockReturnThis(),
           gt: vi.fn().mockReturnThis(),
           order: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({ data: [mockRemoteRow], error: null }),
+          eq: vi.fn().mockReturnThis(),
+          range: vi.fn().mockResolvedValue({ data: [mockRemoteRow], error: null }),
         };
 
         vi.mocked(supabase.from).mockReturnValue(
@@ -1048,7 +1055,8 @@ describe('ReplicatedDogsTable', () => {
           select: vi.fn().mockReturnThis(),
           gt: vi.fn().mockReturnThis(),
           order: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockResolvedValue({ data: [mockRemoteRow], error: null }),
+          eq: vi.fn().mockReturnThis(),
+          range: vi.fn().mockResolvedValue({ data: [mockRemoteRow], error: null }),
         };
 
         vi.mocked(supabase.from).mockReturnValue(
@@ -1198,7 +1206,8 @@ describe('ReplicatedDogsTable', () => {
         select: vi.fn().mockReturnThis(),
         gt: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+        eq: vi.fn().mockReturnThis(),
+        range: vi.fn().mockResolvedValue({ data: [], error: null }),
       };
       vi.mocked(supabase.from).mockReturnValue(
         mockQuery as unknown as ReturnType<typeof supabase.from>
@@ -1223,7 +1232,8 @@ describe('ReplicatedDogsTable', () => {
         select: vi.fn().mockReturnThis(),
         gt: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+        eq: vi.fn().mockReturnThis(),
+        range: vi.fn().mockResolvedValue({ data: [], error: null }),
       };
       vi.mocked(supabase.from).mockReturnValue(
         mockQuery as unknown as ReturnType<typeof supabase.from>
@@ -1303,7 +1313,8 @@ describe('ReplicatedDogsTable', () => {
         select: vi.fn().mockReturnThis(),
         gt: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockResolvedValue({ data: [dbRow], error: null }),
+        eq: vi.fn().mockReturnThis(),
+        range: vi.fn().mockResolvedValue({ data: [dbRow], error: null }),
       };
 
       vi.mocked(supabase.from).mockReturnValue(
@@ -1363,7 +1374,8 @@ describe('ReplicatedDogsTable', () => {
         select: vi.fn().mockReturnThis(),
         gt: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockResolvedValue({ data: [dbRow], error: null }),
+        eq: vi.fn().mockReturnThis(),
+        range: vi.fn().mockResolvedValue({ data: [dbRow], error: null }),
       };
 
       vi.mocked(supabase.from).mockReturnValue(
@@ -1406,7 +1418,8 @@ describe('ReplicatedDogsTable', () => {
         select: vi.fn().mockReturnThis(),
         gt: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+        eq: vi.fn().mockReturnThis(),
+        range: vi.fn().mockResolvedValue({ data: [], error: null }),
       };
 
       vi.mocked(supabase.from).mockReturnValue(
@@ -1428,7 +1441,8 @@ describe('ReplicatedDogsTable', () => {
         select: vi.fn().mockReturnThis(),
         gt: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockResolvedValue({
+        eq: vi.fn().mockReturnThis(),
+        range: vi.fn().mockResolvedValue({
           data: null,
           error: { message: 'Network error' },
         }),

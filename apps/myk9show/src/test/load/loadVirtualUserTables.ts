@@ -197,9 +197,9 @@ async function syncClasses(ctx: ReaderContext): Promise<void> {
 }
 
 async function syncDogs(ctx: ReaderContext): Promise<void> {
-  // No engine count on dogs yet (MYK9-1321): the fetch is one request capped at
-  // PostgREST's 1000 rows, so a count above that would read as partial every pass.
-  const rows = await readDelta(ctx, 'dogs', '*', INCREMENTAL_BUFFER_MS);
+  // Keyset-paged to completion, as fetchChangedDogs reads (MYK9-1321). Staff
+  // carry no owner scope.
+  const rows = await readKeysetDelta(ctx, 'dogs', '*');
   // Tombstones are invisible to the delta (RLS hides soft-deleted dogs), so the
   // app re-reads every live id after a good download, when the id-scan cadence
   // says so. Staff see every dog.

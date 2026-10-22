@@ -20,6 +20,7 @@ import {
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { idScanEpoch, idScanKey, markIdScanCompleted, shouldRunIdScan } from './idScanCadence';
+import { fetchChangedDogs } from './dogsServer';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { deriveDeceasedColumns } from '@/services/mappers/dogMappers';
 import type { Database } from '@/types/supabase';
@@ -243,25 +244,8 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
 
     const adapter: SyncReplicatedTableAdapter<DogRow, ReplicatedDog> = {
       ...this.getRowRefetchAdapter(),
-      fetchRemoteRows: async ({ scope, since }) => {
-        let query = supabase
-          .from('dogs')
-          .select('*')
-          .gt('updated_at', new Date(since).toISOString())
-          .order('updated_at', { ascending: true });
-
-        if (scope.value) {
-          query = query.eq('owner_id', scope.value);
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
-          throw new Error(`Supabase query failed: ${error.message}`);
-        }
-
-        return data ?? [];
-      },
+      // No remotePageSize: fetchChangedDogs pages to completion.
+      fetchRemoteRows: ({ scope, since }) => fetchChangedDogs(since, scope.value || undefined),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.ownerId === scope.value) : rows,

@@ -148,7 +148,7 @@ describe.each(['table', 'cards'])('ClassesTab manager controls (%s view)', view 
 
     expect(screen.queryByRole('combobox', { name: /^Judge for/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: /^Select / })).not.toBeInTheDocument();
-    expect(judgesQuery).toHaveBeenCalledWith(false);
+    expect(judgesQuery).toHaveBeenCalledWith(false, 'always');
   });
 });
 

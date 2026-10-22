@@ -143,6 +143,8 @@ export interface SecretaryCockpitClass {
   /** The tree's wrap-up value; `closeout` folds signed and unsigned together, the checklist cannot. */
   wrapUpStatus?: string | null;
   judgeName?: string | null;
+  /** The assigned judge's person id, for the class panel's judge picker (MYK9-1323). */
+  judgeId?: string | null;
   operationalArea?: {
     kind: OperationalAreaKind;
     labels: readonly string[];

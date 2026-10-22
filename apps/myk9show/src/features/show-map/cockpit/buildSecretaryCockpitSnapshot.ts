@@ -295,6 +295,7 @@ export function buildSecretaryCockpitSnapshot({
         wrapUpStatus: node?.wrapUpStatus?.value ?? null,
         registryId: node?.registryId ?? null,
         judgeName: classItem.judgeName ?? null,
+        judgeId: classItem.judgeId ?? null,
         operationalArea:
           node?.ringLabel && node.ringLabel !== '—'
             ? { kind: 'ring' as const, labels: [node.ringLabel] }

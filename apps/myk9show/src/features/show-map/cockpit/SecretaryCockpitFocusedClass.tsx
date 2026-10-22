@@ -42,6 +42,7 @@ export function SecretaryCockpitFocusedClass({
   onCommand,
   runOrder,
   setupActions,
+  judgeControl,
 }: {
   showId: string;
   focused: FocusedClassModel | null;
@@ -57,6 +58,8 @@ export function SecretaryCockpitFocusedClass({
   runOrder?: SecretaryCockpitRunOrderControls | undefined;
   /** Edit class; the cockpit owns its dialogs (MYK9-956). */
   setupActions?: ReactNode;
+  /** The Judge setting (MYK9-1323); the cockpit owns its pending assignment. Managers only. */
+  judgeControl?: ReactNode;
 }) {
   // Which class's hand-placement list is open; scoped by id so focusing another
   // class closes it rather than carrying it over.
@@ -98,7 +101,8 @@ export function SecretaryCockpitFocusedClass({
       : entryCount === null
         ? null
         : countLabel(entryCount, 'entry', 'entries'),
-    focused.judgeName ? `Judge ${focused.judgeName}` : null,
+    // With the Judge setting below, the header would only repeat it.
+    !judgeControl && focused.judgeName ? `Judge ${focused.judgeName}` : null,
   ].filter(Boolean);
 
   return (
@@ -153,6 +157,14 @@ export function SecretaryCockpitFocusedClass({
                 canManageShow={canManageShow}
               />
             </dd>
+            {judgeControl && (
+              <>
+                <dt className="mt-2 text-muted-foreground [@container(min-width:24rem)]:mt-0 [@container(min-width:24rem)]:self-start [@container(min-width:24rem)]:pt-2">
+                  Judge
+                </dt>
+                <dd className="min-w-0">{judgeControl}</dd>
+              </>
+            )}
             <dt className="mt-2 text-muted-foreground [@container(min-width:24rem)]:mt-0 [@container(min-width:24rem)]:self-start [@container(min-width:24rem)]:pt-2">
               Expected start
             </dt>

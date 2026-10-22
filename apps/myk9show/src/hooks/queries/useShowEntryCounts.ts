@@ -11,8 +11,14 @@ import { useIsOnline } from '@/hooks/useNetworkStatus';
  * "unknown" (offline, loading, errored, or not manageable) and callers must omit the
  * count, never print a 0. A show present with 0 genuinely has no entries.
  */
+/** Root of every count query. NOT under `['entries']`: mutation hooks rewrite
+ * every query under that prefix as an array of entry rows, and this cache holds
+ * a Map. ReplicationSyncProvider invalidates this root explicitly whenever the
+ * entries table syncs or uploads. */
+export const SHOW_ENTRY_COUNTS_ROOT = 'show-entry-counts';
+
 export const showEntryCountsQueryKey = (showIds: readonly string[]) =>
-  ['show-entry-counts', [...showIds].sort()] as const;
+  [SHOW_ENTRY_COUNTS_ROOT, [...showIds].sort()] as const;
 
 export function useShowEntryCounts(showIds: readonly string[]): ReadonlyMap<string, number> {
   const isOnline = useIsOnline();

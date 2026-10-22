@@ -79,6 +79,7 @@ import {
   refetchShowEntriesAfterScopedSync,
 } from './showEntriesPostSync';
 import { getRingsideUploadSyncTargets, type UploadSyncTarget } from './ringsideUploadSyncTargets';
+import { invalidateDerivedQueries } from './derivedQueryInvalidation';
 
 interface SyncStatus {
   isSyncing: boolean;
@@ -279,6 +280,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
             warnRecoveredFromEmptyReplica(tableName);
           }
           queryClient.invalidateQueries({ queryKey: [tableName] });
+          invalidateDerivedQueries(queryClient, tableName);
           setStatus(prev => ({
             ...prev,
             tablesStatus: { ...prev.tablesStatus, [tableName]: 'success' },
@@ -623,6 +625,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       toast.dismiss('replication-queue-overflow');
       for (const table of tables) {
         queryClient.invalidateQueries({ queryKey: [table] });
+        invalidateDerivedQueries(queryClient, table);
       }
       void getRingsideUploadSyncTargets(detail, {
         getEntry: id => replicatedEntriesTable.get(id),

@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useShowEntryCounts } from './useShowEntryCounts';
+import { showEntryCountsQueryKey, useShowEntryCounts } from './useShowEntryCounts';
+import { invalidateDerivedQueries } from '@/providers/derivedQueryInvalidation';
 import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
 import { supabase } from '@/lib/supabase-client';
 
@@ -98,5 +99,43 @@ describe('useShowEntryCounts', () => {
   it('does not call the server when there are no shows', () => {
     renderHook(() => useShowEntryCounts([]), { wrapper: makeWrapper(true) });
     expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe('useShowEntryCounts refresh (MYK9-1311 review)', () => {
+  it('keeps its Map cache out of the entries root that row-array updaters rewrite', () => {
+    expect(showEntryCountsQueryKey(['show-a'])[0]).not.toBe('entries');
+  });
+
+  it('refetches when the entries table syncs or uploads', async () => {
+    vi.mocked(supabase.rpc)
+      .mockResolvedValueOnce({
+        data: [{ show_id: 'show-a', entry_count: 5 }],
+        error: null,
+      } as never)
+      .mockResolvedValueOnce({
+        data: [{ show_id: 'show-a', entry_count: 6 }],
+        error: null,
+      } as never);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const network = {
+      isOnline: true,
+      quality: null,
+      showOfflineMessage: false,
+      retryConnection: vi.fn(),
+    };
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <NetworkStatusContext.Provider value={network}>
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      </NetworkStatusContext.Provider>
+    );
+
+    const { result } = renderHook(() => useShowEntryCounts(['show-a']), { wrapper });
+    await waitFor(() => expect(result.current.get('show-a')).toBe(5));
+
+    // What ReplicationSyncProvider runs after an entries sync or upload.
+    invalidateDerivedQueries(client, 'entries');
+
+    await waitFor(() => expect(result.current.get('show-a')).toBe(6));
   });
 });

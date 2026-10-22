@@ -23,10 +23,6 @@ const RECENT_COMMENT_PAGES = 20;
 // A search or per-PR listing that cannot be read to its end fails closed.
 const MAX_SEARCH_PAGES = 10;
 const MAX_PR_COMMENT_PAGES = 30;
-// The newest-first scan reads to the start of the repo's history when it finds no directive
-// (6,686 comments on 2026-10-22), so comment volume alone never blocks it. This cap only stops
-// a feed that never ends; it is 100k comments.
-const MAX_SCAN_PAGES = 1000;
 // What the Claude Code cloud proxy says when it refuses a non-repository path such as
 // `search/issues` (MYK9-1325). Only this refusal falls back to the scan; every other search
 // error still fails closed.
@@ -229,15 +225,27 @@ function latestRecentDirective(repo: string): PushDirective | undefined {
 function latestDirectiveByScan(repo: string): PushDirective | undefined {
   let latest: PushDirective | undefined;
   let stopBefore: number | undefined;
+  // No page cap: the scan reads to the start of the repo's history when it finds no directive
+  // (6,686 comments on 2026-10-22), and a volume cap would let comment volume alone block a
+  // push (MYK9-1015, MYK9-1328). A feed that is not a real newest-first walk fails closed
+  // instead: one that goes back in order, or a full page with no comment not already read.
+  let previousTime = Infinity;
+  const seen = new Set<number>();
   const isPullRequest = pullRequestChecker(repo);
-  for (let page = 1; page <= MAX_SCAN_PAGES; page++) {
+  for (let page = 1; ; page++) {
     const comments = ghJson<GitHubComment[]>(
       `repos/${repo}/issues/comments?sort=created&direction=desc&per_page=${COMMENTS_PER_PAGE}&page=${page}`
     );
     if (!Array.isArray(comments))
       throw new Error('GitHub issue comments response was not an array');
+    let unseen = 0;
     for (const comment of comments) {
       const createdAt = commentTime(comment);
+      if (createdAt > previousTime)
+        throw new Error(`the comment feed is not newest-first at comment ${comment.id}`);
+      previousTime = createdAt;
+      if (!seen.has(comment.id)) unseen++;
+      seen.add(comment.id);
       if (stopBefore !== undefined && createdAt < stopBefore) return latest;
       const pr = issueNumberOf(comment);
       const directive = parsePushDirective(comment, pr);
@@ -246,8 +254,8 @@ function latestDirectiveByScan(repo: string): PushDirective | undefined {
       stopBefore ??= createdAt;
     }
     if (comments.length < COMMENTS_PER_PAGE) return latest;
+    if (unseen === 0) throw new Error(`the comment feed repeated page ${page} without advancing`);
   }
-  throw new Error(`the comment feed did not end within ${MAX_SCAN_PAGES} pages`);
 }
 
 function searchRefusedByProxy(error: unknown): boolean {

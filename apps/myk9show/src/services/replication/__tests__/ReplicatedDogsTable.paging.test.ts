@@ -40,24 +40,30 @@ function makeDogs(count: number, spreadMs = 0): ServerDog[] {
 function installServer(dogs: ServerDog[]): { requests: Array<Record<string, unknown>> } {
   const requests: Array<Record<string, unknown>> = [];
   vi.mocked(supabase.from).mockImplementation((() => {
-    const req: Record<string, unknown> = {};
+    const req: Record<string, unknown> = { orders: [] };
     const builder: Record<string, unknown> = {};
     builder.select = () => builder;
     builder.gt = (_col: string, value: string) => ((req.gt = value), builder);
     builder.or = (filter: string) => ((req.or = filter), builder);
     builder.eq = (col: string, value: string) => ((req.eq = [col, value]), builder);
-    builder.order = () => builder;
+    builder.order = (col: string, opts: { ascending: boolean }) => (
+      (req.orders as unknown[]).push([col, opts.ascending]),
+      builder
+    );
     builder.range = (from: number, to: number) => {
+      req.range = [from, to];
       requests.push(req);
       let rows = [...dogs].sort(
         (a, b) => a.updated_at.localeCompare(b.updated_at) || (a.id < b.id ? -1 : 1)
       );
       if (typeof req.gt === 'string') rows = rows.filter(d => d.updated_at > (req.gt as string));
       if (typeof req.or === 'string') {
-        const [, at, id] =
-          /updated_at\.gt\.([^,]+),and\(updated_at\.eq\.[^,]+,id\.gt\.([^)]+)\)/.exec(
-            req.or
-          ) as RegExpExecArray as unknown as [string, string, string];
+        const match = /updated_at\.gt\.([^,]+),and\(updated_at\.eq\.[^,]+,id\.gt\.([^)]+)\)/.exec(
+          req.or
+        );
+        expect(match, `unexpected keyset filter: ${req.or}`).not.toBeNull();
+        const at = match![1]!;
+        const id = match![2]!;
         rows = rows.filter(d => d.updated_at > at || (d.updated_at === at && d.id > id));
       }
       if (req.eq) rows = rows.filter(d => d.owner_id === (req.eq as string[])[1]);
@@ -66,6 +72,17 @@ function installServer(dogs: ServerDog[]): { requests: Array<Record<string, unkn
     return builder;
   }) as unknown as typeof supabase.from);
   return { requests };
+}
+
+/** Every request orders by updated_at then id and asks for exactly one max_rows page. */
+function expectPagedRequests(requests: Array<Record<string, unknown>>): void {
+  for (const req of requests) {
+    expect(req.orders).toEqual([
+      ['updated_at', true],
+      ['id', true],
+    ]);
+    expect(req.range).toEqual([0, POSTGREST_MAX_ROWS - 1]);
+  }
 }
 
 describe('fetchChangedDogs', () => {
@@ -79,12 +96,14 @@ describe('fetchChangedDogs', () => {
     expect(rows).toHaveLength(TOTAL);
     expect(new Set(rows.map(r => r.id)).size).toBe(TOTAL);
     expect(server.requests).toHaveLength(3);
+    expectPagedRequests(server.requests);
   });
 
   it('keeps the owner scope on every page', async () => {
     const server = installServer(makeDogs(POSTGREST_MAX_ROWS + 3));
     await fetchChangedDogs(0, 'owner-1');
     expect(server.requests).toHaveLength(2);
+    expectPagedRequests(server.requests);
     for (const req of server.requests) expect(req.eq).toEqual(['owner_id', 'owner-1']);
   });
 

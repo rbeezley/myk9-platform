@@ -1,4 +1,8 @@
-import { getSelectClassesHref } from '@/pages/secretary/selectClassesRoutes';
+import {
+  getSelectClassesHref,
+  SELECT_CLASSES,
+  SELECT_CLASSES_PARAMS,
+} from '@/pages/secretary/selectClassesRoutes';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
 import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
@@ -65,6 +69,14 @@ export function writeCockpitUrlState(
   // exhibitors" on reopen/refresh.
   const requestedRosterView = previous.get('view')?.trim();
   if (requestedRosterView) params.set('view', requestedRosterView);
+
+  // Select classes is a mode of this schedule (MYK9-1324): a day chip or a tick's rewrite must
+  // not leave it, nor lose the `returnTo` its Done restores.
+  if (previous.get('select') === SELECT_CLASSES) {
+    params.set('select', SELECT_CLASSES);
+    const returnTo = previous.get('returnTo');
+    if (returnTo) params.set('returnTo', returnTo);
+  }
 
   return params;
 }
@@ -254,6 +266,33 @@ export function resolveShowDeskReturn(
   if (expectedShowId && showId !== expectedShowId) return null;
   const state = normalizeCockpitUrlState(url.searchParams);
   return { href: getShowHomeHref({ showId, state }), label: 'Back to show' };
+}
+
+/**
+ * The show home's query after Select classes' Done (MYK9-956/1324): the cockpit state in
+ * `returnTo` when this show's home sent it, otherwise the same query without the mode's params.
+ */
+export function leaveSelectClassesSearch(
+  previous: URLSearchParams,
+  showId: string
+): URLSearchParams {
+  const back = resolveShowDeskReturn(previous.get('returnTo'), showId);
+  if (back) return new URL(back.href, 'https://myk9.internal').searchParams;
+  const params = new URLSearchParams(previous);
+  params.delete('select');
+  params.delete('returnTo');
+  for (const key of SELECT_CLASSES_PARAMS) params.delete(key);
+  return params;
+}
+
+/**
+ * Where a Select classes link asked to land (MYK9-1324): its `focus` class, else its `trialId`.
+ * The cockpit reads it as the anchor, so the trial opens and the row scrolls into view; it
+ * ticks nothing.
+ */
+export function selectClassesAnchor(params: URLSearchParams): string | undefined {
+  if (params.get('select') !== SELECT_CLASSES) return undefined;
+  return params.get('focus') || params.get('trialId') || undefined;
 }
 
 export function resolveShowDeskReturnHref(

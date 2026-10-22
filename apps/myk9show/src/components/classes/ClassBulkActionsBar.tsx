@@ -14,7 +14,7 @@
  * i.e. only on full success. Bulk delete opens the shared `DeleteObjectDialog`
  * (counts, blockers, Undo) and clears the selection once the delete lands.
  */
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Download } from 'lucide-react';
 import { toBulkActions } from '@/components/ui/RowActionMenu';
 import { BulkBarActions, BulkBarButton, FloatingBulkBar } from '@/components/list-toolkit';
@@ -52,6 +52,8 @@ interface ClassBulkActionsBarProps {
   trialLabel?: string | undefined;
   /** Where the classes sit, for the delete's refresh and its Withdraw / Pull link. */
   context?: DeleteTargetContext | undefined;
+  /** More bar controls, before Change status, e.g. the show home's Assign judge (MYK9-1324). */
+  extraActions?: ReactNode;
 }
 
 export function ClassBulkActionsBar({
@@ -61,6 +63,7 @@ export function ClassBulkActionsBar({
   onClear,
   trialLabel,
   context,
+  extraActions,
 }: ClassBulkActionsBarProps) {
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
 
@@ -104,6 +107,7 @@ export function ClassBulkActionsBar({
         onClear={onClear}
         busy={bulkBusy}
       >
+        {extraActions}
         <BulkBarActions actions={actions} menuLabel="Change status" disabled={bulkBusy} />
         <BulkBarButton
           onClick={handleExport}

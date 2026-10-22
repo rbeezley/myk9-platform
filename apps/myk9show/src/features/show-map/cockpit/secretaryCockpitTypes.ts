@@ -134,6 +134,8 @@ export interface SecretaryCockpitClass {
   scheduledStart?: string | null;
   revisedExpectedStart?: string | null;
   lifecycle?: CockpitLifecycle | null;
+  /** The class row's raw status, which Select classes' bulk Change status reads (MYK9-1324). */
+  status?: string | null;
   actualStart?: string | null;
   actualFinish?: string | null;
   entryCount?: number | null;

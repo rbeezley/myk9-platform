@@ -280,6 +280,7 @@ export function buildSecretaryCockpitSnapshot({
         scheduledStart: classItem.time ?? null,
         revisedExpectedStart: classItem.revisedExpectedStart ?? null,
         lifecycle: lifecycleFor(classItem.status),
+        status: classItem.status ?? null,
         actualStart: classItem.actualStartTime ?? null,
         actualFinish: classItem.actualFinishTime ?? null,
         // NOT `?? 0`. `progressFor` in secretaryCockpitModel returns

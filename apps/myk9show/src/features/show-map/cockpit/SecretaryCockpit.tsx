@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { CalendarDays, Plus } from 'lucide-react';
-import { Link, useLocation, useNavigationType } from 'react-router-dom';
+import { Link, useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
 import { useTrialRowActions } from '@/components/shows/tabs/useTrialRowActions';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 
@@ -28,7 +28,9 @@ import { judgeLockReason } from './focusedClassJudge';
 import { CockpitResultsHandoff } from './CockpitResultsHandoff';
 import { isEveryClassComplete } from './resultsHandoff';
 import { SecretaryCockpitSchedule } from './SecretaryCockpitSchedule';
-import { getCockpitAnchorElementId } from './cockpitRoutes';
+import { getCockpitAnchorElementId, selectClassesAnchor } from './cockpitRoutes';
+import { useScheduleClassSelection } from './useScheduleClassSelection';
+import { ScheduleBulkBar } from './ScheduleBulkBar';
 import { carryHonouredAnchor, isAnchorHonoured, markAnchorHonoured } from './cockpitAnchorHonoured';
 import type {
   SecretaryCockpitRunOrderControls,
@@ -53,7 +55,11 @@ export function SecretaryCockpit({
   /** Entered/pending per class for the schedule rows (MYK9-943); absent until read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
 }) {
-  const { state, updateState } = useSecretaryCockpitUrlState();
+  const { state: urlState, updateState } = useSecretaryCockpitUrlState();
+  // A Select classes link's trial or class (MYK9-1324) opens and scrolls like the cockpit's own.
+  const [searchParams] = useSearchParams();
+  const legacyAnchor = urlState.anchor ? undefined : selectClassesAnchor(searchParams);
+  const state = legacyAnchor ? { ...urlState, anchor: legacyAnchor } : urlState;
   // The class panel's judge picker (MYK9-1323). Held here so a split/stack remount of the panel
   // cannot drop an assignment mid-write. The write puts the judge on the local class row
   // (MYK9-1327), which the snapshot already reads, so the panel and the schedule row both show it.
@@ -101,6 +107,8 @@ export function SecretaryCockpit({
   const canPin = useMediaQuery(FOCUSED_CLASS_PIN_QUERY);
   const pinMode: FocusedClassPinMode = !canPin ? 'none' : isSplit ? 'panel' : 'page';
   const model = buildSecretaryCockpitModel(snapshot, state);
+  const selection = useScheduleClassSelection(snapshot.showId, model);
+  const selecting = canManageShow && selection.active;
   const focusedId = model.focusedClass?.id;
   const sourceClass = snapshot.classes.find(classItem => classItem.id === focusedId) ?? null;
   const trial = sourceClass
@@ -277,6 +285,7 @@ export function SecretaryCockpit({
           onFilterChange={filter => updateState({ filter })}
           onFocusClass={focusedClassId => updateState({ focusedClassId, anchor: focusedClassId })}
           inlineFocusedContent={!isSplit && focusedClassIsVisible ? focusedPanel : undefined}
+          select={canManageShow ? selection : undefined}
         />
         {!isSplit && !focusedClassIsVisible && model.focusedClass && (
           <div
@@ -303,6 +312,17 @@ export function SecretaryCockpit({
           </div>
         )}
       </div>
+      {selecting && (
+        <ScheduleBulkBar
+          showId={snapshot.showId}
+          model={model}
+          classes={snapshot.classes}
+          selection={selection}
+          availableJudges={judges.availableJudges}
+          judgeListStatus={judges.judgeListStatus}
+          judgeNamesFor={judges.judgeNamesFor}
+        />
+      )}
       {trialDialogs}
       {canManageShow && classDialogs}
     </div>

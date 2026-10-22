@@ -9,6 +9,11 @@ import { cn } from '@/lib/utils';
 import { ClassChecklistStrip } from './ClassChecklistStrip';
 import { ClassStatusControl } from './ClassOperationalControls';
 import { getCockpitAnchorElementId } from './cockpitRoutes';
+import {
+  ScheduleRowCheckbox,
+  ScheduleTrialCheckbox,
+  type TrialGroupSelect,
+} from './ScheduleSelectControls';
 import type {
   SecretaryCockpitClass,
   SecretaryCockpitModel,
@@ -53,6 +58,7 @@ export function CockpitTrialGroup({
   inlineFocusedContent,
   entryBreakdownByClassId,
   trialActions,
+  select,
 }: {
   group: TrialScheduleGroupModel;
   showId: string;
@@ -63,8 +69,14 @@ export function CockpitTrialGroup({
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   /** Add Classes and the trial's Edit / Trial details menu (MYK9-956), for managers. */
   trialActions?: ReactNode;
+  /** Select classes (MYK9-1324): rows tick instead of focusing. */
+  select?: TrialGroupSelect | undefined;
 }) {
-  const [open, setOpen] = useState(group.defaultOpen);
+  const [open, setOpenState] = useState(group.defaultOpen);
+  const setOpen = (next: boolean) => {
+    setOpenState(next);
+    select?.onOpenChange(next);
+  };
   const breakdownFor = (classId: string) =>
     entryBreakdownByClassId ? (entryBreakdownByClassId.get(classId) ?? NO_ENTRIES) : undefined;
   const entryTotal = entryBreakdownByClassId
@@ -91,6 +103,14 @@ export function CockpitTrialGroup({
           class's pinned header (inline when stacked) would pin to it instead of the page. */}
       <div className="overflow-clip rounded-xl border bg-card text-card-foreground shadow-sm">
         <div className="flex flex-wrap items-center border-b sm:flex-nowrap">
+          {/* Only while open: a tick on the heading must never reach rows the collapse hides. */}
+          {select && open && group.classes.length > 0 && (
+            <ScheduleTrialCheckbox
+              label={group.label}
+              state={select.headingState}
+              onToggle={select.onToggleTrial}
+            />
+          )}
           <CollapsibleTrigger
             id={getCockpitAnchorElementId(group.trialId)}
             aria-label={`${open ? 'Collapse' : 'Expand'} ${group.label}`}
@@ -119,6 +139,7 @@ export function CockpitTrialGroup({
           <div className="flex flex-col gap-2 p-3">
             {group.classes.map((classItem, classIndex) => {
               const focused = model.focusedClass?.id === classItem.id;
+              const ticked = select?.isSelected(classItem.id) ?? false;
               const breakdown = breakdownFor(classItem.id);
               const progress = classItem.progress.value;
               // Before scoring can begin the count would only ever read "0 of N".
@@ -144,13 +165,23 @@ export function CockpitTrialGroup({
                   <div
                     id={getCockpitAnchorElementId(classItem.id)}
                     onClick={event => {
-                      if (selectsRow(event)) onFocusClass(classItem.id);
+                      if (!selectsRow(event)) return;
+                      if (select) select.onToggleClass(classItem.id);
+                      else onFocusClass(classItem.id);
                     }}
                     className={cn(
                       'flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border bg-card px-3.5 py-3 transition-colors hover:border-primary/40',
-                      focused && 'border-primary bg-primary/5 hover:border-primary'
+                      (select ? ticked : focused) &&
+                        'border-primary bg-primary/5 hover:border-primary'
                     )}
                   >
+                    {select && (
+                      <ScheduleRowCheckbox
+                        label={classItem.name}
+                        checked={ticked}
+                        onToggle={() => select.onToggleClass(classItem.id)}
+                      />
+                    )}
                     <div className="w-[4.5rem] shrink-0 whitespace-nowrap text-sm font-semibold">
                       {classItem.startedLabel ? (
                         <>
@@ -171,7 +202,7 @@ export function CockpitTrialGroup({
                         <button
                           type="button"
                           data-selects-row
-                          aria-pressed={focused}
+                          aria-pressed={select ? ticked : focused}
                           className="text-left font-semibold hover:underline hover:underline-offset-4"
                         >
                           {classItem.name}

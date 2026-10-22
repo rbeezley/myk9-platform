@@ -33,6 +33,8 @@ interface MyShowsSectionProps {
   defaultCollapsed?: boolean;
   /** Per-show class stats forwarded to today cards; missing/null hides the line. */
   classCountsByShow?: ReadonlyMap<string, TodayClassCounts | null> | undefined;
+  /** Live entry count per show (MYK9-1311); a show missing from the map shows no count. */
+  entryCountsByShow?: ReadonlyMap<string, number> | undefined;
 }
 
 export function MyShowsSection({
@@ -42,6 +44,7 @@ export function MyShowsSection({
   shows,
   defaultCollapsed = false,
   classCountsByShow,
+  entryCountsByShow,
 }: MyShowsSectionProps) {
   const [open, setOpen] = useState(!defaultCollapsed);
 
@@ -88,6 +91,7 @@ export function MyShowsSection({
               show={show}
               phase={phase}
               classCounts={classCountsByShow?.get(show.id)}
+              entryCount={entryCountsByShow?.get(show.id)}
             />
           ))}
         </div>

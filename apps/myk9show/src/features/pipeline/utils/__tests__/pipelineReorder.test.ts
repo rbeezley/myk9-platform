@@ -15,7 +15,6 @@ function item(
     status: null,
     stage,
     scored_count: 0,
-    total_entries: 0,
     is_scoring_finalized: false,
     is_results_reviewed: false,
     start_time: null,

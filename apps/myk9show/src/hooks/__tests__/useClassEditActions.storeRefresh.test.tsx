@@ -34,7 +34,6 @@ const cls = (id: string): SyncableTrialClass => ({
   judgeId: 'j1',
   startTime: '2026-05-09T09:00:00',
   status: 'Upcoming',
-  entries: 0,
   _version: 1,
   _lastModified: new Date('2026-05-01T00:00:00Z'),
   _lastModifiedBy: 'u1',

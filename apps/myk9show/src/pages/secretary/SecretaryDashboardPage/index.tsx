@@ -5,6 +5,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { usePendingEntries } from '@/hooks/queries/usePendingEntries';
 import { useMissionControlData } from '@/features/pipeline/hooks/useMissionControlData';
 import { useMyShows } from '@/hooks/useMyShows';
+import { useShowEntryCounts } from '@/hooks/queries/useShowEntryCounts';
 import { useTrialStore } from '@/store/trialStore';
 import {
   emptyAttentionCounts,
@@ -91,6 +92,13 @@ export function SecretaryDashboardPage() {
     [today, allTrials, allTrialClasses]
   );
 
+  // Online-only live entry counts (MYK9-1311); a show with no answer shows no count.
+  const allShowIds = useMemo(
+    () => [...today, ...upcoming, ...draft, ...past].map(s => s.id),
+    [today, upcoming, draft, past]
+  );
+  const entryCountsByShow = useShowEntryCounts(allShowIds);
+
   // first show's clubId; used by TasksTab to scope new tasks
   const clubId = shows[0]?.clubId ?? '';
 
@@ -139,6 +147,7 @@ export function SecretaryDashboardPage() {
           subtitle="Check-in is open. Tap to manage rings and results."
           shows={today}
           classCountsByShow={classCountsByShow}
+          entryCountsByShow={entryCountsByShow}
         />
         <MyShowsSection
           phase="upcoming"
@@ -146,6 +155,7 @@ export function SecretaryDashboardPage() {
           subtitle="Shows that haven't started yet."
           shows={upcoming}
           defaultCollapsed
+          entryCountsByShow={entryCountsByShow}
         />
         <MyShowsSection
           phase="draft"
@@ -153,8 +163,15 @@ export function SecretaryDashboardPage() {
           subtitle="Complete setup before exhibitors can enter."
           shows={draft}
           defaultCollapsed
+          entryCountsByShow={entryCountsByShow}
         />
-        <MyShowsSection phase="past" title="Past shows" shows={past} defaultCollapsed />
+        <MyShowsSection
+          phase="past"
+          title="Past shows"
+          shows={past}
+          defaultCollapsed
+          entryCountsByShow={entryCountsByShow}
+        />
       </div>
 
       {/* Personal tasks; per-show tasks live in each show's Tasks and notes tool. */}

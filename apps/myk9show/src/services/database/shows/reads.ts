@@ -23,7 +23,6 @@ import {
   postgrestGetShowsByClub,
   postgrestGetShowsByDateRange,
   postgrestGetShowsByStatus,
-  postgrestGetShowsWithEntryCounts,
   postgrestGetShowStatistics,
   postgrestGetUpcomingShows,
   postgrestGetPublicShows,
@@ -36,7 +35,6 @@ import {
 // ---------------------------------------------------------------------------
 
 const EMPTY_JUDGE_MAP = new Map<string, ReplicatedJudgeAssignment[]>();
-const EMPTY_TRIALS_MAP = new Map<string, ReplicatedTrial[]>();
 const EMPTY_CLASSES_MAP = new Map<string, ReplicatedClass[]>();
 
 // Every loader below throws on a failed device read instead of taking getAll()'s
@@ -411,32 +409,6 @@ export const getShowStatistics = async () => {
     );
   } catch (error) {
     return { data: null, error: error as DatabaseError };
-  }
-};
-
-// Get shows with entry counts (simplified, excluding soft-deleted)
-export const getShowsWithEntryCounts = async () => {
-  try {
-    return await withReplicationFallback(
-      async () => {
-        const [shows, clubsMap] = await Promise.all([loadAllShows(), loadClubsMap()]);
-        const rows = mapShowsWithJoins(
-          shows,
-          clubsMap,
-          EMPTY_TRIALS_MAP,
-          EMPTY_CLASSES_MAP,
-          EMPTY_JUDGE_MAP
-        );
-        // Add basic entry count as 0 for now (matching original behavior)
-        const data = rows.map(row => ({ ...row, entry_count: 0 }));
-        return { data, error: null };
-      },
-      postgrestGetShowsWithEntryCounts,
-      'show',
-      'select_with_entry_counts'
-    );
-  } catch (error) {
-    return { data: [], error: error as DatabaseError };
   }
 };
 

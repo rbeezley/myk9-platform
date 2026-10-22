@@ -15,7 +15,15 @@ export interface SyncableTrial extends Trial {
   _localOnly?: boolean | undefined;
 }
 
-export interface SyncableTrialClass extends TrialClass {
+/** A class as the store holds it: a `TrialClass` minus the entry count (see `SyncableTrialClass`). */
+export type StoredTrialClass = Omit<TrialClass, 'entries'>;
+
+/**
+ * A class as the store holds it. It carries NO `entries` count: the class row stores none and the
+ * store used to fabricate 0 (MYK9-1311). A surface that needs the count builds a `TrialClass` with
+ * a real one from the entries it loaded (`toTrialDetailClass`).
+ */
+export interface SyncableTrialClass extends StoredTrialClass {
   _version: number;
   _lastModified: Date;
   _lastModifiedBy: string;

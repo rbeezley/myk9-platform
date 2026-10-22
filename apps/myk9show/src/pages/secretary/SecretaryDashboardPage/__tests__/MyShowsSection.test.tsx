@@ -144,4 +144,14 @@ describe('MyShowsSectionSkeleton', () => {
     expect(screen.queryByTestId('my-shows-section-skeleton')).not.toBeInTheDocument();
     expect(screen.getByText('Show s1')).toBeInTheDocument();
   });
+
+  it("gives each card its own show's entry count, and none to a show without one", () => {
+    renderSection({
+      shows: [makeShow('a'), makeShow('b')],
+      entryCountsByShow: new Map([['a', 5]]),
+    });
+    const lines = screen.getAllByTestId('show-card-entry-count');
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toHaveTextContent('5 entries');
+  });
 });

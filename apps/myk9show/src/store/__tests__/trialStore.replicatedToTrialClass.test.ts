@@ -179,3 +179,11 @@ describe('mergeTrialClassData — judge assignment', () => {
     expect(mergeTrialClassData(swapped, held).judgeId).toBe('judge-2');
   });
 });
+
+describe('replicatedToTrialClass — no fabricated entry count (MYK9-1311)', () => {
+  it('carries no entries field, so no consumer can read a constant 0 as a count', () => {
+    const mapped = replicatedToTrialClass(makeReplicated({}));
+    expect(mapped).not.toHaveProperty('entries');
+    expect(mergeTrialClassData(makeReplicated({}), mapped)).not.toHaveProperty('entries');
+  });
+});

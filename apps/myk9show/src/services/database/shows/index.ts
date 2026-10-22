@@ -14,7 +14,6 @@ export {
   getShowsByClub,
   searchShows,
   getShowStatistics,
-  getShowsWithEntryCounts,
   getShowsByStatus,
   getSecretaryShows,
 } from './reads';

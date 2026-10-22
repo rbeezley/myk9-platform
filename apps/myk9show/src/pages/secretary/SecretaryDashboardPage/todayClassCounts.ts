@@ -1,6 +1,7 @@
 import { getTrialTimezone } from '@/features/registries';
 import { mapClassToStage } from '@/features/pipeline/utils/classStageMapping';
-import type { Trial, TrialClass } from '@/store/trialStore';
+import type { Trial } from '@/store/trialStore';
+import type { StoredTrialClass } from '@/store/trial-store-types';
 
 export interface TodayClassCounts {
   live: number;
@@ -29,7 +30,7 @@ function dayKeyInTimezone(now: Date, timeZone: string): string {
 export function getTodayClassCounts(
   showId: string,
   trials: readonly Trial[],
-  trialClasses: Readonly<Record<string, readonly TrialClass[]>>,
+  trialClasses: Readonly<Record<string, readonly StoredTrialClass[]>>,
   now: Date = new Date()
 ): TodayClassCounts | null {
   const counts: TodayClassCounts = { live: 0, notStarted: 0, closed: 0 };

@@ -115,7 +115,6 @@ const replicatedClass: SyncableTrialClass = {
   judgeName: 'Test Judge',
   startTime: '2026-05-09T09:00:00',
   status: 'Upcoming',
-  entries: 3,
 };
 
 const secondClass: SyncableTrialClass = {

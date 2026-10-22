@@ -1,4 +1,4 @@
-import type { TrialClass } from '@/components/trials/types/trial.types';
+import type { StoredTrialClass } from '@/store/trial-store-types';
 
 /**
  * Find a class by id in the device stores: the React Query list first, then the replication
@@ -9,7 +9,7 @@ import type { TrialClass } from '@/components/trials/types/trial.types';
 export function resolveClassFromStores<TQueryClass extends { id: string }>(
   classId: string,
   queryClasses: readonly TQueryClass[],
-  replicatedTrialClasses: Record<string, readonly TrialClass[]>
+  replicatedTrialClasses: Record<string, readonly StoredTrialClass[]>
 ): TQueryClass | null {
   const fromQuery = queryClasses.find(cls => cls.id === classId);
   if (fromQuery) return fromQuery;

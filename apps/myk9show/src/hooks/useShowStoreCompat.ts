@@ -10,7 +10,6 @@ import {
   useUpcomingShowsQuery,
   useShowsByDateRangeQuery,
   useShowStatisticsQuery,
-  useShowsWithEntryCountsQuery,
   useShowManagement,
 } from '@/hooks/queries/useShowsDatabase';
 
@@ -225,19 +224,5 @@ export const useShowStatisticsWithQuery = () => {
     isLoading: statsQuery.isLoading,
     error: statsQuery.error?.message || null,
     refetch: statsQuery.refetch,
-  };
-};
-
-/**
- * Hook for getting shows with entry counts
- */
-export const useShowsWithEntryCountsCompat = () => {
-  const entryCountsQuery = useShowsWithEntryCountsQuery();
-
-  return {
-    shows: entryCountsQuery.data || [],
-    isLoading: entryCountsQuery.isLoading,
-    error: entryCountsQuery.error?.message || null,
-    refetch: entryCountsQuery.refetch,
   };
 };

@@ -50,7 +50,14 @@ export function useClassEditActions({ showId, updateClass }: UseClassEditActions
       const judgeChanged =
         judgeId !== undefined && judgeId !== '' && judgeId !== (originalJudgeId ?? undefined);
       if (judgeChanged && showId) {
-        await upsertClassJudgeAssignment(showId, classId, judgeId);
+        // The form carries the picked judge's name; it goes onto the class row with the id.
+        const judgeName = (data as Record<string, unknown>).judgeName as string | undefined;
+        await upsertClassJudgeAssignment(
+          showId,
+          classId,
+          judgeId,
+          judgeName && judgeName !== 'TBD' ? { name: judgeName } : undefined
+        );
         try {
           // Refresh replication cache so updateClass's onSuccess invalidation refetches fresh judge data
           await replicatedClassesTable.sync('');

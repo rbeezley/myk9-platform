@@ -5,7 +5,11 @@ const mocks = vi.hoisted(() => ({ prepare: vi.fn(), sync: vi.fn(), load: vi.fn()
 vi.mock('@/hooks/useConnectionHint', () => ({ useConnectionHint: () => undefined }));
 vi.mock('@/services/replication', () => ({
   replicatedJudgeAssignmentsTable: { replaceClassAssignment: mocks.prepare },
-  replicatedClassesTable: { sync: mocks.sync, updateClass: vi.fn(async () => 'queued-touch') },
+  replicatedClassesTable: {
+    sync: mocks.sync,
+    updateClass: vi.fn(async () => 'queued-touch'),
+    getClassById: vi.fn(async () => null),
+  },
 }));
 vi.mock('@/store/trialStore', () => ({
   useTrialStore: { getState: () => ({ loadTrialClasses: mocks.load }) },

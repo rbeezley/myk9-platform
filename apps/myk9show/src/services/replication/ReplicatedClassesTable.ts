@@ -323,10 +323,35 @@ const SERVER_OWNED_CLASS_COLUMNS: ReadonlyArray<readonly [string, keyof Replicat
  * agrees. Any other status difference (the server reopened the class) still
  * surfaces. Only known statuses are folded; anything else compares as written.
  */
+const CLASS_JUDGE_FIELDS: ReadonlySet<string> = new Set([
+  'judgeId',
+  'judgeName',
+  'judgeFirstName',
+  'judgeLastName',
+  'judgeResolved',
+]);
+
+/**
+ * MYK9-1327: a judge change is written onto the local class row
+ * (`writeClassJudgeLocally`), while the server derives the row's judge from
+ * `judge_assignments`. A pull that reaches the row before its writes upload therefore
+ * shows the server mid-way (this device's own earlier pick, or a name lookup that did
+ * not run), which is not a change to collide with. So the judge fields never count as
+ * server-changed on a dirty row: a judge this device set stays until the row is clean,
+ * and once it is, the server's judge wins as usual (resolveConflict). A judge this
+ * device did NOT change is still adopted from the server by the 3-way merge, which
+ * reads raw values. Compare only; stored values are untouched.
+ */
+const notServerChangedJudge = (field: string, value: unknown): unknown =>
+  CLASS_JUDGE_FIELDS.has(field) ? undefined : value;
+
 export const CLASS_DIRTY_ROW_COMPARE_POLICY: DirtyRowComparePolicy = {
   normalizeValue: (field, value) =>
     field === 'classStatus' && typeof value === 'string' ? foldClassStatus(value) : value,
+  normalizeRemoteComparison: notServerChangedJudge,
   serverWinsFields: ['actual_end_time'],
+  // One judge across five fields: a changed judge is kept whole, never half-replaced.
+  fieldGroups: [[...CLASS_JUDGE_FIELDS]],
 };
 
 function foldClassStatus(status: string): string {

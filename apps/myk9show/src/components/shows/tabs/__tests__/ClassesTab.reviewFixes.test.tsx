@@ -192,28 +192,6 @@ describe('ClassesTab review fixes', () => {
     });
   });
 
-  describe('judge override', () => {
-    const picker = () => screen.getByRole('combobox', { name: 'Judge for Class c1' });
-    const withJudge = (judgeId?: string) =>
-      classes.map(cls => (cls.id === 'c1' && judgeId ? { ...cls, judgeId } : cls));
-
-    it('does not revive after the judge goes A -> B -> A', async () => {
-      const { user, rerender } = renderTab();
-      const again = (judgeId?: string) =>
-        rerender(<ClassesTab classes={withJudge(judgeId)} showId="s1" userHasEntries={false} />);
-
-      await user.click(picker());
-      await user.click(await screen.findByRole('option', { name: 'Jane Judge' }));
-      await waitFor(() => expect(picker()).toHaveTextContent('Jane Judge'));
-
-      again('judge-1');
-      await waitFor(() => expect(picker()).toHaveTextContent('Jane Judge'));
-
-      again(undefined);
-      await waitFor(() => expect(picker()).toHaveTextContent('Unassigned'));
-    });
-  });
-
   // The picker shows the judge on the store row it is handed (after `mergeTrialClassData`), so
   // each change another device or a remount makes must reach the picker.
   describe('judge picker follows the class row', () => {
@@ -234,9 +212,11 @@ describe('ClassesTab review fixes', () => {
     });
 
     it('keeps a local clear across a remount, and a later reassignment still shows', async () => {
-      const { user, unmount } = renderTab({ classes: rowJudgedBy('judge-1') });
+      const { user, rerender, unmount } = renderTab({ classes: rowJudgedBy('judge-1') });
       await user.click(picker());
       await user.click(await screen.findByRole('option', { name: 'Unassigned' }));
+      // The write clears the store row (MYK9-1327); the tab is handed that row.
+      rerender(tabWith(undefined));
       await waitFor(() => expect(picker()).toHaveTextContent('Unassigned'));
       unmount();
 
@@ -262,8 +242,7 @@ describe('ClassesTab review fixes', () => {
       const { user, rerender } = renderTab({ classes: rowJudgedBy('judge-1') });
       await user.click(picker());
       await user.click(await screen.findByRole('option', { name: 'Unassigned' }));
-      await waitFor(() => expect(picker()).toHaveTextContent('Unassigned'));
-
+      // The write clears the store row (MYK9-1327); the tab is handed that row.
       rerender(tabWith(undefined));
       await waitFor(() => expect(picker()).toHaveTextContent('Unassigned'));
       rerender(tabWith('judge-1'));
@@ -272,7 +251,7 @@ describe('ClassesTab review fixes', () => {
     });
   });
 
-  describe('judge override on a class the secretary has since hidden', () => {
+  describe('judge picker on a class the secretary has since hidden', () => {
     const picker = () => screen.getByRole('combobox', { name: 'Judge for Class c1' });
     const rowJudgedBy = (judgeId?: string) =>
       classes.map(cls => (cls.id === 'c1' && judgeId ? { ...cls, judgeId } : cls));
@@ -284,9 +263,11 @@ describe('ClassesTab review fixes', () => {
       const { user, rerender } = renderTab({ classes: rowJudgedBy('judge-1') });
       await user.click(picker());
       await user.click(await screen.findByRole('option', { name: 'Unassigned' }));
+      // The write clears the store row (MYK9-1327); the tab is handed that row.
+      rerender(tabWith(undefined));
       await waitFor(() => expect(picker()).toHaveTextContent('Unassigned'));
 
-      // Hide c1 (it does not match), let replication catch up, then another device assigns A.
+      // Hide c1 (it does not match), then another device assigns A.
       const search = screen.getByPlaceholderText('Search classes...');
       await user.type(search, 'Interior');
       expect(screen.queryByText('Class c1')).not.toBeInTheDocument();

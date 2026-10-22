@@ -134,7 +134,7 @@ describe.each(['Setup', 'Class Details'])(
       expect(screen.getByRole('button', { name: 'Save Changes' })).toBeEnabled();
       await user.click(screen.getByRole('button', { name: 'Save Changes' }));
       await waitFor(() => expect(mocks.close).toHaveBeenCalledTimes(1));
-      expect(mocks.prepare).toHaveBeenCalledWith('s1', 'c1', 'j2');
+      expect(mocks.prepare).toHaveBeenCalledWith('s1', 'c1', 'j2', { name: 'Second Judge' });
       expect(mocks.update).toHaveBeenCalledWith('c1', expect.objectContaining({ judgeId: 'j2' }));
       expect(mocks.success).toHaveBeenCalledWith('Interior saved');
     });

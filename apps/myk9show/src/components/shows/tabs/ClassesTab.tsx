@@ -11,6 +11,7 @@ import { ClassCard } from './ClassCard';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ClassBulkActionsBar } from '@/components/classes/ClassBulkActionsBar';
 import { ClassJudgeSelect } from '@/components/classes/ClassJudgeSelect';
+import { normalizeJudgeId } from '@/components/classes/useClassJudgeAssignment';
 import { useSetupClassManagement } from './useSetupClassManagement';
 import { Search, Plus } from 'lucide-react';
 import { useSetupAddClassesTrial } from '@/features/actions/pageEditTarget';
@@ -193,7 +194,7 @@ export function ClassesTab({
     <ClassJudgeSelect
       classId={cls.id}
       classLabel={cls.name || 'Untitled Class'}
-      assignedJudgeId={manage.judgeIdFor(cls)}
+      assignedJudgeId={normalizeJudgeId(cls.judgeId)}
       availableJudges={manage.availableJudges}
       canAssign
       onJudgeChange={(_classId, judgeId) => manage.assignJudge(cls, judgeId)}
@@ -225,7 +226,6 @@ export function ClassesTab({
       pendingAction,
       selection.selectedItems,
       manage.availableJudges,
-      manage.judgeIdFor,
     ]
   );
 

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { CalendarDays, Plus } from 'lucide-react';
 import { Link, useLocation, useNavigationType } from 'react-router-dom';
 import { useTrialRowActions } from '@/components/shows/tabs/useTrialRowActions';
@@ -24,7 +24,7 @@ import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { useFocusedClassSetupActions } from './FocusedClassSetupActions';
 import { useClassJudgeAssignment } from '@/components/classes/useClassJudgeAssignment';
 import { FocusedClassJudge } from './FocusedClassJudge';
-import { judgeLockReason, withAssignedJudges } from './focusedClassJudge';
+import { judgeLockReason } from './focusedClassJudge';
 import { CockpitResultsHandoff } from './CockpitResultsHandoff';
 import { isEveryClassComplete } from './resultsHandoff';
 import { SecretaryCockpitSchedule } from './SecretaryCockpitSchedule';
@@ -36,7 +36,7 @@ import type {
 } from './secretaryCockpitTypes';
 
 export function SecretaryCockpit({
-  snapshot: rowSnapshot,
+  snapshot,
   canManageShow,
   onCommand,
   runOrder,
@@ -55,18 +55,9 @@ export function SecretaryCockpit({
 }) {
   const { state, updateState } = useSecretaryCockpitUrlState();
   // The class panel's judge picker (MYK9-1323). Held here so a split/stack remount of the panel
-  // keeps a just-assigned judge, and applied to the snapshot so the schedule row shows it too.
-  const judges = useClassJudgeAssignment(
-    rowSnapshot.showId,
-    canManageShow,
-    rowSnapshot.classes,
-    'when-stale'
-  );
-  const { judgeIdFor, judgeNameFor } = judges;
-  const snapshot = useMemo(
-    () => withAssignedJudges(rowSnapshot, judgeIdFor, judgeNameFor),
-    [rowSnapshot, judgeIdFor, judgeNameFor]
-  );
+  // cannot drop an assignment mid-write. The write puts the judge on the local class row
+  // (MYK9-1327), which the snapshot already reads, so the panel and the schedule row both show it.
+  const judges = useClassJudgeAssignment(snapshot.showId, canManageShow, 'when-stale');
   // Edit Trial and Trial details on each trial heading (MYK9-956); Delete is in the edit panel.
   const { trialRowMenu, trialDialogs } = useTrialRowActions(snapshot.showId, canManageShow);
   // Held here, not in the panel, so a split/stack switch cannot close an open editor.

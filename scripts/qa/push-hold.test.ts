@@ -63,7 +63,19 @@ case "$*" in
     else echo '[]'; fi ;;
   'api repos/owner/repo/issues/comments?sort=created&direction=desc&per_page=100&page='*)
     page="$(printf '%s' "$*" | sed 's/.*page=//')"
-    if [ -f "$GH_FIXTURE_DIR/scan-$page.json" ]; then cat "$GH_FIXTURE_DIR/scan-$page.json"; else echo '[]'; fi ;;
+    if [ -f "$GH_FIXTURE_DIR/scan-$page.json" ]; then cat "$GH_FIXTURE_DIR/scan-$page.json"
+    elif [ -f "$GH_FIXTURE_DIR/scan-synthetic" ]; then
+      # N full pages of untrusted noise, newest first, with distinct IDs; then the feed ends.
+      awk -v page="$page" -v pages="$(cat "$GH_FIXTURE_DIR/scan-synthetic")" 'BEGIN {
+        if (page > pages) { print "[]"; exit }
+        printf "["
+        for (i = 0; i < 100; i++) {
+          id = (pages - page) * 100 + (99 - i) + 1000
+          printf "%s{\\"id\\":%d,\\"body\\":\\"noise\\",\\"created_at\\":\\"2020-01-01T00:00:00Z\\",\\"updated_at\\":\\"2020-01-01T00:00:00Z\\",\\"author_association\\":\\"NONE\\",\\"issue_url\\":\\"https://api.github.com/repos/owner/repo/issues/7\\"}", (i ? "," : ""), id
+        }
+        print "]"
+      }'
+    else echo '[]'; fi ;;
   'api search/issues?q='*)
     if [ -f "$GH_FIXTURE_DIR/search-fail" ]; then echo 'search down' >&2; exit 1; fi
     if [ -f "$GH_FIXTURE_DIR/search-proxy-refused" ]; then
@@ -125,6 +137,8 @@ esac
   const setScanPage = (page: number, comments: ReturnType<typeof comment>[]) =>
     writeFileSync(join(root, `scan-${page}.json`), JSON.stringify(comments));
   const refuseSearch = () => writeFileSync(join(root, 'search-proxy-refused'), '');
+  const setSyntheticScan = (pages: number) =>
+    writeFileSync(join(root, 'scan-synthetic'), String(pages));
   return {
     root,
     remote,
@@ -136,6 +150,7 @@ esac
     setPrComments,
     setScanPage,
     refuseSearch,
+    setSyntheticScan,
     runPush,
   };
 }
@@ -519,6 +534,39 @@ describe('operator push hold', () => {
         comment(1, 'PUSH RELEASE', 'OWNER', at(20)),
       ]);
       expect(f.runPush().code).toBe(0);
+    });
+
+    it('comment volume alone never blocks: a feed past 1,000 pages with no directive allows the push (MYK9-1328)', () => {
+      const f = fixture();
+      f.refuseSearch();
+      f.setSyntheticScan(1001);
+      const result = f.runPush();
+      expect(result.output).not.toContain('PUSH BLOCKED');
+      expect(result.code).toBe(0);
+      expect(scanCalls(f)).toHaveLength(1002);
+    }, 120_000);
+
+    it('fails closed on a feed that repeats a full page instead of advancing', () => {
+      const f = fixture();
+      f.refuseSearch();
+      f.setScanPage(1, noise(1000, 50));
+      f.setScanPage(2, noise(1000, 50));
+      const result = f.runPush();
+      expect(result.code).not.toBe(0);
+      expect(result.output).toContain('repeated page 2 without advancing');
+      expect(scanCalls(f)).toHaveLength(2);
+    });
+
+    it('fails closed on a feed that is not newest-first, since the stop rule depends on it', () => {
+      const f = fixture();
+      f.refuseSearch();
+      f.setScanPage(1, [
+        comment(1, 'PUSH RELEASE', 'OWNER', at(20)),
+        comment(2, 'PUSH HOLD: newer, listed later', 'OWNER', at(30)),
+      ]);
+      const result = f.runPush();
+      expect(result.code).not.toBe(0);
+      expect(result.output).toContain('not newest-first at comment 2');
     });
 
     it('still fails closed when the scan cannot be read', () => {

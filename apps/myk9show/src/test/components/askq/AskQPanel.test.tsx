@@ -31,13 +31,14 @@ describe('AskQPanel', () => {
 
   it('does not render when panel is closed', () => {
     render(<AskQPanel />);
-    expect(screen.queryByText('AskQ Assistant')).not.toBeInTheDocument();
+    expect(screen.queryByText('Ask for help')).not.toBeInTheDocument();
   });
 
   it('renders when panel is open', () => {
     act(() => useAskQPanelStore.getState().open());
     render(<AskQPanel />);
-    expect(screen.getByText('AskQ Assistant')).toBeInTheDocument();
+    expect(screen.getByText('Ask for help')).toBeInTheDocument();
+    expect(screen.getByText('AskQ')).toBeInTheDocument();
   });
 
   it('hides Operator Support from non-site-admin users', () => {

@@ -29,6 +29,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { helpUrl } from '@/lib/help';
 import { resetAllMockData } from '@/utils/debugUtils';
 import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
+import { UserRole } from '@/types/auth-types';
 import { AskQIcon } from '@/components/layout/AskQIcon';
 
 export interface DevActionRequest {
@@ -66,11 +67,18 @@ export function AccountMenuContent({
   onConfirmDevAction,
   align = 'end',
 }: AccountMenuContentProps) {
-  const { user, signOut, userWithRoles, getUserRoles } = useAuthContext();
+  const { user, signOut, userWithRoles, getUserRoles, hasRole } = useAuthContext();
   const globalSync = useGlobalSyncStatus();
   const networkStatus = useNetworkStatus();
   const { toggle: toggleAskQ } = useAskQPanelStore();
   const { theme, toggleTheme } = useTheme();
+
+  // MYK9-1291: the Developer group is a site-admin tool, never shown to other
+  // roles. Its items are local-state resets that only make sense against a dev
+  // build (Clear Cache no-ops outside DEV), so they stay dev-only; with none
+  // left in production the whole group is omitted rather than shown empty.
+  const isDevBuild = process.env.NODE_ENV === 'development';
+  const showDeveloperMenu = hasRole(UserRole.SITE_ADMIN) && isDevBuild;
 
   const isOffline = !networkStatus.isOnline || globalSync.status === 'offline';
   const needsAttention = globalSync.status === 'error' || globalSync.status === 'conflict';
@@ -159,7 +167,7 @@ export function AccountMenuContent({
       </DropdownMenuItem>
       <AccountMenuSeparator />
 
-      {/* AskQ and Appearance both live here as the labeled compact-width
+      {/* Ask for help (AskQ) and Appearance both live here as the labeled compact-width
           access path for the same actions the desktop header exposes as icon
           buttons. On phones the header cannot afford either icon without
           truncating the myK9Show wordmark to "myK9S…". */}
@@ -168,7 +176,7 @@ export function AccountMenuContent({
         className="w-full flex items-center gap-2 cursor-pointer"
       >
         <AskQIcon className="h-4 w-4" />
-        AskQ
+        Ask for help
       </DropdownMenuItem>
       <DropdownMenuItem
         onClick={toggleTheme}
@@ -196,7 +204,7 @@ export function AccountMenuContent({
       </DropdownMenuItem>
 
       {/* Development Tools */}
-      {process.env.NODE_ENV === 'development' && (
+      {showDeveloperMenu && (
         <>
           <AccountMenuSeparator />
           <DropdownMenuSub>

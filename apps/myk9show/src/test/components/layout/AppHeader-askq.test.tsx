@@ -95,8 +95,9 @@ describe('AppHeader AskQ integration', () => {
 
   it('renders the AskQ button in the header', () => {
     render(<AppHeader />);
-    const askQButton = screen.getByLabelText('AskQ Assistant');
+    const askQButton = screen.getByLabelText('Ask for help');
     expect(askQButton).toBeInTheDocument();
+    expect(askQButton).toHaveAttribute('title', 'Ask for help (AskQ)');
     expect(askQButton).toHaveClass('hidden', 'md:flex');
     expect(askQButton.querySelector('[data-icon="askq"]')).toBeInTheDocument();
   });
@@ -112,8 +113,10 @@ describe('AppHeader AskQ integration', () => {
   it('opens the panel when the AskQ button is clicked', async () => {
     const { user } = render(<AppHeader />);
 
-    await user.click(screen.getByLabelText('AskQ Assistant'));
+    await user.click(screen.getByLabelText('Ask for help'));
 
+    // Synchronous store toggle with the panel already mounted: no lazy chunk
+    // or network wait stands between the click and the panel (300ms criterion).
     expect(useAskQPanelStore.getState().isOpen).toBe(true);
     expect(screen.getByTestId('askq-panel-host')).toBeInTheDocument();
   });

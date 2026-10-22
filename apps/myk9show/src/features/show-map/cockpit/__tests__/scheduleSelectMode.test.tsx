@@ -75,9 +75,12 @@ const snapshot: SecretaryCockpitSnapshot = {
 };
 
 const renderCockpit = (route = '/shows/show-1?select=classes', canManageShow = true) =>
-  render(<SecretaryCockpit snapshot={snapshot} canManageShow={canManageShow} onCommand={vi.fn()} />, {
-    initialRoute: route,
-  });
+  render(
+    <SecretaryCockpit snapshot={snapshot} canManageShow={canManageShow} onCommand={vi.fn()} />,
+    {
+      initialRoute: route,
+    }
+  );
 
 const row = (classId: string) =>
   document.getElementById(`cockpit-anchor-${classId}`) as HTMLElement;
@@ -107,8 +110,9 @@ describe('Select classes on the schedule (MYK9-1324)', () => {
     expect(screen.queryByRole('heading', { name: 'Select classes' })).not.toBeInTheDocument();
   });
 
-  it("offers every bulk action the Select classes table had, plus Assign judge (inventory)", async () => {
-    const { user } = renderCockpit();
+  it('offers every bulk action the Select classes table had, plus Assign judge (inventory)', async () => {
+    // Focused on a class that has not started, so the panel's judge picker is open.
+    const { user } = renderCockpit('/shows/show-1?select=classes&focus=class-1');
     await user.click(tick('Container Novice'));
 
     // The table's bar was Change status, Delete and Export; its per-row judge picker is now the

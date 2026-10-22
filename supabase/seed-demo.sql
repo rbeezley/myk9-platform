@@ -1115,7 +1115,7 @@ INSERT INTO public.shows (
   accept_check_payments, accept_cash_payments,
   cc_secretary_on_exhibitor_emails,
   style, experience_is_published, experience_published_content,
-  brand_color, version, is_nationals
+  brand_color, version, is_nationals, waitlist_auto_offer
 )
 VALUES (
   'dededede-0000-0000-0000-000000000010',
@@ -1136,7 +1136,14 @@ VALUES (
   true, true,
   true,
   'headline', false, '{}'::jsonb,
-  '#0d4d4f', 3, false
+  '#0d4d4f', 3, false,
+  -- MYK9-1331: automatic wait-list offers OFF. Section 15 seeds Juniper waiting
+  -- on Interior Advanced, which has free seats, so with the default (true) the
+  -- */15 cron-waitlist-expiration tick after every reseed turned that row into
+  -- a pending-payment entry: 518 demo-show entries instead of 517, and a real
+  -- offer email/push to exhibitor@. The secretary offers by hand instead; the
+  -- waitlist journey (waitlistJourneyFixture.ts) turns it on for its own run.
+  false
 );
 
 -- Visibility settings: 'open' preset => scored results immediately public to anon.
@@ -2396,6 +2403,9 @@ WHERE id       = 'dededede-0000-0000-0000-000000000056'
 -- ---------------------------------------------------------------------------
 -- 15. GAP FIXTURE #6 (waitlist entry, screenshot S-10)
 --     Juniper (043) waitlisted for Interior Advanced (032) at position 1.
+--     It stays `waiting` because the show's waitlist_auto_offer is false
+--     (section 2, MYK9-1331); the isolated E2E post-seed check runs the
+--     cron's promotion path and fails if this row would become an entry.
 --     exhibitor_id references exhibitor_profiles. A sign-in does NOT create
 --     that row (the handle_new_user trigger fires only on auth sign-up); the
 --     "Sign-in account exhibitor profiles" block near the top of this file

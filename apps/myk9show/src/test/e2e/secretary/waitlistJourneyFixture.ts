@@ -39,6 +39,7 @@ export interface WaitlistRow {
 interface Snapshot {
   maxEntries: number | null;
   allowWaitlist: boolean | null;
+  autoOffer: boolean;
   juniperRowId: string | null;
 }
 
@@ -81,8 +82,9 @@ export async function authUserId(admin: SupabaseClient, email: string): Promise<
 }
 
 /**
- * Opens the full class to a wait list (still full), and parks Juniper's seeded waiting row so the
- * cron's global candidate scan offers nothing outside this journey. Returns what to restore.
+ * Opens the full class to a wait list (still full), parks Juniper's seeded waiting row so the
+ * cron's global candidate scan offers nothing outside this journey, then turns the show's automatic
+ * offers on (the seed leaves them off, MYK9-1331). Returns what to restore.
  */
 export async function prepareFullClass(admin: SupabaseClient): Promise<Snapshot> {
   const cls = await must(
@@ -94,6 +96,10 @@ export async function prepareFullClass(admin: SupabaseClient): Promise<Snapshot>
     admin.from('waitlist_entries').select('id').eq('class_id', FULL_CLASS_ID)
   );
   expect(existing, 'the seed puts no wait list on the full-class fixture').toEqual([]);
+  const show = await must(
+    'read automatic-offer switch',
+    admin.from('shows').select('waitlist_auto_offer').eq('id', SHOW_ID).single()
+  );
   const { data: juniper, error: juniperError } = await admin
     .from('waitlist_entries')
     .select('id')
@@ -112,9 +118,16 @@ export async function prepareFullClass(admin: SupabaseClient): Promise<Snapshot>
       admin.from('waitlist_entries').update({ status: 'withdrawn' }).eq('id', juniper.id)
     );
   }
+  // The seed turns automatic offers off for the demo show (MYK9-1331); this journey runs the cron.
+  // Juniper is parked above first, so no cron tick can offer the seeded row in between.
+  await ok(
+    'turn automatic offers on',
+    admin.from('shows').update({ waitlist_auto_offer: true }).eq('id', SHOW_ID)
+  );
   return {
     maxEntries: cls.max_entries,
     allowWaitlist: cls.allow_waitlist,
+    autoOffer: show.waitlist_auto_offer,
     juniperRowId: juniper?.id ?? null,
   };
 }
@@ -297,6 +310,10 @@ export async function restoreFullClass(
       .from('classes')
       .update({ max_entries: snapshot.maxEntries, allow_waitlist: snapshot.allowWaitlist })
       .eq('id', FULL_CLASS_ID)
+  );
+  await ok(
+    'restore automatic-offer switch',
+    admin.from('shows').update({ waitlist_auto_offer: snapshot.autoOffer }).eq('id', SHOW_ID)
   );
   if (snapshot.juniperRowId) {
     await ok(

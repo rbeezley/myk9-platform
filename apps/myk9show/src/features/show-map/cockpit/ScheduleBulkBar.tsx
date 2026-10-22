@@ -12,7 +12,7 @@ import type { AssignedJudgeName } from '@/services/database/judges';
 import { BulkBarActions } from '@/components/list-toolkit';
 import type { RowAction } from '@/components/ui/RowActionMenu';
 
-import { judgeLockReason } from './focusedClassJudge';
+import { judgeLockReason } from './focusedClassJudgeModel';
 import type { ScheduleClassSelection } from './useScheduleClassSelection';
 import type {
   SecretaryCockpitClass,

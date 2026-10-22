@@ -2444,7 +2444,6 @@ export type Database = {
           points_earned: number | null
           points_possible: number | null
           preferred_judge: string | null
-          promo_code_id: string | null
           refund_amount: number | null
           refund_decided_at: string | null
           refund_decided_by: string | null
@@ -2543,7 +2542,6 @@ export type Database = {
           points_earned?: number | null
           points_possible?: number | null
           preferred_judge?: string | null
-          promo_code_id?: string | null
           refund_amount?: number | null
           refund_decided_at?: string | null
           refund_decided_by?: string | null
@@ -2642,7 +2640,6 @@ export type Database = {
           points_earned?: number | null
           points_possible?: number | null
           preferred_judge?: string | null
-          promo_code_id?: string | null
           refund_amount?: number | null
           refund_decided_at?: string | null
           refund_decided_by?: string | null
@@ -2783,13 +2780,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "view_stats_summary"
             referencedColumns: ["entry_id"]
-          },
-          {
-            foreignKeyName: "entries_promo_code_id_fkey"
-            columns: ["promo_code_id"]
-            isOneToOne: false
-            referencedRelation: "promo_codes"
-            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "entries_registration_id_fkey"
@@ -5642,150 +5632,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "club_premium_templates"
             referencedColumns: ["id"]
-          },
-        ]
-      }
-      promo_codes: {
-        Row: {
-          code: string
-          created_at: string
-          created_by: string
-          discount_type: string
-          discount_value: number
-          expires_at: string | null
-          id: string
-          show_id: string | null
-          trial_id: string | null
-          updated_at: string
-          usage_count: number
-          usage_limit: number | null
-        }
-        Insert: {
-          code: string
-          created_at?: string
-          created_by: string
-          discount_type: string
-          discount_value: number
-          expires_at?: string | null
-          id?: string
-          show_id?: string | null
-          trial_id?: string | null
-          updated_at?: string
-          usage_count?: number
-          usage_limit?: number | null
-        }
-        Update: {
-          code?: string
-          created_at?: string
-          created_by?: string
-          discount_type?: string
-          discount_value?: number
-          expires_at?: string | null
-          id?: string
-          show_id?: string | null
-          trial_id?: string | null
-          updated_at?: string
-          usage_count?: number
-          usage_limit?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "promo_codes_show_id_fkey"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "shows"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "promo_codes_show_id_fkey"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "view_breed_stats"
-            referencedColumns: ["show_id"]
-          },
-          {
-            foreignKeyName: "promo_codes_show_id_fkey"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "view_clean_sweep_dogs"
-            referencedColumns: ["show_id"]
-          },
-          {
-            foreignKeyName: "promo_codes_show_id_fkey"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "view_fastest_times"
-            referencedColumns: ["show_id"]
-          },
-          {
-            foreignKeyName: "promo_codes_show_id_fkey"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "view_judge_stats"
-            referencedColumns: ["show_id"]
-          },
-          {
-            foreignKeyName: "promo_codes_show_id_fkey"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "view_myk9q_entries"
-            referencedColumns: ["show_id"]
-          },
-          {
-            foreignKeyName: "promo_codes_show_id_fkey"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "view_stats_summary"
-            referencedColumns: ["show_id"]
-          },
-          {
-            foreignKeyName: "promo_codes_trial_id_fkey"
-            columns: ["trial_id"]
-            isOneToOne: false
-            referencedRelation: "trials"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "promo_codes_trial_id_fkey"
-            columns: ["trial_id"]
-            isOneToOne: false
-            referencedRelation: "view_breed_stats"
-            referencedColumns: ["trial_id"]
-          },
-          {
-            foreignKeyName: "promo_codes_trial_id_fkey"
-            columns: ["trial_id"]
-            isOneToOne: false
-            referencedRelation: "view_clean_sweep_dogs"
-            referencedColumns: ["trial_id"]
-          },
-          {
-            foreignKeyName: "promo_codes_trial_id_fkey"
-            columns: ["trial_id"]
-            isOneToOne: false
-            referencedRelation: "view_fastest_times"
-            referencedColumns: ["trial_id"]
-          },
-          {
-            foreignKeyName: "promo_codes_trial_id_fkey"
-            columns: ["trial_id"]
-            isOneToOne: false
-            referencedRelation: "view_judge_stats"
-            referencedColumns: ["trial_id"]
-          },
-          {
-            foreignKeyName: "promo_codes_trial_id_fkey"
-            columns: ["trial_id"]
-            isOneToOne: false
-            referencedRelation: "view_myk9q_entries"
-            referencedColumns: ["trial_id"]
-          },
-          {
-            foreignKeyName: "promo_codes_trial_id_fkey"
-            columns: ["trial_id"]
-            isOneToOne: false
-            referencedRelation: "view_stats_summary"
-            referencedColumns: ["trial_id"]
           },
         ]
       }
@@ -11582,7 +11428,6 @@ export type Database = {
           points_earned: number | null
           points_possible: number | null
           preferred_judge: string | null
-          promo_code_id: string | null
           refund_amount: number | null
           refund_notes: string | null
           refunded_at: string | null
@@ -11901,7 +11746,6 @@ export type Database = {
           points_earned: number | null
           points_possible: number | null
           preferred_judge: string | null
-          promo_code_id: string | null
           refund_amount: number | null
           refund_notes: string | null
           refunded_at: string | null
@@ -12247,7 +12091,6 @@ export type Database = {
           points_earned: number | null
           points_possible: number | null
           preferred_judge: string | null
-          promo_code_id: string | null
           registration_id: string | null
           result_status: string | null
           result_text: string | null
@@ -12319,13 +12162,6 @@ export type Database = {
             columns: ["handler_id"]
             isOneToOne: false
             referencedRelation: "people"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "entries_promo_code_id_fkey"
-            columns: ["promo_code_id"]
-            isOneToOne: false
-            referencedRelation: "promo_codes"
             referencedColumns: ["id"]
           },
           {
@@ -14206,6 +14042,13 @@ export type Database = {
           status_updated_at: string
         }[]
       }
+      get_show_entry_counts: {
+        Args: { p_show_ids: string[] }
+        Returns: {
+          entry_count: number
+          show_id: string
+        }[]
+      }
       get_show_judge_day_capacity_for_manager: {
         Args: { p_show_id: string }
         Returns: {
@@ -14328,7 +14171,6 @@ export type Database = {
           outcome: string
         }[]
       }
-      increment_promo_usage: { Args: { promo_id: string }; Returns: undefined }
       insert_club_access_request_from_signup: {
         Args: { p_auth_user_id: string; p_metadata: Json; p_person_id: string }
         Returns: undefined
@@ -14773,6 +14615,10 @@ export type Database = {
         Args: { p_cart_id: string; p_lease_id: string }
         Returns: string
       }
+      require_recent_reauth: {
+        Args: { p_max_age_seconds?: number }
+        Returns: undefined
+      }
       resequence_class_waitlist: {
         Args: { p_class_ids: string[] }
         Returns: undefined
@@ -15096,8 +14942,10 @@ export type Database = {
         Returns: number
       }
       run_system_health_check_now: { Args: never; Returns: Json }
+      seed_demo_assert_date_coherence: { Args: never; Returns: undefined }
       seed_demo_assert_no_paid_strays: { Args: never; Returns: undefined }
       seed_demo_restore_show_day_fixture: { Args: never; Returns: Json }
+      seed_demo_retire_stale_fixture_shows: { Args: never; Returns: number }
       seed_demo_show_day_fixture_today: { Args: never; Returns: string }
       self_checkin_entry: {
         Args: { p_entry_id: string; p_new_status: string }
@@ -15388,16 +15236,6 @@ export type Database = {
           passcode_generation: string
           role: string
           show_id: string
-        }[]
-      }
-      validate_promo_code: {
-        Args: { p_code: string; p_show_id?: string; p_trial_id?: string }
-        Returns: {
-          discount_type: string
-          discount_value: number
-          promo_code_id: string
-          reason: string
-          valid: boolean
         }[]
       }
       volunteer_show_id: { Args: { vol_id: string }; Returns: string }

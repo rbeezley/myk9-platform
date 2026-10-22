@@ -253,8 +253,9 @@ describe('My Shows and My Payments agree (MYK9-1275)', () => {
     renderMyShowsList(myShows.entries);
     const strip = screen.getByText(/^Paid \$/);
     expect(strip).toHaveTextContent(
-      `Paid ${formatPaymentCents(3150, 'usd')} for Willow's 1 class on ${formatPaymentDate(PAID_AT)}.`
+      `Paid ${formatPaymentCents(3150, 'usd')} on ${formatPaymentDate(PAID_AT)}.`
     );
+    expect(strip).not.toHaveTextContent(/Willow|class/);
     expect(screen.getByText(/Receipt sent to your email\./)).toBeInTheDocument();
   });
 

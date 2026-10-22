@@ -136,9 +136,7 @@ describe('derivePaidStrip', () => {
 
     expect(strip).toEqual({
       paymentIds: ['c1'],
-      dogNames: ['Rex'],
       amountCents: 4500,
-      classCount: 1,
       awaitingReview: false,
       date: PAID_AT,
     });
@@ -198,9 +196,7 @@ describe('derivePaidStrip', () => {
 
     expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))).toEqual({
       paymentIds: ['c1', 'c2', 'c3'],
-      dogNames: ['Rex', 'Scout'],
       amountCents: 10000,
-      classCount: 3,
       awaitingReview: false,
       date: later,
     });
@@ -224,7 +220,6 @@ describe('derivePaidStrip', () => {
 
     expect(derivePaidStrip(orders, NOW, hasSeenPaidStrip, ledgerFor(orders))).toMatchObject({
       paymentIds: ['c2'],
-      dogNames: ['Scout'],
     });
 
     markPaidStripSeen('c2');
@@ -339,7 +334,7 @@ describe('derivePaidStrip', () => {
     expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))).toBeNull();
   });
 
-  it('names every dog on a multi-dog order', () => {
+  it("confirms every dog's row on a multi-dog order", () => {
     const orders = groupEntriesByOrder(
       [
         makeRow({ id: 'e1', dogId: 'd1', dogName: 'Rex' }),
@@ -348,9 +343,9 @@ describe('derivePaidStrip', () => {
       NOW
     );
 
-    expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))?.dogNames).toEqual([
-      'Rex',
-      'Scout',
+    expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))?.paymentIds).toEqual([
+      'c1',
+      'c2',
     ]);
   });
 });
@@ -385,9 +380,7 @@ describe('derivePaidStrip — reads the row-level ground truth, not the folded d
 
     expect(derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders))).toEqual({
       paymentIds: ['c-ranger-paid'],
-      dogNames: ['Ranger'],
       amountCents: 3000,
-      classCount: 1,
       awaitingReview: false,
       date: PAID_AT,
     });
@@ -455,7 +448,6 @@ describe('derivePaidStrip — reads the row-level ground truth, not the folded d
 
     const strip = derivePaidStrip(orders, NOW, neverSeen, ledgerFor(orders));
     expect(strip?.paymentIds).toEqual(['c-ranger-paid']);
-    expect(strip?.dogNames).toEqual(['Ranger']);
     expect(strip?.amountCents).toBe(3000);
   });
 });
@@ -584,11 +576,10 @@ describe('derivePaidStrip — the issue scenario (MYK9-804)', () => {
     );
   }
 
-  it('states $210 across 7 paid classes, naming all four paid dogs', () => {
+  it('states $210 and confirms all 7 paid rows', () => {
     const strip = derivePaidStrip(scenarioOrders(), NOW, neverSeen, ledgerFor(scenarioOrders()));
 
     expect(strip?.amountCents).toBe(21000);
-    expect(strip?.dogNames).toEqual(['Cooper', 'Scout', 'Willow', 'Ranger']);
     expect(strip?.paymentIds).toHaveLength(7);
   });
 
@@ -752,12 +743,16 @@ describe('derivePaidStrip — speaks only for orders My Payments lists (MYK9-127
     ]);
 
     expect(strip?.amountCents).toBe(9450 + 4725);
-    expect(strip?.classCount).toBe(3);
+    expect(strip?.paymentIds).toEqual(['c1', 'c2', 'c3']);
     expect(strip?.date).toEqual(new Date(later));
   });
 });
 
-describe('derivePaidStrip — names whole orders only (MYK9-1275 review)', () => {
+// Owner decision (MYK9-1275, after two review findings): the strip echoes the
+// covering orders' amount and date and derives nothing else. A gross charge
+// paired with a derived class count was false for a partial refund and for a
+// partly fulfilled checkout, so neither may change the quoted amount.
+describe('derivePaidStrip — echoes the order, nothing derived (MYK9-1275)', () => {
   const twoClassOrder: PaidStripPayment = {
     id: 'order-2',
     status: 'succeeded',
@@ -772,14 +767,7 @@ describe('derivePaidStrip — names whole orders only (MYK9-1275 review)', () =>
       rawPaymentStatus: PaymentStatus.PAID_ONLINE,
     });
 
-  it('pairs the whole charge with every class it paid for', () => {
-    const row = makeRow({ classes: [paid('c1'), paid('c2')] });
-    const strip = derivePaidStrip(groupEntriesByOrder([row], NOW), NOW, neverSeen, [twoClassOrder]);
-
-    expect(strip).toMatchObject({ amountCents: 6300, classCount: 2 });
-  });
-
-  it('shows nothing once one class of the order is refunded (the order stays succeeded)', () => {
+  it("still quotes the order's amount and date after one of its classes is refunded", () => {
     const refunded = makeClass({
       id: 'c2',
       paymentStatus: PaymentStatus.REFUNDED,
@@ -787,8 +775,30 @@ describe('derivePaidStrip — names whole orders only (MYK9-1275 review)', () =>
     });
     const row = makeRow({ classes: [paid('c1'), refunded] });
 
-    expect(
-      derivePaidStrip(groupEntriesByOrder([row], NOW), NOW, neverSeen, [twoClassOrder])
-    ).toBeNull();
+    const strip = derivePaidStrip(groupEntriesByOrder([row], NOW), NOW, neverSeen, [twoClassOrder]);
+
+    expect(strip).toEqual({
+      paymentIds: ['c1'],
+      amountCents: 6300,
+      awaitingReview: false,
+      date: new Date('2026-09-29T15:00:00Z'),
+    });
+  });
+
+  it('quotes exactly the charge of a partly fulfilled checkout, with nothing derived', () => {
+    // The webhook stores the full charge but only the fulfilled entry ids.
+    const partlyFulfilled: PaidStripPayment = { ...twoClassOrder, entryIds: ['c1'] };
+    const row = makeRow({ classes: [paid('c1'), paid('c2')] });
+
+    const strip = derivePaidStrip(groupEntriesByOrder([row], NOW), NOW, neverSeen, [
+      partlyFulfilled,
+    ]);
+
+    expect(strip).toEqual({
+      paymentIds: ['c1'],
+      amountCents: 6300,
+      awaitingReview: false,
+      date: new Date('2026-09-29T15:00:00Z'),
+    });
   });
 });

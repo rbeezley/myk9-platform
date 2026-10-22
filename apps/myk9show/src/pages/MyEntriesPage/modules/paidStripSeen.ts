@@ -112,15 +112,17 @@ export function isAwaitingSecretaryDecision(
 export interface PaidStrip {
   /** Every class row the strip confirms; Dismiss retires them all. */
   paymentIds: string[];
-  /** Dogs the payments covered, in card order, each once. */
-  dogNames: string[];
   /**
    * What was paid, in cents: the sum of the covering online orders'
    * `amount_cents`, each counted once, exactly as My Payments lists them.
+   *
+   * The strip ECHOES the orders and derives nothing from them (owner decision,
+   * MYK9-1275). It used to say "for Willow's 7 classes", and pairing a gross
+   * charge with a derived class count was false twice over: a partial refund
+   * leaves the order `succeeded` with fewer paid rows, and a partly fulfilled
+   * checkout stores the full charge but only the fulfilled `entry_ids`.
    */
   amountCents: number;
-  /** How many class rows the payment covers (one row is one dog in one class). */
-  classCount: number;
   /**
    * True while any covered row still waits on the secretary's decision. The
    * strip says "will review it next" only then; once every row is accepted
@@ -183,9 +185,8 @@ function settledOrdersByEntryId(
  *
  * @param orders The show's FULL, unfiltered order set — never the page's
  *   filtered `group.orders`, or the total shifts with the When/Status filters
- *   (MYK9-804 round 2). Money math still runs per CLASS ROW within each
- *   order (`order.dogs[].classes`), so a mixed-payment order counts only its
- *   own paid rows.
+ *   (MYK9-804 round 2). Rows are matched per CLASS ROW within each order
+ *   (`order.dogs[].classes`); the amount is the covering orders' own charge.
  * @param hasSeen Injected so the pure derivation stays testable and the
  *   caller can keep an in-memory dismissal set, keyed by class row id,
  *   alongside the stored one.
@@ -202,65 +203,33 @@ export function derivePaidStrip(
   if (!payments || payments.length === 0) return null;
   interface FreshPayment {
     cls: EntryClass;
-    dogName: string;
     settled: SettledOrder;
-  }
-  /** The slice `derivePaidStrip` actually reads off a dog — either the real
-   * `MyEntryDogGroup` or the single-dog fallback for a hand-built fixture
-   * that never populated `order.dogs`. */
-  interface DogSlice {
-    dogName: string;
-    classes: EntryClass[];
   }
 
   const settledByEntryId = settledOrdersByEntryId(payments, now);
-  const candidates: FreshPayment[] = [];
+  const fresh: FreshPayment[] = [];
   for (const order of orders) {
     if (isPastShowEntry(order, now)) continue;
-    const dogs: DogSlice[] =
-      order.dogs.length > 0 ? order.dogs : [{ dogName: order.dogName, classes: order.classes }];
-    for (const dog of dogs) {
-      for (const cls of dog.classes) {
-        const settled = settledByEntryId.get(cls.id);
-        if (settled && isStillPaid(cls) && !hasSeen(cls.id)) {
-          candidates.push({ cls, dogName: dog.dogName, settled });
-        }
-      }
+    // `order.dogs` is the real grouping; a hand-built fixture may leave it
+    // empty and carry its rows on `order.classes` alone.
+    const classes = order.dogs.length > 0 ? order.dogs.flatMap(dog => dog.classes) : order.classes;
+    for (const cls of classes) {
+      const settled = settledByEntryId.get(cls.id);
+      if (settled && isStillPaid(cls) && !hasSeen(cls.id)) fresh.push({ cls, settled });
     }
   }
-
-  // The strip quotes whole orders, so it may only name whole orders: an order
-  // counts only when EVERY entry it paid for is still a paid, unseen row here.
-  // A partial refund (the order stays `succeeded`), a moved class or a
-  // half-dismissed order would otherwise pair the full charge with fewer
-  // classes ("Paid $63.00 for Willow's 1 class").
-  const candidateIdsByOrder = new Map<string, Set<string>>();
-  for (const payment of candidates) {
-    const orderId = payment.settled.payment.id;
-    const ids = candidateIdsByOrder.get(orderId) ?? new Set<string>();
-    ids.add(payment.cls.id);
-    candidateIdsByOrder.set(orderId, ids);
-  }
-  const fresh = candidates.filter(payment => {
-    const ids = candidateIdsByOrder.get(payment.settled.payment.id);
-    return payment.settled.payment.entryIds.every(entryId => ids?.has(entryId));
-  });
   if (fresh.length === 0) return null;
 
   // Each covering order once: an order paying for seven classes is one charge
-  // on My Payments, not seven.
+  // on My Payments, not seven. A covering order is quoted whole, even when
+  // only some of its entries are still paid here: the strip names the charge,
+  // never what it bought.
   const coveringOrders = [
     ...new Map(fresh.map(payment => [payment.settled.payment.id, payment.settled])).values(),
   ];
 
-  const dogNames: string[] = [];
-  for (const payment of fresh) {
-    if (!dogNames.includes(payment.dogName)) dogNames.push(payment.dogName);
-  }
   return {
     paymentIds: fresh.map(payment => payment.cls.id),
-    dogNames,
-    classCount: fresh.length,
     awaitingReview: fresh.some(payment =>
       isAwaitingSecretaryDecision(payment.cls.entryStatus, payment.cls.entryStatusKind)
     ),

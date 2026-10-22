@@ -11,7 +11,6 @@ import {
   getShowHomeHref,
   leaveSelectClassesSearch,
   selectClassesAnchor,
-  writeCockpitUrlState,
   normalizeCockpitUrlState,
   resolveShowDeskReturn,
   resolveShowDeskReturnHref,

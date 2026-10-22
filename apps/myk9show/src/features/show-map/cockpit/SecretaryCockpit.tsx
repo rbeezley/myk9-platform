@@ -303,6 +303,8 @@ export function SecretaryCockpit({
             {focusedPanel}
           </div>
         )}
+        {/* Kept while selecting: split, the panel has its own column beside the schedule rather
+            than sitting inside the tick list. */}
         {isSplit && model.focusedClass && (
           <div
             ref={splitPanelRef}

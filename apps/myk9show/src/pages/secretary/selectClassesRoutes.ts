@@ -15,6 +15,11 @@ export const SELECT_CLASSES = 'classes';
  */
 const SCHEDULE_FILTER_FOR_VIEW: Readonly<Record<string, string>> = { in_progress: 'in-progress' };
 
+/** The one mapping both old link shapes go through: an old view id, as a schedule `filter`. */
+function scheduleFilterForView(view: string | null | undefined): string | undefined {
+  return view ? SCHEDULE_FILTER_FOR_VIEW[view] : undefined;
+}
+
 /** The params Select classes owns; leaving it ("Done") clears them. */
 export const SELECT_CLASSES_PARAMS = ['view', 'trialId', 'focus'] as const;
 
@@ -35,7 +40,7 @@ export function getSelectClassesHref(
   options: SelectClassesHrefOptions = {}
 ): string {
   const params = new URLSearchParams({ select: SELECT_CLASSES });
-  const filter = view ? SCHEDULE_FILTER_FOR_VIEW[view] : undefined;
+  const filter = scheduleFilterForView(view);
   if (filter) params.set('filter', filter);
   if (options.trialId) params.set('trialId', options.trialId);
   if (options.focusClassId) params.set('focus', options.focusClassId);
@@ -55,6 +60,10 @@ export function legacySetupToHomeSearch(search: URLSearchParams): URLSearchParam
   params.delete('section');
   if (section === 'classes') {
     params.set('select', SELECT_CLASSES);
+    // The old Classes `view` is not a schedule param; carry what it meant as the filter.
+    const filter = scheduleFilterForView(params.get('view'));
+    params.delete('view');
+    if (filter) params.set('filter', filter);
   } else {
     params.delete('returnTo');
     for (const key of SELECT_CLASSES_PARAMS) params.delete(key);

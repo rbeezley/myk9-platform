@@ -20,7 +20,7 @@ export function NotificationBell() {
     >
       <Bell aria-hidden="true" className="h-5 w-5" />
       {totalUnread > 0 && (
-        <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+        <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs text-white">
           {badgeLabel}
         </span>
       )}

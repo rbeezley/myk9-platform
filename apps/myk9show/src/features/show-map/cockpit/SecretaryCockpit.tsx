@@ -24,7 +24,7 @@ import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { useFocusedClassSetupActions } from './FocusedClassSetupActions';
 import { useClassJudgeAssignment } from '@/components/classes/useClassJudgeAssignment';
 import { FocusedClassJudge } from './FocusedClassJudge';
-import { judgeLockReason, withAssignedJudges } from './focusedClassJudge';
+import { judgeLockReason, withAssignedJudges } from './focusedClassJudgeModel';
 import { CockpitResultsHandoff } from './CockpitResultsHandoff';
 import { isEveryClassComplete } from './resultsHandoff';
 import { SecretaryCockpitSchedule } from './SecretaryCockpitSchedule';

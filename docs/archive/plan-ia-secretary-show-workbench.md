@@ -1,8 +1,8 @@
 # Plan: Secretary show workbench — one door per job
 
-> **Status:** Active
+> **Status:** Complete
 
-**Findings:** [`ia-review-secretary-show-workbench.md`](ia-review-secretary-show-workbench.md) (IA-1 … IA-12 and the deletion list).
+**Findings:** [`ia-review-secretary-show-workbench.md`](../ia-review-secretary-show-workbench.md) (IA-1 … IA-12 and the deletion list).
 **Date:** 2026-10-20 · **Linear:** to file after the owner approves the deletion list.
 
 Duplication question (CLAUDE.md § consolidate): every phase removes a door or a page. Nothing here adds a surface; the only additions are four existing cards moving into the Edit show panel because their current page is unreachable.
@@ -53,6 +53,8 @@ Exit: on a managed show the rail and breadcrumb name the show; a class's whole l
 ## Testing phase
 
 Each PR carries its own tests as listed above and runs the app suite shuffled before push. After Phase B and again after Phase C, a browser walk as `secretary@myk9t.com` at 375px and desktop across: open my show, review entries, run a class to released results, print today's paperwork, close the show, refund a cancelled show, set the Wi-Fi. The walk's notes go on the phase's Linear issue. A phase is not complete until its tests pass and the walk is recorded.
+
+**Done 2026-10-21.** Phases A, B and C merged: #3155–#3157, #3183, #3186 and #3188 (MYK9-1262), #3189 (MYK9-1317), #3185 (MYK9-1318), #3160 (MYK9-1269), #3192 (MYK9-1319) and #3195 (MYK9-1320). The walks after Phase B and Phase C ran as one, on `main` at 375px and 1280px, with notes on MYK9-1320. Every job passed short of a confirmed write: release results and Close Out Show were reached but not pressed on shared staging. Refund-all was not reached, because no cancelled show exists. The walk found one phone bug: the Overview scrolled sideways at 375px. #3196 (MYK9-1322) fixed it. Still owed after a deploy: MYK9-1269's live-site check and MYK9-1319's nightly journey spec.
 
 ## Non-goals
 

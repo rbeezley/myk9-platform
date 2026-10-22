@@ -69,7 +69,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-overview-schedule-hub.md](plan-overview-schedule-hub.md)                                                   | Active    | Overview Schedule as the Secretary's Hub — status, checklist, lighter Setup        |
 | [plan-secretary-show-home.md](plan-secretary-show-home.md)                                                       | Active    | Secretary Show Home — one page for Overview, Show Day and Setup                    |
 | [plan-show-day-db-load.md](plan-show-day-db-load.md)                                                             | Active    | Show-day database load: cut per-device reads, then find the Micro ceiling          |
-| [plan-ia-secretary-show-workbench.md](plan-ia-secretary-show-workbench.md)                                       | Active    | Secretary show workbench — one door per job                                        |
 | [plan-list-toolkit.md](plan-list-toolkit.md)                                                                     | Active    | List Toolkit — shared search, filter and bulk actions                              |
 | [plan-step-up-reauth.md](plan-step-up-reauth.md)                                                                 | Active    | Step-up re-authentication for refunds and role changes (MYK9-1208)                 |
 | [plan-myk9-1010-owner-address.md](plan-myk9-1010-owner-address.md)                                               | Active    | MYK9-1010 — Require the owner's address on AKC entries                             |

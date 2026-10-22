@@ -219,7 +219,7 @@ Only the issues that touch this surface are decided here. The rest are on exhibi
 
 ## Step 6: Phased Remediation Plan
 
-**Plan doc:** [`plan-ia-secretary-show-workbench.md`](plan-ia-secretary-show-workbench.md)
+**Plan doc:** [`plan-ia-secretary-show-workbench.md`](archive/plan-ia-secretary-show-workbench.md)
 
 | Phase | Scope                                                                                                                  | Entry trigger                                                 | Exit criterion                                                                                          | PRs |
 | ----- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | --- |

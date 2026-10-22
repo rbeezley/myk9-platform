@@ -232,7 +232,13 @@ export function SecretaryCockpit({
 
       <div
         ref={gridRef}
-        className={cn('grid items-start', isSplit ? 'grid-rows-[auto_auto] gap-5' : 'gap-4')}
+        // Stacked: one column that may shrink below its content's one-line width. An implicit
+        // `auto` track took the Class work links' min-content and widened the page on a phone
+        // (MYK9-1322); split already uses minmax(0, …) (cockpitSplit.ts).
+        className={cn(
+          'grid items-start',
+          isSplit ? 'grid-rows-[auto_auto] gap-5' : 'grid-cols-[minmax(0,1fr)] gap-4'
+        )}
         style={isSplit ? { gridTemplateColumns: COCKPIT_SPLIT_COLUMNS } : undefined}
         data-cockpit-layout={isSplit ? 'split' : 'stacked'}
       >

@@ -37,7 +37,8 @@ export function CockpitActionLink({
   const disabledReason = operatorOnly ? surfaceReason : undefined;
   const content = (
     <>
-      <span>{children}</span>
+      {/* Long labels ("Enter results from scoresheet") wrap on a phone instead of widening it. */}
+      <span className="min-w-0 whitespace-normal text-left">{children}</span>
       <ArrowRight className="h-4 w-4 shrink-0" />
     </>
   );
@@ -54,7 +55,7 @@ export function CockpitActionLink({
         <Button
           type="button"
           variant={variant}
-          className="min-h-11 justify-between"
+          className="h-auto min-h-11 justify-between"
           disabled
           aria-describedby={reasonId}
         >
@@ -68,7 +69,11 @@ export function CockpitActionLink({
   }
   if (destination.kind === 'href') {
     return (
-      <Button asChild variant={variant} className={cn('min-h-11 justify-between', className)}>
+      <Button
+        asChild
+        variant={variant}
+        className={cn('h-auto min-h-11 justify-between', className)}
+      >
         <Link to={destination.href}>{content}</Link>
       </Button>
     );
@@ -77,7 +82,7 @@ export function CockpitActionLink({
     <Button
       type="button"
       variant={variant}
-      className={cn('min-h-11 justify-between', className)}
+      className={cn('h-auto min-h-11 justify-between', className)}
       onClick={() => onCommand(destination.commandId)}
     >
       {content}

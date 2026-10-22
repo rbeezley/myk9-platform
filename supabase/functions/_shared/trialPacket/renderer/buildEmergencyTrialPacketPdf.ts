@@ -445,15 +445,20 @@ function fitArmbandFontSize(doc: jsPDF, text: string, budget: number): number {
  * larger text, so callName, breed and handler take the remaining width. Data
  * that overflows a column is still truncated by `fitTextToWidth`, never
  * overprinted.
+ *
+ * Handler gets the most of it: a person's full name runs longer than a dog's
+ * call name. Measured on production data (2026-10-21, test fixtures excluded),
+ * call names run to 9 characters and handler names to 18, and the longest
+ * breeds to 27, at about 2.1 mm per character at this size.
  */
 const CHECK_IN_COLUMN_DEFS: ReadonlyArray<{ key: CheckInColumnKey; label: string; width: number }> =
   [
     { key: 'gate', label: 'Gate', width: 13 },
     { key: 'order', label: 'Order', width: 15 },
     { key: 'armband', label: 'Armband', width: 22.5 },
-    { key: 'callName', label: 'Call Name', width: 50 },
-    { key: 'breed', label: 'Breed', width: 56 },
-    { key: 'handler', label: 'Handler', width: 29.4 },
+    { key: 'callName', label: 'Call Name', width: 30 },
+    { key: 'breed', label: 'Breed', width: 54 },
+    { key: 'handler', label: 'Handler', width: 53.4 },
   ];
 
 /**

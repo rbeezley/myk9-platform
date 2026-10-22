@@ -12,6 +12,7 @@ import type { UserEvent } from '@testing-library/user-event';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { groupEntriesByOrder } from '@/pages/MyEntriesPage/modules/groupEntriesByOrder';
 import type { EntryClass, MyEntry } from '@/pages/MyEntriesPage/modules/my-entries-types';
+import type { PaidStripPayment } from '@/pages/MyEntriesPage/modules/paidStripSeen';
 import { withFixtureKind } from '@/test/fixtures/entryClassKind';
 
 /** The instant every fixture is reckoned against: Saturday 24 Oct 2026, midday Central. */
@@ -71,6 +72,36 @@ export function makeRow(overrides: Partial<MyEntry> = {}): MyEntry {
 /** The order cards the page's filters hand the list. */
 export function toOrders(rows: MyEntry[], now: Date = NOW): MyEntry[] {
   return groupEntriesByOrder(rows, now);
+}
+
+/**
+ * The My Payments ledger the Stripe webhook would have written for these rows
+ * (raw rows or grouped orders): one settled `stripe_orders` row per
+ * registration, covering its paid class rows, charged at their fees and dated
+ * at checkout. The paid strip speaks only for rows a ledger order covers
+ * (MYK9-1275).
+ */
+export function onlineLedgerFor(rows: MyEntry[]): PaidStripPayment[] {
+  const byRegistration = new Map<string, PaidStripPayment>();
+  for (const row of rows) {
+    const classes = row.dogs.length > 0 ? row.dogs.flatMap(dog => dog.classes) : row.classes;
+    const paid = classes.filter(
+      cls => (cls.rawPaymentStatus ?? cls.paymentStatus) === PaymentStatus.PAID_ONLINE
+    );
+    if (paid.length === 0) continue;
+    const key = row.registrationId ?? row.id;
+    const order = byRegistration.get(key) ?? {
+      id: `order-${key}`,
+      status: 'succeeded',
+      date: row.submittedAt.toISOString(),
+      amountCents: 0,
+      entryIds: [],
+    };
+    order.amountCents += paid.reduce((sum, cls) => sum + Math.round(cls.fee * 100), 0);
+    order.entryIds = [...order.entryIds, ...paid.map(cls => cls.id)];
+    byRegistration.set(key, order);
+  }
+  return [...byRegistration.values()];
 }
 
 /**

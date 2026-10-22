@@ -12,7 +12,6 @@ vi.mock('@/hooks/useTitleProgress', () => ({
 const dogs = [{ id: 'dog-rex', call_name: 'Rex' }];
 const baseProps = {
   showMoney: false,
-  currentFees: 0,
   amountDue: 0,
   hasPastBalance: false,
   currentFeesHref: '/payments',

@@ -240,7 +240,6 @@ describe('MyEntries — a pending class added to a paid enrollment (MYK9-536)', 
     const stats = result.current.filters.entryStats;
     render(
       <CompactStatsRow
-        currentFees={stats.currentFees}
         amountDue={stats.currentAmountDue}
         hasPastBalance={summary.onlineShowBalances.some(show => show.isPastShow)}
         currentFeesHref={buildEntryBalanceRecoveryHref(summary)}
@@ -250,7 +249,7 @@ describe('MyEntries — a pending class added to a paid enrollment (MYK9-536)', 
 
     expect(screen.queryByText('Paid in full')).not.toBeInTheDocument();
     expect(screen.getByText('$30.00')).toBeInTheDocument();
-    expect(screen.getByText('due of $60.00 entered')).toBeInTheDocument();
+    expect(screen.getByText('You owe')).toBeInTheDocument();
   });
 
   it('still says "Paid in full" once the add-on is settled', async () => {
@@ -272,7 +271,6 @@ describe('MyEntries — a pending class added to a paid enrollment (MYK9-536)', 
 
     render(
       <CompactStatsRow
-        currentFees={stats.currentFees}
         amountDue={stats.currentAmountDue}
         hasPastBalance={summary.onlineShowBalances.some(show => show.isPastShow)}
         currentFeesHref={buildEntryBalanceRecoveryHref(summary)}

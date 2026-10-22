@@ -12,6 +12,9 @@
 
 import React from 'react';
 import type { ResultCardModel } from '@/features/result-card';
+import { useMyPayments } from '@/features/payments/useMyPayments';
+import { ALL_PAYMENT_YEARS } from '@/features/payments/paymentYearFilter';
+import { useViewerId } from '@/hooks/useViewerId';
 import type { UserEntriesSource } from '@/services/database/entries';
 import type { ShowMoneyKind } from './showMoneyState';
 import { buildShowGroupIndex, groupEntriesByShow } from './groupEntriesByShow';
@@ -105,6 +108,9 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
   // that never settles.
   const [capturedNow] = React.useState(() => new Date());
   const now = nowProp ?? capturedNow;
+  // The same all-time ledger, under the same cache key, that My Payments lists:
+  // the paid strip may only confirm a payment that page shows (MYK9-1275).
+  const { data: onlinePayments } = useMyPayments(ALL_PAYMENT_YEARS, useViewerId());
 
   return (
     <ul className="space-y-8">
@@ -113,6 +119,7 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
           <MyShowGroupCard
             group={group}
             allOrders={fullShowIndex.get(group.key)?.orders ?? group.orders}
+            onlinePayments={onlinePayments}
             source={source}
             now={now}
             selfCheckinByClassId={selfCheckinByClassId}

@@ -14,24 +14,26 @@ import { render } from '@/test/utils/testUtils';
  */
 describe('CompactStatsRow', () => {
   const defaultProps = {
-    currentFees: 150,
     amountDue: 75,
     onNavigate: vi.fn(),
   };
 
-  it('shows the amount owed against the total entered', () => {
+  // MYK9-1275: "$90.00 due of $38,360.00 entered" set the debt against an
+  // all-time total. The strip now says the one thing: what is owed.
+  it('says plainly what is owed, with no "due of ... entered" total', () => {
     render(<CompactStatsRow {...defaultProps} />);
 
     expect(screen.getByText('Entry fees')).toBeInTheDocument();
+    expect(screen.getByRole('button')).toHaveTextContent('You owe$75.00');
     expect(screen.getByText('$75.00')).toBeInTheDocument();
-    expect(screen.getByText(/due of \$150\.00 entered/)).toBeInTheDocument();
+    expect(screen.queryByText(/due of/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/entered/)).not.toBeInTheDocument();
   });
 
   it('labels debt from past entries as an outstanding balance', () => {
     render(
       <CompactStatsRow
         {...defaultProps}
-        currentFees={0}
         amountDue={90}
         hasPastBalance
         currentFeesHref="/exhibitor/payments?due=1"
@@ -40,7 +42,7 @@ describe('CompactStatsRow', () => {
 
     expect(screen.getByText('$90.00')).toBeInTheDocument();
     expect(screen.getByText('outstanding balance')).toBeInTheDocument();
-    expect(screen.queryByText(/due of/)).not.toBeInTheDocument();
+    expect(screen.queryByText('You owe')).not.toBeInTheDocument();
     expect(
       screen.getByLabelText('Entry fees: $90.00 outstanding. View payment details.')
     ).toBeInTheDocument();
@@ -51,7 +53,7 @@ describe('CompactStatsRow', () => {
   it('formats money with cents', () => {
     // A plain toLocaleString printed a $1,234.50 balance as "$1,234.5" on the
     // exhibitor's money surface.
-    render(<CompactStatsRow {...defaultProps} currentFees={1234.5} amountDue={1234.5} />);
+    render(<CompactStatsRow {...defaultProps} amountDue={1234.5} />);
     expect(screen.getByText('$1,234.50')).toBeInTheDocument();
   });
 
@@ -59,7 +61,7 @@ describe('CompactStatsRow', () => {
     render(<CompactStatsRow {...defaultProps} amountDue={0} />);
 
     expect(screen.getByText('Paid in full')).toBeInTheDocument();
-    expect(screen.queryByText('$150.00')).not.toBeInTheDocument();
+    expect(screen.queryByText('You owe')).not.toBeInTheDocument();
     expect(screen.queryByText(/Finish Payment/i)).not.toBeInTheDocument();
   });
 
@@ -91,14 +93,7 @@ describe('CompactStatsRow', () => {
 
   it('opens the cart when an amount is due', async () => {
     const onNavigate = vi.fn();
-    render(
-      <CompactStatsRow
-        {...defaultProps}
-        currentFees={125}
-        amountDue={125}
-        onNavigate={onNavigate}
-      />
-    );
+    render(<CompactStatsRow {...defaultProps} amountDue={125} onNavigate={onNavigate} />);
 
     await userEvent.click(screen.getByRole('button'));
     expect(onNavigate).toHaveBeenCalledWith('/cart');
@@ -111,7 +106,6 @@ describe('CompactStatsRow', () => {
     render(
       <CompactStatsRow
         {...defaultProps}
-        currentFees={125}
         amountDue={125}
         currentFeesHref="/cart?showId=show-1&entryIds=entry-1%2Centry-2"
         onNavigate={onNavigate}
@@ -124,9 +118,7 @@ describe('CompactStatsRow', () => {
 
   it('links to My Payments when no payment is due', async () => {
     const onNavigate = vi.fn();
-    render(
-      <CompactStatsRow {...defaultProps} currentFees={125} amountDue={0} onNavigate={onNavigate} />
-    );
+    render(<CompactStatsRow {...defaultProps} amountDue={0} onNavigate={onNavigate} />);
 
     await userEvent.click(screen.getByRole('button'));
     expect(onNavigate).toHaveBeenCalledWith('/exhibitor/payments');
@@ -151,7 +143,7 @@ describe('CompactStatsRow', () => {
   it('names the balance and the action for assistive tech', () => {
     render(<CompactStatsRow {...defaultProps} />);
     expect(
-      screen.getByLabelText('Entry fees: $75.00 due of $150.00. Finish payment.')
+      screen.getByLabelText('Entry fees: you owe $75.00. Finish payment.')
     ).toBeInTheDocument();
   });
 

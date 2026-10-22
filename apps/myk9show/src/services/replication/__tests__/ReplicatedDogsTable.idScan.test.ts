@@ -19,7 +19,7 @@ function installServer(liveIds: string[]): { idReads: () => number } {
   vi.mocked(supabase.from).mockImplementation((() => {
     let cols = '';
     const builder: Record<string, unknown> = {};
-    for (const method of ['select', 'gt', 'is', 'eq', 'order', 'limit']) {
+    for (const method of ['select', 'gt', 'is', 'eq', 'order', 'limit', 'or', 'range']) {
       builder[method] = (arg?: string, opts?: { head?: boolean }) => {
         if (method === 'select') {
           cols = opts?.head ? 'count' : String(arg);
@@ -94,7 +94,7 @@ describe('ReplicatedDogsTable id scan cadence', () => {
   it('leaves the scan owed when an id page fails', async () => {
     vi.mocked(supabase.from).mockImplementation((() => {
       const b: Record<string, unknown> = {};
-      for (const m of ['select', 'gt', 'is', 'eq', 'order', 'limit']) b[m] = () => b;
+      for (const m of ['select', 'gt', 'is', 'eq', 'order', 'limit', 'or', 'range']) b[m] = () => b;
       b.then = (resolve: (v: unknown) => unknown) =>
         resolve({ data: null, error: { message: 'x' } });
       return b;

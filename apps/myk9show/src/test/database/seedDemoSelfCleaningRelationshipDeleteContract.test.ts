@@ -95,25 +95,6 @@ const guardFunctionSource = ((): string => {
 
 const uuidsIn = (text: string): string[] => [...text.matchAll(/'([0-9a-f-]{36})'/g)].map(m => m[1]);
 
-/**
- * MYK9-1281: the one shows delete keyed on a loop variable rather than a literal
- * id. It is exempt from the literal-id and preflight rules ONLY when it sits in
- * the FOR loop over the dededede-0000-0000-0731-* range whose skip list names
- * trial_packet_snapshots.
- */
-const isFixtureLoopDelete = (del: { index: number; text: string }): boolean => {
-  if (!/DELETE FROM public\.shows WHERE id = v_show\.id;/.test(del.text)) return false;
-  const loopStart = seed.lastIndexOf('FOR v_show IN', del.index);
-  const loop = loopStart === -1 ? '' : seed.slice(loopStart, del.index);
-  return (
-    loop.includes("s.id >= 'dededede-0000-0000-0731-000000000000'::uuid") &&
-    loop.includes("s.id <  'dededede-0000-0000-0732-000000000000'::uuid") &&
-    /EXISTS \(SELECT 1 FROM public\.trial_packet_snapshots \w+ WHERE \w+\.show_id = v_show\.id\)/.test(
-      loop
-    )
-  );
-};
-
 describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', () => {
   it('deletes entries by registration_id (not just by hard-coded id) before the enrollment delete', () => {
     const relationshipDelete = seed.indexOf(
@@ -392,10 +373,6 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     expect(seed).not.toMatch(/DELETE FROM public\.trial_packet_snapshots/);
     for (const shows of showsDeletes) {
       const ids = uuidsIn(shows.text);
-      // MYK9-1281: the stale fixture-show delete carries its skip list inside
-      // itself (NOT EXISTS), skipping a show with a snapshot rather than refusing.
-      // Exempt ONLY the per-show delete inside the 0731 range loop (MYK9-1281).
-      if (isFixtureLoopDelete(shows)) continue;
       const partner = preflights.filter(p => ids.some(id => p.text.includes(`'${id}'`)));
       expect(
         partner.length,
@@ -443,8 +420,6 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     for (const del of deletes) {
       const table = /DELETE FROM (public\.\w+)/.exec(del.text)![1];
       expect(del.text, `${table} delete has no WHERE`).toMatch(/\bWHERE\b/);
-      // The 0731 range loop's per-show delete is scoped by its loop query.
-      if (isFixtureLoopDelete(del)) continue;
       const ids = uuidsIn(del.text);
       expect(ids.length, `${table} delete names no seeded id: ${del.text}`).toBeGreaterThan(0);
       for (const id of ids) {

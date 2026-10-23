@@ -103,7 +103,7 @@ describe('a pass that re-downloads unchanged rows (MYK9-1332)', () => {
     expect(remote.fetchRemoteRows).toHaveBeenCalledTimes(2);
     expect(remote.fetchRemoteRows).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        since: parseUpdatedAtMs(STAMP) - REPLICATION_INCREMENTAL_BUFFER_MS,
+        since: Date.parse(STAMP) - REPLICATION_INCREMENTAL_BUFFER_MS,
       })
     );
     expect(notifyListeners).not.toHaveBeenCalled();

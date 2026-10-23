@@ -1,0 +1,1151 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-23T17:53:01.806Z",
+  "target": {
+    "mode": "e2e",
+    "projectRef": "sojmvhhwsjxmfistvzbe",
+    "computeTier": "Micro",
+    "gateEligible": true
+  },
+  "seedSize": 1273,
+  "scenario": {
+    "id": "normal",
+    "browserBehaviorVersion": "connected-devices-v3-generator-evidence",
+    "durationMs": 600000,
+    "configuredSessions": 50,
+    "configuredRingsideSessions": 3
+  },
+  "supportedCeiling": "Not established",
+  "observation": {
+    "concurrentSessions": 50,
+    "ringsideSessions": 3,
+    "sessionLifecycle": {
+      "configuredSessions": 50,
+      "preparedSessions": 50,
+      "startedWorkflows": 50,
+      "completedWorkflows": 25,
+      "failedWorkflows": 25,
+      "peakActiveWorkflows": 38,
+      "configuredRingsideSessions": 3,
+      "preparedRingsideSessions": 3,
+      "startedRingsideWorkflows": 3,
+      "completedRingsideWorkflows": 0,
+      "failedRingsideWorkflows": 3,
+      "peakActiveRingsideWorkflows": 3,
+      "activityIntervals": [
+        {
+          "sequence": 16,
+          "ringside": false,
+          "startedAtMs": 1792777222399.5078,
+          "finishedAtMs": 1792777242861.586
+        },
+        {
+          "sequence": 0,
+          "ringside": true,
+          "startedAtMs": 1792777184053.84,
+          "finishedAtMs": 1792777665667.433
+        },
+        {
+          "sequence": 32,
+          "ringside": false,
+          "startedAtMs": 1792777184053.0808,
+          "finishedAtMs": 1792777784002.3774
+        },
+        {
+          "sequence": 48,
+          "ringside": false,
+          "startedAtMs": 1792777184053.1,
+          "finishedAtMs": 1792777784002.3853
+        },
+        {
+          "sequence": 17,
+          "ringside": false,
+          "startedAtMs": 1792777224800.9453,
+          "finishedAtMs": 1792777245114.1235
+        },
+        {
+          "sequence": 49,
+          "ringside": false,
+          "startedAtMs": 1792777301601.0273,
+          "finishedAtMs": 1792777322024.6094
+        },
+        {
+          "sequence": 1,
+          "ringside": true,
+          "startedAtMs": 1792777186401.5999,
+          "finishedAtMs": 1792777324956.595
+        },
+        {
+          "sequence": 33,
+          "ringside": false,
+          "startedAtMs": 1792777184099.3518,
+          "finishedAtMs": 1792777784000.6057
+        },
+        {
+          "sequence": 18,
+          "ringside": false,
+          "startedAtMs": 1792777227200.8708,
+          "finishedAtMs": 1792777247452.6064
+        },
+        {
+          "sequence": 2,
+          "ringside": true,
+          "startedAtMs": 1792777188800.7236,
+          "finishedAtMs": 1792777653829.0461
+        },
+        {
+          "sequence": 34,
+          "ringside": false,
+          "startedAtMs": 1792777184053.2722,
+          "finishedAtMs": 1792777784000.8845
+        },
+        {
+          "sequence": 3,
+          "ringside": false,
+          "startedAtMs": 1792777191199.217,
+          "finishedAtMs": 1792777195870.88
+        },
+        {
+          "sequence": 19,
+          "ringside": false,
+          "startedAtMs": 1792777229600.5205,
+          "finishedAtMs": 1792777250003.4006
+        },
+        {
+          "sequence": 35,
+          "ringside": false,
+          "startedAtMs": 1792777184100.9404,
+          "finishedAtMs": 1792777784000.3252
+        },
+        {
+          "sequence": 4,
+          "ringside": false,
+          "startedAtMs": 1792777193600.707,
+          "finishedAtMs": 1792777198397.5762
+        },
+        {
+          "sequence": 20,
+          "ringside": false,
+          "startedAtMs": 1792777232000.1704,
+          "finishedAtMs": 1792777252395.948
+        },
+        {
+          "sequence": 36,
+          "ringside": false,
+          "startedAtMs": 1792777184019.8203,
+          "finishedAtMs": 1792777784071.1711
+        },
+        {
+          "sequence": 5,
+          "ringside": false,
+          "startedAtMs": 1792777195999.7163,
+          "finishedAtMs": 1792777200191.776
+        },
+        {
+          "sequence": 21,
+          "ringside": false,
+          "startedAtMs": 1792777234400.23,
+          "finishedAtMs": 1792777254723.6123
+        },
+        {
+          "sequence": 37,
+          "ringside": false,
+          "startedAtMs": 1792777184080.4312,
+          "finishedAtMs": 1792777784033.1418
+        },
+        {
+          "sequence": 22,
+          "ringside": false,
+          "startedAtMs": 1792777236800.5461,
+          "finishedAtMs": 1792777257091.7334
+        },
+        {
+          "sequence": 6,
+          "ringside": false,
+          "startedAtMs": 1792777198400.6145,
+          "finishedAtMs": 1792777258868.5552
+        },
+        {
+          "sequence": 38,
+          "ringside": false,
+          "startedAtMs": 1792777184102.1501,
+          "finishedAtMs": 1792777784001.662
+        },
+        {
+          "sequence": 23,
+          "ringside": false,
+          "startedAtMs": 1792777239200.6372,
+          "finishedAtMs": 1792777259588.6821
+        },
+        {
+          "sequence": 7,
+          "ringside": false,
+          "startedAtMs": 1792777200801.0352,
+          "finishedAtMs": 1792777261449.055
+        },
+        {
+          "sequence": 39,
+          "ringside": false,
+          "startedAtMs": 1792777184082.8523,
+          "finishedAtMs": 1792777784000.1816
+        },
+        {
+          "sequence": 24,
+          "ringside": false,
+          "startedAtMs": 1792777241599.897,
+          "finishedAtMs": 1792777261933.156
+        },
+        {
+          "sequence": 8,
+          "ringside": false,
+          "startedAtMs": 1792777203199.939,
+          "finishedAtMs": 1792777263654.8555
+        },
+        {
+          "sequence": 40,
+          "ringside": false,
+          "startedAtMs": 1792777184055.7576,
+          "finishedAtMs": 1792777784000.9604
+        },
+        {
+          "sequence": 25,
+          "ringside": false,
+          "startedAtMs": 1792777244001.5496,
+          "finishedAtMs": 1792777264411.3894
+        },
+        {
+          "sequence": 9,
+          "ringside": false,
+          "startedAtMs": 1792777205600.1467,
+          "finishedAtMs": 1792777266191.4622
+        },
+        {
+          "sequence": 41,
+          "ringside": false,
+          "startedAtMs": 1792777184081.2124,
+          "finishedAtMs": 1792777784000.6377
+        },
+        {
+          "sequence": 26,
+          "ringside": false,
+          "startedAtMs": 1792777246401.0522,
+          "finishedAtMs": 1792777266676.5366
+        },
+        {
+          "sequence": 10,
+          "ringside": false,
+          "startedAtMs": 1792777208000.296,
+          "finishedAtMs": 1792777268342.4692
+        },
+        {
+          "sequence": 42,
+          "ringside": false,
+          "startedAtMs": 1792777184071.6936,
+          "finishedAtMs": 1792777784001.182
+        },
+        {
+          "sequence": 11,
+          "ringside": false,
+          "startedAtMs": 1792777210400.1143,
+          "finishedAtMs": 1792777214319.0916
+        },
+        {
+          "sequence": 27,
+          "ringside": false,
+          "startedAtMs": 1792777248800.2917,
+          "finishedAtMs": 1792777269216.9902
+        },
+        {
+          "sequence": 43,
+          "ringside": false,
+          "startedAtMs": 1792777184043.117,
+          "finishedAtMs": 1792777784046.5068
+        },
+        {
+          "sequence": 12,
+          "ringside": false,
+          "startedAtMs": 1792777212799.9492,
+          "finishedAtMs": 1792777233143.952
+        },
+        {
+          "sequence": 28,
+          "ringside": false,
+          "startedAtMs": 1792777184095.4814,
+          "finishedAtMs": 1792777784001.6543
+        },
+        {
+          "sequence": 44,
+          "ringside": false,
+          "startedAtMs": 1792777184095.4978,
+          "finishedAtMs": 1792777784001.6628
+        },
+        {
+          "sequence": 13,
+          "ringside": false,
+          "startedAtMs": 1792777215201.0244,
+          "finishedAtMs": 1792777235627.6064
+        },
+        {
+          "sequence": 29,
+          "ringside": false,
+          "startedAtMs": 1792777184019.225,
+          "finishedAtMs": 1792777784001.8147
+        },
+        {
+          "sequence": 45,
+          "ringside": false,
+          "startedAtMs": 1792777184019.2434,
+          "finishedAtMs": 1792777784001.825
+        },
+        {
+          "sequence": 14,
+          "ringside": false,
+          "startedAtMs": 1792777217600.0222,
+          "finishedAtMs": 1792777237890.0447
+        },
+        {
+          "sequence": 30,
+          "ringside": false,
+          "startedAtMs": 1792777184077.3516,
+          "finishedAtMs": 1792777784001.6033
+        },
+        {
+          "sequence": 46,
+          "ringside": false,
+          "startedAtMs": 1792777184077.3672,
+          "finishedAtMs": 1792777784001.61
+        },
+        {
+          "sequence": 15,
+          "ringside": false,
+          "startedAtMs": 1792777220000.1729,
+          "finishedAtMs": 1792777240414.0876
+        },
+        {
+          "sequence": 31,
+          "ringside": false,
+          "startedAtMs": 1792777184026.4197,
+          "finishedAtMs": 1792777784001.72
+        },
+        {
+          "sequence": 47,
+          "ringside": false,
+          "startedAtMs": 1792777184026.4387,
+          "finishedAtMs": 1792777784001.7302
+        }
+      ]
+    },
+    "generator": {
+      "shards": [
+        {
+          "shardIndex": 0,
+          "samplingWindow": "active-load",
+          "logicalCpuCount": 4,
+          "samplingDurationMs": 599949,
+          "sampleCount": 599,
+          "hostSampleCoveragePercent": 100,
+          "hostCpuP95Percent": 31.854,
+          "hostCpuPeakPercent": 77.378,
+          "hostMemoryPeakPercent": 13.212,
+          "hostLoad1mPeak": 2.12,
+          "eventLoopDelayP95Ms": 20.808,
+          "eventLoopDelayMaxMs": 53.445,
+          "browserControlP95Ms": 6.451,
+          "browserControlMaxMs": 65.726,
+          "browserControlAttempts": 599,
+          "browserControlSamples": 599,
+          "browserControlFailures": 0,
+          "browserControlAttemptCoveragePercent": 100,
+          "contextPreparationMs": 9534,
+          "startHeadroomMs": 1277287
+        },
+        {
+          "shardIndex": 1,
+          "samplingWindow": "active-load",
+          "logicalCpuCount": 4,
+          "samplingDurationMs": 599901,
+          "sampleCount": 599,
+          "hostSampleCoveragePercent": 100,
+          "hostCpuP95Percent": 34.031,
+          "hostCpuPeakPercent": 78.701,
+          "hostMemoryPeakPercent": 14.748,
+          "hostLoad1mPeak": 1.84,
+          "eventLoopDelayP95Ms": 20.791,
+          "eventLoopDelayMaxMs": 45.351,
+          "browserControlP95Ms": 5.855,
+          "browserControlMaxMs": 62.628,
+          "browserControlAttempts": 599,
+          "browserControlSamples": 599,
+          "browserControlFailures": 0,
+          "browserControlAttemptCoveragePercent": 100,
+          "contextPreparationMs": 5827,
+          "startHeadroomMs": 711068
+        },
+        {
+          "shardIndex": 2,
+          "samplingWindow": "active-load",
+          "logicalCpuCount": 4,
+          "samplingDurationMs": 599947,
+          "sampleCount": 599,
+          "hostSampleCoveragePercent": 100,
+          "hostCpuP95Percent": 16.113,
+          "hostCpuPeakPercent": 60.309,
+          "hostMemoryPeakPercent": 12.711,
+          "hostLoad1mPeak": 0.43,
+          "eventLoopDelayP95Ms": 20.742,
+          "eventLoopDelayMaxMs": 45.023,
+          "browserControlP95Ms": 3.719,
+          "browserControlMaxMs": 15.426,
+          "browserControlAttempts": 599,
+          "browserControlSamples": 599,
+          "browserControlFailures": 0,
+          "browserControlAttemptCoveragePercent": 100,
+          "contextPreparationMs": 5585,
+          "startHeadroomMs": 1338347
+        },
+        {
+          "shardIndex": 3,
+          "samplingWindow": "active-load",
+          "logicalCpuCount": 4,
+          "samplingDurationMs": 599899,
+          "sampleCount": 599,
+          "hostSampleCoveragePercent": 100,
+          "hostCpuP95Percent": 16.162,
+          "hostCpuPeakPercent": 76.031,
+          "hostMemoryPeakPercent": 12.184,
+          "hostLoad1mPeak": 0.48,
+          "eventLoopDelayP95Ms": 20.693,
+          "eventLoopDelayMaxMs": 39.682,
+          "browserControlP95Ms": 4.558,
+          "browserControlMaxMs": 32.266,
+          "browserControlAttempts": 599,
+          "browserControlSamples": 599,
+          "browserControlFailures": 0,
+          "browserControlAttemptCoveragePercent": 100,
+          "contextPreparationMs": 7846,
+          "startHeadroomMs": 1276708
+        },
+        {
+          "shardIndex": 4,
+          "samplingWindow": "active-load",
+          "logicalCpuCount": 4,
+          "samplingDurationMs": 600051,
+          "sampleCount": 599,
+          "hostSampleCoveragePercent": 99.833,
+          "hostCpuP95Percent": 13.438,
+          "hostCpuPeakPercent": 79.576,
+          "hostMemoryPeakPercent": 12.56,
+          "hostLoad1mPeak": 0.45,
+          "eventLoopDelayP95Ms": 20.627,
+          "eventLoopDelayMaxMs": 37.061,
+          "browserControlP95Ms": 4.654,
+          "browserControlMaxMs": 17.781,
+          "browserControlAttempts": 599,
+          "browserControlSamples": 599,
+          "browserControlFailures": 0,
+          "browserControlAttemptCoveragePercent": 99.833,
+          "contextPreparationMs": 6993,
+          "startHeadroomMs": 1271328
+        },
+        {
+          "shardIndex": 5,
+          "samplingWindow": "active-load",
+          "logicalCpuCount": 4,
+          "samplingDurationMs": 599953,
+          "sampleCount": 599,
+          "hostSampleCoveragePercent": 100,
+          "hostCpuP95Percent": 13.111,
+          "hostCpuPeakPercent": 66.667,
+          "hostMemoryPeakPercent": 12.326,
+          "hostLoad1mPeak": 0.67,
+          "eventLoopDelayP95Ms": 20.611,
+          "eventLoopDelayMaxMs": 29.819,
+          "browserControlP95Ms": 3.665,
+          "browserControlMaxMs": 11.839,
+          "browserControlAttempts": 599,
+          "browserControlSamples": 599,
+          "browserControlFailures": 0,
+          "browserControlAttemptCoveragePercent": 100,
+          "contextPreparationMs": 7582,
+          "startHeadroomMs": 1273438
+        },
+        {
+          "shardIndex": 6,
+          "samplingWindow": "active-load",
+          "logicalCpuCount": 4,
+          "samplingDurationMs": 599899,
+          "sampleCount": 599,
+          "hostSampleCoveragePercent": 100,
+          "hostCpuP95Percent": 9.367,
+          "hostCpuPeakPercent": 55.128,
+          "hostMemoryPeakPercent": 12.223,
+          "hostLoad1mPeak": 0.22,
+          "eventLoopDelayP95Ms": 20.595,
+          "eventLoopDelayMaxMs": 31.867,
+          "browserControlP95Ms": 5.384,
+          "browserControlMaxMs": 15.201,
+          "browserControlAttempts": 599,
+          "browserControlSamples": 599,
+          "browserControlFailures": 0,
+          "browserControlAttemptCoveragePercent": 100,
+          "contextPreparationMs": 7819,
+          "startHeadroomMs": 1324352
+        },
+        {
+          "shardIndex": 7,
+          "samplingWindow": "active-load",
+          "logicalCpuCount": 4,
+          "samplingDurationMs": 599917,
+          "sampleCount": 599,
+          "hostSampleCoveragePercent": 100,
+          "hostCpuP95Percent": 13.317,
+          "hostCpuPeakPercent": 67.204,
+          "hostMemoryPeakPercent": 11.966,
+          "hostLoad1mPeak": 0.42,
+          "eventLoopDelayP95Ms": 20.644,
+          "eventLoopDelayMaxMs": 34.669,
+          "browserControlP95Ms": 4.55,
+          "browserControlMaxMs": 15.051,
+          "browserControlAttempts": 599,
+          "browserControlSamples": 599,
+          "browserControlFailures": 0,
+          "browserControlAttemptCoveragePercent": 100,
+          "contextPreparationMs": 6570,
+          "startHeadroomMs": 666363
+        },
+        {
+          "shardIndex": 8,
+          "samplingWindow": "active-load",
+          "logicalCpuCount": 4,
+          "samplingDurationMs": 599946,
+          "sampleCount": 599,
+          "hostSampleCoveragePercent": 100,
+          "hostCpuP95Percent": 11.055,
+          "hostCpuPeakPercent": 57.513,
+          "hostMemoryPeakPercent": 11.909,
+          "hostLoad1mPeak": 0.1,
+          "eventLoopDelayP95Ms": 20.644,
+          "eventLoopDelayMaxMs": 28.459,
+          "browserControlP95Ms": 3.565,
+          "browserControlMaxMs": 25.44,
+          "browserControlAttempts": 599,
+          "browserControlSamples": 599,
+          "browserControlFailures": 0,
+          "browserControlAttemptCoveragePercent": 100,
+          "contextPreparationMs": 8406,
+          "startHeadroomMs": 1282290
+        },
+        {
+          "shardIndex": 9,
+          "samplingWindow": "active-load",
+          "logicalCpuCount": 4,
+          "samplingDurationMs": 599919,
+          "sampleCount": 599,
+          "hostSampleCoveragePercent": 100,
+          "hostCpuP95Percent": 14.43,
+          "hostCpuPeakPercent": 73.118,
+          "hostMemoryPeakPercent": 11.957,
+          "hostLoad1mPeak": 0.64,
+          "eventLoopDelayP95Ms": 20.677,
+          "eventLoopDelayMaxMs": 34.963,
+          "browserControlP95Ms": 4.321,
+          "browserControlMaxMs": 83.421,
+          "browserControlAttempts": 599,
+          "browserControlSamples": 599,
+          "browserControlFailures": 0,
+          "browserControlAttemptCoveragePercent": 100,
+          "contextPreparationMs": 7605,
+          "startHeadroomMs": 1271306
+        },
+        {
+          "shardIndex": 10,
+          "samplingWindow": "active-load",
+          "logicalCpuCount": 4,
+          "samplingDurationMs": 599930,
+          "sampleCount": 599,
+          "hostSampleCoveragePercent": 100,
+          "hostCpuP95Percent": 10.276,
+          "hostCpuPeakPercent": 57.662,
+          "hostMemoryPeakPercent": 11.765,
+          "hostLoad1mPeak": 0.22,
+          "eventLoopDelayP95Ms": 20.595,
+          "eventLoopDelayMaxMs": 31.064,
+          "browserControlP95Ms": 3.871,
+          "browserControlMaxMs": 9.039,
+          "browserControlAttempts": 599,
+          "browserControlSamples": 599,
+          "browserControlFailures": 0,
+          "browserControlAttemptCoveragePercent": 100,
+          "contextPreparationMs": 5306,
+          "startHeadroomMs": 1338093
+        },
+        {
+          "shardIndex": 11,
+          "samplingWindow": "active-load",
+          "logicalCpuCount": 4,
+          "samplingDurationMs": 600003,
+          "sampleCount": 599,
+          "hostSampleCoveragePercent": 99.833,
+          "hostCpuP95Percent": 14.43,
+          "hostCpuPeakPercent": 79.319,
+          "hostMemoryPeakPercent": 12.246,
+          "hostLoad1mPeak": 0.64,
+          "eventLoopDelayP95Ms": 20.693,
+          "eventLoopDelayMaxMs": 51.02,
+          "browserControlP95Ms": 4.427,
+          "browserControlMaxMs": 63.214,
+          "browserControlAttempts": 599,
+          "browserControlSamples": 599,
+          "browserControlFailures": 0,
+          "browserControlAttemptCoveragePercent": 99.833,
+          "contextPreparationMs": 8353,
+          "startHeadroomMs": 1272175
+        },
+        {
+          "shardIndex": 12,
+          "samplingWindow": "active-load",
+          "logicalCpuCount": 4,
+          "samplingDurationMs": 599906,
+          "sampleCount": 599,
+          "hostSampleCoveragePercent": 100,
+          "hostCpuP95Percent": 4,
+          "hostCpuPeakPercent": 63.708,
+          "hostMemoryPeakPercent": 11.027,
+          "hostLoad1mPeak": 0.56,
+          "eventLoopDelayP95Ms": 20.529,
+          "eventLoopDelayMaxMs": 28.803,
+          "browserControlP95Ms": 3.921,
+          "browserControlMaxMs": 43.215,
+          "browserControlAttempts": 599,
+          "browserControlSamples": 599,
+          "browserControlFailures": 0,
+          "browserControlAttemptCoveragePercent": 100,
+          "contextPreparationMs": 6310,
+          "startHeadroomMs": 1241153
+        },
+        {
+          "shardIndex": 13,
+          "samplingWindow": "active-load",
+          "logicalCpuCount": 4,
+          "samplingDurationMs": 599982,
+          "sampleCount": 599,
+          "hostSampleCoveragePercent": 100,
+          "hostCpuP95Percent": 3.023,
+          "hostCpuPeakPercent": 65.039,
+          "hostMemoryPeakPercent": 11,
+          "hostLoad1mPeak": 0.08,
+          "eventLoopDelayP95Ms": 20.562,
+          "eventLoopDelayMaxMs": 37.618,
+          "browserControlP95Ms": 4.13,
+          "browserControlMaxMs": 14.926,
+          "browserControlAttempts": 599,
+          "browserControlSamples": 599,
+          "browserControlFailures": 0,
+          "browserControlAttemptCoveragePercent": 100,
+          "contextPreparationMs": 8276,
+          "startHeadroomMs": 1282481
+        },
+        {
+          "shardIndex": 14,
+          "samplingWindow": "active-load",
+          "logicalCpuCount": 4,
+          "samplingDurationMs": 599924,
+          "sampleCount": 599,
+          "hostSampleCoveragePercent": 100,
+          "hostCpuP95Percent": 3,
+          "hostCpuPeakPercent": 49.738,
+          "hostMemoryPeakPercent": 10.951,
+          "hostLoad1mPeak": 0.08,
+          "eventLoopDelayP95Ms": 20.496,
+          "eventLoopDelayMaxMs": 32.539,
+          "browserControlP95Ms": 3.505,
+          "browserControlMaxMs": 9.19,
+          "browserControlAttempts": 599,
+          "browserControlSamples": 599,
+          "browserControlFailures": 0,
+          "browserControlAttemptCoveragePercent": 100,
+          "contextPreparationMs": 6526,
+          "startHeadroomMs": 747328
+        },
+        {
+          "shardIndex": 15,
+          "samplingWindow": "active-load",
+          "logicalCpuCount": 4,
+          "samplingDurationMs": 599975,
+          "sampleCount": 599,
+          "hostSampleCoveragePercent": 100,
+          "hostCpuP95Percent": 3.655,
+          "hostCpuPeakPercent": 61.499,
+          "hostMemoryPeakPercent": 11.173,
+          "hostLoad1mPeak": 0.16,
+          "eventLoopDelayP95Ms": 20.529,
+          "eventLoopDelayMaxMs": 30.048,
+          "browserControlP95Ms": 4.265,
+          "browserControlMaxMs": 36.782,
+          "browserControlAttempts": 599,
+          "browserControlSamples": 599,
+          "browserControlFailures": 0,
+          "browserControlAttemptCoveragePercent": 100,
+          "contextPreparationMs": 9234,
+          "startHeadroomMs": 1277618
+        }
+      ]
+    },
+    "requestCount": 26655,
+    "virtualUserRequestCount": 3324,
+    "virtualUserSkippedPasses": 85,
+    "browserRequestCount": 23331,
+    "failedRequestCount": 1001,
+    "apiErrorCounts": [
+      {
+        "status": 0,
+        "code": "transport",
+        "count": 961
+      },
+      {
+        "status": 500,
+        "code": "57014",
+        "count": 20
+      },
+      {
+        "status": 304,
+        "code": "none",
+        "count": 11
+      },
+      {
+        "status": 500,
+        "code": "none",
+        "count": 5
+      },
+      {
+        "status": 400,
+        "code": "RS429",
+        "count": 4
+      }
+    ],
+    "workflowFailures": 25,
+    "workflowFailureDetails": [
+      {
+        "workload": "exhibitor-check-in",
+        "route": "/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000032",
+        "message": "locator.waitFor: Timeout 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').filter({ hasText: '2061' }).first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "exhibitor-check-in",
+        "route": "/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000032",
+        "message": "locator.waitFor: Timeout 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').filter({ hasText: '2062' }).first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "exhibitor-check-in",
+        "route": "/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000033",
+        "message": "locator.waitFor: Timeout 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').filter({ hasText: '2061' }).first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "exhibitor-check-in",
+        "route": "/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000033",
+        "message": "locator.waitFor: Timeout 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').filter({ hasText: '2062' }).first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "exhibitor-check-in",
+        "route": "/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000034",
+        "message": "locator.waitFor: Timeout 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').filter({ hasText: '2062' }).first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "operations-read",
+        "route": "/shows/dededede-0000-0000-0000-000000000010/show-day",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('heading', { name: 'Show Desk', exact: true }) to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "ringside-scoring",
+        "route": "/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000032/score/a1090000-0000-0000-0002-000000000041",
+        "message": "locator.waitFor: Timeout 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('submit-btn') to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "ringside-scoring",
+        "route": "/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000033/score/a1090000-0000-0000-0002-000000000010",
+        "message": "locator.waitFor: Timeout 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('submit-btn') to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "ringside-scoring",
+        "route": "/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000034/score/a1090000-0000-0000-0002-000000000043",
+        "message": "locator.waitFor: Timeout 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('submit-btn') to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "run-order-read",
+        "route": "/at-show/a1090000-0000-0000-0010-100000000001/class/a1090000-0000-0000-0012-100000000001",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "run-order-read",
+        "route": "/at-show/a1090000-0000-0000-0010-100000000001/class/a1090000-0000-0000-0012-100000000002",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "run-order-read",
+        "route": "/at-show/a1090000-0000-0000-0010-100000000001/class/a1090000-0000-0000-0012-100000000003",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "run-order-read",
+        "route": "/at-show/a1090000-0000-0000-0010-100000000001/class/a1090000-0000-0000-0012-100000000004",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "run-order-read",
+        "route": "/at-show/a1090000-0000-0000-0010-200000000001/class/a1090000-0000-0000-0012-200000000001",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "run-order-read",
+        "route": "/at-show/a1090000-0000-0000-0010-200000000001/class/a1090000-0000-0000-0012-200000000002",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "run-order-read",
+        "route": "/at-show/a1090000-0000-0000-0010-200000000001/class/a1090000-0000-0000-0012-200000000003",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "run-order-read",
+        "route": "/at-show/a1090000-0000-0000-0010-200000000001/class/a1090000-0000-0000-0012-200000000004",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "run-order-read",
+        "route": "/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000032",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "run-order-read",
+        "route": "/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000033",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "run-order-read",
+        "route": "/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000034",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "run-order-read",
+        "route": "/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000035",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "run-order-read",
+        "route": "/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000036",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "run-order-read",
+        "route": "/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000037",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "run-order-read",
+        "route": "/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000038",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').first() to be visible\u001b[22m\n",
+        "count": 1
+      },
+      {
+        "workload": "run-order-read",
+        "route": "/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000039",
+        "message": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('dog-card').first() to be visible\u001b[22m\n",
+        "count": 1
+      }
+    ],
+    "scoringWriteP95Ms": 13934.628999999859,
+    "apiP95Ms": 24217,
+    "pageP95Ms": 423.1390319999773,
+    "errorRate": 0.03845577211394303,
+    "throughputRps": 44.42129822514791,
+    "availabilityPercent": 96.1544227886057,
+    "scoringWriteAttempts": 33,
+    "serializationFailures": 0,
+    "retryAttempts": 14,
+    "retrySuccesses": 7,
+    "exhaustedRetries": 0,
+    "maxReplicationQueueDepth": 11,
+    "finalReplicationQueueDepth": 17,
+    "queueTelemetryFailures": 0,
+    "expectedPersistedScores": 12,
+    "persistedScores": null,
+    "persistenceFailures": [
+      {
+        "kind": "transport",
+        "status": 0,
+        "entryCount": 5,
+        "shardIndex": 0
+      },
+      {
+        "kind": "transport",
+        "status": 0,
+        "entryCount": 5,
+        "shardIndex": 2
+      }
+    ],
+    "platform": {
+      "peakCpuPercent": 99.78154014199745,
+      "peakIoPercent": 100,
+      "peakConnections": 35,
+      "observedPeakCpuPercent": 99.78154014199745,
+      "observedPeakIoPercent": 100,
+      "observedPeakConnections": 35,
+      "connectionCap": 60,
+      "statementDeltas": [
+        {
+          "queryId": "-7607542805221317943",
+          "calls": 2017,
+          "rows": 2017,
+          "totalExecTimeMs": 285025.068988,
+          "meanExecTimeMs": 141.3113876985622
+        },
+        {
+          "queryId": "5944380106810346075",
+          "calls": 307,
+          "rows": 307,
+          "totalExecTimeMs": 171060.572781,
+          "meanExecTimeMs": 557.2005628045603
+        },
+        {
+          "queryId": "-3399507815843643207",
+          "calls": 308,
+          "rows": 308,
+          "totalExecTimeMs": 123504.854816,
+          "meanExecTimeMs": 400.98978836363636
+        },
+        {
+          "queryId": "-4321479235382101536",
+          "calls": 346,
+          "rows": 346,
+          "totalExecTimeMs": 96555.493178,
+          "meanExecTimeMs": 279.0621190115607
+        },
+        {
+          "queryId": "-3985746924370079985",
+          "calls": 315,
+          "rows": 315,
+          "totalExecTimeMs": 94781.580114,
+          "meanExecTimeMs": 300.89390512380953
+        },
+        {
+          "queryId": "3075335158504199438",
+          "calls": 1297,
+          "rows": 1297,
+          "totalExecTimeMs": 80293.13454999999,
+          "meanExecTimeMs": 61.90681152659984
+        },
+        {
+          "queryId": "3246570017965668490",
+          "calls": 36,
+          "rows": 36,
+          "totalExecTimeMs": 79914.889667,
+          "meanExecTimeMs": 2219.8580463055555
+        },
+        {
+          "queryId": "2312388522132730346",
+          "calls": 965,
+          "rows": 965,
+          "totalExecTimeMs": 68906.961188,
+          "meanExecTimeMs": 71.4061773968912
+        },
+        {
+          "queryId": "3605280759005065786",
+          "calls": 328,
+          "rows": 328,
+          "totalExecTimeMs": 55066.522961,
+          "meanExecTimeMs": 167.8857407347561
+        },
+        {
+          "queryId": "-7426053748286710977",
+          "calls": 256,
+          "rows": 256,
+          "totalExecTimeMs": 54001.356271,
+          "meanExecTimeMs": 210.94279793359374
+        },
+        {
+          "queryId": "-1573382923617982040",
+          "calls": 127,
+          "rows": 127,
+          "totalExecTimeMs": 51678.607387000004,
+          "meanExecTimeMs": 406.91816840157486
+        },
+        {
+          "queryId": "-7152055476691439352",
+          "calls": 305,
+          "rows": 305,
+          "totalExecTimeMs": 47603.14085800011,
+          "meanExecTimeMs": 156.0758716655741
+        },
+        {
+          "queryId": "-6964693044948939388",
+          "calls": 301,
+          "rows": 301,
+          "totalExecTimeMs": 30636.972429000012,
+          "meanExecTimeMs": 101.78396155813958
+        },
+        {
+          "queryId": "-4276146006797283625",
+          "calls": 91,
+          "rows": 91,
+          "totalExecTimeMs": 27790.20432,
+          "meanExecTimeMs": 305.38686065934064
+        },
+        {
+          "queryId": "-6902551688325015413",
+          "calls": 307,
+          "rows": 307,
+          "totalExecTimeMs": 24978.330675,
+          "meanExecTimeMs": 81.36264063517916
+        },
+        {
+          "queryId": "-8108061731731942455",
+          "calls": 36,
+          "rows": 36,
+          "totalExecTimeMs": 24456.497201,
+          "meanExecTimeMs": 679.3471444722222
+        },
+        {
+          "queryId": "-2316465199323175757",
+          "calls": 290,
+          "rows": 290,
+          "totalExecTimeMs": 22485.524612,
+          "meanExecTimeMs": 77.53629176551725
+        },
+        {
+          "queryId": "-7606604437509545054",
+          "calls": 31,
+          "rows": 31,
+          "totalExecTimeMs": 18615.990937,
+          "meanExecTimeMs": 600.5158366774193
+        },
+        {
+          "queryId": "-8653883486743392826",
+          "calls": 79,
+          "rows": 79,
+          "totalExecTimeMs": 17797.854819,
+          "meanExecTimeMs": 225.2893015063291
+        },
+        {
+          "queryId": "-6404283100361559094",
+          "calls": 67,
+          "rows": 67,
+          "totalExecTimeMs": 17462.465341000003,
+          "meanExecTimeMs": 260.63381105970154
+        }
+      ],
+      "scheduledWriteDeltas": [
+        {
+          "source": "cron:ringside-containment-sampler",
+          "unit": "job_runs",
+          "before": 0,
+          "after": 13,
+          "writes": 13
+        },
+        {
+          "source": "cron:access-request-emails",
+          "unit": "job_runs",
+          "before": 0,
+          "after": 3,
+          "writes": 3
+        },
+        {
+          "source": "cron:class-results-push-retry",
+          "unit": "job_runs",
+          "before": 0,
+          "after": 3,
+          "writes": 3
+        },
+        {
+          "source": "cron:continuous-health-check",
+          "unit": "job_runs",
+          "before": 0,
+          "after": 3,
+          "writes": 3
+        },
+        {
+          "source": "health:cron-health-check:continuous",
+          "unit": "rows",
+          "before": 0,
+          "after": 2,
+          "writes": 2
+        },
+        {
+          "source": "cron:trial-packet-show-eve",
+          "unit": "job_runs",
+          "before": 0,
+          "after": 1,
+          "writes": 1
+        },
+        {
+          "source": "cron:waitlist-offer-expiration",
+          "unit": "job_runs",
+          "before": 0,
+          "after": 1,
+          "writes": 1
+        }
+      ],
+      "scheduledWriteCapture": {
+        "enabled": true,
+        "baselineSucceeded": true,
+        "finalSucceeded": true
+      },
+      "resourceSampling": {
+        "attempts": 14,
+        "succeeded": 14,
+        "retried": 2,
+        "failures": []
+      },
+      "connectionSampling": {
+        "attempts": 383,
+        "succeeded": 383
+      },
+      "resourceCoveragePercent": 100,
+      "connectionCoveragePercent": 100
+    }
+  },
+  "evaluation": {
+    "passed": false,
+    "verdict": "fail",
+    "noVerdictReasons": [],
+    "pendingDerivation": [
+      "Scoring-write p95 exceeded or was missing.",
+      "API p95 exceeded or was missing."
+    ],
+    "gateEligible": false,
+    "informational": true,
+    "gate": "G9",
+    "failures": [
+      "Availability target was not met.",
+      "Replication queues did not drain to zero.",
+      "Persisted scoring results did not reconcile."
+    ],
+    "derived": {
+      "serializationFailureRate": 0,
+      "generatorAttributionValid": true,
+      "saturatedGeneratorShards": []
+    }
+  }
+}

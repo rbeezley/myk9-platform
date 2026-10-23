@@ -6,6 +6,7 @@ import {
   BUDGETS,
   evaluateBudgets,
   collectBundleStats,
+  parsePrecacheUrls,
 } from '../../../scripts/check-bundle-budget.js';
 
 describe('check-bundle-budget — evaluateBudgets', () => {
@@ -105,5 +106,116 @@ describe('check-bundle-budget — collectBundleStats', () => {
 
   it('throws a clear error when the build output is missing', () => {
     expect(() => collectBundleStats(path.join(distDir, 'nope'))).toThrow(/Run the build/);
+  });
+});
+
+describe('check-bundle-budget — precache rules', () => {
+  const within = {
+    initialJsKb: 3000,
+    initialCssKb: 300,
+    largestChunk: { file: 'vendor.js', kb: 1400 },
+    precacheTotalKb: 9000,
+    largestNonCodePrecached: { file: 'pwa-512x512.png', kb: 40 },
+  };
+
+  it('pins the MYK9-1356 ceilings', () => {
+    expect(BUDGETS.precacheTotalKb).toBe(12288);
+    expect(BUDGETS.precacheNonCodeFileKb).toBe(1024);
+  });
+
+  it('passes when the precache is within both ceilings', () => {
+    expect(evaluateBudgets(within, BUDGETS)).toEqual([]);
+  });
+
+  it('passes at exactly the ceilings (strictly-greater gate)', () => {
+    const atLimit = {
+      ...within,
+      precacheTotalKb: BUDGETS.precacheTotalKb,
+      largestNonCodePrecached: { file: 'a.png', kb: BUDGETS.precacheNonCodeFileKb },
+    };
+    expect(evaluateBudgets(atLimit, BUDGETS)).toEqual([]);
+  });
+
+  it('flags a precache total over 12 MB', () => {
+    const v = evaluateBudgets({ ...within, precacheTotalKb: BUDGETS.precacheTotalKb + 1 }, BUDGETS);
+    expect(v).toHaveLength(1);
+    expect(v[0].metric).toBe('Precache total');
+    expect(v[0].actual).toBe(BUDGETS.precacheTotalKb + 1);
+  });
+
+  it('flags a non-code file over 1 MB and names it', () => {
+    const v = evaluateBudgets(
+      { ...within, largestNonCodePrecached: { file: 'images/hero.png', kb: 2200 } },
+      BUDGETS
+    );
+    expect(v).toHaveLength(1);
+    expect(v[0].metric).toContain('images/hero.png');
+    expect(v[0].budget).toBe(BUDGETS.precacheNonCodeFileKb);
+  });
+
+  it('skips precache rules when the stats carry no precache facts', () => {
+    const plain = {
+      initialJsKb: within.initialJsKb,
+      initialCssKb: within.initialCssKb,
+      largestChunk: within.largestChunk,
+    };
+    expect(evaluateBudgets(plain, BUDGETS)).toEqual([]);
+  });
+});
+
+describe('check-bundle-budget — parsePrecacheUrls', () => {
+  it('extracts url pairs from minified workbox manifest output, deduped and normalised', () => {
+    const sw =
+      'x([{"revision":null,"url":"assets/scripts/a-1.js"},{"revision":"abc","url":"/index.html"},' +
+      '{"revision":"d","url":"stats.html?__WB_REVISION__=d"},{"revision":null,"url":"assets/scripts/a-1.js"}]);' +
+      'icon:"/pwa-192x192.png"';
+    expect(parsePrecacheUrls(sw)).toEqual(['assets/scripts/a-1.js', 'index.html', 'stats.html']);
+  });
+});
+
+describe('check-bundle-budget — collectBundleStats precache manifest', () => {
+  let distDir: string;
+
+  beforeAll(() => {
+    distDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bundle-budget-sw-'));
+    fs.mkdirSync(path.join(distDir, 'assets/scripts'), { recursive: true });
+    const write = (rel: string, kb: number) =>
+      fs.writeFileSync(path.join(distDir, rel), Buffer.alloc(kb * 1024));
+    write('assets/scripts/index-A.js', 100);
+    write('assets/scripts/lazy-B.js', 300);
+    write('stats.html', 4500);
+    write('pwa-192x192.png', 20);
+    write('not-precached.pdf', 3000); // on disk but absent from the manifest
+    fs.writeFileSync(
+      path.join(distDir, 'index.html'),
+      '<!doctype html><script type="module" src="/assets/scripts/index-A.js"></script>'
+    );
+    fs.writeFileSync(
+      path.join(distDir, 'sw-custom.js'),
+      'precache([{"url":"assets/scripts/index-A.js"},{"url":"assets/scripts/lazy-B.js"},' +
+        '{"url":"stats.html"},{"url":"pwa-192x192.png"},{"url":"gone.png"}])'
+    );
+  });
+
+  afterAll(() => {
+    fs.rmSync(distDir, { recursive: true, force: true });
+  });
+
+  it('totals only manifest files that exist and reports the largest non-code one', () => {
+    const stats = collectBundleStats(distDir);
+    expect(stats.precacheManifestFound).toBe(true);
+    expect(stats.precacheFileCount).toBe(4);
+    expect(stats.precacheTotalKb).toBe(100 + 300 + 4500 + 20);
+    expect(stats.largestNonCodePrecached).toEqual({ file: 'stats.html', kb: 4500 });
+  });
+
+  it('turns a precached treemap into a budget violation end to end', () => {
+    const v = evaluateBudgets(collectBundleStats(distDir), BUDGETS);
+    expect(v.map(x => x.metric)).toEqual(['Largest non-code precached file (stats.html)']);
+  });
+
+  it('reports no manifest when dist has no sw-custom.js', () => {
+    fs.rmSync(path.join(distDir, 'sw-custom.js'));
+    expect(collectBundleStats(distDir).precacheManifestFound).toBe(false);
   });
 });

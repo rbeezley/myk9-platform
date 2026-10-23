@@ -57,7 +57,9 @@ export default defineConfig({
       filename: 'sw-custom.ts',
       registerType: 'prompt',
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,pdf}'],
+        // No `pdf`: registry forms are fetched on demand and cached at runtime by
+        // sw-custom.ts (CacheFirst), not precached for every first visit (MYK9-1356).
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
         globIgnores: ['landing/**'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit for large chunks
       },
@@ -76,14 +78,19 @@ export default defineConfig({
         enabled: false,
       },
     }),
-    // Bundle analyzer - generates stats.html
-    visualizer({
-      filename: 'dist/stats.html',
-      open: process.env.ANALYZE_BUNDLE === 'true',
-      gzipSize: true,
-      brotliSize: true,
-      template: 'treemap', // Options: treemap, sunburst, network
-    }) as PluginOption,
+    // Bundle analyzer - opt-in (`pnpm build:analyze`). Unconditionally emitting
+    // dist/stats.html shipped a 4.5 MB treemap and precached it (MYK9-1356).
+    ...(process.env.ANALYZE_BUNDLE === 'true'
+      ? [
+          visualizer({
+            filename: 'dist/stats.html',
+            open: true,
+            gzipSize: true,
+            brotliSize: true,
+            template: 'treemap', // Options: treemap, sunburst, network
+          }) as PluginOption,
+        ]
+      : []),
     ...(shouldUploadSentrySourceMaps
       ? [
           sentryVitePlugin({

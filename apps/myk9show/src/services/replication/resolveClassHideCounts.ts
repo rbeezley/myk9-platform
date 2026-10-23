@@ -2,6 +2,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/utils/logger';
 import { getTrialRegistry } from '@/features/registries';
 import { readNow, type ShareRead } from '@/services/database/_shared/shareInFlight';
+import type { ClassTrialRow } from './resolveClassTrials';
 
 interface HideCountClassRow {
   id: string;
@@ -9,12 +10,6 @@ interface HideCountClassRow {
   element?: string | null;
   level?: string | null;
   section?: string | null;
-}
-
-interface HideCountTrialRow {
-  id: string;
-  show_id: string | null;
-  registry_id: string | null;
 }
 
 interface PublicHideCountRuleRow {
@@ -57,27 +52,33 @@ function ruleOrganization(rule: PublicHideCountRuleRow): string | null {
  */
 export async function resolveHideCountsForClassRows(
   rows: ReadonlyArray<HideCountClassRow>,
-  shareRead: ShareRead = readNow
+  shareRead: ShareRead = readNow,
+  preloadedTrials?: ReadonlyArray<ClassTrialRow>
 ): Promise<Map<string, number>> {
   const byClassId = new Map<string, number>();
 
   const trialIds = [...new Set(rows.map(row => row.trial_id).filter((id): id is string => !!id))];
   if (trialIds.length === 0) return byClassId;
 
-  const { data: trialData, error: trialsError } = await supabase
-    .from('trials')
-    .select('id, show_id, registry_id')
-    .in('id', trialIds);
+  let trials: ReadonlyArray<ClassTrialRow>;
+  if (preloadedTrials) {
+    trials = preloadedTrials;
+  } else {
+    const { data: trialData, error: trialsError } = await supabase
+      .from('trials')
+      .select('id, show_id, registry_id')
+      .in('id', trialIds);
 
-  if (trialsError) {
-    logger.warn(
-      `[resolveClassHideCounts] Trial lookup failed; hide counts unavailable this sync: ${trialsError.message}`,
-      'replication'
-    );
-    return byClassId;
+    if (trialsError) {
+      logger.warn(
+        `[resolveClassHideCounts] Trial lookup failed; hide counts unavailable this sync: ${trialsError.message}`,
+        'replication'
+      );
+      return byClassId;
+    }
+
+    trials = (trialData ?? []) as ClassTrialRow[];
   }
-
-  const trials = (trialData ?? []) as HideCountTrialRow[];
   const trialById = new Map(trials.map(trial => [trial.id, trial]));
   const registryIds = [
     ...new Set(trials.map(trial => trial.registry_id).filter((id): id is string => !!id)),

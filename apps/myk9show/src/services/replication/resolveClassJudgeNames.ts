@@ -5,6 +5,7 @@ import {
   fetchShowJudgeNameParts,
   type JudgeNameParts,
 } from '@/services/database/_shared/judgeNamesByClass';
+import type { ClassTrialRow } from './resolveClassTrials';
 
 interface JudgeNameClassRow {
   id: string;
@@ -34,25 +35,32 @@ interface JudgeNameClassRow {
  */
 export async function resolveJudgeNamesForClassRows(
   rows: ReadonlyArray<JudgeNameClassRow>,
-  shareRead: ShareRead = readNow
+  shareRead: ShareRead = readNow,
+  preloadedTrials?: ReadonlyArray<ClassTrialRow>
 ): Promise<Map<string, JudgeNameParts | null>> {
   const byClassId = new Map<string, JudgeNameParts | null>();
 
   const trialIds = [...new Set(rows.map(row => row.trial_id).filter((id): id is string => !!id))];
   if (trialIds.length === 0) return byClassId;
 
-  const { data, error } = await supabase.from('trials').select('id, show_id').in('id', trialIds);
+  let trials: ReadonlyArray<Pick<ClassTrialRow, 'id' | 'show_id'>>;
+  if (preloadedTrials) {
+    trials = preloadedTrials;
+  } else {
+    const { data, error } = await supabase.from('trials').select('id, show_id').in('id', trialIds);
 
-  if (error) {
-    logger.warn(
-      `[resolveClassJudgeNames] Trial lookup failed; judge names unavailable this sync: ${error.message}`,
-      'replication'
-    );
-    return byClassId;
+    if (error) {
+      logger.warn(
+        `[resolveClassJudgeNames] Trial lookup failed; judge names unavailable this sync: ${error.message}`,
+        'replication'
+      );
+      return byClassId;
+    }
+    trials = (data ?? []) as Array<{ id: string; show_id: string | null }>;
   }
 
   const showIdByTrialId = new Map<string, string>();
-  for (const trial of (data ?? []) as Array<{ id: string; show_id: string | null }>) {
+  for (const trial of trials) {
     if (trial.show_id) showIdByTrialId.set(trial.id, trial.show_id);
   }
 

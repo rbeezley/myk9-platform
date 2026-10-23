@@ -19,6 +19,7 @@ import {
   type VisibilityTiming,
 } from '@myk9/secretary';
 import { supabase } from '@/services/database/supabaseClient';
+import type { ClassTrialRow } from './resolveClassTrials';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tables absent from codegen
 const untypedSupabase = supabase as any;
@@ -67,7 +68,8 @@ function applyTimingOverride(base: FieldTimings, row: VisRow | null | undefined)
  * changes are read afresh. The caller preserves cached values on read failure.
  */
 export async function resolveVisibilityForClassRows(
-  rows: ClassScopeRow[]
+  rows: ClassScopeRow[],
+  preloadedTrials?: ReadonlyArray<ClassTrialRow>
 ): Promise<Map<string, ResolvedClassVisibility>> {
   const result = new Map<string, ResolvedClassVisibility>();
   const scopedRows = [
@@ -76,12 +78,15 @@ export async function resolveVisibilityForClassRows(
   for (let offset = 0; offset < scopedRows.length; offset += VISIBILITY_BATCH_SIZE) {
     const batch = scopedRows.slice(offset, offset + VISIBILITY_BATCH_SIZE);
     const trialIds = [...new Set(batch.map(row => String(row.trial_id)))];
-    const trials = await readRows<{ id: string; show_id: string | null }>(
-      'trials',
-      'id, show_id',
-      'id',
-      trialIds
-    );
+    // The shared read covers every batch's trials; keep this batch's.
+    const trials = preloadedTrials
+      ? preloadedTrials.filter(trial => trialIds.includes(trial.id))
+      : await readRows<{ id: string; show_id: string | null }>(
+          'trials',
+          'id, show_id',
+          'id',
+          trialIds
+        );
     const showIds = [...new Set(trials.flatMap(trial => (trial.show_id ? [trial.show_id] : [])))];
     const [shows, trialOverrides, classOverrides] = await Promise.all([
       readRows<VisRow & { show_id: string }>(

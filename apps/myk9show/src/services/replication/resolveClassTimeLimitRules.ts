@@ -11,6 +11,7 @@
 import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/utils/logger';
 import { getTrialRegistry } from '@/features/registries';
+import type { ClassTrialRow } from './resolveClassTrials';
 
 /**
  * A resolved rule. `forElement`/`forLevel` record which class configuration it was
@@ -108,22 +109,29 @@ export function isRuleCurrent(
  * lookup FAILED -- never read that as "no rule".
  */
 export async function resolveTimeLimitRulesForClassRows(
-  rows: RuleClassRow[]
+  rows: RuleClassRow[],
+  preloadedTrials?: ReadonlyArray<ClassTrialRow>
 ): Promise<Map<string, TimeLimitRule> | null> {
   const withTrial = rows.filter(row => !!row.trial_id);
   const trialIds = [...new Set(withTrial.map(row => row.trial_id as string))];
   if (trialIds.length === 0) return new Map();
 
-  const { data: trials, error: trialsError } = await supabase
-    .from('trials')
-    .select('id, registry_id')
-    .in('id', trialIds);
-  if (trialsError) {
-    logger.warn(
-      `[resolveClassTimeLimitRules] Trial lookup failed: ${trialsError.message}`,
-      'replication'
-    );
-    return null;
+  let trials: ReadonlyArray<Pick<ClassTrialRow, 'id' | 'registry_id'>> | null;
+  if (preloadedTrials) {
+    trials = preloadedTrials;
+  } else {
+    const { data, error: trialsError } = await supabase
+      .from('trials')
+      .select('id, registry_id')
+      .in('id', trialIds);
+    if (trialsError) {
+      logger.warn(
+        `[resolveClassTimeLimitRules] Trial lookup failed: ${trialsError.message}`,
+        'replication'
+      );
+      return null;
+    }
+    trials = data;
   }
   const trialById = new Map((trials ?? []).map(trial => [trial.id as string, trial]));
   const registries = [

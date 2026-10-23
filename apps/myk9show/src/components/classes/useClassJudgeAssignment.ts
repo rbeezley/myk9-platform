@@ -26,8 +26,9 @@ export function normalizeJudgeId(judgeId: string | null | undefined): string | n
 }
 
 /**
- * Per-class judge assignment, shared by the show home's class panel (MYK9-1323) and Select
- * classes' bulk Assign judge (MYK9-1324). The write is the replicated `upsertClassJudgeAssignment`, which also puts the
+ * Per-class judge assignment for the show home's class panel (MYK9-1323). Select classes' bulk
+ * Assign judge (MYK9-1324) reads this hook's judge list and names but writes through
+ * `useBulkJudgeAssignment`. The write is the replicated `upsertClassJudgeAssignment`, which also puts the
  * picked judge on the local class row (MYK9-1327), so every screen shows it at once, offline
  * and after a reload, with no override held here. Everything stays inert for non-managers:
  * the show and judge queries are not read.

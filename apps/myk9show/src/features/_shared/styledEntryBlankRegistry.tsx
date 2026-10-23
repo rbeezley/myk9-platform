@@ -1,13 +1,16 @@
+// Import each button from its own file, never the style's `entry-blank` barrel:
+// the barrels re-export the PDF documents, which would put @react-pdf/renderer
+// back on the static path of every page that mounts an entry-blank button.
 import type { ReactElement } from 'react';
 import type { BuildEntryBlankOptions } from '@/features/heritage/entry-blank/buildEntryBlankProps';
-import { HeritageEntryBlankButton } from '@/features/heritage/entry-blank';
-import { HeadlineEntryBlankButton } from '@/features/headline/entry-blank';
-import { MonogramEntryBlankButton } from '@/features/monogram/entry-blank';
-import { BannerEntryBlankButton } from '@/features/banner/entry-blank';
-import { FieldGuideEntryBlankButton } from '@/features/fieldGuide/entry-blank';
-import { GazetteEntryBlankButton } from '@/features/gazette/entry-blank';
-import { MagazineEntryBlankButton } from '@/features/magazine/entry-blank';
-import { PosterEntryBlankButton } from '@/features/poster/entry-blank';
+import { HeritageEntryBlankButton } from '@/features/heritage/entry-blank/HeritageEntryBlankButton';
+import { HeadlineEntryBlankButton } from '@/features/headline/entry-blank/HeadlineEntryBlankButton';
+import { MonogramEntryBlankButton } from '@/features/monogram/entry-blank/MonogramEntryBlankButton';
+import { BannerEntryBlankButton } from '@/features/banner/entry-blank/BannerEntryBlankButton';
+import { FieldGuideEntryBlankButton } from '@/features/fieldGuide/entry-blank/FieldGuideEntryBlankButton';
+import { GazetteEntryBlankButton } from '@/features/gazette/entry-blank/GazetteEntryBlankButton';
+import { MagazineEntryBlankButton } from '@/features/magazine/entry-blank/MagazineEntryBlankButton';
+import { PosterEntryBlankButton } from '@/features/poster/entry-blank/PosterEntryBlankButton';
 import type { ShowStyle } from '@/features/registries';
 
 export interface StyledEntryBlankButtonProps extends BuildEntryBlankOptions {

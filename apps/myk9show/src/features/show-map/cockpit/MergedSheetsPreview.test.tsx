@@ -21,6 +21,12 @@ import { MergedSheetsPreview } from './MergedSheetsPreview';
 
 const show = { id: 'show-1' } as never;
 
+/** The merge module loads on demand, so a build's controls appear a tick after render. */
+async function merge(index: number) {
+  await waitFor(() => expect(mocks.merges[index]).toBeDefined());
+  return mocks.merges[index]!;
+}
+
 function view(entries: unknown[], onReadyChange = vi.fn()) {
   const ref = createRef<HTMLIFrameElement>();
   const ui = (rows: unknown[]) => (
@@ -52,7 +58,8 @@ describe('MergedSheetsPreview freshness', () => {
 
   it('empties the frame and reports not ready when the inputs change, until the new build lands', async () => {
     const { ref, onReadyChange, rerender } = view([{ id: 'a' }]);
-    await act(async () => mocks.merges[0]!.resolve(new Uint8Array([1])));
+    const build0 = await merge(0);
+    await act(async () => build0.resolve(new Uint8Array([1])));
     await waitFor(() => expect(ref.current!.src).toBe('blob:merged-1'));
     expect(onReadyChange).toHaveBeenLastCalledWith(true);
 
@@ -60,26 +67,33 @@ describe('MergedSheetsPreview freshness', () => {
     expect(ref.current!.src).not.toMatch(/^blob:/);
     expect(onReadyChange).toHaveBeenLastCalledWith(false);
 
-    await act(async () => mocks.merges[1]!.resolve(new Uint8Array([2])));
+    const build1 = await merge(1);
+    await act(async () => build1.resolve(new Uint8Array([2])));
     await waitFor(() => expect(ref.current!.src).toBe('blob:merged-2'));
     expect(onReadyChange).toHaveBeenLastCalledWith(true);
   });
 
   it('ignores an older build that resolves after a newer one started', async () => {
     const { ref, rerender } = view([{ id: 'a' }]);
+    // Let the first build start before the inputs change: the merge module loads on demand, and
+    // two concurrent first loads of a mocked module can hand the second the real module.
+    const build0 = await merge(0);
     rerender([{ id: 'a' }, { id: 'b' }]);
-    await act(async () => mocks.merges[0]!.resolve(new Uint8Array([1])));
+    const build1 = await merge(1);
+    await act(async () => build0.resolve(new Uint8Array([1])));
     expect(ref.current!.src).not.toMatch(/^blob:/);
-    await act(async () => mocks.merges[1]!.resolve(new Uint8Array([2])));
+    await act(async () => build1.resolve(new Uint8Array([2])));
     await waitFor(() => expect(ref.current!.src).toBe('blob:merged-1'));
   });
 
   it('leaves the frame empty, not ready, and says so when the new build fails', async () => {
     const { ref, onReadyChange, rerender } = view([{ id: 'a' }]);
-    await act(async () => mocks.merges[0]!.resolve(new Uint8Array([1])));
+    const build0 = await merge(0);
+    await act(async () => build0.resolve(new Uint8Array([1])));
     await waitFor(() => expect(ref.current!.src).toMatch(/^blob:/));
     rerender([{ id: 'a' }, { id: 'b' }]);
-    await act(async () => mocks.merges[1]!.reject(new Error('boom')));
+    const build1 = await merge(1);
+    await act(async () => build1.reject(new Error('boom')));
     expect(ref.current!.src).not.toMatch(/^blob:/);
     expect(onReadyChange).toHaveBeenLastCalledWith(false);
     expect(await screen.findByRole('alert')).toHaveTextContent('could not be combined');
@@ -87,11 +101,13 @@ describe('MergedSheetsPreview freshness', () => {
 
   it('offers Try again after a failed build and builds again', async () => {
     const { ref } = view([{ id: 'a' }]);
-    await act(async () => mocks.merges[0]!.reject(new Error('boom')));
+    const build0 = await merge(0);
+    await act(async () => build0.reject(new Error('boom')));
     const retry = await screen.findByRole('button', { name: 'Try again' });
     retry.click();
     await waitFor(() => expect(mocks.merges).toHaveLength(2));
-    await act(async () => mocks.merges[1]!.resolve(new Uint8Array([1])));
+    const build1 = await merge(1);
+    await act(async () => build1.resolve(new Uint8Array([1])));
     await waitFor(() => expect(ref.current!.src).toMatch(/^blob:/));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });

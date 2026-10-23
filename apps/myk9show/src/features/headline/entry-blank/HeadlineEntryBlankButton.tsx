@@ -1,7 +1,6 @@
 import { EntryBlankDownloadControl } from '@/features/_shared/EntryBlankDownloadControl';
 import type { BuildEntryBlankOptions } from '@/features/heritage/entry-blank/buildEntryBlankProps';
 import { buildEntryBlankProps } from '@/features/heritage/entry-blank/buildEntryBlankProps';
-import { HeadlineEntryBlankDocument } from './HeadlineEntryBlankDocument';
 
 interface Props extends BuildEntryBlankOptions {
   label?: string;
@@ -25,8 +24,11 @@ export function HeadlineEntryBlankButton({
 
   return (
     <EntryBlankDownloadControl
+      loadDocument={() =>
+        import('./HeadlineEntryBlankDocument').then(m => m.HeadlineEntryBlankDocument)
+      }
       dog={props.dog}
-      document={<HeadlineEntryBlankDocument {...props} />}
+      documentProps={props}
       fileName={pdfFilename}
       label={label}
       className={className}

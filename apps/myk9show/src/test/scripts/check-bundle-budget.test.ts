@@ -4,8 +4,12 @@ import os from 'os';
 import path from 'path';
 import {
   BUDGETS,
+  PDF_CHUNK_POLICY,
+  chunkName,
   evaluateBudgets,
+  evaluatePdfChunkImports,
   collectBundleStats,
+  findPdfStaticImports,
 } from '../../../scripts/check-bundle-budget.js';
 
 describe('check-bundle-budget — evaluateBudgets', () => {
@@ -105,5 +109,183 @@ describe('check-bundle-budget — collectBundleStats', () => {
 
   it('throws a clear error when the build output is missing', () => {
     expect(() => collectBundleStats(path.join(distDir, 'nope'))).toThrow(/Run the build/);
+  });
+});
+
+describe('check-bundle-budget — PDF renderer chunks stay off the static path', () => {
+  const reactPdf = { file: 'assets/scripts/react-pdf.browser-DK2aTDOG.js', source: 'x.yogaNode=1' };
+  const pdfLib = {
+    file: 'assets/scripts/PDFButton-B7ojBW5L.js',
+    source: 'throw "no `fontkit` instance was found"',
+  };
+
+  it('derives the chunk name from the emitted file name, hash dashes included', () => {
+    expect(chunkName('assets/scripts/ShowDetailsPage-hFmFCtUs.js')).toBe('ShowDetailsPage');
+    expect(chunkName('assets/scripts/HeadlineEntryBlankDocument--WK-WbDU.js')).toBe(
+      'HeadlineEntryBlankDocument'
+    );
+    expect(chunkName('assets/scripts/react-pdf.browser-DK2aTDOG.js')).toBe('react-pdf.browser');
+  });
+
+  it('finds a page chunk that statically imports the react-pdf chunk, with either quote style', () => {
+    const edges = findPdfStaticImports([
+      reactPdf,
+      {
+        file: 'assets/scripts/ShowDetailsPage-hFmFCtUs.js',
+        source: `import{Text}from'./react-pdf.browser-DK2aTDOG.js';`,
+      },
+      {
+        file: 'assets/scripts/RegistrationWizardPage-Dgqko_Q-.js',
+        source: `import{Text}from"./react-pdf.browser-DK2aTDOG.js";`,
+      },
+      {
+        file: 'assets/scripts/ShowDeskPanel-BEGYGcOj.js',
+        source: `import'./react-pdf.browser-DK2aTDOG.js';`,
+      },
+    ]);
+
+    expect(edges.map(e => [e.importer, e.imported, e.kind])).toEqual([
+      ['assets/scripts/ShowDetailsPage-hFmFCtUs.js', reactPdf.file, 'react-pdf'],
+      ['assets/scripts/RegistrationWizardPage-Dgqko_Q-.js', reactPdf.file, 'react-pdf'],
+      ['assets/scripts/ShowDeskPanel-BEGYGcOj.js', reactPdf.file, 'react-pdf'],
+    ]);
+  });
+
+  it('does not count a dynamic import() of a PDF chunk', () => {
+    const edges = findPdfStaticImports([
+      reactPdf,
+      {
+        file: 'assets/scripts/ShowDetailsPage-hFmFCtUs.js',
+        source: `const l=()=>import('./react-pdf.browser-DK2aTDOG.js');const m=()=>import("./react-pdf.browser-DK2aTDOG.js");`,
+      },
+    ]);
+
+    expect(edges).toEqual([]);
+  });
+
+  it('finds the pdf-lib chunk by its fontkit marker', () => {
+    const edges = findPdfStaticImports([
+      pdfLib,
+      {
+        file: 'assets/scripts/ShowDeskPanel-BEGYGcOj.js',
+        source: `import{a}from'./PDFButton-B7ojBW5L.js';`,
+      },
+    ]);
+
+    expect(edges).toEqual([
+      {
+        importer: 'assets/scripts/ShowDeskPanel-BEGYGcOj.js',
+        imported: pdfLib.file,
+        kind: 'pdf-lib',
+      },
+    ]);
+  });
+
+  it('does not match a chunk whose name only starts like a PDF chunk', () => {
+    const edges = findPdfStaticImports([
+      reactPdf,
+      {
+        file: 'assets/scripts/Other-AAAAAAAA.js',
+        source: `import{a}from'./react-pdf.browser-DK2aTDOG.js.map';`,
+      },
+    ]);
+
+    expect(edges).toEqual([]);
+  });
+
+  it('flags a page chunk and names both chunks in the violation', () => {
+    const violations = evaluateBudgets({
+      initialJsKb: 1,
+      initialCssKb: 1,
+      largestChunk: { file: 'x.js', kb: 1 },
+      pdfStaticImports: [
+        {
+          importer: 'assets/scripts/ShowDetailsPage-hFmFCtUs.js',
+          imported: reactPdf.file,
+          kind: 'react-pdf',
+        },
+      ],
+    });
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0].file).toBe('assets/scripts/ShowDetailsPage-hFmFCtUs.js');
+    expect(violations[0].imported).toBe(reactPdf.file);
+    expect(violations[0].message).toContain('ShowDetailsPage-hFmFCtUs.js');
+    expect(violations[0].message).toContain('react-pdf.browser-DK2aTDOG.js');
+  });
+
+  it('allows the lazy chunks that exist to hold PDF code', () => {
+    const lazy = [
+      'HeadlineEntryBlankDocument--WK-WbDU',
+      'pdfFonts-pv7eJEXa',
+      'publishExperience-BP5eabl_',
+      'PremiumPdfDownloadLink-AbCdEfGh',
+      'UKCPremiumTemplate-CacC6rjY',
+      'mergeReportPdfs-f3fNLvY6',
+      'officialPdfDownload-Bnyr6Inq',
+    ].map(name => ({
+      importer: `assets/scripts/${name}.js`,
+      imported: reactPdf.file,
+      kind: 'react-pdf',
+    }));
+
+    expect(evaluatePdfChunkImports(lazy, PDF_CHUNK_POLICY)).toEqual([]);
+  });
+
+  it('tolerates exactly the known Reports route import of pdf-lib, and no more', () => {
+    const edge = (hash: string, kind = 'pdf-lib') => ({
+      importer: `assets/scripts/index-${hash}.js`,
+      imported: pdfLib.file,
+      kind,
+    });
+
+    expect(evaluatePdfChunkImports([edge('G_PEI8ZQ')], PDF_CHUNK_POLICY)).toEqual([]);
+    expect(
+      evaluatePdfChunkImports([edge('G_PEI8ZQ'), edge('Xr9fGu1Z')], PDF_CHUNK_POLICY)
+    ).toHaveLength(2);
+    // The tolerance is for pdf-lib only: an index chunk importing react-pdf is a violation.
+    expect(evaluatePdfChunkImports([edge('G_PEI8ZQ', 'react-pdf')], PDF_CHUNK_POLICY)).toHaveLength(
+      1
+    );
+  });
+
+  describe('against a built dist on disk', () => {
+    function buildDist(pageSource: string) {
+      const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'bundle-budget-pdf-'));
+      fs.mkdirSync(path.join(dist, 'assets/scripts'), { recursive: true });
+      fs.writeFileSync(
+        path.join(dist, 'index.html'),
+        '<!doctype html><html><head><script type="module" src="/assets/scripts/index-AbC123xy.js"></script></head></html>'
+      );
+      const write = (name: string, source: string) =>
+        fs.writeFileSync(path.join(dist, 'assets/scripts', name), source);
+      write('index-AbC123xy.js', 'console.log(1)');
+      write('react-pdf.browser-DK2aTDOG.js', 'export{a as Text};let yogaNode=1');
+      write('ShowDetailsPage-hFmFCtUs.js', pageSource);
+      return dist;
+    }
+
+    it('fails when a page chunk statically imports the PDF chunk', () => {
+      const dist = buildDist(`import{a as Text}from'./react-pdf.browser-DK2aTDOG.js';`);
+      try {
+        const stats = collectBundleStats(dist);
+        expect(stats.pdfChunkFiles).toEqual(['assets/scripts/react-pdf.browser-DK2aTDOG.js']);
+        const violations = evaluateBudgets(stats, BUDGETS);
+        expect(violations.map(v => v.file)).toEqual(['assets/scripts/ShowDetailsPage-hFmFCtUs.js']);
+      } finally {
+        fs.rmSync(dist, { recursive: true, force: true });
+      }
+    });
+
+    it('passes when the same page loads the PDF chunk with a dynamic import', () => {
+      const dist = buildDist(`const load=()=>import('./react-pdf.browser-DK2aTDOG.js');`);
+      try {
+        const stats = collectBundleStats(dist);
+        expect(stats.pdfChunkFiles).toEqual(['assets/scripts/react-pdf.browser-DK2aTDOG.js']);
+        expect(evaluateBudgets(stats, BUDGETS)).toEqual([]);
+      } finally {
+        fs.rmSync(dist, { recursive: true, force: true });
+      }
+    });
   });
 });

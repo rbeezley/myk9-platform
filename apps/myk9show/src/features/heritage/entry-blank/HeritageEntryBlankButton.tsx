@@ -1,5 +1,4 @@
 import { EntryBlankDownloadControl } from '@/features/_shared/EntryBlankDownloadControl';
-import { HeritageEntryBlankDocument } from './HeritageEntryBlankDocument';
 import type { BuildEntryBlankOptions } from './buildEntryBlankProps';
 import { buildEntryBlankProps } from './buildEntryBlankProps';
 
@@ -26,8 +25,11 @@ export function HeritageEntryBlankButton({
 
   return (
     <EntryBlankDownloadControl
+      loadDocument={() =>
+        import('./HeritageEntryBlankDocument').then(m => m.HeritageEntryBlankDocument)
+      }
       dog={props.dog}
-      document={<HeritageEntryBlankDocument {...props} />}
+      documentProps={props}
       fileName={pdfFilename}
       label={label}
       className={className}

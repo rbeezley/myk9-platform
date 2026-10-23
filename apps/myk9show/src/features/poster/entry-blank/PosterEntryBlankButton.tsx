@@ -3,7 +3,6 @@ import {
   buildEntryBlankProps,
   type BuildEntryBlankOptions,
 } from '@/features/heritage/entry-blank/buildEntryBlankProps';
-import { PosterEntryBlankDocument } from './PosterEntryBlankDocument';
 
 interface Props extends BuildEntryBlankOptions {
   label?: string;
@@ -32,8 +31,11 @@ export function PosterEntryBlankButton({
 
   return (
     <EntryBlankDownloadControl
+      loadDocument={() =>
+        import('./PosterEntryBlankDocument').then(m => m.PosterEntryBlankDocument)
+      }
       dog={props.dog}
-      document={<PosterEntryBlankDocument {...props} />}
+      documentProps={props}
       fileName={pdfFilename}
       label={label}
       className={className}

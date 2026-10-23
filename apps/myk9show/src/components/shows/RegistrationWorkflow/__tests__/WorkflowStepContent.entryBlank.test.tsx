@@ -1,7 +1,7 @@
 import { makePaymentResolution } from '@/test/utils/paymentResolution';
 import type { ReactElement, ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, waitFor } from '@/test/utils/testUtils';
 import type { WorkflowConfig } from '../RegistrationWorkflow.types';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
 
@@ -11,14 +11,16 @@ const {
   mockUseDogStoreCompat,
   mockUseClassStoreCompat,
   mockUseUserStore,
-  mockPdfDownloadLink,
+  mockPdf,
+  mockSaveAs,
 } = vi.hoisted(() => ({
   mockUseShowStore: vi.fn(),
   mockUseTrialStore: vi.fn(),
   mockUseDogStoreCompat: vi.fn(),
   mockUseClassStoreCompat: vi.fn(),
   mockUseUserStore: vi.fn(),
-  mockPdfDownloadLink: vi.fn(),
+  mockPdf: vi.fn(),
+  mockSaveAs: vi.fn(),
 }));
 
 vi.mock('@/store/showStore', () => ({ useShowStore: mockUseShowStore }));
@@ -35,15 +37,11 @@ vi.mock('@react-pdf/renderer', () => ({
   Image: () => null,
   StyleSheet: { create: (styles: unknown) => styles },
   Font: { register: vi.fn(), registerHyphenationCallback: vi.fn() },
-  PDFDownloadLink: (props: {
-    document: ReactElement;
-    fileName: string;
-    children: (state: { loading: boolean }) => ReactNode;
-  }) => {
-    mockPdfDownloadLink(props);
-    return <a href={`/${props.fileName}`}>{props.children({ loading: false })}</a>;
-  },
 }));
+vi.mock('@/features/_shared/loadReactPdf', () => ({
+  loadReactPdf: () => Promise.resolve({ pdf: mockPdf }),
+}));
+vi.mock('file-saver', () => ({ saveAs: mockSaveAs }));
 
 const emailHook = vi.hoisted(() => vi.fn());
 vi.mock('@/features/lifecycle-emails', async importOriginal => ({
@@ -178,7 +176,9 @@ beforeEach(() => {
   mockUseUserStore.mockImplementation((selector: (state: { people: typeof people }) => unknown) =>
     selector({ people })
   );
-  mockPdfDownloadLink.mockClear();
+  mockPdf.mockReset();
+  mockPdf.mockReturnValue({ toBlob: () => Promise.resolve(new Blob(['%PDF'])) });
+  mockSaveAs.mockReset();
 });
 
 function createdOutcome(dogId: string, classId: string, entryId: string): EntrySubmissionOutcome {
@@ -265,7 +265,7 @@ describe('WorkflowStepContent entry blanks', () => {
         .getByText('This dog has no registration for this trial’s organization.')
         .closest('[role="alert"]')
     ).toBeInTheDocument();
-    expect(mockPdfDownloadLink).not.toHaveBeenCalled();
+    expect(mockPdf).not.toHaveBeenCalled();
 
     await user.click(
       screen.getByRole('button', {
@@ -273,11 +273,12 @@ describe('WorkflowStepContent entry blanks', () => {
       })
     );
 
-    expect(mockPdfDownloadLink).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mockPdf).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockSaveAs).toHaveBeenCalledTimes(1));
   });
 
-  it('builds one action per created entry with that entry’s exact data', () => {
-    renderConfirmation([
+  it('builds one action per created entry with that entry’s exact data', async () => {
+    const { user } = renderConfirmation([
       createdOutcome('dog-1', 'class-1', 'entry-1'),
       createdOutcome('dog-2', 'class-2', 'entry-2'),
     ]);
@@ -286,8 +287,12 @@ describe('WorkflowStepContent entry blanks', () => {
       screen.getByRole('button', { name: 'Download First — Novice Containers' })
     ).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Download Tera — Advanced Exterior' })).toBeEnabled();
+    expect(mockPdf).not.toHaveBeenCalled();
 
-    const secondDocument = mockPdfDownloadLink.mock.calls[1]?.[0].document as ReactElement<{
+    await user.click(screen.getByRole('button', { name: 'Download Tera — Advanced Exterior' }));
+    await waitFor(() => expect(mockPdf).toHaveBeenCalledTimes(1));
+
+    const secondDocument = mockPdf.mock.calls[0]?.[0] as ReactElement<{
       dog: { registrationNumber: string };
       trials: Array<{ judgeName: string; checked: boolean }>;
     }>;

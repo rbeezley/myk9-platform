@@ -1,6 +1,8 @@
 import { EntryBlankDownloadControl } from '@/features/_shared/EntryBlankDownloadControl';
-import { GazetteEntryBlankDocument } from './GazetteEntryBlankDocument';
-import { buildEntryBlankProps, type BuildEntryBlankOptions } from './index';
+import {
+  buildEntryBlankProps,
+  type BuildEntryBlankOptions,
+} from '@/features/heritage/entry-blank/buildEntryBlankProps';
 
 interface Props extends BuildEntryBlankOptions {
   /** Button label. Defaults to "Download Entry Blank". */
@@ -31,8 +33,11 @@ export function GazetteEntryBlankButton({
 
   return (
     <EntryBlankDownloadControl
+      loadDocument={() =>
+        import('./GazetteEntryBlankDocument').then(m => m.GazetteEntryBlankDocument)
+      }
       dog={props.dog}
-      document={<GazetteEntryBlankDocument {...props} />}
+      documentProps={props}
       fileName={pdfFilename}
       label={label}
       className={className}

@@ -3,7 +3,6 @@ import {
   buildEntryBlankProps,
   type BuildEntryBlankOptions,
 } from '@/features/heritage/entry-blank/buildEntryBlankProps';
-import { FieldGuideEntryBlankDocument } from './FieldGuideEntryBlankDocument';
 
 interface Props extends BuildEntryBlankOptions {
   label?: string;
@@ -33,8 +32,11 @@ export function FieldGuideEntryBlankButton({
 
   return (
     <EntryBlankDownloadControl
+      loadDocument={() =>
+        import('./FieldGuideEntryBlankDocument').then(m => m.FieldGuideEntryBlankDocument)
+      }
       dog={props.dog}
-      document={<FieldGuideEntryBlankDocument {...props} />}
+      documentProps={props}
       fileName={pdfFilename}
       label={label}
       className={className}

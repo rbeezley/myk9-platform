@@ -4,6 +4,7 @@ import webpush from 'npm:web-push@3';
 import { assertAudienceQuerySucceeded } from '../_shared/fanoutErrors.ts';
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { PUSH_SUBSCRIPTION_CHUNK_SIZE as CHUNK_SIZE } from '../_shared/pushFanout.ts';
 import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 
@@ -26,9 +27,6 @@ interface WebhookPayload {
 const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')!;
 const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')!;
 const vapidSubject = Deno.env.get('VAPID_SUBJECT') || 'mailto:support@myk9show.com';
-
-// Chunk size for PostgREST .in() queries to avoid URL length limits
-const CHUNK_SIZE = 100;
 
 webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 

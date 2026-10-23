@@ -80,6 +80,7 @@ export default defineConfig({
       // trap, caught by the on-disk guard in edgeFunctionTestsAreTypechecked.
       '../../supabase/functions/_shared/fanoutCoverage.test.ts',
       '../../supabase/functions/_shared/fanoutErrors.test.ts',
+      '../../supabase/functions/_shared/pushFanout.test.ts',
       '../../supabase/functions/revoke-self-auth-identity/*.test.ts',
       '../../supabase/functions/send-auth-email/actionUrl.test.ts',
       '../../supabase/functions/send-auth-email/template.test.ts',

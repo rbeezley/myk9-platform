@@ -29,7 +29,7 @@ vi.mock('@/hooks/useShowManageScope', () => ({
 }));
 
 beforeEach(() => {
-  usePageEditTargetStore.setState({ target: null, owner: null, addClassesTrialId: null });
+  usePageEditTargetStore.setState({ target: null, owner: null });
   viewer.canOperate = true;
 });
 

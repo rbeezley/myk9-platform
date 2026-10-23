@@ -21,8 +21,7 @@ interface ClassJudgeSelectProps {
 }
 
 /**
- * The per-class judge picker (moved out of the retired Class Management row so
- * Setup → Classes uses the same control).
+ * The per-class judge picker, on the show home's class panel (MYK9-1323).
  */
 export const ClassJudgeSelect: React.FC<ClassJudgeSelectProps> = ({
   classId,

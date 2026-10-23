@@ -41,7 +41,6 @@ beforeEach(() => {
   usePageEditTargetStore.setState({
     target: null,
     owner: null,
-    addClassesTrialId: null,
     exports: [],
   });
 });

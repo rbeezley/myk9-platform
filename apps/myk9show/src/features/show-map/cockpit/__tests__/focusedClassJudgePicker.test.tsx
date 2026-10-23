@@ -34,6 +34,13 @@ const BOB = {
   lastName: 'Barker',
   judgeQualifications: [{ status: 'Active', organization: 'AKC' }],
 };
+// Qualified for another registry only: an AKC show must not offer her.
+const UMA = {
+  id: 'judge-3',
+  firstName: 'Uma',
+  lastName: 'Ukc',
+  judgeQualifications: [{ status: 'Active', organization: 'UKC' }],
+};
 
 const classOf = (overrides: Partial<SecretaryCockpitClass>): SecretaryCockpitClass => ({
   id: 'class-1',
@@ -101,20 +108,66 @@ describe('class panel judge picker (MYK9-1323)', () => {
     );
   });
 
+  it("offers only judges qualified for the show's registry", async () => {
+    judgesQuery.mockReturnValue({ data: [JANE, BOB, UMA] });
+    const { user } = renderCockpit(classOf({}));
+
+    await user.click(screen.getByRole('combobox', { name: 'Judge for Container Novice' }));
+
+    expect(await screen.findByRole('option', { name: 'Jane Judge' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Bob Barker' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Uma Ukc' })).not.toBeInTheDocument();
+  });
+
   it('shows whatever judge the class row carries, in the panel and on the schedule row', () => {
-    // The row is the one source: no override is held on top of it.
+    // The row is the one source: no override is held on top of it, so another device's change
+    // (reassign, clear, or back again) reaches the picker as well as the schedule row.
+    const picker = () => screen.getByRole('combobox', { name: 'Judge for Container Novice' });
+    const rowWith = (judge: Partial<SecretaryCockpitClass>) => (
+      <SecretaryCockpit snapshot={snapshotOf(classOf(judge))} canManageShow onCommand={vi.fn()} />
+    );
     const { rerender } = renderCockpit(classOf({ judgeId: 'judge-2', judgeName: 'Bob Barker' }));
     expect(scheduleRow()).toHaveTextContent('Bob Barker');
+    expect(picker()).toHaveTextContent('Bob Barker');
 
-    rerender(
-      <SecretaryCockpit
-        snapshot={snapshotOf(classOf({ judgeId: 'judge-1', judgeName: 'Jane Judge' }))}
-        canManageShow
-        onCommand={vi.fn()}
-      />
-    );
+    rerender(rowWith({ judgeId: 'judge-1', judgeName: 'Jane Judge' }));
     expect(scheduleRow()).toHaveTextContent('Jane Judge');
     expect(scheduleRow()).not.toHaveTextContent('Bob Barker');
+    expect(picker()).toHaveTextContent('Jane Judge');
+
+    rerender(rowWith({ judgeId: null, judgeName: null }));
+    expect(picker()).toHaveTextContent('Unassigned');
+    expect(picker()).not.toHaveTextContent('Jane Judge');
+
+    rerender(rowWith({ judgeId: 'judge-2', judgeName: 'Bob Barker' }));
+    expect(picker()).toHaveTextContent('Bob Barker');
+  });
+
+  it("a local clear holds no override: another device's reassignment still shows", async () => {
+    const picker = () => screen.getByRole('combobox', { name: 'Judge for Container Novice' });
+    const rowWith = (judge: Partial<SecretaryCockpitClass>) => (
+      <SecretaryCockpit snapshot={snapshotOf(classOf(judge))} canManageShow onCommand={vi.fn()} />
+    );
+    const { user, rerender, unmount } = renderCockpit(
+      classOf({ judgeId: 'judge-1', judgeName: 'Jane Judge' })
+    );
+
+    await user.click(picker());
+    await user.click(await screen.findByRole('option', { name: 'Unassigned' }));
+    expect(upsertClassJudgeAssignment).toHaveBeenCalledWith('show-1', 'class-1', 'TBD', undefined);
+    // The write clears the local class row (MYK9-1327); the cockpit is handed that row.
+    rerender(rowWith({ judgeId: null, judgeName: null }));
+    expect(picker()).toHaveTextContent('Unassigned');
+
+    rerender(rowWith({ judgeId: 'judge-1', judgeName: 'Jane Judge' }));
+    expect(picker()).toHaveTextContent('Jane Judge');
+
+    // And across a remount (the panel moving layouts, or the page reopened).
+    unmount();
+    const second = renderCockpit(classOf({ judgeId: null, judgeName: null }));
+    expect(picker()).toHaveTextContent('Unassigned');
+    second.rerender(rowWith({ judgeId: 'judge-2', judgeName: 'Bob Barker' }));
+    expect(picker()).toHaveTextContent('Bob Barker');
   });
 
   it('writes the judge while offline: the write is local and replicated, not parked', async () => {

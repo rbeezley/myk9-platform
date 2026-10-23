@@ -5,9 +5,9 @@ import { SetupClassDialogs } from '@/components/shows/tabs/SetupClassDialogs';
 import { useClassRowActions } from '@/components/shows/tabs/useClassRowActions';
 
 /**
- * Edit class on the show home's class panel (MYK9-956): the same
- * resolve-then-open flow and the same panel as Setup → Classes. Delete is in
- * that edit panel's footer, not beside Edit (owner, 2026-10-03).
+ * Edit class on the show home's class panel (MYK9-956): resolve the class,
+ * then open the class edit panel. Delete is in that edit panel's footer, not
+ * beside Edit (owner, 2026-10-03).
  *
  * A hook, held by the cockpit rather than the panel: the focused panel moves
  * between the inline and split layouts, which remounts it, and an
@@ -16,11 +16,8 @@ import { useClassRowActions } from '@/components/shows/tabs/useClassRowActions';
  * action and the dialogs stay with the cockpit.
  */
 export function useFocusedClassSetupActions(showId: string) {
-  const { pendingAction, setPendingAction, hydratingClassId, openClassAction } = useClassRowActions(
-    showId,
-    // Status changes on the home go through the panel's own status control.
-    () => {}
-  );
+  const { pendingAction, setPendingAction, hydratingClassId, openClassAction } =
+    useClassRowActions();
   const locked = hydratingClassId !== null || pendingAction !== null;
 
   const renderClassActions = (classId: string, trialId: string, classLabel: string) => {
@@ -33,7 +30,7 @@ export function useFocusedClassSetupActions(showId: string) {
         className="min-h-11 gap-2"
         disabled={locked}
         aria-label={`Edit class ${classLabel}`}
-        onClick={() => void openClassAction(target, 'edit')}
+        onClick={() => void openClassAction(target)}
       >
         <Pencil className="h-4 w-4" aria-hidden="true" />
         Edit class

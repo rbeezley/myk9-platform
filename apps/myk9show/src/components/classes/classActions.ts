@@ -1,7 +1,7 @@
 /**
- * Setup → Classes' shared action catalog — one `EntityAction` definition per
- * status transition plus delete, projected into `RowActionMenu` for both the
- * per-row "3-dot" menu and the bulk-selection menu via `toRowActions`/`toBulkActions`.
+ * The class action catalog — one `EntityAction` definition per status
+ * transition plus delete, projected into the Select classes bulk bar via
+ * `toBulkActions` (the Classes tab's per-row menu is gone, MYK9-1337).
  *
  * See openspec/changes/inline-bulk-actions-and-editable-status/design.md
  * decisions D1-D3. Bulk status/delete route through `replicatedClassesTable`

@@ -5,41 +5,24 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ClassesTab, type ClassInfo } from '@/components/shows/tabs/ClassesTab';
 
-// ClassesTab's manager layer reads React Query hooks even for viewers it then ignores.
+// The guest export and view preference read through React Query providers.
 const render = (ui: ReactElement) =>
   rtlRender(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
-
-vi.mock('@/hooks/queries/useShowsDatabase', () => ({ useShowQuery: () => ({ data: undefined }) }));
-vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
-  useJudgesWithQualifications: () => ({ data: undefined }),
-}));
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
-  useLocation: () => ({ key: 'default' }),
-}));
-
-vi.mock('@/hooks/useShowManageScope', () => ({
-  useShowManageScope: () => ({ status: 'resolved', canManage: false }),
 }));
 
 // The guest Export CSV (MYK9-933) reads the signed-in user.
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => ({ user: { id: 'u1' } }) }));
 
-vi.mock('@/hooks/useRBAC', () => ({
-  useRBAC: () => ({
-    hasPermission: () => false,
-  }),
-}));
-
 let mockViewMode = 'table';
-let mockHasStoredViewPreference = false;
 const mockSetViewMode = vi.fn((m: string) => {
   mockViewMode = m;
 });
 vi.mock('@/hooks/useViewPreference', () => ({
-  useViewPreference: () => [mockViewMode, mockSetViewMode, mockHasStoredViewPreference],
+  useViewPreference: () => [mockViewMode, mockSetViewMode],
   CARD_TABLE_MODES: [
     { key: 'cards', label: 'Cards', icon: 'grid' },
     { key: 'table', label: 'Table', icon: 'table' },
@@ -127,7 +110,6 @@ vi.mock('@/components/common/EmptyState', () => ({
 describe('ClassesTab', () => {
   beforeEach(() => {
     mockViewMode = 'table';
-    mockHasStoredViewPreference = false;
     mockNavigate.mockClear();
     mockSetViewMode.mockClear();
   });

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
-import { ClassBulkActionsBar } from '../ClassBulkActionsBar';
+import { ClassBulkActionsBar, type ClassBarItem } from '../ClassBulkActionsBar';
 import type { ClassActionItem } from '../classActions';
 
 // The shared delete dialog's server and device halves (features/delete).
@@ -26,7 +26,7 @@ function cls(id: string, status: string, name = `Class ${id}`): ClassActionItem 
   return { id, name, status };
 }
 
-function setup(selectedClasses: ClassActionItem[], bulkBusy = false) {
+function setup(selectedClasses: ClassBarItem[], bulkBusy = false) {
   const onBulkStatusChange = vi.fn().mockResolvedValue(true);
   const onClear = vi.fn();
   const utils = render(
@@ -166,6 +166,41 @@ describe('ClassBulkActionsBar', () => {
       expect(deleteMocks.remove).toHaveBeenCalledWith('class', '1', { override: false })
     );
     await waitFor(() => expect(onClear).toHaveBeenCalled());
+  });
+
+  it('hands each class its own trial to the delete, so Undo re-syncs the right trial', async () => {
+    deleteMocks.preview.mockReset().mockResolvedValue({
+      trials: 0,
+      classes: 0,
+      entries: 0,
+      shows: 0,
+      dogs: 0,
+      paid: 0,
+      scored: 0,
+      blocking: 0,
+    });
+    deleteMocks.remove.mockReset().mockResolvedValue(undefined);
+    deleteMocks.purge.mockReset();
+    // The bar's context names t1; the second class lives in t2.
+    const { user } = setup([
+      { ...cls('1', 'Scheduled'), trialId: 't1' },
+      { ...cls('2', 'Scheduled'), trialId: 't2' },
+    ]);
+
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete 2 classes?' });
+    const confirm = within(dialog).getByRole('button', { name: 'Delete 2 classes' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+
+    await waitFor(() => expect(deleteMocks.purge).toHaveBeenCalledTimes(2));
+    expect(deleteMocks.purge).toHaveBeenCalledWith(
+      'class',
+      expect.objectContaining({
+        id: '2',
+        context: expect.objectContaining({ showId: 's1', trialId: 't2', classId: '2' }),
+      })
+    );
   });
 
   it('disables the bulk menu trigger while busy', () => {

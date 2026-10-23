@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { StatusBadge, getStatusDescriptor } from '@/components/status';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 import { parseTime } from '@/features/show-map/cockpit/cockpitClock';
@@ -34,38 +33,17 @@ export interface ClassTableRow extends ClassInfo {
 }
 
 interface ClassColumnOptions {
-  canManage: boolean;
   hideRing: boolean;
-  /** The header checkbox that selects every visible class. */
-  selectAll: () => ReactNode;
-  select: (cls: ClassInfo) => ReactNode;
-  judge: (cls: ClassInfo) => ReactNode;
-  rowMenu: (cls: ClassInfo) => ReactNode;
 }
 
 /**
- * The Classes table's columns. Managers also get the select checkbox, the judge picker, the run
- * order under the element, and the row menu; everyone else reads the same table without them.
+ * The public / exhibitor Classes table's columns. Managing classes is the show home's schedule
+ * (Select classes, MYK9-1324), so this table only reads.
  */
 export function buildClassesTabColumns({
-  canManage,
   hideRing,
-  selectAll,
-  select,
-  judge,
-  rowMenu,
 }: ClassColumnOptions): ColumnDef<ClassTableRow, unknown>[] {
   const cols: ColumnDef<ClassTableRow, unknown>[] = [];
-  if (canManage) {
-    cols.push({
-      id: 'select',
-      header: selectAll,
-      enableSorting: false,
-      enableHiding: false,
-      meta: { interactive: true },
-      cell: ({ row }) => select(row.original),
-    });
-  }
   cols.push(
     {
       accessorKey: 'trialLabel',
@@ -90,9 +68,6 @@ export function buildClassesTabColumns({
               My entry
             </span>
           )}
-          {canManage && row.original.classOrder != null && (
-            <span className="text-xs text-muted-foreground">Order: {row.original.classOrder}</span>
-          )}
         </div>
       ),
     },
@@ -114,16 +89,12 @@ export function buildClassesTabColumns({
       header: 'Judge',
       meta: {
         responsiveHide: 'md' as const,
-        interactive: canManage,
         // An unassigned class shows "TBD".
         searchValue: (row: unknown) => (row as ClassTableRow).judgeName || 'TBD',
       },
-      cell: ({ row }) =>
-        canManage ? (
-          judge(row.original)
-        ) : (
-          <span className="text-muted-foreground">{row.original.judgeName || 'TBD'}</span>
-        ),
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">{row.original.judgeName || 'TBD'}</span>
+      ),
     },
     {
       accessorKey: 'time',
@@ -166,17 +137,6 @@ export function buildClassesTabColumns({
       cell: ({ row }) => row.original.entryCount ?? '—',
     }
   );
-
-  if (canManage) {
-    cols.push({
-      id: 'actions',
-      header: () => <span className="sr-only">Actions</span>,
-      enableSorting: false,
-      enableHiding: false,
-      meta: { interactive: true },
-      cell: ({ row }) => rowMenu(row.original),
-    });
-  }
 
   return cols;
 }

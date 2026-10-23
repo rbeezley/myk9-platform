@@ -60,7 +60,6 @@ const renderDialogs = () =>
     <SetupClassDialogs
       showId="s1"
       pending={{
-        action: 'edit',
         trialId: 't1',
         requestId: 1,
         classSnapshot: {

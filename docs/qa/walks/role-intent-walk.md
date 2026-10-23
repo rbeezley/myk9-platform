@@ -101,3 +101,11 @@ Everything below this line is measured fact about the app, the fixtures and the 
 ## Regression re-verification
 
 Re-walk any finding from this role's last two walks that is marked fixed and confirm it holds **in the browser**. A finding that regressed is a P1 regardless of its original severity. Explicitly list which prior findings you re-verified and which you could not reach.
+
+## Club-admin week — measured 2026-10-23
+
+- **Check the local secret before anything else.** `E2E_CLUB_ADMIN_PASSWORD` was absent from `apps/myk9show/.env.local` and from the scheduler's shell on 2026-10-23, so the week-43 run recorded a coverage gap (`docs/audits/2026-10-23-club-admin-intent-walk.md`) and walked nothing. If it is still absent, write that report without cutting a worktree or starting a dev server; the result cannot differ.
+- **The fixture is right; only the secret is missing.** `clubadmin@myk9t.com` exists on staging (auth row created 2026-08-24, confirmed, password set), renders "Morgan Reyes", and holds exactly one active grant, `club_admin` on Heartland Scent Work Club (`dededede-…0001`), plus an inactive exhibitor grant and no site-wide role. The e2e specs under `src/test/e2e/club-admin/` sign in as the site admin, so they are not evidence of club scoping.
+- **Heartland is not authorized** (`clubs.authorized_at` NULL) while hosting 10 shows with 5 `club_members`; neither seed file sets `authorized_at`. Expect "Pending myK9 authorization" on `/clubs/dededede-…0001` and a blocked publish gate: fixture state, confirm before filing. Authorized clubs for the non-owned-record step: Prairie Trail Dog Sports Club (`dededede-…0002`), American Bloodhound Club, Darboshea Tervuren Club. `WALK TEST club` (unauthorized) is residue from an earlier walk.
+- **Routes:** `/club-admin/members`, `/club-admin/payments` (missing from `audit-pages`' inventory), `/clubs` and `/clubs/:id`, the show wizard's host-club check, the rail "My Club" flyout (MYK9-1293, In Review on 2026-10-23), and Heartland's show pages.
+- **Regression list:** no club-admin intent walk exists before 2026-10-23, so the first real walk re-verifies the Done issues named in that report (MYK9-120, 138, 359, 653, 660, 855, 860, 895, 1310, 1314) instead of prior walk findings.

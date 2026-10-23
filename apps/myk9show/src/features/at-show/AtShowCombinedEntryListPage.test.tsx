@@ -10,7 +10,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { AtShowCombinedEntryListPage } from './AtShowCombinedEntryListPage';
 
@@ -126,7 +126,7 @@ const settledSyncStatus = {
 
 const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledSyncStatus) =>
   render(
-    <ReplicationSyncContext.Provider
+    <ReplicationSyncTestProvider
       value={{ status: syncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
     >
       <Routes>
@@ -135,7 +135,7 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
           element={<AtShowCombinedEntryListPage />}
         />
       </Routes>
-    </ReplicationSyncContext.Provider>,
+    </ReplicationSyncTestProvider>,
     { initialRoute: '/at-show/show-1/class/class-a/class-b' }
   );
 

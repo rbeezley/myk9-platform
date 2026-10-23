@@ -17,7 +17,7 @@ import {
   QueryObserver,
   onlineManager,
 } from '@tanstack/react-query';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import { MutationManager, configureConflictSurfacing } from '@myk9/replication';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useDogStoreCompat } from './useDogStoreCompat';
@@ -104,7 +104,7 @@ describe('useDogStoreCompat.updateDog — mutation queue (MYK9-1067)', () => {
     };
     const wrapper = ({ children }: { children: React.ReactNode }) =>
       React.createElement(
-        ReplicationSyncContext.Provider,
+        ReplicationSyncTestProvider,
         { value: syncValue },
         React.createElement(QueryClientProvider, { client: queryClient }, children)
       );

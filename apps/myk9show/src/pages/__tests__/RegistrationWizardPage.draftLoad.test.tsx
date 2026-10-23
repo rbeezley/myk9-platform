@@ -69,8 +69,8 @@ vi.mock('@/hooks/useRegistrationContext', () => ({
   useRegistrationContext: () => ({ mode: null }),
 }));
 
-vi.mock('@/hooks/useReplicationSync', () => ({
-  useReplicationSync: () => ({ triggerSync: vi.fn() }),
+vi.mock('@/hooks/useReplicationSyncActions', () => ({
+  useReplicationSyncActions: () => ({ triggerSync: vi.fn() }),
 }));
 
 const mockProfileState: {

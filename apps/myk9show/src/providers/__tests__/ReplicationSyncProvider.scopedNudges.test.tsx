@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AuthChangeEvent, Session, Subscription } from '@supabase/supabase-js';
-import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
+import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 
 type AuthCallback = (event: AuthChangeEvent, session: Session | null) => void;
 
@@ -145,7 +145,7 @@ function renderProvider() {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <NetworkStatusContext.Provider
+      <NetworkStatusTestProvider
         value={{
           isOnline: true,
           quality: null,
@@ -156,7 +156,7 @@ function renderProvider() {
         <ReplicationSyncProvider autoSync syncOnReconnect={false}>
           <div />
         </ReplicationSyncProvider>
-      </NetworkStatusContext.Provider>
+      </NetworkStatusTestProvider>
     </QueryClientProvider>
   );
 }

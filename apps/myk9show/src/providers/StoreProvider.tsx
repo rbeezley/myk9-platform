@@ -1,5 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+  useCallback,
+} from 'react';
 import { logger } from '@/services/LoggingService';
 import { STORE_CATEGORIES, StoreName, StoreCategory } from '@/store/store-categories';
 import { storeMetricsCollector } from '@/store/compositions/StoreComposition';
@@ -192,42 +200,52 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
     delete loadingPromises.current[storeName];
   }, []); // No dependencies - uses refs for state access
 
-  const loadStoresByCategory = async (category: StoreCategory): Promise<void> => {
-    const storeNames = STORE_CATEGORIES[category];
-    logger.debug('Loading stores by category', 'store', {
-      category,
-      storeCount: storeNames.length,
-    });
-    const startTime = performance.now();
+  const loadStoresByCategory = useCallback(
+    async (category: StoreCategory): Promise<void> => {
+      const storeNames = STORE_CATEGORIES[category];
+      logger.debug('Loading stores by category', 'store', {
+        category,
+        storeCount: storeNames.length,
+      });
+      const startTime = performance.now();
 
-    // Load stores in parallel for better performance
-    await Promise.all(storeNames.map(storeName => loadStore(storeName)));
+      // Load stores in parallel for better performance
+      await Promise.all(storeNames.map(storeName => loadStore(storeName)));
 
-    const endTime = performance.now();
-    logger.info('Category stores loaded', 'store', {
-      category,
-      loadTimeMs: (endTime - startTime).toFixed(2),
-    });
-  };
+      const endTime = performance.now();
+      logger.info('Category stores loaded', 'store', {
+        category,
+        loadTimeMs: (endTime - startTime).toFixed(2),
+      });
+    },
+    [loadStore]
+  );
 
-  const preloadStore = async (storeName: StoreName): Promise<void> => {
-    // Preload in background without blocking
-    loadStore(storeName).catch(error => {
-      logger.warn('Failed to preload store', 'store', { storeName }, error as Error);
-    });
-  };
+  const preloadStore = useCallback(
+    async (storeName: StoreName): Promise<void> => {
+      // Preload in background without blocking
+      loadStore(storeName).catch(error => {
+        logger.warn('Failed to preload store', 'store', { storeName }, error as Error);
+      });
+    },
+    [loadStore]
+  );
 
-  const isStoreLoaded = (storeName: StoreName): boolean => {
-    return stores[storeName]?.isLoaded ?? false;
-  };
+  // These read `stores`, so they (and the context value) change exactly when it does.
+  const isStoreLoaded = useCallback(
+    (storeName: StoreName): boolean => stores[storeName]?.isLoaded ?? false,
+    [stores]
+  );
 
-  const isStoreLoading = (storeName: StoreName): boolean => {
-    return stores[storeName]?.isLoading ?? false;
-  };
+  const isStoreLoading = useCallback(
+    (storeName: StoreName): boolean => stores[storeName]?.isLoading ?? false,
+    [stores]
+  );
 
-  const getStoreError = (storeName: StoreName): string | null => {
-    return stores[storeName]?.error ?? null;
-  };
+  const getStoreError = useCallback(
+    (storeName: StoreName): string | null => stores[storeName]?.error ?? null,
+    [stores]
+  );
 
   // PERFORMANCE OPTIMIZATION: Only load critical stores on app startup
   useEffect(() => {
@@ -264,15 +282,26 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
   //   return () => clearTimeout(timer);
   // }, []);
 
-  const contextValue: StoreProviderState = {
-    stores,
-    loadStore,
-    loadStoresByCategory,
-    preloadStore,
-    isStoreLoaded,
-    isStoreLoading,
-    getStoreError,
-  };
+  const contextValue = useMemo<StoreProviderState>(
+    () => ({
+      stores,
+      loadStore,
+      loadStoresByCategory,
+      preloadStore,
+      isStoreLoaded,
+      isStoreLoading,
+      getStoreError,
+    }),
+    [
+      stores,
+      loadStore,
+      loadStoresByCategory,
+      preloadStore,
+      isStoreLoaded,
+      isStoreLoading,
+      getStoreError,
+    ]
+  );
 
   return <StoreContext.Provider value={contextValue}>{children}</StoreContext.Provider>;
 };

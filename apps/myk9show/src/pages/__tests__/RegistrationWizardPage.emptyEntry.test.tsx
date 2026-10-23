@@ -143,8 +143,8 @@ vi.mock('@/hooks/useRegistrationPermissions', () => ({
   }),
 }));
 
-vi.mock('@/hooks/useReplicationSync', () => ({
-  useReplicationSync: () => ({ triggerSync: vi.fn() }),
+vi.mock('@/hooks/useReplicationSyncActions', () => ({
+  useReplicationSyncActions: () => ({ triggerSync: vi.fn() }),
 }));
 
 vi.mock('@/hooks/useDraftPersistence', () => ({

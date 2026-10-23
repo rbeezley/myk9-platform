@@ -79,8 +79,8 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'user-1' } }),
 }));
 
-vi.mock('@/hooks/useReplicationSync', () => ({
-  useReplicationSync: () => ({ triggerSync: vi.fn() }),
+vi.mock('@/hooks/useReplicationSyncActions', () => ({
+  useReplicationSyncActions: () => ({ triggerSync: vi.fn() }),
 }));
 
 vi.mock('@/hooks/useDraftPersistence', () => ({

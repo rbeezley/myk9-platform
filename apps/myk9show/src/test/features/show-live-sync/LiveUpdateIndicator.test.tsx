@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicator';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 
 // Control the kill switch without pulling in the hook's supabase/replication deps.
 const enabled = vi.fn(() => true);
@@ -10,7 +10,7 @@ vi.mock('@/features/show-live-sync/useShowLiveSync', () => ({
 }));
 
 const tree = (lastSyncAt: Date | null) => (
-  <ReplicationSyncContext.Provider
+  <ReplicationSyncTestProvider
     value={{
       status: { isSyncing: false, lastSyncAt, error: null, tablesStatus: {} },
       triggerSync: vi.fn(),
@@ -18,7 +18,7 @@ const tree = (lastSyncAt: Date | null) => (
     }}
   >
     <LiveUpdateIndicator />
-  </ReplicationSyncContext.Provider>
+  </ReplicationSyncTestProvider>
 );
 
 /**

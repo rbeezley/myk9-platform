@@ -14,7 +14,7 @@ import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { QuickAdvancePanel } from './quickAdvancePanel';
 
@@ -239,7 +239,7 @@ const settledSyncStatus: ReplicationSyncContextValue['status'] = {
 
 const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledSyncStatus) =>
   render(
-    <ReplicationSyncContext.Provider
+    <ReplicationSyncTestProvider
       value={{ status: syncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
     >
       <Routes>
@@ -249,7 +249,7 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
         />
         <Route path="/at-show/:showId/class/:classId" element={<div>Entry List</div>} />
       </Routes>
-    </ReplicationSyncContext.Provider>,
+    </ReplicationSyncTestProvider>,
     { initialRoute: '/at-show/show-1/class/class-1/score/entry-1' }
   );
 
@@ -332,7 +332,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(null as never);
 
     render(
-      <ReplicationSyncContext.Provider
+      <ReplicationSyncTestProvider
         value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
       >
         <Routes>
@@ -346,7 +346,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
             element={<div>Combined list</div>}
           />
         </Routes>
-      </ReplicationSyncContext.Provider>,
+      </ReplicationSyncTestProvider>,
       { initialRoute: '/at-show/show-1/class/class-1/score/entry-1?combined=class-1,class-2' }
     );
 
@@ -408,7 +408,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     };
 
     render(
-      <ReplicationSyncContext.Provider
+      <ReplicationSyncTestProvider
         value={{
           status: {
             ...settledSyncStatus,
@@ -426,7 +426,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
             element={<AtShowScoresheetPage />}
           />
         </Routes>
-      </ReplicationSyncContext.Provider>,
+      </ReplicationSyncTestProvider>,
       { initialRoute: '/at-show/show-1/class/class-1/score/entry-1' }
     );
 
@@ -678,7 +678,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       return <div>at {`${location.pathname}${location.search}`}</div>;
     };
     render(
-      <ReplicationSyncContext.Provider
+      <ReplicationSyncTestProvider
         value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
       >
         <Routes>
@@ -689,7 +689,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
           <Route path="/at-show/:showId/class/:classIdA/:classIdB" element={<Probe />} />
         </Routes>
         <Probe />
-      </ReplicationSyncContext.Provider>,
+      </ReplicationSyncTestProvider>,
       { initialRoute: '/at-show/show-1/class/class-1/score/entry-1?combined=class-1,class-2' }
     );
     await screen.findByTestId('live-scoresheet');

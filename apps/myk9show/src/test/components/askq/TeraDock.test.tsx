@@ -4,7 +4,7 @@ import { NetworkStatusProvider } from '@/components/common/NetworkStatusProvider
 import { render } from '@/test/utils/testUtils';
 import { TeraDock } from '@/components/askq/TeraDock';
 import { TERA_IDLE_COPY, TERA_OFFLINE_COPY } from '@/components/askq/askq-config';
-import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
+import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 
 function network(isOnline: boolean) {
   return { isOnline, quality: null, showOfflineMessage: !isOnline, retryConnection: vi.fn() };
@@ -12,11 +12,11 @@ function network(isOnline: boolean) {
 
 function dock(isOnline: boolean) {
   return (
-    <NetworkStatusContext.Provider value={network(isOnline)}>
+    <NetworkStatusTestProvider value={network(isOnline)}>
       <TeraDock>
         <p>Example questions</p>
       </TeraDock>
-    </NetworkStatusContext.Provider>
+    </NetworkStatusTestProvider>
   );
 }
 
@@ -32,7 +32,7 @@ describe('TeraDock (MYK9-851)', () => {
     expect(screen.getByText('Example questions')).toBeInTheDocument();
   });
 
-  // Drives the app's own NetworkStatusContext, the signal NetworkStatusProvider
+  // Drives the app's own NetworkConnectivityContext, the signal NetworkStatusProvider
   // publishes app-wide; the dock adds no detector of its own.
   it('naps while offline, says why, and wakes when the connection returns', () => {
     const { container, rerender } = render(dock(false));

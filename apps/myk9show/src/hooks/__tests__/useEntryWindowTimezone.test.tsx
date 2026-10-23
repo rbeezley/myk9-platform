@@ -62,7 +62,7 @@ async function resolve(scenario: Scenario) {
     ) => selector({ trials, trialsReadStatus: readStatus }),
   }));
 
-  const { ReplicationSyncContext } = await import('@/context/ReplicationSyncContext');
+  const { ReplicationSyncTestProvider } = await import('@/test/utils/ReplicationSyncTestProvider');
   const { useEntryWindowTimezone } = await import('../useEntryWindowTimezone');
 
   const wrapper =
@@ -70,7 +70,7 @@ async function resolve(scenario: Scenario) {
       ? undefined
       : ({ children }: { children: React.ReactNode }) =>
           React.createElement(
-            ReplicationSyncContext.Provider,
+            ReplicationSyncTestProvider,
             {
               value: {
                 status: {
@@ -241,14 +241,14 @@ async function mountWithSignals(initial: { syncStatus: SyncStatus; online?: bool
       selector: (state: { trials: StubTrial[]; trialsReadStatus: ReadStatus }) => unknown
     ) => selector({ trials: [], trialsReadStatus: 'ready' }),
   }));
-  const { ReplicationSyncContext } = await import('@/context/ReplicationSyncContext');
-  const { NetworkStatusContext } = await import('@/hooks/useNetworkStatus');
+  const { ReplicationSyncTestProvider } = await import('@/test/utils/ReplicationSyncTestProvider');
+  const { NetworkStatusTestProvider } = await import('@/test/utils/NetworkStatusTestProvider');
   const { useEntryWindowTimezone } = await import('../useEntryWindowTimezone');
 
   const signals = { ...initial };
   const wrapper = ({ children }: { children: React.ReactNode }) => {
     const synced = React.createElement(
-      ReplicationSyncContext.Provider,
+      ReplicationSyncTestProvider,
       {
         value: {
           status: {
@@ -265,7 +265,7 @@ async function mountWithSignals(initial: { syncStatus: SyncStatus; online?: bool
     );
     if (signals.online === undefined) return synced;
     return React.createElement(
-      NetworkStatusContext.Provider,
+      NetworkStatusTestProvider,
       {
         value: {
           isOnline: signals.online,

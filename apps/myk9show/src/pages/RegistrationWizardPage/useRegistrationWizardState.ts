@@ -24,7 +24,7 @@ import {
 } from '@/types/show-registration-types';
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
-import { useReplicationSync } from '@/hooks/useReplicationSync';
+import { useReplicationSyncActions } from '@/hooks/useReplicationSyncActions';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useCartStore } from '@/store/cartStore';
@@ -135,7 +135,7 @@ export function useRegistrationWizardState() {
     error: profileError,
     refetch: refetchExhibitorProfile,
   } = useExhibitorProfile();
-  const { triggerSync } = useReplicationSync();
+  const { triggerSync } = useReplicationSyncActions();
 
   // Trigger a sync on mount so any pending local mutations are uploaded
   // before the user interacts with the cart (which requires server-side records).

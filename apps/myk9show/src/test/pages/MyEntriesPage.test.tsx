@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MyEntriesPage from '@/pages/MyEntriesPage';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getUserEntries, updateCheckInStatus } from '@/services/database/entries';
@@ -223,11 +223,11 @@ const renderWithProviders = (
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <ReplicationSyncContext.Provider
+      <ReplicationSyncTestProvider
         value={{ status: syncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
       >
         <MemoryRouter initialEntries={[initialRoute]}>{ui}</MemoryRouter>
-      </ReplicationSyncContext.Provider>
+      </ReplicationSyncTestProvider>
     </QueryClientProvider>
   );
 };

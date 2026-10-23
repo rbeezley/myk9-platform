@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
+import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 
 // Keep the provider's module-load side effects quiet. We only care about the
 // `replication:sync-failed` listener wiring, so stub the heavy dependencies.
@@ -69,7 +69,7 @@ function renderProvider() {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <NetworkStatusContext.Provider
+      <NetworkStatusTestProvider
         value={{
           isOnline: true,
           quality: null,
@@ -80,7 +80,7 @@ function renderProvider() {
         <ReplicationSyncProvider autoSync={false} syncOnReconnect={false}>
           <div />
         </ReplicationSyncProvider>
-      </NetworkStatusContext.Provider>
+      </NetworkStatusTestProvider>
     </QueryClientProvider>
   );
 }

@@ -12,7 +12,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { CompactOfflineIndicator } from '../atShowLayoutSlotComponents';
 
@@ -22,9 +22,9 @@ function renderChip(status: SyncStatus | null) {
   const value = status === null ? null : ({ status } as unknown as ReplicationSyncContextValue);
 
   return render(
-    <ReplicationSyncContext.Provider value={value}>
+    <ReplicationSyncTestProvider value={value}>
       <CompactOfflineIndicator />
-    </ReplicationSyncContext.Provider>
+    </ReplicationSyncTestProvider>
   );
 }
 

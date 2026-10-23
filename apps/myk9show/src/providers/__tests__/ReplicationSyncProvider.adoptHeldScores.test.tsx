@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AuthChangeEvent, Session, Subscription } from '@supabase/supabase-js';
-import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
+import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 
 // ── hoisted spies ────────────────────────────────────────────────────────────
 
@@ -197,7 +197,7 @@ function renderProvider(isOnline: boolean) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const tree = (online: boolean) => (
     <QueryClientProvider client={queryClient}>
-      <NetworkStatusContext.Provider
+      <NetworkStatusTestProvider
         value={{
           isOnline: online,
           quality: null,
@@ -208,7 +208,7 @@ function renderProvider(isOnline: boolean) {
         <ReplicationSyncProvider autoSync={false} syncOnReconnect={false}>
           <div />
         </ReplicationSyncProvider>
-      </NetworkStatusContext.Provider>
+      </NetworkStatusTestProvider>
     </QueryClientProvider>
   );
   const view = render(tree(isOnline));

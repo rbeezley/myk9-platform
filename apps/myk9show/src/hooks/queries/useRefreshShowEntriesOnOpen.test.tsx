@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 
 const mocks = vi.hoisted(() => ({
   hasSynced: vi.fn(),
@@ -55,11 +55,11 @@ function setup() {
     status: ReturnType<typeof makeStatus>;
   }) => (
     <QueryClientProvider client={client}>
-      <ReplicationSyncContext.Provider
+      <ReplicationSyncTestProvider
         value={{ status, triggerSync: mocks.triggerSync, syncTable: vi.fn() }}
       >
         {children}
-      </ReplicationSyncContext.Provider>
+      </ReplicationSyncTestProvider>
     </QueryClientProvider>
   );
   const render = () =>

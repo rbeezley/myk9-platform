@@ -7,7 +7,7 @@ import { onlineManager } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
-import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
+import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 import WaitlistManagementPage from '../index';
 
 const state = vi.hoisted(() => ({
@@ -118,7 +118,7 @@ describe('WaitlistManagementPage judge-day capacity', () => {
   // figures must still be qualified as possibly out of date.
   it('qualifies cached figures as possibly out of date when the page goes offline while idle', async () => {
     const page = (isOnline: boolean) => (
-      <NetworkStatusContext.Provider
+      <NetworkStatusTestProvider
         value={{
           isOnline,
           quality: null,
@@ -127,7 +127,7 @@ describe('WaitlistManagementPage judge-day capacity', () => {
         }}
       >
         <WaitlistManagementPage showId="show-1" />
-      </NetworkStatusContext.Provider>
+      </NetworkStatusTestProvider>
     );
     const { rerender } = render(page(true));
     expect(await screen.findByText('Judge One')).toBeInTheDocument();

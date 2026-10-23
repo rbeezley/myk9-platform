@@ -5,7 +5,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { UserRole } from '@/types/auth-types';
 import { mockSupabase } from '@/test/mocks/supabase';
@@ -142,14 +142,14 @@ function seedOwnedEntry(overrides: Record<string, unknown> = {}) {
 
 const renderPage = () =>
   render(
-    <ReplicationSyncContext.Provider
+    <ReplicationSyncTestProvider
       value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
     >
       <Routes>
         <Route path="/at-show/:showId" element={<AtShowClassListPage />} />
         <Route path="/at-show/:showId/class/:classId" element={<div>SINGLE PAGE</div>} />
       </Routes>
-    </ReplicationSyncContext.Provider>,
+    </ReplicationSyncTestProvider>,
     { initialRoute: '/at-show/show-1' }
   );
 

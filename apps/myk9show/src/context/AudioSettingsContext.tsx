@@ -1,7 +1,7 @@
 /**
  * Audio Settings Context for managing user preferences
  */
-import { createContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useState, useCallback, useMemo, type ReactNode } from 'react';
 import { DEFAULT_AUDIO_SETTINGS, type AudioSettings } from '@/constants/audioSettings';
 import { logger } from '@/services/LoggingService';
 
@@ -59,11 +59,12 @@ function AudioSettingsProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  return (
-    <AudioSettingsContext.Provider value={{ settings, updateSettings, resetToDefaults }}>
-      {children}
-    </AudioSettingsContext.Provider>
+  const value = useMemo(
+    () => ({ settings, updateSettings, resetToDefaults }),
+    [settings, updateSettings, resetToDefaults]
   );
+
+  return <AudioSettingsContext.Provider value={value}>{children}</AudioSettingsContext.Provider>;
 }
 
 export { AudioSettingsContext, AudioSettingsProvider };

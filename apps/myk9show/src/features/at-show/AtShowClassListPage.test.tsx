@@ -13,7 +13,7 @@
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@/test/utils/testUtils';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { UserRole, ScopeType, type UserWithRoles } from '@/types/auth-types';
 
@@ -136,7 +136,7 @@ const settledSyncStatus: ReplicationSyncContextValue['status'] = {
 
 const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledSyncStatus) =>
   render(
-    <ReplicationSyncContext.Provider
+    <ReplicationSyncTestProvider
       value={{ status: syncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
     >
       <Routes>
@@ -149,7 +149,7 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
         <Route path="/at-show" element={<div>RINGSIDE HOME</div>} />
         <Route path="/shows/:showId" element={<div>SHOW HOME</div>} />
       </Routes>
-    </ReplicationSyncContext.Provider>,
+    </ReplicationSyncTestProvider>,
     { initialRoute: '/at-show/show-1' }
   );
 
@@ -405,14 +405,14 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     };
 
     render(
-      <ReplicationSyncContext.Provider
+      <ReplicationSyncTestProvider
         value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
       >
         <ShowSwitcher />
         <Routes>
           <Route path="/at-show/:showId" element={<AtShowClassListPage />} />
         </Routes>
-      </ReplicationSyncContext.Provider>,
+      </ReplicationSyncTestProvider>,
       { initialRoute: '/at-show/show-1' }
     );
 

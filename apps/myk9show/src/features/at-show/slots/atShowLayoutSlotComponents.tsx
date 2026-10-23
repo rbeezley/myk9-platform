@@ -9,7 +9,7 @@ import {
   SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncStatusContext } from '@/context/ReplicationSyncContext';
 import type {
   CompactOfflineIndicatorProps,
   ErrorStateProps,
@@ -72,7 +72,6 @@ export const CompactOfflineIndicator: React.FC<CompactOfflineIndicatorProps> = (
   // down a judge's ring list, and "no provider" is one more way of not knowing
   // whether the data is local. Unknown is handled like every other unknown
   // here: decline to promise.
-  const replication = useContext(ReplicationSyncContext);
 
   // Deliberately NOT `areReplicationTablesPendingFirstSync`. That helper starts
   // with `if (status.isSyncing) return true`, which is right for a page-level
@@ -85,7 +84,7 @@ export const CompactOfflineIndicator: React.FC<CompactOfflineIndicatorProps> = (
   // The honest question is whether the data is LOCAL, not whether a sync is in
   // flight. `lastSyncAt` answers that durably: once a full sync has completed,
   // a later refresh (or a failed one) does not remove what is already stored.
-  const status = replication?.status;
+  const status = useContext(ReplicationSyncStatusContext);
   const ready =
     !!status?.lastSyncAt &&
     AT_SHOW_OFFLINE_TABLES.every(table => status.tablesStatus[table] !== 'error');

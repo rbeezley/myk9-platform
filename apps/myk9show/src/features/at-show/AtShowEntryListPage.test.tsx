@@ -15,7 +15,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { AtShowEntryListPage } from './AtShowEntryListPage';
 import { createAtShowDataDependencies, syncAtShowChangeSignals } from './atShowDataAdapter';
@@ -127,13 +127,13 @@ const settledSyncStatus: ReplicationSyncContextValue['status'] = {
 
 const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledSyncStatus) =>
   render(
-    <ReplicationSyncContext.Provider
+    <ReplicationSyncTestProvider
       value={{ status: syncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
     >
       <Routes>
         <Route path="/at-show/:showId/class/:classId" element={<AtShowEntryListPage />} />
       </Routes>
-    </ReplicationSyncContext.Provider>,
+    </ReplicationSyncTestProvider>,
     { initialRoute: '/at-show/show-1/class/class-1' }
   );
 

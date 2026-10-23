@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { WifiOff, Wifi, AlertCircle, RefreshCw } from 'lucide-react';
 import { useOnlineStatus, useNetworkQuality } from '@/lib/networkUtils';
-import { NetworkStatusContext, useNetworkStatus } from '@/hooks/useNetworkStatus';
+import {
+  NetworkConnectivityContext,
+  NetworkQualityContext,
+  useNetworkStatus,
+} from '@/hooks/useNetworkStatus';
 
 interface NetworkStatusProviderProps {
   children: React.ReactNode;
@@ -29,7 +33,7 @@ export const NetworkStatusProvider: React.FC<NetworkStatusProviderProps> = ({ ch
     }
   }
 
-  const retryConnection = () => {
+  const retryConnection = useCallback(() => {
     // Force a connection test
     if (navigator.onLine) {
       setShowOfflineMessage(false);
@@ -37,20 +41,22 @@ export const NetworkStatusProvider: React.FC<NetworkStatusProviderProps> = ({ ch
       // Still offline, keep showing message
       setShowOfflineMessage(true);
     }
-  };
+  }, []);
 
-  const contextValue = {
-    isOnline,
-    quality,
-    showOfflineMessage,
-    retryConnection,
-  };
+  // `quality` changes on every connection `change` event; keeping it in its own
+  // context means the many isOnline-only consumers do not re-render with it.
+  const connectivity = useMemo(
+    () => ({ isOnline, showOfflineMessage, retryConnection }),
+    [isOnline, showOfflineMessage, retryConnection]
+  );
 
   return (
-    <NetworkStatusContext.Provider value={contextValue}>
-      {children}
-      <NetworkStatusIndicator />
-    </NetworkStatusContext.Provider>
+    <NetworkConnectivityContext.Provider value={connectivity}>
+      <NetworkQualityContext.Provider value={quality}>
+        {children}
+        <NetworkStatusIndicator />
+      </NetworkQualityContext.Provider>
+    </NetworkConnectivityContext.Provider>
   );
 };
 

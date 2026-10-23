@@ -1,10 +1,10 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
-import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
+import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 import { judgeDayCapacityKey } from '@/hooks/queries/useJudgeDayCapacity';
 import { classAvailabilityQueryKey } from '@/hooks/useClassAvailability';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import { render } from '@/test/utils/testUtils';
 import { supabase } from '@/services/database/supabaseClient';
 import { JudgeCapacityOverview } from '../JudgeCapacityOverview';
@@ -51,7 +51,7 @@ describe('judge-day capacity editor', () => {
     const invalidate = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
     const syncTable = vi.fn().mockResolvedValue(undefined);
     render(
-      <ReplicationSyncContext.Provider
+      <ReplicationSyncTestProvider
         value={{
           syncTable,
           triggerSync: vi.fn(),
@@ -59,7 +59,7 @@ describe('judge-day capacity editor', () => {
         }}
       >
         <JudgeCapacityOverview judgeDays={[day]} onViewWaitList={vi.fn()} capacityShowId="show-1" />
-      </ReplicationSyncContext.Provider>
+      </ReplicationSyncTestProvider>
     );
     fireEvent.click(screen.getByRole('button', { name: 'Use show default' }));
     await waitFor(() =>
@@ -89,7 +89,7 @@ describe('judge-day capacity editor', () => {
   it('disables both writes offline', () => {
     const rpc = vi.spyOn(supabase, 'rpc');
     render(
-      <NetworkStatusContext.Provider
+      <NetworkStatusTestProvider
         value={{
           isOnline: false,
           quality: null,
@@ -98,7 +98,7 @@ describe('judge-day capacity editor', () => {
         }}
       >
         <JudgeCapacityOverview judgeDays={[day]} onViewWaitList={vi.fn()} capacityShowId="show-1" />
-      </NetworkStatusContext.Provider>
+      </NetworkStatusTestProvider>
     );
     expect(screen.getByRole('button', { name: 'Save limit' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Use show default' })).toBeDisabled();

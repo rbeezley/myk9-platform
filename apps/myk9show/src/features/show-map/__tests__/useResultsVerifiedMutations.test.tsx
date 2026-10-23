@@ -21,8 +21,8 @@ vi.mock('../resultsVerifiedMutations', async importOriginal => ({
 const toast = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
 
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
-import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
+import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 import { createAppQueryClient } from '@/lib/queryClient';
 import { useResultsVerifiedMutations } from '../useResultsVerifiedMutations';
 
@@ -34,7 +34,7 @@ const client = createAppQueryClient();
 function wrapper({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={client}>
-      <NetworkStatusContext.Provider
+      <NetworkStatusTestProvider
         value={{
           isOnline: network.online,
           quality: null,
@@ -42,12 +42,12 @@ function wrapper({ children }: { children: ReactNode }) {
           retryConnection: vi.fn(),
         }}
       >
-        <ReplicationSyncContext.Provider
+        <ReplicationSyncTestProvider
           value={{ status: {} as never, triggerSync, syncTable: vi.fn() }}
         >
           {children}
-        </ReplicationSyncContext.Provider>
-      </NetworkStatusContext.Provider>
+        </ReplicationSyncTestProvider>
+      </NetworkStatusTestProvider>
     </QueryClientProvider>
   );
 }

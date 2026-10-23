@@ -169,6 +169,46 @@ describe('error codes in load metrics', () => {
     ]);
   });
 
+  it('counts a load the page cancelled as aborted, apart from a transport failure', async () => {
+    const listeners = new Map<string, (event: never) => void>();
+    const session = {
+      send: vi.fn().mockResolvedValue({}),
+      on(event: string, listener: (event: never) => void) {
+        listeners.set(event, listener);
+        return session;
+      },
+    } as unknown as CDPSession;
+    const page = {
+      context: () => ({ newCDPSession: vi.fn().mockResolvedValue(session) }),
+    } as unknown as Page;
+    const metrics = new LoadMetrics();
+    await metrics.attach(page);
+    const url = 'https://p.supabase.co/rest/v1/entries';
+    for (const [requestId, canceled] of [
+      ['deadline-1', true],
+      ['deadline-2', true],
+      ['dropped', false],
+    ] as const) {
+      listeners.get('Network.requestWillBeSent')?.({
+        requestId,
+        timestamp: 1,
+        request: { url },
+      } as never);
+      listeners.get('Network.loadingFailed')?.({ requestId, canceled } as never);
+    }
+    await metrics.settle();
+    const observation = observationOf(metrics);
+    expect(observation.failedRequestCount).toBe(3);
+    expect(observation.requestCount).toBe(3);
+    expect(observation.apiErrorCounts).toEqual([
+      { status: 0, code: 'aborted', count: 2 },
+      { status: 0, code: 'transport', count: 1 },
+    ]);
+    expect(formatApiErrorCounts(observation.apiErrorCounts)).toBe(
+      'aborted (HTTP no response) x2, transport (HTTP no response) x1'
+    );
+  });
+
   it('keeps the known status when a failed response then emits loadingFailed', async () => {
     const listeners = new Map<string, (event: never) => void>();
     const session = {

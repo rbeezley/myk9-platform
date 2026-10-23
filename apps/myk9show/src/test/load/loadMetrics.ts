@@ -4,7 +4,12 @@ import type { GeneratorShardObservation } from './loadGeneratorSampler';
 import type { LoadWorkloadKind } from './loadScenario';
 import type { LoadSessionLifecycleObservation } from './loadSessionLifecycle';
 import type { PersistenceFailure } from './loadPersistence';
-import { ApiErrorTally, extractApiErrorCode, type VirtualUserErrorSample } from './loadErrorCodes';
+import {
+  ABORTED_ERROR_CODE,
+  ApiErrorTally,
+  extractApiErrorCode,
+  type VirtualUserErrorSample,
+} from './loadErrorCodes';
 
 interface RequestAttempt {
   entryId?: string;
@@ -43,6 +48,8 @@ interface CdpResponseReceived {
 
 interface CdpLoadingEvent {
   requestId: string;
+  /** `Network.loadingFailed` only: true when the page cancelled the request itself. */
+  canceled?: boolean;
 }
 
 const MAX_WORKFLOW_FAILURE_GROUPS = 100;
@@ -131,7 +138,9 @@ export class LoadMetrics {
       if (!requests.delete(event.requestId)) return;
       this.requestCount += 1;
       this.failedRequestCount += 1;
-      this.apiErrors.record(0);
+      // A load the page cancelled (the client read deadline) is not a network
+      // failure; keep the two apart in the tally (MYK9-1374).
+      this.apiErrors.record(0, event.canceled ? ABORTED_ERROR_CODE : undefined);
     });
     session.on('Network.loadingFinished', (event: CdpLoadingEvent) => {
       const failed = failedResponses.get(event.requestId);

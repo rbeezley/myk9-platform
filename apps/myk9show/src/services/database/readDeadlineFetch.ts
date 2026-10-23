@@ -53,6 +53,27 @@ export function readDeadlineReason(deadlineMs: number = SUPABASE_READ_DEADLINE_M
   return new DOMException(`Read deadline of ${deadlineMs} ms exceeded`, READ_DEADLINE_ERROR_NAME);
 }
 
+const READ_DEADLINE_MESSAGE = /Read deadline of \d+ ms exceeded/;
+
+/**
+ * True for the failure a read-deadline abort produces, however it surfaces: the
+ * DOMException itself, postgrest-js's rethrow of it, a `DatabaseError` or sync
+ * message that carries its text, or any error whose `cause` chain holds one.
+ *
+ * Why a caller cares (MYK9-1374): PostgREST does not cancel the statement when
+ * the client disconnects (PostgREST issue #699, still open), so the server is
+ * still running the read this client gave up on. A retry fired straight away
+ * queues a second copy behind the first on a saturated database. Callers that
+ * retry transient failures therefore retry a deadline timeout once, later.
+ */
+export function isReadDeadlineTimeout(error: unknown, depth = 0): boolean {
+  if (!error || typeof error !== 'object' || depth > 4) return false;
+  const { name, message, cause } = error as { name?: unknown; message?: unknown; cause?: unknown };
+  if (name === READ_DEADLINE_ERROR_NAME) return true;
+  if (typeof message === 'string' && READ_DEADLINE_MESSAGE.test(message)) return true;
+  return cause !== undefined && cause !== error && isReadDeadlineTimeout(cause, depth + 1);
+}
+
 /** Read-only RPCs that gate first paint. Every other RPC is treated as a write. */
 export const READ_ONLY_RPCS: ReadonlySet<string> = new Set([
   'get_user_permissions',

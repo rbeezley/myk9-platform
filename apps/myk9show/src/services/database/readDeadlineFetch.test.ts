@@ -12,8 +12,10 @@ import {
 import {
   createReadDeadlineFetch,
   isDeadlinedRead,
+  isReadDeadlineTimeout,
   READ_DEADLINE_ERROR_NAME,
   READ_ONLY_RPCS,
+  readDeadlineReason,
   SUPABASE_READ_DEADLINE_MS,
 } from './readDeadlineFetch';
 
@@ -354,5 +356,31 @@ describe('how the replication layer sees a deadline abort', () => {
 
   it('still reads as unreachable to the show boundary', () => {
     expect(classifyRefreshFailure(SYNC_MESSAGE)).toBe('unreachable');
+  });
+});
+
+describe('isReadDeadlineTimeout (MYK9-1374)', () => {
+  it('recognises the abort in every shape it reaches a caller', () => {
+    const reason = readDeadlineReason();
+    expect(isReadDeadlineTimeout(reason)).toBe(true);
+    expect(isReadDeadlineTimeout(new Error(`TimeoutError: ${DEADLINE_MESSAGE}`))).toBe(true);
+    expect(
+      isReadDeadlineTimeout(new Error(`Supabase query failed: TimeoutError: ${DEADLINE_MESSAGE}`))
+    ).toBe(true);
+    expect(isReadDeadlineTimeout(new Error('wrapped', { cause: reason }))).toBe(true);
+    expect(isReadDeadlineTimeout({ message: DEADLINE_MESSAGE })).toBe(true);
+  });
+
+  it('does not match other transient failures, a deliberate abort, or nothing', () => {
+    expect(isReadDeadlineTimeout(new DOMException('cancelled', 'AbortError'))).toBe(false);
+    expect(isReadDeadlineTimeout(new TypeError('Failed to fetch'))).toBe(false);
+    expect(isReadDeadlineTimeout(new Error('canceling statement due to statement timeout'))).toBe(
+      false
+    );
+    expect(isReadDeadlineTimeout(undefined)).toBe(false);
+    expect(isReadDeadlineTimeout('TimeoutError')).toBe(false);
+    const loop = new Error('loop');
+    (loop as { cause?: unknown }).cause = loop;
+    expect(isReadDeadlineTimeout(loop)).toBe(false);
   });
 });

@@ -34,6 +34,13 @@ const BOB = {
   lastName: 'Barker',
   judgeQualifications: [{ status: 'Active', organization: 'AKC' }],
 };
+// Qualified for another registry only: an AKC show must not offer her.
+const UMA = {
+  id: 'judge-3',
+  firstName: 'Uma',
+  lastName: 'Ukc',
+  judgeQualifications: [{ status: 'Active', organization: 'UKC' }],
+};
 
 const classOf = (overrides: Partial<SecretaryCockpitClass>): SecretaryCockpitClass => ({
   id: 'class-1',
@@ -99,6 +106,17 @@ describe('class panel judge picker (MYK9-1323)', () => {
       'judge-1',
       JANE_NAME
     );
+  });
+
+  it("offers only judges qualified for the show's registry", async () => {
+    judgesQuery.mockReturnValue({ data: [JANE, BOB, UMA] });
+    const { user } = renderCockpit(classOf({}));
+
+    await user.click(screen.getByRole('combobox', { name: 'Judge for Container Novice' }));
+
+    expect(await screen.findByRole('option', { name: 'Jane Judge' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Bob Barker' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Uma Ukc' })).not.toBeInTheDocument();
   });
 
   it('shows whatever judge the class row carries, in the panel and on the schedule row', () => {

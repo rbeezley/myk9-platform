@@ -40,7 +40,8 @@ const classes = [
   makeClass('c2', { element: 'Exterior', trialId: 't2', trialNumber: '2', classOrder: 1 }),
 ];
 
-const renderTab = () => render(<ClassesTab classes={classes} showId="s1" userHasEntries={false} />);
+const renderTab = (list: ClassInfo[] = classes) =>
+  render(<ClassesTab classes={list} showId="s1" userHasEntries={false} />);
 
 function expectNoManageControls() {
   expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
@@ -77,6 +78,13 @@ describe('ClassesTab is read-only (MYK9-1337)', () => {
     expect(screen.getAllByText('Jane Judge')).toHaveLength(2);
     expect(screen.getAllByPlaceholderText(/search/i)).toHaveLength(1);
     expectNoManageControls();
+  });
+
+  it('an empty show offers no Add Classes, only the not-set-up notice', () => {
+    renderTab([]);
+
+    expect(screen.getByText("Classes for this show haven't been set up yet.")).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /add classes/i })).not.toBeInTheDocument();
   });
 
   it('never reads the judge list, which only the removed picker needed', () => {

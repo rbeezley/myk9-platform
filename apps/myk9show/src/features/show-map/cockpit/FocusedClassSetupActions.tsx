@@ -5,9 +5,9 @@ import { SetupClassDialogs } from '@/components/shows/tabs/SetupClassDialogs';
 import { useClassRowActions } from '@/components/shows/tabs/useClassRowActions';
 
 /**
- * Edit class on the show home's class panel (MYK9-956): the same
- * resolve-then-open flow and the same panel as Setup → Classes. Delete is in
- * that edit panel's footer, not beside Edit (owner, 2026-10-03).
+ * Edit class on the show home's class panel (MYK9-956): resolve the class,
+ * then open the class edit panel. Delete is in that edit panel's footer, not
+ * beside Edit (owner, 2026-10-03).
  *
  * A hook, held by the cockpit rather than the panel: the focused panel moves
  * between the inline and split layouts, which remounts it, and an

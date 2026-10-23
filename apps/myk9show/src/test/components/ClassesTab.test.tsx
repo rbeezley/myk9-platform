@@ -17,7 +17,6 @@ vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
-  useLocation: () => ({ key: 'default' }),
 }));
 
 // The guest Export CSV (MYK9-933) reads the signed-in user.

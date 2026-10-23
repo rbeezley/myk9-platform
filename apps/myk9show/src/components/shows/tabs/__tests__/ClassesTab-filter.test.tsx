@@ -1,17 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import { ClassesTab } from '../ClassesTab';
-
-vi.mock('@/hooks/useShowManageScope', () => ({
-  useShowManageScope: () => ({ status: 'resolved', canManage: false }),
-}));
-
-vi.mock('@/hooks/useRBAC', () => ({
-  useRBAC: () => ({
-    hasPermission: () => false,
-  }),
-}));
 
 function makeClass(overrides: Record<string, unknown> = {}) {
   return {

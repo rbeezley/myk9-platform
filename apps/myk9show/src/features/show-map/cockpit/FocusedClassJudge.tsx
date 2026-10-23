@@ -3,8 +3,8 @@ import type { JudgeListStatus } from '@/components/classes/useClassJudgeAssignme
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 
 /**
- * The class panel's Judge setting (MYK9-1323): the same picker and replicated write as
- * Setup → Classes, one tap instead of the Edit class form. Before the class starts only;
+ * The class panel's Judge setting (MYK9-1323): the shared picker and replicated write (also
+ * behind Select classes' bulk Assign judge), one tap instead of the Edit class form. Before the class starts only;
  * after that it reads as text and points at Edit class (see `judgeLockReason`).
  */
 export function FocusedClassJudge({

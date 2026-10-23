@@ -17,19 +17,12 @@ vi.mock('react-router-dom', () => ({
 // The guest Export CSV (MYK9-933) reads the signed-in user.
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => ({ user: { id: 'u1' } }) }));
 
-vi.mock('@/hooks/useRBAC', () => ({
-  useRBAC: () => ({
-    hasPermission: () => false,
-  }),
-}));
-
 let mockViewMode = 'table';
-let mockHasStoredViewPreference = false;
 const mockSetViewMode = vi.fn((m: string) => {
   mockViewMode = m;
 });
 vi.mock('@/hooks/useViewPreference', () => ({
-  useViewPreference: () => [mockViewMode, mockSetViewMode, mockHasStoredViewPreference],
+  useViewPreference: () => [mockViewMode, mockSetViewMode],
   CARD_TABLE_MODES: [
     { key: 'cards', label: 'Cards', icon: 'grid' },
     { key: 'table', label: 'Table', icon: 'table' },
@@ -117,7 +110,6 @@ vi.mock('@/components/common/EmptyState', () => ({
 describe('ClassesTab', () => {
   beforeEach(() => {
     mockViewMode = 'table';
-    mockHasStoredViewPreference = false;
     mockNavigate.mockClear();
     mockSetViewMode.mockClear();
   });

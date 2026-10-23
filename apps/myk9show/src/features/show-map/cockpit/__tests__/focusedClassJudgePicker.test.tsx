@@ -120,19 +120,27 @@ describe('class panel judge picker (MYK9-1323)', () => {
   });
 
   it('shows whatever judge the class row carries, in the panel and on the schedule row', () => {
-    // The row is the one source: no override is held on top of it.
+    // The row is the one source: no override is held on top of it, so another device's change
+    // (reassign, clear, or back again) reaches the picker as well as the schedule row.
+    const picker = () => screen.getByRole('combobox', { name: 'Judge for Container Novice' });
+    const rowWith = (judge: Partial<SecretaryCockpitClass>) => (
+      <SecretaryCockpit snapshot={snapshotOf(classOf(judge))} canManageShow onCommand={vi.fn()} />
+    );
     const { rerender } = renderCockpit(classOf({ judgeId: 'judge-2', judgeName: 'Bob Barker' }));
     expect(scheduleRow()).toHaveTextContent('Bob Barker');
+    expect(picker()).toHaveTextContent('Bob Barker');
 
-    rerender(
-      <SecretaryCockpit
-        snapshot={snapshotOf(classOf({ judgeId: 'judge-1', judgeName: 'Jane Judge' }))}
-        canManageShow
-        onCommand={vi.fn()}
-      />
-    );
+    rerender(rowWith({ judgeId: 'judge-1', judgeName: 'Jane Judge' }));
     expect(scheduleRow()).toHaveTextContent('Jane Judge');
     expect(scheduleRow()).not.toHaveTextContent('Bob Barker');
+    expect(picker()).toHaveTextContent('Jane Judge');
+
+    rerender(rowWith({ judgeId: null, judgeName: null }));
+    expect(picker()).toHaveTextContent('Unassigned');
+    expect(picker()).not.toHaveTextContent('Jane Judge');
+
+    rerender(rowWith({ judgeId: 'judge-2', judgeName: 'Bob Barker' }));
+    expect(picker()).toHaveTextContent('Bob Barker');
   });
 
   it('writes the judge while offline: the write is local and replicated, not parked', async () => {

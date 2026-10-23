@@ -27,6 +27,8 @@ const defaultRules: ResolvedClassRules = {
 vi.mock('../../../hooks/useStopwatch', () => ({
   useStopwatch: () => ({
     time: 0,
+    subscribeTime: () => () => undefined,
+    getTimeMs: () => 0,
     isRunning: false,
     formatTime: (ms: number) => {
       const s = ms / 1000;

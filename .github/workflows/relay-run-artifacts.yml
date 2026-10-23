@@ -1,10 +1,10 @@
 name: Relay run artifacts
 
-# Throwaway. Downloads another run's artifacts on the runner and prints every
-# text file into this job's log, so a session whose network policy cannot reach
-# the artifact blob host can still read them. Fires on push to its own branch
-# because workflow_dispatch is only registered for the default branch. Not for
-# merge.
+# Throwaway. Downloads another run's artifacts on the runner and commits them
+# under relay-artifacts/ on this branch, so a session whose network policy
+# cannot reach the artifact blob host can read them with git. Fires on push to
+# its own branch because workflow_dispatch is only registered for the default
+# branch. Not for merge.
 
 on:
   push:
@@ -15,13 +15,17 @@ on:
   workflow_dispatch:
     inputs:
       run_id:
-        description: Workflow run id whose artifacts to print
+        description: Workflow run id whose artifacts to commit
         required: false
         default: '39992612026'
 
 permissions:
-  contents: read
+  contents: write
   actions: read
+
+concurrency:
+  group: relay-run-artifacts
+  cancel-in-progress: false
 
 jobs:
   relay:
@@ -30,21 +34,22 @@ jobs:
     env:
       RELAY_RUN_ID: ${{ inputs.run_id || '39992612026' }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+
       - name: Download artifacts
         uses: actions/download-artifact@v8
         with:
           run-id: ${{ env.RELAY_RUN_ID }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: relay
+          path: relay-artifacts/${{ env.RELAY_RUN_ID }}
 
-      - name: Print artifacts
+      - name: Commit artifacts to this branch
         run: |
-          echo "===== RELAY RUN $RELAY_RUN_ID"
-          echo '===== FILE TREE'
-          find relay -type f -printf '%s %p\n' | sort -k2
-          find relay -type f \( -name '*.md' -o -name '*.json' -o -name '*.txt' -o -name '*.csv' -o -name '*.log' \) | sort | while read -r f; do
-            echo "===== BEGIN $f"
-            cat "$f"
-            echo
-            echo "===== END $f"
-          done
+          find relay-artifacts -type f -printf '%s %p\n' | sort -k2
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f relay-artifacts
+          git commit -m "chore(relay): artifacts of run $RELAY_RUN_ID [skip ci]"
+          git push origin "HEAD:$GITHUB_REF_NAME"

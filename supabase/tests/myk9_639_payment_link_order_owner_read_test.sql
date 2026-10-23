@@ -4,8 +4,8 @@
 -- A payment-link order is written with customer_id NULL, so the customer arm
 -- of stripe_orders_select never admits it and My Payments printed two of four
 -- paid charges in the 2026-10-21 controlled replay. The repaired policy admits
--- a NULL-customer order through is_my_entry_payment_link_order(session), which
--- decides against the persisted link's COMPLETE original entry list -- the
+-- a NULL-customer order whose session my_entry_payment_link_session_ids()
+-- lists, which decides against the link's COMPLETE original entry list -- the
 -- order's own entry_ids hold only the accepted lines while amount_cents is the
 -- whole charge, which is how the rejected first draft exposed a 7490-cent
 -- mixed-handler charge to one of its two handlers.
@@ -31,7 +31,8 @@
 --  11. A soft-deleted entry keeps the payer's history readable: a withdrawal
 --      and its refund are still the exhibitor's money.
 --  12. EXECUTE on the helper is revoked from PUBLIC and anon, granted to
---      authenticated; a caller with no person row gets false.
+--      authenticated; a caller with no person row gets an empty set.
+--  13. A link that lists the same entry twice is still the payer's.
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 against a migrated local database;
 -- every fixture rolls back.
@@ -140,7 +141,10 @@ values
    'cs_myk9_639_cross_show', 'paid', 3500),
   ('00000000-0000-0000-0000-000000639977', '00000000-0000-0000-0000-000000639911',
    array['00000000-0000-0000-0000-000000639964']::uuid[],
-   'cs_myk9_639_null_owner', 'paid', 3500);
+   'cs_myk9_639_null_owner', 'paid', 3500),
+  ('00000000-0000-0000-0000-000000639978', '00000000-0000-0000-0000-000000639911',
+   array['00000000-0000-0000-0000-000000639961', '00000000-0000-0000-0000-000000639961']::uuid[],
+   'cs_myk9_639_duplicate', 'paid', 3500);
 
 -- The orders stripe-webhook records for those sessions: customer_id NULL,
 -- entry_ids = the ACCEPTED lines only, amount_cents = the whole charge. The
@@ -176,7 +180,11 @@ values
   ('00000000-0000-0000-0000-000000639987', null, 'pi_myk9_639_null_owner', 'cs_myk9_639_null_owner',
    3745, 'succeeded', 'entry', '00000000-0000-0000-0000-000000639911',
    array['00000000-0000-0000-0000-000000639964']::uuid[],
-   '{"entry_payment_link_id":"00000000-0000-0000-0000-000000639977","entry_count":1}'::jsonb);
+   '{"entry_payment_link_id":"00000000-0000-0000-0000-000000639977","entry_count":1}'::jsonb),
+  ('00000000-0000-0000-0000-000000639989', null, 'pi_myk9_639_duplicate', 'cs_myk9_639_duplicate',
+   3745, 'succeeded', 'entry', '00000000-0000-0000-0000-000000639911',
+   array['00000000-0000-0000-0000-000000639961']::uuid[],
+   '{"entry_payment_link_id":"00000000-0000-0000-0000-000000639978","entry_count":1}'::jsonb);
 
 -- The customer arm's positive control: a cart order keyed to A's own
 -- stripe_customers row, exactly as before this migration.
@@ -207,7 +215,7 @@ begin
   select coalesce(array_agg(id order by id), '{}'::uuid[]) into v_ids
   from public.stripe_orders
   where id between '00000000-0000-0000-0000-000000639981'
-               and '00000000-0000-0000-0000-000000639988';
+               and '00000000-0000-0000-0000-000000639989';
   reset role;
   return v_ids;
 end;
@@ -225,15 +233,16 @@ begin
 end;
 $$;
 
--- 1, 3, 9: the payer sees their own-only link order, the none-accepted link
--- order, and the customer-arm cart order.
+-- 1, 3, 9, 13: the payer sees their own-only link order, the none-accepted
+-- link order, the customer-arm cart order and the duplicate-id link order.
 -- 2, 4, 5, 6, 7: the mixed, missing, cross-show, no-link and null-owner
 -- orders are all denied to the payer.
 select pg_temp.assert_visible('payer A reads exactly their own link history',
   '00000000-0000-0000-0000-000000639101',
   array['00000000-0000-0000-0000-000000639981',
         '00000000-0000-0000-0000-000000639983',
-        '00000000-0000-0000-0000-000000639988']::uuid[]);
+        '00000000-0000-0000-0000-000000639988',
+        '00000000-0000-0000-0000-000000639989']::uuid[]);
 
 -- 2 again, from the other side: handler B owns one line of the mixed link and
 -- none of its charge.
@@ -249,11 +258,13 @@ select pg_temp.assert_visible('an unrelated account reads no order',
 select pg_temp.assert_visible('the dog owner reads the link orders for their dog',
   '00000000-0000-0000-0000-000000639104',
   array['00000000-0000-0000-0000-000000639981',
-        '00000000-0000-0000-0000-000000639983']::uuid[]);
+        '00000000-0000-0000-0000-000000639983',
+        '00000000-0000-0000-0000-000000639989']::uuid[]);
 select pg_temp.assert_visible('the co-owner reads the link orders for their dog',
   '00000000-0000-0000-0000-000000639105',
   array['00000000-0000-0000-0000-000000639981',
-        '00000000-0000-0000-0000-000000639983']::uuid[]);
+        '00000000-0000-0000-0000-000000639983',
+        '00000000-0000-0000-0000-000000639989']::uuid[]);
 
 -- 11: withdrawing eA2 (soft delete) does not erase the payer's charge history.
 update public.entries set deleted_at = now()
@@ -262,21 +273,22 @@ select pg_temp.assert_visible('a withdrawn entry keeps its link orders readable'
   '00000000-0000-0000-0000-000000639101',
   array['00000000-0000-0000-0000-000000639981',
         '00000000-0000-0000-0000-000000639983',
-        '00000000-0000-0000-0000-000000639988']::uuid[]);
+        '00000000-0000-0000-0000-000000639988',
+        '00000000-0000-0000-0000-000000639989']::uuid[]);
 
 -- 12: ACL on the helper, and the no-person-row caller.
 do $$
 begin
-  if has_function_privilege('anon', 'public.is_my_entry_payment_link_order(text)', 'EXECUTE') then
-    raise exception 'FAIL anon can execute is_my_entry_payment_link_order';
+  if has_function_privilege('anon', 'public.my_entry_payment_link_session_ids()', 'EXECUTE') then
+    raise exception 'FAIL anon can execute my_entry_payment_link_session_ids';
   end if;
   if not has_function_privilege('authenticated',
-       'public.is_my_entry_payment_link_order(text)', 'EXECUTE') then
-    raise exception 'FAIL authenticated cannot execute is_my_entry_payment_link_order';
+       'public.my_entry_payment_link_session_ids()', 'EXECUTE') then
+    raise exception 'FAIL authenticated cannot execute my_entry_payment_link_session_ids';
   end if;
   if (select proacl from pg_proc
-      where oid = 'public.is_my_entry_payment_link_order(text)'::regprocedure) is null then
-    raise exception 'FAIL is_my_entry_payment_link_order still carries the PUBLIC default EXECUTE';
+      where oid = 'public.my_entry_payment_link_session_ids()'::regprocedure) is null then
+    raise exception 'FAIL my_entry_payment_link_session_ids still carries the PUBLIC default EXECUTE';
   end if;
   raise notice 'PASS helper ACL';
 end;
@@ -284,16 +296,16 @@ $$;
 
 do $$
 declare
-  v_result boolean;
+  v_count integer;
 begin
   perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000639199', true);
   perform set_config('request.jwt.claims',
     '{"sub":"00000000-0000-0000-0000-000000639199","role":"authenticated"}', true);
   perform set_config('role', 'authenticated', true);
-  v_result := public.is_my_entry_payment_link_order('cs_myk9_639_a_only');
+  select count(*) into v_count from public.my_entry_payment_link_session_ids();
   reset role;
-  if v_result then
-    raise exception 'FAIL a caller with no person row was admitted to a link order';
+  if v_count <> 0 then
+    raise exception 'FAIL a caller with no person row was handed % link sessions', v_count;
   end if;
   raise notice 'PASS no person row is never an owner';
 end;

@@ -262,8 +262,8 @@ export interface MyPayment {
  * directly — RLS scopes rows to the caller, so no explicit owner filter is needed
  * here: a cart order through customer_id → stripe_customers.person_id =
  * get_my_person_id(), and a secretary payment-link order (customer_id NULL)
- * through is_my_entry_payment_link_order(), which admits it only when every
- * entry the persisted link was issued for is the caller's (MYK9-639). The show
+ * through my_entry_payment_link_session_ids(), which lists a session only when
+ * every entry the persisted link was issued for is the caller's (MYK9-639). The show
  * name is embedded via the show_id FK (null for non-entry orders).
  *
  * `viewerId` is a REQUIRED argument, not a nicety. The QueryClient is a module

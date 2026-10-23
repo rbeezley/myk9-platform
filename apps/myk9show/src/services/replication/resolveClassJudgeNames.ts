@@ -36,7 +36,9 @@ interface JudgeNameClassRow {
 export async function resolveJudgeNamesForClassRows(
   rows: ReadonlyArray<JudgeNameClassRow>,
   shareRead: ShareRead = readNow,
-  preloadedTrials?: ReadonlyArray<ClassTrialRow>
+  preloadedTrials?: ReadonlyArray<ClassTrialRow>,
+  /** Called when a lookup failed and was skipped, so a caller can tell a partial answer. */
+  onPartialFailure?: () => void
 ): Promise<Map<string, JudgeNameParts | null>> {
   const byClassId = new Map<string, JudgeNameParts | null>();
 
@@ -50,6 +52,7 @@ export async function resolveJudgeNamesForClassRows(
     const { data, error } = await supabase.from('trials').select('id, show_id').in('id', trialIds);
 
     if (error) {
+      onPartialFailure?.();
       logger.warn(
         `[resolveClassJudgeNames] Trial lookup failed; judge names unavailable this sync: ${error.message}`,
         'replication'

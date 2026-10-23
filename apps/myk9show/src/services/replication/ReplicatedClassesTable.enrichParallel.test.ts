@@ -38,6 +38,7 @@ vi.mock('./resolveClassJudgeNames', () => ({
 }));
 
 import { ReplicatedClassesTable } from './ReplicatedClassesTable';
+import { invalidateClassEnrichment } from './classEnrichmentCache';
 
 const TRIALS = [
   { id: 'trial-1', show_id: 'show-1', registry_id: 'AKC' },
@@ -66,6 +67,7 @@ function deferred<T>() {
 describe('class enrichment runs in parallel on one trials read (MYK9-1345)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    invalidateClassEnrichment();
     trialsRead.error = null;
     mockFrom.mockImplementation((name: string) => {
       if (name !== 'trials') throw new Error(`Unexpected table: ${name}`);
@@ -146,9 +148,19 @@ describe('class enrichment runs in parallel on one trials read (MYK9-1345)', () 
 
     expect(trialsCalls()).toHaveLength(1);
     expect(resolvers.visibility).toHaveBeenCalledWith(ROWS, TRIALS);
-    expect(resolvers.hideCounts).toHaveBeenCalledWith(ROWS, expect.any(Function), TRIALS);
+    expect(resolvers.hideCounts).toHaveBeenCalledWith(
+      ROWS,
+      expect.any(Function),
+      TRIALS,
+      expect.any(Function)
+    );
     expect(resolvers.timeLimits).toHaveBeenCalledWith(ROWS, TRIALS);
-    expect(resolvers.judges).toHaveBeenCalledWith(ROWS, expect.any(Function), TRIALS);
+    expect(resolvers.judges).toHaveBeenCalledWith(
+      ROWS,
+      expect.any(Function),
+      TRIALS,
+      expect.any(Function)
+    );
   });
 
   it.each([
@@ -162,9 +174,19 @@ describe('class enrichment runs in parallel on one trials read (MYK9-1345)', () 
       await enrich(new ReplicatedClassesTable())(ROWS);
 
       expect(resolvers.visibility).toHaveBeenCalledWith(ROWS, undefined);
-      expect(resolvers.hideCounts).toHaveBeenCalledWith(ROWS, expect.any(Function), undefined);
+      expect(resolvers.hideCounts).toHaveBeenCalledWith(
+        ROWS,
+        expect.any(Function),
+        undefined,
+        expect.any(Function)
+      );
       expect(resolvers.timeLimits).toHaveBeenCalledWith(ROWS, undefined);
-      expect(resolvers.judges).toHaveBeenCalledWith(ROWS, expect.any(Function), undefined);
+      expect(resolvers.judges).toHaveBeenCalledWith(
+        ROWS,
+        expect.any(Function),
+        undefined,
+        expect.any(Function)
+      );
     }
   );
 });

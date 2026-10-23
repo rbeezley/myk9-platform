@@ -110,13 +110,20 @@ export const RETIRED_REPLICATED_TABLE_INDEXES = [
  */
 export const SHOW_ID_INDEX = 'tableName_showId';
 
-const SHOW_ID_INDEX_KEY_PATH: string[] = ['tableName', 'data.showId'];
+/**
+ * One class's rows / one trial's rows of one table (MYK9-1366), keyed on the
+ * mapped row's camelCase `classId` / `trialId` exactly as the show index is on
+ * `showId`. Read by `getByClassWithStatus` / `getByTrialWithStatus`.
+ */
+export const CLASS_ID_INDEX = 'tableName_classId';
+export const TRIAL_ID_INDEX = 'tableName_trialId';
 
-function createShowIdIndex(store: {
-  createIndex(name: string, keyPath: string[], options: IDBIndexParameters): unknown;
-}): void {
-  store.createIndex(SHOW_ID_INDEX, SHOW_ID_INDEX_KEY_PATH, { unique: false });
-}
+/** The scope indexes added after v8, in creation order: name and key path. */
+const SCOPE_INDEXES: readonly ReplicationIndexDefinition[] = [
+  { name: SHOW_ID_INDEX, keyPath: ['tableName', 'data.showId'], unique: false },
+  { name: CLASS_ID_INDEX, keyPath: ['tableName', 'data.classId'], unique: false },
+  { name: TRIAL_ID_INDEX, keyPath: ['tableName', 'data.trialId'], unique: false },
+];
 
 /**
  * One IndexedDB index, as `createObjectStores` builds it on a fresh database.
@@ -147,7 +154,7 @@ export const REPLICATION_SCHEMA: readonly ReplicationStoreDefinition[] = [
       { name: 'tableName', keyPath: 'tableName', unique: false },
       { name: 'tableName_lastSyncedAt', keyPath: ['tableName', 'lastSyncedAt'], unique: false },
       { name: 'isDirty', keyPath: 'isDirty', unique: false },
-      { name: SHOW_ID_INDEX, keyPath: SHOW_ID_INDEX_KEY_PATH, unique: false },
+      ...SCOPE_INDEXES,
     ],
   },
   {
@@ -220,10 +227,13 @@ function createObjectStores(db: IDBPDatabase, transaction: IDBTransaction, logge
           store.deleteIndex(indexName);
         }
       }
-      // v9 (MYK9-788): read by `getByShowWithStatus`. Building it indexes the
-      // records already on the device; none is rewritten.
-      if (!store.indexNames.contains(SHOW_ID_INDEX)) {
-        createShowIdIndex(store);
+      // v9 (MYK9-788) show index, v10 (MYK9-1366) class and trial indexes: each
+      // is read by a scoped reader. Building one indexes the records already on
+      // the device; none is rewritten.
+      for (const index of SCOPE_INDEXES) {
+        if (!store.indexNames.contains(index.name)) {
+          store.createIndex(index.name, index.keyPath, { unique: index.unique });
+        }
       }
     } else if (definition.name === REPLICATION_STORES.PENDING_MUTATIONS) {
       const mutationStore = transaction.objectStore(REPLICATION_STORES.PENDING_MUTATIONS);

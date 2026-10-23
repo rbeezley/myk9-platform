@@ -11,10 +11,15 @@ const failed = { ok: false as const, rows: [] as never[], error: new Error('IDB 
 interface StatusReader {
   getAllWithStatus: (...args: never[]) => Promise<unknown>;
   getByShowWithStatus: (...args: never[]) => Promise<unknown>;
+  getByClassWithStatus: (...args: never[]) => Promise<unknown>;
+  getByTrialWithStatus: (...args: never[]) => Promise<unknown>;
 }
 
 /** A show-scoped reader reads through the show index (MYK9-792), not the whole table. */
 const SHOW_READ = 'getByShowWithStatus' as const;
+/** A class- or trial-scoped reader reads through its own index (MYK9-1366). */
+const CLASS_READ = 'getByClassWithStatus' as const;
+const TRIAL_READ = 'getByTrialWithStatus' as const;
 
 /**
  * MYK9-774: the scoped show-day readers were filters over getAll(), which hands
@@ -33,6 +38,7 @@ describe('scoped show-day readers throw on a failed device read', () => {
       label: 'entries by class',
       table: replicatedEntriesTable,
       read: () => replicatedEntriesTable.getEntriesByClass('c1'),
+      via: CLASS_READ,
     },
     {
       label: 'entries by show',
@@ -49,6 +55,7 @@ describe('scoped show-day readers throw on a failed device read', () => {
       label: 'classes by trial',
       table: replicatedClassesTable,
       read: () => replicatedClassesTable.getClassesByTrial('t1'),
+      via: TRIAL_READ,
     },
     {
       label: 'trials by show',
@@ -93,7 +100,7 @@ describe('scoped show-day readers throw on a failed device read', () => {
     label: string;
     table: unknown;
     read: () => Promise<unknown>;
-    via?: typeof SHOW_READ;
+    via?: typeof SHOW_READ | typeof CLASS_READ | typeof TRIAL_READ;
   }>)('$label', async ({ table, read, via }) => {
     vi.spyOn(table as StatusReader, via ?? 'getAllWithStatus').mockResolvedValue(failed);
 

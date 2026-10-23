@@ -2,7 +2,13 @@ import type { IDBPDatabase } from 'idb';
 import type { Logger } from '../dependencies';
 import type { ReplicatedReadResult, ReplicatedRow } from '../types';
 import { GET_ALL_TIMEOUT_MS } from '../constants';
-import { databaseManager, REPLICATION_STORES, SHOW_ID_INDEX } from './DatabaseManager';
+import {
+  CLASS_ID_INDEX,
+  databaseManager,
+  REPLICATION_STORES,
+  SHOW_ID_INDEX,
+  TRIAL_ID_INDEX,
+} from './DatabaseManager';
 
 /**
  * Query operations for a replicated table.
@@ -58,12 +64,37 @@ export class ReplicatedTableQueryManager<T extends { id: string }> {
     showId: string,
     visible?: RowVisibility
   ): Promise<ReplicatedReadResult<T>> {
-    return this.readWithStatus('getByShow()', async db => {
+    return this.getByIndexWithStatus('getByShow()', SHOW_ID_INDEX, showId, visible);
+  }
+
+  /** One class's rows through the class index (MYK9-1366); see getByShowWithStatus. */
+  async getByClassWithStatus(
+    classId: string,
+    visible?: RowVisibility
+  ): Promise<ReplicatedReadResult<T>> {
+    return this.getByIndexWithStatus('getByClass()', CLASS_ID_INDEX, classId, visible);
+  }
+
+  /** One trial's rows through the trial index (MYK9-1366); see getByShowWithStatus. */
+  async getByTrialWithStatus(
+    trialId: string,
+    visible?: RowVisibility
+  ): Promise<ReplicatedReadResult<T>> {
+    return this.getByIndexWithStatus('getByTrial()', TRIAL_ID_INDEX, trialId, visible);
+  }
+
+  private async getByIndexWithStatus(
+    label: string,
+    indexName: string,
+    value: string,
+    visible?: RowVisibility
+  ): Promise<ReplicatedReadResult<T>> {
+    return this.readWithStatus(label, async db => {
       const index = db
         .transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly')
-        .store.index(SHOW_ID_INDEX);
+        .store.index(indexName);
       const rows = (
-        (await index.getAll(IDBKeyRange.only([this.tableName, showId]))) as ReplicatedRow<T>[]
+        (await index.getAll(IDBKeyRange.only([this.tableName, value]))) as ReplicatedRow<T>[]
       ).filter(row => !visible || visible(row as ReplicatedRow<never>));
       return rows.map(row => row.data);
     });

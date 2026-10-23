@@ -782,12 +782,9 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     };
   }
 
-  /**
-   * Get classes by trial ID
-   */
+  /** Get classes by trial ID, through the trial index (MYK9-1366). */
   async getClassesByTrial(trialId: string): Promise<ReplicatedClass[]> {
-    const allClasses = await this.getAllOrThrow();
-    return allClasses.filter(cls => cls.trialId === trialId);
+    return this.getByTrialOrThrow(trialId);
   }
 
   /**

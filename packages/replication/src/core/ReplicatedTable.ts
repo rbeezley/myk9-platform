@@ -1167,7 +1167,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   /**
    * How this table's rows leave a collection read. Every collection reader
-   * (getAll, getAllWithStatus, getByShowWithStatus) applies it, so a table
+   * (getAll, getAllWithStatus, getBy{Show,Class,Trial}WithStatus) applies it, so a table
    * that must strip fields from its cached rows says so once here and no new
    * reader can bypass it (MYK9-788: the show read skipped the judge-assignment
    * redaction that lived in a getAllWithStatus override). `get()` stays raw.
@@ -1208,6 +1208,20 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     );
   }
 
+  /** One class's rows through the class index (MYK9-1366); see getByShowWithStatus. */
+  async getByClassWithStatus(classId: string): Promise<ReplicatedReadResult<T>> {
+    return this.presentResult(
+      await this.queryManager.getByClassWithStatus(classId, await this.visibleRows())
+    );
+  }
+
+  /** One trial's rows through the trial index (MYK9-1366); see getByShowWithStatus. */
+  async getByTrialWithStatus(trialId: string): Promise<ReplicatedReadResult<T>> {
+    return this.presentResult(
+      await this.queryManager.getByTrialWithStatus(trialId, await this.visibleRows())
+    );
+  }
+
   /**
    * Get all rows, or throw when the device could not read them. getAll() hands
    * back [] for a failed read, which a caller then reports or acts on as "there
@@ -1237,6 +1251,16 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    */
   async getByShowOrThrow(showId: string): Promise<T[]> {
     return this.rowsOrThrow(await this.getByShowWithStatus(showId));
+  }
+
+  /** One class's rows through the class index, or throw as getByShowOrThrow does (MYK9-1366). */
+  async getByClassOrThrow(classId: string): Promise<T[]> {
+    return this.rowsOrThrow(await this.getByClassWithStatus(classId));
+  }
+
+  /** One trial's rows through the trial index, or throw as getByShowOrThrow does (MYK9-1366). */
+  async getByTrialOrThrow(trialId: string): Promise<T[]> {
+    return this.rowsOrThrow(await this.getByTrialWithStatus(trialId));
   }
 
   private rowsOrThrow(result: ReplicatedReadResult<T>): T[] {

@@ -12,9 +12,10 @@ export const DB_NAME = 'myK9_Replication';
 
 /**
  * Database schema version (v8, MYK9-616: dropped the unread `data.*` indexes;
- * v9, MYK9-788: added the read `tableName_showId` index)
+ * v9, MYK9-788: added the read `tableName_showId` index; v10, MYK9-1366: added the
+ * read `tableName_classId` and `tableName_trialId` indexes)
  */
-export const DB_VERSION = 9;
+export const DB_VERSION = 10;
 
 /** Total number of tables managed by replication system */
 export const TOTAL_REPLICATED_TABLES = 16;

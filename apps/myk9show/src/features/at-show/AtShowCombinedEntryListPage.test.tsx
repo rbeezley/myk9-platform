@@ -33,7 +33,7 @@ vi.mock('@/services/replication', () => ({
     subscribe: vi.fn(() => () => undefined),
     updateEntry: vi.fn(),
   },
-  replicatedTrialsTable: { getTrialById: vi.fn() },
+  replicatedTrialsTable: { getTrialById: vi.fn(), getTrialsByShow: vi.fn(), sync: vi.fn() },
 }));
 
 vi.mock('@/hooks/useAuthContext', async importOriginal => {
@@ -102,6 +102,9 @@ function seed() {
     trialNumber: 1,
     date: '2026-06-01',
   } as never);
+  vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue([
+    { id: 'trial-1', showId: 'show-1' },
+  ] as never);
   vi.mocked(replicatedEntriesTable.updateEntry).mockResolvedValue('a1');
 }
 
@@ -111,14 +114,15 @@ function seed() {
 // the first sync was still running.
 const settledSyncStatus = {
   isSyncing: false,
-  lastSyncAt: new Date().toISOString(),
+  lastSyncAt: new Date('2026-06-01T12:00:00Z'),
+  error: null,
   tablesStatus: {
     shows: 'success',
     trials: 'success',
     classes: 'success',
     entries: 'success',
   },
-} as unknown as ReplicationSyncContextValue['status'];
+} as ReplicationSyncContextValue['status'];
 
 const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledSyncStatus) =>
   render(
@@ -179,5 +183,54 @@ describe('AtShowCombinedEntryListPage (Phase 1h combined Section A/B)', () => {
 
     await waitFor(() => expect(screen.queryByText('Rex')).not.toBeInTheDocument());
     expect(screen.getByText('Bella')).toBeInTheDocument();
+  });
+
+  // MYK9-1347: the combined list used to wait for a realtime signal or a visit
+  // to the single-class page, since the app-wide pass never downloads entries.
+  it('hydrates the show and renders cards while the app-wide first sync is still running', async () => {
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    // A real sync is network-bound, so it lands after the page's first local read.
+    vi.mocked(replicatedEntriesTable.sync).mockImplementationOnce(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+      vi.mocked(replicatedEntriesTable.getEntriesByClass).mockImplementation(
+        async (id: string) =>
+          (id === 'class-a' ? [ENTRY_A] : id === 'class-b' ? [ENTRY_B] : []) as never
+      );
+      return { success: true } as never;
+    });
+
+    renderPage({
+      isSyncing: true,
+      lastSyncAt: null,
+      error: null,
+      tablesStatus: { shows: 'syncing', trials: 'idle', classes: 'syncing', entries: 'idle' },
+    });
+
+    expect(await screen.findByText('Rex')).toBeInTheDocument();
+    expect(screen.getByText('Bella')).toBeInTheDocument();
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+  });
+
+  it('shows the loading skeleton, not No Entries Yet, while the first show hydration runs', async () => {
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    let releaseSync: () => void = () => {};
+    vi.mocked(replicatedEntriesTable.sync).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          releaseSync = () => resolve({ success: true } as never);
+        })
+    );
+
+    renderPage();
+
+    try {
+      await waitFor(() => expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1'));
+      expect(screen.getByRole('status', { name: 'Loading combined entries' })).toBeInTheDocument();
+      expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
+    } finally {
+      // Settle the shared per-show operation so it cannot leak into later tests.
+      releaseSync();
+    }
+    expect(await screen.findByText('No Entries Yet')).toBeInTheDocument();
   });
 });

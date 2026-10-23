@@ -51,6 +51,7 @@ import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
+import { useAtShowShowHydration } from './useAtShowShowHydration';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import { useAtShowEntryListUiState } from './useAtShowEntryListUiState';
@@ -149,6 +150,10 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
 
   // ── Shim-owned state (mirrors CombinedEntryListUiState) ────────────────
   const { status: syncStatus } = useReplicationSync();
+  // MYK9-1347: hydrate this show on mount, as the single-class page does. The
+  // app-wide pass never downloads entries, so waiting on it left a cold device
+  // on the skeleton or an empty ring.
+  const isFirstShowHydrationPending = useAtShowShowHydration(showId, syncStatus, refresh);
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);
   const [manualOrder, setManualOrder] = useState<Entry[]>([]);
   // Mirrors AtShowEntryListPage. Without this the combined route presented an
@@ -156,7 +161,8 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // running -- `isRefreshing` alone only covers a refetch, not the cold boot.
   const isInitialEntryDataSyncing =
     entries.length === 0 &&
-    areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']);
+    (isFirstShowHydrationPending ||
+      areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']));
 
   // ── Filters (section filter ON → All / Section A / Section B tabs) ─────
   const {

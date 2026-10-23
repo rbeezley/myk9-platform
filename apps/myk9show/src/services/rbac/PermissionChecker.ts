@@ -218,34 +218,26 @@ export class PermissionChecker {
 
   private async loadUserPermissions(userId: string): Promise<UserPermissionsResponse> {
     try {
-      // Get detailed permissions via RPC (migration 017)
-      const { data: permissions, error: permError } = await rpc<DbUserPermission[]>(
-        'get_user_permissions',
-        {
-          user_id: userId,
-        }
-      );
+      // Three independent reads (migration 017), issued together: the at-show
+      // access gate waits on this before the first paint, so under a slow
+      // server it must cost one round trip, not three in a row (MYK9-1333).
+      // Errors are still checked in the original order.
+      const [
+        { data: permissions, error: permError },
+        { data: roles, error: rolesError },
+        { data: effectivePermissions, error: effectiveError },
+      ] = await Promise.all([
+        rpc<DbUserPermission[]>('get_user_permissions', { user_id: userId }),
+        rpc<DbUserRole[]>('get_user_roles', { user_id: userId }),
+        rpc<DbEffectivePermission[]>('get_effective_permissions', { user_id: userId }),
+      ]);
 
       if (permError) {
         throw new Error(`Failed to get user permissions: ${permError.message}`);
       }
-
-      // Get user roles via RPC (migration 017)
-      const { data: roles, error: rolesError } = await rpc<DbUserRole[]>('get_user_roles', {
-        user_id: userId,
-      });
-
       if (rolesError) {
         throw new Error(`Failed to get user roles: ${rolesError.message}`);
       }
-
-      // Get effective permissions via RPC (migration 017)
-      const { data: effectivePermissions, error: effectiveError } = await rpc<
-        DbEffectivePermission[]
-      >('get_effective_permissions', {
-        user_id: userId,
-      });
-
       if (effectiveError) {
         throw new Error(`Failed to get effective permissions: ${effectiveError.message}`);
       }

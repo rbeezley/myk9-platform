@@ -226,6 +226,55 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     expect(await screen.findByText('Rex')).toBeInTheDocument();
   });
 
+  // MYK9-1333: a cold device opened this class while the app-wide sync of every
+  // replicated table was still running (G9: a third of run-order readers never
+  // saw a card in 20 s). The class's own show must hydrate now, not after that
+  // pass, which never downloads entries itself.
+  it('hydrates the show and renders cards while the app-wide first sync is still running', async () => {
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    // A real sync is network-bound, so it lands after the page's first local read.
+    vi.mocked(replicatedEntriesTable.sync).mockImplementationOnce(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+      vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([
+        PENDING_ENTRY,
+      ] as never);
+      return { success: true } as never;
+    });
+
+    renderPage({
+      isSyncing: true,
+      lastSyncAt: null,
+      error: null,
+      tablesStatus: { shows: 'syncing', trials: 'idle', classes: 'syncing', entries: 'idle' },
+    });
+
+    expect(await screen.findByText('Rex')).toBeInTheDocument();
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+  });
+
+  it('shows the loading skeleton, not No Entries Yet, while the first show hydration runs', async () => {
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    let releaseSync: () => void = () => {};
+    vi.mocked(replicatedEntriesTable.sync).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          releaseSync = () => resolve({ success: true } as never);
+        })
+    );
+
+    renderPage();
+
+    try {
+      await waitFor(() => expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1'));
+      expect(screen.getByRole('status', { name: 'Loading entries' })).toBeInTheDocument();
+      expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
+    } finally {
+      // Settle the shared per-show operation so it cannot leak into later tests.
+      releaseSync();
+    }
+    expect(await screen.findByText('No Entries Yet')).toBeInTheDocument();
+  });
+
   it('hydrates show-scoped replicas on the first at-show mount', async () => {
     renderPage();
 

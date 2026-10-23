@@ -47,6 +47,7 @@ import { buildRingsideContextValue, buildRingsideReplication } from './ringsideC
 import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
+import { useAtShowShowHydration } from './useAtShowShowHydration';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import { useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
@@ -115,7 +116,6 @@ export const AtShowEntryListPage: React.FC = () => {
   // Shared drag ref — passed to both the data hook (suppress sync snap-back)
   // and the drag hook (sets it during a drag).
   const isDraggingRef = useRef<boolean>(false);
-  const initialSyncKeyRef = useRef<string | null>(null);
 
   const dependencies = useMemo<EntryListDataDependencies>(
     () => ({
@@ -136,13 +136,7 @@ export const AtShowEntryListPage: React.FC = () => {
     dependencies,
   });
 
-  useEffect(() => {
-    if (!showId || syncStatus.isSyncing || !syncStatus.lastSyncAt) return;
-    const syncKey = `${showId}:${syncStatus.lastSyncAt.getTime()}`;
-    if (initialSyncKeyRef.current === syncKey) return;
-    initialSyncKeyRef.current = syncKey;
-    void refresh(true);
-  }, [refresh, showId, syncStatus.isSyncing, syncStatus.lastSyncAt]);
+  const isFirstShowHydrationPending = useAtShowShowHydration(showId, syncStatus, refresh);
 
   // An exhibitor-role account (including an admin who entered an exhibitor
   // passcode) lacks the staff RLS authority the replicated writer needs, so its
@@ -154,7 +148,8 @@ export const AtShowEntryListPage: React.FC = () => {
   });
   const isInitialEntryDataSyncing =
     entries.length === 0 &&
-    areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']);
+    (isFirstShowHydrationPending ||
+      areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']));
   const pageActions = useMemo(
     () => ({ ...actions, isSyncing: actions.isSyncing || isInitialEntryDataSyncing }),
     [actions, isInitialEntryDataSyncing]

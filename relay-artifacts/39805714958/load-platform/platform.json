@@ -1,0 +1,247 @@
+{
+  "schemaVersion": 1,
+  "runId": "39805714958-1",
+  "startAtMs": 1792684765000,
+  "platform": {
+    "peakCpuPercent": 99.94284625643202,
+    "peakIoPercent": 100,
+    "peakConnections": 36,
+    "observedPeakCpuPercent": 99.94284625643202,
+    "observedPeakIoPercent": 100,
+    "observedPeakConnections": 36,
+    "connectionCap": 60,
+    "statementDeltas": [
+      {
+        "queryId": "-7607542805221317943",
+        "calls": 1681,
+        "rows": 1681,
+        "totalExecTimeMs": 142833.4837,
+        "meanExecTimeMs": 84.96935377751339
+      },
+      {
+        "queryId": "5944380106810346075",
+        "calls": 283,
+        "rows": 283,
+        "totalExecTimeMs": 97361.45575699996,
+        "meanExecTimeMs": 344.03341256890445
+      },
+      {
+        "queryId": "3075335158504199438",
+        "calls": 1330,
+        "rows": 1330,
+        "totalExecTimeMs": 61528.62455201009,
+        "meanExecTimeMs": 46.26212372331586
+      },
+      {
+        "queryId": "-3399507815843643207",
+        "calls": 282,
+        "rows": 282,
+        "totalExecTimeMs": 46629.686037,
+        "meanExecTimeMs": 165.35349658510637
+      },
+      {
+        "queryId": "-4321479235382101536",
+        "calls": 300,
+        "rows": 300,
+        "totalExecTimeMs": 43692.068715,
+        "meanExecTimeMs": 145.64022905000002
+      },
+      {
+        "queryId": "-7152055476691439352",
+        "calls": 282,
+        "rows": 282,
+        "totalExecTimeMs": 43661.14121400099,
+        "meanExecTimeMs": 154.82674189362055
+      },
+      {
+        "queryId": "-5557854675453482783",
+        "calls": 18,
+        "rows": 18,
+        "totalExecTimeMs": 41113.80255600001,
+        "meanExecTimeMs": 2284.1001420000007
+      },
+      {
+        "queryId": "3605280759005065786",
+        "calls": 225,
+        "rows": 225,
+        "totalExecTimeMs": 36346.59165800002,
+        "meanExecTimeMs": 161.54040736888896
+      },
+      {
+        "queryId": "-6964693044948939388",
+        "calls": 283,
+        "rows": 283,
+        "totalExecTimeMs": 32478.657814999984,
+        "meanExecTimeMs": 114.76557531802115
+      },
+      {
+        "queryId": "2312388522132730346",
+        "calls": 745,
+        "rows": 745,
+        "totalExecTimeMs": 27104.920890999027,
+        "meanExecTimeMs": 36.38244414899198
+      },
+      {
+        "queryId": "-7426053748286710977",
+        "calls": 201,
+        "rows": 201,
+        "totalExecTimeMs": 25818.00204,
+        "meanExecTimeMs": 128.4477713432836
+      },
+      {
+        "queryId": "-3985746924370079985",
+        "calls": 274,
+        "rows": 274,
+        "totalExecTimeMs": 23952.075765999998,
+        "meanExecTimeMs": 87.41633491240876
+      },
+      {
+        "queryId": "-1573382923617982040",
+        "calls": 45,
+        "rows": 45,
+        "totalExecTimeMs": 19374.642827,
+        "meanExecTimeMs": 430.5476183777778
+      },
+      {
+        "queryId": "7731266648004292487",
+        "calls": 27,
+        "rows": 27,
+        "totalExecTimeMs": 17700.520934,
+        "meanExecTimeMs": 655.5748494074074
+      },
+      {
+        "queryId": "-6404283100361559094",
+        "calls": 48,
+        "rows": 48,
+        "totalExecTimeMs": 17605.121338000055,
+        "meanExecTimeMs": 366.7733612083345
+      },
+      {
+        "queryId": "-8199134015139607916",
+        "calls": 283,
+        "rows": 283,
+        "totalExecTimeMs": 15402.429575000002,
+        "meanExecTimeMs": 54.42554620141343
+      },
+      {
+        "queryId": "-8653883486743392826",
+        "calls": 40,
+        "rows": 40,
+        "totalExecTimeMs": 14863.659908000001,
+        "meanExecTimeMs": 371.59149770000005
+      },
+      {
+        "queryId": "6200700113813250903",
+        "calls": 47,
+        "rows": 47,
+        "totalExecTimeMs": 14193.92566300003,
+        "meanExecTimeMs": 301.99841836170276
+      },
+      {
+        "queryId": "3741080341969805759",
+        "calls": 31,
+        "rows": 31,
+        "totalExecTimeMs": 12728.835949,
+        "meanExecTimeMs": 410.60761125806454
+      },
+      {
+        "queryId": "-4276146006797283625",
+        "calls": 65,
+        "rows": 65,
+        "totalExecTimeMs": 12246.579283,
+        "meanExecTimeMs": 188.40891204615383
+      }
+    ],
+    "scheduledWriteDeltas": [
+      {
+        "source": "cron:ringside-containment-sampler",
+        "unit": "job_runs",
+        "before": 0,
+        "after": 12,
+        "writes": 12
+      },
+      {
+        "source": "cron:access-request-emails",
+        "unit": "job_runs",
+        "before": 0,
+        "after": 3,
+        "writes": 3
+      },
+      {
+        "source": "cron:class-results-push-retry",
+        "unit": "job_runs",
+        "before": 0,
+        "after": 3,
+        "writes": 3
+      },
+      {
+        "source": "cron:continuous-health-check",
+        "unit": "job_runs",
+        "before": 0,
+        "after": 3,
+        "writes": 3
+      },
+      {
+        "source": "health:cron-health-check:continuous",
+        "unit": "rows",
+        "before": 0,
+        "after": 2,
+        "writes": 2
+      },
+      {
+        "source": "cron:trial-packet-print-reminder-evening",
+        "unit": "job_runs",
+        "before": 0,
+        "after": 1,
+        "writes": 1
+      },
+      {
+        "source": "cron:trial-packet-print-reminder-morning",
+        "unit": "job_runs",
+        "before": 0,
+        "after": 1,
+        "writes": 1
+      },
+      {
+        "source": "cron:trial-packet-show-eve",
+        "unit": "job_runs",
+        "before": 0,
+        "after": 1,
+        "writes": 1
+      },
+      {
+        "source": "cron:waitlist-offer-expiration",
+        "unit": "job_runs",
+        "before": 0,
+        "after": 1,
+        "writes": 1
+      }
+    ],
+    "scheduledWriteCapture": {
+      "enabled": true,
+      "baselineSucceeded": true,
+      "finalSucceeded": true
+    },
+    "resourceSampling": {
+      "attempts": 14,
+      "succeeded": 13,
+      "retried": 2,
+      "failures": [
+        {
+          "kind": "timeout",
+          "count": 1
+        }
+      ]
+    },
+    "connectionSampling": {
+      "attempts": 383,
+      "succeeded": 383
+    },
+    "resourceCoveragePercent": 92.85714285714286,
+    "connectionCoveragePercent": 100
+  },
+  "postmaster": {
+    "before": "2026-10-20T08:38:05.533608Z",
+    "after": "2026-10-20T08:38:05.533608Z"
+  }
+}

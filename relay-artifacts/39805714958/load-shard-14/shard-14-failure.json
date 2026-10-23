@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "runId": "39805714958-1",
+  "startAtMs": 1792684765000,
+  "shard": {
+    "count": 16,
+    "index": 14
+  },
+  "target": {
+    "mode": "e2e",
+    "baseUrl": "http://127.0.0.1:5173",
+    "supabaseUrl": "https://sojmvhhwsjxmfistvzbe.supabase.co",
+    "projectRef": "sojmvhhwsjxmfistvzbe",
+    "computeTier": "Micro",
+    "gateEligible": true
+  },
+  "scenarioId": "normal",
+  "error": {
+    "name": "Error",
+    "message": "Load fixture requires exactly 517 demo-show entries; found 518.\nGenerated fixture entries: 504 (expected 504).\nNon-fixture entries: 14 (expected 13 hand-authored).\nNon-fixture entries, newest first (up to 25):\n  1bebba28-47e3-492c-ac13-0d8143bead58 created_at=2026-10-22T15:45:05.811984+00:00 status=pending-payment source=myk9 class=dec1a55e-0000-0000-0000-000000000032 dog=dededede-0000-0000-0000-000000000043\n  dededede-0000-0000-0000-000000000053 created_at=2026-10-22T15:34:10.654221+00:00 status=submitted source=myk9 class=dec1a55e-0000-0000-0000-000000000032 dog=dededede-0000-0000-0000-000000000042\n  dededede-0000-0000-0000-000000000054 created_at=2026-10-22T15:34:10.654221+00:00 status=submitted source=myk9 class=dec1a55e-0000-0000-0000-000000000033 dog=dededede-0000-0000-0000-000000000043\n  dededede-0000-0000-0000-000000000057 created_at=2026-10-22T15:34:10.654221+00:00 status=submitted source=myk9 class=dec1a55e-0000-0000-0000-000000000035 dog=dededede-0000-0000-0000-000000000045\n  dededede-0000-0000-0000-000000000069 created_at=2026-10-22T15:34:10.654221+00:00 status=confirmed source=myk9 class=dec1a55e-0000-0000-0000-000000000045 dog=dededede-0000-0000-0000-000000000046\n  dededede-0000-0000-0000-000000000056 created_at=2026-10-22T15:34:10.654221+00:00 status=move-up-requested source=myk9 class=dec1a55e-0000-0000-0000-000000000035 dog=dededede-0000-0000-0000-000000000044\n  dededede-0000-0000-0000-000000000058 created_at=2026-10-22T15:34:10.654221+00:00 status=completed source=myk9 class=dec1a55e-0000-0000-0000-000000000031 dog=dededede-0000-0000-0000-000000000046\n  dededede-0000-0000-0000-000000000051 created_at=2026-10-22T15:34:10.654221+00:00 status=completed source=myk9 class=dec1a55e-0000-0000-0000-000000000031 dog=dededede-0000-0000-0000-000000000041\n  dededede-0000-0000-0000-000000000055 created_at=2026-10-22T15:34:10.654221+00:00 status=completed source=myk9 class=dec1a55e-0000-0000-0000-000000000031 dog=dededede-0000-0000-0000-000000000044\n  dededede-0"
+  }
+}

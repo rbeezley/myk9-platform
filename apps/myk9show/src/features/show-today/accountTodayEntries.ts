@@ -118,6 +118,7 @@ export function useAccountTodayAutoFavorites(showId: string | undefined) {
   return {
     hasAccountEntryForShow,
     isLoading: accountEntries.isLoading,
+    isFetched: accountEntries.isFetched,
     error: accountEntries.error as Error | null,
   };
 }

@@ -2,9 +2,11 @@ import type { ReactNode } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, KeyRound, ShieldAlert } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { LoadingEmptyState } from '@/components/common/EmptyState';
 import { useAccountTodayAutoFavorites } from '@/features/show-today/accountTodayEntries';
 import { useHasAnyEntryForShow } from './useHasAnyEntryForShow';
+import { useLocalEntryForShowToday } from './useLocalEntryForShowToday';
 import { useRehydrateRingsideGrant } from './useRehydrateRingsideGrant';
 import { AtShowAnnouncementFeed } from './AtShowAnnouncementFeed';
 import { hasRingsideStaffRole } from './ringsideAccountAccess';
@@ -19,8 +21,15 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
   const { user, loading, hasRole } = useAuthContext();
   const grantRole = useRehydrateRingsideGrant(showId);
   const hasAccountStaffRole = hasRingsideStaffRole(hasRole);
-  const accountToday = useAccountTodayAutoFavorites(
-    user && !grantRole && !hasAccountStaffRole ? showId : undefined
+  const needsAccountEntry = Boolean(user && !grantRole && !hasAccountStaffRole);
+  const accountToday = useAccountTodayAutoFavorites(needsAccountEntry ? showId : undefined);
+  // MYK9-1346: an exhibitor who already holds an entry for this show in the
+  // replica is admitted while the server confirms in the background, so first
+  // paint does not wait on a saturated server. Same audience as the RPC above.
+  const personId = useEntriesPersonId();
+  const { hasLocalEntryToday } = useLocalEntryForShowToday(
+    needsAccountEntry ? personId : null,
+    showId
   );
   // exhibitor-show-day-access: distinguishes "entered exhibitor visiting
   // early" from "stranger with no relationship to this show" so the no-access
@@ -47,7 +56,18 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (grantRole || hasAccountStaffRole || accountToday.hasAccountEntryForShow) {
+  // The server has said no only once the RPC has settled without an error and
+  // found no entry for today. Until then the replica entry admits: while the
+  // RPC is loading; while it is PAUSED because the device is offline (React
+  // Query's `networkMode: 'online'` leaves `isLoading` false and `isFetched`
+  // false); and after it ERRORS (timeout, offline). The replica entry is
+  // positive evidence and RLS still guards every read and write. A settled "no"
+  // closes the gate again.
+  const serverSaidNo =
+    accountToday.isFetched && accountToday.error === null && !accountToday.hasAccountEntryForShow;
+  const admittedLocally = needsAccountEntry && hasLocalEntryToday && !serverSaidNo;
+
+  if (grantRole || hasAccountStaffRole || accountToday.hasAccountEntryForShow || admittedLocally) {
     return <AtShowAnnouncementFeed showId={showId}>{children}</AtShowAnnouncementFeed>;
   }
 

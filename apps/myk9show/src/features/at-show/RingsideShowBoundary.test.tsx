@@ -342,6 +342,35 @@ describe('RingsideShowBoundary', () => {
       ).not.toBeInTheDocument();
     });
 
+    it('reads a read-deadline timeout as unreachable, with the connectivity copy', async () => {
+      vi.mocked(replicatedShowsTable.pullShowById).mockRejectedValue(
+        new Error('Supabase query failed: TimeoutError: Read deadline of 30000 ms exceeded')
+      );
+
+      renderBoundary('show-deadline');
+
+      expect(await screen.findByText("This show isn't saved on this device")).toBeInTheDocument();
+      expect(screen.getByText(/venue wi-fi/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /load this show onto this device/i })
+      ).toBeInTheDocument();
+      expect(screen.queryByText('Show not found')).not.toBeInTheDocument();
+    });
+
+    it('does not blame the network for a deliberate cancel', async () => {
+      // A deliberate cancel (e.g. an account switch) is not a dead uplink: refresh-failed copy.
+      vi.mocked(replicatedShowsTable.pullShowById).mockRejectedValue(
+        new Error('Supabase query failed: AbortError: signal is aborted without reason')
+      );
+
+      renderBoundary('show-cancelled');
+
+      expect(await screen.findByText("This show isn't saved on this device")).toBeInTheDocument();
+      expect(screen.getByText(/downloading it didn't finish/i)).toBeInTheDocument();
+      expect(screen.queryByText(/venue wi-fi/i)).not.toBeInTheDocument();
+      expect(screen.queryByText('Show not found')).not.toBeInTheDocument();
+    });
+
     it('does not blame the network when the failure was local storage', async () => {
       // Same `{ success: false }` shape, entirely different cause. Sending a
       // user with a full disk to go hunt for signal is a wrong diagnosis.

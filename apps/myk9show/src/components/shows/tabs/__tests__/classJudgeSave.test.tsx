@@ -94,7 +94,7 @@ vi.mock('@/components/common/PageShell', () => ({
   PageShell: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-describe.each(['Setup', 'Class Details'])(
+describe.each(['Show home Edit class', 'Class Details'])(
   '%s required judge save through the real panel',
   surface => {
     beforeEach(() => {
@@ -108,7 +108,7 @@ describe.each(['Setup', 'Class Details'])(
     });
     it('retains the selected judge without Saved or closing, then saves a retry', async () => {
       const { user } = render(
-        surface === 'Setup' ? (
+        surface === 'Show home Edit class' ? (
           <SetupClassDialogs
             showId="s1"
             pending={{

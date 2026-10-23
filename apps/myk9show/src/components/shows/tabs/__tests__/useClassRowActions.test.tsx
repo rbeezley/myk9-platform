@@ -17,10 +17,12 @@ const snapshot = (id: string) => ({ id }) as unknown as SetupClassSnapshot;
 
 function deferred<T>() {
   let resolve: (value: T) => void = () => undefined;
-  const promise = new Promise<T>(r => {
-    resolve = r;
+  let reject: (reason: Error) => void = () => undefined;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 describe('useClassRowActions', () => {
@@ -136,6 +138,30 @@ describe('useClassRowActions', () => {
 
     await act(async () => {
       first.resolve(null);
+      await openFirst;
+    });
+
+    expect(toastError).not.toHaveBeenCalled();
+    expect(result.current.hydratingClassId).toBe('c2');
+  });
+
+  it('a stale request that throws stays silent too', async () => {
+    const first = deferred<SetupClassSnapshot>();
+    const second = deferred<SetupClassSnapshot>();
+    resolveSetupClass.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const { result } = renderHook(() => useClassRowActions());
+
+    let openFirst: Promise<void> = Promise.resolve();
+    act(() => {
+      openFirst = result.current.openClassAction({ id: 'c1', trialId: 't1' });
+    });
+    act(() => {
+      void result.current.openClassAction({ id: 'c2', trialId: 't1' });
+    });
+
+    // The earlier request fails after the newer one started.
+    await act(async () => {
+      first.reject(new Error('IndexedDB read failed'));
       await openFirst;
     });
 

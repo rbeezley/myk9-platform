@@ -54,7 +54,6 @@ describe('ClassesTab list toolkit', () => {
     localStorage.clear();
     mockUser = { id: 'u1' };
     navigate.mockReset();
-    Element.prototype.scrollIntoView = vi.fn();
   });
 
   describe('toolbar contents', () => {

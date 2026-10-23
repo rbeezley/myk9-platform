@@ -7,28 +7,12 @@ import { render, screen, within } from '@/test/utils/testUtils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClassesTab, type ClassInfo } from '../ClassesTab';
 
-// MYK9-929: Setup → Classes follows the shared list rules. The real `useViewPreference` runs here
-// (localStorage). A manager opens on the table, an exhibitor on cards even when she holds
-// entries; the toggle sits in the result line for every reader; every row opens the one
-// class-detail URL.
+// MYK9-929: the Classes tab follows the shared list rules. The real `useViewPreference` runs here
+// (localStorage). Every reader opens on cards, even one who holds entries; the toggle sits in the
+// result line; every row opens the one class-detail URL. Managers never reach this tab: they land
+// on the show home, whose schedule manages classes (MYK9-1324/1337).
 
-let mockCanManage = true;
-let mockScopeStatus: 'resolved' | 'resolving' = 'resolved';
-vi.mock('@/hooks/useShowManageScope', () => ({
-  useShowManageScope: () => ({ status: mockScopeStatus, canManage: mockCanManage }),
-}));
-vi.mock('@/hooks/useRBAC', () => ({ useRBAC: () => ({ hasPermission: () => true }) }));
-vi.mock('@/hooks/useConnectionHint', () => ({ useConnectionHint: () => undefined }));
-vi.mock('@/hooks/queries/useShowsDatabase', () => ({
-  useShowQuery: () => ({ data: { id: 's1', organization: 'AKC' } }),
-}));
-vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
-  useJudgesWithQualifications: () => ({ data: [] }),
-}));
-vi.mock('@/services/database/judges', () => ({ upsertClassJudgeAssignment: vi.fn() }));
-vi.mock('@/services/show-day/classStatusMutations', () => ({ applyManualClassStatus: vi.fn() }));
-
-// Signed in by default (a manager is); a guest test sets this to null.
+// Signed in by default; a guest test sets this to null.
 let mockUser: { id: string } | null = { id: 'u1' };
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: mockUser }),
@@ -68,66 +52,47 @@ const renderTab = (userHasEntries = false, rows: ClassInfo[] = classes) =>
 describe('ClassesTab list toolkit', () => {
   beforeEach(() => {
     localStorage.clear();
-    mockCanManage = true;
-    mockScopeStatus = 'resolved';
     mockUser = { id: 'u1' };
     navigate.mockReset();
     Element.prototype.scrollIntoView = vi.fn();
   });
 
   describe('toolbar contents', () => {
-    it('a manager gets search, the element filter, the result sentence and the toggle in it', () => {
+    it('has the search, the result sentence and the toggle, and no manage controls', () => {
       renderTab();
 
       expect(screen.getByPlaceholderText('Search classes...')).toBeInTheDocument();
-      expect(screen.getByRole('combobox', { name: 'Element' })).toBeInTheDocument();
       const resultLine = screen.getByRole('status').parentElement as HTMLElement;
       expect(resultLine).toHaveTextContent('Showing all 2 classes.');
       expect(within(resultLine).getByRole('button', { name: 'Cards view' })).toBeInTheDocument();
       expect(within(resultLine).getByRole('button', { name: 'Table view' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /columns|export|density|reset/i })).toBeNull();
-    });
-
-    it('a reader gets the same result line and toggle, and no manage controls', () => {
-      mockCanManage = false;
-      renderTab();
-
-      const resultLine = screen.getByRole('status').parentElement as HTMLElement;
-      expect(resultLine).toHaveTextContent('Showing all 2 classes.');
-      expect(within(resultLine).getByRole('button', { name: 'Table view' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /columns|density|reset/i })).toBeNull();
       expect(screen.queryByRole('combobox', { name: 'Trial' })).not.toBeInTheDocument();
       expect(screen.queryByRole('combobox', { name: 'Element' })).not.toBeInTheDocument();
     });
   });
 
   describe('default view by role, and her own choice remembered', () => {
-    it('opens a manager on the table', () => {
-      const { container } = renderTab();
-      expect(container.querySelector('table')).not.toBeNull();
-    });
-
     it('opens an exhibitor on cards, even one who holds entries in the show', () => {
-      mockCanManage = false;
       const { container } = renderTab(true);
       expect(container.querySelector('table')).toBeNull();
       expect(screen.getAllByText('Containers').length).toBeGreaterThan(0);
     });
 
     it('opens a visitor on cards', () => {
-      mockCanManage = false;
       const { container } = renderTab(false);
       expect(container.querySelector('table')).toBeNull();
     });
 
     it('remembers the choice on the next visit', async () => {
       const first = renderTab();
-      await first.user.click(screen.getByRole('button', { name: 'Cards view' }));
-      expect(first.container.querySelector('table')).toBeNull();
-      expect(localStorage.getItem('view-pref-classes')).toBe('cards');
+      await first.user.click(screen.getByRole('button', { name: 'Table view' }));
+      expect(first.container.querySelector('table')).not.toBeNull();
+      expect(localStorage.getItem('view-pref-classes')).toBe('table');
       first.unmount();
 
       const second = renderTab();
-      expect(second.container.querySelector('table')).toBeNull();
+      expect(second.container.querySelector('table')).not.toBeNull();
     });
   });
 
@@ -150,13 +115,13 @@ describe('ClassesTab list toolkit', () => {
 
   describe('every class row opens the one class-detail URL', () => {
     it('from the table', async () => {
+      localStorage.setItem('view-pref-classes', 'table');
       const { user } = renderTab();
       await user.click(screen.getByText('Interior'));
       expect(navigate).toHaveBeenCalledWith('/shows/s1/trials/t1/classes/c2');
     });
 
     it('from a card', async () => {
-      localStorage.setItem('view-pref-classes', 'cards');
       const { user } = renderTab();
       await user.click(screen.getByText('Interior'));
       expect(navigate).toHaveBeenCalledWith('/shows/s1/trials/t1/classes/c2');
@@ -169,6 +134,7 @@ describe('ClassesTab list toolkit', () => {
     });
 
     it('registers one in the table view that exports the whole list, no ticking needed', () => {
+      localStorage.setItem('view-pref-classes', 'table');
       renderTab();
       const registered = registeredPageExports();
       expect(registered.map(item => item.id)).toEqual(['classes']);
@@ -185,7 +151,6 @@ describe('ClassesTab list toolkit', () => {
     });
 
     it('registers nothing in cards view', () => {
-      localStorage.setItem('view-pref-classes', 'cards');
       renderTab();
       expect(registeredPageExports()).toEqual([]);
     });
@@ -195,7 +160,6 @@ describe('ClassesTab list toolkit', () => {
   describe('guest Export CSV', () => {
     beforeEach(() => {
       mockUser = null;
-      mockCanManage = false;
     });
 
     it('shows in the result line in cards view and downloads the table columns', async () => {
@@ -234,26 +198,7 @@ describe('ClassesTab list toolkit', () => {
     });
   });
 
-  describe("no default-view flicker while the viewer's role resolves", () => {
-    it('holds the list body until the role is known, rather than flashing the wrong view', () => {
-      mockScopeStatus = 'resolving';
-      mockCanManage = false;
-      const { container } = renderTab();
-      expect(container.querySelector('table')).toBeNull();
-      expect(screen.queryByTestId('class-card')).not.toBeInTheDocument();
-      expect(screen.queryByText('Containers')).not.toBeInTheDocument();
-      expect(screen.queryByText('Trial 1')).not.toBeInTheDocument();
-    });
-
-    it('shows her remembered view at once, since the role cannot change it', () => {
-      mockScopeStatus = 'resolving';
-      localStorage.setItem('view-pref-classes', 'table');
-      const { container } = renderTab();
-      expect(container.querySelector('table')).not.toBeNull();
-    });
-  });
-
-  describe('one search, found by every value the columns show (managers and readers alike)', () => {
+  describe('one search, found by every value the columns show', () => {
     const searchRows = [
       makeClass('c1', {
         element: 'Containers',
@@ -293,12 +238,8 @@ describe('ClassesTab list toolkit', () => {
       ['a name-only token', 'c2', 'Interior'],
     ];
 
-    describe.each([
-      ['a manager', true],
-      ['a reader', false],
-    ])('as %s', (_who, manage) => {
+    describe('as a reader', () => {
       it.each(cases)('%s', async (_label, query, expected) => {
-        mockCanManage = manage;
         localStorage.setItem('view-pref-classes', 'table');
         const { user } = renderTab(false, searchRows);
         await user.type(screen.getByPlaceholderText('Search classes...'), query);
@@ -307,7 +248,6 @@ describe('ClassesTab list toolkit', () => {
       });
 
       it('has exactly one search box, and the export matches the rows on screen', async () => {
-        mockCanManage = manage;
         localStorage.setItem('view-pref-classes', 'table');
         const { user } = renderTab(false, searchRows);
         expect(screen.getAllByPlaceholderText(/search/i)).toHaveLength(1);

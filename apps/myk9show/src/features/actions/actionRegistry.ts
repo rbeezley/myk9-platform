@@ -182,11 +182,6 @@ export interface ActionViewer extends CreateGates {
    */
   pageObject?: PageObject | null | undefined;
   /**
-   * The trial Setup -> Classes has selected, so the show-wide "Add classes" opens the wizard
-   * focused on it, as the toolbar button it replaced did.
-   */
-  addClassesTrialId?: string | null | undefined;
-  /**
    * Whole-list "Export CSV" actions the lists on screen registered (`usePageExportAction`), by
    * list id. They form the menu's list section.
    */
@@ -351,7 +346,7 @@ function buildShowActions(
       // button it replaces); a trial page offers its own, focused on that trial.
       id: 'show-add-classes',
       label: 'Add classes',
-      href: getAddClassesHref(showId, viewer.addClassesTrialId),
+      href: getAddClassesHref(showId),
       group: 'show',
       icon: 'add-classes',
     },

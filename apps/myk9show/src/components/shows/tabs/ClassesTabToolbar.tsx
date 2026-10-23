@@ -3,17 +3,8 @@ import {
   ListFilterBar,
   ListResultLine,
   ListViewTabs,
-  type ListOptionsFilterField,
   type ListView,
 } from '@/components/list-toolkit';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import type { TrialOption } from './classesTabScope';
 
 const CLASS_NOUN = ['class', 'classes'] as const;
 
@@ -32,18 +23,11 @@ interface ClassesTabToolbarProps {
   };
   /** The view toggle, shown on the right of the result line. */
   viewToggle: ReactNode;
-  /** The one search box, for managers and readers alike. */
+  /** The one search box. */
   search: { value: string; onChange: (value: string) => void };
-  /** Managers only: the trial being managed and the element filter. */
-  manage?: {
-    trials: TrialOption[];
-    trialId: string | null;
-    onTrialChange: (trialId: string) => void;
-    elementField: ListOptionsFilterField;
-  };
 }
 
-/** Views, then (managers) the trial picker, search and element filter, then the result line. */
+/** Views, then the search, then the result line. */
 export function ClassesTabToolbar({
   views,
   activeViewId,
@@ -51,7 +35,6 @@ export function ClassesTabToolbar({
   result,
   viewToggle,
   search,
-  manage,
 }: ClassesTabToolbarProps) {
   return (
     <div className="space-y-3">
@@ -62,34 +45,12 @@ export function ClassesTabToolbar({
         onSelect={onSelectView}
       />
       <div className="flex flex-wrap items-center gap-3">
-        {manage && manage.trials.length > 1 && manage.trialId && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-foreground" aria-hidden="true">
-              Trial:
-            </span>
-            <Select
-              value={manage.trialId}
-              onValueChange={value => value && manage.onTrialChange(value)}
-            >
-              <SelectTrigger className="min-w-48" aria-label="Trial">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {manage.trials.map(trial => (
-                  <SelectItem key={trial.id} value={trial.id}>
-                    {trial.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
         <ListFilterBar
           className="min-w-0 flex-1"
           searchValue={search.value}
           onSearchChange={search.onChange}
           searchPlaceholder="Search classes..."
-          fields={manage ? [manage.elementField] : []}
+          fields={[]}
         />
       </div>
       <ListResultLine

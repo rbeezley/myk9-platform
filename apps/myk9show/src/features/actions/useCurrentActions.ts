@@ -68,7 +68,6 @@ export function useCurrentActions(): CurrentActions {
 
   // The detail page on screen, when it registered an Edit it lets this viewer use.
   const pageTarget = usePageEditTargetStore(state => state.target);
-  const addClassesTrialId = usePageEditTargetStore(state => state.addClassesTrialId);
   const pageExports = usePageEditTargetStore(state => state.exports);
   const pageExportIds = pageExports.map(item => item.id).join('|');
   // Joined for a stable memo dependency, then split once for both readers.
@@ -94,7 +93,6 @@ export function useCurrentActions(): CurrentActions {
   const resolved = useMemo(
     () =>
       resolveActions(route, {
-        addClassesTrialId,
         pageObject: pageKind
           ? {
               kind: pageKind,
@@ -130,7 +128,6 @@ export function useCurrentActions(): CurrentActions {
       pageCanEdit,
       pageAddClassesHref,
       pageExtras,
-      addClassesTrialId,
       exportIdList,
       showTools,
     ]

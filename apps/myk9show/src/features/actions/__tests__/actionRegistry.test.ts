@@ -387,13 +387,6 @@ describe('resolveActions — the object a detail page registers (MYK9-928)', () 
     expect(actions.map(a => a.id)).toContain('show-add-classes');
   });
 
-  it("carries Setup's selected trial into the show Add classes", () => {
-    const actions = resolveActions(SHOW_CONTEXT, { ...secretary, addClassesTrialId: 't3' });
-    expect(actions.find(a => a.id === 'show-add-classes')?.href).toBe(
-      `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-classes&trialId=t3`
-    );
-  });
-
   it('omits trial Add classes when the page has no destination for it', () => {
     const actions = resolveActions(SIBLING_CONTEXT, {
       ...secretary,

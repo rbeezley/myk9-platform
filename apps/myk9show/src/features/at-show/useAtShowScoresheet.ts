@@ -37,6 +37,11 @@ import {
 } from '@/pages/scoring/types';
 import { resolveLiveScoringBreed } from '@/pages/scoring/liveScoringBreed';
 
+/** Shown while a cold sheet's show sync keeps failing; retried automatically. */
+export const NOT_LOADED_YET_MESSAGE = "Couldn't load this dog from the server yet. Trying again…";
+const NOT_LOADED_RETRY_BASE_MS = 2_000;
+const NOT_LOADED_RETRY_MAX_MS = 30_000;
+
 export interface UseAtShowScoresheetOptions {
   showId: string | undefined;
   classId: string | undefined;
@@ -102,13 +107,29 @@ export function useAtShowScoresheet({
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [reloadCount, setReloadCount] = useState(0);
   const handledLoadAttempt = useRef(0);
+  const notLoadedStreak = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
     // Consume the explicit retry once; advancing to another cached dog must
     // not inherit a previous sheet's foreground refresh requirement.
     const forceRefresh = loadAttempt !== handledLoadAttempt.current;
     handledLoadAttempt.current = loadAttempt;
+
+    // The show sync could not finish (saturated server, venue Wi-Fi): say so and
+    // try again on our own, backing off, rather than strand the judge on a
+    // terminal error. The Retry button still works at any time.
+    function showNotLoadedYet() {
+      notLoadedStreak.current += 1;
+      const delayMs = Math.min(
+        NOT_LOADED_RETRY_BASE_MS * 2 ** (notLoadedStreak.current - 1),
+        NOT_LOADED_RETRY_MAX_MS
+      );
+      setError(NOT_LOADED_YET_MESSAGE);
+      setIsLoading(false);
+      retryTimer = setTimeout(() => setLoadAttempt(attempt => attempt + 1), delayMs);
+    }
 
     async function loadData() {
       setEntry(null);
@@ -141,17 +162,30 @@ export function useAtShowScoresheet({
           : null;
         if (cancelled) return;
         const hasCachedSheet = cls && cachedTrial && allEntries.some(row => row.id === entryId);
+        // Whether a show sync this load ran could not finish: a row still missing
+        // afterwards is then "not loaded yet", not "not found" (MYK9-1333).
+        let syncIncomplete = false;
         if (!hasCachedSheet || forceRefresh) {
-          await replicatedTrialsTable.sync(showId);
+          // A thrown sync is as unfinished as a failed one; the local read below
+          // still decides what the sheet can show.
+          let trialsFailed = false;
+          try {
+            trialsFailed = (await replicatedTrialsTable.sync(showId))?.success === false;
+          } catch {
+            trialsFailed = true;
+          }
           if (cancelled) return;
           const showTrials = await replicatedTrialsTable.getTrialsByShow(showId);
-          await Promise.all([
+          const results = await Promise.allSettled([
             // Cold loads/retries hydrate the route's show with the established
             // trial-scoped replication path, never a direct PostgREST read.
             ...showTrials.map(trial => replicatedClassesTable.sync(trial.id)),
             replicatedEntriesTable.sync(showId),
           ]);
           if (cancelled) return;
+          syncIncomplete =
+            trialsFailed ||
+            results.some(r => r.status === 'rejected' || r.value?.success === false);
           [cls, allEntries] = await Promise.all([
             replicatedClassesTable.getClassById(classId),
             replicatedEntriesTable.getEntriesByClass(classId),
@@ -159,6 +193,10 @@ export function useAtShowScoresheet({
           if (cancelled) return;
         }
         if (!cls) {
+          if (syncIncomplete) {
+            showNotLoadedYet();
+            return;
+          }
           setError('Class not found');
           setIsLoading(false);
           return;
@@ -178,6 +216,10 @@ export function useAtShowScoresheet({
 
         const rawEntry = allEntries.find(e => e.id === entryId);
         if (!rawEntry) {
+          if (syncIncomplete) {
+            showNotLoadedYet();
+            return;
+          }
           setError('Entry not found');
           setIsLoading(false);
           return;
@@ -209,6 +251,7 @@ export function useAtShowScoresheet({
         setRules(classScoringRules(cls));
         setLoadedClassId(classId);
         setLoadedEntryId(entryId);
+        notLoadedStreak.current = 0;
         if (hasCachedSheet && !forceRefresh && cls.trialId) {
           // INTENT: cached scoring must not wait for venue connectivity. Refresh
           // only this trial and its show's entries without replacing a sheet
@@ -232,6 +275,7 @@ export function useAtShowScoresheet({
     loadData();
     return () => {
       cancelled = true;
+      clearTimeout(retryTimer);
     };
   }, [showId, classId, entryId, loadAttempt, reloadCount]);
 

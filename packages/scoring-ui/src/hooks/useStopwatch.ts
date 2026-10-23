@@ -9,9 +9,15 @@
  * - 30-second warning unless the class rule withholds it (AKC Master)
  * - Voice announcements integration (via callbacks)
  * - Remaining time calculations
+ *
+ * Render budget (MYK9-1364): the running clock repaints every 100ms, but the host
+ * component does NOT re-render for it. The live value sits in a ref behind a
+ * `subscribeTime`/`getTimeMs` pair (render it with `<StopwatchTime>`); React
+ * state changes only on start, pause, reset, expiry and when the 30-second
+ * warning window opens or closes.
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { formatMsAsMSSCC } from '@myk9/core';
 import type { StopwatchOptions, StopwatchReturn } from '../types';
 
@@ -20,6 +26,11 @@ import type { StopwatchOptions, StopwatchReturn } from '../types';
  * (cf477a6: 10ms → 100ms, after 7% drain in 35 min of scoring).
  */
 const PAINT_INTERVAL_MS = 100;
+
+/** Stable, so a display component keyed on it is not re-created every render. */
+const formatLiveTime = (milliseconds: number): string =>
+  // Live clock: floor, so it never reads ahead of the real time.
+  formatMsAsMSSCC(milliseconds, 'floor');
 
 /**
  * Parse a time string "MM:SS" or "M:SS" to milliseconds
@@ -46,7 +57,7 @@ function parseMaxTimeToMs(maxTime: string): number {
  * });
  *
  * <button onClick={stopwatch.start}>Start</button>
- * <div>{stopwatch.formatTime(stopwatch.time)}</div>
+ * <StopwatchTime stopwatch={stopwatch} />
  * ```
  */
 /**
@@ -57,6 +68,21 @@ function givesThirtySecondWarning(rule: boolean | undefined, level: string | und
   if (rule !== undefined) return rule;
   const normalizedLevel = level?.toLowerCase() || '';
   return !(normalizedLevel === 'master' || normalizedLevel === 'masters');
+}
+
+/**
+ * Which warning windows an elapsed time sits in, as a bitmask: bit 0 is the
+ * announce window (whole seconds remaining 30..1, what the chime effect tests),
+ * bit 1 the banner window (remaining 0..30s, what shouldShow30SecondWarning
+ * tests). A change in the mask is the only paint that must re-render the host.
+ */
+function warningWindows(elapsedMs: number, maxTimeMs: number, warns: boolean): number {
+  if (!maxTimeMs || !warns) return 0;
+  const remainingMs = maxTimeMs - elapsedMs;
+  const remainingSeconds = Math.floor(remainingMs / 1000);
+  const announce = remainingSeconds <= 30 && remainingSeconds > 0;
+  const banner = remainingMs > 0 && remainingMs <= 30000;
+  return (announce ? 1 : 0) | (banner ? 2 : 0);
 }
 
 export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
@@ -75,9 +101,31 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   const maxTime = rawMaxTime && parseMaxTimeToMs(rawMaxTime) > 0 ? rawMaxTime : undefined;
   const warns = givesThirtySecondWarning(thirtySecondWarning, level);
 
-  // Timer state
+  // Timer state. `time` (state) is the value as of the last transition; the live
+  // clock is `timeRef`, which the 100ms paint updates without a React render.
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
+  const timeRef = useRef(0);
+  const listenersRef = useRef(new Set<() => void>());
+
+  const subscribeTime = useCallback((listener: () => void) => {
+    listenersRef.current.add(listener);
+    return () => {
+      listenersRef.current.delete(listener);
+    };
+  }, []);
+  const getTimeMs = useCallback(() => timeRef.current, []);
+
+  /** Move the live clock; only subscribers (the display) re-render. */
+  const publishTime = (ms: number) => {
+    timeRef.current = ms;
+    listenersRef.current.forEach(listener => listener());
+  };
+  /** Move the live clock AND re-render the host (a transition the body shows). */
+  const commitTime = (ms: number) => {
+    publishTime(ms);
+    setTime(ms);
+  };
 
   // requestAnimationFrame id for the running tick loop. Driving the display
   // via rAF (~60fps) instead of a coarse setInterval(100) makes the hundredths
@@ -103,10 +151,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   /**
    * Format milliseconds as "M:SS.ss"
    */
-  const formatTime = (milliseconds: number): string => {
-    // Live clock: floor, so it never reads ahead of the real time.
-    return formatMsAsMSSCC(milliseconds, 'floor');
-  };
+  const formatTime = formatLiveTime;
 
   /**
    * Get max time in milliseconds
@@ -121,7 +166,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
    */
   const getRemainingTimeMs = (): number => {
     if (!maxTime) return 0;
-    return Math.max(0, getMaxTimeMs() - time);
+    return Math.max(0, getMaxTimeMs() - timeRef.current);
   };
 
   /**
@@ -149,7 +194,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     // 30-second threshold per competition rules. No buffer needed with 100ms
     // update interval (myK9Q's local copy used 32s as a workaround for slow
     // rendering — that's no longer necessary).
-    const remainingMs = maxTimeMs - time;
+    const remainingMs = maxTimeMs - timeRef.current;
     return remainingMs > 0 && remainingMs <= 30000;
   };
 
@@ -163,7 +208,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     const maxTimeMs = parseMaxTimeToMs(maxTime);
 
     // Time is expired if current time equals or exceeds max time
-    return time > 0 && time >= maxTimeMs;
+    return timeRef.current > 0 && timeRef.current >= maxTimeMs;
   };
 
   /**
@@ -185,10 +230,13 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     // A second start must not leave an orphaned loop that pause cannot stop.
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     setIsRunning(true);
-    const startTime = Date.now() - time;
+    const startTime = Date.now() - timeRef.current;
     startTimeRef.current = startTime;
     const maxTimeMs = maxTime ? parseMaxTimeToMs(maxTime) : 0;
     let lastPaint = -Infinity;
+    // Which warning windows the host last rendered. The body shows the 30-second
+    // banner and the effect below chimes, so crossing either edge re-renders it.
+    let shownWindows = warningWindows(timeRef.current, maxTimeMs, warns);
 
     const tick = () => {
       const currentTime = Date.now() - startTime;
@@ -196,7 +244,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
       // Auto-stop when time expires (if maxTime is set). Snap to the exact max
       // and don't schedule another frame.
       if (maxTimeMs && currentTime >= maxTimeMs) {
-        setTime(maxTimeMs);
+        commitTime(maxTimeMs);
         setIsRunning(false);
         rafRef.current = null;
         if (onTimeExpired) {
@@ -205,12 +253,19 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
         return;
       }
 
-      // Battery: the frame loop runs at the display rate (60-120Hz), but every
-      // setTime re-renders the whole scoresheet. Paint every 100ms (tenths tick
-      // smoothly) while expiry above is still checked per frame.
+      // Battery: the frame loop runs at the display rate (60-120Hz). Paint every
+      // 100ms (tenths tick smoothly) while expiry above is still checked per
+      // frame. A paint moves only the live clock -- the <StopwatchTime> display
+      // re-renders, the scoresheet does not -- unless a warning window opened.
       if (currentTime - lastPaint >= PAINT_INTERVAL_MS) {
         lastPaint = currentTime;
-        setTime(currentTime);
+        const windows = warningWindows(currentTime, maxTimeMs, warns);
+        if (windows === shownWindows) {
+          publishTime(currentTime);
+        } else {
+          shownWindows = windows;
+          commitTime(currentTime);
+        }
       }
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -223,7 +278,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
    */
   const pause = (): number => {
     setIsRunning(false);
-    if (rafRef.current === null) return time;
+    if (rafRef.current === null) return timeRef.current;
     // The display may be up to one paint (100ms) stale, so record and RETURN
     // the exact elapsed time -- a Stop handler saves this value in the same
     // tick, before the re-render that would update `time`. Capped at the max:
@@ -231,7 +286,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     const maxTimeMs = maxTime ? parseMaxTimeToMs(maxTime) : 0;
     const elapsed = Date.now() - startTimeRef.current;
     const exact = maxTimeMs ? Math.min(elapsed, maxTimeMs) : elapsed;
-    setTime(exact);
+    commitTime(exact);
     cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
     return exact;
@@ -241,7 +296,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
    * Reset timer to zero and stop
    */
   const reset = () => {
-    setTime(0);
+    commitTime(0);
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
@@ -324,8 +379,15 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   }, [isRunning, onScoringActiveChange]);
 
   return {
-    time,
+    // Live on every read (ref), so a handler or a transition render never sees the
+    // value from the last render. It does NOT re-render the host while running:
+    // show the running clock with <StopwatchTime>, never `formatTime(stopwatch.time)`.
+    get time() {
+      return timeRef.current;
+    },
     isRunning,
+    subscribeTime,
+    getTimeMs,
     formatTime,
     getRemainingTime,
     getMaxTimeMs,

@@ -53,7 +53,9 @@ function ruleOrganization(rule: PublicHideCountRuleRow): string | null {
 export async function resolveHideCountsForClassRows(
   rows: ReadonlyArray<HideCountClassRow>,
   shareRead: ShareRead = readNow,
-  preloadedTrials?: ReadonlyArray<ClassTrialRow>
+  preloadedTrials?: ReadonlyArray<ClassTrialRow>,
+  /** Called for each lookup that failed and was skipped, so a caller can tell a partial answer. */
+  onPartialFailure?: () => void
 ): Promise<Map<string, number>> {
   const byClassId = new Map<string, number>();
 
@@ -70,6 +72,7 @@ export async function resolveHideCountsForClassRows(
       .in('id', trialIds);
 
     if (trialsError) {
+      onPartialFailure?.();
       logger.warn(
         `[resolveClassHideCounts] Trial lookup failed; hide counts unavailable this sync: ${trialsError.message}`,
         'replication'
@@ -95,6 +98,7 @@ export async function resolveHideCountsForClassRows(
       .not('hide_count_fixed', 'is', null);
 
     if (rulesError) {
+      onPartialFailure?.();
       logger.warn(
         `[resolveClassHideCounts] Public hide rules unavailable this sync: ${rulesError.message}`,
         'replication'
@@ -140,6 +144,7 @@ export async function resolveHideCountsForClassRows(
       );
 
       if (error) {
+        onPartialFailure?.();
         logger.warn(
           `[resolveClassHideCounts] Official hide counts unavailable for show ${showId}: ${error.message}`,
           'replication'

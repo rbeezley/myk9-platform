@@ -11,6 +11,7 @@ import React, { useState, useCallback } from 'react';
 import { ArrowLeft, Minus, Plus } from 'lucide-react';
 import { Button, Input, Card, cn } from '@myk9/ui';
 import { useStopwatch } from '../../../hooks/useStopwatch';
+import { StopwatchTime } from '../../StopwatchTime';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import type { LiveScoresheetProps } from '../../../types';
@@ -151,15 +152,19 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   )}
                   data-testid="course-timer-display"
                 >
-                  {stopwatch.formatTime(stopwatch.time)}
+                  <StopwatchTime stopwatch={stopwatch} />
                 </div>
 
                 <div className="text-sm text-muted-foreground mt-2 tabular-nums">
-                  {stopwatch.time > 0 ? (
-                    <>Remaining: {stopwatch.getRemainingTime()}</>
-                  ) : (
-                    <>Max Time: 5:00</>
-                  )}
+                  <StopwatchTime stopwatch={stopwatch}>
+                    {elapsedMs =>
+                      elapsedMs > 0 ? (
+                        <>Remaining: {stopwatch.getRemainingTime()}</>
+                      ) : (
+                        <>Max Time: 5:00</>
+                      )
+                    }
+                  </StopwatchTime>
                 </div>
 
                 <div className="mt-6 flex justify-center gap-3">

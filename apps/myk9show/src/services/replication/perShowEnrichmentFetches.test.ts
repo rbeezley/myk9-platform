@@ -25,6 +25,7 @@ vi.mock('./resolveClassTimeLimitRules', () => ({
 }));
 
 import { ReplicatedClassesTable } from './ReplicatedClassesTable';
+import { invalidateClassEnrichment } from './classEnrichmentCache';
 
 /**
  * MYK9-1170: class replication syncs once per TRIAL, and each sync's enrichment asked the
@@ -49,6 +50,7 @@ function rpcCalls(name: string): unknown[][] {
 describe('per-show enrichment RPCs across a per-trial class sync (MYK9-1170)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    invalidateClassEnrichment();
     session.userId = 'user-a';
     mockFrom.mockImplementation((table: string) => {
       if (table === 'classes') {
@@ -126,9 +128,12 @@ describe('per-show enrichment RPCs across a per-trial class sync (MYK9-1170)', (
     }
   });
 
-  it('reads fresh on a later sync: nothing is cached once the shared read settles', async () => {
+  it('reads fresh on a later sync: nothing is shared once the in-flight read settles', async () => {
     const table = new ReplicatedClassesTable();
     await syncEveryTrial(table);
+    // The sharer holds nothing after it settles; the enrichment cache (MYK9-1360) is a
+    // separate, tested layer, so drop it to see the sharer on its own.
+    invalidateClassEnrichment();
     await syncEveryTrial(table);
 
     expect(rpcCalls('get_show_judges')).toHaveLength(2);

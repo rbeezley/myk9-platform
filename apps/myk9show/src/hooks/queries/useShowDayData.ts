@@ -1,12 +1,18 @@
 /**
- * useShowDayData — Two-tier polling hook for exhibitor show day detection
- * and live ring progress.
+ * useShowDayData — Two-tier hook for exhibitor show day detection and live
+ * ring progress.
  *
- * Tier 1 (showDayCheck): Lightweight query every 60s to detect if today is a show day.
- * Tier 2 (showDayDetails + ringProgress): Full data every 30s, only when isShowDay=true.
+ * Replica-backed (MYK9-1368): all three queries read IndexedDB, not the
+ * database, and this hook is mounted app-wide on every signed-in device, so a
+ * timer meant a full replica scan every 30 s per device. They are refreshed
+ * when the entries replica changes (coalesced to once per 15 s) and by one slow
+ * 5 minute timer on the check query so the date rolls on an overnight tab.
+ *
+ * Tier 1 (showDayCheck): Lightweight query to detect if today is a show day.
+ * Tier 2 (showDayDetails + ringProgress): Full data, only when isShowDay=true.
  */
-import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef } from 'react';
 import { isCheckInStatus } from '@myk9/core';
 import { compareByRunOrder, type RunQueueEntry } from '@myk9/ringside/run-queue';
 import { queryKeys } from '@/lib/queryClient';
@@ -20,6 +26,7 @@ import type {
   RingProgressRow,
 } from '@/types/show-day-types';
 import { getTodayLocal } from '@/utils/dateLocal';
+import { useEntriesReplicaInvalidation } from './useEntriesReplicaInvalidation';
 import {
   fetchReplicatedRingProgress,
   fetchReplicatedShowDayCheck,
@@ -124,21 +131,27 @@ export function buildShowDayClasses(
 // Hook
 // ---------------------------------------------------------------------------
 
+/** At most one replica-driven refresh per this window (MYK9-1368). */
+export const SHOW_DAY_REPLICA_COALESCE_MS = 15_000;
+/** The only timer: lets `getTodayLocal()` roll the date on an overnight tab. */
+export const SHOW_DAY_DATE_ROLL_MS = 5 * 60_000;
+
 export function useShowDayData(): ShowDayData {
   const { userWithRoles } = useAuthContext();
   const userId = userWithRoles?.databaseUserId ?? '';
 
-  // No useMemo — must recompute on each render so an overnight tab picks up the new date
-  const today = getTodayLocal();
+  const queryClient = useQueryClient();
 
-  // Tier 1: Lightweight check (60s interval, always active)
+  // Tier 1: Lightweight check (always active). The one timer is the date roll.
+  // The date is read at fetch time, not render time: with no polling an
+  // overnight tab may not re-render before the 5 minute check runs.
   const checkQuery = useQuery({
     queryKey: queryKeys.showDayCheck(userId),
-    queryFn: () => fetchReplicatedShowDayCheck(userId, today),
+    queryFn: () => fetchReplicatedShowDayCheck(userId, getTodayLocal()),
     enabled: !!userId,
-    staleTime: 60_000,
+    staleTime: Infinity,
     gcTime: 120_000,
-    refetchInterval: 60_000,
+    refetchInterval: SHOW_DAY_DATE_ROLL_MS,
     refetchOnWindowFocus: true,
   });
 
@@ -148,14 +161,13 @@ export function useShowDayData(): ShowDayData {
   );
   const isShowDay = activeShows.length > 0;
 
-  // Tier 2a: Full entry details (30s interval, only when show day)
+  // Tier 2a: Full entry details (only when show day). No timer: replica changes refresh it.
   const detailsQuery = useQuery({
     queryKey: queryKeys.showDayDetails(userId),
-    queryFn: () => fetchReplicatedShowDayDetails(userId, today),
+    queryFn: () => fetchReplicatedShowDayDetails(userId, getTodayLocal()),
     enabled: !!userId && isShowDay,
-    staleTime: 30_000,
+    staleTime: Infinity,
     gcTime: 60_000,
-    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
 
@@ -169,16 +181,39 @@ export function useShowDayData(): ShowDayData {
     return [...ids];
   }, [detailsQuery.data]);
 
-  // Tier 2b: Ring progress (30s interval, only when we have class IDs)
+  // Tier 2b: Ring progress (only when we have class IDs). No timer, as above.
   const progressQuery = useQuery({
     queryKey: queryKeys.showDayRingProgress(userId, classIds),
     queryFn: () => fetchReplicatedRingProgress(classIds),
     enabled: !!userId && isShowDay && classIds.length > 0,
-    staleTime: 30_000,
+    staleTime: Infinity,
     gcTime: 60_000,
-    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
+
+  // The replica is the source of truth: a score, check-in or sync that reaches
+  // this device refreshes all three (ring progress by key prefix, since its key
+  // carries the class ids).
+  useEntriesReplicaInvalidation(
+    [
+      queryKeys.showDayCheck(userId),
+      queryKeys.showDayDetails(userId),
+      ['show-day', 'ring-progress', userId],
+    ],
+    SHOW_DAY_REPLICA_COALESCE_MS
+  );
+
+  // With staleTime Infinity, details cached for yesterday's show day would be
+  // served as-is once the date rolls (or a show day starts after a quiet spell)
+  // and no entry changed. Refetch them when the set of active show days changes.
+  const activeDaysKey = activeShows.map(s => `${s.showId}@${s.trialDate}`).join('|');
+  const previousDaysKey = useRef(activeDaysKey);
+  useEffect(() => {
+    if (previousDaysKey.current === activeDaysKey) return;
+    previousDaysKey.current = activeDaysKey;
+    void queryClient.invalidateQueries({ queryKey: queryKeys.showDayDetails(userId) });
+    void queryClient.invalidateQueries({ queryKey: ['show-day', 'ring-progress', userId] });
+  }, [activeDaysKey, queryClient, userId]);
 
   // Derive lastUpdated from React Query's dataUpdatedAt
   const lastUpdated = useMemo(

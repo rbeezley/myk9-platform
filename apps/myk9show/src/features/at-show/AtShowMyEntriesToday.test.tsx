@@ -16,7 +16,7 @@ vi.mock('@/lib/notifications', () => ({
 }));
 
 vi.mock('@/services/replication', () => ({
-  replicatedEntriesTable: { sync: mockSync },
+  replicatedEntriesTable: { sync: mockSync, subscribe: vi.fn(() => () => undefined) },
 }));
 
 function entry(overrides: Partial<AtShowEntryDetail>): AtShowEntryDetail {

@@ -245,7 +245,10 @@ export function useFavoriteArmbandsByShow(showIds: string[]): Map<string, Set<nu
     queryFn: () => fetchFavoriteRows(userId, stableShowIds),
     enabled: Boolean(userId) && stableShowIds.length > 0,
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    // Server-only (MYK9-1368). This device's own toggles invalidate the key
+    // below, so the poll only catches stars made on another device: 5 minutes.
+    refetchInterval: 5 * 60_000,
+    refetchOnWindowFocus: true,
   });
 
   return useMemo(() => toFavoriteArmbandsByShow(data ?? []), [data]);
@@ -315,6 +318,7 @@ export function useDogFavoritesServerSync(showId: string | undefined): void {
 export function useAtShowDogFavoritesSynced(showId: string | undefined) {
   const { user } = useAuthContext();
   const userId = getAccountUserId(user);
+  const queryClient = useQueryClient();
   const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavorites(showId, userId);
   useDogFavoritesServerSync(showId);
 
@@ -323,15 +327,17 @@ export function useAtShowDogFavoritesSynced(showId: string | undefined) {
       const wasFavorited = favoriteArmbands.has(armband);
       toggleFavoriteArmband(armband);
       if (!userId || !showId) return;
+      // The monitor's server read no longer polls every minute, so the user's
+      // own toggle refreshes it once the write has settled (MYK9-1368).
       void enqueueFavoriteWrite(
         userId,
         showId,
         wasFavorited
           ? () => removeFavorite(userId, showId, armband)
           : () => persistFavorite(userId, showId, armband)
-      );
+      ).then(() => queryClient.invalidateQueries({ queryKey: ['dog-favorites'] }));
     },
-    [favoriteArmbands, toggleFavoriteArmband, userId, showId]
+    [favoriteArmbands, toggleFavoriteArmband, userId, showId, queryClient]
   );
 
   return { favoriteArmbands, toggleFavoriteArmband: toggle };

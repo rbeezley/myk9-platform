@@ -9,6 +9,8 @@ const stopwatchState = vi.hoisted(() => ({ isRunning: false, time: 0, exactMs: 0
 vi.mock('../../../hooks/useStopwatch', () => ({
   useStopwatch: () => ({
     time: stopwatchState.time,
+    subscribeTime: () => () => undefined,
+    getTimeMs: () => stopwatchState.time,
     isRunning: stopwatchState.isRunning,
     formatTime: (ms: number) => {
       const s = ms / 1000;

@@ -12,6 +12,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { ArrowLeft, Zap } from 'lucide-react';
 import { Button, Input, Card, cn } from '@myk9/ui';
 import { useStopwatch } from '../../../hooks/useStopwatch';
+import { StopwatchTime } from '../../StopwatchTime';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
@@ -174,7 +175,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                     stopwatch.isTimeExpired() && 'text-destructive'
                   )}
                 >
-                  {stopwatch.formatTime(stopwatch.time)}
+                  <StopwatchTime stopwatch={stopwatch} />
                 </div>
 
                 <div className="mt-6">

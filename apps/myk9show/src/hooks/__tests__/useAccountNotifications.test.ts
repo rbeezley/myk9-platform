@@ -1,6 +1,11 @@
 import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useAccountNotifications } from '../useAccountNotifications';
+import {
+  ACCOUNT_NOTIFICATIONS_POLL_MAX_MS,
+  ACCOUNT_NOTIFICATIONS_POLL_MIN_MS,
+  drawAccountNotificationsPollMs,
+  useAccountNotifications,
+} from '../useAccountNotifications';
 import type { NotificationPayload } from '@myk9/notifications';
 import type { AlertEntry } from '@/store/notificationStore';
 
@@ -12,6 +17,7 @@ const {
   mockUpdate,
   currentAuthUser,
   notificationState,
+  queryOptionsSeen,
 } = vi.hoisted(() => {
   const mockIn = vi.fn().mockResolvedValue({ data: null, error: null });
   const mockEq = vi.fn(() => ({ in: mockIn }));
@@ -35,6 +41,11 @@ const {
     mockUpdate: vi.fn(() => ({ eq: mockEq })),
     currentAuthUser: { id: 'auth-user-1' as string | null },
     notificationState,
+    queryOptionsSeen: [] as {
+      refetchInterval?: number;
+      staleTime?: number;
+      refetchOnWindowFocus?: boolean;
+    }[],
   };
 });
 
@@ -60,7 +71,10 @@ vi.mock('@/hooks/useAuthContext', () => ({
 }));
 vi.mock('@tanstack/react-query', async () => ({
   ...(await vi.importActual('@tanstack/react-query')),
-  useQuery: () => mockUseQueryResult(),
+  useQuery: (options: (typeof queryOptionsSeen)[number]) => {
+    queryOptionsSeen.push(options);
+    return mockUseQueryResult();
+  },
 }));
 
 const clubApprovedRow = {
@@ -76,7 +90,36 @@ describe('useAccountNotifications', () => {
     vi.clearAllMocks();
     currentAuthUser.id = 'auth-user-1';
     notificationState.recentAlerts = [];
+    queryOptionsSeen.length = 0;
     mockUseQueryResult.mockReturnValue({ data: undefined });
+  });
+
+  // MYK9-1368: app-wide server poll, jittered per mount between 3 and 5 minutes.
+  describe('poll cadence', () => {
+    it('draws the interval from the 3-5 minute range and refetches on focus', () => {
+      renderHook(() => useAccountNotifications());
+      const options = queryOptionsSeen[0];
+      expect(options.refetchInterval).toBeGreaterThanOrEqual(180_000);
+      expect(options.refetchInterval).toBeLessThanOrEqual(300_000);
+      expect(options.staleTime).toBe(options.refetchInterval);
+      expect(options.refetchOnWindowFocus).toBe(true);
+    });
+
+    it('keeps the one draw across re-renders of the same mount', () => {
+      const { rerender } = renderHook(() => useAccountNotifications());
+      rerender();
+      rerender();
+      const intervals = new Set(queryOptionsSeen.map(options => options.refetchInterval));
+      expect(intervals.size).toBe(1);
+    });
+
+    it('spans the bounds uniformly', () => {
+      expect(ACCOUNT_NOTIFICATIONS_POLL_MIN_MS).toBe(180_000);
+      expect(ACCOUNT_NOTIFICATIONS_POLL_MAX_MS).toBe(300_000);
+      expect(drawAccountNotificationsPollMs(() => 0)).toBe(180_000);
+      expect(drawAccountNotificationsPollMs(() => 0.5)).toBe(240_000);
+      expect(drawAccountNotificationsPollMs(() => 0.999999)).toBeLessThanOrEqual(300_000);
+    });
   });
 
   it('delivers an unread club_access_approved row as the exact bell payload', () => {

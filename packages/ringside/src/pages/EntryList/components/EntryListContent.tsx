@@ -31,7 +31,8 @@ import type { Entry } from '../../../stores/entryStore';
 import type { EntryListPermission } from '../permissions';
 import type { DogCardProps, EntryListFavorites, EntryListOwnership } from '../pageProps';
 import type { ClassInfo } from '../hooks/useEntryListData';
-import { isInRingEntry, pendingByRunOrder } from '../runQueue';
+import { findInRingEntry, pendingByRunOrder } from '../runQueue';
+import { useOptionalStableCallback, useStableCallback } from '../hooks/useStableCallback';
 
 export interface EntryListContentProps {
   /** Filtered and sorted entries to display */
@@ -132,33 +133,70 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
   }, [entries.length]);
 
   const [heroRef, lastHeroHeight] = useLastHeight<HTMLDivElement>();
-  const inRing = showNowAndNext ? (entries.find(isInRingEntry) ?? null) : null;
-  const upNext = showNowAndNext ? (pendingByRunOrder(entries)[0] ?? null) : null;
-  const listEntries = showNowAndNext
-    ? entries.filter(entry => entry.id !== inRing?.id && entry.id !== upNext?.id)
-    : entries;
+
+  // Derived once per entries change, not per card or per render. The cards are
+  // memoised, so nothing below may hand them a fresh object or callback.
+  const { inRing, upNext, listEntries } = React.useMemo(() => {
+    if (!showNowAndNext) return { inRing: null, upNext: null, listEntries: entries };
+    const ring = findInRingEntry(entries);
+    const next = pendingByRunOrder(entries)[0] ?? null;
+    return {
+      inRing: ring,
+      upNext: next,
+      listEntries: entries.filter(entry => entry.id !== ring?.id && entry.id !== next?.id),
+    };
+  }, [entries, showNowAndNext]);
+  // SortableContext re-notifies every useSortable consumer when `items` changes
+  // identity, so a fresh array per render re-rendered all 60 cards.
+  const entryIds = React.useMemo(() => entries.map(entry => entry.id), [entries]);
+
+  // The page re-creates some of these on every render (see useStableCallback).
+  const stableEntryClick = useStableCallback(onEntryClick);
+  const stableStatusClick = useStableCallback(onStatusClick);
+  const stableResetMenuClick = useStableCallback(onResetMenuClick);
+  const stableSelfCheckinDisabled = useStableCallback(onSelfCheckinDisabled);
+  const stablePrefetch = useOptionalStableCallback(onPrefetch);
+  const stableOpenDragMode = useOptionalStableCallback(onOpenDragMode);
+  const onToggleFavoriteArmband = favorites?.onToggleFavoriteArmband;
+  const stableToggleFavorite = useOptionalStableCallback(onToggleFavoriteArmband);
+
+  // The card reads two class fields and one show field. The page rebuilds both
+  // objects whenever any counter on them moves, which would re-render every card.
+  const hasClassInfo = classInfo != null;
+  const selfCheckin = classInfo?.selfCheckin;
+  const registry = classInfo?.registry;
+  const cardClassInfo = React.useMemo(
+    () => (hasClassInfo ? { selfCheckin, registry } : null),
+    [hasClassInfo, selfCheckin, registry]
+  );
+  const hasShowContext = showContext != null;
+  const competitionType = showContext?.competition_type;
+  const cardShowContext = React.useMemo(
+    () => (hasShowContext ? { competition_type: competitionType } : null),
+    [hasShowContext, competitionType]
+  );
 
   const renderCard = (entry: Entry, variant?: 'hero' | 'next') => (
     <SortableEntryCard
-      key={`${entry.id}-${entry.status}-${entry.isScored}`}
+      key={entry.id}
       entry={entry}
       scoringDisabled={scoringDisabled}
       isDragMode={isDragMode}
-      showContext={showContext}
-      classInfo={classInfo}
+      showContext={cardShowContext}
+      classInfo={cardClassInfo}
       hasPermission={hasPermission}
-      handleEntryClick={onEntryClick}
-      handleStatusClick={onStatusClick}
-      handleResetMenuClick={onResetMenuClick}
-      setSelfCheckinDisabledDialog={onSelfCheckinDisabled}
-      onPrefetch={onPrefetch}
+      handleEntryClick={stableEntryClick}
+      handleStatusClick={stableStatusClick}
+      handleResetMenuClick={stableResetMenuClick}
+      setSelfCheckinDisabledDialog={stableSelfCheckinDisabled}
+      onPrefetch={stablePrefetch}
       sectionBadge={showSectionBadges ? (entry.section as 'A' | 'B' | null) : undefined}
-      onOpenDragMode={onOpenDragMode}
+      onOpenDragMode={stableOpenDragMode}
       {...(variant ? { variant } : {})}
       {...(favorites
         ? {
             isFavorite: entry.armband != null && favorites.favoriteArmbands.has(entry.armband),
-            onToggleFavorite: favorites.onToggleFavoriteArmband,
+            onToggleFavorite: stableToggleFavorite,
           }
         : {})}
       {...(ownership?.ownEntryIds.has(entry.id)
@@ -211,7 +249,7 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
           ringside, or any tablet -- it computed drop previews and translate
           offsets against the wrong axis, so cards jumped to visibly wrong slots
           and reorder was unusable on every layout except one column. */}
-      <SortableContext items={entries.map(e => e.id)} strategy={rectSortingStrategy}>
+      <SortableContext items={entryIds} strategy={rectSortingStrategy}>
         {showNowAndNext && (
           <div className="mb-4 flex flex-col">
             {sectionLabel('In the ring')}

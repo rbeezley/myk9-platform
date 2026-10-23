@@ -4,6 +4,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { cacheStrategies } from '@/lib/queryClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
+import { useEntriesReplicaInvalidation } from './useEntriesReplicaInvalidation';
 
 /**
  * MYK9-995: the caller's place in line for their own entries, counted on the
@@ -86,6 +87,13 @@ export function settledQueuePlacesWithFreshness(
   return { places: settled ? places : NO_PLACES, updatedAt: settled ? query.dataUpdatedAt : null };
 }
 
+/** Poll cadence for the RPC; replica changes refresh it sooner. */
+export const QUEUE_PLACES_REFETCH_MS = 60_000;
+/** Folds the replica's leading + trailing notices (and a sync burst) into one RPC. */
+export const QUEUE_PLACES_REPLICA_COALESCE_MS = 1_000;
+/** Query key prefix shared by every queue-places query (see the key in the hook). */
+const QUEUE_PLACES_KEY = 'my-entry-queue-places';
+
 export function useMyEntryQueuePlacesWithFreshness(
   entryIds: readonly string[]
 ): QueuePlacesWithFreshness {
@@ -95,13 +103,21 @@ export function useMyEntryQueuePlacesWithFreshness(
   const key = ids.join(',');
 
   const query = useQuery({
-    queryKey: ['my-entry-queue-places', user?.id ?? 'anonymous', key] as const,
+    queryKey: [QUEUE_PLACES_KEY, user?.id ?? 'anonymous', key] as const,
     queryFn: () => fetchMyEntryQueuePlaces(ids),
     enabled: !!user && ids.length > 0 && isOnline,
     ...cacheStrategies.realtime,
-    // The ring moves on its own; re-count while the page is visible.
-    refetchInterval: 30_000,
+    // Server-only on purpose (MYK9-1368): the RPC is authoritative for OTHER
+    // exhibitors' positions, which the replica cannot count. The ring moves on
+    // its own, so re-count each minute while the page is visible, and at once
+    // (below) when a score or check-in reaches this device.
+    refetchInterval: QUEUE_PLACES_REFETCH_MS,
   });
+
+  useEntriesReplicaInvalidation(
+    [[QUEUE_PLACES_KEY, user?.id ?? 'anonymous']],
+    QUEUE_PLACES_REPLICA_COALESCE_MS
+  );
 
   return settledQueuePlacesWithFreshness(query, isOnline);
 }

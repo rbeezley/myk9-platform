@@ -14,6 +14,8 @@ import type { LiveScoresheetProps, ResolvedClassRules } from '../../types';
 vi.mock('../../hooks/useStopwatch', () => ({
   useStopwatch: () => ({
     time: 0,
+    subscribeTime: () => () => undefined,
+    getTimeMs: () => 0,
     isRunning: false,
     formatTime: () => '0:00.00',
     getRemainingTime: () => '3:00.00',

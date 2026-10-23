@@ -22,6 +22,8 @@ vi.mock('../../../hooks/useStopwatch', () => ({
     clock.onTimeExpired ??= options.onTimeExpired;
     return {
       time: clock.time,
+      subscribeTime: () => () => undefined,
+      getTimeMs: () => clock.time,
       isRunning: clock.isRunning,
       formatTime: () => '0:45.00',
       getRemainingTime: () => '0:15.00',

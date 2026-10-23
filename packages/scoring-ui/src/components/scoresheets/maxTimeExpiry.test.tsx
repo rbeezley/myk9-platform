@@ -21,6 +21,8 @@ vi.mock('../../hooks/useStopwatch', () => ({
     timers.firstStopwatch ??= options;
     return {
       time: 0,
+      subscribeTime: () => () => undefined,
+      getTimeMs: () => 0,
       isRunning: false,
       formatTime: () => '3:00.00',
       getRemainingTime: () => '3:00.00',

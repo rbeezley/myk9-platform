@@ -62,10 +62,21 @@ export interface StopwatchOptions {
  * Stopwatch return type
  */
 export interface StopwatchReturn {
-  /** Current time in milliseconds */
+  /**
+   * Current time in milliseconds, read live on every access. It is NOT a
+   * render trigger while running (MYK9-1364): render the running clock with
+   * `<StopwatchTime>`, which subscribes through `subscribeTime`.
+   */
   time: number;
   /** Whether timer is currently running */
   isRunning: boolean;
+  /**
+   * `useSyncExternalStore` subscribe for the running clock: `listener` fires
+   * on every 100ms paint. The identity is stable.
+   */
+  subscribeTime: (listener: () => void) => () => void;
+  /** `useSyncExternalStore` snapshot: the live elapsed ms. The identity is stable. */
+  getTimeMs: () => number;
   /** Format time as "M:SS.ss" */
   formatTime: (milliseconds: number) => string;
   /** Get remaining time as "M:SS.ss" (or empty string if no max time) */

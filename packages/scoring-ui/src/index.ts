@@ -90,6 +90,7 @@ export type {
 
 // Components
 export { ResultChoiceChips, type ResultChoiceChipsProps } from './components/ResultChoiceChips';
+export { StopwatchTime, type StopwatchClock } from './components/StopwatchTime';
 export { disqualifyHelpText } from './components/DisqualifyReason';
 
 // Scoresheets - AKC

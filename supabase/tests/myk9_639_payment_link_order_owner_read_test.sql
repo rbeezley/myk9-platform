@@ -26,8 +26,10 @@
 --   8. An unrelated account sees none of the above.
 --   9. The customer arm is unchanged: an order keyed to the caller's
 --      stripe_customers row is still visible.
---  10. Owner and co-owner of the dog read the link order the handler was
---      issued, as get_my_checkout_order already allows.
+--  10. The dog's owner and co-owner do NOT inherit the charge the handler
+--      paid (a ledger sums every admitted order as the viewer's own money);
+--      they read a link order only for a HANDLER-LESS entry of their dog, and
+--      the handler who is neither does not.
 --  11. A soft-deleted entry keeps the payer's history readable: a withdrawal
 --      and its refund are still the exhibitor's money.
 --  12. EXECUTE on the helper is revoked from PUBLIC and anon, granted to
@@ -105,17 +107,24 @@ values
   ('00000000-0000-0000-0000-000000639964', '00000000-0000-0000-0000-000000639953',
    '00000000-0000-0000-0000-000000639933', '00000000-0000-0000-0000-000000639911',
    '00000000-0000-0000-0000-000000639921', '00000000-0000-0000-0000-000000639941',
+   'confirmed', 'paid', 35),
+  ('00000000-0000-0000-0000-000000639965', '00000000-0000-0000-0000-000000639951',
+   '00000000-0000-0000-0000-000000639933', '00000000-0000-0000-0000-000000639911',
+   '00000000-0000-0000-0000-000000639921', '00000000-0000-0000-0000-000000639941',
    'confirmed', 'paid', 35);
+-- eN: no handler on the dog nobody owns. eH: no handler on dog A, so its
+-- owner and co-owner stand in for the exhibitor.
 update public.entries set handler_id = null
-where id = '00000000-0000-0000-0000-000000639964';
+where id in ('00000000-0000-0000-0000-000000639964',
+             '00000000-0000-0000-0000-000000639965');
 
 do $$
 begin
-  if not exists (
-    select 1 from public.entries
-    where id = '00000000-0000-0000-0000-000000639964' and handler_id is null
-  ) then
-    raise exception 'FIXTURE the no-owner entry still has a handler';
+  if (select count(*) from public.entries
+      where id in ('00000000-0000-0000-0000-000000639964',
+                   '00000000-0000-0000-0000-000000639965')
+        and handler_id is null) <> 2 then
+    raise exception 'FIXTURE a handler-less entry still has a handler';
   end if;
 end;
 $$;
@@ -144,7 +153,10 @@ values
    'cs_myk9_639_null_owner', 'paid', 3500),
   ('00000000-0000-0000-0000-000000639978', '00000000-0000-0000-0000-000000639911',
    array['00000000-0000-0000-0000-000000639961', '00000000-0000-0000-0000-000000639961']::uuid[],
-   'cs_myk9_639_duplicate', 'paid', 3500);
+   'cs_myk9_639_duplicate', 'paid', 3500),
+  ('00000000-0000-0000-0000-000000639979', '00000000-0000-0000-0000-000000639911',
+   array['00000000-0000-0000-0000-000000639965']::uuid[],
+   'cs_myk9_639_handlerless', 'paid', 3500);
 
 -- The orders stripe-webhook records for those sessions: customer_id NULL,
 -- entry_ids = the ACCEPTED lines only, amount_cents = the whole charge. The
@@ -184,7 +196,11 @@ values
   ('00000000-0000-0000-0000-000000639989', null, 'pi_myk9_639_duplicate', 'cs_myk9_639_duplicate',
    3745, 'succeeded', 'entry', '00000000-0000-0000-0000-000000639911',
    array['00000000-0000-0000-0000-000000639961']::uuid[],
-   '{"entry_payment_link_id":"00000000-0000-0000-0000-000000639978","entry_count":1}'::jsonb);
+   '{"entry_payment_link_id":"00000000-0000-0000-0000-000000639978","entry_count":1}'::jsonb),
+  ('00000000-0000-0000-0000-000000639990', null, 'pi_myk9_639_handlerless', 'cs_myk9_639_handlerless',
+   3745, 'succeeded', 'entry', '00000000-0000-0000-0000-000000639911',
+   array['00000000-0000-0000-0000-000000639965']::uuid[],
+   '{"entry_payment_link_id":"00000000-0000-0000-0000-000000639979","entry_count":1}'::jsonb);
 
 -- The customer arm's positive control: a cart order keyed to A's own
 -- stripe_customers row, exactly as before this migration.
@@ -215,7 +231,7 @@ begin
   select coalesce(array_agg(id order by id), '{}'::uuid[]) into v_ids
   from public.stripe_orders
   where id between '00000000-0000-0000-0000-000000639981'
-               and '00000000-0000-0000-0000-000000639989';
+               and '00000000-0000-0000-0000-000000639990';
   reset role;
   return v_ids;
 end;
@@ -253,18 +269,15 @@ select pg_temp.assert_visible('handler B cannot read the mixed-handler charge',
 select pg_temp.assert_visible('an unrelated account reads no order',
   '00000000-0000-0000-0000-000000639103', '{}'::uuid[]);
 
--- 10: dog A's owner and co-owner read the orders issued against their dog's
--- entries, and nothing keyed to A's customer row or to another dog.
-select pg_temp.assert_visible('the dog owner reads the link orders for their dog',
+-- 10: dog A's owner and co-owner read only the handler-less entry's link
+-- order; the charges handler A paid for their dog are A's, not theirs, and A
+-- (handler of nothing on that link) does not read the handler-less one.
+select pg_temp.assert_visible('the dog owner reads only a handler-less entry''s link order',
   '00000000-0000-0000-0000-000000639104',
-  array['00000000-0000-0000-0000-000000639981',
-        '00000000-0000-0000-0000-000000639983',
-        '00000000-0000-0000-0000-000000639989']::uuid[]);
-select pg_temp.assert_visible('the co-owner reads the link orders for their dog',
+  array['00000000-0000-0000-0000-000000639990']::uuid[]);
+select pg_temp.assert_visible('the co-owner reads only a handler-less entry''s link order',
   '00000000-0000-0000-0000-000000639105',
-  array['00000000-0000-0000-0000-000000639981',
-        '00000000-0000-0000-0000-000000639983',
-        '00000000-0000-0000-0000-000000639989']::uuid[]);
+  array['00000000-0000-0000-0000-000000639990']::uuid[]);
 
 -- 11: withdrawing eA2 (soft delete) does not erase the payer's charge history.
 update public.entries set deleted_at = now()

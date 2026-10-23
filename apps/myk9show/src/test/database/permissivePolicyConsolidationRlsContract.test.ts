@@ -203,8 +203,9 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     'to rows the customer arm can never match (customer_id IS NULL): `stripe_checkout_session_id ' +
     'IN (SELECT my_entry_payment_link_session_ids())`, an UNCORRELATED SECURITY DEFINER set in ' +
     'the manageable_show_ids() shape, never a per-row call. The set holds a session only when ' +
-    "every entry on its persisted entry_payment_links row is the caller's and in the link's " +
-    'show, deciding against the LINK, never stripe_orders.entry_ids (accepted lines only, while ' +
+    "every entry on its persisted entry_payment_links row is the caller's (its handler; the " +
+    "dog's owner or co-owner only on a handler-less entry) and in the link's show, deciding " +
+    'against the LINK, never stripe_orders.entry_ids (accepted lines only, while ' +
     'amount_cents is the whole charge). EXECUTE is granted to authenticated only; anon holds no ' +
     'privilege on stripe_orders. Same policy name, same SELECT command, same TO authenticated ' +
     'role — predicate only. stripe_orders_manage_insert/update/delete are untouched, so the ' +

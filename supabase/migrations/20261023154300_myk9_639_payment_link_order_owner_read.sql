@@ -16,20 +16,29 @@
 -- persisted link's COMPLETE original entry list -- never the order's.
 --
 -- my_entry_payment_link_session_ids() is the set of checkout sessions whose
--- entry_payment_links row lists ONLY entries that are the caller's (handler,
--- dog owner or co-owner -- the three arms get_my_checkout_order already uses),
--- every one of them existing and in the link's show. A missing entry, an entry
--- nobody owns, a second handler or a cross-show id each keep the WHOLE link
--- out of the set: the charge is not wholly the caller's to read. Because it
--- reads the link rather than the order, an order that accepted no line at all
--- (every entry refunded) still shows the payer their charge and its refund.
+-- entry_payment_links row lists ONLY entries that are the caller's, every one
+-- of them existing and in the link's show. "The caller's" is the entry's
+-- HANDLER -- the exhibitor the secretary's Request payment dialog asks to pay
+-- -- and only for a handler-less entry (a mail-in keyed without one) the dog's
+-- owner or co-owner. Not the three-arm rule get_my_checkout_order uses: that
+-- lookup is keyed by a session id only the payer holds, while this set feeds a
+-- LEDGER that sums every admitted order as the viewer's own money, so a dog
+-- owner must not inherit the charge a hired handler paid (adversarial review
+-- on #3224). A missing entry, an entry nobody owns, a second handler or a
+-- cross-show id each keep the WHOLE link out of the set: the charge is not
+-- wholly the caller's to read. Because it reads the link rather than the
+-- order, an order that accepted no line at all (every entry refunded) still
+-- shows the payer their charge and its refund.
 --
 -- It is an UNCORRELATED set, used as `stripe_checkout_session_id IN (SELECT
 -- ...)`, so the policy evaluates it once per query as a hashed subplan rather
 -- than once per NULL-customer row -- the shape manageable_show_ids() and
 -- official_show_ids() took after the per-row can_manage_show() statement
--- timeouts (20260602000000, 20260602040000). Candidate links are found through
--- the existing GIN index on entry_payment_links.entry_ids.
+-- timeouts (20260602000000, 20260602040000). The caller's entries come from a
+-- UNION of indexed branches (entries.handler_id, dogs.owner_id,
+-- dogs.co_owner_id), never an OR across a join that forces a full scan of
+-- entries and dogs on every stripe_orders read; candidate links are found
+-- through the existing GIN index on entry_payment_links.entry_ids.
 
 CREATE OR REPLACE FUNCTION public.my_entry_payment_link_session_ids()
 RETURNS SETOF text
@@ -50,10 +59,17 @@ BEGIN
     WITH mine AS (
       SELECT e.id, e.show_id
       FROM public.entries AS e
-      LEFT JOIN public.dogs AS d ON d.id = e.dog_id
       WHERE e.handler_id = v_person_id
-         OR d.owner_id = v_person_id
-         OR d.co_owner_id = v_person_id
+      UNION
+      SELECT e.id, e.show_id
+      FROM public.dogs AS d
+      JOIN public.entries AS e ON e.dog_id = d.id AND e.handler_id IS NULL
+      WHERE d.owner_id = v_person_id
+      UNION
+      SELECT e.id, e.show_id
+      FROM public.dogs AS d
+      JOIN public.entries AS e ON e.dog_id = d.id AND e.handler_id IS NULL
+      WHERE d.co_owner_id = v_person_id
     )
     SELECT l.stripe_checkout_session_id
     FROM public.entry_payment_links AS l
@@ -72,8 +88,9 @@ $$;
 
 COMMENT ON FUNCTION public.my_entry_payment_link_session_ids() IS
   'MYK9-639: the checkout sessions whose entry_payment_links row lists only '
-  'entries that are the caller''s (handler, owner or co-owner), each existing '
-  'and in the link''s show. Decided against the link''s complete original list, '
+  'entries that are the caller''s (the handler; the dog''s owner or co-owner '
+  'only on a handler-less entry), each existing and in the link''s show. '
+  'Decided against the link''s complete original list, '
   'never stripe_orders.entry_ids, which holds only the accepted lines while '
   'amount_cents is the whole charge. Uncorrelated: use as IN (SELECT ...).';
 

@@ -15,13 +15,14 @@ let mockRoles: UserRole[] = [];
 const mockAccountToday = vi.hoisted(() => ({
   hasAccountEntryForShow: false,
   isLoading: false,
-  isFetched: true,
+  hasServerAnswer: true,
   error: null as Error | null,
 }));
 const mockHasAnyEntry = vi.hoisted(() => ({
   hasAnyEntryForShow: false,
   isLoading: false,
   isError: false,
+  calls: [] as Array<string | undefined>,
 }));
 const mockLocal = vi.hoisted(() => ({
   hasLocalEntryToday: false,
@@ -46,7 +47,10 @@ vi.mock('@/features/show-today/accountTodayEntries', () => ({
 }));
 
 vi.mock('./useHasAnyEntryForShow', () => ({
-  useHasAnyEntryForShow: () => mockHasAnyEntry,
+  useHasAnyEntryForShow: (showId: string | undefined) => {
+    mockHasAnyEntry.calls.push(showId);
+    return mockHasAnyEntry;
+  },
 }));
 
 vi.mock('./useLocalEntryForShowToday', () => ({
@@ -80,11 +84,12 @@ describe('AtShowAccessGate local entry admission', () => {
     mockRoles = [UserRole.EXHIBITOR];
     mockAccountToday.hasAccountEntryForShow = false;
     mockAccountToday.isLoading = false;
-    mockAccountToday.isFetched = true;
+    mockAccountToday.hasServerAnswer = true;
     mockAccountToday.error = null;
     mockHasAnyEntry.hasAnyEntryForShow = false;
     mockHasAnyEntry.isLoading = false;
     mockHasAnyEntry.isError = false;
+    mockHasAnyEntry.calls = [];
     mockLocal.hasLocalEntryToday = false;
     mockLocal.isLoading = false;
     mockLocal.calls = [];
@@ -94,7 +99,7 @@ describe('AtShowAccessGate local entry admission', () => {
 
   it('admits a warm device while the server RPC is still loading', () => {
     mockAccountToday.isLoading = true;
-    mockAccountToday.isFetched = false;
+    mockAccountToday.hasServerAnswer = false;
     mockLocal.hasLocalEntryToday = true;
 
     renderGate();
@@ -106,7 +111,7 @@ describe('AtShowAccessGate local entry admission', () => {
 
   it('keeps a cold device on the spinner while the server RPC is loading', () => {
     mockAccountToday.isLoading = true;
-    mockAccountToday.isFetched = false;
+    mockAccountToday.hasServerAnswer = false;
     mockLocal.hasLocalEntryToday = false;
 
     renderGate();
@@ -117,14 +122,14 @@ describe('AtShowAccessGate local entry admission', () => {
 
   it('closes the gate when the server says no after a local yes', () => {
     mockAccountToday.isLoading = true;
-    mockAccountToday.isFetched = false;
+    mockAccountToday.hasServerAnswer = false;
     mockLocal.hasLocalEntryToday = true;
     mockHasAnyEntry.hasAnyEntryForShow = true;
     const { rerender } = renderGate();
     expect(screen.getByText('AT SHOW CONTENT')).toBeInTheDocument();
 
     mockAccountToday.isLoading = false;
-    mockAccountToday.isFetched = true;
+    mockAccountToday.hasServerAnswer = true;
     mockAccountToday.hasAccountEntryForShow = false;
     rerender(gate());
 
@@ -134,7 +139,7 @@ describe('AtShowAccessGate local entry admission', () => {
 
   it('admits a warm device while the RPC is paused because the device is offline', () => {
     mockAccountToday.isLoading = false;
-    mockAccountToday.isFetched = false;
+    mockAccountToday.hasServerAnswer = false;
     mockAccountToday.error = null;
     mockAccountToday.hasAccountEntryForShow = false;
     mockLocal.hasLocalEntryToday = true;
@@ -146,7 +151,7 @@ describe('AtShowAccessGate local entry admission', () => {
 
   it('closes the gate on a settled server no, even with a local yes', () => {
     mockAccountToday.isLoading = false;
-    mockAccountToday.isFetched = true;
+    mockAccountToday.hasServerAnswer = true;
     mockAccountToday.error = null;
     mockAccountToday.hasAccountEntryForShow = false;
     mockLocal.hasLocalEntryToday = true;
@@ -158,9 +163,56 @@ describe('AtShowAccessGate local entry admission', () => {
     expect(screen.getByText("Ringside isn't open for this show yet.")).toBeInTheDocument();
   });
 
+  it('keeps a warm device mounted through a refetch that follows a failed fetch', () => {
+    // After a failure the observer reports `error`; the next refetch resets it
+    // to null with `status: 'pending'` and no data, so there is no answer yet.
+    mockAccountToday.isLoading = true;
+    mockAccountToday.hasServerAnswer = false;
+    mockAccountToday.error = null;
+    mockAccountToday.hasAccountEntryForShow = false;
+    mockLocal.hasLocalEntryToday = true;
+
+    renderGate();
+
+    expect(screen.getByText('AT SHOW CONTENT')).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('stays closed when a refetch fails after a settled server no', () => {
+    mockAccountToday.isLoading = false;
+    mockAccountToday.hasServerAnswer = true;
+    mockAccountToday.error = new Error('offline');
+    mockAccountToday.hasAccountEntryForShow = false;
+    mockLocal.hasLocalEntryToday = true;
+    mockHasAnyEntry.hasAnyEntryForShow = true;
+
+    renderGate();
+
+    expect(screen.queryByText('AT SHOW CONTENT')).not.toBeInTheDocument();
+    expect(screen.getByText("Ringside isn't open for this show yet.")).toBeInTheDocument();
+  });
+
+  it('keeps the entry-affiliation read off the server while admitted locally', () => {
+    mockAccountToday.isLoading = true;
+    mockAccountToday.hasServerAnswer = false;
+    mockLocal.hasLocalEntryToday = true;
+    mockHasAnyEntry.hasAnyEntryForShow = true;
+    const { rerender } = renderGate();
+    expect(screen.getByText('AT SHOW CONTENT')).toBeInTheDocument();
+    expect(mockHasAnyEntry.calls.every(arg => arg === undefined)).toBe(true);
+
+    mockAccountToday.isLoading = false;
+    mockAccountToday.hasServerAnswer = true;
+    mockAccountToday.hasAccountEntryForShow = false;
+    mockHasAnyEntry.calls = [];
+    rerender(gate());
+
+    expect(mockHasAnyEntry.calls).toContain('show-1');
+  });
+
   it('keeps the local admission when the server read errors after a local yes', () => {
     mockAccountToday.isLoading = false;
-    mockAccountToday.isFetched = true;
+    mockAccountToday.hasServerAnswer = false;
     mockAccountToday.error = new Error('offline');
     mockLocal.hasLocalEntryToday = true;
 
@@ -171,7 +223,7 @@ describe('AtShowAccessGate local entry admission', () => {
 
   it('does not admit a cold device when the server read errors', () => {
     mockAccountToday.isLoading = false;
-    mockAccountToday.isFetched = true;
+    mockAccountToday.hasServerAnswer = false;
     mockAccountToday.error = new Error('offline');
     mockLocal.hasLocalEntryToday = false;
     mockHasAnyEntry.isError = true;
@@ -185,7 +237,7 @@ describe('AtShowAccessGate local entry admission', () => {
   it('still redirects an anonymous user to sign-in even with a local entry', () => {
     mockUser = null;
     mockAccountToday.isLoading = true;
-    mockAccountToday.isFetched = false;
+    mockAccountToday.hasServerAnswer = false;
     mockLocal.hasLocalEntryToday = true;
 
     renderGate();

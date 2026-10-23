@@ -15,7 +15,6 @@ import { useQuery } from '@tanstack/react-query';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
-import { formatDateLocal } from '@/utils/dateLocal';
 import { hasLocalEntryForShowToday } from './useLocalEntryForShowToday.helpers';
 
 export interface LocalEntryForShowToday {
@@ -33,7 +32,7 @@ async function readLocalEntryToday(personId: string, showId: string): Promise<bo
     return hasLocalEntryForShowToday({
       personId,
       showId,
-      today: formatDateLocal(new Date()),
+      today: new Date().toISOString().slice(0, 10),
       show,
       entries,
       dogs,
@@ -53,7 +52,6 @@ export function useLocalEntryForShowToday(
     queryFn: () => readLocalEntryToday(personId as string, showId as string),
     enabled,
     networkMode: 'always',
-    placeholderData: () => undefined,
   });
   return { hasLocalEntryToday: enabled && data === true, isLoading: enabled && isLoading };
 }

@@ -15,7 +15,7 @@ let mockLoading = false;
 const mockAccountToday = vi.hoisted(() => ({
   hasAccountEntryForShow: false,
   isLoading: false,
-  isFetched: true,
+  hasServerAnswer: true,
   error: null as Error | null,
 }));
 const mockHasAnyEntry = vi.hoisted(() => ({
@@ -64,7 +64,7 @@ describe('AtShowAccessGate', () => {
     mockLoading = false;
     mockAccountToday.hasAccountEntryForShow = false;
     mockAccountToday.isLoading = false;
-    mockAccountToday.isFetched = true;
+    mockAccountToday.hasServerAnswer = true;
     mockAccountToday.error = null;
     mockHasAnyEntry.hasAnyEntryForShow = false;
     mockHasAnyEntry.isLoading = false;

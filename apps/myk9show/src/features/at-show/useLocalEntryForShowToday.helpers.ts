@@ -13,7 +13,11 @@ const INACTIVE_ENTRY_STATUSES = new Set(['withdrawn', 'scratched']);
  * `getUserEntries`: the person handles it, or owns its dog.
  *
  * Pure (rows in, boolean out) so it needs no IndexedDB. `today` is a
- * `YYYY-MM-DD` local date string, which compares correctly as text.
+ * `YYYY-MM-DD` string, which compares correctly as text. Callers pass the UTC
+ * calendar date on purpose: the RPC compares the database's `current_date`
+ * (UTC on Supabase), and a device-local date would admit for hours each evening
+ * that the server then refuses. The RPC's own UTC-date semantics are a separate
+ * server-side issue, not changed here.
  */
 export function hasLocalEntryForShowToday(input: {
   personId: string | null | undefined;

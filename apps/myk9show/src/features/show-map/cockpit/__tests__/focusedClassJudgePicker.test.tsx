@@ -143,6 +143,33 @@ describe('class panel judge picker (MYK9-1323)', () => {
     expect(picker()).toHaveTextContent('Bob Barker');
   });
 
+  it("a local clear holds no override: another device's reassignment still shows", async () => {
+    const picker = () => screen.getByRole('combobox', { name: 'Judge for Container Novice' });
+    const rowWith = (judge: Partial<SecretaryCockpitClass>) => (
+      <SecretaryCockpit snapshot={snapshotOf(classOf(judge))} canManageShow onCommand={vi.fn()} />
+    );
+    const { user, rerender, unmount } = renderCockpit(
+      classOf({ judgeId: 'judge-1', judgeName: 'Jane Judge' })
+    );
+
+    await user.click(picker());
+    await user.click(await screen.findByRole('option', { name: 'Unassigned' }));
+    expect(upsertClassJudgeAssignment).toHaveBeenCalledWith('show-1', 'class-1', 'TBD', undefined);
+    // The write clears the local class row (MYK9-1327); the cockpit is handed that row.
+    rerender(rowWith({ judgeId: null, judgeName: null }));
+    expect(picker()).toHaveTextContent('Unassigned');
+
+    rerender(rowWith({ judgeId: 'judge-1', judgeName: 'Jane Judge' }));
+    expect(picker()).toHaveTextContent('Jane Judge');
+
+    // And across a remount (the panel moving layouts, or the page reopened).
+    unmount();
+    const second = renderCockpit(classOf({ judgeId: null, judgeName: null }));
+    expect(picker()).toHaveTextContent('Unassigned');
+    second.rerender(rowWith({ judgeId: 'judge-2', judgeName: 'Bob Barker' }));
+    expect(picker()).toHaveTextContent('Bob Barker');
+  });
+
   it('writes the judge while offline: the write is local and replicated, not parked', async () => {
     const { user } = renderCockpit(classOf({}));
     onlineManager.setOnline(false);

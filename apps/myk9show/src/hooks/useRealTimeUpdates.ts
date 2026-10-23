@@ -8,51 +8,47 @@ import {
 } from '@/utils/show-management-tracking';
 import { Show } from '@/types/show-types';
 
-/** Public Browse Shows updates. Entry/class freshness uses show-scoped Broadcast elsewhere. */
+/**
+ * Public Browse Shows updates. Entry/class freshness uses show-scoped Broadcast elsewhere.
+ *
+ * Subscribes once per mount: callbacks read the current user through a ref and the store through
+ * `getState()`, so a store update never tears the channel down and resubscribes (every
+ * resubscribe adds `realtime.list_changes` work, MYK9-1363). Each event touches one show only; a
+ * DELETE removes that show from the store rather than reloading the whole list.
+ */
 export const useRealTimeUpdates = () => {
-  const { shows, loadShows } = useShowStore();
   const { userWithRoles: user } = useAuthContext();
-  const lastUpdateRef = useRef(0);
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
-  const handleShowUpdate = useCallback(
-    (updatedShow: Show) => {
-      const startTime = performance.now();
-      useShowStore.getState().updateShowLegacy(updatedShow);
-      if (user?.id) syncShowRelationships([updatedShow], user);
-      RelationshipPerformanceMonitor.getInstance().recordOperation(
-        'realTimeShowUpdate',
-        performance.now() - startTime
-      );
-    },
-    [user]
-  );
+  const handleShowUpdate = useCallback((updatedShow: Show) => {
+    const startTime = performance.now();
+    useShowStore.getState().updateShowLegacy(updatedShow);
+    const currentUser = userRef.current;
+    if (currentUser?.id) syncShowRelationships([updatedShow], currentUser);
+    RelationshipPerformanceMonitor.getInstance().recordOperation(
+      'realTimeShowUpdate',
+      performance.now() - startTime
+    );
+  }, []);
 
-  const handleBatchUpdate = useCallback(async () => {
-    const now = Date.now();
-    if (now - lastUpdateRef.current < 1000) return;
-    lastUpdateRef.current = now;
-
-    try {
-      const startTime = performance.now();
-      await loadShows();
-      if (user?.id && shows.length > 0) syncShowRelationships(shows, user);
-      RelationshipPerformanceMonitor.getInstance().recordOperation(
-        'batchUpdate',
-        performance.now() - startTime
-      );
-    } catch {
-      // The page's normal query path remains the fallback.
-    }
-  }, [user, shows, loadShows]);
+  const handleShowDelete = useCallback((showId: string) => {
+    useShowStore.getState().removeShow(showId);
+  }, []);
 
   useEffect(() => {
+    // Browse Shows stays calm (docs/INTENT.md): one event updates one show, never the whole list.
     const showsChannel = supabase
       .channel('realtime-shows')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shows' }, payload => {
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
           handleShowUpdate(payload.new as Show);
-        } else {
-          void handleBatchUpdate();
+        } else if (payload.eventType === 'DELETE') {
+          // Without REPLICA IDENTITY FULL a DELETE payload carries only the primary key.
+          const deletedId = (payload.old as Partial<Show>).id;
+          if (deletedId) handleShowDelete(deletedId);
         }
       })
       .subscribe();
@@ -60,7 +56,7 @@ export const useRealTimeUpdates = () => {
     return () => {
       void supabase.removeChannel(showsChannel);
     };
-  }, [handleShowUpdate, handleBatchUpdate]);
+  }, [handleShowUpdate, handleShowDelete]);
 
   useEffect(
     () => () => {
@@ -71,7 +67,7 @@ export const useRealTimeUpdates = () => {
 
   return {
     handleShowUpdate,
-    handleBatchUpdate,
+    handleShowDelete,
     performanceMetrics: RelationshipPerformanceMonitor.getInstance().getMetrics(),
   };
 };

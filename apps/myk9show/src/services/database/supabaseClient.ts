@@ -5,6 +5,7 @@ import { logger } from '@/services/LoggingService';
 import { createDatabaseError, type DatabaseError } from './databaseError';
 import { createStepUpFetch } from '@/features/step-up/stepUpFetch';
 import { requestStepUp } from '@/features/step-up/stepUpStore';
+import { createReadDeadlineFetch } from './readDeadlineFetch';
 
 // Environment variables with fallbacks
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -34,7 +35,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     headers: {
       'X-Client-Info': 'myK9Show@1.0.0',
     },
-    fetch: createStepUpFetch(requestStepUp),
+    fetch: createStepUpFetch(requestStepUp, createReadDeadlineFetch()),
   },
 });
 

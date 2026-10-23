@@ -9,11 +9,6 @@ import { ClassesTab, type ClassInfo } from '@/components/shows/tabs/ClassesTab';
 const render = (ui: ReactElement) =>
   rtlRender(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
 
-vi.mock('@/hooks/queries/useShowsDatabase', () => ({ useShowQuery: () => ({ data: undefined }) }));
-vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
-  useJudgesWithQualifications: () => ({ data: undefined }),
-}));
-
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,

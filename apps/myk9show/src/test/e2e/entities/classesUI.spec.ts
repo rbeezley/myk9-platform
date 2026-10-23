@@ -54,7 +54,7 @@ const classRowByName = (page: Page, nameMatcher: RegExp) =>
 /**
  * Click the ROW's own padding (not a control inside it) so the row selects the class
  * (CockpitTrialGroup.tsx:146-148), then wait for THAT class's "Edit class <name>" button
- * (FocusedClassSetupActions.tsx:35, aria-label `Edit class ${classLabel}`).
+ * (FocusedClassSetupActions.tsx, aria-label `Edit class ${classLabel}`).
  */
 async function focusClassRow(row: Locator, editButton: Locator) {
   await expect(row).toBeVisible({ timeout: 15000 });

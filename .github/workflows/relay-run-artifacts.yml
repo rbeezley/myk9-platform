@@ -1,10 +1,10 @@
 name: Relay run artifacts
 
-# Throwaway. Downloads another run's artifacts on the runner and commits them
-# under relay-artifacts/ on this branch, so a session whose network policy
-# cannot reach the artifact blob host can read them with git. Fires on push to
-# its own branch because workflow_dispatch is only registered for the default
-# branch. Not for merge.
+# Throwaway. Downloads other runs' artifacts on the runner and commits them
+# under relay-artifacts/<run id>/ on this branch, so a session whose network
+# policy cannot reach the artifact blob host can read them with git. Fires on
+# push to its own branch because workflow_dispatch is only registered for the
+# default branch. Not for merge.
 
 on:
   push:
@@ -14,10 +14,10 @@ on:
       - .github/workflows/relay-run-artifacts.yml
   workflow_dispatch:
     inputs:
-      run_id:
-        description: Workflow run id whose artifacts to commit
+      run_ids:
+        description: Space-separated workflow run ids whose artifacts to commit
         required: false
-        default: '39992612026'
+        default: '39487970380 39805714958 39992612026'
 
 permissions:
   contents: write
@@ -30,20 +30,37 @@ concurrency:
 jobs:
   relay:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
-      RELAY_RUN_ID: ${{ inputs.run_id || '39992612026' }}
+      RELAY_RUN_IDS: ${{ inputs.run_ids || '39487970380 39805714958 39992612026' }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.ref_name }}
 
-      - name: Download artifacts
+      - name: Download artifacts of run 39487970380
+        continue-on-error: true
         uses: actions/download-artifact@v8
         with:
-          run-id: ${{ env.RELAY_RUN_ID }}
+          run-id: 39487970380
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: relay-artifacts/${{ env.RELAY_RUN_ID }}
+          path: relay-artifacts/39487970380
+
+      - name: Download artifacts of run 39805714958
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          run-id: 39805714958
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: relay-artifacts/39805714958
+
+      - name: Download artifacts of run 39992612026
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          run-id: 39992612026
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: relay-artifacts/39992612026
 
       - name: Commit artifacts to this branch
         run: |
@@ -51,5 +68,9 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -f relay-artifacts
-          git commit -m "chore(relay): artifacts of run $RELAY_RUN_ID [skip ci]"
+          if git diff --cached --quiet; then
+            echo 'nothing new to commit'
+            exit 0
+          fi
+          git commit -m "chore(relay): artifacts of runs $RELAY_RUN_IDS [skip ci]"
           git push origin "HEAD:$GITHUB_REF_NAME"

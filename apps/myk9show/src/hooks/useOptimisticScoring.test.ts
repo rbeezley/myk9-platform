@@ -25,7 +25,8 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
 }));
 
 vi.mock('@/store/scoringStore', () => ({
-  useScoringStore: () => ({ submitScore: addScoreToSession }),
+  useScoringStore: (selector: (state: { submitScore: typeof addScoreToSession }) => unknown) =>
+    selector({ submitScore: addScoreToSession }),
 }));
 
 vi.mock('@/services/LoggingService', () => ({

@@ -37,6 +37,7 @@ export function useShowEntryCounts(showIds: readonly string[]): ReadonlyMap<stri
     // count refreshes itself: every minute while the dashboard is open, and
     // when the window regains focus. One cheap RPC per open dashboard.
     staleTime: 30_000,
+    // kept at 60 s: secretary dashboard only, one cheap RPC per open dashboard (MYK9-1368)
     refetchInterval: SHOW_ENTRY_COUNTS_REFRESH_MS,
     refetchOnWindowFocus: true,
   });

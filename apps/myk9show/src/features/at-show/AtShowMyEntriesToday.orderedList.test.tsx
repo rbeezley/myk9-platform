@@ -22,7 +22,9 @@ vi.mock('@/hooks/mutations/useCheckInMutation', () => ({
   useCheckInMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock('@/lib/notifications', () => ({ notifications: { error: vi.fn(), success: vi.fn() } }));
-vi.mock('@/services/replication', () => ({ replicatedEntriesTable: { sync: vi.fn() } }));
+vi.mock('@/services/replication', () => ({
+  replicatedEntriesTable: { sync: vi.fn(), subscribe: vi.fn(() => () => undefined) },
+}));
 
 function entry(overrides: Partial<AtShowEntryDetail> & { entryId: string }): AtShowEntryDetail {
   return {

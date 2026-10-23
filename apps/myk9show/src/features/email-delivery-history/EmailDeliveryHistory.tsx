@@ -26,8 +26,9 @@ export function EmailDeliveryHistory({ showId }: { showId: string | null }) {
     getNextPageParam: lastPage => lastPage.nextCursor ?? undefined,
     enabled: Boolean(showId),
     // Resend webhook updates are the delivery truth. Keep an open history
-    // current without adding a second client-side status authority.
-    refetchInterval: 15_000,
+    // current without adding a second client-side status authority. Server-only,
+    // secretary-only, while open: 60 s is current enough (MYK9-1368).
+    refetchInterval: 60_000,
   });
 
   if (!showId) {

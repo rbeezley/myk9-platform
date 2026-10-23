@@ -164,6 +164,29 @@ describe('useAtShowDogFavoritesSynced', () => {
     expect(supabaseCalls).toEqual([]);
   });
 
+  // MYK9-1368: the monitor's server read of favorites polls every 5 minutes, so
+  // the user's own toggle must refresh it once the write has settled.
+  it('refreshes the server favorites read after the user toggles a star', async () => {
+    authState.user = { id: USER_ID };
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const clientWrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client }, children);
+    const { result } = renderHook(() => useAtShowDogFavoritesSynced(SHOW_ID), {
+      wrapper: clientWrapper,
+    });
+    await waitFor(() => expect(supabaseCalls.some(call => call.op === 'select')).toBe(true));
+    // Let the initial reconciliation (which also invalidates) finish first.
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 20));
+    });
+
+    const invalidate = vi.spyOn(client, 'invalidateQueries');
+    act(() => result.current.toggleFavoriteArmband(42));
+
+    await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['dog-favorites'] }));
+    expect(supabaseCalls.some(call => call.op === 'upsert')).toBe(true);
+  });
+
   it('keeps the local favorite when the server write fails offline', async () => {
     authState.user = { id: USER_ID };
     failServerWrites = true;

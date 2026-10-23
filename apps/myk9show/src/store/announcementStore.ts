@@ -97,6 +97,9 @@ export const useAnnouncementStore = create<AnnouncementState>()((set, get) => ({
           await supabase.removeChannel(staleChannel);
         }
 
+        // Stays on postgres_changes (MYK9-1363): the filter is per show and INSERT only, and the
+        // show broadcast channel (`show:{id}:changes`, features/show-live-sync/showChangeSignal.ts)
+        // carries no announcement payload, so it cannot replace this subscription.
         const channel = supabase
           .channel(`announcements-${showId}`)
           .on(

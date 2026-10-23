@@ -46,6 +46,10 @@ export function createMessageSubscriptions(
         if (!isCurrent()) return;
 
         for (const showId of ids) {
+          // Stays on postgres_changes (MYK9-1363): the filter is per show and INSERT/UPDATE only,
+          // and the show broadcast channel (`show:{id}:changes`,
+          // features/show-live-sync/showChangeSignal.ts) carries no message payload, so it cannot
+          // replace this subscription.
           const channel = supabase
             .channel(`messages-${showId}`)
             .on(

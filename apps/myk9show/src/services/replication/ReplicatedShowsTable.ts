@@ -22,6 +22,8 @@ import {
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import { createInFlightSharer } from '@/services/database/_shared/shareInFlight';
+import { readPersistedAuthUserId } from '@/services/database/persistedAuthUserId';
 import { requireShowClubId } from '@/services/database/shows/requireShowClub';
 import { getLiveShowCount } from './liveShowCount';
 import { verifyShowsGone } from './showScopeProof';
@@ -315,6 +317,32 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    */
   async getShowById(showId: string): Promise<ReplicatedShow | null> {
     return this.get(showId);
+  }
+
+  private readonly sharedShowPulls = createInFlightSharer();
+
+  /**
+   * Pulls ONE show by id through the refetch adapter and stores it as a clean server row, the
+   * way a sync download does. Touches no watermark or scope metadata (MYK9-1348). A dirty local
+   * row is never overwritten. Overlapping calls for a show share one request; the key carries
+   * the signed-in account. Resolves `null` when the server returns no row; a failed fetch throws.
+   */
+  pullShowById(showId: string): Promise<ReplicatedShow | null> {
+    return this.sharedShowPulls(
+      `${readPersistedAuthUserId() ?? 'anon'}:show-by-id:${showId}`,
+      async () => {
+        if ((await this.getReplicatedRow(showId))?.isDirty) return this.get(showId);
+        const adapter = this.getRowRefetchAdapter();
+        const [remote] = await adapter.fetchRowsById([showId]);
+        if (!remote) return null;
+        const version = (remote as { version?: number }).version;
+        await this.batchSet(
+          [{ ...adapter.toLocalRow(remote), id: showId }],
+          version === undefined ? undefined : new Map([[showId, version]])
+        );
+        return this.get(showId);
+      }
+    );
   }
 
   /**

@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useAtShowScoresheet } from './useAtShowScoresheet';
+import { NOT_LOADED_YET_MESSAGE, useAtShowScoresheet } from './useAtShowScoresheet';
+import { syncAtShowData } from './atShowDataAdapter';
 
 const mocks = vi.hoisted(() => ({
   submitScoreOptimistically: vi.fn(),
@@ -10,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   syncEntries: vi.fn(),
   getDog: vi.fn(),
   syncTrials: vi.fn(),
+  syncArmbands: vi.fn(),
   getTrialsByShow: vi.fn(),
   getTrialById: vi.fn(),
   transitionToInRing: vi.fn(),
@@ -53,6 +55,19 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 }));
 
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
+  replicatedTrialsTable: {
+    sync: mocks.syncTrials,
+    getTrialsByShow: mocks.getTrialsByShow,
+    getTrialById: mocks.getTrialById,
+  },
+}));
+
+// `syncAtShowData` imports the replication index while the hook imports the
+// per-table modules; hand both the SAME mocks so the real adapter runs here.
+vi.mock('@/services/replication', () => ({
+  replicatedArmbandsTable: { sync: mocks.syncArmbands, subscribe: vi.fn(() => () => {}) },
+  replicatedClassesTable: { getClassById: mocks.getClassById, sync: mocks.syncClasses },
+  replicatedEntriesTable: { getEntriesByClass: mocks.getEntriesByClass, sync: mocks.syncEntries },
   replicatedTrialsTable: {
     sync: mocks.syncTrials,
     getTrialsByShow: mocks.getTrialsByShow,
@@ -123,6 +138,7 @@ describe('useAtShowScoresheet cold load', () => {
     mocks.getDog.mockResolvedValue({ id: 'dog-1', name: 'Rex' });
     mocks.syncTrials.mockResolvedValue({ success: true });
     mocks.syncEntries.mockResolvedValue({ success: true });
+    mocks.syncArmbands.mockResolvedValue({ success: true });
   });
 
   function renderScoresheet() {
@@ -177,6 +193,74 @@ describe('useAtShowScoresheet cold load', () => {
       timeout: 5_000,
     });
     expect(result.current.error).toBeNull();
+  });
+
+  it('treats a sync scope that reports { success: false } as not loaded yet and retries', async () => {
+    mocks.getClassById
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(CLASS);
+    mocks.syncClasses.mockResolvedValue({ success: true });
+    // Resolves, never throws: only the outcome tells the sheet it is incomplete.
+    mocks.syncEntries
+      .mockResolvedValueOnce({ success: false })
+      .mockResolvedValue({ success: true });
+
+    const { result } = renderScoresheet();
+
+    await waitFor(() => expect(result.current.error).toBe(NOT_LOADED_YET_MESSAGE));
+    await waitFor(() => expect(result.current.entry?.entryId).toBe('entry-1'), {
+      timeout: 5_000,
+    });
+    expect(result.current.error).toBeNull();
+    expect(mocks.syncEntries).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows the not-loaded-yet state while the trials sync keeps rejecting', async () => {
+    mocks.getClassById.mockResolvedValue(null);
+    mocks.syncTrials.mockRejectedValue(new TypeError('Failed to fetch'));
+
+    const { result } = renderScoresheet();
+
+    await waitFor(() => expect(result.current.error).toBe(NOT_LOADED_YET_MESSAGE));
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('joins a list hydration already in flight instead of syncing the show again', async () => {
+    let finishEntries!: (value: { success: boolean }) => void;
+    mocks.syncEntries.mockReturnValue(
+      new Promise<{ success: boolean }>(resolve => {
+        finishEntries = resolve;
+      })
+    );
+    mocks.syncClasses.mockResolvedValue({ success: true });
+    mocks.getClassById.mockResolvedValue(null);
+
+    // The class list started hydrating the show; the judge then taps a dog.
+    const listHydration = syncAtShowData('show-1');
+    try {
+      await waitFor(() => expect(mocks.syncEntries).toHaveBeenCalledTimes(1));
+      const { result } = renderScoresheet();
+      // The hook has read its (empty) local rows and is now at its cold sync.
+      await waitFor(() => expect(mocks.getEntriesByClass).toHaveBeenCalled());
+      await new Promise(resolve => setTimeout(resolve, 20));
+
+      expect(result.current.isLoading).toBe(true);
+      expect(mocks.syncEntries).toHaveBeenCalledTimes(1);
+      expect(mocks.syncTrials).toHaveBeenCalledTimes(1);
+      expect(mocks.syncClasses).toHaveBeenCalledTimes(1);
+
+      mocks.getClassById.mockResolvedValue(CLASS);
+      finishEntries({ success: true });
+
+      await waitFor(() => expect(result.current.entry?.entryId).toBe('entry-1'));
+      expect(result.current.error).toBeNull();
+      expect(mocks.syncEntries).toHaveBeenCalledTimes(1);
+    } finally {
+      // The in-flight map is module state; settle it for the next test.
+      finishEntries({ success: true });
+      await listHydration.catch(() => undefined);
+    }
   });
 
   it('still reports a class the server does not have as not found', async () => {

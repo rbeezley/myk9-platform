@@ -42,6 +42,7 @@ vi.mock('@/features/show-today/accountTodayEntries', () => ({
   useAccountTodayAutoFavorites: () => ({
     hasAccountEntryForShow: false,
     isLoading: false,
+    hasServerAnswer: true,
     error: null,
   }),
 }));

@@ -31,6 +31,7 @@ import { createInFlightSharer, type ShareRead } from '@/services/database/_share
 import { readPersistedAuthUserId } from '@/services/database/persistedAuthUserId';
 import { resolveHideCountsForClassRows } from './resolveClassHideCounts';
 import { resolveJudgeNamesForClassRows } from './resolveClassJudgeNames';
+import { readClassTrials } from './resolveClassTrials';
 import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeFields';
 import type { JudgeNameParts } from '@/services/database/_shared/judgeNamesByClass';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
@@ -635,54 +636,53 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
 
   /** Server-derived values a class row carries offline (visibility, hides, judge). */
   private async enrichClassRows(rows: ClassRow[]): Promise<EnrichedClassRow[]> {
-    // Phase 1h: resolve visibility-cascade values so the at-show
-    // ClassDetailsPopover + SortableEntryCard self-check-in gate work offline.
-    // Keyed by the row's own trial_id (not the scope arg) so it runs for
-    // scoped and unscoped syncs alike. Best-effort: failure must not break
-    // class replication.
-    const visibilityByClassId = await resolveVisibilityForClassRows(rows).catch(() => {
-      logger.warn(
-        `[${this.getTableName()}] Visibility resolve failed; popover values may be stale`,
-        'replication'
-      );
-      return new Map<string, ResolvedClassVisibility>();
-    });
-
-    // num_hides is no longer on the class row (20260731160000). Public fixed
-    // totals are derived from registry rules; protected judge-set totals are
-    // returned only by the show-scoped official RPC. Both are merged here so
-    // the caller keeps the count they are entitled to while offline.
-    const hideCountByClassId = await resolveHideCountsForClassRows(rows, this.shareShowRead).catch(
-      () => {
-        logger.warn(
-          `[${this.getTableName()}] Hide-count resolve failed; scoring may fall back to the rule band`,
-          'replication'
-        );
-        return new Map<string, number>();
-      }
-    );
-
-    // MYK9-1086: the max-time rule the ringside Set Max Time dialog checks offline.
-    // A failed lookup must not read as "no rule": carry the rule already on this
-    // device into the synced row, so no merge path (clean, conflict or dirty-row
-    // reconcile) sees it disappear. The dialog checks it is still for the class's
-    // element/level before using it.
-    const timeLimitRuleByClassId =
-      (await resolveTimeLimitRulesForClassRows(rows).catch(() => null)) ??
-      (await this.cachedTimeLimitRules(rows.map(row => String(row.id))));
-
-    // MYK9-494: names cannot come from a `people` embed — an exhibitor cannot read
-    // another person's row, so the embed (or `people!inner`) yields nothing and every
-    // schedule row reads `Judge TBD`. get_show_judges is the authorized source.
-    const judgeByClassId = await resolveJudgeNamesForClassRows(rows, this.shareShowRead).catch(
-      () => {
-        logger.warn(
-          `[${this.getTableName()}] Judge-name resolve failed; cached names are retained`,
-          'replication'
-        );
-        return new Map<string, JudgeNameParts | null>();
-      }
-    );
+    // MYK9-1345: the four lookups run together and share one `trials` read. A failed read
+    // is `undefined`, so each resolver reads `trials` itself, as it did before.
+    const trials = await readClassTrials(rows);
+    const [visibilityByClassId, hideCountByClassId, timeLimitRuleByClassId, judgeByClassId] =
+      await Promise.all([
+        // Phase 1h: resolve visibility-cascade values so the at-show
+        // ClassDetailsPopover + SortableEntryCard self-check-in gate work offline.
+        // Keyed by the row's own trial_id (not the scope arg) so it runs for
+        // scoped and unscoped syncs alike. Best-effort: failure must not break
+        // class replication.
+        resolveVisibilityForClassRows(rows, trials).catch(() => {
+          logger.warn(
+            `[${this.getTableName()}] Visibility resolve failed; popover values may be stale`,
+            'replication'
+          );
+          return new Map<string, ResolvedClassVisibility>();
+        }),
+        // num_hides is no longer on the class row (20260731160000). Public fixed
+        // totals are derived from registry rules; protected judge-set totals are
+        // returned only by the show-scoped official RPC. Both are merged here so
+        // the caller keeps the count they are entitled to while offline.
+        resolveHideCountsForClassRows(rows, this.shareShowRead, trials).catch(() => {
+          logger.warn(
+            `[${this.getTableName()}] Hide-count resolve failed; scoring may fall back to the rule band`,
+            'replication'
+          );
+          return new Map<string, number>();
+        }),
+        // MYK9-1086: the max-time rule the ringside Set Max Time dialog checks offline.
+        // A failed lookup must not read as "no rule": carry the rule already on this
+        // device into the synced row, so no merge path (clean, conflict or dirty-row
+        // reconcile) sees it disappear. The dialog checks it is still for the class's
+        // element/level before using it.
+        (async () =>
+          (await resolveTimeLimitRulesForClassRows(rows, trials).catch(() => null)) ??
+          (await this.cachedTimeLimitRules(rows.map(row => String(row.id)))))(),
+        // MYK9-494: names cannot come from a `people` embed — an exhibitor cannot read
+        // another person's row, so the embed (or `people!inner`) yields nothing and every
+        // schedule row reads `Judge TBD`. get_show_judges is the authorized source.
+        resolveJudgeNamesForClassRows(rows, this.shareShowRead, trials).catch(() => {
+          logger.warn(
+            `[${this.getTableName()}] Judge-name resolve failed; cached names are retained`,
+            'replication'
+          );
+          return new Map<string, JudgeNameParts | null>();
+        }),
+      ]);
 
     return rows.map(row => ({
       ...row,

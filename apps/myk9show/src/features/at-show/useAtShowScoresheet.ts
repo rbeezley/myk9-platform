@@ -20,6 +20,7 @@ import { replicatedClassesTable } from '@/services/replication/ReplicatedClasses
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { logger } from '@/services/LoggingService';
+import { syncAtShowData } from './atShowDataAdapter';
 import { transitionToCompleted, transitionToInRing } from '@/utils/checkInTransitions';
 import { isHeldEntry } from '@/features/dogs/identity';
 import { classScoringRules } from '@/pages/scoring/classScoringRules';
@@ -166,26 +167,17 @@ export function useAtShowScoresheet({
         // afterwards is then "not loaded yet", not "not found" (MYK9-1333).
         let syncIncomplete = false;
         if (!hasCachedSheet || forceRefresh) {
-          // A thrown sync is as unfinished as a failed one; the local read below
-          // still decides what the sheet can show.
-          let trialsFailed = false;
+          // The route's show is hydrated by the one per-show operation the class
+          // list shares: a tap during the list's hydration joins it instead of
+          // syncing the show a second time (MYK9-1350). A thrown sync is as
+          // unfinished as a failed one; the local read below still decides what
+          // the sheet can show.
           try {
-            trialsFailed = (await replicatedTrialsTable.sync(showId))?.success === false;
+            syncIncomplete = !(await syncAtShowData(showId)).success;
           } catch {
-            trialsFailed = true;
+            syncIncomplete = true;
           }
           if (cancelled) return;
-          const showTrials = await replicatedTrialsTable.getTrialsByShow(showId);
-          const results = await Promise.allSettled([
-            // Cold loads/retries hydrate the route's show with the established
-            // trial-scoped replication path, never a direct PostgREST read.
-            ...showTrials.map(trial => replicatedClassesTable.sync(trial.id)),
-            replicatedEntriesTable.sync(showId),
-          ]);
-          if (cancelled) return;
-          syncIncomplete =
-            trialsFailed ||
-            results.some(r => r.status === 'rejected' || r.value?.success === false);
           [cls, allEntries] = await Promise.all([
             replicatedClassesTable.getClassById(classId),
             replicatedEntriesTable.getEntriesByClass(classId),

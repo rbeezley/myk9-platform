@@ -67,9 +67,13 @@ async function readByIds(
   return out.ok;
 }
 
+/** The one `trials` read `enrichClassRows` shares with its four stages (MYK9-1345). */
+type PreloadedTrials = readonly TrialRow[] | undefined;
+
 async function resolveVisibility(
   ctx: ReaderContext,
-  rows: readonly EnrichableClassRow[]
+  rows: readonly EnrichableClassRow[],
+  preloaded: PreloadedTrials
 ): Promise<void> {
   const scoped = [
     ...new Map(rows.filter(row => row.trial_id).map(row => [String(row.id), row])).values(),
@@ -77,7 +81,9 @@ async function resolveVisibility(
   for (let offset = 0; offset < scoped.length; offset += VISIBILITY_BATCH_SIZE) {
     const batch = scoped.slice(offset, offset + VISIBILITY_BATCH_SIZE);
     const trialIds = unique(batch.map(row => String(row.trial_id)));
-    const trials = await readTrials(ctx, 'id, show_id', trialIds);
+    const trials = preloaded
+      ? preloaded.filter(trial => trialIds.includes(trial.id))
+      : await readTrials(ctx, 'id, show_id', trialIds);
     // A failed read throws in the application and ends the stage.
     if (!trials) return;
     const showIds = unique(trials.map(trial => trial.show_id));
@@ -97,11 +103,12 @@ async function resolveVisibility(
 
 async function resolveHideCounts(
   ctx: ReaderContext,
-  rows: readonly EnrichableClassRow[]
+  rows: readonly EnrichableClassRow[],
+  preloaded: PreloadedTrials
 ): Promise<void> {
   const trialIds = unique(rows.map(row => row.trial_id));
   if (trialIds.length === 0) return;
-  const trials = await readTrials(ctx, 'id, show_id, registry_id', trialIds);
+  const trials = preloaded ?? (await readTrials(ctx, 'id, show_id, registry_id', trialIds));
   if (!trials) return;
 
   const registryIds = unique(trials.map(trial => trial.registry_id));
@@ -128,12 +135,13 @@ async function resolveHideCounts(
 
 async function resolveTimeLimitRules(
   ctx: ReaderContext,
-  rows: readonly EnrichableClassRow[]
+  rows: readonly EnrichableClassRow[],
+  preloaded: PreloadedTrials
 ): Promise<void> {
   const withTrial = rows.filter(row => row.trial_id);
   const trialIds = unique(withTrial.map(row => row.trial_id));
   if (trialIds.length === 0) return;
-  const trials = await readTrials(ctx, 'id, registry_id', trialIds);
+  const trials = preloaded ?? (await readTrials(ctx, 'id, registry_id', trialIds));
   if (!trials) return;
   const byId = new Map(trials.map(trial => [trial.id, trial]));
   const registries = [...new Set(withTrial.map(row => registryOf(byId.get(String(row.trial_id)))))];
@@ -148,11 +156,12 @@ async function resolveTimeLimitRules(
 
 async function resolveJudgeNames(
   ctx: ReaderContext,
-  rows: readonly EnrichableClassRow[]
+  rows: readonly EnrichableClassRow[],
+  preloaded: PreloadedTrials
 ): Promise<void> {
   const trialIds = unique(rows.map(row => row.trial_id));
   if (trialIds.length === 0) return;
-  const trials = await readTrials(ctx, 'id, show_id', trialIds);
+  const trials = preloaded ?? (await readTrials(ctx, 'id, show_id', trialIds));
   if (!trials) return;
   await Promise.all(
     unique(trials.map(trial => trial.show_id)).map(showId =>
@@ -163,13 +172,24 @@ async function resolveJudgeNames(
   );
 }
 
-/** The four stages run one after another, as `enrichClassRows` awaits them. */
+/**
+ * One `trials` read, then the four stages together, as `enrichClassRows` runs
+ * them since MYK9-1345. A failed shared read hands the stages `undefined`, so
+ * each reads `trials` itself, exactly as the application falls back.
+ */
 export async function enrichClassRows(
   ctx: ReaderContext,
   rows: readonly EnrichableClassRow[]
 ): Promise<void> {
-  await resolveVisibility(ctx, rows);
-  await resolveHideCounts(ctx, rows);
-  await resolveTimeLimitRules(ctx, rows);
-  await resolveJudgeNames(ctx, rows);
+  const trialIds = unique(rows.map(row => row.trial_id));
+  const preloaded: PreloadedTrials =
+    trialIds.length === 0
+      ? []
+      : ((await readTrials(ctx, 'id, show_id, registry_id', trialIds)) ?? undefined);
+  await Promise.all([
+    resolveVisibility(ctx, rows, preloaded),
+    resolveHideCounts(ctx, rows, preloaded),
+    resolveTimeLimitRules(ctx, rows, preloaded),
+    resolveJudgeNames(ctx, rows, preloaded),
+  ]);
 }

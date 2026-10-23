@@ -41,6 +41,12 @@ describe('isTransientBrowserFetchError', () => {
       Object.assign(new Error('The operation was aborted'), { name: 'AbortError' }),
     ],
     ['abort message', new Error('The signal is aborted without reason')],
+    // MYK9-1351: the Supabase read deadline aborts with this reason.
+    [
+      'read-deadline DOMException',
+      new DOMException('Read deadline of 30000 ms exceeded', 'TimeoutError'),
+    ],
+    ['read-deadline message', new Error('TimeoutError: Read deadline of 30000 ms exceeded')],
     ['browser fetch failure', new Error('TypeError: Failed to fetch')],
     // Offline fetch rejections are browser-specific: Chrome says "Failed to
     // fetch", Safari "Load failed", Firefox "NetworkError when attempting to

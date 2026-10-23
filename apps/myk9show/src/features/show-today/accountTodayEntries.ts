@@ -118,6 +118,8 @@ export function useAccountTodayAutoFavorites(showId: string | undefined) {
   return {
     hasAccountEntryForShow,
     isLoading: accountEntries.isLoading,
+    // Sticky: `data` survives later refetches and errors, unlike `isSuccess`/`isFetched`.
+    hasServerAnswer: accountEntries.data !== undefined,
     error: accountEntries.error as Error | null,
   };
 }

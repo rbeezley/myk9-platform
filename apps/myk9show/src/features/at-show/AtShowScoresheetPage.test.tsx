@@ -82,10 +82,21 @@ const { judgeAssignmentsGetAll, judgeAssignmentsSync } = vi.hoisted(() => ({
   judgeAssignmentsGetAll: vi.fn().mockResolvedValue([]),
   judgeAssignmentsSync: vi.fn().mockResolvedValue({ success: true }),
 }));
-vi.mock('@/services/replication', () => ({
+// `syncAtShowData` (the cold load's show sync) reads the tables through this
+// index, so it shares the per-table mocks above.
+vi.mock('@/services/replication', async () => ({
+  replicatedArmbandsTable: {
+    sync: vi.fn().mockResolvedValue({ success: true }),
+    subscribe: vi.fn(() => () => undefined),
+  },
   replicatedClassesTable: {
+    ...(await import('@/services/replication/ReplicatedClassesTable')).replicatedClassesTable,
     clearCachedHideCounts: vi.fn().mockResolvedValue(undefined),
   },
+  replicatedEntriesTable: (await import('@/services/replication/ReplicatedEntriesTable'))
+    .replicatedEntriesTable,
+  replicatedTrialsTable: (await import('@/services/replication/ReplicatedTrialsTable'))
+    .replicatedTrialsTable,
   replicatedJudgeAssignmentsTable: {
     getAll: judgeAssignmentsGetAll,
     getAllOrThrow: judgeAssignmentsGetAll,
@@ -280,14 +291,26 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
   it('keeps the skeleton visible while the explicit scoped load is still pending', async () => {
     vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(null as never);
-    vi.mocked(replicatedTrialsTable.sync).mockReturnValue(new Promise(() => undefined));
+    let finishTrialsSync!: () => void;
+    vi.mocked(replicatedTrialsTable.sync).mockReturnValue(
+      new Promise(resolve => {
+        finishTrialsSync = () => resolve({} as never);
+      })
+    );
 
-    renderPage();
+    try {
+      renderPage();
 
-    await waitFor(() => expect(judgeAssignmentsGetAll).toHaveBeenCalled());
+      await waitFor(() => expect(judgeAssignmentsGetAll).toHaveBeenCalled());
 
-    expect(await screen.findByRole('status', { name: 'Loading scoresheet' })).toBeInTheDocument();
-    expect(document.querySelector('.animate-spin')).toBeNull();
+      expect(await screen.findByRole('status', { name: 'Loading scoresheet' })).toBeInTheDocument();
+      expect(document.querySelector('.animate-spin')).toBeNull();
+    } finally {
+      // The show's sync is shared module state (`syncAtShowData`); a sync that
+      // never settles would hand every later test in this file its pending run.
+      finishTrialsSync();
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
   });
 
   it('leaves the skeleton for a recoverable error after its scoped load finishes', async () => {

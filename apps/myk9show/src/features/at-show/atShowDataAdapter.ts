@@ -35,6 +35,7 @@ import { buildShowArmbandMaps, resolveEntryArmband } from '@/features/_shared/en
 import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSignal';
 import { getTrialRegistry } from '@/features/registries';
 import { scoresheetKeyForClass } from '@/pages/scoring/types';
+import { settledScopesOutcome, type AtShowSyncInFlight } from './atShowSyncOutcome';
 import {
   classifyEntries,
   countEntryAccounting,
@@ -42,8 +43,7 @@ import {
   type EntryAccountingFields,
 } from '@/features/_shared/entryAccounting';
 
-/** The operation running per show, and whether it re-fetches every row. */
-const atShowSyncsInFlight = new Map<string, { operation: Promise<void>; forced: boolean }>();
+const atShowSyncsInFlight = new Map<string, AtShowSyncInFlight>();
 
 const syncSettledListeners = new Map<string, Set<() => void>>();
 
@@ -71,12 +71,10 @@ export function subscribeAtShowSyncSettled(showId: string, listener: () => void)
  * share one operation. `forceFullSync` re-fetches every row instead of the
  * changes since the watermark (offline readiness prime, MYK9-752); it never
  * answers with an incremental operation already running, but waits that one
- * out and runs its own, which later callers then share.
+ * out and runs its own, which later callers then share. Resolves an
+ * `AtShowSyncOutcome` (see atShowSyncOutcome.ts), the same one for every caller.
  */
-export function syncAtShowData(
-  showId: string,
-  options?: { forceFullSync?: boolean }
-): Promise<void> {
+export function syncAtShowData(showId: string, options?: { forceFullSync?: boolean }) {
   const running = atShowSyncsInFlight.get(showId);
   const forceFullSync = options?.forceFullSync === true;
   // Anything shares a forced run; only an ordinary call shares an ordinary one.
@@ -87,7 +85,7 @@ export function syncAtShowData(
 
   const operation = (async () => {
     if (existing) await existing.then(noop, noop);
-    await replicatedTrialsTable.sync(showId, ...syncArgs);
+    const trialsResult = await replicatedTrialsTable.sync(showId, ...syncArgs);
     const showTrials = await replicatedTrialsTable.getTrialsByShow(showId);
     // allSettled, then rethrow: a scope that fails early must not settle the
     // operation (and fire the readiness signal) while another scope is still
@@ -100,8 +98,7 @@ export function syncAtShowData(
       // Armbands sync every show at once; see ReplicatedArmbandsTable.
       replicatedArmbandsTable.sync('', ...syncArgs),
     ]);
-    const failed = results.find(result => result.status === 'rejected');
-    if (failed) throw failed.reason;
+    return settledScopesOutcome(trialsResult, results);
   })();
   atShowSyncsInFlight.set(showId, { operation, forced: forceFullSync });
   const release = () => {

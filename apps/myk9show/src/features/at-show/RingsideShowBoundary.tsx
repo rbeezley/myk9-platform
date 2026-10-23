@@ -18,6 +18,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, RefreshCw, SearchX } from 'lucide-react';
 import { replicatedShowsTable } from '@/services/replication';
+import { getSyncErrorMessage } from '@/services/replication/syncErrorUtils';
 import { EmptyState, ErrorEmptyState, LoadingEmptyState } from '@/components/common/EmptyState';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useOnlineStatus } from '@/lib/networkUtils';
@@ -45,27 +46,21 @@ async function loadShow(showId: string, isOnline: boolean, canVerifyOnline: bool
   if (show || !isOnline || !canVerifyOnline) return { show, verifiedOnline: false };
 
   // A local miss while online is not enough to call the show unknown: the
-  // replica may simply be cold. Sync the show table, then make the same local
-  // read again so a real 404 remains distinguishable from an uncached show.
-  await replicatedShowsTable.updateSyncMetadata({
-    lastIncrementalSyncAt: 0,
-    // The table may be partially populated, so resetting only the global
-    // watermark could still skip the missing show in a scoped sync.
-    scopes: {},
-  });
-  // A failed refresh after a confirmed local miss is NOT a generic error: we
+  // replica may simply be cold. Pull just this show through the replication
+  // path (no table-wide download, no watermark reset, MYK9-1348); a server
+  // answer of "no row" is the verified 404 and reaches the missing-show state.
+  //
+  // A failed pull after a confirmed local miss is NOT a generic error: we
   // already know this device holds no copy, so the recoverable "not saved on
   // this device" state applies. Typing the throw is what lets the boundary
   // tell that apart from an IndexedDB read that blew up.
-  const syncResult = await replicatedShowsTable.sync('');
-  if (!syncResult.success) {
-    throw new ShowUnreachableError(syncResult.error);
+  try {
+    return { show: await replicatedShowsTable.pullShowById(showId), verifiedOnline: true };
+  } catch (error) {
+    // Same sanitised text the old sync result carried, so the classifier reads
+    // it as before (a "Supabase …" cause becomes the remote-failure marker).
+    throw new ShowUnreachableError(getSyncErrorMessage(error));
   }
-
-  return {
-    show: await replicatedShowsTable.getShowById(showId),
-    verifiedOnline: true,
-  };
 }
 
 function MissingShowState({

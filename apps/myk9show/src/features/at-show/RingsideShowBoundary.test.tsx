@@ -14,7 +14,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createTestQueryClient, render, screen, act } from '@/test/utils/testUtils';
 import { RingsideShowBoundary } from './RingsideShowBoundary';
 import { replicatedShowsTable } from '@/services/replication';
-import { getSyncErrorMessage } from '@/services/replication/syncErrorUtils';
 import { UserRole } from '@/types/auth-types';
 
 const { authState, networkState } = vi.hoisted(() => ({
@@ -34,6 +33,7 @@ vi.mock('@/services/replication', () => ({
     getShowById: vi.fn(),
     sync: vi.fn(),
     updateSyncMetadata: vi.fn(),
+    pullShowById: vi.fn(),
   },
 }));
 
@@ -79,6 +79,9 @@ describe('RingsideShowBoundary', () => {
       .mockReset()
       .mockResolvedValue({ success: true } as never);
     vi.mocked(replicatedShowsTable.updateSyncMetadata).mockReset().mockResolvedValue(undefined);
+    vi.mocked(replicatedShowsTable.pullShowById)
+      .mockReset()
+      .mockResolvedValue({ id: 'pulled-show' } as never);
     authState.user = null;
     authState.roles = [];
     networkState.isOnline = true;
@@ -171,7 +174,7 @@ describe('RingsideShowBoundary', () => {
     renderBoundary('draft-show');
 
     expect(await screen.findByText(CHILD)).toBeInTheDocument();
-    expect(replicatedShowsTable.sync).toHaveBeenCalledWith('');
+    expect(replicatedShowsTable.pullShowById).toHaveBeenCalledWith('draft-show');
   });
 
   it('does not call an unverified passcode-show miss a 404 after refresh failure', async () => {
@@ -181,10 +184,9 @@ describe('RingsideShowBoundary', () => {
       app_metadata: { kind: 'ringside_passcode', show_id: 'draft-show', ringside_role: 'judge' },
     };
     vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue(null as never);
-    vi.mocked(replicatedShowsTable.sync).mockResolvedValue({
-      success: false,
-      error: getSyncErrorMessage(new Error('Supabase query failed: Failed to fetch')),
-    } as never);
+    vi.mocked(replicatedShowsTable.pullShowById).mockRejectedValue(
+      new Error('Supabase query failed: Failed to fetch')
+    );
 
     renderBoundary('draft-show');
 
@@ -205,6 +207,7 @@ describe('RingsideShowBoundary', () => {
       screen.getByRole('button', { name: /load this show onto this device/i })
     ).toBeInTheDocument();
     expect(screen.queryByText('Show not found')).not.toBeInTheDocument();
+    expect(replicatedShowsTable.pullShowById).not.toHaveBeenCalled();
     expect(replicatedShowsTable.sync).not.toHaveBeenCalled();
   });
 
@@ -212,15 +215,27 @@ describe('RingsideShowBoundary', () => {
     authState.user = { id: 'judge-1', is_anonymous: false };
     authState.roles = [UserRole.JUDGE];
     vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue(null as never);
+    // The server answered and has no such row: the verified 404.
+    vi.mocked(replicatedShowsTable.pullShowById).mockResolvedValue(null);
     renderBoundary('show-unknown');
 
     expect(await screen.findByText('Show not found')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /load this show/i })).not.toBeInTheDocument();
-    expect(replicatedShowsTable.sync).toHaveBeenCalledWith('');
-    expect(replicatedShowsTable.updateSyncMetadata).toHaveBeenCalledWith({
-      lastIncrementalSyncAt: 0,
-      scopes: {},
-    });
+    expect(replicatedShowsTable.pullShowById).toHaveBeenCalledWith('show-unknown');
+  });
+
+  it('pulls only the route show on a cold online miss, never a table sync or watermark reset (MYK9-1348)', async () => {
+    authState.user = { id: 'judge-1', is_anonymous: false };
+    authState.roles = [UserRole.JUDGE];
+    vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue(null as never);
+
+    renderBoundary('show-x');
+
+    expect(await screen.findByText(CHILD)).toBeInTheDocument();
+    expect(replicatedShowsTable.pullShowById).toHaveBeenCalledTimes(1);
+    expect(replicatedShowsTable.pullShowById).toHaveBeenCalledWith('show-x');
+    expect(replicatedShowsTable.updateSyncMetadata).not.toHaveBeenCalled();
+    expect(replicatedShowsTable.sync).not.toHaveBeenCalled();
   });
 
   it('refetches after show replication sync invalidates the shows cache', async () => {
@@ -266,13 +281,12 @@ describe('RingsideShowBoundary', () => {
       authState.user = { id: 'judge-1', is_anonymous: false };
       authState.roles = [UserRole.JUDGE];
       vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue(null as never);
-      vi.mocked(replicatedShowsTable.sync).mockResolvedValue({
-        success: false,
-        // Production-shaped: the table throws `Supabase query failed: <cause>`
-        // and getSyncErrorMessage sanitises it, destroying the browser marker.
-        // A raw 'Failed to fetch' here would pass while production failed.
-        error: getSyncErrorMessage(new Error('Supabase query failed: Failed to fetch')),
-      } as never);
+      // Production-shaped: the table throws `Supabase query failed: <cause>`;
+      // the boundary sanitises it, destroying the browser marker, and the
+      // classifier must still read it as unreachable.
+      vi.mocked(replicatedShowsTable.pullShowById).mockRejectedValue(
+        new Error('Supabase query failed: Failed to fetch')
+      );
     });
 
     it('offers a judge the priming action instead of a dead-end error card', async () => {
@@ -298,7 +312,7 @@ describe('RingsideShowBoundary', () => {
       renderBoundary('show-unreachable-one-attempt', productionRetryClient);
 
       await screen.findByText("This show isn't saved on this device");
-      expect(replicatedShowsTable.sync).toHaveBeenCalledTimes(1);
+      expect(replicatedShowsTable.pullShowById).toHaveBeenCalledTimes(1);
     });
 
     it('keeps a retry available, and an exit that is not the retry', async () => {
@@ -331,11 +345,10 @@ describe('RingsideShowBoundary', () => {
     it('does not blame the network when the failure was local storage', async () => {
       // Same `{ success: false }` shape, entirely different cause. Sending a
       // user with a full disk to go hunt for signal is a wrong diagnosis.
-      vi.mocked(replicatedShowsTable.sync).mockResolvedValue({
-        success: false,
-        // No remote marker, so the sanitiser passes it through untouched.
-        error: getSyncErrorMessage(new Error('QuotaExceededError: storage is full')),
-      } as never);
+      // No remote marker, so the sanitiser passes it through untouched.
+      vi.mocked(replicatedShowsTable.pullShowById).mockRejectedValue(
+        new Error('QuotaExceededError: storage is full')
+      );
 
       renderBoundary('show-quota');
 
@@ -354,7 +367,9 @@ describe('RingsideShowBoundary', () => {
       vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue({
         id: 'show-recovers',
       } as never);
-      vi.mocked(replicatedShowsTable.sync).mockResolvedValue({ success: true } as never);
+      vi.mocked(replicatedShowsTable.pullShowById).mockResolvedValue({
+        id: 'show-recovers',
+      } as never);
 
       await act(async () => {
         retry.click();

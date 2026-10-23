@@ -19,8 +19,6 @@ import { canDeleteShowForClub } from '@/components/clubs/ClubDetails/clubPermiss
 import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { TabsContent } from '@/components/ui/tabs';
-import { HomeClassSelection } from './HomeClassSelection';
-import { SELECT_CLASSES } from '@/pages/secretary/selectClassesRoutes';
 import {
   premiumPublishDraftKey,
   runPremiumPublishOperation,
@@ -299,12 +297,11 @@ function AuthorizedShowManagementShell({
             <TabsContent value={activeTabId}>
               {activeManagementSection ? (
                 <Outlet context={tabs} />
-              ) : // MYK9-955: the manager Overview IS the secretary's home -- the
-              // Show Day cockpit, one consistent view before, during and
-              // after the show. Exhibitors keep ShowOverviewTab (ShowDetailTabs).
-              searchParams.get('select') === SELECT_CLASSES ? (
-                <HomeClassSelection showId={show.id} tabs={tabs} />
               ) : (
+                // MYK9-955: the manager Overview IS the secretary's home -- the Show Day
+                // cockpit, one consistent view before, during and after the show; Select
+                // classes is a mode of its schedule (MYK9-1324). Exhibitors keep
+                // ShowOverviewTab (ShowDetailTabs).
                 <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
                   <ShowHomeCockpit />
                 </Suspense>

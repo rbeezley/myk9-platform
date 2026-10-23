@@ -1,4 +1,4 @@
-import { getSelectClassesHref } from '@/pages/secretary/selectClassesRoutes';
+import { SELECT_CLASSES } from '@/pages/secretary/selectClassesRoutes';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
 import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
@@ -66,6 +66,14 @@ export function writeCockpitUrlState(
   const requestedRosterView = previous.get('view')?.trim();
   if (requestedRosterView) params.set('view', requestedRosterView);
 
+  // Select classes is a mode of this schedule (MYK9-1324): a day chip or a tick's rewrite must
+  // not leave it, nor lose the `returnTo` its Done restores.
+  if (previous.get('select') === SELECT_CLASSES) {
+    params.set('select', SELECT_CLASSES);
+    const returnTo = previous.get('returnTo');
+    if (returnTo) params.set('returnTo', returnTo);
+  }
+
   return params;
 }
 
@@ -86,26 +94,6 @@ export function getCockpitEntryManagementHref(input: {
   returnTo: string;
 }): string {
   return withReturnTo(getEntryManagementHref(input), input.returnTo);
-}
-
-/**
- * Select classes on the home, scoped to the class's trial and focused on it.
- * Both share `focus`/`view`, so `returnTo` carries the cockpit state that
- * Select classes' Done restores.
- */
-export function getCockpitClassManagementHref(input: {
-  showId: string;
-  trialId: string;
-  classId: string;
-  returnTo: string;
-}): string {
-  return withReturnTo(
-    getSelectClassesHref(input.showId, undefined, {
-      trialId: input.trialId,
-      focusClassId: input.classId,
-    }),
-    input.returnTo
-  );
 }
 
 export function getCockpitPaperScoringHref(input: { classId: string; returnTo: string }): string {
@@ -254,6 +242,33 @@ export function resolveShowDeskReturn(
   if (expectedShowId && showId !== expectedShowId) return null;
   const state = normalizeCockpitUrlState(url.searchParams);
   return { href: getShowHomeHref({ showId, state }), label: 'Back to show' };
+}
+
+/**
+ * The show home's query after Select classes' Done (MYK9-956/1324): the cockpit state in
+ * `returnTo` when this show's home sent it, otherwise the same query without the mode's params.
+ */
+export function leaveSelectClassesSearch(
+  previous: URLSearchParams,
+  showId: string
+): URLSearchParams {
+  const back = resolveShowDeskReturn(previous.get('returnTo'), showId);
+  if (back) return new URL(back.href, 'https://myk9.internal').searchParams;
+  const params = new URLSearchParams(previous);
+  // Only the mode's own params: `focus` and `filter` are the schedule's, so the focused class
+  // and the filter stay as they were.
+  for (const key of ['select', 'returnTo', 'trialId']) params.delete(key);
+  return params;
+}
+
+/**
+ * Where a Select classes link asked to land (MYK9-1324): its `focus` class, else its `trialId`.
+ * The cockpit reads it as the anchor, so the trial opens and the row scrolls into view; it
+ * ticks nothing.
+ */
+export function selectClassesAnchor(params: URLSearchParams): string | undefined {
+  if (params.get('select') !== SELECT_CLASSES) return undefined;
+  return params.get('focus') || params.get('trialId') || undefined;
 }
 
 export function resolveShowDeskReturnHref(

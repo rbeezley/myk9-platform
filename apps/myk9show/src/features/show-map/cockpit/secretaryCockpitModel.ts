@@ -363,7 +363,7 @@ function buildTrialGroups(
           openDay === null ||
           trial.date === openDay ||
           trial.id === anchorId ||
-          allClasses.some(cls => cls.id === focusedClassId),
+          allClasses.some(cls => cls.id === focusedClassId || cls.id === anchorId),
         summary: {
           classCount: allClasses.length,
           inProgressCount: allClasses.filter(cls => cls.lifecycle === 'in-progress').length,

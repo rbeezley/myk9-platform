@@ -6,6 +6,8 @@ import { ListViewTabs } from '@/components/list-toolkit';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 
 import { CockpitTrialGroup } from './CockpitTrialGroup';
+import { ScheduleSelectHeader } from './ScheduleSelectHeader';
+import type { ScheduleClassSelection } from './useScheduleClassSelection';
 import { buildCockpitScheduleViews } from './secretaryCockpitViews';
 import type {
   CockpitFilter,
@@ -26,6 +28,7 @@ export function SecretaryCockpitSchedule({
   split = false,
   entryBreakdownByClassId,
   renderTrialActions,
+  select,
 }: {
   showId: string;
   model: SecretaryCockpitModel;
@@ -40,7 +43,10 @@ export function SecretaryCockpitSchedule({
   /** Entered/pending per class (MYK9-943); absent until entries are read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   renderTrialActions?: ((trialId: string, label: string) => ReactNode) | undefined;
+  /** Select classes (MYK9-1324), for managers; rows tick instead of focusing while it is on. */
+  select?: ScheduleClassSelection | undefined;
 }) {
+  const selecting = select?.active ? select : undefined;
   const classById = new Map(sourceClasses.map(classItem => [classItem.id, classItem]));
   const trialIdsForSelectedDay = new Set(
     sourceTrials.filter(trial => trial.date === model.day.selected).map(trial => trial.id)
@@ -55,31 +61,41 @@ export function SecretaryCockpitSchedule({
         className={cn('space-y-3', split && 'col-start-1 row-start-1')}
         aria-labelledby="cockpit-schedule-title"
       >
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <h2 id="cockpit-schedule-title" className="text-2xl font-semibold tracking-tight">
-              {model.day.isToday && !model.day.allDays ? "Today's schedule" : 'Show schedule'}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Pick a class to see its checklist. Filters apply to this schedule only.
-            </p>
+        {selecting ? (
+          <ScheduleSelectHeader
+            selection={selecting}
+            switchedFromLabel={
+              model.trialGroups.find(group => group.trialId === selecting.selection.switchedFrom)
+                ?.label ?? null
+            }
+          />
+        ) : (
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 id="cockpit-schedule-title" className="text-2xl font-semibold tracking-tight">
+                {model.day.isToday && !model.day.allDays ? "Today's schedule" : 'Show schedule'}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Pick a class to see its checklist. Filters apply to this schedule only.
+              </p>
+            </div>
+            {model.trialGroups.some(group => group.nowMarkerIndex !== null) && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="min-h-11"
+                onClick={() =>
+                  document
+                    .querySelector('[data-cockpit-now-marker]')
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }
+              >
+                Jump to now
+              </Button>
+            )}
           </div>
-          {model.trialGroups.some(group => group.nowMarkerIndex !== null) && (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="min-h-11"
-              onClick={() =>
-                document
-                  .querySelector('[data-cockpit-now-marker]')
-                  ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-              }
-            >
-              Jump to now
-            </Button>
-          )}
-        </div>
+        )}
         <ListViewTabs
           views={buildCockpitScheduleViews(model)}
           activeId={filter}
@@ -111,6 +127,15 @@ export function SecretaryCockpitSchedule({
             inlineFocusedContent={inlineFocusedContent}
             entryBreakdownByClassId={entryBreakdownByClassId}
             trialActions={renderTrialActions?.(group.trialId, group.label)}
+            select={
+              selecting && {
+                isSelected: selecting.isSelected,
+                headingState: selecting.trialState(group.trialId),
+                onToggleClass: classId => selecting.toggleClass(classId, group.trialId),
+                onToggleTrial: () => selecting.toggleTrial(group.trialId),
+                onOpenChange: open => selecting.onTrialOpenChange(group.trialId, open),
+              }
+            }
           />
         ))}
       </section>

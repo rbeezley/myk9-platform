@@ -8,11 +8,16 @@
 /** The `select` value that opens Select classes. */
 export const SELECT_CLASSES = 'classes';
 
-/** The Classes views a `?view=` value can open (`classesTabViews.ts`). */
-const CLASSES_VIEW_IDS = ['all', 'pending', 'in_progress', 'completed', 'mine'] as const;
+/**
+ * The schedule filter an old Classes view lands on (MYK9-1324). Select classes is a mode of the
+ * show home's schedule now, whose filters are not the table's views: only In progress has a
+ * match, and every other view opens the whole schedule.
+ */
+const SCHEDULE_FILTER_FOR_VIEW: Readonly<Record<string, string>> = { in_progress: 'in-progress' };
 
-export function resolveSelectClassesView(raw: string | null): string {
-  return CLASSES_VIEW_IDS.find(id => id === raw) ?? 'all';
+/** The one mapping both old link shapes go through: an old view id, as a schedule `filter`. */
+function scheduleFilterForView(view: string | null | undefined): string | undefined {
+  return view ? SCHEDULE_FILTER_FOR_VIEW[view] : undefined;
 }
 
 /** The params Select classes owns; leaving it ("Done") clears them. */
@@ -26,8 +31,8 @@ interface SelectClassesHrefOptions {
 }
 
 /**
- * Where "manage this show's classes" lives. `view` opens a Classes view; 'all' is the default
- * and stays out of the URL.
+ * Where "manage this show's classes" lives. `view` is an old Classes view id; it becomes the
+ * schedule's `filter` when one matches.
  */
 export function getSelectClassesHref(
   showId: string,
@@ -35,8 +40,8 @@ export function getSelectClassesHref(
   options: SelectClassesHrefOptions = {}
 ): string {
   const params = new URLSearchParams({ select: SELECT_CLASSES });
-  const resolvedView = resolveSelectClassesView(view ?? null);
-  if (resolvedView !== 'all') params.set('view', resolvedView);
+  const filter = scheduleFilterForView(view);
+  if (filter) params.set('filter', filter);
   if (options.trialId) params.set('trialId', options.trialId);
   if (options.focusClassId) params.set('focus', options.focusClassId);
   return `/shows/${encodeURIComponent(showId)}?${params.toString()}`;
@@ -55,6 +60,10 @@ export function legacySetupToHomeSearch(search: URLSearchParams): URLSearchParam
   params.delete('section');
   if (section === 'classes') {
     params.set('select', SELECT_CLASSES);
+    // The old Classes `view` is not a schedule param; carry what it meant as the filter.
+    const filter = scheduleFilterForView(params.get('view'));
+    params.delete('view');
+    if (filter) params.set('filter', filter);
   } else {
     params.delete('returnTo');
     for (const key of SELECT_CLASSES_PARAMS) params.delete(key);

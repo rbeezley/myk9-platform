@@ -204,13 +204,19 @@ describe('legacy show section URLs land on the tab that absorbed them', () => {
     );
   });
 
-  it("opens Select classes from Setup's Classes section, keeping its view, trial, focus and returnTo", async () => {
+  it("opens Select classes from Setup's Classes section, keeping its trial, focus and returnTo", async () => {
+    // The old Classes `view` is not a schedule param (MYK9-1324): Pending has no schedule filter.
     renderAt(
       '/shows/show-1/setup?section=classes&view=pending&trialId=t1&focus=c1&returnTo=%2Fshows%2Fshow-1%2Fshow-day'
     );
     await expectLandsAt(
-      '/shows/show-1?view=pending&trialId=t1&focus=c1&returnTo=%2Fshows%2Fshow-1%2Fshow-day&select=classes'
+      '/shows/show-1?trialId=t1&focus=c1&returnTo=%2Fshows%2Fshow-1%2Fshow-day&select=classes'
     );
+  });
+
+  it("turns Setup's In progress Classes view into the schedule's In progress filter", async () => {
+    renderAt('/shows/show-1/setup?section=classes&view=in_progress&trialId=t1');
+    await expectLandsAt('/shows/show-1?trialId=t1&select=classes&filter=in-progress');
   });
 
   it.each([['trials'], ['map']])(

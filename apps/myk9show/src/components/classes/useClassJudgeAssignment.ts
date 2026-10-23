@@ -8,7 +8,7 @@ import {
   type JudgeListRefresh,
 } from '@/hooks/queries/useJudgesWithQualifications';
 import { selectQualifiedJudges } from '@/features/judges/qualifiedJudges';
-import { upsertClassJudgeAssignment } from '@/services/database/judges';
+import { upsertClassJudgeAssignment, type AssignedJudgeName } from '@/services/database/judges';
 import { UNASSIGNED_JUDGE_VALUE } from './ClassJudgeSelect';
 
 /** What a judge assignment needs to know about a class; Setup's `ClassInfo` and the cockpit's class both fit. */
@@ -62,22 +62,21 @@ export function useClassJudgeAssignment(
         ? 'loading'
         : 'ready';
 
+  // The picked judge's name goes onto the class row with the id, so the row never reads
+  // "Judge not set" or the previous judge's name while it waits for the server.
+  const judgeNamesFor = (judgeId: string): AssignedJudgeName | undefined => {
+    const picked = normalizeJudgeId(judgeId);
+    const person = picked ? judgesQuery.data?.find(judge => judge.id === picked) : undefined;
+    const name = picked ? availableJudges.find(judge => judge.id === picked)?.name : undefined;
+    return name ? { name, firstName: person?.firstName, lastName: person?.lastName } : undefined;
+  };
+
   const assignJudge = useMutation({
     // The write is a local replicated write that syncs itself, so it must run offline too; the
     // app's default 'online' mode would park it until reconnect and drop it on a reload.
     networkMode: 'always',
     mutationFn: async ({ cls, judgeId }: { cls: JudgeAssignableClass; judgeId: string }) => {
-      // The picked judge's name goes onto the class row with the id, so the row never reads
-      // "Judge not set" or the previous judge's name while it waits for the server.
-      const picked = normalizeJudgeId(judgeId);
-      const person = picked ? judgesQuery.data?.find(judge => judge.id === picked) : undefined;
-      const name = picked ? availableJudges.find(judge => judge.id === picked)?.name : undefined;
-      await upsertClassJudgeAssignment(
-        showId,
-        cls.id,
-        judgeId,
-        name ? { name, firstName: person?.firstName, lastName: person?.lastName } : undefined
-      );
+      await upsertClassJudgeAssignment(showId, cls.id, judgeId, judgeNamesFor(judgeId));
       return cls;
     },
     onSuccess: cls => {
@@ -92,6 +91,7 @@ export function useClassJudgeAssignment(
   return {
     availableJudges,
     judgeListStatus,
+    judgeNamesFor,
     assignJudge: (cls: JudgeAssignableClass, judgeId: string) =>
       assignJudge.mutate({ cls, judgeId }),
   };

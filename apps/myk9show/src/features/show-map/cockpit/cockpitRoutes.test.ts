@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getCockpitClassDetailsHref,
-  getCockpitClassManagementHref,
   getCockpitEntryManagementHref,
   getCockpitJudgeDayCatalogHref,
   getCockpitPaperScoringHref,
@@ -10,6 +9,8 @@ import {
   getCockpitResultsControlHref,
   getCockpitSubmitResultsHref,
   getShowHomeHref,
+  leaveSelectClassesSearch,
+  selectClassesAnchor,
   normalizeCockpitUrlState,
   resolveShowDeskReturn,
   resolveShowDeskReturnHref,
@@ -79,18 +80,6 @@ describe('Show Desk context routes', () => {
       })
     ).toBe(
       `/shows/show-1/entries?tab=move-ups&trial=trial-1&class=class%2F1&returnTo=${encodeURIComponent(returnTo)}`
-    );
-
-    expect(
-      getCockpitClassManagementHref({
-        showId: 'show-1',
-        trialId: 'trial-1',
-        classId: 'class/1',
-        returnTo,
-      })
-      // Select classes on the home (MYK9-957); returnTo is the cockpit state its Done restores.
-    ).toBe(
-      `/shows/show-1?select=classes&trialId=trial-1&focus=class%2F1&returnTo=${encodeURIComponent(returnTo)}`
     );
 
     expect(getCockpitPaperScoringHref({ classId: 'class/1', returnTo })).toBe(
@@ -205,5 +194,55 @@ describe('getCockpitJudgeDayCatalogHref (MYK9-1036)', () => {
     ).toBe(
       `/shows/show-1/reports?report=result-catalog&judgeId=judge%2F1&day=2026-10-10&returnTo=${encodeURIComponent('/shows/show-1/results')}`
     );
+  });
+});
+
+describe('Select classes on the schedule (MYK9-1324)', () => {
+  const leave = (search: string) =>
+    leaveSelectClassesSearch(new URLSearchParams(search), 'show-1').toString();
+
+  it("Done drops only the mode's own params when nothing says where to go back", () => {
+    // `focus` and `filter` are the schedule's: the focused class and the filter stay.
+    expect(leave('select=classes&trialId=trial-1&focus=class-1&filter=in-progress')).toBe(
+      'focus=class-1&filter=in-progress'
+    );
+  });
+
+  it('Done restores the cockpit day, filter and focus it was opened from (Codex P2)', () => {
+    const back = '/shows/show-1?day=2026-10-10&filter=needs-attention&focus=class-1';
+    expect(leave(`select=classes&trialId=trial-1&returnTo=${encodeURIComponent(back)}`)).toBe(
+      'day=2026-10-10&filter=needs-attention&focus=class-1'
+    );
+  });
+
+  it("Done ignores a returnTo that is not this show's home", () => {
+    const foreign = encodeURIComponent('/shows/other?day=2026-10-10');
+    expect(leave(`select=classes&returnTo=${foreign}`)).toBe('');
+  });
+
+  it("anchors on a Select classes link's class, else its trial, and only in the mode", () => {
+    const anchor = (search: string) => selectClassesAnchor(new URLSearchParams(search));
+    expect(anchor('select=classes&trialId=trial-1&focus=class-1')).toBe('class-1');
+    expect(anchor('select=classes&trialId=trial-1')).toBe('trial-1');
+    expect(anchor('trialId=trial-1')).toBeUndefined();
+  });
+
+  it("the cockpit's own URL writes keep the mode and its returnTo", () => {
+    const written = writeCockpitUrlState(
+      new URLSearchParams('select=classes&returnTo=%2Fshows%2Fshow-1'),
+      { selectedDay: '2026-10-10', filter: 'all', focusedClassId: undefined, anchor: undefined }
+    );
+    expect(written.get('select')).toBe('classes');
+    expect(written.get('returnTo')).toBe('/shows/show-1');
+    expect(written.get('day')).toBe('2026-10-10');
+
+    expect(
+      writeCockpitUrlState(new URLSearchParams('returnTo=%2Fshows%2Fshow-1'), {
+        selectedDay: undefined,
+        filter: 'all',
+        focusedClassId: undefined,
+        anchor: undefined,
+      }).get('returnTo')
+    ).toBeNull();
   });
 });

@@ -102,7 +102,7 @@ Acceptance: every Setup capability is reachable from the home (a checklist test 
 
 **As built (MYK9-956):**
 
-- **"Select classes" is Class Management in place.** `?select=classes` mounts `SetupClassesSection`, the same `ClassesTab` Setup uses, so the bulk bar, the one-trial rule and per-row judge assignment are unchanged. "Done" drops the mode and its params.
+- **"Select classes" is a mode of the schedule** (MYK9-1324, replacing the in-place Class Management table). `?select=classes` puts checkboxes on the schedule's rows and trial headings; the bulk bar offers Assign judge, Change status, Delete and Export over one trial's ticked classes. "Done" drops the mode and its params.
   - There is no bulk "assign judge". Judges were always assigned per row, and that picker comes along.
 - **Trial headings** get "Add Classes" plus a ⋯ menu (Edit Trial, Trial details, Delete Trial). The menu is `useTrialRowActions`, extracted from `TrialsTab`, which now uses it too.
 - **The class panel** gets "Edit class" and "Delete class" through Setup's own resolve-then-open flow (`useClassRowActions` + `SetupClassDialogs`).

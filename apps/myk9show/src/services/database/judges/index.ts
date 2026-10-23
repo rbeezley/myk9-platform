@@ -43,6 +43,7 @@ export type {
   RosterSummary,
   CreateJudgeCertificationDbData,
   JudgeAvailabilityUpsertData,
+  AssignedJudgeName,
 } from './reads';
 export { diffShowJudges } from './showJudgeChanges';
 export { fetchShowJudgesForPublish } from './publishJudges';

@@ -3,11 +3,12 @@
  *
  * Judge assignment and bulk status live in the show home's Select classes (MYK9-957), so the
  * page's URLs land there:
- *   /shows/:id/classes/:trialId?status=…  ->  /shows/:id?select=classes&view=…&trialId=…
+ *   /shows/:id/classes/:trialId?status=…  ->  /shows/:id?select=classes&filter=…&trialId=…
  *   /trials/:trialId/classes              ->  the same, with the show looked up from the trial
  *
- * The trial, the lifecycle `status` filter (to the Classes view of the same name), `focus` and
- * `returnTo` carry over. Element, search and density have no URL form on Setup and are dropped.
+ * The trial, `focus` and `returnTo` carry over. The lifecycle `status` goes to a Classes view
+ * id, which `getSelectClassesHref` turns into the schedule's filter where one matches (only In
+ * progress; MYK9-1324). Element, search and density have no URL form on Setup and are dropped.
  */
 import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
@@ -15,16 +16,9 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { useTrialRedirectTarget } from './useTrialRedirectTarget';
 import { getSelectClassesHref } from '@/pages/secretary/selectClassesRoutes';
 
-// `not_started` has no view of its own: the Classes views are All, Pending, In progress,
-// Completed and Mine, and Pending is "anything not completed", so an old not-started link widens
-// to also show in-progress classes. Pending is the narrowest view that still includes every
-// not-started class; pinned in legacyShowClassManagementRedirect.test.tsx.
-const VIEW_FOR_LEGACY_STATUS: Readonly<Record<string, string>> = {
-  not_started: 'pending',
-  in_progress: 'in_progress',
-  completed: 'completed',
-  all: 'all',
-};
+// Only In progress has a schedule filter of its own (MYK9-1324); every other old status opens
+// the whole schedule. Pinned in legacyShowClassManagementRedirect.test.tsx.
+const VIEW_FOR_LEGACY_STATUS: Readonly<Record<string, string>> = { in_progress: 'in_progress' };
 
 function useLegacyOptions(trialId: string | undefined) {
   const [searchParams] = useSearchParams();

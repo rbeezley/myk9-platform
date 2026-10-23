@@ -3,8 +3,7 @@
  *
  * The dead end was three hops: `SecretaryRunSheet` renders entries in run order and
  * links out for reorder to `/shows/:showId/show-day`; Show Desk's focused-class panel
- * offers "Run order and class setup", which points at `getCockpitClassManagementHref`
- * → Manage Classes; and Manage Classes has no run-order control. `ShowMapRunOrderMenu`
+ * offered "Run order and class setup", which pointed at Manage Classes; and Manage Classes has no run-order control. `ShowMapRunOrderMenu`
  * itself renders only inside `ShowMapStructureTable` → `ShowMapTab`, the public map,
  * read-only by intent (#291).
  *

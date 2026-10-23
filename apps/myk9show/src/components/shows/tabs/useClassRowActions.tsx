@@ -9,8 +9,8 @@ import { resolveSetupClass, type SetupClassAction } from './setupClassSnapshot';
  * (MYK9-1337).
  */
 export function useClassRowActions() {
-  // Resolve the class BEFORE any dialog mounts (replicated store, else the by-id read Class
-  // Details uses for a cold session), and keep that snapshot: the dialogs never re-resolve.
+  // Resolve the class BEFORE the panel mounts, from the authenticated replica (hydrating a cold
+  // trial first; see `resolveSetupClass`), and keep that snapshot: the panel never re-resolves.
   const [pendingAction, setPendingAction] = useState<SetupClassAction | null>(null);
   const [hydratingClassId, setHydratingClassId] = useState<string | null>(null);
   // ONE action in flight: Edit class is locked while one resolves, and a result that is not

@@ -43,7 +43,7 @@ async function gotoTrial(page: Page) {
  * the "Edit Class" panel (SetupClassDialogs.tsx -> ClassEditPanel), and Delete class is that
  * panel's footer button (EditPanelDelete.tsx:66), which opens the shared delete alertdialog.
  */
-/** A class's schedule ROW, by its anchor id (CockpitTrialGroup.tsx:145 `getCockpitAnchorElementId`). */
+/** A class's schedule ROW, by its anchor id (CockpitTrialGroup.tsx, `getCockpitAnchorElementId`). */
 const classRowById = (page: Page, classId: string) =>
   page.locator(`[id="cockpit-anchor-${classId}"]`);
 
@@ -53,7 +53,7 @@ const classRowByName = (page: Page, nameMatcher: RegExp) =>
 
 /**
  * Click the ROW's own padding (not a control inside it) so the row selects the class
- * (CockpitTrialGroup.tsx:146-148), then wait for THAT class's "Edit class <name>" button
+ * (CockpitTrialGroup.tsx, the row's onClick), then wait for THAT class's "Edit class <name>" button
  * (FocusedClassSetupActions.tsx, aria-label `Edit class ${classLabel}`).
  */
 async function focusClassRow(row: Locator, editButton: Locator) {

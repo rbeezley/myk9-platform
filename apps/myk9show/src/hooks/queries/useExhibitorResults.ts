@@ -3,6 +3,7 @@
  * Queries the authenticated result view for own entries that have been scored.
  */
 import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { useDogsQuery } from './useDogsDatabase';
@@ -11,6 +12,11 @@ import { viewerScope } from '@/lib/viewerScopedQueryKey';
 import { useViewerId } from '@/hooks/useViewerId';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import type { ResultStatus } from '@/components/common/ResultBadge';
+import {
+  OPEN_DOG_PAGE_STALE_MS,
+  useExhibitorResultsReplicaRefresh,
+  useOpenDogPagePollMs,
+} from './useExhibitorResultsRefresh';
 
 export interface ExhibitorResult {
   id: string;
@@ -39,10 +45,6 @@ export interface ExhibitorResult {
 }
 
 const PAGE_SIZE = 1000;
-/** Live-ish refresh for an open dog page. React Query skips ticks on a hidden
- *  tab (refetchIntervalInBackground: false) and parks them offline
- *  (networkMode: 'online'); both are set explicitly below. */
-const OPEN_DOG_PAGE_POLL_MS = 30_000;
 
 async function fetchExhibitorResults(dogIds: string[]) {
   if (dogIds.length === 0) return [];
@@ -164,18 +166,37 @@ export function useExhibitorResults(dogId?: string) {
     .map((d: Record<string, unknown>) => d.id as string)
     .filter(id => dogId === undefined || id === dogId);
   const sortedIds = dogIds.slice().sort();
+  const sortedIdsKey = sortedIds.join(',');
+  // Referentially stable, so the replica subscription is not re-made every render.
+  const queryKey = useMemo(
+    () => [
+      'exhibitor',
+      'results',
+      viewerScope(viewerId),
+      sortedIdsKey ? sortedIdsKey.split(',') : [],
+    ],
+    [viewerId, sortedIdsKey]
+  );
+  // MYK9-1361: an open dog page refreshes on a slow jittered timer and when this
+  // device's entries replica changes for the dog. The read below is the dog's
+  // full career each time: the view has no stable delta key (Phase 4 item 1 of
+  // docs/plan-show-day-db-load.md would give one).
+  const pollMs = useOpenDogPagePollMs();
+  useExhibitorResultsReplicaRefresh(queryKey, sortedIds, Boolean(dogId) && dogIds.length > 0);
 
   const resultsQuery = useQuery({
-    queryKey: ['exhibitor', 'results', viewerScope(viewerId), sortedIds],
+    queryKey,
     queryFn: () => fetchExhibitorResults(dogIds),
     enabled: dogIds.length > 0,
     ...cacheStrategies.moderate,
     networkMode: 'online',
+    // React Query skips ticks on a hidden tab (refetchIntervalInBackground:
+    // false, MYK9-882) and parks them offline (networkMode: 'online'); both are
+    // set explicitly. The default refetchOnMount reuses data inside staleTime.
     ...(dogId
       ? {
-          staleTime: 0,
-          refetchOnMount: 'always' as const,
-          refetchInterval: OPEN_DOG_PAGE_POLL_MS,
+          staleTime: OPEN_DOG_PAGE_STALE_MS,
+          refetchInterval: pollMs,
           refetchIntervalInBackground: false,
         }
       : {}),

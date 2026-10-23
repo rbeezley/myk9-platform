@@ -47,7 +47,6 @@ function renderDialogs(classSnapshot: Record<string, unknown> = snapshot) {
     <SetupClassDialogs
       showId="s1"
       pending={{
-        action: 'edit',
         trialId: 't1',
         requestId: 1,
         classSnapshot: classSnapshot as never,

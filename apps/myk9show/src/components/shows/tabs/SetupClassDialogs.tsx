@@ -1,5 +1,5 @@
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
-import { DeleteObjectDialog, classDeleteDetail } from '@/features/delete';
+import { classDeleteDetail } from '@/features/delete';
 import { formatClassTitle } from '@/components/classes/ClassDetailsMain.helpers';
 import type { ClassData } from '@/components/classes/types/classTypes';
 import type { SetupClassAction } from './setupClassSnapshot';
@@ -13,11 +13,11 @@ interface SetupClassDialogsProps {
 }
 
 /**
- * The existing class edit panel and delete dialog, opened from a Setup row (MYK9-900), working
- * on the snapshot the tab resolved when the action started; nothing here re-resolves the class
+ * The existing class edit panel, opened from the show home's Edit class (MYK9-900, MYK9-956),
+ * working on the snapshot resolved when the action started; nothing here re-resolves the class
  * (a successful delete removes it from the stores while the confirm is still finishing). Saves
- * go through `useClassEditActions`, the same hook Class Details uses, and deletes through the
- * shared `DeleteObjectDialog`, the same delete and purge as every class surface. Mounted only
+ * go through `useClassEditActions`, the same hook Class Details uses, and the footer's Delete
+ * through the shared `DeleteObjectDialog`, the same delete and purge as every class surface. Mounted only
  * while an action is pending so the page does not subscribe to class and entry queries it
  * never reads.
  */
@@ -45,7 +45,7 @@ export function SetupClassDialogs({ showId, pending, onClose }: SetupClassDialog
     context: { showId, trialId: pending.trialId, classId: currentClass.id },
   };
 
-  return pending.action === 'edit' ? (
+  return (
     <ClassEditPanel
       open
       onClose={onClose}
@@ -55,15 +55,6 @@ export function SetupClassDialogs({ showId, pending, onClose }: SetupClassDialog
       showId={showId}
       onDelete={{ kind: 'class', objectLabel: 'class', targets: [target] }}
       onSave={async classData => handleSave(classData as Partial<ClassData>)}
-    />
-  ) : (
-    <DeleteObjectDialog
-      open
-      onOpenChange={open => {
-        if (!open) onClose();
-      }}
-      kind="class"
-      targets={[target]}
     />
   );
 }

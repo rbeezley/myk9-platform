@@ -8,13 +8,12 @@ import {
 import { useTrialStore } from '@/store/trialStore';
 
 /**
- * The class a Setup row action works on: the SAME editor shape (`mapDatabaseToClass`) Class
+ * The class the show home's Edit class works on: the SAME editor shape (`mapDatabaseToClass`) Class
  * Details gives `ClassEditPanel`, so status casing, judge, dates and numbers all match.
  */
 export type SetupClassSnapshot = ReturnType<typeof mapDatabaseToClass>;
 
 export interface SetupClassAction {
-  action: 'edit' | 'delete';
   classSnapshot: SetupClassSnapshot;
   /** The class's trial, for cache invalidation. */
   trialId: string;
@@ -50,7 +49,7 @@ async function readClassFromReplica(
 }
 
 /**
- * Resolve the class for a Setup row action, BEFORE any dialog mounts, from the authenticated
+ * Resolve the class for Edit class, BEFORE any dialog mounts, from the authenticated
  * replica only (the same source the editor saves through), hydrating it first when it is not
  * there. Resolves `null` when it is still absent; the caller says so and stops. Deliberately NOT
  * the public by-id read: it carries no judge assignment, so an editor seeded from it would see

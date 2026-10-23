@@ -66,7 +66,7 @@ describe('ClassesTab list toolkit', () => {
       expect(resultLine).toHaveTextContent('Showing all 2 classes.');
       expect(within(resultLine).getByRole('button', { name: 'Cards view' })).toBeInTheDocument();
       expect(within(resultLine).getByRole('button', { name: 'Table view' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /columns|density|reset/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /columns|export|density|reset/i })).toBeNull();
       expect(screen.queryByRole('combobox', { name: 'Trial' })).not.toBeInTheDocument();
       expect(screen.queryByRole('combobox', { name: 'Element' })).not.toBeInTheDocument();
     });

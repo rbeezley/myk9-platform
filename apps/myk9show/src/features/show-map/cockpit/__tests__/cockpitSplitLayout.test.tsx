@@ -28,8 +28,8 @@ vi.mock('@/components/shows/tabs/setupClassSnapshot', () => ({
   resolveSetupClass: vi.fn(async (id: string) => ({ id, judgeId: null })),
 }));
 vi.mock('@/components/shows/tabs/SetupClassDialogs', () => ({
-  SetupClassDialogs: ({ pending }: { pending: { action: string } }) => (
-    <div data-testid="class-editor">{pending.action}</div>
+  SetupClassDialogs: ({ pending }: { pending: { classSnapshot: { id: string } } }) => (
+    <div data-testid="class-editor">{pending.classSnapshot.id}</div>
   ),
 }));
 
@@ -73,7 +73,7 @@ describe('the class editor survives the split/stack switch', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'Edit class Container Novice' }));
-    expect(await screen.findByTestId('class-editor')).toHaveTextContent('edit');
+    expect(await screen.findByTestId('class-editor')).toHaveTextContent('class-1');
 
     expect(
       screen.getByTestId('secretary-cockpit').querySelector('[data-cockpit-layout]')
@@ -81,7 +81,7 @@ describe('the class editor survives the split/stack switch', () => {
     cockpit.width = 1000;
     rerender(<SecretaryCockpit snapshot={snapshot} canManageShow onCommand={vi.fn()} />);
 
-    expect(screen.getByTestId('class-editor')).toHaveTextContent('edit');
+    expect(screen.getByTestId('class-editor')).toHaveTextContent('class-1');
     expect(screen.getByTestId('cockpit-split-focus')).toBeInTheDocument();
   });
 

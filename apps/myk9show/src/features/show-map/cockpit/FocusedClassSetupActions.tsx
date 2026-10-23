@@ -16,11 +16,8 @@ import { useClassRowActions } from '@/components/shows/tabs/useClassRowActions';
  * action and the dialogs stay with the cockpit.
  */
 export function useFocusedClassSetupActions(showId: string) {
-  const { pendingAction, setPendingAction, hydratingClassId, openClassAction } = useClassRowActions(
-    showId,
-    // Status changes on the home go through the panel's own status control.
-    () => {}
-  );
+  const { pendingAction, setPendingAction, hydratingClassId, openClassAction } =
+    useClassRowActions();
   const locked = hydratingClassId !== null || pendingAction !== null;
 
   const renderClassActions = (classId: string, trialId: string, classLabel: string) => {
@@ -33,7 +30,7 @@ export function useFocusedClassSetupActions(showId: string) {
         className="min-h-11 gap-2"
         disabled={locked}
         aria-label={`Edit class ${classLabel}`}
-        onClick={() => void openClassAction(target, 'edit')}
+        onClick={() => void openClassAction(target)}
       >
         <Pencil className="h-4 w-4" aria-hidden="true" />
         Edit class

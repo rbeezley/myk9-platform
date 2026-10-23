@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ClassesTab, type ClassInfo } from '@/components/shows/tabs/ClassesTab';
 
-// ClassesTab's manager layer reads React Query hooks even for viewers it then ignores.
+// The guest export and view preference read through React Query providers.
 const render = (ui: ReactElement) =>
   rtlRender(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
 
@@ -18,10 +18,6 @@ const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
   useLocation: () => ({ key: 'default' }),
-}));
-
-vi.mock('@/hooks/useShowManageScope', () => ({
-  useShowManageScope: () => ({ status: 'resolved', canManage: false }),
 }));
 
 // The guest Export CSV (MYK9-933) reads the signed-in user.

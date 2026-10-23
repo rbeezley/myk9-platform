@@ -112,7 +112,6 @@ describe.each(['Setup', 'Class Details'])(
           <SetupClassDialogs
             showId="s1"
             pending={{
-              action: 'edit',
               trialId: 't1',
               requestId: 1,
               classSnapshot: currentClass as never,

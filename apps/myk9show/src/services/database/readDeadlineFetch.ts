@@ -16,13 +16,27 @@
  * `/storage/v1/`, `/functions/v1/` and realtime. A write cut off client-side can still have
  * committed server-side, and the mutation queue would then replay it.
  *
- * Why a timeout surfaces as the failure the existing paths already handle: the abort is a
- * plain `AbortError` (the default `controller.abort()` reason), never `AbortSignal.timeout()`
- * whose `TimeoutError` nothing here recognises. postgrest-js 2.118 rethrows an AbortError
- * from its fetch without its own retry (`fetchWithRetry`) and, with `throwOnError` off, maps
- * the rejection to `error.message = "AbortError: <message>"`. Both `isTransientBrowserFetchError`
- * (services/rbac/PermissionChecker.ts) and `isAbortError` (context/useRbacLifecycle.ts) match
- * that, so the RBAC retry (3 attempts) and the sync layer's abort paths run.
+ * Every `/rest/v1` GET is deadlined, bulk sync pages included. A page that exceeds 30 s on
+ * a saturated server now fails visibly (refresh toast) and the next pass retries. The 30 s
+ * value is to be confirmed at the next load rehearsal.
+ *
+ * AbortError vs TimeoutError. An `AbortError` means somebody cancelled on purpose: the
+ * replication layer (`syncErrorUtils.isAbortSyncMessage`) treats it as a cancelled sync,
+ * files it as idle and even dismisses an earlier failure toast. The deadline must not hide
+ * behind that, so it aborts with a `TimeoutError` DOMException instead. fetch rejects with
+ * the signal's reason; postgrest-js (2.118) rethrows a TimeoutError whose signal is aborted
+ * without its own retry and, with `throwOnError` off, maps it to
+ * `error.message = "TimeoutError: Read deadline of 30000 ms exceeded"`. The sync adapter's
+ * `Supabase query failed:` prefix then makes it SAFE_SYNC_REFRESH_ERROR, a visible refresh
+ * failure. `isTransientBrowserFetchError` (services/rbac/PermissionChecker.ts) accepts
+ * TimeoutError, so the RBAC retry (3 attempts), `classifyRefreshFailure` and the
+ * registrations `serverUnreachable` path still treat it as transient.
+ *
+ * The timer outlives a fast response on purpose. postgrest-js reads the body (`res.text()`)
+ * after this layer returns, so clearing at headers would leave a stalled body unbounded and
+ * would also drop a caller's `.abortSignal()` that fires after headers. The timer is
+ * therefore cleared only when it fires, when the caller aborts, or when the base fetch
+ * rejects (nothing left to abort). Aborting a fully consumed response is a harmless no-op.
  *
  * Composition (supabaseClient.ts): `createStepUpFetch(requestStepUp, createReadDeadlineFetch())`.
  * The deadline sits UNDER the step-up layer, so a step-up replay arms a fresh deadline.
@@ -31,6 +45,13 @@ type Fetch = typeof fetch;
 
 /** Above the G9 p95 of ~19 s, below the gateway's own cutoff. */
 export const SUPABASE_READ_DEADLINE_MS = 30_000;
+
+export const READ_DEADLINE_ERROR_NAME = 'TimeoutError';
+
+/** The abort reason for a read that outlived its deadline. */
+export function readDeadlineReason(deadlineMs: number = SUPABASE_READ_DEADLINE_MS): DOMException {
+  return new DOMException(`Read deadline of ${deadlineMs} ms exceeded`, READ_DEADLINE_ERROR_NAME);
+}
 
 /** Read-only RPCs that gate first paint. Every other RPC is treated as a write. */
 export const READ_ONLY_RPCS: ReadonlySet<string> = new Set([
@@ -60,9 +81,12 @@ function pathnameOf(input: RequestInfo | URL): string | null {
   }
 }
 
+function isRequestObject(input: RequestInfo | URL): input is Request {
+  return typeof Request !== 'undefined' && input instanceof Request;
+}
+
 function methodOf(input: RequestInfo | URL, init?: RequestInit): string {
-  const isRequestObject = typeof Request !== 'undefined' && input instanceof Request;
-  return (init?.method ?? (isRequestObject ? input.method : 'GET')).toUpperCase();
+  return (init?.method ?? (isRequestObject(input) ? input.method : 'GET')).toUpperCase();
 }
 
 /** True for the requests that get the read deadline. Pure; exported for tests. */
@@ -83,17 +107,30 @@ export function createReadDeadlineFetch(
     if (!isDeadlinedRead(input, init)) return baseFetch(input, init);
 
     const controller = new AbortController();
-    const callerSignal = init?.signal;
-    const forwardAbort = () => controller.abort(callerSignal?.reason);
-    if (callerSignal?.aborted) forwardAbort();
-    else callerSignal?.addEventListener('abort', forwardAbort, { once: true });
-    // Default reason: a DOMException named AbortError, which the transient-error checks match.
-    const timer = setTimeout(() => controller.abort(), deadlineMs);
+    const callerSignal = init?.signal ?? (isRequestObject(input) ? input.signal : undefined);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const settle = () => {
+      clearTimeout(timer);
+      callerSignal?.removeEventListener('abort', onCallerAbort);
+    };
+    function onCallerAbort() {
+      settle();
+      controller.abort(callerSignal?.reason);
+    }
+    if (callerSignal?.aborted) {
+      controller.abort(callerSignal.reason);
+    } else {
+      callerSignal?.addEventListener('abort', onCallerAbort, { once: true });
+      timer = setTimeout(() => {
+        settle();
+        controller.abort(readDeadlineReason(deadlineMs));
+      }, deadlineMs);
+    }
     try {
       return await baseFetch(input, { ...init, signal: controller.signal });
-    } finally {
-      clearTimeout(timer);
-      callerSignal?.removeEventListener('abort', forwardAbort);
+    } catch (error) {
+      settle();
+      throw error;
     }
   };
 }

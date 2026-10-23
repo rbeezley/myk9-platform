@@ -195,6 +195,19 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     'predicate only, like the dogs_update entry above. people_insert (the other policy this ' +
     'test pins for people) and people_select are untouched, so the consolidation counts and ' +
     'overlap groups are unaffected.',
+  '20261023154300_myk9_639_payment_link_order_owner_read.sql':
+    'MYK9-639. From this inventory it touches stripe_orders (stripe_orders_select) only. A ' +
+    "secretary payment-link order is written with customer_id NULL, so the policy's customer " +
+    'arm never admitted it and My Payments omitted every link-paid charge. The customer and ' +
+    'is_platform_admin arms are carried over byte-identical; one arm is ADDED, applying only ' +
+    'to rows the customer arm can never match (customer_id IS NULL), which delegates to a new ' +
+    'is_my_entry_payment_link_order(session). That SECURITY DEFINER helper admits the caller ' +
+    "only when every entry on the persisted entry_payment_links row is theirs and in the link's " +
+    'show, deciding against the LINK, never stripe_orders.entry_ids (accepted lines only, while ' +
+    'amount_cents is the whole charge). EXECUTE is granted to authenticated only; anon holds no ' +
+    'privilege on stripe_orders. Same policy name, same SELECT command, same TO authenticated ' +
+    'role — predicate only. stripe_orders_manage_insert/update/delete are untouched, so the ' +
+    'consolidation counts and overlap groups this test pins are unaffected.',
 };
 
 const tableCases: TableCase[] = [

@@ -26,6 +26,16 @@ export interface FinancialReportLine {
   waived: number;
   netRetained: number;
   paymentLabel: string;
+  /**
+   * The payment status the line's figures were derived from, in the report's
+   * raw-string vocabulary: the ROOT's effective status, not the run's own.
+   *
+   * A moved-up destination is money-neutral by construction, so its own
+   * `payment_status` is always `pending`; the status that belongs beside the
+   * root's collected $35 is the root's (MYK9-639, 2026-10-21 replay: every paid
+   * move-up printed "Pending" under a summary that said paid in full).
+   */
+  paymentStatus: string;
 }
 
 export interface FinancialReportBucket {
@@ -231,6 +241,7 @@ export function buildFinancialReportLine(
     waived,
     netRetained,
     paymentLabel: getFinancialPaymentLabel(moneyRoot),
+    paymentStatus: getEffectivePaymentStatus(moneyRoot),
   };
 }
 

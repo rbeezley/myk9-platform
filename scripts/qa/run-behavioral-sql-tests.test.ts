@@ -80,6 +80,7 @@ const launchCriticalSqlTests = [
   'cross_club_policy_authorization_test.sql',
   'anon_tv_entry_soft_delete_test.sql',
   'move_up_supersession_test.sql',
+  'myk9_639_payment_link_order_owner_read_test.sql',
   'judge_assignment_private_read_test.sql',
   'judge_assignment_touches_class_test.sql',
   'myk9_1300_armbands_updated_at_test.sql',

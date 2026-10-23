@@ -146,6 +146,44 @@ describe('FinancialReport', () => {
     expect(screen.getByText(/No entries match/i)).toBeInTheDocument();
   });
 
+  // MYK9-639: the 2026-10-21 controlled replay rendered Status = Pending on
+  // every paid move-up while the summary above it said $35 collected. The run
+  // is the destination row; the money and its status are the root's.
+  it("prints the root's status on a moved-up run, never the destination's own pending", () => {
+    render(
+      <FinancialReport
+        {...baseProps}
+        entries={[
+          {
+            ...baseProps.entries[0],
+            id: 'source-moved',
+            entryStatus: 'moved',
+            entryFee: 35,
+            paymentStatus: PaymentStatus.PAID_BY_CHECK,
+            paymentMethod: 'check',
+          },
+          {
+            ...baseProps.entries[0],
+            id: 'destination',
+            callName: 'Acorn',
+            entryStatus: 'confirmed',
+            entryFee: 0,
+            paymentStatus: PaymentStatus.PENDING,
+            paymentMethod: undefined,
+            movedFromEntryId: 'source-moved',
+          },
+        ]}
+      />
+    );
+
+    const row = screen.getByText('Acorn').parentElement!;
+    const cells = [...row.querySelectorAll('td')].map(cell => cell.textContent);
+    expect(cells[3]).toBe('Paid By Check');
+    expect(cells[4]).toBe('Check');
+    expect(screen.queryByText('Pending')).not.toBeInTheDocument();
+    expect(screen.getByText('Net Retained: $35.00')).toBeInTheDocument();
+  });
+
   it('renders unassigned armbands as an em dash', () => {
     render(
       <FinancialReport

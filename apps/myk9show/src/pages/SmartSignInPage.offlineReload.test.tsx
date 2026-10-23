@@ -137,14 +137,17 @@ describe('SmartSignInPage → offline reload (MYK9-834)', () => {
       showId: 'draft-show',
       showName: 'Draft Trial',
     });
-    const getShow = vi
-      .spyOn(replicatedShowsTable, 'getShowById')
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: 'draft-show' } as never);
+    const getShow = vi.spyOn(replicatedShowsTable, 'getShowById').mockResolvedValue(null);
+    // MYK9-1348: a cold miss pulls the one show by id, never the whole table.
+    const pullShow = vi
+      .spyOn(replicatedShowsTable, 'pullShowById')
+      .mockResolvedValue({ id: 'draft-show' } as never);
     const sync = vi
       .spyOn(replicatedShowsTable, 'sync')
       .mockResolvedValue({ success: true } as never);
-    vi.spyOn(replicatedShowsTable, 'updateSyncMetadata').mockResolvedValue(undefined);
+    const resetWatermarks = vi
+      .spyOn(replicatedShowsTable, 'updateSyncMetadata')
+      .mockResolvedValue(undefined);
 
     const user = userEvent.setup();
     render(<SmartSignInPage />, { initialRoute: '/sign-in' });
@@ -175,8 +178,10 @@ describe('SmartSignInPage → offline reload (MYK9-834)', () => {
     );
 
     expect(await screen.findByText('DRAFT RING OPEN')).toBeInTheDocument();
-    expect(getShow).toHaveBeenCalledTimes(2);
-    expect(sync).toHaveBeenCalledWith('');
+    expect(getShow).toHaveBeenCalledTimes(1);
+    expect(pullShow).toHaveBeenCalledWith('draft-show');
+    expect(sync).not.toHaveBeenCalled();
+    expect(resetWatermarks).not.toHaveBeenCalled();
     expect(screen.queryByText('Show not found')).not.toBeInTheDocument();
   });
 

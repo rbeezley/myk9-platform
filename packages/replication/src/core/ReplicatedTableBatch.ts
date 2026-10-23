@@ -28,6 +28,45 @@ import {
   type StuckRepairAdapter,
 } from './repairStuckPendingFlags';
 
+/** Structural equality over the JSON-shaped data a replicated row carries. */
+function sameRowData(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  if (typeof left !== 'object' || typeof right !== 'object' || left === null || right === null) {
+    return false;
+  }
+  if (Array.isArray(left) !== Array.isArray(right)) return false;
+  if (Array.isArray(left) && Array.isArray(right)) {
+    return left.length === right.length && left.every((item, i) => sameRowData(item, right[i]));
+  }
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const leftKeys = Object.keys(leftRecord).filter(key => leftRecord[key] !== undefined);
+  const rightKeys = Object.keys(rightRecord).filter(key => rightRecord[key] !== undefined);
+  if (leftKeys.length !== rightKeys.length) return false;
+  return leftKeys.every(
+    key => key in rightRecord && sameRowData(leftRecord[key], rightRecord[key])
+  );
+}
+
+/**
+ * True when storing this download would leave the row as the device already
+ * holds it: same data, same server version, same owner, and the row is a clean
+ * synced copy (a conflict or pending-delete row is always rewritten). Such a
+ * row still gets its bookkeeping put (`lastSyncedAt` feeds the stale-row
+ * cleanup), but it is not a change (MYK9-1332).
+ */
+export function downloadLeavesRowAsIs<T>(
+  existingRow: ReplicatedRow<T> | undefined,
+  data: T,
+  serverVersion: number | undefined,
+  ownerAuthUserId: string | undefined
+): boolean {
+  if (!existingRow || existingRow.isDirty || existingRow.syncStatus !== 'synced') return false;
+  if (existingRow.serverVersion !== serverVersion) return false;
+  if (existingRow.ownerAuthUserId !== ownerAuthUserId) return false;
+  return sameRowData(existingRow.data, data);
+}
+
 /**
  * Batch operations manager for a replicated table
  */
@@ -78,6 +117,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
   ): Promise<void> {
     const db = await this.getDb();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    let changedRows = 0;
 
     for (const item of items) {
       const normalizedId = String(item.id);
@@ -114,29 +154,38 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
       // Prefer the caller-supplied server version; fall back to what was already
       // stored so a re-sync without a version column doesn't wipe the OCC precondition.
       const serverVersion = serverVersions?.get(normalizedId) ?? existingRow?.serverVersion;
+      const owner = ownerAuthUserId ?? existingRow?.ownerAuthUserId;
+      const unchanged = downloadLeavesRowAsIs(existingRow, normalizedData, serverVersion, owner);
+      if (!unchanged) changedRows++;
 
       const row: ReplicatedRow<T> = {
         tableName: this.tableName,
         id: normalizedId,
         data: normalizedData,
-        version: existingRow ? existingRow.version + 1 : 1,
+        // An unchanged re-download keeps its version: nothing a local writer
+        // compared against has moved (MYK9-1332).
+        version: existingRow ? (unchanged ? existingRow.version : existingRow.version + 1) : 1,
         lastSyncedAt: Date.now(),
         lastAccessedAt: Date.now(),
         isDirty: false,
         syncStatus: 'synced',
         ...(serverVersion !== undefined && { serverVersion }),
-        ...((ownerAuthUserId ?? existingRow?.ownerAuthUserId) !== undefined && {
-          ownerAuthUserId: (ownerAuthUserId ?? existingRow?.ownerAuthUserId) as string,
-        }),
+        ...(owner !== undefined && { ownerAuthUserId: owner }),
       };
 
       await tx.store.put(row);
     }
 
     await tx.done;
-    this.logger.log(`[${this.tableName}] Batch cached ${items.length} rows`);
+    this.logger.log(
+      `[${this.tableName}] Batch cached ${items.length} rows (${changedRows} changed)`
+    );
 
-    this.notifyListeners();
+    // Only a row that actually changed is news to a subscriber. The incremental
+    // sync re-downloads every row inside its 60 s `since` buffer on every pass,
+    // and on a quiet table that is the same unchanged rows each time; notifying
+    // anyway made every registrations pass refetch the dog rosters (MYK9-1332).
+    if (changedRows > 0) this.notifyListeners();
   }
 
   /**
@@ -206,6 +255,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
 
     // ── Chunked writes ───────────────────────────────────────────────────────
     let processedRows = 0;
+    let changedRows = 0;
     let lastCommittedChunk = -1;
 
     try {
@@ -235,20 +285,26 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
 
           const normalizedData = { ...item, id: normalizedId } as T;
           const serverVersion = serverVersions?.get(normalizedId) ?? existingRow?.serverVersion;
+          const owner = ownerAuthUserId ?? existingRow?.ownerAuthUserId;
+          const unchanged = downloadLeavesRowAsIs(
+            existingRow,
+            normalizedData,
+            serverVersion,
+            owner
+          );
+          if (!unchanged) changedRows++;
 
           const row: ReplicatedRow<T> = {
             tableName: this.tableName,
             id: normalizedId,
             data: normalizedData,
-            version: existingRow ? existingRow.version + 1 : 1,
+            version: existingRow ? (unchanged ? existingRow.version : existingRow.version + 1) : 1,
             lastSyncedAt: Date.now(),
             lastAccessedAt: Date.now(),
             isDirty: false,
             syncStatus: 'synced',
             ...(serverVersion !== undefined && { serverVersion }),
-            ...((ownerAuthUserId ?? existingRow?.ownerAuthUserId) !== undefined && {
-              ownerAuthUserId: (ownerAuthUserId ?? existingRow?.ownerAuthUserId) as string,
-            }),
+            ...(owner !== undefined && { ownerAuthUserId: owner }),
           };
 
           await tx.store.put(row);
@@ -297,9 +353,12 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
       throw err;
     }
 
-    this.logger.log(`[${this.tableName}] Chunked batch complete: ${processedRows} rows`);
+    this.logger.log(
+      `[${this.tableName}] Chunked batch complete: ${processedRows} rows (${changedRows} changed)`
+    );
 
-    this.notifyListeners();
+    // Same rule as batchSet: unchanged re-downloads are not news (MYK9-1332).
+    if (changedRows > 0) this.notifyListeners();
   }
 
   /**

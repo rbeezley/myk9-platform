@@ -136,3 +136,60 @@ describe('subscribeAtShowSyncSettled', () => {
     expect(listener).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * MYK9-1350: a caller that needs to know whether the show arrived (the cold
+ * scoresheet) reads the operation's outcome. Replication reports a failed
+ * scope as `{ success: false }`, not a rejection, so awaiting alone hid it.
+ */
+describe('syncAtShowData outcome', () => {
+  beforeEach(() => {
+    trialsSync.mockReset().mockImplementation(async () => ({ success: true }));
+    classesSync.mockReset().mockImplementation(async () => ({ success: true }));
+    entriesSync.mockReset().mockImplementation(async () => ({ success: true }));
+    vi.mocked(replicatedArmbandsTable.sync)
+      .mockReset()
+      .mockResolvedValue({ success: true } as never);
+  });
+
+  it('reports success when every scope succeeds', async () => {
+    await expect(syncAtShowData('show-outcome-ok')).resolves.toEqual({ success: true });
+  });
+
+  it.each([
+    ['trials', trialsSync],
+    ['classes', classesSync],
+    ['entries', entriesSync],
+  ])('reports failure when the %s scope resolves { success: false }', async (_scope, sync) => {
+    sync.mockImplementation(async () => ({ success: false }));
+    await expect(syncAtShowData('show-outcome-failed')).resolves.toEqual({ success: false });
+  });
+
+  it('reports failure when the armbands scope resolves { success: false }', async () => {
+    vi.mocked(replicatedArmbandsTable.sync).mockResolvedValue({ success: false } as never);
+    await expect(syncAtShowData('show-outcome-armbands')).resolves.toEqual({ success: false });
+  });
+
+  it('still rejects when a scope throws', async () => {
+    entriesSync.mockRejectedValueOnce(new Error('network'));
+    await expect(syncAtShowData('show-outcome-throws')).rejects.toThrow('network');
+  });
+
+  it('hands a joiner the same outcome as the starter', async () => {
+    let finish!: () => void;
+    entriesSync.mockReturnValueOnce(
+      new Promise<{ success: boolean }>(resolve => {
+        finish = () => resolve({ success: false });
+      })
+    );
+    const starter = syncAtShowData('show-outcome-joined');
+    const joiner = syncAtShowData('show-outcome-joined');
+    await flush();
+    finish();
+
+    const [started, joined] = await Promise.all([starter, joiner]);
+    expect(started).toEqual({ success: false });
+    expect(joined).toBe(started);
+    expect(trialsSync).toHaveBeenCalledTimes(1);
+  });
+});

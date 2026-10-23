@@ -16,20 +16,28 @@ import { resolveVisibilityForClassRows } from './resolveClassVisibility';
 import { resolveHideCountsForClassRows } from './resolveClassHideCounts';
 import { resolveTimeLimitRulesForClassRows } from './resolveClassTimeLimitRules';
 import { resolveJudgeNamesForClassRows } from './resolveClassJudgeNames';
+import { readClassTrials } from './resolveClassTrials';
 
 const TRIALS = [{ id: 'trial-1', show_id: 'show-1', registry_id: 'AKC' }];
 const ROWS = [{ id: 'class-1', trial_id: 'trial-1', element: 'Interior', level: 'Novice' }];
+
+type InCall = { table: string; column: string; ids: string[] };
+const inCalls: InCall[] = [];
 
 const tablesRead = () => mockFrom.mock.calls.map(call => call[0] as string);
 
 describe('enrichment resolvers given preloaded trials (MYK9-1345)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    inCalls.length = 0;
     // Every table answers empty, trials included, so a stray trials read is visible by name.
-    mockFrom.mockImplementation(() => {
+    mockFrom.mockImplementation((table: string) => {
       const chain: Record<string, unknown> = {};
       chain.select = () => chain;
-      chain.in = () => chain;
+      chain.in = (column: string, ids: string[]) => {
+        inCalls.push({ table, column, ids });
+        return chain;
+      };
       chain.eq = () => chain;
       chain.not = () => chain;
       chain.then = (resolve: (value: unknown) => void) => resolve({ data: [], error: null });
@@ -60,9 +68,34 @@ describe('enrichment resolvers given preloaded trials (MYK9-1345)', () => {
     expect(tablesRead().filter(table => table === 'trials')).toHaveLength(1);
   });
 
-  it('visibility reads the show settings of the preloaded trial, not an empty set', async () => {
-    await resolveVisibilityForClassRows(ROWS, TRIALS);
+  it('visibility keeps each batch its own trials when the rows span two batches', async () => {
+    // VISIBILITY_BATCH_SIZE is 100: the first 100 classes are batch one, the rest batch two.
+    const rows = Array.from({ length: 150 }, (_, i) => ({
+      id: `class-${i}`,
+      trial_id: i < 100 ? 'trial-a' : 'trial-b',
+    }));
+    const trials = [
+      { id: 'trial-a', show_id: 'show-a', registry_id: 'AKC' },
+      { id: 'trial-b', show_id: 'show-b', registry_id: 'AKC' },
+    ];
 
-    expect(tablesRead()).toContain('show_visibility_settings');
+    await resolveVisibilityForClassRows(rows, trials);
+
+    expect(tablesRead()).not.toContain('trials');
+    expect(inCalls.filter(call => call.table === 'show_visibility_settings')).toEqual([
+      { table: 'show_visibility_settings', column: 'show_id', ids: ['show-a'] },
+      { table: 'show_visibility_settings', column: 'show_id', ids: ['show-b'] },
+    ]);
+  });
+});
+
+describe('readClassTrials (MYK9-1345)', () => {
+  it('resolves [] without querying trials when no row has a trial', async () => {
+    mockFrom.mockClear();
+
+    await expect(readClassTrials([])).resolves.toEqual([]);
+    await expect(readClassTrials([{ trial_id: null }, {}])).resolves.toEqual([]);
+
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 });

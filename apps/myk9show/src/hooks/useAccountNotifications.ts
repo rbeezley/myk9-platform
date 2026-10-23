@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -9,7 +9,20 @@ import {
   type AccountNotificationRow,
 } from '@/hooks/useAccountNotifications.helpers';
 
-const POLL_MS = 60_000;
+/**
+ * Server-only poll (MYK9-1368), app-wide on every signed-in device. Each mount
+ * draws its own interval uniformly from this range so devices that opened
+ * together do not hit the table in lockstep; focus refetches too.
+ */
+export const ACCOUNT_NOTIFICATIONS_POLL_MIN_MS = 180_000;
+export const ACCOUNT_NOTIFICATIONS_POLL_MAX_MS = 300_000;
+
+export function drawAccountNotificationsPollMs(random: () => number = Math.random): number {
+  return Math.round(
+    ACCOUNT_NOTIFICATIONS_POLL_MIN_MS +
+      random() * (ACCOUNT_NOTIFICATIONS_POLL_MAX_MS - ACCOUNT_NOTIFICATIONS_POLL_MIN_MS)
+  );
+}
 
 /** Row types whose delivery should also force an RBAC re-check, since they
  * mean the signed-in user's own roles changed elsewhere (a site admin
@@ -60,6 +73,7 @@ export function useAccountNotifications(): void {
   const addAlert = useNotificationStore(s => s.addAlert);
   const dismissAlert = useNotificationStore(s => s.dismissAlert);
   const authUserId = userWithRoles?.id ?? null;
+  const [pollMs] = useState(() => drawAccountNotificationsPollMs());
 
   const query = useQuery({
     queryKey: queryKeys.accountNotifications(authUserId),
@@ -76,8 +90,9 @@ export function useAccountNotifications(): void {
       return { userId, rows: data ?? [] };
     },
     enabled: Boolean(authUserId),
-    staleTime: POLL_MS,
-    refetchInterval: POLL_MS,
+    staleTime: pollMs,
+    refetchInterval: pollMs,
+    refetchOnWindowFocus: true,
   });
 
   const data = query.data;

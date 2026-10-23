@@ -1,7 +1,6 @@
-import { ReactNode, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
-import { prefetchCriticalData } from '@/utils/performanceOptimizations';
 import { useRefetchQueriesOnReconnect } from '@/hooks/useRefetchQueriesOnReconnect';
 
 interface QueryProviderProps {
@@ -17,15 +16,13 @@ function ReconnectRefetcher() {
   return null;
 }
 
+/**
+ * INTENT: no boot-time data prefetch lives here. Every page that shows the
+ * shows list reads it on mount (`useShowsQuery`, 5 min staleTime); an app-wide
+ * prefetch cost `/at-show`, sign-in and the landing page a five-table read on
+ * a cold device for no gain (MYK9-1359).
+ */
 export function QueryProvider({ children }: QueryProviderProps) {
-  useEffect(() => {
-    const prefetchTimer = window.setTimeout(() => {
-      void prefetchCriticalData(queryClient);
-    }, 1000);
-
-    return () => window.clearTimeout(prefetchTimer);
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <ReconnectRefetcher />

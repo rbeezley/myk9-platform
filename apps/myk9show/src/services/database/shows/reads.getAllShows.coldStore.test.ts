@@ -88,8 +88,7 @@ describe('getAllShows — cold replica', () => {
   });
 
   it('trusts the empty local list for a guest, whose replica never syncs', async () => {
-    // prefetchCriticalData runs this on every app load; a guest must not send
-    // the whole catalog query each time.
+    // A guest must not send the whole catalog query on every read of the list.
     mockHasAuthenticatedSession.mockResolvedValue(false);
     mockShowsTable.getAllWithStatus.mockResolvedValue(ok([]));
     mockPostgrestGetAllShows.mockResolvedValue(REMOTE);

@@ -215,7 +215,14 @@ describe('check-bundle-budget — collectBundleStats precache manifest', () => {
   });
 
   it('reports no manifest when dist has no sw-custom.js', () => {
-    fs.rmSync(path.join(distDir, 'sw-custom.js'));
-    expect(collectBundleStats(distDir).precacheManifestFound).toBe(false);
+    // Own directory: deleting the shared fixture's sw-custom.js would make the
+    // tests above order-dependent under CI's shuffled test sequence.
+    const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'bundle-budget-nosw-'));
+    try {
+      fs.writeFileSync(path.join(bare, 'index.html'), '<!doctype html>');
+      expect(collectBundleStats(bare).precacheManifestFound).toBe(false);
+    } finally {
+      fs.rmSync(bare, { recursive: true, force: true });
+    }
   });
 });

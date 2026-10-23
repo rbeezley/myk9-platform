@@ -76,10 +76,35 @@ describe('PermissionChecker complete-access cache', () => {
     const first = checker.getUserPermissions('user-1');
     const second = checker.getUserPermissions('user-1');
 
-    expect(mockRpc).toHaveBeenCalledTimes(1);
+    // One load's three RPCs in flight (they run together, MYK9-1333), not two loads' six.
+    expect(mockRpc).toHaveBeenCalledTimes(3);
     resolvePermissions?.({ data: [], error: null });
     await Promise.all([first, second]);
     expect(mockRpc).toHaveBeenCalledTimes(3);
+  });
+
+  // MYK9-1333: the at-show access gate waits on this load before the first
+  // paint. The three reads are independent, so under a slow server it must cost
+  // one round trip, not three in a row.
+  it('issues the three access RPCs together, not one after another', async () => {
+    const releases: Array<() => void> = [];
+    mockRpc.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          releases.push(() => resolve({ data: [], error: null }));
+        })
+    );
+    const checker = new PermissionChecker();
+
+    const load = checker.getUserPermissions('user-1');
+    await vi.waitFor(() => expect(mockRpc).toHaveBeenCalledTimes(3));
+    expect(mockRpc.mock.calls.map(([name]) => name).sort()).toEqual([
+      'get_effective_permissions',
+      'get_user_permissions',
+      'get_user_roles',
+    ]);
+    for (const release of releases) release();
+    await load;
   });
 
   it('reuses a successful complete-access result for five minutes', async () => {
@@ -103,7 +128,8 @@ describe('PermissionChecker complete-access cache', () => {
     mockSuccessfulAccessLoad();
     await checker.getUserPermissions('user-1');
 
-    expect(mockRpc).toHaveBeenCalledTimes(4);
+    // The failed load's three RPCs, then three more: nothing was cached.
+    expect(mockRpc).toHaveBeenCalledTimes(6);
   });
 
   it('isolates complete-access results by user id', async () => {

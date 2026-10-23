@@ -111,7 +111,7 @@ export const FinancialReport: React.FC<ReportProps> = ({
                           })
                         : '—'}
                     </td>
-                    <td>{formatStatus(line.entry.paymentStatus)}</td>
+                    <td>{formatStatus(line.paymentStatus)}</td>
                     <td>{line.paymentLabel}</td>
                     <td>{formatFee(line.gross)}</td>
                     <td>{line.discount > 0 ? formatFee(line.discount) : '—'}</td>

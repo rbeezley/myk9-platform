@@ -259,9 +259,13 @@ export interface MyPayment {
 
 /**
  * The logged-in exhibitor's own online payments, newest first. Reads stripe_orders
- * directly — RLS scopes rows to the caller (customer_id → stripe_customers.person_id
- * = get_my_person_id()), so no explicit owner filter is needed here. The show name
- * is embedded via the show_id FK (null for non-entry orders).
+ * directly — RLS scopes rows to the caller, so no explicit owner filter is needed
+ * here: a cart order through customer_id → stripe_customers.person_id =
+ * get_my_person_id(), and a secretary payment-link order (customer_id NULL)
+ * through my_entry_payment_link_session_ids(), which lists a session only when
+ * every entry the persisted link was issued for has the caller as its handler
+ * (MYK9-639) — a dog owner never inherits the charge a hired handler paid. The show
+ * name is embedded via the show_id FK (null for non-entry orders).
  *
  * `viewerId` is a REQUIRED argument, not a nicety. The QueryClient is a module
  * singleton, so an unscoped key held this account's amounts, references and

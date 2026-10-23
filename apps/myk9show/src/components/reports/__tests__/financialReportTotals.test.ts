@@ -77,6 +77,55 @@ describe('financialReportTotals', () => {
     expect(totals.unresolvedMoneyRoots).toEqual([]);
   });
 
+  it("reports the ROOT's payment status on a moved-up line, not the destination's own pending (MYK9-639)", () => {
+    // The 2026-10-21 controlled replay: every paid move-up printed Status =
+    // Pending while the summary said $35 collected. The destination row is
+    // money-neutral BY DESIGN, so a reader of its own payment_status always
+    // sees pending; the status that belongs on the line is the root's.
+    const totals = calculateFinancialReportTotals(MOVED_UP_PAIR);
+
+    expect(totals.lines.map(line => line.paymentStatus)).toEqual([PaymentStatus.PAID_BY_CHECK]);
+  });
+
+  it('follows the status of a DOUBLE move-up to the original payment (MYK9-639)', () => {
+    const totals = calculateFinancialReportTotals([
+      entry({ id: 'a', entryStatus: 'moved', entryFee: 35, paymentStatus: 'paid' }),
+      entry({
+        id: 'b',
+        entryStatus: 'moved',
+        entryFee: 0,
+        paymentStatus: PaymentStatus.PENDING,
+        movedFromEntryId: 'a',
+      }),
+      entry({
+        id: 'c',
+        entryStatus: 'confirmed',
+        entryFee: 0,
+        paymentStatus: PaymentStatus.PENDING,
+        movedFromEntryId: 'b',
+      }),
+    ]);
+
+    expect(totals.lines.map(line => [line.entry.id, line.paymentStatus])).toEqual([['c', 'paid']]);
+  });
+
+  it("applies the shared entry-vs-order precedence to the line's status (MYK9-495)", () => {
+    // An order's `paid` cannot vouch for an entry still `pending`; the line's
+    // status must agree with its own outstanding figure.
+    const totals = calculateFinancialReportTotals([
+      entry({
+        id: 'pending-under-paid-order',
+        entryFee: 30,
+        paymentStatus: PaymentStatus.PENDING,
+        enrollmentPaymentStatus: PaymentStatus.PAID_ONLINE,
+        paymentMethod: '',
+      }),
+    ]);
+
+    expect(totals.lines[0].paymentStatus).toBe(PaymentStatus.PENDING);
+    expect(totals.lines[0].outstanding).toBe(30);
+  });
+
   it('follows a DOUBLE move-up to the original payment (MYK9-639)', () => {
     const totals = calculateFinancialReportTotals([
       entry({ id: 'a', entryStatus: 'moved', entryFee: 35 }),

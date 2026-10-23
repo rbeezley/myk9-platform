@@ -95,6 +95,7 @@ TEST_FILES=(
   "$TEST_DIR/cross_club_policy_authorization_test.sql"
   "$TEST_DIR/entry_status_history_rls_test.sql"
   "$TEST_DIR/move_up_supersession_test.sql"
+  "$TEST_DIR/myk9_639_payment_link_order_owner_read_test.sql"
   "$TEST_DIR/entry_views_soft_delete_test.sql"
   "$TEST_DIR/image_storage_upsert_rls_test.sql"
   "$TEST_DIR/myk9_694_premium_published_rls_test.sql"

@@ -19,6 +19,10 @@ import {
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import {
+  invalidateClassEnrichment,
+  invalidateClassEnrichmentForShows,
+} from './classEnrichmentCache';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 
 import {
@@ -197,12 +201,16 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
 
             const page = (data ?? []) as unknown as JudgeAssignmentJoinedRow[];
             rows.push(...page);
-            if (page.length < JUDGE_ASSIGNMENTS_PAGE_SIZE) return rows;
             const last = page[page.length - 1];
-            if (!last?.updated_at || !last.id) return rows;
+            if (page.length < JUDGE_ASSIGNMENTS_PAGE_SIZE || !last?.updated_at || !last.id) break;
             cursorUpdatedAt = String(last.updated_at);
             cursorId = String(last.id);
           }
+          // MYK9-1360: a remote judge change must reach the class judge names before the TTL.
+          invalidateClassEnrichmentForShows(
+            rows.map(row => row.show_id ?? row.classes?.trials?.show_id)
+          );
+          return rows;
         },
         getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
         resolveConflict: (_local, remote) => remote,
@@ -269,6 +277,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     };
 
     await this.set(id, newAssignment, true);
+    invalidateClassEnrichment();
     const mutationId = await this.queueMutation('INSERT', id, this.toSupabaseRow(newAssignment));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created assignment ${id}`);
@@ -292,6 +301,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     };
 
     await this.set(id, updated, true);
+    invalidateClassEnrichment();
     const mutationId = await this.queueMutation('UPDATE', id, this.toSupabaseRow(updated));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated assignment ${id}`);
@@ -300,6 +310,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
 
   async deleteAssignment(id: string): Promise<string | null> {
     await this.delete(id);
+    invalidateClassEnrichment();
     const mutationId = await this.queueMutation('DELETE', id, { id });
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Deleted assignment ${id}`);

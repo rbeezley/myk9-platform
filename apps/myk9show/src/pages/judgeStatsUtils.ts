@@ -10,6 +10,10 @@ export interface JudgeClass {
   trialDate: string;
   /** IANA timezone of the trial; "today" is computed in this zone, not the device's. */
   trialTimezone: string;
+  /** Show name for the card's identity line; absent when the shows replica has no row. */
+  showName?: string;
+  /** Trial label as the at-show class header words it (name, else number); absent when the trial row is not replicated. */
+  trialLabel?: string;
   scheduledTime: Date;
   /** False when classes.start_time is empty: scheduledTime is then a midnight placeholder for sorting only and must not be shown. */
   hasStartTime?: boolean;

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import JudgeDashboard from '../JudgeDashboard';
 import { localIsoDate, type JudgeClass } from '../judgeStatsUtils';
 import { auditService } from '@/services/AuditService';
+import { formatTrialDate } from '@myk9/core';
 
 const mockNavigate = vi.hoisted(() => vi.fn());
 const mockUseJudgeAssignments = vi.hoisted(() => vi.fn());
@@ -313,5 +314,72 @@ describe('JudgeDashboard', () => {
     expect(screen.queryByRole('button', { name: /view schedule/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /open timer practice/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /view guidelines/i })).not.toBeInTheDocument();
+  });
+  it('names the show and trial on every card so same-named classes are distinguishable (MYK9-1342)', () => {
+    mockUseJudgeAssignments.mockReturnValue(
+      hookState({
+        assignments: [
+          makeAssignment({
+            id: 'a1',
+            name: 'Container Novice A',
+            showId: 'show-1',
+            showName: 'Fall Classic',
+            trialLabel: 'Trial 1',
+          }),
+          makeAssignment({
+            id: 'a2',
+            name: 'Container Novice A',
+            showId: 'show-2',
+            showName: 'Harvest Nosework',
+            trialLabel: 'Trial 1',
+          }),
+          makeAssignment({
+            id: 'a3',
+            name: 'Container Novice A',
+            showId: 'show-1',
+            trialId: 'trial-2',
+            showName: 'Fall Classic',
+            trialLabel: 'Trial 2',
+          }),
+        ],
+      })
+    );
+
+    render(<JudgeDashboard />);
+
+    const dateText = formatTrialDate(TODAY);
+    expect(screen.getByText(`Fall Classic · Trial 1 · ${dateText}`)).toBeInTheDocument();
+    expect(screen.getByText(`Harvest Nosework · Trial 1 · ${dateText}`)).toBeInTheDocument();
+    expect(screen.getByText(`Fall Classic · Trial 2 · ${dateText}`)).toBeInTheDocument();
+  });
+
+  it('prints the trial date once on tabs whose meta line already shows it', async () => {
+    mockUseJudgeAssignments.mockReturnValue(
+      hookState({
+        assignments: [
+          makeAssignment({
+            id: 'u1',
+            trialDate: '2099-01-05',
+            scheduledTime: new Date('2099-01-05T09:00:00'),
+            showName: 'Future Show',
+            trialLabel: 'Trial 2',
+          }),
+        ],
+      })
+    );
+
+    const { user } = render(<JudgeDashboard />);
+    await user.click(screen.getByRole('tab', { name: /upcoming/i }));
+
+    expect(screen.getByText('Future Show · Trial 2')).toBeInTheDocument();
+    expect(screen.queryByText(/Future Show · Trial 2 · /)).not.toBeInTheDocument();
+  });
+
+  it('renders no label line for an assignment without show or trial names', () => {
+    mockUseJudgeAssignments.mockReturnValue(hookState({ assignments: [makeAssignment()] }));
+
+    render(<JudgeDashboard />);
+
+    expect(screen.queryByText(/Trial/)).not.toBeInTheDocument();
   });
 });

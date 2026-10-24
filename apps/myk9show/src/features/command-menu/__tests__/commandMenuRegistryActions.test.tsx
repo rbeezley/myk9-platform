@@ -53,7 +53,7 @@ describe('command palette show actions come from the action registry', () => {
     });
 
     const expected = resolveActions(
-      { kind: 'show', showId: 'show-1', shellMounted: true },
+      { kind: 'show', showId: 'show-1', shellMounted: true, showHome: true },
       {
         canManageShow: true,
         canOperateShow: true,

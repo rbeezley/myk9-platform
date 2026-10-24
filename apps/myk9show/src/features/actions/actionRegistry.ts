@@ -158,6 +158,8 @@ export type ActionRouteContext =
        * `/shows/:id` and so render no shell at all.
        */
       shellMounted: boolean;
+      /** At `/shows/:id` itself, where Select classes lives; absent = no (MYK9-1338). */
+      showHome?: boolean;
     }
   | { kind: 'global' };
 
@@ -222,6 +224,8 @@ export const NON_SHOW_ID_SEGMENTS = new Set(['new', 'browse']);
  */
 export const SHELL_MOUNTED_CHILD_SEGMENTS = new Set<string>(SHOW_SHELL_CHILD_SEGMENTS);
 
+/** `/shows/:id` itself, the home whose Overview hosts Select classes. */
+const SHOW_HOME_PATH = /^\/shows\/[^/]+\/?$/;
 const SHOW_CHILD_PATH = /^\/shows\/[^/]+(?:\/([^/]+))?/;
 
 /**
@@ -248,7 +252,12 @@ export function parseActionRouteContext(pathname: string): ActionRouteContext {
     if (!raw) continue;
     const showId = decodeURIComponent(raw);
     if (NON_SHOW_ID_SEGMENTS.has(showId)) return { kind: 'global' };
-    return { kind: 'show', showId, shellMounted: isShowShellMountedPath(pathname) };
+    return {
+      kind: 'show',
+      showId,
+      shellMounted: isShowShellMountedPath(pathname),
+      showHome: SHOW_HOME_PATH.test(pathname),
+    };
   }
   return { kind: 'global' };
 }
@@ -270,8 +279,7 @@ export function mergeSearchOnlyHref(href: string, currentSearch: string): string
 const CLOSED_SHOW_STATUSES = new Set(['completed', 'cancelled']);
 
 function buildShowActions(
-  showId: string,
-  shellMounted: boolean,
+  { showId, shellMounted, showHome = false }: Extract<ActionRouteContext, { kind: 'show' }>,
   viewer: ActionViewer
 ): AppAction[] {
   if (!viewer.canManageShow) return [];
@@ -350,7 +358,7 @@ function buildShowActions(
       group: 'show',
       icon: 'add-classes',
     },
-    buildSelectClassesAction(showId),
+    buildSelectClassesAction(showId, showHome),
     {
       id: 'show-open-entry-management',
       label: 'Open Entry Forms',
@@ -476,9 +484,9 @@ export function resolveActions(route: ActionRouteContext, viewer: ActionViewer):
   const own = buildPageObjectActions(viewer.pageObject);
   // One "Add classes": a trial page's own (focused on that trial) replaces the show-wide one.
   const hasTrialAddClasses = own.some(action => action.id === 'trial-add-classes');
-  const show = (
-    route.kind === 'show' ? buildShowActions(route.showId, route.shellMounted, viewer) : []
-  ).filter(action => !(hasTrialAddClasses && action.id === 'show-add-classes'));
+  const show = (route.kind === 'show' ? buildShowActions(route, viewer) : []).filter(
+    action => !(hasTrialAddClasses && action.id === 'show-add-classes')
+  );
   const exports: AppAction[] = (viewer.pageExports ?? []).map(item => ({
     id: `page-export-${item.id}`,
     label: 'Export CSV',

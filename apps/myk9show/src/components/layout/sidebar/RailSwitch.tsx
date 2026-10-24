@@ -48,16 +48,20 @@ export function RailSwitch({ items, isActive }: RailSwitchProps) {
                   item.onSelect?.();
                   setOpen(false);
                 }}
+                aria-label={item.subtitle ? `${item.title}, ${item.subtitle}` : undefined}
                 aria-current={isActive(item.href) ? 'page' : undefined}
                 className={cn(
-                  'flex min-h-11 items-center rounded-md px-2 py-1.5 text-sm',
+                  'flex min-h-11 flex-col justify-center rounded-md px-2 py-1.5 text-sm',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                   isActive(item.href)
                     ? 'bg-primary/10 font-semibold text-foreground'
                     : 'text-foreground hover:bg-muted/50'
                 )}
               >
-                {item.title}
+                <span>{item.title}</span>
+                {item.subtitle && (
+                  <span className="text-xs font-normal text-muted-foreground">{item.subtitle}</span>
+                )}
               </Link>
             </li>
           ))}

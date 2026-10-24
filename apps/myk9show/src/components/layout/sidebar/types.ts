@@ -19,6 +19,8 @@ export interface NavItem {
   railTitle?: string;
   /** Hover text for the rail link, set only where the visible label is shortened. */
   tooltip?: string;
+  /** Muted second line under the title where titles can repeat (a show's date range). */
+  subtitle?: string;
   /** Runs when the item is chosen (the current-show Switch remembers the pick). */
   onSelect?: () => void;
 }

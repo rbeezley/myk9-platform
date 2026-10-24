@@ -174,6 +174,14 @@ async function openChangeClass(panelEntries: PanelEntries = entries) {
   return dialog;
 }
 
+describe('Overview Change class current class (MYK9-1385)', () => {
+  it('prints the section when the stored class name lacks it, as the class page does', async () => {
+    // `makeClass` stores the name "Buried Novice" for element Buried, level Novice, section A.
+    const dialog = await openChangeClass();
+    expect(within(dialog).getByText('Current class: Buried Novice A')).toBeInTheDocument();
+  });
+});
+
 describe('Overview Change class (MYK9-1265)', () => {
   it('lists every not-complete class in every trial, disabling a full one', async () => {
     await openChangeClass();

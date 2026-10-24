@@ -40,6 +40,27 @@ export function classIdsEnteredByDog(
 }
 
 /**
+ * The Change class label for a class: composed from element + level + section (plus a same-trial
+ * disambiguator), never trusted from the stored name. The target list and the dialog's "Current
+ * class" both use it, so they always agree (MYK9-1385). A collision is a question about classes in
+ * the SAME trial (MYK9-805).
+ */
+export function buildMoveUpClassLabeler(
+  classes: BuildShowMapTreeInput['classes']
+): (cls: BuildShowMapTreeInput['classes'][number]) => string {
+  const disambiguatorFor = buildClassDisambiguatorsByGroup(classes, cls => cls.trialId);
+  return cls => {
+    const identity = {
+      name: cls.name,
+      element: cls.element,
+      level: cls.level,
+      section: cls.section,
+    };
+    return buildFullClassLabel(identity, disambiguatorFor(cls.trialId)(identity), cls.name);
+  };
+}
+
+/**
  * When `availableSpotsByClassId` is supplied, a class with no free seat stays
  * listed, flagged `isFull`. Capacity is advisory: the write path refuses a full
  * class either way.
@@ -53,26 +74,19 @@ export function buildMoveUpTargets(
   const targets = selectChangeClassTargets(classes, currentClassId, enteredClassIds, cls =>
     availableSpotsByClassId?.get(cls.id)
   );
-  // A collision is a question about classes in the SAME trial (MYK9-805).
-  const disambiguatorFor = buildClassDisambiguatorsByGroup(classes, cls => cls.trialId);
+  const labelFor = buildMoveUpClassLabeler(classes);
 
   const orderKey = (cls: (typeof targets)[number]['cls']) =>
     `${cls.trialDate ?? ''}|${cls.trialNumber ?? ''}|${cls.trialId}`;
 
   return targets
     .map(({ cls, isFull }) => {
-      const identity = {
-        name: cls.name,
-        element: cls.element,
-        level: cls.level,
-        section: cls.section,
-      };
       return {
         key: orderKey(cls),
         target: {
           id: cls.id,
           isFull,
-          label: buildFullClassLabel(identity, disambiguatorFor(cls.trialId)(identity), cls.name),
+          label: labelFor(cls),
           detail: [
             cls.trialDate,
             cls.trialName || cls.trialNumber

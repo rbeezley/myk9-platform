@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildMoveUpTargets, classIdsEnteredByDog } from './buildMoveUpTargets';
+import {
+  buildMoveUpClassLabeler,
+  buildMoveUpTargets,
+  classIdsEnteredByDog,
+} from './buildMoveUpTargets';
 import type { ShowMapClassInput } from './showMapTypes';
 
 // MYK9-1265: Change class targets are every not-complete class in every trial of the
@@ -138,5 +142,26 @@ describe('classIdsEnteredByDog', () => {
 
   it('is empty when the dog is unknown', () => {
     expect(classIdsEnteredByDog(rows, undefined).size).toBe(0);
+  });
+});
+
+describe('buildMoveUpClassLabeler (MYK9-1385)', () => {
+  it('gives a class the same label the target list shows for it', () => {
+    const storedNameLacksSection = makeClass({
+      id: 'interior-novice-b',
+      name: 'Interior Novice',
+      element: 'Interior',
+      level: 'Novice',
+      section: 'B',
+    });
+    const classes = [buriedNoviceA, storedNameLacksSection, interiorNovice];
+    const labeler = buildMoveUpClassLabeler(classes);
+    const targets = buildMoveUpTargets(classes, 'buried-novice-a');
+
+    expect(labeler(storedNameLacksSection)).toBe('Interior Novice B');
+    for (const target of targets) {
+      const cls = classes.find(candidate => candidate.id === target.id)!;
+      expect(labeler(cls)).toBe(target.label);
+    }
   });
 });

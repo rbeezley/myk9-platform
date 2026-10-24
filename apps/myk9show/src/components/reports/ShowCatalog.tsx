@@ -8,7 +8,17 @@ import {
   sortByHandler,
   sortByBreed,
 } from '@/lib/reports/reportUtils';
+import { buildFullClassLabel } from '@/features/_shared/classLabel';
 import { formatArmbandDisplay } from '@/utils/armbandUtils';
+
+const formatCatalogClass = (entry: ReportEntry): string =>
+  entry.classElement || entry.classLevel
+    ? buildFullClassLabel(
+        { element: entry.classElement, level: entry.classLevel, section: entry.classSection },
+        '',
+        undefined
+      )
+    : '';
 
 export const ShowCatalog: React.FC<ReportProps> = ({
   showName,
@@ -84,7 +94,7 @@ export const ShowCatalog: React.FC<ReportProps> = ({
                       <td>{entry.callName}</td>
                       <td>{entry.breed}</td>
                       <td>{entry.registrationNumber ?? ''}</td>
-                      <td>{[entry.classElement, entry.classLevel].filter(Boolean).join(' ')}</td>
+                      <td>{formatCatalogClass(entry)}</td>
                       <td>{formatReportHandlerName(entry)}</td>
                     </tr>
                   ))}

@@ -78,7 +78,7 @@ Provider-hosted implementation sessions and CLI jobs on GitHub-hosted runners ar
 - `review-gate.ts` currently trusts OWNER/MEMBER/COLLABORATOR comment associations. A cloud bot needs verified workflow provenance, not a blanket addition of `github-actions[bot]` to the trusted set.
 - `apps/myk9show/scripts/verify-artifact-secrets.ts` scans configured secret values through the existing artifact utilities. Reuse it, explicitly supplying model/GitHub/Linear secrets to the scanner. It is not a guarantee that every unknown secret will be detected.
 - Session/temp-folder ledgers and subagent reports are not durable shared state. Local `.logs` becomes a cache, not the only copy of accepted work or review evidence.
-- `LINEAR_API_KEY` already exists as a repository secret for `.github/workflows/deferred-reviews.yml`; Stage 3 reuses it, scoped to the close-out job's environment.
+- `LINEAR_API_KEY` already exists as a repository secret for `.github/workflows/deferred-reviews.yml`; Stage 3 reuses it through the `agent-closeout` environment.
 
 ## Review focus
 
@@ -204,6 +204,8 @@ A snapshot is never authorization.
 - [ ] Write `resolveAuthorship` tests: `claude/` with Claude trailers selects Codex; `codex/` with Codex trailers selects Claude; any other prefix, a prefix/trailer mismatch, or commits from both harnesses returns `refused` with the reason.
 - [ ] Use trusted default-branch workflow/launcher/wrapper versions and explicitly fetch the reviewed base/head. Review the whole branch diff. The authorship check runs from base-branch code against the PR's commit list, which the PR cannot rewrite after the fact without moving the head.
 - [ ] Reviewer job: model credential plus read-only repository/PR access, no write token, no Linear/production/deploy credentials, and no persisted git push credential. Restrict egress and execution capabilities; run any PR-code validation in a separate credential-free job. PR diffs/instructions are data, not authority to change the trusted launchers.
+- [ ] Triggers: `pull_request_target` on `ready_for_review` and on `synchronize`/`reopened` only when the PR is not a draft, plus `workflow_dispatch`. A draft PR gets no review run and its gate stays red.
+- [ ] Credentials: the reviewer job uses the `independent-review` environment (restricted to `main`) for `OPENAI_API_KEY`/`ANTHROPIC_API_KEY`; the publisher job uses no environment secrets.
 - [ ] One review per head: a concurrency group keyed on the PR number with `cancel-in-progress: true`, so a quick second push cancels the first review instead of paying for both. A cancelled attempt is incomplete and posts no evidence.
 - [ ] Invoke `codex-review.sh` or `claude-review.sh` without `--post`, with explicit worktree-local log paths. Capture stdout/stderr privately until scanned. Cloud jobs use workflow lifecycle and bounded timeouts (job limit above the sum of step limits, per LESSONS `cancelled-may-be-timeout`), not a Mac Keychain or detached PID as durable identity.
 - [ ] Publisher job: no model execution and no PR-code execution; trusted checkout only. Give it the minimum comment/status write permissions plus required metadata/artifact reads, with no `contents: write`, push, merge or deployment capability. Do not give the model the publisher token.
@@ -362,10 +364,11 @@ Run negative drills on a disposable approved PR or fixture repository; never del
 2. Stage 2: cloud independent review, authorship resolution, trusted publisher and gate provenance.
 3. Stage 3: bounded continuation, ruleset merge control and full-issue Linear close-out.
 
-## Open questions for the owner
+## Owner decisions (2026-10-24)
 
-- Should the review job run on every push, or only when a PR is marked ready for review? Every push is safer for the gate; ready-only is cheaper.
-- Which GitHub environment and secret names should hold the two model API keys?
+- **Authorship:** branch prefix, `claude/` or `codex/`, cross-checked against commit trailers (see Global constraints).
+- **Review trigger:** no review on draft PRs. Marking a PR ready for review starts one, and every later push to a ready PR re-runs it. Manual dispatch stays available. Agents open PRs as drafts while iterating and mark them ready when they want review. Rationale: the gate is pinned to the exact head, so reviewing intermediate draft heads cannot satisfy it and only costs money.
+- **Secrets:** a GitHub environment `independent-review` holds `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` (the names the two CLIs read by default; Stage 1 confirms the Codex CLI's), restricted to the `main` branch so only base-branch code can read them. The publisher job gets no model keys and uses only the workflow token with comment and status permissions. A separate `agent-closeout` environment holds the existing `LINEAR_API_KEY` for Stage 3, so review jobs never see Linear credentials.
 
 ## Validation Profile
 

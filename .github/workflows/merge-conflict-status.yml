@@ -1,0 +1,99 @@
+# Mergeable-with-base status: posts a `Mergeable with base` commit status on the
+# head of every open PR. Green when GitHub reports the PR mergeable against its
+# base; red when it reports a conflict, so a branch that drifted out of date is
+# visible on the PR instead of only when someone tries to merge it.
+#
+# Why these triggers and not `pull_request`: a PR that conflicts with its base
+# gets NO workflow runs for any pull_request-family event (LESSONS
+# `conflicting-pr-no-runs`), so a check on those events never fires for the one
+# case it exists to catch. Pushes to main change every open PR's mergeability,
+# and the schedule catches the rest, so both trigger a sweep over all open PRs.
+#
+# The job runs no PR code: it only reads PR metadata through the API and writes
+# statuses. It is not a required check; mark it required in the ruleset only
+# after it has run green on real PRs.
+name: Mergeable with base
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+concurrency:
+  group: merge-conflict-status
+  cancel-in-progress: true
+
+jobs:
+  sweep:
+    name: Sweep open PRs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Post the mergeable status for each open PR
+        run: |
+          set -uo pipefail
+          context='Mergeable with base'
+          post_failures=0
+          # Only number and head SHA are needed; drafts are checked like any PR.
+          gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" \
+            --jq '.[] | "\(.number) \(.head.sha)"' > prs.txt
+          while read -r number sha; do
+            # GitHub computes mergeability lazily: null means "not yet known",
+            # so ask again a few times before deciding.
+            mergeable=null
+            for attempt in 1 2 3 4; do
+              mergeable=$(gh api "repos/$REPO/pulls/$number" --jq '.mergeable' 2>/dev/null || echo null)
+              [ "$mergeable" != "null" ] && break
+              sleep 5
+            done
+            if [ "$mergeable" = "true" ]; then
+              state=success
+              description='Mergeable against the base branch'
+            elif [ "$mergeable" = "false" ]; then
+              state=failure
+              description='Conflicts with the base branch: merge the base into this branch'
+            else
+              # Still unknown after retries: report pending, never a false green.
+              state=pending
+              description='GitHub has not computed mergeability yet'
+            fi
+            gh api "repos/$REPO/statuses/$sha" \
+              -f state="$state" -f context="$context" \
+              -f description="$description" -f target_url="$RUN_URL" > /dev/null \
+              || { echo "could not post status for #$number ($sha)"; post_failures=$((post_failures + 1)); }
+            echo "#$number $sha -> $state"
+          done < prs.txt
+          # A PR that conflicts is reported by its status, not by this run; the run
+          # fails only when a status could not be posted at all.
+          [ "$post_failures" -eq 0 ]
+
+  # Scheduled workflows report their own state to a tracking issue, so a sweep
+  # that cannot post statuses is not left silent (scheduledFailureNotification).
+  report-status:
+    name: Report status to the tracking issue
+    runs-on: ubuntu-latest
+    needs: [sweep]
+    if: always()
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/report-scheduled-failure
+        with:
+          workflow-name: Mergeable with base
+          outcome: ${{ needs.sweep.result }}
+          token: ${{ secrets.GITHUB_TOKEN }}

@@ -7,7 +7,7 @@
  * The read lives in `waitListSettingsQuery.ts`, shared with the offer dialog.
  */
 
-import { useState, useEffect, useRef, useContext } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -24,7 +24,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { judgeDayCapacityKey } from '@/hooks/queries/useJudgeDayCapacity';
 import { classAvailabilityQueryKey } from '@/hooks/useClassAvailability';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { useOptionalReplicationSyncActions } from '@/hooks/useOptionalReplicationSyncActions';
 import type { WaitListShowConfig, MailInStrategy } from '@/types/waitlist-types';
 import type { TablesUpdate } from '@/types/supabase';
 import { waitListSettingsQueryOptions } from './waitListSettingsQuery';
@@ -112,7 +112,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
   }, [data]);
 
   // Optional: the provider wraps the app; a test without it simply skips the pull.
-  const syncTable = useContext(ReplicationSyncContext)?.syncTable;
+  const syncTable = useOptionalReplicationSyncActions()?.syncTable;
   const allowWaitlists = useWaitListSwitch(
     showId,
     'allowWaitlists',

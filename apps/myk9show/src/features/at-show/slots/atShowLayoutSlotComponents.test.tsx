@@ -2,7 +2,7 @@ import { act } from 'react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { __resetContainmentMemoForTests } from '@/hooks/useReplicationContainment';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import {
   CompactOfflineIndicator,
   FilterTriggerButton,
@@ -102,7 +102,7 @@ describe('CompactOfflineIndicator', () => {
     // before the data is local; the CAPABILITY framing this case pins (#739) is
     // unchanged, so the case only needs its new dependency supplied.
     render(
-      <ReplicationSyncContext.Provider
+      <ReplicationSyncTestProvider
         value={
           {
             status: {
@@ -119,7 +119,7 @@ describe('CompactOfflineIndicator', () => {
         }
       >
         <CompactOfflineIndicator />
-      </ReplicationSyncContext.Provider>
+      </ReplicationSyncTestProvider>
     );
 
     expect(screen.getByText('Offline ready')).toBeInTheDocument();

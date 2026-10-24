@@ -1,4 +1,4 @@
-import { useContext, useId, useState } from 'react';
+import { useId, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { judgeDayCapacityKey } from '@/hooks/queries/useJudgeDayCapacity';
 import { classAvailabilityQueryKey } from '@/hooks/useClassAvailability';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { useOptionalReplicationSyncActions } from '@/hooks/useOptionalReplicationSyncActions';
 import { setJudgeDayCapacity } from '@/services/database/judges/judgeDayCapacity';
 import type { JudgeDayCapacity } from '@/types/waitlist-types';
 
@@ -14,7 +14,7 @@ export function JudgeDayCapacityEditor({ showId, day }: { showId: string; day: J
   const id = useId();
   const isOnline = useIsOnline();
   const queryClient = useQueryClient();
-  const syncTable = useContext(ReplicationSyncContext)?.syncTable;
+  const syncTable = useOptionalReplicationSyncActions()?.syncTable;
   const [draft, setDraft] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const value = draft ?? String(day.capacity);

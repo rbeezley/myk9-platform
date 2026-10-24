@@ -3,10 +3,8 @@ import { Routes, Route } from 'react-router-dom';
 import { onlineManager } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@/test/utils/testUtils';
-import {
-  ReplicationSyncContext,
-  type ReplicationSyncContextValue,
-} from '@/context/ReplicationSyncContext';
+import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ScoringEntry } from './types';
 
 /**
@@ -108,9 +106,7 @@ function SyncProvider({ children }: { children: React.ReactNode }) {
     triggerSync: async () => undefined,
     syncTable: async () => undefined,
   };
-  return (
-    <ReplicationSyncContext.Provider value={value}>{children}</ReplicationSyncContext.Provider>
-  );
+  return <ReplicationSyncTestProvider value={value}>{children}</ReplicationSyncTestProvider>;
 }
 
 function renderPage() {

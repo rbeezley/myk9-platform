@@ -13,7 +13,7 @@ import { Route, Routes } from 'react-router-dom';
 import { onlineManager } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { UserRole, type UserWithRoles } from '@/types/auth-types';
 
@@ -152,13 +152,13 @@ function goOnline() {
 
 function renderPage(syncStatus: ReplicationSyncContextValue['status']) {
   return render(
-    <ReplicationSyncContext.Provider
+    <ReplicationSyncTestProvider
       value={{ status: syncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
     >
       <Routes>
         <Route path="/at-show/:showId" element={<AtShowClassListPage />} />
       </Routes>
-    </ReplicationSyncContext.Provider>,
+    </ReplicationSyncTestProvider>,
     { initialRoute: '/at-show/show-1' }
   );
 }

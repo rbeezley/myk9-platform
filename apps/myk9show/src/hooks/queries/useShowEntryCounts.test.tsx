@@ -7,7 +7,7 @@ import {
   showEntryCountsQueryKey,
   useShowEntryCounts,
 } from './useShowEntryCounts';
-import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
+import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 import { supabase } from '@/lib/supabase-client';
 
 vi.mock('@/lib/supabase-client', () => ({
@@ -24,9 +24,9 @@ function makeWrapper(isOnline: boolean) {
   };
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <NetworkStatusContext.Provider value={network}>
+      <NetworkStatusTestProvider value={network}>
         <QueryClientProvider client={client}>{children}</QueryClientProvider>
-      </NetworkStatusContext.Provider>
+      </NetworkStatusTestProvider>
     );
   };
 }
@@ -129,9 +129,9 @@ describe('useShowEntryCounts refresh (MYK9-1311 review)', () => {
       retryConnection: vi.fn(),
     };
     const wrapper = ({ children }: { children: ReactNode }) => (
-      <NetworkStatusContext.Provider value={network}>
+      <NetworkStatusTestProvider value={network}>
         <QueryClientProvider client={client}>{children}</QueryClientProvider>
-      </NetworkStatusContext.Provider>
+      </NetworkStatusTestProvider>
     );
 
     const { result } = renderHook(() => useShowEntryCounts(['show-a']), { wrapper });

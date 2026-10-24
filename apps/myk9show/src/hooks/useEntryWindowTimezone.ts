@@ -56,8 +56,8 @@
 
 import { useContext, useState } from 'react';
 import { useTrialStore } from '@/store/trialStore';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
-import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
+import { ReplicationSyncStatusContext } from '@/context/ReplicationSyncContext';
+import { NetworkConnectivityContext } from '@/hooks/useNetworkStatus';
 import { getEntryWindowTimezone, type EntryWindowTrial } from '@/utils/entryWindowDate';
 import type { Trial } from '@/store/trial-store-types';
 
@@ -105,12 +105,10 @@ export function useEntryWindowTimezone(showId: string | undefined): EntryWindowT
   // without a provider: this hook is called from components whose tests mount
   // them bare, and "no provider" is simply "no completion signal" — which the
   // rule below already treats as not-settled.
-  const syncContext = useContext(ReplicationSyncContext);
-  const trialsSyncStatus = syncContext?.status.tablesStatus.trials;
+  const trialsSyncStatus = useContext(ReplicationSyncStatusContext)?.tablesStatus.trials;
 
   // Same fallback rule: no provider means the browser's own flag.
-  const networkContext = useContext(NetworkStatusContext);
-  const isOnline = networkContext?.isOnline ?? navigator.onLine;
+  const isOnline = useContext(NetworkConnectivityContext)?.isOnline ?? navigator.onLine;
 
   // Latched per mount: once `trials` has downloaded, a later 'syncing' (every
   // autosync re-enters it) does not un-know the answer. State adjusted during

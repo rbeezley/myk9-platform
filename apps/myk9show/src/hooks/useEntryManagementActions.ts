@@ -145,6 +145,8 @@ export function useEntryManagementActions({
       const entry = entries.find(e => e.id === entryId);
       if (!entry) return false;
       const priorStatus = entry.entryStatus;
+      // MYK9-1384: Undo of a Pull must put the dog back exactly as it was.
+      const priorCheckInStatus = entry.classes[0]?.checkInStatus;
       const offline = typeof navigator !== 'undefined' && !navigator.onLine;
       const ok = await executeStatusChange(
         { entryId, newStatus, withdrawalReason, entry, userId: user?.id },
@@ -163,7 +165,7 @@ export function useEntryManagementActions({
         showUndoToast({
           message: 'Status updated',
           onUndo: () => {
-            void runSingleUndo(entryId, priorStatus, newStatus);
+            void runSingleUndo(entryId, priorStatus, newStatus, priorCheckInStatus);
           },
           ...(offline ? { description: 'Queued — will sync when online' } : {}),
         });

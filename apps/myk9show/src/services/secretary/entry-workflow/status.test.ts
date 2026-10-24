@@ -41,7 +41,29 @@ describe('changeSecretaryEntryStatus', () => {
       status: 'scratched',
       reason: undefined,
       sourceEntry: expect.objectContaining({ id: 'entry-1', showId: 'show-1' }),
+      checkInContext: { previousEntryStatus: 'confirmed', priorCheckInStatus: undefined },
     });
+  });
+
+  it('tells the lifecycle write the entry was scratched, and the check-in to restore (MYK9-1384)', async () => {
+    const setEntryLifecycleStatus = vi.fn().mockResolvedValue({ data: {}, error: null });
+    const auditLog = vi.fn().mockResolvedValue(undefined);
+
+    await changeSecretaryEntryStatus(
+      {
+        entry: makeEntry({ entryStatus: EntryStatus.SCRATCHED }),
+        newStatus: EntryStatus.ACCEPTED,
+        priorCheckInStatus: 'checked-in',
+      },
+      { setEntryLifecycleStatus, auditLog }
+    );
+
+    expect(setEntryLifecycleStatus).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'confirmed',
+        checkInContext: { previousEntryStatus: 'scratched', priorCheckInStatus: 'checked-in' },
+      })
+    );
   });
 
   it('maps accepted entries to the DB status and returns known armband patch data', async () => {
@@ -84,6 +106,7 @@ describe('changeSecretaryEntryStatus', () => {
         entryStatus: 'submitted',
         paymentStatus: PaymentStatus.PENDING,
       },
+      checkInContext: { previousEntryStatus: 'submitted', priorCheckInStatus: undefined },
     });
     expect(auditLog).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -139,6 +162,7 @@ describe('changeSecretaryEntryStatus', () => {
         showId: 'show-1',
         dogId: 'dog-1',
       }),
+      checkInContext: { previousEntryStatus: 'confirmed', priorCheckInStatus: undefined },
     });
     expect(auditLog).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -67,6 +67,28 @@ describe('executeStatusUndo', () => {
     );
   });
 
+  it('passes the check-in captured before a Pull to the write (MYK9-1384)', async () => {
+    const entry = makeEntry({ entryStatus: EntryStatus.SCRATCHED });
+    const { adapters, changeSecretaryStatus } = makeAdapters(entry);
+
+    await executeStatusUndo(
+      {
+        entryId: 'entry-1',
+        priorStatus: EntryStatus.ACCEPTED,
+        producedStatus: EntryStatus.SCRATCHED,
+        priorCheckInStatus: 'checked-in',
+      },
+      adapters
+    );
+
+    expect(changeSecretaryStatus).toHaveBeenCalledWith(
+      expect.objectContaining({
+        newStatus: EntryStatus.ACCEPTED,
+        priorCheckInStatus: 'checked-in',
+      })
+    );
+  });
+
   it('aborts as superseded when current status no longer equals what our action produced', async () => {
     // Another actor moved the entry to SCRATCHED after our ACCEPT.
     const entry = makeEntry({ entryStatus: EntryStatus.SCRATCHED });

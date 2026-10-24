@@ -248,6 +248,23 @@ describe('secretary entry status replication', () => {
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
   });
 
+  it('hands the check-in context to the builder so an un-pull clears pulled (MYK9-1384)', async () => {
+    await updateEntryStatus(
+      'entry-1',
+      'confirmed' as EntryStatus,
+      undefined,
+      { showId: 'show-1', classId: 'class-1', dogId: 'dog-1' },
+      undefined,
+      { previousEntryStatus: 'scratched' }
+    );
+
+    expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
+      'entry-1',
+      expect.objectContaining({ check_in_status: 'no-status', checkInStatus: 'no-status' }),
+      expect.anything()
+    );
+  });
+
   it('keeps the reason code on a Withdraw (Pull-vs-Withdraw boundary)', () => {
     expect(buildReplicatedEntryStatusUpdate('withdrawn', 'Injury', 'in_season')).toMatchObject({
       withdrawal_reason: 'Injury',

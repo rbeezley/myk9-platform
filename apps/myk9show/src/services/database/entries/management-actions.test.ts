@@ -106,6 +106,85 @@ describe('executeStatusChange', () => {
 
 // ─── executeBulkStatusChange ──────────────────────────────────────────────
 
+describe('executeStatusChange check-in patch and rollback (MYK9-1384)', () => {
+  const checkedInClass = (checkInStatus: 'checked-in' | 'pulled') => ({
+    id: 'entry-1',
+    classId: 'class-1',
+    name: 'Novice',
+    number: '1',
+    fee: 20,
+    status: 'entered' as const,
+    checkInStatus,
+  });
+
+  function run(
+    entry: EntryManagementEntry,
+    newStatus: EntryStatus,
+    priorCheckInStatus?: 'checked-in',
+    reject = false
+  ) {
+    const patchEntries = vi.fn();
+    const changeSecretaryStatus = reject
+      ? vi.fn().mockRejectedValue(new Error('offline write failed'))
+      : vi.fn().mockResolvedValue({});
+    const done = executeStatusChange(
+      {
+        entryId: 'entry-1',
+        newStatus,
+        entry,
+        ...(priorCheckInStatus ? { priorCheckInStatus } : {}),
+      },
+      { changeSecretaryStatus, patchEntries }
+    );
+    const apply = (call: number, rows: EntryManagementEntry[]) =>
+      (patchEntries.mock.calls[call]?.[0] as (p: EntryManagementEntry[]) => EntryManagementEntry[])(
+        rows
+      );
+    return { done, apply, patchEntries };
+  }
+
+  it('patches the class check-in to pulled on a Pull', async () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.ACCEPTED,
+      classes: [checkedInClass('checked-in')],
+    });
+    const { done, apply } = run(entry, EntryStatus.SCRATCHED);
+    await done;
+    expect(apply(0, [entry])[0]?.classes[0]?.checkInStatus).toBe('pulled');
+  });
+
+  it('patches the class check-in back to the captured prior value on Undo from scratched', async () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.SCRATCHED,
+      classes: [checkedInClass('pulled')],
+    });
+    const { done, apply } = run(entry, EntryStatus.ACCEPTED, 'checked-in');
+    await done;
+    expect(apply(0, [entry])[0]?.classes[0]?.checkInStatus).toBe('checked-in');
+  });
+
+  it('rolls back only the check-in, leaving a concurrent class change alone', async () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.ACCEPTED,
+      classes: [checkedInClass('checked-in')],
+    });
+    const { done, apply } = run(entry, EntryStatus.SCRATCHED, undefined, true);
+    expect(await done).toBe(false);
+
+    const afterPatch = apply(0, [entry]);
+    expect(afterPatch[0]?.classes[0]?.checkInStatus).toBe('pulled');
+    // A concurrent edit lands on the class before the rollback runs.
+    const concurrent = afterPatch.map(e => ({
+      ...e,
+      classes: e.classes.map(c => ({ ...c, fee: 99 })),
+    }));
+    const rolledBack = apply(1, concurrent)[0];
+    expect(rolledBack?.entryStatus).toBe(EntryStatus.ACCEPTED);
+    expect(rolledBack?.classes[0]?.checkInStatus).toBe('checked-in');
+    expect(rolledBack?.classes[0]?.fee).toBe(99);
+  });
+});
+
 describe('executeBulkStatusChange', () => {
   let bulkUpdateStatus: ReturnType<typeof vi.fn<BulkStatusChangeAdapters['bulkUpdateStatus']>>;
   let reloadEntries: ReturnType<typeof vi.fn<BulkStatusChangeAdapters['reloadEntries']>>;

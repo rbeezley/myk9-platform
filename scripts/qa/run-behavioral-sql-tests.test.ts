@@ -55,6 +55,7 @@ const launchCriticalSqlTests = [
   'stripe_ledger_fks_restrict_test.sql',
   'create_show_with_children_tenant_isolation_test.sql',
   'create_show_with_children_trial_timezone_test.sql',
+  'account_today_entries_show_timezone_test.sql',
   'create_show_with_children_junior_fee_test.sql',
   'show_officials_label_not_permission_test.sql',
   'show_announcements_scope_test.sql',

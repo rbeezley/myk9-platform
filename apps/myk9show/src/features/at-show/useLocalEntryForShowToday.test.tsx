@@ -6,12 +6,16 @@ import { useLocalEntryForShowToday } from './useLocalEntryForShowToday';
 
 const tables = vi.hoisted(() => ({
   getShowById: vi.fn(),
+  getTrialsByShow: vi.fn(),
   getEntriesByShow: vi.fn(),
   getAllDogs: vi.fn(),
 }));
 
 vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
   replicatedShowsTable: { getShowById: tables.getShowById },
+}));
+vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
+  replicatedTrialsTable: { getTrialsByShow: tables.getTrialsByShow },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: { getEntriesByShow: tables.getEntriesByShow },
@@ -36,6 +40,7 @@ describe('useLocalEntryForShowToday', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(TODAY);
     tables.getShowById.mockReset().mockResolvedValue(LIVE_SHOW);
+    tables.getTrialsByShow.mockReset().mockResolvedValue([]);
     tables.getEntriesByShow
       .mockReset()
       .mockResolvedValue([{ id: 'entry-1', showId: 'show-1', handlerId: 'person-1' }]);
@@ -55,16 +60,40 @@ describe('useLocalEntryForShowToday', () => {
     expect(tables.getEntriesByShow).toHaveBeenCalledWith('show-1');
   });
 
-  it('uses the UTC calendar date the server compares, not the device-local date', async () => {
-    // 01:00 UTC on the 23rd is still the 22nd in US zones; the RPC's
-    // current_date is the 23rd, so a show that ended on the 22nd is over.
-    vi.setSystemTime(new Date(Date.UTC(2026, 9, 23, 1, 0, 0)));
-    tables.getShowById.mockResolvedValue({ ...LIVE_SHOW, endDate: '2026-10-22' });
+  it('uses the show-local calendar date from the replicated trial, not the UTC date', async () => {
+    // Nov 8 18:00 Pacific is Nov 9 02:00 UTC: the last show day in the show's
+    // zone, already past it in UTC.
+    vi.setSystemTime(new Date('2026-11-09T02:00:00Z'));
+    tables.getShowById.mockResolvedValue({
+      ...LIVE_SHOW,
+      startDate: '2026-11-07',
+      endDate: '2026-11-08',
+    });
+    tables.getTrialsByShow.mockResolvedValue([
+      { id: 'trial-1', date: '2026-11-07', timezone: 'America/Los_Angeles' },
+    ]);
+
+    const { result } = renderLocalEntry('person-1');
+
+    await waitFor(() => expect(result.current.hasLocalEntryToday).toBe(true));
+    expect(tables.getTrialsByShow).toHaveBeenCalledWith('show-1');
+  });
+
+  it('is false the evening before day 1 in the show zone', async () => {
+    vi.setSystemTime(new Date('2026-11-07T01:30:00Z'));
+    tables.getShowById.mockResolvedValue({
+      ...LIVE_SHOW,
+      startDate: '2026-11-07',
+      endDate: '2026-11-08',
+    });
+    tables.getTrialsByShow.mockResolvedValue([
+      { id: 'trial-1', date: '2026-11-07', timezone: 'America/Los_Angeles' },
+    ]);
 
     const { result } = renderLocalEntry('person-1');
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(tables.getEntriesByShow).toHaveBeenCalled();
+    expect(tables.getTrialsByShow).toHaveBeenCalled();
     expect(result.current.hasLocalEntryToday).toBe(false);
   });
 

@@ -14,6 +14,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { hasLocalEntryForShowToday } from './useLocalEntryForShowToday.helpers';
 
@@ -24,15 +25,17 @@ export interface LocalEntryForShowToday {
 
 async function readLocalEntryToday(personId: string, showId: string): Promise<boolean> {
   try {
-    const [show, entries, dogs] = await Promise.all([
+    const [show, trials, entries, dogs] = await Promise.all([
       replicatedShowsTable.getShowById(showId),
+      replicatedTrialsTable.getTrialsByShow(showId),
       replicatedEntriesTable.getEntriesByShow(showId),
       replicatedDogsTable.getAllDogs(),
     ]);
     return hasLocalEntryForShowToday({
       personId,
       showId,
-      today: new Date().toISOString().slice(0, 10),
+      now: new Date(),
+      trials,
       show,
       entries,
       dogs,

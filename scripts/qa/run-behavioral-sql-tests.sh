@@ -56,6 +56,7 @@ TEST_FILES=(
   "$TEST_DIR/stripe_ledger_fks_restrict_test.sql"
   "$TEST_DIR/create_show_with_children_tenant_isolation_test.sql"
   "$TEST_DIR/create_show_with_children_trial_timezone_test.sql"
+  "$TEST_DIR/account_today_entries_show_timezone_test.sql"
   "$TEST_DIR/create_show_with_children_junior_fee_test.sql"
   "$TEST_DIR/entries_insert_show_scope_test.sql"
   "$TEST_DIR/enrollments_select_club_scope_test.sql"

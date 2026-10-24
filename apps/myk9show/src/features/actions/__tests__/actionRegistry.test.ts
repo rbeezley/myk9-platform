@@ -7,6 +7,7 @@ import {
   type ActionViewer,
   type AppAction,
 } from '@/features/actions/actionRegistry';
+import { leaveSelectClassesSearch } from '@/features/show-map/cockpit/cockpitRoutes';
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
 
@@ -517,5 +518,50 @@ describe("resolveActions — Close out show follows the show's life", () => {
     expect(
       resolveActions(SHOW_CONTEXT, { ...secretary, showStatus: status }).map(a => a.id)
     ).toContain('show-close-out');
+  });
+});
+
+describe('Select classes keeps the show home cockpit params (MYK9-1338)', () => {
+  const HOME_CONTEXT = { ...SHOW_CONTEXT, showHome: true } as const;
+  const COCKPIT_SEARCH = '?day=2026-10-23&filter=in-progress&focus=c1';
+  const selectClassesHref = (route: Parameters<typeof resolveActions>[0]) =>
+    resolveActions(route, secretary).find(a => a.id === 'show-select-classes')?.href;
+
+  it('knows which path is the show home, and only that one', () => {
+    expect(parseActionRouteContext(`/shows/${SHOW_ID}`)).toMatchObject({ showHome: true });
+    expect(parseActionRouteContext(`/shows/${SHOW_ID}/`)).toMatchObject({ showHome: true });
+    for (const other of [`/shows/${SHOW_ID}/entries`, `/shows/${SHOW_ID}/register`]) {
+      expect(parseActionRouteContext(other), other).not.toMatchObject({ showHome: true });
+    }
+  });
+
+  it('on the show home, adds select=classes to the current day, filter and focus', () => {
+    const href = selectClassesHref(HOME_CONTEXT);
+    expect(href).toBe('?select=classes');
+    const params = new URLSearchParams(mergeSearchOnlyHref(href ?? '', COCKPIT_SEARCH));
+    expect(Object.fromEntries(params)).toEqual({
+      day: '2026-10-23',
+      filter: 'in-progress',
+      focus: 'c1',
+      select: 'classes',
+    });
+  });
+
+  it('Done restores exactly the day, filter and focus it was opened from', () => {
+    const opened = new URLSearchParams(
+      mergeSearchOnlyHref(selectClassesHref(HOME_CONTEXT) ?? '', COCKPIT_SEARCH)
+    );
+    const back = leaveSelectClassesSearch(opened, SHOW_ID);
+    expect(Object.fromEntries(back)).toEqual({
+      day: '2026-10-23',
+      filter: 'in-progress',
+      focus: 'c1',
+    });
+  });
+
+  it('off the show home, stays the absolute link to the Overview', () => {
+    const absolute = `/shows/${SHOW_ID}?select=classes`;
+    expect(selectClassesHref(SHOW_CONTEXT)).toBe(absolute); // /entries and the other tabs
+    expect(selectClassesHref(SIBLING_CONTEXT)).toBe(absolute);
   });
 });

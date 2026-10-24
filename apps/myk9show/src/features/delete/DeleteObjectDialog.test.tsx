@@ -283,13 +283,28 @@ describe('DeleteObjectDialog three states', () => {
 
     const dialog = await screen.findByRole('alertdialog');
     expect(
-      await within(dialog).findByText('3 entries are paid. Cancel the show instead of deleting it.')
+      await within(dialog).findByText(
+        '3 entries are paid. Cancel the show instead of deleting it. Refunds are not automatic: after cancelling, open Show details to refund online-paid entries.'
+      )
     ).toBeVisible();
     expect(within(dialog).getByRole('link', { name: 'Cancel show' })).toHaveAttribute(
       'href',
-      '/shows?tab=managing'
+      '/shows/s1?edit=true'
     );
     expect(within(dialog).getByRole('button', { name: 'Delete show' })).toBeDisabled();
+  });
+
+  it('blocked show that is already cancelled: no Cancel show loop, refund note stays', async () => {
+    mocks.preview.mockResolvedValue(counts({ entries: 5, paid: 3, blocking: 3 }));
+    renderDialog('show', [
+      { id: 's1', name: 'Heartland Classic', context: { ...ctx, showStatus: 'cancelled' } },
+    ]);
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(await within(dialog).findByTestId('delete-blocked-reason')).toHaveTextContent(
+      '3 entries are paid, so this show cannot be deleted. Refunds are not automatic: open Show details to refund online-paid entries.'
+    );
+    expect(within(dialog).queryByRole('link', { name: 'Cancel show' })).toBeNull();
   });
 
   it.each(['trial', 'class', 'entry'] as const)(

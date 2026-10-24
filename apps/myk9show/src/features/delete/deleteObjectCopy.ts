@@ -113,11 +113,26 @@ function entryState(preview: DeletePreview): string {
   return 'This entry is paid';
 }
 
+/** Refunds are never automatic: a person refunds online-paid entries from Show details. */
+const SHOW_REFUND_NOTE =
+  ' Refunds are not automatic: after cancelling, open Show details to refund online-paid entries.';
+const SHOW_REFUND_NOTE_CANCELLED =
+  ' Refunds are not automatic: open Show details to refund online-paid entries.';
+
 /** Why a single item cannot be deleted, naming the paid or scored work. */
-export function blockedReason(kind: DeleteObjectKind, preview: DeletePreview): string {
+export function blockedReason(
+  kind: DeleteObjectKind,
+  preview: DeletePreview,
+  showCancelled = false
+): string {
   switch (kind) {
-    case 'show':
-      return `${paidScoredPhrase(preview.paid, preview.scored)}. Cancel the show instead of deleting it.`;
+    case 'show': {
+      const phrase = paidScoredPhrase(preview.paid, preview.scored);
+      if (showCancelled) {
+        return `${phrase}, so this show cannot be deleted.${preview.paid > 0 ? SHOW_REFUND_NOTE_CANCELLED : ''}`;
+      }
+      return `${phrase}. Cancel the show instead of deleting it.${preview.paid > 0 ? SHOW_REFUND_NOTE : ''}`;
+    }
     case 'trial':
     case 'class':
       return `${paidScoredPhrase(preview.paid, preview.scored)}. Withdraw or Pull those entries first.`;

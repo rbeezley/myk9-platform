@@ -16,6 +16,8 @@ export interface DeleteTargetContext {
   showId?: string | undefined;
   trialId?: string | undefined;
   classId?: string | undefined;
+  /** A show target's status: a cancelled show is not sent to "Cancel show" again. */
+  showStatus?: string | undefined;
 }
 
 /** One item the user is about to delete, as the dialog names it. */

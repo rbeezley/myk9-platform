@@ -329,7 +329,7 @@ function AuthorizedShowManagementShell({
                     id: showId,
                     name: show.name || 'Untitled show',
                     detail: showDeleteDetail(show),
-                    context: { showId },
+                    context: { showId, showStatus: show.status },
                   },
                 ],
                 onDeleted: handleShowDeleted,

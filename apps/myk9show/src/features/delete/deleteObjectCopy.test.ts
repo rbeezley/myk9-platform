@@ -99,7 +99,13 @@ describe('delete dialog copy', () => {
     expect(paidScoredPhrase(0, 1)).toBe('1 entry is scored');
     expect(paidScoredPhrase(3, 2)).toBe('3 entries are paid and 2 are scored');
     expect(blockedReason('show', preview({ paid: 3, blocking: 3 }))).toBe(
-      '3 entries are paid. Cancel the show instead of deleting it.'
+      '3 entries are paid. Cancel the show instead of deleting it. Refunds are not automatic: after cancelling, open Show details to refund online-paid entries.'
+    );
+    expect(blockedReason('show', preview({ scored: 2, blocking: 2 }))).toBe(
+      '2 entries are scored. Cancel the show instead of deleting it.'
+    );
+    expect(blockedReason('show', preview({ paid: 3, blocking: 3 }), true)).toBe(
+      '3 entries are paid, so this show cannot be deleted. Refunds are not automatic: open Show details to refund online-paid entries.'
     );
     expect(blockedReason('trial', preview({ scored: 2, blocking: 2 }))).toBe(
       '2 entries are scored. Withdraw or Pull those entries first.'

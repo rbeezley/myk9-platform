@@ -54,7 +54,8 @@ after 30 days and orphans the ~197 distinct `MYK9-<n>` ids cited across ~737 fil
 
 ## Conventions
 
-- Branch names encode the issue id: `codex/myk9-6-offline-fixture`, `codex/myk9-15`.
+- Branch names encode the issue id and their prefix declares the implementing harness: `claude/myk9-1397-cloud-setup`, `codex/myk9-6-offline-fixture`. Linear's suggested branch name starts `richardbeezley1/`; replace that with `claude/` or `codex/`, because the independent reviewer is chosen from the prefix ([`docs/operations/cloud-agent-workflow.md`](../operations/cloud-agent-workflow.md)).
+- Open PRs as drafts while iterating; mark ready for review when they are.
 - OpenSpec proposals cite the tracking issue, e.g. `Tracking: [MYK9-21](https://linear.app/myk9-platform/issue/MYK9-21/...)`.
 - Priority is importance, not readiness — an Urgent issue can sit deliberately in Backlog
   pending a blocker (e.g. sandbox testing). Don't propose starting a "Backlog" issue as

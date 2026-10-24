@@ -12,7 +12,7 @@
     "build": "turbo build",
     "build:show": "turbo build --filter=@myk9/show",
     "typecheck": "pnpm run typecheck:scripts && turbo typecheck",
-    "typecheck:scripts": "tsx scripts/qa/typecheck-scripts.ts",
+    "typecheck:scripts": "tsx scripts/qa/typecheck-scripts.ts && tsx scripts/qa/typecheck-scripts.ts --config=scripts/cloud/tsconfig.json --baseline=scripts/cloud/typecheck.baseline.json",
     "typecheck:scripts:update-baseline": "tsx scripts/qa/typecheck-scripts.ts --update-baseline",
     "qa:typecheck-scripts:test": "vitest run scripts/qa/typecheck-scripts.test.ts",
     "lint": "turbo lint",

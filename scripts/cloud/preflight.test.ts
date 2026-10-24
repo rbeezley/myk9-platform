@@ -1,3 +1,5 @@
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   isCloudEnvironment,
@@ -197,5 +199,16 @@ describe('runPreflight', () => {
         ).toBe(true);
       }
     });
+  });
+});
+
+describe('preflight as a script', () => {
+  it('loads under the repository module format and rejects an unknown role', () => {
+    const cli = fileURLToPath(new URL('./preflight.ts', import.meta.url));
+    const result = spawnSync(process.execPath, ['--import', 'tsx', cli, '--role=bogus'], {
+      encoding: 'utf8',
+    });
+    expect(result.stderr).toContain('unknown --role=bogus');
+    expect(result.status).toBe(2);
   });
 });

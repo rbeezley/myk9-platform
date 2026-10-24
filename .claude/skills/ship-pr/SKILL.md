@@ -9,6 +9,8 @@ Use when a feature branch is ready to ship — whether it has an open PR or not.
 
 This file is shared by Claude Code and Codex (`.agents/skills/ship-pr` is a symlink to it). Where the two harnesses differ, both paths are spelled out. "The instruction file" means `CLAUDE.md` for Claude Code and `AGENTS.md` for Codex.
 
+In a cloud checkout (or to resume a run another session started), follow [`docs/operations/cloud-agent-workflow.md`](../../../docs/operations/cloud-agent-workflow.md): `scripts/cloud/setup.sh`, `pnpm cloud:preflight --role=<role>`, the `claude/`/`codex/` branch prefix, and the PR handoff ledger (`scripts/cloud/handoff-cli.ts read --pr=<n>`). On the Mac nothing in it is required.
+
 ## Trigger Phrases
 
 - "ship this PR", "merge the PR", "ship this branch"

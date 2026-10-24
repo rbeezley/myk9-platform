@@ -39,11 +39,14 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// RAW KB. Baseline measured 2026-06-15: initialJs 3120, initialCss 329, maxChunk 1476.
+// RAW KB. Baseline measured 2026-10-24 on main 6123a4e75 (after MYK9-1356 and
+// MYK9-1358): initialJs 1022.4, initialCss 296, maxChunk 1222.6 (react-pdf),
+// precache 10190. Budgets sit about 10% above (MYK9-1357); the 2026-06-15
+// baseline (initialJs 3120, initialCss 329, maxChunk 1476) is history.
 export const BUDGETS = {
-  initialJsKb: 3300, // entry + eager (modulepreload) vendor chunks
-  initialCssKb: 360, // stylesheets linked from index.html
-  maxChunkKb: 1550, // ceiling for any single JS chunk (regression guard)
+  initialJsKb: 1125, // entry + eager (modulepreload) vendor chunks
+  initialCssKb: 325, // stylesheets linked from index.html
+  maxChunkKb: 1345, // ceiling for any single JS chunk (the react-pdf chunk, loaded lazily)
   precacheTotalKb: 12288, // 12 MB: everything the service worker fetches on first visit
   precacheNonCodeFileKb: 1024, // any precached file that is not .js/.css (MYK9-1356)
 };

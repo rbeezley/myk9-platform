@@ -30,7 +30,12 @@ export function useAtShowShowHydration(
     startedShowRef.current = showId;
     // refresh() swallows sync failures (offline: keep the cached rows), so this
     // settles either way and the page falls back to its normal empty state.
-    void refresh(true).finally(() => setHydratedShowId(showId));
+    // A slower hydration of an earlier show must not overwrite a later one's
+    // completion (MYK9-1379): only the show still being hydrated may record it.
+    const forShow = showId;
+    void refresh(true).finally(() =>
+      setHydratedShowId(prev => (startedShowRef.current === forShow ? forShow : prev))
+    );
   }, [refresh, showId]);
 
   useEffect(() => {

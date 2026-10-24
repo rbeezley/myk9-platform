@@ -106,10 +106,24 @@ export interface StopwatchReturn {
  * Element timer return type (for UKC Nosework)
  */
 export interface ElementTimerReturn {
-  /** Current elapsed time in milliseconds */
+  /**
+   * Elapsed milliseconds as of the last transition (start, stop, reset, expiry,
+   * the 30-second warning window opening). It is NOT a live clock while running
+   * (MYK9-1375): render that with `<StopwatchTime>`, which subscribes through
+   * `subscribeTime`.
+   */
   time: number;
   /** Whether the timer is currently running */
   isRunning: boolean;
+  /**
+   * `useSyncExternalStore` subscribe for the running clock: `listener` fires
+   * on every 100ms paint. The identity is stable.
+   */
+  subscribeTime: (listener: () => void) => () => void;
+  /** `useSyncExternalStore` snapshot: the live elapsed ms. The identity is stable. */
+  getTimeMs: () => number;
+  /** The class's max element time in milliseconds, or 0 when there is none */
+  getMaxTimeMs: () => number;
   /** Start the timer (records start timestamp) */
   start: () => void;
   /**

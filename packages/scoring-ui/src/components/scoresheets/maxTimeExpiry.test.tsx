@@ -43,6 +43,9 @@ vi.mock('../../hooks/useElementTimer', () => ({
     timers.firstElement ??= options;
     return {
       time: 0,
+      subscribeTime: () => () => undefined,
+      getTimeMs: () => 0,
+      getMaxTimeMs: () => 180_000,
       isRunning: true,
       start: vi.fn(),
       stop: vi.fn(() => timers.elementStopReachedMax),

@@ -78,4 +78,64 @@ describe('UKCNoseworkLiveScoresheet render budget (MYK9-1364)', () => {
     expect(body.renders - afterStart).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /resume/i })).toBeInTheDocument();
   });
+
+  it('does not re-render the scoresheet body for the element clock in dual mode (MYK9-1375)', () => {
+    render(
+      <UKCNoseworkLiveScoresheet
+        entry={entry}
+        classInfo={classInfo}
+        rules={{ ...rules, timerMode: 'dual', maxTimeSeconds: 600 }}
+        onSubmit={vi.fn()}
+        onBack={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByTestId('timer-start'));
+    act(() => {
+      vi.advanceTimersByTime(20);
+    });
+    const afterStart = body.renders;
+    const row = screen.getByTestId('element-timer-row');
+    const shownAtStart = row.textContent;
+
+    for (let frame = 0; frame < 180; frame += 1) {
+      act(() => {
+        vi.advanceTimersByTime(1000 / 60);
+      });
+    }
+
+    expect(body.renders - afterStart).toBe(0);
+    expect(row.textContent).not.toBe(shownAtStart);
+    expect(row.textContent).toMatch(/0:0[23]\.\d\d/);
+    // Running counts as started: Start gave way to Pause Search with no tick render.
+    expect(screen.getByTestId('timer-pause')).toBeInTheDocument();
+  });
+
+  it('saves the live element time when Save is tapped with the element clock running', async () => {
+    const onSubmit = vi.fn();
+    render(
+      <UKCNoseworkLiveScoresheet
+        entry={entry}
+        classInfo={classInfo}
+        rules={{ ...rules, timerMode: 'dual', maxTimeSeconds: 600 }}
+        onSubmit={onSubmit}
+        onBack={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByTestId('timer-start'));
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    // No Finish: the judge records Excused while both clocks still run.
+    fireEvent.click(screen.getByTestId('result-EX'));
+    fireEvent.click(screen.getByTestId('submit-btn'));
+    expect(screen.getByTestId('confirmation-dialog')).toHaveTextContent(/0:0[23]\.\d\d/);
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('confirm-submit-btn'));
+    });
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ element: expect.stringMatching(/^0:0[23]\.\d\d$/) })
+    );
+  });
 });

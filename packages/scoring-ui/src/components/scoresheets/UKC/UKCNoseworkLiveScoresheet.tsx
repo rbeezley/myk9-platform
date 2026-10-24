@@ -80,13 +80,11 @@ function timerStatus(isDual: boolean, element: ElementMaxTimeStatus, stopwatch: 
         // running out -- the ring and banner carry the element warning.
         isWarning: false,
         isExpired: false,
-        remainingTimeMs: element.remainingMs,
       }
     : {
         warningMessage: stopwatch.getWarningMessage(),
         isWarning: stopwatch.shouldShow30SecondWarning(),
         isExpired: stopwatch.isTimeExpired(),
-        remainingTimeMs: stopwatch.getRemainingTimeMs(),
       };
 }
 
@@ -206,43 +204,45 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   };
 
   const handleConfirmSubmit = async () => {
-    // Pass element time as extra data when dual
-    const extra = isDual ? { element: elementTimer.formatTime(elementTimer.time) } : undefined;
+    // Pass element time as extra data when dual. The live clock, not `time`: Save
+    // does not wait for Finish, so the element clock may still be running.
+    const extra = isDual
+      ? { element: elementTimer.formatTime(elementTimer.getTimeMs()) }
+      : undefined;
     await scoring.handleSubmit(onSubmit, extra);
     setShowConfirmation(false);
   };
 
   // Timer visuals
-  const { warningMessage, isWarning, isExpired, remainingTimeMs } = timerStatus(
-    isDual,
-    elementStatus,
-    stopwatch
-  );
+  const { warningMessage, isWarning, isExpired } = timerStatus(isDual, elementStatus, stopwatch);
 
-  const isStarted = stopwatch.time > 0 || elementTimer.time > 0;
+  // Running counts as started: neither `time` is live in the host's render, so
+  // right after Start both still read 0 (MYK9-1364, MYK9-1375).
+  const isStarted =
+    stopwatch.isRunning || elementTimer.isRunning || stopwatch.time > 0 || elementTimer.time > 0;
   const isBothStopped = !stopwatch.isRunning && !elementTimer.isRunning;
+
+  // The clock that carries the max (see splitMaxTime).
+  const maxTimeClock = isDual ? elementTimer : stopwatch;
 
   // Remaining max time. In dual mode it counts down the ELEMENT time, so it lives in
   // that row; pinned in the card's corner it covered the row's time and Finish button
   // (owner, 2026-10-09).
   const renderRing = (className: string) => {
     if (maxTimeMs <= 0) return null;
-    const ring = (remainingMs: number) => (
-      <MaxTimeRing
-        className={className}
-        remainingMs={remainingMs}
-        maxTimeMs={maxTimeMs}
-        testId="max-time-ring"
-        decorative
-      />
-    );
-    // Dual counts the element clock down (its own tick re-renders this sheet);
-    // single counts the search clock, so only the ring follows its live paint.
-    return isDual ? (
-      ring(remainingTimeMs)
-    ) : (
-      <StopwatchTime stopwatch={stopwatch}>
-        {() => ring(stopwatch.getRemainingTimeMs())}
+    // Dual counts the element clock down, single the search clock; either way
+    // only the ring follows the live paint, not this sheet.
+    return (
+      <StopwatchTime stopwatch={maxTimeClock}>
+        {elapsedMs => (
+          <MaxTimeRing
+            className={className}
+            remainingMs={Math.max(0, maxTimeClock.getMaxTimeMs() - elapsedMs)}
+            maxTimeMs={maxTimeMs}
+            testId="max-time-ring"
+            decorative
+          />
+        )}
       </StopwatchTime>
     );
   };
@@ -295,7 +295,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                       elementTimer.isRunning ? 'text-violet-600' : 'text-muted-foreground'
                     )}
                   >
-                    {elementTimer.formatTime(elementTimer.time)}
+                    <StopwatchTime stopwatch={elementTimer} />
                   </span>
                   {(stopwatch.isRunning || elementTimer.isRunning) && (
                     <Button size="sm" variant="secondary" onClick={handleFinish}>
@@ -323,13 +323,13 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 </div>
 
                 <div className="text-sm text-muted-foreground mt-2 tabular-nums">
-                  <StopwatchTime stopwatch={stopwatch}>
+                  <StopwatchTime stopwatch={maxTimeClock}>
                     {elapsedMs =>
                       timerLimitLine(
                         elapsedMs,
                         rules.maxTimeSeconds,
-                        stopwatch.formatTime(
-                          isDual ? remainingTimeMs : stopwatch.getRemainingTimeMs()
+                        maxTimeClock.formatTime(
+                          Math.max(0, maxTimeClock.getMaxTimeMs() - elapsedMs)
                         )
                       )
                     }
@@ -614,7 +614,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 <div className="flex justify-between py-2 border-b border-border">
                   <span className="text-muted-foreground">Element Time</span>
                   <span className="font-mono font-semibold">
-                    {elementTimer.formatTime(elementTimer.time)}
+                    <StopwatchTime stopwatch={elementTimer} />
                   </span>
                 </div>
               )}

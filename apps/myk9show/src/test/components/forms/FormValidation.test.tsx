@@ -466,6 +466,9 @@ describe('Form Validation', () => {
           phone: '',
         });
       });
+
+      // Let the submit settle so its final state update lands before teardown (MYK9-1339).
+      expect(await screen.findByRole('button', { name: 'Create Account' })).toBeInTheDocument();
     });
 
     it('should show loading state during submission', async () => {
@@ -487,6 +490,10 @@ describe('Form Validation', () => {
 
       expect(screen.getByText('Creating Account...')).toBeInTheDocument();
       expect(submitButton).toBeDisabled();
+
+      // Let the submit settle so its final state update lands before teardown (MYK9-1339).
+      expect(await screen.findByRole('button', { name: 'Create Account' })).toBeInTheDocument();
+      expect(onSubmit).toHaveBeenCalledTimes(1);
     });
   });
 

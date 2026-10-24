@@ -181,7 +181,7 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
         {
           id: 'review-results',
           nodeId: node.id,
-          label: 'View entries and results',
+          label: 'Review results',
           why: 'Inspect entered result values before final submission',
           priority: 52,
           ...(showId && trialId && classId

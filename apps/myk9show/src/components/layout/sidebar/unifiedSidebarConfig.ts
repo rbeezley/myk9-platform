@@ -39,6 +39,7 @@ import { ROLE_LABELS } from '@/services/rbac/roleUiConstants';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
 import type { SidebarConfig, NavGroup, NavItem, NavRailLink, NavRailMenu } from './types';
 import { browseTabsForRoles, isExhibitorOnlyRoles } from './browseTabs';
+import { formatShowDateRange } from '@/lib/format/dates';
 import { truncateRailTitle } from './currentShow';
 import type { Show } from '@/types/show-types';
 
@@ -81,18 +82,21 @@ const BROWSE_RAIL_LINK: NavRailLink = { id: 'browse', title: 'Browse', icon: Lay
 const MY_SHOWS_RAIL_LINK: NavRailLink = { id: 'my-shows', title: 'My Shows', icon: FileText };
 
 export interface CurrentShowNav {
-  currentShow: Pick<Show, 'id' | 'name'> | null;
+  currentShow: ShowRef | null;
   /** Managed shows not yet over, soonest first; more than one turns on Switch. */
-  managingShows: readonly Pick<Show, 'id' | 'name'>[];
+  managingShows: readonly ShowRef[];
   onChooseShow: (id: string) => void;
 }
 
+type ShowRef = Pick<Show, 'id' | 'name'> & Partial<Pick<Show, 'startDate' | 'endDate'>>;
+
 function currentShowItem(
-  show: Pick<Show, 'id' | 'name'>,
+  show: ShowRef,
   onChooseShow?: (id: string) => void,
   description?: string
 ): NavItem {
   const short = truncateRailTitle(show.name);
+  const dates = formatShowDateRange(show.startDate, show.endDate);
   return {
     title: show.name,
     // Only when it differs: the accessible name is "short: full" for a shortened label.
@@ -100,6 +104,7 @@ function currentShowItem(
     href: `/shows/${show.id}`,
     icon: CalendarCheck,
     ...(description ? { description } : {}),
+    ...(dates ? { subtitle: dates } : {}),
     // Only a Switch pick is remembered; opening the current show must not pin it.
     ...(onChooseShow ? { onSelect: () => onChooseShow(show.id) } : {}),
   };

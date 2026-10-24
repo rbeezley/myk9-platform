@@ -96,6 +96,19 @@ Outcome: the independent review runs in GitHub Actions and the Mac is no longer 
    prefix or a PR label) and runs the OTHER one: `scripts/qa/codex-review.sh` for Claude-authored
    PRs, `scripts/qa/claude-review.sh` for Codex-authored ones. Both wrappers already share one
    verdict contract and refuse to report a run that did not complete.
+   - [ADDED] **Run base-branch code only.** Use `pull_request_target` and check out the BASE
+     branch, as `.github/workflows/review-gate.yml` does. The wrappers, `post-review-gate.sh` and
+     `review-gate.ts` must come from `main`, never from the PR head. Otherwise a PR could edit
+     `codex-review.sh` to print a clean verdict and approve itself. The PR's changes reach the
+     reviewer as a diff (`git diff base...head` fetched as data), never as executed code.
+   - [ADDED] **PRs that change the review machinery.** A PR touching the review workflow, either
+     wrapper, `post-review-gate.sh`, `review-gate.ts` or `review-tier.ts` is reviewed by the
+     base-branch job like any other, and additionally needs the owner override path
+     (`owner` evidence with a deferred re-review issue) or a Mac review. Its own changes take
+     effect only after it merges.
+   - [ADDED] **One review per head.** A concurrency group keyed on the PR number with
+     `cancel-in-progress: true`, so a quick second push cancels the first review instead of
+     paying for both. A cancelled run posts nothing, which leaves the gate red (correct).
 2. **Trusted posting.** On a clean verdict the job calls `scripts/qa/post-review-gate.sh` with the
    review log, so the evidence comment carries the log's sha256 as today. On findings it posts
    them with `--withdraw` semantics, so a later clean claim cannot sit beside a known defect.
@@ -106,6 +119,9 @@ Outcome: the independent review runs in GitHub Actions and the Mac is no longer 
      `contents: write`, so a prompt-injected review cannot push or merge.
    - Model keys (`OPENAI_API_KEY` for Codex, `ANTHROPIC_API_KEY` for Claude) live in a GitHub
      environment restricted to this workflow.
+   - [ADDED] **Kill switch.** The job runs only when the repository variable
+     `INDEPENDENT_REVIEW_ENABLED` is `true` (the pattern `MYK9SHOW_SMOKE_CI_ENABLED` already uses).
+     Turning it off stops every run without a revert, and the Mac path keeps working.
 4. **Durable handoff evidence.** Each run uploads, as artifacts linked from the evidence comment:
    the full review log, the reviewed base and head SHAs, the test log of the checks it ran, and a
    short `handoff.md` (what was reviewed, findings, remaining actions). Every artifact passes the
@@ -113,6 +129,16 @@ Outcome: the independent review runs in GitHub Actions and the Mac is no longer 
    `.logs/` files remain a convenience for a running session, never the record.
 5. **Head moves invalidate review.** Unchanged behavior of `review-gate.ts`: a push makes the
    recorded SHA stale and the gate red until the job re-reviews the new head.
+6. [ADDED] **When the review job fails.** A wrapper exit `2` (usage limit, interruption, API
+   outage, timeout) posts a `Review not completed for <head>` comment naming the cause, and posts
+   no evidence. The job retries once after 15 minutes; a second failure stops and leaves the PR to
+   the owner, whose options are a manual re-dispatch, a Mac review, or the documented `owner`
+   override. Job timeout is set so a step limit fires first (LESSONS
+   `cancelled-may-be-timeout`).
+7. [ADDED] **Transition period.** For the first two weeks both paths stay valid: Mac review via
+   `pnpm qa:codex-review --post` and the cloud job write the same evidence, and `review-gate.ts`
+   accepts either because it reads the comment, not its origin. Compare the two on at least three
+   PRs reviewed both ways before relying on the cloud job alone.
 
 Acceptance: the four checks in "Testing phase" items 1 to 4 pass on throwaway PRs.
 
@@ -123,13 +149,19 @@ Outcome: CI failures and review findings drive the next step without the owner r
 1. **Findings return to the implementer.** A red required check, or a findings comment from the
    review job, wakes the implementing harness on that PR (Claude Code PR auto-fix, or a Codex task
    started from the PR). The implementer fixes and pushes; the push re-runs CI and the review.
+   - [ADDED] **Verify the mechanisms first.** Before building on them, confirm from current
+     documentation and one live trial that each platform can be woken by a PR event from a cloud
+     environment with no local machine. If either cannot, that harness's continuation stays manual
+     and Stage 3 ships for the other one only.
 2. **Loop cap.** Enforce the repo's convergence rule (CLAUDE.md "Gates, in order", step 3): stop
    at the second finding on the same path across rounds, or when a finding is about code the
    previous fix introduced. The automation then posts the restructure proposal and hands the PR
    to the owner instead of patching again.
 3. **Merge stays a decision.** When CI and the gate are both green, the automation comments that
    the PR is ready and waits for the owner's merge authorization.
-4. **Accurate Linear close-out.** After merge, a job reads the issue with `get_issue` (full
+4. **Accurate Linear close-out.** [EXPANDED] It reuses the existing `LINEAR_API_KEY` repository
+   secret (already used by `deferred-reviews.yml`), scoped to a GitHub environment. After merge, a
+   job reads the issue with `get_issue` (full
    description; list results truncate acceptance criteria) and comments which criteria the PR
    met, which need production evidence, and what remains. It moves the issue to Done only when
    every criterion is met and none needs a deploy. Issues owed a migration push, function deploy
@@ -152,7 +184,14 @@ Each item is a throwaway PR or a real small issue. A stage is not complete until
    head, and the job re-reviews it.
 4. **Untrusted PRs get nothing.** A fork PR, or a PR from a non-collaborator, does not run the job
    and never receives model keys (verify from the run list and the job's environment).
-5. **End-to-end with the Mac closed.** One small Todo issue implemented by Claude and reviewed by
+5. [ADDED] **A PR cannot approve itself.** Open a PR that edits `codex-review.sh` to always print a
+   clean verdict. The job must run `main`'s wrapper, not the PR's, and the gate result must not
+   depend on the edit.
+6. [ADDED] **Kill switch.** Set `INDEPENDENT_REVIEW_ENABLED` to `false` and push to a PR: no review
+   job runs and the gate stays red. Set it back and re-dispatch: the review runs.
+7. [ADDED] **Failure is reported, not silent.** With a stub reviewer that exits `2` twice, the PR
+   gets one `Review not completed` comment after the retry, and no evidence.
+8. **End-to-end with the Mac closed.** One small Todo issue implemented by Claude and reviewed by
    Codex, and one implemented by Codex and reviewed by Claude, each taken from Linear to an
    authorized merge and an accurate Linear close-out, with no step run on the Mac. Record the PR
    numbers, review evidence links and close-out comments in this plan before marking it Complete.
@@ -171,6 +210,21 @@ trust-filter logic (Stage 2), and the close-out criteria parser (Stage 3), each 
   Confirm each before building on it in Stage 2 and Stage 3.
 - **Secrets in artifacts.** Test logs can contain credentials; the upload step scans first.
 
+## [ADDED] Rollback
+
+- Stage 1 is additive (a new script, path detection, docs); revert its PR to undo it.
+- Stage 2 is disabled by `INDEPENDENT_REVIEW_ENABLED=false` without a revert; the Mac review path
+  is unchanged throughout, so turning the job off returns to today's process.
+- Stage 3 automation is gated by its own variable (`AGENT_CONTINUATION_ENABLED`); turning it off
+  returns every step to the owner. No stage changes the database or production.
+
+## [ADDED] Validation Profile
+
+- Risk: high
+- Validation: full
+- Rationale: Stages 2 and 3 change `.github/` workflows and `scripts/qa/` review machinery, which
+  are guardrail paths at the `independent` tier, and a flaw there can approve unreviewed code.
+
 ## Linear issues to file
 
 1. Stage 1: portable cloud setup script, detected repo paths, shared rulebook cleanup, issue
@@ -182,7 +236,8 @@ trust-filter logic (Stage 2), and the close-out criteria parser (Stage 3), each 
 
 - Where does a PR declare its implementing harness: branch prefix (`claude/`, `codex/`), a PR
   label, or a field in the Linear issue? The branch prefix needs no new input but is easy to get
-  wrong by hand.
+  wrong by hand. [EXPANDED] This blocks Stage 2: the job cannot pick a reviewer without it. If the
+  declaration is missing or ambiguous, the job must refuse to review rather than guess.
 - Should the review job run on every push, or only when the PR is marked ready for review? Every
   push is safer for the gate; ready-only is cheaper.
 - Which GitHub environment and secret names should hold the two model API keys?

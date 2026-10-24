@@ -131,4 +131,50 @@ describe('ShowCatalog', () => {
     const rows = screen.getAllByRole('row');
     expect(rows[1].querySelectorAll('td')[0]).toHaveTextContent('—');
   });
+
+  describe('class section (MYK9-1385)', () => {
+    const base = baseProps.entries[0]!;
+    const withClass = (
+      id: string,
+      armband: string,
+      classElement: string,
+      classLevel: string,
+      classSection?: string
+    ) => ({
+      ...base,
+      id,
+      armband,
+      classElement,
+      classLevel,
+      ...(classSection === undefined ? {} : { classSection }),
+    });
+
+    it('prints the A/B section so Novice A and Novice B entries are distinguishable', () => {
+      render(
+        <ShowCatalog
+          {...baseProps}
+          entries={[
+            withClass('a', '101', 'Interior', 'Novice', 'A'),
+            withClass('b', '102', 'Interior', 'Novice', 'B'),
+          ]}
+        />
+      );
+      expect(screen.getByText('Interior Novice A')).toBeInTheDocument();
+      expect(screen.getByText('Interior Novice B')).toBeInTheDocument();
+    });
+
+    it('leaves non-sectioned and empty-section classes unchanged', () => {
+      render(
+        <ShowCatalog
+          {...baseProps}
+          entries={[
+            withClass('m', '101', 'Interior', 'Master'),
+            withClass('e', '102', 'Exterior', 'Excellent', ''),
+          ]}
+        />
+      );
+      expect(screen.getByText('Interior Master')).toBeInTheDocument();
+      expect(screen.getByText('Exterior Excellent')).toBeInTheDocument();
+    });
+  });
 });

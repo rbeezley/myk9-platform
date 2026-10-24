@@ -9,7 +9,7 @@ import { ShowDeskToolPanel, type ShowDeskToolSection } from './ShowDeskToolsShee
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
 import { useMoveUpTargets } from './useMoveUpTargets';
-import { classIdsEnteredByDog } from './buildMoveUpTargets';
+import { buildMoveUpClassLabeler, classIdsEnteredByDog } from './buildMoveUpTargets';
 import { computeShowDeskPendingSignals } from './showDeskPendingSignals';
 import { computeShowDeskStatus } from './showDeskStatus';
 import { getRankedActions } from './showMapActions';
@@ -152,9 +152,15 @@ export default function ShowDeskPanel({
     capacityState: moveUpCapacityState,
     capacityIsStale: moveUpCapacityIsStale,
   } = useMoveUpTargets(show.id, classes, moveUpAction?.classId, enteredClassIds);
-  const moveUpCurrentClass = moveUpAction?.classId
-    ? tree.nodesById[`class:${moveUpAction.classId}`]
-    : undefined;
+  // MYK9-1385: same label the target list shows; the tree node's label can be a stored name that
+  // lacks the section.
+  const moveUpCurrentClass = useMemo(() => {
+    const node = moveUpAction?.classId
+      ? tree.nodesById[`class:${moveUpAction.classId}`]
+      : undefined;
+    const cls = classes.find(candidate => candidate.id === moveUpAction?.classId);
+    return node && cls ? { ...node, label: buildMoveUpClassLabeler(classes)(cls) } : node;
+  }, [classes, moveUpAction?.classId, tree]);
 
   return (
     <div className="space-y-4">

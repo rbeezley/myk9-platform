@@ -11,14 +11,14 @@ This skill owns everything up to a hardened, green working tree. From there `shi
 
 **Usage:** `/ship-it <path-to-plan.md>`
 
-**Main repo path (hardcoded):** `/Users/richardbeezley/AI Projects/myk9-platform`
+**Main repo path (discovered):** the first entry of `git worktree list --porcelain`, so the same steps work on the Mac and in a cloud checkout.
 
 ---
 
 ## Step 0: Load Plan and Establish Context
 
 ```bash
-MAIN="/Users/richardbeezley/AI Projects/myk9-platform"
+MAIN="$(git worktree list --porcelain | sed -n '1s/^worktree //p')"
 BRANCH=$(git branch --show-current)
 WORKTREE=$(git rev-parse --show-toplevel)
 ```

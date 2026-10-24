@@ -35,7 +35,7 @@ git branch --show-current
 gh pr view --json number,title,url,reviewDecision,state 2>/dev/null || echo "NO_PR"
 ```
 
-Note the branch name, the MAIN REPO path (always `/Users/richardbeezley/AI Projects/myk9-platform`, needed for the merge step) and the worktree path: `.claude/worktrees/<name>` for Claude Code, `.codex/worktrees/<name>` for Codex.
+Note the branch name, the MAIN REPO path (needed for the merge step: `MAIN="$(git worktree list --porcelain | sed -n '1s/^worktree //p')"`, the first `git worktree list --porcelain` entry, on the Mac and in a cloud checkout alike) and the worktree path: `.claude/worktrees/<name>` for Claude Code, `.codex/worktrees/<name>` for Codex.
 
 **Branch check:** Never run on `main`. If the current branch is `main`, stop and tell the user.
 
@@ -218,7 +218,8 @@ Never report the PR as ready, arm auto-merge, or merge while a review is running
 bash scripts/qa/watch-pr-checks.sh $PR_NUMBER
 
 # 2. Switch to main repo BEFORE merging
-cd "/Users/richardbeezley/AI Projects/myk9-platform"
+MAIN="$(git worktree list --porcelain | sed -n '1s/^worktree //p')"
+cd "$MAIN"
 ```
 
 Reading the rollup — three traps from the instruction file's LESSONS:

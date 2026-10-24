@@ -13,6 +13,7 @@ import { ensureError } from '@myk9/core';
 import { logger } from '@/services/LoggingService';
 import { isTransientBrowserFetchError } from '@/services/rbac/PermissionChecker';
 import { useAuthEventRefresh } from './useAuthEventRefresh';
+import { rbacRetryDelayMs } from './rbacLoadRetry';
 import { rbacService } from '@/services/rbac/RBACService';
 import {
   clearRbacPermissionsCache,
@@ -170,8 +171,13 @@ export function useRbacLifecycle(userId: string | undefined) {
         }
       } catch (error) {
         if (!isCurrentRequest()) return;
-        if ((isAbortError(error) || isTransientBrowserFetchError(error)) && attempt < 3) {
-          await delay(250 * (attempt + 1));
+        const retryAfterMs = rbacRetryDelayMs(
+          error,
+          attempt,
+          isAbortError(error) || isTransientBrowserFetchError(error)
+        );
+        if (retryAfterMs !== null) {
+          await delay(retryAfterMs);
           if (isCurrentRequest()) await load(attempt + 1, requestGeneration, bypassCache);
           return;
         }

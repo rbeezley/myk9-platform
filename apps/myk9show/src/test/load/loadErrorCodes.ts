@@ -6,7 +6,11 @@
  * denial (42501, HTTP 403) -- and they point at different fixes. Each failed
  * response is therefore counted by HTTP status and PostgREST/Postgres error code.
  *
- * `status` 0 is a request that never produced a response (transport failure).
+ * `status` 0 is a request that never produced a response: `transport` when the
+ * network dropped it, `aborted` when the page itself gave up on it (the 30 s
+ * client read deadline of MYK9-1351; CDP reports the load as canceled). The
+ * two point at different fixes, and the 2026-10-23 rehearsal counted 961
+ * aborts as transport failures (MYK9-1374).
  * `code` is `none` when a response carried no readable code (an HTML gateway
  * page, an empty body, a body that could not be fetched).
  */
@@ -18,6 +22,7 @@ export interface ApiErrorCount {
 
 export const NO_ERROR_CODE = 'none';
 export const TRANSPORT_ERROR_CODE = 'transport';
+export const ABORTED_ERROR_CODE = 'aborted';
 
 /**
  * A virtual-user request sample with the error code. `VirtualUserRequestSample`

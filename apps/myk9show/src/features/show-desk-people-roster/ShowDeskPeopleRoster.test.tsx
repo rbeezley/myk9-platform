@@ -150,6 +150,7 @@ function renderRoster(
   options: {
     currentDate?: Date | null;
     trialDate?: string;
+    classTime?: string;
     loadError?: unknown;
     onRetry?: () => void;
     initialRoute?: string;
@@ -185,7 +186,7 @@ function renderRoster(
             section: '',
             judgeName: '',
             trialId: 'trial-1',
-            time: '9:00 AM',
+            time: options.classTime ?? '9:00 AM',
             status: 'scheduled',
             entryCount: 1,
             scoredCount: 0,
@@ -234,6 +235,20 @@ describe('ShowDeskPeopleRoster', () => {
 
     await user.click(screen.getByRole('button', { name: /alice martin/i }));
     expect(screen.queryByText('Poppy')).not.toBeInTheDocument();
+  });
+
+  /**
+   * MYK9-1341: the class time arrives as the raw DB `time` ("09:00:00") and
+   * was rendered verbatim. It must use the schedule's formatter so the
+   * secretary sees the same "9:00 AM" the show schedule shows.
+   */
+  it('MYK9-1341: formats a raw DB class time (09:00:00) as a clock time', async () => {
+    const { user } = renderRoster([entry()], { classTime: '09:00:00' });
+
+    await user.click(await screen.findByRole('button', { name: /alice martin/i }));
+    const classLine = screen.getByText(/Container Novice A · Trial 1/i);
+    expect(classLine.textContent).toMatch(/ - 9:00\s*AM$/i);
+    expect(classLine.textContent).not.toContain('09:00:00');
   });
 
   /**

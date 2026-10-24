@@ -13,6 +13,7 @@ import { mapSecretaryEntryToEntryManagementEntry } from '@/hooks/useEntryManagem
 import type { SecretaryEntry } from '@/services/database/entries';
 import type { ShowWorkbenchClassSummary } from '@/features/show-workbench/showWorkbenchTypes';
 import { cn } from '@/lib/utils';
+import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
 import { buildPeopleRoster, buildPeopleRosterViews, filterPeopleRoster } from './peopleRoster';
 import type { PeopleRosterFilter, PeopleRosterPerson } from './peopleRoster';
 import { buildTrialRingResolver } from './trialRingLabel';
@@ -335,6 +336,7 @@ export function ShowDeskPeopleRoster({
                     <div className="space-y-2">
                       {person.classRows.map(row => {
                         const busy = busyEntryIds.has(row.entryId);
+                        const timeLabel = formatStartTime(row.time);
                         return (
                           <div
                             key={row.id}
@@ -353,7 +355,7 @@ export function ShowDeskPeopleRoster({
                               <p className="text-sm text-muted-foreground">
                                 {row.className}
                                 {row.ring ? ` · ${row.ring}` : ''}
-                                {row.time ? ` - ${row.time}` : ''}
+                                {timeLabel ? ` - ${timeLabel}` : ''}
                               </p>
                               <StatusBadge
                                 family="entry"

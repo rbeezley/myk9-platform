@@ -178,3 +178,31 @@ describe('getOfficialPdfMissingFieldLabels', () => {
     expect(getOfficialPdfMissingFieldLabels('check-in-sheet', reportProps)).toEqual([]);
   });
 });
+
+describe('getOfficialPdfMissingFieldLabels officials (MYK9-1386)', () => {
+  const person = {
+    name: 'Pat Person',
+    streetAddress: null,
+    city: null,
+    state: null,
+    zipCode: null,
+    phone: null,
+    email: null,
+  };
+  const withOfficials = { ...reportProps, officials: { chairperson: person, secretary: person } };
+  const withoutOfficials = { ...reportProps, officials: null };
+
+  it.each([
+    ['trial-chairman-report', 'Trial Chair'],
+    ['trial-secretary-report', 'Trial Secretary'],
+  ])('%s no longer asks for %s when show_officials names one', (reportId, label) => {
+    expect(getOfficialPdfMissingFieldLabels(reportId, withOfficials)).not.toContain(label);
+  });
+
+  it.each([
+    ['trial-chairman-report', 'Trial Chair'],
+    ['trial-secretary-report', 'Trial Secretary'],
+  ])('%s still asks for %s when no official is read (negative control)', (reportId, label) => {
+    expect(getOfficialPdfMissingFieldLabels(reportId, withoutOfficials)).toContain(label);
+  });
+});

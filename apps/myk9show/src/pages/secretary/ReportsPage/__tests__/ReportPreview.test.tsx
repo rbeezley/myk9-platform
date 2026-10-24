@@ -86,6 +86,48 @@ const entries = [
 ] as unknown as DbEntry[];
 
 describe('ReportPreview', () => {
+  it("prints the hosted officials in the trial chair's report preview (MYK9-1386)", async () => {
+    render(
+      <ReportPreview
+        reportType="trial-chairman-report"
+        show={show}
+        trials={trials}
+        classes={classes}
+        entries={entries}
+        trialId="trial-1"
+        classId="all"
+        dogId="all"
+        sortOrder="run-order"
+        isLoading={false}
+        isError={false}
+        dataState="ready"
+        hosted={{
+          hostedState: 'ready',
+          refetch: () => {},
+          officials: {
+            chairperson: {
+              name: 'Casey Chair',
+              streetAddress: null,
+              city: null,
+              state: null,
+              zipCode: null,
+              phone: '555-0100',
+              email: null,
+            },
+            secretary: null,
+          },
+        }}
+      />
+    );
+
+    const iframe = screen.getByTitle('Report Preview') as HTMLIFrameElement;
+    await waitFor(() => {
+      const text = iframe.contentDocument?.body.textContent ?? '';
+      expect(text).toContain('Casey Chair');
+      expect(text).toContain('555-0100');
+    });
+  });
+
   // check-in-sheet renders from the shared PDF renderer as of Task 6, so this
   // markup-path regression test moved to results-sheet — another
   // class-scoped report using the same `TrialInfoBox`/`resolveClassJudgeName`

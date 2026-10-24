@@ -59,3 +59,28 @@ describe('TrialChairmanReport', () => {
     expect(screen.getByText(/Raleigh, NC 27617-3390/)).toBeInTheDocument();
   });
 });
+
+describe('TrialChairmanReport officials (MYK9-1386)', () => {
+  const chairperson = {
+    name: 'Casey Chair',
+    streetAddress: null,
+    city: null,
+    state: null,
+    zipCode: null,
+    phone: '555-0100',
+    email: 'casey@example.com',
+  };
+
+  it('prints the chairman name, telephone and email', () => {
+    render(<TrialChairmanReport {...baseProps} officials={{ chairperson, secretary: null }} />);
+    expect(screen.getByText('Casey Chair')).toBeInTheDocument();
+    expect(screen.getByText('555-0100')).toBeInTheDocument();
+    expect(screen.getByText('casey@example.com')).toBeInTheDocument();
+  });
+
+  it('keeps the blank lines when no chairman is read', () => {
+    render(<TrialChairmanReport {...baseProps} officials={null} />);
+    expect(screen.queryByText('Casey Chair')).not.toBeInTheDocument();
+    expect(screen.getAllByText('___________________________')).toHaveLength(3);
+  });
+});

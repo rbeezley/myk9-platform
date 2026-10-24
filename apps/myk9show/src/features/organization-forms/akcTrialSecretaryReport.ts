@@ -20,6 +20,9 @@ export function buildAKCTrialSecretaryReportValues(props: ReportProps): PdfFormF
   const clubName = textOrUndefined(props.clubName);
   if (clubName) text[AKC_TRIAL_SECRETARY_REPORT_FIELDS.club] = clubName;
 
+  const secretaryName = textOrUndefined(props.officials?.secretary?.name);
+  if (secretaryName) text[AKC_TRIAL_SECRETARY_REPORT_FIELDS.trialSecretary] = secretaryName;
+
   const eventNumber = trialEventNumber(props);
   if (eventNumber) text[AKC_TRIAL_SECRETARY_REPORT_FIELDS.eventNumber] = eventNumber;
 

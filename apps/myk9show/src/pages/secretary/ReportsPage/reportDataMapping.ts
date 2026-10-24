@@ -9,6 +9,7 @@ import type {
   ReportEntry,
   ReportProps,
   ReportScope,
+  TrialOfficials,
 } from '@/lib/reports/types';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
@@ -222,6 +223,8 @@ export function buildTrialReportProps(input: {
   sortOrder: string;
   /** The report's `excludesHeldEntries` flag (MYK9-1162). */
   omitHeldEntries?: boolean;
+  /** MYK9-1386: the show's named officials, for the reports that print them. */
+  officials?: TrialOfficials | null;
 }): ReportProps[] {
   const { show, trials, classes, entries, scope, sortOrder } = input;
   const allShowTrials = trials ?? [];
@@ -265,6 +268,7 @@ export function buildTrialReportProps(input: {
       sortOrder,
       organization: show.organization ?? undefined,
       clubName: show.clubName ?? undefined,
+      ...(input.officials ? { officials: input.officials } : {}),
     };
   });
 }

@@ -3,7 +3,13 @@ import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
 
-export const TrialChairmanReport: React.FC<ReportProps> = ({ showName, clubName, trial }) => {
+export const TrialChairmanReport: React.FC<ReportProps> = ({
+  showName,
+  clubName,
+  trial,
+  officials,
+}) => {
+  const chair = officials?.chairperson ?? null;
   const trialDate = trial?.date ? formatReportDate(trial.date) : '___________';
   const judgeName = trial?.judgeName ?? '___________';
 
@@ -38,14 +44,14 @@ export const TrialChairmanReport: React.FC<ReportProps> = ({ showName, clubName,
           </tr>
           <tr>
             <td className="form-label">Chair Name:</td>
-            <td className="form-value">___________________________</td>
+            <td className="form-value">{chair?.name || '___________________________'}</td>
             <td className="form-label">Telephone:</td>
-            <td className="form-value">___________________________</td>
+            <td className="form-value">{chair?.phone || '___________________________'}</td>
           </tr>
           <tr>
             <td className="form-label">Email:</td>
             <td className="form-value" colSpan={3}>
-              ___________________________
+              {chair?.email || '___________________________'}
             </td>
           </tr>
           <tr>

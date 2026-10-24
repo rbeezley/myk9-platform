@@ -1,11 +1,17 @@
 import { useMemo } from 'react';
 
+import { useTrialOfficials } from '@/hooks/queries/useTrialOfficials';
 import { useUKCTrialReportContext } from '@/hooks/queries/useUKCTrialReportContext';
 import { buildClassReportProps, buildTrialReportProps } from './reportDataMapping';
 import { getReportById } from '@/lib/reports/reportRegistry';
 import { useAKCOfficialPdfAction } from './useAKCOfficialPdfAction';
 
 const UKC_TRIAL_REPORT_TYPES = new Set(['ukc-nosework-trial-report', 'trial-secretary-report']);
+
+// MYK9-1386: the AKC Trial Chair's / Secretary's Report print the named officials.
+// Only these two, and only for a non-UKC trial ('trial-secretary-report' also
+// serves UKC, which reads its officials through the UKC context above).
+const AKC_OFFICIALS_REPORT_TYPES = new Set(['trial-chairman-report', 'trial-secretary-report']);
 
 /** The page's official-form download: the report props it builds, and the action over them. */
 export function useOfficialReportDownload(input: {
@@ -44,6 +50,11 @@ export function useOfficialReportDownload(input: {
     UKC_TRIAL_REPORT_TYPES.has(reportType) && selectedTrialIsUKC
   );
 
+  const officialsQuery = useTrialOfficials(
+    show?.id,
+    AKC_OFFICIALS_REPORT_TYPES.has(reportType) && !selectedTrialIsUKC && trialId !== 'all'
+  );
+
   const omitHeldEntries = getReportById(reportType)?.excludesHeldEntries === true;
 
   const officialPdfProps = useMemo(() => {
@@ -61,7 +72,11 @@ export function useOfficialReportDownload(input: {
       omitHeldEntries,
     })[0];
     if (!props) return null;
-    return { ...props, ukcTrialReportContext: ukcTrialReportContextQuery.data ?? null };
+    return {
+      ...props,
+      ukcTrialReportContext: ukcTrialReportContextQuery.data ?? null,
+      officials: officialsQuery.data ?? null,
+    };
   }, [
     show,
     trials,
@@ -71,6 +86,7 @@ export function useOfficialReportDownload(input: {
     sortOrder,
     omitHeldEntries,
     ukcTrialReportContextQuery.data,
+    officialsQuery.data,
   ]);
 
   const officialClassPdfProps = useMemo(() => {
@@ -102,5 +118,6 @@ export function useOfficialReportDownload(input: {
       UKC_TRIAL_REPORT_TYPES.has(reportType) &&
       selectedTrialIsUKC &&
       ukcTrialReportContextQuery.isLoading,
+    officialsLoading: officialsQuery.isLoading,
   });
 }

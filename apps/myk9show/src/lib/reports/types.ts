@@ -239,6 +239,16 @@ export interface UKCTrialReportContext {
   secretary: UKCTrialReportOfficial | null;
 }
 
+/**
+ * The show's named chairman and secretary (`show_officials` -> `people`), for
+ * the reports that print or check them (MYK9-1386). Fetched by the host
+ * (`useTrialOfficials`) and merged in; absent when unread or none is named.
+ */
+export interface TrialOfficials {
+  chairperson: UKCTrialReportOfficial | null;
+  secretary: UKCTrialReportOfficial | null;
+}
+
 export interface ReportProps {
   showId?: string;
   showName: string;
@@ -286,6 +296,8 @@ export interface ReportProps {
   waitlist?: ReportAsyncData<ReportWaitlistRow[]>;
   /** See `UKCTrialReportContext` — populated only for the UKC Trial Report. */
   ukcTrialReportContext?: UKCTrialReportContext | null;
+  /** See `TrialOfficials` — populated only for the AKC Trial Chair's / Secretary's reports. */
+  officials?: TrialOfficials | null;
   organization?: string;
   activityType?: string;
   clubName?: string;

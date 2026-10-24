@@ -28,6 +28,7 @@
 import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEntryFormData } from '@/hooks/queries/useEntryFormData';
+import { useTrialOfficials } from '@/hooks/queries/useTrialOfficials';
 import { queryKeys } from '@/lib/queryClient';
 import {
   readinessOf,
@@ -36,7 +37,12 @@ import {
   type ReportDataState,
 } from '@/hooks/queries/reportReadiness';
 import { trialJudgeSuppliesService } from '@/features/judge-supplies/trialJudgeSuppliesService';
-import type { ReportAsyncData, ReportEntryFormData, ReportWaitlistRow } from '@/lib/reports/types';
+import type {
+  ReportAsyncData,
+  ReportEntryFormData,
+  ReportWaitlistRow,
+  TrialOfficials,
+} from '@/lib/reports/types';
 import { useWaitlistReportQuery } from './useWaitlistReportQuery';
 
 /** Report ids whose component needs entry-form data passed in. */
@@ -47,6 +53,9 @@ export const JUDGE_SUPPLY_REPORT_IDS = new Set(['judge-supply-checklist']);
 
 /** Report ids whose component needs waitlist rows passed in. */
 export const WAITLIST_REPORT_IDS = new Set(['waitlist-report']);
+
+/** Report ids whose component prints the show's named chairman / secretary (MYK9-1386). */
+export const OFFICIALS_REPORT_IDS = new Set(['trial-chairman-report', 'trial-secretary-report']);
 
 export interface HostedReportDataOptions {
   reportType: string;
@@ -61,6 +70,7 @@ export interface HostedReportData {
   entryFormData?: ReportEntryFormData;
   judgeSupplies?: ReportAsyncData<unknown[]>;
   waitlist?: ReportAsyncData<ReportWaitlistRow[]>;
+  officials?: TrialOfficials;
   /**
    * Readiness of the hosted reads the selected report needs; `ready` when it
    * needs none. The preview writes markup only at `ready`: writing earlier
@@ -102,10 +112,29 @@ export function useHostedReportData({
 
   const waitlistQuery = useWaitlistReportQuery(showId, classIds, needsWaitlist);
 
+  // One trial's report: 'all' (trialId undefined) prints no officials, so it reads none.
+  const needsOfficials =
+    OFFICIALS_REPORT_IDS.has(reportType) && Boolean(showId) && Boolean(trialId);
+  const officialsQuery = useTrialOfficials(showId, needsOfficials);
+
   const needed: ReadinessQuery[] = [
     ...(needsEntryForm ? [entryForm.readiness] : []),
     ...(needsSupplies ? [readinessOf(supplies)] : []),
     ...(needsWaitlist ? [readinessOf(waitlistQuery)] : []),
+    // MYK9-1386: a failed or offline officials read prints the form's blank
+    // lines (what it always did), so it settles rather than blocking Print;
+    // only an in-flight read does, so the names are not printed late.
+    ...(needsOfficials
+      ? [
+          readinessOf(officialsQuery, {
+            hasData:
+              officialsQuery.data !== undefined ||
+              officialsQuery.isError ||
+              officialsQuery.fetchStatus === 'paused',
+            isError: false,
+          }),
+        ]
+      : []),
   ];
   const hostedState = resolveReportReadiness(needed);
 
@@ -142,12 +171,14 @@ export function useHostedReportData({
     ...(entryFormData ? { entryFormData } : {}),
     ...(judgeSupplies ? { judgeSupplies } : {}),
     ...(waitlist ? { waitlist } : {}),
+    ...(needsOfficials && officialsQuery.data ? { officials: officialsQuery.data } : {}),
     hostedState,
     refetch: () => {
       if (needsEntryForm) {
         void queryClient.invalidateQueries({ queryKey: ['entry-form-data', showId] });
       }
       if (needsSupplies) void supplies.refetch();
+      if (needsOfficials) void officialsQuery.refetch();
       if (needsWaitlist) {
         void queryClient.invalidateQueries({
           queryKey: queryKeys.showWaitlistReport(showId ?? ''),

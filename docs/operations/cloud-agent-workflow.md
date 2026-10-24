@@ -41,6 +41,8 @@ The script:
 
 It copies no `.env`, credentials, browser profile or Keychain state. Secrets come from the provider's own settings.
 
+`pnpm typecheck` needs a larger Node heap than the default, as in CI (`ci.yml` sets `NODE_OPTIONS=--max-old-space-size=4096`). Set `NODE_OPTIONS` in the provider's environment variables. On 2026-10-24 in a Claude Code cloud session, the app typecheck aborted with a heap OOM at the default and passed with `--max-old-space-size=6144`; `pnpm lint` and a shuffled app test file passed without it.
+
 To change a pin, update `install`, `minimum`, `url` and `sha256` together, from the project's published checksums where it has them (gh and Deno do; ShellCheck does not, so hash the downloaded archive), and rerun setup in a cloud session.
 
 ## Preflight

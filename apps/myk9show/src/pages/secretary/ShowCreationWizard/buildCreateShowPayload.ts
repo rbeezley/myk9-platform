@@ -119,6 +119,13 @@ function normalizeShowStyle(style: WizardShowData['style']): PremiumStyle {
   return resolvePremiumStyle(style);
 }
 
+// The name parts let `keepCachedJudgeName` keep the seeded name through a re-fetch whose judge
+// resolver failed (MYK9-494). Same first-word split as `mapReplicatedClassToDbRow` (classMappers.ts).
+function splitJudgeName(name: string): { judgeFirstName: string; judgeLastName: string } {
+  const [first, ...rest] = name.split(' ');
+  return { judgeFirstName: first ?? '', judgeLastName: rest.join(' ') };
+}
+
 /**
  * Pure function: transform wizard state into the payload for the
  * create_show_with_children RPC plus the local IndexedDB entities to write
@@ -257,29 +264,37 @@ export function buildCreateShowPayload(
     _localOnly: false,
   }));
 
-  const localClasses: ReplicatedClass[] = classPayloads.map(c => ({
-    id: c.id,
-    trialId: c.trial_id,
-    trial_id: c.trial_id,
-    name: c.name,
-    level: c.level ?? undefined,
-    element: c.element ?? undefined,
-    section: c.section ?? undefined,
-    entryFee: c.entry_fee ?? undefined,
-    maxEntries: c.max_entries ?? undefined,
-    classStatus: c.status,
-    startTime: c.start_time ?? undefined,
-    timerMode: c.timer_mode ?? undefined,
-    hidesKnown: c.hides_known ?? undefined,
-    distractionCount: c.distraction_count ?? undefined,
-    areaCount: c.num_areas ?? undefined,
-    hideCount: c.num_hides ?? undefined,
-    timeLimitSeconds: c.time_limit_seconds ?? undefined,
-    _version: 1,
-    _lastModified: new Date(),
-    _syncStatus: 'synced',
-    _localOnly: false,
-  }));
+  const localClasses: ReplicatedClass[] = classPayloads.map((c, index) => {
+    // MYK9-1382: the cockpit reads the judge only off this replicated row, so seed it from the
+    // wizard's judge. Each field is left undefined (never 'TBD') when unknown.
+    const judgeId = allClassData[index]?.judgeId || undefined;
+    const judgeName = judgeId ? judgeDetails[judgeId]?.name?.trim() || undefined : undefined;
+    return {
+      id: c.id,
+      trialId: c.trial_id,
+      trial_id: c.trial_id,
+      name: c.name,
+      level: c.level ?? undefined,
+      element: c.element ?? undefined,
+      section: c.section ?? undefined,
+      entryFee: c.entry_fee ?? undefined,
+      maxEntries: c.max_entries ?? undefined,
+      classStatus: c.status,
+      startTime: c.start_time ?? undefined,
+      timerMode: c.timer_mode ?? undefined,
+      hidesKnown: c.hides_known ?? undefined,
+      distractionCount: c.distraction_count ?? undefined,
+      areaCount: c.num_areas ?? undefined,
+      hideCount: c.num_hides ?? undefined,
+      timeLimitSeconds: c.time_limit_seconds ?? undefined,
+      ...(judgeId ? { judgeId } : {}),
+      ...(judgeName ? { judgeName, ...splitJudgeName(judgeName) } : {}),
+      _version: 1,
+      _lastModified: new Date(),
+      _syncStatus: 'synced',
+      _localOnly: false,
+    };
+  });
 
   return {
     rpcInput: {

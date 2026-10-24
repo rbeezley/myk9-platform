@@ -12,7 +12,9 @@ export const TrialSecretaryReport: React.FC<ReportProps> = ({
   clubName,
   trial,
   entries,
+  officials,
 }) => {
+  const secretaryName = officials?.secretary?.name;
   const trialDate = trial?.date ? formatReportDate(trial.date) : '___________';
   const judgeName = trial?.judgeName ?? '___________';
   const policy = resolveAKCTrialSecretaryReportPolicy(trial?.date, entries);
@@ -109,6 +111,12 @@ export const TrialSecretaryReport: React.FC<ReportProps> = ({
       </div>
 
       <div className="form-signature-section">
+        {secretaryName && (
+          <div className="signature-line">
+            <span className="signature-label">Trial Secretary:</span>
+            <span>{secretaryName}</span>
+          </div>
+        )}
         <div className="signature-line">
           <span className="signature-label">Trial Secretary Signature:</span>
           <span className="signature-blank" />

@@ -127,3 +127,73 @@ describe('buildAKCTrialChairmanReportValues', () => {
     );
   });
 });
+
+const chairperson = {
+  name: 'Casey Chair',
+  streetAddress: null,
+  city: null,
+  state: null,
+  zipCode: null,
+  phone: '555-0100',
+  email: 'casey@example.com',
+};
+
+describe('buildAKCTrialChairmanReportValues officials (MYK9-1386)', () => {
+  it('fills Chair Name, Telephone and Email from the chairman official', () => {
+    const values = buildAKCTrialChairmanReportValues({
+      ...reportProps,
+      officials: { chairperson, secretary: null },
+    });
+
+    expect(values.text).toMatchObject({
+      [AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.trialChair]: 'Casey Chair',
+      [AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.telephone]: '555-0100',
+      [AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.email]: 'casey@example.com',
+    });
+  });
+
+  it('leaves telephone and email absent when the person record has none', () => {
+    const values = buildAKCTrialChairmanReportValues({
+      ...reportProps,
+      officials: { chairperson: { ...chairperson, phone: null, email: ' ' }, secretary: null },
+    });
+
+    expect(values.text).toHaveProperty(AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.trialChair, 'Casey Chair');
+    expect(values.text).not.toHaveProperty(AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.telephone);
+    expect(values.text).not.toHaveProperty(AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.email);
+  });
+
+  it.each([undefined, null, { chairperson: null, secretary: null }])(
+    'sets none of the chair fields without a chairman (%j)',
+    officials => {
+      const values = buildAKCTrialChairmanReportValues({ ...reportProps, officials });
+      expect(values.text).not.toHaveProperty(AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.trialChair);
+      expect(values.text).not.toHaveProperty(AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.telephone);
+      expect(values.text).not.toHaveProperty(AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.email);
+    }
+  );
+
+  it('writes the chairman into the official PDF fields', async () => {
+    const templateBytes = new Uint8Array(
+      await readFile(resolve(repoRoot, 'docs/AKC-forms/SW-TCReport.pdf'))
+    );
+    const filledBytes = await fillPdfForm(
+      templateBytes,
+      buildAKCTrialChairmanReportValues({
+        ...reportProps,
+        officials: { chairperson, secretary: null },
+      })
+    );
+    const form = (await PDFDocument.load(filledBytes)).getForm();
+
+    expect(form.getTextField(AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.trialChair).getText()).toBe(
+      'Casey Chair'
+    );
+    expect(form.getTextField(AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.telephone).getText()).toBe(
+      '555-0100'
+    );
+    expect(form.getTextField(AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.email).getText()).toBe(
+      'casey@example.com'
+    );
+  });
+});

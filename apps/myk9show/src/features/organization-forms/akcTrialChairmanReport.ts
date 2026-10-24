@@ -27,6 +27,14 @@ export function buildAKCTrialChairmanReportValues(props: ReportProps): PdfFormFi
   const clubName = textOrUndefined(props.clubName);
   if (clubName) text[AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.clubName] = clubName;
 
+  const chair = props.officials?.chairperson;
+  const chairName = textOrUndefined(chair?.name);
+  if (chairName) text[AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.trialChair] = chairName;
+  const chairPhone = textOrUndefined(chair?.phone);
+  if (chairName && chairPhone) text[AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.telephone] = chairPhone;
+  const chairEmail = textOrUndefined(chair?.email);
+  if (chairName && chairEmail) text[AKC_TRIAL_CHAIRMAN_REPORT_FIELDS.email] = chairEmail;
+
   for (const [index, judgeName] of uniqueTrialJudgeNames(props)
     .slice(0, JUDGE_FIELDS.length)
     .entries()) {

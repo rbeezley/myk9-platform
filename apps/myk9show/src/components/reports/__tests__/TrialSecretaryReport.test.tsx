@@ -137,3 +137,33 @@ describe('TrialSecretaryReport', () => {
     expect(screen.getAllByText('☐ No').length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('TrialSecretaryReport officials (MYK9-1386)', () => {
+  it('prints the secretary name beside the signature line', () => {
+    render(
+      <TrialSecretaryReport
+        {...baseProps}
+        officials={{
+          chairperson: null,
+          secretary: {
+            name: 'Sam Secretary',
+            streetAddress: null,
+            city: null,
+            state: null,
+            zipCode: null,
+            phone: null,
+            email: null,
+          },
+        }}
+      />
+    );
+    expect(screen.getByText('Trial Secretary:')).toBeInTheDocument();
+    expect(screen.getByText('Sam Secretary')).toBeInTheDocument();
+    expect(screen.getByText('Trial Secretary Signature:')).toBeInTheDocument();
+  });
+
+  it('prints no secretary line when none is read', () => {
+    render(<TrialSecretaryReport {...baseProps} officials={null} />);
+    expect(screen.queryByText('Trial Secretary:')).not.toBeInTheDocument();
+  });
+});

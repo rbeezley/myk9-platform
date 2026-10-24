@@ -75,6 +75,8 @@ interface UseAKCOfficialPdfActionInput {
    * those fields blank even though the records exist (MYK9-828).
    */
   ukcTrialReportContextLoading: boolean;
+  /** MYK9-1386: the AKC Trial Chair's / Secretary's officials read has not settled yet. */
+  officialsLoading?: boolean;
 }
 
 function isAKCRegistry(props: ReportProps | null | undefined): boolean {
@@ -109,6 +111,7 @@ export function useAKCOfficialPdfAction({
   officialPdfProps,
   officialClassPdfProps,
   ukcTrialReportContextLoading,
+  officialsLoading,
 }: UseAKCOfficialPdfActionInput): OfficialPdfAction | undefined {
   const [isDownloadingOfficialPdf, setIsDownloadingOfficialPdf] = useState(false);
   const isAKCEntryFormReport = reportType === 'akc-scent-work-entry-form';
@@ -136,9 +139,10 @@ export function useAKCOfficialPdfAction({
     [officialPdfProps, reportType]
   );
   const officialPdfMissingFieldLabels = useMemo(() => {
-    if (!officialPdfProps) return [];
+    // MYK9-1386: officials still loading are not missing; the button is disabled meanwhile.
+    if (!officialPdfProps || officialsLoading === true) return [];
     return getOfficialPdfMissingFieldLabels(reportType, officialPdfProps);
-  }, [officialPdfProps, reportType]);
+  }, [officialPdfProps, reportType, officialsLoading]);
 
   const officialEntryPdfDog =
     isAKCEntryFormReport && dogId !== 'all' ? (entryFormData.dogs[0] ?? null) : null;
@@ -580,7 +584,12 @@ export function useAKCOfficialPdfAction({
   if (officialPdfConfig && selectedTrialAllowsOfficialPdfConfig) {
     const waitingOnUKCContext = isUKCRegistry(officialPdfProps) && ukcTrialReportContextLoading;
     return {
-      disabled: !isDataReady || !hasShow || trialId === 'all' || waitingOnUKCContext,
+      disabled:
+        !isDataReady ||
+        !hasShow ||
+        trialId === 'all' ||
+        waitingOnUKCContext ||
+        officialsLoading === true,
       isLoading: isDownloadingOfficialPdf,
       label: officialPdfConfig.actionLabel,
       disabledReason: trialId === 'all' ? NEEDS_TRIAL : undefined,

@@ -195,3 +195,53 @@ describe('buildAKCTrialSecretaryReportValues', () => {
     expect(form.getTextField(AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalFee).getText()).toBe('9.00');
   });
 });
+
+const secretary = {
+  name: 'Sam Secretary',
+  streetAddress: null,
+  city: null,
+  state: null,
+  zipCode: null,
+  phone: null,
+  email: null,
+};
+
+describe('buildAKCTrialSecretaryReportValues officials (MYK9-1386)', () => {
+  it('fills TrialSecretary from the secretary official', () => {
+    const values = buildAKCTrialSecretaryReportValues({
+      ...reportProps,
+      officials: { chairperson: null, secretary },
+    });
+
+    expect(values.text).toHaveProperty(
+      AKC_TRIAL_SECRETARY_REPORT_FIELDS.trialSecretary,
+      'Sam Secretary'
+    );
+  });
+
+  it.each([undefined, null, { chairperson: null, secretary: null }])(
+    'leaves TrialSecretary absent without a secretary (%j)',
+    officials => {
+      const values = buildAKCTrialSecretaryReportValues({ ...reportProps, officials });
+      expect(values.text).not.toHaveProperty(AKC_TRIAL_SECRETARY_REPORT_FIELDS.trialSecretary);
+    }
+  );
+
+  it('writes the secretary into the official PDF field', async () => {
+    const templateBytes = new Uint8Array(
+      await readFile(resolve(repoRoot, 'docs/AKC-forms/SW-TSReport.pdf'))
+    );
+    const filledBytes = await fillPdfForm(
+      templateBytes,
+      buildAKCTrialSecretaryReportValues({
+        ...reportProps,
+        officials: { chairperson: null, secretary },
+      })
+    );
+    const form = (await PDFDocument.load(filledBytes)).getForm();
+
+    expect(form.getTextField(AKC_TRIAL_SECRETARY_REPORT_FIELDS.trialSecretary).getText()).toBe(
+      'Sam Secretary'
+    );
+  });
+});

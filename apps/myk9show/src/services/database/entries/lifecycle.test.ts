@@ -1,7 +1,12 @@
 import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  EntryStatus as SecretaryEntryStatus,
+  PaymentStatus,
+} from '@/types/show-registration-types';
+import {
   acceptEntry,
+  changeSecretaryEntryStatus,
   denyMoveUpRequest,
   rejectEntry,
   removeEntryAsManager,
@@ -74,8 +79,64 @@ describe('Entry lifecycle transitions', () => {
       'withdrawn',
       'Handler conflict',
       undefined,
+      undefined,
       undefined
     );
+  });
+
+  it('hands the check-in context to the status write (MYK9-1384)', async () => {
+    const checkInContext = { previousEntryStatus: 'scratched', priorCheckInStatus: 'checked-in' };
+    await setEntryLifecycleStatus({
+      entryId: 'entry-1',
+      status: 'confirmed',
+      checkInContext: checkInContext as never,
+    });
+
+    expect(updateEntryStatus).toHaveBeenCalledWith(
+      'entry-1',
+      'confirmed',
+      undefined,
+      undefined,
+      undefined,
+      checkInContext
+    );
+  });
+
+  it('changeSecretaryEntryStatus derives previousEntryStatus from the entry and passes priorCheckInStatus', async () => {
+    const entry = {
+      id: 'entry-1',
+      registrationId: 'reg-1',
+      entryNumber: '42',
+      showId: 'show-1',
+      dogId: 'dog-1',
+      dogName: 'Rex',
+      ownerName: 'Alice',
+      ownerEmail: 'alice@example.test',
+      handlerName: 'Alice',
+      classes: [],
+      totalFee: 20,
+      paidAmount: 20,
+      entryStatus: SecretaryEntryStatus.SCRATCHED,
+      paymentStatus: PaymentStatus.PENDING,
+      submittedAt: new Date('2026-01-01'),
+      lastUpdated: new Date('2026-01-01'),
+    };
+
+    await changeSecretaryEntryStatus({
+      entry,
+      newStatus: SecretaryEntryStatus.ACCEPTED,
+      priorCheckInStatus: 'checked-in',
+    });
+    await changeSecretaryEntryStatus({ entry, newStatus: SecretaryEntryStatus.ACCEPTED });
+
+    expect(updateEntryStatus.mock.calls[0]?.[5]).toEqual({
+      previousEntryStatus: 'scratched',
+      priorCheckInStatus: 'checked-in',
+    });
+    expect(updateEntryStatus.mock.calls[1]?.[5]).toEqual({
+      previousEntryStatus: 'scratched',
+      priorCheckInStatus: undefined,
+    });
   });
 
   it('accepts an Entry by writing confirmed and logs the transition', async () => {
@@ -84,6 +145,7 @@ describe('Entry lifecycle transitions', () => {
     expect(updateEntryStatus).toHaveBeenCalledWith(
       'entry-1',
       'confirmed',
+      undefined,
       undefined,
       undefined,
       undefined
@@ -106,6 +168,7 @@ describe('Entry lifecycle transitions', () => {
       'withdrawn',
       'Class limit reached',
       undefined,
+      undefined,
       undefined
     );
     expect(auditLog).toHaveBeenCalledWith(
@@ -126,6 +189,7 @@ describe('Entry lifecycle transitions', () => {
       'scratched',
       'Dog is absent',
       undefined,
+      undefined,
       undefined
     );
     expect(auditLog).toHaveBeenCalledWith(
@@ -141,6 +205,7 @@ describe('Entry lifecycle transitions', () => {
     expect(updateEntryStatus).toHaveBeenCalledWith(
       'entry-1',
       'confirmed',
+      undefined,
       undefined,
       undefined,
       undefined
@@ -160,6 +225,7 @@ describe('Entry lifecycle transitions', () => {
       'scratched',
       'Absent',
       undefined,
+      undefined,
       undefined
     );
   });
@@ -174,7 +240,8 @@ describe('Entry lifecycle transitions', () => {
       'scratched',
       undefined,
       undefined,
-      null
+      null,
+      undefined
     );
 
     updateEntryStatus.mockClear();
@@ -184,7 +251,8 @@ describe('Entry lifecycle transitions', () => {
       'withdrawn',
       undefined,
       undefined,
-      'in_season'
+      'in_season',
+      undefined
     );
   });
 

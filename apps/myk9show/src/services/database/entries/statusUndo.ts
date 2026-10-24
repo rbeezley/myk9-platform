@@ -19,6 +19,7 @@
  */
 import type { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import type { CheckInStatus } from '@myk9/core';
 import { executeStatusChange, type StatusChangeAdapters } from './management-actions';
 
 export type StatusUndoOutcome = 'reverted' | 'queued' | 'superseded' | 'missing' | 'failed';
@@ -39,6 +40,8 @@ export interface StatusUndoParams {
   priorStatus: EntryStatus;
   /** Status our forward action produced — the supersession check compares against this. */
   producedStatus: EntryStatus;
+  /** MYK9-1384: check-in value captured before the forward change, restored when undoing a Pull. */
+  priorCheckInStatus?: CheckInStatus | undefined;
 }
 
 export async function executeStatusUndo(
@@ -56,6 +59,9 @@ export async function executeStatusUndo(
       entryId: params.entryId,
       newStatus: params.priorStatus,
       entry,
+      ...(params.priorCheckInStatus !== undefined
+        ? { priorCheckInStatus: params.priorCheckInStatus }
+        : {}),
       ...(adapters.userId ? { userId: adapters.userId } : {}),
     },
     { changeSecretaryStatus: adapters.changeSecretaryStatus, patchEntries: adapters.patchEntries }

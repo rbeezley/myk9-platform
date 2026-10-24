@@ -2,6 +2,7 @@ import { useCallback, useMemo, type MutableRefObject } from 'react';
 import { toast } from 'sonner';
 import type { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import type { CheckInStatus } from '@myk9/core';
 import { changeSecretaryEntryStatus } from '@/services/secretary/entry-workflow';
 import {
   executeStatusUndo,
@@ -24,7 +25,8 @@ interface UseEntryStatusUndoResult {
   runSingleUndo: (
     entryId: string,
     priorStatus: EntryStatus,
-    producedStatus: EntryStatus
+    producedStatus: EntryStatus,
+    priorCheckInStatus?: CheckInStatus
   ) => Promise<void>;
   /** Revert a succeeded bulk subset item-by-item, each with its own supersession guard. */
   runBulkUndo: (
@@ -56,8 +58,16 @@ export function useEntryStatusUndo({
   );
 
   const runSingleUndo = useCallback(
-    async (entryId: string, priorStatus: EntryStatus, producedStatus: EntryStatus) => {
-      const outcome = await executeStatusUndo({ entryId, priorStatus, producedStatus }, adapters);
+    async (
+      entryId: string,
+      priorStatus: EntryStatus,
+      producedStatus: EntryStatus,
+      priorCheckInStatus?: CheckInStatus
+    ) => {
+      const outcome = await executeStatusUndo(
+        { entryId, priorStatus, producedStatus, priorCheckInStatus },
+        adapters
+      );
       const { kind, message } = buildStatusUndoToastMessage(outcome);
       toast[kind](message);
     },

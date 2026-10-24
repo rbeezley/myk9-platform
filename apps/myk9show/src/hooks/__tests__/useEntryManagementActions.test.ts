@@ -222,6 +222,67 @@ describe('useEntryManagementActions', () => {
     }
   });
 
+  it('Undo of a Pull restores the check-in the dog had before the Pull (MYK9-1384)', async () => {
+    const checkedIn: EntryManagementEntry = {
+      ...makeEntry(),
+      entryStatus: EntryStatus.ACCEPTED,
+      classes: [
+        {
+          id: 'entry-1',
+          classId: 'class-1',
+          name: 'Novice',
+          number: '1',
+          fee: 10,
+          status: 'entered',
+          checkInStatus: 'checked-in',
+        },
+      ],
+    };
+    const setEntries = vi.fn();
+    const render = (entry: EntryManagementEntry) =>
+      renderHook(
+        ({ current }) =>
+          useEntryManagementActions({
+            entries: [current],
+            setEntries,
+            selectedShowId: 'show-1',
+            selectedShow: null,
+            setError: vi.fn(),
+            user: { id: 'secretary-1' },
+          }),
+        { initialProps: { current: entry } }
+      );
+    const { result, rerender } = render(checkedIn);
+
+    await act(async () => {
+      await result.current.handleStatusChange('entry-1', EntryStatus.SCRATCHED);
+    });
+    // The Pull itself carries no restore value.
+    expect(mocks.changeSecretaryEntryStatus.mock.calls[0]?.[0]).not.toHaveProperty(
+      'priorCheckInStatus'
+    );
+
+    // The entry as the list now holds it: pulled.
+    rerender({
+      current: {
+        ...checkedIn,
+        entryStatus: EntryStatus.SCRATCHED,
+        classes: checkedIn.classes.map(c => ({ ...c, checkInStatus: 'pulled' as const })),
+      },
+    });
+    const onUndo = mocks.showUndoToast.mock.calls[0]?.[0].onUndo as () => void;
+    await act(async () => {
+      onUndo();
+    });
+
+    expect(mocks.changeSecretaryEntryStatus).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        newStatus: EntryStatus.ACCEPTED,
+        priorCheckInStatus: 'checked-in',
+      })
+    );
+  });
+
   it('assigns secretary armbands by entry id and requested armband number', async () => {
     const entry = makeEntry();
     const setEntries = vi.fn();

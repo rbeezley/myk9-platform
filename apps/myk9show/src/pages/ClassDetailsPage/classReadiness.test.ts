@@ -123,3 +123,24 @@ describe('buildClassReadinessSummary', () => {
     expect(summary.classStatus).toBe('Completed');
   });
 });
+
+describe('buildClassReadinessSummary after an un-pull (MYK9-1384)', () => {
+  const classRow = {
+    status: 'In Progress',
+    is_scoring_finalized: false,
+    reopened_after_closeout_at: null,
+  };
+
+  it('counts an entry restored to checked-in as checked in again', () => {
+    const pulled = buildClassReadinessSummary(classRow, [
+      entry({ entry_status: 'confirmed', check_in_status: 'pulled' }),
+    ]);
+    const restored = buildClassReadinessSummary(classRow, [
+      entry({ entry_status: 'confirmed', check_in_status: 'checked-in' }),
+    ]);
+
+    expect(pulled.checkedInCount).toBe(0);
+    expect(restored.checkedInCount).toBe(1);
+    expect(restored.checkInEligibleCount).toBe(1);
+  });
+});

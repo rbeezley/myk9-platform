@@ -7,6 +7,8 @@ import type {
   ChangeSecretaryEntryStatusResult,
 } from '@/services/secretary/entry-workflow';
 import { mapStatusToDb } from '@/utils/entryManagementUtils';
+import type { CheckInStatus } from '@myk9/core';
+import { resolveCheckInStatusForTransition } from './statusCheckIn';
 
 // ─── Adapter interfaces ────────────────────────────────────────────────────
 
@@ -24,6 +26,16 @@ export interface BulkStatusChangeAdapters {
   setError: (err: string | null) => void;
 }
 
+type EntryClass = EntryManagementEntry['classes'][number];
+
+/** The class with its check-in set, or with the key removed when it had none. */
+function withCheckIn(c: EntryClass, checkInStatus: EntryClass['checkInStatus']): EntryClass {
+  const next = { ...c };
+  if (checkInStatus === undefined) delete next.checkInStatus;
+  else next.checkInStatus = checkInStatus;
+  return next;
+}
+
 // ─── executeStatusChange ──────────────────────────────────────────────────
 
 export interface StatusChangeParams {
@@ -32,6 +44,8 @@ export interface StatusChangeParams {
   withdrawalReason?: string | undefined;
   entry: EntryManagementEntry;
   userId?: string | undefined;
+  /** MYK9-1384: check-in value to restore when this change un-pulls the entry (Undo of a Pull). */
+  priorCheckInStatus?: CheckInStatus | undefined;
 }
 
 /**
@@ -45,10 +59,16 @@ export async function executeStatusChange(
   params: StatusChangeParams,
   adapters: StatusChangeAdapters
 ): Promise<boolean> {
-  const { entryId, newStatus, withdrawalReason, entry, userId } = params;
+  const { entryId, newStatus, withdrawalReason, entry, userId, priorCheckInStatus } = params;
   const { changeSecretaryStatus, patchEntries } = adapters;
   const oldStatus = entry.entryStatus;
   const oldWithdrawalReason = entry.withdrawalReason;
+  const oldCheckInByClassId = new Map(entry.classes.map(c => [c.id, c.checkInStatus]));
+  // MYK9-1384: keep the optimistic row in step with what the write will store.
+  const nextCheckInStatus = resolveCheckInStatusForTransition(mapStatusToDb(newStatus), {
+    previousEntryStatus: mapStatusToDb(oldStatus),
+    priorCheckInStatus,
+  });
 
   // Optimistic update
   patchEntries(prev =>
@@ -57,6 +77,9 @@ export async function executeStatusChange(
         ? {
             ...e,
             entryStatus: newStatus,
+            ...(nextCheckInStatus !== undefined
+              ? { classes: e.classes.map(c => withCheckIn(c, nextCheckInStatus)) }
+              : {}),
             lastUpdated: new Date(),
             ...(withdrawalReason !== undefined ? { withdrawalReason } : {}),
           }
@@ -70,6 +93,7 @@ export async function executeStatusChange(
       newStatus,
       ...(userId ? { secretaryId: userId } : {}),
       ...(withdrawalReason !== undefined ? { withdrawalReason } : {}),
+      ...(priorCheckInStatus !== undefined ? { priorCheckInStatus } : {}),
     });
 
     if (result.armbandPatch) {
@@ -91,6 +115,17 @@ export async function executeStatusChange(
           ? {
               ...e,
               entryStatus: oldStatus,
+              // Put back only the check-in we changed, by class id, so a concurrent
+              // change to any other class field is not clobbered.
+              ...(nextCheckInStatus !== undefined
+                ? {
+                    classes: e.classes.map(c =>
+                      oldCheckInByClassId.has(c.id)
+                        ? withCheckIn(c, oldCheckInByClassId.get(c.id))
+                        : c
+                    ),
+                  }
+                : {}),
               ...(oldWithdrawalReason !== undefined
                 ? { withdrawalReason: oldWithdrawalReason }
                 : {}),

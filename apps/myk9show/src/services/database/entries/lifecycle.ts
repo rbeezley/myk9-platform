@@ -23,6 +23,8 @@ import { EntryStatus as SecretaryEntryStatus } from '@/types/show-registration-t
 import { mapStatusToDb } from '@/utils/entryManagementUtils';
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { updateEntryStatus } from './secretary';
+import type { EntryStatusCheckInContext } from './statusCheckIn';
+import type { CheckInStatus } from '@myk9/core';
 import type { SecretaryStatusEntrySeed } from './secretary';
 
 export type EntryLifecycleAction = 'accept' | 'reject' | 'pull' | 'waitlist';
@@ -40,6 +42,8 @@ export interface SetEntryLifecycleStatusParams {
   sourceEntry?: SecretaryStatusEntrySeed | undefined;
   /** MYK9-632: the recognised withdrawal reason code; explicit null clears it. */
   reasonCode?: string | null | undefined;
+  /** MYK9-1384: context that lets leaving `scratched` clear `pulled`. */
+  checkInContext?: EntryStatusCheckInContext | undefined;
 }
 
 export interface EntryLifecycleArmbandPatch {
@@ -53,6 +57,8 @@ export interface ChangeSecretaryEntryStatusParams {
   newStatus: SecretaryEntryStatus;
   secretaryId?: string;
   withdrawalReason?: string;
+  /** MYK9-1384: check-in value to restore when this change un-pulls the entry (Undo of a Pull). */
+  priorCheckInStatus?: CheckInStatus | undefined;
 }
 
 export interface ChangeSecretaryEntryStatusResult {
@@ -80,7 +86,8 @@ export async function setEntryLifecycleStatus(params: SetEntryLifecycleStatusPar
     params.status,
     params.reason,
     params.sourceEntry,
-    params.reasonCode
+    params.reasonCode,
+    params.checkInContext
   );
 }
 
@@ -359,13 +366,17 @@ export async function changeSecretaryEntryStatus(
   params: ChangeSecretaryEntryStatusParams,
   dependencies: SecretaryEntryStatusDependencies = defaultSecretaryDependencies
 ): Promise<ChangeSecretaryEntryStatusResult> {
-  const { entry, newStatus, secretaryId, withdrawalReason } = params;
+  const { entry, newStatus, secretaryId, withdrawalReason, priorCheckInStatus } = params;
 
   const { error } = await dependencies.setEntryLifecycleStatus({
     entryId: entry.id,
     status: mapStatusToDb(newStatus),
     reason: withdrawalReason,
     sourceEntry: buildSecretaryStatusSeed(entry),
+    checkInContext: {
+      previousEntryStatus: mapStatusToDb(entry.entryStatus),
+      priorCheckInStatus,
+    },
   });
   if (error) throw error;
 

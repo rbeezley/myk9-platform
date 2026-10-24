@@ -585,6 +585,38 @@ describe('ReplicatedEntriesTable', () => {
       expect(payload).toHaveProperty('withdrawal_reason_code', null);
     });
 
+    it('queues the restored check_in_status when a scratched entry is accepted (MYK9-1384)', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>,
+            dependencies?: string[]
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await table.updateSecretaryLifecycleStatus(
+        'entry-1',
+        {
+          entryStatus: 'confirmed',
+          entry_status: 'confirmed',
+          status: 'confirmed',
+          checkInStatus: 'checked-in',
+          check_in_status: 'checked-in',
+        },
+        { showId: 'show-1', classId: 'class-1', dogId: 'dog-1' }
+      );
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'entry-1',
+        expect.objectContaining({ entry_status: 'confirmed', check_in_status: 'checked-in' })
+      );
+    });
+
     it('should seed missing secretary rows and queue only lifecycle status fields', async () => {
       const queueMutation = vi.spyOn(
         table as unknown as {

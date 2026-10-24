@@ -16,6 +16,10 @@ import type { CheckInStatus } from '@myk9/core';
 import type { TablesUpdate } from '@/types/supabase';
 import type { PendingEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 import { postgrestGetSecretaryEntriesForShow } from './secretaryPostgrest';
+import type { EntryStatusCheckInContext } from './statusCheckIn';
+import { buildReplicatedEntryStatusUpdate } from './entryStatusUpdate';
+
+export { buildReplicatedEntryStatusUpdate };
 import { logger } from '@/services/LoggingService';
 import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
 import { isRawEntryInEntryManagementPendingBucket } from '@/utils/entryCountSelectors';
@@ -207,45 +211,6 @@ export const getEntryCountsByStatus = async (showId: string) => {
   }
 };
 
-/**
- * Update entry status (accept, reject, waitlist, withdraw, scratch)
- */
-export function buildReplicatedEntryStatusUpdate(
-  status: EntryStatus,
-  withdrawalReason?: string,
-  withdrawalReasonCode?: string | null
-): Partial<ReplicatedEntry> {
-  const updateData: Partial<ReplicatedEntry> = {
-    entryStatus: status,
-    entry_status: status,
-    status,
-  };
-
-  if (status === 'scratched') {
-    updateData.checkInStatus = 'pulled';
-    updateData.check_in_status = 'pulled';
-  }
-
-  if (withdrawalReason !== undefined) {
-    updateData.withdrawalReason = withdrawalReason;
-    updateData.withdrawal_reason = withdrawalReason;
-  }
-
-  // MYK9-632: an explicit `null` is meaningful — a Pull clears the reason code a
-  // previous Withdraw left on the row, so the stored reason can never disagree
-  // with the stored act. Only `undefined` means "do not touch", EXCEPT on a Pull:
-  // MYK9-918 makes every Pull (Entry Management and Show Day) clear the code
-  // here, in the one builder, so no caller can forget it.
-  const reasonCode =
-    status === 'scratched' && withdrawalReasonCode === undefined ? null : withdrawalReasonCode;
-  if (reasonCode !== undefined) {
-    updateData.withdrawalReasonCode = reasonCode;
-    updateData.withdrawal_reason_code = reasonCode;
-  }
-
-  return updateData;
-}
-
 function toEntryMutationResult(
   entryId: string,
   mutationId: string | null,
@@ -265,14 +230,20 @@ export const updateEntryStatus = async (
   withdrawalReason?: string,
   sourceEntry?: SecretaryStatusEntrySeed,
   /** MYK9-632: 'in_season' | 'judge_change' on a Withdraw, explicit null on a Pull. */
-  withdrawalReasonCode?: string | null
+  withdrawalReasonCode?: string | null,
+  checkInContext?: EntryStatusCheckInContext
 ) => {
   const startTime = Date.now();
 
   try {
     const mutationId = await replicatedEntriesTable.updateSecretaryLifecycleStatus(
       entryId,
-      buildReplicatedEntryStatusUpdate(status, withdrawalReason, withdrawalReasonCode),
+      buildReplicatedEntryStatusUpdate(
+        status,
+        withdrawalReason,
+        withdrawalReasonCode,
+        checkInContext
+      ),
       sourceEntry
     );
     const entry = await replicatedEntriesTable.getEntryById(entryId);

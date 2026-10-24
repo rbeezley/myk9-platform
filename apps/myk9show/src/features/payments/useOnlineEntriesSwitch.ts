@@ -15,12 +15,12 @@
  * early answer; the trigger stays the backstop, and its refusal reaches the
  * secretary through the sync-failure toast (PUBLISH_GATE_MESSAGES).
  */
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useShowStore } from '@/store/showStore';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { useOptionalReplicationSyncActions } from '@/hooks/useOptionalReplicationSyncActions';
 import { setShowOnlineEntries } from './setShowOnlineEntries';
 import { useClubStripeAccount } from './useClubStripeAccount';
 import {
@@ -75,7 +75,7 @@ export function useOnlineEntriesSwitch(showId: string | undefined): OnlineEntrie
     (show?.serverVersion ?? Number.NEGATIVE_INFINITY) < confirmed.version;
   const value = confirmed && replicaBehind ? confirmed.value : replicaValue;
   // Optional: the provider wraps the app; a test without it simply skips the pull.
-  const syncTable = useContext(ReplicationSyncContext)?.syncTable;
+  const syncTable = useOptionalReplicationSyncActions()?.syncTable;
   const stripe = useClubStripeAccount(show?.clubId);
   const navigate = useNavigate();
   const [pending, setPending] = useState(false);

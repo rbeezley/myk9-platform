@@ -12,6 +12,8 @@ import {
   REPLICATION_STORES,
   RETIRED_REPLICATED_TABLE_INDEXES,
   SHOW_ID_INDEX,
+  CLASS_ID_INDEX,
+  TRIAL_ID_INDEX,
 } from './DatabaseManager';
 import { DB_VERSION } from '../constants';
 
@@ -201,7 +203,7 @@ describe('DatabaseManager v8 -> v9 upgrade (MYK9-788)', () => {
   });
 
   it('bumps the schema version past v8', () => {
-    expect(DB_VERSION).toBe(V8 + 1);
+    expect(DB_VERSION).toBeGreaterThan(V8);
   });
 
   it('adds the show index and keeps every other read-path index', async () => {
@@ -237,5 +239,161 @@ describe('DatabaseManager v8 -> v9 upgrade (MYK9-788)', () => {
   it('creates the show index on a fresh database', async () => {
     const db = await dbManager.getDatabase('entries');
     expect(replicatedTableIndexNames(db)).toContain(SHOW_ID_INDEX);
+  });
+});
+
+/**
+ * MYK9-1366: the v9 -> v10 upgrade adds the class and trial indexes to a store
+ * that already holds rows, the way v9 added the show index. IndexedDB builds
+ * them from the records on the device, so a class or trial read finds rows
+ * written before the upgrade (a dirty offline score included) and none is lost.
+ */
+describe('DatabaseManager v9 -> v10 upgrade (MYK9-1366)', () => {
+  const V9 = 9;
+  const rows = [
+    {
+      tableName: 'entries',
+      id: 'entry-dirty',
+      data: { id: 'entry-dirty', showId: 'show-1', classId: 'class-1' },
+      isDirty: true,
+      lastSyncedAt: 0,
+    },
+    {
+      tableName: 'entries',
+      id: 'entry-clean',
+      data: { id: 'entry-clean', showId: 'show-1', classId: 'class-1' },
+      isDirty: false,
+      lastSyncedAt: 1,
+    },
+    {
+      tableName: 'entries',
+      id: 'entry-elsewhere',
+      data: { id: 'entry-elsewhere', showId: 'show-1', classId: 'class-2' },
+      isDirty: false,
+      lastSyncedAt: 1,
+    },
+    {
+      tableName: 'classes',
+      id: 'class-1',
+      data: { id: 'class-1', trialId: 'trial-1' },
+      isDirty: false,
+      lastSyncedAt: 1,
+    },
+    {
+      tableName: 'classes',
+      id: 'class-2',
+      data: { id: 'class-2', trialId: 'trial-2' },
+      isDirty: false,
+      lastSyncedAt: 1,
+    },
+  ];
+  let dbName: string;
+  let dbManager: DatabaseManager;
+
+  async function seedV9(): Promise<void> {
+    const db = await openDB(dbName, V9, {
+      upgrade(upgradeDb) {
+        const store = upgradeDb.createObjectStore(REPLICATION_STORES.REPLICATED_TABLES, {
+          keyPath: ['tableName', 'id'],
+        });
+        store.createIndex('tableName', 'tableName', { unique: false });
+        store.createIndex('tableName_lastSyncedAt', ['tableName', 'lastSyncedAt'], {
+          unique: false,
+        });
+        store.createIndex('isDirty', 'isDirty', { unique: false });
+        store.createIndex(SHOW_ID_INDEX, ['tableName', 'data.showId'], { unique: false });
+        const mutations = upgradeDb.createObjectStore(REPLICATION_STORES.PENDING_MUTATIONS, {
+          keyPath: 'id',
+        });
+        mutations.createIndex('status', 'status', { unique: false });
+        mutations.createIndex('tableName', 'tableName', { unique: false });
+        mutations.createIndex('tableName_rowId', ['tableName', 'rowId'], { unique: false });
+        upgradeDb.createObjectStore(REPLICATION_STORES.SYNC_METADATA, { keyPath: 'tableName' });
+      },
+    });
+    for (const row of rows) await db.put(REPLICATION_STORES.REPLICATED_TABLES, row);
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, PENDING_MUTATION);
+    db.close();
+  }
+
+  beforeEach(async () => {
+    const { databaseManager: singletonMgr } = await import('./DatabaseManager');
+    await singletonMgr.reset();
+    dbName = `upgrade-v10-test-${Date.now()}-${Math.random()}`;
+    dbManager = new DatabaseManager({}, dbName, DB_VERSION);
+  });
+
+  afterEach(async () => {
+    await dbManager.reset();
+  });
+
+  it('bumps the schema version past v9', () => {
+    expect(DB_VERSION).toBe(V9 + 1);
+  });
+
+  it('adds both indexes and keeps every earlier index', async () => {
+    await seedV9();
+    const db = await dbManager.getDatabase('entries');
+    expect(db.version).toBe(DB_VERSION);
+    expect(replicatedTableIndexNames(db)).toEqual(
+      expect.arrayContaining([
+        'tableName',
+        'tableName_lastSyncedAt',
+        'isDirty',
+        SHOW_ID_INDEX,
+        CLASS_ID_INDEX,
+        TRIAL_ID_INDEX,
+      ])
+    );
+  });
+
+  it("finds a class's and a trial's rows written before the upgrade and loses none", async () => {
+    await seedV9();
+    const db = await dbManager.getDatabase('entries');
+
+    const classRows = await db.getAllFromIndex(
+      REPLICATION_STORES.REPLICATED_TABLES,
+      CLASS_ID_INDEX,
+      IDBKeyRange.only(['entries', 'class-1'])
+    );
+    expect(classRows.map(row => row.id).sort()).toEqual(['entry-clean', 'entry-dirty']);
+    const trialRows = await db.getAllFromIndex(
+      REPLICATION_STORES.REPLICATED_TABLES,
+      TRIAL_ID_INDEX,
+      IDBKeyRange.only(['classes', 'trial-2'])
+    );
+    expect(trialRows.map(row => row.id)).toEqual(['class-2']);
+    await expect(db.getAll(REPLICATION_STORES.REPLICATED_TABLES)).resolves.toHaveLength(
+      rows.length
+    );
+    await expect(
+      db.get(REPLICATION_STORES.REPLICATED_TABLES, ['entries', 'entry-dirty'])
+    ).resolves.toEqual(rows[0]);
+    await expect(db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).resolves.toEqual([
+      PENDING_MUTATION,
+    ]);
+  });
+
+  it('upgrades a v8 device straight to v10 with all three scope indexes', async () => {
+    const v8 = await openDB(dbName, 8, {
+      upgrade(upgradeDb) {
+        const store = upgradeDb.createObjectStore(REPLICATION_STORES.REPLICATED_TABLES, {
+          keyPath: ['tableName', 'id'],
+        });
+        store.createIndex('tableName', 'tableName', { unique: false });
+      },
+    });
+    v8.close();
+    const db = await dbManager.getDatabase('entries');
+    expect(replicatedTableIndexNames(db)).toEqual(
+      expect.arrayContaining([SHOW_ID_INDEX, CLASS_ID_INDEX, TRIAL_ID_INDEX])
+    );
+  });
+
+  it('creates both indexes on a fresh database', async () => {
+    const db = await dbManager.getDatabase('entries');
+    expect(replicatedTableIndexNames(db)).toEqual(
+      expect.arrayContaining([CLASS_ID_INDEX, TRIAL_ID_INDEX])
+    );
   });
 });

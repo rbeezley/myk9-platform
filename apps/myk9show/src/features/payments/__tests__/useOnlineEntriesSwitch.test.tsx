@@ -27,10 +27,9 @@ vi.mock('@/store/showStore', () => ({
 vi.mock('../setShowOnlineEntries', () => ({ setShowOnlineEntries: h.setShowOnlineEntries }));
 vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => h.online }));
 const syncTable = vi.hoisted(() => vi.fn(async (_table: string) => {}));
-vi.mock('@/context/ReplicationSyncContext', async () => {
-  const { createContext } = await import('react');
-  return { ReplicationSyncContext: createContext({ syncTable }) };
-});
+vi.mock('@/hooks/useOptionalReplicationSyncActions', () => ({
+  useOptionalReplicationSyncActions: () => ({ syncTable }),
+}));
 vi.mock('../useClubStripeAccount', () => ({
   useClubStripeAccount: () => ({ data: h.payouts, isLoading: false, isError: false }),
 }));

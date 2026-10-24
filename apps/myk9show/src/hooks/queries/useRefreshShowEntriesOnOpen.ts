@@ -1,6 +1,6 @@
-import { useContext, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { onlineManager } from '@tanstack/react-query';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { useOptionalReplicationSyncActions } from '@/hooks/useOptionalReplicationSyncActions';
 import { claimShowOpenRefresh } from '@/services/database/entries/showOpenRefreshGate';
 import { hasShowEntriesSynced } from '@/services/replication/entriesShowSyncState';
 
@@ -22,7 +22,7 @@ import { hasShowEntriesSynced } from '@/services/replication/entriesShowSyncStat
  * effect does not depend on provider status, so a pass cannot re-trigger it.
  */
 export function useRefreshShowEntriesOnOpen(showId: string, enabled: boolean): void {
-  const sync = useContext(ReplicationSyncContext);
+  const sync = useOptionalReplicationSyncActions();
   const triggerSyncRef = useRef(sync?.triggerSync);
 
   // Latest provider value for the open effect, which must not re-run on it.

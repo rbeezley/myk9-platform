@@ -56,9 +56,9 @@ vi.mock('@/store/trialStore', () => ({
 vi.mock('@/hooks/useClassStoreCompat', () => ({ useClassStoreCompat: () => ({ classes: [] }) }));
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => ({ user: { id: 'u1' } }) }));
 vi.mock('@/hooks/useNetworkStatus', () => ({ useNetworkStatus: () => ({ isOnline: false }) }));
-vi.mock('@/hooks/useReplicationSync', () => ({
+vi.mock('@/hooks/useReplicationSyncActions', () => ({
   // Offline: sync is a no-op, so nothing but our invalidation can refresh the page.
-  useReplicationSync: () => ({ triggerSync: vi.fn().mockResolvedValue(undefined) }),
+  useReplicationSyncActions: () => ({ triggerSync: vi.fn().mockResolvedValue(undefined) }),
 }));
 
 const trialView = createWizardTrialView(

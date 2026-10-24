@@ -7,6 +7,10 @@ export interface BundleStats {
   chunkCount?: number;
   pdfChunkFiles?: string[];
   pdfStaticImports?: PdfStaticImport[];
+  precacheManifestFound?: boolean;
+  precacheFileCount?: number;
+  precacheTotalKb?: number;
+  largestNonCodePrecached?: { file: string; kb: number };
 }
 
 export interface PdfStaticImport {
@@ -24,6 +28,8 @@ export interface BundleBudgets {
   initialJsKb: number;
   initialCssKb: number;
   maxChunkKb: number;
+  precacheTotalKb: number;
+  precacheNonCodeFileKb: number;
 }
 
 export interface BudgetViolation {
@@ -46,5 +52,6 @@ export function evaluatePdfChunkImports(
   edges: PdfStaticImport[],
   policy?: PdfChunkPolicy
 ): BudgetViolation[];
+export function parsePrecacheUrls(swSource: string): string[];
 export function collectBundleStats(distDir: string): BundleStats;
 export function evaluateBudgets(stats: BundleStats, budgets?: BundleBudgets): BudgetViolation[];

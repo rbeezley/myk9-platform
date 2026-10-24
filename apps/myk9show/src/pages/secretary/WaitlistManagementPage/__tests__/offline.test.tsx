@@ -7,7 +7,7 @@ import { onlineManager } from '@tanstack/react-query';
 import { screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
-import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
+import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 import WaitlistManagementPage from '../index';
 
 vi.mock('@/services/database/waitlists', () => ({
@@ -79,7 +79,7 @@ describe('WaitlistManagementPage offline', () => {
 
   it('disables Offer Spot and Remove, saying they are online only, when the app is offline', async () => {
     render(
-      <NetworkStatusContext.Provider
+      <NetworkStatusTestProvider
         value={{
           isOnline: false,
           quality: null,
@@ -88,7 +88,7 @@ describe('WaitlistManagementPage offline', () => {
         }}
       >
         <WaitlistManagementPage showId="show-1" />
-      </NetworkStatusContext.Provider>
+      </NetworkStatusTestProvider>
     );
 
     await screen.findByText('Bella');

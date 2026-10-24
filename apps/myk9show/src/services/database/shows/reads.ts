@@ -153,9 +153,9 @@ export const getPublicShows = async () => {
 // a fresh device the replica answers `[]` until its first sync lands, and the
 // show wizard's clone card vanished on that false empty and reappeared a second
 // later, shifting the form by 182px (MYK9-764). Offline, the empty local list
-// still stands. Signed-in sessions only: a guest's replica never syncs, and
-// `prefetchCriticalData` calls this on every app load, so verifying for guests
-// would send the whole catalog query on every public visit.
+// still stands. Signed-in sessions only: a guest's replica never syncs, so
+// verifying for guests would send the whole catalog query on every public
+// visit to a page that reads the list.
 export const getAllShows = async () =>
   readWithReplicationFallback<Record<string, unknown>[]>({
     replication: async () => {

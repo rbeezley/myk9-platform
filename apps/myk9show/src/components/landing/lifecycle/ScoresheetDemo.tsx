@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { ResultChoiceChips, useStopwatch, type QualifyingResult } from '@myk9/scoring-ui';
+import {
+  ResultChoiceChips,
+  StopwatchTime,
+  useStopwatch,
+  type QualifyingResult,
+} from '@myk9/scoring-ui';
 import './scoresheetDemo.css';
 
 // Practice dogs for the landing-page demo. Ziva and Tera are the owner's dogs (the hero photo).
@@ -114,7 +119,6 @@ export function ScoresheetDemo({ syncMs = 1400 }: { syncMs?: number }) {
         : { text: 'Online', tone: 'neutral' };
 
   const maxMs = stopwatch.getMaxTimeMs();
-  const remainingPct = maxMs ? Math.max(0, (stopwatch.getRemainingTimeMs() / maxMs) * 100) : 100;
 
   return (
     <div className="lc-demo">
@@ -162,11 +166,22 @@ export function ScoresheetDemo({ syncMs = 1400 }: { syncMs?: number }) {
             </div>
           </div>
           <div className="lc-demo-timer">
-            <div className="lc-demo-clock">{stopwatch.formatTime(stopwatch.time)}</div>
-            <div className="lc-demo-remaining">Remaining: {stopwatch.getRemainingTime()}</div>
-            <div className="lc-demo-bar">
-              <div style={{ width: `${remainingPct}%` }} />
-            </div>
+            <StopwatchTime stopwatch={stopwatch}>
+              {elapsedMs => {
+                const remainingPct = maxMs ? Math.max(0, ((maxMs - elapsedMs) / maxMs) * 100) : 100;
+                return (
+                  <>
+                    <div className="lc-demo-clock">{stopwatch.formatTime(elapsedMs)}</div>
+                    <div className="lc-demo-remaining">
+                      Remaining: {stopwatch.getRemainingTime()}
+                    </div>
+                    <div className="lc-demo-bar">
+                      <div style={{ width: `${remainingPct}%` }} />
+                    </div>
+                  </>
+                );
+              }}
+            </StopwatchTime>
             <button
               type="button"
               className="lc-demo-start"

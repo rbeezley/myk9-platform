@@ -540,11 +540,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   }
 
   /**
-   * Get entries by class ID
+   * Get entries by class ID, through the class index (MYK9-1366)
    */
   async getEntriesByClass(classId: string): Promise<ReplicatedEntry[]> {
-    const all = await this.getAllOrThrow();
-    return all.filter(e => e.classId === classId);
+    return this.getByClassOrThrow(classId);
   }
 
   /**

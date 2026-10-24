@@ -17,7 +17,7 @@ import { useTrialStore, type TrialInput } from '@/store/trialStore';
 import { deriveRegistryId, resolveBrowserTrialTimezone } from '@/features/registries';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { useReplicationSync } from '@/hooks/useReplicationSync';
+import { useReplicationSyncActions } from '@/hooks/useReplicationSyncActions';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { invalidateClassCaches } from '@/hooks/queries/useClassesDatabase';
@@ -107,7 +107,7 @@ export function useShowCreationWizardActions({
   const { classes: existingDBClasses } = useClassStoreCompat();
   const { user } = useAuthContext();
   const { isOnline } = useNetworkStatus();
-  const { triggerSync } = useReplicationSync();
+  const { triggerSync } = useReplicationSyncActions();
 
   /**
    * Create trials in the trial store

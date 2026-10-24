@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AuthChangeEvent, Session, Subscription } from '@supabase/supabase-js';
-import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
+import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 
 type AuthCallback = (event: AuthChangeEvent, session: Session | null) => void;
 
@@ -138,13 +138,13 @@ import { ReplicationSyncProvider } from './../ReplicationSyncProvider';
 
 function tree(isOnline: boolean) {
   return (
-    <NetworkStatusContext.Provider
+    <NetworkStatusTestProvider
       value={{ isOnline, quality: null, showOfflineMessage: false, retryConnection: vi.fn() }}
     >
       <ReplicationSyncProvider autoSync={false} syncOnReconnect>
         <div />
       </ReplicationSyncProvider>
-    </NetworkStatusContext.Provider>
+    </NetworkStatusTestProvider>
   );
 }
 

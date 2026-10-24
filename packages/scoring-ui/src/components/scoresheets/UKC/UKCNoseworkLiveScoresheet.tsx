@@ -15,6 +15,8 @@ import React, { useState, useCallback } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Button, Input, Card, cn } from '@myk9/ui';
 import { ScoresheetDogCard } from '../../ScoresheetDogCard';
+import { StopwatchTime } from '../../StopwatchTime';
+import { MaxTimeRing } from '../../MaxTimeRing';
 import { TimerResetButton } from '../../TimerResetButton';
 import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
 import { useStopwatch } from '../../../hooks/useStopwatch';
@@ -216,21 +218,6 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     elementStatus,
     stopwatch
   );
-  const remainingSeconds = remainingTimeMs / 1000;
-
-  const getRingColor = (): string => {
-    if (remainingSeconds <= 0) return '#ef4444';
-    if (remainingSeconds <= 30) return '#ef4444';
-    if (remainingSeconds <= 40) return '#f59e0b';
-    return '#22c55e';
-  };
-
-  const ringSize = 40;
-  const strokeWidth = 4;
-  const radius = (ringSize - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progress = maxTimeMs > 0 ? Math.max(0, remainingTimeMs / maxTimeMs) : 1;
-  const dashOffset = circumference * (1 - progress);
 
   const isStarted = stopwatch.time > 0 || elementTimer.time > 0;
   const isBothStopped = !stopwatch.isRunning && !elementTimer.isRunning;
@@ -238,39 +225,27 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   // Remaining max time. In dual mode it counts down the ELEMENT time, so it lives in
   // that row; pinned in the card's corner it covered the row's time and Finish button
   // (owner, 2026-10-09).
-  const renderRing = (className: string) =>
-    maxTimeMs > 0 ? (
-      <svg
+  const renderRing = (className: string) => {
+    if (maxTimeMs <= 0) return null;
+    const ring = (remainingMs: number) => (
+      <MaxTimeRing
         className={className}
-        aria-hidden="true"
-        data-testid="max-time-ring"
-        width={ringSize}
-        height={ringSize}
-        viewBox={`0 0 ${ringSize} ${ringSize}`}
-      >
-        <circle
-          cx={ringSize / 2}
-          cy={ringSize / 2}
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={strokeWidth}
-          className="text-muted/20"
-        />
-        <circle
-          cx={ringSize / 2}
-          cy={ringSize / 2}
-          r={radius}
-          fill="none"
-          stroke={getRingColor()}
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
-          transform={`rotate(-90 ${ringSize / 2} ${ringSize / 2})`}
-        />
-      </svg>
-    ) : null;
+        remainingMs={remainingMs}
+        maxTimeMs={maxTimeMs}
+        testId="max-time-ring"
+        decorative
+      />
+    );
+    // Dual counts the element clock down (its own tick re-renders this sheet);
+    // single counts the search clock, so only the ring follows its live paint.
+    return isDual ? (
+      ring(remainingTimeMs)
+    ) : (
+      <StopwatchTime stopwatch={stopwatch}>
+        {() => ring(stopwatch.getRemainingTimeMs())}
+      </StopwatchTime>
+    );
+  };
 
   return (
     <>
@@ -344,15 +319,21 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   )}
                   data-testid="search-timer-display"
                 >
-                  {stopwatch.formatTime(stopwatch.time)}
+                  <StopwatchTime stopwatch={stopwatch} />
                 </div>
 
                 <div className="text-sm text-muted-foreground mt-2 tabular-nums">
-                  {timerLimitLine(
-                    stopwatch.time,
-                    rules.maxTimeSeconds,
-                    stopwatch.formatTime(remainingTimeMs)
-                  )}
+                  <StopwatchTime stopwatch={stopwatch}>
+                    {elapsedMs =>
+                      timerLimitLine(
+                        elapsedMs,
+                        rules.maxTimeSeconds,
+                        stopwatch.formatTime(
+                          isDual ? remainingTimeMs : stopwatch.getRemainingTimeMs()
+                        )
+                      )
+                    }
+                  </StopwatchTime>
                 </div>
 
                 <div className="mt-6 flex justify-center gap-3">

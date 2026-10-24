@@ -12,15 +12,15 @@
  */
 
 import { adoptHeldRingsideScoresForLiveClaim } from '@/services/replication/heldRingsideScores';
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useStoreSubscriptions } from '@/hooks/useStoreSubscriptions';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import {
-  ReplicationSyncContext,
-  type ReplicationSyncContextValue,
+  ReplicationSyncActionsContext,
+  ReplicationSyncStatusContext,
 } from '@/context/ReplicationSyncContext';
 import {
   ReplicatedTable,
@@ -829,15 +829,15 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     };
   }, []);
 
-  const contextValue: ReplicationSyncContextValue = {
-    status,
-    triggerSync,
-    syncTable,
-  };
+  // Two contexts: `status` changes on every sync-pass transition, the actions
+  // only when auth/connectivity/scope change. Action-only consumers skip the churn.
+  const actions = useMemo(() => ({ triggerSync, syncTable }), [triggerSync, syncTable]);
 
   return (
-    <ReplicationSyncContext.Provider value={contextValue}>
-      {children}
-    </ReplicationSyncContext.Provider>
+    <ReplicationSyncStatusContext.Provider value={status}>
+      <ReplicationSyncActionsContext.Provider value={actions}>
+        {children}
+      </ReplicationSyncActionsContext.Provider>
+    </ReplicationSyncStatusContext.Provider>
   );
 };

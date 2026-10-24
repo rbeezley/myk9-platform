@@ -16,6 +16,8 @@ import { TimerResetButton } from '../../TimerResetButton';
 import { RecordAreaTimeButton } from '../../RecordAreaTimeButton';
 import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
 import { useStopwatch } from '../../../hooks/useStopwatch';
+import { StopwatchTime } from '../../StopwatchTime';
+import { remainingColor } from '../../MaxTimeRing';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { useTimedArea } from '../../../hooks/useTimedArea';
 import { maxTimeForArea } from '../../../utils/buildResolvedClassRules';
@@ -133,17 +135,6 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   // Timer visuals
   const warningMessage = stopwatch.getWarningMessage();
   const maxTimeMs = stopwatch.getMaxTimeMs();
-  const remainingTimeMs = stopwatch.getRemainingTimeMs();
-  const remainingSeconds = remainingTimeMs / 1000;
-
-  const getRingColor = (): string => {
-    if (remainingSeconds <= 0) return '#ef4444';
-    if (remainingSeconds <= 30) return '#ef4444';
-    if (remainingSeconds <= 40) return '#f59e0b';
-    return '#22c55e';
-  };
-
-  const progressPct = maxTimeMs > 0 ? Math.max(0, remainingTimeMs / maxTimeMs) * 100 : 100;
 
   const headerTitle = buildHeaderTitle(classInfo);
 
@@ -198,20 +189,34 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                     stopwatch.isTimeExpired() && 'text-red-500 animate-pulse'
                   )}
                 >
-                  {stopwatch.formatTime(stopwatch.time)}
+                  <StopwatchTime stopwatch={stopwatch} />
                 </div>
 
                 <div className="text-base text-muted-foreground mt-2 mb-4 tabular-nums">
-                  {timerLimitLine(stopwatch.time, areaMaxSeconds, stopwatch.getRemainingTime())}
+                  <StopwatchTime stopwatch={stopwatch}>
+                    {elapsedMs =>
+                      timerLimitLine(elapsedMs, areaMaxSeconds, stopwatch.getRemainingTime())
+                    }
+                  </StopwatchTime>
                 </div>
 
                 {/* Time remaining progress bar */}
                 {maxTimeMs > 0 && (
                   <div className="w-full h-1.5 rounded-full bg-muted mt-3 mb-4 overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-300 ease-linear"
-                      style={{ width: `${progressPct}%`, backgroundColor: getRingColor() }}
-                    />
+                    <StopwatchTime stopwatch={stopwatch}>
+                      {elapsedMs => {
+                        const remainingMs = Math.max(0, maxTimeMs - elapsedMs);
+                        return (
+                          <div
+                            className="h-full rounded-full transition-all duration-300 ease-linear"
+                            style={{
+                              width: `${(remainingMs / maxTimeMs) * 100}%`,
+                              backgroundColor: remainingColor(remainingMs),
+                            }}
+                          />
+                        );
+                      }}
+                    </StopwatchTime>
                   </div>
                 )}
 

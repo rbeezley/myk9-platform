@@ -171,12 +171,83 @@ describe('ReplicatedTableBatchManager', () => {
       expect(notifyListeners).toHaveBeenCalled();
     });
 
-    it('should handle empty array', async () => {
+    it('should handle empty array without telling subscribers anything changed', async () => {
       await batchManager.batchSet([]);
 
       const rows = await getAllRows();
       expect(rows).toHaveLength(0);
-      expect(notifyListeners).toHaveBeenCalled();
+      expect(notifyListeners).not.toHaveBeenCalled();
+    });
+
+    // MYK9-1332: the incremental sync re-downloads every row inside its 60 s
+    // `since` buffer on every pass. On a quiet table those are the same rows,
+    // and notifying anyway refetched the dog rosters every pass under load.
+    describe('an unchanged re-download', () => {
+      const rex = { id: '1', name: 'Rex' };
+      const buddy = { id: '2', name: 'Buddy' };
+
+      it.each(['batchSet', 'batchSetChunked'] as const)(
+        '%s neither notifies nor bumps the version when every row is as stored',
+        async method => {
+          const write = (items: TestEntity[]) =>
+            method === 'batchSet'
+              ? batchManager.batchSet(items, new Map([['1', 7]]))
+              : batchManager.batchSetChunked(items, 1, new Map([['1', 7]]));
+          await write([rex, buddy]);
+          const before = await getAllRows();
+          notifyListeners.mockClear();
+
+          await write([{ ...rex }, { ...buddy }]);
+
+          const after = await getAllRows();
+          expect(notifyListeners).not.toHaveBeenCalled();
+          expect(after.map(r => [r.id, r.version, r.serverVersion, r.data])).toEqual(
+            before.map(r => [r.id, r.version, r.serverVersion, r.data])
+          );
+          // The bookkeeping still lands: the row was seen by this sync.
+          expect(after.every((r, i) => r.lastSyncedAt >= before[i]!.lastSyncedAt)).toBe(true);
+        }
+      );
+
+      it('notifies and bumps only the rows that changed', async () => {
+        await batchManager.batchSet([rex, buddy]);
+        notifyListeners.mockClear();
+
+        await batchManager.batchSet([rex, { ...buddy, name: 'Buddy II' }]);
+
+        expect(notifyListeners).toHaveBeenCalledTimes(1);
+        const byId = new Map((await getAllRows()).map(r => [r.id, r]));
+        expect(byId.get('1')!.version).toBe(1);
+        expect(byId.get('2')!.version).toBe(2);
+        expect(byId.get('2')!.data.name).toBe('Buddy II');
+      });
+
+      it('treats a new server version, a new owner, or a new row as a change', async () => {
+        await batchManager.batchSet([rex], new Map([['1', 1]]), 'user-a');
+        notifyListeners.mockClear();
+
+        await batchManager.batchSet([rex], new Map([['1', 2]]), 'user-a');
+        expect(notifyListeners).toHaveBeenCalledTimes(1);
+        await batchManager.batchSet([rex], new Map([['1', 2]]), 'user-b');
+        expect(notifyListeners).toHaveBeenCalledTimes(2);
+        await batchManager.batchSet([rex, buddy], new Map([['1', 2]]), 'user-b');
+        expect(notifyListeners).toHaveBeenCalledTimes(3);
+        expect((await getAllRows()).find(r => r.id === '1')!.version).toBe(3);
+      });
+
+      it('rewrites a row that is not a clean synced copy even when its data matches', async () => {
+        await batchManager.batchSet([rex]);
+        const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+        const stored = (await tx.store.get([tableName, '1'])) as ReplicatedRow<TestEntity>;
+        await tx.store.put({ ...stored, syncStatus: 'conflict' });
+        await tx.done;
+        notifyListeners.mockClear();
+
+        await batchManager.batchSet([rex]);
+
+        expect(notifyListeners).toHaveBeenCalledTimes(1);
+        expect((await getAllRows())[0]!.syncStatus).toBe('synced');
+      });
     });
 
     it('should overwrite existing rows with same ID', async () => {

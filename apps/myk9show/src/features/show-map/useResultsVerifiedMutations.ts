@@ -1,8 +1,8 @@
-import { useContext, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { useOptionalReplicationSyncActions } from '@/hooks/useOptionalReplicationSyncActions';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { getUserFriendlyError, mappedErrorMessage } from '@/utils/errorMessages';
 import {
@@ -34,7 +34,7 @@ const messageFor = (error: unknown, fallback: string) =>
  * caller can reset its ticks when the server says the scores moved (MK015).
  */
 export function useResultsVerifiedMutations() {
-  const sync = useContext(ReplicationSyncContext);
+  const sync = useOptionalReplicationSyncActions();
   // Read at execution time, not at render time: the connection can drop between click and run.
   const online = useIsOnline();
   const onlineRef = useRef(online);

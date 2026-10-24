@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
+import { CacheFirst } from 'workbox-strategies';
 import { installSkipWaitingHandler } from '@myk9/pwa-update/sw';
 import { getNotificationActionUrl, routeNotificationClick } from './swClickNavigation';
 import { loadRingsideNavigation } from './ringsideNavigation';
@@ -11,6 +12,16 @@ declare const self: ServiceWorkerGlobalScope & {
 
 // Workbox precaching — vite-plugin-pwa injects the manifest here
 precacheAndRoute(self.__WB_MANIFEST);
+
+// Registry form PDFs (/assets/pdf/*) are NOT precached. Secretaries download
+// them on demand, so a ~3.4 MB install cost for every exhibitor and judge on
+// venue wifi is the wrong trade. CacheFirst keeps the offline guarantee for
+// anyone who has opened a form: the first fetch is stored, later ones are
+// served from cache with no network (MYK9-1356).
+registerRoute(
+  ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/assets/pdf/'),
+  new CacheFirst({ cacheName: 'registry-form-pdfs' })
+);
 
 // A full reload requests the deep-link document, not /index.html. The handler
 // bounds the network wait and rejects non-app responses before using the

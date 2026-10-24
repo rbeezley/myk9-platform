@@ -5,6 +5,19 @@ import { captureMonitoredQueryFailure } from '@/services/observability/sentry';
 // QueryCache before this module builds one (MYK9-429).
 import './viewerScopeGuard';
 import { EntityScopedQueryClient, keepPreviousDataInEntityScope } from './entityScopedPlaceholder';
+import { isReadDeadlineTimeout } from '@/services/database/readDeadlineFetch';
+
+/**
+ * How a query retries a read the Supabase deadline aborted (MYK9-1374). The
+ * statement is still running server-side (PostgREST does not cancel it), so
+ * the retry is one attempt after a pause long enough for the first copy to
+ * finish or time out, jittered so a page's queries do not retry in step.
+ */
+export const READ_DEADLINE_RETRIES = 1;
+export const READ_DEADLINE_RETRY_BASE_MS = 10_000;
+export const READ_DEADLINE_RETRY_JITTER_MS = 5_000;
+export const readDeadlineRetryDelayMs = (): number =>
+  READ_DEADLINE_RETRY_BASE_MS + Math.floor(Math.random() * READ_DEADLINE_RETRY_JITTER_MS);
 
 // Create custom query cache with enhanced deduplication
 const createAppQueryCache = () =>
@@ -66,10 +79,16 @@ export const createAppQueryClient = () =>
               return false;
             }
           }
+          // A read the 30 s deadline cut off is still running on the server
+          // (MYK9-1374): one more try, later, not two more at once.
+          if (isReadDeadlineTimeout(error)) return failureCount < READ_DEADLINE_RETRIES;
           // Retry up to 2 times for server errors (reduced for performance)
           return failureCount < 2;
         },
-        retryDelay: attemptIndex => Math.min(500 * 2 ** attemptIndex, 15000), // Faster retry with shorter backoff
+        retryDelay: (attemptIndex, error: unknown) =>
+          isReadDeadlineTimeout(error)
+            ? readDeadlineRetryDelayMs()
+            : Math.min(500 * 2 ** attemptIndex, 15000), // Faster retry with shorter backoff
 
         // Optimized refetch settings for mobile performance
         refetchOnWindowFocus: false,

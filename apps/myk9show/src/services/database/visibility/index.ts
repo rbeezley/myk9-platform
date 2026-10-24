@@ -1,6 +1,7 @@
 import type { VisibilityPreset, VisibilitySettings, VisibilityTiming } from '@myk9/secretary';
 import { PRESET_CONFIGS } from '@myk9/secretary';
 import { supabase } from '../supabaseClient';
+import { invalidateClassEnrichment } from '@/services/replication/classEnrichmentCache';
 import type { Database } from '@/types/supabase';
 
 type Tables = Database['public']['Tables'];
@@ -149,6 +150,7 @@ export async function updateShowVisibility(
     .from('show_visibility_settings')
     .upsert(buildShowRow(input, userId));
   if (error) throw error;
+  invalidateClassEnrichment(input.showId);
 }
 
 export async function updateTrialVisibility(
@@ -161,6 +163,7 @@ export async function updateTrialVisibility(
       .delete()
       .eq('trial_id', input.trialId);
     if (error) throw error;
+    invalidateClassEnrichment();
     return;
   }
 
@@ -179,6 +182,7 @@ export async function updateTrialVisibility(
       .insert({ trial_id: input.trialId, ...updates });
     if (error) throw error;
   }
+  invalidateClassEnrichment();
 }
 
 export async function updateClassVisibility(
@@ -191,6 +195,7 @@ export async function updateClassVisibility(
       .delete()
       .in('class_id', input.classIds);
     if (error) throw error;
+    invalidateClassEnrichment();
     return;
   }
 
@@ -212,4 +217,5 @@ export async function updateClassVisibility(
       if (error) throw error;
     }
   }
+  invalidateClassEnrichment();
 }

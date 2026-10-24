@@ -53,12 +53,12 @@ async function clientCanEnterAt(now: Date) {
         trialsReadStatus: 'ready',
       }),
   }));
-  const { ReplicationSyncContext } = await import('@/context/ReplicationSyncContext');
+  const { ReplicationSyncTestProvider } = await import('@/test/utils/ReplicationSyncTestProvider');
   const { useEntryCloseAvailability } = await import('./useEntryCloseAvailability');
 
   const wrapper = ({ children }: { children: React.ReactNode }) =>
     React.createElement(
-      ReplicationSyncContext.Provider,
+      ReplicationSyncTestProvider,
       {
         value: {
           status: {

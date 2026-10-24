@@ -6,7 +6,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
-import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
+import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 import WaitlistManagementPage from '../index';
 
 const h = vi.hoisted(() => {
@@ -382,7 +382,7 @@ describe('WaitlistManagementPage offers', () => {
 
   it('disables Withdraw offer offline, saying it is online only', async () => {
     render(
-      <NetworkStatusContext.Provider
+      <NetworkStatusTestProvider
         value={{
           isOnline: false,
           quality: null,
@@ -391,7 +391,7 @@ describe('WaitlistManagementPage offers', () => {
         }}
       >
         <WaitlistManagementPage showId="show-1" />
-      </NetworkStatusContext.Provider>
+      </NetworkStatusTestProvider>
     );
     const group = within(await offeredGroup());
     expect(group.getByRole('button', { name: /Withdraw offer/ })).toBeDisabled();

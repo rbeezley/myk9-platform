@@ -17,7 +17,7 @@ import {
 } from '@tanstack/react-query';
 import { MutationManager } from '@myk9/replication';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import { replicatedDogsTable, rowToDog } from '@/services/replication/ReplicatedDogsTable';
 import type { Dog } from '@/types/dog-types';
 import { queryKeys } from '@/lib/queryClient';
@@ -119,11 +119,11 @@ describe('DogsBulkActionsBar — status change uses the mutation queue (MYK9-107
     unsubscribers.push(unsubscribe);
     const roster = () => queryClient.getQueryData(rosterKey) as typeof rosterRows;
     render(
-      <ReplicationSyncContext.Provider value={syncValue}>
+      <ReplicationSyncTestProvider value={syncValue}>
         <QueryClientProvider client={queryClient}>
           <DogsBulkActionsBar selectedDogs={[uiDog(ID_A), uiDog(ID_B)]} onClear={onClear} />
         </QueryClientProvider>
-      </ReplicationSyncContext.Provider>
+      </ReplicationSyncTestProvider>
     );
     const user = userEvent.setup();
     const run = async () => {

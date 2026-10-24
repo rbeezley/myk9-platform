@@ -12,6 +12,8 @@ import React, { useState, useCallback } from 'react';
 import { ArrowLeft, ClipboardCheck, X } from 'lucide-react';
 import { Button, Input, Card, cn } from '@myk9/ui';
 import { ScoresheetDogCard } from '../../ScoresheetDogCard';
+import { StopwatchTime } from '../../StopwatchTime';
+import { MaxTimeRing } from '../../MaxTimeRing';
 import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
@@ -120,22 +122,6 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
   // Timer visuals
   const warningMessage = stopwatch.getWarningMessage();
   const maxTimeMs = stopwatch.getMaxTimeMs();
-  const remainingTimeMs = stopwatch.getRemainingTimeMs();
-  const remainingSeconds = remainingTimeMs / 1000;
-
-  const getRingColor = (): string => {
-    if (remainingSeconds <= 0) return '#ef4444';
-    if (remainingSeconds <= 30) return '#ef4444';
-    if (remainingSeconds <= 40) return '#f59e0b';
-    return '#22c55e';
-  };
-
-  const ringSize = 40;
-  const strokeWidth = 4;
-  const radius = (ringSize - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progress = maxTimeMs > 0 ? Math.max(0, remainingTimeMs / maxTimeMs) : 1;
-  const dashOffset = circumference * (1 - progress);
 
   return (
     <>
@@ -174,34 +160,15 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
             {/* Timer */}
             <Card className="p-6 relative overflow-hidden">
               {maxTimeMs > 0 && (
-                <svg
-                  className="absolute top-3 right-3"
-                  width={ringSize}
-                  height={ringSize}
-                  viewBox={`0 0 ${ringSize} ${ringSize}`}
-                >
-                  <circle
-                    cx={ringSize / 2}
-                    cy={ringSize / 2}
-                    r={radius}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={strokeWidth}
-                    className="text-muted/20"
-                  />
-                  <circle
-                    cx={ringSize / 2}
-                    cy={ringSize / 2}
-                    r={radius}
-                    fill="none"
-                    stroke={getRingColor()}
-                    strokeWidth={strokeWidth}
-                    strokeLinecap="round"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={dashOffset}
-                    transform={`rotate(-90 ${ringSize / 2} ${ringSize / 2})`}
-                  />
-                </svg>
+                <StopwatchTime stopwatch={stopwatch}>
+                  {elapsedMs => (
+                    <MaxTimeRing
+                      className="absolute top-3 right-3"
+                      remainingMs={Math.max(0, maxTimeMs - elapsedMs)}
+                      maxTimeMs={maxTimeMs}
+                    />
+                  )}
+                </StopwatchTime>
               )}
 
               <div className="text-center pt-8">
@@ -212,11 +179,15 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
                     stopwatch.isTimeExpired() && 'text-destructive'
                   )}
                 >
-                  {stopwatch.formatTime(stopwatch.time)}
+                  <StopwatchTime stopwatch={stopwatch} />
                 </div>
 
                 <div className="text-sm text-muted-foreground mt-2 tabular-nums">
-                  {timerLimitLine(stopwatch.time, areaMaxSeconds, stopwatch.getRemainingTime())}
+                  <StopwatchTime stopwatch={stopwatch}>
+                    {elapsedMs =>
+                      timerLimitLine(elapsedMs, areaMaxSeconds, stopwatch.getRemainingTime())
+                    }
+                  </StopwatchTime>
                 </div>
 
                 <div className="mt-6">

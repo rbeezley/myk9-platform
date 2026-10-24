@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { useContext, useEffect } from 'react';
+import { useEffect } from 'react';
 import { act, render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
 import type { AuthChangeEvent, Session, Subscription } from '@supabase/supabase-js';
-import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
+import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 
 type AuthCallback = (event: AuthChangeEvent, session: Session | null) => void;
 
@@ -133,16 +133,14 @@ vi.mock(import('@myk9/replication'), async importOriginal => {
 });
 
 import { ReplicationSyncProvider } from '../ReplicationSyncProvider';
-import {
-  ReplicationSyncContext,
-  type ReplicationSyncContextValue,
-} from '@/context/ReplicationSyncContext';
+import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
+import { useReplicationSync } from '@/hooks/useReplicationSync';
 
 let latestContext: ReplicationSyncContextValue | null = null;
 let providerQueryClient: QueryClient | null = null;
 
 function ContextProbe() {
-  const value = useContext(ReplicationSyncContext);
+  const value = useReplicationSync();
   useEffect(() => {
     latestContext = value;
   });
@@ -156,7 +154,7 @@ function renderProvider() {
   providerQueryClient = queryClient;
   return render(
     <QueryClientProvider client={queryClient}>
-      <NetworkStatusContext.Provider
+      <NetworkStatusTestProvider
         value={{
           isOnline: true,
           quality: null,
@@ -167,7 +165,7 @@ function renderProvider() {
         <ReplicationSyncProvider autoSync syncOnReconnect={false}>
           <ContextProbe />
         </ReplicationSyncProvider>
-      </NetworkStatusContext.Provider>
+      </NetworkStatusTestProvider>
     </QueryClientProvider>
   );
 }

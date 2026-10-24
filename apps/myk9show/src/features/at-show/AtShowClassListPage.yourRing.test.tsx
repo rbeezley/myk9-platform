@@ -1,7 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor, within } from '@/test/utils/testUtils';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { UserRole, type UserWithRoles } from '@/types/auth-types';
 
@@ -118,7 +118,7 @@ function seedClassList() {
 
 function renderPage(syncStatus = settledSyncStatus) {
   return render(
-    <ReplicationSyncContext.Provider
+    <ReplicationSyncTestProvider
       value={{
         status: syncStatus,
         triggerSync: vi.fn(),
@@ -128,7 +128,7 @@ function renderPage(syncStatus = settledSyncStatus) {
       <Routes>
         <Route path="/at-show/:showId" element={<AtShowClassListPage />} />
       </Routes>
-    </ReplicationSyncContext.Provider>,
+    </ReplicationSyncTestProvider>,
     { initialRoute: '/at-show/show-1' }
   );
 }

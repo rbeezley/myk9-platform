@@ -28,7 +28,7 @@
 
 import { useContext, useEffect, useState } from 'react';
 import { formatRelativeTime } from '@/utils/format';
-import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { ReplicationSyncStatusContext } from '@/context/ReplicationSyncContext';
 import { showLiveSyncEnabled } from './useShowLiveSync';
 
 const SYNC_EVENT = 'replication:sync-requested';
@@ -39,8 +39,8 @@ export function LiveUpdateIndicator() {
   // Read the sync context NON-throwingly (vs. the useReplicationSync hook, which
   // throws): this ambient widget degrades to nothing outside the provider rather
   // than crashing a host that doesn't supply it.
-  const sync = useContext(ReplicationSyncContext);
-  const syncedAt = sync?.status.lastSyncAt ? sync.status.lastSyncAt.getTime() : null;
+  const syncStatus = useContext(ReplicationSyncStatusContext);
+  const syncedAt = syncStatus?.lastSyncAt ? syncStatus.lastSyncAt.getTime() : null;
 
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
   // A show-scoped change was DETECTED (the realtime nudge) — not proof of a

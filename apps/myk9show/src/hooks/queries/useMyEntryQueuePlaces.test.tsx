@@ -1,11 +1,13 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import type { ReactNode } from 'react';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   fetchMyEntryQueuePlaces,
   settledQueuePlaces,
   settledQueuePlacesWithFreshness,
+  QUEUE_PLACES_REFETCH_MS,
+  QUEUE_PLACES_REPLICA_COALESCE_MS,
   useMyEntryQueuePlaces,
   type QueuePlacesQueryState,
 } from './useMyEntryQueuePlaces';
@@ -17,6 +19,15 @@ vi.mock('@/services/database/supabaseClient', () => ({
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'auth-user-1' } }),
+}));
+const replica = vi.hoisted(() => ({ listeners: new Set<() => void>() }));
+vi.mock('@/services/replication', () => ({
+  replicatedEntriesTable: {
+    subscribe: (listener: () => void) => {
+      replica.listeners.add(listener);
+      return () => replica.listeners.delete(listener);
+    },
+  },
 }));
 let online = true;
 vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => online }));
@@ -147,6 +158,89 @@ describe('useMyEntryQueuePlaces', () => {
   it('does not ask for an empty list', async () => {
     renderHook(() => useMyEntryQueuePlaces([]), { wrapper });
     await new Promise(r => setTimeout(r, 20));
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+// MYK9-1368: the place is a server read (the RPC counts OTHER exhibitors), so it
+// polls once a minute and also refreshes when the entries replica changes.
+describe('useMyEntryQueuePlaces refresh cadence', () => {
+  async function settle(steps = 4) {
+    for (let step = 0; step < steps; step++) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+    }
+  }
+
+  function mount() {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    return renderHook(
+      () => {
+        return useMyEntryQueuePlaces(['e1']);
+      },
+      { wrapper }
+    );
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    replica.listeners.clear();
+    rpc.mockReset().mockResolvedValue({ data: [{ entry_id: 'e1', place: 2 }], error: null });
+    online = true;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('re-counts every 60 seconds, not every 30', async () => {
+    expect(QUEUE_PLACES_REFETCH_MS).toBe(60_000);
+    mount();
+    await settle();
+    expect(rpc).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(QUEUE_PLACES_REFETCH_MS - 100);
+    });
+    expect(rpc).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it('re-counts once when the entries replica changes, however many notices arrive', async () => {
+    mount();
+    await settle();
+    expect(rpc).toHaveBeenCalledTimes(1);
+
+    // The replica notifies on a leading and a trailing edge.
+    replica.listeners.forEach(listener => listener());
+    replica.listeners.forEach(listener => listener());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(QUEUE_PLACES_REPLICA_COALESCE_MS - 100);
+    });
+    expect(rpc).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not ask on a replica change while offline', async () => {
+    online = false;
+    mount();
+    await settle();
+    replica.listeners.forEach(listener => listener());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(QUEUE_PLACES_REPLICA_COALESCE_MS + 100);
+    });
     expect(rpc).not.toHaveBeenCalled();
   });
 });

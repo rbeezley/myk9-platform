@@ -15,9 +15,9 @@ import {
 
 describe('check-bundle-budget — evaluateBudgets', () => {
   const within = {
-    initialJsKb: 3000,
-    initialCssKb: 300,
-    largestChunk: { file: 'vendor.js', kb: 1400 },
+    initialJsKb: 1000,
+    initialCssKb: 290,
+    largestChunk: { file: 'vendor.js', kb: 1200 },
   };
 
   it('reports no violations when every metric is within budget', () => {
@@ -293,9 +293,9 @@ describe('check-bundle-budget — PDF renderer chunks stay off the static path',
 
 describe('check-bundle-budget — precache rules', () => {
   const within = {
-    initialJsKb: 3000,
-    initialCssKb: 300,
-    largestChunk: { file: 'vendor.js', kb: 1400 },
+    initialJsKb: 1000,
+    initialCssKb: 290,
+    largestChunk: { file: 'vendor.js', kb: 1200 },
     precacheTotalKb: 9000,
     largestNonCodePrecached: { file: 'pwa-512x512.png', kb: 40 },
   };

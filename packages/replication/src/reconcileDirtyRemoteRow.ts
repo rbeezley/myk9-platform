@@ -96,7 +96,6 @@ export async function reconcileDirtyRemoteRow<TRemote, TLocal extends { id: stri
       ? ({ ...adapter.mergeDirtyRow(existing.data, remoteLocal), id } as TLocal)
       : undefined,
     rebuildPayload: adapter.rebuildUpdatePayload,
-    ...(adapter.dirtyRowComparePolicy && { comparePolicy: adapter.dirtyRowComparePolicy }),
   });
   return { conflict: false, changed: reconciled };
 }

@@ -238,6 +238,24 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    */
   protected getRowRefetchAdapter?(): RowRefetchAdapter<unknown, T>;
 
+  /** The compare policy the row-refetch adapter declares (its single source). */
+  protected dirtyRowComparePolicy(): DirtyRowComparePolicy | undefined {
+    return this.getRowRefetchAdapter?.()?.dirtyRowComparePolicy;
+  }
+
+  /** The one merge site: route every dirty-row server merge through here so the
+   *  table's compare policy (`fieldGroups`) always applies (MYK9-1378). */
+  private mergeServerFields(base: T, local: T, remote: T): T {
+    const comparePolicy = this.dirtyRowComparePolicy();
+    return mergeNonConflictingServerFields({
+      base,
+      local,
+      remote,
+      instantFields: instantFieldsFor(this.tableName),
+      ...(comparePolicy && { comparePolicy }),
+    }).merged;
+  }
+
   /**
    * Get the number of pending mutations in the queue.
    * Useful for subclasses to guard cleanup operations.
@@ -991,8 +1009,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       /** Rebuild a full Supabase UPDATE payload from the reconciled row, so a queued
        *  full-row UPDATE can be refreshed (not just the IDB row) and won't clobber. */
       rebuildPayload?: (local: T) => Record<string, unknown>;
-      /** The table's compare policy; the generic merge honors its `fieldGroups`. */
-      comparePolicy?: DirtyRowComparePolicy;
     }
   ): Promise<boolean> {
     const db = await this.init();
@@ -1030,14 +1046,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     }
 
     const mergedData =
-      params.mergedData ??
-      mergeNonConflictingServerFields({
-        base: params.base,
-        local: existingRow.data,
-        remote: params.remote,
-        instantFields: instantFieldsFor(this.tableName),
-        ...(params.comparePolicy && { comparePolicy: params.comparePolicy }),
-      }).merged;
+      params.mergedData ?? this.mergeServerFields(params.base, existingRow.data, params.remote);
     const normalizedMerged = { ...mergedData, id: normalizedId } as T;
     for (const field of params.adoptRemoteFields ?? []) {
       (normalizedMerged as Record<string, unknown>)[field] = (
@@ -1148,12 +1157,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     if (!snapshot) return false;
 
     if (resolution === 'keep-local') {
-      const merged = mergeNonConflictingServerFields({
-        base: snapshot.baseData,
-        local: row.data,
-        remote: snapshot.remoteData,
-        instantFields: instantFieldsFor(this.tableName),
-      }).merged;
+      const merged = this.mergeServerFields(snapshot.baseData, row.data, snapshot.remoteData);
       await this.clearConflict(id, snapshot.remoteServerVersion, {
         mergedData: merged,
         newBaseData: snapshot.remoteData,

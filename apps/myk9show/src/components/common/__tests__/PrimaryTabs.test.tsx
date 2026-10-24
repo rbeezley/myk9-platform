@@ -172,6 +172,25 @@ describe('PrimaryTabs', () => {
     });
   });
 
+  it('sets count and alert badges to the 14px text-xs floor, never a sub-14px arbitrary size (MYK9-1391)', () => {
+    render(
+      <PrimaryTabs
+        tabs={[
+          { id: 'forms', label: 'Entry Forms', count: 7 },
+          { id: 'results', label: 'Results', badge: 3 },
+        ]}
+        value="forms"
+        onValueChange={vi.fn()}
+      />
+    );
+
+    for (const digit of ['7', '3']) {
+      const badge = screen.getByText(digit);
+      expect(badge.className).toContain('text-xs');
+      expect(badge.className).not.toContain('text-[10px]');
+    }
+  });
+
   it('renders children (TabsContent)', () => {
     render(
       <PrimaryTabs tabs={tabsWithIcons} value="classes" onValueChange={vi.fn()}>

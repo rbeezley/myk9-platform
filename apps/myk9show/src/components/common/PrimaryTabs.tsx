@@ -99,13 +99,13 @@ export function PrimaryTabs({
                 {tab.count !== undefined && (
                   <Badge
                     variant="secondary"
-                    className="ml-1 px-1.5 py-0 text-[10px] min-w-[20px] justify-center"
+                    className="ml-1 px-1.5 py-0 text-xs min-w-[20px] justify-center"
                   >
                     {tab.count}
                   </Badge>
                 )}
                 {tab.badge != null && tab.badge > 0 && (
-                  <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
+                  <span className="ml-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-500 px-1 text-xs font-bold text-white">
                     {tab.badge}
                   </span>
                 )}

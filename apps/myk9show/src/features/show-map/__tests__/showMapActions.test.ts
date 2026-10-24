@@ -1234,7 +1234,7 @@ describe('showMapActions', () => {
       expect.objectContaining({
         id: 'review-results',
         nodeId: 'class:class-signed',
-        label: 'View entries and results',
+        label: 'Review results',
         href: '/shows/show-1/results?trialId=trial-1&classId=class-signed',
       }),
       expect.objectContaining({
@@ -1243,6 +1243,31 @@ describe('showMapActions', () => {
         href: '/shows/show-1/results?step=submit',
       }),
     ]);
+  });
+
+  it('labels the Results-route wrap-up link differently from the class-page link (MYK9-1390)', () => {
+    // The class page keeps "View entries and results" (buildSecretaryCockpitSnapshot.ts,
+    // class-details:<id>). Two Overview links sharing that name while going to different
+    // routes is the ambiguity this pins against.
+    const CLASS_PAGE_LABEL = 'View entries and results';
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-signed',
+          trialId: 'trial-1',
+          name: 'Container Novice A',
+          status: 'Complete',
+          judgeSignedOffAt: '2026-05-18T20:00:00Z',
+        },
+      ],
+      entries: [{ id: 'entry-signed', class_id: 'class-signed', is_scored: true }],
+    });
+
+    const reviewLink = getAttentionActions('root', { tree }).find(a => a.id === 'review-results');
+    expect(reviewLink?.label).toBe('Review results');
+    expect(reviewLink?.label).not.toBe(CLASS_PAGE_LABEL);
   });
 
   describe('trial-level wrap-up gate (no premature submit-final-results)', () => {

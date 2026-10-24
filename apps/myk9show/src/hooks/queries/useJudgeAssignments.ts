@@ -16,6 +16,7 @@ import {
   isActiveJudgeAssignmentStatus,
 } from '@/services/database/judges/assignmentStatus';
 import { zonedWallTimeToInstant, type JudgeClass } from '@/pages/judgeStatsUtils';
+import { decorateWithShowTrialLabels } from './judgeShowTrialLabels';
 import { buildJudgeEntryCountsByClass, type JudgeEntryCounts } from './judgeEntryCounts';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -272,9 +273,14 @@ export async function fetchJudgeAssignments(personId: string): Promise<JudgeClas
         })
         .filter((c): c is JudgeClass => c !== null);
 
-      return sortBySchedule(await decorateWithCanonicalEntryCounts(mine));
+      return sortBySchedule(
+        await decorateWithShowTrialLabels(await decorateWithCanonicalEntryCounts(mine))
+      );
     },
-    async () => decorateWithCanonicalEntryCounts(await fetchFromPostgrest(personId)),
+    async () =>
+      decorateWithShowTrialLabels(
+        await decorateWithCanonicalEntryCounts(await fetchFromPostgrest(personId))
+      ),
     'judge_assignments',
     'select_dashboard_assignments'
   );

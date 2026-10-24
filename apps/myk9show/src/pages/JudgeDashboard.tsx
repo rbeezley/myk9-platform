@@ -32,6 +32,7 @@ import {
   type JudgeClass,
 } from './judgeStatsUtils';
 import { useJudgeAssignments } from '@/hooks/queries/useJudgeAssignments';
+import { formatTrialDate } from '@myk9/core';
 import { formatRingLabel } from '@/utils/ringLabel';
 import { StatusBadge, StatusIcon } from '@/components/status';
 
@@ -69,6 +70,14 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
   // A not-started class on a past show day is never offered "Start Judging";
   // it gets a neutral "Open class" so it stays reachable.
   const isPastNotStarted = isPast && judgeClass.status === 'pending';
+  // Names the show and trial (MYK9-1342) so same-named classes from different shows or
+  // trials can be told apart. The date is left out where the meta line already shows it.
+  const identityParts = [judgeClass.showName, judgeClass.trialLabel].filter(Boolean);
+  const identityLine = identityParts.length
+    ? [...identityParts, showDate ? '' : formatTrialDate(judgeClass.trialDate)]
+        .filter(Boolean)
+        .join(' · ')
+    : '';
 
   return (
     <div className="group relative overflow-hidden flex items-center justify-between p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]">
@@ -79,6 +88,7 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
           <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors duration-300">
             {judgeClass.name}
           </h3>
+          {identityLine && <p className="text-sm text-muted-foreground mt-0.5">{identityLine}</p>}
           <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
             {ringLabel && <span>{ringLabel}</span>}
             {ringLabel && <span>&bull;</span>}

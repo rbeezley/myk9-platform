@@ -33,6 +33,9 @@ vi.mock('../../hooks/useStopwatch', () => ({
 vi.mock('../../hooks/useElementTimer', () => ({
   useElementTimer: () => ({
     time: 0,
+    subscribeTime: () => () => undefined,
+    getTimeMs: () => 0,
+    getMaxTimeMs: () => 180_000,
     isRunning: false,
     start: vi.fn(),
     stop: vi.fn(),

@@ -45,6 +45,11 @@ export interface ElementTimerOptions {
   onExpired?: (() => void) | undefined;
 }
 
+/** The last 30 seconds before the max, where the host shows the warning. */
+function isInWarningWindow(elapsedMs: number, maxTimeMs: number | undefined): boolean {
+  return Boolean(maxTimeMs) && (maxTimeMs ?? 0) - elapsedMs <= 30_000;
+}
+
 export function useElementTimer(options: ElementTimerOptions = {}): ElementTimerReturn {
   const { maxTimeMs } = options;
   // Latest callback without restarting the interval on every render.
@@ -57,9 +62,35 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
     onExpiredRef.current = options.onExpired;
   });
 
-  // Current displayed time (updated every 100ms while running)
+  // `time` (state) is the value as of the last transition; the live clock is
+  // `timeRef`, which the 100ms paint moves without a React render (MYK9-1375).
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
+  const timeRef = useRef(0);
+  const listenersRef = useRef(new Set<() => void>());
+
+  const subscribeTime = useCallback((listener: () => void) => {
+    listenersRef.current.add(listener);
+    return () => {
+      listenersRef.current.delete(listener);
+    };
+  }, []);
+  const getTimeMs = useCallback(() => timeRef.current, []);
+  const getMaxTimeMs = useCallback(() => maxTimeMsRef.current ?? 0, []);
+
+  /** Move the live clock; only subscribers (the display) re-render. */
+  const publishTime = useCallback((ms: number) => {
+    timeRef.current = ms;
+    listenersRef.current.forEach(listener => listener());
+  }, []);
+  /** Move the live clock AND re-render the host (a transition the body shows). */
+  const commitTime = useCallback(
+    (ms: number) => {
+      publishTime(ms);
+      setTime(ms);
+    },
+    [publishTime]
+  );
 
   // Track the start timestamp and any accumulated time from previous runs
   const startTimestampRef = useRef<number | null>(null);
@@ -84,14 +115,18 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
   }, []);
 
   /**
-   * Run from now, painting every 100ms (battery). Reaching `maxTimeMs` freezes
-   * the clock exactly on the max and reports expiry once.
+   * Run from now, painting every 100ms (battery). A paint moves only the live
+   * clock, except when it enters the last 30 seconds before `maxTimeMs`, which
+   * the host shows (banner, chime). Reaching `maxTimeMs` freezes the clock
+   * exactly on the max and reports expiry once.
    */
   const run = useCallback(() => {
     // Never orphan a running interval (two starts within one render).
     if (intervalRef.current) clearInterval(intervalRef.current);
     setIsRunning(true);
     startTimestampRef.current = Date.now();
+    // Whether the host already rendered the warning window (a resume inside it has).
+    let inWarningWindow = isInWarningWindow(accumulatedTimeRef.current, maxTimeMsRef.current);
     intervalRef.current = setInterval(() => {
       if (startTimestampRef.current === null) return;
       const elapsed = Date.now() - startTimestampRef.current + accumulatedTimeRef.current;
@@ -101,14 +136,20 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
         intervalRef.current = null;
         startTimestampRef.current = null;
         accumulatedTimeRef.current = maxTimeMs;
-        setTime(maxTimeMs);
+        commitTime(maxTimeMs);
         setIsRunning(false);
         onExpiredRef.current?.();
         return;
       }
-      setTime(elapsed);
+      const warning = isInWarningWindow(elapsed, maxTimeMs);
+      if (warning === inWarningWindow) {
+        publishTime(elapsed);
+      } else {
+        inWarningWindow = warning;
+        commitTime(elapsed);
+      }
     }, 100);
-  }, []);
+  }, [commitTime, publishTime]);
 
   /**
    * Start the timer
@@ -137,7 +178,7 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
     const reachedMax = Boolean(maxTimeMs) && accumulatedTimeRef.current >= (maxTimeMs ?? 0);
     if (maxTimeMs) accumulatedTimeRef.current = Math.min(accumulatedTimeRef.current, maxTimeMs);
     startTimestampRef.current = null;
-    setTime(accumulatedTimeRef.current);
+    commitTime(accumulatedTimeRef.current);
 
     // Clear interval
     if (intervalRef.current) {
@@ -145,7 +186,7 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
       intervalRef.current = null;
     }
     return reachedMax;
-  }, [isRunning, maxTimeMs]);
+  }, [isRunning, maxTimeMs, commitTime]);
 
   /**
    * Resume the timer after stop
@@ -161,7 +202,7 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
    */
   const reset = useCallback(() => {
     setIsRunning(false);
-    setTime(0);
+    commitTime(0);
     startTimestampRef.current = null;
     accumulatedTimeRef.current = 0;
 
@@ -169,11 +210,14 @@ export function useElementTimer(options: ElementTimerOptions = {}): ElementTimer
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-  }, []);
+  }, [commitTime]);
 
   return {
     time,
     isRunning,
+    subscribeTime,
+    getTimeMs,
+    getMaxTimeMs,
     start,
     stop,
     resume,

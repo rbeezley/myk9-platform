@@ -101,7 +101,7 @@ describe('useElementTimer', () => {
         vi.advanceTimersByTime(500);
       });
 
-      expect(result.current.time).toBeGreaterThan(0);
+      expect(result.current.getTimeMs()).toBeGreaterThan(0);
     });
 
     it('should not restart if already running', () => {
@@ -232,6 +232,59 @@ describe('useElementTimer', () => {
 
       expect(result.current.time).toBe(0);
       expect(result.current.isRunning).toBe(false);
+    });
+  });
+
+  describe('live clock (MYK9-1375)', () => {
+    it('moves the live clock every 100ms without re-rendering the host', () => {
+      let renders = 0;
+      const { result } = renderHook(() => {
+        renders += 1;
+        return useElementTimer({ maxTimeMs: 120_000 });
+      });
+      const listener = vi.fn();
+      result.current.subscribeTime(listener);
+
+      act(() => result.current.start());
+      const afterStart = renders;
+      act(() => vi.advanceTimersByTime(3000));
+
+      expect(renders - afterStart).toBe(0);
+      expect(listener).toHaveBeenCalledTimes(30);
+      expect(result.current.getTimeMs()).toBe(3000);
+      expect(result.current.getMaxTimeMs()).toBe(120_000);
+    });
+
+    it('commits once when the last 30 seconds open, so the warning still fires', () => {
+      let renders = 0;
+      const { result } = renderHook(() => {
+        renders += 1;
+        return useElementTimer({ maxTimeMs: 40_000 });
+      });
+
+      act(() => result.current.start());
+      act(() => vi.advanceTimersByTime(9_900));
+      expect(result.current.time).toBe(0);
+      const before = renders;
+      act(() => vi.advanceTimersByTime(200));
+      expect(renders - before).toBe(1);
+      expect(result.current.time).toBe(10_000);
+      act(() => vi.advanceTimersByTime(5_000));
+      expect(renders - before).toBe(1);
+    });
+
+    it('commits the exact time on stop and zero on reset', () => {
+      const { result } = renderHook(() => useElementTimer());
+      act(() => result.current.start());
+      act(() => vi.advanceTimersByTime(1050));
+      act(() => {
+        result.current.stop();
+      });
+      expect(result.current.time).toBe(1050);
+      expect(result.current.getTimeMs()).toBe(1050);
+      act(() => result.current.reset());
+      expect(result.current.time).toBe(0);
+      expect(result.current.getTimeMs()).toBe(0);
     });
   });
 

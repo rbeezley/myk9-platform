@@ -1,6 +1,8 @@
 # Cloud agent coordination: GitHub as the shared record, independent review off the Mac
 
-> **Status:** Active
+> **Status:** Abandoned
+
+> Superseded on 2026-10-24 by [`docs/plan-cloud-agent-workflow.md`](../plan-cloud-agent-workflow.md), which merges this draft with Codex's plan.
 
 Tracking: no Linear issues yet. Each stage below becomes one issue (see "Linear issues to file").
 

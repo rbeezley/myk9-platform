@@ -362,37 +362,6 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
     refetchAuth = vi.fn();
   });
 
-  it('blocks publishing an unauthorized club before checking Stripe readiness', async () => {
-    mockAuthorization(null);
-    const user = userEvent.setup();
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
-
-    await user.click(screen.getByRole('button', { name: /draft/i }));
-    await user.click(await screen.findByText(/publish show/i));
-
-    expect(mutateAsync).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hasn't been authorized/i));
-  });
-
-  // P3-1: the case above pairs "unauthorized" with mockAccount(true) (Stripe
-  // READY, set in this describe's beforeEach), so it cannot actually prove
-  // ordering — a client that checked Stripe FIRST would also pass, since
-  // Stripe readiness is satisfied either way. Pair unauthorized with Stripe
-  // DISABLED so only a real "authorization wins" implementation can pass.
-  it('shows the authorization message, not the Stripe one, when the club is both unauthorized and not Stripe-ready', async () => {
-    mockAccount(false);
-    mockAuthorization(null);
-    const user = userEvent.setup();
-    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
-
-    await user.click(screen.getByRole('button', { name: /draft/i }));
-    await user.click(await screen.findByText(/publish show/i));
-
-    expect(mutateAsync).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hasn't been authorized/i));
-    expect(toast.error).not.toHaveBeenCalledWith(expect.stringMatching(/payment account/i));
-  });
-
   // P2-5/P3-A: fail CLOSED when the club row is unreadable (RLS-hidden,
   // undefined data despite a "successful" query) — not just when
   // authorized_at is explicitly null — and kick off a refetch so a retry

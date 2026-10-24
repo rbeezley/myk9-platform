@@ -142,10 +142,13 @@ describe('ShowStatusPill — online entries switch (MYK9-979)', () => {
       />
     );
 
-    await choose(/draft/i, /publish show/i);
+    await userEvent.setup().click(screen.getByRole('button', { name: /draft/i }));
+    // MYK9-1387: greyed with the reason on screen; the click is inert.
+    const item = await screen.findByRole('menuitem', { name: /publish show/i });
+    expect(item).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByText(CLUB_UNAUTHORIZED_MESSAGE)).toBeInTheDocument();
 
     expect(mutateAsync).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith(CLUB_UNAUTHORIZED_MESSAGE);
   });
 
   it('does not re-gate a move between two public statuses (upcoming -> published)', async () => {

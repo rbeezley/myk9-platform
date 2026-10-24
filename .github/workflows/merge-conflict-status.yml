@@ -77,3 +77,23 @@ jobs:
           # A PR that conflicts is reported by its status, not by this run; the run
           # fails only when a status could not be posted at all.
           [ "$post_failures" -eq 0 ]
+
+  # Scheduled workflows report their own state to a tracking issue, so a sweep
+  # that cannot post statuses is not left silent (scheduledFailureNotification).
+  report-status:
+    name: Report status to the tracking issue
+    runs-on: ubuntu-latest
+    needs: [sweep]
+    if: always()
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/report-scheduled-failure
+        with:
+          workflow-name: Mergeable with base
+          outcome: ${{ needs.sweep.result }}
+          token: ${{ secrets.GITHUB_TOKEN }}

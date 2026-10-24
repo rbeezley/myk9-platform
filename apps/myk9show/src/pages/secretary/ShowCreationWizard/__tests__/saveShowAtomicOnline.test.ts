@@ -267,6 +267,46 @@ describe('saveShowAtomicOnline', () => {
     expect(showsSetMock.mock.calls[0]![2]).toBe(false);
   });
 
+  it('seeds the wizard judge onto the replicated class row (MYK9-1382)', async () => {
+    rpcMock.mockResolvedValue({ error: null });
+    const judgedTrial: WizardTrial = {
+      id: 'wizard-trial-judged',
+      trialType: 'Scent Work',
+      trialDate: '2026-06-01',
+      startTimeDraft: '09:00 AM',
+      eventNumber: 'EVT-1',
+      classes: [
+        {
+          templateId: 'tmpl-1',
+          customizations: {
+            element: 'Container',
+            level: 'Novice',
+            section: 'A',
+            className: 'NW1 Containers',
+          },
+          judgeId: 'judge-uuid-a',
+        },
+      ],
+    };
+
+    await saveShowAtomicOnline({
+      show: baseShow,
+      trials: [judgedTrial],
+      judgeDetails: { 'judge-uuid-a': { name: 'Jane Smith', email: '', phone: '' } },
+      clubs: [],
+      status: 'unpublished',
+      queryClient: makeQueryClient(),
+      triggerSync: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(classesSetMock).toHaveBeenCalledTimes(1);
+    expect(classesSetMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ judgeId: 'judge-uuid-a', judgeName: 'Jane Smith' }),
+      false
+    );
+  });
+
   it('rethrows RPC errors so the caller can surface them', async () => {
     rpcMock.mockResolvedValue({ error: { message: 'boom' } });
 

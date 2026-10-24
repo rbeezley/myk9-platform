@@ -475,6 +475,55 @@ describe('buildCreateShowPayload', () => {
     expect(rpcInput.p_classes[0]!.judge_id).toBe('judge-uuid-a');
   });
 
+  it('seeds the wizard judge onto the local class row so the cockpit names it on first render', () => {
+    const judgedClass = {
+      templateId: 'tmpl-1',
+      customizations: {
+        element: 'Container',
+        level: 'Novice',
+        section: 'A',
+        className: 'NW1 Containers',
+      },
+    };
+    const trialWithClasses: WizardTrial = {
+      ...baseTrial,
+      classes: [
+        { ...judgedClass, judgeId: 'judge-uuid-a' },
+        {
+          ...judgedClass,
+          customizations: { ...judgedClass.customizations, section: 'B' },
+        },
+        // A judge the wizard has no name for: the id still lands, the name does not.
+        {
+          ...judgedClass,
+          judgeId: 'judge-uuid-unnamed',
+          customizations: { ...judgedClass.customizations, level: 'Advanced', section: '' },
+        },
+      ],
+    };
+    const { localEntities } = buildCreateShowPayload(
+      baseShow,
+      [trialWithClasses],
+      { 'judge-uuid-a': { name: 'Jane Smith', email: '', phone: '' } },
+      new Map(),
+      'unpublished'
+    );
+    expect(localEntities.classes).toHaveLength(3);
+    const judged = localEntities.classes.find(c => c.section === 'A')!;
+    const unjudged = localEntities.classes.find(c => c.section === 'B')!;
+    const unnamed = localEntities.classes.find(c => c.level === 'Advanced')!;
+    expect(unnamed.judgeId).toBe('judge-uuid-unnamed');
+    expect(unnamed.judgeName).toBeUndefined();
+    expect(judged.judgeId).toBe('judge-uuid-a');
+    expect(judged.judgeName).toBe('Jane Smith');
+    // Name parts too, so a failed later judge lookup keeps the seeded name (MYK9-494 guard).
+    expect(judged.judgeFirstName).toBe('Jane');
+    expect(judged.judgeLastName).toBe('Smith');
+    // Never the 'TBD' placeholder: no judge means the fields stay undefined.
+    expect(unjudged.judgeId).toBeUndefined();
+    expect(unjudged.judgeName).toBeUndefined();
+  });
+
   it('sends judge_id: null for a class the secretary left unassigned', () => {
     const trialWithClass: WizardTrial = {
       ...baseTrial,

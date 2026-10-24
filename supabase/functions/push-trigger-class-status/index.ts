@@ -1,7 +1,9 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import webpush from 'npm:web-push@3';
 
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { loadPushSubscriptions, sendWebPushBatch } from '../_shared/pushFanout.ts';
 import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
 
 interface WebhookPayload {
@@ -17,6 +19,12 @@ interface WebhookPayload {
     status: string;
   };
 }
+
+const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')!;
+const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')!;
+const vapidSubject = Deno.env.get('VAPID_SUBJECT') || 'mailto:support@myk9show.com';
+
+webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
 handle<WebhookPayload>(
   { auth: 'none', beforeBody: requirePushWebhookSecret },
@@ -61,23 +69,25 @@ handle<WebhookPayload>(
       return { status: 'no_users_to_notify' };
     }
 
-    // Send push to each affected user
-    await Promise.allSettled(
-      [...audienceIds].map(userId =>
-        supabase.functions.invoke('send-push-notification', {
-          body: {
-            user_id: userId,
-            payload: {
-              type: 'class_starting',
-              title: 'Class Starting',
-              body: `${payload.record.name} is now in progress`,
-              priority: 'high',
-            },
-          },
-        })
-      )
+    // One batched subscription read, then an in-process send to every device of
+    // every affected user (MYK9-1372). This used to invoke send-push-notification
+    // once per recipient, which cost a function invocation and a subscription
+    // read each.
+    const subscriptions = await loadPushSubscriptions(supabase, [...audienceIds]);
+    const pushPayload = JSON.stringify({
+      type: 'class_starting',
+      title: 'Class Starting',
+      body: `${payload.record.name} is now in progress`,
+      priority: 'high',
+    });
+    const { sent, expired } = await sendWebPushBatch(
+      webpush,
+      supabase,
+      subscriptions,
+      pushPayload,
+      { label: 'push-trigger-class-status' }
     );
 
-    return { status: 'push_sent', recipients: audienceIds.size };
+    return { status: 'push_sent', recipients: audienceIds.size, sent, expired };
   }
 );

@@ -12,6 +12,7 @@
 // client now delivers in-app only; push originates here.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import webpush from 'npm:web-push@3';
 
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
@@ -19,7 +20,6 @@ import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
 import type { SmsProvider } from '../_shared/sms/smsProvider.ts';
 import { createTwilioSmsProvider, readTwilioConfig } from '../_shared/sms/twilioSmsProvider.ts';
 import {
-  buildProximityPayload,
   pendingByRunOrder,
   resolveRecipients,
   shouldAlertOnTransition,
@@ -34,6 +34,8 @@ import {
   type ChannelDecision,
   type ProximityPreferenceRow,
 } from './proximitySms.ts';
+import { createProximityPushPort } from './proximityPush.ts';
+import { fetchQueueAndClassName } from './proximityQueue.ts';
 
 interface WebhookPayload {
   type: 'UPDATE';
@@ -50,6 +52,12 @@ interface WebhookPayload {
   };
 }
 
+const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')!;
+const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')!;
+const vapidSubject = Deno.env.get('VAPID_SUBJECT') || 'mailto:support@myk9show.com';
+
+webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+
 handle<WebhookPayload>(
   { auth: 'none', beforeBody: requirePushWebhookSecret },
   async ({ body, supabase }) => {
@@ -63,16 +71,10 @@ handle<WebhookPayload>(
     const classId = body.record.class_id;
     const showId = body.record.show_id;
 
-    // Whole class queue: the dogs-ahead index is only meaningful against every
-    // entry, not just the watched ones.
-    const { data: entryRows, error: entriesError } = await supabase
-      .from('entries')
-      .select(
-        'id, dog_id, armband, run_order, is_scored, check_in_status, dog:dogs(call_name, owner:people!owner_id(auth_user_id), co_owner:people!co_owner_id(auth_user_id)), handler:people!handler_id(auth_user_id)'
-      )
-      .eq('class_id', classId)
-      .is('deleted_at', null)
-      .not('entry_status', 'in', '("withdrawn","scratched","absent")');
+    // The class-name read needs only classId, so it runs alongside the queue
+    // read. The reads below stay sequential: favorites need the queue's
+    // armbands, and preferences need the candidate user ids.
+    const { entryRows, entriesError, className } = await fetchQueueAndClassName(supabase, classId);
 
     if (entriesError) {
       console.error('push-trigger-run-proximity: class queue query failed', entriesError.message);
@@ -194,13 +196,6 @@ handle<WebhookPayload>(
       return { status: 'no_users_to_notify' };
     }
 
-    const { data: classRow } = await supabase
-      .from('classes')
-      .select('name')
-      .eq('id', classId)
-      .single();
-    const className = (classRow as { name?: string } | null)?.name ?? 'your class';
-
     // The SMS provider is optional infrastructure. If it is unconfigured — or
     // A2P registration has not landed yet — push must still go out, so this
     // resolves to "SMS unavailable" rather than throwing.
@@ -211,15 +206,30 @@ handle<WebhookPayload>(
       console.warn('push-trigger-run-proximity: SMS provider unconfigured; sending push only');
     }
 
+    const channelFor = (authUserId: string): ChannelDecision =>
+      channelsByAuthUser.get(authUserId) ?? {
+        push: true,
+        sms: false,
+        smsPhone: null,
+        leadDogs: DEFAULT_LEAD_DOGS,
+      };
+
+    // One batched subscription read for every push recipient, started before
+    // dispatch so the sends below are in-process (MYK9-1372).
+    const sendPush = createProximityPushPort({
+      webpush,
+      supabase,
+      classId,
+      pushUserIds: [
+        ...new Set(
+          recipients.map(r => r.authUserId).filter(authUserId => channelFor(authUserId).push)
+        ),
+      ],
+    });
+
     const dispatch = await dispatchProximityAlerts(recipients, {
       smsAvailable: smsProvider !== null,
-      channelFor: authUserId =>
-        channelsByAuthUser.get(authUserId) ?? {
-          push: true,
-          sms: false,
-          smsPhone: null,
-          leadDogs: DEFAULT_LEAD_DOGS,
-        },
+      channelFor,
       contextFor: entryId => {
         const entry = entryById.get(entryId);
         return {
@@ -229,23 +239,7 @@ handle<WebhookPayload>(
         };
       },
       ports: {
-        sendPush: async (recipient, context) => {
-          const payload = buildProximityPayload({
-            dogName: context.dogName,
-            className: context.className,
-            dogsAhead: recipient.dogsAhead,
-            armband: context.armband,
-          });
-          // supabase-js RESOLVES with an `error` rather than rejecting, so
-          // without this the push counter would report every failure as a send.
-          const { error } = await supabase.functions.invoke('send-push-notification', {
-            body: {
-              user_id: recipient.authUserId,
-              payload: { ...payload, actionUrl: `/classes/${classId}` },
-            },
-          });
-          if (error) throw new Error(error.message);
-        },
+        sendPush,
         claimSms: async (authUserId, entryId) => {
           const { data, error } = await supabase.rpc('claim_sms_proximity_send', {
             p_auth_user_id: authUserId,

@@ -8,11 +8,18 @@ function entry(overrides: Partial<ReplicatedEntry> = {}): ReplicatedEntry {
   return { id: 'entry-1', showId: 'show-1', handlerId: 'person-1', ...overrides };
 }
 
+// Midday UTC: the New York (default) and UTC dates agree, so day-range cases
+// below isolate the range rule from the timezone rule.
+const NOW = new Date('2026-10-23T12:00:00Z');
+const LA_SHOW = { id: 'show-1', startDate: '2026-11-07', endDate: '2026-11-08', deletedAt: null };
+const LA_TRIALS = [{ id: 'trial-1', date: '2026-11-07', timezone: 'America/Los_Angeles' }];
+
 function run(overrides: Partial<Parameters<typeof hasLocalEntryForShowToday>[0]> = {}): boolean {
   return hasLocalEntryForShowToday({
     personId: 'person-1',
     showId: 'show-1',
-    today: '2026-10-23',
+    now: NOW,
+    trials: [],
     show: SHOW,
     entries: [entry()],
     dogs: [],
@@ -52,19 +59,19 @@ describe('hasLocalEntryForShowToday', () => {
   });
 
   it('is false before the show starts', () => {
-    expect(run({ today: '2026-10-21' })).toBe(false);
+    expect(run({ now: new Date('2026-10-21T12:00:00Z') })).toBe(false);
   });
 
   it('is false after the show ends', () => {
-    expect(run({ today: '2026-10-25' })).toBe(false);
+    expect(run({ now: new Date('2026-10-25T12:00:00Z') })).toBe(false);
   });
 
   it('includes the start date', () => {
-    expect(run({ today: '2026-10-22' })).toBe(true);
+    expect(run({ now: new Date('2026-10-22T12:00:00Z') })).toBe(true);
   });
 
   it('includes the end date', () => {
-    expect(run({ today: '2026-10-24' })).toBe(true);
+    expect(run({ now: new Date('2026-10-24T12:00:00Z') })).toBe(true);
   });
 
   it('is false with no show row, no person, or no show id', () => {
@@ -82,5 +89,50 @@ describe('hasLocalEntryForShowToday', () => {
     expect(run({ entries: [entry({ entryStatus: 'scratched' })] })).toBe(false);
     expect(run({ entries: [entry({ deletedAt: '2026-10-01T00:00:00Z' })] })).toBe(false);
     expect(run({ entries: [entry({ entryStatus: 'confirmed' })] })).toBe(true);
+  });
+
+  describe('show-local today (MYK9-1354)', () => {
+    const laRun = (
+      iso: string,
+      overrides: Partial<Parameters<typeof hasLocalEntryForShowToday>[0]> = {}
+    ) => run({ now: new Date(iso), show: LA_SHOW, trials: LA_TRIALS, ...overrides });
+
+    it('is false the evening before day 1 in the show zone, though the UTC date is already day 1', () => {
+      // Nov 6 17:30 Pacific == Nov 7 01:30 UTC.
+      expect(laRun('2026-11-07T01:30:00Z')).toBe(false);
+    });
+
+    it('is true on the morning of day 1', () => {
+      expect(laRun('2026-11-07T16:00:00Z')).toBe(true);
+    });
+
+    it('is true the evening of the last day in the show zone, though the UTC date is already past it', () => {
+      // Nov 8 18:00 Pacific == Nov 9 02:00 UTC.
+      expect(laRun('2026-11-09T02:00:00Z')).toBe(true);
+    });
+
+    it('is false once the last day is over in the show zone', () => {
+      expect(laRun('2026-11-09T08:30:00Z')).toBe(false);
+    });
+
+    it('picks the zone of the earliest trial, like the RPC', () => {
+      const trials = [
+        { id: 'b', date: '2026-11-08', timezone: 'America/New_York' },
+        { id: 'a', date: '2026-11-07', timezone: 'America/Los_Angeles' },
+      ];
+      expect(laRun('2026-11-09T02:00:00Z', { trials })).toBe(true);
+    });
+
+    it('falls back to America/New_York for no trials or an unrecognized zone', () => {
+      // Nov 8 21:00 New York == Nov 9 02:00 UTC: last day in NY, past it in UTC.
+      expect(laRun('2026-11-09T02:00:00Z', { trials: [] })).toBe(true);
+      expect(
+        laRun('2026-11-09T02:00:00Z', {
+          trials: [{ id: 't', date: '2026-11-07', timezone: 'Not/AZone' }],
+        })
+      ).toBe(true);
+      // Nov 6 21:30 New York == Nov 7 02:30 UTC: still the evening before.
+      expect(laRun('2026-11-07T02:30:00Z', { trials: [] })).toBe(false);
+    });
   });
 });

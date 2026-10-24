@@ -280,7 +280,7 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
             id: show.id,
             name: show.name,
             detail: showDeleteDetail(show),
-            context: { showId: show.id },
+            context: { showId: show.id, showStatus: show.status },
           }))}
           onDeleted={() => onBulkComplete()}
         />

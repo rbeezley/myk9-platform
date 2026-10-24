@@ -1,44 +1,64 @@
 /**
- * A blocked show delete points at where the show is cancelled. MYK9-922 round 8:
- * it linked /secretary/settings, which club admins cannot open. The link must
- * land on a route and tab every role that can manage the show can use.
+ * A blocked show delete points at where the show is cancelled: the Edit show panel,
+ * whose Basic Info Status select offers Cancelled (MYK9-1383). MYK9-922 round 8: it
+ * once linked /secretary/settings, which club admins cannot open.
  */
 import { describe, expect, it } from 'vitest';
 import { UserRole } from '@/types/auth-types';
 import type { UserWithRoles } from '@/types/auth-types';
-import { getTabsForUser } from '@/utils/unified-shows-config';
+import { canManageShowSurface } from '@/utils/roleScopes';
 import { blockedActionFor } from './deleteBlockedAction';
-
-const asUser = (role: UserRole): UserWithRoles =>
-  ({
-    id: 'u1',
-    databaseUserId: 'p1',
-    email: 'u@example.com',
-    roles: [role],
-    permissions: [],
-    scopes: [],
-    app_metadata: {},
-    user_metadata: {},
-    aud: 'authenticated',
-    created_at: '2026-01-01T00:00:00Z',
-  }) as UserWithRoles;
 
 describe('blocked show delete: Cancel show link', () => {
   const action = blockedActionFor('show', [{ id: 's1', name: 'Heartland Classic' }]);
   const url = new URL(action?.to ?? '/', 'https://app.test');
 
-  it.each([UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])(
-    'lands %s on a tab they can open',
-    role => {
-      const tabs = getTabsForUser(asUser(role)).tabs.map(tab => tab.id);
-      expect(tabs).toContain(url.searchParams.get('tab'));
-    }
-  );
+  it('opens the Edit show panel, where the Status select cancels the show', () => {
+    expect(url.pathname).toBe('/shows/s1');
+    expect(url.searchParams.get('edit')).toBe('true');
+    expect(url.searchParams.get('tab')).toBeNull();
+  });
 
   it('is not the secretary-only settings page', () => {
     expect(url.pathname).not.toBe('/secretary/settings');
-    expect(url.pathname).toBe('/shows');
   });
+});
+
+describe('blocked show delete: already cancelled', () => {
+  it('offers no Cancel show link', () => {
+    expect(
+      blockedActionFor('show', [
+        { id: 's1', name: 'Heartland', context: { showId: 's1', showStatus: 'cancelled' } },
+      ])
+    ).toBeUndefined();
+  });
+});
+
+describe('blocked show delete: who can open the Edit panel the link targets', () => {
+  // The panel opens only for `canManageShowSurface` (what useShowManageScope calls);
+  // every role that can reach the delete dialog must pass it for the show's club.
+  const clubId = 'club-1';
+  const viewer = (role: UserRole) => {
+    const userWithRoles = {
+      id: 'u1',
+      roles: [role],
+      scopes: [{ scopeType: 'club', scopeId: clubId, roleId: role }],
+    } as unknown as UserWithRoles;
+    return {
+      isSecretary: role === UserRole.SECRETARY,
+      isAdmin: role === UserRole.SITE_ADMIN,
+      hasRole: (r: UserRole) => r === role,
+      userWithRoles,
+      clubId,
+    };
+  };
+
+  it.each([UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])(
+    'lets %s manage the show',
+    role => {
+      expect(canManageShowSurface(viewer(role))).toBe(true);
+    }
+  );
 });
 
 describe('blocked entry delete: Withdraw / Pull link', () => {

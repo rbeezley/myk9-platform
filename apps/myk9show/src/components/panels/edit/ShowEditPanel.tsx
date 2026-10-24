@@ -51,6 +51,21 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
   const { activeTab, setActiveTab, handleValidationFail } =
     usePanelValidationNavigation<ShowEditTab>(initialTab ?? DEFAULT_SHOW_EDIT_TAB, locateShowField);
 
+  // "Cancel show" in a blocked delete dialog links to this panel, which is already open
+  // (the tab is seeded once), so move to Basic Info where the Status select lives. Only
+  // the tab changes: unsaved edits on other tabs stay put.
+  const deleteOption = useMemo(
+    () =>
+      onDelete && {
+        ...onDelete,
+        onBlockedAction: () => {
+          setActiveTab(DEFAULT_SHOW_EDIT_TAB);
+          onDelete.onBlockedAction?.();
+        },
+      },
+    [onDelete, setActiveTab]
+  );
+
   // Convert show data to form data
   const initialFormData = useMemo(() => showToFormData(initialShowData), [initialShowData]);
 
@@ -84,7 +99,7 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
       enableAutoSave={enableAutoSave}
       saveLabel="Save Changes"
       cancelLabel="Cancel"
-      onDelete={onDelete}
+      onDelete={deleteOption}
       successMessage={data => savedMessage(data.name || showName)}
       onValidationFail={handleValidationFail}
     >

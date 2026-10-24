@@ -222,7 +222,11 @@ export function DeleteObjectDialogView({
                     data-testid="delete-blocked-reason"
                   >
                     {count === 1
-                      ? blockedReason(kind, previewState.preview)
+                      ? blockedReason(
+                          kind,
+                          previewState.preview,
+                          single?.context?.showStatus === 'cancelled'
+                        )
                       : bulkBlockedReason(
                           kind,
                           blockedTargets.length > 0 ? blockedTargets : targets

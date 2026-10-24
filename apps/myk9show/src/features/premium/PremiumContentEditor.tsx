@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PDFDownloadLink } from '@react-pdf/renderer';
-import { AlertTriangle, Download, Eye, ImageIcon, Loader2, Upload, X } from 'lucide-react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, ImageIcon, Loader2, Upload, X } from 'lucide-react';
 import { getErrorMessage } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
 import { Button } from '@/components/ui/button';
@@ -9,8 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AKCPremiumTemplate } from './pdf/AKCPremiumTemplate';
-import { UKCPremiumTemplate } from './pdf/UKCPremiumTemplate';
 import { useGeneratePremium } from './useGeneratePremium';
 import { useLogPremiumGeneration } from '../../hooks/queries/usePremiumGenerations';
 import { useUpdatePremiumTemplate } from '../../hooks/queries/usePremiumTemplates';
@@ -33,33 +30,8 @@ interface PremiumContentEditorProps {
   onInkSaverChange?: (inkSaver: boolean) => void;
 }
 
-function DownloadLinkErrorWatcher({
-  error,
-  onError,
-}: {
-  error: Error | null;
-  onError: (e: Error) => void;
-}) {
-  useEffect(() => {
-    if (error) onError(error);
-  }, [error, error?.message, onError]);
-  return null;
-}
-
-function DownloadLinkUrlCapture({
-  url,
-  loading,
-  onUrl,
-}: {
-  url: string | null;
-  loading: boolean;
-  onUrl: (url: string) => void;
-}) {
-  useEffect(() => {
-    if (url && !loading) onUrl(url);
-  }, [url, loading, onUrl]);
-  return null;
-}
+// Loaded on demand: the PDF buttons (and the templates) pull in @react-pdf/renderer.
+const PremiumPdfDownloadLink = lazy(() => import('./PremiumPdfDownloadLink'));
 
 function withGenerationTimeout<T>(promise: Promise<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -346,12 +318,6 @@ export function PremiumContentEditor({
     onInkSaverChangeRef.current?.(inkSaver);
   }, [inkSaver]);
 
-  const pdfDocument = useMemo(() => {
-    if (!finalPremium) return null;
-    const Template = finalPremium.org === 'UKC' ? UKCPremiumTemplate : AKCPremiumTemplate;
-    return <Template premium={finalPremium} inkSaver={inkSaver} />;
-  }, [finalPremium, inkSaver]);
-
   return (
     <>
       <div className="space-y-4">
@@ -579,46 +545,28 @@ export function PremiumContentEditor({
             </label>
 
             <div className="mt-4 flex flex-col gap-3">
-              <PDFDownloadLink
-                document={pdfDocument!}
-                fileName={`${original.show.name.replace(/\s+/g, '-')}-premium.pdf`}
-                className="block"
-                onClick={() => {
-                  void handleDownloaded();
-                }}
-              >
-                {({ loading, error: pdfError, url }) => (
-                  <>
-                    <DownloadLinkErrorWatcher error={pdfError ?? null} onError={handlePdfError} />
-                    <DownloadLinkUrlCapture url={url ?? null} loading={loading} onUrl={setPdfUrl} />
-                    {pdfError ? (
-                      <Button className="w-full" variant="destructive" disabled>
-                        PDF generation failed - try another style
-                      </Button>
-                    ) : (
-                      <div className="flex flex-col gap-2">
-                        <Button
-                          variant="outline"
-                          className="w-full"
-                          disabled={loading || !url}
-                          onClick={e => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setPreviewOpen(true);
-                          }}
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          {loading ? 'Preparing PDF...' : 'Preview PDF'}
-                        </Button>
-                        <Button className="w-full" disabled={loading}>
-                          <Download className="h-4 w-4 mr-2" />
-                          Download PDF
-                        </Button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </PDFDownloadLink>
+              {finalPremium ? (
+                <Suspense
+                  fallback={
+                    <Button variant="outline" className="w-full" disabled>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Preparing PDF...
+                    </Button>
+                  }
+                >
+                  <PremiumPdfDownloadLink
+                    premium={finalPremium}
+                    inkSaver={inkSaver}
+                    fileName={`${original.show.name.replace(/\s+/g, '-')}-premium.pdf`}
+                    onDownloaded={() => {
+                      void handleDownloaded();
+                    }}
+                    onError={handlePdfError}
+                    onUrl={setPdfUrl}
+                    onPreview={() => setPreviewOpen(true)}
+                  />
+                </Suspense>
+              ) : null}
 
               <Button
                 variant="ghost"

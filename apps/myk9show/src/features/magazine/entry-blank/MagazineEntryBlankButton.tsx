@@ -1,6 +1,8 @@
 import { EntryBlankDownloadControl } from '@/features/_shared/EntryBlankDownloadControl';
-import { MagazineEntryBlankDocument } from './MagazineEntryBlankDocument';
-import { buildEntryBlankProps, type BuildEntryBlankOptions } from '@/features/heritage/entry-blank';
+import {
+  buildEntryBlankProps,
+  type BuildEntryBlankOptions,
+} from '@/features/heritage/entry-blank/buildEntryBlankProps';
 
 interface Props extends BuildEntryBlankOptions {
   /** Button label. Defaults to "Download Entry Blank". */
@@ -12,9 +14,8 @@ interface Props extends BuildEntryBlankOptions {
 /**
  * Magazine entry-blank download button.
  *
- * Wraps `@react-pdf/renderer`'s `PDFDownloadLink` around a shadcn `Button`
- * to keep the button styling consistent with the rest of the wizard
- * surface.
+ * Renders `EntryBlankDownloadControl`, which loads the PDF renderer and this
+ * style's document only when the button is used.
  *
  * Reads `buildEntryBlankProps` from the Heritage entry-blank module
  * (re-exported via Magazine's barrel). The data shape is identical across
@@ -36,8 +37,11 @@ export function MagazineEntryBlankButton({
 
   return (
     <EntryBlankDownloadControl
+      loadDocument={() =>
+        import('./MagazineEntryBlankDocument').then(m => m.MagazineEntryBlankDocument)
+      }
       dog={props.dog}
-      document={<MagazineEntryBlankDocument {...props} />}
+      documentProps={props}
       fileName={pdfFilename}
       label={label}
       className={className}

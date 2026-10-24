@@ -7,7 +7,6 @@ import { buildPages } from '@/pages/secretary/ReportsPage/reportPreviewPages';
 import type { ReportDataSet } from '@/lib/reports/types';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
-import { mergeReportPdfs } from './mergeReportPdfs';
 
 /** The sheets of `reportIds` that are not PDF-based and so cannot join a one-job batch. */
 export function unmergeableReportIds(reportIds: readonly string[]): string[] {
@@ -83,7 +82,9 @@ export function MergedSheetsPreview({
     let url: string | null = null;
     // Set by the cleanup of this build, so an older merge resolving late is dropped.
     let superseded = false;
-    mergeReportPdfs(parts as Uint8Array[])
+    // Dynamic on purpose: pdf-lib (fontkit) loads when sheets are merged, not with the show desk.
+    import('./mergeReportPdfs')
+      .then(({ mergeReportPdfs }) => mergeReportPdfs(parts as Uint8Array[]))
       .then(bytes => {
         if (superseded) return;
         const copy = new Uint8Array(bytes.byteLength);

@@ -23,6 +23,11 @@
  * unconditional bundle-visualizer, unused stock photos and registry PDFs had
  * grown it to 39.5 MB.
  *
+ * A second guard keeps the PDF renderers off the pages that do not print. A page
+ * chunk that statically imports a PDF chunk makes every visitor download and parse
+ * it on first navigation (MYK9-1358); only lazy chunks that exist to hold PDF code
+ * may import one (see PDF_CHUNK_POLICY).
+ *
  * Budgets are RAW (uncompressed) KB, recorded from the current build with modest
  * headroom. RATCHET DOWN ONLY — never raise a budget to make a regression pass;
  * lower it as the bundle shrinks.
@@ -43,6 +48,41 @@ export const BUDGETS = {
   precacheNonCodeFileKb: 1024, // any precached file that is not .js/.css (MYK9-1356)
 };
 
+/**
+ * A "PDF chunk" is a built JS chunk containing one of these case-sensitive
+ * markers. Both survive minification: `yoga` is react-pdf's layout engine
+ * (identifiers such as yogaNode), `fontkit` is the instance check in pdf-lib's
+ * "no `fontkit` instance was found" error. Verified on the built chunks in
+ * dist/assets/scripts; a marker that stops matching shows as a guard that
+ * finds no PDF chunks, which the CLI prints.
+ */
+export const PDF_CHUNK_MARKERS = [
+  { kind: 'react-pdf', marker: 'yoga' },
+  { kind: 'pdf-lib', marker: 'fontkit' },
+];
+
+/**
+ * Who may statically import a PDF chunk. Everything else (every page, panel and
+ * shared chunk) must reach PDF code through a dynamic import() at the user
+ * action. Chunk names are the emitted file name without its 8-character hash.
+ * A new lazy PDF module fails this guard until it is listed here on purpose.
+ */
+export const PDF_CHUNK_POLICY = {
+  lazyChunkNames: [
+    /^[A-Za-z]+EntryBlankDocument$/, // loaded by EntryBlankDownloadControl on click
+    /^pdfFonts$/, // font registration the entry-blank documents import
+    /^publishExperience$/, // premium publish (MYK9-844), dynamic
+    /^PremiumPdfDownloadLink$/, // premium editor PDF buttons, React.lazy
+    /^(AKC|UKC)PremiumTemplate$/, // templates shared by the two premium chunks above
+    /^mergeReportPdfs$/, // show desk merged-sheet preview, dynamic
+    /^officialPdfDownload$/, // Reports page official PDFs, dynamic
+  ],
+  // Known route-level static imports that are still open. RATCHET DOWN ONLY.
+  // The Reports route (its chunk is emitted as `index`) imports the pdf-lib
+  // form builders directly in useAKCOfficialPdfAction.
+  tolerated: [{ chunkName: 'index', kind: 'pdf-lib', max: 1 }],
+};
+
 const CODE_EXTENSIONS = new Set(['.js', '.css']);
 
 const toKb = bytes => Math.round((bytes / 1024) * 10) / 10;
@@ -53,6 +93,68 @@ function walk(dir) {
     const full = path.join(dir, entry.name);
     return entry.isDirectory() ? walk(full) : [full];
   });
+}
+
+/** The emitted chunk name: `ShowDetailsPage-hFmFCtUs.js` -> `ShowDetailsPage`. */
+export function chunkName(file) {
+  const base = path.basename(file);
+  return base.replace(/-[A-Za-z0-9_-]{8}\.js$/, '');
+}
+
+const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Pure: given `{ file, source }` chunks, return every static import of a PDF
+ * chunk as `{ importer, imported, kind }`. A static import is `from"./x.js"`,
+ * `from './x.js'` or a bare `import"./x.js"`, with either quote; the dynamic
+ * `import("./x.js")` has a `(` before the specifier and never matches.
+ */
+export function findPdfStaticImports(chunks) {
+  const pdfChunks = chunks.flatMap(chunk =>
+    PDF_CHUNK_MARKERS.filter(({ marker }) => chunk.source.includes(marker)).map(({ kind }) => ({
+      file: chunk.file,
+      kind,
+    }))
+  );
+  const edges = [];
+  for (const pdf of pdfChunks) {
+    const specifier = new RegExp(
+      `(?:from|import)\\s*(["'])\\./${escapeRegExp(path.basename(pdf.file))}\\1`
+    );
+    for (const chunk of chunks) {
+      if (chunk.file === pdf.file) continue;
+      if (specifier.test(chunk.source)) {
+        edges.push({ importer: chunk.file, imported: pdf.file, kind: pdf.kind });
+      }
+    }
+  }
+  return edges;
+}
+
+/** Pure: the static PDF imports that policy does not allow, as violations. */
+export function evaluatePdfChunkImports(edges, policy = PDF_CHUNK_POLICY) {
+  const unlisted = edges.filter(
+    edge => !policy.lazyChunkNames.some(pattern => pattern.test(chunkName(edge.importer)))
+  );
+  const violations = [];
+  for (const rule of policy.tolerated) {
+    const matching = unlisted.filter(
+      edge => chunkName(edge.importer) === rule.chunkName && edge.kind === rule.kind
+    );
+    if (matching.length > rule.max) violations.push(...matching);
+  }
+  const toleratedKeys = new Set(policy.tolerated.map(rule => `${rule.chunkName}|${rule.kind}`));
+  for (const edge of unlisted) {
+    if (!toleratedKeys.has(`${chunkName(edge.importer)}|${edge.kind}`)) violations.push(edge);
+  }
+  return violations.map(edge => ({
+    metric: 'PDF renderer chunk imported statically',
+    actual: 1,
+    budget: 0,
+    file: edge.importer,
+    imported: edge.imported,
+    message: `${edge.importer} statically imports the ${edge.kind} chunk ${edge.imported}. Load it with import() at the user action instead.`,
+  }));
 }
 
 /**
@@ -105,6 +207,19 @@ export function collectBundleStats(distDir) {
     .map(f => ({ file: path.relative(distDir, f), kb: toKb(fs.statSync(f).size) }))
     .sort((a, b) => b.kb - a.kb);
 
+  const scriptsDir = path.join(distDir, 'assets', 'scripts');
+  const scriptChunks = fs.existsSync(scriptsDir)
+    ? walk(scriptsDir)
+        .filter(f => f.endsWith('.js'))
+        .map(f => ({
+          file: path.relative(distDir, f).split(path.sep).join('/'),
+          source: fs.readFileSync(f, 'utf8'),
+        }))
+    : [];
+  const pdfChunkFiles = scriptChunks
+    .filter(chunk => PDF_CHUNK_MARKERS.some(({ marker }) => chunk.source.includes(marker)))
+    .map(chunk => chunk.file);
+
   const swPath = path.join(distDir, 'sw-custom.js');
   const precache = fs.existsSync(swPath)
     ? {
@@ -114,6 +229,8 @@ export function collectBundleStats(distDir) {
     : { precacheManifestFound: false };
 
   return {
+    pdfChunkFiles,
+    pdfStaticImports: findPdfStaticImports(scriptChunks),
     ...precache,
     initialJsKb: Math.round(initialJs.reduce((s, f) => s + sizeKb(f), 0) * 10) / 10,
     initialCssKb: Math.round(initialCss.reduce((s, f) => s + sizeKb(f), 0) * 10) / 10,
@@ -151,6 +268,7 @@ export function evaluateBudgets(stats, budgets = BUDGETS) {
       budget: budgets.maxChunkKb,
     });
   }
+  violations.push(...evaluatePdfChunkImports(stats.pdfStaticImports ?? []));
   // Precache rules apply only when the stats carry precache facts, so a unit
   // test (or caller) with plain initial-load stats is unaffected.
   if (
@@ -194,6 +312,9 @@ function runCli() {
     `   Largest chunk: ${stats.largestChunk.kb} KB / ${BUDGETS.maxChunkKb} KB  (${stats.largestChunk.file})`
   );
   console.log(`   Chunk count:  ${stats.chunkCount}`);
+  console.log(`   PDF chunks:   ${stats.pdfChunkFiles.join(', ') || '(none found)'}`);
+  for (const e of stats.pdfStaticImports)
+    console.log(`      static import: ${e.importer} -> ${e.imported} (${e.kind})`);
   if (stats.precacheManifestFound) {
     console.log(
       `   Precache:     ${stats.precacheTotalKb} KB / ${BUDGETS.precacheTotalKb} KB  (${stats.precacheFileCount} files)`
@@ -212,7 +333,11 @@ function runCli() {
   if (violations.length > 0) {
     console.error('❌ Bundle budget exceeded:');
     for (const v of violations) {
-      console.error(`   ${v.metric}: ${v.actual} KB exceeds ${v.budget} KB budget`);
+      console.error(
+        v.message
+          ? `   ${v.message}`
+          : `   ${v.metric}: ${v.actual} KB exceeds ${v.budget} KB budget`
+      );
     }
     console.error('\nReduce the bundle, or — only if the growth is justified — raise the');
     console.error('budget in scripts/check-bundle-budget.js with a comment explaining why.');

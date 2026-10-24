@@ -3,7 +3,6 @@ import {
   buildEntryBlankProps,
   type BuildEntryBlankOptions,
 } from '@/features/heritage/entry-blank/buildEntryBlankProps';
-import { BannerEntryBlankDocument } from './BannerEntryBlankDocument';
 
 interface Props extends BuildEntryBlankOptions {
   /** Per-club flag color hex from show.brand_color. */
@@ -35,8 +34,11 @@ export function BannerEntryBlankButton({
 
   return (
     <EntryBlankDownloadControl
+      loadDocument={() =>
+        import('./BannerEntryBlankDocument').then(m => m.BannerEntryBlankDocument)
+      }
       dog={props.dog}
-      document={<BannerEntryBlankDocument {...props} brandColor={brandColor} />}
+      documentProps={{ ...props, brandColor }}
       fileName={pdfFilename}
       label={label}
       className={className}

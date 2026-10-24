@@ -3,7 +3,6 @@ import {
   buildEntryBlankProps,
   type BuildEntryBlankOptions,
 } from '@/features/heritage/entry-blank/buildEntryBlankProps';
-import { MonogramEntryBlankDocument } from './MonogramEntryBlankDocument';
 
 interface Props extends BuildEntryBlankOptions {
   /** Button label. Defaults to "Download Entry Blank". */
@@ -34,8 +33,11 @@ export function MonogramEntryBlankButton({
 
   return (
     <EntryBlankDownloadControl
+      loadDocument={() =>
+        import('./MonogramEntryBlankDocument').then(m => m.MonogramEntryBlankDocument)
+      }
       dog={props.dog}
-      document={<MonogramEntryBlankDocument {...props} />}
+      documentProps={props}
       fileName={pdfFilename}
       label={label}
       className={className}

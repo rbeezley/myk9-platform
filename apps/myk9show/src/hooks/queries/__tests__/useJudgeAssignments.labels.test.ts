@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createDatabaseError } from '@/services/database/databaseError';
 import { fetchJudgeAssignments } from '../useJudgeAssignments';
 import type { ReplicatedJudgeAssignment } from '@/services/replication';
 
@@ -24,7 +25,7 @@ vi.mock('@/services/replication', () => ({
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: vi.fn() },
   logQuery: vi.fn(),
-  createDatabaseError: vi.fn(),
+  createDatabaseError,
 }));
 
 const makeReplicated = (

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
 import { logger } from '@/services/LoggingService';
 import { CloneFromShowCombobox } from './CloneFromShowCombobox';
 import { CloneStatusBanner } from './CloneStatusBanner';
@@ -43,9 +44,32 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
     addJudgeToShow,
     removeJudgeFromShow,
     judgeDetails,
-  } = useWizardStore();
-  const { clubs, loadClubs, syncClubs } = useClubStore();
-  const { people, loadPeople, loadUsers, isLoading } = useUserStore();
+  } = useWizardStore(
+    useShallow(state => ({
+      show: state.show,
+      trials: state.trials,
+      cloneHydration: state.cloneHydration,
+      updateShowData: state.updateShowData,
+      addJudgeToShow: state.addJudgeToShow,
+      removeJudgeFromShow: state.removeJudgeFromShow,
+      judgeDetails: state.judgeDetails,
+    }))
+  );
+  const { clubs, loadClubs, syncClubs } = useClubStore(
+    useShallow(state => ({
+      clubs: state.clubs,
+      loadClubs: state.loadClubs,
+      syncClubs: state.syncClubs,
+    }))
+  );
+  const { people, loadPeople, loadUsers, isLoading } = useUserStore(
+    useShallow(state => ({
+      people: state.people,
+      loadPeople: state.loadPeople,
+      loadUsers: state.loadUsers,
+      isLoading: state.isLoading,
+    }))
+  );
   const { userWithRoles } = useAuthContext();
   const cloneHydrating = cloneHydration.status === 'hydrating';
 

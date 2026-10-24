@@ -17,7 +17,8 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
 }));
 
 vi.mock('@/store/scoringStore', () => ({
-  useScoringStore: () => ({ submitScore: vi.fn() }),
+  useScoringStore: (selector: (state: { submitScore: () => void }) => unknown) =>
+    selector({ submitScore: vi.fn() }),
 }));
 
 vi.mock('@/services/LoggingService', () => ({

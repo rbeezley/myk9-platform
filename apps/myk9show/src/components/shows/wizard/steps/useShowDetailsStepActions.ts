@@ -5,6 +5,7 @@
  */
 
 import { useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useUserStore } from '@/store/userStore';
 import { createUser, updateUser } from '@/services/database/users';
 import { createJudgeQualification } from '@/services/database/judges';
@@ -12,7 +13,9 @@ import { NewJudgeFormError } from './NewJudgeForm';
 import { personEmailsMatch } from '@/utils/personIdentity';
 
 export function useShowDetailsStepActions() {
-  const { people, loadPeople } = useUserStore();
+  const { people, loadPeople } = useUserStore(
+    useShallow(state => ({ people: state.people, loadPeople: state.loadPeople }))
+  );
 
   const handleCreateOfficialPerson = useCallback(
     async (data: {

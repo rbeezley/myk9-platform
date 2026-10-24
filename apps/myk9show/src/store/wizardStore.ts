@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { getOptimalStorage } from '@/services/database/storage-adapter';
+import { persist } from 'zustand/middleware';
 import {
   DEFAULT_PREMIUM_STYLE,
   resolvePremiumStyle,
@@ -9,6 +8,7 @@ import {
 import { resolveBrowserTrialTimezone } from '@/features/registries';
 import { stepTransitionPatch } from './wizardStore.stepTransition';
 import { migrateWizardState, WIZARD_STORE_VERSION } from './wizardStore.migrations';
+import { createWizardPersistStorage } from './wizardStorage';
 
 /** Maps show organization to a default trial type (discipline). */
 const DEFAULT_TRIAL_TYPE: Partial<Record<string, string>> = {
@@ -421,7 +421,8 @@ export const useWizardStore = create<WizardState & WizardActions>()(
       name: 'myk9show-wizard-storage',
       version: WIZARD_STORE_VERSION,
       migrate: migrateWizardState,
-      storage: createJSONStorage(() => getOptimalStorage('wizard')),
+      // Debounced: every keystroke `set`s, but only the last draft per window is written.
+      storage: createWizardPersistStorage(),
       partialize: state => ({
         currentStep: state.currentStep,
         completedSteps: state.completedSteps,

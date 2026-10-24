@@ -73,7 +73,7 @@ function convertTimeToSeconds(timeStr: string): number {
 
 export function useOptimisticScoring() {
   const { update, isSyncing, hasError, error, retryCount, clearError } = useOptimisticUpdate();
-  const { submitScore: addScoreToSession } = useScoringStore();
+  const addScoreToSession = useScoringStore(state => state.submitScore);
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );

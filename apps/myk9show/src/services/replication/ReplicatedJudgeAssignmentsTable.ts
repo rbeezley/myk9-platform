@@ -11,6 +11,7 @@ import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 import {
   ReplicatedTable,
   type MutationManager,
+  type UploadCompleteEventDetail,
   syncReplicatedTable,
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
@@ -34,7 +35,8 @@ import {
   type LocalJudgeName,
   type ReplicatedJudgeAssignment,
 } from './ReplicatedJudgeAssignmentsTable.mapper';
-import { ClassJudgeWorkTracker, type UnsentClassJudgeWork } from './judgeAssignmentClassWork';
+import { summarizeUnsentClassWork, type UnsentClassJudgeWork } from './judgeAssignmentClassWork';
+import { replicatedClassJudgeClearsTable } from './ReplicatedClassJudgeClearsTable';
 
 export { rowToJudgeAssignment };
 export type { JudgeAssignmentJoinedRow, LocalJudgeName, ReplicatedJudgeAssignment };
@@ -56,6 +58,16 @@ export const JUDGE_ASSIGNMENT_SELECT = `id, person_id, show_id, trial_id, class_
 /** PostgREST's max_rows (supabase/config.toml): one page of the sync fetch. */
 export const JUDGE_ASSIGNMENTS_PAGE_SIZE = POSTGREST_MAX_ROWS;
 
+/** The server's row, carrying the local pick's name when it names the same judge. */
+function keepLocalJudgeName(
+  local: ReplicatedJudgeAssignment,
+  remote: ReplicatedJudgeAssignment
+): ReplicatedJudgeAssignment {
+  return local.localJudge && local.personId === remote.personId
+    ? { ...remote, localJudge: local.localJudge }
+    : remote;
+}
+
 export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJudgeAssignment> {
   private _lastMutationId: string | null = null;
 
@@ -67,10 +79,6 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
    */
   protected override readonly revertsOnDiscard = true;
 
-  /** Which class each undelivered class-level write belongs to; see `getUnsentClassWork`. */
-  private readonly classWork = new ClassJudgeWorkTracker();
-  private stopAckListener: (() => void) | undefined;
-
   constructor() {
     super('judge_assignments', { logger });
   }
@@ -78,25 +86,35 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
   override setMutationManager(manager: MutationManager): void {
     super.setMutationManager(manager);
     this.stopAckListener?.();
-    this.stopAckListener = this.classWork.listen(this.getTableName(), () =>
-      this.getUnsentClassWork()
-    );
+    this.stopAckListener = this.listenForAcknowledgedWrites();
   }
 
+  private stopAckListener: (() => void) | undefined;
+
   /**
-   * Classes whose every judge write was just acknowledged (MYK9-1327). The class's cached judge
-   * names are dropped first, so the refresh the listener starts asks the server again.
+   * An upload pass names each acknowledged mutation. Two things follow for the class judge
+   * (MYK9-1327): the cached judge names are stale (the class pull that comes next must ask the
+   * server again), and a cleared judge's tombstone starts counting from now.
    */
-  onClassJudgesSettled(listener: (classIds: string[]) => void): () => void {
-    return this.classWork.onSettled(classIds => {
+  private listenForAcknowledgedWrites(): () => void {
+    if (typeof window === 'undefined') return () => undefined;
+    const onUploadComplete = (event: Event) => {
+      const mutations = (event as CustomEvent<UploadCompleteEventDetail>).detail?.mutations ?? [];
+      const mine = mutations.filter(mutation => mutation.tableName === this.getTableName());
+      if (mine.length === 0) return;
       invalidateClassEnrichment();
-      listener(classIds);
-    });
+      const deleted = mine.filter(m => m.operation === 'DELETE').map(m => String(m.rowId));
+      if (deleted.length > 0) {
+        void replicatedClassJudgeClearsTable.stampAcknowledged(deleted).catch(() => undefined);
+      }
+    };
+    window.addEventListener('replication:upload-complete', onUploadComplete);
+    return () => window.removeEventListener('replication:upload-complete', onUploadComplete);
   }
 
   /** The class-level judge writes this user has not delivered yet, from the queue. */
   async getUnsentClassWork(): Promise<UnsentClassJudgeWork> {
-    return this.classWork.summarize(await this.getUnsentMutationsForTable());
+    return summarizeUnsentClassWork(await this.getUnsentMutationsForTable());
   }
 
   get lastMutationId(): string | null {
@@ -252,7 +270,8 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
           return rows;
         },
         getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
-        resolveConflict: (_local, remote) => remote,
+        // A pull brings the server's row; the pick's local name stays while it is the same judge.
+        resolveConflict: (local, remote) => keepLocalJudgeName(local, remote),
         // Assignments are HARD-deleted and the incremental fetch can never see a
         // deletion, so a removed judge stayed on every other device forever
         // (MYK9-775). The fetch above has no scope filter, so a complete full
@@ -282,10 +301,10 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
   }
 
   protected resolveConflict(
-    _local: ReplicatedJudgeAssignment,
+    local: ReplicatedJudgeAssignment,
     remote: ReplicatedJudgeAssignment
   ): ReplicatedJudgeAssignment {
-    return remote;
+    return keepLocalJudgeName(local, remote);
   }
 
   /** One show's assignments, through the show index (MYK9-792); redacted by presentRows. */
@@ -317,7 +336,6 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
 
     await this.set(id, newAssignment, true);
     invalidateClassEnrichment();
-    this.classWork.note(id, newAssignment.classId);
     const mutationId = await this.queueMutation('INSERT', id, this.toSupabaseRow(newAssignment));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created assignment ${id}`);
@@ -342,7 +360,6 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
 
     await this.set(id, updated, true);
     invalidateClassEnrichment();
-    this.classWork.note(id, updated.classId);
     const mutationId = await this.queueMutation('UPDATE', id, this.toSupabaseRow(updated));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated assignment ${id}`);
@@ -357,7 +374,6 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     const after = await this.getPendingMutationIdsForRow(id);
     await this.delete(id);
     invalidateClassEnrichment();
-    this.classWork.note(id, existing?.classId ?? null);
     // The row is gone locally by the time this uploads, so the payload keeps the class it left:
     // the class judge overlay shows "no judge" for it until the delete is delivered.
     const mutationId = await this.queueMutation(
@@ -440,6 +456,15 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     judge?: LocalJudgeName
   ): Promise<void> {
     const existing = (await this.readAllForWrite()).filter(a => a.classId === classId);
+    // A removal leaves a durable tombstone for each server-backed row it deletes: after the
+    // DELETE is acknowledged nothing local would say "no judge" while the class row still names
+    // the old one (MYK9-1327). A pick makes the new row the class's intent instead.
+    if (judgeId) await replicatedClassJudgeClearsTable.removeForClass(classId);
+    else {
+      for (const row of existing) {
+        if (row._localOnly !== true) await replicatedClassJudgeClearsTable.record(row.id, classId);
+      }
+    }
     for (const row of existing) {
       await this.deleteAssignment(row.id);
     }

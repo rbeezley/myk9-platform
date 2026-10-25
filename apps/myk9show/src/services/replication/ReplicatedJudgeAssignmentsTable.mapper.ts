@@ -52,6 +52,12 @@ export interface ReplicatedJudgeAssignment extends JudgeAssignmentEnrichment {
    * column, and `toSupabaseRow` omits it); a pull replaces the row without it.
    */
   localJudge?: LocalJudgeName | undefined;
+  /**
+   * The server's `updated_at` (epoch ms) as of the last pull of this row. Absent on a row this
+   * device created until a pull brings it back. The class judge overlay compares it with the
+   * class row's own (MYK9-1327): a trigger stamps both in one transaction.
+   */
+  serverUpdatedAt?: number | undefined;
   // Sync metadata
   _version?: number | undefined;
   _lastModified?: Date | undefined;
@@ -93,6 +99,11 @@ export const EMPTY_ENRICHMENT: JudgeAssignmentEnrichment = {
   trialTimezone: null,
 };
 
+function serverTimeMs(value: string | null | undefined): number | undefined {
+  const ms = value ? Date.parse(value) : Number.NaN;
+  return Number.isNaN(ms) ? undefined : ms;
+}
+
 export function rowToJudgeAssignment(row: JudgeAssignmentJoinedRow): ReplicatedJudgeAssignment {
   const cls = row.classes ?? null;
   const trial = cls?.trials ?? null;
@@ -110,6 +121,7 @@ export function rowToJudgeAssignment(row: JudgeAssignmentJoinedRow): ReplicatedJ
     fee: row.fee ?? null,
     notes: row.notes ?? null,
     dayCapacityOverride: row.day_capacity_override ?? null,
+    serverUpdatedAt: serverTimeMs(row.updated_at),
     className: cls?.name ?? null,
     classElement: cls?.element ?? null,
     classLevel: cls?.level ?? null,

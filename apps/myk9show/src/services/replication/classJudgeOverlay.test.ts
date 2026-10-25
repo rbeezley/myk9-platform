@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { ReplicatedClass } from './ReplicatedClassesTable';
 import type { ReplicatedJudgeAssignment } from './ReplicatedJudgeAssignmentsTable.mapper';
-import { overlayClassJudges, type JudgeNameLookup } from './classJudgeOverlay';
+import {
+  overlayClassJudges,
+  restoreMissingJudgeNames,
+  type JudgeNameLookup,
+} from './classJudgeOverlay';
 
 const cls = (id: string, extra: Partial<ReplicatedClass> = {}): ReplicatedClass => ({
   id,
@@ -203,5 +207,29 @@ describe('overlayClassJudges', () => {
       expect(shown?.judgeName).toBeUndefined();
       expect(shown?.judgeFirstName).toBeUndefined();
     });
+  });
+});
+
+describe('restoreMissingJudgeNames', () => {
+  const pick = assignment('ja-b', 'judge-b', 'c1', { localJudge: { name: 'Bob Judge' } });
+
+  it("names a judge the class row has only an id for, from this device's own pick", () => {
+    const [shown] = restoreMissingJudgeNames(
+      [cls('c1', { judgeId: 'judge-b', judgeName: undefined })],
+      new Map([['c1', [pick]]])
+    );
+    expect(shown?.judgeName).toBe('Bob Judge');
+  });
+
+  it('never puts a name beside a different judge id, nor over an existing name', () => {
+    const classes = [cls('c1', { judgeId: 'judge-z', judgeName: undefined }), cls('c2')];
+    const result = restoreMissingJudgeNames(
+      classes,
+      new Map([
+        ['c1', [pick]],
+        ['c2', [pick]],
+      ])
+    );
+    expect(result).toBe(classes);
   });
 });

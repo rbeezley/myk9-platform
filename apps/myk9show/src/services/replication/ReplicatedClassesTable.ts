@@ -37,7 +37,7 @@ import type { Database } from '@/types/supabase';
 import { buildRingsideClassRpc } from './ringsideClassRpc';
 import { replicatedJudgeAssignmentsTable } from './ReplicatedJudgeAssignmentsTable';
 import { ClassJudgeOverlaySource } from './classJudgeOverlaySource';
-import { refreshRowsById } from './refreshRowsById';
+import { replicatedClassJudgeClearsTable } from './ReplicatedClassJudgeClearsTable';
 import type { TimeLimitRule } from './resolveClassTimeLimitRules';
 
 /**
@@ -88,6 +88,12 @@ export interface ReplicatedClass {
    * `false` means the judge fields above are "unknown", NOT "no judge" — see resolveConflict.
    */
   judgeResolved?: boolean | undefined;
+  /**
+   * The server's `updated_at` (epoch ms) as of the last pull. The judge assignment triggers stamp
+   * it in the same transaction as the assignment write, so the class judge overlay reads "this
+   * row reflects that assignment" as `serverUpdatedAt >= the assignment's` (MYK9-1327).
+   */
+  serverUpdatedAt?: number | undefined;
   classStatus?: string | undefined;
   /**
    * Resolved visibility-cascade values, denormalized at sync time so the
@@ -243,6 +249,7 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     judgeFirstName: judge.firstName,
     judgeLastName: judge.lastName,
     judgeResolved: judge.resolved,
+    serverUpdatedAt: parseUpdatedAtMs(row.updated_at) ?? undefined,
     classStatus: (dbRow.class_status as string | undefined) ?? row.status ?? undefined,
     statusSource: (dbRow.status_source as string | undefined) ?? undefined,
     reopenedAfterCloseoutAt:
@@ -404,23 +411,12 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
    */
   private readonly judgeOverlay = new ClassJudgeOverlaySource(
     () => replicatedJudgeAssignmentsTable,
-    classIds => this.refreshClassesById(classIds),
+    () => replicatedClassJudgeClearsTable,
     () => void this.notifyListeners()
   );
 
   protected override presentRows(rows: ReplicatedClass[]): Promise<ReplicatedClass[]> {
     return this.judgeOverlay.present(rows);
-  }
-
-  /**
-   * Re-read classes from the server now, through the same enriched select a pull uses, so a
-   * class whose judge write was just acknowledged shows the server's judge without waiting for
-   * the next pull.
-   */
-  private refreshClassesById(classIds: string[]): Promise<ReadonlySet<string>> {
-    return refreshRowsById(this, this.getRowRefetchAdapter(), classIds, (local, remote) =>
-      this.resolveConflict(local, remote)
-    );
   }
 
   /** Get the mutation ID from the last create/update operation */

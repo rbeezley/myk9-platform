@@ -21,6 +21,8 @@ import {
 import { upsertClassJudgeAssignment, reassignClassJudge } from '@/services/database/judges/reads';
 import { invalidateClassEnrichment } from '../classEnrichmentCache';
 import { replicatedClassesTable, replicatedJudgeAssignmentsTable } from '..';
+import { ReplicatedClassesTable } from '../ReplicatedClassesTable';
+import { replicatedClassJudgeClearsTable } from '../ReplicatedClassJudgeClearsTable';
 import { bridge } from './classJudgeSupabaseBridge';
 
 export const CLASS_ID = 'class-1';
@@ -44,7 +46,8 @@ export const pick = (id: string) => ({
 });
 
 export function useClassJudgeHarness() {
-  let clock = Date.UTC(2026, 9, 1);
+  // Ahead of the real clock, so a class pulled after an acknowledgement is newer than it.
+  let clock = Date.now() + 3_600_000;
   const tick = () => new Date((clock += 10 * 60_000)).toISOString();
 
   const h = {
@@ -56,8 +59,9 @@ export function useClassJudgeHarness() {
     classVersion: 3,
     /** Every request the transport saw, as "table:verb" (for ordering assertions). */
     requests: [] as string[],
-    /** While set, a by-id class read (the ack refresh) waits for it. */
-    classRefreshGate: null as Promise<void> | null,
+    /** While set, the name lookup (get_show_judges) fails, as it can on a bad connection. */
+    enrichmentDown: false,
+    entryFee: 10,
 
     pick: (id: string) => upsertClassJudgeAssignment(SHOW_ID, CLASS_ID, id, pick(id)),
     pickWithoutName: (id: string) => upsertClassJudgeAssignment(SHOW_ID, CLASS_ID, id),
@@ -100,11 +104,17 @@ export function useClassJudgeHarness() {
         await db.put(REPLICATION_STORES.PENDING_MUTATIONS, { ...mutation, nextRetryAt: undefined });
       }
       await h.manager.uploadPendingMutations();
-      // The settle + refetch run off the upload-complete event: let them land.
+      // The upload-complete event stamps a cleared judge's tombstone: let it land.
       await new Promise(resolve => setTimeout(resolve, 30));
     },
-    /** Classes waiting for the ack refresh. */
-    settlingNow: () => replicatedClassesTableSettling(),
+    /** The pull a device runs: assignments, then classes. */
+    catchUp: async () => {
+      await h.syncAssignments();
+      await h.syncClasses();
+    },
+
+    /** A reload: a fresh class table instance, with no memory of anything this session did. */
+    reloaded: () => new ReplicatedClassesTable(),
 
     /** What a reader of the trial's classes sees. */
     shownClass: async () => (await replicatedClassesTable.getByTrialOrThrow(TRIAL_ID))[0],
@@ -116,20 +126,13 @@ export function useClassJudgeHarness() {
     classIsDirty: async () => (await replicatedClassesTable.getReplicatedRow(CLASS_ID))?.isDirty,
   };
 
-  const replicatedClassesTableSettling = () =>
-    (
-      replicatedClassesTable as unknown as {
-        judgeOverlay: { settlingClassIds(): ReadonlySet<string> };
-      }
-    ).judgeOverlay.settlingClassIds();
-
   const classRow = () => ({
     id: CLASS_ID,
     trial_id: TRIAL_ID,
     name: 'Novice',
     status: 'not_started',
     allow_waitlist: false,
-    entry_fee: 10,
+    entry_fee: h.entryFee,
     updated_at: h.classUpdatedAt,
     version: h.classVersion,
     judge_assignments: [...h.serverAssignments].map(([id, personId]) => ({
@@ -187,7 +190,6 @@ export function useClassJudgeHarness() {
       resolve: (value: unknown) => unknown,
       reject: (reason: unknown) => unknown
     ) => {
-      if (table === 'classes' && byId && h.classRefreshGate) await h.classRefreshGate;
       h.requests.push(`${table}:select${byId ? ':byId' : ''}`);
       const rows =
         table === 'classes'
@@ -215,6 +217,7 @@ export function useClassJudgeHarness() {
       rpc: async (name: string) => {
         h.requests.push(`rpc:${name}`);
         if (name !== 'get_show_judges') return { data: [], error: null };
+        if (h.enrichmentDown) return { data: null, error: { message: 'rpc unavailable' } };
         return {
           data: [...h.serverAssignments].map(([id, personId]) => ({
             assignment_id: id,
@@ -271,6 +274,7 @@ export function useClassJudgeHarness() {
               if (expected !== undefined && expected !== h.classVersion) {
                 return { data: [], error: null };
               }
+              if (payload.entry_fee !== undefined) h.entryFee = Number(payload.entry_fee);
               h.touchClass();
               return { data: [{ id: CLASS_ID, version: h.classVersion }], error: null };
             },
@@ -291,6 +295,8 @@ export function useClassJudgeHarness() {
     h.serverAssignments = new Map([['ja-judge-a', 'judge-a']]);
     h.classUpdatedAt = tick();
     h.classVersion = 3;
+    h.enrichmentDown = false;
+    h.entryFee = 10;
     h.requests = [];
     const supabase = fakeTransport();
     bridge.client = supabase as unknown as typeof bridge.client;
@@ -299,6 +305,7 @@ export function useClassJudgeHarness() {
       getCurrentUserId: async () => AUTH,
       getCurrentUploadContext: async () => ({ authUserId: AUTH, supabaseClient: supabase }),
     });
+    await replicatedClassJudgeClearsTable.clearCache();
     for (const table of [replicatedClassesTable, replicatedJudgeAssignmentsTable]) {
       await table.clearCache();
       table.setMutationManager(h.manager);

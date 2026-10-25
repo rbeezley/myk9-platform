@@ -5,12 +5,12 @@
  * A secretary's pick is a queued `judge_assignments` write, not a class write, so while that
  * write is undelivered the pulled class row still names the old judge. This overlay puts the
  * picked judge on the rows a reader sees, without storing it on the class row: the replica
- * keeps exactly what the server said, and the moment the assignment is delivered the overlay
- * lets go and the server's own judge shows (which is how another secretary's later change wins).
+ * keeps exactly what the server said, and once the class row has been pulled past the
+ * assignment the overlay lets go and the server's own judge shows (which is how another
+ * secretary's later change wins). Which classes are active is decided by the source from
+ * persisted state (the queue, server `updated_at` times, clear tombstones), never from memory.
  *
- * Pure: the caller decides which assignments count as undelivered (it reads the mutation queue).
- * A SYNCED local assignment row is never consulted on its own, because the incremental sync
- * never sees a remote hard delete and a stale row would pin a judge the server dropped.
+ * Pure: the caller passes the active classes and their candidate assignment rows.
  */
 import type { ReplicatedClass } from './ReplicatedClassesTable';
 import type { ReplicatedJudgeAssignment } from './ReplicatedJudgeAssignmentsTable.mapper';
@@ -60,13 +60,15 @@ export interface ClassJudgeOverlayScope {
 }
 
 /**
- * Undelivered rows first (what this device is still trying to say), then the newest local
- * write; the lowest id breaks an exact tie so the winner never flips between reads.
+ * Undelivered rows first (what this device is still trying to say), then the newest server
+ * time, then the newest local write; the lowest id breaks an exact tie so the winner never flips between reads.
  */
 function compareClaims(scope: ClassJudgeOverlayScope) {
   return (a: ReplicatedJudgeAssignment, b: ReplicatedJudgeAssignment): number => {
     const unsent = Number(scope.unsentRowIds.has(b.id)) - Number(scope.unsentRowIds.has(a.id));
     if (unsent !== 0) return unsent;
+    const byServer = (b.serverUpdatedAt ?? 0) - (a.serverUpdatedAt ?? 0);
+    if (byServer !== 0) return byServer;
     const byTime = (b._lastModified?.getTime() ?? 0) - (a._lastModified?.getTime() ?? 0);
     return byTime !== 0 ? byTime : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   };
@@ -143,4 +145,31 @@ export function overlayClassJudges(
       : withJudge(cls, undefined, undefined);
   });
   return changed ? presented : classes;
+}
+
+/**
+ * A class pulled after its judge write can name the judge by id but not by name, when the
+ * name lookup failed on that pull. Where this device's own pick for that same judge carries the
+ * name, use it; never a name beside a different id.
+ */
+export function restoreMissingJudgeNames(
+  classes: ReplicatedClass[],
+  assignmentsByClass: ReadonlyMap<string, readonly ReplicatedJudgeAssignment[]>
+): ReplicatedClass[] {
+  let changed = false;
+  const restored = classes.map(cls => {
+    if (!cls.judgeId || cls.judgeName) return cls;
+    const named = assignmentsByClass
+      .get(cls.id)
+      ?.find(row => row.personId === cls.judgeId && row.localJudge)?.localJudge;
+    if (!named) return cls;
+    changed = true;
+    return {
+      ...cls,
+      judgeName: named.name,
+      judgeFirstName: named.firstName,
+      judgeLastName: named.lastName,
+    };
+  });
+  return changed ? restored : classes;
 }

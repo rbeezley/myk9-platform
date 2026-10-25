@@ -6,7 +6,8 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { replicatedClassesTable, replicatedJudgeAssignmentsTable } from '..';
-import { CLASS_ID, useClassJudgeHarness } from './classJudgeHarness';
+import { databaseManager, REPLICATION_STORES } from '@myk9/replication';
+import { CLASS_ID, TRIAL_ID, useClassJudgeHarness } from './classJudgeHarness';
 
 vi.mock('@myk9/core', () => ({
   logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
@@ -80,67 +81,54 @@ describe('class judge while the assignment is undelivered (MYK9-1327)', () => {
     expect(shown?.judgeName).toBeUndefined();
   });
 
-  describe('when the assignment is delivered on retry', () => {
-    it('converges on the picked judge after the acknowledgement refresh', async () => {
+  describe('after the assignment is delivered', () => {
+    const deliver = async () => {
       h.transport = 'down';
       await h.pick('judge-b');
       await h.pass();
-      await h.syncClasses();
-      expect(await h.shownJudgeId()).toBe('judge-b');
-
       h.transport = 'up';
       await h.retryNow();
-
+      expect(await h.pending()).toEqual([]);
       expect([...h.serverAssignments.values()]).toEqual(['judge-b']);
-      expect(await h.pending()).toEqual([]);
-      await vi.waitFor(async () => expect(await h.storedJudgeId()).toBe('judge-b'));
-      expect(await h.shownJudgeId()).toBe('judge-b');
-      expect(h.requests).toContain('classes:select:byId');
+    };
+
+    it('holds the picked judge on a reload until the class has been pulled past the assignment', async () => {
+      await deliver();
+      expect(await h.storedJudgeId()).toBe('judge-a'); // no class pull has happened
+      expect(h.requests).not.toContain('classes:select:byId'); // and none is forced
+
+      // A reload: a fresh table instance with no memory of this session.
+      const reloaded = h.reloaded();
+      expect((await reloaded.getByTrialOrThrow(TRIAL_ID))[0]?.judgeId).toBe('judge-b');
+      expect((await reloaded.getClassById(CLASS_ID))?.judgeId).toBe('judge-b');
+
+      await h.syncAssignments(); // the delivered row comes back stamped with its server time
+      expect((await reloaded.getByTrialOrThrow(TRIAL_ID))[0]?.judgeId).toBe('judge-b');
+      expect(await h.storedJudgeId()).toBe('judge-a');
+
+      await h.syncClasses(); // the class row now carries the assignment's server time
+      expect(await h.storedJudgeId()).toBe('judge-b');
+      expect((await reloaded.getByTrialOrThrow(TRIAL_ID))[0]).toMatchObject({
+        judgeId: 'judge-b',
+        judgeName: 'Bob Judge',
+      });
     });
 
-    it('never flashes the previous judge between the acknowledgement and the refresh landing', async () => {
-      h.transport = 'down';
-      await h.pick('judge-b');
-      await h.pass();
-
-      let release!: () => void;
-      h.classRefreshGate = new Promise<void>(resolve => (release = resolve));
-      h.transport = 'up';
-      await h.retryNow(); // delivered; the class refresh is now waiting on the gate
-
-      expect(await h.pending()).toEqual([]);
-      expect(await h.storedJudgeId()).toBe('judge-a'); // the stored row is still the old server judge
-      for (let read = 0; read < 3; read += 1) {
-        expect(await h.shownJudgeId()).toBe('judge-b');
-        expect(await h.shownByIdJudgeId()).toBe('judge-b');
-      }
-
-      h.classRefreshGate = null;
-      release();
-      await vi.waitFor(async () => expect(await h.storedJudgeId()).toBe('judge-b'));
-      await vi.waitFor(() => expect(h.settlingNow().size).toBe(0));
-      expect(await h.shownJudgeId()).toBe('judge-b');
-    });
-
-    it("lets another secretary's later assignment win once every related write is acknowledged", async () => {
-      h.transport = 'down';
-      await h.pick('judge-b');
-      await h.pass();
-      h.transport = 'up';
-      await h.retryNow();
-      await vi.waitFor(async () => expect(await h.storedJudgeId()).toBe('judge-b'));
-      await vi.waitFor(() => expect(h.settlingNow().size).toBe(0));
-
+    it("lets another secretary's later assignment win once the class is pulled past ours", async () => {
+      await deliver();
+      await h.catchUp();
+      expect(await h.storedJudgeId()).toBe('judge-b');
       // The synced local row for the delivered pick is still on this device.
       expect((await replicatedJudgeAssignmentsTable.getByClassOrThrow(CLASS_ID)).length).toBe(1);
 
       h.serverAssigns('judge-d'); // the assignments sync never sees a remote hard delete
-      await h.syncAssignments(); // the remote change reaches the device as it would in a sync pass
-      await h.syncClasses();
+      await h.syncAssignments();
+      await h.syncClasses(); // the class row is newer than our delivered row
 
       expect(await h.storedJudgeId()).toBe('judge-d');
       expect(await h.shownJudgeId()).toBe('judge-d');
       expect(await h.shownByIdJudgeId()).toBe('judge-d');
+      expect(await h.shownJudgeId()).toBe('judge-d');
     });
 
     it("lets another secretary's judge win over a stale synced local assignment row", async () => {
@@ -148,10 +136,48 @@ describe('class judge while the assignment is undelivered (MYK9-1327)', () => {
       expect((await replicatedJudgeAssignmentsTable.getByClassOrThrow(CLASS_ID)).length).toBe(1);
 
       h.serverAssigns('judge-d');
-      await h.syncAssignments();
-      await h.syncClasses();
+      await h.catchUp();
 
       expect(await h.shownJudgeId()).toBe('judge-d');
+    });
+
+    it('keeps the picked judge while an unrelated class conflict holds the class row back', async () => {
+      await deliver();
+      // A local edit of the fee waits to upload while another device changes the same field.
+      await replicatedClassesTable.updateClass(CLASS_ID, { entryFee: 25 });
+      const db = await databaseManager.getDatabase('test');
+      for (const m of await h.manager.getPendingMutationsForTable('classes')) {
+        await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
+          ...m,
+          nextRetryAt: Date.now() + 3_600_000,
+        });
+      }
+      h.entryFee = 40;
+      h.touchClass();
+      await h.catchUp();
+
+      const row = await replicatedClassesTable.getReplicatedRow(CLASS_ID);
+      expect(row?.syncStatus).toBe('conflict'); // the pull could not adopt the class row
+      expect(await h.storedJudgeId()).toBe('judge-a');
+      expect(await h.shownJudgeId()).toBe('judge-b');
+      expect(await h.shownByIdJudgeId()).toBe('judge-b');
+
+      // Taking the server's class row is the first caught-up row: the server's judge shows.
+      await replicatedClassesTable.resolveReplicationConflict(CLASS_ID, 'take-remote');
+      await h.manager.discardPendingMutationsForRow('classes', CLASS_ID);
+      expect(await h.storedJudgeId()).toBe('judge-b');
+      expect(await h.shownJudgeId()).toBe('judge-b');
+    });
+
+    it('keeps the judge name when the name lookup fails on the pull', async () => {
+      h.enrichmentDown = true;
+      await deliver();
+      await h.catchUp();
+
+      expect(await h.storedJudgeId()).toBe('judge-b'); // the class row has the id...
+      expect((await replicatedClassesTable.get(CLASS_ID))?.judgeName).toBeUndefined(); // ...no name
+      expect(await h.shownClass()).toMatchObject({ judgeId: 'judge-b', judgeName: 'Bob Judge' });
+      expect((await replicatedClassesTable.getClassById(CLASS_ID))?.judgeName).toBe('Bob Judge');
     });
   });
 });

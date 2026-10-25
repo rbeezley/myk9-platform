@@ -6,8 +6,8 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { replicatedClassesTable, replicatedJudgeAssignmentsTable } from '..';
-import { databaseManager, REPLICATION_STORES } from '@myk9/replication';
-import { CLASS_ID, useClassJudgeHarness } from './classJudgeHarness';
+import { replicatedClassJudgeClearsTable } from '../ReplicatedClassJudgeClearsTable';
+import { CLASS_ID, TRIAL_ID, useClassJudgeHarness } from './classJudgeHarness';
 
 vi.mock('@myk9/core', () => ({
   logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
@@ -23,7 +23,7 @@ describe('class judge recovery (MYK9-1327)', () => {
   const localAssignmentIds = async () =>
     (await replicatedJudgeAssignmentsTable.getByClassOrThrow(CLASS_ID)).map(row => row.id).sort();
 
-  /** Run passes until nothing is queued, letting each pass's acknowledgement refresh land. */
+  /** Run passes until nothing is queued. */
   const drain = async () => {
     for (let pass = 0; pass < 6 && (await h.pending()).length > 0; pass += 1) await h.retryNow();
     await h.retryNow();
@@ -57,6 +57,7 @@ describe('class judge recovery (MYK9-1327)', () => {
       await h.retryNow();
 
       expect([...h.serverAssignments.values()]).toEqual(['judge-b']);
+      await h.catchUp();
       await vi.waitFor(async () => expect(await h.storedJudgeId()).toBe('judge-b'));
       expect(await h.shownJudgeId()).toBe('judge-b');
     });
@@ -106,6 +107,7 @@ describe('class judge recovery (MYK9-1327)', () => {
       h.transport = 'up';
       await drain();
       expect(h.serverAssignments.size).toBe(0);
+      await h.catchUp();
       await vi.waitFor(async () => expect(await h.storedJudgeId()).toBeUndefined());
       expect((await h.shownClass())?.judgeId).toBeUndefined();
 
@@ -113,6 +115,31 @@ describe('class judge recovery (MYK9-1327)', () => {
       await h.syncAssignments();
       await h.syncClasses();
       expect(await h.shownJudgeId()).toBe('judge-d');
+    });
+
+    it('shows no judge after the delete is acknowledged and the device reloads, until the class is pulled', async () => {
+      await h.clear();
+      await h.pass();
+      expect(await h.pending()).toEqual([]);
+      expect(h.serverAssignments.size).toBe(0);
+      await new Promise(resolve => setTimeout(resolve, 30)); // the acknowledgement stamps the tombstone
+
+      expect(await h.storedJudgeId()).toBe('judge-a'); // the class has not been pulled
+      const reloaded = h.reloaded();
+      expect((await reloaded.getByTrialOrThrow(TRIAL_ID))[0]?.judgeId).toBeUndefined();
+      expect((await reloaded.getClassById(CLASS_ID))?.judgeId).toBeUndefined();
+      expect(await replicatedClassJudgeClearsTable.getAll()).toHaveLength(1);
+
+      await h.catchUp(); // the class row now carries the delete's server time
+      expect(await h.storedJudgeId()).toBeUndefined();
+      expect((await reloaded.getByTrialOrThrow(TRIAL_ID))[0]?.judgeId).toBeUndefined();
+      await vi.waitFor(async () =>
+        expect(await replicatedClassJudgeClearsTable.getAll()).toEqual([])
+      );
+
+      h.serverAssigns('judge-d'); // and the server's word stands afterwards
+      await h.catchUp();
+      expect((await reloaded.getByTrialOrThrow(TRIAL_ID))[0]?.judgeId).toBe('judge-d');
     });
 
     it('shows no judge while the delete is undelivered, through pulls, then keeps none', async () => {
@@ -130,6 +157,7 @@ describe('class judge recovery (MYK9-1327)', () => {
       h.transport = 'up';
       await drain();
       expect(h.serverAssignments.size).toBe(0);
+      await h.catchUp();
       await vi.waitFor(async () => expect(await h.storedJudgeId()).toBeUndefined());
       expect((await h.shownClass())?.judgeId).toBeUndefined();
     });
@@ -151,6 +179,7 @@ describe('class judge recovery (MYK9-1327)', () => {
 
       expect([...h.serverAssignments.values()]).toEqual(['judge-c']);
       expect(await h.pending()).toEqual([]);
+      await h.catchUp();
       await vi.waitFor(async () => expect(await h.storedJudgeId()).toBe('judge-c'));
       expect(await h.shownJudgeId()).toBe('judge-c');
     });
@@ -170,6 +199,7 @@ describe('class judge recovery (MYK9-1327)', () => {
 
       // B's delete never ran ahead of B's insert (that would leave B on the server).
       expect([...h.serverAssignments.values()]).toEqual(['judge-c']);
+      await h.catchUp();
       await vi.waitFor(async () => expect(await h.storedJudgeId()).toBe('judge-c'));
       expect(await h.shownJudgeId()).toBe('judge-c');
     });
@@ -188,6 +218,7 @@ describe('class judge recovery (MYK9-1327)', () => {
       await drain();
 
       expect([...h.serverAssignments.values()]).toEqual(['judge-c']);
+      await h.catchUp();
       await vi.waitFor(async () => expect(await h.storedJudgeId()).toBe('judge-c'));
       expect(await h.shownJudgeId()).toBe('judge-c');
     });
@@ -211,49 +242,9 @@ describe('class judge recovery (MYK9-1327)', () => {
 
       expect([...h.serverAssignments.values()]).toEqual(['judge-c']);
       expect(await h.failed()).toEqual([]);
+      await h.catchUp();
       await vi.waitFor(async () => expect(await h.storedJudgeId()).toBe('judge-c'));
       expect(await h.shownJudgeId()).toBe('judge-c');
-    });
-  });
-
-  describe('an unrelated class edit lands while the acknowledgement refresh is running', () => {
-    it('keeps the picked judge until the class row itself carries it', async () => {
-      h.transport = 'down';
-      await h.pick('judge-b');
-      await h.pass();
-
-      let release!: () => void;
-      h.classRefreshGate = new Promise<void>(resolve => (release = resolve));
-      h.transport = 'up';
-      await h.retryNow(); // delivered; the refresh waits on the gate
-
-      // An edit to the same class lands now and stays unsent (its upload is held back).
-      await replicatedClassesTable.updateClass(CLASS_ID, { entryFee: 30 });
-      const db = await databaseManager.getDatabase('test');
-      for (const m of await h.manager.getPendingMutationsForTable('classes')) {
-        await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
-          ...m,
-          nextRetryAt: Date.now() + 3_600_000,
-        });
-      }
-
-      h.classRefreshGate = null;
-      release();
-      await new Promise(resolve => setTimeout(resolve, 50)); // the refresh skips the dirty row
-
-      expect(await h.storedJudgeId()).toBe('judge-a');
-      expect(await h.shownJudgeId()).toBe('judge-b');
-      expect(await h.shownByIdJudgeId()).toBe('judge-b');
-
-      // The edit is delivered and the class is pulled: the server row carries B and the wait ends.
-      for (const m of await h.manager.getPendingMutationsForTable('classes')) {
-        await db.put(REPLICATION_STORES.PENDING_MUTATIONS, { ...m, nextRetryAt: undefined });
-      }
-      await h.pass();
-      await h.syncClasses();
-      await vi.waitFor(async () => expect(await h.storedJudgeId()).toBe('judge-b'));
-      expect(await h.shownJudgeId()).toBe('judge-b');
-      expect(h.settlingNow().size).toBe(0);
     });
   });
 
@@ -271,6 +262,7 @@ describe('class judge recovery (MYK9-1327)', () => {
     h.transport = 'up';
     await drain();
     expect([...h.serverAssignments.values()]).toEqual(['judge-b']);
+    await h.catchUp();
     await vi.waitFor(async () => expect(await h.storedJudgeId()).toBe('judge-b'));
   });
 
@@ -283,6 +275,7 @@ describe('class judge recovery (MYK9-1327)', () => {
     h.transport = 'up';
     await drain();
 
+    await h.catchUp();
     await vi.waitFor(async () => expect(await h.storedJudgeId()).toBe('judge-b'));
     expect((await replicatedClassesTable.get(CLASS_ID))?.entryFee).toBe(25);
     expect(await h.shownJudgeId()).toBe('judge-b');

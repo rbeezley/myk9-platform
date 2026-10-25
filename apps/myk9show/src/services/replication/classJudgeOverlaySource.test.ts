@@ -1,154 +1,206 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReplicatedClass } from './ReplicatedClassesTable';
 import type { ReplicatedJudgeAssignment } from './ReplicatedJudgeAssignmentsTable.mapper';
+import type { ClassJudgeClear } from './ReplicatedClassJudgeClearsTable';
+import type { UnsentClassJudgeWork } from './judgeAssignmentClassWork';
 import {
-  CLASS_JUDGE_SETTLE_TTL_MS,
   ClassJudgeOverlaySource,
   type ClassJudgeAssignmentsPort,
+  type ClassJudgeClearsPort,
 } from './classJudgeOverlaySource';
 
 vi.mock('@myk9/core', () => ({
   logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
-const classRow = {
+const T = 1_800_000_000_000;
+const classRow = (extra: Partial<ReplicatedClass> = {}): ReplicatedClass => ({
   id: 'c1',
   name: 'Novice',
   judgeId: 'judge-a',
-  judgeName: 'Ann',
-} as ReplicatedClass;
-const pickB = {
-  id: 'ja-b',
-  personId: 'judge-b',
-  classId: 'c1',
-  localJudge: { name: 'Bob' },
-} as ReplicatedJudgeAssignment;
+  judgeName: 'Ann Judge',
+  serverUpdatedAt: T,
+  ...extra,
+});
+const row = (extra: Partial<ReplicatedJudgeAssignment> = {}): ReplicatedJudgeAssignment =>
+  ({
+    id: 'ja-b',
+    personId: 'judge-b',
+    classId: 'c1',
+    localJudge: { name: 'Bob Judge' },
+    ...extra,
+  }) as ReplicatedJudgeAssignment;
 
-function makePort(overrides: Partial<ClassJudgeAssignmentsPort> = {}) {
-  let settled: ((ids: string[]) => void) | undefined;
+const noWork = (): UnsentClassJudgeWork => ({
+  unsentRowIds: new Set(),
+  deletedRowIds: new Set(),
+  classIds: new Set(),
+});
+
+function setup(
+  assignments: ReplicatedJudgeAssignment[] = [],
+  work: UnsentClassJudgeWork = noWork(),
+  clears: ClassJudgeClear[] = []
+) {
+  const deleted: string[] = [];
   const port: ClassJudgeAssignmentsPort = {
-    getUnsentClassWork: async () => ({
-      unsentRowIds: new Set(['ja-b']),
-      classIds: new Set(['c1']),
+    getUnsentClassWork: async () => work,
+    getAllWithStatus: async () => ({ ok: true as const, rows: assignments, error: null }),
+    getByClassWithStatus: async classId => ({
+      ok: true as const,
+      rows: assignments.filter(a => a.classId === classId),
+      error: null,
     }),
-    getByClassWithStatus: async () => ({ ok: true, rows: [pickB] }),
     subscribe: () => () => undefined,
-    onClassJudgesSettled: listener => {
-      settled = listener;
-      return () => undefined;
-    },
-    ...overrides,
-  } as ClassJudgeAssignmentsPort;
-  return { port, settle: (ids: string[]) => settled?.(ids) };
+  };
+  const clearsPort: ClassJudgeClearsPort = {
+    getAll: async () => clears,
+    getByClassWithStatus: async classId => ({
+      ok: true as const,
+      rows: clears.filter(c => c.classId === classId),
+      error: null,
+    }),
+    delete: async id => void deleted.push(id),
+    subscribe: () => () => undefined,
+  };
+  return {
+    source: new ClassJudgeOverlaySource(
+      () => port,
+      () => clearsPort,
+      () => undefined
+    ),
+    deleted,
+  };
 }
 
 describe('ClassJudgeOverlaySource', () => {
-  beforeEach(() => vi.useFakeTimers());
-  afterEach(() => vi.useRealTimers());
+  beforeEach(() => vi.useRealTimers());
 
-  it('returns the stored rows untouched when the judge writes cannot be read', async () => {
-    const { port } = makePort({
+  it('returns the stored rows untouched when the local state cannot be read', async () => {
+    const port = {
       getUnsentClassWork: async () => {
         throw new Error('queue unreadable');
       },
-    });
-    const rows = [classRow];
-
-    const shown = await new ClassJudgeOverlaySource(
-      () => port,
-      async () => new Set<string>(),
-      () => undefined
-    ).present(rows);
-
-    expect(shown).toBe(rows);
-  });
-
-  it('shows a class as stored when its assignments cannot be read', async () => {
-    const { port } = makePort({
-      getByClassWithStatus: async () => ({ ok: false, error: new Error('idb') }),
-    } as unknown as Partial<ClassJudgeAssignmentsPort>);
-    const rows = [classRow];
-
-    const shown = await new ClassJudgeOverlaySource(
-      () => port,
-      async () => new Set<string>(),
-      () => undefined
-    ).present(rows);
-
-    expect(shown[0]?.judgeId).toBe('judge-a');
-  });
-
-  it('reads nothing but the queue when no judge work is pending', async () => {
-    const getByClassWithStatus = vi.fn();
-    const { port } = makePort({
-      getUnsentClassWork: async () => ({
-        unsentRowIds: new Set(),
-        deletedRowIds: new Set(),
-        classIds: new Set(),
-      }),
-      getByClassWithStatus,
-    });
-
-    const shown = await new ClassJudgeOverlaySource(
-      () => port,
-      async () => new Set<string>(),
-      () => undefined
-    ).present([classRow]);
-
-    expect(shown[0]?.judgeId).toBe('judge-a');
-    expect(getByClassWithStatus).not.toHaveBeenCalled();
-  });
-
-  it('holds the local judge from the acknowledgement until the refresh lands, then lets go', async () => {
-    let finishRefresh!: () => void;
-    const refresh = vi.fn(
-      () =>
-        new Promise<ReadonlySet<string>>(
-          resolve => (finishRefresh = () => resolve(new Set(['c1'])))
-        )
-    );
-    const changed = vi.fn();
-    const { port, settle } = makePort({
-      getUnsentClassWork: async () => ({
-        unsentRowIds: new Set(),
-        deletedRowIds: new Set(),
-        classIds: new Set(),
-      }),
-    });
-    const source = new ClassJudgeOverlaySource(() => port, refresh, changed);
-    await source.present([classRow]); // starts the source
-
-    settle(['c1']);
-    expect(refresh).toHaveBeenCalledWith(['c1']);
-    expect((await source.present([classRow]))[0]?.judgeId).toBe('judge-b');
-
-    finishRefresh();
-    await vi.waitFor(() => expect(changed).toHaveBeenCalled());
-    expect((await source.present([classRow]))[0]?.judgeId).toBe('judge-a');
-  });
-
-  it('keeps the local judge when the refresh fails, until the wait runs out', async () => {
-    const { port, settle } = makePort({
-      getUnsentClassWork: async () => ({
-        unsentRowIds: new Set(),
-        deletedRowIds: new Set(),
-        classIds: new Set(),
-      }),
-    });
+      subscribe: () => () => undefined,
+    } as unknown as ClassJudgeAssignmentsPort;
+    const rows = [classRow()];
     const source = new ClassJudgeOverlaySource(
       () => port,
-      async () => {
-        throw new Error('offline');
-      },
+      () => ({
+        getAll: async () => [],
+        getByClassWithStatus: async () => ({ ok: true as const, rows: [], error: null }),
+        delete: async () => undefined,
+        subscribe: () => () => undefined,
+      }),
       () => undefined
     );
-    await source.present([classRow]);
 
-    settle(['c1']);
-    await vi.advanceTimersByTimeAsync(10);
-    expect((await source.present([classRow]))[0]?.judgeId).toBe('judge-b');
+    expect(await source.present(rows)).toBe(rows);
+  });
 
-    await vi.advanceTimersByTimeAsync(CLASS_JUDGE_SETTLE_TTL_MS + 1);
-    expect((await source.present([classRow]))[0]?.judgeId).toBe('judge-a');
+  it('leaves a class alone when nothing is waiting and no delivered row is newer than it', async () => {
+    const rows = [classRow()];
+    const { source } = setup([row({ serverUpdatedAt: T })]);
+
+    expect(await source.present(rows)).toBe(rows);
+  });
+
+  it('speaks for a delivered row whose server time is newer than the class row', async () => {
+    const { source } = setup([row({ serverUpdatedAt: T + 1 })]);
+
+    const [shown] = await source.present([classRow()]);
+
+    expect(shown).toMatchObject({ judgeId: 'judge-b', judgeName: 'Bob Judge' });
+  });
+
+  it('speaks for a delivered row this device created until a pull stamps it', async () => {
+    const { source } = setup([row({ _lastModified: new Date() })]);
+
+    expect((await source.present([classRow()]))[0]?.judgeId).toBe('judge-b');
+  });
+
+  it('ignores a delivered row with no server time and no local write (a legacy cached row)', async () => {
+    const rows = [classRow()];
+    const { source } = setup([row()]);
+
+    expect(await source.present(rows)).toBe(rows);
+  });
+
+  it('ignores an unstamped local row once a stamped row of the same class exists', async () => {
+    const rows = [classRow()];
+    const { source } = setup([
+      row({ _lastModified: new Date() }),
+      row({ id: 'ja-d', personId: 'judge-d', serverUpdatedAt: T - 5 }),
+    ]);
+
+    expect(await source.present(rows)).toBe(rows);
+  });
+
+  it('prefers the newer server time among delivered rows that are not caught up', async () => {
+    const { source } = setup([
+      row({ id: 'ja-b', personId: 'judge-b', serverUpdatedAt: T + 1 }),
+      row({ id: 'ja-c', personId: 'judge-c', serverUpdatedAt: T + 2, localJudge: undefined }),
+    ]);
+
+    expect((await source.present([classRow()]))[0]?.judgeId).toBe('judge-c');
+  });
+
+  it('shows no judge for a delivered clear until the class row is pulled past it, then drops it', async () => {
+    const clear: ClassJudgeClear = {
+      id: 'ja-a',
+      classId: 'c1',
+      createdAt: T,
+      ackedAt: T + 10,
+      classTimeAtAck: T,
+    };
+    const live = setup([], noWork(), [clear]);
+    expect((await live.source.present([classRow()]))[0]?.judgeId).toBeUndefined();
+    expect(live.deleted).toEqual([]);
+
+    const caughtUp = setup([], noWork(), [clear]);
+    const rows = [classRow({ serverUpdatedAt: T + 1 })];
+    expect(await caughtUp.source.present(rows)).toBe(rows);
+    await vi.waitFor(() => expect(caughtUp.deleted).toEqual(['ja-a']));
+  });
+
+  it('ignores a clear that was never acknowledged, and drops it once it is old and not queued', async () => {
+    const rows = [classRow()];
+    const fresh = setup([], noWork(), [{ id: 'ja-a', classId: 'c1', createdAt: Date.now() }]);
+    expect(await fresh.source.present(rows)).toBe(rows);
+    expect(fresh.deleted).toEqual([]);
+
+    const old = setup([], noWork(), [
+      { id: 'ja-a', classId: 'c1', createdAt: Date.now() - 3_600_000 },
+    ]);
+    await old.source.present(rows);
+    await vi.waitFor(() => expect(old.deleted).toEqual(['ja-a']));
+  });
+
+  it('puts the unsent assignment first, excluding a row whose delete is waiting', async () => {
+    const work: UnsentClassJudgeWork = {
+      unsentRowIds: new Set(['ja-c']),
+      deletedRowIds: new Set(['ja-a']),
+      classIds: new Set(['c1']),
+    };
+    const { source } = setup(
+      [
+        row({ id: 'ja-a', personId: 'judge-a', serverUpdatedAt: T + 50 }),
+        row({ id: 'ja-c', personId: 'judge-c', localJudge: { name: 'Cy Judge' } }),
+      ],
+      work
+    );
+
+    expect((await source.present([classRow()]))[0]).toMatchObject({
+      judgeId: 'judge-c',
+      judgeName: 'Cy Judge',
+    });
+  });
+
+  it('gives a caught-up class the pick name when the pull brought the id without a name', async () => {
+    const { source } = setup([row({ serverUpdatedAt: T })]);
+
+    const [shown] = await source.present([classRow({ judgeId: 'judge-b', judgeName: undefined })]);
+
+    expect(shown).toMatchObject({ judgeId: 'judge-b', judgeName: 'Bob Judge' });
   });
 });

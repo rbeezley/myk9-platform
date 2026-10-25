@@ -61,8 +61,10 @@ review and suites all count).
   `approach:` ledger fields. Route rejected premises through the shared disposition table.
 - **Pre-work stops:** use the **Dispositions and holds** table in
   `docs/agents/issue-tracker.md`, including its state, label, owner and resume record.
-  `pnpm qa:inflight <expected paths>` must run; check In Progress issues naming those paths
-  and `list_sessions` too. A held issue is not proof its unmerged work can be overwritten.
+  Evaluate every pre-work trigger in that table before dispatch, including money/owner approval,
+  owner-only acceptance actions and unknown ownership checks. Run `pnpm qa:inflight <expected paths>`;
+  exits 1 and 2 both stop dispatch. Check In Progress issues naming those paths and `list_sessions`
+  too. A held issue is not proof its unmerged work can be overwritten.
 - Pick the implementer tier from the routing table.
 
 ### 2. Start
@@ -191,7 +193,7 @@ asking:
 | MYK9-123 | merged · Done      | #2870 | —                                                  |
 | MYK9-456 | merged · In Review | #2871 | browser walk of /at-show scoring                   |
 | MYK9-789 | held · Todo        | —     | money-code approval question; shared table applied |
-| MYK9-321 | triaged · Backlog  | —     | complete reproduction negative; trigger recorded   |
+| MYK9-321 | held · Todo        | —     | not reproduced; owner premise decision owed        |
 ```
 
 Follow it with the orchestration stats from `../SKILL.md` and one line listing every judgement

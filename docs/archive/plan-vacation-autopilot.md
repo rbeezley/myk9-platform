@@ -1,8 +1,9 @@
 # Vacation Autopilot
 
-> **Status:** Abandoned
+> **Status:** Complete
 
-Historical August 2026 vacation workflow. Superseded by the shared
+Historical August 2026 vacation workflow, now retired and archived as superseded. The original
+checklist below is preserved as historical text, not a current completion report. Superseded by the shared
 [Linear operating contract](../agents/issue-tracker.md); its labels and merge permissions are
 not current instructions. Preserve the record below, but do not execute or recreate its labels.
 

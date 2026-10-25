@@ -48,8 +48,10 @@ Archiving is automatic and cannot be triggered per-issue; Team settings → Work
 sets the window. The _Auto-close stale issues_ automation on that same page is a different thing and
 is currently on (6 months → Canceled): it closes **open** issues, so the deliberately parked Backlog
 items here — Stripe live-mode cutover, 10DLC registration, DR posture — are on a path to Canceled
-around 2027-01. Cycles are off and there are no projects, so none of Linear's auto-close exemptions
-protect them. Do not "free up room" by deleting issues — deletion is permanent
+around 2027-01 unless their current status or project qualifies for an exemption. The team now
+uses projects, including Post-launch (verified 2026-10-25). Check the current automation and each
+issue's membership before assuming it is protected; Parked alone is not proof of an exemption.
+Do not "free up room" by deleting issues — deletion is permanent
 after 30 days and orphans the ~197 distinct `MYK9-<n>` ids cited across ~737 files in this repo.
 
 ## Conventions
@@ -142,22 +144,25 @@ A pre-work hold leaves Backlog/Todo unchanged. A hold after implementation start
 In Progress, including an unmerged PR. After merge, missing acceptance evidence belongs In Review.
 Apply every independent hold that remains; labels never grant the approval they describe.
 
-| Situation                                                                                              | Disposition / intervention                                                                    | Resume or resolution                                                                                    |
-| ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Pre-work reproduction completed on the required target, but the defect is not reproduced               | Backlog with tested build/scenario and a reconsideration trigger; no automatic decision label | New reproduction/evidence and explicit return to Todo; non-reproduction is never proof of a fix         |
-| A current recorded decision fully disposes the finding and all its scope                               | Canceled with that citation after a full-issue read; no new hold                              | A new request to change the decision is triaged as such, not built against the old decision             |
-| New scope/product question, money-code approval, convergence stop, or model escalation                 | needs:decision; state follows the pre-work/started rule above                                 | Named decision owner records the exact approval or restructure choice                                   |
-| Required CI remains red after the run's two fix attempts                                               | needs:decision for an explicit repair/handoff plan; keep In Progress                          | Owner/executor accepts the next repair approach; code fixes and passing checks remain owed              |
-| Required tool, credentials, fixture, network or reviewer unavailable; runner hangs over 30 seconds     | needs:environment; state follows the pre-work/started rule                                    | A capable executor establishes the missing capability is restored; do not infer a fix from elapsed time |
-| Authorized operator/person action, including a migration PR awaiting the owner's merge/deploy sequence | needs:operator; unmerged work stays In Progress                                               | Record the authorized action; migrations are pushed only after merge and only with existing approval    |
-| Overlapping PR, branch, worktree or issue ownership                                                    | needs:coordination                                                                            | Agree ownership/sequencing; a held or idle branch may still contain unmerged work                       |
-| Merged implementation awaiting browser, device, hosted or other acceptance proof                       | In Review with the applicable verify:* labels and any independent needs:* hold                | Record each criterion's required proof; remove only satisfied labels and fresh-read before Done         |
+| Situation                                                                                                                                 | Disposition / intervention                                                                                                                      | Resume or resolution                                                                                                                |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Reproduction completed but the defect is not reproduced, or the agent considers it by design                                              | needs:decision; preserve the pre-work/started state; record tested build/scenario or exact design citation                                      | Owner resolves the disputed premise; do not autonomously cancel or move it to Backlog on this basis                                 |
+| New scope/product question reserved for the owner, convergence stop, or model escalation                                                  | needs:decision; state follows the pre-work/started rule above                                                                                   | Named decision owner records the exact approval or restructure choice                                                               |
+| Work touches payments, refunds, fees or money guards without recorded owner approval for that scope                                       | Pre-work stop with needs:decision, regardless of issue size; stop mid-work if discovered later                                                  | Owner explicitly approves the scope before implementation starts or resumes; never infer approval from a label                      |
+| Required CI remains red after the run's two fix attempts                                                                                  | needs:decision for an explicit repair/handoff plan; keep In Progress                                                                            | Owner/executor accepts the next repair approach; code fixes and passing checks remain owed                                          |
+| Required tool, credentials, fixture, network or reviewer unavailable; runner hangs over 30 seconds                                        | needs:environment; state follows the pre-work/started rule                                                                                      | A capable executor establishes the missing capability is restored; do not infer a fix from elapsed time                             |
+| Criteria require an owner-only/person action (including real-user observation), or a migration PR needs the owner's merge/deploy sequence | Pre-work stop with needs:operator unless the owner already authorized the implementation/verification sequence; unmerged work stays In Progress | Record the action, responsible person and approved sequence; migrations are pushed only after merge and only with existing approval |
+| qa:inflight exits 1, an In Progress issue names the paths, or a running session/PR/branch/worktree overlaps ownership                     | Pre-work stop with needs:coordination                                                                                                           | Agree ownership/sequencing; a held or idle branch may still contain unmerged work                                                   |
+| qa:inflight exits 2 (could not decide), or the required ownership checks cannot be completed                                              | Pre-work stop with needs:environment; an unknown overlap check is not a pass                                                                    | Restore the check and establish ownership before implementation; do not bypass it                                                   |
+| Merged implementation awaiting browser, device, hosted or other acceptance proof                                                          | In Review with the applicable verify:* labels and any independent needs:* hold                                                                  | Record each criterion's required proof; remove only satisfied labels and fresh-read before Done                                     |
 
 When merged work has every criterion supported by recorded evidence, fresh-read the full issue
 before Done and remove satisfied pending labels. Keep its merge/build and acceptance links.
 If reproduction could not run, use the capability row, not the completed-reproduction row.
-If a proposed change to a prior decision is unresolved, use the new-question row, not Canceled.
-Done still requires the merge and full acceptance gates; neither Backlog nor Canceled claims a fix.
+An INTENT citation or an agent's reading of a prior decision is evidence for owner review, not
+authority to cancel. Once the owner resolves the premise, apply only that recorded disposition
+to the scope it covers. Non-reproduction is never proof of a fix. Done still requires the merge
+and full acceptance gates.
 
 Every hold comment records: **disposition (held), current executor (active or paused), owning
 chat/worktree/branch/PR, exact question/action, responsible owner or capable next executor, and
@@ -193,8 +198,11 @@ name>)` when supported. For **Ready for an agent**, the exact connector fallback
    needs:coordination. Use client-side filtering when the connector has no exclusion arguments.
 3. Read each remaining full issue and its blocked-by relations. Resolve each blocker and exclude
    unfinished prerequisites. A merged PR alone is insufficient; a Canceled/Duplicate blocker
-   requires reading its recorded resolution/canonical issue. Unknown relation state fails closed
-   under the capability hold row above, not as permission to start.
+   requires reading its recorded resolution/canonical issue. If a selection read fails or relation
+   state is unknown, skip the candidate for this selection and record the read failure in the run
+   summary; do not add a persistent hold to an unclaimed issue for a transient query failure.
+   Re-read on the next selection. If the connector cannot establish any candidate's eligibility,
+   stop selection and report the missing capability; unknown state never permits starting work.
 4. Rank eligible candidates by priority, launch fit and closeness to done. Before claiming one,
    re-read its latest comments, reproduce the premise and check concurrent work/ownership.
 

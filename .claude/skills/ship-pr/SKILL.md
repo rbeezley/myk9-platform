@@ -271,7 +271,7 @@ Do this **before** Step 7: once the worktree is removed the harness keeps its CW
 
 1. Confirm the merge: `gh pr view $PR_NUMBER --json state,mergeCommit`.
 2. A merge is not a deploy. The frontend goes live only on the next **Deploy myK9Show** run (`gh workflow run deploy-myk9show.yml`, only when the user asks); its summary names the deployed commit.
-3. Read the **full** issue with `get_issue` and check every criterion. Apply the single disposition/evidence contract in `docs/agents/issue-tracker.md`; do not accept automatic Done while acceptance or production proof remains owed. Record the exact next action and pending evidence rather than duplicating state/label mappings here.
+3. Read the **full** issue with `get_issue` and check every criterion. Apply the single disposition/evidence contract in `docs/agents/issue-tracker.md`; do not accept automatic Done while acceptance or production proof remains owed. Record the exact next action and pending evidence rather than duplicating state/label mappings here. If a deploy or production evidence remains owed, explicitly tell the user what is pending and that merge alone did not make the fix live.
 
 ---
 

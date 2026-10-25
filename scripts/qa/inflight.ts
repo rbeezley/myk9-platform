@@ -357,6 +357,7 @@ interface GhPrFile {
 }
 
 interface RestMergedPr {
+  created_at: string;
   merged_at: string | null;
   merge_commit_sha: string | null;
   head: { sha: string };
@@ -450,14 +451,24 @@ export class MergedHeads {
   }
   get(branch: string): string | undefined {
     if (!this.cache.has(branch)) {
-      // A closed PR may be unmerged; REST lists newest first, so the first one
-      // with merged_at is the most recent MERGED PR, as `--state merged --limit 1` was.
+      // REST's `head` filter needs an owner, where `gh pr list --head` matched
+      // the name from any fork. Ask the base owner AND the fork a checked-out
+      // PR branch tracks, or a squash-merged fork PR reads as in flight (Codex,
+      // review of #3275). Of the closed rows, the newest with merged_at is the
+      // most recent MERGED PR, as `--state merged --limit 1` was.
       const slug = repoSlug();
-      const owner = slug.split('/')[0];
-      const pr = ghPages<RestMergedPr>(
-        `repos/${slug}/pulls?state=closed&head=${owner}:${encodeURIComponent(branch)}&per_page=100`,
-        `merged PRs for ${branch}`
-      ).find(candidate => candidate.merged_at);
+      const heads = new Set([`${slug.split('/')[0]}:${branch}`]);
+      const upstream = upstreamHead(branch, this.cwd);
+      if (upstream) heads.add(upstream);
+      const pr = [...heads]
+        .flatMap(head =>
+          ghPages<RestMergedPr>(
+            `repos/${slug}/pulls?state=closed&head=${encodeURIComponent(head)}&per_page=100`,
+            `merged PRs for ${head}`
+          )
+        )
+        .filter(candidate => candidate.merged_at)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
       // Merged INTO SOMETHING ELSE is not shipped here. A PR squashed onto an
       // integration branch, or merged after this checkout last fetched, leaves
       // its work outside the selected base, so excluding its head would hide a
@@ -470,6 +481,31 @@ export class MergedHeads {
     }
     return this.cache.get(branch);
   }
+}
+
+function gitConfig(key: string, cwd?: string): string | undefined {
+  try {
+    return (
+      execFileSync('git', ['config', '--get', key], { cwd, encoding: 'utf8' }).trim() || undefined
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * `<owner>:<ref>` of the head a branch tracks, from its upstream config. `gh pr
+ * checkout` of a fork PR points `branch.<b>.remote` at the fork's URL (or a
+ * remote named for it) and `branch.<b>.merge` at the PR's head ref. The owner
+ * is the second-to-last path segment, which holds for https, ssh and proxy URLs.
+ */
+export function upstreamHead(branch: string, cwd?: string): string | undefined {
+  const remote = gitConfig(`branch.${branch}.remote`, cwd);
+  if (!remote || remote === '.') return undefined;
+  const url = /[/:]/.test(remote) ? remote : gitConfig(`remote.${remote}.url`, cwd);
+  const owner = url?.match(/([^/:]+)\/[^/]+?(?:\.git)?\/?$/)?.[1];
+  const ref = gitConfig(`branch.${branch}.merge`, cwd)?.replace(/^refs\/heads\//, '');
+  return owner && ref && !ref.startsWith('refs/') ? `${owner}:${ref}` : undefined;
 }
 
 function isAncestor(maybeAncestor: string, ref: string, cwd?: string): boolean {

@@ -212,7 +212,7 @@ describe('inflight CLI', () => {
       fork?: boolean;
       files: { path: string; previous?: string }[];
     }[],
-    merged: [string, string, string?][] = [],
+    merged: [string, string, string?, string?][] = [],
     fail = false
   ) {
     // A test may call stubGh twice; stale answer files from the first call must not survive.
@@ -228,13 +228,19 @@ describe('inflight CLI', () => {
     for (let i = 0; i < rest.length; i += 100) openPages.push(rest.slice(i, i + 100));
     writeFileSync(join(bin, 'open.json'), JSON.stringify(openPages.length ? openPages : [[]]));
     const baseTip = git(fixtureRepo, 'rev-parse', 'refs/remotes/origin/main').trim();
-    for (const [branch, sha, mergeCommit] of merged)
+    for (const [branch, sha, mergeCommit, owner = 'o'] of merged)
       writeFileSync(
-        join(bin, `merged-${branch}.json`),
+        join(bin, `merged-${owner}-${branch}.json`),
         JSON.stringify([
           [
-            { merged_at: null, merge_commit_sha: null, head: { sha: '0'.repeat(40) } },
             {
+              created_at: '2026-10-25T01:00:00Z',
+              merged_at: null,
+              merge_commit_sha: null,
+              head: { sha: '0'.repeat(40) },
+            },
+            {
+              created_at: '2026-10-25T00:00:00Z',
               merged_at: '2026-10-25T00:00:00Z',
               merge_commit_sha: mergeCommit ?? baseTip,
               head: { sha },
@@ -264,7 +270,7 @@ describe('inflight CLI', () => {
           'case "$*" in',
           '  *graphql*) echo "HTTP 403: GitHub GraphQL is not available" >&2; exit 1;;',
           `  *"repos/{owner}/{repo}") echo '{"full_name":"o/r"}';;`,
-          `  *"/pulls?state=closed&head=o:"*) b=$(printf '%s' "$*" | sed -E 's#.*head=o:([^&]+).*#\\1#'); f="${bin}/merged-$b.json"; if [ -f "$f" ]; then cat "$f"; else echo '[[]]'; fi;;`,
+          `  *"/pulls?state=closed&head="*) h=$(printf '%s' "$*" | sed -E 's#.*head=([^&]+).*#\\1#; s#%3A#-#'); f="${bin}/merged-$h.json"; if [ -f "$f" ]; then cat "$f"; else echo '[[]]'; fi;;`,
           `  *"/pulls/"*"/files"*) n=$(printf '%s' "$*" | sed -E 's#.*/pulls/([0-9]+)/files.*#\\1#'); cat "${bin}/files-$n.json";;`,
           `  *"/pulls?state=open"*) cat "${join(bin, 'open.json')}";;`,
           `  *) echo "stub gh: unexpected args: $*" >&2; exit 1;;`,
@@ -389,9 +395,31 @@ describe('inflight CLI', () => {
       const calls = readFileSync(join(bin, 'calls.log'), 'utf8').trim().split('\n');
       expect(calls.every(call => call.startsWith('api ') && !call.includes('graphql'))).toBe(true);
       expect(calls).toContain('api repos/{owner}/{repo}');
-      expect(calls.some(call => call.includes('/pulls?state=closed&head=o:finished'))).toBe(true);
+      expect(calls.some(call => call.includes('/pulls?state=closed&head=o%3Afinished'))).toBe(true);
     }
     expect(verdicts).toEqual([0, 1]);
+  });
+
+  // Codex, review of #3275: REST's head filter needs an owner, so a fork PR
+  // checked out locally (`gh pr checkout` points the branch at the fork) and
+  // squash-merged must be looked up under the fork's owner too.
+  it('ignores a checked-out fork PR branch whose PR already squash-merged', () => {
+    const { main, bin } = repo();
+    git(main, 'checkout', '-q', '-b', 'finished');
+    writeFileSync(join(main, 'src', 'b.ts'), 'finished in a fork');
+    git(main, 'add', 'src/b.ts');
+    git(main, 'commit', '-q', '-m', 'fork work');
+    const forkTip = git(main, 'rev-parse', 'finished').trim();
+    git(main, 'config', 'branch.finished.remote', 'https://github.com/contributor/fork.git');
+    git(main, 'config', 'branch.finished.merge', 'refs/heads/finished');
+    git(main, 'checkout', '-q', 'mine');
+    stubGh(bin, [], [['finished', forkTip, undefined, 'contributor']]);
+    expect(runCli(main, bin, 'src/b.ts').code).toBe(0);
+    // Without the upstream config only the base owner is asked: in flight.
+    git(main, 'config', '--unset', 'branch.finished.remote');
+    const r = runCli(main, bin, 'src/b.ts');
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('branch finished');
   });
 
   it('still reports a branch whose PR merged somewhere OTHER than the base', () => {

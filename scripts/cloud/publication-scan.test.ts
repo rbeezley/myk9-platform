@@ -122,6 +122,17 @@ describe('scanForPublication', () => {
     expect(serialized).not.toContain(JSON.stringify(SECRET).slice(1, -1));
   });
 
+  it('blocks a secret split across directory and file names, reporting it once', async () => {
+    mkdirSync(join(staging, 'nested', 'prefix-secret'), { recursive: true });
+    writeFileSync(join(staging, 'nested', 'prefix-secret', 'suffix-secret.log'), 'clean\n');
+    writeFileSync(join(staging, 'nested', 'prefix-secret', 'other.log'), 'clean\n');
+    const env = { ...ENV, E2E_TEST_PASSWORD: 'prefix-secret/suffix-secret' };
+    const result = await scanForPublication({ dirs: [staging], texts: [], env });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.locations).toHaveLength(1);
+    expect(JSON.stringify(result)).not.toContain('prefix-secret/suffix-secret');
+  });
+
   it('passes a name that only resembles a configured secret', async () => {
     writeFileSync(join(staging, 'nested', 'lin_api_synthetic_0002.log'), 'clean\n');
     await expect(scanForPublication({ dirs: [staging], texts: [], env: ENV })).resolves.toEqual({

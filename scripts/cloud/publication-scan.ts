@@ -26,23 +26,27 @@ const defaultReaddir: Readdir = path => fsReaddir(path, { withFileTypes: true })
 
 /**
  * One listing pass over everything that would be published. It screens every
- * file and directory NAME, which travels as archive and listing metadata even
- * when the bytes are clean, and it fails closed on a directory it cannot list:
- * the shared byte scanner treats that as "not produced" and skips it, which is
- * right for E2E reports, but here skipped content is unscanned content.
+ * relative PATH, which travels as archive and listing metadata even when the
+ * bytes are clean; a whole path, because a secret holding `/` spans several
+ * names. A path is reported where the secret first becomes complete, so one
+ * secret-named directory is one location, not one per file beneath it. It
+ * also fails closed on a directory it cannot list: the shared byte scanner
+ * treats that as "not produced" and skips it, which is right for E2E reports,
+ * but here skipped content is unscanned content.
  */
-async function findSecretNames(
+async function findSecretPaths(
   dir: string,
   forms: readonly string[],
   readdir: Readdir,
   prefix = ''
 ): Promise<string[]> {
   const found: string[] = [];
+  const prefixHit = containsSecret(prefix, forms);
   for (const entry of await readdir(dir)) {
     const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
-    if (containsSecret(entry.name, forms)) found.push(relative);
+    if (!prefixHit && containsSecret(relative, forms)) found.push(relative);
     if (entry.isDirectory()) {
-      found.push(...(await findSecretNames(join(dir, entry.name), forms, readdir, relative)));
+      found.push(...(await findSecretPaths(join(dir, entry.name), forms, readdir, relative)));
     }
   }
   return found;
@@ -63,18 +67,18 @@ export async function scanForPublication(options: {
   const secrets = collectSecrets(options.env);
   const forms = secrets.flatMap(secretForms);
   try {
-    const named: string[] = [];
+    const byPath: string[] = [];
     for (const dir of options.dirs) {
       if (!(await stat(dir)).isDirectory()) throw new Error(`${dir} is not a directory`);
-      named.push(...(await findSecretNames(dir, forms, options.readdir ?? defaultReaddir)));
+      byPath.push(...(await findSecretPaths(dir, forms, options.readdir ?? defaultReaddir)));
     }
-    // The shared scanner returns scrubbed locations, so names are scrubbed
+    // The shared scanner returns scrubbed locations, so paths are scrubbed
     // the same way before both merge into one location per path.
     const byContent = (await findArtifactSecrets(options.dirs, secrets)).map(
       finding => finding.location
     );
     const locations = [
-      ...new Set([...named.map(location => scrubSecrets(location, secrets)), ...byContent]),
+      ...new Set([...byPath.map(location => scrubSecrets(location, secrets)), ...byContent]),
     ];
     options.texts.forEach((text, index) => {
       if (containsSecret(text, forms)) locations.push(`text[${index}]`);

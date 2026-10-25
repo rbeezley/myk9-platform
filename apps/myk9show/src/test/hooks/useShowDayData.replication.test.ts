@@ -2,6 +2,8 @@ import { vi } from 'vitest';
 
 const replicationMocks = vi.hoisted(() => ({
   getAllEntries: vi.fn(),
+  getTrialsByDate: vi.fn(),
+  getClassesByTrial: vi.fn(),
   getDogById: vi.fn(),
   getClassById: vi.fn(),
   getTrialById: vi.fn(),
@@ -23,14 +25,24 @@ vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     getAll: (...args: unknown[]) => replicationMocks.getAllEntries(...args),
     getAllOrThrow: (...args: unknown[]) => replicationMocks.getAllEntries(...args),
+    getByClassOrThrow: async (classId: string) =>
+      ((await replicationMocks.getAllEntries()) as Record<string, unknown>[]).filter(
+        entry => (entry.classId ?? entry.class_id) === classId
+      ),
+    getByTrialOrThrow: async (trialId: string) =>
+      ((await replicationMocks.getAllEntries()) as Record<string, unknown>[]).filter(
+        entry => (entry.trialId ?? entry.trial_id) === trialId
+      ),
   },
   replicatedDogsTable: {
     getDogById: (...args: unknown[]) => replicationMocks.getDogById(...args),
   },
   replicatedClassesTable: {
+    getClassesByTrial: (...args: unknown[]) => replicationMocks.getClassesByTrial(...args),
     getClassById: (...args: unknown[]) => replicationMocks.getClassById(...args),
   },
   replicatedTrialsTable: {
+    getTrialsByDate: (...args: unknown[]) => replicationMocks.getTrialsByDate(...args),
     getTrialById: (...args: unknown[]) => replicationMocks.getTrialById(...args),
   },
   replicatedShowsTable: {
@@ -45,6 +57,12 @@ describe('show-day data replication adapter', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    replicationMocks.getTrialsByDate.mockImplementation((date: string) =>
+      Promise.resolve(date === '2026-03-09' ? [{ id: 'trial-1', date }] : [])
+    );
+    replicationMocks.getClassesByTrial.mockImplementation((trialId: string) =>
+      Promise.resolve(trialId === 'trial-1' ? [{ id: 'class-1', trialId }] : [])
+    );
   });
 
   it('builds exhibitor show-day check, details, and ring progress from replicas', async () => {

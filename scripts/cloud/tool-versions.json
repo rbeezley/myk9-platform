@@ -1,10 +1,10 @@
 {
-  "$comment": "Tool pins for scripts/cloud/setup.sh and the minimums scripts/cloud/preflight.ts enforces (MYK9-1397). `install` is the exact version setup.sh installs when the tool is missing; `minimum` is what preflight accepts from a provider image that already has it. sha256 values were recorded from the tested Linux x86_64 release archives on 2026-10-24; deno and gh match their projects' published checksum files, shellcheck publishes none.",
+  "$comment": "Tool pins for scripts/cloud/setup.sh and the minimums scripts/cloud/preflight.ts enforces (MYK9-1397). `install` is the exact version setup.sh installs when the tool is missing; `minimum` is what preflight accepts from a provider image that already has it (gh 2.48.0 is the first with the `gh api --slurp` the handoff CLI uses). sha256 values were recorded from the tested Linux x86_64 release archives on 2026-10-24; deno and gh match their projects' published checksum files, shellcheck publishes none.",
   "node": { "install": "22.12.0", "minimum": "22.12.0" },
   "pnpm": { "install": "9.15.9", "minimum": "9.15.9" },
   "gh": {
     "install": "2.89.0",
-    "minimum": "2.40.0",
+    "minimum": "2.48.0",
     "url": "https://github.com/cli/cli/releases/download/v2.89.0/gh_2.89.0_linux_amd64.tar.gz",
     "sha256": "d0422caade520530e76c1c558da47daebaa8e1203d6b7ff10ad7d6faba3490d8"
   },

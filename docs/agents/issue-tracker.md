@@ -167,14 +167,17 @@ never proof: confirm the actual state and reconcile it even when integration del
 
 PR linking syntax follows [Linear's GitHub documentation](https://linear.app/docs/github#link-through-pull-requests):
 use `Fixes MYK9-<n>` for the final implementation PR to invoke the saved merge destination,
-In Review. Use `Part of MYK9-<n>` for an intermediate contribution; it links without applying
-the merge destination. Neither form proves acceptance. Confirm the linked issue and actual state.
+In Review. Use `Part of MYK9-<n>` for an intermediate contribution and verify the actual
+Contributes relationship; branch/title associations can also link a PR. Do not infer its effect
+from the text alone. After every merge, remaining implementation stays In Progress and only
+acceptance-only work belongs In Review, regardless of an automated transition.
 
 ### Asynchronous merge protocol
 
 This is the only stop/continue policy for pending merges; consumers reference it.
 
-1. Before arming auto-merge, satisfy the independent review and merge-authorization gates.
+1. Before arming auto-merge, satisfy the required review gate at the reported review tier and
+   the merge-authorization gate. Do not impose an independent floor on an optional/none/adversarial change.
    Record the pinned head, pending proof labels, owning executor/worktree/PR and merge-pending ledger.
 2. A timeout alone does not release ownership or advance the queue. Keep the issue In Progress,
    preserve the worktree, and monitor the current PR until confirmed merged or a real blocker.
@@ -252,14 +255,16 @@ name>)` when supported. For **Ready for an agent**, the exact connector fallback
    broaden to Backlog when no candidate qualifies.
 2. Exclude any issue carrying Parked, needs:decision, needs:operator, needs:environment or
    needs:coordination. Use client-side filtering when the connector has no exclusion arguments.
-3. Read each remaining full issue and its blocked-by relations. Resolve each blocker and exclude
+3. Provisionally rank the remaining metadata by priority, launch fit and closeness to done.
+   In that order, read full issues and blocked-by relations until the requested number of eligible
+   candidates is found, or the list is exhausted. Resolve each blocker and exclude
    unfinished prerequisites. A merged PR alone is insufficient; a Canceled/Duplicate blocker
    requires reading its recorded resolution/canonical issue. If a selection read fails or relation
    state is unknown, skip the candidate for this selection and record the read failure in the run
    summary; do not add a persistent hold to an unclaimed issue for a transient query failure.
    Re-read on the next selection. If the connector cannot establish any candidate's eligibility,
    stop selection and report the missing capability; unknown state never permits starting work.
-4. Rank eligible candidates by priority, launch fit and closeness to done. Before claiming one,
+4. Refine the eligible candidates' ranking from their full context. Before claiming one,
    re-read its latest comments, reproduce the premise and check concurrent work/ownership.
 
 Other view fallbacks query their table's statuses and apply its property predicates across all

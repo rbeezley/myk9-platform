@@ -18,7 +18,7 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
      `docs/agents/issue-tracker.md`. That contract is the only selection predicate. Rank by
      priority, then by fit with `docs/goals/fall-2026-launch-readiness.md` (secretary and
      show-day reliability first), then closest to done. Propose the top 3 with one line each and
-     wait for one yes. This is the only question the run asks. If no Todo issue is eligible (all
+     wait for one yes. This is the only question the run asks. If no Ready/fallback candidate is eligible (all
      held, or human-only), say so and ask for ids. Never fall back to Backlog yourself.
    - **Continuous mode** applies when the owner says "overnight", "unattended", "keep going" or
      "until the queue is empty". Your one question then also states the limits, and the owner's
@@ -40,7 +40,7 @@ run (go to Run end) when any of these holds:
 
 - the issue cap is reached (each issue attempted counts, held ones included);
 - it's past the stop time. Never start an issue after the stop time; an in-flight one finishes
-  or parks as "merge pending";
+  or follows the shared asynchronous-merge boundary/handoff protocol;
 - the last two issues both ended in a hold. That pattern means something systemic (a red `main`,
   Codex down, a broken connector), and more attempts would only burn budget.
 
@@ -208,15 +208,15 @@ run, and mark each `refill` issue in the table (e.g. `MYK9-321 (refill)`).
 
 ## Common mistakes
 
-| Mistake                                                    | Instead                                                           |
-| ---------------------------------------------------------- | ----------------------------------------------------------------- |
-| Treating an automated status as acceptance proof           | Fresh-read all criteria and reconcile the actual post-merge state |
-| Dispatching the issue's criteria without reproducing them  | Reproduce on `main` first; hold what you cannot see               |
-| Building the issue's Recommendation as written             | Weigh an alternative; the criteria are the contract, not the fix  |
-| Picking from Backlog, or grading issues up front           | Todo only; risk is judged from the diff at ship time              |
-| Handing a refund fix to sonnet "because it's small"        | Money is held, whatever its size                                  |
-| Letting the implementer push, open the PR or post the gate | The orchestrator owns every shared-system write                   |
-| Retrying a red CI a third time                             | Hold after two attempts; unfinished code stays In Progress        |
-| Removing a merge-pending worktree                          | Keep it; `/cleanup` after GitHub merges                           |
-| Ending an overnight run when the approved list is done     | Continuous mode refills from Todo until a stop condition holds    |
-| Reusing the run-start Todo list for refills                | Re-query; the board changes overnight                             |
+| Mistake                                                    | Instead                                                                |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Treating an automated status as acceptance proof           | Fresh-read all criteria and reconcile the actual post-merge state      |
+| Dispatching the issue's criteria without reproducing them  | Reproduce on `main` first; hold what you cannot see                    |
+| Building the issue's Recommendation as written             | Weigh an alternative; the criteria are the contract, not the fix       |
+| Picking raw Todo or Backlog without eligibility checks     | Ready or its qualified fallback; judge risk from the diff at ship time |
+| Handing a refund fix to sonnet "because it's small"        | Money is held, whatever its size                                       |
+| Letting the implementer push, open the PR or post the gate | The orchestrator owns every shared-system write                        |
+| Retrying a red CI a third time                             | Hold after two attempts; unfinished code stays In Progress             |
+| Removing a merge-pending worktree                          | Keep it; named executor reconciles merge/evidence before cleanup       |
+| Ending an overnight run when the approved list is done     | Refill from Ready/qualified fallback until an approved stop condition  |
+| Reusing run-start Ready results for refills                | Re-query and requalify; the board changes overnight                    |

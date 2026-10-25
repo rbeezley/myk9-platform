@@ -28,6 +28,7 @@ interface AddDogPanelContentProps {
   userRole: UserRole;
   currentUserPersonId?: string | undefined;
   showStartDate?: string | undefined;
+  defaultRegistryId?: string | null | undefined;
   saveError: string | null;
   duplicateCandidate: DogIdentityCandidate | null;
   /** A dog the Registration step's "Find dog" matched by number (MYK9-1162). */
@@ -59,6 +60,7 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
   userRole,
   currentUserPersonId,
   showStartDate,
+  defaultRegistryId,
   saveError,
   duplicateCandidate,
   registrationMatch,
@@ -208,6 +210,7 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
               onSaveRegistration={handleSaveRegistration}
               onRegistrationSaved={goToEssential}
               onSkip={isAdminRole(userRole) ? goToEssential : undefined}
+              defaultRegistryId={defaultRegistryId}
               flat={inline}
             />
           </TabsContent>

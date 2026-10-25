@@ -4,6 +4,7 @@ import type { Club } from '@/types/club-types';
 import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
 import type { ResolvedJudge } from './ShowDetailsStep.types';
+import { resolveConfiguredRegistryId } from '@/features/registries';
 
 export type OrganizationEditMode = 'create' | 'clone' | 'add-trials' | 'add-classes';
 
@@ -32,21 +33,56 @@ export function filterClubs(clubs: Club[], searchTerm: string): Club[] {
   );
 }
 
+/** A judge's number and the organization that issued it. */
+export interface JudgeCredential {
+  organization: string;
+  number: string;
+}
+
+/**
+ * The judge number to show for a show. On a show with a configured registry
+ * (AKC/UKC/ASCA) it is the number from the qualification issued by THAT
+ * registry, or null: another organization's number is never shown as if it
+ * applied (MYK9-832). With no registry the person-level number is returned with
+ * the first qualification's organization, as before.
+ */
+export function judgeCredentialForShow(
+  person: User | undefined,
+  showOrganization: string | null | undefined
+): JudgeCredential | null {
+  const info = person?.judgeInfo;
+  if (!info) return null;
+  const registryId = resolveConfiguredRegistryId(showOrganization);
+  if (!registryId) {
+    return info.judgeNumber
+      ? { organization: info.qualifications[0]?.organization ?? '', number: info.judgeNumber }
+      : null;
+  }
+  const match = info.qualifications.find(
+    q => q.organization.toUpperCase() === registryId && q.judgeNumber?.trim()
+  );
+  return match ? { organization: registryId, number: match.judgeNumber.trim() } : null;
+}
+
 /**
  * Resolve selected judge IDs to display records.
  */
 export function resolveSelectedJudges(
   judgeIds: string[],
   people: User[],
-  judgeDetails: Record<string, { name: string; email: string; phone: string }>
+  judgeDetails: Record<string, { name: string; email: string; phone: string }>,
+  showOrganization?: string | null
 ): ResolvedJudge[] {
+  const registryId = resolveConfiguredRegistryId(showOrganization);
   return judgeIds.map(id => {
     const person = people.find(p => p.id === id);
     const details = judgeDetails[id];
+    const credential = judgeCredentialForShow(person, showOrganization);
     return {
       id,
       name: person ? `${person.firstName} ${person.lastName}` : details?.name || 'Unknown Judge',
-      judgeNumber: person?.judgeInfo?.judgeNumber || '',
+      judgeNumber: credential?.number ?? '',
+      ...(registryId && credential ? { organization: credential.organization } : {}),
     };
   });
 }

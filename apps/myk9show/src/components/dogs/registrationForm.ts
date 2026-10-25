@@ -104,6 +104,20 @@ export const INITIAL_REGISTRATION_DATA: RegistrationFormData = {
   status: 'Active',
 };
 
+/**
+ * The form's starting data for a NEW registration. On a show with a known
+ * registry the organization starts as that registry's label, so the picker does
+ * not open on AKC for a UKC show (MYK9-832). An unknown registry seeds nothing.
+ */
+export function initialRegistrationData(
+  defaultRegistryId?: string | null | undefined
+): RegistrationFormData {
+  const label = defaultRegistryId ? registrationOrgLabel(defaultRegistryId) : '';
+  return REGISTRATION_ORGS.includes(label)
+    ? { ...INITIAL_REGISTRATION_DATA, organization: label }
+    : INITIAL_REGISTRATION_DATA;
+}
+
 /** A stored registration as the form's data. */
 export function registrationToFormData(reg: Registration): RegistrationFormData {
   return {

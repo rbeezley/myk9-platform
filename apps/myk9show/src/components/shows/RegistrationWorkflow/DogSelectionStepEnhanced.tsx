@@ -376,11 +376,13 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         mode="batch"
         showStartDate={showStartDate}
         createdFromShowId={createdFromShowId}
+        defaultRegistryId={showRegistryId}
         offlineFirst={offlineFirst}
       />
       <AddDogPanel
         showStartDate={showStartDate}
         createdFromShowId={createdFromShowId}
+        defaultRegistryId={showRegistryId}
         open={showDogDialog}
         userRole={getPrimaryRole(roles)}
         onClose={() => setShowDogDialog(false)}

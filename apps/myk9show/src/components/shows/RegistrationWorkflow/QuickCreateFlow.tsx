@@ -33,6 +33,8 @@ interface QuickCreateFlowProps {
   showStartDate?: string | undefined;
   /** The show being entered; recorded on people and dogs created here (MYK9-1059). */
   createdFromShowId?: string | undefined;
+  /** The show's registry id, forwarded to Add Dog to seed the registration organization (MYK9-832). */
+  defaultRegistryId?: string | null | undefined;
 }
 
 /**
@@ -54,6 +56,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   offlineFirst = false,
   showStartDate,
   createdFromShowId,
+  defaultRegistryId,
 }) => {
   const createdInSession = useCreatedInSession();
   const [flowState, setFlowState] = useState<QuickCreateFlowState>(INITIAL_QUICK_CREATE_FLOW_STATE);
@@ -283,6 +286,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
               offlineDependsOn={flowState.exhibitorPendingMutationIds}
               showStartDate={showStartDate}
               createdFromShowId={createdFromShowId}
+              defaultRegistryId={defaultRegistryId}
             />
           )}
         </div>

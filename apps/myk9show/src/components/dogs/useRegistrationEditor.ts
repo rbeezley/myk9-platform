@@ -9,7 +9,7 @@ import { Registration } from '@/types/dog-types';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { toast } from 'sonner';
 import {
-  INITIAL_REGISTRATION_DATA,
+  initialRegistrationData,
   formDataToRegistration,
   registrationFormSchema,
   registrationToFormData,
@@ -26,6 +26,11 @@ interface UseRegistrationEditorOptions {
    * during render, MYK9-1210).
    */
   initialData?: Registration | undefined;
+  /**
+   * The show's registry id, for a NEW registration only: seeds the organization.
+   * Ignored when `initialData` is given (an existing registration keeps its own).
+   */
+  defaultRegistryId?: string | null | undefined;
   /** Called after a save the caller did not refuse: the container closes. */
   onSaved: () => void;
 }
@@ -34,9 +39,12 @@ interface UseRegistrationEditorOptions {
 export function useRegistrationEditor({
   onSave,
   initialData,
+  defaultRegistryId,
   onSaved,
 }: UseRegistrationEditorOptions) {
-  const formInitial = initialData ? registrationToFormData(initialData) : INITIAL_REGISTRATION_DATA;
+  const formInitial = initialData
+    ? registrationToFormData(initialData)
+    : initialRegistrationData(defaultRegistryId);
   const form = useFormValidation(registrationFormSchema, formInitial);
 
   const fields = useRegistrationFormFields(form);

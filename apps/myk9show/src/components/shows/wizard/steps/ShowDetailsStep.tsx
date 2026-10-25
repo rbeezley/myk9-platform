@@ -154,8 +154,8 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
   );
 
   const selectedJudges = React.useMemo(
-    () => resolveSelectedJudges(show.judgeIds, people, judgeDetails),
-    [show.judgeIds, people, judgeDetails]
+    () => resolveSelectedJudges(show.judgeIds, people, judgeDetails, show.organization),
+    [show.judgeIds, people, judgeDetails, show.organization]
   );
 
   const { handleCreateOfficialPerson, handleSaveJudgeCredentials, handleCreateNewJudge } =
@@ -248,6 +248,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
             selectedSecretaryId={selectedSecretaryId}
             secretaryIsSelf={selectedSecretaryId === userWithRoles?.databaseUserId}
             selectedJudges={selectedJudges}
+            showOrganization={show.organization}
             onOpenOfficialPicker={() => void loadUsers()}
             onSelectChairman={id =>
               updateShowData({ officials: { ...show.officials, chairman: [id] } })

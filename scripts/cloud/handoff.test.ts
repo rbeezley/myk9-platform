@@ -179,7 +179,7 @@ describe('reconcileHandoff', () => {
         nextAction: 'wait for owner merge authorization',
       }
     );
-    const live = { ...OPEN, artifacts: { 'review@91.1': 'available' as const } };
+    const live = { ...OPEN, artifacts: { 'review@91.1#sha256:1': 'available' as const } };
     expect(reconcileHandoff(events, live)).toMatchObject({
       decision: 'continue',
       cleanEvidence: true,
@@ -207,7 +207,7 @@ describe('reconcileHandoff', () => {
           ],
         }
       );
-      const live = { ...OPEN, artifacts: { 'review@91.1': state } };
+      const live = { ...OPEN, artifacts: { 'review@91.1#sha256:1': state } };
       const result = reconcileHandoff(events, live);
       expect(result.cleanEvidence).toBe(false);
       expect(result.nextAction).toMatch(/replacement review attempt/);

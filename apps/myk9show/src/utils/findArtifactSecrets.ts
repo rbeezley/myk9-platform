@@ -12,7 +12,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { unzipSync } from 'fflate';
-import { REPORT_TEMPLATE, secretForms } from './scrubArtifactSecrets';
+import { REPORT_TEMPLATE, scrubSecrets, secretForms } from './scrubArtifactSecrets';
 
 export interface SecretFinding {
   /** Path relative to the scanned directory, with `!` + entry name for zip entries. */
@@ -48,7 +48,10 @@ function scanZip(
   for (const [name, data] of Object.entries(entries)) {
     const where = `${location}!${name}`;
     if (name.endsWith('.zip')) scanZip(data, where, secrets, out);
-    const hits = countHits(data, secrets);
+    // An entry's name is published with the archive, so it is scanned like its
+    // bytes. Deflated entry names are stored as plain text, but an EMBEDDED
+    // archive is base64, so only the decoded name can be matched.
+    const hits = countHits(data, secrets) + countHits(Buffer.from(name), secrets);
     if (hits > 0) out.push({ location: where, hits });
   }
 }
@@ -101,5 +104,10 @@ export async function findArtifactSecrets(
       }
     }
   }
-  return findings;
+  // A location is a path, and a path can be the secret itself: callers print
+  // these, so no value ever leaves this function.
+  return findings.map(finding => ({
+    ...finding,
+    location: scrubSecrets(finding.location, secrets),
+  }));
 }

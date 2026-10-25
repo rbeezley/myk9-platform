@@ -1,8 +1,14 @@
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { scanForPublication } from './publication-scan.ts';
+
+// fflate is the app's dependency, resolved the way the shared scanner resolves it.
+const { zipSync } = createRequire(new URL('../../apps/myk9show/package.json', import.meta.url))(
+  'fflate'
+) as { zipSync: (files: Record<string, Uint8Array>) => Uint8Array };
 
 // Synthetic values only; the quote and backslash exercise the JSON-escaped form.
 const SECRET = 'sk-synthetic-"handoff"\\value-7Q2';
@@ -101,6 +107,19 @@ describe('scanForPublication', () => {
     const serialized = JSON.stringify(result);
     expect(serialized).not.toContain(SECRET);
     expect(serialized).not.toContain('lin_api_synthetic_0001');
+  });
+
+  it('blocks a secret that exists only in an entry name inside an embedded report zip', async () => {
+    const zip = zipSync({ [`${SECRET}.json`]: Buffer.from('{"ok":true}') });
+    writeFileSync(
+      join(staging, 'index.html'),
+      `<html><template id="playwrightReportBase64">data:application/zip;base64,${Buffer.from(zip).toString('base64')}</template></html>`
+    );
+    const result = await scanForPublication({ dirs: [staging], texts: [], env: ENV });
+    expect(result.ok).toBe(false);
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain(SECRET);
+    expect(serialized).not.toContain(JSON.stringify(SECRET).slice(1, -1));
   });
 
   it('passes a name that only resembles a configured secret', async () => {

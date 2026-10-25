@@ -13,16 +13,23 @@
 # scripts/bootstrap-worktree.sh.
 #
 # Usage: bash scripts/cloud/setup.sh [--force] [--role=implementer|reviewer|publisher]
+#        [--reviewer-harness=codex|claude]   (reviewer only; preflight defaults to codex)
 # Env:   MYK9_TOOLS_DIR  where tools are installed (default <repo>/.cloud-tools/bin)
 #        MYK9_CLOUD=1    explicit cloud marker for providers with none of their own
 set -euo pipefail
 
 FORCE=0
 ROLE=implementer
+HARNESS=""
 for arg in "$@"; do
   case "$arg" in
     --force) FORCE=1 ;;
     --role=*) ROLE="${arg#--role=}" ;;
+    --reviewer-harness=codex | --reviewer-harness=claude) HARNESS="$arg" ;;
+    --reviewer-harness=*)
+      echo "setup: unknown $arg (codex | claude)" >&2
+      exit 2
+      ;;
     *)
       echo "setup: unknown argument $arg" >&2
       exit 2
@@ -133,7 +140,7 @@ mkdir -p .logs
 pnpm install --frozen-lockfile
 pnpm build --filter='./packages/*'
 pnpm qa:dist-fresh
-pnpm run cloud:preflight --role="$ROLE"
+pnpm run cloud:preflight --role="$ROLE" ${HARNESS:+"$HARNESS"}
 
 case ":$ORIGINAL_PATH:" in *":$TOOLS_DIR:"*) ;; *)
   echo "setup: add the installed tools to PATH in later shells: export PATH=\"$TOOLS_DIR:\$PATH\""

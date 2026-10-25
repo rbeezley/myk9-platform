@@ -106,8 +106,18 @@ export function makeEventId(event: Omit<HandoffEvent, 'eventId'> | HandoffEvent)
   return `evt_${createHash('sha256').update(canonicalJson(content)).digest('hex').slice(0, 24)}`;
 }
 
-export function artifactKey(pointer: { name: string; runId: string; attempt: number }): string {
-  return `${pointer.name}@${pointer.runId}.${pointer.attempt}`;
+/**
+ * One key per piece of evidence. The digest is part of it: two pointers that
+ * share a name, run and attempt are different evidence, and an available one
+ * must never answer for the other.
+ */
+export function artifactKey(pointer: {
+  name: string;
+  runId: string;
+  attempt: number;
+  digest: string;
+}): string {
+  return `${pointer.name}@${pointer.runId}.${pointer.attempt}#${pointer.digest}`;
 }
 
 export function formatEventComment(event: HandoffEvent): string {

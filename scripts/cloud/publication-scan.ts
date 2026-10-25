@@ -68,14 +68,14 @@ export async function scanForPublication(options: {
       if (!(await stat(dir)).isDirectory()) throw new Error(`${dir} is not a directory`);
       named.push(...(await findSecretNames(dir, forms, options.readdir ?? defaultReaddir)));
     }
+    // The shared scanner returns scrubbed locations, so names are scrubbed
+    // the same way before both merge into one location per path.
     const byContent = (await findArtifactSecrets(options.dirs, secrets)).map(
       finding => finding.location
     );
-    // One location per path, whether its name, its bytes or both carry a value;
-    // either can be the secret itself, so every location is scrubbed.
-    const locations = [...new Set([...named, ...byContent])].map(location =>
-      scrubSecrets(location, secrets)
-    );
+    const locations = [
+      ...new Set([...named.map(location => scrubSecrets(location, secrets)), ...byContent]),
+    ];
     options.texts.forEach((text, index) => {
       if (containsSecret(text, forms)) locations.push(`text[${index}]`);
     });

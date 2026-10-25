@@ -123,6 +123,21 @@ describe('scripts/cloud/setup.sh in a cloud session', () => {
     expect(readdirSync(sandbox.home)).toEqual([]);
   });
 
+  it('forwards a Claude reviewer selection to the preflight', () => {
+    const result = runSetup(CLOUD, ['--role=reviewer', '--reviewer-harness=claude']);
+    expect(result.status).toBe(0);
+    expect(result.calls.at(-1)).toBe(
+      'pnpm run cloud:preflight --role=reviewer --reviewer-harness=claude'
+    );
+  });
+
+  it('rejects an unknown reviewer harness before installing anything', () => {
+    const result = runSetup(CLOUD, ['--role=reviewer', '--reviewer-harness=gemini']);
+    expect(result.status).toBe(2);
+    expect(result.stderr).toMatch(/reviewer-harness/);
+    expect(result.calls).toEqual([]);
+  });
+
   it('stops on a checksum mismatch and installs nothing', () => {
     rmSync(join(sandbox.stubs, 'deno'));
     const result = runSetup(CLOUD);

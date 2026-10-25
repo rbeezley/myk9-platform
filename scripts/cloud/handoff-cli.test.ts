@@ -38,7 +38,16 @@ function fakeGh(options: {
       );
     }
     const artifacts = /actions\/runs\/(\d+)\/artifacts$/.exec(path);
-    if (artifacts) return JSON.stringify({ artifacts: options.artifacts?.[artifacts[1]!] ?? [] });
+    if (artifacts) {
+      // GitHub's real page size: one page unless gh is asked to paginate.
+      const all = options.artifacts?.[artifacts[1]!] ?? [];
+      const pages: { artifacts: RawArtifact[] }[] = [];
+      for (let at = 0; at === 0 || at < all.length; at += 30) {
+        pages.push({ artifacts: all.slice(at, at + 30) });
+      }
+      if (!args.includes('--paginate')) return JSON.stringify(pages[0]);
+      return JSON.stringify(args.includes('--slurp') ? pages : pages[0]);
+    }
     const run = /actions\/runs\/(\d+)$/.exec(path);
     if (run) return JSON.stringify({ status: options.runs?.[run[1]!] ?? 'completed' });
     throw new Error(`unexpected gh call: ${args.join(' ')}`);
@@ -172,6 +181,36 @@ describe('readHandoff', () => {
 
     it('counts the exact artifact as clean evidence', () => {
       const { gh } = fakeGh({ comments: events.map(trusted), artifacts: { '77': [exact] } });
+      expect(readHandoff(gh, 3300)).toMatchObject({ cleanEvidence: true });
+    });
+
+    it('never lets an available replacement vouch for a second pointer with the same name', () => {
+      const replaced = chain(
+        {},
+        {
+          phase: 'reviewed',
+          result: 'clean',
+          // The missing one first: the available one is read last.
+          evidence: [{ ...pointer, digest: 'sha256:missing' }, pointer],
+        }
+      );
+      const { gh } = fakeGh({ comments: replaced.map(trusted), artifacts: { '77': [exact] } });
+      expect(readHandoff(gh, 3300)).toMatchObject({
+        cleanEvidence: false,
+        nextAction: expect.stringMatching(/replacement review attempt/),
+      });
+    });
+
+    it('finds the exact artifact past the first page of the run', () => {
+      const others = Array.from({ length: 30 }, (_, index) => ({
+        ...exact,
+        name: `log-${index}`,
+        digest: `sha256:other-${index}`,
+      }));
+      const { gh } = fakeGh({
+        comments: events.map(trusted),
+        artifacts: { '77': [...others, exact] },
+      });
       expect(readHandoff(gh, 3300)).toMatchObject({ cleanEvidence: true });
     });
 

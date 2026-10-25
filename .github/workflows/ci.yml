@@ -279,6 +279,12 @@ jobs:
           pnpm qa:shared-rules:test
           pnpm qa:shared-rules
 
+      # The cloud-agent tooling (MYK9-1397): publication scan, handoff ledger,
+      # preflight, changed-function deno selection and checkout portability.
+      # The app and package jobs exclude scripts/, so this is its only run.
+      - name: Cloud agent tooling contracts
+        run: pnpm qa:cloud:test
+
       # Scheduled-task prompts live outside this repo, so the CLI itself can only
       # run on the machine that owns them. Its tests are repo-only and do run
       # here: they pin the registry against the docs (an unregistered task is

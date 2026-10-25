@@ -97,12 +97,17 @@ function readLiveState(gh: Gh, pr: number, latest: HandoffEvent | null): LiveSta
   const artifacts: LiveState['artifacts'] = {};
   for (const pointer of latest?.evidence ?? []) {
     if (pointer.kind !== 'artifact' || !latest) continue;
-    // A deleted run takes its artifacts with it: that evidence is missing.
-    const listed = jsonUnlessGone<{ artifacts: RawArtifact[] }>(gh, [
+    // Every page, or evidence past the first reads as missing. A deleted run
+    // takes its artifacts with it: that evidence is missing.
+    const pages = jsonUnlessGone<{ artifacts: RawArtifact[] }[]>(gh, [
       'api',
+      '--paginate',
+      '--slurp',
       `repos/{owner}/{repo}/actions/runs/${pointer.runId}/artifacts`,
     ]);
-    const named = (listed?.artifacts ?? []).filter(artifact => artifact.name === pointer.name);
+    const named = (pages ?? [])
+      .flatMap(page => page.artifacts)
+      .filter(artifact => artifact.name === pointer.name);
     // The digest binds the content; run and head bind it to this review. The
     // artifacts API exposes no attempt, so the digest is what tells a
     // re-uploaded replacement apart. No digest means unverifiable.

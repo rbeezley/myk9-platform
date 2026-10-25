@@ -16,6 +16,7 @@ import {
   baseLocalBranch,
   committedPaths,
   findOverlaps,
+  forkHead,
   isStaleCommit,
   pathsOverlap,
   renderOverlaps,
@@ -195,9 +196,10 @@ describe('inflight CLI', () => {
    * Stub gh. `prs` are open PRs (REST shape served paged through /pulls?state=open,
    * files through /pulls/N/files); `merged` maps branch -> merged head sha (and
    * optionally the sha the PR merged AS — it defaults to the fixture's
-   * origin/main tip, i.e. a PR that landed in the base),
-   * answered per branch via REST `pulls?state=closed&head=o:X`, behind a newer
-   * closed-but-unmerged PR so the merged_at filter is exercised; `fail` makes
+   * origin/main tip, i.e. a PR that landed in the base; then the head owner,
+   * default `o`, and created_at), answered per `<owner>:<branch>` via REST
+   * `pulls?state=closed&head=…`, behind a newer closed-but-unmerged PR so the
+   * merged_at filter is exercised; `fail` makes
    * every call exit 1. GraphQL routes (`gh pr`, `gh repo`, `gh issue`,
    * `gh api graphql`) 403 as in a Claude Code cloud session (MYK9-1415), and
    * every invocation is appended to `calls.log`.
@@ -212,7 +214,7 @@ describe('inflight CLI', () => {
       fork?: boolean;
       files: { path: string; previous?: string }[];
     }[],
-    merged: [string, string, string?, string?][] = [],
+    merged: [string, string, string?, string?, string?][] = [],
     fail = false
   ) {
     // A test may call stubGh twice; stale answer files from the first call must not survive.
@@ -228,26 +230,26 @@ describe('inflight CLI', () => {
     for (let i = 0; i < rest.length; i += 100) openPages.push(rest.slice(i, i + 100));
     writeFileSync(join(bin, 'open.json'), JSON.stringify(openPages.length ? openPages : [[]]));
     const baseTip = git(fixtureRepo, 'rev-parse', 'refs/remotes/origin/main').trim();
-    for (const [branch, sha, mergeCommit, owner = 'o'] of merged)
-      writeFileSync(
-        join(bin, `merged-${owner}-${branch}.json`),
-        JSON.stringify([
-          [
-            {
-              created_at: '2026-10-25T01:00:00Z',
-              merged_at: null,
-              merge_commit_sha: null,
-              head: { sha: '0'.repeat(40) },
-            },
-            {
-              created_at: '2026-10-25T00:00:00Z',
-              merged_at: '2026-10-25T00:00:00Z',
-              merge_commit_sha: mergeCommit ?? baseTip,
-              head: { sha },
-            },
-          ],
-        ])
-      );
+    const byHead = new Map<string, unknown[]>();
+    for (const [branch, sha, mergeCommit, owner = 'o', createdAt] of merged) {
+      const rows = byHead.get(`${owner}-${branch}`) ?? [
+        {
+          created_at: '2099-01-01T00:00:00Z',
+          merged_at: null,
+          merge_commit_sha: null,
+          head: { sha: '0'.repeat(40) },
+        },
+      ];
+      rows.push({
+        created_at: createdAt ?? '2026-10-25T00:00:00Z',
+        merged_at: '2026-10-25T00:00:00Z',
+        merge_commit_sha: mergeCommit ?? baseTip,
+        head: { sha },
+      });
+      byHead.set(`${owner}-${branch}`, rows);
+    }
+    for (const [head, rows] of byHead)
+      writeFileSync(join(bin, `merged-${head}.json`), JSON.stringify([rows]));
     for (const pr of prs) {
       const files = pr.files.map(f => ({ filename: f.path, previous_filename: f.previous }));
       const pages: unknown[][] = [];
@@ -420,6 +422,179 @@ describe('inflight CLI', () => {
     const r = runCli(main, bin, 'src/b.ts');
     expect(r.code).toBe(1);
     expect(r.out).toContain('branch finished');
+  });
+
+  /** Commit `content` to `path` on `name`, then squash the same change into origin/main. */
+  function squashMergedBranch(main: string, name: string, path: string, content: string) {
+    git(main, 'checkout', '-q', '-b', name, 'mine');
+    writeFileSync(join(main, path), content);
+    git(main, 'add', path);
+    git(main, 'commit', '-q', '-m', `${name} work`);
+    const tip = git(main, 'rev-parse', 'HEAD').trim();
+    git(main, 'checkout', '-q', '--detach', 'refs/remotes/origin/main');
+    writeFileSync(join(main, path), content);
+    git(main, 'add', path);
+    git(main, 'commit', '-q', '-m', `squash ${name}`);
+    const squash = git(main, 'rev-parse', 'HEAD').trim();
+    git(main, 'update-ref', 'refs/remotes/origin/main', squash);
+    git(main, 'checkout', '-q', 'mine');
+    return { tip, squash };
+  }
+
+  function callsOf(bin: string): string[] {
+    return readFileSync(join(bin, 'calls.log'), 'utf8').trim().split('\n');
+  }
+
+  // Codex, review of #3275: a branch created from origin/main keeps tracking it.
+  // That is a BASE relationship, not PR identity; querying `o:main` let a newer
+  // main->release PR (also merged into the base) displace the branch's own PR.
+  it('ignores a squash-merged branch that tracks origin/main despite a newer main->release PR', () => {
+    const { main, bin } = repo();
+    const { tip, squash } = squashMergedBranch(main, 'finished', 'src/shared.ts', 'shipped');
+    git(main, 'checkout', '-q', '--detach', 'refs/remotes/origin/main');
+    git(main, 'commit', '-q', '--allow-empty', '-m', 'merge main into release');
+    const releaseMerge = git(main, 'rev-parse', 'HEAD').trim();
+    git(main, 'update-ref', 'refs/remotes/origin/main', releaseMerge);
+    git(main, 'checkout', '-q', 'mine');
+    git(main, 'remote', 'add', 'origin', 'https://github.com/o/r.git');
+    git(main, 'config', 'branch.finished.remote', 'origin');
+    git(main, 'config', 'branch.finished.merge', 'refs/heads/main');
+    stubGh(
+      bin,
+      [],
+      [
+        ['finished', tip, squash, 'o', '2026-10-20T00:00:00Z'],
+        ['main', squash, releaseMerge, 'o', '2026-10-24T00:00:00Z'],
+      ]
+    );
+    const r = runCli(main, bin, 'src/shared.ts');
+    expect(r.code, r.out).toBe(0);
+    expect(r.out).not.toContain('branch finished');
+    expect(callsOf(bin).some(call => call.includes('head=o%3Amain'))).toBe(false);
+  });
+
+  // Codex, review of #3275: git allows a remote NAME containing "/"; it must be
+  // resolved through remote.<name>.url before being mistaken for a URL.
+  it('ignores a squash-merged fork branch tracking a remote whose name contains a slash', () => {
+    const { main, bin } = repo();
+    const { tip, squash } = squashMergedBranch(main, 'finished', 'src/shared.ts', 'fork work');
+    git(main, 'remote', 'add', 'remotes/contributor', 'https://github.com/contributor/fork.git');
+    git(main, 'config', 'branch.finished.remote', 'remotes/contributor');
+    git(main, 'config', 'branch.finished.merge', 'refs/heads/finished');
+    stubGh(bin, [], [['finished', tip, squash, 'contributor']]);
+    const r = runCli(main, bin, 'src/shared.ts');
+    expect(r.code, r.out).toBe(0);
+    expect(callsOf(bin).some(call => call.includes('head=contributor%3Afinished'))).toBe(true);
+  });
+
+  // Same-name merged PRs from two owners: the newest-created one is the branch's
+  // PR, whichever owner it is. The older one's head is unrelated, so picking it
+  // would report the shipped branch.
+  it.each([
+    ['the fork', 'contributor', 'o'],
+    ['the base owner', 'o', 'contributor'],
+  ])('takes the newest-created merged PR when %s is newest', (_label, newest, older) => {
+    const { main, bin } = repo();
+    const { tip, squash } = squashMergedBranch(main, 'finished', 'src/shared.ts', 'work');
+    git(main, 'remote', 'add', 'contributor', 'https://github.com/contributor/fork.git');
+    git(main, 'config', 'branch.finished.remote', 'contributor');
+    git(main, 'config', 'branch.finished.merge', 'refs/heads/finished');
+    stubGh(
+      bin,
+      [],
+      [
+        ['finished', tip, squash, newest, '2026-10-24T00:00:00Z'],
+        ['finished', '1'.repeat(40), squash, older, '2026-10-20T00:00:00Z'],
+      ]
+    );
+    const r = runCli(main, bin, 'src/shared.ts');
+    expect(r.code, r.out).toBe(0);
+    const closed = callsOf(bin).filter(call => call.includes('/pulls?state=closed&head='));
+    expect(closed.filter(call => call.includes('head=o%3Afinished'))).toHaveLength(1);
+    expect(closed.filter(call => call.includes('head=contributor%3Afinished'))).toHaveLength(1);
+  });
+
+  // A same-repo branch tracking origin/<same name> asks once, with the name
+  // URI-encoded, and a branch with nothing merged stays in flight.
+  it('asks once for a same-repo branch, encoding its name', () => {
+    const { main, bin } = repo();
+    git(main, 'checkout', '-q', '-b', 'feat+x#y', 'mine');
+    writeFileSync(join(main, 'src', 'shared.ts'), 'in flight');
+    git(main, 'add', 'src/shared.ts');
+    git(main, 'commit', '-q', '-m', 'wip');
+    git(main, 'checkout', '-q', 'mine');
+    git(main, 'remote', 'add', 'origin', 'git@github.com:o/r.git');
+    git(main, 'config', 'branch.feat+x#y.remote', 'origin');
+    git(main, 'config', 'branch.feat+x#y.merge', 'refs/heads/feat+x#y');
+    stubGh(bin, []);
+    const r = runCli(main, bin, 'src/shared.ts');
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('branch feat+x#y');
+    const closed = callsOf(bin).filter(
+      call => call.includes('/pulls?state=closed&head=') && call.includes('feat')
+    );
+    expect(closed).toEqual([expect.stringContaining('head=o%3Afeat%2Bx%23y&')]);
+  });
+
+  describe('forkHead()', () => {
+    function configured(entries: Record<string, string>) {
+      const dir = mkdtempSync(join(tmpdir(), 'inflight-fork-'));
+      dirs.push(dir);
+      git(dir, 'init', '-q');
+      for (const [key, value] of Object.entries(entries)) git(dir, 'config', key, value);
+      return dir;
+    }
+    const tracking = (remote: string, merge = 'refs/heads/finished') => ({
+      'branch.finished.remote': remote,
+      'branch.finished.merge': merge,
+    });
+
+    it.each([
+      [
+        'a named remote',
+        { ...tracking('c'), 'remote.c.url': 'https://github.com/contributor/fork.git' },
+      ],
+      [
+        'a slash-named remote',
+        { ...tracking('remotes/c'), 'remote.remotes/c.url': 'git@github.com:contributor/fork.git' },
+      ],
+      ['a direct scp URL', tracking('git@github.com:contributor/fork.git')],
+      ['a direct https URL without .git', tracking('https://github.com/contributor/fork')],
+      ['a trailing slash', tracking('https://github.com/contributor/fork/')],
+      ['a proxy URL', tracking('http://proxy@127.0.0.1:8080/git/contributor/fork')],
+    ])('reads the fork owner from %s', (_label, config) => {
+      expect(forkHead('finished', 'o', configured(config))).toBe('contributor:finished');
+    });
+
+    it('keeps the PR head ref of a renamed checkout', () => {
+      const dir = configured({
+        'branch.contributor-finished.remote': 'https://github.com/contributor/fork.git',
+        'branch.contributor-finished.merge': 'refs/heads/finished',
+      });
+      expect(forkHead('contributor-finished', 'o', dir)).toBe('contributor:finished');
+    });
+
+    it.each([
+      [
+        'an upstream in the base repo',
+        {
+          ...tracking('origin', 'refs/heads/main'),
+          'remote.origin.url': 'https://github.com/O/r.git',
+        },
+      ],
+      [
+        'a pull ref',
+        {
+          ...tracking('c', 'refs/pull/42/head'),
+          'remote.c.url': 'https://github.com/contributor/fork.git',
+        },
+      ],
+      ['an unconfigured non-URL remote', tracking('nowhere/else')],
+      ['a local upstream', tracking('.')],
+      ['no upstream', {}],
+    ])('adds nothing for %s', (_label, config) => {
+      expect(forkHead('finished', 'o', configured(config))).toBeUndefined();
+    });
   });
 
   it('still reports a branch whose PR merged somewhere OTHER than the base', () => {

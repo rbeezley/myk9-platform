@@ -452,14 +452,15 @@ export class MergedHeads {
   get(branch: string): string | undefined {
     if (!this.cache.has(branch)) {
       // REST's `head` filter needs an owner, where `gh pr list --head` matched
-      // the name from any fork. Ask the base owner AND the fork a checked-out
-      // PR branch tracks, or a squash-merged fork PR reads as in flight (Codex,
-      // review of #3275). Of the closed rows, the newest with merged_at is the
-      // most recent MERGED PR, as `--state merged --limit 1` was.
+      // the name from any fork. The candidates are this branch's possible PR
+      // SOURCES: the same-repo head, plus the fork a checked-out fork PR tracks
+      // (`forkHead`). At most two queries. Of the closed rows, the newest-created
+      // with merged_at is the most recent MERGED PR, as `--state merged --limit 1` was.
       const slug = repoSlug();
-      const heads = new Set([`${slug.split('/')[0]}:${branch}`]);
-      const upstream = upstreamHead(branch, this.cwd);
-      if (upstream) heads.add(upstream);
+      const owner = slug.slice(0, slug.indexOf('/'));
+      const heads = new Set([`${owner}:${branch}`]);
+      const fork = forkHead(branch, owner, this.cwd);
+      if (fork) heads.add(fork);
       const pr = [...heads]
         .flatMap(head =>
           ghPages<RestMergedPr>(
@@ -494,18 +495,27 @@ function gitConfig(key: string, cwd?: string): string | undefined {
 }
 
 /**
- * `<owner>:<ref>` of the head a branch tracks, from its upstream config. `gh pr
- * checkout` of a fork PR points `branch.<b>.remote` at the fork's URL (or a
- * remote named for it) and `branch.<b>.merge` at the PR's head ref. The owner
- * is the second-to-last path segment, which holds for https, ssh and proxy URLs.
+ * `<fork-owner>:<ref>` when a branch tracks ANOTHER owner's repository, else
+ * undefined. A branch's upstream is usually a BASE relationship (origin/main,
+ * origin/<same name>), which says nothing about which PR shipped it; counting it
+ * let a newer main->release PR displace the branch's own (Codex, review of
+ * #3275). Only a different owner is PR identity: `gh pr checkout` of a fork PR
+ * points `branch.<b>.remote` at the fork (a URL, or a remote named for it) and
+ * `branch.<b>.merge` at the PR's head ref, which may differ from the local name.
  */
-export function upstreamHead(branch: string, cwd?: string): string | undefined {
+export function forkHead(branch: string, baseOwner: string, cwd?: string): string | undefined {
   const remote = gitConfig(`branch.${branch}.remote`, cwd);
   if (!remote || remote === '.') return undefined;
-  const url = /[/:]/.test(remote) ? remote : gitConfig(`remote.${remote}.url`, cwd);
+  // A configured remote NAME wins, even one containing "/" (remotes/contributor);
+  // only an unconfigured value shaped like a URL (scheme:// or scp user@host:) is one.
+  const url =
+    gitConfig(`remote.${remote}.url`, cwd) ??
+    (/^(?:[a-z][\w+.-]*:\/\/|[\w.-]+@[\w.-]+:)/i.test(remote) ? remote : undefined);
+  // The owner is the second-to-last path segment: https, ssh and proxy URLs alike.
   const owner = url?.match(/([^/:]+)\/[^/]+?(?:\.git)?\/?$/)?.[1];
+  if (!owner || owner.toLowerCase() === baseOwner.toLowerCase()) return undefined;
   const ref = gitConfig(`branch.${branch}.merge`, cwd)?.replace(/^refs\/heads\//, '');
-  return owner && ref && !ref.startsWith('refs/') ? `${owner}:${ref}` : undefined;
+  return ref && !ref.startsWith('refs/') ? `${owner}:${ref}` : undefined;
 }
 
 function isAncestor(maybeAncestor: string, ref: string, cwd?: string): boolean {

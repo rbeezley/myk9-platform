@@ -28,7 +28,7 @@ Point the provider's setup step at the one script. Tools land in `MYK9_TOOLS_DIR
 
 | Provider          | Setup command                                                                | Status                                                                                                                                                                                                                                              |
 | ----------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Claude Code cloud | `MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh`                  | Verified 2026-10-24 when run inside a session (default tools dir), versions below; the Stage 1 proof reruns it on `main`                                                                                                                            |
+| Claude Code cloud | `MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh`                  | Stage 1 proof run 2026-10-25 on `main` @ `38598b7af`: setup, preflight, lint, test file and deno check as expected; typecheck **blocked** on the environment's missing `NODE_OPTIONS` heap. See [Stage 1 proof results](#stage-1-proof-results)     |
 | Codex cloud       | `MYK9_CLOUD=1 MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh`     | **Not yet verified**. Codex writes each environment's **Install script** itself, so tell it to use this command verbatim; Codex documents no environment marker, so `MYK9_CLOUD=1` declares it. See [Run the Stage 1 proof](#run-the-stage-1-proof) |
 | GitHub Actions    | `bash scripts/cloud/setup.sh --role=<role>` (`GITHUB_ACTIONS` is the marker) | Used from Stage 2                                                                                                                                                                                                                                   |
 
@@ -54,7 +54,7 @@ MYK9-1397 stays open until a fresh session in each cloud runs setup and the narr
 At [claude.ai/code](https://claude.ai/code), open the environment selector (the first control under the message box) and edit **Default** or choose **New environment**:
 
 - **Network access**: **Trusted**. Its allowlist already includes `github.com`, `objects.githubusercontent.com` and `release-assets.githubusercontent.com`, which setup downloads gh, Deno and ShellCheck from.
-- **Environment variables**: `NODE_OPTIONS=--max-old-space-size=6144`.
+- **Environment variables**: `NODE_OPTIONS=--use-openssl-ca --max-old-space-size=6144` (the image's own value is `--use-openssl-ca`, which the agent proxy's CA bundle needs; keep it).
 - **Setup script**: leave empty for the proof. The box runs before the environment's variables are set, and it is cached only when it finishes in about five minutes, which a full install and package build may not. Run setup inside the session instead (the route verified on 2026-10-24), and move it into the box only after it has worked there.
 - **GitHub**: the Claude GitHub App on the repository, or `/web-setup`. Through the session's GitHub proxy `gh api` works, but `gh pr` and `gh issue` (GraphQL) are rejected; the handoff CLI uses only `gh api`.
 
@@ -88,6 +88,22 @@ Stage 1 cloud proof for MYK9-1397. Report any missing tool or permission as a BL
 ```
 
 Stage 1 closes when both runs have passed or named a specific blocker, their runbook PRs have merged, and MYK9-1397 has been re-read in full against its acceptance criteria.
+
+### Stage 1 proof results
+
+**Claude Code cloud, 2026-10-25**, fresh session, branch `claude/myk9-1397-cloud-proof` from `main` @ `38598b7af`. `uname -m`: `x86_64`. 4 vCPU, 15 GiB RAM. Environment `NODE_OPTIONS` was `--use-openssl-ca` only; the documented heap variable had not been set.
+
+| Step | Command                                                                      | Result                                                                                                                                                                                                                                                                               |
+| ---- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2    | `MYK9_CLOUD=1 MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh`     | Pass, exit 0. gh 2.89.0 already present; installed Deno 2.1.4 and ShellCheck 0.10.0; frozen install of 1461 packages; 12/12 package builds; `qa:dist-fresh` clean; embedded preflight `ready`                                                                                        |
+| 3    | `pnpm cloud:preflight --role=implementer --json`                             | Pass, exit 0, `"ok": true`, `"missing": []`. Node 22.22.0, pnpm 9.15.9, git 2.43.0, gh 2.89.0, Deno 2.1.4, ShellCheck 0.10.0, jq 1.7; github.com reachable; `gh api` read ok                                                                                                         |
+| 4a   | `pnpm typecheck`                                                             | **BLOCKER**, exit 134: `@myk9/show:typecheck` hit a JavaScript heap OOM at the default heap. Diagnostic rerun with `NODE_OPTIONS="--use-openssl-ca --max-old-space-size=6144"` passed, 26/26 tasks. The fix is environment config: set the heap variable in the environment settings |
+| 4b   | `pnpm lint`                                                                  | Pass, exit 0, 14/14 tasks; `@myk9/show` 0 errors, 43 warnings                                                                                                                                                                                                                        |
+| 4c   | `pnpm vitest run scripts/verify-artifact-secrets.test.ts --sequence.shuffle` | Pass, exit 0, 6/6 tests (seed `1792952896776`)                                                                                                                                                                                                                                       |
+| 5    | `deno check … push-trigger-class-status … push-trigger-run-proximity`        | Exit 1, as expected: the 3 known TS2339 errors at `push-trigger-class-status/index.ts:60-62` (MYK9-1400). `push-trigger-run-proximity` checked on its own: exit 0                                                                                                                    |
+| 6    | Linear `get_issue MYK9-1397`                                                 | Pass: full description, all 7 acceptance criteria, relations and state history returned through the Linear connector                                                                                                                                                                 |
+
+Codex cloud: not yet run.
 
 ## Preflight
 
@@ -136,5 +152,6 @@ Detailed reports and logs go in Actions artifacts with 30-day retention, referen
 ## Known gaps
 
 - Codex cloud setup has not been run (it can't be from a Claude session). Record its versions here once it has.
+- The 2026-10-25 Claude Code cloud proof ran in an environment without `NODE_OPTIONS=--max-old-space-size=6144`, so `pnpm typecheck` OOMed (exit 134). That is a blocker until the variable is set in the environment and a fresh session reruns typecheck green; the diagnostic run with the flag passed. Keep `--use-openssl-ca` in the value when the image already sets it, since the agent proxy needs it.
 - `deno check` reports pre-existing type errors in `push-trigger-class-status` and `push-trigger-announcement`: untyped PostgREST embeds infer arrays where a many-to-one embed returns an object at runtime. `push-trigger-run-proximity` checks clean. Filed separately, not fixed in Stage 1.
 - The base64 spelling of a secret is not scanned (the shared scanner matches verbatim and JSON-escaped forms).

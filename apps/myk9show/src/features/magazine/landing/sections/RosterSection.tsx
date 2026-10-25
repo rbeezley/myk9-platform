@@ -4,13 +4,19 @@ import { MagazineSectionFolio } from '../../components/MagazineSectionFolio';
 import { useRevealOnScroll } from '../../hooks/useRevealOnScroll';
 import { formatJourneyDate } from '../utils/dateFormat';
 import type { MagazineJourneyStep } from '../types';
-import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
+import {
+  entryCapacityPercent,
+  FINAL_ROSTER_TITLE,
+  formatEntryCount,
+} from '@/features/_shared/landing/entryCount';
 
 interface RosterSectionProps {
   entryCount: number | null;
   entryLimit: number | null;
   journeySteps: MagazineJourneyStep[];
   timezone: string;
+  /** The show has happened: the heading reads "Final roster" instead of "Filling quickly". */
+  pastShow?: boolean | undefined;
 }
 
 function CapacityCounter({ count, limit }: { count: number | null; limit: number | null }) {
@@ -177,6 +183,7 @@ export function RosterSection({
   entryLimit,
   journeySteps,
   timezone,
+  pastShow,
 }: RosterSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
 
@@ -192,7 +199,13 @@ export function RosterSection({
       >
         <MagazineSectionFolio label="The roster" className="mb-6" />
         <MagazineHeading level={2}>
-          Filling <em className="em-gold">quickly</em>
+          {pastShow ? (
+            FINAL_ROSTER_TITLE
+          ) : (
+            <>
+              Filling <em className="em-gold">quickly</em>
+            </>
+          )}
         </MagazineHeading>
       </div>
 

@@ -144,6 +144,7 @@ export function MagazineLandingPage({
           entryLimit={data.entryLimit}
           journeySteps={data.journeySteps}
           timezone={data.timezone}
+          pastShow={data.showHasHappened}
         />
 
         <PlanSection

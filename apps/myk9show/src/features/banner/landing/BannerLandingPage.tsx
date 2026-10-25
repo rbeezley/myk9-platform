@@ -143,6 +143,7 @@ export function BannerLandingPage({
           flag={brandColors.flag}
           flagText={brandColors.flagText}
           flagBright={brandColors.flagBright}
+          pastShow={data.showHasHappened}
         />
         <PlanSection accommodations={data.accommodations} flagText={brandColors.flagText} />
         <OnTheDaySection

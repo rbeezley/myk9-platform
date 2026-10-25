@@ -5,6 +5,7 @@ import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
 import type { BannerBrandColors } from '../../hooks/useBannerBrandColor';
 import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
+import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface FinalFlagBandProps {
   brandColors: BannerBrandColors;
@@ -111,12 +112,14 @@ export function FinalFlagBand({
               opacity: 0.85,
             }}
           >
-            {entryClosed
-              ? 'Contact the trial secretary for late-entry help.'
-              : pendingEntryCopy(
-                  mailInOnly,
-                  'The secretary still needs to assign classes before online entry is available.'
-                )}
+            {entryClosed ? (
+              <LateEntryContact />
+            ) : (
+              pendingEntryCopy(
+                mailInOnly,
+                'The secretary still needs to assign classes before online entry is available.'
+              )
+            )}
           </p>
         )}
       </BannerFlagBar>

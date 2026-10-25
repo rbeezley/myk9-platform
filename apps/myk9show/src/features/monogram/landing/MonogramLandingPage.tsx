@@ -119,7 +119,11 @@ export function MonogramLandingPage({
 
         <JudgesSection judges={data.judges} trialsCount={data.trials.length} />
 
-        <RosterSection entryCount={data.entryCount} entryLimit={data.entryLimit} />
+        <RosterSection
+          entryCount={data.entryCount}
+          entryLimit={data.entryLimit}
+          pastShow={data.showHasHappened}
+        />
 
         <PlanSection
           accommodations={data.accommodations}

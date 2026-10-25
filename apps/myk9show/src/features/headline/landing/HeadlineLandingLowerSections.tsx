@@ -3,6 +3,7 @@ import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { SectionHead } from './HeadlineLandingPrimitives';
 import { formatDateRange, shortDate } from './headlineLandingDates';
 import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
+import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 export function ScheduleAndPlan({ data }: { data: HeritageLandingData }) {
   const cards = [
@@ -137,7 +138,7 @@ export function FinalCta({
                 is reached.
               </>
             ) : entryClosed ? (
-              'Contact the trial secretary for late-entry help.'
+              <LateEntryContact />
             ) : (
               pendingEntryCopy(
                 mailInOnly,
@@ -159,12 +160,14 @@ export function FinalCta({
               isn't. */}
           {!canEnterOnline && (
             <div className="helper">
-              {entryClosed
-                ? 'Contact the trial secretary for late-entry help.'
-                : pendingEntryCopy(
-                    mailInOnly,
-                    'The secretary still needs to assign classes before online entry is available.'
-                  )}
+              {entryClosed ? (
+                <LateEntryContact />
+              ) : (
+                pendingEntryCopy(
+                  mailInOnly,
+                  'The secretary still needs to assign classes before online entry is available.'
+                )
+              )}
             </div>
           )}
         </div>
@@ -183,7 +186,10 @@ export function Footer({ data }: { data: HeritageLandingData }) {
         </div>
         <div className="col">
           <h4>Trial Secretary</h4>
-          <p>{data.secretaryName ?? 'Secretary will be posted here'}</p>
+          <p>
+            {data.secretaryName ??
+              (data.secretaryKnownNone ? 'The club has not listed a secretary yet.' : '')}
+          </p>
           {data.secretaryEmail && (
             <a href={`mailto:${data.secretaryEmail}`}>{data.secretaryEmail}</a>
           )}

@@ -2,11 +2,17 @@ import { PosterSectionHead } from '../../components/PosterSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
 import { POSTER_BODY_FAMILY, POSTER_DISPLAY_FAMILY, POSTER_MONO_FAMILY } from '../../fonts';
 import { posterColors, posterSpacing } from '../../tokens';
-import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
+import {
+  entryCapacityPercent,
+  FINAL_ROSTER_TITLE,
+  formatEntryCount,
+} from '@/features/_shared/landing/entryCount';
 
 interface RosterSectionProps {
   entryCount: number | null;
   entryLimit: number | null;
+  /** The show has happened: the heading reads "Final roster" instead of a fill pace. */
+  pastShow?: boolean | undefined;
 }
 
 /**
@@ -14,7 +20,7 @@ interface RosterSectionProps {
  * ink "/limit" sub-number, with the percentage bar to the right. The
  * bar fills via the `.po-capacity-bar-fill` keyframe.
  */
-export function RosterSection({ entryCount, entryLimit }: RosterSectionProps) {
+export function RosterSection({ entryCount, entryLimit, pastShow }: RosterSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
   const pct = entryCapacityPercent(entryCount, entryLimit);
   const pace =
@@ -32,9 +38,15 @@ export function RosterSection({ entryCount, entryLimit }: RosterSectionProps) {
       }}
     >
       <PosterSectionHead number="05" label="Roster">
-        Filling
-        <br />
-        <span style={{ color: posterColors.red }}>{pace}</span>
+        {pastShow ? (
+          FINAL_ROSTER_TITLE
+        ) : (
+          <>
+            Filling
+            <br />
+            <span style={{ color: posterColors.red }}>{pace}</span>
+          </>
+        )}
       </PosterSectionHead>
 
       <div

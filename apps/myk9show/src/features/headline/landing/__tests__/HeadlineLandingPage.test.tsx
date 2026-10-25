@@ -235,7 +235,9 @@ describe('HeadlineLandingPage', () => {
     expect(screen.queryByRole('link', { name: /enter this show/i })).toBeNull();
     expect(screen.getByText('Entries closed')).toBeTruthy();
     expect(screen.queryByText('Classes pending')).toBeNull();
-    expect(screen.getAllByText(/late-entry help/i).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/Contact the trial secretary for late-entry help/i).length
+    ).toBeGreaterThan(0);
     expect(screen.queryByText(/no classes are assigned yet/i)).toBeNull();
   });
 

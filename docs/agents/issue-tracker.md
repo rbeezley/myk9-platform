@@ -63,6 +63,116 @@ after 30 days and orphans the ~197 distinct `MYK9-<n>` ids cited across ~737 fil
 - Issues encode dependency chains as Linear issue-links — a single "In Progress" issue with
   unstarted downstream links is usually correct sequencing, not neglect.
 
+## Labels: outstanding evidence and intervention
+
+This contract applies to Claude Code and Codex. Labels help select the next action; read the
+full issue, latest comments and linked plan before acting. Status records progress, priority
+records launch importance, and issue relations record dependencies. Labels do not replace them.
+
+The `verify` and `needs` groups are **multi-select**. Use the exact child names below (or their
+team label IDs); never apply the group itself. Add every independently outstanding proof that
+the issue explicitly requires. Add proof labels to implemented work awaiting acceptance evidence;
+an explicit later evidence gate may also be tagged before implementation, without changing status.
+
+| Evidence label              | Evidence needed before removing it                                                                                                      |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `verify:browser`            | Required real-browser journey, roles, routes, viewports and build                                                                       |
+| `verify:offline`            | Required network loss, cold reload, reconnect and convergence journey                                                                   |
+| `verify:load`               | Representative concurrent-device rehearsal and required capacity/latency/queue/persisted-score verdict                                  |
+| `verify:performance`        | Route baseline, device timing, transfer size or profiler comparison on the stated workload                                              |
+| `verify:physical-print`     | Required printer and paper/label stock, scale, alignment, clipping and readability results                                              |
+| `verify:real-user`          | Target user's observed journey, notes and disposition of trip points                                                                    |
+| `verify:independent-review` | Other-harness review on the required head/range, with findings dispositioned                                                            |
+| `verify:checkout`           | Required end-to-end checkout amounts and denial controls in the authorized environment; stop before charging when the issue requires it |
+| `verify:database`           | Applied-target database/RPC/grant/role or hosted-integration proof with required positive/negative controls                             |
+| `verify:recovery`           | Required backup freshness, restore, Storage and application-failover scope, with cadence/RPO/RTO measurements                           |
+| `verify:spec`               | Integrated OpenSpec implementation verification and required archive/closeout evidence                                                  |
+
+| Intervention label   | Add when                                                                                                            | Remove when                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `needs:decision`     | An unresolved product, scope, risk-acceptance or restructure decision blocks the next step                          | The decision owner records the decision                        |
+| `needs:operator`     | The remaining action requires an authorized person/operator, shared-system operation, hardware or real-user session | That action is completed and recorded                          |
+| `needs:environment`  | This run lacks a required tool, credential, network, fixture or execution environment                               | The missing capability is restored or a capable run takes over |
+| `needs:coordination` | Active work overlaps the intended paths or ownership                                                                | Ownership/sequencing is agreed or the overlap resolves         |
+
+For each intervention, name the exact action/question, owner and unblock condition in the issue.
+For each proof, keep the exact criterion and runnable next step in the issue or linked evidence.
+Reuse existing accurate comments; do not post a duplicate comment just to apply a label.
+
+Agent lifecycle:
+
+1. Read current evidence before adding a label. An old cloud session lacking credentials does
+   not establish a current environment blocker; an approved owner decision is no longer pending.
+2. Use incremental `addLabels` / `removeLabels` updates, preserving unrelated labels.
+3. Work that still needs implementation or defect fixes stays **In Progress** once started.
+   Implemented work awaiting acceptance evidence belongs **In Review**. A hold does not itself
+   make unfinished code review-ready. Leave unstarted Backlog/Todo issues in their current state.
+4. Record the tested commit/build, target, role/device/workload, commands, results and evidence
+   link appropriate to the criterion. Link a shared rehearsal result from each issue it proves;
+   do not start separate load runs for every tagged optimization.
+5. Remove only the proof/intervention actually satisfied. Keep other pending labels. Re-add a
+   label when evidence becomes invalid or a required recheck is introduced.
+6. Before Done, fetch the full issue again, check every criterion and the merge/evidence gates,
+   and reconcile its pending labels. **No labels is not proof of completion.** Physical stock,
+   real users, hosted behavior and other-harness review need their respective evidence.
+7. Labels grant no authorization to merge, deploy, change shared data/secrets, charge or refund.
+   Existing approvals and review gates still apply. `verify:independent-review` identifies the
+   review owed; it does not assign the implementation to a model or harness.
+
+Retired labels: `Claude`, `Codex`, `lane:mac`, `lane:pc`, `Oct 10 test show`, `vacation-blocked`,
+`needs-richard`, `Human Tester`, `Wait for Launch`, `auto:green` and `auto:yellow`. Do not apply
+or recreate them. Historical closed issues may retain them. Replace a vague hold with its actual
+`needs:*` blocker or `verify:*` evidence requirement, or remove it when already resolved.
+Record implementation/review provenance in the issue's evidence and PR. Use
+`verify:independent-review` for an outstanding other-harness review. Choose execution hosts by
+the capabilities the next action requires; a device or harness name is neither proof nor permission.
+
+Keep `Bug`, `Improvement`, `Feature` and `Test` as work types. `Test` includes test/harness repair
+and coverage work; it does not mean acceptance verification passed. `Ops` identifies operational
+or business work rather than an implementation task; add `needs:operator` for an outstanding
+authorized-person action. `Parked` marks an explicit decision to defer work until a named trigger,
+not merely an unstarted issue. Do not select it for launch implementation until the owner brings
+it into scope. Record the trigger in the issue and remove the label when that decision changes.
+
+## Saved queues and verification batches
+
+Use the shared team views to select work instead of repeatedly scanning the full board:
+
+| View                                                                                              | Selection and display                                                                                     |
+| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [Ready for an agent](https://linear.app/myk9-platform/view/81143969-5d01-4991-8b68-d8d994c93426)  | Todo; not blocked by another issue; excludes any of Parked or the four needs:* labels; priority order     |
+| [Verification needed](https://linear.app/myk9-platform/view/316a2fa9-78c5-4cb5-9ba5-71332adb4bf7) | In Review; grouped by the verify label group and ordered by priority                                      |
+| [Owner actions](https://linear.app/myk9-platform/view/595922bc-5449-47e9-9f00-908a6852691d)       | Open issues with either needs:decision or needs:operator; grouped by needs; deferred items remain visible |
+| [Launch blockers](https://linear.app/myk9-platform/view/81b32ef5-7f1f-4bda-a89e-2533c4ca2df1)     | Open Urgent/High issues; excludes Parked and the Post-launch project; includes blocked/operator-held work |
+
+Open means Backlog, Todo, In Progress or In Review. These views are candidate selectors, not
+authorization or proof. The launch view ranks attention; the scorecard and full criteria decide
+go/no-go. Hidden nested rows are displayed flat so a nonmatching parent is not mistaken for work
+in the queue. Group counts can overlap when an issue owes several proofs.
+
+Resolve a view with `list_custom_views` and query it using `list_issues(customView: <id or exact
+name>)` when the connector supports those tools/fields. Otherwise query the relevant statuses
+and apply the same property filters, checking `get_issue` relations for unfinished blockers.
+Never invent unsupported filter arguments or broaden the fallback to Backlog for an agent run.
+Even with a saved view, re-read the full issue and latest comments, reproduce the premise, check
+dependencies and concurrent work, and claim the issue before implementation. An In Review item
+with unfinished code or a restructure hold is not ready for an acceptance-only session.
+
+[Launch verification sessions](https://linear.app/myk9-platform/document/launch-verification-sessions-3ab8911b3c10)
+holds the current session matrix; original issues retain their criteria and closure evidence.
+At session start, refresh the view and group by compatible build, target, role/device/workload
+and fixture ownership. Use separate secretary/admin and exhibitor contexts. Coordinate one G9
+rehearsal through its existing parent issues, one route/device performance pass through its
+baseline issue, and reuse a result only for criteria it actually exercises. Other-harness review
+still needs a verdict on each required head/range; a shared session is not a blanket approval.
+
+Before running, record the executor, prerequisites, exact scope, commit/build, target, fixture
+setup/cleanup owner and any required approval. Keep shared-data/paid actions, physical stock,
+real-user observation and recovery operations explicitly owned. Queue setup and grouping do not
+authorize those actions. Afterward record pass/fail/not-run per criterion with sanitized artifacts,
+link the shared result from each covered issue, remove only satisfied labels and fresh-read every
+criterion before Done. Preserve unmet gates and hand off the next concrete action when blocked.
+
 ## Model routing for issue work
 
 When the user requests subagents, choose models by the uncertainty and risk of each task:

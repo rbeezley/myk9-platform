@@ -57,7 +57,7 @@ both of these are done and recorded in the ledger row (`premise:` and `approach:
    - `partly true: <what holds>` — the dispatch carries only the criteria that still hold, and
      the triage comment names the ones dropped and why.
    - `not reproducible` or `by design: <issue or INTENT citation>` — comment with the evidence,
-     add `needs-richard`, leave the state, move on. A symptom you could not see is not fixed by
+     add `needs:decision`, leave the state, move on. A symptom you could not see is not fixed by
      code; an implementer handed the criteria verbatim would undo the earlier decision.
 2. **Weigh at least one alternative to the fix the issue suggests.** The Recommendation is one
    reader's idea; the acceptance criteria are the contract. Write the `approach:` line before
@@ -65,7 +65,11 @@ both of these are done and recorded in the ledger row (`premise:` and `approach:
    in this order: do nothing and close with evidence; fix the data or seed, not the UI; change
    the copy, not the code; link to the surface that already does it, not a new page; fix the
    root cause the repro exposed, not the symptom. If the chosen approach changes what the
-   criteria ask for, that is a product decision: hold with `needs-richard`.
+   criteria ask for, that is a product decision: hold with `needs:decision`.
+
+Use the shared label contract in `docs/agents/issue-tracker.md`: record the exact blocker and
+owner, add the applicable `needs:*` and outstanding `verify:*` labels, and remove them only
+when the decision/action/evidence is recorded. Labels grant no additional authorization.
 
 In OpenSpec mode the proposal and design are where the weighing happened; reproduce only for a
 task that fixes a reported defect. Why this gate exists: the 2026-10-20 usability walk's first

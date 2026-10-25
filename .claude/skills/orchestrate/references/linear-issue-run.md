@@ -14,7 +14,9 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
    per-issue `git worktree add` need. `ExitWorktree` (keep) first.
 2. **Selection.**
    - The owner named ids: that list, in that order.
-   - No list: `list_issues` (team `MyK9-platform`, state `Todo`; Backlog is never read). Rank by
+   - No list: use **Ready for an agent** from `docs/agents/issue-tracker.md` (team
+     `MyK9-platform`; Todo, unblocked, no Parked/needs:* hold). Use its documented Todo/filter
+     fallback if the connector cannot query saved views; Backlog is never read. Rank by
      priority, then by fit with `docs/goals/fall-2026-launch-readiness.md` (secretary and
      show-day reliability first), then closest to done. Propose the top 3 with one line each and
      wait for one yes. This is the only question the run asks. If no Todo issue is eligible (all
@@ -58,14 +60,16 @@ review and suites all count).
 - **True, and fixed how?** Run "Verify, then weigh" from `../SKILL.md`: reproduce the claim
   on `main`, check it against archived issues and INTENT, and write the `premise:` and
   `approach:` ledger fields. `not reproducible` and `by design` are pre-work holds.
-- **Pre-work holds:** skip the issue with a comment, leave its state unchanged and add the
-  `needs-richard` label when any of these hold:
-  - it touches money (payments, refunds, fees, money guards);
-  - it needs a product decision reserved for the owner;
-  - its criteria can't be met without an owner-only action;
+- **Pre-work holds:** skip the issue with a comment, leave its state unchanged and use the
+  shared label contract in `docs/agents/issue-tracker.md`:
+  - money (payments, refunds, fees, money guards) or an owner-only action: `needs:operator`;
+  - a product decision reserved for the owner: `needs:decision`;
   - `pnpm qa:inflight <expected paths>` exits 1 or 2, or another issue In Progress names the
     same paths (`list_issues` state `In Progress`), or `list_sessions` shows a running session
-    on them.
+    on them: `needs:coordination` for overlap, `needs:environment` if the check cannot run.
+    Name the exact blocker, owner and unblock condition. Missing tools/credentials are
+    `needs:environment`, not an unresolved product decision. Remove stale holds after reading
+    recorded owner decisions and current environment capabilities.
 - Pick the implementer tier from the routing table.
 
 ### 2. Start
@@ -92,14 +96,20 @@ already exists, and the implementer works only under `$WT`. Afterwards, confirm 
 `git -C "$WT" status` that the changes landed there and that `$MAIN` is still clean. Run the
 review gate, with a maximum of 3 rounds.
 
-**Mid-work holds** (stop, leave the PR as a draft or open no PR, set **In Review**, add
-`needs-richard`, and comment with the reason and the exact next step):
+**Mid-work holds** (stop, leave the PR as a draft or open no PR, keep unfinished implementation
+**In Progress**, and comment with the reason, owner and exact next step; use **In Review** only
+when implementation is complete and acceptance evidence is owed):
 
 - the diff turns out to touch money, or needs an owner decision;
 - a second review finding on the same path, or a finding in code the previous fix introduced
   (the convergence rule). Post the restructure proposal, not another patch;
 - a test runner hangs for more than 30s, or required CI is still red after two fix attempts;
 - the implementer failed 3 review rounds and escalation would need Opus.
+
+Use `needs:operator` for the money/authorization hold; `needs:decision` for product, convergence
+or model-escalation decisions; `needs:environment` for a broken runner or unavailable capability.
+A red CI check requiring a code fix stays In Progress; do not relabel it as missing proof.
+Apply the outstanding `verify:*` labels only for the issue's explicit acceptance evidence.
 
 **E2E repro runs** need the main checkout's `apps/myk9show/.env.local` (bootstrap doesn't copy
 it): `set -a; . "$MAIN/apps/myk9show/.env.local"; set +a`, then run the spec pinned to its own
@@ -152,7 +162,9 @@ explicitly after a fresh read:
    - **Done**: every criterion is met by merged code and executed checks.
    - **In Review**: anything owed by a human or a shared system, such as a browser walk, a
      production-evidence criterion (it ships on the next Deploy myK9Show run),
-     `supabase functions deploy` or a `db push`. Name the exact verification owed.
+     `supabase functions deploy` or a `db push`. Name the exact verification owed and apply
+     its `verify:*` labels, plus `needs:operator` when an operator action is required. Remove
+     only labels whose evidence/action is recorded; labels never replace the full criteria.
 4. Comment on the issue:
 
 ```markdown
@@ -172,7 +184,7 @@ Then `ship-pr` Step 7 from `$MAIN`. A worktree that was created locked needs
 When the approved list is finished, don't end the run. Pick the next issue yourself, without
 asking:
 
-1. **Re-query fresh.** Run `list_issues` (state `Todo`) again rather than reusing the run-start
+1. **Re-query fresh.** Read **Ready for an agent** again (or its documented Todo/filter fallback), rather than reusing the run-start
    list, because the board changes overnight. Rank by the same rules, and drop every issue
    already attempted this run, whatever its outcome. Never read Backlog. If nothing eligible is
    left, the run ends.
@@ -189,12 +201,12 @@ asking:
 2. **Summary**, as the final message (and a push notification when the owner is away):
 
 ```markdown
-| Issue    | Outcome            | PR    | Reason / owed                            |
-| -------- | ------------------ | ----- | ---------------------------------------- |
-| MYK9-123 | merged · Done      | #2870 | —                                        |
-| MYK9-456 | merged · In Review | #2871 | browser walk of /at-show scoring         |
-| MYK9-789 | held · Todo        | —     | touches refunds (needs-richard)          |
-| MYK9-321 | held · Todo        | —     | not reproducible on main (needs-richard) |
+| Issue    | Outcome            | PR    | Reason / owed                             |
+| -------- | ------------------ | ----- | ----------------------------------------- |
+| MYK9-123 | merged · Done      | #2870 | —                                         |
+| MYK9-456 | merged · In Review | #2871 | browser walk of /at-show scoring          |
+| MYK9-789 | held · Todo        | —     | touches refunds (needs:operator)          |
+| MYK9-321 | held · Todo        | —     | not reproducible on main (needs:decision) |
 ```
 
 Follow it with the orchestration stats from `../SKILL.md` and one line listing every judgement
@@ -211,7 +223,7 @@ run, and mark each `refill` issue in the table (e.g. `MYK9-321 (refill)`).
 | Picking from Backlog, or grading issues up front           | Todo only; risk is judged from the diff at ship time             |
 | Handing a refund fix to sonnet "because it's small"        | Money is held, whatever its size                                 |
 | Letting the implementer push, open the PR or post the gate | The orchestrator owns every shared-system write                  |
-| Retrying a red CI a third time                             | Hold at In Review after two attempts                             |
+| Retrying a red CI a third time                             | Hold after two attempts; unfinished code stays In Progress       |
 | Removing a merge-pending worktree                          | Keep it; `/cleanup` after GitHub merges                          |
 | Ending an overnight run when the approved list is done     | Continuous mode refills from Todo until a stop condition holds   |
 | Reusing the run-start Todo list for refills                | Re-query; the board changes overnight                            |

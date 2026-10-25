@@ -56,9 +56,11 @@ both of these are done and recorded in the ledger row (`premise:` and `approach:
    - `confirmed` — proceed.
    - `partly true: <what holds>` — the dispatch carries only the criteria that still hold, and
      the triage comment names the ones dropped and why.
-   - `not reproducible` or `by design: <issue or INTENT citation>` — comment with the evidence,
-     add `needs:decision`, leave the state, move on. A symptom you could not see is not fixed by
-     code; an implementer handed the criteria verbatim would undo the earlier decision.
+   - `not reproducible` or `by design: <issue or INTENT citation>` — comment with the evidence
+     and exact next action, leave the state, move on. Add `needs:decision` only for an identified
+     **new, unresolved** owner question; citing an already-recorded decision is not a new hold.
+     Missing reproduction tools/credentials use `needs:environment`. Non-reproduction is not
+     proof of a fix, and an implementer must not undo the cited design decision.
 2. **Weigh at least one alternative to the fix the issue suggests.** The Recommendation is one
    reader's idea; the acceptance criteria are the contract. Write the `approach:` line before
    dispatch: the fix chosen, the alternative considered, and why. The alternatives to try first,

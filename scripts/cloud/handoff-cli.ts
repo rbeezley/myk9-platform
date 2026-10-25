@@ -25,6 +25,10 @@ import {
   type Reconciliation,
 } from './handoff.ts';
 import { scanForPublication } from './publication-scan.ts';
+import {
+  collectSecrets,
+  scrubSecrets,
+} from '../../apps/myk9show/src/utils/scrubArtifactSecrets.ts';
 
 /** Runs `gh` with the given arguments and returns stdout; throws a `GhError` on failure. */
 export type Gh = (args: string[], input?: string) => string;
@@ -194,30 +198,54 @@ function argValue(args: string[], name: string): string | undefined {
   return args.find(arg => arg.startsWith(`--${name}=`))?.slice(name.length + 3);
 }
 
-export async function runCli(args: string[] = process.argv.slice(2), gh: Gh = realGh) {
+type Env = Record<string, string | undefined>;
+type Print = (stream: 'log' | 'error', text: string) => void;
+
+async function dispatch(args: string[], gh: Gh, env: Env, print: Print): Promise<number> {
   const [command] = args;
   const pr = Number(argValue(args, 'pr'));
   if (!Number.isInteger(pr) || pr <= 0) {
-    console.error('handoff: --pr=<number> is required');
+    print('error', 'handoff: --pr=<number> is required');
     return 2;
   }
   if (command === 'read') {
-    console.log(JSON.stringify(readHandoff(gh, pr), null, 2));
+    print('log', JSON.stringify(readHandoff(gh, pr), null, 2));
     return 0;
   }
   if (command === 'append') {
     const file = argValue(args, 'event');
     if (!file) {
-      console.error('handoff: append needs --event=<file.json>');
+      print('error', 'handoff: append needs --event=<file.json>');
       return 2;
     }
     const event = JSON.parse(readFileSync(file, 'utf8')) as HandoffEvent;
-    const result = await appendHandoff(gh, pr, event, process.env);
-    console.log(result.message);
+    const result = await appendHandoff(gh, pr, event, env);
+    print('log', result.message);
     return result.posted ? 0 : 1;
   }
-  console.error('handoff: usage: read|append --pr=<n> [--event=<file.json>]');
+  print('error', 'handoff: usage: read|append --pr=<n> [--event=<file.json>]');
   return 2;
+}
+
+/**
+ * The one place this CLI prints. What it reads can hold a configured secret
+ * before any scan has run (a malformed event file, a path, a failing call's
+ * message), so every line, and every error, is scrubbed on the way out, and
+ * nothing escapes as an uncaught rejection that Node would print raw.
+ */
+export async function runCli(
+  args: string[] = process.argv.slice(2),
+  gh: Gh = realGh,
+  env: Env = process.env
+): Promise<number> {
+  const secrets = collectSecrets(env);
+  const print: Print = (stream, text) => console[stream](scrubSecrets(text, secrets));
+  try {
+    return await dispatch(args, gh, env, print);
+  } catch (error) {
+    print('error', `handoff: failed: ${error instanceof Error ? error.message : String(error)}`);
+    return 2;
+  }
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

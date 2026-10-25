@@ -1,7 +1,10 @@
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
-import { appendHandoff, ghFailure, GhError, readHandoff, type Gh } from './handoff-cli.ts';
+import { describe, expect, it, vi } from 'vitest';
+import { appendHandoff, ghFailure, GhError, readHandoff, runCli, type Gh } from './handoff-cli.ts';
 import { formatEventComment, type HandoffEvent } from './handoff.ts';
 import { chain, event, HEAD } from './handoff-fixtures.ts';
 
@@ -308,5 +311,68 @@ describe('handoff-cli as a script', () => {
     });
     expect(result.stderr).toContain('--pr=<number> is required');
     expect(result.status).toBe(2);
+  });
+});
+
+/**
+ * The CLI prints what it reads, and what it reads can hold a configured
+ * secret before any scan has run: a malformed event file, a path, a failing
+ * call's message. Every line it prints passes one scrubbing boundary.
+ */
+describe('the handoff CLI never prints a configured secret', () => {
+  const SECRET = 'sk-synthetic-boundary-0001';
+  // Short enough that Node's parse error quotes it whole.
+  const SHORT_SECRET = 'pw8chars1';
+  const CLI = fileURLToPath(new URL('./handoff-cli.ts', import.meta.url));
+
+  function spawnCli(args: string[]) {
+    return spawnSync(process.execPath, ['--import', 'tsx', CLI, ...args], {
+      encoding: 'utf8',
+      env: { ...process.env, OPENAI_API_KEY: SECRET, E2E_TEST_PASSWORD: SHORT_SECRET },
+    });
+  }
+
+  it('fails a malformed event file holding a secret without echoing it', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'handoff-boundary-'));
+    try {
+      const file = join(dir, 'event.json');
+      // Unquoted, as a hand-edited file might hold it: Node's parse error then
+      // quotes the input back.
+      writeFileSync(file, `{"nextAction": ${SHORT_SECRET}}`);
+      const result = spawnCli(['append', '--pr=3300', `--event=${file}`]);
+      expect(result.status).toBe(2);
+      expect(result.stderr).toMatch(/handoff: failed/);
+      expect(`${result.stdout}${result.stderr}`).not.toContain(SHORT_SECRET);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails a missing event file whose path holds a secret without echoing it', () => {
+    const result = spawnCli(['append', '--pr=3300', `--event=/nonexistent/${SECRET}.json`]);
+    expect(result.status).toBe(2);
+    expect(`${result.stdout}${result.stderr}`).not.toContain(SECRET);
+  });
+
+  it('scrubs a failing gh call and what a read prints', async () => {
+    const lines: string[] = [];
+    const log = vi.spyOn(console, 'log').mockImplementation((...a) => void lines.push(a.join(' ')));
+    const err = vi
+      .spyOn(console, 'error')
+      .mockImplementation((...a) => void lines.push(a.join(' ')));
+    try {
+      const failing: Gh = () => {
+        throw new Error(`gh: token ${SECRET} rejected`);
+      };
+      expect(await runCli(['read', '--pr=3300'], failing, { OPENAI_API_KEY: SECRET })).toBe(2);
+      const ledger = chain({}, { phase: 'implemented', nextAction: `paste ${SECRET}` });
+      const { gh } = fakeGh({ comments: ledger.map(trusted) });
+      expect(await runCli(['read', '--pr=3300'], gh, { OPENAI_API_KEY: SECRET })).toBe(0);
+    } finally {
+      log.mockRestore();
+      err.mockRestore();
+    }
+    expect(lines.join('\n')).not.toContain(SECRET);
+    expect(lines.join('\n')).toMatch(/handoff: failed/);
   });
 });

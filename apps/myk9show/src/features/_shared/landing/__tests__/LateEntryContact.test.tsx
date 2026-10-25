@@ -68,4 +68,23 @@ describe('LateEntryContact (MYK9-1288)', () => {
     expect(screen.queryByText(/has not listed/)).not.toBeInTheDocument();
     expect(screen.getByText(/Contact the trial secretary/)).toBeInTheDocument();
   });
+
+  it('keeps the whole sentence, lead included, in one wrapper element around the link', () => {
+    render(
+      <LateEntryContactContext.Provider value={{ name: 'Pat Secretary', email: 'pat@example.com' }}>
+        <p style={{ display: 'inline-flex' }}>
+          <LateEntryContact lead="Entries are closed for this show. " />
+        </p>
+      </LateEntryContactContext.Provider>
+    );
+
+    const wrapper = screen.getByRole('link', { name: 'Pat Secretary' }).parentElement!;
+    expect(wrapper.tagName).toBe('SPAN');
+    expect(wrapper.textContent).toBe(
+      'Entries are closed for this show. Contact Pat Secretary for late-entry help.'
+    );
+    // The paragraph's only child is that wrapper, so a flex parent sees one item.
+    expect(wrapper.parentElement!.children).toHaveLength(1);
+    expect(wrapper.parentElement!.childNodes).toHaveLength(1);
+  });
 });

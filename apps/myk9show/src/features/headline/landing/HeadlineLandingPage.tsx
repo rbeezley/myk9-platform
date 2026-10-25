@@ -172,7 +172,7 @@ function Hero({
             <span className="hd-cta hd-cta-disabled">
               {entryClosed ? (
                 <>
-                  Entries are closed for this show. <LateEntryContact />
+                  <LateEntryContact lead="Entries are closed for this show. " />
                 </>
               ) : (
                 pendingEntryCopy(

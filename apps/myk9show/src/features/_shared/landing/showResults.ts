@@ -1,4 +1,5 @@
 import type { ClassInfo } from '@/components/shows/tabs/ClassesTab';
+import { buildFullClassLabel } from '@/features/_shared/classLabel';
 import { classTrialLabel } from '@/components/shows/tabs/classInfo';
 import { showDateRangeStatus } from '@/utils/date-format';
 import type { Show } from '@/types/show-types';
@@ -33,7 +34,9 @@ export function buildShowResults(
     .filter(cls => !!cls.resultsReleasedAt)
     .map(cls => ({
       id: cls.id,
-      name: cls.name,
+      // Composed from element + level + section: a stored/store-built name can omit the section,
+      // which made UKC A/B classes in one trial read identically.
+      name: buildFullClassLabel(cls, '', cls.name),
       trialLabel: classTrialLabel(cls),
       href: `/shows/${encodeURIComponent(show.id)}/trials/${encodeURIComponent(cls.trialId)}/classes/${encodeURIComponent(cls.id)}/results`,
     }));

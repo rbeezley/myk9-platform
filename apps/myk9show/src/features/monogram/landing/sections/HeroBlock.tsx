@@ -282,7 +282,7 @@ export function HeroBlock({
           >
             {entryClosed ? (
               <>
-                Entries are closed for this show. <LateEntryContact />
+                <LateEntryContact lead="Entries are closed for this show. " />
               </>
             ) : (
               pendingEntryCopy(

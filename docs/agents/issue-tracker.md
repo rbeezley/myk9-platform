@@ -105,7 +105,8 @@ Agent lifecycle:
    not establish a current environment blocker; an approved owner decision is no longer pending.
 2. Use incremental `addLabels` / `removeLabels` updates, preserving unrelated labels.
 3. Work that still needs implementation or defect fixes stays **In Progress** once started.
-   Implemented work awaiting acceptance evidence belongs **In Review**. A hold does not itself
+   Keep an unmerged implementation PR In Progress through its code-review gate. After merge,
+   implemented work awaiting acceptance evidence belongs **In Review**. A hold does not itself
    make unfinished code review-ready. Leave unstarted Backlog/Todo issues in their current state.
 4. Record the tested commit/build, target, role/device/workload, commands, results and evidence
    link appropriate to the criterion. Link a shared rehearsal result from each issue it proves;

@@ -97,8 +97,8 @@ already exists, and the implementer works only under `$WT`. Afterwards, confirm 
 review gate, with a maximum of 3 rounds.
 
 **Mid-work holds** (stop, leave the PR as a draft or open no PR, keep unfinished implementation
-**In Progress**, and comment with the reason, owner and exact next step; use **In Review** only
-when implementation is complete and acceptance evidence is owed):
+**In Progress**, and comment with the reason, owner and exact next step; an unmerged PR stays
+In Progress through code review. Use **In Review** after merge when acceptance evidence is owed):
 
 - the diff turns out to touch money, or needs an owner decision;
 - a second review finding on the same path, or a finding in code the previous fix introduced
@@ -137,9 +137,10 @@ PR and the squash-merge. Additions specific to the run:
   That log's first paragraph must open with the contract sentence `No actionable findings at
 <sha>: …`, and it must carry no `[P*]` bullets, so record round-1 findings in prose.
 - **Migration in the diff:** carry it through the PR and the review gate (`migration-auditor`
-  is one adversarial lens), then **do not merge**. Set In Review: "PR #X ready; needs
-  `supabase db push` after merge, then merge."
-- **Codex unavailable on an `independent` floor:** leave the PR open, set In Review: "PR #X
+  is one adversarial lens), then **do not merge** in this run. Keep In Progress and record:
+  "PR #X awaits the owner's merge/deploy sequence; `supabase db push` is required after merge."
+  Never push a migration from an unmerged branch to clear this hold.
+- **Codex unavailable on an `independent` floor:** leave the PR open, keep In Progress: "PR #X
   waits on the Codex gate." No same-harness substitute, no owner override from an agent.
 - **Watcher exit 3:** run it once more. If it times out again, arm `gh pr merge --squash
 --auto`, keep the worktree, leave the issue In Progress, and mark the ledger "merge pending".

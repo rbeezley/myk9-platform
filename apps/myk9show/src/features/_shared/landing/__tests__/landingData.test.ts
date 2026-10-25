@@ -83,6 +83,32 @@ describe('buildLandingData', () => {
     ]);
   });
 
+  it('carries the listed secretary and whether the show has happened (MYK9-1288)', () => {
+    const secretary = { name: 'Pat Secretary', email: 'pat@example.com' };
+    const past = buildLandingData(show, trials[1], trials, 12, [], 'ready', secretary);
+    expect(past).toMatchObject({
+      secretaryName: 'Pat Secretary',
+      secretaryEmail: 'pat@example.com',
+      showHasHappened: true,
+    });
+
+    const upcoming = buildLandingData(
+      { ...show, startDate: '2999-10-10', endDate: '2999-10-11' } as Show,
+      trials[1],
+      trials,
+      12
+    );
+    expect(upcoming.secretaryKnownNone).toBe(false);
+    expect(
+      buildLandingData(show, trials[1], trials, 12, [], 'ready', null).secretaryKnownNone
+    ).toBe(true);
+    expect(upcoming).toMatchObject({
+      secretaryName: null,
+      secretaryEmail: null,
+      showHasHappened: false,
+    });
+  });
+
   it('distinguishes a successful empty count from an unavailable count', () => {
     expect(buildLandingData(show, trials[1], trials, 0).entryCount).toBe(0);
     expect(buildLandingData(show, trials[1], trials, null).entryCount).toBeNull();

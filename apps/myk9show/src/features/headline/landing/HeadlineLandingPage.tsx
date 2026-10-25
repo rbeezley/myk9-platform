@@ -22,6 +22,7 @@ import {
   pendingNavLabel,
   useLandingMailInOnly,
 } from '@/features/_shared/landing/landingMailIn';
+import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface HeadlineLandingPageProps {
   show: Show | null | undefined;
@@ -169,12 +170,16 @@ function Hero({
               isn't available yet still belongs here. */}
           {!canEnterOnline && (
             <span className="hd-cta hd-cta-disabled">
-              {entryClosed
-                ? 'Entries are closed for this show. Contact the trial secretary for late-entry help.'
-                : pendingEntryCopy(
-                    mailInOnly,
-                    'Entries are not available yet because no classes are assigned yet.'
-                  )}
+              {entryClosed ? (
+                <>
+                  Entries are closed for this show. <LateEntryContact />
+                </>
+              ) : (
+                pendingEntryCopy(
+                  mailInOnly,
+                  'Entries are not available yet because no classes are assigned yet.'
+                )
+              )}
             </span>
           )}
           <a className="hd-cta ghost" href="#particulars">

@@ -3,7 +3,11 @@ import { BannerSectionHead } from '../../components/BannerSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
 import { bannerColors, bannerSpacing } from '../../tokens';
-import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
+import {
+  entryCapacityPercent,
+  FINAL_ROSTER_TITLE,
+  formatEntryCount,
+} from '@/features/_shared/landing/entryCount';
 
 interface RosterSectionProps {
   entryCount: number | null;
@@ -13,6 +17,8 @@ interface RosterSectionProps {
   /** Flag as text on paper — see `BannerBrandColors.flagText`. */
   flagText: string;
   flagBright: string;
+  /** The show has happened: the heading reads "Final roster" instead of a fill pace. */
+  pastShow?: boolean | undefined;
 }
 
 export function RosterSection({
@@ -21,6 +27,7 @@ export function RosterSection({
   flag,
   flagText,
   flagBright,
+  pastShow,
 }: RosterSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
   const pct = entryCapacityPercent(entryCount, entryLimit);
@@ -38,7 +45,13 @@ export function RosterSection({
     >
       <div style={{ maxWidth: bannerSpacing.contentMax, margin: '0 auto' }}>
         <BannerSectionHead number="04" label="Roster" flagText={flagText}>
-          Filling <span style={{ color: flagText }}>{pace}</span>
+          {pastShow ? (
+            FINAL_ROSTER_TITLE
+          ) : (
+            <>
+              Filling <span style={{ color: flagText }}>{pace}</span>
+            </>
+          )}
         </BannerSectionHead>
 
         <div ref={ref} className={`bn-reveal bn-capacity ${revealed ? 'in' : ''}`}>

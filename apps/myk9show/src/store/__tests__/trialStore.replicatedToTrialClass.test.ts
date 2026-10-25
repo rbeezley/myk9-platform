@@ -187,3 +187,17 @@ describe('replicatedToTrialClass — no fabricated entry count (MYK9-1311)', () 
     expect(mergeTrialClassData(makeReplicated({}), mapped)).not.toHaveProperty('entries');
   });
 });
+
+describe('replicatedToTrialClass — resultsReleasedAt carry (MYK9-1288)', () => {
+  it('carries the release timestamp so a warm-store landing can link results', () => {
+    const replicated = {
+      ...makeReplicated({}),
+      resultsReleasedAt: '2020-10-18T20:00:00Z',
+    } as ReplicatedClass;
+    expect(replicatedToTrialClass(replicated).resultsReleasedAt).toBe('2020-10-18T20:00:00Z');
+  });
+
+  it('reads an unreleased class as withheld (null)', () => {
+    expect(replicatedToTrialClass(makeReplicated({})).resultsReleasedAt).toBeNull();
+  });
+});

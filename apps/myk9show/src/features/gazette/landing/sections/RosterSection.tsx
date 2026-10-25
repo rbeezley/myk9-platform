@@ -2,7 +2,11 @@ import { useRevealOnScroll } from '@/features/heritage/hooks/useRevealOnScroll';
 import { GazetteSectionHead } from '../../components/GazetteSectionHead';
 import { formatJourneyDate } from '../utils/dateFormat';
 import type { GazetteJourneyStep } from '../types';
-import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
+import {
+  entryCapacityPercent,
+  FINAL_ROSTER_TITLE,
+  formatEntryCount,
+} from '@/features/_shared/landing/entryCount';
 
 interface RosterSectionProps {
   entryCount: number | null;
@@ -10,6 +14,8 @@ interface RosterSectionProps {
   journeySteps: GazetteJourneyStep[];
   timezone: string;
   volumeRoman: string;
+  /** The show has happened: the heading reads "Final roster" instead of "Roster filling". */
+  pastShow?: boolean | undefined;
 }
 
 /**
@@ -24,6 +30,7 @@ export function RosterSection({
   journeySteps,
   timezone,
   volumeRoman,
+  pastShow,
 }: RosterSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
   const pct = entryCapacityPercent(entryCount, entryLimit);
@@ -41,7 +48,9 @@ export function RosterSection({
         volume={volumeRoman}
         kicker="As reported"
         title={
-          entryLimit ? (
+          pastShow ? (
+            <>{FINAL_ROSTER_TITLE}</>
+          ) : entryLimit ? (
             <>
               Roster <em>filling</em>
             </>

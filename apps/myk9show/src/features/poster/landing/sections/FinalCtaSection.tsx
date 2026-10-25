@@ -10,6 +10,7 @@ import { posterColors, posterSpacing } from '../../tokens';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
 import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
+import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface FinalCtaSectionProps {
   classesHref: string | null;
@@ -158,12 +159,14 @@ export function FinalCtaSection({
               margin: 0,
             }}
           >
-            {entryClosed
-              ? 'Contact the trial secretary for late-entry help.'
-              : pendingEntryCopy(
-                  mailInOnly,
-                  'The secretary still needs to assign classes before online entry is available.'
-                )}
+            {entryClosed ? (
+              <LateEntryContact />
+            ) : (
+              pendingEntryCopy(
+                mailInOnly,
+                'The secretary still needs to assign classes before online entry is available.'
+              )
+            )}
           </p>
         )}
         <div style={{ marginTop: 14, position: 'relative', zIndex: 3 }}>

@@ -56,6 +56,8 @@ export interface TrialClass {
   /** Server-stamped timestamp set when a class is reopened after secretary closeout.
    *  Drives the show-map class-level attention signal (getClassAttention). */
   reopenedAfterCloseoutAt?: string | null;
+  /** `classes.results_released_at`: when the class's results were released publicly (null = withheld). */
+  resultsReleasedAt?: string | null | undefined;
   /** MYK9-1030: `classes.judge_signed_off_at` / `_by` — the judge's end-of-day sign-off. */
   judgeSignedOffAt?: string | null | undefined;
   judgeSignedOffBy?: string | null | undefined;

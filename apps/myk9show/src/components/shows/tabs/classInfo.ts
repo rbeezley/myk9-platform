@@ -22,6 +22,12 @@ export interface ClassInfo {
   trialDate?: string;
   trialNumber?: string;
   trialName?: string;
+  /**
+   * When the class's results were released to the public; `null` = withheld.
+   * Absent on any read that does not carry the release gate (the warm store), so
+   * absence means "unknown", never "withheld".
+   */
+  resultsReleasedAt?: string | null;
   /** Run-order position (`classes.class_order`); absent on the public read. */
   classOrder?: number;
 }

@@ -83,7 +83,7 @@ describe('Poster FinalCtaSection enter-CTA gating', () => {
       <FinalCtaSection {...finalCtaProps} canEnterOnline={false} entryClosed />
     );
     expect(container.querySelector(`a[href="${ENTRY_URL}"]`)).toBeNull();
-    expect(getByText(/Contact the trial secretary/i)).toBeTruthy();
+    expect(getByText(/Contact the trial secretary for late-entry help/i)).toBeTruthy();
     expect(queryByText(/classes are assigned/i)).toBeNull();
   });
 });

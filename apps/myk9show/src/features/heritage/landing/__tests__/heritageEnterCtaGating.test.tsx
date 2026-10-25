@@ -111,7 +111,9 @@ describe('Heritage entry CTAs', () => {
       );
 
       expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
-      expect(screen.getByText(/late-entry help/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Contact the trial secretary for late-entry help/i)
+      ).toBeInTheDocument();
       expect(screen.queryByText(/no classes are assigned yet/i)).not.toBeInTheDocument();
     });
   });
@@ -140,7 +142,9 @@ describe('Heritage entry CTAs', () => {
       render(<FinalCtaBand canEnterOnline={false} entryClosed />);
 
       expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
-      expect(screen.getByText(/Contact the trial secretary/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Contact the trial secretary for late-entry help/i)
+      ).toBeInTheDocument();
       expect(
         screen.queryByText(/secretary still needs to assign classes/i)
       ).not.toBeInTheDocument();

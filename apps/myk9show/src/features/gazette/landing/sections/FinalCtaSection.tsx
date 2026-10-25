@@ -2,6 +2,7 @@ import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
 import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
+import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface FinalCtaSectionProps {
   classesHref: string | null;
@@ -107,14 +108,16 @@ export function FinalCtaSection({
             color: 'rgba(247,241,227,0.75)',
           }}
         >
-          {canEnterOnline
-            ? 'First-received basis until the limit is hit.'
-            : entryClosed
-              ? 'Contact the trial secretary for late-entry help.'
-              : pendingEntryCopy(
-                  mailInOnly,
-                  'The secretary still needs to assign classes before online entry is available.'
-                )}
+          {canEnterOnline ? (
+            'First-received basis until the limit is hit.'
+          ) : entryClosed ? (
+            <LateEntryContact />
+          ) : (
+            pendingEntryCopy(
+              mailInOnly,
+              'The secretary still needs to assign classes before online entry is available.'
+            )
+          )}
         </p>
         {/* MYK9-633: the button here duplicated the header nav's "Enter"
             CTA — the header CTA is the page's one entry action at 640px+;

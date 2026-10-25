@@ -107,13 +107,17 @@ describe('Monogram entry CTAs', () => {
 
     it('explains that entries are closed when the close date has passed', () => {
       render(<HeroBlock {...heroProps} entryCloseDate="2020-01-01" />);
-      expect(screen.getByText(/late-entry help/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Contact the trial secretary for late-entry help/i)
+      ).toBeInTheDocument();
     });
 
     it('shows neither explanation while entries are open', () => {
       render(<HeroBlock {...heroProps} entryCloseDate="2099-01-01" />);
       expect(screen.queryByText(/no classes are assigned yet/i)).not.toBeInTheDocument();
-      expect(screen.queryByText(/late-entry help/i)).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/Contact the trial secretary for late-entry help/i)
+      ).not.toBeInTheDocument();
     });
   });
 

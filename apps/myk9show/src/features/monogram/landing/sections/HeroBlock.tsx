@@ -11,6 +11,7 @@ import {
 import { monogramColors, monogramSpacing } from '../../tokens';
 import { formatDateInTimezone, formatDateRange } from '../utils/dateFormat';
 import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
+import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface HeroBlockProps {
   monogramLetters: string;
@@ -279,12 +280,16 @@ export function HeroBlock({
               margin: '0 0 20px',
             }}
           >
-            {entryClosed
-              ? 'Entries are closed for this show. Contact the trial secretary for late-entry help.'
-              : pendingEntryCopy(
-                  mailInOnly,
-                  'Entries are not available yet because no classes are assigned yet.'
-                )}
+            {entryClosed ? (
+              <>
+                Entries are closed for this show. <LateEntryContact />
+              </>
+            ) : (
+              pendingEntryCopy(
+                mailInOnly,
+                'Entries are not available yet because no classes are assigned yet.'
+              )
+            )}
           </p>
         )}
 

@@ -75,6 +75,7 @@ export function buildPublicShowClasses(
         status: normalizeClassStatus(str(row.status)),
         entryCount: expectedByClass == null ? null : (expectedByClass.get(id) ?? 0),
         scoredCount: 0,
+        resultsReleasedAt: str(row.results_released_at) || null,
         userHasEntry: false,
         trialDate: trial.trialDate || '',
         trialNumber: trial.trialNumber || '',

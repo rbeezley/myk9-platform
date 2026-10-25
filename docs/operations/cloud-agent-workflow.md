@@ -26,11 +26,11 @@ Open PRs as **drafts** while iterating and mark them ready for review when they 
 
 Point the provider's setup step at the one script. Tools land in `MYK9_TOOLS_DIR`, default `<repo>/.cloud-tools/bin` (gitignored); use a directory already on `PATH` so later shells find them.
 
-| Provider          | Setup command                                                                | Status                                                                                          |
-| ----------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Claude Code cloud | `MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh`                  | Verified 2026-10-24 (default tools dir), versions below                                         |
-| Codex cloud       | `MYK9_CLOUD=1 MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh`     | **Not yet verified**: Codex has no documented environment marker, so `MYK9_CLOUD=1` declares it |
-| GitHub Actions    | `bash scripts/cloud/setup.sh --role=<role>` (`GITHUB_ACTIONS` is the marker) | Used from Stage 2                                                                               |
+| Provider          | Setup command                                                                | Status                                                                                                                                                                                                                                              |
+| ----------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Claude Code cloud | `MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh`                  | Verified 2026-10-24 when run inside a session (default tools dir), versions below; the Stage 1 proof reruns it on `main`                                                                                                                            |
+| Codex cloud       | `MYK9_CLOUD=1 MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh`     | **Not yet verified**. Codex writes each environment's **Install script** itself, so tell it to use this command verbatim; Codex documents no environment marker, so `MYK9_CLOUD=1` declares it. See [Run the Stage 1 proof](#run-the-stage-1-proof) |
+| GitHub Actions    | `bash scripts/cloud/setup.sh --role=<role>` (`GITHUB_ACTIONS` is the marker) | Used from Stage 2                                                                                                                                                                                                                                   |
 
 The script:
 
@@ -44,6 +44,50 @@ It copies no `.env`, credentials, browser profile or Keychain state. Secrets com
 `pnpm typecheck` needs a larger Node heap than the default, as in CI (`ci.yml` sets `NODE_OPTIONS=--max-old-space-size=4096`). Set `NODE_OPTIONS` in the provider's environment variables. On 2026-10-24 in a Claude Code cloud session, the app typecheck aborted with a heap OOM at the default and passed with `--max-old-space-size=6144`; `pnpm lint` and a shuffled app test file passed without it.
 
 To change a pin, update `install`, `minimum`, `url` and `sha256` together, from the project's published checksums where it has them (gh and Deno do; ShellCheck does not, so hash the downloaded archive), and rerun setup in a cloud session.
+
+## Run the Stage 1 proof
+
+MYK9-1397 stays open until a fresh session in each cloud runs setup and the narrow checks on `main` and records the result. Provider settings below were checked against each provider's documentation on 2026-10-25; recheck them if a label no longer matches.
+
+### Claude Code cloud environment
+
+At [claude.ai/code](https://claude.ai/code), open the environment selector (the first control under the message box) and edit **Default** or choose **New environment**:
+
+- **Network access**: **Trusted**. Its allowlist already includes `github.com`, `objects.githubusercontent.com` and `release-assets.githubusercontent.com`, which setup downloads gh, Deno and ShellCheck from.
+- **Environment variables**: `NODE_OPTIONS=--max-old-space-size=6144`.
+- **Setup script**: leave empty for the proof. The box runs before the environment's variables are set, and it is cached only when it finishes in about five minutes, which a full install and package build may not. Run setup inside the session instead (the route verified on 2026-10-24), and move it into the box only after it has worked there.
+- **GitHub**: the Claude GitHub App on the repository, or `/web-setup`. Through the session's GitHub proxy `gh api` works, but `gh pr` and `gh issue` (GraphQL) are rejected; the handoff CLI uses only `gh api`.
+
+### Codex cloud environment
+
+Choose **Work in > Cloud > Select environment > Create environment**, or **Settings > Codex Cloud > Environments > Create environment**:
+
+- **Repositories**: `rbeezley/myk9-platform`.
+- **Install script**: Codex writes this while it prepares the environment. Tell it to use exactly `MYK9_CLOUD=1 MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh` and nothing else.
+- **Environment variable**: `NODE_OPTIONS=--max-old-space-size=6144`.
+- **Network**: turn on **Allow Codex to access internet**, choose **Package managers**, and add `github.com`, `api.github.com`, `objects.githubusercontent.com` and `release-assets.githubusercontent.com` under **Additional allowed domains**.
+- **Network secret** (for the Linear read): `LINEAR_API_KEY` for `api.linear.app`, so the task sees only a placeholder.
+- **Publish**, then start a new task; existing tasks keep their old state.
+
+Codex's documentation does not state the VM's architecture, its Node and pnpm versions, or the install script's working directory. Setup refuses anything but Linux x86_64 and requires Node ≥ 22.12.0 and pnpm ≥ 9.15.9 already in the image, so the proof is what answers those. A refusal is a recorded blocker, not a reason to edit the pins.
+
+### Session prompt
+
+Paste into a fresh session in each environment, using the `codex/` prefix for the Codex run:
+
+```text
+Stage 1 cloud proof for MYK9-1397. Report any missing tool or permission as a BLOCKER, never as a pass.
+1. Branch claude/myk9-1397-cloud-proof from main.
+2. Run: MYK9_CLOUD=1 MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh  (record its output)
+3. Run: pnpm cloud:preflight --role=implementer --json
+4. Run: pnpm typecheck; pnpm lint; cd apps/myk9show && pnpm vitest run scripts/verify-artifact-secrets.test.ts --sequence.shuffle
+5. Run: deno check --node-modules-dir=none --no-lock supabase/functions/push-trigger-class-status/index.ts supabase/functions/push-trigger-run-proximity/index.ts
+   (class-status has known pre-existing errors tracked in MYK9-1400; record the output, don't fix it)
+6. Read MYK9-1397 in full from Linear, to prove full-issue access.
+7. Record tool versions, uname -m, and each result in docs/operations/cloud-agent-workflow.md (the provider table and "Known gaps"), open a DRAFT PR, and stop.
+```
+
+Stage 1 closes when both runs have passed or named a specific blocker, their runbook PRs have merged, and MYK9-1397 has been re-read in full against its acceptance criteria.
 
 ## Preflight
 

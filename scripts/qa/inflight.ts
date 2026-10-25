@@ -356,10 +356,28 @@ interface GhPrFile {
   previous_filename?: string;
 }
 
-/** owner/repo for the REST calls below. */
+interface RestMergedPr {
+  merged_at: string | null;
+  merge_commit_sha: string | null;
+  head: { sha: string };
+}
+
+/**
+ * Every `gh` call here is REST (`gh api`): `gh repo view` and `gh pr list` are
+ * GraphQL, which Claude Code cloud sessions reject with a 403 (MYK9-1415).
+ */
+let slugCache: string | undefined;
+
+/** owner/repo for the REST calls below; gh fills `{owner}/{repo}` from the checkout's remote. */
 export function repoSlug(): string {
-  return ghJson<{ nameWithOwner: string }>(['repo', 'view', '--json', 'nameWithOwner'], 'repo')
-    .nameWithOwner;
+  slugCache ??= ghJson<{ full_name: string }>(['api', 'repos/{owner}/{repo}'], 'repo').full_name;
+  return slugCache;
+}
+
+/** `gh api --paginate --slurp` yields one array per page; flatten them. */
+function ghPages<T>(path: string, what: string): T[] {
+  const pages = ghJson<unknown[]>(['api', '--paginate', '--slurp', path], what);
+  return pages.flatMap(page => (Array.isArray(page) ? (page as T[]) : [page as T]));
 }
 
 /**
@@ -368,12 +386,9 @@ export function repoSlug(): string {
  * the REST endpoint is paged instead (Codex, #2073 round 4).
  */
 export function pullRequestFiles(slug: string, number: number): string[] {
-  const pages = ghJson<GhPrFile[][] | GhPrFile[]>(
-    ['api', '--paginate', '--slurp', `repos/${slug}/pulls/${number}/files?per_page=100`],
+  const flat = ghPages<GhPrFile>(
+    `repos/${slug}/pulls/${number}/files?per_page=100`,
     `files of PR #${number}`
-  );
-  const flat = (pages as unknown[]).flatMap(page =>
-    Array.isArray(page) ? (page as GhPrFile[]) : [page as GhPrFile]
   );
   return flat.flatMap(f =>
     f.previous_filename ? [f.filename, f.previous_filename] : [f.filename]
@@ -403,13 +418,7 @@ function ghJson<T>(args: string[], what: string): T {
  */
 export function openPullRequests(): ChangeSource[] {
   const slug = repoSlug();
-  const pages = ghJson<RestPr[][] | RestPr[]>(
-    ['api', '--paginate', '--slurp', `repos/${slug}/pulls?state=open&per_page=100`],
-    'open PRs'
-  );
-  const prs = (pages as unknown[]).flatMap(page =>
-    Array.isArray(page) ? (page as RestPr[]) : [page as RestPr]
-  );
+  const prs = ghPages<RestPr>(`repos/${slug}/pulls?state=open&per_page=100`, 'open PRs');
   return prs.map(pr => ({
     kind: 'pr',
     id: `#${pr.number}`,
@@ -441,31 +450,23 @@ export class MergedHeads {
   }
   get(branch: string): string | undefined {
     if (!this.cache.has(branch)) {
-      const prs = ghJson<{ headRefOid: string; mergeCommit?: { oid: string } | null }[]>(
-        [
-          'pr',
-          'list',
-          '--state',
-          'merged',
-          '--head',
-          branch,
-          '--limit',
-          '1',
-          '--json',
-          'headRefOid,mergeCommit',
-        ],
+      // A closed PR may be unmerged; REST lists newest first, so the first one
+      // with merged_at is the most recent MERGED PR, as `--state merged --limit 1` was.
+      const slug = repoSlug();
+      const owner = slug.split('/')[0];
+      const pr = ghPages<RestMergedPr>(
+        `repos/${slug}/pulls?state=closed&head=${owner}:${encodeURIComponent(branch)}&per_page=100`,
         `merged PRs for ${branch}`
-      );
-      const pr = prs[0];
+      ).find(candidate => candidate.merged_at);
       // Merged INTO SOMETHING ELSE is not shipped here. A PR squashed onto an
       // integration branch, or merged after this checkout last fetched, leaves
       // its work outside the selected base, so excluding its head would hide a
       // real collision (Codex, #2073 round 11). Require the merge commit to be
       // in the base; an absent or unreachable one reads as still in flight,
       // which over-reports rather than passing work over in silence.
-      const mergeCommit = pr?.mergeCommit?.oid;
+      const mergeCommit = pr?.merge_commit_sha;
       const shipped = Boolean(mergeCommit && isAncestor(mergeCommit, this.base, this.cwd));
-      this.cache.set(branch, shipped ? pr?.headRefOid : undefined);
+      this.cache.set(branch, shipped ? pr?.head.sha : undefined);
     }
     return this.cache.get(branch);
   }

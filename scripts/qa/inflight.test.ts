@@ -4,6 +4,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readdirSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -195,8 +196,11 @@ describe('inflight CLI', () => {
    * files through /pulls/N/files); `merged` maps branch -> merged head sha (and
    * optionally the sha the PR merged AS — it defaults to the fixture's
    * origin/main tip, i.e. a PR that landed in the base),
-   * answered per branch via `pr list --state merged --head X`; `fail` makes
-   * every call exit 1.
+   * answered per branch via REST `pulls?state=closed&head=o:X`, behind a newer
+   * closed-but-unmerged PR so the merged_at filter is exercised; `fail` makes
+   * every call exit 1. GraphQL routes (`gh pr`, `gh repo`, `gh issue`,
+   * `gh api graphql`) 403 as in a Claude Code cloud session (MYK9-1415), and
+   * every invocation is appended to `calls.log`.
    */
   function stubGh(
     bin: string,
@@ -213,7 +217,7 @@ describe('inflight CLI', () => {
   ) {
     // A test may call stubGh twice; stale answer files from the first call must not survive.
     for (const f of readdirSync(bin))
-      if (/^(merged-|files-|open\.json)/.test(f)) rmSync(join(bin, f));
+      if (/^(merged-|files-|open\.json|calls\.log)/.test(f)) rmSync(join(bin, f));
     const rest = prs.map(pr => ({
       number: pr.number,
       head: { ref: pr.headRefName, repo: { full_name: pr.fork ? 'someone/fork' : 'o/r' } },
@@ -227,7 +231,16 @@ describe('inflight CLI', () => {
     for (const [branch, sha, mergeCommit] of merged)
       writeFileSync(
         join(bin, `merged-${branch}.json`),
-        JSON.stringify([{ headRefOid: sha, mergeCommit: { oid: mergeCommit ?? baseTip } }])
+        JSON.stringify([
+          [
+            { merged_at: null, merge_commit_sha: null, head: { sha: '0'.repeat(40) } },
+            {
+              merged_at: '2026-10-25T00:00:00Z',
+              merge_commit_sha: mergeCommit ?? baseTip,
+              head: { sha },
+            },
+          ],
+        ])
       );
     for (const pr of prs) {
       const files = pr.files.map(f => ({ filename: f.path, previous_filename: f.previous }));
@@ -243,9 +256,15 @@ describe('inflight CLI', () => {
       ? ['#!/usr/bin/env bash', 'echo "gh: not logged in" >&2', 'exit 1', ''].join(NL)
       : [
           '#!/usr/bin/env bash',
+          `printf '%s\\n' "$*" >> "${join(bin, 'calls.log')}"`,
+          'case "$1" in',
+          '  api) ;;',
+          '  *) echo "HTTP 403: GitHub GraphQL is not available" >&2; exit 1;;',
+          'esac',
           'case "$*" in',
-          `  *"repo view"*) echo '{"nameWithOwner":"o/r"}';;`,
-          `  *"--state merged"*) b=$(printf '%s' "$*" | sed -E 's#.*--head ([^ ]+).*#\\1#'); f="${bin}/merged-$b.json"; if [ -f "$f" ]; then cat "$f"; else echo '[]'; fi;;`,
+          '  *graphql*) echo "HTTP 403: GitHub GraphQL is not available" >&2; exit 1;;',
+          `  *"repos/{owner}/{repo}") echo '{"full_name":"o/r"}';;`,
+          `  *"/pulls?state=closed&head=o:"*) b=$(printf '%s' "$*" | sed -E 's#.*head=o:([^&]+).*#\\1#'); f="${bin}/merged-$b.json"; if [ -f "$f" ]; then cat "$f"; else echo '[[]]'; fi;;`,
           `  *"/pulls/"*"/files"*) n=$(printf '%s' "$*" | sed -E 's#.*/pulls/([0-9]+)/files.*#\\1#'); cat "${bin}/files-$n.json";;`,
           `  *"/pulls?state=open"*) cat "${join(bin, 'open.json')}";;`,
           `  *) echo "stub gh: unexpected args: $*" >&2; exit 1;;`,
@@ -349,6 +368,30 @@ describe('inflight CLI', () => {
     const r = runCli(main, bin);
     expect(r.code).toBe(1);
     expect(r.out).toContain('branch finished');
+  });
+
+  // MYK9-1415: the stub 403s every GraphQL route, as a Claude Code cloud session
+  // does, so reaching each verdict proves the CLI took none. The log proves the
+  // repo, open-PR, PR-file and merged-PR reads all went through `gh api`.
+  it('reaches its verdicts through REST alone, with no GraphQL call', () => {
+    const { main, bin } = repo();
+    git(main, 'checkout', '-q', '-b', 'finished');
+    writeFileSync(join(main, 'src', 'b.ts'), 'finished elsewhere');
+    git(main, 'add', 'src/b.ts');
+    git(main, 'commit', '-q', '-m', 'finished');
+    const finishedTip = git(main, 'rev-parse', 'finished').trim();
+    git(main, 'checkout', '-q', 'mine');
+    const overlapping = [{ number: 5, headRefName: 'x', files: [{ path: 'src/b.ts' }] }];
+    const verdicts: number[] = [];
+    for (const prs of [[], overlapping]) {
+      stubGh(bin, prs, [['finished', finishedTip]]);
+      verdicts.push(runCli(main, bin, 'src/b.ts').code);
+      const calls = readFileSync(join(bin, 'calls.log'), 'utf8').trim().split('\n');
+      expect(calls.every(call => call.startsWith('api ') && !call.includes('graphql'))).toBe(true);
+      expect(calls).toContain('api repos/{owner}/{repo}');
+      expect(calls.some(call => call.includes('/pulls?state=closed&head=o:finished'))).toBe(true);
+    }
+    expect(verdicts).toEqual([0, 1]);
   });
 
   it('still reports a branch whose PR merged somewhere OTHER than the base', () => {

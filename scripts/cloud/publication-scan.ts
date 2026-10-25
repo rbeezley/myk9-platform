@@ -8,7 +8,9 @@
  * may fall back to uploading unscanned evidence. Diagnostics name locations
  * and counts only, never a value.
  */
-import { stat } from 'node:fs/promises';
+import { readdir as fsReaddir, stat } from 'node:fs/promises';
+import type { Dirent } from 'node:fs';
+import { join } from 'node:path';
 import { findArtifactSecrets } from '../../apps/myk9show/src/utils/findArtifactSecrets.ts';
 import {
   collectSecrets,
@@ -18,21 +20,37 @@ import {
 
 export type PublicationScan = { ok: true } | { ok: false; reason: string; locations: string[] };
 
+type Readdir = (path: string) => Promise<Dirent[]>;
+
+const defaultReaddir: Readdir = path => fsReaddir(path, { withFileTypes: true });
+
+/**
+ * The shared scanner treats a directory it cannot list as "not produced" and
+ * skips it, which is right for E2E reports. Here skipped content is
+ * unscanned content, so list every directory first and let any failure throw.
+ */
+async function assertFullyListable(dir: string, readdir: Readdir): Promise<void> {
+  for (const entry of await readdir(dir)) {
+    if (entry.isDirectory()) await assertFullyListable(join(dir, entry.name), readdir);
+  }
+}
+
 export async function scanForPublication(options: {
   dirs: readonly string[];
   texts: readonly string[];
   env: Record<string, string | undefined>;
+  /** Test seam for directory listing; defaults to node:fs. */
+  readdir?: Readdir;
 }): Promise<PublicationScan> {
   const secrets = collectSecrets(options.env);
   try {
-    // The shared scanner reads an absent directory as "not produced" and skips
-    // it, which is right for E2E reports; here a staging directory that is not
-    // there means the scan did not happen.
     for (const dir of options.dirs) {
       if (!(await stat(dir)).isDirectory()) throw new Error(`${dir} is not a directory`);
+      await assertFullyListable(dir, options.readdir ?? defaultReaddir);
     }
-    const locations = (await findArtifactSecrets(options.dirs, secrets)).map(
-      finding => finding.location
+    // A file can be named after the secret it holds, so locations are scrubbed too.
+    const locations = (await findArtifactSecrets(options.dirs, secrets)).map(finding =>
+      scrubSecrets(finding.location, secrets)
     );
     options.texts.forEach((text, index) => {
       if (secrets.some(secret => secretForms(secret).some(form => text.includes(form)))) {

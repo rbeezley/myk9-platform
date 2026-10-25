@@ -6,12 +6,18 @@ import { formatEventComment, type HandoffEvent } from './handoff.ts';
 import { chain, event, HEAD } from './handoff-fixtures.ts';
 
 type Comment = { body: string; author_association: string };
+type RawArtifact = {
+  name: string;
+  expired: boolean;
+  digest?: string | null;
+  workflow_run?: { id: number; head_sha: string };
+};
 
 /** A fake gh over one PR; records every write so the tests can assert there were none. */
 function fakeGh(options: {
   comments?: Comment[];
   pull?: { state: string; merged_at: string | null; head: { sha: string } };
-  artifacts?: Record<string, { name: string; expired: boolean }[]>;
+  artifacts?: Record<string, RawArtifact[]>;
   runs?: Record<string, string>;
 }) {
   const writes: { args: string[]; input?: string }[] = [];
@@ -80,10 +86,78 @@ describe('readHandoff', () => {
     const live = fakeGh({ comments: running.map(trusted), runs: { '88': 'in_progress' } });
     expect(readHandoff(live.gh, 3300).decision).toBe('wait');
   });
+
+  describe('artifact identity', () => {
+    const pointer = {
+      kind: 'artifact' as const,
+      runId: '77',
+      attempt: 1,
+      name: 'review',
+      digest: 'sha256:expected',
+    };
+    const events = chain({}, { phase: 'reviewed', result: 'clean', evidence: [pointer] });
+    const exact: RawArtifact = {
+      name: 'review',
+      expired: false,
+      digest: 'sha256:expected',
+      workflow_run: { id: 77, head_sha: HEAD },
+    };
+
+    it('counts the exact artifact as clean evidence', () => {
+      const { gh } = fakeGh({ comments: events.map(trusted), artifacts: { '77': [exact] } });
+      expect(readHandoff(gh, 3300)).toMatchObject({ cleanEvidence: true });
+    });
+
+    it.each([
+      ['a different digest under the same name', { digest: 'sha256:replacement' }],
+      ['no digest (unverifiable)', { digest: null }],
+      ['another run', { workflow_run: { id: 78, head_sha: HEAD } }],
+      ['another commit', { workflow_run: { id: 77, head_sha: 'f'.repeat(40) } }],
+    ])('treats %s as unavailable', (_label, change) => {
+      const { gh } = fakeGh({
+        comments: events.map(trusted),
+        artifacts: { '77': [{ ...exact, ...change }] },
+      });
+      expect(readHandoff(gh, 3300)).toMatchObject({
+        cleanEvidence: false,
+        nextAction: expect.stringMatching(/replacement review attempt/),
+      });
+    });
+  });
+
+  it('needs a human when a trusted ledger record is invalid, hiding the older clean event', () => {
+    const events = chain({}, { phase: 'reviewed', result: 'clean' });
+    const forged = { ...event({ parentEventId: events[1]!.eventId, phase: 'needs-human' }) };
+    forged.eventId = 'evt_not_the_content_hash';
+    const { gh } = fakeGh({ comments: [...events.map(trusted), trusted(forged)] });
+    expect(readHandoff(gh, 3300)).toMatchObject({
+      decision: 'needs-human',
+      cleanEvidence: false,
+      invalid: 1,
+    });
+  });
+
+  it('treats an event recorded for another PR as an invalid record of this one', () => {
+    const { gh } = fakeGh({ comments: chain({ pr: 9999 }).map(trusted) });
+    expect(readHandoff(gh, 3300)).toMatchObject({ decision: 'needs-human', invalid: 1 });
+  });
 });
 
 describe('appendHandoff', () => {
   const ENV = { GH_TOKEN: 'ghp_synthetic_token_0001' };
+
+  it('refuses to append to a ledger holding an invalid trusted record', async () => {
+    const events = chain({});
+    const forged = { ...event({ parentEventId: events[0]!.eventId }), eventId: 'evt_forged' };
+    const { gh, writes } = fakeGh({ comments: [...events.map(trusted), trusted(forged)] });
+    const next = event({ parentEventId: events[0]!.eventId, phase: 'implemented' });
+    const result = await appendHandoff(gh, 3300, next, ENV);
+    expect(result).toMatchObject({
+      posted: false,
+      message: expect.stringMatching(/^invalid ledger/),
+    });
+    expect(writes).toEqual([]);
+  });
 
   it('posts a child of the latest event with the Claude footer', async () => {
     const events = chain({});
@@ -101,6 +175,8 @@ describe('appendHandoff', () => {
     const cases: [HandoffEvent, RegExp][] = [
       [event({ parentEventId: events[0]!.eventId, phase: 'reviewing' }), /^stale/],
       [events[1]!, /^duplicate/],
+      [event({ parentEventId: events[1]!.eventId, pr: 9999 }), /^wrong PR/],
+      [event({ parentEventId: events[1]!.eventId, pr: null }), /^wrong PR/],
       [{ ...event({ parentEventId: events[1]!.eventId }), result: 'clean' }, /^invalid event/],
       [
         event({ parentEventId: events[1]!.eventId, nextAction: `use ${ENV.GH_TOKEN}` }),

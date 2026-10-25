@@ -21,6 +21,11 @@ beforeAll(() => {
   );
   file('supabase/functions/gamma/index.ts', "const m = await import('./lazy.ts');\n");
   file('supabase/functions/gamma/lazy.ts', "import { q } from '../../../packages/core/src/q';\n");
+  // delta still imports two modules this branch deleted: one with an extension, one without.
+  file(
+    'supabase/functions/delta/index.ts',
+    "import { d } from './deleted.ts';\nimport { e } from '../_shared/removed';\n"
+  );
   file('supabase/functions/_shared/x.ts');
   file('supabase/functions/_shared/y.ts', "import { z } from './nested/z.ts';\n");
   file('supabase/functions/_shared/nested/z.ts');
@@ -49,11 +54,18 @@ describe('affectedEntrypoints', () => {
 
   it('checks every function when Deno configuration changes', () => {
     expect(affectedEntrypoints(root, ['supabase/functions/deno.json'])).toEqual(
-      ['alpha', 'beta', 'gamma'].map(ENTRY)
+      ['alpha', 'beta', 'delta', 'gamma'].map(ENTRY)
     );
   });
 
-  it('ignores deleted files and test files', () => {
+  it.each([['supabase/functions/delta/deleted.ts'], ['supabase/functions/_shared/removed.ts']])(
+    'selects the consumer of a deleted import %s',
+    deleted => {
+      expect(affectedEntrypoints(root, [deleted])).toEqual([ENTRY('delta')]);
+    }
+  );
+
+  it('ignores deleted files no entrypoint imports, and test files', () => {
     expect(
       affectedEntrypoints(root, [
         'supabase/functions/_shared/gone.ts',

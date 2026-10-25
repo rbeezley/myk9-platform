@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -71,4 +71,47 @@ describe('scanForPublication', () => {
       expect(serialized).not.toContain(JSON.stringify(SECRET).slice(1, -1));
     }
   });
+
+  it('scrubs a secret out of a finding location (a file named after the key)', async () => {
+    writeFileSync(join(staging, 'nested', `${SECRET}.log`), SECRET);
+    const result = await scanForPublication({ dirs: [staging], texts: [], env: ENV });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.locations).toHaveLength(1);
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain(SECRET);
+    expect(serialized).not.toContain(JSON.stringify(SECRET).slice(1, -1));
+  });
+
+  it('blocks when a nested directory cannot be listed, instead of skipping it', async () => {
+    const result = await scanForPublication({
+      dirs: [staging],
+      texts: [],
+      env: ENV,
+      readdir: async path => {
+        if (path === join(staging, 'nested')) {
+          throw Object.assign(new Error(`EACCES: permission denied, scandir '${path}'`), {
+            code: 'EACCES',
+          });
+        }
+        return (await import('node:fs/promises')).readdir(path, { withFileTypes: true });
+      },
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/scanner error.*EACCES/);
+  });
+
+  // Root ignores mode 000, so this real-permission case only runs as a normal user (the Mac).
+  it.skipIf(process.getuid?.() === 0)(
+    'blocks a secret-bearing nested directory with mode 000',
+    async () => {
+      writeFileSync(join(staging, 'nested', 'hidden.log'), SECRET);
+      chmodSync(join(staging, 'nested'), 0o000);
+      try {
+        const result = await scanForPublication({ dirs: [staging], texts: [], env: ENV });
+        expect(result.ok).toBe(false);
+      } finally {
+        chmodSync(join(staging, 'nested'), 0o755);
+      }
+    }
+  );
 });

@@ -20,12 +20,9 @@ const FUNCTIONS_DIR = 'supabase/functions';
 const RELATIVE_IMPORT = /(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g;
 const CONFIG_FILE = /^supabase\/functions\/(deno\.jsonc?|import_map\.json)$/;
 
-function resolveImport(fromFile: string, specifier: string): string | null {
+function importCandidates(fromFile: string, specifier: string): string[] {
   const base = normalize(join(dirname(fromFile), specifier));
-  for (const candidate of [base, `${base}.ts`, `${base}.tsx`, join(base, 'index.ts')]) {
-    if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
-  }
-  return null;
+  return [base, `${base}.ts`, `${base}.tsx`, join(base, 'index.ts')];
 }
 
 function importClosure(entry: string): Set<string> {
@@ -35,8 +32,14 @@ function importClosure(entry: string): Set<string> {
     if (seen.has(file)) continue;
     seen.add(file);
     for (const match of readFileSync(file, 'utf8').matchAll(RELATIVE_IMPORT)) {
-      const resolved = match[1] === undefined ? null : resolveImport(file, match[1]);
+      if (match[1] === undefined) continue;
+      const candidates = importCandidates(file, match[1]);
+      const resolved = candidates.find(c => existsSync(c) && statSync(c).isFile());
       if (resolved) pending.push(resolved);
+      // An import whose target is gone (the branch deleted it) stays in the
+      // closure under every spelling it could resolve to, so deleting it still
+      // selects the entrypoint that is now broken.
+      else for (const candidate of candidates) seen.add(candidate);
     }
   }
   return seen;

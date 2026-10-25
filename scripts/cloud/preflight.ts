@@ -80,10 +80,14 @@ export function isCloudEnvironment(env: Record<string, string | undefined>): boo
 function toolCheck(tool: string, deps: PreflightDeps): PreflightCheck {
   const result = deps.run(tool, ['--version']);
   if (result.status === null) return { name: tool, ok: false, detail: 'not installed' };
+  // A tool that prints a version and then fails to start is not usable.
+  if (result.status !== 0) {
+    return { name: tool, ok: false, detail: `--version exited ${result.status}` };
+  }
   const version = parseVersion(result.stdout);
   const pin = TOOL_VERSIONS[tool];
   const minimum = typeof pin === 'object' ? pin.minimum : undefined;
-  if (!minimum) return { name: tool, ok: result.status === 0, detail: version ?? 'present' };
+  if (!minimum) return { name: tool, ok: true, detail: version ?? 'present' };
   if (!version) return { name: tool, ok: false, detail: 'version unreadable' };
   return versionAtLeast(version, minimum)
     ? { name: tool, ok: true, detail: version }

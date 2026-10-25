@@ -49,7 +49,7 @@ export type LiveState = {
   prState: 'open' | 'merged' | 'closed';
   headSha: string;
   /** Availability keyed by `artifactKey`; an absent key reads as missing. */
-  artifacts: Record<string, 'available' | 'expired' | 'missing'>;
+  artifacts: Record<string, 'available' | 'expired' | 'missing' | 'mismatched'>;
   /**
    * Whether the latest event's owning run is still going, from the provider
    * or Actions API. `undefined` means unknown, which is NOT proof it ended:
@@ -159,13 +159,20 @@ function isHandoffEvent(value: unknown): value is HandoffEvent {
 
 export type EventComment = { body: string; authorAssociation: string };
 
-/** Events from trusted, well-formed, untampered marked comments; `rejected` counts the rest. */
-export function parseEventComments(comments: readonly EventComment[]): {
-  events: HandoffEvent[];
-  rejected: number;
-} {
+/**
+ * Events from trusted, well-formed, untampered marked comments. `rejected`
+ * counts every marked comment left out; `invalid` counts the subset written by
+ * a trusted author yet malformed, tampered or (when `pr` is given) recorded
+ * for another PR. Untrusted noise is harmless; an invalid trusted record means
+ * the ledger itself can no longer be read with confidence.
+ */
+export function parseEventComments(
+  comments: readonly EventComment[],
+  options: { pr?: number } = {}
+): { events: HandoffEvent[]; rejected: number; invalid: number } {
   const events: HandoffEvent[] = [];
   let rejected = 0;
+  let invalid = 0;
   for (const comment of comments) {
     if (!comment.body.startsWith(EVENT_MARKER)) continue;
     const json = /```json\n([\s\S]*?)\n```/.exec(comment.body)?.[1];
@@ -175,17 +182,22 @@ export function parseEventComments(comments: readonly EventComment[]): {
     } catch {
       parsed = undefined;
     }
+    if (!TRUSTED_ASSOCIATIONS.has(comment.authorAssociation)) {
+      rejected++;
+      continue;
+    }
     if (
-      !TRUSTED_ASSOCIATIONS.has(comment.authorAssociation) ||
       !isHandoffEvent(parsed) ||
-      makeEventId(parsed) !== parsed.eventId
+      makeEventId(parsed) !== parsed.eventId ||
+      (options.pr !== undefined && parsed.pr !== options.pr)
     ) {
       rejected++;
+      invalid++;
       continue;
     }
     events.push(parsed);
   }
-  return { events, rejected };
+  return { events, rejected, invalid };
 }
 
 type Ledger = { tip: HandoffEvent | null; fork: string | null };
@@ -246,7 +258,11 @@ export function prepareAppend(events: readonly HandoffEvent[], next: HandoffEven
   return { kind: 'append', event: next };
 }
 
-export function reconcileHandoff(events: readonly HandoffEvent[], live: LiveState): Reconciliation {
+export function reconcileHandoff(
+  events: readonly HandoffEvent[],
+  live: LiveState,
+  options: { invalidRecords?: number } = {}
+): Reconciliation {
   const { tip, fork } = walkLedger(events);
   const verdict = (decision: Decision, reason: string, nextAction: string, clean = false) => ({
     decision,
@@ -258,13 +274,31 @@ export function reconcileHandoff(events: readonly HandoffEvent[], live: LiveStat
 
   if (!tip) return verdict('needs-human', 'no handoff events recorded', 'ask the owner');
   if (fork) return verdict('needs-human', fork, 'resolve concurrent writers');
+  // An invalid trusted record may be the latest event, so nothing older is
+  // reported as current, clean evidence included.
+  if ((options.invalidRecords ?? 0) > 0) {
+    return verdict(
+      'needs-human',
+      `${options.invalidRecords} invalid trusted ledger record(s)`,
+      'reconcile the ledger by hand'
+    );
+  }
   if (tip.phase === 'needs-human') return verdict('needs-human', 'ledger asked', tip.nextAction);
   if (live.prState === 'closed')
     return verdict('needs-human', 'PR closed unmerged', 'ask the owner');
   if (live.prState === 'merged') {
-    return tip.phase === 'closed-out'
-      ? verdict('complete', 'merged and closed out', 'none')
-      : verdict('continue', 'merged; close-out not recorded', 'run the Linear close-out');
+    if (tip.phase !== 'closed-out') {
+      return verdict('continue', 'merged; close-out not recorded', 'run the Linear close-out');
+    }
+    if (tip.result !== 'clean' || tip.unmetCriteria.length > 0) {
+      const owed = tip.unmetCriteria.length > 0 ? `: ${tip.unmetCriteria.join('; ')}` : '';
+      return verdict(
+        'continue',
+        `close-out recorded as ${tip.result} with ${tip.unmetCriteria.length} unmet criteria`,
+        `finish the close-out${owed}`
+      );
+    }
+    return verdict('complete', 'merged and closed out', 'none');
   }
 
   if (RUNNING_PHASES.has(tip.phase) && live.ownerRunActive !== false) {

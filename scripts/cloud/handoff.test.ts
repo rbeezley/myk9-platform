@@ -79,6 +79,28 @@ describe('comment round trip', () => {
     expect(parsed.events).toEqual([]);
     expect(parsed.rejected).toBe(1);
   });
+
+  it('counts invalid trusted records apart from untrusted noise', () => {
+    const tampered = { ...event(), result: 'clean' as const };
+    const parsed = parseEventComments([
+      { body: formatEventComment(event()), authorAssociation: 'NONE' },
+      { body: formatEventComment(tampered), authorAssociation: 'MEMBER' },
+    ]);
+    expect(parsed).toMatchObject({ events: [], rejected: 2, invalid: 1 });
+  });
+
+  it('treats a trusted event for another PR, or for no PR, as invalid when a PR is given', () => {
+    const parsed = parseEventComments(
+      [
+        { body: formatEventComment(event({ pr: 9999 })), authorAssociation: 'OWNER' },
+        { body: formatEventComment(event({ pr: null })), authorAssociation: 'OWNER' },
+        { body: formatEventComment(event()), authorAssociation: 'OWNER' },
+      ],
+      { pr: 3300 }
+    );
+    expect(parsed.events.map(e => e.pr)).toEqual([3300]);
+    expect(parsed.invalid).toBe(2);
+  });
 });
 
 describe('prepareAppend', () => {
@@ -215,7 +237,29 @@ describe('reconcileHandoff', () => {
       decision: 'continue',
       nextAction: expect.stringMatching(/close-out/),
     });
-    expect(reconcileHandoff(chain({}, { phase: 'closed-out' }), merged).decision).toBe('complete');
+    expect(
+      reconcileHandoff(chain({}, { phase: 'closed-out', result: 'clean' }), merged).decision
+    ).toBe('complete');
+  });
+
+  it.each([
+    [{ result: 'incomplete' as const, unmetCriteria: ['Codex cloud verification owed'] }],
+    [{ result: 'clean' as const, unmetCriteria: ['Codex cloud verification owed'] }],
+    [{ result: 'incomplete' as const, unmetCriteria: [] }],
+    [{ result: 'pending' as const, unmetCriteria: [] }],
+  ])('never calls a contradictory close-out %j complete', fields => {
+    const merged = { ...OPEN, prState: 'merged' as const };
+    const result = reconcileHandoff(chain({}, { phase: 'closed-out', ...fields }), merged);
+    expect(result.decision).toBe('continue');
+    expect(result.nextAction).toMatch(/close-out/);
+    for (const criterion of fields.unmetCriteria) expect(result.nextAction).toContain(criterion);
+  });
+
+  it('needs a human, and hides older clean state, when the ledger holds invalid trusted records', () => {
+    const events = chain({}, { phase: 'reviewed', result: 'clean' });
+    const result = reconcileHandoff(events, OPEN, { invalidRecords: 1 });
+    expect(result).toMatchObject({ decision: 'needs-human', cleanEvidence: false });
+    expect(result.reason).toMatch(/invalid/);
   });
 
   it('never carries authorization', () => {

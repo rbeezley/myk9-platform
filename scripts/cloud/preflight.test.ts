@@ -30,6 +30,8 @@ function fakeDeps(
   options: {
     missing?: string[];
     versions?: Record<string, string>;
+    /** Tools whose `--version` exits nonzero while still printing a version. */
+    failingProbe?: string[];
     githubRead?: boolean;
     network?: boolean;
     root?: string;
@@ -42,7 +44,12 @@ function fakeDeps(
     run(cmd, args): CommandResult {
       calls.push({ cmd, args });
       if (options.missing?.includes(cmd)) return { status: null, stdout: '' };
-      if (args[0] === '--version') return { status: 0, stdout: versions[cmd] ?? '' };
+      if (args[0] === '--version') {
+        return {
+          status: options.failingProbe?.includes(cmd) ? 1 : 0,
+          stdout: versions[cmd] ?? '',
+        };
+      }
       if (cmd === 'gh' && args[0] === 'api') {
         return { status: options.githubRead === false ? 1 : 0, stdout: '' };
       }
@@ -104,6 +111,20 @@ describe('runPreflight', () => {
       /1\.46\.3 < 2\.1\.4/
     );
   });
+
+  it.each(['deno', 'jq'])(
+    'fails %s when its version probe exits nonzero, even with a plausible version',
+    tool => {
+      const { deps } = fakeDeps({
+        failingProbe: [tool],
+        versions: { deno: 'deno 2.1.4 failed to initialize', jq: 'jq-1.7 error' },
+      });
+      const report = runPreflight({ root: ROOT, role: 'implementer', env: CLOUD_ENV, deps });
+      expect(report.ok).toBe(false);
+      expect(report.missing).toContain(tool);
+      expect(report.checks.find(check => check.name === tool)?.detail).toMatch(/exited 1/);
+    }
+  );
 
   it('fails without GitHub read access', () => {
     const { deps } = fakeDeps({ githubRead: false });

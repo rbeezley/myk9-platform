@@ -80,13 +80,14 @@ pnpm exec tsx scripts/cloud/handoff-cli.ts append --pr=<n> --event=<file.json>
 
 Rules the code enforces ([`handoff.ts`](../../scripts/cloud/handoff.ts)):
 
-- Only OWNER, MEMBER and COLLABORATOR comments count; the repository is public. An event whose `eventId` does not match its content is rejected.
-- `append` re-reads the ledger and posts only a child of the latest event. A stale snapshot, a fork or a duplicate posts nothing.
+- Only OWNER, MEMBER and COLLABORATOR comments count; the repository is public. A trusted comment that is malformed, whose `eventId` does not match its content, or whose `pr` is not this PR is an **invalid record**: `read` then returns `needs-human` without reporting any older state as current, and `append` refuses to write.
+- `append` posts only an event for this PR, and only a child of the latest event after re-reading the ledger. A stale snapshot, a fork or a duplicate posts nothing.
 - `read` returns `continue | wait | needs-human | complete`. A recorded owner whose run may still be going means `wait`; only an Actions run can be asked whether it ended. No process age, missing file or expired VM proves another owner's run is over.
-- A clean result counts only on the current head with every referenced artifact still available. A moved head or an expired or missing artifact means evidence is unavailable, never clean.
+- A clean result counts only on the current head with every referenced artifact still available. An artifact matches only when its digest, run ID and head SHA all match the event; the Actions API exposes no attempt, so the digest is what tells a re-uploaded replacement apart. A moved head, or an expired, missing, mismatched or digest-less artifact, means evidence is unavailable, never clean.
+- `complete` needs a merged PR whose latest event is a `closed-out` with result `clean` and no unmet criteria; any other close-out keeps the owed action.
 - **A snapshot is never authorization.** Merges still need a person's go-ahead on the exact head.
 
-Detailed reports and logs go in Actions artifacts with 30-day retention, referenced by run ID, attempt and digest. The PR or Linear record keeps the minimal receipt. Everything uploaded or published passes [`publication-scan.ts`](../../scripts/cloud/publication-scan.ts) first. That reuses the E2E artifact scanner over every secret-named variable in the environment (model keys, `GH_TOKEN`, `LINEAR_API_KEY`, test passwords). A hit, a scanner error or a missing staging directory blocks publication, and diagnostics name locations only, never a value.
+Detailed reports and logs go in Actions artifacts with 30-day retention, referenced by run ID, attempt and digest. The PR or Linear record keeps the minimal receipt. Everything uploaded or published passes [`publication-scan.ts`](../../scripts/cloud/publication-scan.ts) first. That reuses the E2E artifact scanner over every secret-named variable in the environment (model keys, `GH_TOKEN`, `LINEAR_API_KEY`, test passwords). A hit, a scanner error, a missing staging directory or any directory inside it that cannot be listed blocks publication. Diagnostics name locations only, scrubbed of secret values (a file can be named after the key it holds).
 
 ## Known gaps
 

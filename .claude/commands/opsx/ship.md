@@ -70,7 +70,7 @@ Extras for OpenSpec changes:
 
 - The PR body's Summary should cite the change: `Tracked in openspec change: <name>`.
 - If the diff touches RLS, migrations, payments, auth, or RBAC seed data, also run the Codex second opinion per CLAUDE.md (companion script, `node .../codex-companion.mjs review --base main --scope branch`) before merging.
-- If ship-pr arms auto-merge, do not archive before merge. When authorized to ship through completion, keep monitoring and resume this pipeline after confirmed merge. A user-authorized bounded handoff records the pending proofs and responsible post-merge executor under the shared lifecycle protocol.
+- If ship-pr arms auto-merge, apply the shared **Asynchronous merge protocol** in `docs/agents/issue-tracker.md`. Do not archive before confirmed merge; resume this pipeline after the protocol's merge/closeout conditions hold.
 
 ## Phase 6: Archive
 

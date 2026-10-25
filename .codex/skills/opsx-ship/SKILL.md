@@ -156,7 +156,7 @@ Use only when no matching change already exists.
 3. Include `Tracked in openspec change: <name>` in the PR body.
 4. For migrations, RLS, payments, auth, RBAC, or shared-system behavior, run the repo's required
    second-opinion/auditor checks before merge.
-5. If auto-merge is armed, do not archive until merge is confirmed. For shipping-through-completion authorization, keep monitoring and resume the pipeline after merge. A user-authorized bounded handoff records pending proofs and the responsible post-merge executor under the shared lifecycle protocol.
+5. If auto-merge is armed, apply the shared **Asynchronous merge protocol** in `docs/agents/issue-tracker.md`. Do not archive before confirmed merge; resume this pipeline after the protocol's merge/closeout conditions hold.
 6. In batch mode, prefer one implementation PR per coherent batch. If multiple PRs are needed,
    keep all of them linked to the same OpenSpec change and archive only after the last required
    PR merges.

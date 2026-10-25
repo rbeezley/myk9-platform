@@ -148,9 +148,7 @@ describe artifact progress and do not update Linear by themselves. The root must
 2. Apply the disposition table on every pause and handoff, with the complete hold record.
 3. Reconcile the full issue after merge and again after archive/spec closeout. Keep each pending
    proof until recorded; move Done only when every criterion and required merge/evidence gate passes.
-4. Before handing off an asynchronous merge, record outstanding proof labels and the executor
-   responsible for post-merge reconciliation. A request to ship through completion retains that
-   responsibility through merge; a user-authorized bounded run records its next owner/resume action.
+4. Use the **Asynchronous merge protocol** below whenever merge is armed but not confirmed.
 
 Team [Workflows & automations](https://linear.app/myk9-platform/settings/teams/MYK9/workflow)
 was aligned with this lifecycle and read back on 2026-10-25 after owner approval:
@@ -166,6 +164,27 @@ PR open still moves to In Progress. Draft/ready-for-merge events take no action.
 queues acceptance review rather than asserting Done, including asynchronous merges. Parent and
 sub-issue closure requires each issue's own evidence check. Treat automation as a convenience,
 never proof: confirm the actual state and reconcile it even when integration delivery is delayed.
+
+PR linking syntax follows [Linear's GitHub documentation](https://linear.app/docs/github#link-through-pull-requests):
+use `Fixes MYK9-<n>` for the final implementation PR to invoke the saved merge destination,
+In Review. Use `Part of MYK9-<n>` for an intermediate contribution; it links without applying
+the merge destination. Neither form proves acceptance. Confirm the linked issue and actual state.
+
+### Asynchronous merge protocol
+
+This is the only stop/continue policy for pending merges; consumers reference it.
+
+1. Before arming auto-merge, satisfy the independent review and merge-authorization gates.
+   Record the pinned head, pending proof labels, owning executor/worktree/PR and merge-pending ledger.
+2. A timeout alone does not release ownership or advance the queue. Keep the issue In Progress,
+   preserve the worktree, and monitor the current PR until confirmed merged or a real blocker.
+3. **Only if an owner-approved run boundary is reached** (a recorded stop time/cap, or an explicit
+   handoff request), record a named post-merge executor and concrete resume action, then hand off.
+   A generic timeout is not that boundary. A ship-through-completion request without such a
+   boundary keeps the current root responsible; do not silently switch to another issue.
+4. Once merged, fresh-read and reconcile the issue under the disposition table, including
+   remaining implementation versus acceptance proof. In Review automation is not Done evidence.
+   Do not archive or remove the worktree before confirmed merge and required closeout.
 
 ## Dispositions and holds — the single routing table
 
@@ -216,7 +235,7 @@ Use the shared team views to select work instead of repeatedly scanning the full
 | View                                                                                              | Selection and display                                                                                     |
 | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | [Ready for an agent](https://linear.app/myk9-platform/view/81143969-5d01-4991-8b68-d8d994c93426)  | Todo; not blocked by another issue; excludes any of Parked or the four needs:* labels; priority order     |
-| [Verification needed](https://linear.app/myk9-platform/view/316a2fa9-78c5-4cb5-9ba5-71332adb4bf7) | In Review; grouped by the verify label group and ordered by priority                                      |
+| [Verification needed](https://linear.app/myk9-platform/view/316a2fa9-78c5-4cb5-9ba5-71332adb4bf7) | All In Review, including issues without verify labels; grouped by verify and ordered by priority          |
 | [Owner actions](https://linear.app/myk9-platform/view/595922bc-5449-47e9-9f00-908a6852691d)       | Open issues with either needs:decision or needs:operator; grouped by needs; deferred items remain visible |
 | [Blocked work](https://linear.app/myk9-platform/view/72298184-9990-40b7-ab46-253f9147d580)        | Open issues with any of the four needs:* holds, at every priority; grouped by needs for recovery/handoff  |
 | [Launch blockers](https://linear.app/myk9-platform/view/81b32ef5-7f1f-4bda-a89e-2533c4ca2df1)     | Open Urgent/High issues; excludes Parked and the Post-launch project; includes blocked/operator-held work |
@@ -247,6 +266,11 @@ Other view fallbacks query their table's statuses and apply its property predica
 pages. Never invent unsupported tool arguments. Even saved-view candidates need the full-issue,
 dependency, premise and ownership checks above. An In Review item with unfinished code or a
 restructure hold is not ready for an acceptance-only session.
+
+At resume, check Verification needed as well as Ready and Blocked work. Its ungrouped/no-verify
+rows include merged issues needing only final reconciliation: fresh-read their full criteria,
+close Done when all evidence already exists, or record the actual outstanding proof/hold. The
+view's membership requires In Review, not a verify label.
 
 [Launch verification sessions](https://linear.app/myk9-platform/document/launch-verification-sessions-3ab8911b3c10)
 holds the current session matrix; original issues retain their criteria and closure evidence.

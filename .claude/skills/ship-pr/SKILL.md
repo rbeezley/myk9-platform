@@ -261,12 +261,9 @@ gh pr merge $PR_NUMBER --squash --auto
 gh pr view $PR_NUMBER --json autoMergeRequest
 ```
 
-Keep the issue In Progress while merge is pending and record pending proofs plus the post-merge
-executor under `docs/agents/issue-tracker.md`'s **Lifecycle owner** protocol. When the user
-authorized shipping through completion, continue monitoring to confirmed merge, then Steps 6–7.
-For an explicitly bounded run/handoff, report merge pending and the owned resume action; do not
-claim it shipped or perform cleanup before merge. Team automation queues merged issues In Review;
-the post-merge executor must still reconcile every criterion before Done.
+Apply the **Asynchronous merge protocol** in `docs/agents/issue-tracker.md`; it is the single
+authority for continued monitoring versus an owner-approved bounded handoff. Proceed to Steps 6–7
+only after its merge/closeout conditions hold.
 
 ---
 

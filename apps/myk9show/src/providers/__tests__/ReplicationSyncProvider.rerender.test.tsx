@@ -26,6 +26,9 @@ const hoisted = vi.hoisted(() => {
   const uploadPendingMutations = vi.fn().mockResolvedValue([]);
   const getEntry = vi.fn().mockResolvedValue({ showId: 'show-1', classId: 'class-1' });
   const getClass = vi.fn().mockResolvedValue({ trialId: 'trial-1' });
+  // The provider re-surfaces stored conflicts on sign-in; without this the pass throws and its
+  // late warning can outlive the file (EnvironmentTeardownError, MYK9-790).
+  const getConflictedRows = vi.fn().mockResolvedValue([]);
   return {
     authState,
     syncSpies,
@@ -34,6 +37,7 @@ const hoisted = vi.hoisted(() => {
     uploadPendingMutations,
     getEntry,
     getClass,
+    getConflictedRows,
   };
 });
 
@@ -53,14 +57,23 @@ vi.mock('@/hooks/useStoreSubscriptions', () => ({
 }));
 
 vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
-  replicatedShowsTable: { setMutationManager: vi.fn(), sync: hoisted.syncSpies.shows },
+  replicatedShowsTable: {
+    setMutationManager: vi.fn(),
+    getConflictedRows: hoisted.getConflictedRows,
+    sync: hoisted.syncSpies.shows,
+  },
 }));
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
-  replicatedTrialsTable: { setMutationManager: vi.fn(), sync: hoisted.syncSpies.trials },
+  replicatedTrialsTable: {
+    setMutationManager: vi.fn(),
+    getConflictedRows: hoisted.getConflictedRows,
+    sync: hoisted.syncSpies.trials,
+  },
 }));
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   replicatedClassesTable: {
     setMutationManager: vi.fn(),
+    getConflictedRows: hoisted.getConflictedRows,
     sync: hoisted.syncSpies.classes,
     get: hoisted.getClass,
   },
@@ -68,6 +81,7 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
     setMutationManager: vi.fn(),
+    getConflictedRows: hoisted.getConflictedRows,
     sync: hoisted.syncSpies.entries,
     clearCache: vi.fn(),
     getAllLocalIds: hoisted.getEntryIds,
@@ -75,30 +89,45 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
-  replicatedDogsTable: { setMutationManager: vi.fn(), sync: hoisted.syncSpies.dogs },
+  replicatedDogsTable: {
+    setMutationManager: vi.fn(),
+    getConflictedRows: hoisted.getConflictedRows,
+    sync: hoisted.syncSpies.dogs,
+  },
 }));
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
   replicatedDogRegistrationsTable: {
     setMutationManager: vi.fn(),
+    getConflictedRows: hoisted.getConflictedRows,
     sync: vi.fn().mockResolvedValue({ success: true, rowsAffected: 0 }),
     subscribe: () => () => undefined,
   },
 }));
 vi.mock('@/services/replication/ReplicatedClubsTable', () => ({
-  replicatedClubsTable: { setMutationManager: vi.fn(), sync: hoisted.syncSpies.clubs },
+  replicatedClubsTable: {
+    setMutationManager: vi.fn(),
+    getConflictedRows: hoisted.getConflictedRows,
+    sync: hoisted.syncSpies.clubs,
+  },
 }));
 vi.mock('@/services/replication/ReplicatedJudgeAssignmentsTable', () => ({
   replicatedJudgeAssignmentsTable: {
     setMutationManager: vi.fn(),
+    getConflictedRows: hoisted.getConflictedRows,
     sync: hoisted.syncSpies.judge_assignments,
   },
 }));
 vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
-  replicatedArmbandsTable: { setMutationManager: vi.fn(), sync: hoisted.syncSpies.armbands },
+  replicatedArmbandsTable: {
+    setMutationManager: vi.fn(),
+    getConflictedRows: hoisted.getConflictedRows,
+    sync: hoisted.syncSpies.armbands,
+  },
 }));
 vi.mock('@/services/replication/ReplicatedWaitlistEntriesTable', () => ({
   replicatedWaitlistEntriesTable: {
     setMutationManager: vi.fn(),
+    getConflictedRows: hoisted.getConflictedRows,
     sync: hoisted.syncSpies.waitlist_entries,
   },
 }));

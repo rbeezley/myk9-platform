@@ -256,14 +256,40 @@ function toProgressRow(context: ReplicatedShowDayContext): RingProgressRow | nul
   };
 }
 
+function compareById(a: ReplicatedEntry, b: ReplicatedEntry) {
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+/**
+ * The user's own live entries on today's trials, read through the class and
+ * trial indexes instead of a whole-table scan (MYK9-1368). An entry resolves
+ * its trial from its own trialId, else its class's, so both indexes are read
+ * and merged by id; the caller still filters on the resolved trial's date, so a
+ * stray cross-trial row is read but never returned. Rows come back in id order,
+ * as a whole-table read gave them. A failed read throws, as getAllOrThrow did.
+ */
+async function readTodaysOwnEntries(userId: string, today: string): Promise<ReplicatedEntry[]> {
+  const trials = await replicatedTrialsTable.getTrialsByDate(today);
+  const classLists = await Promise.all(
+    trials.map(trial => replicatedClassesTable.getClassesByTrial(trial.id))
+  );
+  const classIds = [...new Set(classLists.flat().map(cls => cls.id))];
+  const reads = await Promise.all([
+    ...classIds.map(classId => replicatedEntriesTable.getByClassOrThrow(classId)),
+    ...trials.map(trial => replicatedEntriesTable.getByTrialOrThrow(trial.id)),
+  ]);
+  const byId = new Map<string, ReplicatedEntry>();
+  for (const entry of reads.flat()) {
+    if (isNotDeleted(entry) && getEntryHandlerId(entry) === userId) byId.set(entry.id, entry);
+  }
+  return [...byId.values()].sort(compareById);
+}
+
 export async function fetchReplicatedShowDayCheck(
   userId: string,
   today: string
 ): Promise<ShowDayCheckRow[]> {
-  const entries = (await replicatedEntriesTable.getAllOrThrow()).filter(
-    entry => isNotDeleted(entry) && getEntryHandlerId(entry) === userId
-  );
-  const contexts = await buildContexts(entries);
+  const contexts = await buildContexts(await readTodaysOwnEntries(userId, today));
   return contexts.filter(context => context.trial.date === today).map(toCheckRow);
 }
 
@@ -271,10 +297,7 @@ export async function fetchReplicatedShowDayDetails(
   userId: string,
   today: string
 ): Promise<ShowDayDetailRow[]> {
-  const entries = (await replicatedEntriesTable.getAllOrThrow()).filter(
-    entry => isNotDeleted(entry) && getEntryHandlerId(entry) === userId
-  );
-  const contexts = await buildContexts(entries);
+  const contexts = await buildContexts(await readTodaysOwnEntries(userId, today));
   return contexts
     .filter(context => context.trial.date === today)
     .map(toDetailRow)
@@ -286,11 +309,10 @@ export async function fetchReplicatedShowDayDetails(
 export async function fetchReplicatedRingProgress(classIds: string[]): Promise<RingProgressRow[]> {
   if (classIds.length === 0) return [];
 
-  const classIdSet = new Set(classIds);
-  const entries = (await replicatedEntriesTable.getAllOrThrow()).filter(entry => {
-    const classId = getEntryClassId(entry);
-    return isNotDeleted(entry) && classId !== null && classIdSet.has(classId);
-  });
+  const reads = await Promise.all(
+    [...new Set(classIds)].map(classId => replicatedEntriesTable.getByClassOrThrow(classId))
+  );
+  const entries = reads.flat().filter(isNotDeleted).sort(compareById);
   const contexts = await buildContexts(entries);
   return contexts
     .map(toProgressRow)

@@ -5,6 +5,21 @@
   // it detects an agent, dirtying every fresh worktree on bootstrap. AGENTS.md
   // is generated from docs/agents/shared-rules.md; keep turbo out of it.
   "agentGuidance": false,
+  // Fresh cloud shells use writable tool/config paths outside HOME. Turbo's
+  // strict environment must retain them when it launches package commands.
+  "globalPassThroughEnv": [
+    "MYK9_CLOUD",
+    "MYK9_CLOUD_HOME",
+    "MYK9_TOOLS_DIR",
+    "COREPACK_HOME",
+    "XDG_CONFIG_HOME",
+    "XDG_CACHE_HOME",
+    "XDG_DATA_HOME",
+    "XDG_STATE_HOME",
+    "DENO_DIR",
+    "NODE_OPTIONS",
+    "ASTRO_TELEMETRY_DISABLED"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

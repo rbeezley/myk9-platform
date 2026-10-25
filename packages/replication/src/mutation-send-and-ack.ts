@@ -35,10 +35,11 @@ export async function sendAndAcknowledge(params: {
   const { db, logger, queueStore, mutation, context, writtenOverlays, inFlightWrites } = params;
   inFlightWrites?.begin(mutation);
   try {
-    const { newServerVersion, remappedRowId } = await executeMutation(
+    const { newServerVersion, remappedRowId, serverUpdatedAt } = await executeMutation(
       context.supabaseClient,
       logger,
-      mutation
+      mutation,
+      { readServerTime: writtenOverlays?.readsServerTime(mutation.tableName) === true }
     );
     const uploaded = remappedRowId
       ? await rowSync.remapUploadedRpcInsertRowId(db, logger, mutation, remappedRowId)
@@ -47,7 +48,8 @@ export async function sendAndAcknowledge(params: {
       db,
       uploaded,
       newServerVersion,
-      writtenOverlays?.get(uploaded.tableName)
+      writtenOverlays?.get(uploaded.tableName),
+      serverUpdatedAt
     );
     if (newServerVersion !== undefined) {
       await queueStore.updateMutationServerVersions(

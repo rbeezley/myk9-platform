@@ -114,27 +114,24 @@ describe('ClassJudgeOverlaySource', () => {
     expect(shown).toMatchObject({ judgeId: 'judge-b', judgeName: 'Bob Judge' });
   });
 
-  it('speaks for a delivered row this device created until a pull stamps it', async () => {
+  it('ignores a delivered row with no server time (a legacy cached row)', async () => {
+    const rows = [classRow()];
     const { source } = setup([row({ _lastModified: new Date() })]);
 
-    expect((await source.present([classRow()]))[0]?.judgeId).toBe('judge-b');
-  });
-
-  it('ignores a delivered row with no server time and no local write (a legacy cached row)', async () => {
-    const rows = [classRow()];
-    const { source } = setup([row()]);
-
     expect(await source.present(rows)).toBe(rows);
   });
 
-  it('ignores an unstamped local row once a stamped row of the same class exists', async () => {
-    const rows = [classRow()];
-    const { source } = setup([
-      row({ _lastModified: new Date() }),
-      row({ id: 'ja-d', personId: 'judge-d', serverUpdatedAt: T - 5 }),
-    ]);
+  it('keeps a row out while its clear tombstone is live, even if a sync downloaded it again', async () => {
+    const clear: ClassJudgeClear = {
+      id: 'ja-b',
+      classId: 'c1',
+      createdAt: T,
+      ackedAt: T + 10,
+      classTimeAtAck: T,
+    };
+    const { source } = setup([row({ serverUpdatedAt: T + 5 })], noWork(), [clear]);
 
-    expect(await source.present(rows)).toBe(rows);
+    expect((await source.present([classRow()]))[0]?.judgeId).toBeUndefined();
   });
 
   it('prefers the newer server time among delivered rows that are not caught up', async () => {

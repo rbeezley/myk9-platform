@@ -250,7 +250,7 @@ export function useClassJudgeHarness() {
       from: (table: string) => ({
         select: (_columns: string, options?: { head?: boolean }) => read(table, options),
         insert: (row: { id: string; person_id: string; updated_at?: string }) => ({
-          select: async () => {
+          select: async (columns?: string) => {
             h.requests.push(`${table}:insert:${row.person_id}`);
             const failure = refused(true);
             if (failure) return failure;
@@ -258,7 +258,12 @@ export function useClassJudgeHarness() {
             h.touchClass();
             // The column default (now()) applies only when the client omitted the value.
             h.stamps.set(row.id, row.updated_at ?? h.classUpdatedAt);
-            return { data: [{ id: row.id }], error: null };
+            const stamp = h.stamps.get(row.id);
+            // Like PostgREST: only the columns the client asked for come back.
+            return {
+              data: [{ id: row.id, ...(columns?.includes('updated_at') && { updated_at: stamp }) }],
+              error: null,
+            };
           },
         }),
         delete: () => ({
@@ -280,7 +285,7 @@ export function useClassJudgeHarness() {
               if (column === 'version') expected = value;
               return builder;
             },
-            select: async () => {
+            select: async (columns?: string) => {
               h.requests.push(`${table}:update`);
               if (table === 'judge_assignments') {
                 const failure = refused(false);
@@ -289,7 +294,18 @@ export function useClassJudgeHarness() {
                 h.touchClass();
                 // The BEFORE UPDATE trigger stamps now(), whatever the client sent.
                 h.stamps.set(String(payload.id), h.classUpdatedAt);
-                return { data: [{ id: payload.id, version: 2 }], error: null };
+                return {
+                  data: [
+                    {
+                      id: payload.id,
+                      version: 2,
+                      ...(columns?.includes('updated_at') && {
+                        updated_at: h.stamps.get(String(payload.id)),
+                      }),
+                    },
+                  ],
+                  error: null,
+                };
               }
               if (expected !== undefined && expected !== h.classVersion) {
                 return { data: [], error: null };

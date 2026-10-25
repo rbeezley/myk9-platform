@@ -95,4 +95,21 @@ export class WrittenFieldOverlayRegistry {
   get(tableName: string): WrittenFieldOverlay | undefined {
     return this.overlays.get(tableName);
   }
+
+  private readonly serverTimeTables = new Set<string>();
+
+  /**
+   * Opt a table in to reading `updated_at` back with its acknowledged INSERT/UPDATE and
+   * storing it on the row as `serverUpdatedAt`. Off by default: a table may lack the column,
+   * or restrict it by column grant, and a select of an ungranted column fails the request.
+   * @returns an unregister function.
+   */
+  registerServerTime(tableName: string): () => void {
+    this.serverTimeTables.add(tableName);
+    return () => void this.serverTimeTables.delete(tableName);
+  }
+
+  readsServerTime(tableName: string): boolean {
+    return this.serverTimeTables.has(tableName);
+  }
 }

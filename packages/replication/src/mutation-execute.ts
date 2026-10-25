@@ -17,7 +17,15 @@ const POSTGRES_UNIQUE_VIOLATION = '23505';
 
 export interface MutationExecutionResult {
   newServerVersion?: number;
+  /** The server's `updated_at` (epoch ms) for the written row, when the table opted in. */
+  serverUpdatedAt?: number;
   remappedRowId?: string;
+}
+
+function serverTimeOf(rows: unknown): { serverUpdatedAt?: number } {
+  const value = (rows as Array<{ updated_at?: unknown }> | null | undefined)?.[0]?.updated_at;
+  const ms = typeof value === 'string' ? Date.parse(value) : Number.NaN;
+  return Number.isNaN(ms) ? {} : { serverUpdatedAt: ms };
 }
 
 export function isPrimaryKeyDuplicateError(
@@ -50,7 +58,9 @@ export function isPrimaryKeyDuplicateError(
 export async function executeMutation(
   supabase: SupabaseClient,
   logger: Logger,
-  mutation: PendingMutation
+  mutation: PendingMutation,
+  /** Read `updated_at` back with an INSERT/UPDATE. Opt-in per table: see registerServerTime. */
+  options: { readServerTime?: boolean } = {}
 ): Promise<MutationExecutionResult> {
   const { tableName, operation, data } = mutation;
 
@@ -85,7 +95,10 @@ export async function executeMutation(
       }
 
       const { data: rows, error } = await withTimeout(
-        supabase.from(tableName).insert(data).select('id'),
+        supabase
+          .from(tableName)
+          .insert(data)
+          .select(options.readServerTime ? 'id, updated_at' : 'id'),
         TIMEOUT_PRESETS.standard,
         `${tableName} insert`
       );
@@ -105,7 +118,7 @@ export async function executeMutation(
             `Check that the authenticated user has the required role.`
         );
       }
-      return {};
+      return options.readServerTime ? serverTimeOf(rows) : {};
     }
 
     case 'UPDATE': {
@@ -183,7 +196,7 @@ export async function executeMutation(
         updateQuery = updateQuery.eq('version', mutation.serverVersion);
       }
       const { data: rows, error } = await withTimeout(
-        updateQuery.select('id, version'),
+        updateQuery.select(options.readServerTime ? 'id, version, updated_at' : 'id, version'),
         TIMEOUT_PRESETS.standard,
         `${tableName} update`
       );
@@ -211,7 +224,10 @@ export async function executeMutation(
         });
       }
       const newServerVersion = getReturnedServerVersion(rows as Array<{ version?: number }>);
-      return { newServerVersion };
+      return {
+        newServerVersion,
+        ...(options.readServerTime ? serverTimeOf(rows) : {}),
+      };
     }
 
     case 'DELETE': {

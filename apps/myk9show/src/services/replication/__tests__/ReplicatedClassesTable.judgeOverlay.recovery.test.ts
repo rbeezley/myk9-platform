@@ -287,6 +287,46 @@ describe('class judge recovery (MYK9-1327)', () => {
     });
   });
 
+  it('keeps an in-place reassign after it is acknowledged, through a reload, until the class is pulled', async () => {
+    await h.reassign('judge-a', 'judge-b');
+    await h.pass();
+    expect(await h.pending()).toEqual([]);
+    expect([...h.serverAssignments.values()]).toEqual(['judge-b']);
+
+    // The acknowledgement carried the server's time back onto the row (no assignments pull yet).
+    const row = await replicatedJudgeAssignmentsTable.get('ja-judge-a');
+    expect(row?.serverUpdatedAt).toBe(Date.parse(h.stamps.get('ja-judge-a')!));
+
+    expect(await h.storedJudgeId()).toBe('judge-a'); // no class pull
+    expect(await h.shownJudgeId()).toBe('judge-b');
+    const reloaded = h.reloaded();
+    expect((await reloaded.getByTrialOrThrow(TRIAL_ID))[0]?.judgeId).toBe('judge-b');
+
+    await h.syncClasses(); // the class row is now pulled past the assignment
+    expect(await h.storedJudgeId()).toBe('judge-b');
+    expect((await reloaded.getByTrialOrThrow(TRIAL_ID))[0]?.judgeId).toBe('judge-b');
+  });
+
+  it('shows no judge after the delete is acknowledged for a row a sync downloaded again meanwhile', async () => {
+    h.transport = 'down';
+    await h.clear();
+    await h.pass();
+    h.touchClass(); // the server row changes again before our DELETE lands...
+    h.stamps.set('ja-judge-a', h.classUpdatedAt);
+    await h.syncAssignments(); // ...so the row is back locally, newer than the class row
+    expect(await localAssignmentIds()).toEqual(['ja-judge-a']);
+
+    h.transport = 'up';
+    await h.retryNow(); // the DELETE is acknowledged
+
+    expect(await h.storedJudgeId()).toBe('judge-a'); // the class has not been pulled
+    expect((await h.shownClass())?.judgeId).toBeUndefined();
+    expect((await h.reloaded().getByTrialOrThrow(TRIAL_ID))[0]?.judgeId).toBeUndefined();
+
+    await h.catchUp();
+    expect((await h.shownClass())?.judgeId).toBeUndefined();
+  });
+
   it('reassigning in place shows the new judge, never the previous judge name', async () => {
     h.transport = 'down';
     await h.reassign('judge-a', 'judge-b');

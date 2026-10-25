@@ -9,7 +9,9 @@ export async function markReplicatedRowSynced(
   db: IDBPDatabase,
   mutation: PendingMutation,
   newServerVersion?: number,
-  overlayWritten?: WrittenFieldOverlay
+  overlayWritten?: WrittenFieldOverlay,
+  /** The server's `updated_at` for THIS write (ms), when its table opted in to read it back. */
+  serverUpdatedAt?: number
 ): Promise<number | undefined> {
   if (mutation.operation === 'DELETE') return newServerVersion;
 
@@ -45,6 +47,11 @@ export async function markReplicatedRowSynced(
     nextData = uploaded;
   }
   const stillDirty = existingRow.isDirty && hasAnotherPendingMutation;
+  // Stamp only what this ack is for: while a newer local write waits, the row's data already
+  // says more than this write did, and the later write's own ack carries the time for it.
+  if (serverUpdatedAt !== undefined && !stillDirty && nextData && typeof nextData === 'object') {
+    nextData = { ...(nextData as object), serverUpdatedAt };
+  }
   // MYK9-1220: the row stays dirty for a later queued write, so its merge base
   // must now include what THIS write put on the server. Any case that cannot be
   // mapped (INSERT, baked-args RPC, no mapper, a mapper that throws) keeps the

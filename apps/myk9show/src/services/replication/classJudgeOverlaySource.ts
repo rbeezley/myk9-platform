@@ -44,17 +44,11 @@ export interface ClassJudgeClearsPort {
 
 /**
  * A delivered assignment row still speaks for its class while the class row has not been pulled
- * past it. A row this device created and has not yet seen come back from a pull carries no
- * server time: it speaks until a pull stamps it, unless a stamped row of the same class exists
- * (then that row, and the class's own time, tell the truth).
+ * past it. Every acknowledged own write carries the server's exact `updated_at` back
+ * (`readsBackServerUpdatedAt`), so a row with no server time is a legacy cached row: ignored.
  */
-function notCaughtUp(
-  row: ReplicatedJudgeAssignment,
-  classTime: number,
-  classHasStampedRow: boolean
-): boolean {
-  if (row.serverUpdatedAt !== undefined) return row.serverUpdatedAt > classTime;
-  return row._lastModified !== undefined && !classHasStampedRow;
+function notCaughtUp(row: ReplicatedJudgeAssignment, classTime: number): boolean {
+  return row.serverUpdatedAt !== undefined && row.serverUpdatedAt > classTime;
 }
 
 /** At most this many classes are read through the class index; more take one table pass. */
@@ -123,12 +117,16 @@ export class ClassJudgeOverlaySource {
     });
   }
 
-  /** Classes whose delivered clear is newer than the class row; prunes the ones that are not. */
+  /**
+   * Classes whose delivered clear is newer than the class row, and every deleted assignment row
+   * whose tombstone is still live (a sync may have downloaded such a row again while its DELETE
+   * waited; it must not speak until the class row is pulled past the delete). Prunes the rest.
+   */
   private async liveClears(
     rows: ReplicatedClass[],
     work: UnsentClassJudgeWork
-  ): Promise<Set<string>> {
-    const live = new Set<string>();
+  ): Promise<{ classIds: Set<string>; rowIds: Set<string> }> {
+    const live = { classIds: new Set<string>(), rowIds: new Set<string>() };
     const now = Date.now();
     const timeOf = new Map(rows.map(row => [row.id, row.serverUpdatedAt ?? 0]));
     for (const clear of await this.readClears(rows)) {
@@ -141,8 +139,9 @@ export class ClassJudgeOverlaySource {
         void this.clearsTable()
           .delete(clear.id)
           .catch(() => undefined);
-      } else if (clear.ackedAt !== undefined) {
-        live.add(clear.classId);
+      } else {
+        live.rowIds.add(clear.id);
+        if (clear.ackedAt !== undefined) live.classIds.add(clear.classId);
       }
     }
     return live;
@@ -156,21 +155,21 @@ export class ClassJudgeOverlaySource {
       const work = await this.assignments().getUnsentClassWork();
       const byClass = await this.assignmentsByClass(rows.map(row => row.id));
       const liveClears = await this.liveClears(rows, work);
+      const deletedRowIds = new Set([...work.deletedRowIds, ...liveClears.rowIds]);
 
       const active = new Set<string>();
       const candidates: ReplicatedJudgeAssignment[] = [];
       for (const cls of rows) {
         // Only a confirmed assignment names a judge, the same test the class pull applies.
         const own = (byClass.get(cls.id) ?? []).filter(
-          row => !work.deletedRowIds.has(row.id) && isConfirmedAssignment(row.status)
+          row => !deletedRowIds.has(row.id) && isConfirmedAssignment(row.status)
         );
         const hasUnsent = work.classIds.has(cls.id);
-        const stamped = own.some(row => row.serverUpdatedAt !== undefined);
         const classTime = cls.serverUpdatedAt ?? 0;
         const deciding = own.filter(
-          row => work.unsentRowIds.has(row.id) || notCaughtUp(row, classTime, stamped)
+          row => work.unsentRowIds.has(row.id) || notCaughtUp(row, classTime)
         );
-        if (hasUnsent || deciding.length > 0 || liveClears.has(cls.id)) {
+        if (hasUnsent || deciding.length > 0 || liveClears.classIds.has(cls.id)) {
           active.add(cls.id);
           candidates.push(...(hasUnsent ? own : deciding));
         }
@@ -181,7 +180,7 @@ export class ClassJudgeOverlaySource {
           : overlayClassJudges(rows, candidates, {
               activeClassIds: active,
               unsentRowIds: work.unsentRowIds,
-              deletedRowIds: work.deletedRowIds,
+              deletedRowIds,
             });
       // A class the pull has caught up on may still lack the judge's name (name lookup failed).
       return restoreMissingJudgeNames(overlaid, byClass);

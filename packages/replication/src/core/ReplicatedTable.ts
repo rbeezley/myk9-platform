@@ -172,6 +172,13 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * Off by default: ringside and entries keep today's Discard behaviour.
    */
   protected readonly revertsOnDiscard: boolean = false;
+  /**
+   * Opt in to reading `updated_at` back with each acknowledged INSERT/UPDATE and keeping it on
+   * the row as `serverUpdatedAt` (epoch ms). Off by default: the table may lack the column or
+   * restrict it by column grant, and a select naming an ungranted column fails the whole request.
+   */
+  protected readonly readsBackServerUpdatedAt: boolean = false;
+  private unregisterServerTime: (() => void) | undefined;
   /** Rows whose mutation was queued first with deferUpload=true. */
   private readonly deferredMutationRows = new Map<string, number>();
   /** Queue locks retained until the dependent deferred dirty writes complete. */
@@ -200,6 +207,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
             toRemoteRow: local => adapter.toRemoteRow!(local),
           })
         )
+      : undefined;
+    this.unregisterServerTime?.();
+    this.unregisterServerTime = this.readsBackServerUpdatedAt
+      ? manager.writtenOverlays?.registerServerTime(this.tableName)
       : undefined;
     this.unregisterOwnerTransfer?.();
     this.unregisterOwnerTransfer = manager.ownerTransfers?.register(

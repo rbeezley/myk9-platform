@@ -169,6 +169,13 @@ describe('class judge while the assignment is undelivered (MYK9-1327)', () => {
       expect(await h.shownJudgeId()).toBe('judge-b');
     });
 
+    it("stores the server's updated_at from the acknowledgement, with no assignments pull", async () => {
+      await deliver();
+
+      const [row] = await replicatedJudgeAssignmentsTable.getByClassOrThrow(CLASS_ID);
+      expect(row?.serverUpdatedAt).toBe(Date.parse(h.stamps.get(row!.id)!));
+    });
+
     it('lets the server stamp the assignment: no client updated_at is queued', async () => {
       h.transport = 'down';
       await h.pick('judge-b');

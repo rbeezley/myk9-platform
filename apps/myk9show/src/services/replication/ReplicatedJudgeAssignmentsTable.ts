@@ -79,6 +79,13 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
    */
   protected override readonly revertsOnDiscard = true;
 
+  /**
+   * An acknowledged write carries the server's own `updated_at` back onto the row, so the class
+   * judge overlay can tell exactly when the class row has been pulled past it (MYK9-1327).
+   * `updated_at` is selectable on this table (the sync already reads it).
+   */
+  protected override readonly readsBackServerUpdatedAt = true;
+
   constructor() {
     super('judge_assignments', { logger });
   }
@@ -353,6 +360,8 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     const updated: ReplicatedJudgeAssignment = {
       ...current,
       ...updates,
+      // The previous write's server time does not describe this one; its ack brings the new one.
+      serverUpdatedAt: undefined,
       _lastModified: new Date(),
       _syncStatus: 'pending',
     };

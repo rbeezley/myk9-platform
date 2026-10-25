@@ -417,7 +417,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
    * class whose judge write was just acknowledged shows the server's judge without waiting for
    * the next pull.
    */
-  private refreshClassesById(classIds: string[]): Promise<void> {
+  private refreshClassesById(classIds: string[]): Promise<ReadonlySet<string>> {
     return refreshRowsById(this, this.getRowRefetchAdapter(), classIds, (local, remote) =>
       this.resolveConflict(local, remote)
     );

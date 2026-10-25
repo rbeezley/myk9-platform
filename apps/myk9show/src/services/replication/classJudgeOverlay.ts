@@ -52,6 +52,11 @@ export interface ClassJudgeOverlayScope {
   activeClassIds: ReadonlySet<string>;
   /** Assignment rows with an undelivered INSERT or UPDATE: they outrank delivered rows. */
   unsentRowIds: ReadonlySet<string>;
+  /**
+   * Assignment rows with an undelivered DELETE. A sync can download such a row again (the
+   * server still has it); it must not name the class while its removal is waiting.
+   */
+  deletedRowIds?: ReadonlySet<string> | undefined;
 }
 
 /**
@@ -120,6 +125,7 @@ export function overlayClassJudges(
   const rowsByClass = new Map<string, ReplicatedJudgeAssignment[]>();
   for (const assignment of assignments) {
     if (!assignment.classId || !scope.activeClassIds.has(assignment.classId)) continue;
+    if (scope.deletedRowIds?.has(assignment.id)) continue;
     const list = rowsByClass.get(assignment.classId) ?? [];
     list.push(assignment);
     rowsByClass.set(assignment.classId, list);

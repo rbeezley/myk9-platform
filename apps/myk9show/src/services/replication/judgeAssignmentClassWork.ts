@@ -12,6 +12,8 @@ import type { PendingMutation, UploadCompleteEventDetail } from '@myk9/replicati
 export interface UnsentClassJudgeWork {
   /** Assignment rows with an undelivered INSERT or UPDATE. */
   unsentRowIds: Set<string>;
+  /** Assignment rows with an undelivered DELETE: gone locally, still on the server. */
+  deletedRowIds: Set<string>;
   /** Every class with any undelivered class-level assignment write (a delete counts). */
   classIds: Set<string>;
 }
@@ -32,13 +34,18 @@ export class ClassJudgeWorkTracker {
 
   /** Sort the queue's undelivered mutations into the overlay's inputs. */
   summarize(mutations: readonly PendingMutation[]): UnsentClassJudgeWork {
-    const work: UnsentClassJudgeWork = { unsentRowIds: new Set(), classIds: new Set() };
+    const work: UnsentClassJudgeWork = {
+      unsentRowIds: new Set(),
+      deletedRowIds: new Set(),
+      classIds: new Set(),
+    };
     for (const mutation of mutations) {
       const classId = classIdOf(mutation);
       if (!classId) continue; // a show-level assignment touches no class
       this.note(mutation.rowId, classId);
       work.classIds.add(classId);
-      if (mutation.operation !== 'DELETE') work.unsentRowIds.add(String(mutation.rowId));
+      if (mutation.operation === 'DELETE') work.deletedRowIds.add(String(mutation.rowId));
+      else work.unsentRowIds.add(String(mutation.rowId));
     }
     return work;
   }

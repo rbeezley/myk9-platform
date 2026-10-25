@@ -6,6 +6,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { replicatedClassesTable, replicatedJudgeAssignmentsTable } from '..';
+import { databaseManager, REPLICATION_STORES } from '@myk9/replication';
 import { CLASS_ID, useClassJudgeHarness } from './classJudgeHarness';
 
 vi.mock('@myk9/core', () => ({
@@ -89,6 +90,31 @@ describe('class judge recovery (MYK9-1327)', () => {
   });
 
   describe('clearing the judge', () => {
+    it('keeps showing no judge when a sync downloads the row whose delete is still waiting', async () => {
+      h.transport = 'down';
+      await h.clear();
+      await h.pass();
+
+      h.touchClass(); // the server row changes, so the incremental assignment sync returns it
+      await h.syncAssignments();
+      expect(await localAssignmentIds()).toEqual(['ja-judge-a']); // downloaded again
+      await h.syncClasses();
+
+      expect((await h.shownClass())?.judgeId).toBeUndefined();
+      expect((await replicatedClassesTable.getClassById(CLASS_ID))?.judgeId).toBeUndefined();
+
+      h.transport = 'up';
+      await drain();
+      expect(h.serverAssignments.size).toBe(0);
+      await vi.waitFor(async () => expect(await h.storedJudgeId()).toBeUndefined());
+      expect((await h.shownClass())?.judgeId).toBeUndefined();
+
+      h.serverAssigns('judge-d'); // after the delete is acknowledged the server's word stands
+      await h.syncAssignments();
+      await h.syncClasses();
+      expect(await h.shownJudgeId()).toBe('judge-d');
+    });
+
     it('shows no judge while the delete is undelivered, through pulls, then keeps none', async () => {
       h.transport = 'down';
       await h.clear();
@@ -187,6 +213,47 @@ describe('class judge recovery (MYK9-1327)', () => {
       expect(await h.failed()).toEqual([]);
       await vi.waitFor(async () => expect(await h.storedJudgeId()).toBe('judge-c'));
       expect(await h.shownJudgeId()).toBe('judge-c');
+    });
+  });
+
+  describe('an unrelated class edit lands while the acknowledgement refresh is running', () => {
+    it('keeps the picked judge until the class row itself carries it', async () => {
+      h.transport = 'down';
+      await h.pick('judge-b');
+      await h.pass();
+
+      let release!: () => void;
+      h.classRefreshGate = new Promise<void>(resolve => (release = resolve));
+      h.transport = 'up';
+      await h.retryNow(); // delivered; the refresh waits on the gate
+
+      // An edit to the same class lands now and stays unsent (its upload is held back).
+      await replicatedClassesTable.updateClass(CLASS_ID, { entryFee: 30 });
+      const db = await databaseManager.getDatabase('test');
+      for (const m of await h.manager.getPendingMutationsForTable('classes')) {
+        await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
+          ...m,
+          nextRetryAt: Date.now() + 3_600_000,
+        });
+      }
+
+      h.classRefreshGate = null;
+      release();
+      await new Promise(resolve => setTimeout(resolve, 50)); // the refresh skips the dirty row
+
+      expect(await h.storedJudgeId()).toBe('judge-a');
+      expect(await h.shownJudgeId()).toBe('judge-b');
+      expect(await h.shownByIdJudgeId()).toBe('judge-b');
+
+      // The edit is delivered and the class is pulled: the server row carries B and the wait ends.
+      for (const m of await h.manager.getPendingMutationsForTable('classes')) {
+        await db.put(REPLICATION_STORES.PENDING_MUTATIONS, { ...m, nextRetryAt: undefined });
+      }
+      await h.pass();
+      await h.syncClasses();
+      await vi.waitFor(async () => expect(await h.storedJudgeId()).toBe('judge-b'));
+      expect(await h.shownJudgeId()).toBe('judge-b');
+      expect(h.settlingNow().size).toBe(0);
     });
   });
 

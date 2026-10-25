@@ -56,7 +56,7 @@ describe('ClassJudgeOverlaySource', () => {
 
     const shown = await new ClassJudgeOverlaySource(
       () => port,
-      async () => undefined,
+      async () => new Set<string>(),
       () => undefined
     ).present(rows);
 
@@ -66,12 +66,12 @@ describe('ClassJudgeOverlaySource', () => {
   it('shows a class as stored when its assignments cannot be read', async () => {
     const { port } = makePort({
       getByClassWithStatus: async () => ({ ok: false, error: new Error('idb') }),
-    } as Partial<ClassJudgeAssignmentsPort>);
+    } as unknown as Partial<ClassJudgeAssignmentsPort>);
     const rows = [classRow];
 
     const shown = await new ClassJudgeOverlaySource(
       () => port,
-      async () => undefined,
+      async () => new Set<string>(),
       () => undefined
     ).present(rows);
 
@@ -81,13 +81,17 @@ describe('ClassJudgeOverlaySource', () => {
   it('reads nothing but the queue when no judge work is pending', async () => {
     const getByClassWithStatus = vi.fn();
     const { port } = makePort({
-      getUnsentClassWork: async () => ({ unsentRowIds: new Set(), classIds: new Set() }),
+      getUnsentClassWork: async () => ({
+        unsentRowIds: new Set(),
+        deletedRowIds: new Set(),
+        classIds: new Set(),
+      }),
       getByClassWithStatus,
     });
 
     const shown = await new ClassJudgeOverlaySource(
       () => port,
-      async () => undefined,
+      async () => new Set<string>(),
       () => undefined
     ).present([classRow]);
 
@@ -97,10 +101,19 @@ describe('ClassJudgeOverlaySource', () => {
 
   it('holds the local judge from the acknowledgement until the refresh lands, then lets go', async () => {
     let finishRefresh!: () => void;
-    const refresh = vi.fn(() => new Promise<void>(resolve => (finishRefresh = resolve)));
+    const refresh = vi.fn(
+      () =>
+        new Promise<ReadonlySet<string>>(
+          resolve => (finishRefresh = () => resolve(new Set(['c1'])))
+        )
+    );
     const changed = vi.fn();
     const { port, settle } = makePort({
-      getUnsentClassWork: async () => ({ unsentRowIds: new Set(), classIds: new Set() }),
+      getUnsentClassWork: async () => ({
+        unsentRowIds: new Set(),
+        deletedRowIds: new Set(),
+        classIds: new Set(),
+      }),
     });
     const source = new ClassJudgeOverlaySource(() => port, refresh, changed);
     await source.present([classRow]); // starts the source
@@ -116,7 +129,11 @@ describe('ClassJudgeOverlaySource', () => {
 
   it('keeps the local judge when the refresh fails, until the wait runs out', async () => {
     const { port, settle } = makePort({
-      getUnsentClassWork: async () => ({ unsentRowIds: new Set(), classIds: new Set() }),
+      getUnsentClassWork: async () => ({
+        unsentRowIds: new Set(),
+        deletedRowIds: new Set(),
+        classIds: new Set(),
+      }),
     });
     const source = new ClassJudgeOverlaySource(
       () => port,

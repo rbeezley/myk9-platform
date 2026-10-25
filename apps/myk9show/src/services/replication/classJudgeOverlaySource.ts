@@ -33,7 +33,7 @@ export class ClassJudgeOverlaySource {
   constructor(
     private readonly assignments: () => ClassJudgeAssignmentsPort,
     /** Re-read these classes from the server (the class table's row refetch). */
-    private readonly refreshClasses: (classIds: string[]) => Promise<void>,
+    private readonly refreshClasses: (classIds: string[]) => Promise<ReadonlySet<string>>,
     /** Tell the class table's subscribers its presented rows changed. */
     private readonly changed: () => void
   ) {}
@@ -73,9 +73,10 @@ export class ClassJudgeOverlaySource {
     const until = Date.now() + CLASS_JUDGE_SETTLE_TTL_MS;
     for (const classId of classIds) this.settling.set(classId, until);
     this.refreshClasses(classIds)
-      .then(() => {
-        // Only a refresh that landed hands the class back to its server row.
-        for (const classId of classIds) this.settling.delete(classId);
+      .then(refreshed => {
+        // Only a class whose refresh landed goes back to its server row; a skipped one (edited
+        // meanwhile) keeps settling until a later refresh or pull catches its row up.
+        for (const classId of refreshed) this.settling.delete(classId);
       })
       .catch((error: unknown) => {
         logger.warn(
@@ -106,10 +107,19 @@ export class ClassJudgeOverlaySource {
         if (!read.ok) active.delete(classId);
         else candidates.push(...read.rows);
       }
-      return overlayClassJudges(rows, candidates, {
+      const presented = overlayClassJudges(rows, candidates, {
         activeClassIds: active,
         unsentRowIds: work.unsentRowIds,
+        deletedRowIds: work.deletedRowIds,
       });
+      // A pull (or refresh) that already carries the local judge ends the wait for that class.
+      presented.forEach((row, index) => {
+        const raw = rows[index];
+        if (raw && this.settling.has(row.id) && !work.classIds.has(row.id)) {
+          if (row.judgeId === raw.judgeId) this.settling.delete(row.id);
+        }
+      });
+      return presented;
     } catch (error) {
       logger.warn(
         '[classJudgeOverlay] Judge overlay unavailable; showing stored rows',

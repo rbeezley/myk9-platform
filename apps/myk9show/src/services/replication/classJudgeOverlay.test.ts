@@ -130,6 +130,17 @@ describe('overlayClassJudges', () => {
     expect(shown?.judgeLastName).toBeUndefined();
   });
 
+  it('drops an assignment row whose removal is waiting, even when a sync downloaded it again', () => {
+    const [shown] = overlayClassJudges(
+      [cls('c1')],
+      [assignment('ja-a', 'judge-a', 'c1', { _syncStatus: 'synced' })],
+      { activeClassIds: new Set(['c1']), unsentRowIds: new Set(), deletedRowIds: new Set(['ja-a']) }
+    );
+
+    expect(shown?.judgeId).toBeUndefined();
+    expect(shown?.judgeResolved).toBe(true);
+  });
+
   it('never lets a show-level assignment name a class', () => {
     const [shown] = overlayClassJudges(
       [cls('c1')],

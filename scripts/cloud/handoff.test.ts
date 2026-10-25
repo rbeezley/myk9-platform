@@ -14,7 +14,7 @@ const OPEN: LiveState = {
   prState: 'open',
   headSha: HEAD,
   artifacts: {},
-  ownerRunActive: undefined,
+  ownerRun: 'unknown',
 };
 
 describe('makeEventId', () => {
@@ -217,10 +217,17 @@ describe('reconcileHandoff', () => {
   it('waits while a recorded owner may still be running, and continues once it has ended', () => {
     const events = chain({}, { phase: 'reviewing', runId: 'run-2' });
     expect(reconcileHandoff(events, OPEN).decision).toBe('wait');
-    expect(reconcileHandoff(events, { ...OPEN, ownerRunActive: true }).decision).toBe('wait');
-    const ended = reconcileHandoff(events, { ...OPEN, ownerRunActive: false });
+    expect(reconcileHandoff(events, { ...OPEN, ownerRun: 'running' }).decision).toBe('wait');
+    const ended = reconcileHandoff(events, { ...OPEN, ownerRun: 'ended' });
     expect(ended.decision).toBe('continue');
     expect(ended.nextAction).toMatch(/incomplete/);
+  });
+
+  it('asks the owner when the recorded owning run no longer exists', () => {
+    const events = chain({}, { phase: 'reviewing', runId: 'run-2' });
+    const result = reconcileHandoff(events, { ...OPEN, ownerRun: 'gone' });
+    expect(result).toMatchObject({ decision: 'needs-human', cleanEvidence: false });
+    expect(result.nextAction).toMatch(/owner/);
   });
 
   it('needs a human when the PR closed unmerged or the ledger asked for one', () => {
@@ -240,6 +247,15 @@ describe('reconcileHandoff', () => {
     expect(
       reconcileHandoff(chain({}, { phase: 'closed-out', result: 'clean' }), merged).decision
     ).toBe('complete');
+  });
+
+  // R2-02: a close-out speaks for the head it was recorded at, never for a later merge.
+  it('owes a review and close-out when the merged head is not the closed-out head', () => {
+    const events = chain({}, { phase: 'closed-out', result: 'clean' });
+    const result = reconcileHandoff(events, { ...OPEN, prState: 'merged', headSha: NEW_HEAD });
+    expect(result).toMatchObject({ decision: 'continue', cleanEvidence: false });
+    expect(result.nextAction).toContain(NEW_HEAD);
+    expect(result.nextAction).toMatch(/close out/);
   });
 
   it.each([

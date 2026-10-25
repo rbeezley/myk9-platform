@@ -51,6 +51,18 @@ const ROLE_TOOLS: Record<Role, string[]> = {
   publisher: ['node', 'git', 'gh', 'jq'],
 };
 
+/**
+ * What each review wrapper runs before it can review, beyond the reviewer
+ * role's tools. scripts/qa/claude-review.sh reads the PR through gh on every
+ * run (its head check); scripts/qa/codex-review.sh needs gh only to post, which
+ * is the publisher's job. preflight.test.ts runs the Claude wrapper without gh
+ * to keep this list honest.
+ */
+const REVIEWER_TOOLS: Record<Harness, string[]> = {
+  codex: ['codex'],
+  claude: ['claude', 'gh'],
+};
+
 export function parseVersion(output: string): string | null {
   return /(\d+\.\d+(?:\.\d+)?)/.exec(output)?.[1] ?? null;
 }
@@ -113,7 +125,7 @@ export function runPreflight(options: {
   });
 
   const tools = [...ROLE_TOOLS[role]];
-  if (role === 'reviewer') tools.push(options.reviewerHarness ?? 'codex');
+  if (role === 'reviewer') tools.push(...REVIEWER_TOOLS[options.reviewerHarness ?? 'codex']);
   for (const tool of tools) checks.push(toolCheck(tool, deps));
 
   if (role === 'reviewer') {
@@ -127,8 +139,8 @@ export function runPreflight(options: {
     }
   }
 
-  // Every role reaches GitHub: the implementer and publisher through gh,
-  // the reviewer to fetch the base and head it reviews.
+  // Every role reaches GitHub: through gh where its workflow uses gh, and the
+  // reviewer at least to fetch the base and head it reviews.
   const network = deps.run('curl', [
     '--silent',
     '--head',

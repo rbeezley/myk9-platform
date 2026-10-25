@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { appendHandoff, readHandoff, type Gh } from './handoff-cli.ts';
+import { appendHandoff, ghFailure, GhError, readHandoff, type Gh } from './handoff-cli.ts';
 import { formatEventComment, type HandoffEvent } from './handoff.ts';
 import { chain, event, HEAD } from './handoff-fixtures.ts';
 
@@ -19,6 +19,8 @@ function fakeGh(options: {
   pull?: { state: string; merged_at: string | null; head: { sha: string } };
   artifacts?: Record<string, RawArtifact[]>;
   runs?: Record<string, string>;
+  /** Run ids whose every endpoint fails as gh would, keyed to that failure. */
+  failingRuns?: Record<string, GhError>;
 }) {
   const writes: { args: string[]; input?: string }[] = [];
   const gh: Gh = (args, input) => {
@@ -27,6 +29,8 @@ function fakeGh(options: {
       return '{}';
     }
     const path = args.find(arg => arg.startsWith('repos/')) ?? '';
+    const failing = /actions\/runs\/(\d+)/.exec(path)?.[1];
+    if (failing && options.failingRuns?.[failing]) throw options.failingRuns[failing];
     if (path.endsWith('/comments')) return JSON.stringify([options.comments ?? []]);
     if (/\/pulls\/\d+$/.test(path)) {
       return JSON.stringify(
@@ -85,6 +89,69 @@ describe('readHandoff', () => {
     });
     const live = fakeGh({ comments: running.map(trusted), runs: { '88': 'in_progress' } });
     expect(readHandoff(live.gh, 3300).decision).toBe('wait');
+  });
+
+  // R2-04: remote evidence disappearing is the case the recovery command exists for.
+  describe('a referenced Actions run that no longer exists', () => {
+    const NOT_FOUND = new GhError('gh api failed (exit 1)', 404);
+    const pointer = {
+      kind: 'artifact' as const,
+      runId: '77',
+      attempt: 1,
+      name: 'review',
+      digest: 'sha256:1',
+    };
+
+    it('reads a deleted evidence run as unavailable and asks for a replacement', () => {
+      const events = chain({}, { phase: 'reviewed', result: 'clean', evidence: [pointer] });
+      const { gh } = fakeGh({ comments: events.map(trusted), failingRuns: { '77': NOT_FOUND } });
+      expect(readHandoff(gh, 3300)).toMatchObject({
+        decision: 'continue',
+        cleanEvidence: false,
+        nextAction: expect.stringMatching(/replacement review attempt/),
+      });
+    });
+
+    it('reads a deleted owner run as gone and hands the decision to its owner', () => {
+      const events = chain({
+        phase: 'reviewing',
+        ownerUrl: 'https://github.com/o/r/actions/runs/88',
+      });
+      const { gh } = fakeGh({ comments: events.map(trusted), failingRuns: { '88': NOT_FOUND } });
+      expect(readHandoff(gh, 3300)).toMatchObject({
+        decision: 'needs-human',
+        cleanEvidence: false,
+        nextAction: expect.stringMatching(/owner/),
+      });
+    });
+
+    it.each([
+      ['an auth failure on the evidence run', '77', new GhError('gh api failed', 401)],
+      ['a network failure on the evidence run', '77', new GhError('gh api failed', null)],
+      ['an auth failure on the owner run', '88', new GhError('gh api failed', 403)],
+      ['a network failure on the owner run', '88', new GhError('gh api failed', null)],
+    ])('still fails loudly on %s, never reading it as clean', (_label, runId, error) => {
+      const events = chain({
+        phase: 'reviewed',
+        result: 'clean',
+        evidence: [pointer],
+        ownerUrl: 'https://github.com/o/r/actions/runs/88',
+      });
+      const { gh } = fakeGh({
+        comments: events.map(trusted),
+        artifacts: { '77': [] },
+        failingRuns: { [runId]: error },
+      });
+      expect(() => readHandoff(gh, 3300)).toThrow(error);
+    });
+
+    it.each([
+      ['gh: Not Found (HTTP 404)\n', 404],
+      ['gh: Bad credentials (HTTP 401)\n', 401],
+      ['error connecting to api.github.com\n', null],
+    ])('reads the HTTP status gh reports in %j', (stderr, status) => {
+      expect(ghFailure(['api', 'x'], 1, stderr).httpStatus).toBe(status);
+    });
   });
 
   describe('artifact identity', () => {

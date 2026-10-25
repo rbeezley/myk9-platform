@@ -25,14 +25,32 @@ type Readdir = (path: string) => Promise<Dirent[]>;
 const defaultReaddir: Readdir = path => fsReaddir(path, { withFileTypes: true });
 
 /**
- * The shared scanner treats a directory it cannot list as "not produced" and
- * skips it, which is right for E2E reports. Here skipped content is
- * unscanned content, so list every directory first and let any failure throw.
+ * One listing pass over everything that would be published. It screens every
+ * file and directory NAME, which travels as archive and listing metadata even
+ * when the bytes are clean, and it fails closed on a directory it cannot list:
+ * the shared byte scanner treats that as "not produced" and skips it, which is
+ * right for E2E reports, but here skipped content is unscanned content.
  */
-async function assertFullyListable(dir: string, readdir: Readdir): Promise<void> {
+async function findSecretNames(
+  dir: string,
+  forms: readonly string[],
+  readdir: Readdir,
+  prefix = ''
+): Promise<string[]> {
+  const found: string[] = [];
   for (const entry of await readdir(dir)) {
-    if (entry.isDirectory()) await assertFullyListable(join(dir, entry.name), readdir);
+    const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (containsSecret(entry.name, forms)) found.push(relative);
+    if (entry.isDirectory()) {
+      found.push(...(await findSecretNames(join(dir, entry.name), forms, readdir, relative)));
+    }
   }
+  return found;
+}
+
+/** `forms` is every configured secret in each form it can be written in. */
+function containsSecret(text: string, forms: readonly string[]): boolean {
+  return forms.some(form => text.includes(form));
 }
 
 export async function scanForPublication(options: {
@@ -43,19 +61,23 @@ export async function scanForPublication(options: {
   readdir?: Readdir;
 }): Promise<PublicationScan> {
   const secrets = collectSecrets(options.env);
+  const forms = secrets.flatMap(secretForms);
   try {
+    const named: string[] = [];
     for (const dir of options.dirs) {
       if (!(await stat(dir)).isDirectory()) throw new Error(`${dir} is not a directory`);
-      await assertFullyListable(dir, options.readdir ?? defaultReaddir);
+      named.push(...(await findSecretNames(dir, forms, options.readdir ?? defaultReaddir)));
     }
-    // A file can be named after the secret it holds, so locations are scrubbed too.
-    const locations = (await findArtifactSecrets(options.dirs, secrets)).map(finding =>
-      scrubSecrets(finding.location, secrets)
+    const byContent = (await findArtifactSecrets(options.dirs, secrets)).map(
+      finding => finding.location
+    );
+    // One location per path, whether its name, its bytes or both carry a value;
+    // either can be the secret itself, so every location is scrubbed.
+    const locations = [...new Set([...named, ...byContent])].map(location =>
+      scrubSecrets(location, secrets)
     );
     options.texts.forEach((text, index) => {
-      if (secrets.some(secret => secretForms(secret).some(form => text.includes(form)))) {
-        locations.push(`text[${index}]`);
-      }
+      if (containsSecret(text, forms)) locations.push(`text[${index}]`);
     });
     return locations.length === 0
       ? { ok: true }

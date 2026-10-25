@@ -51,11 +51,12 @@ export type LiveState = {
   /** Availability keyed by `artifactKey`; an absent key reads as missing. */
   artifacts: Record<string, 'available' | 'expired' | 'missing' | 'mismatched'>;
   /**
-   * Whether the latest event's owning run is still going, from the provider
-   * or Actions API. `undefined` means unknown, which is NOT proof it ended:
-   * no process age, missing file or expired VM ends another owner's run.
+   * The latest event's owning run, from the provider or Actions API. `unknown`
+   * is NOT proof it ended: no process age, missing file or expired VM ends
+   * another owner's run. `gone` means the API confirmed the run record no
+   * longer exists, so only its owner can say how far it got.
    */
-  ownerRunActive: boolean | undefined;
+  ownerRun: 'running' | 'ended' | 'unknown' | 'gone';
 };
 
 export type Decision = 'continue' | 'wait' | 'needs-human' | 'complete';
@@ -286,7 +287,21 @@ export function reconcileHandoff(
   if (tip.phase === 'needs-human') return verdict('needs-human', 'ledger asked', tip.nextAction);
   if (live.prState === 'closed')
     return verdict('needs-human', 'PR closed unmerged', 'ask the owner');
+
+  // Every decision below speaks for one version of the branch, so it is only
+  // made from an event recorded at the head GitHub holds now. The one ordering
+  // exception is a run still in progress on an open PR: an implementer moves
+  // the head itself while it works.
+  const headMoved = tip.headSha !== live.headSha;
+
   if (live.prState === 'merged') {
+    if (headMoved) {
+      return verdict(
+        'continue',
+        `merged at ${live.headSha}, but the ledger's latest event is for ${tip.headSha}`,
+        `review and close out the merged head ${live.headSha}`
+      );
+    }
     if (tip.phase !== 'closed-out') {
       return verdict('continue', 'merged; close-out not recorded', 'run the Linear close-out');
     }
@@ -301,14 +316,21 @@ export function reconcileHandoff(
     return verdict('complete', 'merged and closed out', 'none');
   }
 
-  if (RUNNING_PHASES.has(tip.phase) && live.ownerRunActive !== false) {
-    return verdict('wait', `${tip.ownerUrl} may still be running`, 'wait for the owner');
-  }
   if (RUNNING_PHASES.has(tip.phase)) {
+    if (live.ownerRun === 'running' || live.ownerRun === 'unknown') {
+      return verdict('wait', `${tip.ownerUrl} may still be running`, 'wait for the owner');
+    }
+    if (live.ownerRun === 'gone') {
+      return verdict(
+        'needs-human',
+        `${tip.ownerUrl} no longer exists`,
+        `ask the owner whether to replace the incomplete ${tip.phase} attempt`
+      );
+    }
     return verdict('continue', 'owner run ended', `replace the incomplete ${tip.phase} attempt`);
   }
 
-  if (tip.headSha !== live.headSha) {
+  if (headMoved) {
     return verdict(
       'continue',
       `head moved from ${tip.headSha} to ${live.headSha}`,

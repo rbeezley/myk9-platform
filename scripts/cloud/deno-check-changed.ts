@@ -76,8 +76,10 @@ export function runCli(args: string[] = process.argv.slice(2)): number {
   const root = git(process.cwd(), ['rev-parse', '--show-toplevel']).trim();
   const baseRef = args.find(arg => arg.startsWith('--base='))?.slice(7) ?? 'origin/main';
   const mergeBase = git(root, ['merge-base', 'HEAD', baseRef]).trim();
+  // --no-renames lists a rename as its deletion plus its addition: a consumer
+  // that still imports the old path is what the check has to catch.
   const changed = [
-    ...git(root, ['diff', '--name-only', mergeBase]).split('\n'),
+    ...git(root, ['diff', '--name-only', '--no-renames', mergeBase]).split('\n'),
     ...git(root, ['ls-files', '--others', '--exclude-standard']).split('\n'),
   ].filter(Boolean);
   const targets = affectedEntrypoints(root, changed);

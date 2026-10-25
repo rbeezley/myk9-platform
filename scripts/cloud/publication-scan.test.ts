@@ -82,6 +82,34 @@ describe('scanForPublication', () => {
     expect(serialized).not.toContain(JSON.stringify(SECRET).slice(1, -1));
   });
 
+  // A name travels as archive and listing metadata even when the bytes are clean (R2-01).
+  it.each([
+    ['a file', [`${SECRET}.log`]],
+    ['a nested file', ['nested', 'lin_api_synthetic_0001.log']],
+    ['a directory holding a clean file', ['nested', 'lin_api_synthetic_0001', 'clean.log']],
+    ['an empty directory', ['nested', `${SECRET}-dir`, '']],
+  ])('blocks a secret that exists only in the name of %s', async (_label, segments) => {
+    const path = join(staging, ...segments);
+    if (segments.at(-1) === '') mkdirSync(path, { recursive: true });
+    else {
+      mkdirSync(join(path, '..'), { recursive: true });
+      writeFileSync(path, 'nothing secret here\n');
+    }
+    const result = await scanForPublication({ dirs: [staging], texts: [], env: ENV });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.locations).toHaveLength(1);
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain(SECRET);
+    expect(serialized).not.toContain('lin_api_synthetic_0001');
+  });
+
+  it('passes a name that only resembles a configured secret', async () => {
+    writeFileSync(join(staging, 'nested', 'lin_api_synthetic_0002.log'), 'clean\n');
+    await expect(scanForPublication({ dirs: [staging], texts: [], env: ENV })).resolves.toEqual({
+      ok: true,
+    });
+  });
+
   it('blocks when a nested directory cannot be listed, instead of skipping it', async () => {
     const result = await scanForPublication({
       dirs: [staging],

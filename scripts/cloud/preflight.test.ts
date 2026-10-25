@@ -1,4 +1,7 @@
 import { spawnSync } from 'node:child_process';
+import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
@@ -10,6 +13,7 @@ import {
 } from './preflight.ts';
 
 const ROOT = '/workspace/myk9-platform';
+const WRAPPER = fileURLToPath(new URL('../qa/claude-review.sh', import.meta.url));
 const MAC_ROOT = '/Users/me/AI Projects/myk9-platform';
 
 const VERSION_OUTPUT: Record<string, string> = {
@@ -187,6 +191,46 @@ describe('runPreflight', () => {
     expect(report.missing).toEqual(['claude']);
   });
 
+  // R2-05: claude-review.sh reads the PR through gh before it starts a review.
+  describe('a Claude reviewer', () => {
+    const claudeReviewer = (deps: PreflightDeps) =>
+      runPreflight({
+        root: ROOT,
+        role: 'reviewer',
+        reviewerHarness: 'claude',
+        env: { ...CLOUD_ENV, ANTHROPIC_API_KEY: 'x'.repeat(12) },
+        deps,
+      });
+
+    it('is ready with gh installed and a working GitHub read', () => {
+      const { deps, calls } = fakeDeps();
+      expect(claudeReviewer(deps)).toMatchObject({ ok: true, missing: [] });
+      expect(calls.some(call => call.cmd === 'gh' && call.args[0] === 'api')).toBe(true);
+    });
+
+    it('fails without gh', () => {
+      const { deps } = fakeDeps({ missing: ['gh'] });
+      expect(claudeReviewer(deps).missing).toContain('gh');
+    });
+
+    it('fails when gh cannot read GitHub (auth)', () => {
+      const { deps } = fakeDeps({ githubRead: false });
+      expect(claudeReviewer(deps).missing).toEqual(['github-read']);
+    });
+  });
+
+  it('does not demand gh from a Codex reviewer, whose wrapper only needs it to post', () => {
+    const { deps } = fakeDeps({ missing: ['gh'] });
+    const report = runPreflight({
+      root: ROOT,
+      role: 'reviewer',
+      reviewerHarness: 'codex',
+      env: { ...CLOUD_ENV, OPENAI_API_KEY: 'x'.repeat(12) },
+      deps,
+    });
+    expect(report).toMatchObject({ ok: true, missing: [] });
+  });
+
   describe('local (Mac) compatibility', () => {
     it('accepts the local login for a Mac reviewer instead of demanding a model key', () => {
       const { deps } = fakeDeps({ root: MAC_ROOT });
@@ -231,5 +275,36 @@ describe('preflight as a script', () => {
     });
     expect(result.stderr).toContain('unknown --role=bogus');
     expect(result.status).toBe(2);
+  });
+});
+
+/**
+ * The other half of R2-05: preflight's reviewer requirements are only right
+ * while they match the real wrapper. With a model key in the environment the
+ * wrapper skips its own login and network probes, so the first thing it does
+ * is read the PR through gh; without gh it must refuse before reviewing.
+ */
+describe('claude-review.sh agrees that a Claude reviewer needs gh', () => {
+  it('refuses with exit 2, never starting a review, when gh cannot run', () => {
+    const stub = mkdtempSync(join(tmpdir(), 'claude-review-gh-'));
+    try {
+      const claudeArgs = join(stub, 'claude-args');
+      writeFileSync(join(stub, 'claude'), `#!/bin/sh\necho "$@" >> '${claudeArgs}'\n`);
+      chmodSync(join(stub, 'claude'), 0o755);
+      const result = spawnSync('bash', [WRAPPER, '7'], {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          ANTHROPIC_API_KEY: 'x'.repeat(12),
+          CLAUDE_BIN: join(stub, 'claude'),
+          GH_BIN: join(stub, 'no-such-gh'),
+          CLAUDE_REVIEW_STATE_DIR: stub,
+        },
+      });
+      expect(result.status).toBe(2);
+      expect(existsSync(claudeArgs)).toBe(false);
+    } finally {
+      rmSync(stub, { recursive: true, force: true });
+    }
   });
 });

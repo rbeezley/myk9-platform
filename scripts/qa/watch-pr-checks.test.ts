@@ -45,6 +45,49 @@ function verdict(rollup: unknown, required: string[]) {
   return spawnSync('bash', ['-c', shim], { encoding: 'utf8' }).stdout.trim();
 }
 
+type CheckRun = { name: string; conclusion: string | null };
+type Status = { context: string; state: string };
+
+/**
+ * A fake `gh` that answers only the REST reads the watcher makes, logs every
+ * invocation, and fails any GraphQL route (`gh pr`, `gh issue`, `gh api graphql`)
+ * the way a Claude Code cloud session does (MYK9-1414). Output mimics `--jq`.
+ */
+function restStub(checkRuns: CheckRun[], statuses: Status[], head = 'deadbeef') {
+  const dir = mkdtempSync(join(tmpdir(), 'watch-pr-checks-rest-'));
+  scratchDirs.push(dir);
+  const log = join(dir, 'calls.log');
+  const lines = (rows: unknown[]) => rows.map(row => JSON.stringify(row)).join('\n');
+  const runs = checkRuns.map((run, index) => ({
+    name: run.name,
+    status: run.conclusion === null ? 'in_progress' : 'completed',
+    conclusion: run.conclusion,
+    started_at: '2026-10-25T19:00:00Z',
+    details_url: `https://github.com/o/r/actions/runs/100/job/${index + 1}`,
+  }));
+  const contexts = statuses.map(status => ({ ...status, created_at: '2026-10-25T19:00:00Z' }));
+  writeFileSync(
+    join(dir, 'gh'),
+    [
+      '#!/bin/bash',
+      `printf '%s\\n' "$*" >> ${JSON.stringify(log)}`,
+      '[ "${1:-}" = api ] || { echo "HTTP 403: GitHub GraphQL is not available" >&2; exit 1; }',
+      'case "$*" in',
+      '  *graphql*) echo "HTTP 403: GitHub GraphQL is not available" >&2; exit 1 ;;',
+      `  *"/rulesets/"*) echo '["Quality Checks","Test","A11y smoke","E2E PR Smoke"]' ;;`,
+      '  *"/rulesets"*) echo 17085332 ;;',
+      `  *"/pulls/"*) echo ${head} ;;`,
+      `  *"/check-runs"*) cat <<'JSON'\n${lines(runs)}\nJSON\n ;;`,
+      `  *"/status"*) cat <<'JSON'\n${lines(contexts)}\nJSON\n ;;`,
+      `  *"/actions/runs"*) echo '{"id":100,"name":"CI"}' ;;`,
+      '  *) exit 1 ;;',
+      'esac',
+    ].join('\n')
+  );
+  chmodSync(join(dir, 'gh'), 0o755);
+  return { dir, log };
+}
+
 describe('watch-pr-checks harness', () => {
   // The script is the thing under test, not a re-implementation of its jq. A
   // copy of the expression here would drift and certify the copy.
@@ -132,6 +175,79 @@ describe('watch-pr-checks harness', () => {
     expect(result.stdout).toContain('SELF-TEST FAIL [ctx-newer-failure-createdAt');
   });
 
+  // A REST check run carries no workflow name; without the join from the run
+  // id, the draft->ready stale rule silently stops applying (MYK9-1414).
+  it('rejects a REST mapping that drops the workflow-name join', () => {
+    const result = runMutated(
+      '| .workflowName = ($wf[(.detailsUrl | capture("/runs/(?<n>[0-9]+)")? | .n) // ""] // "")]',
+      ']'
+    );
+
+    expect(result.status).toBe(4);
+    expect(result.stdout).toContain('SELF-TEST FAIL [rest-stale-skip]');
+  });
+
+  it('rejects a REST mapping that keeps GitHub REST lower-case conclusions', () => {
+    const result = runMutated(
+      'conclusion: ((.conclusion // "") | ascii_upcase)',
+      'conclusion: (.conclusion // "")'
+    );
+
+    expect(result.status).toBe(4);
+    expect(result.stdout).toContain('SELF-TEST FAIL [rest-');
+  });
+
+  // The cloud session's proxy rejects every GraphQL route. Running the whole
+  // main path, head lookup included, against a gh that 403s them proves the
+  // watcher never takes one, which a grep of the source could not.
+  it('reaches a verdict through REST alone, with no GraphQL call', () => {
+    const { dir, log } = restStub(
+      [
+        { name: 'Quality Checks', conclusion: 'success' },
+        { name: 'Test', conclusion: 'success' },
+        { name: 'A11y smoke', conclusion: 'skipped' },
+        { name: 'E2E PR Smoke', conclusion: 'failure' },
+      ],
+      []
+    );
+
+    const result = spawnSync('bash', [watcher, '2053'], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${dir}:${process.env.PATH ?? ''}` },
+      timeout: 30_000,
+    });
+
+    expect(result.status, result.stdout + result.stderr).toBe(1);
+    expect(result.stdout).toContain('watching PR #2053 pinned to deadbeef');
+    expect(result.stdout).toContain('REQUIRED CHECK FAILED on deadbeef: E2E PR Smoke');
+    const calls = readFileSync(log, 'utf8').trim().split('\n');
+    expect(calls.every(call => call.startsWith('api ') && !call.includes('graphql'))).toBe(true);
+    expect(calls.some(call => call.includes('/pulls/2053'))).toBe(true);
+    expect(calls.some(call => call.includes('/commits/deadbeef/check-runs?filter=all'))).toBe(true);
+  });
+
+  it('aborts when the head moves while the checks are read', () => {
+    const { dir } = restStub(
+      [
+        { name: 'Quality Checks', conclusion: 'success' },
+        { name: 'Test', conclusion: 'success' },
+        { name: 'A11y smoke', conclusion: 'success' },
+        { name: 'E2E PR Smoke', conclusion: 'success' },
+      ],
+      [],
+      'cafef00d'
+    );
+
+    const result = spawnSync('bash', [watcher, '2053', 'deadbeef'], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${dir}:${process.env.PATH ?? ''}` },
+      timeout: 30_000,
+    });
+
+    expect(result.status, result.stdout + result.stderr).toBe(2);
+    expect(result.stdout).toContain('head moved deadbeef -> cafef00d');
+  });
+
   it('keeps the Vercel quota note off non-Vercel failures', () => {
     const result = runMutated('case "$n" in Vercel*) ;; *) return 1 ;; esac', ':');
 
@@ -140,10 +256,10 @@ describe('watch-pr-checks harness', () => {
   });
 
   // A watcher that hangs is worse than one that errors: it stalls the shipping
-  // workflow with no verdict and no signal. `gh api` succeeds so the run reaches
-  // its polling loop; `gh pr view` then fails, which is what an outage, a rate
-  // limit or an expired token looks like mid-run. Raised in review of #2053,
-  // where the retry path skipped the deadline entirely.
+  // workflow with no verdict and no signal. The ruleset reads succeed so the run
+  // reaches its polling loop; every check read then fails, which is what an
+  // outage, a rate limit or an expired token looks like mid-run. Raised in
+  // review of #2053, where the retry path skipped the deadline entirely.
   it('honours the deadline when PR reads keep failing', () => {
     const dir = mkdtempSync(join(tmpdir(), 'watch-pr-checks-stub-'));
     scratchDirs.push(dir);
@@ -153,7 +269,8 @@ describe('watch-pr-checks harness', () => {
         '#!/bin/bash',
         'case "${1:-}" in',
         '  api)',
-        '    if [[ "$*" == *"/rulesets/"* ]]; then echo \'["Quality Checks"]\'; else echo 17085332; fi',
+        '    if [[ "$*" == *"/rulesets/"* ]]; then echo \'["Quality Checks"]\';',
+        '    elif [[ "$*" == *"/rulesets"* ]]; then echo 17085332; else exit 1; fi',
         '    exit 0 ;;',
         '  *) exit 1 ;;',
         'esac',
@@ -182,49 +299,25 @@ describe('watch-pr-checks harness', () => {
   // see what is still outstanding, an identical non-required failure blocks
   // shipping when it lands early and is ignored when it lands late — purely on
   // timing. Raised in review of #2053.
+  const requiredGreen: CheckRun[] = [
+    { name: 'Quality Checks', conclusion: 'success' },
+    { name: 'Test', conclusion: 'success' },
+    { name: 'A11y smoke', conclusion: 'success' },
+    { name: 'E2E PR Smoke', conclusion: 'success' },
+  ];
   it.each([
     [
       'names what is still outstanding on green',
-      [
-        { name: 'Quality Checks', conclusion: 'SUCCESS' },
-        { name: 'Test', conclusion: 'SUCCESS' },
-        { name: 'A11y smoke', conclusion: 'SUCCESS' },
-        { name: 'E2E PR Smoke', conclusion: 'SUCCESS' },
-        { context: 'Vercel - app', state: 'PENDING' },
-      ],
+      { context: 'Vercel - app', state: 'pending' },
       'STILL OUTSTANDING (non-required, may yet fail): Vercel - app',
     ],
     [
       'says so plainly when the board is finished',
-      [
-        { name: 'Quality Checks', conclusion: 'SUCCESS' },
-        { name: 'Test', conclusion: 'SUCCESS' },
-        { name: 'A11y smoke', conclusion: 'SUCCESS' },
-        { name: 'E2E PR Smoke', conclusion: 'SUCCESS' },
-        { context: 'Vercel - app', state: 'SUCCESS' },
-      ],
+      { context: 'Vercel - app', state: 'success' },
       'Nothing outstanding',
     ],
-  ])('%s', (_label, rollup, expected) => {
-    const dir = mkdtempSync(join(tmpdir(), 'watch-pr-checks-green-'));
-    scratchDirs.push(dir);
-    const payload = JSON.stringify({ headRefOid: 'deadbeef', statusCheckRollup: rollup });
-    writeFileSync(
-      join(dir, 'gh'),
-      [
-        '#!/bin/bash',
-        'case "${1:-}" in',
-        '  api)',
-        '    if [[ "$*" == *"/rulesets/"* ]]; then',
-        `      echo '["Quality Checks","Test","A11y smoke","E2E PR Smoke"]'`,
-        '    else echo 17085332; fi',
-        '    exit 0 ;;',
-        `  pr) cat <<'JSON'\n${payload}\nJSON\n    exit 0 ;;`,
-        '  *) exit 1 ;;',
-        'esac',
-      ].join('\n')
-    );
-    chmodSync(join(dir, 'gh'), 0o755);
+  ])('%s', (_label, status, expected) => {
+    const { dir } = restStub(requiredGreen, [status]);
 
     const result = spawnSync('bash', [watcher, '2053', 'deadbeef'], {
       encoding: 'utf8',

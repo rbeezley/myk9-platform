@@ -164,6 +164,29 @@ outstanding() {
   jq -rn --argjson r "$1" --argjson req "$2" "$JQ_DEFS $JQ_OUTSTANDING"
 }
 
+# REST, never GraphQL: `gh pr view` is GraphQL, which Claude Code cloud sessions
+# reject with a 403 while `gh api repos/...` works (MYK9-1414). The commit's
+# check runs (every attempt), its combined statuses and its workflow runs are
+# folded into the GraphQL rollup shape the rules above were written against:
+# upper-case enums, detailsUrl for the ids, and workflowName joined from the
+# run id because a REST check run does not carry it. Status contexts keep no
+# detailsUrl, as in GraphQL, so they never acquire a run id.
+JQ_REST_ROLLUP='
+  ($runs | map({key: (.id | tostring), value: .name}) | from_entries) as $wf
+  | {statusCheckRollup:
+      ([$checks[]
+        | {name, status: ((.status // "") | ascii_upcase),
+           conclusion: ((.conclusion // "") | ascii_upcase),
+           startedAt: (.started_at // ""), detailsUrl: (.details_url // .html_url // "")}
+        | .workflowName = ($wf[(.detailsUrl | capture("/runs/(?<n>[0-9]+)")? | .n) // ""] // "")]
+       + [$statuses[] | {context, state: ((.state // "") | ascii_upcase), createdAt: (.created_at // "")}])}
+'
+
+# rest_rollup <check-runs-array> <statuses-array> <workflow-runs-array>. Pure.
+rest_rollup() {
+  jq -cn --argjson checks "$1" --argjson statuses "$2" --argjson runs "$3" "$JQ_REST_ROLLUP"
+}
+
 # preview_note_applies <comma-joined names>: true only when EVERY name is a
 # Vercel context, the one class the quota exception covers.
 preview_note_applies() {
@@ -309,6 +332,21 @@ self_test() {
   got=$(outstanding "{\"statusCheckRollup\":[$(row 'Quality Checks' CI '' 2026-10-02T19:20:25Z 200 3),$(row Lint CI '' 2026-10-02T19:00:00Z 100 1),$(row Lint CI SUCCESS 2026-10-02T19:20:25Z 200 4),$(row Docs CI '' 2026-10-02T19:20:25Z 200 5)]}" "$req")
   [ "$got" = "Docs" ] || { echo "SELF-TEST FAIL [outstanding]: expected 'Docs', got '$got'"; ok=1; }
 
+  # 22. REST payloads reach the same verdicts (MYK9-1414): lower-case enums, a
+  #     status context's state, and the draft->ready stale rule, which only works
+  #     when workflowName is joined from the run id.
+  rest() { # rest <label> <expected> <check-runs> <statuses>
+    got=$(verdict "$(rest_rollup "$3" "$4" '[{"id":100,"name":"CI"},{"id":200,"name":"CI"}]')" "$req")
+    [ "$got" = "$2" ] || { echo "SELF-TEST FAIL [rest-$1]: expected '$2', got '$got'"; ok=1; }
+  }
+  run_() { # run_ <name> <status> <conclusion|null> <run> <job>
+    printf '{"name":"%s","status":"%s","conclusion":%s,"started_at":"2026-10-25T19:00:00Z","details_url":"https://github.com/o/r/actions/runs/%s/job/%s"}' "$1" "$2" "$3" "$4" "$5"
+  }
+  rest failure 'required-failed:Test' "[$(run_ 'Quality Checks' completed '"success"' 100 1),$(run_ Test completed '"failure"' 100 2)]" '[]'
+  rest status-failure 'preview-failed:Vercel - app' "[$(run_ 'Quality Checks' completed '"success"' 100 1),$(run_ Test completed '"skipped"' 100 2)]" '[{"context":"Vercel - app","state":"failure","created_at":"2026-10-25T19:00:00Z"}]'
+  rest stale-skip 'waiting:Quality Checks, Test' "[$(run_ 'Quality Checks' completed '"skipped"' 100 1),$(run_ Test completed '"skipped"' 100 2),$(run_ 'Quality Checks' in_progress null 200 3)]" '[]'
+  rest green 'green' "[$(run_ 'Quality Checks' completed '"success"' 100 1),$(run_ Test completed '"success"' 100 2)]" '[{"context":"Vercel - app","state":"pending","created_at":"2026-10-25T19:00:00Z"}]'
+
   # 20. The Vercel quota note applies only when every failure is a Vercel one.
   preview_note_applies "Vercel - app, Vercel - docs" || { echo "SELF-TEST FAIL [note-vercel]"; ok=1; }
   if preview_note_applies "Evaluate review evidence"; then echo "SELF-TEST FAIL [note-non-vercel]"; ok=1; fi
@@ -318,7 +356,7 @@ self_test() {
     echo "Harness self-test FAILED — refusing to report on real CI."
     exit 4
   fi
-  echo "self-test 11/11 + 7 current-attempt fixtures x2 orders: vercel-state, run-conclusion, all-green, in-flight, partial-rollup, empty-rollup, required-beats-preview, answered-red, stale-conclusion, unknown-conclusion, neutral-and-skipped, draft-ready-stale-skip, draft-ready-both-registered, cancelled-then-success, fresh-failure-beats-old-success, required-cancelled-then-success, single-intentional-skip, fresh-failure-beats-old-skip"
+  echo "self-test 11/11 + 7 current-attempt fixtures x2 orders + 4 REST: vercel-state, run-conclusion, all-green, in-flight, partial-rollup, empty-rollup, required-beats-preview, answered-red, stale-conclusion, unknown-conclusion, neutral-and-skipped, draft-ready-stale-skip, draft-ready-both-registered, cancelled-then-success, fresh-failure-beats-old-success, required-cancelled-then-success, single-intentional-skip, fresh-failure-beats-old-skip, rest-failure, rest-status-failure, rest-stale-skip, rest-green"
 }
 
 if [ "${1:-}" = "--self-test" ]; then
@@ -343,11 +381,23 @@ if [ -z "$REQUIRED" ] || [ "$REQUIRED" = "[]" ]; then
 fi
 echo "required checks: $(printf '%s' "$REQUIRED" | jq -r 'join(", ")')"
 
-# --repo on every PR query, so the checks being read and the ruleset defining
-# "required" always come from the SAME repository. Without it the ruleset used
-# $REPO while `gh pr view` used the checkout's default remote, which could
-# evaluate an unrelated PR against the wrong requirements.
-PINNED="${2:-$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid)}"
+# Every read names $REPO, so the checks being read and the ruleset defining
+# "required" always come from the SAME repository. An earlier `gh pr view`
+# without --repo used the checkout's default remote, which could evaluate an
+# unrelated PR against the wrong requirements.
+pr_head() { gh api "repos/$REPO/pulls/$PR" --jq '.head.sha' 2>/dev/null; }
+
+# fetch_rollup <sha>: that commit's checks, in the shape verdict() reads.
+# --paginate because a busy head carries more than one page of check runs.
+fetch_rollup() {
+  local checks statuses runs
+  checks=$(gh api --paginate "repos/$REPO/commits/$1/check-runs?filter=all&per_page=100" --jq '.check_runs[]' | jq -sc .) || return 1
+  statuses=$(gh api --paginate "repos/$REPO/commits/$1/status?per_page=100" --jq '.statuses[]' | jq -sc .) || return 1
+  runs=$(gh api --paginate "repos/$REPO/actions/runs?head_sha=$1&per_page=100" --jq '.workflow_runs[]' | jq -sc .) || return 1
+  rest_rollup "$checks" "$statuses" "$runs"
+}
+
+PINNED="${2:-$(pr_head)}"
 if [ -z "$PINNED" ]; then
   echo "ABORT: could not read the head SHA for PR #$PR on $REPO."
   exit 4
@@ -359,13 +409,13 @@ echo "watching PR #$PR pinned to $PINNED"
 DEADLINE=$(( $(date +%s) + TIMEOUT_SECONDS ))
 
 while :; do
-  # ONE request for both fields. Querying the head and the rollup separately
-  # leaves a window where a push lands between them: the checks then belong to
-  # the NEW head while the verdict is reported against $PINNED, and the script
-  # can exit green before it ever notices the move. Validating the SHA that came
-  # back in the SAME response closes it. Raised in review of #2053.
-  RESPONSE=$(gh pr view "$PR" --repo "$REPO" --json headRefOid,statusCheckRollup 2>/dev/null)
-  HEAD=$(printf '%s' "$RESPONSE" | jq -r '.headRefOid // ""')
+  # The rollup is read BY SHA, so it can only describe $PINNED; the head is read
+  # AFTER it, so a push that lands during the rollup read is seen here and
+  # aborts instead of letting $PINNED's checks pass for the new head. (The
+  # GraphQL version got the same guarantee from one combined request; review
+  # of #2053.) The head is not read when the rollup read failed.
+  HEAD=""
+  RESPONSE=$(fetch_rollup "$PINNED" 2>/dev/null) && [ -n "$RESPONSE" ] && HEAD=$(pr_head)
 
   if [ -z "$HEAD" ]; then
     # The deadline is checked HERE too, not only on the polling path below. An

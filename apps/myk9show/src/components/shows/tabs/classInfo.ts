@@ -4,6 +4,8 @@ import { formatEntryDate } from '@/lib/format/dates';
 export interface ClassInfo {
   id: string;
   name: string;
+  /** The class's stored name when `name` is a rebuilt display string (warm-store rows). */
+  className?: string;
   element: string;
   level: string;
   section: string;

@@ -283,6 +283,7 @@ const ShowDetailsPage: React.FC = () => {
       return classes.map(cls => ({
         id: cls.id,
         name: `${cls.element} ${cls.level}`,
+        ...(cls.name ? { className: cls.name } : {}),
         element: cls.element,
         level: cls.level,
         section: cls.section || '',

@@ -1,5 +1,8 @@
 import type { ClassInfo } from '@/components/shows/tabs/ClassesTab';
-import { buildFullClassLabel } from '@/features/_shared/classLabel';
+import {
+  buildClassDisambiguatorsByGroup,
+  buildFullClassLabel,
+} from '@/features/_shared/classLabel';
 import { classTrialLabel } from '@/components/shows/tabs/classInfo';
 import { showDateRangeStatus } from '@/utils/date-format';
 import type { Show } from '@/types/show-types';
@@ -30,15 +33,26 @@ export function buildShowResults(
   classes: readonly ClassInfo[]
 ): { released: ReleasedResultClass[] } | null {
   if (!hasShowHappened(show) || classes.length === 0) return null;
+  // The app's one labeling rule (OverrideTree, buildMoveUpClassLabeler): the disambiguator is built
+  // over EVERY class, withheld included, so a released class is told apart from a withheld sibling.
+  const identityOf = (cls: ClassInfo) => ({
+    trialId: cls.trialId,
+    name: cls.className ?? cls.name,
+    element: cls.element,
+    level: cls.level,
+    section: cls.section,
+  });
+  const disambiguatorFor = buildClassDisambiguatorsByGroup(classes.map(identityOf), c => c.trialId);
   const released = classes
     .filter(cls => !!cls.resultsReleasedAt)
-    .map(cls => ({
-      id: cls.id,
-      // Composed from element + level + section: a stored/store-built name can omit the section,
-      // which made UKC A/B classes in one trial read identically.
-      name: buildFullClassLabel(cls, '', cls.name),
-      trialLabel: classTrialLabel(cls),
-      href: `/shows/${encodeURIComponent(show.id)}/trials/${encodeURIComponent(cls.trialId)}/classes/${encodeURIComponent(cls.id)}/results`,
-    }));
+    .map(cls => {
+      const identity = identityOf(cls);
+      return {
+        id: cls.id,
+        name: buildFullClassLabel(identity, disambiguatorFor(cls.trialId)(identity), identity.name),
+        trialLabel: classTrialLabel(cls),
+        href: `/shows/${encodeURIComponent(show.id)}/trials/${encodeURIComponent(cls.trialId)}/classes/${encodeURIComponent(cls.id)}/results`,
+      };
+    });
   return { released };
 }

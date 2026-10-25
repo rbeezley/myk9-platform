@@ -28,10 +28,11 @@ export function normalizeJudgeId(judgeId: string | null | undefined): string | n
 /**
  * Per-class judge assignment for the show home's class panel (MYK9-1323). Select classes' bulk
  * Assign judge (MYK9-1324) reads this hook's judge list and names but writes through
- * `useBulkJudgeAssignment`. The write is the replicated `upsertClassJudgeAssignment`, which also puts the
- * picked judge on the local class row (MYK9-1327), so every screen shows it at once, offline
- * and after a reload, with no override held here. Everything stays inert for non-managers:
- * the show and judge queries are not read.
+ * `useBulkJudgeAssignment`. The write is the replicated `upsertClassJudgeAssignment`: one queued
+ * assignment write. Every screen reads the class through the classes replica, which shows the
+ * picked judge while that write is undelivered (MYK9-1327), offline and after a reload, so no
+ * override is held here. Everything stays inert for non-managers: the show and judge queries are
+ * not read.
  */
 export function useClassJudgeAssignment(
   showId: string,
@@ -63,8 +64,8 @@ export function useClassJudgeAssignment(
         ? 'loading'
         : 'ready';
 
-  // The picked judge's name goes onto the class row with the id, so the row never reads
-  // "Judge not set" or the previous judge's name while it waits for the server.
+  // The picked judge's name rides with the id onto the new assignment, so the class never reads
+  // "Judge not set" or the previous judge's name while the assignment waits for the server.
   const judgeNamesFor = (judgeId: string): AssignedJudgeName | undefined => {
     const picked = normalizeJudgeId(judgeId);
     const person = picked ? judgesQuery.data?.find(judge => judge.id === picked) : undefined;

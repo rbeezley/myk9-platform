@@ -292,6 +292,20 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * Every undelivered mutation this signed-in user holds on the table: pending, or
+   * failed and kept for Retry or Discard. Owner-scoped like the per-row reader, so
+   * another account's queued work on this device is never named.
+   */
+  public async getUnsentMutationsForTable(): Promise<PendingMutation[]> {
+    if (!this.mutationManager) return [];
+    const [pending, failed] = await Promise.all([
+      this.mutationManager.getPendingMutationsForTable(this.tableName),
+      this.mutationManager.getFailedMutations(),
+    ]);
+    return [...pending, ...failed.filter(m => m.tableName === this.tableName)];
+  }
+
+  /**
    * True when this device holds work for the row that the server may not have:
    * the row is dirty or exists only locally (`_localOnly`), or a pending or
    * failed mutation points at it. Callers that purge a row for a server-side
@@ -1176,19 +1190,21 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * reader can bypass it (MYK9-788: the show read skipped the judge-assignment
    * redaction that lived in a getAllWithStatus override). `get()` stays raw.
    */
-  protected presentRows(rows: T[]): T[] {
+  protected presentRows(rows: T[]): T[] | Promise<T[]> {
     return rows;
   }
 
-  private presentResult(result: ReplicatedReadResult<T>): ReplicatedReadResult<T> {
-    return result.ok ? { ...result, rows: this.presentRows(result.rows) } : result;
+  private async presentResult(result: ReplicatedReadResult<T>): Promise<ReplicatedReadResult<T>> {
+    return result.ok ? { ...result, rows: await this.presentRows(result.rows) } : result;
   }
 
   /**
    * Get all rows for this table
    */
   async getAll(licenseKey?: string): Promise<T[]> {
-    return this.presentRows(await this.queryManager.getAll(licenseKey, await this.visibleRows()));
+    return await this.presentRows(
+      await this.queryManager.getAll(licenseKey, await this.visibleRows())
+    );
   }
 
   /**
@@ -1243,7 +1259,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    */
   async getAllOrThrowIncludingOtherAccounts(licenseKey?: string): Promise<T[]> {
     return this.rowsOrThrow(
-      this.presentResult(await this.queryManager.getAllWithStatus(licenseKey))
+      await this.presentResult(await this.queryManager.getAllWithStatus(licenseKey))
     );
   }
 

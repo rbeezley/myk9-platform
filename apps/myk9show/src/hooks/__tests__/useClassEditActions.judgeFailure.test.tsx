@@ -7,8 +7,6 @@ vi.mock('@/services/replication', () => ({
   replicatedJudgeAssignmentsTable: { replaceClassAssignment: mocks.prepare },
   replicatedClassesTable: {
     sync: mocks.sync,
-    updateClass: vi.fn(async () => 'queued-touch'),
-    getClassById: vi.fn(async () => null),
   },
 }));
 vi.mock('@/store/trialStore', () => ({
@@ -36,7 +34,7 @@ describe('required judge preparation', () => {
     expect(mocks.sync).not.toHaveBeenCalled();
     expect(mocks.load).not.toHaveBeenCalled();
     await result.current.saveClass('c1', { judgeId: 'j2' }, 't1', 'j1');
-    expect(mocks.prepare).toHaveBeenCalledWith('s1', 'c1', 'j2');
+    expect(mocks.prepare).toHaveBeenCalledWith('s1', 'c1', 'j2', undefined);
     expect(updateClass).toHaveBeenCalledWith('c1', { judgeId: 'j2' });
   });
   it('keeps prepared saves successful when cache sync fails', async () => {
@@ -46,7 +44,7 @@ describe('required judge preparation', () => {
     await expect(
       result.current.saveClass('c1', { judgeId: 'j2' }, 't1', 'j1')
     ).resolves.toBeUndefined();
-    expect(mocks.prepare).toHaveBeenCalledWith('s1', 'c1', 'j2');
+    expect(mocks.prepare).toHaveBeenCalledWith('s1', 'c1', 'j2', undefined);
     expect(updateClass).toHaveBeenCalledWith('c1', { judgeId: 'j2' });
   });
 });

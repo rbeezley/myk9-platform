@@ -10,6 +10,7 @@
 import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
 import {
   ReplicatedTable,
+  type MutationManager,
   syncReplicatedTable,
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
@@ -30,11 +31,13 @@ import {
   rowToJudgeAssignment,
   type JudgeAssignmentEnrichment,
   type JudgeAssignmentJoinedRow,
+  type LocalJudgeName,
   type ReplicatedJudgeAssignment,
 } from './ReplicatedJudgeAssignmentsTable.mapper';
+import { ClassJudgeWorkTracker, type UnsentClassJudgeWork } from './judgeAssignmentClassWork';
 
 export { rowToJudgeAssignment };
-export type { JudgeAssignmentJoinedRow, ReplicatedJudgeAssignment };
+export type { JudgeAssignmentJoinedRow, LocalJudgeName, ReplicatedJudgeAssignment };
 
 /**
  * The enriched select every judge_assignments read uses (sync and the MYK9-771
@@ -56,8 +59,44 @@ export const JUDGE_ASSIGNMENTS_PAGE_SIZE = POSTGREST_MAX_ROWS;
 export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJudgeAssignment> {
   private _lastMutationId: string | null = null;
 
+  /**
+   * A refused or failed assignment write the user Discards goes back to what the server holds:
+   * a discarded add disappears (the engine drops a never-uploaded row), and a discarded delete
+   * brings the removed assignment back (MYK9-1327), so a Discard never leaves the class on a
+   * judge nobody asked for.
+   */
+  protected override readonly revertsOnDiscard = true;
+
+  /** Which class each undelivered class-level write belongs to; see `getUnsentClassWork`. */
+  private readonly classWork = new ClassJudgeWorkTracker();
+  private stopAckListener: (() => void) | undefined;
+
   constructor() {
     super('judge_assignments', { logger });
+  }
+
+  override setMutationManager(manager: MutationManager): void {
+    super.setMutationManager(manager);
+    this.stopAckListener?.();
+    this.stopAckListener = this.classWork.listen(this.getTableName(), () =>
+      this.getUnsentClassWork()
+    );
+  }
+
+  /**
+   * Classes whose every judge write was just acknowledged (MYK9-1327). The class's cached judge
+   * names are dropped first, so the refresh the listener starts asks the server again.
+   */
+  onClassJudgesSettled(listener: (classIds: string[]) => void): () => void {
+    return this.classWork.onSettled(classIds => {
+      invalidateClassEnrichment();
+      listener(classIds);
+    });
+  }
+
+  /** The class-level judge writes this user has not delivered yet, from the queue. */
+  async getUnsentClassWork(): Promise<UnsentClassJudgeWork> {
+    return this.classWork.summarize(await this.getUnsentMutationsForTable());
   }
 
   get lastMutationId(): string | null {
@@ -278,6 +317,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
 
     await this.set(id, newAssignment, true);
     invalidateClassEnrichment();
+    this.classWork.note(id, newAssignment.classId);
     const mutationId = await this.queueMutation('INSERT', id, this.toSupabaseRow(newAssignment));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created assignment ${id}`);
@@ -302,6 +342,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
 
     await this.set(id, updated, true);
     invalidateClassEnrichment();
+    this.classWork.note(id, updated.classId);
     const mutationId = await this.queueMutation('UPDATE', id, this.toSupabaseRow(updated));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated assignment ${id}`);
@@ -309,9 +350,22 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
   }
 
   async deleteAssignment(id: string): Promise<string | null> {
+    const existing = await this.get(id);
+    // Waits for the row's own undelivered writes (a pick that never reached the server), so the
+    // delete cannot overtake its insert. Pending only: a FAILED one would hold the delete back
+    // until someone retries or discards it.
+    const after = await this.getPendingMutationIdsForRow(id);
     await this.delete(id);
     invalidateClassEnrichment();
-    const mutationId = await this.queueMutation('DELETE', id, { id });
+    this.classWork.note(id, existing?.classId ?? null);
+    // The row is gone locally by the time this uploads, so the payload keeps the class it left:
+    // the class judge overlay shows "no judge" for it until the delete is delivered.
+    const mutationId = await this.queueMutation(
+      'DELETE',
+      id,
+      { id, class_id: existing?.classId ?? null },
+      after.length > 0 ? after : undefined
+    );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Deleted assignment ${id}`);
     return mutationId;
@@ -381,7 +435,9 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
   async replaceClassAssignment(
     showId: string,
     classId: string,
-    judgeId: string | null
+    judgeId: string | null,
+    /** The picked judge's name, kept on the new row so the class shows it before the upload. */
+    judge?: LocalJudgeName
   ): Promise<void> {
     const existing = (await this.readAllForWrite()).filter(a => a.classId === classId);
     for (const row of existing) {
@@ -398,6 +454,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
         confirmedAt: new Date().toISOString(),
         fee: null,
         notes: null,
+        ...(judge && { localJudge: judge }),
       });
     }
   }
@@ -418,7 +475,8 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
       a => a.classId === classId && a.showId === showId && a.personId === fromPersonId
     );
     if (!match) return;
-    await this.updateAssignment(match.id, { personId: toPersonId });
+    // The row's local name belonged to the judge it is leaving; never a name beside another id.
+    await this.updateAssignment(match.id, { personId: toPersonId, localJudge: undefined });
   }
 }
 

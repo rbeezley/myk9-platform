@@ -61,8 +61,9 @@ export function SecretaryCockpit({
   const legacyAnchor = urlState.anchor ? undefined : selectClassesAnchor(searchParams);
   const state = legacyAnchor ? { ...urlState, anchor: legacyAnchor } : urlState;
   // The class panel's judge picker (MYK9-1323). Held here so a split/stack remount of the panel
-  // cannot drop an assignment mid-write. The write puts the judge on the local class row
-  // (MYK9-1327), which the snapshot already reads, so the panel and the schedule row both show it.
+  // cannot drop an assignment mid-write. The write is one queued assignment, and the
+  // classes replica shows its judge on the class row the snapshot reads (MYK9-1327), so the panel
+  // and the schedule row both show it.
   const judges = useClassJudgeAssignment(snapshot.showId, canManageShow, 'when-stale');
   // Edit Trial and Trial details on each trial heading (MYK9-956); Delete is in the edit panel.
   const { trialRowMenu, trialDialogs } = useTrialRowActions(snapshot.showId, canManageShow);

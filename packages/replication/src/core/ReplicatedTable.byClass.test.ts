@@ -186,6 +186,22 @@ describe('ReplicatedTable class and trial index reads (MYK9-1366)', () => {
     expect((await redacting.getByTrialOrThrow('trial-1'))[0]?.name).toBe('redacted');
   });
 
+  it('awaits an async presentRows on every collection reader', async () => {
+    class AsyncPresentingTable extends ScopedTable {
+      protected override async presentRows(rows: ScopedRow[]): Promise<ScopedRow[]> {
+        await new Promise(resolve => setTimeout(resolve, 5));
+        return rows.map(row => ({ ...row, name: 'async-presented' }));
+      }
+    }
+    const presenting = new AsyncPresentingTable(uniqueName('async-presenting'));
+    await presenting.batchSet([{ id: 'a', classId: 'class-1', trialId: 'trial-1', name: 'Rex' }]);
+
+    expect((await presenting.getAll())[0]?.name).toBe('async-presented');
+    expect((await presenting.getAllOrThrow())[0]?.name).toBe('async-presented');
+    expect((await presenting.getByClassOrThrow('class-1'))[0]?.name).toBe('async-presented');
+    expect((await presenting.getByTrialOrThrow('trial-1'))[0]?.name).toBe('async-presented');
+  });
+
   describe('on a table that keeps rows per account (MYK9-1133)', () => {
     let owned: OwnedScopedTable;
 

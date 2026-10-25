@@ -27,6 +27,13 @@ export interface JudgeAssignmentEnrichment {
   trialTimezone: string | null;
 }
 
+/** A judge's name in the shapes a class row carries. */
+export interface LocalJudgeName {
+  name: string;
+  firstName?: string | undefined;
+  lastName?: string | undefined;
+}
+
 export interface ReplicatedJudgeAssignment extends JudgeAssignmentEnrichment {
   id: string;
   personId: string;
@@ -39,6 +46,12 @@ export interface ReplicatedJudgeAssignment extends JudgeAssignmentEnrichment {
   fee: number | null;
   notes: string | null;
   dayCapacityOverride?: number | null | undefined;
+  /**
+   * Local only: the picked judge's name, kept on the row the pick created so the class shows
+   * it while this assignment is undelivered (MYK9-1327). Never written to the server (no such
+   * column, and `toSupabaseRow` omits it); a pull replaces the row without it.
+   */
+  localJudge?: LocalJudgeName | undefined;
   // Sync metadata
   _version?: number | undefined;
   _lastModified?: Date | undefined;

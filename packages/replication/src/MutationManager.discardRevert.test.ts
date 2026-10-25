@@ -62,6 +62,21 @@ class RefetchingRevertingTable extends RevertingEntriesTable {
   }
 }
 
+/** A server that refuses every DELETE for good (an RLS denial). */
+function refusingDeleteServer(): SupabaseClient {
+  const refused = { data: null, error: { code: '42501', message: 'permission denied' } };
+  const builder = { eq: () => builder, select: async () => refused };
+  return { from: () => ({ delete: () => builder }) } as unknown as SupabaseClient;
+}
+
+/** A reverting table that can hard-delete a row the way a queued DELETE does. */
+class DeletingTable extends RefetchingRevertingTable {
+  async remove(id: string): Promise<string | null> {
+    await this.delete(id);
+    return this.queueMutation('DELETE', id, { id });
+  }
+}
+
 /** A server that accepts the first UPDATE (to version 4) and refuses the rest. */
 function acceptFirstServer(): SupabaseClient {
   let calls = 0;
@@ -326,5 +341,70 @@ describe('Discard reverts the row (MYK9-1076)', () => {
 
     window.removeEventListener('replication:discard-row-replaced', listen);
     expect(events).toEqual([{ tableName, rowId: '1' }]);
+  });
+
+  describe('a refused DELETE (the row is gone locally)', () => {
+    it("online, Discard puts the server's row back, clean, and tells listeners", async () => {
+      const server: ServerRow = { status: 'scored', final_placement: null, version: 3 };
+      const table = new DeletingTable(tableName, adapterFor(server));
+      await start(table, refusingDeleteServer());
+      const id = await table.remove('1');
+      expect(await table.getReplicatedRow('1')).toBeNull();
+      await refuseAll(1);
+      const listener = vi.fn();
+      const unsubscribe = table.subscribe(listener, { emitCurrent: false });
+
+      await manager!.discardFailedMutation(id!);
+
+      await vi.waitFor(async () => {
+        const row = await table.getReplicatedRow('1');
+        expect(row?.data).toEqual({ id: '1', status: 'scored', finalPlacement: null });
+        expect(row?.isDirty).toBe(false);
+        expect(row?.serverVersion).toBe(3);
+      });
+      await vi.waitFor(() => expect(listener).toHaveBeenCalled());
+      unsubscribe();
+    });
+
+    it('stays gone when the server no longer holds the row', async () => {
+      const server: ServerRow = { status: 'scored', final_placement: null, version: 3 };
+      const adapter = adapterFor(server, async () => []);
+      const table = new DeletingTable(tableName, adapter);
+      await start(table, refusingDeleteServer());
+      const id = await table.remove('1');
+      await refuseAll(1);
+
+      await manager!.discardFailedMutation(id!);
+
+      await vi.waitFor(() => expect(adapter.fetchRowsById).toHaveBeenCalled());
+      await new Promise(resolve => setTimeout(resolve, 20));
+      expect(await table.getReplicatedRow('1')).toBeNull();
+    });
+
+    it('stays gone while a newer write for the row is queued', async () => {
+      const server: ServerRow = { status: 'scored', final_placement: null, version: 3 };
+      const table = new DeletingTable(tableName, adapterFor(server));
+      await start(table, refusingDeleteServer());
+      const id = await table.remove('1');
+      await refuseAll(1);
+      const db = await databaseManager.getDatabase('test');
+      await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
+        id: 'newer-pending',
+        authUserId: 'stale-row-refetch-user',
+        tableName,
+        operation: 'INSERT',
+        rowId: '1',
+        data: { id: '1', status: 'again' },
+        timestamp: Date.now(),
+        retries: 0,
+        status: 'pending',
+        nextRetryAt: Date.now() + 3_600_000,
+      } satisfies PendingMutation);
+
+      await manager!.discardFailedMutation(id!);
+
+      await new Promise(resolve => setTimeout(resolve, 30));
+      expect(await table.getReplicatedRow('1')).toBeNull();
+    });
   });
 });

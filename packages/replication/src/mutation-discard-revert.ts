@@ -123,7 +123,9 @@ export async function revertDiscardedRowWrite(
 /**
  * Step 2: replace the row with the server's copy when it is still the
  * discarded write's row (or already clean), nothing else names it, and the
- * copy is not older than the token the row holds.
+ * copy is not older than the token the row holds. A discarded DELETE whose row
+ * is gone gets the server's copy back, so the row the user tried to remove
+ * reappears instead of staying hidden on this device.
  * @returns true when the row was replaced.
  */
 export async function replaceDiscardedRow(
@@ -131,8 +133,33 @@ export async function replaceDiscardedRow(
   discarded: PendingMutation,
   remote: DiscardedRowRemote
 ): Promise<boolean> {
-  if (discarded.rowRevision === undefined) return false;
+  // A DELETE removed the row when it was queued, so it carries no revision and the row
+  // is gone: the server's copy is all there is to restore (below).
+  const restoresDeletedRow = discarded.operation === 'DELETE';
+  if (discarded.rowRevision === undefined && !restoresDeletedRow) return false;
   const { tx, rows, row, blocked } = await openGuarded(db, discarded);
+  if (restoresDeletedRow && row === undefined) {
+    // Only while nothing else names the row: a newer write of its own keeps it gone.
+    if (blocked) {
+      await tx.done;
+      return false;
+    }
+    await rows.put(
+      buildRemoteReplacementRow({
+        tableName: discarded.tableName,
+        id: String(discarded.rowId),
+        remoteData: remote.data as { id: string },
+        existingRow: undefined,
+        remoteServerVersion: remote.serverVersion,
+      })
+    );
+    await tx.done;
+    return true;
+  }
+  if (discarded.rowRevision === undefined) {
+    await tx.done;
+    return false;
+  }
   const older =
     remote.serverVersion !== undefined &&
     row?.serverVersion !== undefined &&

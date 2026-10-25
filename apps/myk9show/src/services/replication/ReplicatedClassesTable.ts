@@ -35,6 +35,9 @@ import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeF
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
 import type { Database } from '@/types/supabase';
 import { buildRingsideClassRpc } from './ringsideClassRpc';
+import { replicatedJudgeAssignmentsTable } from './ReplicatedJudgeAssignmentsTable';
+import { ClassJudgeOverlaySource } from './classJudgeOverlaySource';
+import { refreshRowsById } from './refreshRowsById';
 import type { TimeLimitRule } from './resolveClassTimeLimitRules';
 
 /**
@@ -319,35 +322,10 @@ const SERVER_OWNED_CLASS_COLUMNS: ReadonlyArray<readonly [string, keyof Replicat
  * agrees. Any other status difference (the server reopened the class) still
  * surfaces. Only known statuses are folded; anything else compares as written.
  */
-const CLASS_JUDGE_FIELDS: ReadonlySet<string> = new Set([
-  'judgeId',
-  'judgeName',
-  'judgeFirstName',
-  'judgeLastName',
-  'judgeResolved',
-]);
-
-/**
- * MYK9-1327: a judge change is written onto the local class row
- * (`writeClassJudgeLocally`), while the server derives the row's judge from
- * `judge_assignments`. A pull that reaches the row before its writes upload therefore
- * shows the server mid-way (this device's own earlier pick, or a name lookup that did
- * not run), which is not a change to collide with. So the judge fields never count as
- * server-changed on a dirty row: a judge this device set stays until the row is clean,
- * and once it is, the server's judge wins as usual (resolveConflict). A judge this
- * device did NOT change is still adopted from the server by the 3-way merge, which
- * reads raw values. Compare only; stored values are untouched.
- */
-const notServerChangedJudge = (field: string, value: unknown): unknown =>
-  CLASS_JUDGE_FIELDS.has(field) ? undefined : value;
-
 export const CLASS_DIRTY_ROW_COMPARE_POLICY: DirtyRowComparePolicy = {
   normalizeValue: (field, value) =>
     field === 'classStatus' && typeof value === 'string' ? foldClassStatus(value) : value,
-  normalizeRemoteComparison: notServerChangedJudge,
   serverWinsFields: ['actual_end_time'],
-  // One judge across five fields: a changed judge is kept whole, never half-replaced.
-  fieldGroups: [[...CLASS_JUDGE_FIELDS]],
 };
 
 function foldClassStatus(status: string): string {
@@ -418,6 +396,31 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
 
   constructor() {
     super('classes', { logger });
+  }
+
+  /**
+   * MYK9-1327: a class's judge is derived at READ time from the judge assignments this device
+   * has not delivered yet, never stored on the row (see classJudgeOverlay).
+   */
+  private readonly judgeOverlay = new ClassJudgeOverlaySource(
+    () => replicatedJudgeAssignmentsTable,
+    classIds => this.refreshClassesById(classIds),
+    () => void this.notifyListeners()
+  );
+
+  protected override presentRows(rows: ReplicatedClass[]): Promise<ReplicatedClass[]> {
+    return this.judgeOverlay.present(rows);
+  }
+
+  /**
+   * Re-read classes from the server now, through the same enriched select a pull uses, so a
+   * class whose judge write was just acknowledged shows the server's judge without waiting for
+   * the next pull.
+   */
+  private refreshClassesById(classIds: string[]): Promise<void> {
+    return refreshRowsById(this, this.getRowRefetchAdapter(), classIds, (local, remote) =>
+      this.resolveConflict(local, remote)
+    );
   }
 
   /** Get the mutation ID from the last create/update operation */
@@ -791,7 +794,8 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
    * Get class by ID
    */
   async getClassById(classId: string): Promise<ReplicatedClass | null> {
-    return this.get(classId);
+    const row = await this.get(classId);
+    return row ? ((await this.judgeOverlay.present([row]))[0] ?? row) : null;
   }
 
   /** A class reaches its show through its trial (MYK9-1205). */

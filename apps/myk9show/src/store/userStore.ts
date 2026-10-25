@@ -8,6 +8,7 @@ import { getOptimalStorage } from '@/services/database/storage-adapter';
 // import { getLastModifiedBy, getCurrentUserUUID } from '@/utils/authHelpers';
 import { reportStoreError } from '@/utils/standardizedErrorHandler';
 import { logger } from '@/services/LoggingService';
+import { registerJudgeNameLookup } from '@/services/replication/classJudgeOverlay';
 
 // Input types for creating/updating users
 export interface UserInput {
@@ -481,3 +482,15 @@ export const useUserStore = create<UserStore>()(
     }
   )
 );
+
+/**
+ * MYK9-1327: the class judge overlay names a just-picked judge from the persisted people list
+ * (the same source the show-level judge roster uses offline) when neither the pick nor any
+ * synced class carries the name. Registered here because services cannot import stores.
+ */
+registerJudgeNameLookup(personId => {
+  const person = useUserStore.getState().people.find(candidate => candidate.id === personId);
+  if (!person) return undefined;
+  const name = person.name?.trim() || `${person.firstName} ${person.lastName}`.trim();
+  return name ? { name, firstName: person.firstName, lastName: person.lastName } : undefined;
+});

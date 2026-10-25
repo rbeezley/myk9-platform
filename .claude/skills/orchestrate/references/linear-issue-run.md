@@ -53,9 +53,10 @@ review and suites all count).
 - `get_issue` with `includeRelations: true`. Read the **full** description, acceptance
   criteria, linked plan or OpenSpec change, and the latest comments. If the issue names an
   OpenSpec change, run it in OpenSpec mode instead.
-- **Already fixed?** If the fix may already be on `main`, a `haiku` agent checks. If it is,
-  comment with the evidence (commit or PR, and where the criterion holds), set Done after
-  checking every criterion, and move on.
+- **Already fixed?** If the fix may already be on `main`, a `haiku` agent checks. The root then
+  fresh-reads the full issue and checks every criterion, including production/acceptance proof.
+  Record the evidence and apply the shared closeout contract; code on main or the helper's
+  report alone cannot establish Done.
 - **True, and fixed how?** Run "Verify, then weigh" from `../SKILL.md`: reproduce the claim
   on `main`, check it against archived issues and INTENT, and write the `premise:` and
   `approach:` ledger fields. Route rejected premises through the shared disposition table.
@@ -117,8 +118,9 @@ never `origin/main` itself, which may have moved. Then run `ship-pr` from `$WT` 
 4, 5). This run's authorization covers the push, the
 PR and the squash-merge. Additions specific to the run:
 
-- **PR title and body name only `MYK9-<n>`** (`Fixes MYK9-<n>`). A sibling or parent id in the
-  body auto-completes that issue too when this PR merges. That includes the agent-involvement and risk prose: write "the orchestrate dry run", not its tracking id.
+- **PR title and body name only the tracking `MYK9-<n>`** (use a tracking reference).
+  Other identifiers can link unrelated issues and trigger their status automations. That
+  includes agent-involvement/risk prose: write "the orchestrate dry run", not its tracking id.
 - **Step A (simplify):** under 150 changed lines, your line-by-line review read is the simplify
   pass, so don't spend three more agents on it. Larger diffs run `/simplify`.
 - **Ratchet:** `pnpm qa:code-quality-ratchet` from `$WT` when the diff adds lines to an
@@ -126,9 +128,9 @@ PR and the squash-merge. Additions specific to the run:
 - **`adversarial` floor:** dispatch two `sonnet` lenses (read only, distinct bug-finding
   angles) in parallel. Fix or evidence every finding, then **re-run both lenses on the new
   head**: `post-review-gate.sh` posts "all findings addressed" only over a clean final log.
-  Follow the current verdict contract used by the review wrappers and
-  `scripts/qa/review-verdict.sh`, rather than a separate sentence template here. The final log
-  must carry no outstanding findings; preserve earlier findings and their dispositions separately.
+  Pass the wrappers' current `scripts/qa/review-verdict.sh` contract to each lens. A valid clean
+  opening is `No actionable defects found.` The final log must contain no finding bullets or
+  findings JSON, including fixed findings; preserve earlier findings/dispositions in separate history.
 - **Migration in the diff:** carry it through the PR and review gate (`migration-auditor`
   is one adversarial lens), then **do not merge** in this run. Route the owner's merge/deploy
   action through the shared table. Never push a migration from an unmerged branch.
@@ -136,7 +138,9 @@ PR and the squash-merge. Additions specific to the run:
   reviewer through the shared table. No same-harness substitute, no owner override from an agent.
 - **Watcher exit 3:** run it once more. If it times out again, arm `gh pr merge --squash
 --auto`, keep the worktree, leave the issue In Progress, and mark the ledger "merge pending".
-  The run summary lists it for `/cleanup` later.
+  Record pending proof labels and the post-merge executor under the shared lifecycle contract.
+  For shipping-through-completion authorization, continue monitoring through merge and closeout;
+  a user-authorized bounded run leaves the owned resume action in its summary.
 - **Read the watcher's own exit code** (`…; echo "WATCH_EXIT=$?"`), never a wrapper's. If
   the failed check is `Review gate` and its status predates your gate comment, the
   comment-triggered run hasn't finished yet. Re-run the watcher once before treating it as red.
@@ -145,8 +149,8 @@ PR and the squash-merge. Additions specific to the run:
 
 ### 5. Close out (worktree still exists)
 
-A merge **auto-completes** the linked issue in Linear, so the final state is always set
-explicitly after a fresh read:
+A merge now queues the linked issue In Review under the team's automation. Always reconcile
+the actual state and evidence explicitly after a fresh read:
 
 1. `gh pr view <n> --json state,mergeCommit` shows `MERGED`.
 2. A fresh `get_issue` (a nightly job may have appended criteria). Check every criterion against
@@ -204,15 +208,15 @@ run, and mark each `refill` issue in the table (e.g. `MYK9-321 (refill)`).
 
 ## Common mistakes
 
-| Mistake                                                    | Instead                                                          |
-| ---------------------------------------------------------- | ---------------------------------------------------------------- |
-| Trusting Linear's auto-Done after the merge                | Always re-read and set Done or In Review yourself                |
-| Dispatching the issue's criteria without reproducing them  | Reproduce on `main` first; hold what you cannot see              |
-| Building the issue's Recommendation as written             | Weigh an alternative; the criteria are the contract, not the fix |
-| Picking from Backlog, or grading issues up front           | Todo only; risk is judged from the diff at ship time             |
-| Handing a refund fix to sonnet "because it's small"        | Money is held, whatever its size                                 |
-| Letting the implementer push, open the PR or post the gate | The orchestrator owns every shared-system write                  |
-| Retrying a red CI a third time                             | Hold after two attempts; unfinished code stays In Progress       |
-| Removing a merge-pending worktree                          | Keep it; `/cleanup` after GitHub merges                          |
-| Ending an overnight run when the approved list is done     | Continuous mode refills from Todo until a stop condition holds   |
-| Reusing the run-start Todo list for refills                | Re-query; the board changes overnight                            |
+| Mistake                                                    | Instead                                                           |
+| ---------------------------------------------------------- | ----------------------------------------------------------------- |
+| Treating an automated status as acceptance proof           | Fresh-read all criteria and reconcile the actual post-merge state |
+| Dispatching the issue's criteria without reproducing them  | Reproduce on `main` first; hold what you cannot see               |
+| Building the issue's Recommendation as written             | Weigh an alternative; the criteria are the contract, not the fix  |
+| Picking from Backlog, or grading issues up front           | Todo only; risk is judged from the diff at ship time              |
+| Handing a refund fix to sonnet "because it's small"        | Money is held, whatever its size                                  |
+| Letting the implementer push, open the PR or post the gate | The orchestrator owns every shared-system write                   |
+| Retrying a red CI a third time                             | Hold after two attempts; unfinished code stays In Progress        |
+| Removing a merge-pending worktree                          | Keep it; `/cleanup` after GitHub merges                           |
+| Ending an overnight run when the approved list is done     | Continuous mode refills from Todo until a stop condition holds    |
+| Reusing the run-start Todo list for refills                | Re-query; the board changes overnight                             |

@@ -137,6 +137,36 @@ authorized-person action. `Parked` marks an explicit decision to defer work unti
 not merely an unstarted issue. Do not select it for launch implementation until the owner brings
 it into scope. Record the trigger in the issue and remove the label when that decision changes.
 
+## Lifecycle owner and GitHub automation
+
+The root agent running a command or pipeline owns the linked Linear issue across delegated
+phases. Read the full tracking issue and latest comments before work; OpenSpec task checkboxes
+describe artifact progress and do not update Linear by themselves. The root must:
+
+1. Complete premise, dependency, ownership and approval checks before implementation. Set the
+   issue In Progress when implementation starts; proposal/exploration alone leaves its state.
+2. Apply the disposition table on every pause and handoff, with the complete hold record.
+3. Reconcile the full issue after merge and again after archive/spec closeout. Keep each pending
+   proof until recorded; move Done only when every criterion and required merge/evidence gate passes.
+4. Before handing off an asynchronous merge, record outstanding proof labels and the executor
+   responsible for post-merge reconciliation. A request to ship through completion retains that
+   responsibility through merge; a user-authorized bounded run records its next owner/resume action.
+
+Team [Workflows & automations](https://linear.app/myk9-platform/settings/teams/MYK9/workflow)
+was aligned with this lifecycle and read back on 2026-10-25 after owner approval:
+
+| Event / setting            | Saved behavior |
+| -------------------------- | -------------- |
+| PR review request/activity | No action      |
+| PR merge                   | In Review      |
+| Auto-close parent issues   | Off            |
+| Auto-close sub-issues      | Off            |
+
+PR open still moves to In Progress. Draft/ready-for-merge events take no action. Thus a merge
+queues acceptance review rather than asserting Done, including asynchronous merges. Parent and
+sub-issue closure requires each issue's own evidence check. Treat automation as a convenience,
+never proof: confirm the actual state and reconcile it even when integration delivery is delayed.
+
 ## Dispositions and holds — the single routing table
 
 All agent workflows use this table; do not maintain separate label/state mappings in skills.
@@ -150,7 +180,8 @@ Apply every independent hold that remains; labels never grant the approval they 
 | New scope/product question reserved for the owner, convergence stop, or model escalation                              | needs:decision; state follows the pre-work/started rule above                                                                                   | Named decision owner records the exact approval or restructure choice                                                                                                                                                      |
 | Work touches payments, refunds, fees or money guards without recorded owner approval for that scope                   | Pre-work stop with needs:decision, regardless of issue size; stop mid-work if discovered later                                                  | Owner explicitly approves the scope before implementation starts or resumes; never infer approval from a label                                                                                                             |
 | Required CI remains red after the run's two fix attempts                                                              | needs:decision for an explicit repair/handoff plan; keep In Progress                                                                            | Owner/executor accepts the next repair approach; code fixes and passing checks remain owed                                                                                                                                 |
-| Required tool, credentials, fixture, network or reviewer unavailable; runner hangs over 30 seconds                    | needs:environment; state follows the pre-work/started rule                                                                                      | A capable executor establishes the missing capability is restored; do not infer a fix from elapsed time                                                                                                                    |
+| Required tool, credentials, fixture, network or reviewer unavailable                                                  | needs:environment; state follows the pre-work/started rule                                                                                      | A capable executor establishes the missing capability is restored; do not infer a fix from elapsed time                                                                                                                    |
+| A verification runner hangs over 30 seconds                                                                           | Stop the suite and report; needs:decision for a repair/handoff plan; started work stays In Progress                                             | Name the owner/capable executor and runnable next approach; do not retry the same hung suite in a loop                                                                                                                     |
 | Criteria require an owner-only/person action (including real-user observation)                                        | Pre-work stop with needs:operator unless the owner already authorized the implementation/verification sequence; unmerged work stays In Progress | Record the action, responsible person and approved sequence                                                                                                                                                                |
 | An orchestrate Linear run discovers a migration, before or during implementation                                      | needs:operator; carry the PR through its review gate, then stop before merge in this run                                                        | The owner continues the migration merge/deploy sequence in a separately authorized workflow; the run's generic push/PR/squash-merge authorization does not waive this stop. Never push a migration from an unmerged branch |
 | qa:inflight exits 1, an In Progress issue names the paths, or a running session/PR/branch/worktree overlaps ownership | Pre-work stop with needs:coordination                                                                                                           | Agree ownership/sequencing; a held or idle branch may still contain unmerged work                                                                                                                                          |

@@ -253,15 +253,20 @@ gh pr view $PR_NUMBER --json state,mergedAt
 
 Do not proceed until `state == "MERGED"`.
 
-**Path B — the watcher exited 3 (timeout — NOT a verdict), or you do not want to wait:** arm
-auto-merge (only after Step 4 has passed) and return immediately. GitHub will squash-merge when required checks pass.
+**Path B — the watcher exited 3 (timeout — NOT a verdict):** after Step 4 has passed,
+auto-merge may be armed. GitHub will squash-merge when required checks pass.
 
 ```bash
 gh pr merge $PR_NUMBER --squash --auto
 gh pr view $PR_NUMBER --json autoMergeRequest
 ```
 
-Then tell the user: "Auto-merge armed — GitHub will merge when required checks pass. Run `/cleanup` after it merges." Leave the Linear issue **In Progress** and **STOP — do not proceed to Steps 6–7.** Do not poll; use `gh pr checks $PR_NUMBER --watch` only when the user asks to wait.
+Keep the issue In Progress while merge is pending and record pending proofs plus the post-merge
+executor under `docs/agents/issue-tracker.md`'s **Lifecycle owner** protocol. When the user
+authorized shipping through completion, continue monitoring to confirmed merge, then Steps 6–7.
+For an explicitly bounded run/handoff, report merge pending and the owned resume action; do not
+claim it shipped or perform cleanup before merge. Team automation queues merged issues In Review;
+the post-merge executor must still reconcile every criterion before Done.
 
 ---
 

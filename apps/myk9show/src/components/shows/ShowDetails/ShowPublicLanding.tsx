@@ -15,6 +15,13 @@ import { StaleShowNotice } from './StaleShowNotice';
 import { MailInEntryNotice } from './MailInEntryNotice';
 import { acceptsOnlineEntries, isMailInOnlyShow } from '@/features/payments/onlineEntryGate';
 import { LandingMailInContext } from '@/features/_shared/landing/landingMailIn';
+import { ShowResultsSection } from '@/features/_shared/landing/ShowResultsSection';
+import { buildShowResults } from '@/features/_shared/landing/showResults';
+import {
+  LateEntryContactContext,
+  pickLateEntryContact,
+} from '@/features/_shared/landing/lateEntryContactContext';
+import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
 import { PreviewExitBar } from './PreviewExitBar';
 import { AllShowsBar, useScrollToTopOnShow } from './ShowPublicLanding.frame';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -29,6 +36,12 @@ export interface ShowPublicLandingProps {
   landingTrials: Trial[];
   /** Anonymous-safe class identity rows for the shared public preview. */
   offeredClasses?: ClassInfo[];
+  /**
+   * The class list the results block reads: the warm store's rows when the replica holds the
+   * show, else the public read. Separate from `offeredClasses` so a signed-in exhibitor whose
+   * replica is warm still sees released results. Defaults to `offeredClasses`.
+   */
+  resultClasses?: ClassInfo[];
   /**
    * Whether the show's offered classes are known yet. `null` while unresolved;
    * the styled landing uses it to gate its "find your class" affordances. The
@@ -60,6 +73,7 @@ export function ShowPublicLanding({
   show,
   landingTrials,
   offeredClasses = [],
+  resultClasses,
   hasEntryClassInventory,
   entryWindowNotOpen,
   refreshFailed,
@@ -76,6 +90,14 @@ export function ShowPublicLanding({
       : null;
   const isManagerDraftPreview = styleMode === 'manager-draft-preview';
   const mailInOnly = isMailInOnlyShow(show);
+  // A failed or pending officials read leaves the contact null: the page says the club
+  // has not listed a secretary rather than breaking.
+  const officialsQuery = useShowOfficials(show.id);
+  const lateEntryContact = useMemo(
+    () => (officialsQuery.isSuccess ? pickLateEntryContact(officialsQuery.data) : undefined),
+    [officialsQuery.data, officialsQuery.isSuccess]
+  );
+  const showResults = buildShowResults(show, resultClasses ?? offeredClasses);
   // Unknown (a stale cached row) is never online-capable: no Enter CTA until known.
   const onlineEntriesOpen = acceptsOnlineEntries(show);
 
@@ -213,20 +235,23 @@ export function ShowPublicLanding({
           }}
         />
       )}
+      {showResults && <ShowResultsSection released={showResults.released} />}
       {refreshFailed && onRetry && <StaleShowNotice onRetry={onRetry} />}
       {mailInOnly && <MailInEntryNotice />}
-      <LandingMailInContext.Provider value={mailInOnly}>
-        {/* MYK9-979: a mail-in show withholds the Enter CTA through the gate
+      <LateEntryContactContext.Provider value={lateEntryContact}>
+        <LandingMailInContext.Provider value={mailInOnly}>
+          {/* MYK9-979: a mail-in show withholds the Enter CTA through the gate
             every style already reads; the context swaps the sections'
             "classes not assigned yet" copy for the mail-in note. */}
-        <StyledLanding
-          show={previewShow}
-          trial={landingTrials[0] ?? null}
-          allTrials={landingTrials}
-          hasEntryClassInventory={hasEntryClassInventory}
-          entryWindowNotOpen={entryWindowNotOpen || !onlineEntriesOpen}
-        />
-      </LandingMailInContext.Provider>
+          <StyledLanding
+            show={previewShow}
+            trial={landingTrials[0] ?? null}
+            allTrials={landingTrials}
+            hasEntryClassInventory={hasEntryClassInventory}
+            entryWindowNotOpen={entryWindowNotOpen || !onlineEntriesOpen}
+          />
+        </LandingMailInContext.Provider>
+      </LateEntryContactContext.Provider>
     </>
   );
 }

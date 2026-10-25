@@ -83,7 +83,9 @@ describe('FieldGuide Enter CTA gating', () => {
     it('shows closed-entry guidance when entries are closed', () => {
       render(<FinalCtaSection {...baseProps} canEnterOnline={false} entryClosed />);
       expect(screen.queryByRole('link', { name: /submit entry/i })).toBeNull();
-      expect(screen.getByText(/Contact the trial secretary/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Contact the trial secretary for late-entry help/i)
+      ).toBeInTheDocument();
       expect(screen.queryByText(/classes are assigned/i)).not.toBeInTheDocument();
     });
   });

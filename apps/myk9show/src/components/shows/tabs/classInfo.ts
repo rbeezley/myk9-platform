@@ -4,6 +4,8 @@ import { formatEntryDate } from '@/lib/format/dates';
 export interface ClassInfo {
   id: string;
   name: string;
+  /** The class's stored name when `name` is a rebuilt display string (warm-store rows). */
+  className?: string;
   element: string;
   level: string;
   section: string;
@@ -22,6 +24,12 @@ export interface ClassInfo {
   trialDate?: string;
   trialNumber?: string;
   trialName?: string;
+  /**
+   * When the class's results were released to the public; `null` = withheld.
+   * Absent on any read that does not carry the release gate (the warm store), so
+   * absence means "unknown", never "withheld".
+   */
+  resultsReleasedAt?: string | null;
   /** Run-order position (`classes.class_order`); absent on the public read. */
   classOrder?: number;
 }

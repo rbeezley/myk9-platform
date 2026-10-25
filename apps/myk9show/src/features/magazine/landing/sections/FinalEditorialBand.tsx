@@ -2,6 +2,7 @@ import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
 import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
+import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface FinalEditorialBandProps {
   classesHref: string | null;
@@ -127,12 +128,14 @@ export function FinalEditorialBand({
               lineHeight: 1.5,
             }}
           >
-            {entryClosed
-              ? 'Contact the trial secretary for late-entry help.'
-              : pendingEntryCopy(
-                  mailInOnly,
-                  'The secretary still needs to assign classes before online entry is available.'
-                )}
+            {entryClosed ? (
+              <LateEntryContact />
+            ) : (
+              pendingEntryCopy(
+                mailInOnly,
+                'The secretary still needs to assign classes before online entry is available.'
+              )
+            )}
           </p>
         )}
 

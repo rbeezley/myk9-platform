@@ -6,6 +6,7 @@ import { HeritageHeading } from '../../components/HeritageHeading';
 import { useRevealOnScroll } from '../../hooks/useRevealOnScroll';
 import { formatDateInTimezone } from '../utils/dateFormat';
 import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
+import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface HeroBlockProps {
   clubName: string;
@@ -224,12 +225,16 @@ export function HeroBlock({
                 fontFamily: "'EB Garamond', Georgia, serif",
               }}
             >
-              {entryClosed
-                ? 'Entries are closed for this show. Contact the trial secretary for late-entry help.'
-                : pendingEntryCopy(
-                    mailInOnly,
-                    'Entries are not available yet because no classes are assigned yet.'
-                  )}
+              {entryClosed ? (
+                <>
+                  <LateEntryContact lead="Entries are closed for this show. " />
+                </>
+              ) : (
+                pendingEntryCopy(
+                  mailInOnly,
+                  'Entries are not available yet because no classes are assigned yet.'
+                )
+              )}
             </p>
           )}
           <SeeClassesLink

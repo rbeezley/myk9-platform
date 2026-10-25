@@ -7,6 +7,8 @@ import { isAccountSession } from '@/hooks/guestServerRead';
 import { fetchShowConfirmedJudgeAssignments } from '@/services/database/_shared/judgeNamesByClass';
 import { fetchPublicEntryCountsByShow } from '@/services/database/_shared/entryCounts';
 import type { Show } from '@/types/show-types';
+import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
+import { pickLateEntryContact } from './lateEntryContactContext';
 import { buildLandingData, type LandingData, type LandingJudgesState } from './landingData';
 
 export function useLandingShowData(
@@ -67,9 +69,24 @@ export function useLandingShowData(
     isAuthenticatedUser,
   ]);
 
+  // A failed or pending officials read leaves the secretary unknown (undefined), never "none"; it never blocks the page.
+  const officialsQuery = useShowOfficials(showId || undefined);
+  const secretary = useMemo(
+    () => (officialsQuery.isSuccess ? pickLateEntryContact(officialsQuery.data) : undefined),
+    [officialsQuery.data, officialsQuery.isSuccess]
+  );
+
   return useMemo(
     () =>
-      buildLandingData(show, currentTrial, allTrials, entryCount, judgeAssignments, judgesState),
-    [show, currentTrial, allTrials, entryCount, judgeAssignments, judgesState]
+      buildLandingData(
+        show,
+        currentTrial,
+        allTrials,
+        entryCount,
+        judgeAssignments,
+        judgesState,
+        secretary
+      ),
+    [show, currentTrial, allTrials, entryCount, judgeAssignments, judgesState, secretary]
   );
 }

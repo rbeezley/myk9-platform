@@ -71,6 +71,7 @@ export function replicatedToTrialClass(replicated: ReplicatedClass): SyncableTri
     allowsWaitlist: replicated.allowsWaitlist,
     runOrder: replicated.classOrder,
     reopenedAfterCloseoutAt: replicated.reopenedAfterCloseoutAt ?? null,
+    resultsReleasedAt: replicated.resultsReleasedAt ?? null,
     judgeSignedOffAt: replicated.judgeSignedOffAt ?? null,
     judgeSignedOffBy: replicated.judgeSignedOffBy ?? null,
     _version: replicated._version || 1,

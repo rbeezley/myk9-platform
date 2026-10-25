@@ -283,6 +283,7 @@ const ShowDetailsPage: React.FC = () => {
       return classes.map(cls => ({
         id: cls.id,
         name: `${cls.element} ${cls.level}`,
+        ...(cls.name ? { className: cls.name } : {}),
         element: cls.element,
         level: cls.level,
         section: cls.section || '',
@@ -296,6 +297,7 @@ const ShowDetailsPage: React.FC = () => {
         entryCount: classEntryCountsUnavailable ? null : (entryCountByClassId.get(cls.id) ?? 0),
         scoredCount: cls.completedEntries ?? 0,
         reopenedAfterCloseoutAt: cls.reopenedAfterCloseoutAt ?? null,
+        resultsReleasedAt: cls.resultsReleasedAt ?? null,
         userHasEntry: userEntryClassIds.has(cls.id),
         trialDate: trial.trialDate || '',
         trialNumber: trial.trialNumber || '',
@@ -501,6 +503,7 @@ const ShowDetailsPage: React.FC = () => {
         show={actualCurrentShow}
         landingTrials={landingTrials}
         offeredClasses={publicShowClasses}
+        resultClasses={effectiveShowClasses}
         hasEntryClassInventory={hasEntryClassInventory}
         entryWindowNotOpen={isEntryWindowNotOpen(entryStatus.status)}
         refreshFailed={refreshFailed}

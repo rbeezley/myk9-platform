@@ -6,6 +6,7 @@ import { bannerSpacing } from '../../tokens';
 import { formatDateInTimezone, formatDateRange } from '../utils/dateFormat';
 import type { BannerBrandColors } from '../../hooks/useBannerBrandColor';
 import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
+import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface FlagMastheadProps {
   brandColors: BannerBrandColors;
@@ -92,12 +93,16 @@ export function FlagMasthead({
               opacity: 0.85,
             }}
           >
-            {entryClosed
-              ? 'Entries are closed for this show. Contact the trial secretary for late-entry help.'
-              : pendingEntryCopy(
-                  mailInOnly,
-                  'Entries are not available yet because no classes are assigned yet.'
-                )}
+            {entryClosed ? (
+              <>
+                <LateEntryContact lead="Entries are closed for this show. " />
+              </>
+            ) : (
+              pendingEntryCopy(
+                mailInOnly,
+                'Entries are not available yet because no classes are assigned yet.'
+              )
+            )}
           </p>
         )}
         <SeeClassesLink

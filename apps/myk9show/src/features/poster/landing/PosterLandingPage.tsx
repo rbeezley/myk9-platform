@@ -147,7 +147,11 @@ export function PosterLandingPage({
           timezone={data.timezone}
         />
         <JudgesSection judges={data.judges} trialsCount={data.trials.length} />
-        <RosterSection entryCount={data.entryCount} entryLimit={data.entryLimit} />
+        <RosterSection
+          entryCount={data.entryCount}
+          entryLimit={data.entryLimit}
+          pastShow={data.showHasHappened}
+        />
         <OnTheDaySection
           items={data.onTheDay}
           hospitalityNotes={data.hospitalityNotes}

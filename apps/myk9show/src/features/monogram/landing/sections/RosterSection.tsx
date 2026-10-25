@@ -2,12 +2,18 @@ import { MonogramSectionHead } from '../../components/MonogramSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
 import { MONOGRAM_BODY_FAMILY, MONOGRAM_MONOGRAM_FAMILY } from '../../fonts';
 import { monogramColors } from '../../tokens';
-import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
+import {
+  entryCapacityPercent,
+  FINAL_ROSTER_TITLE,
+  formatEntryCount,
+} from '@/features/_shared/landing/entryCount';
 
 interface RosterSectionProps {
   entryCount: number | null;
   entryLimit: number | null;
   asOfLabel?: string | null;
+  /** The show has happened: the heading reads "Final roster" instead of a fill pace. */
+  pastShow?: boolean | undefined;
 }
 
 /**
@@ -16,7 +22,7 @@ interface RosterSectionProps {
  * to the percentage on reveal. When no limit is configured, just shows the
  * count with a quiet "entries received" label.
  */
-export function RosterSection({ entryCount, entryLimit, asOfLabel }: RosterSectionProps) {
+export function RosterSection({ entryCount, entryLimit, asOfLabel, pastShow }: RosterSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
   const pct = entryCapacityPercent(entryCount, entryLimit);
 
@@ -29,10 +35,14 @@ export function RosterSection({ entryCount, entryLimit, asOfLabel }: RosterSecti
         numeral="iv"
         eyebrow="The roster"
         title={
-          <>
-            Filling{' '}
-            <span style={{ fontStyle: 'italic', color: monogramColors.bronze }}>{fillPace}</span>
-          </>
+          pastShow ? (
+            FINAL_ROSTER_TITLE
+          ) : (
+            <>
+              Filling{' '}
+              <span style={{ fontStyle: 'italic', color: monogramColors.bronze }}>{fillPace}</span>
+            </>
+          )
         }
       />
 

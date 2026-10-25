@@ -127,6 +127,7 @@ export function GazetteLandingPage({
           journeySteps={data.journeySteps}
           timezone={data.timezone}
           volumeRoman={data.volumeRoman}
+          pastShow={data.showHasHappened}
         />
 
         <ScheduleSection schedule={data.schedule} volumeRoman={data.volumeRoman} />

@@ -9,6 +9,7 @@ import { fieldGuideColors, fieldGuideSpacing } from '../../tokens';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
 import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
+import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface FinalCtaSectionProps {
   entryWizardUrl: string;
@@ -115,16 +116,20 @@ export function FinalCtaSection({
               maxWidth: 540,
             }}
           >
-            {!canEnterOnline
-              ? entryClosed
-                ? 'Contact the trial secretary for late-entry help.'
-                : pendingEntryCopy(
-                    mailInOnly,
-                    'The secretary still needs to assign classes before online entry is available.'
-                  )
-              : entryLimit != null
-                ? `${entryLimit} runs · first-received basis until the limit is hit.`
-                : 'First-received basis. Refunds (less processing fees) for written withdrawals received before close.'}
+            {!canEnterOnline ? (
+              entryClosed ? (
+                <LateEntryContact />
+              ) : (
+                pendingEntryCopy(
+                  mailInOnly,
+                  'The secretary still needs to assign classes before online entry is available.'
+                )
+              )
+            ) : entryLimit != null ? (
+              `${entryLimit} runs · first-received basis until the limit is hit.`
+            ) : (
+              'First-received basis. Refunds (less processing fees) for written withdrawals received before close.'
+            )}
           </p>
         </div>
         {canEnterOnline && (

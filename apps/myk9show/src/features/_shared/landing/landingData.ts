@@ -7,6 +7,7 @@ import type { Show } from '@/types/show-types';
 import { formatFee } from '@/utils/format';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { canonicalizeWebsiteUrl } from '@/lib/websiteUrl';
+import { hasShowHappened } from './showResults';
 
 /**
  * Accommodation websites are secretary-typed free text rendered as public
@@ -106,6 +107,10 @@ export interface LandingData<
   memberClubLanguage: string;
   journeySteps: LandingJourneyStep[];
   entryWizardUrl: string;
+  /** True once the show's last day has passed: rosters read as final, not as still filling. */
+  showHasHappened?: boolean;
+  /** True only when the officials read succeeded and no secretary is listed. */
+  secretaryKnownNone?: boolean;
 }
 
 export function toRoman(value: number | string | null | undefined): string {
@@ -194,7 +199,9 @@ export function buildLandingData(
   allTrials: Trial[],
   entryCount: number | null,
   judgeAssignments: readonly ConfirmedJudgeAssignment[] = [],
-  judgesState: LandingJudgesState = 'ready'
+  judgesState: LandingJudgesState = 'ready',
+  /** undefined = not known yet (loading or failed); null = the read succeeded and none is listed. */
+  secretary?: { name: string | null; email: string | null } | null
 ): LandingData {
   const liveExperience = show ? getLiveExperienceSnapshot(show) : null;
   const supplemental = liveExperience?.supplemental;
@@ -338,8 +345,8 @@ export function buildLandingData(
     hospitalityNotes: supplemental?.hospitalityNotes ?? null,
     awardsDescription: supplemental?.awardsDescription ?? null,
     houseRulesNotes: supplemental?.additionalNotes ?? null,
-    secretaryName: null,
-    secretaryEmail: null,
+    secretaryName: secretary?.name ?? null,
+    secretaryEmail: secretary?.email ?? null,
     licenseLanguage: registry.licenseLanguage,
     memberClubLanguage: registry.memberClubLanguage,
     journeySteps: buildJourneySteps(
@@ -350,5 +357,7 @@ export function buildLandingData(
       trialEndDate
     ),
     entryWizardUrl: show?.id ? `/shows/${show.id}/register` : '/shows',
+    showHasHappened: hasShowHappened(show),
+    secretaryKnownNone: secretary === null,
   };
 }

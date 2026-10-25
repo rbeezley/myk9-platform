@@ -1,6 +1,7 @@
 import { HeritageOrnamentRule } from '../../components/HeritageOrnamentRule';
 import { heritageOrnaments } from '../../tokens';
 import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
+import { LateEntryContact } from '@/features/_shared/landing/LateEntryContact';
 
 interface FinalCtaBandProps {
   canEnterOnline?: boolean;
@@ -109,12 +110,14 @@ export function FinalCtaBand({ canEnterOnline = true, entryClosed = false }: Fin
             className="text-sm leading-relaxed"
             style={{ color: 'var(--hl-paper-soft)', fontFamily: "'EB Garamond', Georgia, serif" }}
           >
-            {entryClosed
-              ? 'Contact the trial secretary for late-entry help.'
-              : pendingEntryCopy(
-                  mailInOnly,
-                  'The secretary still needs to assign classes before online entry is available.'
-                )}
+            {entryClosed ? (
+              <LateEntryContact />
+            ) : (
+              pendingEntryCopy(
+                mailInOnly,
+                'The secretary still needs to assign classes before online entry is available.'
+              )
+            )}
           </p>
         )}
       </div>

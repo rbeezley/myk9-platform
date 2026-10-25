@@ -20,6 +20,7 @@ import { FormField } from '@/components/common/FormField';
 import type { FormValidation } from '@/hooks/useFormValidation';
 import { toLocalDate } from '@/utils/date-format';
 import { isPublicShowStatus } from '@/features/payments/onlineEntryGate';
+import { useClubAuthorization } from '@/features/payments/useClubStripeAccount';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 
 interface ShowEditBasicInfoTabProps {
@@ -55,6 +56,9 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
   const entryOpenError = form?.getError('entryOpenDate');
   const entryCloseError = form?.getError('entryCloseDate');
   const initialIsPublic = isPublicShowStatus(initialStatus);
+  // MYK9-1387: only a loaded, explicitly unauthorized club changes the hint.
+  const clubAuthQuery = useClubAuthorization(data.clubId || undefined);
+  const clubUnauthorized = clubAuthQuery.data != null && clubAuthQuery.data.authorized_at === null;
 
   return (
     <TabsContent
@@ -186,7 +190,9 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
               </Select>
               {!initialIsPublic && (
                 <p id="status-hint" className="text-xs text-muted-foreground">
-                  Publish from the status badge on the show page.
+                  {clubUnauthorized
+                    ? 'Publishing opens once myK9 authorizes this club. Until then you can keep building the show as a draft.'
+                    : 'Publish from the status badge on the show page.'}
                 </p>
               )}
             </FormField>

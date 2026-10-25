@@ -1,3 +1,4 @@
+import { Fragment, useId } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -92,6 +93,10 @@ export function ShowStatusPill({
   const navigate = useNavigate();
   const clubAccountQuery = useClubStripeAccount(clubId);
   const clubAuthQuery = useClubAuthorization(clubId);
+  // MYK9-1387: only a loaded, explicitly unauthorized club greys the item. While the lookup
+  // loads or errors it stays enabled so handleTransition's own branches give their truthful toasts.
+  const reasonId = useId();
+  const clubUnauthorized = clubAuthQuery.data != null && clubAuthQuery.data.authorized_at === null;
   const config = pillConfig(status);
   const transitions = TRANSITIONS[status] ?? [];
   // The entry dates live on the Edit panel's Basic Info tab.
@@ -216,7 +221,13 @@ export function ShowStatusPill({
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu
+      // An unauthorized club can only be retried by re-checking: the disabled item can't be
+      // clicked, so opening the menu refreshes the authorization a site admin may have granted.
+      onOpenChange={open => {
+        if (open && clubUnauthorized) void clubAuthQuery.refetch();
+      }}
+    >
       <DropdownMenuTrigger asChild disabled={isPending}>
         <button
           aria-label={config.label}
@@ -232,11 +243,24 @@ export function ShowStatusPill({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {transitions.map(({ label, next }) => (
-          <DropdownMenuItem key={next} onClick={() => handleTransition(next)}>
-            {label}
-          </DropdownMenuItem>
-        ))}
+        {transitions.map(({ label, next }) =>
+          clubUnauthorized && becomesPublic(status, next) ? (
+            // The reason sits OUTSIDE the disabled item, which renders at half opacity: inside it
+            // the only explanation on screen would fall below readable contrast.
+            <Fragment key={next}>
+              <DropdownMenuItem disabled aria-describedby={reasonId}>
+                {label}
+              </DropdownMenuItem>
+              <p id={reasonId} className="max-w-64 px-2 pb-2 text-sm text-muted-foreground">
+                {CLUB_UNAUTHORIZED_MESSAGE}
+              </p>
+            </Fragment>
+          ) : (
+            <DropdownMenuItem key={next} onClick={() => handleTransition(next)}>
+              {label}
+            </DropdownMenuItem>
+          )
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

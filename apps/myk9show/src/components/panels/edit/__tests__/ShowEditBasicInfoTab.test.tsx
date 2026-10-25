@@ -1,9 +1,26 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { Tabs } from '@/components/ui/tabs';
 import { ShowEditBasicInfoTab } from '../ShowEditBasicInfoTab';
 import type { ShowEditFormData } from '../ShowEditPanel.types';
+import { useClubAuthorization } from '@/features/payments/useClubStripeAccount';
+
+vi.mock('@/features/payments/useClubStripeAccount', () => ({
+  useClubAuthorization: vi.fn(),
+}));
+
+function mockAuth(authorizedAt: string | null | 'loading') {
+  vi.mocked(useClubAuthorization).mockReturnValue({
+    data: authorizedAt === 'loading' ? undefined : { authorized_at: authorizedAt },
+    isLoading: authorizedAt === 'loading',
+    isError: false,
+  } as unknown as ReturnType<typeof useClubAuthorization>);
+}
+
+beforeEach(() => {
+  mockAuth('2026-01-01T00:00:00Z');
+});
 
 // MYK9-579: publishing happens in exactly one place -- the status pill on
 // the show page (ShowStatusPill.tsx). The Basic Info tab's Status dropdown
@@ -150,5 +167,31 @@ describe('ShowEditBasicInfoTab — club label', () => {
     renderTab('draft');
     expect(screen.getByText('Host Club')).toBeInTheDocument();
     expect(screen.queryByText('Hosting Club')).not.toBeInTheDocument();
+  });
+});
+
+// MYK9-1387: the Status hint names the wait while the host club is unauthorized.
+describe('ShowEditBasicInfoTab — unauthorized club hint (MYK9-1387)', () => {
+  it('names the wait for authorization on a draft whose club is unauthorized', () => {
+    mockAuth(null);
+    renderTab('draft');
+    expect(
+      screen.getByText(/publishing opens once myK9 authorizes this club/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/publish from the status badge on the show page/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps the standard hint for an authorized club', () => {
+    renderTab('draft');
+    expect(screen.getByText(/publish from the status badge on the show page/i)).toBeInTheDocument();
+    expect(screen.queryByText(/myK9 authorizes this club/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps the standard hint while the authorization is loading', () => {
+    mockAuth('loading');
+    renderTab('draft');
+    expect(screen.getByText(/publish from the status badge on the show page/i)).toBeInTheDocument();
   });
 });

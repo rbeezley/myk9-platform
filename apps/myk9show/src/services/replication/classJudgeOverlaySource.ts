@@ -14,6 +14,7 @@
  * Offline-first: only local tables and the local queue are read; no network.
  */
 import { logger } from '@myk9/core';
+import { isConfirmedAssignment } from '@/services/database/_shared/classJudgeFields';
 import type { ReplicatedReadResult } from '@myk9/replication';
 import type { ReplicatedClass } from './ReplicatedClassesTable';
 import type { ReplicatedJudgeAssignment } from './ReplicatedJudgeAssignmentsTable.mapper';
@@ -159,7 +160,10 @@ export class ClassJudgeOverlaySource {
       const active = new Set<string>();
       const candidates: ReplicatedJudgeAssignment[] = [];
       for (const cls of rows) {
-        const own = (byClass.get(cls.id) ?? []).filter(row => !work.deletedRowIds.has(row.id));
+        // Only a confirmed assignment names a judge, the same test the class pull applies.
+        const own = (byClass.get(cls.id) ?? []).filter(
+          row => !work.deletedRowIds.has(row.id) && isConfirmedAssignment(row.status)
+        );
         const hasUnsent = work.classIds.has(cls.id);
         const stamped = own.some(row => row.serverUpdatedAt !== undefined);
         const classTime = cls.serverUpdatedAt ?? 0;

@@ -142,6 +142,45 @@ describe('class judge recovery (MYK9-1327)', () => {
       expect((await reloaded.getByTrialOrThrow(TRIAL_ID))[0]?.judgeId).toBe('judge-d');
     });
 
+    it('shows no judge after a pick is cleared before it uploaded, once the queue has drained', async () => {
+      h.transport = 'down';
+      await h.pick('judge-b'); // DELETE A + INSERT B queued
+      await h.clear(); // B never reached the server: its own row leaves no tombstone
+      await h.pass();
+
+      h.transport = 'up';
+      await drain();
+      expect(h.serverAssignments.size).toBe(0);
+      expect(await h.pending()).toEqual([]);
+      await new Promise(resolve => setTimeout(resolve, 30));
+
+      expect(await h.storedJudgeId()).toBe('judge-a'); // the class has not been pulled
+      expect((await h.shownClass())?.judgeId).toBeUndefined();
+      expect((await h.reloaded().getByTrialOrThrow(TRIAL_ID))[0]?.judgeId).toBeUndefined();
+
+      await h.catchUp();
+      expect(await h.storedJudgeId()).toBeUndefined();
+      expect((await h.shownClass())?.judgeId).toBeUndefined();
+    });
+
+    it('shows a judge picked after the previous one was cleared and delivered', async () => {
+      await h.clear();
+      await h.pass();
+      await new Promise(resolve => setTimeout(resolve, 30));
+      expect((await h.shownClass())?.judgeId).toBeUndefined(); // the clear stands, class not pulled
+
+      h.transport = 'down';
+      await h.pick('judge-b');
+      expect((await h.shownClass())?.judgeId).toBe('judge-b');
+
+      h.transport = 'up';
+      await drain();
+      expect((await h.shownClass())?.judgeId).toBe('judge-b');
+      await h.catchUp();
+      expect(await h.storedJudgeId()).toBe('judge-b');
+      expect((await h.shownClass())?.judgeId).toBe('judge-b');
+    });
+
     it('shows no judge while the delete is undelivered, through pulls, then keeps none', async () => {
       h.transport = 'down';
       await h.clear();

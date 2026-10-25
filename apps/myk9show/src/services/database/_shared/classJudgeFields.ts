@@ -40,6 +40,11 @@ export interface ClassJudgeAssignmentEmbed {
   people?: { first_name?: string | null; last_name?: string | null } | null | undefined;
 }
 
+/** Only a `confirmed` assignment names a judge; every judge reader uses this one test. */
+export function isConfirmedAssignment(status: string | null | undefined): boolean {
+  return status === 'confirmed';
+}
+
 export interface ClassJudgeSource {
   judge_assignments?: unknown;
   /** Enrichment from `get_show_judges`: parts when confirmed, `null` when resolved-but-none. */
@@ -57,7 +62,7 @@ export function pickConfirmedAssignment(
 ): ClassJudgeAssignmentEmbed | undefined {
   let chosen: ClassJudgeAssignmentEmbed | undefined;
   for (const assignment of assignments) {
-    if (assignment.status !== 'confirmed') continue;
+    if (!isConfirmedAssignment(assignment.status)) continue;
     if (chosen === undefined) {
       chosen = assignment;
       continue;

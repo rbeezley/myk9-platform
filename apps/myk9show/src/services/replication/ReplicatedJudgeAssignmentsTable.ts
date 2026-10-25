@@ -146,7 +146,6 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
       confirmed_at: assignment.confirmedAt ?? null,
       fee: assignment.fee ?? null,
       notes: assignment.notes ?? null,
-      updated_at: new Date().toISOString(),
     };
 
     // Rows cached in IndexedDB before this field existed have
@@ -456,14 +455,11 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     judge?: LocalJudgeName
   ): Promise<void> {
     const existing = (await this.readAllForWrite()).filter(a => a.classId === classId);
-    // A removal leaves a durable tombstone for each server-backed row it deletes: after the
-    // DELETE is acknowledged nothing local would say "no judge" while the class row still names
-    // the old one (MYK9-1327). A pick makes the new row the class's intent instead.
-    if (judgeId) await replicatedClassJudgeClearsTable.removeForClass(classId);
-    else {
-      for (const row of existing) {
-        if (row._localOnly !== true) await replicatedClassJudgeClearsTable.record(row.id, classId);
-      }
+    // Every server-backed row deleted leaves a durable tombstone, whether a pick or a clear
+    // deleted it: after the DELETE is acknowledged nothing local says the class's old judge is
+    // gone while the class row still names it (MYK9-1327).
+    for (const row of existing) {
+      if (row._localOnly !== true) await replicatedClassJudgeClearsTable.record(row.id, classId);
     }
     for (const row of existing) {
       await this.deleteAssignment(row.id);

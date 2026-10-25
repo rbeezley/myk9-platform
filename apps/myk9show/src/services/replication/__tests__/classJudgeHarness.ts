@@ -55,6 +55,10 @@ export function useClassJudgeHarness() {
     transport: 'up' as Transport,
     /** person_id of each class-level assignment the fake server holds, by assignment id. */
     serverAssignments: new Map<string, string>(),
+    /** The server's `updated_at` of each assignment (the column default, or what the client sent). */
+    stamps: new Map<string, string>(),
+    /** Assignment status by id; absent means confirmed. */
+    statuses: new Map<string, string>(),
     classUpdatedAt: tick(),
     classVersion: 3,
     /** Every request the transport saw, as "table:verb" (for ordering assertions). */
@@ -71,7 +75,17 @@ export function useClassJudgeHarness() {
     /** Another secretary changes the judge straight on the server (the trigger touches the class). */
     serverAssigns: (personId: string | null) => {
       h.serverAssignments = new Map(personId ? [[`ja-${personId}`, personId]] : []);
+      h.statuses = new Map();
       h.touchClass();
+      h.stamps = new Map([...h.serverAssignments.keys()].map(id => [id, h.classUpdatedAt]));
+    },
+
+    /** Another secretary invites (does not confirm) a judge for the class. */
+    serverInvites: (personId: string) => {
+      h.touchClass();
+      h.serverAssignments.set(`ja-invite-${personId}`, personId);
+      h.statuses.set(`ja-invite-${personId}`, 'invited');
+      h.stamps.set(`ja-invite-${personId}`, h.classUpdatedAt);
     },
     touchClass: () => {
       h.classUpdatedAt = tick();
@@ -138,7 +152,7 @@ export function useClassJudgeHarness() {
     judge_assignments: [...h.serverAssignments].map(([id, personId]) => ({
       id,
       person_id: personId,
-      status: 'confirmed',
+      status: h.statuses.get(id) ?? 'confirmed',
     })),
   });
 
@@ -149,11 +163,11 @@ export function useClassJudgeHarness() {
       show_id: SHOW_ID,
       trial_id: null,
       class_id: CLASS_ID,
-      status: 'confirmed',
+      status: h.statuses.get(id) ?? 'confirmed',
       invited_at: null,
       confirmed_at: null,
       created_at: h.classUpdatedAt,
-      updated_at: h.classUpdatedAt,
+      updated_at: h.stamps.get(id) ?? h.classUpdatedAt,
       version: 1,
       day_capacity_override: null,
       classes: { name: 'Novice', trial_id: TRIAL_ID, trials: { show_id: SHOW_ID } },
@@ -219,27 +233,31 @@ export function useClassJudgeHarness() {
         if (name !== 'get_show_judges') return { data: [], error: null };
         if (h.enrichmentDown) return { data: null, error: { message: 'rpc unavailable' } };
         return {
-          data: [...h.serverAssignments].map(([id, personId]) => ({
-            assignment_id: id,
-            person_id: personId,
-            class_id: CLASS_ID,
-            trial_id: null,
-            status: 'confirmed',
-            first_name: FIRST[personId],
-            last_name: 'Judge',
-          })),
+          data: [...h.serverAssignments]
+            .filter(([id]) => (h.statuses.get(id) ?? 'confirmed') === 'confirmed')
+            .map(([id, personId]) => ({
+              assignment_id: id,
+              person_id: personId,
+              class_id: CLASS_ID,
+              trial_id: null,
+              status: 'confirmed',
+              first_name: FIRST[personId],
+              last_name: 'Judge',
+            })),
           error: null,
         };
       },
       from: (table: string) => ({
         select: (_columns: string, options?: { head?: boolean }) => read(table, options),
-        insert: (row: { id: string; person_id: string }) => ({
+        insert: (row: { id: string; person_id: string; updated_at?: string }) => ({
           select: async () => {
             h.requests.push(`${table}:insert:${row.person_id}`);
             const failure = refused(true);
             if (failure) return failure;
             h.serverAssignments.set(row.id, row.person_id);
             h.touchClass();
+            // The column default (now()) applies only when the client omitted the value.
+            h.stamps.set(row.id, row.updated_at ?? h.classUpdatedAt);
             return { data: [{ id: row.id }], error: null };
           },
         }),
@@ -269,6 +287,8 @@ export function useClassJudgeHarness() {
                 if (failure) return failure;
                 h.serverAssignments.set(String(payload.id), String(payload.person_id));
                 h.touchClass();
+                // The BEFORE UPDATE trigger stamps now(), whatever the client sent.
+                h.stamps.set(String(payload.id), h.classUpdatedAt);
                 return { data: [{ id: payload.id, version: 2 }], error: null };
               }
               if (expected !== undefined && expected !== h.classVersion) {
@@ -293,7 +313,9 @@ export function useClassJudgeHarness() {
     invalidateClassEnrichment();
     h.transport = 'up';
     h.serverAssignments = new Map([['ja-judge-a', 'judge-a']]);
+    h.statuses = new Map();
     h.classUpdatedAt = tick();
+    h.stamps = new Map([['ja-judge-a', h.classUpdatedAt]]);
     h.classVersion = 3;
     h.enrichmentDown = false;
     h.entryFee = 10;

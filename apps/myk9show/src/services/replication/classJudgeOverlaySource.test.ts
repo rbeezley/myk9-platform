@@ -27,6 +27,7 @@ const row = (extra: Partial<ReplicatedJudgeAssignment> = {}): ReplicatedJudgeAss
     id: 'ja-b',
     personId: 'judge-b',
     classId: 'c1',
+    status: 'confirmed',
     localJudge: { name: 'Bob Judge' },
     ...extra,
   }) as ReplicatedJudgeAssignment;
@@ -174,6 +175,16 @@ describe('ClassJudgeOverlaySource', () => {
     ]);
     await old.source.present(rows);
     await vi.waitFor(() => expect(old.deleted).toEqual(['ja-a']));
+  });
+
+  it('ignores an assignment that is not confirmed', async () => {
+    const rows = [classRow()];
+    const { source } = setup([
+      row({ id: 'ja-i', personId: 'judge-i', status: 'invited', serverUpdatedAt: T + 5 }),
+      row({ id: 'ja-d', personId: 'judge-x', status: 'declined', _lastModified: new Date() }),
+    ]);
+
+    expect(await source.present(rows)).toBe(rows);
   });
 
   it('puts the unsent assignment first, excluding a row whose delete is waiting', async () => {

@@ -63,11 +63,6 @@ export class ReplicatedClassJudgeClearsTable extends ReplicatedTable<ClassJudgeC
     await this.set(rowId, { id: rowId, classId, createdAt: Date.now() }, false);
   }
 
-  /** A newer pick owns the class's intent: earlier clears must not hide it. */
-  async removeForClass(classId: string): Promise<void> {
-    for (const clear of await this.getByClassOrThrow(classId)) await this.delete(clear.id);
-  }
-
   /** The `serverUpdatedAt` of the class row as stored now (0 when it is not held). */
   private async storedClassTime(classId: string): Promise<number> {
     try {

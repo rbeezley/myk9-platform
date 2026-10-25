@@ -169,6 +169,45 @@ describe('class judge while the assignment is undelivered (MYK9-1327)', () => {
       expect(await h.shownJudgeId()).toBe('judge-b');
     });
 
+    it('lets the server stamp the assignment: no client updated_at is queued', async () => {
+      h.transport = 'down';
+      await h.pick('judge-b');
+      await h.reassign('judge-b', 'judge-c');
+
+      const queued = (await h.pending()).filter(m => m.operation !== 'DELETE');
+      expect(queued.map(m => m.operation)).toContain('INSERT');
+      expect(queued.map(m => m.operation)).toContain('UPDATE');
+      for (const mutation of queued) {
+        expect(mutation.data).not.toHaveProperty('updated_at');
+      }
+    });
+
+    it('keeps the picked judge after a delayed upload until the class is pulled past the assignment', async () => {
+      h.transport = 'down';
+      await h.pick('judge-b');
+      await h.pass();
+      // The pick waits in backoff; meanwhile the device pulled the class (old judge).
+      await h.catchUp();
+      h.transport = 'up';
+      await h.retryNow(); // delivered late: the server stamps it after the class pull above
+
+      await h.syncAssignments(); // the row comes back with the server's time, newer than the class row
+      expect(await h.storedJudgeId()).toBe('judge-a');
+      expect(await h.shownJudgeId()).toBe('judge-b');
+
+      await h.syncClasses();
+      expect(await h.storedJudgeId()).toBe('judge-b');
+      expect(await h.shownJudgeId()).toBe('judge-b');
+    });
+
+    it('never shows an invited judge whose assignment arrives before its class', async () => {
+      h.serverInvites('judge-c');
+      await h.syncAssignments(); // a newer, unconfirmed row; the class has not been pulled
+
+      expect(await h.shownJudgeId()).toBe('judge-a');
+      expect(await h.shownByIdJudgeId()).toBe('judge-a');
+    });
+
     it('keeps the judge name when the name lookup fails on the pull', async () => {
       h.enrichmentDown = true;
       await deliver();

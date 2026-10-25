@@ -33,6 +33,11 @@ export interface AddDogPanelProps {
    */
   createdFromShowId?: string | undefined;
   /**
+   * The show's registry id (AKC/UKC/ASCA) when entering a show. A new
+   * registration's organization starts there instead of on AKC (MYK9-832).
+   */
+  defaultRegistryId?: string | null | undefined;
+  /**
    * `inline` only (MYK9-1081): filled with this form's close request. While the
    * registration sub-mode shows it leaves the sub-mode; otherwise it is the
    * dog form's own Cancel (discard prompt when dirty).

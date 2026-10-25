@@ -10,6 +10,8 @@ import { EditPanelInlineShell } from '../EditPanelShells';
 
 interface RegistrationFormInlineProps {
   initialData?: Registration | undefined;
+  /** The show's registry, seeding a new registration's organization (MYK9-832). */
+  defaultRegistryId?: string | null | undefined;
   /** Writes to the unsaved dog's form state, never the database. */
   onSave: (registration: Registration) => void;
   /** Saved or cancelled: back to the dog form. */
@@ -23,10 +25,11 @@ interface RegistrationFormInlineProps {
  */
 export const RegistrationFormInline: React.FC<RegistrationFormInlineProps> = ({
   initialData,
+  defaultRegistryId,
   onSave,
   onDone,
 }) => {
-  const editor = useRegistrationEditor({ onSave, initialData, onSaved: onDone });
+  const editor = useRegistrationEditor({ onSave, initialData, defaultRegistryId, onSaved: onDone });
   const actionBarRef = useRegisterActionBar<HTMLDivElement>();
   return (
     <EditPanelInlineShell

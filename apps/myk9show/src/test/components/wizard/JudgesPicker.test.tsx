@@ -300,3 +300,54 @@ describe('JudgesPicker', () => {
     );
   });
 });
+
+describe('JudgesPicker on a registry show (MYK9-832)', () => {
+  const dualJudge = {
+    ...makeUser('3', 'Dana', true),
+    judgeInfo: {
+      judgeNumber: 'AKC-SW-1002',
+      qualifications: [
+        { judgeNumber: 'AKC-SW-1002', organization: 'AKC' },
+        { judgeNumber: 'UKC-77', organization: 'UKC' },
+      ],
+    },
+  } as unknown as User;
+  const akcOnlyJudge = {
+    ...makeUser('4', 'Evan', true),
+    judgeInfo: {
+      judgeNumber: 'AKC-SW-1002',
+      qualifications: [{ judgeNumber: 'AKC-SW-1002', organization: 'AKC' }],
+    },
+  } as unknown as User;
+
+  function renderPicker(selectedJudges: ResolvedJudge[] = []) {
+    return renderWithProviders(
+      <JudgesPicker
+        selectedJudges={selectedJudges}
+        people={[dualJudge, akcOnlyJudge]}
+        showOrganization="UKC"
+        onAddJudge={vi.fn()}
+        onRemoveJudge={vi.fn()}
+      />
+    );
+  }
+
+  it('shows the UKC number, not the AKC one, in the picker', () => {
+    renderPicker();
+    fireEvent.click(screen.getByText('Search and add judges'));
+    expect(screen.getByText('UKC #UKC-77')).toBeInTheDocument();
+    expect(screen.queryByText(/AKC-SW-1002/)).not.toBeInTheDocument();
+  });
+
+  it('shows no number and no AKC badge for a judge without a UKC qualification', () => {
+    renderPicker();
+    fireEvent.click(screen.getByText('Search and add judges'));
+    expect(screen.getByText('No UKC number')).toBeInTheDocument();
+    expect(screen.queryByText(/AKC/)).not.toBeInTheDocument();
+  });
+
+  it('labels a selected chip with the show registry', () => {
+    renderPicker([{ id: '3', name: 'Dana Smith', judgeNumber: 'UKC-77', organization: 'UKC' }]);
+    expect(screen.getByText('UKC #UKC-77')).toBeInTheDocument();
+  });
+});

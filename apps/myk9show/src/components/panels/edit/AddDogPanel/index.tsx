@@ -104,6 +104,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   onEnterShowWithDog,
   showStartDate,
   createdFromShowId,
+  defaultRegistryId,
   closeRequestRef,
   onSubModeChange,
 }) => {
@@ -377,6 +378,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
         onActiveTabChange={setActiveTab}
         userRole={userRole}
         showStartDate={showStartDate}
+        defaultRegistryId={defaultRegistryId}
         currentUserPersonId={currentUserPersonId}
         saveError={localSaveError ?? saveError}
         duplicateCandidate={duplicateCandidate}
@@ -416,6 +418,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
           <RegistrationFormInline
             key={registration.editing?.id ?? 'new-registration'}
             initialData={registration.editing}
+            defaultRegistryId={defaultRegistryId}
             onSave={reg => saveRegistrationRef.current?.(reg)}
             onDone={leaveRegistration}
           />

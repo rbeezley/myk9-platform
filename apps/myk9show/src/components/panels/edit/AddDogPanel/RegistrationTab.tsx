@@ -28,6 +28,7 @@ interface RegistrationTabProps {
   onRegistrationSaved: () => void;
   /** Show managers only: skip the lookup and add the dog with no registration. */
   onSkip?: (() => void) | undefined;
+  defaultRegistryId?: string | null | undefined;
   /** Inline: no card chrome of its own (see `tabCardClasses`). */
   flat?: boolean | undefined;
 }
@@ -47,6 +48,7 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
   onSaveRegistration,
   onRegistrationSaved,
   onSkip,
+  defaultRegistryId,
   flat = false,
 }) => {
   const { form } = useEditPanel<DogFormData>();
@@ -78,6 +80,7 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
             onSaveRegistration={onSaveRegistration}
             onRegistrationSaved={onRegistrationSaved}
             onSkip={onSkip}
+            defaultRegistryId={defaultRegistryId}
           />
         ) : (
           <div className="space-y-4">

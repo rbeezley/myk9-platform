@@ -16,4 +16,6 @@ export interface ResolvedJudge {
   id: string;
   name: string;
   judgeNumber: string;
+  /** Set when the number belongs to the show's registry, so the chip can say whose it is. */
+  organization?: string;
 }

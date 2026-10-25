@@ -12,6 +12,8 @@ interface OfficialsSectionProps {
   /** Show the "You" badge on the secretary picker when it's the logged-in user. */
   secretaryIsSelf: boolean;
   selectedJudges: React.ComponentProps<typeof JudgesPicker>['selectedJudges'];
+  /** The show's organization, so judges show that registry's number (MYK9-832). */
+  showOrganization?: string | null | undefined;
   onOpenOfficialPicker: () => void;
   onSelectChairman: (id: string) => void;
   onSelectSecretary: (id: string) => void;
@@ -35,6 +37,7 @@ export const OfficialsSection: React.FC<OfficialsSectionProps> = ({
   selectedSecretaryId,
   secretaryIsSelf,
   selectedJudges,
+  showOrganization,
   onOpenOfficialPicker,
   onSelectChairman,
   onSelectSecretary,
@@ -79,6 +82,7 @@ export const OfficialsSection: React.FC<OfficialsSectionProps> = ({
         <JudgesPicker
           selectedJudges={selectedJudges}
           people={people}
+          showOrganization={showOrganization}
           onAddJudge={onAddJudge}
           onRemoveJudge={onRemoveJudge}
           onSaveCredentials={onSaveCredentials}

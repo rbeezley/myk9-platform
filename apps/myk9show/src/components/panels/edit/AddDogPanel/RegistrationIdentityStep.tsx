@@ -13,7 +13,7 @@ import {
   RegistrationDateField,
 } from '@/components/dogs/RegistrationFormBody';
 import {
-  INITIAL_REGISTRATION_DATA,
+  initialRegistrationData,
   REGISTRATION_NUMBER_PATTERN,
 } from '@/components/dogs/registrationForm';
 import { useRegistrationEditor } from '@/components/dogs/useRegistrationEditor';
@@ -44,6 +44,8 @@ interface RegistrationIdentityStepProps {
   onRegistrationSaved: () => void;
   /** Show managers only: skip the lookup and add the dog with no registration. */
   onSkip?: (() => void) | undefined;
+  /** The show's registry: the organization starts there, not on AKC (MYK9-832). */
+  defaultRegistryId?: string | null | undefined;
 }
 
 /**
@@ -63,8 +65,10 @@ export const RegistrationIdentityStep: React.FC<RegistrationIdentityStepProps> =
   onSaveRegistration,
   onRegistrationSaved,
   onSkip,
+  defaultRegistryId,
 }) => {
   const editor = useRegistrationEditor({
+    defaultRegistryId,
     onSave: onSaveRegistration,
     onSaved: onRegistrationSaved,
   });
@@ -95,7 +99,7 @@ export const RegistrationIdentityStep: React.FC<RegistrationIdentityStepProps> =
   // neither linger on this (still mounted) step nor hold Save back later.
   const skip = () => {
     requestRef.current += 1;
-    form.reset(INITIAL_REGISTRATION_DATA);
+    form.reset(initialRegistrationData(defaultRegistryId));
     setPhase('identity');
     onIdentityEdited();
     onSkip?.();

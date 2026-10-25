@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { X, Plus, GraduationCap } from 'lucide-react';
 import { GroupedSearchablePopover } from '@/components/ui/grouped-searchable-popover';
-import { groupPeopleForJudges } from './ShowDetailsStep.helpers';
+import { groupPeopleForJudges, judgeCredentialForShow } from './ShowDetailsStep.helpers';
+import { resolveConfiguredRegistryId } from '@/features/registries';
 import type { User } from '@/types/user-types';
 import type { ResolvedJudge } from './ShowDetailsStep.types';
 import { NewJudgeForm, type CreateJudgeData } from './NewJudgeForm';
@@ -20,6 +21,11 @@ export interface SaveCredentialsData {
 export interface JudgesPickerProps {
   selectedJudges: ResolvedJudge[];
   people: User[];
+  /**
+   * The show's organization. On a configured registry the picker shows that
+   * registry's judge number, never another organization's (MYK9-832).
+   */
+  showOrganization?: string | null | undefined;
   onAddJudge: (personId: string) => void;
   onRemoveJudge: (personId: string) => void;
   /**
@@ -36,9 +42,22 @@ type FormState = { type: 'none' } | { type: 'credentials'; person: User } | { ty
 const GROUP_QUALIFIED = 'qualified';
 const GROUP_OTHERS = 'all';
 
+/** The qualified badge: the show registry's number, or what is missing for it. */
+function judgeBadgeLabel(judge: User, showOrganization: string | null | undefined): string {
+  const registryId = resolveConfiguredRegistryId(showOrganization);
+  const credential = judgeCredentialForShow(judge, showOrganization);
+  if (registryId)
+    return credential ? `${registryId} #${credential.number}` : `No ${registryId} number`;
+  if (credential?.organization) return `${credential.organization} #${credential.number}`;
+  if (credential) return `#${credential.number}`;
+  const org = judge.judgeInfo?.qualifications[0]?.organization;
+  return org || 'Qualified';
+}
+
 export const JudgesPicker: React.FC<JudgesPickerProps> = ({
   selectedJudges,
   people,
+  showOrganization,
   onAddJudge,
   onRemoveJudge,
   onSaveCredentials,
@@ -115,14 +134,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
             variant="outline"
             className="ml-2 text-xs px-1.5 py-0 text-success border-success/30"
           >
-            {(() => {
-              const org = judge.judgeInfo.qualifications[0]?.organization;
-              const num = judge.judgeInfo.judgeNumber;
-              if (org && num) return `${org} #${num}`;
-              if (num) return `#${num}`;
-              if (org) return org;
-              return 'Qualified';
-            })()}
+            {judgeBadgeLabel(judge, showOrganization)}
           </Badge>
         )}
       </div>
@@ -154,7 +166,9 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
             >
               <span>{judge.name}</span>
               {judge.judgeNumber && (
-                <span className="text-muted-foreground text-xs">#{judge.judgeNumber}</span>
+                <span className="text-muted-foreground text-xs">
+                  {judge.organization ? `${judge.organization} ` : ''}#{judge.judgeNumber}
+                </span>
               )}
               <button
                 type="button"

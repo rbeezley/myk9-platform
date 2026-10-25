@@ -1,8 +1,10 @@
 # Daily commit review — 2026-10-24
 
-source: claude. **24 of 24 commits reviewed; the window is complete.** One P2 and two P3 findings,
-all filed. No P0 or P1. Two findings from the previous run are **newly resolved with red-to-green
-proof**. The window's highest-risk surfaces — a `CREATE OR REPLACE` of the at-show authorization
+source: claude. **24 of 24 commits reviewed; the window is complete.** One P2 and one P3 finding,
+both filed. No P0 or P1. Two findings from the previous run are **newly resolved with red-to-green
+proof**. A third finding filed by this run (MYK9-1404) was **rejected as a false positive on
+2026-10-25** and is corrected below. The window's highest-risk surfaces — a `CREATE OR REPLACE` of
+the at-show authorization
 RPC plus its new `_at` variant, the replication conflict merge, a check-in value write, the UKC
 element clock, a new online-only officials read and a new CI guard workflow — were read against
 their implementations and, where the claim was about the database, against the applied database.
@@ -93,15 +95,44 @@ and `handleTransition`'s MYK9-572 ordering branch (`:143-157`, before the Stripe
 `mockAccount(true)`, i.e. Stripe ready, so it cannot prove ordering either. Behaviour is unchanged
 today; the loss is the pin.
 
+## Rejected — corrected 2026-10-25
+
 ### MYK9-1404 / NCR-2026-10-24-03 — the `Mergeable with base` sweep passes when it cannot list PRs
 
-Canonical **P3**, source Low, confidence **high**. `77069227e` (#3248) added
-`.github/workflows/merge-conflict-status.yml`. The step runs `set -uo pipefail` with **no `-e`** and
-verdicts on `[ "$post_failures" -eq 0 ]`. A failure of the first read
-(`gh api --paginate .../pulls?state=open > prs.txt`, `:46-48`) does not stop the step: `prs.txt` is
-empty, the loop never runs, `post_failures` stays 0 and the job goes green. Per-PR status-post
-failures _are_ counted correctly (`:72-75`); only the list read is unguarded. Low impact while the
-context is not required, and worth closing before it is made required.
+**This finding was wrong. It is rejected and the issue is cancelled.** Codex's 2026-10-25 daily run
+challenged it; I re-ran the fixtures and Codex is right.
+
+What was filed: `77069227e` (#3248)'s step in `.github/workflows/merge-conflict-status.yml` runs
+`set -uo pipefail` with **no `-e`**, so a failure of the first read
+(`gh api --paginate .../pulls?state=open > prs.txt`, `:46-48`) would leave `prs.txt` empty, the loop
+would never run, `post_failures` would stay 0, and the job would go green.
+
+Why that is wrong: a GitHub Actions `run:` block does not execute under plain `bash`. The default
+shell is `bash -e {0}`, so `errexit` is already on, and `set -uo pipefail` only _enables_ the
+options it names — it never clears an inherited one. The workflow sets no `shell:`, no `defaults:`
+and no `working-directory:`, so that default genuinely applies.
+
+Measured, with the known-answer fixtures this finding's own closure contract demanded. The step body
+was extracted verbatim and run against a stub `gh` that fails the `pulls?state=open` call:
+
+```
+D (control): does 'set -uo pipefail' clear an inherited -e?
+   errexit STILL SET
+A: listing FAILS, GHA default shell (bash -e file)  [expect non-zero]
+   EXIT=1
+B: listing SUCCEEDS with zero open PRs, GHA default shell  [expect 0]
+   EXIT=0
+C: listing FAILS, plain bash with no -e (the filed assumption)  [expect 0]
+   EXIT=0
+```
+
+A is the real behaviour: the listing failure **does** fail the step. Both properties the finding
+asked for already hold, and C — the silent pass — reproduces only under a shell the step never uses.
+No code change is needed.
+
+The transferable lesson: **a script's `set` line is not the whole option set.** Read the invoking
+shell before concluding a guard fails open. The control flow was read correctly and the premise was
+wrong, which is the failure mode a known-answer fixture catches and a careful read does not.
 
 ## Reviewed and cleared — the checks that could have gone the other way
 
@@ -177,15 +208,18 @@ is null` returns only `A` (92), `NULL` (59) and `B` (34) — no `'-'` sentinel, 
 
 | Status         | Count |
 | -------------- | ----: |
-| New            |     3 |
+| New            |     2 |
 | Unchanged      |     0 |
 | Newly resolved |     2 |
 | Duplicate      |     0 |
-| Rejected       |     0 |
+| Rejected       |     1 |
 | Blocked        |     0 |
 
-Canonical severity: **P0 0 / P1 0 / P2 1 / P3 2.** Classification: 1 test-reliability defect that
-reds `main`, 1 test-coverage regression, 1 CI-guard defect. No product defect found in the window.
+Corrected 2026-10-25: as filed this run reported 3 new and 0 rejected. MYK9-1404 was rejected the
+next day, so the standing counts are 2 new and 1 rejected.
+
+Canonical severity: **P0 0 / P1 0 / P2 1 / P3 1.** Classification: 1 test-reliability defect that
+reds `main`, 1 test-coverage regression. No product defect found in the window.
 
 Fixes found in subsequent commits: **2**, both from the previous run's own findings and both
 verified by mutation rather than accepted from the diff —
@@ -205,7 +239,9 @@ was grepped for `GeneratePremiumPanel`, `ShowStatusPill`, `mergeable with base` 
 MYK9-978 / MYK9-287 are all Done and none covers the premium file, so MYK9-1402 is not a duplicate.
 
 Linear: created **4** (MYK9-1401 parent + MYK9-1402, MYK9-1403, MYK9-1404), commented on **2**
-(MYK9-1378, MYK9-1379 closure proofs), closed/reopened **0**. **No Linear write failed.**
+(MYK9-1378, MYK9-1379 closure proofs), closed/reopened **0**. **No Linear write failed.** On
+2026-10-25 MYK9-1404 was **cancelled** as rejected and MYK9-1401's counts were corrected to match
+this file.
 
 ## Checks run
 

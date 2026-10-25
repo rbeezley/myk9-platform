@@ -142,6 +142,12 @@ JQ_OUTSTANDING='
   | join(", ")
 '
 
+# Payloads reach jq on stdin or through a process substitution, never as an
+# --argjson argument: Linux caps ONE argument at 128 KiB (MAX_ARG_STRLEN), and a
+# full REST check-runs page for a 33-check head is already ~98 KB. Past the cap
+# jq never starts, every poll reads as "could not read", and an all-green PR
+# times out (Codex, review of #3272).
+
 # verdict <rollup-json> <required-json-array>
 #
 # Echoes exactly one of:
@@ -154,14 +160,14 @@ JQ_OUTSTANDING='
 # Pure: no network, no globals. Everything the self-test exercises goes through
 # here, so the fixtures test the real decision and not a paraphrase of it.
 verdict() {
-  jq -rn --argjson r "$1" --argjson req "$2" "$JQ_DEFS $JQ_VERDICT"
+  printf '%s' "$1" | jq -r --argjson req "$2" "$JQ_DEFS . as \$r | $JQ_VERDICT"
 }
 
 # outstanding <rollup-json> <required-json-array>
 # CURRENT attempts that have not answered and are NOT required. A pending
 # required name is `waiting:`, never "non-required".
 outstanding() {
-  jq -rn --argjson r "$1" --argjson req "$2" "$JQ_DEFS $JQ_OUTSTANDING"
+  printf '%s' "$1" | jq -r --argjson req "$2" "$JQ_DEFS . as \$r | $JQ_OUTSTANDING"
 }
 
 # REST, never GraphQL: `gh pr view` is GraphQL, which Claude Code cloud sessions
@@ -184,7 +190,8 @@ JQ_REST_ROLLUP='
 
 # rest_rollup <check-runs-array> <statuses-array> <workflow-runs-array>. Pure.
 rest_rollup() {
-  jq -cn --argjson checks "$1" --argjson statuses "$2" --argjson runs "$3" "$JQ_REST_ROLLUP"
+  jq -cn --slurpfile c <(printf '%s' "$1") --slurpfile s <(printf '%s' "$2") --slurpfile w <(printf '%s' "$3") \
+    "\$c[0] as \$checks | \$s[0] as \$statuses | \$w[0] as \$runs | $JQ_REST_ROLLUP"
 }
 
 # preview_note_applies <comma-joined names>: true only when EVERY name is a
@@ -388,12 +395,13 @@ echo "required checks: $(printf '%s' "$REQUIRED" | jq -r 'join(", ")')"
 pr_head() { gh api "repos/$REPO/pulls/$PR" --jq '.head.sha' 2>/dev/null; }
 
 # fetch_rollup <sha>: that commit's checks, in the shape verdict() reads.
-# --paginate because a busy head carries more than one page of check runs.
+# --paginate because a busy head carries more than one page of check runs;
+# each --jq keeps only the fields JQ_REST_ROLLUP reads.
 fetch_rollup() {
   local checks statuses runs
-  checks=$(gh api --paginate "repos/$REPO/commits/$1/check-runs?filter=all&per_page=100" --jq '.check_runs[]' | jq -sc .) || return 1
-  statuses=$(gh api --paginate "repos/$REPO/commits/$1/status?per_page=100" --jq '.statuses[]' | jq -sc .) || return 1
-  runs=$(gh api --paginate "repos/$REPO/actions/runs?head_sha=$1&per_page=100" --jq '.workflow_runs[]' | jq -sc .) || return 1
+  checks=$(gh api --paginate "repos/$REPO/commits/$1/check-runs?filter=all&per_page=100" --jq '.check_runs[] | {name, status, conclusion, started_at, details_url, html_url}' | jq -sc .) || return 1
+  statuses=$(gh api --paginate "repos/$REPO/commits/$1/status?per_page=100" --jq '.statuses[] | {context, state, created_at}' | jq -sc .) || return 1
+  runs=$(gh api --paginate "repos/$REPO/actions/runs?head_sha=$1&per_page=100" --jq '.workflow_runs[] | {id, name}' | jq -sc .) || return 1
   rest_rollup "$checks" "$statuses" "$runs"
 }
 

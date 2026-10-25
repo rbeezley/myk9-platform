@@ -52,8 +52,10 @@ type Status = { context: string; state: string };
  * A fake `gh` that answers only the REST reads the watcher makes, logs every
  * invocation, and fails any GraphQL route (`gh pr`, `gh issue`, `gh api graphql`)
  * the way a Claude Code cloud session does (MYK9-1414). Output mimics `--jq`.
+ * `pad` bulks every check run with an `output.text` of that many characters,
+ * the way a real REST row carries far more than the watcher reads.
  */
-function restStub(checkRuns: CheckRun[], statuses: Status[], head = 'deadbeef') {
+function restStub(checkRuns: CheckRun[], statuses: Status[], head = 'deadbeef', pad = 0) {
   const dir = mkdtempSync(join(tmpdir(), 'watch-pr-checks-rest-'));
   scratchDirs.push(dir);
   const log = join(dir, 'calls.log');
@@ -64,6 +66,7 @@ function restStub(checkRuns: CheckRun[], statuses: Status[], head = 'deadbeef') 
     conclusion: run.conclusion,
     started_at: '2026-10-25T19:00:00Z',
     details_url: `https://github.com/o/r/actions/runs/100/job/${index + 1}`,
+    ...(pad ? { output: { text: 'x'.repeat(pad) } } : {}),
   }));
   const contexts = statuses.map(status => ({ ...status, created_at: '2026-10-25T19:00:00Z' }));
   writeFileSync(
@@ -224,6 +227,43 @@ describe('watch-pr-checks harness', () => {
     expect(calls.every(call => call.startsWith('api ') && !call.includes('graphql'))).toBe(true);
     expect(calls.some(call => call.includes('/pulls/2053'))).toBe(true);
     expect(calls.some(call => call.includes('/commits/deadbeef/check-runs?filter=all'))).toBe(true);
+  });
+
+  // Codex, review of #3272: passing a whole REST page to `jq --argjson` dies with
+  // E2BIG past Linux's 128 KiB per-argument cap, so an all-green head timed out.
+  // 400 bulky rows (~900 KB) must still reach the green verdict on the first poll.
+  it('reaches a verdict on a check-runs payload far past the per-argument limit', () => {
+    const extra = Array.from({ length: 396 }, (_, i) => ({
+      name: `Job ${i}`,
+      conclusion: 'success',
+    }));
+    const { dir } = restStub(
+      [
+        { name: 'Quality Checks', conclusion: 'success' },
+        { name: 'Test', conclusion: 'success' },
+        { name: 'A11y smoke', conclusion: 'success' },
+        { name: 'E2E PR Smoke', conclusion: 'success' },
+        ...extra,
+      ],
+      [],
+      'deadbeef',
+      2000
+    );
+
+    const result = spawnSync('bash', [watcher, '2053', 'deadbeef'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${dir}:${process.env.PATH ?? ''}`,
+        MYK9_PR_TIMEOUT_SECONDS: '0',
+        MYK9_PR_POLL_SECONDS: '1',
+      },
+      timeout: 60_000,
+    });
+
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    expect(result.stdout).toContain('GREEN on deadbeef');
+    expect(result.stdout).toContain('400 checks seen');
   });
 
   it('aborts when the head moves while the checks are read', () => {

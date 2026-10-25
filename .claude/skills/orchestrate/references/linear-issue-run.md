@@ -14,9 +14,8 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
    per-issue `git worktree add` need. `ExitWorktree` (keep) first.
 2. **Selection.**
    - The owner named ids: that list, in that order.
-   - No list: use **Ready for an agent** from `docs/agents/issue-tracker.md` (team
-     `MyK9-platform`; Todo, unblocked, no Parked/needs:* hold). Use its documented Todo/filter
-     fallback if the connector cannot query saved views; Backlog is never read. Rank by
+   - No list: use **Ready for an agent** and its exact connector fallback from
+     `docs/agents/issue-tracker.md`. That contract is the only selection predicate. Rank by
      priority, then by fit with `docs/goals/fall-2026-launch-readiness.md` (secretary and
      show-day reliability first), then closest to done. Propose the top 3 with one line each and
      wait for one yes. This is the only question the run asks. If no Todo issue is eligible (all
@@ -59,17 +58,11 @@ review and suites all count).
   checking every criterion, and move on.
 - **True, and fixed how?** Run "Verify, then weigh" from `../SKILL.md`: reproduce the claim
   on `main`, check it against archived issues and INTENT, and write the `premise:` and
-  `approach:` ledger fields. `not reproducible` and `by design` are pre-work holds.
-- **Pre-work holds:** skip the issue with a comment, leave its state unchanged and use the
-  shared label contract in `docs/agents/issue-tracker.md`:
-  - money (payments, refunds, fees, money guards) or an owner-only action: `needs:operator`;
-  - a product decision reserved for the owner: `needs:decision`;
-  - `pnpm qa:inflight <expected paths>` exits 1 or 2, or another issue In Progress names the
-    same paths (`list_issues` state `In Progress`), or `list_sessions` shows a running session
-    on them: `needs:coordination` for overlap, `needs:environment` if the check cannot run.
-    Name the exact blocker, owner and unblock condition. Missing tools/credentials are
-    `needs:environment`, not an unresolved product decision. Remove stale holds after reading
-    recorded owner decisions and current environment capabilities.
+  `approach:` ledger fields. Route rejected premises through the shared disposition table.
+- **Pre-work stops:** use the **Dispositions and holds** table in
+  `docs/agents/issue-tracker.md`, including its state, label, owner and resume record.
+  `pnpm qa:inflight <expected paths>` must run; check In Progress issues naming those paths
+  and `list_sessions` too. A held issue is not proof its unmerged work can be overwritten.
 - Pick the implementer tier from the routing table.
 
 ### 2. Start
@@ -96,9 +89,8 @@ already exists, and the implementer works only under `$WT`. Afterwards, confirm 
 `git -C "$WT" status` that the changes landed there and that `$MAIN` is still clean. Run the
 review gate, with a maximum of 3 rounds.
 
-**Mid-work holds** (stop, leave the PR as a draft or open no PR, keep unfinished implementation
-**In Progress**, and comment with the reason, owner and exact next step; an unmerged PR stays
-In Progress through code review. Use **In Review** after merge when acceptance evidence is owed):
+**Mid-work stops** (leave the PR as a draft or open no PR, then apply the shared disposition
+table and its complete hold record):
 
 - the diff turns out to touch money, or needs an owner decision;
 - a second review finding on the same path, or a finding in code the previous fix introduced
@@ -106,10 +98,8 @@ In Progress through code review. Use **In Review** after merge when acceptance e
 - a test runner hangs for more than 30s, or required CI is still red after two fix attempts;
 - the implementer failed 3 review rounds and escalation would need Opus.
 
-Use `needs:operator` for the money/authorization hold; `needs:decision` for product, convergence
-or model-escalation decisions; `needs:environment` for a broken runner or unavailable capability.
-A red CI check requiring a code fix stays In Progress; do not relabel it as missing proof.
-Apply the outstanding `verify:*` labels only for the issue's explicit acceptance evidence.
+The table covers every trigger above. Check **Blocked work** at resume; a held issue must not
+disappear merely because its priority is Medium/Low or its implementation is unfinished.
 
 **E2E repro runs** need the main checkout's `apps/myk9show/.env.local` (bootstrap doesn't copy
 it): `set -a; . "$MAIN/apps/myk9show/.env.local"; set +a`, then run the spec pinned to its own
@@ -136,12 +126,11 @@ PR and the squash-merge. Additions specific to the run:
   head**: `post-review-gate.sh` posts "all findings addressed" only over a clean final log.
   That log's first paragraph must open with the contract sentence `No actionable findings at
 <sha>: …`, and it must carry no `[P*]` bullets, so record round-1 findings in prose.
-- **Migration in the diff:** carry it through the PR and the review gate (`migration-auditor`
-  is one adversarial lens), then **do not merge** in this run. Keep In Progress and record:
-  "PR #X awaits the owner's merge/deploy sequence; `supabase db push` is required after merge."
-  Never push a migration from an unmerged branch to clear this hold.
-- **Codex unavailable on an `independent` floor:** leave the PR open, keep In Progress: "PR #X
-  waits on the Codex gate." No same-harness substitute, no owner override from an agent.
+- **Migration in the diff:** carry it through the PR and review gate (`migration-auditor`
+  is one adversarial lens), then **do not merge** in this run. Route the owner's merge/deploy
+  action through the shared table. Never push a migration from an unmerged branch.
+- **Codex unavailable on an `independent` floor:** leave the PR open and route the unavailable
+  reviewer through the shared table. No same-harness substitute, no owner override from an agent.
 - **Watcher exit 3:** run it once more. If it times out again, arm `gh pr merge --squash
 --auto`, keep the worktree, leave the issue In Progress, and mark the ledger "merge pending".
   The run summary lists it for `/cleanup` later.
@@ -159,13 +148,8 @@ explicitly after a fresh read:
 1. `gh pr view <n> --json state,mergeCommit` shows `MERGED`.
 2. A fresh `get_issue` (a nightly job may have appended criteria). Check every criterion against
    the merged diff and the tests that ran.
-3. Set the state:
-   - **Done**: every criterion is met by merged code and executed checks.
-   - **In Review**: anything owed by a human or a shared system, such as a browser walk, a
-     production-evidence criterion (it ships on the next Deploy myK9Show run),
-     `supabase functions deploy` or a `db push`. Name the exact verification owed and apply
-     its `verify:*` labels, plus `needs:operator` when an operator action is required. Remove
-     only labels whose evidence/action is recorded; labels never replace the full criteria.
+3. Apply the shared disposition/evidence contract to the post-merge state and pending labels.
+   Never accept automatic Done while any criterion remains owed.
 4. Comment on the issue:
 
 ```markdown
@@ -202,12 +186,12 @@ asking:
 2. **Summary**, as the final message (and a push notification when the owner is away):
 
 ```markdown
-| Issue    | Outcome            | PR    | Reason / owed                             |
-| -------- | ------------------ | ----- | ----------------------------------------- |
-| MYK9-123 | merged · Done      | #2870 | —                                         |
-| MYK9-456 | merged · In Review | #2871 | browser walk of /at-show scoring          |
-| MYK9-789 | held · Todo        | —     | touches refunds (needs:operator)          |
-| MYK9-321 | held · Todo        | —     | not reproducible on main (needs:decision) |
+| Issue    | Outcome            | PR    | Reason / owed                                      |
+| -------- | ------------------ | ----- | -------------------------------------------------- |
+| MYK9-123 | merged · Done      | #2870 | —                                                  |
+| MYK9-456 | merged · In Review | #2871 | browser walk of /at-show scoring                   |
+| MYK9-789 | held · Todo        | —     | money-code approval question; shared table applied |
+| MYK9-321 | triaged · Backlog  | —     | complete reproduction negative; trigger recorded   |
 ```
 
 Follow it with the orchestration stats from `../SKILL.md` and one line listing every judgement

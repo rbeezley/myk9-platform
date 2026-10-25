@@ -107,7 +107,7 @@ Agent lifecycle:
 3. Work that still needs implementation or defect fixes stays **In Progress** once started.
    Keep an unmerged implementation PR In Progress through its code-review gate. After merge,
    implemented work awaiting acceptance evidence belongs **In Review**. A hold does not itself
-   make unfinished code review-ready. Leave unstarted Backlog/Todo issues in their current state.
+   make unfinished code review-ready. Apply the disposition table below for holds and rejected premises.
 4. Record the tested commit/build, target, role/device/workload, commands, results and evidence
    link appropriate to the criterion. Link a shared rehearsal result from each issue it proves;
    do not start separate load runs for every tagged optimization.
@@ -135,6 +135,38 @@ authorized-person action. `Parked` marks an explicit decision to defer work unti
 not merely an unstarted issue. Do not select it for launch implementation until the owner brings
 it into scope. Record the trigger in the issue and remove the label when that decision changes.
 
+## Dispositions and holds — the single routing table
+
+All agent workflows use this table; do not maintain separate label/state mappings in skills.
+A pre-work hold leaves Backlog/Todo unchanged. A hold after implementation starts keeps the issue
+In Progress, including an unmerged PR. After merge, missing acceptance evidence belongs In Review.
+Apply every independent hold that remains; labels never grant the approval they describe.
+
+| Situation                                                                                              | Disposition / intervention                                                                    | Resume or resolution                                                                                    |
+| ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Pre-work reproduction completed on the required target, but the defect is not reproduced               | Backlog with tested build/scenario and a reconsideration trigger; no automatic decision label | New reproduction/evidence and explicit return to Todo; non-reproduction is never proof of a fix         |
+| A current recorded decision fully disposes the finding and all its scope                               | Canceled with that citation after a full-issue read; no new hold                              | A new request to change the decision is triaged as such, not built against the old decision             |
+| New scope/product question, money-code approval, convergence stop, or model escalation                 | needs:decision; state follows the pre-work/started rule above                                 | Named decision owner records the exact approval or restructure choice                                   |
+| Required CI remains red after the run's two fix attempts                                               | needs:decision for an explicit repair/handoff plan; keep In Progress                          | Owner/executor accepts the next repair approach; code fixes and passing checks remain owed              |
+| Required tool, credentials, fixture, network or reviewer unavailable; runner hangs over 30 seconds     | needs:environment; state follows the pre-work/started rule                                    | A capable executor establishes the missing capability is restored; do not infer a fix from elapsed time |
+| Authorized operator/person action, including a migration PR awaiting the owner's merge/deploy sequence | needs:operator; unmerged work stays In Progress                                               | Record the authorized action; migrations are pushed only after merge and only with existing approval    |
+| Overlapping PR, branch, worktree or issue ownership                                                    | needs:coordination                                                                            | Agree ownership/sequencing; a held or idle branch may still contain unmerged work                       |
+| Merged implementation awaiting browser, device, hosted or other acceptance proof                       | In Review with the applicable verify:* labels and any independent needs:* hold                | Record each criterion's required proof; remove only satisfied labels and fresh-read before Done         |
+
+When merged work has every criterion supported by recorded evidence, fresh-read the full issue
+before Done and remove satisfied pending labels. Keep its merge/build and acceptance links.
+If reproduction could not run, use the capability row, not the completed-reproduction row.
+If a proposed change to a prior decision is unresolved, use the new-question row, not Canceled.
+Done still requires the merge and full acceptance gates; neither Backlog nor Canceled claims a fix.
+
+Every hold comment records: **disposition (held), current executor (active or paused), owning
+chat/worktree/branch/PR, exact question/action, responsible owner or capable next executor, and
+the unblock condition**. Maintain this record on handoff. A paused executor does not release
+another agent's ownership: preserve qa:inflight and the In Progress path checks, inspect the
+recorded work, and agree takeover/sequencing before touching overlapping paths. On a later run,
+review Blocked work for restored capabilities or resolved decisions and remove only stale holds;
+do not wait for the issue to reappear in Ready for an agent by itself.
+
 ## Saved queues and verification batches
 
 Use the shared team views to select work instead of repeatedly scanning the full board:
@@ -144,6 +176,7 @@ Use the shared team views to select work instead of repeatedly scanning the full
 | [Ready for an agent](https://linear.app/myk9-platform/view/81143969-5d01-4991-8b68-d8d994c93426)  | Todo; not blocked by another issue; excludes any of Parked or the four needs:* labels; priority order     |
 | [Verification needed](https://linear.app/myk9-platform/view/316a2fa9-78c5-4cb5-9ba5-71332adb4bf7) | In Review; grouped by the verify label group and ordered by priority                                      |
 | [Owner actions](https://linear.app/myk9-platform/view/595922bc-5449-47e9-9f00-908a6852691d)       | Open issues with either needs:decision or needs:operator; grouped by needs; deferred items remain visible |
+| [Blocked work](https://linear.app/myk9-platform/view/72298184-9990-40b7-ab46-253f9147d580)        | Open issues with any of the four needs:* holds, at every priority; grouped by needs for recovery/handoff  |
 | [Launch blockers](https://linear.app/myk9-platform/view/81b32ef5-7f1f-4bda-a89e-2533c4ca2df1)     | Open Urgent/High issues; excludes Parked and the Post-launch project; includes blocked/operator-held work |
 
 Open means Backlog, Todo, In Progress or In Review. These views are candidate selectors, not
@@ -152,12 +185,23 @@ go/no-go. Hidden nested rows are displayed flat so a nonmatching parent is not m
 in the queue. Group counts can overlap when an issue owes several proofs.
 
 Resolve a view with `list_custom_views` and query it using `list_issues(customView: <id or exact
-name>)` when the connector supports those tools/fields. Otherwise query the relevant statuses
-and apply the same property filters, checking `get_issue` relations for unfinished blockers.
-Never invent unsupported filter arguments or broaden the fallback to Backlog for an agent run.
-Even with a saved view, re-read the full issue and latest comments, reproduce the premise, check
-dependencies and concurrent work, and claim the issue before implementation. An In Review item
-with unfinished code or a restructure hold is not ready for an acceptance-only session.
+name>)` when supported. For **Ready for an agent**, the exact connector fallback is:
+
+1. Query team MyK9-platform, state Todo, excluding archived issues; read every page. Never
+   broaden to Backlog when no candidate qualifies.
+2. Exclude any issue carrying Parked, needs:decision, needs:operator, needs:environment or
+   needs:coordination. Use client-side filtering when the connector has no exclusion arguments.
+3. Read each remaining full issue and its blocked-by relations. Resolve each blocker and exclude
+   unfinished prerequisites. A merged PR alone is insufficient; a Canceled/Duplicate blocker
+   requires reading its recorded resolution/canonical issue. Unknown relation state fails closed
+   under the capability hold row above, not as permission to start.
+4. Rank eligible candidates by priority, launch fit and closeness to done. Before claiming one,
+   re-read its latest comments, reproduce the premise and check concurrent work/ownership.
+
+Other view fallbacks query their table's statuses and apply its property predicates across all
+pages. Never invent unsupported tool arguments. Even saved-view candidates need the full-issue,
+dependency, premise and ownership checks above. An In Review item with unfinished code or a
+restructure hold is not ready for an acceptance-only session.
 
 [Launch verification sessions](https://linear.app/myk9-platform/document/launch-verification-sessions-3ab8911b3c10)
 holds the current session matrix; original issues retain their criteria and closure evidence.

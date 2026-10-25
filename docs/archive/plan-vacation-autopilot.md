@@ -1,6 +1,10 @@
 # Vacation Autopilot
 
-> **Status:** Active
+> **Status:** Abandoned
+
+Historical August 2026 vacation workflow. Superseded by the shared
+[Linear operating contract](../agents/issue-tracker.md); its labels and merge permissions are
+not current instructions. Preserve the record below, but do not execute or recreate its labels.
 
 Unattended 10-day workflow: Claude Code on the Mac Mini works through triaged Linear
 issues (team **MyK9-platform**) 4×/day while Richard is away with no computer access.

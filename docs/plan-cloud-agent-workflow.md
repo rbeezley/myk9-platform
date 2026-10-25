@@ -53,6 +53,11 @@ A 17-issue performance run from a Claude Code cloud session (PRs #3225 to #3239,
 - All uploaded handoff/review evidence and published excerpts pass the existing secret scan first. Unknown, cancelled, expired, interrupted and unrecorded outcomes cannot become approval.
 - Every new automated entrypoint has a kill switch: a repository variable that, when not `true`, makes the job exit before doing anything (`INDEPENDENT_REVIEW_ENABLED` for Stage 2, `AGENT_CONTINUATION_ENABLED` for Stage 3; the same pattern as `MYK9SHOW_SMOKE_CI_ENABLED`). Turning one off returns that step to the owner without a revert.
 - Preserve unrelated edits, single-source skill symlinks, offline-first app behavior and files under 500 lines. No app UI, database schema or new orchestration service is added.
+- **Local and cloud execution are both permanently supported.** Cloud is an additional route, not a replacement for the Mac. Four protections apply to every stage:
+  1. **Cloud setup is optional and inert locally.** Nothing in `scripts/cloud/` installs Linux tools, replaces the Mac's Node/pnpm, or reads, writes or re-authenticates Mac credentials (gh, Keychain, `~/.codex`, `~/.claude`). `setup.sh` refuses to run on macOS or outside a recognized cloud environment unless explicitly forced; `preflight.ts` is read-only everywhere.
+  2. **Local reviews stay supported.** `pnpm qa:codex-review`, `pnpm qa:claude-review`, their `--post` behavior and their local authentication paths keep their current semantics. Shared-script changes are additive seams that default to today's behavior, and existing wrapper/poster tests must pass unmodified.
+  3. **One review runner per PR/head.** Before starting, each route checks for a live review claim or qualifying evidence on the exact head. A cloud job skips a head that already has qualifying local evidence or a live local claim. A local wrapper refuses while a cloud attempt for that head is in flight, unless told to take over, which cancels that attempt first. Neither route's attempt invalidates the other route's evidence.
+  4. **Both evidence paths stay valid.** A `Review gate:` comment from an OWNER/MEMBER/COLLABORATOR through `post-review-gate.sh` (the local route) still qualifies after cloud publication is added. Trusted-publisher provenance is an additional accepted source, never a new requirement that local evidence would fail.
 
 ## Verified capabilities and boundaries
 
@@ -103,7 +108,8 @@ Each case has an owning task and acceptance check below.
 - Add exact tool pins to `scripts/cloud/tool-versions.json`.
 - Modify `scripts/bootstrap-worktree.sh` only if extracting shared setup is necessary.
 - Replace the hard-coded Mac path in `.claude/skills/ship-it/SKILL.md`, `.claude/skills/ship-pr/SKILL.md` and `.claude/skills/orchestrate/references/linear-issue-run.md` with a discovered checkout (`git rev-parse --show-toplevel`, and the first `git worktree list --porcelain` entry for the main checkout).
-- Add a guard test that fails when any non-archived `.claude/`, `.codex/` or `scripts/` file contains `/Users/`.
+- Add a guard test that fails when any non-archived `.claude/`, `.codex/` or `scripts/` file contains `/Users/` (test fixtures that deliberately model a Mac path are exempt).
+- [ADDED] Create `scripts/cloud/local-compat.test.ts` for the local-compatibility guarantees below.
 - Document cloud wiring and the branch-prefix convention in `docs/operations/cloud-agent-workflow.md` and `docs/agents/issue-tracker.md`.
 
 **Interfaces:**
@@ -115,6 +121,12 @@ Roles: `implementer | reviewer | publisher`.
 Results list tool/version, authentication/network capability and missing requirements. A failed prerequisite returns nonzero and names the missing capability without printing secrets.
 
 - [ ] Write failing preflight tests for missing `gh`, `deno` and `shellcheck`, absent authentication, unavailable network, and a non-Mac checkout path.
+- [ ] [ADDED] **Local compatibility tests, written before the setup script and skill edits:**
+  - `setup.sh` on Darwin, or with no cloud-environment marker, exits nonzero before any install or download and changes no file outside the checkout. Prove this by running it against a stubbed `uname`/`PATH`/`HOME` and asserting that the stub install commands never ran and `HOME` is untouched.
+  - `setup.sh` never writes under `HOME` credential paths (`.config/gh`, `.codex`, `.claude`, Keychain), even in cloud mode.
+  - Preflight run with a Mac-style root containing spaces (`/Users/me/AI Projects/repo`) reports correctly and runs no install, auth or write command.
+  - The discovered-checkout snippets in the three skills, executed against a temporary repo whose path contains spaces, resolve the same main checkout as `git worktree list --porcelain`'s first entry.
+  - Local wrapper entrypoints and `--post` behavior are unchanged: the existing wrapper/poster suites pass unmodified.
 - [ ] Install Node `22.12.0` and pnpm `9.15.9` to match CI/packageManager; pin tested gh, Deno, ShellCheck and harness CLI versions rather than using floating latest installers. Install git, jq and other dependencies already required by the wrappers. Verify checksums where the installer provides them.
 - [ ] Run `pnpm install --frozen-lockfile` and shared-package builds from the discovered repository root, then `pnpm qa:dist-fresh`. Configure each provider's setup using this script; do not copy local `.env` files, credentials, browser profiles or Keychain state. Keep a read-only reviewer profile separate from an implementation build profile.
 - [ ] Make Deno verification select the actual changed edge-function entrypoints and dependents of changed `_shared` code. Execute `deno check <entrypoint>` using the repository's actual import/config conventions. Record filenames and results; the two push functions changed by #3238 (`push-trigger-class-status`, `push-trigger-run-proximity`) are not assumed checked merely because Deno is installed.
@@ -211,6 +223,7 @@ A snapshot is never authorization.
 - [ ] Publisher job: no model execution and no PR-code execution; trusted checkout only. Give it the minimum comment/status write permissions plus required metadata/artifact reads, with no `contents: write`, push, merge or deployment capability. Do not give the model the publisher token.
 - [ ] Validate provenance/current head and scan artifacts before passing the original verified log to `post-review-gate.sh`. Reuse existing findings/withdrawal handling through a shared helper if necessary; do not copy verdict regexes or invent success from silence. The trusted publisher is the only cloud evidence writer.
 - [ ] Gate the whole workflow on `INDEPENDENT_REVIEW_ENABLED`; when it is not `true` the job exits before checkout and the Mac route is unaffected.
+- [ ] [ADDED] **Review claim.** Both routes record a claim for the exact PR/head before they start: a handoff event plus an `Independent review` pending status naming the route and run. The cloud job exits without running when the head has qualifying evidence or a live local claim. The local wrappers check for an in-flight cloud attempt before starting and refuse unless `--take-over` is passed, which cancels that attempt first. A claim older than the route's timeout is stale. Tests cover all four orderings (local then cloud, cloud then local, concurrent, take-over), and in each one exactly one review runs.
 
 **Deliverable:** Either author's PR can receive a real other-harness wrapper review with original, scanned, current-head evidence and a traceable trusted publisher.
 
@@ -225,9 +238,10 @@ A snapshot is never authorization.
 - Keep new modules small rather than expanding the already-large evaluator opportunistically.
 
 - [ ] Extend cloud evidence trust using a specific approved publisher identity AND API-verified workflow path/ref, run/attempt, PR, requested SHAs and artifact digest. Never trust all bots, an arbitrary workflow URL, a PR-supplied result or a typed owner comment as cloud-job provenance.
-- [ ] Start a new required review attempt by invalidating the previous eligible evidence for that PR/head. The evaluator must consult the latest trusted attempt, so a cancelled/incomplete rerun on the SAME SHA cannot resurrect an earlier clean comment. Terminal usage-limit, interruption, cancellation, publisher failure, timeout or missing output maps to a red failure, never clean. A trusted completion/failure handler covers jobs that die before publication; if GitHub cannot accept the status, report that failure and keep merge blocked rather than invent green.
+- [ ] [EXPANDED] A new **cloud** attempt invalidates earlier **cloud** evidence for that PR/head. The evaluator consults the latest trusted cloud attempt, so a cancelled or incomplete cloud rerun on the SAME SHA cannot resurrect an earlier clean cloud comment. A cloud attempt never starts on a head that already has qualifying local evidence or a live local claim (Global constraints, protection 3), so it cannot invalidate a local review. Local evidence keeps today's latest-comment-wins semantics. Terminal usage-limit, interruption, cancellation, publisher failure, timeout or missing output maps to a red failure, never clean. A trusted completion/failure handler covers jobs that die before publication; if GitHub cannot accept the status, report that failure and keep merge blocked rather than invent green.
 - [ ] On a failed attempt, post one `Review not completed for <head>` comment naming the cause and retry once after 15 minutes. A second failure stops and hands the PR to the owner (manual re-dispatch, a Mac review, or the documented `owner` override).
 - [ ] On `synchronize`, invalidate independent review for the new head and record a red missing-current-review verdict until fresh qualifying evidence exists. A late clean result for the old head may be retained as history but cannot green the new head. Re-read current PR/head immediately before publication and before merge.
+- [ ] [ADDED] Local evidence stays valid: an OWNER/MEMBER/COLLABORATOR `Review gate:` comment written by `post-review-gate.sh` still sets the status after the trusted-publisher check lands. Existing `review-gate.ts` fixtures for local evidence pass unmodified, and a new fixture shows local and cloud evidence for the same head both evaluating green.
 - [ ] Preserve default-branch metadata-only evaluation and the existing failure-status fallback. Test comment edit/delete, replay of older clean evidence, newer findings, cancelled jobs, rejected credentials and workflow/publisher crashes.
 - [ ] Retain optional-review rules for eligible low-risk changes. Run the negative acceptance cases on independent-tier PRs, including one that had clean evidence before the incomplete rerun.
 - [ ] A PR that changes the review machinery itself (this workflow, either wrapper, `post-review-gate.sh`, `review-gate.ts`, `review-tier.ts`, `authorship.ts`) is reviewed by the base-branch job like any other, and additionally needs a Mac review or the documented `owner` override; its changes take effect only after merge.
@@ -300,24 +314,28 @@ Require verified readback and no suppressed API/approval failures.
 
 Each task includes red-to-green tests. This final phase verifies the integrated story; it does not postpone tests owed by earlier stages.
 
-| Scenario                                                          | Required observable outcome                                                                            |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Claude implements (`claude/` branch); Codex reviews               | Existing Codex wrapper completes; trusted scanned evidence matches exact head; required CI green.      |
-| Codex implements (`codex/` branch); Claude reviews                | Existing Claude wrapper completes; identical evidence/permission requirements.                         |
-| Branch prefix missing, unknown or contradicted by commit trailers | No reviewer selected; a refusal comment names the reason; no evidence published.                       |
-| CLI usage limit or interruption                                   | No clean evidence; required gate is red, including after a previous clean run on the same head.        |
-| Push after clean independent review                               | New head's gate becomes red for missing current-head review and old results cannot satisfy it.         |
-| Publisher crashes or artifact is unavailable                      | No approval; a bounded failure/blocked receipt identifies the owed action.                             |
-| Reviewer/model sees malicious PR instructions                     | Cannot change trusted launchers, obtain publisher/merge credentials, push or merge.                    |
-| PR edits a review wrapper to always print clean                   | The job runs `main`'s wrapper; the edit cannot affect the gate result.                                 |
-| Kill switch off                                                   | No review or continuation job runs; the gate stays red; turning it back on and re-dispatching resumes. |
-| Secret in report, verdict or upload                               | Scan fails; no raw artifact or unsafe excerpt is published; diagnostics omit the value.                |
-| Session/temp state lost                                           | Reconstruct accepted reports, ownership, rounds and next action from remote evidence.                  |
-| Second confirmed path finding across rounds                       | Stop before another automated patch, record restructure proposal and hand back to Richard.             |
-| Human says merge while gate is unmet                              | The ruleset refuses the merge; no automated owner override.                                            |
-| Gate green without human authorization                            | Merge is refused.                                                                                      |
-| Linear full criteria include production proof                     | Issue stays/restores In Progress until evidence exists.                                                |
-| Linear approval/update denied                                     | Close-out fails visibly, preserves pending action and never reports a successful Done.                 |
+| Scenario                                                           | Required observable outcome                                                                             |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| Claude implements **locally**; Codex reviews **locally**           | `pnpm qa:codex-review --post` from the Mac; the gate goes green exactly as today; no cloud job runs.    |
+| Codex implements **locally**; Claude reviews **locally**           | `pnpm qa:claude-review --post` from the Mac; the gate goes green exactly as today; no cloud job runs.   |
+| Claude implements **in the cloud**; Codex reviews **in the cloud** | Existing Codex wrapper completes; trusted scanned evidence matches exact head; required CI green.       |
+| Codex implements **in the cloud**; Claude reviews **in the cloud** | Existing Claude wrapper completes; identical evidence/permission requirements.                          |
+| Local and cloud review both attempted on one head                  | Exactly one runs (claim honored); the other skips or refuses; neither invalidates the other's evidence. |
+| Cloud setup run on the Mac                                         | Refuses before installing anything; Node/pnpm and Mac credentials unchanged.                            |
+| Branch prefix missing, unknown or contradicted by commit trailers  | No reviewer selected; a refusal comment names the reason; no evidence published.                        |
+| CLI usage limit or interruption                                    | No clean evidence; required gate is red, including after a previous clean run on the same head.         |
+| Push after clean independent review                                | New head's gate becomes red for missing current-head review and old results cannot satisfy it.          |
+| Publisher crashes or artifact is unavailable                       | No approval; a bounded failure/blocked receipt identifies the owed action.                              |
+| Reviewer/model sees malicious PR instructions                      | Cannot change trusted launchers, obtain publisher/merge credentials, push or merge.                     |
+| PR edits a review wrapper to always print clean                    | The job runs `main`'s wrapper; the edit cannot affect the gate result.                                  |
+| Kill switch off                                                    | No review or continuation job runs; the gate stays red; turning it back on and re-dispatching resumes.  |
+| Secret in report, verdict or upload                                | Scan fails; no raw artifact or unsafe excerpt is published; diagnostics omit the value.                 |
+| Session/temp state lost                                            | Reconstruct accepted reports, ownership, rounds and next action from remote evidence.                   |
+| Second confirmed path finding across rounds                        | Stop before another automated patch, record restructure proposal and hand back to Richard.              |
+| Human says merge while gate is unmet                               | The ruleset refuses the merge; no automated owner override.                                             |
+| Gate green without human authorization                             | Merge is refused.                                                                                       |
+| Linear full criteria include production proof                      | Issue stays/restores In Progress until evidence exists.                                                 |
+| Linear approval/update denied                                      | Close-out fails visibly, preserves pending action and never reports a successful Done.                  |
 
 **Local checks:**
 
@@ -336,7 +354,7 @@ Each task includes red-to-green tests. This final phase verifies the integrated 
 
 **Live checks:**
 
-Use two owner-approved, bounded pilot PRs, one per author harness.
+Use four owner-approved, bounded pilot PRs, one per row of the implementation × review matrix above (local→local in both directions, cloud→cloud in both directions). The two local rows are run before any cloud stage is enabled, so they record today's baseline, and again after each stage merges, to prove nothing regressed.
 
 Record:
 
@@ -353,9 +371,9 @@ Run negative drills on a disposable approved PR or fixture repository; never del
 
 1. Before each implementation stage, rerun the path-specific in-flight/Linear checks, create or select its tracking issue with authorization, and verify actual account access and budget. No unresolved primary-checkout or overlapping-work gate is treated as passed.
 2. Ship one coherent stage at a time through the repository's review-tier floor, other-harness review for guardrail changes, required CI and separately authorized merge. No preview deployment or production release is required to prove a workflow-only change.
-3. Enable cloud publication/continuation only after the corresponding live proof; owner controls App installation, secrets, environment permissions and rulesets. Keep the existing local review route until both directions work.
-4. **Transition period.** For two weeks after Stage 2 is enabled, both review routes stay valid: the Mac (`pnpm qa:codex-review --post`) and the cloud job write the same evidence. Compare the two verdicts on at least three PRs reviewed both ways before relying on the cloud job alone, and record the comparison here.
-5. Rollback first sets the stage's kill-switch variable to `false`, which stops new runs without a revert, then revokes credentials as appropriate and restores the existing local wrapper route. It does not weaken the required gate or erase handoff history. Missing review remains a blocker until a real review or explicit documented owner override exists. Stage 1 is additive and is undone by reverting its PR.
+3. Enable cloud publication/continuation only after the corresponding live proof; owner controls App installation, secrets, environment permissions and rulesets. Local and cloud execution remain permanently supported options; enabling the cloud route never retires the local one.
+4. **Calibration period.** Both review routes stay valid permanently: the Mac (`pnpm qa:codex-review --post`, `pnpm qa:claude-review --post`) and the cloud job write evidence the gate accepts. For two weeks after Stage 2 is enabled, compare the two verdicts on at least three PRs (re-running the second route deliberately, with `--take-over` or a manual dispatch after the first finishes, outside the gate) and record the comparison here. This calibrates the cloud route; it does not end the local one.
+5. Rollback first sets the stage's kill-switch variable to `false`, which stops new runs without a revert, then revokes credentials as appropriate and falls back to the local wrapper route, which stays in place throughout. It does not weaken the required gate or erase handoff history. Missing review remains a blocker until a real review or explicit documented owner override exists. Stage 1 is additive and is undone by reverting its PR.
 6. The program is Complete only after all three stages' criteria and both pilot directions pass, failures are recorded, and no acceptance evidence is owed. Then move this plan into `docs/archive/` and remove its index row. Stage-level OPSX changes archive only after their own merge/evidence gates.
 
 ## Linear issues to file
@@ -394,7 +412,11 @@ The plan covers:
 | Verify cloud product claims and account limitations   | Verified capabilities table; Task 1.1 live setup proof                        |
 | Branch-prefix authorship, with mismatch refused       | Global constraints; Task 2.1 `resolveAuthorship` and acceptance row           |
 | Kill switches and rollback without revert             | Global constraints; Tasks 2.1, 3.1; Rollout item 5                            |
-| Transition with both review routes valid              | Rollout item 4                                                                |
+| Local and cloud both permanently supported            | Global constraints protections 1–4; Rollout items 3–4                         |
+| Cloud setup inert on the Mac                          | Protection 1; Task 1.1 local compatibility tests                              |
+| One review runner per PR/head                         | Protection 3; Task 2.1 review claim and four-ordering tests                   |
+| Local evidence stays valid alongside cloud provenance | Protection 4; Task 2.2 local-evidence fixtures                                |
+| Four implementation × review combinations             | Acceptance matrix rows 1–4; Live checks (four pilots)                         |
 | Retain three-stage order, tests and rollout gates     | Stage deliverables/gates; integrated testing and rollout                      |
 | Save/index the plan without duplicate execution plans | Canonical status, docs index row; the Claude draft archived as superseded     |
 
@@ -404,6 +426,7 @@ Important gaps identified during planning and addressed here:
 - Generic bot association does not prove trusted workflow provenance.
 - A shell preflight does not protect a separate native/admin merge bypass; the ruleset does.
 - A PR-controlled branch prefix is cross-checked against commit trailers before it selects a reviewer.
+- (Owner review, 2026-10-24) The draft let a cloud attempt invalidate any earlier evidence on the same head, which would have discarded a legitimate local review, and it described the local route as transitional. Both are fixed: invalidation is per route, a claim prevents duplicate runners, and local execution is permanent.
 
 Planning checks run on the merged plan (2026-10-24): plan metadata and formatting. Implementation and live acceptance tests have not run. Codex's original planning session also recorded that its in-flight check stopped on an unrelated tracked edit in the primary checkout (`docs/qa/audit-boundary.md`), which it preserved.
 

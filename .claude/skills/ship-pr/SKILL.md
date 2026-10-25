@@ -9,6 +9,8 @@ Use when a feature branch is ready to ship — whether it has an open PR or not.
 
 This file is shared by Claude Code and Codex (`.agents/skills/ship-pr` is a symlink to it). Where the two harnesses differ, both paths are spelled out. "The instruction file" means `CLAUDE.md` for Claude Code and `AGENTS.md` for Codex.
 
+In a cloud checkout (or to resume a run another session started), follow [`docs/operations/cloud-agent-workflow.md`](../../../docs/operations/cloud-agent-workflow.md): `scripts/cloud/setup.sh`, `pnpm cloud:preflight --role=<role>`, the `claude/`/`codex/` branch prefix, and the PR handoff ledger (`scripts/cloud/handoff-cli.ts read --pr=<n>`). On the Mac nothing in it is required.
+
 ## Trigger Phrases
 
 - "ship this PR", "merge the PR", "ship this branch"
@@ -35,7 +37,7 @@ git branch --show-current
 gh pr view --json number,title,url,reviewDecision,state 2>/dev/null || echo "NO_PR"
 ```
 
-Note the branch name, the MAIN REPO path (always `/Users/richardbeezley/AI Projects/myk9-platform`, needed for the merge step) and the worktree path: `.claude/worktrees/<name>` for Claude Code, `.codex/worktrees/<name>` for Codex.
+Note the branch name, the MAIN REPO path (needed for the merge step: `MAIN="$(git worktree list --porcelain | sed -n '1s/^worktree //p')"`, the first `git worktree list --porcelain` entry, on the Mac and in a cloud checkout alike) and the worktree path: `.claude/worktrees/<name>` for Claude Code, `.codex/worktrees/<name>` for Codex.
 
 **Branch check:** Never run on `main`. If the current branch is `main`, stop and tell the user.
 
@@ -218,7 +220,8 @@ Never report the PR as ready, arm auto-merge, or merge while a review is running
 bash scripts/qa/watch-pr-checks.sh $PR_NUMBER
 
 # 2. Switch to main repo BEFORE merging
-cd "/Users/richardbeezley/AI Projects/myk9-platform"
+MAIN="$(git worktree list --porcelain | sed -n '1s/^worktree //p')"
+cd "$MAIN"
 ```
 
 Reading the rollup — three traps from the instruction file's LESSONS:

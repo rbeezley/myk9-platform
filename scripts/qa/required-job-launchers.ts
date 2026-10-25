@@ -223,6 +223,11 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   },
   {
     pkgDir: '.',
+    script: 'qa:cloud:test',
+    command: 'vitest run scripts/cloud --sequence.shuffle',
+  },
+  {
+    pkgDir: '.',
     script: 'qa:prompt-parity:test',
     command: 'vitest run scripts/qa/check-prompt-parity.test.ts',
   },

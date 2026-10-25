@@ -10,6 +10,8 @@ code.** Quality comes from your review gate, not from the implementer, so keep y
 small (reports, diffs, checklists) and be strict at the gate. A bad report means you re-dispatch;
 don't try to salvage it.
 
+In a cloud checkout (or to resume a run another session started), follow [`docs/operations/cloud-agent-workflow.md`](../../../docs/operations/cloud-agent-workflow.md): `scripts/cloud/setup.sh`, `pnpm cloud:preflight --role=<role>`, the `claude/`/`codex/` branch prefix, and the PR handoff ledger (`scripts/cloud/handoff-cli.ts read --pr=<n>`). On the Mac nothing in it is required.
+
 ## Inputs: pick the mode
 
 | Input                                                    | Mode                                                                                     |

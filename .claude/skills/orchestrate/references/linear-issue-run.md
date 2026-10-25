@@ -8,7 +8,7 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
 ## Run start (the only pause)
 
 1. **Where you sit.** The orchestrator runs from the main checkout
-   (`/Users/richardbeezley/AI Projects/myk9-platform`) on a clean, pulled `main`. It never edits
+   (the first `git worktree list --porcelain` entry) on a clean, pulled `main`. It never edits
    files there. Every issue gets its own worktree. Don't start the run from an `EnterWorktree`
    session: that isolation refuses git in the main checkout, which the merge step and the
    per-issue `git worktree add` need. `ExitWorktree` (keep) first.
@@ -71,9 +71,9 @@ review and suites all count).
 ### 2. Start
 
 ```bash
-MAIN="/Users/richardbeezley/AI Projects/myk9-platform"
+MAIN="$(git worktree list --porcelain | sed -n '1s/^worktree //p')"
 N=<n>; SLUG=<3-5-word-kebab>
-BRANCH="richardbeezley1/myk9-$N-$SLUG"
+BRANCH="claude/myk9-$N-$SLUG"  # codex/ when Codex implements; the prefix declares authorship
 WT="$MAIN/.claude/worktrees/myk9-$N"
 git -C "$MAIN" fetch origin main
 git -C "$MAIN" worktree add "$WT" -b "$BRANCH" origin/main

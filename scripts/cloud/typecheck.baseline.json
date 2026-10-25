@@ -1,0 +1,12 @@
+[
+  {
+    "file": "apps/myk9show/src/utils/findArtifactSecrets.ts",
+    "code": "TS2769",
+    "message": "No overload matches this call."
+  },
+  {
+    "file": "apps/myk9show/src/utils/scrubArtifactSecrets.ts",
+    "code": "TS2769",
+    "message": "No overload matches this call."
+  }
+]

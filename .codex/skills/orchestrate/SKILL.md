@@ -13,6 +13,8 @@ Run `opsx-ship` with a strict role split: the root agent owns judgment and gates
 
 For `openspec/changes/<change-id>/` only. Use `ship-it` for `docs/plan-*.md`. The Claude Code variant (`.claude/skills/orchestrate`) also runs lists of Linear issues to merge; that mode depends on model-tier routing, which Codex cannot select, so it is not ported here.
 
+In a cloud checkout (or to resume a run another session started), follow [`docs/operations/cloud-agent-workflow.md`](../../../docs/operations/cloud-agent-workflow.md): `scripts/cloud/setup.sh`, `pnpm cloud:preflight --role=<role>`, the `claude/`/`codex/` branch prefix, and the PR handoff ledger (`scripts/cloud/handoff-cli.ts read --pr=<n>`). On the Mac nothing in it is required.
+
 ## Codex Capability Contract
 
 - Codex `spawn_agent` does not select a model tier. Never invent `model: "sonnet"` or `model: "opus"`.

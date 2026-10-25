@@ -51,6 +51,15 @@ describe('verify-artifact-secrets', () => {
     expect(out).not.toContain(SECRET);
   });
 
+  it('fails on a secret that is only an entry NAME in the embedded report zip, never printing it', async () => {
+    const dir = makeDir();
+    writeFileSync(path.join(dir, 'index.html'), reportHtml({ [`${SECRET}.json`]: '{}' }));
+    const { code, out } = await capture([dir]);
+    expect(code).toBe(1);
+    expect(out).toContain('index.html');
+    expect(out).not.toContain(SECRET);
+  });
+
   it('fails on a plain file and on a zip file, and skips zip files on request', async () => {
     const dir = makeDir();
     mkdirSync(path.join(dir, 'sub'));

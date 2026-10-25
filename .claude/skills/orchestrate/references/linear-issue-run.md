@@ -126,8 +126,9 @@ PR and the squash-merge. Additions specific to the run:
 - **`adversarial` floor:** dispatch two `sonnet` lenses (read only, distinct bug-finding
   angles) in parallel. Fix or evidence every finding, then **re-run both lenses on the new
   head**: `post-review-gate.sh` posts "all findings addressed" only over a clean final log.
-  That log's first paragraph must open with the contract sentence `No actionable findings at
-<sha>: …`, and it must carry no `[P*]` bullets, so record round-1 findings in prose.
+  Follow the current verdict contract used by the review wrappers and
+  `scripts/qa/review-verdict.sh`, rather than a separate sentence template here. The final log
+  must carry no outstanding findings; preserve earlier findings and their dispositions separately.
 - **Migration in the diff:** carry it through the PR and review gate (`migration-auditor`
   is one adversarial lens), then **do not merge** in this run. Route the owner's merge/deploy
   action through the shared table. Never push a migration from an unmerged branch.
@@ -194,6 +195,7 @@ asking:
 | MYK9-456 | merged · In Review | #2871 | browser walk of /at-show scoring                   |
 | MYK9-789 | held · Todo        | —     | money-code approval question; shared table applied |
 | MYK9-321 | held · Todo        | —     | not reproduced; owner premise decision owed        |
+| MYK9-654 | held · In Progress | #2872 | draft PR paused for an owner restructure decision  |
 ```
 
 Follow it with the orchestration stats from `../SKILL.md` and one line listing every judgement

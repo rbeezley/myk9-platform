@@ -26,6 +26,7 @@ Ask for the branch, touched files, task or plan item, tests already run, and whe
 Read these first:
 
 - `AGENTS.md`
+- `docs/agents/issue-tracker.md`
 - `docs/goals/fall-2026-launch-readiness.md`
 - The relevant plan or tracking document for the slice.
 - `git status --short` and a focused diff.
@@ -35,7 +36,7 @@ Read these first:
 - Do not stage, commit, push, create PRs, or mutate shared systems unless the parent agent explicitly delegates that exact action.
 - Do not use `git add -A` when unrelated work may exist.
 - Do not revert changes you did not make.
-- If verification hangs for more than 60 seconds, stop that suite and report it.
+- Follow `AGENTS.md` for the verification-runner hang stop; do not keep retrying a stalled suite.
 - For UX-facing changes, ensure `docs/INTENT.md` was considered.
 - For data-path changes, ensure offline-first and schema-name checks were considered.
 
@@ -45,7 +46,7 @@ Read these first:
 - The diff matches the requested scope and does not add duplicate UI surface area.
 - Focused tests were run for touched components, hooks, utilities, or data paths.
 - Typecheck or narrower type verification was run when TypeScript risk exists.
-- Tracking was updated when the task completed a tracked item — the Linear issue (team **MyK9-platform**) was moved to Done (or it auto-completes on merge of a `MYK9-NN` branch), plus any sprint docs or plan files.
+- Fresh-read the full Linear issue (team **MyK9-platform**) and apply `docs/agents/issue-tracker.md` for disposition and evidence. Do not accept merge auto-completion while criteria remain owed. Update linked plan files when their lifecycle requires it; sprint docs are retired.
 - Database or deploy actions were not performed without explicit shared-system confirmation.
 - Final response names what changed, what was verified, and remaining risk.
 

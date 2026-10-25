@@ -43,7 +43,7 @@ UTC.
 
 | Stream                | Last reviewed SHA                          | Window end           | Run by                     | Run date   |
 | --------------------- | ------------------------------------------ | -------------------- | -------------------------- | ---------- |
-| `daily-commit-review` | `a3a371c51fb0e460f5353add498871342b600975` | 2026-10-24T01:27:18Z | claude-daily-commit-review | 2026-10-23 |
+| `daily-commit-review` | `afc542b6ddbbbac88ae1ed69af15af3a519b6564` | 2026-10-25T00:13:46Z | claude-daily-commit-review | 2026-10-24 |
 
 If this row is ever `unset`, nobody has verified which commits the Codex daily stream has actually
 covered; the first run of either automation on this stream must take its default window and stamp a
@@ -68,6 +68,16 @@ real boundary.
 > `claude-daily-commit-review` on 2026-10-23 and reported in
 > `docs/qa/claude-daily-commit-review-2026-10-23.md`. That run supersedes the 82-commit remainder
 > [MYK9-1344](https://linear.app/myk9-platform/issue/MYK9-1344) owns.
+
+> **Provenance of the 2026-10-24 stamp.** The 27 commits from `a3a371c51` to `afc542b6d` were
+> covered in two parts. The first 3 (through `378292962`, all documentation) were reviewed by
+> `codex-daily-commit-review` on 2026-10-24; its report was never committed and survives only as
+> an untracked file in `/private/tmp/myk9-ncr-20261024`, which is the same retention gap
+> [MYK9-1343](https://linear.app/myk9-platform/issue/MYK9-1343) owns. Its coverage was honoured
+> here, not re-reviewed: `git rev-list --count a3a371c51..378292962` returns exactly the 3 commits
+> its inventory enumerates. The remaining 24 (`378292962..afc542b6d`) were reviewed by
+> `claude-daily-commit-review` on 2026-10-24 and reported in
+> `docs/qa/claude-daily-commit-review-2026-10-24.md`.
 
 ### Adding a stream
 

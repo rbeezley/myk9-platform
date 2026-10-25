@@ -17,7 +17,7 @@ describe('TimeOfDayInput', () => {
     const input = screen.getByLabelText('Start time');
 
     await user.click(input);
-    await user.keyboard('8am');
+    await user.keyboard('8:00am');
     await user.tab();
 
     expect(input).toHaveValue('08:00 AM');

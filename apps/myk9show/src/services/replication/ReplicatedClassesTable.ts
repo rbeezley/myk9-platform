@@ -15,6 +15,8 @@ import {
   REPLICATION_STORES,
   type DirtyRowComparePolicy,
   type ReplicatedRow,
+  type ReplicatedSetOptions,
+  type ReplicatedSetResult,
   type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncOptions,
@@ -35,6 +37,17 @@ import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeF
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
 import type { Database } from '@/types/supabase';
 import { buildRingsideClassRpc } from './ringsideClassRpc';
+import {
+  JUDGE_ASSIGNMENTS_TABLE,
+  JUDGE_OWNERSHIP_KEY,
+  CLASS_JUDGE_FIELD_KEYS,
+  NO_UNSENT_IDS,
+  applyJudgeOwnership,
+  judgeMarkerIds,
+  mergeUnsentIds,
+  ownsLocalJudge,
+  type UnsentIds,
+} from './classJudgeOwnership';
 import type { TimeLimitRule } from './resolveClassTimeLimitRules';
 
 /**
@@ -85,6 +98,12 @@ export interface ReplicatedClass {
    * `false` means the judge fields above are "unknown", NOT "no judge" — see resolveConflict.
    */
   judgeResolved?: boolean | undefined;
+  /**
+   * MYK9-1327, local-only: ids of the judge_assignments mutations behind the judge this device
+   * just chose. While any is unsent the judge fields above outrank a server copy (see
+   * classJudgeOwnership.ts). Never in `toSupabaseRow`, so it cannot reach the server.
+   */
+  _judgeAssignmentMutationIds?: string[] | undefined;
   classStatus?: string | undefined;
   /**
    * Resolved visibility-cascade values, denormalized at sync time so the
@@ -319,24 +338,15 @@ const SERVER_OWNED_CLASS_COLUMNS: ReadonlyArray<readonly [string, keyof Replicat
  * agrees. Any other status difference (the server reopened the class) still
  * surfaces. Only known statuses are folded; anything else compares as written.
  */
-const CLASS_JUDGE_FIELDS: ReadonlySet<string> = new Set([
-  'judgeId',
-  'judgeName',
-  'judgeFirstName',
-  'judgeLastName',
-  'judgeResolved',
-]);
+const CLASS_JUDGE_FIELDS: ReadonlySet<string> = new Set(CLASS_JUDGE_FIELD_KEYS);
 
 /**
- * MYK9-1327: a judge change is written onto the local class row
- * (`writeClassJudgeLocally`), while the server derives the row's judge from
- * `judge_assignments`. A pull that reaches the row before its writes upload therefore
- * shows the server mid-way (this device's own earlier pick, or a name lookup that did
- * not run), which is not a change to collide with. So the judge fields never count as
- * server-changed on a dirty row: a judge this device set stays until the row is clean,
- * and once it is, the server's judge wins as usual (resolveConflict). A judge this
- * device did NOT change is still adopted from the server by the 3-way merge, which
- * reads raw values. Compare only; stored values are untouched.
+ * MYK9-1327: the server derives a class's judge from `judge_assignments`, so a pull can show
+ * the judge mid-way (this device's own earlier pick, or a name lookup that did not run). That
+ * is not a change to collide with: on a dirty row the judge fields never count as
+ * server-changed. Who keeps the judge while a pick is in flight is decided by the ownership
+ * marker (classJudgeOwnership.ts), not by this comparison. Compare only; stored values are
+ * untouched.
  */
 const notServerChangedJudge = (field: string, value: unknown): unknown =>
   CLASS_JUDGE_FIELDS.has(field) ? undefined : value;
@@ -670,6 +680,11 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
+    // MYK9-1327: the unsent judge_assignments ids the ownership rule tests, read once per sync
+    // (never per row). Read BEFORE the fetch and again after it: an id acknowledged before the
+    // first read is in the fetched rows, one created or acknowledged during the fetch is in
+    // at least one of the two.
+    let unsentJudgeIds: UnsentIds = NO_UNSENT_IDS;
     const adapter: SyncReplicatedTableAdapter<EnrichedClassRow, ReplicatedClass> = {
       ...this.getRowRefetchAdapter(),
       remotePageSize: POSTGREST_MAX_ROWS,
@@ -702,6 +717,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         }
       },
       fetchRemoteRows: async ({ scope, since, forceFullSync }) => {
+        const unsentBeforeFetch = await this.unsentJudgeIds();
         // A full sync re-derives everything; never answer it from the enrichment cache.
         if (forceFullSync) invalidateClassEnrichment();
         let query = supabase
@@ -720,12 +736,14 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
           throw new Error(`Supabase query failed: ${error.message}`);
         }
 
-        return this.enrichClassRows((data ?? []) as unknown as ClassRow[]);
+        const rows = await this.enrichClassRows((data ?? []) as unknown as ClassRow[]);
+        unsentJudgeIds = mergeUnsentIds(unsentBeforeFetch, await this.unsentJudgeIds());
+        return rows;
       },
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       filterLocalRows: (rows, scope) =>
         scope.value ? rows.filter(r => r.trialId === scope.value) : rows,
-      resolveConflict: (local, remote) => this.resolveConflict(local, remote),
+      resolveConflict: (local, remote) => this.resolveConflict(local, remote, unsentJudgeIds),
     };
 
     const result = await syncReplicatedTable(
@@ -746,7 +764,11 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     return result;
   }
 
-  protected resolveConflict(local: ReplicatedClass, remote: ReplicatedClass): ReplicatedClass {
+  protected resolveConflict(
+    local: ReplicatedClass,
+    remote: ReplicatedClass,
+    unsentJudgeIds: UnsentIds = NO_UNSENT_IDS
+  ): ReplicatedClass {
     // Server-authoritative for class config. The Phase 1h visibility fields are
     // enrichment-only (not on the raw row), so any sync path that didn't enrich
     // carries them as undefined — preserve the prior values rather than wiping
@@ -756,30 +778,156 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       selfCheckinEnabled: remote.selfCheckinEnabled ?? local.selfCheckinEnabled,
       visibilityPreset: remote.visibilityPreset ?? local.visibilityPreset,
       timeLimitRule: remote.timeLimitRule ?? local.timeLimitRule,
+      ...this.serverJudgeFields(local, remote),
     };
+    // MYK9-1327: a judge this device chose outranks the server's until its writes are delivered.
+    return applyJudgeOwnership(local, merged, unsentJudgeIds);
+  }
 
-    // MYK9-494: judge NAMES are enrichment too, and their resolver is allowed to fail (the
-    // catch at fetchRemoteRows swallows it). `judgeResolved === false` therefore means
-    // "unknown", not "no judge" — committing it would regress a correct schedule to
-    // `Judge TBD` on an incremental re-fetch that had nothing to do with the judge.
-    //
-    // Retained ONLY when the remote row still carries a confirmed assignment for the SAME
-    // person: a removed or swapped judge must not keep the old name on the board.
+  /**
+   * The judge fields a server copy contributes.
+   *
+   * MYK9-494: judge NAMES are enrichment too, and their resolver is allowed to fail (the
+   * catch at fetchRemoteRows swallows it). `judgeResolved === false` therefore means
+   * "unknown", not "no judge" — committing it would regress a correct schedule to
+   * `Judge TBD` on an incremental re-fetch that had nothing to do with the judge.
+   *
+   * Retained ONLY when the remote row still carries a confirmed assignment for the SAME
+   * person: a removed or swapped judge must not keep the old name on the board.
+   */
+  private serverJudgeFields(
+    local: ReplicatedClass,
+    remote: ReplicatedClass
+  ): Pick<ReplicatedClass, (typeof CLASS_JUDGE_FIELD_KEYS)[number]> {
     const keepCachedJudgeName =
       remote.judgeResolved !== true &&
       remote.judgeId !== undefined &&
       remote.judgeId === local.judgeId &&
       (local.judgeFirstName !== undefined || local.judgeLastName !== undefined);
-
-    if (!keepCachedJudgeName) return merged;
-
+    const from = keepCachedJudgeName ? local : remote;
     return {
-      ...merged,
-      judgeName: local.judgeName,
-      judgeFirstName: local.judgeFirstName,
-      judgeLastName: local.judgeLastName,
-      judgeResolved: local.judgeResolved,
+      judgeId: remote.judgeId,
+      judgeName: from.judgeName,
+      judgeFirstName: from.judgeFirstName,
+      judgeLastName: from.judgeLastName,
+      judgeResolved: from.judgeResolved,
     };
+  }
+
+  /**
+   * The judge_assignments writes still unsent, for the ownership rule. Never throws: an
+   * unreadable queue answers `null`, which keeps a marked row's local judge (unknown is not
+   * "delivered").
+   */
+  private async unsentJudgeIds(): Promise<UnsentIds> {
+    try {
+      return await this.getUnsentMutationIdSet(JUDGE_ASSIGNMENTS_TABLE);
+    } catch (error) {
+      logger.warn(`[${this.getTableName()}] Judge ownership: queue unreadable`, 'replication', {
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  }
+
+  /** The unsent ids for ONE row's merge, read only when the row carries a marker. */
+  private async unsentJudgeIdsFor(row: ReplicatedClass | null): Promise<UnsentIds> {
+    return judgeMarkerIds(row).length === 0 ? NO_UNSENT_IDS : this.unsentJudgeIds();
+  }
+
+  /**
+   * MYK9-1327: a LOCAL full-row write (e.g. trialStore.updateTrialClass, built from an in-memory
+   * class) must not drop the ownership marker or put back a judge older than the one this device
+   * chose, so it inherits both from the stored row when it carries none of its own. Clean
+   * (server) writes are untouched: they go through the ownership rule instead.
+   */
+  override async set(
+    id: string,
+    data: ReplicatedClass,
+    isDirty = false,
+    expectedVersion?: number,
+    incomingServerVersion?: number,
+    options?: ReplicatedSetOptions
+  ): Promise<ReplicatedSetResult> {
+    let next = data;
+    if (isDirty && judgeMarkerIds(data).length === 0) {
+      const stored = await this.get(id);
+      if (stored && judgeMarkerIds(stored).length > 0) {
+        next = {
+          ...data,
+          judgeId: stored.judgeId,
+          judgeName: stored.judgeName,
+          judgeFirstName: stored.judgeFirstName,
+          judgeLastName: stored.judgeLastName,
+          judgeResolved: stored.judgeResolved,
+          [JUDGE_OWNERSHIP_KEY]: [...judgeMarkerIds(stored)],
+        };
+      }
+    }
+    return super.set(id, next, isDirty, expectedVersion, incomingServerVersion, options);
+  }
+
+  /** Server data over a dirty row (sync, OCC re-fetch): the same ownership rule (MYK9-1327). */
+  override async reconcileDirtyRow(
+    id: string,
+    params: Parameters<ReplicatedTable<ReplicatedClass>['reconcileDirtyRow']>[1]
+  ): Promise<boolean> {
+    const local = await this.get(id);
+    if (judgeMarkerIds(local).length === 0 || !local) return super.reconcileDirtyRow(id, params);
+    const owned = ownsLocalJudge(local, await this.unsentJudgeIds());
+    // Owned: the server copy must not move the judge. Settled: the server's judge stands and the
+    // marker goes (adopted over the merge, so a judge this device chose cannot linger).
+    const judge = owned ? local : this.serverJudgeFields(local, params.remote);
+    return super.reconcileDirtyRow(id, {
+      ...params,
+      remote: {
+        ...params.remote,
+        judgeId: judge.judgeId,
+        judgeName: judge.judgeName,
+        judgeFirstName: judge.judgeFirstName,
+        judgeLastName: judge.judgeLastName,
+        judgeResolved: judge.judgeResolved,
+        // Owned: the marker rides along so the 3-way merge sees nothing to adopt from the server.
+        ...(owned && { [JUDGE_OWNERSHIP_KEY]: [...judgeMarkerIds(local)] }),
+      },
+      ...(!owned && {
+        adoptRemoteFields: [
+          ...(params.adoptRemoteFields ?? []),
+          ...CLASS_JUDGE_FIELD_KEYS,
+          JUDGE_OWNERSHIP_KEY,
+        ],
+      }),
+    });
+  }
+
+  /** "Take theirs" on a conflicted class: the server's row, except a judge still being delivered. */
+  override async replaceFromRemote(
+    id: string,
+    remoteData: ReplicatedClass,
+    remoteServerVersion?: number
+  ): Promise<void> {
+    const local = await this.get(id);
+    const next = local
+      ? this.resolveConflict(local, remoteData, await this.unsentJudgeIdsFor(local))
+      : remoteData;
+    return super.replaceFromRemote(id, next, remoteServerVersion);
+  }
+
+  /** "Keep mine" on a conflicted class merges server fields in; the judge follows the same rule. */
+  override async clearConflict(
+    id: string,
+    newServerVersion?: number,
+    options?: Parameters<ReplicatedTable<ReplicatedClass>['clearConflict']>[2]
+  ): Promise<void> {
+    const local = await this.get(id);
+    const merged = options?.mergedData;
+    if (!local || !merged || judgeMarkerIds(local).length === 0) {
+      return super.clearConflict(id, newServerVersion, options);
+    }
+    return super.clearConflict(id, newServerVersion, {
+      ...options,
+      mergedData: applyJudgeOwnership(local, merged, await this.unsentJudgeIds()),
+    });
   }
 
   /** Get classes by trial ID, through the trial index (MYK9-1366). */
@@ -846,6 +994,43 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated class ${classId}`);
     return mutationId;
+  }
+
+  /**
+   * MYK9-1327: put the judge a secretary just chose on the LOCAL class row, with no class
+   * mutation. The server derives the judge from judge_assignments and its trigger already bumps
+   * the class when those upload, so a class UPDATE would only carry a payload that goes stale.
+   *
+   * The write changes `data` only. Dirty state, versions, base snapshot and queue are left as
+   * they are: a clean row stays clean (nothing to upload), a row already dirty for another edit
+   * stays dirty for that edit's mutation. `assignmentMutationIds` become the row's ownership
+   * marker (classJudgeOwnership.ts), together with any earlier pick's ids still unsent, so
+   * A->B->C holds until every one of them is delivered.
+   */
+  async writeLocalJudge(
+    classId: string,
+    judgeFields: Pick<ReplicatedClass, (typeof CLASS_JUDGE_FIELD_KEYS)[number]> &
+      Partial<ReplicatedClass>,
+    assignmentMutationIds: readonly string[]
+  ): Promise<void> {
+    const earlier = judgeMarkerIds(await this.get(classId));
+    const stillUnsent =
+      earlier.length === 0 ? NO_UNSENT_IDS : ((await this.unsentJudgeIds()) ?? new Set(earlier));
+    const markerIds = [
+      ...new Set([...assignmentMutationIds, ...earlier.filter(id => stillUnsent?.has(id))]),
+    ];
+    await this.runTransaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite', async store => {
+      const key = [this.getTableName(), classId];
+      const row = (await store.get(key)) as ReplicatedRow<ReplicatedClass> | undefined;
+      if (!row) throw new Error(`Class ${classId} not found`);
+      const data: ReplicatedClass = { ...row.data, ...judgeFields };
+      if (markerIds.length > 0) data[JUDGE_OWNERSHIP_KEY] = markerIds;
+      else delete data[JUDGE_OWNERSHIP_KEY];
+      await store.put!({ ...row, data, lastModifiedAt: Date.now() });
+    });
+    invalidateClassEnrichment();
+    await this.notifyListeners();
+    logger.log(`[${this.getTableName()}] Wrote local judge on class ${classId}`);
   }
 
   /**

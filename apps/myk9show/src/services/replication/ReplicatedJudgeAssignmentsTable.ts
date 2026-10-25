@@ -263,6 +263,14 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     assignment: Omit<ReplicatedJudgeAssignment, 'id' | keyof JudgeAssignmentEnrichment> &
       Partial<JudgeAssignmentEnrichment>
   ): Promise<ReplicatedJudgeAssignment> {
+    return (await this.insertAssignment(assignment)).assignment;
+  }
+
+  /** `createAssignment` that also reports the queued INSERT's id (null when nothing was queued). */
+  private async insertAssignment(
+    assignment: Omit<ReplicatedJudgeAssignment, 'id' | keyof JudgeAssignmentEnrichment> &
+      Partial<JudgeAssignmentEnrichment>
+  ): Promise<{ assignment: ReplicatedJudgeAssignment; mutationId: string | null }> {
     const id = crypto.randomUUID();
     const newAssignment: ReplicatedJudgeAssignment = {
       // Enrichment is server-derived; a fresh local row carries nulls until the
@@ -281,7 +289,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     const mutationId = await this.queueMutation('INSERT', id, this.toSupabaseRow(newAssignment));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created assignment ${id}`);
-    return newAssignment;
+    return { assignment: newAssignment, mutationId };
   }
 
   async updateAssignment(
@@ -308,10 +316,10 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     return mutationId;
   }
 
-  async deleteAssignment(id: string): Promise<string | null> {
+  async deleteAssignment(id: string, dependsOn?: string[]): Promise<string | null> {
     await this.delete(id);
     invalidateClassEnrichment();
-    const mutationId = await this.queueMutation('DELETE', id, { id });
+    const mutationId = await this.queueMutation('DELETE', id, { id }, dependsOn);
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Deleted assignment ${id}`);
     return mutationId;
@@ -377,18 +385,28 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
    * Replace the assignment for a single class: deletes any existing class-level
    * assignment(s), then creates a new one unless `judgeId` is null (removal).
    * Mirrors `upsertClassJudgeAssignment`'s delete-then-insert semantics.
+   *
+   * Returns the ids of every mutation it queued (the deletes and the insert), so the caller can
+   * hold the class row's own write behind them (MYK9-1327).
    */
   async replaceClassAssignment(
     showId: string,
     classId: string,
     judgeId: string | null
-  ): Promise<void> {
+  ): Promise<string[]> {
+    const queued: string[] = [];
     const existing = (await this.readAllForWrite()).filter(a => a.classId === classId);
     for (const row of existing) {
-      await this.deleteAssignment(row.id);
+      // A row's own unsent INSERT/UPDATE goes first: a delete that overtook a delayed insert
+      // would no-op on the server and the insert would then resurrect the replaced judge.
+      const deleteId = await this.deleteAssignment(
+        row.id,
+        await this.getUnsentMutationIdsForRow(row.id)
+      );
+      if (deleteId) queued.push(deleteId);
     }
     if (judgeId) {
-      await this.createAssignment({
+      const { mutationId } = await this.insertAssignment({
         personId: judgeId,
         showId,
         trialId: null,
@@ -399,7 +417,9 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
         fee: null,
         notes: null,
       });
+      if (mutationId) queued.push(mutationId);
     }
+    return queued;
   }
 
   /**

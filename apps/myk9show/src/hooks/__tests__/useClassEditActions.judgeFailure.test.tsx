@@ -7,7 +7,7 @@ vi.mock('@/services/replication', () => ({
   replicatedJudgeAssignmentsTable: { replaceClassAssignment: mocks.prepare },
   replicatedClassesTable: {
     sync: mocks.sync,
-    updateClass: vi.fn(async () => 'queued-touch'),
+    writeLocalJudge: vi.fn(async () => undefined),
     getClassById: vi.fn(async () => null),
   },
 }));
@@ -16,7 +16,7 @@ vi.mock('@/store/trialStore', () => ({
 }));
 describe('required judge preparation', () => {
   beforeEach(() => {
-    mocks.prepare.mockReset().mockResolvedValue(undefined);
+    mocks.prepare.mockReset().mockResolvedValue([]);
     mocks.sync.mockReset().mockResolvedValue(undefined);
     mocks.load.mockReset().mockResolvedValue(undefined);
   });

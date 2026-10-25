@@ -292,6 +292,21 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * The signed-in user's undelivered mutations of one table (default: this one), as a set of
+   * mutation ids: pending, or failed and kept for Retry or Discard. One owner-scoped queue
+   * read of the table, however many rows ask, for callers that test many ids at once.
+   */
+  public async getUnsentMutationIdSet(tableName: string = this.tableName): Promise<Set<string>> {
+    if (!this.mutationManager) return new Set();
+    const [pending, failed] = await Promise.all([
+      this.mutationManager.getPendingMutationsForTable(tableName),
+      this.mutationManager.getFailedMutations(),
+    ]);
+    const failedHere = failed.filter(m => m.tableName === tableName);
+    return new Set([...pending, ...failedHere].map(mutation => mutation.id));
+  }
+
+  /**
    * True when this device holds work for the row that the server may not have:
    * the row is dirty or exists only locally (`_localOnly`), or a pending or
    * failed mutation points at it. Callers that purge a row for a server-side

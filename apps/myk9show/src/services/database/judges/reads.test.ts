@@ -4,9 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   applyShowLevelJudgeChanges: vi.fn(async () => undefined),
   createAssignment: vi.fn(async () => ({ id: 'new-1' })),
-  replaceClassAssignment: vi.fn(async () => undefined),
+  replaceClassAssignment: vi.fn(async () => ['assignment-mutation-1']),
   reassignClassAssignment: vi.fn(async () => undefined),
-  updateClass: vi.fn(async () => 'mutation-1'),
+  writeLocalJudge: vi.fn(async () => undefined),
+  updateClass: vi.fn(async () => 'class-mutation'),
   getClassById: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
 }));
 
@@ -18,6 +19,7 @@ vi.mock('@/services/replication', () => ({
     reassignClassAssignment: mocks.reassignClassAssignment,
   },
   replicatedClassesTable: {
+    writeLocalJudge: mocks.writeLocalJudge,
     updateClass: mocks.updateClass,
     getClassById: mocks.getClassById,
   },
@@ -135,7 +137,7 @@ describe('saveShowJudgeChanges (an edit)', () => {
 describe('upsertClassJudgeAssignment', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.replaceClassAssignment.mockResolvedValue(undefined);
+    mocks.replaceClassAssignment.mockResolvedValue(['assignment-mutation-1']);
   });
 
   it('replaces the class assignment through the replicated table', async () => {
@@ -150,13 +152,16 @@ describe('upsertClassJudgeAssignment', () => {
     expect(mocks.replaceClassAssignment).toHaveBeenCalledWith('show-1', 'class-1', null);
   });
 
-  it('touches the class through the replicated table (offline-safe) after the assignment write', async () => {
+  it('writes the judge locally with the assignment mutation ids, and queues no class mutation', async () => {
     await upsertClassJudgeAssignment('show-1', 'class-1', 'judge-1');
 
-    expect(mocks.updateClass).toHaveBeenCalledWith(
+    expect(mocks.writeLocalJudge).toHaveBeenCalledWith(
       'class-1',
-      expect.objectContaining({ _lastModified: expect.any(Date) })
+      expect.objectContaining({ judgeId: 'judge-1' }),
+      ['assignment-mutation-1']
     );
+    // The server trigger bumps the class; a class UPDATE would only carry a stale payload.
+    expect(mocks.updateClass).not.toHaveBeenCalled();
     // Must not fall back to a direct, offline-unsafe Supabase write.
     expect(untypedFromMocks.untypedFromMock).not.toHaveBeenCalledWith('classes');
   });
@@ -170,7 +175,7 @@ describe('upsertClassJudgeAssignment', () => {
       lastName: 'Judge',
     });
 
-    expect(mocks.updateClass).toHaveBeenCalledWith(
+    expect(mocks.writeLocalJudge).toHaveBeenCalledWith(
       'class-1',
       expect.objectContaining({
         judgeId: 'judge-1',
@@ -178,14 +183,15 @@ describe('upsertClassJudgeAssignment', () => {
         judgeFirstName: 'Jane',
         judgeLastName: 'Judge',
         judgeResolved: true,
-      })
+      }),
+      ['assignment-mutation-1']
     );
   });
 
   it('clears the judge from the local class row on a removal', async () => {
     await upsertClassJudgeAssignment('show-1', 'class-1', 'TBD');
 
-    const [, updates] = mocks.updateClass.mock.calls[0] as unknown as [
+    const [, updates] = mocks.writeLocalJudge.mock.calls[0] as unknown as [
       string,
       Record<string, unknown>,
     ];
@@ -207,7 +213,7 @@ describe('upsertClassJudgeAssignment', () => {
 
     await upsertClassJudgeAssignment('show-1', 'class-1', 'judge-1');
 
-    const [, updates] = mocks.updateClass.mock.calls[0] as unknown as [
+    const [, updates] = mocks.writeLocalJudge.mock.calls[0] as unknown as [
       string,
       Record<string, unknown>,
     ];
@@ -228,13 +234,14 @@ describe('upsertClassJudgeAssignment', () => {
 
     await upsertClassJudgeAssignment('show-1', 'class-1', 'judge-1');
 
-    expect(mocks.updateClass).toHaveBeenCalledWith(
+    expect(mocks.writeLocalJudge).toHaveBeenCalledWith(
       'class-1',
       expect.objectContaining({
         judgeId: 'judge-1',
         judgeName: 'Jane Judge',
         judgeFirstName: 'Jane',
-      })
+      }),
+      ['assignment-mutation-1']
     );
   });
 
@@ -271,13 +278,11 @@ describe('reassignClassJudge', () => {
     );
   });
 
-  it('touches the class through the replicated table after reassigning', async () => {
+  it('writes nothing to the class row: the assignment trigger bumps the class on the server', async () => {
     await reassignClassJudge('show-1', 'class-1', 'judge-1', 'judge-2');
 
-    expect(mocks.updateClass).toHaveBeenCalledWith(
-      'class-1',
-      expect.objectContaining({ _lastModified: expect.any(Date) })
-    );
+    expect(mocks.writeLocalJudge).not.toHaveBeenCalled();
+    expect(mocks.updateClass).not.toHaveBeenCalled();
   });
 
   it('wraps a reassign failure in a judge_assignments database error', async () => {

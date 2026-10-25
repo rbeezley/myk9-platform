@@ -408,30 +408,36 @@ export async function upsertClassJudgeAssignment(
   judge?: AssignedJudgeName
 ): Promise<void> {
   const nextJudgeId = judgeId && judgeId !== 'TBD' ? judgeId : null;
+  let assignmentMutationIds: string[];
   try {
-    await replicatedJudgeAssignmentsTable.replaceClassAssignment(showId, classId, nextJudgeId);
+    assignmentMutationIds = await replicatedJudgeAssignmentsTable.replaceClassAssignment(
+      showId,
+      classId,
+      nextJudgeId
+    );
   } catch (error) {
     throw createDatabaseError(error, 'judge_assignments', 'upsert_class_assignment');
   }
 
-  await writeClassJudgeLocally(classId, nextJudgeId, judge);
+  await writeClassJudgeLocally(classId, nextJudgeId, judge, assignmentMutationIds);
 }
 
 /**
  * Puts the new judge on the local class row (MYK9-1327). Every screen reads the class row's
  * judge, which a server sync resolves from `judge_assignments`; writing only the assignment
- * left the old judge showing until the next sync, and again after an offline reload. The row
- * stays dirty until its queued writes upload, and a sync never overwrites a dirty row's judge
- * (see `CLASS_DIRTY_ROW_COMPARE_POLICY`), so the local judge holds until the server agrees.
+ * left the old judge showing until the next sync, and again after an offline reload.
  *
- * Queued through ReplicatedClassesTable (not a direct Supabase write), so it is offline-safe;
- * the judge fields are local only (`toSupabaseRow` writes none) and the write still bumps the
- * class's `updated_at`, which makes the next incremental sync refetch its joined judge.
+ * No class mutation is queued: the server trigger on judge_assignments already bumps the class
+ * when the assignment uploads, and a queued class UPDATE could only carry a payload that goes
+ * stale (or be the write that cleans the row ahead of the assignment). The row instead carries
+ * an ownership marker naming the assignment mutations; while any is unsent every server copy of
+ * the class keeps this judge, afterwards the server's judge wins (see classJudgeOwnership.ts).
  */
 async function writeClassJudgeLocally(
   classId: string,
   judgeId: string | null,
-  judge: AssignedJudgeName | undefined
+  judge: AssignedJudgeName | undefined,
+  assignmentMutationIds: string[]
 ): Promise<void> {
   const current =
     judge || judgeId === null ? null : await replicatedClassesTable.getClassById(classId);
@@ -449,17 +455,25 @@ async function writeClassJudgeLocally(
               judgeLastName: current.judgeLastName,
             }
           : undefined;
-  await replicatedClassesTable.updateClass(classId, {
-    judgeId: judgeId ?? undefined,
-    judgeName: names?.judgeName,
-    judgeFirstName: names?.judgeFirstName,
-    judgeLastName: names?.judgeLastName,
-    // A deliberate local answer, not "the judge lookup never ran" (see mergeTrialClassData).
-    judgeResolved: true,
-    _lastModified: new Date(),
-  });
+  await replicatedClassesTable.writeLocalJudge(
+    classId,
+    {
+      judgeId: judgeId ?? undefined,
+      judgeName: names?.judgeName,
+      judgeFirstName: names?.judgeFirstName,
+      judgeLastName: names?.judgeLastName,
+      // A deliberate local answer, not "the judge lookup never ran" (see mergeTrialClassData).
+      judgeResolved: true,
+    },
+    assignmentMutationIds
+  );
 }
 
+/**
+ * Moves a class's assignment from one judge to another. No class write is needed: the server
+ * trigger on judge_assignments (UPDATE OF person_id) bumps the class, and the next incremental
+ * class sync refetches its joined judge.
+ */
 export async function reassignClassJudge(
   showId: string,
   classId: string,
@@ -476,21 +490,6 @@ export async function reassignClassJudge(
   } catch (error) {
     throw createDatabaseError(error, 'judge_assignments', 'reassign_class_judge');
   }
-
-  // Touch the class row so replication sync picks up the judge change.
-  await touchClassForJudgeSync(classId);
-}
-
-/**
- * Bumps a class's updated_at via the replicated classes table so incremental
- * class sync refetches joined judge data after a judge assignment change.
- * Offline-safe: queues through ReplicatedClassesTable instead of writing
- * directly to Supabase.
- */
-async function touchClassForJudgeSync(classId: string): Promise<void> {
-  await replicatedClassesTable.updateClass(classId, {
-    _lastModified: new Date(),
-  });
 }
 
 // =============================================================================

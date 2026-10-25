@@ -13553,6 +13553,18 @@ export type Database = {
           trial_id: string
         }[]
       }
+      get_account_today_entries_at: {
+        Args: { p_at: string }
+        Returns: {
+          class_id: string
+          class_name: string
+          class_start_time: string
+          entry_id: string
+          show_id: string
+          show_name: string
+          trial_id: string
+        }[]
+      }
       get_admin_user_list: {
         Args: { show_deleted?: boolean }
         Returns: {
@@ -14328,6 +14340,7 @@ export type Database = {
         }
         Returns: string
       }
+      my_entry_payment_link_session_ids: { Args: never; Returns: string[] }
       normalize_club_name: { Args: { value: string }; Returns: string }
       normalize_club_numbers: { Args: { p_numbers: Json }; Returns: Json }
       normalize_dog_registration_number: {

@@ -169,8 +169,14 @@ PR linking syntax follows [Linear's GitHub documentation](https://linear.app/doc
 use `Fixes MYK9-<n>` for the final implementation PR to invoke the saved merge destination,
 In Review. Use `Part of MYK9-<n>` for an intermediate contribution and verify the actual
 Contributes relationship; branch/title associations can also link a PR. Do not infer its effect
-from the text alone. After every merge, remaining implementation stays In Progress and only
+from the text alone. Before an intermediate auto-merge/handoff, correct any actual closing
+association or pause for a capable executor; do not promise a non-closing effect from body text.
+After every merge, remaining implementation stays In Progress and only
 acceptance-only work belongs In Review, regardless of an automated transition.
+
+Only the tracking issue gets a closing/contributing reference. For documentary follow-ups,
+use `Ignore MYK9-<n> — <title/link>` to prevent automatic linking; keep the useful follow-up
+description and URL. Confirm the intended PR/issue relationships rather than relying on keywords alone.
 
 ### Asynchronous merge protocol
 
@@ -192,6 +198,10 @@ This is the only stop/continue policy for pending merges; consumers reference it
 ## Dispositions and holds — the single routing table
 
 All agent workflows use this table; do not maintain separate label/state mappings in skills.
+The table records confirmed issue interventions. A query/check with no verdict is a run-level
+failure, not proof that an issue-specific capability is missing: stop dispatch and record the
+error without adding a lasting issue label solely for that failure. Use needs:environment only
+when the required capability is confirmed unavailable for the attempted issue.
 A pre-work hold leaves Backlog/Todo unchanged. A hold after implementation starts keeps the issue
 In Progress, including an unmerged PR. After merge, missing acceptance evidence belongs In Review.
 Apply every independent hold that remains; labels never grant the approval they describe.
@@ -207,7 +217,7 @@ Apply every independent hold that remains; labels never grant the approval they 
 | Criteria require an owner-only/person action (including real-user observation)                                        | Pre-work stop with needs:operator unless the owner already authorized the implementation/verification sequence; unmerged work stays In Progress | Record the action, responsible person and approved sequence                                                                                                                                                                |
 | An orchestrate Linear run discovers a migration, before or during implementation                                      | needs:operator; carry the PR through its review gate, then stop before merge in this run                                                        | The owner continues the migration merge/deploy sequence in a separately authorized workflow; the run's generic push/PR/squash-merge authorization does not waive this stop. Never push a migration from an unmerged branch |
 | qa:inflight exits 1, an In Progress issue names the paths, or a running session/PR/branch/worktree overlaps ownership | Pre-work stop with needs:coordination                                                                                                           | Agree ownership/sequencing; a held or idle branch may still contain unmerged work                                                                                                                                          |
-| qa:inflight exits 2 (could not decide), or the required ownership checks cannot be completed                          | Pre-work stop with needs:environment; an unknown overlap check is not a pass                                                                    | Restore the check and establish ownership before implementation; do not bypass it                                                                                                                                          |
+| qa:inflight exits 2 (could not decide), or a required ownership check has no verdict                                  | Stop dispatch; preserve issue state/labels and record the run-level failed check, not a speculative issue hold                                  | Establish ownership before work resumes; use the capability row only for a confirmed missing capability                                                                                                                    |
 | Merged implementation awaiting browser, device, hosted or other acceptance proof                                      | In Review with the applicable verify:* labels and any independent needs:* hold                                                                  | Record each criterion's required proof; remove only satisfied labels and fresh-read before Done                                                                                                                            |
 
 When merged work has every criterion supported by recorded evidence, fresh-read the full issue

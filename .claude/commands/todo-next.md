@@ -31,4 +31,4 @@ description: List open Linear issues (MyK9-platform) and pick one to work on
    - **Brainstorm**: leave the issue state unchanged; invoke `/brainstorm` with the issue description as argument.
    - **Put it back**: leave state unchanged; return to step 3 to redisplay the list.
 
-**Completion is tracked in Linear** — fresh-read the full issue and apply the disposition/evidence contract in `docs/agents/issue-tracker.md`. Do not accept merge auto-completion while acceptance evidence remains owed. There is no sprint file to edit.
+**Completion is tracked in Linear** — fresh-read the full issue and apply the disposition/evidence contract in `docs/agents/issue-tracker.md`. An automated status is not acceptance proof; reconcile the actual state and pending criteria. There is no sprint file to edit.

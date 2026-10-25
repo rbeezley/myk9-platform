@@ -312,7 +312,7 @@ git worktree remove "<worktree path from Step 0>" --force 2>/dev/null || true
 - NEVER remove the worktree before merge is confirmed, main is updated, AND close-out (Step 6) is done
 - Any push that changes the head after the gate — including a merge from `main` — re-runs the gate
 - Worktree removal is ALWAYS the final command
-- If checks are pending, arm `gh pr merge --squash --auto` instead of stopping with manual instructions; never poll unless asked
+- For pending checks, use Path B and the shared Asynchronous merge protocol; its ownership/boundary rules govern monitoring and handoff.
 - NEVER treat "no pending checks" as green. Use `scripts/qa/watch-pr-checks.sh` — it pins the SHA, waits for the ruleset's required contexts, and fails closed on unknown conclusions.
 - NEVER collapse a non-required failure into a blocking one, or into silence. Exit 5 is that case, and it carries two required confirmations.
 - NEVER accept a merged PR's `headRefName` as proof a branch merged. Compare the tip SHA against its `headRefOid`.

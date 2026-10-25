@@ -27,6 +27,8 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
 3. **Preflight.** One `get_issue` call proves the Linear connector works. If it's down, stop: a
    run that can't write Linear can't leave it accurate. Check that `codex --version` answers; if
    it doesn't, say before starting that any `independent`-tier PR will wait unmerged.
+   Review Blocked work under the shared restoration/ownership rules before selecting new work;
+   a past capability hold is not proof that the capability is still unavailable now.
 4. **Ledger.** Keep `<scratchpad>/orchestrate-run.md` with one row per issue: id, premise,
    approach, tier, worktree, branch, PR, outcome and reason. Update it at every state change, so a compacted context or a
    crash can resume from it.
@@ -119,10 +121,10 @@ never `origin/main` itself, which may have moved. Then run `ship-pr` from `$WT` 
 4, 5). This run's authorization covers the push, the
 PR and the squash-merge. Additions specific to the run:
 
-- **PR title and body name only the tracking `MYK9-<n>`**: `Fixes MYK9-<n>` for the final
-  implementation PR, or `Part of MYK9-<n>` for an intermediate contribution (shared linking contract).
-  Other identifiers can link unrelated issues and trigger their status automations. That
-  includes agent-involvement/risk prose: write "the orchestrate dry run", not its tracking id.
+- **Only the tracking issue gets a closing/contributing reference**: `Fixes MYK9-<n>` for
+  final implementation, or `Part of MYK9-<n>` for an intermediate contribution; verify the actual
+  relationship and reconcile remaining code versus proof after merge. Follow the shared linking
+  contract for documentary follow-ups (ignored references), not bare sibling IDs in narrative prose.
 - **Step A (simplify):** under 150 changed lines, your line-by-line review read is the simplify
   pass, so don't spend three more agents on it. Larger diffs run `/simplify`.
 - **Ratchet:** `pnpm qa:code-quality-ratchet` from `$WT` when the diff adds lines to an

@@ -6,7 +6,10 @@
 
 ## Linear
 
-MYK9-
+<!-- Final implementation: Fixes MYK9-n. Intermediate contribution: Part of MYK9-n.
+Confirm the intended relationship under docs/agents/issue-tracker.md. -->
+
+Fixes MYK9-
 
 ## Acceptance criteria
 
@@ -26,7 +29,7 @@ MYK9-
 
 ## Review gate
 
-- [ ] Independent review recorded for the final head SHA (`/ship-pr` Step 4; the `Review gate` status must be green on the head that merges)
+- [ ] Required review evidence or optional-review eligibility confirmed for the final head (`pnpm qa:review-tier`; `Review gate` must be green on the head that merges)
 
 ## Agent involvement
 
@@ -38,4 +41,5 @@ MYK9-
 
 ## Follow-up issues
 
-<!-- Linear ids for anything deliberately left out; "none" otherwise. -->
+<!-- Documentary follow-ups: Ignore MYK9-n — title/link, per the shared linking contract.
+Only the tracking issue gets closing/contributing automation. "none" otherwise. -->

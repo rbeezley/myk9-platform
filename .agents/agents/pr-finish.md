@@ -46,7 +46,7 @@ Read these first:
 - The diff matches the requested scope and does not add duplicate UI surface area.
 - Focused tests were run for touched components, hooks, utilities, or data paths.
 - Typecheck or narrower type verification was run when TypeScript risk exists.
-- Fresh-read the full Linear issue (team **MyK9-platform**) and apply `docs/agents/issue-tracker.md` for disposition and evidence. Do not accept merge auto-completion while criteria remain owed. Update linked plan files when their lifecycle requires it; sprint docs are retired.
+- Fresh-read the full Linear issue (team **MyK9-platform**) and apply `docs/agents/issue-tracker.md` for disposition and evidence. Reconcile the actual automated status against all pending criteria. Update linked plan files when their lifecycle requires it; sprint docs are retired.
 - Database or deploy actions were not performed without explicit shared-system confirmation.
 - Final response names what changed, what was verified, and remaining risk.
 

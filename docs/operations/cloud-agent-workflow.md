@@ -28,7 +28,7 @@ Point the provider's setup step at the one script. Tools land in `MYK9_TOOLS_DIR
 
 | Provider          | Setup command                                                                | Status                                                                                                                                                                                                                                              |
 | ----------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Claude Code cloud | `MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh`                  | Verified 2026-10-24 when run inside a session (default tools dir), versions below; the Stage 1 proof reruns it on `main`                                                                                                                            |
+| Claude Code cloud | `MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh`                  | **Verified** by the Stage 1 proof rerun on 2026-10-25 (branch @ `45a6cbcc9`, `NODE_OPTIONS` heap set): setup, preflight, typecheck, lint, test file and deno check all as expected. See [Stage 1 proof results](#stage-1-proof-results)             |
 | Codex cloud       | `MYK9_CLOUD=1 MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh`     | **Not yet verified**. Codex writes each environment's **Install script** itself, so tell it to use this command verbatim; Codex documents no environment marker, so `MYK9_CLOUD=1` declares it. See [Run the Stage 1 proof](#run-the-stage-1-proof) |
 | GitHub Actions    | `bash scripts/cloud/setup.sh --role=<role>` (`GITHUB_ACTIONS` is the marker) | Used from Stage 2                                                                                                                                                                                                                                   |
 
@@ -41,7 +41,7 @@ The script:
 
 It copies no `.env`, credentials, browser profile or Keychain state. Secrets come from the provider's own settings.
 
-`pnpm typecheck` needs a larger Node heap than the default, as in CI (`ci.yml` sets `NODE_OPTIONS=--max-old-space-size=4096`). Set `NODE_OPTIONS` in the provider's environment variables. On 2026-10-24 in a Claude Code cloud session, the app typecheck aborted with a heap OOM at the default and passed with `--max-old-space-size=6144`; `pnpm lint` and a shuffled app test file passed without it.
+`pnpm typecheck` needs a larger Node heap than the default, as in CI (`ci.yml` sets `NODE_OPTIONS=--max-old-space-size=4096`). Set `NODE_OPTIONS` in the provider's environment variables. On 2026-10-24 in a Claude Code cloud session, the app typecheck aborted with a heap OOM at the default and passed with `--max-old-space-size=6144`; `pnpm lint` and a shuffled app test file passed without it. Keep `--use-openssl-ca` in the value when the image already sets it, since the agent proxy needs it.
 
 To change a pin, update `install`, `minimum`, `url` and `sha256` together, from the project's published checksums where it has them (gh and Deno do; ShellCheck does not, so hash the downloaded archive), and rerun setup in a cloud session.
 
@@ -54,7 +54,7 @@ MYK9-1397 stays open until a fresh session in each cloud runs setup and the narr
 At [claude.ai/code](https://claude.ai/code), open the environment selector (the first control under the message box) and edit **Default** or choose **New environment**:
 
 - **Network access**: **Trusted**. Its allowlist already includes `github.com`, `objects.githubusercontent.com` and `release-assets.githubusercontent.com`, which setup downloads gh, Deno and ShellCheck from.
-- **Environment variables**: `NODE_OPTIONS=--max-old-space-size=6144`.
+- **Environment variables**: `NODE_OPTIONS=--use-openssl-ca --max-old-space-size=6144` (the image's own value is `--use-openssl-ca`, which the agent proxy's CA bundle needs; keep it).
 - **Setup script**: leave empty for the proof. The box runs before the environment's variables are set, and it is cached only when it finishes in about five minutes, which a full install and package build may not. Run setup inside the session instead (the route verified on 2026-10-24), and move it into the box only after it has worked there.
 - **GitHub**: the Claude GitHub App on the repository, or `/web-setup`. Through the session's GitHub proxy `gh api` works, but `gh pr` and `gh issue` (GraphQL) are rejected; the handoff CLI uses only `gh api`.
 
@@ -88,6 +88,24 @@ Stage 1 cloud proof for MYK9-1397. Report any missing tool or permission as a BL
 ```
 
 Stage 1 closes when both runs have passed or named a specific blocker, their runbook PRs have merged, and MYK9-1397 has been re-read in full against its acceptance criteria.
+
+### Stage 1 proof results
+
+**Claude Code cloud, 2026-10-25 rerun**, fresh session, branch `claude/myk9-1397-cloud-proof` @ `45a6cbcc9` (`main` @ `38598b7af` plus the first run's docs commit). `uname -m`: `x86_64`. 4 vCPU, 15 GiB RAM. Environment `NODE_OPTIONS` was `--use-openssl-ca --max-old-space-size=6144`, so the first run's typecheck blocker is **resolved**.
+
+| Step | Command                                                                      | Result                                                                                                                                                                                        |
+| ---- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2    | `echo "$NODE_OPTIONS"`                                                       | Pass: `--use-openssl-ca --max-old-space-size=6144`                                                                                                                                            |
+| 3    | `MYK9_CLOUD=1 MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh`     | Pass, exit 0. gh 2.89.0 already present; installed Deno 2.1.4 and ShellCheck 0.10.0; frozen install of 1461 packages; 12/12 package builds; `qa:dist-fresh` clean; embedded preflight `ready` |
+| 4    | `pnpm cloud:preflight --role=implementer --json`                             | Pass, exit 0, `"missing": []`. Node 22.22.0, pnpm 9.15.9, git 2.43.0, gh 2.89.0, Deno 2.1.4, ShellCheck 0.10.0, jq 1.7; github.com reachable; `gh api` read ok                                |
+| 5a   | `pnpm typecheck`                                                             | Pass, exit 0, 26/26 tasks in 3m32s with the environment's heap flag, no override. Ratchets report no new diagnostics (scripts/cloud 2 baselined, E2E 7 baselined)                             |
+| 5b   | `pnpm lint`                                                                  | Pass, exit 0, 14/14 tasks; `@myk9/show` 0 errors, 43 warnings                                                                                                                                 |
+| 5c   | `pnpm vitest run scripts/verify-artifact-secrets.test.ts --sequence.shuffle` | Pass, exit 0, 6/6 tests (seed `1792954387783`)                                                                                                                                                |
+| 6    | `deno check … push-trigger-class-status … push-trigger-run-proximity`        | Exit 1, as expected: only the 3 known TS2339 errors at `push-trigger-class-status/index.ts:60-62` (MYK9-1400); no errors in `push-trigger-run-proximity`                                      |
+
+The first run (same day, `main` @ `38598b7af`) passed every other step, including a Linear `get_issue MYK9-1397` read with all 7 acceptance criteria, but `pnpm typecheck` OOMed (exit 134) because the environment's `NODE_OPTIONS` lacked the heap flag. Setting it in the environment fixed that.
+
+Codex cloud: not yet run.
 
 ## Preflight
 

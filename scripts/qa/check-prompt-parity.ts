@@ -39,6 +39,7 @@ export const REGISTERED_TASKS: readonly TaskRegistration[] = [
   { taskId: 'claude-security-audit', doc: 'docs/operations/scheduled-audits-claude.md' },
   { taskId: 'claude-findings-reconcile', doc: 'docs/operations/scheduled-audits-claude.md' },
   { taskId: 'claude-daily-commit-review', doc: 'docs/operations/scheduled-audits-claude.md' },
+  { taskId: 'claude-issue-janitor', doc: 'docs/operations/scheduled-audits-claude.md' },
   { taskId: 'secretary-task-walk', doc: 'docs/operations/scheduled-task-walks.md' },
   { taskId: 'exhibitor-task-walk', doc: 'docs/operations/scheduled-task-walks.md' },
   { taskId: 'role-intent-walk', doc: 'docs/operations/scheduled-task-walks.md' },

@@ -18,7 +18,7 @@ there is no "explained difference" left to argue about. Verify with:
 pnpm qa:prompt-parity
 ```
 
-It covers the three tasks here and the three walks in
+It covers the four tasks here and the three walks in
 [`scheduled-task-walks.md`](scheduled-task-walks.md). It is local-only — the installed files are
 machine-local, never reach CI, and the check reports `SKIPPED` per task on a machine without them.
 Its tests do run in CI, and they pin the rule this contract exists for: **no prompt may state the
@@ -49,7 +49,10 @@ Codex counterpart is dark, and disabled again when it returns. Differentiating a
 defeat it: the point is continuity of the _same_ coverage, not a second opinion. The two must never
 run concurrently; see "Failover discipline" below.
 
-## Shared contract — applies to all three tasks
+**Maintenance (task 4) has no Codex counterpart.** `claude-issue-janitor` does housekeeping on the
+Linear board rather than auditing code, so neither the complement nor the substitute rules apply.
+
+## Shared contract — applies to all four tasks
 
 Every prompt below inherits these rules. They are repeated inside each prompt so the tasks stay
 self-contained when pasted into a scheduler.
@@ -98,7 +101,7 @@ their stated time regardless of what your machine is doing. Claude Code schedule
 does not skip — it fires on next launch.
 
 That single difference undermines the obvious design. An overnight time only works if the machine
-is awake with the app running overnight; otherwise all three queue up and fire in a clump the next
+is awake with the app running overnight; otherwise all four queue up and fire in a clump the next
 morning, possibly concurrently, which is exactly the staging-load collision the stagger was meant
 to prevent.
 
@@ -110,6 +113,7 @@ plausibly at the keyboard for rather than times that are merely quiet.
 | `claude-findings-reconcile`  | Weekly, Thursday | 6:00 AM      | Must land before Codex's Friday 6:00 AM review     |
 | `claude-security-audit`      | Weekly, Saturday | 3:00 AM      | Clear of Codex judge-ux-walk (Sat 12:15 AM)        |
 | `claude-daily-commit-review` | Daily            | 7:00 AM      | Substitute — mirrors the Codex daily commit review |
+| `claude-issue-janitor`       | Daily            | 6:30 AM      | Clear of the Monday 8:30 branch janitor (Task 4)   |
 
 Only the first row's timing is load-bearing: `claude-findings-reconcile` must run _before_ the
 Codex "Weekly quality findings review" so that review consumes an already-reconciled, deduplicated
@@ -310,6 +314,48 @@ Output:
 A skipped, blocked, or contaminated check is a coverage gap, not a pass. Never emit credentials, tokens, PII, or connection strings into the report or a Linear draft.
 
 Do not modify application code. Do not open a PR. Do not merge. Commit and push the report and the `docs/qa/audit-boundary.md` row to `main` (docs-only, per CLAUDE.md § Auto Mode; verify the commit's filelist contains nothing else) — those two files are the only repo writes this task may make.
+
+Prompt source of truth: docs/operations/scheduled-audits-claude.md — edit there first, then update this task.
+```
+
+---
+
+## Task 4 — `claude-issue-janitor`
+
+**Cadence:** Daily, 6:30 AM. **Not a complement or substitute:** it has no Codex counterpart. It
+sits next to the weekly branch janitor (Monday 8:30, `scripts/reap-merged-branches.sh`), which reaps
+merged remote branches; this one reconciles Linear issues against their PRs and branches
+(MYK9-1434), so stranded In Progress claims return to Todo without the dead session's close-out.
+
+**Registration is the owner's step**, on the owner's machine, next to the branch janitor. **The
+first scheduled run is a dry run reviewed by the owner** (the prompt below stops after the plan
+until the owner removes that sentence). Only then does a live run follow, whose summary is linked
+on MYK9-1434.
+
+The script `pnpm qa:issue-janitor` reads GitHub over REST and git, and writes nothing. The Linear
+writes are the session's, through the allowlisted MCP tools below. The dispositions are those in
+[`../agents/issue-tracker.md`](../agents/issue-tracker.md); the janitor adds none.
+
+**Tool allowlist (pre-approve before unpausing, or the run hangs on a prompt):** Linear
+`list_issues`, `get_issue`, `list_comments`, `list_issue_labels`, `save_issue`, `save_comment`;
+the Write tool (for the board file); and via Bash: `gh api` (read-only REST), `gh run list`,
+`gh run view`, `curl`, `git ls-remote`, `git worktree list`, `git for-each-ref`, `git log`,
+`pnpm qa:issue-janitor`.
+
+```
+Reconcile stranded Linear claims against their PRs and branches.
+
+Working directory: /Users/richardbeezley/AI Projects/myk9-platform
+
+DRY RUN ONLY until the owner deletes this sentence: run the plan, post the summary, make no Linear write.
+
+1. Read the repo's `docs/agents/issue-tracker.md` sections "Lifecycle owner and GitHub automation" and "Dispositions and holds". Those are the only dispositions you may apply.
+2. With the Linear `list_issues` tool (team MyK9-platform) fetch the issues in state In Progress and, in a second call, those in state In Review, with labels. Then call `list_comments` for each issue (that tool, not `list_issues`, returns comments). With the Write tool, write `.logs/issue-janitor-board.json` as `{"issues":[{"id":"MYK9-n","state":"...","labels":["..."],"updatedAt":"...","comments":[{"createdAt":"...","body":"..."}]}]}`. Page until each list is complete; a truncated list is a failed run, not a clean one.
+3. Find the deployed commit. First choice: `curl -s https://myk9show.com/build-sha.txt` (the deploy workflow verifies the site serves exactly the deployed commit). Fallback: take the id from `gh run list --workflow deploy-myk9show.yml --status success --limit 1 --json databaseId` and read the `Deploying <sha>` line in `gh run view <id> --log`. Never use the run's headSha. If neither yields a 40-hex sha, run without `--deployed-commit` and say the In Review pass was skipped.
+4. Run `pnpm qa:issue-janitor --board .logs/issue-janitor-board.json --deployed-commit <sha>` (omit the flag if step 3 failed). Read the plan. Exit 1 means a GitHub read failed for some issue (its plan entry is a skip starting `GitHub read failed:`): report it.
+5. If this is a live run, run it again with `--apply`, then work issue by issue. Before executing anything for an issue, `get_issue` and `list_comments` it again; if its state, its labels or its newest comment time differ from the plan entry's `snapshot`, skip that issue, execute nothing for it, and report it as `stale snapshot`. Otherwise execute the entry's `writes` in order with `save_issue` and `save_comment`. For each `fresh-read` entry (`writes` is empty), read every criterion of the issue against the evidence in its comments and pick exactly one key of `outcomes`: `done` only when every criterion is met; `inReview` when the code is complete and only acceptance evidence is owed (fill `{{owed}}` with the owed evidence quoted from the issue); `stayInProgress` when implementation is still owed (fill `{{owed}}` with the unmet criteria); for In Review-pass entries, `done` or `leave`. Then execute that list in order. Filling `{{owed}}` (named in `fill`) is the one permitted edit to a listed write; an unfilled template is never posted. Never move an issue to Done on a PR merge alone.
+6. Never touch an issue the script skipped. Never delete a branch. Never run a Linear write the plan did not list.
+7. Report: the script's markdown summary, followed by each write you executed with its issue id and reason, the count left untouched, and any failure. A failed Linear write is reported, never skipped silently. Post it as a comment on the dated run issue if one exists, else as the final message of the session.
 
 Prompt source of truth: docs/operations/scheduled-audits-claude.md — edit there first, then update this task.
 ```

@@ -24,6 +24,8 @@ function fakeGh(options: {
   runs?: Record<string, string>;
   /** Run ids whose every endpoint fails as gh would, keyed to that failure. */
   failingRuns?: Record<string, GhError>;
+  /** Run ids deleted mid-read: every request from this page on 404s. */
+  goneFromPage?: Record<string, number>;
 }) {
   const writes: { args: string[]; input?: string }[] = [];
   const gh: Gh = (args, input) => {
@@ -42,8 +44,10 @@ function fakeGh(options: {
     const size = Number(/[?&]per_page=(\d+)/.exec(url)?.[1] ?? 30);
     const page = Number(/[?&]page=(\d+)/.exec(url)?.[1] ?? 1);
     const slice = <T>(rows: T[]) => rows.slice((page - 1) * size, page * size);
-    const failing = /actions\/runs\/(\d+)/.exec(path)?.[1];
-    if (failing && options.failingRuns?.[failing]) throw options.failingRuns[failing];
+    const runId = /actions\/runs\/(\d+)/.exec(path)?.[1];
+    if (runId && options.failingRuns?.[runId]) throw options.failingRuns[runId];
+    const goneFrom = runId ? options.goneFromPage?.[runId] : undefined;
+    if (goneFrom !== undefined && page >= goneFrom) throw new GhError('gh api failed', 404);
     if (path.endsWith('/comments')) return JSON.stringify(slice(options.comments ?? []));
     if (/\/pulls\/\d+$/.test(path)) {
       return JSON.stringify(
@@ -198,6 +202,12 @@ describe('readHandoff', () => {
       digest: 'sha256:expected',
       workflow_run: { id: 77, head_sha: HEAD },
     };
+    // A run's other artifacts: one and a half pages of them.
+    const others = Array.from({ length: 150 }, (_, index) => ({
+      ...exact,
+      name: `log-${index}`,
+      digest: `sha256:other-${index}`,
+    }));
 
     it('counts the exact artifact as clean evidence', () => {
       const { gh } = fakeGh({ comments: events.map(trusted), artifacts: { '77': [exact] } });
@@ -222,16 +232,25 @@ describe('readHandoff', () => {
     });
 
     it('finds the exact artifact past the first page of the run', () => {
-      const others = Array.from({ length: 150 }, (_, index) => ({
-        ...exact,
-        name: `log-${index}`,
-        digest: `sha256:other-${index}`,
-      }));
       const { gh } = fakeGh({
         comments: events.map(trusted),
         artifacts: { '77': [...others, exact] },
       });
       expect(readHandoff(gh, 3300)).toMatchObject({ cleanEvidence: true });
+    });
+
+    // Codex, review of #3287: a run deleted between page reads 404s on a later
+    // page. That must read the whole run as gone, not keep the earlier pages.
+    it('reads a run deleted mid-read as gone, not as its first page', () => {
+      const { gh } = fakeGh({
+        comments: events.map(trusted),
+        artifacts: { '77': [exact, ...others] },
+        goneFromPage: { '77': 2 },
+      });
+      expect(readHandoff(gh, 3300)).toMatchObject({
+        cleanEvidence: false,
+        nextAction: expect.stringMatching(/replacement review attempt/),
+      });
     });
 
     it.each([

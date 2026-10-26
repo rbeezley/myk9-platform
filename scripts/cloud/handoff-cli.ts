@@ -59,10 +59,10 @@ export function ghFailure(args: string[], exitStatus: number | null, stderr: str
   );
 }
 
-/** The parsed response, or null when GitHub confirmed the record is gone. */
-function jsonUnlessGone<T>(gh: Gh, args: string[]): T | null {
+/** `read`'s result, or null when GitHub answers 404: the resource is gone. */
+function unlessGone<T>(read: () => T): T | null {
   try {
-    return json<T>(gh, args);
+    return read();
   } catch (error) {
     if (error instanceof GhError && error.httpStatus === 404) return null;
     throw error;
@@ -101,11 +101,15 @@ function readLiveState(gh: Gh, pr: number, latest: HandoffEvent | null): LiveSta
   for (const pointer of latest?.evidence ?? []) {
     if (pointer.kind !== 'artifact' || !latest) continue;
     // Every page, or evidence past the first reads as missing. A deleted run
-    // takes its artifacts with it: that evidence is missing.
-    const named = ghPages<RawArtifact>(
-      args => jsonUnlessGone<{ artifacts: RawArtifact[] }>(gh, args)?.artifacts ?? [],
-      `repos/{owner}/{repo}/actions/runs/${pointer.runId}/artifacts`
-    ).filter(artifact => artifact.name === pointer.name);
+    // takes its artifacts with it: that evidence is missing, even when the run
+    // vanished between pages — a 404 on a later page discards the earlier ones.
+    const all = unlessGone(() =>
+      ghPages(
+        args => json<{ artifacts: RawArtifact[] }>(gh, args).artifacts,
+        `repos/{owner}/{repo}/actions/runs/${pointer.runId}/artifacts`
+      )
+    );
+    const named = (all ?? []).filter(artifact => artifact.name === pointer.name);
     // The digest binds the content; run and head bind it to this review. The
     // artifacts API exposes no attempt, so the digest is what tells a
     // re-uploaded replacement apart. No digest means unverifiable.
@@ -128,7 +132,9 @@ function readLiveState(gh: Gh, pr: number, latest: HandoffEvent | null): LiveSta
   const runId = latest ? RUN_URL.exec(latest.ownerUrl)?.[1] : undefined;
   let ownerRun: LiveState['ownerRun'] = 'unknown';
   if (runId) {
-    const run = jsonUnlessGone<RawRun>(gh, ['api', `repos/{owner}/{repo}/actions/runs/${runId}`]);
+    const run = unlessGone(() =>
+      json<RawRun>(gh, ['api', `repos/{owner}/{repo}/actions/runs/${runId}`])
+    );
     ownerRun = run === null ? 'gone' : run.status === 'completed' ? 'ended' : 'running';
   }
   return {

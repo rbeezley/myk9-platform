@@ -1,0 +1,216 @@
+{
+  "issues": [
+    {
+      "id": "MYK9-101",
+      "state": "In Progress",
+      "labels": ["verify:browser"],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Claimed 2026-10-20 09:00 PDT by session-101 (https://claude.ai/s/101) \u00b7 branch claude/myk9-101-x \u00b7 worktree /Users/r/wt/myk9-101"
+        }
+      ]
+    },
+    {
+      "id": "MYK9-102",
+      "state": "In Progress",
+      "labels": [],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Claimed 2026-10-20 09:00 PDT by session-102 (https://claude.ai/s/102) \u00b7 branch claude/myk9-102-x \u00b7 worktree /Users/r/wt/myk9-102"
+        }
+      ]
+    },
+    {
+      "id": "MYK9-103",
+      "state": "In Progress",
+      "labels": [],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Claimed 2026-10-20 09:00 PDT by session-103 (https://claude.ai/s/103) \u00b7 branch claude/myk9-103-x \u00b7 worktree /Users/r/wt/myk9-103"
+        }
+      ]
+    },
+    {
+      "id": "MYK9-104",
+      "state": "In Progress",
+      "labels": [],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Claimed 2026-10-20 09:00 PDT by session-104 (https://claude.ai/s/104) \u00b7 branch claude/myk9-104-x \u00b7 worktree /Users/r/wt/myk9-104"
+        }
+      ]
+    },
+    {
+      "id": "MYK9-105",
+      "state": "In Progress",
+      "labels": [],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Claimed 2026-10-20 09:00 PDT by session-105 (https://claude.ai/s/105) \u00b7 branch claude/myk9-105-x \u00b7 worktree /Users/r/wt/myk9-105"
+        }
+      ]
+    },
+    {
+      "id": "MYK9-106",
+      "state": "In Progress",
+      "labels": [],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Claimed 2026-10-20 09:00 PDT by session-106 (https://claude.ai/s/106) \u00b7 branch claude/myk9-106-x \u00b7 worktree /Users/r/wt/myk9-106"
+        }
+      ]
+    },
+    {
+      "id": "MYK9-107",
+      "state": "In Progress",
+      "labels": [],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Claimed 2026-10-20 09:00 PDT by session-107 (https://claude.ai/s/107) \u00b7 branch claude/myk9-107-x \u00b7 worktree /Users/r/wt/myk9-107"
+        }
+      ]
+    },
+    {
+      "id": "MYK9-108",
+      "state": "In Progress",
+      "labels": ["needs:operator"],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Claimed 2026-10-20 09:00 PDT by session-108 (https://claude.ai/s/108) \u00b7 branch claude/myk9-108-x \u00b7 worktree /Users/r/wt/myk9-108"
+        }
+      ]
+    },
+    {
+      "id": "MYK9-109",
+      "state": "In Progress",
+      "labels": [],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Claimed 2026-10-20 09:00 PDT by s (https://claude.ai/s/109) \u00b7 branch claude/myk9-109-x \u00b7 worktree /Users/r/wt/myk9-109"
+        },
+        {
+          "createdAt": "2026-10-26T07:00:00Z",
+          "body": "working on it"
+        }
+      ]
+    },
+    {
+      "id": "MYK9-110",
+      "state": "In Progress",
+      "labels": [],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Claimed 2026-10-20 09:00 PDT by s (https://claude.ai/s/110) \u00b7 branch claude/myk9-110-x \u00b7 worktree /Users/r/wt/myk9-110"
+        },
+        {
+          "createdAt": "2026-10-25T10:00:00Z",
+          "body": "PR x idle.\n\njanitor: stale-pr#9110"
+        }
+      ]
+    },
+    {
+      "id": "MYK9-201",
+      "state": "In Review",
+      "labels": [],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Merged.\nOwed: production evidence that the cron ran after deploy"
+        }
+      ]
+    },
+    {
+      "id": "MYK9-202",
+      "state": "In Review",
+      "labels": ["verify:browser"],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Claimed 2026-10-20 09:00 PDT by session-202 (https://claude.ai/s/202) \u00b7 branch claude/myk9-202-x \u00b7 worktree /Users/r/wt/myk9-202"
+        }
+      ]
+    },
+    {
+      "id": "MYK9-203",
+      "state": "In Review",
+      "labels": ["verify:database"],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Claimed 2026-10-20 09:00 PDT by session-203 (https://claude.ai/s/203) \u00b7 branch claude/myk9-203-x \u00b7 worktree /Users/r/wt/myk9-203"
+        }
+      ]
+    },
+    {
+      "id": "MYK9-204",
+      "state": "In Review",
+      "labels": [],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Merged.\nOwed: production evidence of the nightly cron run"
+        }
+      ]
+    },
+    {
+      "id": "MYK9-205",
+      "state": "In Review",
+      "labels": [],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Owed: browser walk on the deployed build"
+        }
+      ]
+    },
+    {
+      "id": "MYK9-206",
+      "state": "In Review",
+      "labels": ["verify:database"],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Owed: production evidence of the cron"
+        }
+      ]
+    },
+    {
+      "id": "MYK9-207",
+      "state": "In Review",
+      "labels": ["needs:operator"],
+      "updatedAt": "2026-10-20T16:00:00Z",
+      "comments": [
+        {
+          "createdAt": "2026-10-20T16:00:00Z",
+          "body": "Owed: production evidence of the cron"
+        }
+      ]
+    }
+  ]
+}

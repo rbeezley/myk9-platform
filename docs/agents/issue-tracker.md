@@ -130,6 +130,13 @@ of the shared rules (session, branch or `claude/myk9-<n>-` prefix, worktree or c
 URL). The issue janitor (MYK9-1434) reads those three fields from that line to tell a live
 claim from a dead one.
 
+The close-out rules above depend on the claiming session staying alive, and sessions end
+without them. The issue janitor (`pnpm qa:issue-janitor`, run daily by a scheduled session,
+[`scheduled-audits-claude.md`](../operations/scheduled-audits-claude.md) Task 4) is the
+backstop: it applies the dispositions in this file to In Progress and In Review issues whose
+claim has gone quiet, and adds none. It skips any issue with a `needs:*` label or a comment
+under 6 hours old, and it never moves an issue to Done without a fresh full read.
+
 Final implementation PRs use `Fixes MYK9-<n>`. Partial PRs use `Ignore MYK9-<n>` with a
 tracking link; the root reconciles the issue explicitly after merge. Write documentary
 follow-ups with `Ignore` too. [Linear documents](https://linear.app/docs/github#link-through-pull-requests)

@@ -196,10 +196,6 @@ export class RBACService {
     return this.roleManager.getRolePermissions(roleId);
   }
 
-  async updateRolePermissions(roleId: string, permissionIds: string[]): Promise<void> {
-    return this.roleManager.updateRolePermissions(roleId, permissionIds);
-  }
-
   async getAllUserRoles(): Promise<UserRole[]> {
     return this.roleManager.getAllUserRoles();
   }

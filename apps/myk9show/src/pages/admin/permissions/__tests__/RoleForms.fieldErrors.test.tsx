@@ -1,5 +1,6 @@
 import { render, screen, waitFor, fireEvent } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { rbacService } from '@/services/rbac/RBACService';
 
 const navigateMock = vi.fn();
 const createRoleMock = vi.fn();
@@ -93,5 +94,37 @@ describe('role forms: field callouts', () => {
     expect(group).toHaveAttribute('aria-describedby', 'role-permissions-error');
     await waitFor(() => expect(group).toHaveFocus());
     expect(screen.queryByText(/must be selected/i)).not.toBeInTheDocument();
+  });
+
+  // MYK9-1409: createRole takes permission CODES. The pages sent display names, which the old
+  // lookup silently matched to nothing (every created or cloned role got zero permissions).
+  it('Clone: sends the permission codes, not their display names', async () => {
+    vi.mocked(rbacService.getAllPermissions).mockResolvedValueOnce([
+      {
+        id: 'perm-1',
+        code: 'show:manage',
+        name: 'Show Manage',
+        description: null,
+        category: 'show',
+        created_at: null,
+      },
+    ]);
+    vi.mocked(rbacService.getRolePermissions).mockResolvedValueOnce([
+      { permission_id: 'perm-1' },
+    ] as never);
+    createRoleMock.mockResolvedValueOnce({ ...source, id: 'role-2' });
+    const { default: CloneRolePage } = await import('../CloneRolePage');
+    render(<CloneRolePage />);
+    fireEvent.change(await screen.findByLabelText(/display name/i), {
+      target: { value: 'Senior Steward' },
+    });
+    fireEvent.change(screen.getByLabelText(/^role name/i), { target: { value: 'senior_steward' } });
+    await screen.findAllByText('Show Manage');
+    fireEvent.click(screen.getByRole('button', { name: /create cloned role/i }));
+
+    await waitFor(() => expect(createRoleMock).toHaveBeenCalled());
+    expect(createRoleMock).toHaveBeenCalledWith(
+      expect.objectContaining({ permissions: ['show:manage'] })
+    );
   });
 });

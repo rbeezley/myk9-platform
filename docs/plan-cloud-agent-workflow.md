@@ -253,6 +253,24 @@ A snapshot is never authorization.
 
 **Stage 2 gate:** Existing wrapper/poster/review-gate/watcher suites and new provenance/failure/authorship tests pass; the live pilot passes (a `codex/` PR reviewed by Claude in the cloud, and a `claude/` PR that gets the Mac-route note and is then gated by a Mac Codex review); no reviewer/publisher credential can push or merge. Independent review and CI on this stage's final head remain required.
 
+### Task 2.3: Mac review runner (MYK9-1426)
+
+Because Codex reviews `claude/` PRs only on the Mac (Global constraints), parallel Claude cloud work would otherwise wait for someone to run the review by hand. A scheduled local runner closes that gap. It depends on Task 2.1's `resolveAuthorship` and review claim, and on the wrapper's `--pr <n>` flag (Codex's pending `codex/review-wrapper-explicit-pr` change), so it ships after them.
+
+**Files:**
+
+- Create `scripts/qa/mac-review-runner.ts` and its tests; add `pnpm qa:mac-review-runner`.
+- Document install, kill switch and logs in `docs/operations/cloud-agent-workflow.md`.
+
+- [ ] One pass per invocation: list candidates, start reviews up to the cap, exit. No model decides anything; the runner never pushes, merges, edits PRs or writes Linear.
+- [ ] Candidates are open, non-draft `claude/` PRs where `resolveAuthorship` selects Codex, `qa:review-tier` requires review, the head has no green `Review gate`, there is no `Codex findings for <head>` comment on that exact head (wait for a fix push), and there is no live claim. Forks and non-collaborators are skipped. Selection is a pure function tested on fixtures.
+- [ ] Each review runs in a fresh detached worktree under a runner-owned directory with `pnpm qa:codex-review --post --pr <n>`, under `caffeinate -i`. The worktree is removed afterwards, whatever the outcome.
+- [ ] Concurrency cap: default 2, never above 3, enforced by a lock directory; an overlapping pass starts nothing.
+- [ ] Exit 2 posts nothing and starts a 60-minute global backoff. A head is retried once, then gets one `Mac review not completed for <head>` note and goes to the owner. At most 5 automatic rounds per PR.
+- [ ] Scheduled by a `launchd` agent on a short interval. Kill switch: `MYK9_MAC_REVIEW_RUNNER_ENABLED=true` in its environment, otherwise exit 0 with no GitHub call.
+
+**Deliverable:** a `claude/` PR marked ready from a cloud session receives a Codex review and posted evidence for its exact head with no manual command, while the Mac is awake.
+
 ## Stage 3 — Bounded continuation, human merge and accurate Linear close-out
 
 ### Task 3.1: Enforce convergence across restarts
@@ -322,7 +340,7 @@ Each task includes red-to-green tests. This final phase verifies the integrated 
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
 | Claude implements **locally**; Codex reviews **locally**           | `pnpm qa:codex-review --post` from the Mac; the gate goes green exactly as today; no cloud job runs.    |
 | Codex implements **locally**; Claude reviews **locally**           | `pnpm qa:claude-review --post` from the Mac; the gate goes green exactly as today; no cloud job runs.   |
-| Claude implements **in the cloud**; Codex reviews **on the Mac**   | Cloud job runs no model and posts the Mac-route note; `pnpm qa:codex-review --post` gates the head.     |
+| Claude implements **in the cloud**; Codex reviews **on the Mac**   | Cloud job runs no model and posts the Mac-route note; the Mac review runner (Task 2.3) gates the head.  |
 | Codex implements **in the cloud**; Claude reviews **in the cloud** | Existing Claude wrapper completes; identical evidence/permission requirements.                          |
 | Local and cloud review both attempted on one head                  | Exactly one runs (claim honored); the other skips or refuses; neither invalidates the other's evidence. |
 | Cloud setup run on the Mac                                         | Refuses before installing anything; Node/pnpm and Mac credentials unchanged.                            |
@@ -385,6 +403,7 @@ Run negative drills on a disposable approved PR or fixture repository; never del
 1. Stage 1: portable cloud setup, preflight and tool pins; discovered checkout paths with the `/Users/` guard; branch-prefix convention; durable handoff events.
 2. Stage 2: cloud independent review, authorship resolution, trusted publisher and gate provenance.
 3. Stage 3: bounded continuation, ruleset merge control and full-issue Linear close-out.
+4. Stage 2, Task 2.3: Mac review runner (filed as MYK9-1426, 2026-10-26).
 
 ## Owner decisions (2026-10-24, amended 2026-10-26)
 

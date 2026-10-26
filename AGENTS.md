@@ -283,15 +283,11 @@ Before any code edit, file write, formatter, generated snapshot, commit, PR, or 
 3. If in the primary checkout on `main`, stop and create a feature worktree/branch first (`git worktree add ../wt-<task> -b <branch>`), then `bash scripts/bootstrap-worktree.sh` inside it.
 4. Do not edit files in the primary checkout except docs-only direct-to-`main` work explicitly approved by the user (scope in the shared rules above).
 
-This check happens before `apply_patch` or any other file-writing command; the pre-commit hook enforces the same invariant at commit time, this check prevents dirtying the primary checkout in the first place.
-
 ## OPSX / OpenSpec Workflow
 
-Prefer OPSX for non-trivial launch-readiness and product changes, especially when work needs a durable proposal/spec, remediation plan, implementation, verification, PR, archive, or cleanup. If the user says "OPSX", "opsx ship", "OpenSpec", "batch", "go-live", "launch readiness", or asks to ship a scoped change end-to-end, read and use the `opsx-ship` skill first.
+Prefer OPSX for authorized non-trivial launch-readiness and product changes. If the user says "OPSX", "opsx ship", "OpenSpec", "batch", "go-live", "launch readiness", or asks to ship a scoped change end-to-end, read and use `opsx-ship` first. Follow its delegated phase skills, branch-safety checks and shared-system approval gates.
 
-Use the OPSX phase skills it delegates to (`openspec-propose`, `openspec-apply-change`, `openspec-verify-change`, `ship-pr`, `openspec-archive-change`, and `cleanup`) instead of reconstructing that process from memory. Preserve `opsx-ship` branch-safety checks and shared-system approval gates.
-
-For tiny docs-only edits, test-only nits, or narrow review fixes, the lightweight workflow is fine. If skipping OPSX on non-trivial fall-2026 launch-readiness work, state why in the response or saved plan.
+Tiny docs-only edits, test nits and narrow review fixes may use the lightweight workflow. Explain skipping OPSX for non-trivial fall-2026 launch-readiness work.
 
 ## PR reviews
 
@@ -304,14 +300,8 @@ When asked to review a PR, run focused verification by default when practical:
 
 ## Small Maintenance Changes
 
-**Docs-only tracking edits go direct to `main` by default.** For files in the `CLAUDE.md` docs-only-direct-to-`main` scope (`docs/**/*.md`, top-level tracking/reference docs, package/function READMEs):
+For work authorized by the division-of-labour decision, follow the shared rules' docs-only direct-to-`main` scope and PR exceptions.
 
-- Commit and `git push origin main` directly — no branch, no PR, no per-session approval needed. As of 2026-06-14 the `main` rulesets grant the admin role (the owner token) `bypass_mode: always`, so the push succeeds; the PR + required-checks gates are bypassed for that identity. The restriction is convention, not enforcement, so stay strictly inside the docs-only scope.
-- From the primary checkout while linked worktrees exist, prefix with `MYK9_ALLOW_PRIMARY_COMMIT=1 git commit ...` (the local pre-commit guard is separate from the ruleset and still applies).
-- Validate with `git diff --check` plus targeted `rg` checks. Do not run app tests/typecheck for Markdown-only changes.
-
-For skill, agent-prompt (`.claude/**`), or any other **out-of-docs-scope** small edits — these still require a PR:
-
-- Prefer one standing maintenance worktree/branch instead of one branch per tiny change. Default branch name: `codex/maintenance-notes`. It still passes through `pnpm qa:inflight` before each batch — a standing branch is exactly the shape that overlaps someone else's open PR without noticing.
-- Batch related small edits into one commit/PR when practical.
-- Do not run app tests/typecheck unless TypeScript, app code, migrations, or executable scripts changed.
+- For skill, agent-prompt, or other edits requiring a PR, prefer the standing `codex/maintenance-notes` worktree/branch and run `pnpm qa:inflight` before each batch.
+- Batch related edits into one commit/PR.
+- Validate Markdown-only changes with `git diff --check` and targeted `rg` checks. Run app tests/typecheck only when TypeScript, app code, migrations, or executable scripts change.

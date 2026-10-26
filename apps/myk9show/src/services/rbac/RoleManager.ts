@@ -28,6 +28,7 @@ import {
 } from '@/types/rbac-types';
 import type { AuditLogger } from './AuditLogger';
 import { formatPersonLabel, type PersonLabelRow } from './personLabels';
+import { replaceRolePermissions, resolvePermissionCodes } from './rolePermissionWrites';
 
 // DB row types derived from Supabase schema
 type RolesRow = Database['public']['Tables']['roles']['Row'];
@@ -487,6 +488,8 @@ export class RoleManager {
     try {
       // DB roles table: name, description, is_system, permissions (string[]), created_at
       // CreateRoleRequest.displayName has no DB column — UI-only concept
+      // Resolve the codes first, so a failed lookup or an unknown code creates no role (MYK9-1409).
+      const permissions = await resolvePermissionCodes(request.permissions);
       const { data: roleData, error: roleError } = await supabase
         .from('roles')
         .insert({
@@ -501,29 +504,17 @@ export class RoleManager {
         throw new Error(`Failed to create role: ${roleError.message}`);
       }
 
-      // Assign permissions to the role (by permission code, e.g. "show:manage")
-      if (request.permissions.length > 0) {
-        const { data: permissions } = await supabase
-          .from('permissions')
-          .select('id, code')
-          .in('code', request.permissions);
-
-        if (permissions && permissions.length > 0) {
-          const rolePermissions = permissions.map(p => ({
-            role_id: roleData.id,
-            permission_id: p.id,
-          }));
-
-          await supabase.from('role_permissions').insert(rolePermissions);
-        }
-      }
+      await replaceRolePermissions(
+        roleData.id,
+        permissions.map(p => p.id)
+      );
 
       await this.auditLogger.logAuditEvent(ActionType.ROLE_CREATED, {
         targetId: roleData.id,
         targetType: 'role',
         newValue: {
           role_name: request.name,
-          permissions_count: request.permissions.length,
+          permissions_count: permissions.length,
         },
       });
 
@@ -566,31 +557,22 @@ export class RoleManager {
         roleData = await this.getRole(roleId);
       }
 
-      // Update permissions if provided (by permission code)
+      // Update permissions if provided (by permission code). Adds before it removes, so a failure
+      // part-way never leaves the role with no permissions (MYK9-1409).
+      let written: string[] | undefined;
       if (request.permissions !== undefined) {
-        await supabase.from('role_permissions').delete().eq('role_id', roleId);
-
-        if (request.permissions.length > 0) {
-          const { data: permissions } = await supabase
-            .from('permissions')
-            .select('id, code')
-            .in('code', request.permissions);
-
-          if (permissions && permissions.length > 0) {
-            const rolePermissions = permissions.map(p => ({
-              role_id: roleId,
-              permission_id: p.id,
-            }));
-
-            await supabase.from('role_permissions').insert(rolePermissions);
-          }
-        }
+        const permissions = await resolvePermissionCodes(request.permissions);
+        await replaceRolePermissions(
+          roleId,
+          permissions.map(p => p.id)
+        );
+        written = permissions.map(p => p.code);
       }
 
       const auditValue: Record<string, unknown> = {};
       if (request.description !== undefined) auditValue.description = request.description;
       if (request.displayName !== undefined) auditValue.displayName = request.displayName;
-      if (request.permissions !== undefined) auditValue.permissions = request.permissions;
+      if (written !== undefined) auditValue.permissions = written;
 
       await this.auditLogger.logAuditEvent(ActionType.ROLE_UPDATED, {
         targetId: roleId,

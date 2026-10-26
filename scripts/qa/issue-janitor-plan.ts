@@ -19,6 +19,7 @@ import {
   type PlanEntry,
   type PlanOptions,
   type PrInfo,
+  type Snapshot,
 } from './issue-janitor-types.ts';
 
 const HUMAN_OWED =
@@ -65,16 +66,24 @@ const entry = (
   ],
   doneWrites: [],
   fallbackWrites: [],
+  fallbackFill: [],
 });
 
 function doneCandidate(
   issue: string,
   reason: string,
   comment: string | null,
-  fallback: McpWrite[] = []
+  fallback: McpWrite[] = [],
+  fill: string[] = []
 ): PlanEntry {
   const plan = entry(issue, 'to-done-candidate', reason, comment, 'Done');
-  return { ...plan, writes: [], doneWrites: plan.writes, fallbackWrites: fallback };
+  return {
+    ...plan,
+    writes: [],
+    doneWrites: plan.writes,
+    fallbackWrites: fallback,
+    fallbackFill: fill,
+  };
 }
 
 const skip = (issue: string, reason: string) => entry(issue, 'skip', reason);
@@ -94,6 +103,32 @@ function verifyLabels(issue: BoardIssue): string[] {
   return issue.labels
     .filter(l => l.toLowerCase().startsWith('verify:'))
     .map(l => l.slice('verify:'.length).toLowerCase());
+}
+
+/** Active = checked out in a worktree, or a matching tip within 24 h. Returns the reason, or null. */
+function branchActivity(
+  matching: BranchInfo[],
+  nowMs: number
+): { reason: string; name: string; lastBranch: number | null } {
+  const treeBranch = matching.find(b => b.worktree !== null);
+  const newest = matching.map(b => Date.parse(b.tipAt)).filter(Number.isFinite);
+  const lastBranch = newest.length ? Math.max(...newest) : null;
+  if (treeBranch) {
+    return {
+      reason: `branch ${treeBranch.name} is checked out in worktree ${treeBranch.worktree}`,
+      name: treeBranch.name,
+      lastBranch,
+    };
+  }
+  if (lastBranch !== null && nowMs - lastBranch < BRANCH_ACTIVE_MS) {
+    const name = matching.find(b => Date.parse(b.tipAt) === lastBranch)?.name ?? '';
+    return {
+      reason: `branch ${name} had activity ${Math.floor((nowMs - lastBranch) / HOUR_MS)} h ago`,
+      name,
+      lastBranch,
+    };
+  }
+  return { reason: '', name: '', lastBranch };
 }
 
 function planInProgress(
@@ -130,6 +165,17 @@ function planInProgress(
     );
   }
 
+  const activity = branchActivity(matching, nowMs);
+  const lastBranch = activity.lastBranch;
+  if (merged.length && activity.reason) {
+    const full = merged.filter(p => !p.partial);
+    if (full[0]) {
+      return skip(
+        id,
+        `PR #${full[0].number} merged but branch ${activity.name} is active; implementation continuing`
+      );
+    }
+  }
   if (merged.length) {
     const full = merged.filter(p => !p.partial);
     if (full.length === 0) {
@@ -151,28 +197,17 @@ function planInProgress(
           id,
           'to-in-review',
           reason,
-          `PR ${pr.url} merged. Moving to In Review: a fresh read found criteria still owed (name them here).`,
+          `PR ${pr.url} merged. Moving to In Review.\nOwed: {{owed}}`,
           'In Review'
-        ).writes
+        ).writes,
+        ['owed']
       );
     }
     const comment = `PR ${pr.url} merged. Moving to In Review; owed evidence: ${verify.map(v => `verify:${v}`).join(', ')}.`;
     return entry(id, 'to-in-review', reason, comment, 'In Review');
   }
 
-  const treeBranch = matching.find(b => b.worktree !== null);
-  if (treeBranch) {
-    return skip(id, `branch ${treeBranch.name} is checked out in worktree ${treeBranch.worktree}`);
-  }
-  const newest = matching.map(b => Date.parse(b.tipAt)).filter(Number.isFinite);
-  const lastBranch = newest.length ? Math.max(...newest) : null;
-  if (lastBranch !== null && nowMs - lastBranch < BRANCH_ACTIVE_MS) {
-    const name = matching.find(b => Date.parse(b.tipAt) === lastBranch)?.name ?? '';
-    return skip(
-      id,
-      `branch ${name} had activity ${Math.floor((nowMs - lastBranch) / HOUR_MS)} h ago`
-    );
-  }
+  if (activity.reason) return skip(id, activity.reason);
 
   if (closed.length) {
     const pr = closed.reduce((a, b) =>
@@ -224,6 +259,15 @@ function planInReview(
   return doneCandidate(id, `merged PR ${prLine} deployed; production-only evidence`, comment);
 }
 
+function snapshotOf(issue: BoardIssue): Snapshot {
+  const times = issue.comments.map(c => Date.parse(c.createdAt)).filter(Number.isFinite);
+  return {
+    state: issue.state,
+    labels: [...issue.labels],
+    newestCommentAt: times.length ? new Date(Math.max(...times)).toISOString() : null,
+  };
+}
+
 export function planJanitor(
   board: { issues: BoardIssue[] },
   github: GitHubReader,
@@ -232,7 +276,9 @@ export function planJanitor(
   options: PlanOptions = {}
 ): PlanEntry[] {
   const nowMs = now.getTime();
-  return board.issues.map(issue => {
+  return board.issues.map(issue => ({ ...planIssue(issue), snapshot: snapshotOf(issue) }));
+
+  function planIssue(issue: BoardIssue): PlanEntry {
     const id = issue.id;
     const inProgress = issue.state === 'In Progress';
     const inReview = issue.state === 'In Review';
@@ -257,5 +303,5 @@ export function planJanitor(
       const why = error instanceof Error ? error.message : String(error);
       return skip(id, `GitHub read failed: ${why}`);
     }
-  });
+  }
 }

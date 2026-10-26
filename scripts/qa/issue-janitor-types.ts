@@ -58,6 +58,14 @@ export interface McpWrite {
   args: Record<string, string>;
 }
 
+/** The board entry's state when planned: re-read the issue and compare before any write. */
+export interface Snapshot {
+  state: string;
+  labels: string[];
+  /** Newest comment time (ISO), or null with no comments. */
+  newestCommentAt: string | null;
+}
+
 export interface PlanEntry {
   issue: string;
   action: JanitorAction;
@@ -69,6 +77,13 @@ export interface PlanEntry {
   doneWrites: McpWrite[];
   /** `to-done-candidate` from In Progress: executed instead if the fresh read finds a criterion unmet. */
   fallbackWrites: McpWrite[];
+  /**
+   * Placeholders in `fallbackWrites` bodies the session must replace before posting, e.g.
+   * `owed`: replace `{{owed}}` with the unmet criteria quoted from the fresh read. This is
+   * the only permitted edit to a listed write; an unfilled template is never posted.
+   */
+  fallbackFill: string[];
+  snapshot?: Snapshot;
 }
 
 export interface PlanOptions {

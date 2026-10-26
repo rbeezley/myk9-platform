@@ -151,7 +151,11 @@ export function makeGitHubReader(
 export function readBranches(exec: Exec = defaultExec): BranchInfo[] {
   const wanted = (name: string) =>
     BRANCH_PREFIXES.some(p => name.toLowerCase().startsWith(`${p}myk9-`));
-  const tips = new Map<string, string>();
+  const tips = new Map<string, Set<string>>();
+  const addTip = (name: string, sha: string) => {
+    const set = tips.get(name) ?? new Set<string>();
+    tips.set(name, set.add(sha));
+  };
   const worktrees = new Map<string, string>();
 
   const worktreeOut = exec('git', ['worktree', 'list', '--porcelain']);
@@ -167,7 +171,7 @@ export function readBranches(exec: Exec = defaultExec): BranchInfo[] {
     const [sha, ref] = line.split('\t');
     if (!sha || !ref?.startsWith('refs/heads/')) continue;
     const name = ref.slice('refs/heads/'.length);
-    if (wanted(name)) tips.set(name, sha);
+    if (wanted(name)) addTip(name, sha);
   }
   const local = exec('git', [
     'for-each-ref',
@@ -176,7 +180,7 @@ export function readBranches(exec: Exec = defaultExec): BranchInfo[] {
   ]);
   for (const line of local.split('\n')) {
     const [name, sha] = line.split(' ');
-    if (name && sha && wanted(name) && !tips.has(name)) tips.set(name, sha);
+    if (name && sha && wanted(name)) addTip(name, sha);
   }
 
   const dateOf = (sha: string): string => {
@@ -189,9 +193,10 @@ export function readBranches(exec: Exec = defaultExec): BranchInfo[] {
       ).commit.committer.date;
     }
   };
-  return [...tips].map(([name, sha]) => ({
+  // A name can have a remote tip and a newer local one (unpushed commits): keep the newest date.
+  return [...tips].map(([name, shas]) => ({
     name,
-    tipAt: dateOf(sha),
+    tipAt: [...shas].map(dateOf).reduce((a, b) => (Date.parse(a) >= Date.parse(b) ? a : b)),
     worktree: worktrees.get(name) ?? null,
   }));
 }

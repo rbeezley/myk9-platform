@@ -18,7 +18,10 @@
  * Plan entries carry `writes` (run in order, never a Done write), `doneWrites`
  * (a to-done-candidate only: run after a fresh get_issue read shows every
  * criterion met) and `fallbackWrites` (In Progress candidates: run instead if a
- * criterion is unmet). Exit 0 clean, 1 when any GitHub read failed (that issue is
+ * criterion is unmet; its bodies carry `{{owed}}`, listed in `fallbackFill`, the one
+ * permitted edit to a listed write). Each entry echoes the board `snapshot` (state,
+ * labels, newest comment time): before executing an issue's writes the session re-reads
+ * it and, if any of the three differ, skips it as `stale snapshot`. Exit 0 clean, 1 when any GitHub read failed (that issue is
  * a skip whose reason starts `GitHub read failed:`), 2 on a usage or runtime error.
  */
 import { readFileSync } from 'node:fs';

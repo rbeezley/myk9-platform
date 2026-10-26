@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { readBranches } from './issue-janitor-github';
 import { parseArgs, render, summaryMarkdown } from './issue-janitor';
 import { describeOwner, latestClaim, parseClaim } from './issue-janitor-claim';
 import { linksIssue } from './issue-janitor-github';
@@ -315,7 +316,7 @@ const base = board.issues[0]!;
 const inProgress = (id: string, comments: { createdAt: string; body: string }[]) => ({
   ...base,
   id,
-  labels: [],
+  labels: [] as string[],
   comments,
 });
 const plan1 = (
@@ -402,5 +403,83 @@ describe('linksIssue kinds', () => {
     expect(linksIssue(pull('Ignore MYK9-5', 'feat/x'), 5)).toBe('partial');
     expect(linksIssue(pull('Fixes MYK9-5\nIgnore MYK9-5', 'feat/x'), 5)).toBe('full');
     expect(linksIssue(pull('', 'claude/myk9-5-x'), 5)).toBe('full');
+  });
+});
+
+describe('merged PR with continuing implementation', () => {
+  const merged = [pr(9400, { merged: true, mergedAt: ago(20) })];
+  const labelled = { ...inProgress('MYK9-400', comments(80)), labels: ['verify:browser'] };
+
+  it('stays In Progress while a matching branch is active', () => {
+    const fresh: BranchInfo[] = [{ name: 'claude/myk9-400-more', tipAt: ago(2), worktree: null }];
+    const p = plan1(labelled, merged, fresh);
+    expect(p.action).toBe('skip');
+    expect(p.reason).toBe(
+      'PR #9400 merged but branch claude/myk9-400-more is active; implementation continuing'
+    );
+  });
+
+  it('moves to In Review when the branch is old and has no worktree', () => {
+    const old: BranchInfo[] = [{ name: 'claude/myk9-400-more', tipAt: ago(72), worktree: null }];
+    expect(plan1(labelled, merged, old).action).toBe('to-in-review');
+  });
+});
+
+describe('fallback template and snapshot', () => {
+  const plan = planJanitor(board, github, branches, NOW);
+
+  it('declares the fillable {{owed}} template and never says "name them here"', () => {
+    for (const p of plan) {
+      for (const w of [...p.writes, ...p.doneWrites, ...p.fallbackWrites]) {
+        expect(w.args.body ?? '').not.toContain('name them here');
+      }
+    }
+    const p = plan.find(e => e.issue === 'MYK9-102')!;
+    const body = p.fallbackWrites.find(w => w.tool === 'save_comment')!.args.body!;
+    expect(body).toContain('{{owed}}');
+    expect(p.fallbackFill).toEqual(['owed']);
+    expect(body.split('\n')[1]).toBe('Owed: {{owed}}');
+    expect(/^\s*Owed:\s*(.+)$/im.exec(body)?.[1]).toBe('{{owed}}');
+  });
+
+  it('echoes state, labels and newest comment time for every entry', () => {
+    const p = plan.find(e => e.issue === 'MYK9-101')!;
+    expect(p.snapshot).toEqual({
+      state: 'In Progress',
+      labels: ['verify:browser'],
+      newestCommentAt: '2026-10-20T16:00:00.000Z',
+    });
+    expect(plan.every(e => e.snapshot !== undefined)).toBe(true);
+  });
+});
+
+describe('readBranches', () => {
+  const NEWER = '2026-10-25T10:00:00+00:00';
+  const OLDER = '2026-10-20T10:00:00+00:00';
+  const fake = (args: string[]): string => {
+    const key = args.join(' ');
+    if (key.startsWith('worktree list'))
+      return 'worktree /wt/1\nbranch refs/heads/claude/myk9-1-x\n';
+    if (key.startsWith('ls-remote'))
+      return 'remoteold\trefs/heads/claude/myk9-1-x\nonlyremote\trefs/heads/codex/myk9-2-y\nzzz\trefs/heads/main\n';
+    if (key.startsWith('for-each-ref')) return 'claude/myk9-1-x localnew\n';
+    if (key.includes('localnew')) return `${NEWER}\n`;
+    if (key.includes('remoteold')) return `${OLDER}\n`;
+    if (key.includes('onlyremote')) return `${OLDER}\n`;
+    throw new Error(`unexpected ${key}`);
+  };
+  const exec = (_cmd: string, args: string[]) => fake(args);
+
+  it('keeps the newest of a remote tip and a newer unpushed local tip', () => {
+    const out = readBranches(exec);
+    expect(out.find(b => b.name === 'claude/myk9-1-x')).toEqual({
+      name: 'claude/myk9-1-x',
+      tipAt: NEWER,
+      worktree: '/wt/1',
+    });
+  });
+
+  it('still reads a remote-only branch', () => {
+    expect(readBranches(exec).find(b => b.name === 'codex/myk9-2-y')?.tipAt).toBe(OLDER);
   });
 });

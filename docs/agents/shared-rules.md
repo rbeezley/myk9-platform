@@ -73,7 +73,7 @@ Redirect check output to a file and echo the real exit status — a pipe through
 
 ## Deployment
 
-- **What ships today:** nothing deploys on merge. `apps/myk9show/vercel.json` sets `git.deploymentEnabled: false`, so Vercel builds neither `main` nor PR branches for myK9Show. Production (myk9show.com and myk9-platform-myk9show.vercel.app) moves only when someone runs the **Deploy myK9Show** workflow (`gh workflow run deploy-myk9show.yml`), which builds the newest `main` commit with a green CI run in Actions and uploads it prebuilt. Running it is a shared-system write: only when the user asks. `main` routinely runs ahead of production; the run summary names the deployed commit.
+- **What ships today:** nothing deploys on merge. `apps/myk9show/vercel.json` sets `git.deploymentEnabled: false`, so Vercel builds neither `main` nor PR branches for myK9Show. Production (myk9show.com and myk9-platform-myk9show.vercel.app) moves only when someone runs the **Deploy myK9Show** workflow (`gh workflow run deploy-myk9show.yml`), which builds the newest `main` commit with green CI and uploads it prebuilt. Running it is a shared-system write: only when the user asks. `main` routinely runs ahead of production; the run summary names the deployed commit.
 - **Dormant until MYK9-44:** the CI-gated path in `deploy-staging.yml` / `deploy-production.yml`. `STAGING_RELEASE_ENABLED` is unset, so every run is skipped and the `staging-release` / `guides-release` refs are frozen at `5975adadb` (2026-07-27), 700+ commits behind `main`. Do not reason from it, fix it, or gate on it until that issue is In Progress; it is sequenced with the Stripe live cutover (MYK9-11). Runbook: `docs/operations/ci-vercel-deploys.md`.
 - **Legacy production myK9Qv3:** myk9q.com (separate repo, untouched)
 
@@ -112,7 +112,7 @@ For myK9Show, core reads should go through the replication-backed query/table la
 
 Always ensure generated test code compiles cleanly: no `await` outside `async`, no unused variables (remove them rather than underscore-prefixing — the prefix silences the lint rule without removing the dead binding), and run the relevant suite before considering work complete.
 
-When test runners hang or appear stuck for more than 30 seconds, stop and report the issue rather than retrying in a loop. Known issue: the test suite has pre-existing timeout/hanging problems.
+When a test runner hangs for more than 30 seconds, stop and report it rather than retrying in a loop. Known issue: the test suite has pre-existing timeout/hanging problems.
 
 Use the custom render from `src/test/utils/testUtils.tsx` instead of raw `render` — it wraps with QueryClient, Auth, and Router providers.
 
@@ -155,7 +155,7 @@ A default `list_issues` call sends `includeArchived: false`, and this workspace 
 
 ### Before opening a PR
 
-- Run the narrowest useful verification for the touched files, review the diff for unrelated changes, and report any known unrelated broad-check failure plainly alongside targeted passing checks.
+- Run the narrowest useful verification for the touched files, review the diff for unrelated changes, and report any known unrelated broad-check failure alongside the targeted passes.
 - The PR description follows `.github/pull_request_template.md` when present and includes: what and why, Linear issue, checked acceptance criteria, relevant visual evidence, risk, how to test, intentional non-goals, material agent involvement, and follow-up issues.
 - Do not mark the Linear issue Done until its stated evidence gate is complete. Browser re-walks, OpenSpec verification, and operator/shared-system gates need recorded evidence or an explicit, owned acceptance.
 

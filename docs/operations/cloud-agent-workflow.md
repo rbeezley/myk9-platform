@@ -309,6 +309,30 @@ explicit limitations for independent Claude re-review; no new clean review gate,
 merge, deployment or completed Stage 1 acceptance is claimed. MYK9-1397 remains
 In Progress until merged and accepted.
 
+###### Post-push confirmation of the reviewed-code candidate
+
+After pushing `cb5fbe8f4514562b5fa475597e28734cb7f1e6b9`, setup ran again
+sequentially through run.sh (**EXIT=0**, `.logs/postpush-setup.log`). Then the
+same wrapper-prefixed proof commands above were rerun on that exact clean head:
+
+| Log                       | Result                                                                                                                                                                                                                                            |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `postpush-preflight`      | **EXIT=0**, JSON implementer `missing: []`.                                                                                                                                                                                                       |
+| `postpush-typecheck`      | **EXIT=0**, strict normal Turbo, 26/26 cached tasks; the earlier uncached review-fix typecheck passed 26/26 with 11 cached.                                                                                                                       |
+| `postpush-lint`           | **EXIT=0**, 14/14 cached tasks, 0 errors / 43 warnings replayed.                                                                                                                                                                                  |
+| `postpush-cloud`          | **EXIT=0**, 8 files / 140 tests, seed `1793037639243`.                                                                                                                                                                                            |
+| `postpush-scanner`        | **EXIT=0**, 6/6 tests, seed `1793037640085`.                                                                                                                                                                                                      |
+| `postpush-deno-combined`  | **BLOCKER**, **EXIT=1**, same JSR manifest tunnel denial before type validation.                                                                                                                                                                  |
+| `postpush-deno-proximity` | **BLOCKER**, **EXIT=1**, same JSR denial. MYK9-1400 errors still not reached.                                                                                                                                                                     |
+| `postpush-quality`        | **EXIT=0**, combined `shellcheck scripts/cloud/run.sh scripts/cloud/setup.sh scripts/cloud/environment.sh && pnpm qa:code-quality-ratchet && pnpm format:check:changed && git diff --check`; each check had also passed separately before commit. |
+
+The broad app runner was not retried after its documented no-progress interruption.
+The follow-up receipt commit changes documentation only; executable code remains
+identical to the pushed candidate checked above. Final docs formatting, whitespace
+and existing publication scanner all pass before publication. The owner still
+owes independent Claude re-review on the final head; no clean gate is inferred
+from these implementer checks.
+
 ## Preflight
 
 ```bash

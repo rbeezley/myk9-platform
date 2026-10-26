@@ -360,7 +360,7 @@ interface RestMergedPr {
   created_at: string;
   merged_at: string | null;
   merge_commit_sha: string | null;
-  head: { sha: string };
+  head: { sha: string; ref: string };
 }
 
 /**
@@ -375,10 +375,27 @@ export function repoSlug(): string {
   return slugCache;
 }
 
-/** `gh api --paginate --slurp` yields one array per page; flatten them. */
+const PAGE_SIZE = 100;
+const MAX_PAGES = 500;
+
+/**
+ * Every row of a REST list, paged by hand with `&page=N`. Not `gh api
+ * --paginate`: GitHub's next-page links use `repositories/{id}/…` paths, which
+ * the Claude Code cloud proxy rejects with a 403, so any list past one page
+ * failed there. A short page ends the list; an absurd page count throws rather
+ * than reporting a truncated inventory as complete.
+ */
 function ghPages<T>(path: string, what: string): T[] {
-  const pages = ghJson<unknown[]>(['api', '--paginate', '--slurp', path], what);
-  return pages.flatMap(page => (Array.isArray(page) ? (page as T[]) : [page as T]));
+  const rows: T[] = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const batch = ghJson<T[]>(
+      ['api', `${path}${path.includes('?') ? '&' : '?'}per_page=${PAGE_SIZE}&page=${page}`],
+      what
+    );
+    rows.push(...batch);
+    if (batch.length < PAGE_SIZE) return rows;
+  }
+  throw new InflightQueryError(`could not list ${what}: more than ${MAX_PAGES} pages`);
 }
 
 /**
@@ -387,10 +404,7 @@ function ghPages<T>(path: string, what: string): T[] {
  * the REST endpoint is paged instead (Codex, #2073 round 4).
  */
 export function pullRequestFiles(slug: string, number: number): string[] {
-  const flat = ghPages<GhPrFile>(
-    `repos/${slug}/pulls/${number}/files?per_page=100`,
-    `files of PR #${number}`
-  );
+  const flat = ghPages<GhPrFile>(`repos/${slug}/pulls/${number}/files`, `files of PR #${number}`);
   return flat.flatMap(f =>
     f.previous_filename ? [f.filename, f.previous_filename] : [f.filename]
   );
@@ -419,7 +433,7 @@ function ghJson<T>(args: string[], what: string): T {
  */
 export function openPullRequests(): ChangeSource[] {
   const slug = repoSlug();
-  const prs = ghPages<RestPr>(`repos/${slug}/pulls?state=open&per_page=100`, 'open PRs');
+  const prs = ghPages<RestPr>(`repos/${slug}/pulls?state=open`, 'open PRs');
   return prs.map(pr => ({
     kind: 'pr',
     id: `#${pr.number}`,
@@ -441,6 +455,7 @@ export function openPullRequests(): ChangeSource[] {
  */
 export class MergedHeads {
   private readonly cache = new Map<string, string | undefined>();
+  private inventory?: Map<string, RestMergedPr[]>;
   private readonly base: string;
   private readonly cwd?: string;
   // Plain fields, not parameter properties: this file runs under node's
@@ -451,69 +466,39 @@ export class MergedHeads {
   }
   get(branch: string): string | undefined {
     if (!this.cache.has(branch)) {
-      // A branch's PR is identified by CONTENT, never by its remote config: the
-      // PRs GitHub associates with the branch tip (fork PRs and renamed local
-      // checkouts included, since a PR's head commits live on in the base repo
-      // as refs/pull/N/head), plus the same-repo name, which still finds the PR
-      // of a REUSED name whose new commits are not pushed. Parsing upstream URLs
-      // instead lost to git's URL grammar three review rounds running (Codex,
-      // review of #3275). At most two queries. Of the merged rows, the newest-
-      // created is the most recent MERGED PR, as `--state merged --limit 1` was.
-      const slug = repoSlug();
-      const owner = slug.slice(0, slug.indexOf('/'));
-      const tip = git(['rev-parse', '--verify', '-q', `refs/heads/${branch}^{commit}`], this.cwd);
-      const pr = [
-        ...ghPages<RestMergedPr>(
-          `repos/${slug}/pulls?state=closed&head=${encodeURIComponent(`${owner}:${branch}`)}&per_page=100`,
-          `merged PRs for ${branch}`
-        ),
-        ...(tip ? commitPulls(slug, tip) : []),
-      ]
-        .filter(candidate => candidate.merged_at)
-        .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+      // `gh pr list --state merged --head <name>` (GraphQL) matched a head
+      // BRANCH NAME from any owner, fork PRs included. REST's `head` filter needs
+      // an owner, and each substitute (owner-scoped name, remote-URL parsing,
+      // commit association) lost part of that across four review rounds of
+      // #3275. So reproduce it by construction: one inventory of the repo's
+      // closed PRs per run, keyed by head ref.
+      const merged = (this.inventory ??= mergedPrsByHead()).get(branch) ?? [];
       // Merged INTO SOMETHING ELSE is not shipped here. A PR squashed onto an
       // integration branch, or merged after this checkout last fetched, leaves
       // its work outside the selected base, so excluding its head would hide a
       // real collision (Codex, #2073 round 11). Require the merge commit to be
       // in the base; an absent or unreachable one reads as still in flight,
       // which over-reports rather than passing work over in silence.
-      const mergeCommit = pr?.merge_commit_sha;
-      const shipped = Boolean(mergeCommit && isAncestor(mergeCommit, this.base, this.cwd));
-      this.cache.set(branch, shipped ? pr?.head.sha : undefined);
+      // Hence only PRs whose merge commit reached the base are eligible, filtered
+      // BEFORE choosing: a newer same-name PR merged elsewhere must not displace
+      // one that shipped (Codex, review of #3275). Of those, the newest-created.
+      const pr = merged
+        .filter(c => c.merge_commit_sha && isAncestor(c.merge_commit_sha, this.base, this.cwd))
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+      this.cache.set(branch, pr?.head.sha);
     }
     return this.cache.get(branch);
   }
 }
 
-function git(args: string[], cwd?: string): string | undefined {
-  try {
-    return (
-      execFileSync('git', args, {
-        cwd,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      }).trim() || undefined
-    );
-  } catch {
-    return undefined;
+/** Every merged PR of the repo, keyed by head ref (any owner). */
+function mergedPrsByHead(): Map<string, RestMergedPr[]> {
+  const byHead = new Map<string, RestMergedPr[]>();
+  for (const pr of ghPages<RestMergedPr>(`repos/${repoSlug()}/pulls?state=closed`, 'closed PRs')) {
+    if (!pr.merged_at) continue;
+    byHead.set(pr.head.ref, [...(byHead.get(pr.head.ref) ?? []), pr]);
   }
-}
-
-/**
- * The PRs GitHub associates with a commit. A commit GitHub has never seen (a
- * local branch that was never pushed) answers 422, which means "no PR", not an
- * unknown result; every other failure still throws and fails the gate closed.
- */
-export function commitPulls(slug: string, sha: string): RestMergedPr[] {
-  try {
-    return ghPages<RestMergedPr>(
-      `repos/${slug}/commits/${sha}/pulls?per_page=100`,
-      `PRs for ${sha}`
-    );
-  } catch (error) {
-    if (error instanceof InflightQueryError && /\(HTTP 422\)/.test(error.message)) return [];
-    throw error;
-  }
+  return byHead;
 }
 
 function isAncestor(maybeAncestor: string, ref: string, cwd?: string): boolean {

@@ -37,15 +37,33 @@ pnpm qa:inflight --verbose supabase/migrations
 # `gh pr list --limit` and `gh pr view --json files` each silently truncate —
 # the PR list past 200, the file list past 100 files per PR — so page both
 # REST endpoints instead, the same way scripts/qa/inflight.ts does (including
-# both sides of a rename). `set -o pipefail` (bash/zsh) makes a failed `gh`
+# both sides of a rename). Page by hand, not with `gh api --paginate`: its
+# next links use `repositories/{id}/…` paths, which the Claude Code cloud
+# proxy rejects past page 1 (MYK9-1425); `gh repo view` is GraphQL, which the
+# proxy rejects outright. `set -o pipefail` (bash/zsh) makes a failed `gh`
 # call end the pipeline non-zero instead of reading as "no collision": empty
 # output means no collision ONLY if no `gh:` error line appeared and the exit
 # status was 0; on any error, re-run before trusting it.
 set -o pipefail
-SLUG=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
-gh api --paginate "repos/$SLUG/pulls?state=open&per_page=100" --jq '.[].number' \
-  | xargs -I{} gh api --paginate "repos/$SLUG/pulls/{}/files?per_page=100" \
-      --jq '.[] | .filename, (.previous_filename // empty)' \
+SLUG=$(gh api 'repos/{owner}/{repo}' --jq .full_name)
+# pages <path> <jq row filter>: every row of a REST list. A page under 100 rows
+# ends the list; a list still full after 50 pages is an error, not an answer.
+pages() {
+  local sep='?' page=1 out
+  case "$1" in *\?*) sep='&' ;; esac
+  while [ "$page" -le 50 ]; do
+    out=$(gh api "$1${sep}per_page=100&page=$page" --jq "length, (.[] | $2)") || return 1
+    printf '%s\n' "$out" | tail -n +2
+    [ "$(printf '%s\n' "$out" | head -n 1)" -lt 100 ] && return 0
+    page=$((page + 1))
+  done
+  echo "gh: $1 is still full after 50 pages" >&2
+  return 1
+}
+pages "repos/$SLUG/pulls?state=open" '.number' \
+  | while read -r pr; do
+      pages "repos/$SLUG/pulls/$pr/files" '.filename, (.previous_filename // empty)' || exit 1
+    done \
   | { grep '^supabase/migrations/' || true; } | sort -u
 ```
 

@@ -1,50 +1,54 @@
 /**
- * Writes a role's permission set by permission code (MYK9-1409).
+ * Writes a role and its permission set through one RPC each (MYK9-1409).
  *
- * supabase-js never throws on a failed query, so every call here reads its `error`. Unknown codes
- * are refused before any write. The swap adds the new rows first and only then removes the
- * others, so a failure part-way leaves the role with extra permissions, never with none; the
- * caller reports the error and the admin saves again.
+ * The RPCs (migration 20261026152300) run in one transaction: a failure writes nothing, so a
+ * role is never left with no permissions and a failed create can be saved again under the
+ * same name. The update locks the role row, so overlapping saves of one role cannot delete
+ * each other's rows. Unknown codes are refused server-side before any write. supabase-js
+ * never throws on a failed call, so each wrapper reads `error` and throws it.
  */
 import { supabase } from '@/lib/supabase';
+import type { Tables } from '@/types/supabase';
 
-export interface ResolvedPermission {
-  id: string;
-  code: string;
+export interface RoleWriteResult {
+  role: Tables<'roles'>;
+  /** The codes written, in request order without duplicates; null when permissions were untouched. */
+  permissionCodes: string[] | null;
 }
 
-/** Look up the requested codes, in request order without duplicates; throws on a failed read or an unknown code. */
-export async function resolvePermissionCodes(codes: string[]): Promise<ResolvedPermission[]> {
-  const wanted = [...new Set(codes)];
-  if (wanted.length === 0) return [];
-
-  const { data, error } = await supabase.from('permissions').select('id, code').in('code', wanted);
-  if (error) throw new Error(`Failed to look up permissions: ${error.message}`);
-
-  const byCode = new Map((data ?? []).map(p => [p.code, p] as const));
-  const unknown = wanted.filter(code => !byCode.has(code));
-  if (unknown.length > 0) throw new Error(`Unknown permission codes: ${unknown.join(', ')}`);
-
-  return wanted.map(code => byCode.get(code)!);
+function toResult(data: unknown): RoleWriteResult {
+  const { role, permission_codes } = data as {
+    role: Tables<'roles'>;
+    permission_codes: string[] | null;
+  };
+  return { role, permissionCodes: permission_codes };
 }
 
-/** Replace the role's role_permissions rows with exactly `permissionIds`. */
-export async function replaceRolePermissions(
+export async function createRoleWithPermissions(
+  name: string,
+  permissionCodes: string[],
+  description?: string
+): Promise<RoleWriteResult> {
+  const { data, error } = await supabase.rpc('create_role_with_permissions', {
+    p_name: name,
+    p_permission_codes: permissionCodes,
+    ...(description !== undefined && { p_description: description }),
+  });
+  if (error) throw new Error(`Failed to create role: ${error.message}`);
+  return toResult(data);
+}
+
+export async function updateRoleWithPermissions(
   roleId: string,
-  permissionIds: string[]
-): Promise<void> {
-  if (permissionIds.length > 0) {
-    const { error: addError } = await supabase.from('role_permissions').upsert(
-      permissionIds.map(permission_id => ({ role_id: roleId, permission_id })),
-      { onConflict: 'role_id,permission_id', ignoreDuplicates: true }
-    );
-    if (addError) throw new Error(`Failed to add role permissions: ${addError.message}`);
-  }
-
-  let removeOthers = supabase.from('role_permissions').delete().eq('role_id', roleId);
-  if (permissionIds.length > 0) {
-    removeOthers = removeOthers.not('permission_id', 'in', `(${permissionIds.join(',')})`);
-  }
-  const { error: removeError } = await removeOthers;
-  if (removeError) throw new Error(`Failed to remove role permissions: ${removeError.message}`);
+  changes: { description?: string | undefined; permissionCodes?: string[] | undefined }
+): Promise<RoleWriteResult> {
+  const { description, permissionCodes } = changes;
+  const { data, error } = await supabase.rpc('update_role_with_permissions', {
+    p_role_id: roleId,
+    p_set_description: description !== undefined,
+    ...(description !== undefined && { p_description: description }),
+    ...(permissionCodes !== undefined && { p_permission_codes: permissionCodes }),
+  });
+  if (error) throw new Error(`Failed to update role: ${error.message}`);
+  return toResult(data);
 }

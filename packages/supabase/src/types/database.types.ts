@@ -13216,6 +13216,14 @@ export type Database = {
         }
         Returns: string
       }
+      create_role_with_permissions: {
+        Args: {
+          p_description?: string
+          p_name: string
+          p_permission_codes: string[]
+        }
+        Returns: Json
+      }
       create_show_with_children: {
         Args: {
           p_classes: Json
@@ -14612,6 +14620,10 @@ export type Database = {
         Args: { p_person_id: string; p_qualifications: Json }
         Returns: undefined
       }
+      replace_role_permission_codes: {
+        Args: { p_codes: string[]; p_role_id: string }
+        Returns: string[]
+      }
       request_access_request_email_dispatch: {
         Args: { p_base_url: string; p_secret: string }
         Returns: undefined
@@ -15217,6 +15229,15 @@ export type Database = {
           p_private?: Json
         }
         Returns: number
+      }
+      update_role_with_permissions: {
+        Args: {
+          p_description?: string
+          p_permission_codes?: string[]
+          p_role_id: string
+          p_set_description?: boolean
+        }
+        Returns: Json
       }
       update_show_style: {
         Args: { p_show_id: string; p_style: string }

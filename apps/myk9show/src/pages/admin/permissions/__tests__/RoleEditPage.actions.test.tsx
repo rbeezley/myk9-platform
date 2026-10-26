@@ -40,7 +40,7 @@ function mockRbacService(role: typeof customRole) {
       getRole: vi.fn().mockResolvedValue(role),
       getAllPermissions: vi.fn().mockResolvedValue([]),
       getRolePermissions: vi.fn().mockResolvedValue([]),
-      updateRolePermissions: vi.fn().mockResolvedValue(true),
+      updateRole: vi.fn().mockResolvedValue(role),
       deleteRole: deleteRoleMock,
     },
   }));
@@ -88,5 +88,52 @@ describe('RoleEditPage — role actions', () => {
 
     await waitFor(() => expect(deleteRoleMock).toHaveBeenCalledWith('role-1'));
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/admin/permissions'));
+  });
+});
+
+// MYK9-1409: the permission save goes through updateRole by code, which replaces the whole set
+// in one transaction. The page holds permission ids, so the last hop must map them to codes.
+describe('RoleEditPage — saving permissions', () => {
+  const permission = (id: string, code: string) => ({
+    id,
+    code,
+    name: code,
+    description: null,
+    category: 'show',
+    created_at: null,
+  });
+  const updateRoleMock = vi.fn().mockResolvedValue(customRole);
+
+  beforeEach(() => {
+    vi.resetModules();
+    updateRoleMock.mockClear();
+    const view = permission('p1', 'show:view');
+    vi.doMock('@/services/rbac/RBACService', () => ({
+      rbacService: {
+        getRole: vi.fn().mockResolvedValue(customRole),
+        getAllPermissions: vi.fn().mockResolvedValue([view, permission('p2', 'show:manage')]),
+        getRolePermissions: vi.fn().mockResolvedValue([{ permission_id: 'p1', permission: view }]),
+        updateRole: updateRoleMock,
+        deleteRole: deleteRoleMock,
+      },
+    }));
+  });
+
+  it('sends the full set of permission codes to updateRole', async () => {
+    const { default: RoleEditPage } = await import('../RoleEditPage');
+    const { user } = render(<RoleEditPage />);
+
+    // The resource header is itself a role="button" that contains Grant All; click the real one.
+    const grantAll = (await screen.findAllByRole('button', { name: /grant all/i })).find(
+      el => el.tagName === 'BUTTON'
+    );
+    await user.click(grantAll!);
+    await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+    await waitFor(() =>
+      expect(updateRoleMock).toHaveBeenCalledWith('role-1', {
+        permissions: ['show:view', 'show:manage'],
+      })
+    );
   });
 });

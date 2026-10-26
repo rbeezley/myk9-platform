@@ -13,7 +13,7 @@
 
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
-import type { Database, TablesUpdate } from '@/types/supabase';
+import type { Database } from '@/types/supabase';
 import {
   Role,
   Permission,
@@ -28,7 +28,7 @@ import {
 } from '@/types/rbac-types';
 import type { AuditLogger } from './AuditLogger';
 import { formatPersonLabel, type PersonLabelRow } from './personLabels';
-import { replaceRolePermissions, resolvePermissionCodes } from './rolePermissionWrites';
+import { createRoleWithPermissions, updateRoleWithPermissions } from './rolePermissionWrites';
 
 // DB row types derived from Supabase schema
 type RolesRow = Database['public']['Tables']['roles']['Row'];
@@ -486,39 +486,24 @@ export class RoleManager {
    */
   async createRole(request: CreateRoleRequest): Promise<Role> {
     try {
-      // DB roles table: name, description, is_system, permissions (string[]), created_at
-      // CreateRoleRequest.displayName has no DB column — UI-only concept
-      // Resolve the codes first, so a failed lookup or an unknown code creates no role (MYK9-1409).
-      const permissions = await resolvePermissionCodes(request.permissions);
-      const { data: roleData, error: roleError } = await supabase
-        .from('roles')
-        .insert({
-          name: request.name,
-          description: request.description ?? null,
-          is_system: false,
-        })
-        .select()
-        .single();
-
-      if (roleError) {
-        throw new Error(`Failed to create role: ${roleError.message}`);
-      }
-
-      await replaceRolePermissions(
-        roleData.id,
-        permissions.map(p => p.id)
+      // CreateRoleRequest.displayName has no DB column — UI-only concept. One transaction: a
+      // failure creates nothing, so the same name can be saved again (MYK9-1409).
+      const { role, permissionCodes } = await createRoleWithPermissions(
+        request.name,
+        request.permissions,
+        request.description
       );
 
       await this.auditLogger.logAuditEvent(ActionType.ROLE_CREATED, {
-        targetId: roleData.id,
+        targetId: role.id,
         targetType: 'role',
         newValue: {
           role_name: request.name,
-          permissions_count: permissions.length,
+          permissions_count: permissionCodes?.length ?? 0,
         },
       });
 
-      return toRole(roleData);
+      return toRole(role);
     } catch (error) {
       logger.error('Role creation failed', 'rbac', { roleName: request.name }, error as Error);
       throw error;
@@ -530,49 +515,17 @@ export class RoleManager {
    */
   async updateRole(roleId: string, request: UpdateRoleRequest): Promise<Role> {
     try {
-      // DB roles table only has: name, description, is_system, permissions, created_at
-      // UpdateRoleRequest.displayName has no DB column
-      const updateData: TablesUpdate<'roles'> = {};
-
-      if (request.description !== undefined) {
-        updateData.description = request.description;
-      }
-
-      let roleData;
-
-      if (Object.keys(updateData).length > 0) {
-        const { data, error } = await supabase
-          .from('roles')
-          .update(updateData)
-          .eq('id', roleId)
-          .select()
-          .single();
-
-        if (error) {
-          throw new Error(`Failed to update role: ${error.message}`);
-        }
-        roleData = data;
-      } else {
-        // No column changes, just fetch current data
-        roleData = await this.getRole(roleId);
-      }
-
-      // Update permissions if provided (by permission code). Adds before it removes, so a failure
-      // part-way never leaves the role with no permissions (MYK9-1409).
-      let written: string[] | undefined;
-      if (request.permissions !== undefined) {
-        const permissions = await resolvePermissionCodes(request.permissions);
-        await replaceRolePermissions(
-          roleId,
-          permissions.map(p => p.id)
-        );
-        written = permissions.map(p => p.code);
-      }
+      // UpdateRoleRequest.displayName has no DB column. The description and permission set are
+      // written in one locked transaction, so overlapping saves cannot empty the role (MYK9-1409).
+      const { role, permissionCodes } = await updateRoleWithPermissions(roleId, {
+        description: request.description,
+        permissionCodes: request.permissions,
+      });
 
       const auditValue: Record<string, unknown> = {};
       if (request.description !== undefined) auditValue.description = request.description;
       if (request.displayName !== undefined) auditValue.displayName = request.displayName;
-      if (written !== undefined) auditValue.permissions = written;
+      if (permissionCodes !== null) auditValue.permissions = permissionCodes;
 
       await this.auditLogger.logAuditEvent(ActionType.ROLE_UPDATED, {
         targetId: roleId,
@@ -581,7 +534,7 @@ export class RoleManager {
       });
 
       this.clearAllCache();
-      return toRole(roleData);
+      return toRole(role);
     } catch (error) {
       logger.error('Role update failed', 'rbac', { roleId }, error as Error);
       throw error;
@@ -736,56 +689,6 @@ export class RoleManager {
       permission_id: item.permission_id,
       permission: toPermission(item.permissions),
     }));
-  }
-
-  /**
-   * Update permissions for a role
-   */
-  async updateRolePermissions(roleId: string, permissionIds: string[]): Promise<void> {
-    try {
-      const { error: deleteError } = await supabase
-        .from('role_permissions')
-        .delete()
-        .eq('role_id', roleId);
-
-      if (deleteError) {
-        throw new Error(`Failed to update role permissions: ${deleteError.message}`);
-      }
-
-      if (permissionIds.length > 0) {
-        // role_permissions table: role_id, permission_id (created_at is auto)
-        const rolePermissions = permissionIds.map(permissionId => ({
-          role_id: roleId,
-          permission_id: permissionId,
-        }));
-
-        const { error: insertError } = await supabase
-          .from('role_permissions')
-          .insert(rolePermissions);
-
-        if (insertError) {
-          throw new Error(`Failed to update role permissions: ${insertError.message}`);
-        }
-      }
-
-      await this.auditLogger.logAuditEvent(ActionType.ROLE_UPDATED, {
-        targetId: roleId,
-        targetType: 'role',
-        newValue: {
-          permissions_count: permissionIds.length,
-        },
-      });
-
-      this.clearAllCache();
-    } catch (error) {
-      logger.error(
-        'Failed to update role permissions',
-        'rbac',
-        { roleId, permissionCount: permissionIds.length },
-        error as Error
-      );
-      throw error;
-    }
   }
 
   /**

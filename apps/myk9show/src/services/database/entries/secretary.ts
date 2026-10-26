@@ -54,7 +54,11 @@ export const getPendingEntries = async (showIdFilter?: string): Promise<PendingE
     .select(
       'id, show_id, submitted_at, entry_status, check_in_status, dogs(call_name), people(first_name, last_name), classes(name), shows(name)'
     )
-    .or('entry_status.is.null,entry_status.not.in.(confirmed,waitlisted,withdrawn)');
+    .or('entry_status.is.null,entry_status.not.in.(confirmed,waitlisted,withdrawn)')
+    // MYK9-1408: soft_delete_entry leaves entry_status untouched, so a removed
+    // entry still matches the status filter; drop tombstones here like every
+    // sibling read.
+    .is('deleted_at', null);
 
   if (showIdFilter && showIdFilter !== 'all') {
     query = query.eq('show_id', showIdFilter);

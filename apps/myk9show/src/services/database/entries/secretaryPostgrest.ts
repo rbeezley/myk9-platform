@@ -159,7 +159,7 @@ export async function postgrestGetSecretaryEntriesForShow(
   });
 
   // The view carries the scored columns but NOT the pull/refund bookkeeping
-  // (`withdrawn_at`, `refund_decision`, `refund_decided_at`), which live only on
+  // (`withdrawn_at`, `refund_decision`, `refund_decided_at`, `withdrawal_reason_code`), which live only on
   // `entries` -- where they are allowlisted for `authenticated`, so reading them
   // separately is legal. This mirrors what the replicated path does; without it
   // the cold-store fallback would render every scratched entry as "no saved
@@ -175,6 +175,7 @@ export async function postgrestGetSecretaryEntriesForShow(
     entry.withdrawn_at = meta.withdrawn_at;
     entry.refund_decision = meta.refund_decision;
     entry.refund_decided_at = meta.refund_decided_at;
+    entry.withdrawal_reason_code = meta.withdrawal_reason_code;
   }
 
   // MYK9-1162: the held verdict, read apart so a database without the column fails open.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { LateEntryContact } from '../LateEntryContact';
-import { LateEntryContactContext } from '../lateEntryContactContext';
+import { LateEntryContactContext, ShowHasHappenedContext } from '../lateEntryContactContext';
 
 function renderContact(value: { name: string | null; email: string | null } | null | undefined) {
   return render(
@@ -86,5 +86,38 @@ describe('LateEntryContact (MYK9-1288)', () => {
     // The paragraph's only child is that wrapper, so a flex parent sees one item.
     expect(wrapper.parentElement!.children).toHaveLength(1);
     expect(wrapper.parentElement!.childNodes).toHaveLength(1);
+  });
+});
+
+describe('LateEntryContact on a show that has happened (MYK9-1423)', () => {
+  function renderWith(happened: boolean, lead?: string) {
+    return render(
+      <LateEntryContactContext.Provider value={{ name: 'Pat Secretary', email: 'pat@example.com' }}>
+        <ShowHasHappenedContext.Provider value={happened}>
+          <p>
+            <LateEntryContact lead={lead} />
+          </p>
+        </ShowHasHappenedContext.Provider>
+      </LateEntryContactContext.Provider>
+    );
+  }
+
+  it('past show: past-tense sentence, lead ignored, no late-entry copy, no mailto', () => {
+    const { container } = renderWith(true, 'Entries are closed for this show. ');
+
+    expect(container.querySelector('p')!.textContent).toBe('This show has already taken place.');
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(container.querySelector('a[href^="mailto:"]')).toBeNull();
+    expect(screen.queryByText(/late-entry/)).not.toBeInTheDocument();
+  });
+
+  it('closed but upcoming show: sentence and mailto unchanged', () => {
+    renderWith(false, 'Entries are closed for this show. ');
+
+    expect(screen.getByRole('link', { name: 'Pat Secretary' })).toHaveAttribute(
+      'href',
+      'mailto:pat@example.com'
+    );
+    expect(screen.getByText(/for late-entry help/)).toBeInTheDocument();
   });
 });

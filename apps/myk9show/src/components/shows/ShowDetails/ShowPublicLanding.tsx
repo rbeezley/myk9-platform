@@ -16,9 +16,10 @@ import { MailInEntryNotice } from './MailInEntryNotice';
 import { acceptsOnlineEntries, isMailInOnlyShow } from '@/features/payments/onlineEntryGate';
 import { LandingMailInContext } from '@/features/_shared/landing/landingMailIn';
 import { ShowResultsSection } from '@/features/_shared/landing/ShowResultsSection';
-import { buildShowResults } from '@/features/_shared/landing/showResults';
+import { buildShowResults, hasShowHappened } from '@/features/_shared/landing/showResults';
 import {
   LateEntryContactContext,
+  ShowHasHappenedContext,
   pickLateEntryContact,
 } from '@/features/_shared/landing/lateEntryContactContext';
 import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
@@ -239,18 +240,20 @@ export function ShowPublicLanding({
       {refreshFailed && onRetry && <StaleShowNotice onRetry={onRetry} />}
       {mailInOnly && <MailInEntryNotice />}
       <LateEntryContactContext.Provider value={lateEntryContact}>
-        <LandingMailInContext.Provider value={mailInOnly}>
-          {/* MYK9-979: a mail-in show withholds the Enter CTA through the gate
+        <ShowHasHappenedContext.Provider value={hasShowHappened(previewShow)}>
+          <LandingMailInContext.Provider value={mailInOnly}>
+            {/* MYK9-979: a mail-in show withholds the Enter CTA through the gate
             every style already reads; the context swaps the sections'
             "classes not assigned yet" copy for the mail-in note. */}
-          <StyledLanding
-            show={previewShow}
-            trial={landingTrials[0] ?? null}
-            allTrials={landingTrials}
-            hasEntryClassInventory={hasEntryClassInventory}
-            entryWindowNotOpen={entryWindowNotOpen || !onlineEntriesOpen}
-          />
-        </LandingMailInContext.Provider>
+            <StyledLanding
+              show={previewShow}
+              trial={landingTrials[0] ?? null}
+              allTrials={landingTrials}
+              hasEntryClassInventory={hasEntryClassInventory}
+              entryWindowNotOpen={entryWindowNotOpen || !onlineEntriesOpen}
+            />
+          </LandingMailInContext.Provider>
+        </ShowHasHappenedContext.Provider>
       </LateEntryContactContext.Provider>
     </>
   );

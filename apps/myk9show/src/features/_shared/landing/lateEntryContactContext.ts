@@ -29,3 +29,10 @@ export function pickLateEntryContact(
   const email = secretary.email?.trim() || null;
   return name || email ? { name, email } : null;
 }
+
+/**
+ * MYK9-1423: true once the show has run. Entries are necessarily closed by then, so the
+ * late-entry offer (and its mailto) gives way to a past-tense sentence. Provided once by
+ * ShowPublicLanding from the same `hasShowHappened` rule the roster uses.
+ */
+export const ShowHasHappenedContext = createContext(false);

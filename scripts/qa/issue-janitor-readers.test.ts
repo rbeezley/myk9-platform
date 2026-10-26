@@ -6,14 +6,14 @@ describe('parseClaim', () => {
   it('parses the full local claim', () => {
     expect(
       parseClaim(
-        'Claimed 2026-10-26 09:15 PDT by Fix the janitor (https://claude.ai/s/abc) · branch claude/myk9-1434-janitor · worktree /Users/r/wt/myk9-1434'
+        'Claimed 2026-10-26 09:15 PDT by Fix the janitor (https://claude.ai/s/abc) · branch claude/myk9-1434-janitor · worktree /wt/checkout'
       )
     ).toEqual({
       claimedAt: '2026-10-26 09:15 PDT',
       who: 'Fix the janitor',
       link: 'https://claude.ai/s/abc',
       branch: 'claude/myk9-1434-janitor',
-      worktree: '/Users/r/wt/myk9-1434',
+      worktree: '/wt/checkout',
     });
   });
 

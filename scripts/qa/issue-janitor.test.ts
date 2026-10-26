@@ -69,7 +69,7 @@ describe('planJanitor In Progress', () => {
     expect(p?.action).toBe('comment-stale-pr');
     expect(p?.comment).toContain('50 h');
     expect(p?.comment).toContain('session-104');
-    expect(p?.comment).toContain('/Users/r/wt/myk9-104');
+    expect(p?.comment).toContain('/wt/checkout');
     expect(p?.writes.map(w => w.tool)).toEqual(['save_comment']);
   });
 

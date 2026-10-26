@@ -164,7 +164,7 @@ Re-run the MYK9-898 observation (or its successor) on the new home: before-the-s
 | 4     | New: delete Show Day and Setup tabs with redirects (absorbs **MYK9-944**, which closes) |
 | 5     | Retarget or follow **MYK9-898**                                                         |
 
-MYK9-948 stays In Progress until its offline-reload criterion is met (Phase 2 covers it if not done sooner after the next deploy).
+MYK9-948 stays open (In Review once merged) until its offline-reload criterion is met (Phase 2 covers it if not done sooner after the next deploy).
 
 ## Testing (every phase)
 

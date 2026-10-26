@@ -109,12 +109,12 @@ source supabase/.env 2>/dev/null && supabase db push --password "$SUPABASE_DB_PA
 
 ### 6. Linear Sync
 
-Verify that any Linear issues (team **MyK9-platform**) you closed or finished this session are actually moved to Done. Reconcile against Linear — issues completed in work but still Open, or issues moved to Done whose work did not land.
+Fresh-read the full Linear issues (team **MyK9-platform**) worked this session and reconcile them through `docs/agents/issue-tracker.md`'s disposition/evidence contract. Check the actual merge and every required acceptance gate before accepting a closed state. Preserve pending proof and intervention labels; cleanup does not itself satisfy them.
 
 Also scan for staleness:
 
-- Issues still Open whose referenced PRs or files already exist (done but not updated)
-- Done issues that reference "Deploy: `supabase db push`" -- cross-check with migration push status
+- Open issues whose referenced PRs or files exist: investigate their merge and outstanding criteria; existence alone does not establish completion.
+- Done issues with unrecorded verification or shared-system evidence: apply the same contract and record the exact action still owed. Do not infer deployment from a merge or run an unapproved shared-system action.
 
 ### 7. Stale Branches
 
@@ -176,7 +176,7 @@ Worktrees:     2 stale worktrees cleaned up
 Dev servers:   1 orphan killed (PID 83484, was bound to :5173 from removed worktree zealous-carson-15859a)
 Git:           Working tree clean, all pushed
 Migrations:    dry-run clean — remote up to date
-Linear:        3 issues moved to Done, all consistent
+Linear:        3 merged issues reconciled (2 Done, 1 In Review: verify:browser owed)
 Branches:      1 merged branch deleted (worktree-agent-abc123)
 Edge Functions: deploy state verified — all current
 

@@ -253,15 +253,16 @@ gh pr view $PR_NUMBER --json state,mergedAt
 
 Do not proceed until `state == "MERGED"`.
 
-**Path B — the watcher exited 3 (timeout — NOT a verdict), or you do not want to wait:** arm
-auto-merge (only after Step 4 has passed) and return immediately. GitHub will squash-merge when required checks pass.
+**Path B — the watcher exited 3 (timeout — NOT a verdict):** after Step 4 has passed,
+auto-merge may be armed. GitHub will squash-merge when required checks pass.
 
 ```bash
 gh pr merge $PR_NUMBER --squash --auto
 gh pr view $PR_NUMBER --json autoMergeRequest
 ```
 
-Then tell the user: "Auto-merge armed — GitHub will merge when required checks pass. Run `/cleanup` after it merges." Leave the Linear issue **In Progress** and **STOP — do not proceed to Steps 6–7.** Do not poll; use `gh pr checks $PR_NUMBER --watch` only when the user asks to wait.
+Then follow the **Asynchronous merge protocol** in `docs/agents/issue-tracker.md`, including its
+ownership and approved-handoff requirements. Proceed to Steps 6–7 only once merge is confirmed.
 
 ---
 
@@ -271,7 +272,7 @@ Do this **before** Step 7: once the worktree is removed the harness keeps its CW
 
 1. Confirm the merge: `gh pr view $PR_NUMBER --json state,mergeCommit`.
 2. A merge is not a deploy. The frontend goes live only on the next **Deploy myK9Show** run (`gh workflow run deploy-myk9show.yml`, only when the user asks); its summary names the deployed commit.
-3. Move the Linear issue to Done only after reading its **full** description with `get_issue` (list results truncate acceptance criteria) and checking every criterion. If a criterion needs production evidence and no deploy run has shipped the merge commit yet, leave the issue **In Progress**, say so, and tell the user a deploy is pending.
+3. Read the **full** issue with `get_issue` and check every criterion. Apply the single disposition/evidence contract in `docs/agents/issue-tracker.md`; do not accept automatic Done while acceptance or production proof remains owed. Record the exact next action and pending evidence rather than duplicating state/label mappings here. If a deploy or production evidence remains owed, explicitly tell the user what is pending and that merge alone did not make the fix live.
 
 ---
 
@@ -310,7 +311,7 @@ git worktree remove "<worktree path from Step 0>" --force 2>/dev/null || true
 - NEVER remove the worktree before merge is confirmed, main is updated, AND close-out (Step 6) is done
 - Any push that changes the head after the gate — including a merge from `main` — re-runs the gate
 - Worktree removal is ALWAYS the final command
-- If checks are pending, arm `gh pr merge --squash --auto` instead of stopping with manual instructions; never poll unless asked
+- For pending checks, use Path B: arm auto-merge, then watch or stop as the Asynchronous merge protocol says.
 - NEVER treat "no pending checks" as green. Use `scripts/qa/watch-pr-checks.sh` — it pins the SHA, waits for the ruleset's required contexts, and fails closed on unknown conclusions.
 - NEVER collapse a non-required failure into a blocking one, or into silence. Exit 5 is that case, and it carries two required confirmations.
 - NEVER accept a merged PR's `headRefName` as proof a branch merged. Compare the tip SHA against its `headRefOid`.

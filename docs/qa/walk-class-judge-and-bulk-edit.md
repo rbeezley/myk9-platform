@@ -1,6 +1,6 @@
 # Browser walks: class judge picker, Select classes bulk edit, offline judge writes
 
-Evidence gates for **MYK9-1323** (class panel judge picker), **MYK9-1324** (Select classes on the schedule, bulk Assign judge) and **MYK9-1327** (judge written onto the local class row, survives an offline reload). All three merged and are live from `e26b5b230` (Deploy myK9Show run 39878806982). Each issue stays In Progress until its walk is recorded on it.
+Evidence gates for **MYK9-1323** (class panel judge picker), **MYK9-1324** (Select classes on the schedule, bulk Assign judge) and **MYK9-1327** (judge written onto the local class row, survives an offline reload). All three merged and are live from `e26b5b230` (Deploy myK9Show run 39878806982). Each issue stays open (In Review once merged) until its walk is recorded on it.
 
 ## Before you start
 

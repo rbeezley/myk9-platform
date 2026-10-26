@@ -38,7 +38,7 @@ The root agent MUST NOT delegate proposal/design judgment.
 
 Dispatch only independent, bounded batches.
 
-Before each batch, verify then weigh: if the batch fixes a reported defect, reproduce it on the current tree first and check the claim against archived Linear issues (`includeArchived: true`) and `// INTENT:` comments; a claim that does not reproduce, or reverses a Done decision, is held for the owner, not built. Record in the prompt the fix chosen and the alternative rejected (delete or link instead of a new surface, data instead of UI, copy instead of code, root cause instead of symptom); the task text is the contract, its suggested fix is not.
+Before each batch, verify then weigh: if the batch fixes a reported defect, reproduce it on the current tree first and check the claim against archived Linear issues (`includeArchived: true`) and `// INTENT:` comments. Route a rejected premise, every other hold and closeout through `docs/agents/issue-tracker.md`'s shared lifecycle/disposition contract, including its labels, state, owner and unblock record; do not build a disputed reversal or leave it eligible for automatic re-selection. Record in the prompt the fix chosen and the alternative rejected (delete or link instead of a new surface, data instead of UI, copy instead of code, root cause instead of symptom); the task text is the contract, its suggested fix is not.
 
 Use `spawn_agent({ task_name, message, fork_turns: "all" })`. Each prompt includes:
 

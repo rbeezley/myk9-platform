@@ -394,14 +394,36 @@ echo "required checks: $(printf '%s' "$REQUIRED" | jq -r 'join(", ")')"
 # unrelated PR against the wrong requirements.
 pr_head() { gh api "repos/$REPO/pulls/$PR" --jq '.head.sha' 2>/dev/null; }
 
-# fetch_rollup <sha>: that commit's checks, in the shape verdict() reads.
-# --paginate because a busy head carries more than one page of check runs;
-# each --jq keeps only the fields JQ_REST_ROLLUP reads.
+# gh_pages <path> <row filter>: every row of a REST list as one JSON array.
+# Pages by hand: `gh api --paginate` follows GitHub's `repositories/{id}/...`
+# next links, which the cloud session proxy 403s (MYK9-1425). A short page ends
+# the list; a list still full after PAGE_CAP pages fails closed, never truncated.
+# 50 pages is 5,000 checks on one head, far past any real board.
+PAGE_SIZE=100
+PAGE_CAP=50
+gh_pages() {
+  local sep='?' page=1 rows='' body count
+  case "$1" in *\?*) sep='&' ;; esac
+  while [ "$page" -le "$PAGE_CAP" ]; do
+    body=$(gh api "$1${sep}per_page=$PAGE_SIZE&page=$page" --jq "[$2]") || return 1
+    count=$(printf '%s' "$body" | jq length) || return 1
+    rows+="$body"$'\n'
+    if [ "$count" -lt "$PAGE_SIZE" ]; then
+      printf '%s' "$rows" | jq -sc 'add'
+      return
+    fi
+    page=$((page + 1))
+  done
+  return 1
+}
+
+# fetch_rollup <sha>: that commit's checks, in the shape verdict() reads; each
+# filter keeps only the fields JQ_REST_ROLLUP reads.
 fetch_rollup() {
   local checks statuses runs
-  checks=$(gh api --paginate "repos/$REPO/commits/$1/check-runs?filter=all&per_page=100" --jq '.check_runs[] | {name, status, conclusion, started_at, details_url, html_url}' | jq -sc .) || return 1
-  statuses=$(gh api --paginate "repos/$REPO/commits/$1/status?per_page=100" --jq '.statuses[] | {context, state, created_at}' | jq -sc .) || return 1
-  runs=$(gh api --paginate "repos/$REPO/actions/runs?head_sha=$1&per_page=100" --jq '.workflow_runs[] | {id, name}' | jq -sc .) || return 1
+  checks=$(gh_pages "repos/$REPO/commits/$1/check-runs?filter=all" '.check_runs[] | {name, status, conclusion, started_at, details_url, html_url}') || return 1
+  statuses=$(gh_pages "repos/$REPO/commits/$1/status" '.statuses[] | {context, state, created_at}') || return 1
+  runs=$(gh_pages "repos/$REPO/actions/runs?head_sha=$1" '.workflow_runs[] | {id, name}') || return 1
   rest_rollup "$checks" "$statuses" "$runs"
 }
 

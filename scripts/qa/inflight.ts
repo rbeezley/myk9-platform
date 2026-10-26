@@ -8,8 +8,8 @@
  * skipped. This makes it a program the commit and ship-pr skills run.
  *
  * Sources of in-flight change:
- *   - open pull requests (files paged from `GET /repos/<slug>/pulls/<n>/files`,
- *     via `gh api --paginate`)
+ *   - open pull requests (files paged by hand from
+ *     `GET /repos/<slug>/pulls/<n>/files`, see gh-pages.ts)
  *   - other git worktrees on this machine: their branch's commits past
  *     origin/main PLUS their uncommitted and untracked files — work that has
  *     no PR yet is exactly the work a PR list cannot show
@@ -30,6 +30,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { ghPages as ghRestPages } from './gh-pages.ts';
 import {
   check as checkPrimaryCheckout,
   render as renderPrimaryCheckout,
@@ -375,27 +376,18 @@ export function repoSlug(): string {
   return slugCache;
 }
 
-const PAGE_SIZE = 100;
-const MAX_PAGES = 500;
-
 /**
- * Every row of a REST list, paged by hand with `&page=N`. Not `gh api
- * --paginate`: GitHub's next-page links use `repositories/{id}/…` paths, which
- * the Claude Code cloud proxy rejects with a 403, so any list past one page
- * failed there. A short page ends the list; an absurd page count throws rather
- * than reporting a truncated inventory as complete.
+ * Every row of a REST list, paged by hand (see gh-pages.ts for why not
+ * `--paginate`). Every failure, the page cap included, is an InflightQueryError,
+ * so it reaches the exit-2 handler rather than reading as an empty inventory.
  */
 function ghPages<T>(path: string, what: string): T[] {
-  const rows: T[] = [];
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const batch = ghJson<T[]>(
-      ['api', `${path}${path.includes('?') ? '&' : '?'}per_page=${PAGE_SIZE}&page=${page}`],
-      what
-    );
-    rows.push(...batch);
-    if (batch.length < PAGE_SIZE) return rows;
+  try {
+    return ghRestPages(args => ghJson<T[]>(args, what), path);
+  } catch (error) {
+    if (error instanceof InflightQueryError) throw error;
+    throw new InflightQueryError(`could not list ${what}: ${(error as Error).message}`);
   }
-  throw new InflightQueryError(`could not list ${what}: more than ${MAX_PAGES} pages`);
 }
 
 /**

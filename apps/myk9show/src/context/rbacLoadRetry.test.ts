@@ -19,10 +19,11 @@ describe('rbacRetryDelayMs (MYK9-1374)', () => {
   });
 
   it('retries a read-deadline timeout once, after a long pause, however it surfaces', () => {
-    const asDomException = readDeadlineReason();
-    const asRethrow = new Error(`TimeoutError: ${asDomException.message}`);
-    const asCause = new Error('Supabase query failed', { cause: asDomException });
-    for (const error of [asDomException, asRethrow, asCause]) {
+    const asDeadlineError = readDeadlineReason();
+    const asDomException = new DOMException(asDeadlineError.message, 'TimeoutError');
+    const asRethrow = new Error(`TimeoutError: ${asDeadlineError.message}`);
+    const asCause = new Error('Supabase query failed', { cause: asDeadlineError });
+    for (const error of [asDeadlineError, asDomException, asRethrow, asCause]) {
       expect(rbacRetryDelayMs(error, 0, true)).toBe(RBAC_DEADLINE_RETRY_DELAY_MS);
       expect(rbacRetryDelayMs(error, RBAC_DEADLINE_RETRIES, true)).toBeNull();
     }

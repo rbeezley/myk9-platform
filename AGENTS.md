@@ -267,6 +267,13 @@ Save plans to `docs/plan-<topic>.md`, never chat-only. Follow existing plans whe
 
 <!-- shared-rules:end -->
 
+## Division of labour (Codex)
+
+**Owner decision — 2026-10-26.** Claude Code plans and implements; Codex reviews and audits.
+
+- Reviews of `claude/` PRs run on this Mac with `pnpm qa:codex-review --post`. Audits and the commit review file findings in Linear.
+- Codex implements only when the owner names a specific `MYK9-*` issue and asks for a fix. Otherwise, a finding goes to Linear for a Claude Code session or the Claude Code `orchestrate` skill's overnight run to pick up.
+
 ## Worktrees — mandatory start check (Codex)
 
 Before any code edit, file write, formatter, generated snapshot, commit, PR, or implementation work:

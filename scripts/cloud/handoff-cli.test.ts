@@ -31,10 +31,20 @@ function fakeGh(options: {
       writes.push({ args, input });
       return '{}';
     }
-    const path = args.find(arg => arg.startsWith('repos/')) ?? '';
+    // The cloud proxy 403s `--paginate`: its next links use `repositories/{id}/…`
+    // paths (MYK9-1425). Every list must be paged by hand.
+    if (args.includes('--paginate')) {
+      throw new GhError('Numeric-ID repository paths are not supported (HTTP 403)', 403);
+    }
+    const url = args.find(arg => arg.startsWith('repos/')) ?? '';
+    const path = url.split('?')[0]!;
+    // GitHub's own paging: 30 rows unless `per_page` says otherwise.
+    const size = Number(/[?&]per_page=(\d+)/.exec(url)?.[1] ?? 30);
+    const page = Number(/[?&]page=(\d+)/.exec(url)?.[1] ?? 1);
+    const slice = <T>(rows: T[]) => rows.slice((page - 1) * size, page * size);
     const failing = /actions\/runs\/(\d+)/.exec(path)?.[1];
     if (failing && options.failingRuns?.[failing]) throw options.failingRuns[failing];
-    if (path.endsWith('/comments')) return JSON.stringify([options.comments ?? []]);
+    if (path.endsWith('/comments')) return JSON.stringify(slice(options.comments ?? []));
     if (/\/pulls\/\d+$/.test(path)) {
       return JSON.stringify(
         options.pull ?? { state: 'open', merged_at: null, head: { sha: HEAD } }
@@ -42,14 +52,8 @@ function fakeGh(options: {
     }
     const artifacts = /actions\/runs\/(\d+)\/artifacts$/.exec(path);
     if (artifacts) {
-      // GitHub's real page size: one page unless gh is asked to paginate.
       const all = options.artifacts?.[artifacts[1]!] ?? [];
-      const pages: { artifacts: RawArtifact[] }[] = [];
-      for (let at = 0; at === 0 || at < all.length; at += 30) {
-        pages.push({ artifacts: all.slice(at, at + 30) });
-      }
-      if (!args.includes('--paginate')) return JSON.stringify(pages[0]);
-      return JSON.stringify(args.includes('--slurp') ? pages : pages[0]);
+      return JSON.stringify({ total_count: all.length, artifacts: slice(all) });
     }
     const run = /actions\/runs\/(\d+)$/.exec(path);
     if (run) return JSON.stringify({ status: options.runs?.[run[1]!] ?? 'completed' });
@@ -78,6 +82,19 @@ describe('readHandoff', () => {
       rejected: 1,
     });
     expect(writes).toEqual([]);
+  });
+
+  it('reads ledger comments past the first page', () => {
+    const events = chain({}, { phase: 'implemented', nextAction: 'mark ready for review' });
+    const chatter = Array.from({ length: 150 }, (_, index) => ({
+      body: `comment ${index}`,
+      author_association: 'NONE',
+    }));
+    const { gh } = fakeGh({ comments: [...chatter, ...events.map(trusted)] });
+    expect(readHandoff(gh, 3300)).toMatchObject({
+      decision: 'continue',
+      nextAction: 'mark ready for review',
+    });
   });
 
   it('reads artifact expiry and the owning Actions run from the API', () => {
@@ -205,7 +222,7 @@ describe('readHandoff', () => {
     });
 
     it('finds the exact artifact past the first page of the run', () => {
-      const others = Array.from({ length: 30 }, (_, index) => ({
+      const others = Array.from({ length: 150 }, (_, index) => ({
         ...exact,
         name: `log-${index}`,
         digest: `sha256:other-${index}`,

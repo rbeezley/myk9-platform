@@ -18,6 +18,8 @@
 #        MYK9_CLOUD=1    explicit cloud marker for providers with none of their own
 set -euo pipefail
 
+ORIGINAL_PATH="$PATH"
+
 FORCE=0
 ROLE=implementer
 HARNESS=""
@@ -55,10 +57,8 @@ fi
 
 ROOT="$(git rev-parse --show-toplevel)"
 PINS="$ROOT/scripts/cloud/tool-versions.json"
-# shellcheck source=scripts/cloud/environment.sh
-source "$(dirname "${BASH_SOURCE[0]}")/environment.sh"
-myk9_cloud_tools
-TOOLS_DIR="$MYK9_TOOLS_DIR"
+COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir)"
+TOOLS_DIR="${MYK9_TOOLS_DIR:-$(dirname "$COMMON_DIR")/.cloud-tools/bin}"
 
 pin() { # pin <tool> <field>
   node -e 'const p = require(process.argv[1])[process.argv[2]]; process.stdout.write(String(p[process.argv[3]] ?? ""))' \
@@ -131,8 +131,11 @@ install_tool() { # install_tool <tool>: download, verify, unpack and place the p
   rm -rf "$work"
 }
 
-ORIGINAL_PATH="$PATH"
-export PATH="$TOOLS_DIR:$PATH"
+case ":$PATH:" in
+  *":$TOOLS_DIR:"*) ;;
+  *) export PATH="$TOOLS_DIR:$PATH" ;;
+esac
+export MYK9_TOOLS_DIR="$TOOLS_DIR"
 require_runtime node
 require_runtime pnpm
 for tool in gh deno shellcheck; do install_tool "$tool"; done

@@ -5,7 +5,7 @@
 set -euo pipefail
 
 if [ "$#" -eq 0 ]; then
-  echo "usage: MYK9_CLOUD=1 bash scripts/cloud/run.sh <command> [args...]" >&2
+  echo "usage: MYK9_CLOUD=1 MYK9_CLOUD_HOME=.cloud-tools bash scripts/cloud/run.sh <command> [args...]" >&2
   exit 2
 fi
 if [ "$(uname -s)" != "Linux" ]; then
@@ -18,12 +18,34 @@ if [ "${MYK9_CLOUD:-}" != "1" ] && [ "${CLAUDE_CODE_REMOTE:-}" != "true" ] &&
   exit 3
 fi
 
-# shellcheck source=scripts/cloud/environment.sh
-source "$(dirname "${BASH_SOURCE[0]}")/environment.sh"
-myk9_cloud_tools
-myk9_cloud_runtime
-export ASTRO_TELEMETRY_DISABLED="${ASTRO_TELEMETRY_DISABLED:-1}"
+if [ -z "${MYK9_CLOUD_HOME:-}" ]; then
+  echo "cloud run: MYK9_CLOUD_HOME is required (e.g. .cloud-tools relative to the primary checkout)." >&2
+  exit 2
+fi
+# Use the same absolute primary-checkout lookup as bootstrap-worktree.sh.
+COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir)"
+case "$MYK9_CLOUD_HOME" in
+  /*) ;;
+  *) MYK9_CLOUD_HOME="$(dirname "$COMMON_DIR")/$MYK9_CLOUD_HOME" ;;
+esac
+export MYK9_CLOUD_HOME
+export MYK9_TOOLS_DIR="$MYK9_CLOUD_HOME/bin"
+export COREPACK_HOME="$MYK9_CLOUD_HOME/corepack"
+export PNPM_HOME="$MYK9_CLOUD_HOME/pnpm"
+export DENO_DIR="$MYK9_CLOUD_HOME/deno"
+export ASTRO_TELEMETRY_DISABLED=1
 export MYK9_CLOUD=1
+export PATH="$MYK9_TOOLS_DIR:$PATH"
+
+# Initialize only the fixed destinations. Permission validation never selects a
+# different path and does not create/delete temporary probe files.
+for key in MYK9_TOOLS_DIR COREPACK_HOME PNPM_HOME DENO_DIR; do
+  directory="${!key}"
+  if ! mkdir -p "$directory" || [ ! -w "$directory" ] || [ ! -x "$directory" ]; then
+    echo "cloud run: cannot use $key; fixed directory is not writable/searchable. Fix MYK9_CLOUD_HOME; no fallback." >&2
+    exit 1
+  fi
+done
 
 # Preserve provider TLS/CA flags and any explicit heap choice.
 case " ${NODE_OPTIONS:-} " in

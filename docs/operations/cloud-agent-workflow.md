@@ -24,13 +24,13 @@ Open PRs as **drafts** while iterating and mark them ready for review when they 
 
 ## Cloud setup
 
-Point the provider's setup step at the one script. Tools land in `MYK9_TOOLS_DIR`, default `<primary-checkout>/.cloud-tools/bin` (gitignored); use a directory already on `PATH` so later shells find them.
+Point the provider's setup step at the one script. Wrapped commands require `MYK9_CLOUD_HOME` and use fixed runtime directories under it. `.cloud-tools` is relative to the absolute primary checkout; the wrapper restores PATH for every command. Direct setup uses the same primary-checkout default and prints a PATH hint when needed. See [the command contract](../../scripts/cloud/README.md).
 
-| Provider          | Setup command                                                                | Status                                                                                                                                                                                                                                  |
-| ----------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Claude Code cloud | `MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh`                  | **Verified** by the Stage 1 proof rerun on 2026-10-25 (branch @ `45a6cbcc9`, `NODE_OPTIONS` heap set): setup, preflight, typecheck, lint, test file and deno check all as expected. See [Stage 1 proof results](#stage-1-proof-results) |
-| Codex cloud       | `MYK9_CLOUD=1 bash scripts/cloud/run.sh bash scripts/cloud/setup.sh`         | **Runtime checks passed through the wrapper on 2026-10-26; Deno remains blocked by JSR network policy.** See the current and historical receipts under [Codex cloud](#codex-cloud).                                                     |
-| GitHub Actions    | `bash scripts/cloud/setup.sh --role=<role>` (`GITHUB_ACTIONS` is the marker) | Used from Stage 2                                                                                                                                                                                                                       |
+| Provider          | Setup command                                                                                     | Status                                                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Claude Code cloud | `MYK9_CLOUD=1 MYK9_CLOUD_HOME=.cloud-tools bash scripts/cloud/run.sh bash scripts/cloud/setup.sh` | Current Option B command. Historical Claude proof used the earlier setup command; see dated receipts below.              |
+| Codex cloud       | `MYK9_CLOUD=1 MYK9_CLOUD_HOME=.cloud-tools bash scripts/cloud/run.sh bash scripts/cloud/setup.sh` | Owner-selected Option B, fixed paths. JSR remains blocked while the editor is unavailable; see the latest Codex receipt. |
+| GitHub Actions    | `bash scripts/cloud/setup.sh --role=<role>` (`GITHUB_ACTIONS` is the marker)                      | Used from Stage 2                                                                                                        |
 
 The script:
 
@@ -63,7 +63,7 @@ At [claude.ai/code](https://claude.ai/code), open the environment selector (the 
 Choose **Work in > Cloud > Select environment > Create environment**, or **Settings > Codex Cloud > Environments > Create environment**:
 
 - **Repositories**: `rbeezley/myk9-platform`.
-- **Install script**: Codex writes this while it prepares the environment. Tell it to use exactly `MYK9_CLOUD=1 bash scripts/cloud/run.sh bash scripts/cloud/setup.sh`. Use the wrapper for every task command too; remove the old `/usr/local/bin` tools override. See [command instructions](../../scripts/cloud/README.md).
+- **Install script**: Codex writes this while it prepares the environment. Tell it to use exactly `MYK9_CLOUD=1 MYK9_CLOUD_HOME=.cloud-tools bash scripts/cloud/run.sh bash scripts/cloud/setup.sh`. Use the wrapper for every task command too; remove the old `/usr/local/bin` tools override. See [command instructions](../../scripts/cloud/README.md).
 - **Environment variable**: `NODE_OPTIONS=--max-old-space-size=6144`.
 - **Network**: turn on **Allow Codex to access internet**, choose **Package managers**, and add `github.com`, `api.github.com`, `objects.githubusercontent.com` and `release-assets.githubusercontent.com` and `jsr.io` under **Additional allowed domains**. Request shell network permission for each network/IPC command (`with_additional_permissions`, `additional_permissions.network.enabled: true`); leave proxy and CA settings intact.
 - **Network secret** (for the Linear read): `LINEAR_API_KEY` for `api.linear.app`, so the task sees only a placeholder.
@@ -78,8 +78,8 @@ Paste into a fresh session in each environment, using the `codex/` prefix for th
 ```text
 Stage 1 cloud proof for MYK9-1397. Report any missing tool or permission as a BLOCKER, never as a pass.
 1. Branch claude/myk9-1397-cloud-proof from main.
-2. Run: MYK9_CLOUD=1 bash scripts/cloud/run.sh bash scripts/cloud/setup.sh (record output and actual exit; finish setup before checks)
-   Prefix every later command below with MYK9_CLOUD=1 bash scripts/cloud/run.sh.
+2. Run: MYK9_CLOUD=1 MYK9_CLOUD_HOME=.cloud-tools bash scripts/cloud/run.sh bash scripts/cloud/setup.sh (record output and actual exit; finish setup before checks)
+   Prefix every later command below with MYK9_CLOUD=1 MYK9_CLOUD_HOME=.cloud-tools bash scripts/cloud/run.sh.
 3. Run: pnpm cloud:preflight --role=implementer --json
 4. Run: pnpm typecheck; pnpm lint; cd apps/myk9show && pnpm vitest run scripts/verify-artifact-secrets.test.ts --sequence.shuffle
 5. Run: deno check --node-modules-dir=none --no-lock supabase/functions/push-trigger-class-status/index.ts supabase/functions/push-trigger-run-proximity/index.ts
@@ -332,6 +332,78 @@ identical to the pushed candidate checked above. Final docs formatting, whitespa
 and existing publication scanner all pass before publication. The owner still
 owes independent Claude re-review on the final head; no clean gate is inferred
 from these implementer checks.
+
+##### Owner-selected Option B, 2026-10-26
+
+Option A could not be tested: the owner twice received **Couldn't start editing
+environment**, including after refreshing Settings → Codex Cloud. This does not
+establish whether published variables persist. The owner selected Option B after
+the six distinct re-review findings on `ce47f93543826f4c3c820e62595c4ff980e31d79`.
+This is a convergence restructure, not another fallback-detection patch.
+
+`environment.sh` and its detection/fallback logic are deleted. run.sh requires
+`MYK9_CLOUD_HOME`; relative values are anchored once to the primary checkout
+using `git rev-parse --path-format=absolute --git-common-dir`, as bootstrap does.
+It exports only fixed tools/Corepack/pnpm/Deno locations under that root,
+initializes those destinations, and fails before the child if directory creation
+or write/search permission validation fails. No temporary write probes or fallback
+selection remain. Runtime subdirectory overrides are deliberately replaced;
+XDG configuration and browser-cache roots stay unchanged. This intentionally
+selects the fixed runtime caches, rather than preserving arbitrary image caches.
+Setup captures ORIGINAL_PATH before prepending anything, uses the same absolute
+Git lookup, avoids duplicate PATH entries, and its standalone PATH hint is tested.
+The existing task-scoped Turbo allowances still match the four needed settings;
+no new passthrough or loose Turbo mode was added. Both provider rows and README
+now use the required-cloud-home wrapper command. Old dated command receipts below
+remain historical evidence; no current provider instruction selects privileged
+system tool directories.
+
+The fixtures now canonicalize tmpdir with realpathSync, including local-compat,
+and exercise a symlinked caller. The blocked-directory test uses a regular file
+instead of chmod 0555, which makes mkdir fail for root too. The real Turbo test
+still executes run.sh, with a 10-second child bound and explicit 20-second test
+limit. Updated assertions failed on the old implementation (**EXIT=1**, 6 failed /
+10 passed across the two focused files) before the rewrite. No module-scope mutable
+state was added. All touched cloud tests subsequently passed shuffled.
+
+This rerun used the same attached published version
+`cecfgver_6ade570b62648197b0587885e71cdaac`, Linux x86_64; Node 24.19.0,
+pnpm 9.15.9, git 2.52.0, gh 2.89.0, Deno 2.1.4, ShellCheck 0.10.0, jq 1.7,
+Turbo 2.11.8 and Vitest 5.0.0. It is not a fresh-provider launch or a Mac run.
+There is no Mac executor attached: **actual macOS suite execution remains
+unverified**; Linux fixtures cover canonical/symlink paths and Darwin refusal.
+No tool pins, edge source, credentials or local .env were changed/copied.
+
+Every proof command has prefix
+`MYK9_CLOUD=1 MYK9_CLOUD_HOME=.cloud-tools bash scripts/cloud/run.sh` and shell
+network/IPC permission enabled. Each runner wrote its log in this worktree's
+.logs, captured the real exit immediately and printed EXIT before reading output.
+Setup completed sequentially before proof checks. Exact final commit identity is
+recorded on MYK9-1397 and PR #3273; this proof started from ce47f9354.
+
+| Log name              | Command after wrapper                                                                                                                                       | Result                                                                                                                                                                           |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `option-b-setup`      | `bash scripts/cloud/setup.sh`                                                                                                                               | **EXIT=0**, frozen install, 12 successful package builds, fresh dist, embedded preflight ready.                                                                                  |
+| `b-preflight`         | `pnpm cloud:preflight --role=implementer --json`                                                                                                            | **EXIT=0**, `missing: []`.                                                                                                                                                       |
+| `b-typecheck`         | `pnpm typecheck`                                                                                                                                            | **EXIT=0**, normal strict Turbo 26/26 cached tasks; script ratchets executed with no new diagnostics. Cached task output is not an uncached rebuild claim.                       |
+| `b-lint`              | `pnpm lint`                                                                                                                                                 | **EXIT=0**, 14/14 cached tasks, 0 errors / 43 warnings.                                                                                                                          |
+| `b-cloud-final`       | `pnpm exec vitest run --project=root scripts/cloud --sequence.shuffle`                                                                                      | **EXIT=0**, 8 files / 140 tests, seed `1793040158525`. Earlier Option B cloud passes: 139 tests before the added symlink regression; then 140 tests, seed `1793040086312`.       |
+| `b-scanner`           | `bash -c 'cd apps/myk9show && pnpm vitest run scripts/verify-artifact-secrets.test.ts --sequence.shuffle'`                                                  | **EXIT=0**, 6/6 tests, seed `1793040085953`.                                                                                                                                     |
+| `b-skills`            | `bash -c 'cd apps/myk9show && pnpm vitest run src/test/ci/skillTrees.test.ts --sequence.shuffle'`                                                           | **EXIT=0**, 19/19 tests, seed `1793040086897`.                                                                                                                                   |
+| `b-deno-combined`     | `deno check --node-modules-dir=none --no-lock supabase/functions/push-trigger-class-status/index.ts supabase/functions/push-trigger-run-proximity/index.ts` | **BLOCKER, EXIT=1**: jsr.io manifest proxy tunnel denied before type validation.                                                                                                 |
+| `b-deno-proximity`    | `deno check --node-modules-dir=none --no-lock supabase/functions/push-trigger-run-proximity/index.ts`                                                       | **BLOCKER, EXIT=1**: same denial. Known MYK9-1400 diagnostics were not reached.                                                                                                  |
+| `b-app-full`          | `bash -c 'cd apps/myk9show && pnpm vitest run --sequence.shuffle'` (equivalent supervised cwd/argv)                                                         | **BLOCKER: incomplete, EXIT=130**, seed `1793040125953`, interrupted after >30 seconds with no output progress beyond its banner. No test verdict/counts; not retried in a loop. |
+| `option-b-shellcheck` | `shellcheck scripts/cloud/run.sh scripts/cloud/setup.sh`                                                                                                    | **EXIT=0**.                                                                                                                                                                      |
+| `b-ratchet`           | `pnpm qa:code-quality-ratchet`                                                                                                                              | **EXIT=0**, no metric regression.                                                                                                                                                |
+| `b-inflight-final`    | `pnpm qa:inflight scripts/cloud docs/operations/cloud-agent-workflow.md`                                                                                    | **EXIT=0**, owned PR excluded, no competing overlap.                                                                                                                             |
+
+Final formatting, whitespace and existing secret-scanner results are recorded
+with the publication on MYK9-1397. The complete proof ledger stays here; README
+contains commands only. JSR remains a named BLOCKER while the environment editor
+cannot publish the allowlist fix. Mac execution and the broad app verdict remain
+explicit verification gaps. The PR is handed back for independent Claude
+re-review, not a clean review gate, merge, deployment or completed Stage 1
+acceptance. MYK9-1397 stays In Progress.
 
 ## Preflight
 

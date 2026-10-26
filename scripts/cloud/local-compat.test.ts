@@ -13,6 +13,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
   existsSync,
@@ -40,7 +41,7 @@ function versionStub(name: string, output: string) {
 }
 
 beforeEach(() => {
-  const base = mkdtempSync(join(tmpdir(), 'cloud setup '));
+  const base = mkdtempSync(join(realpathSync(tmpdir()), 'cloud setup '));
   const repo = join(base, 'AI Projects', 'myk9-platform');
   const home = join(base, 'home');
   const stubs = join(base, 'stubs');
@@ -121,6 +122,7 @@ describe('scripts/cloud/setup.sh in a cloud session', () => {
       'pnpm run cloud:preflight --role=reviewer',
     ]);
     expect(readdirSync(sandbox.home)).toEqual([]);
+    expect(result.stdout).toContain('add the installed tools to PATH');
   });
 
   it('direct setup and wrapped tasks use the same tools in a linked worktree', () => {
@@ -175,7 +177,7 @@ describe('scripts/cloud/setup.sh in a cloud session', () => {
       PATH: `${sandbox.stubs}:${dirname(process.execPath)}:/usr/bin:/bin`,
       HOME: sandbox.home,
       CLAUDE_CODE_REMOTE: 'true',
-      MYK9_CLOUD_HOME: undefined,
+      MYK9_CLOUD_HOME: '.cloud-tools',
       MYK9_TOOLS_DIR: undefined,
       CALL_LOG: sandbox.callLog,
       TOOLS_RECEIPT: receipt,

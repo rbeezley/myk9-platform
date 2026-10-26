@@ -6,6 +6,8 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
+  symlinkSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -36,7 +38,7 @@ type Sandbox = { base: string; repo: string; home: string; env: NodeJS.ProcessEn
 
 const it = test.extend<{ sandbox: Sandbox }>({
   sandbox: async ({ task }, use) => {
-    const base = mkdtempSync(join(tmpdir(), `cloud-run-${task.id}-`));
+    const base = mkdtempSync(join(realpathSync(tmpdir()), `cloud-run-${task.id}-`));
     const repo = join(base, 'AI Projects', 'repo');
     const home = join(base, 'home');
     const stubs = join(base, 'stubs');
@@ -91,7 +93,7 @@ function run(
 ) {
   return spawnSync('bash', [RUN, ...args], {
     cwd,
-    env: { ...sandbox.env, MYK9_CLOUD: '1', ...env },
+    env: { ...sandbox.env, MYK9_CLOUD: '1', MYK9_CLOUD_HOME: '.cloud-tools', ...env },
     encoding: 'utf8',
     timeout: 10_000,
   });
@@ -115,70 +117,38 @@ it('requires a cloud marker and a command before writing anything', ({ sandbox }
   expect(readdirSync(sandbox.home)).toEqual([]);
 });
 
-it('preserves writable defaults, config and warmed caches in fresh shells', ({ sandbox }) => {
-  const config = join(sandbox.home, '.config');
-  mkdirSync(join(config, 'git'), { recursive: true });
-  writeFileSync(join(config, 'git', 'config'), '[user]\nname = Cloud Fixture\n');
-  const corepack = join(sandbox.home, 'corepack');
-  const browsers = join(sandbox.home, '.cache', 'ms-playwright');
-  mkdirSync(corepack, { recursive: true });
-  mkdirSync(browsers, { recursive: true });
-  writeFileSync(join(corepack, 'prepared'), 'fixture');
+it('requires one cloud home and exports only its fixed runtime paths', ({ sandbox }) => {
+  const missing = run(sandbox, { MYK9_CLOUD_HOME: '' });
+  expect(missing.status).toBe(2);
+  expect(missing.stderr).toMatch(/MYK9_CLOUD_HOME/);
+  expect(readdirSync(sandbox.repo)).toEqual(['.git']);
+  const root = join(sandbox.repo, '.cloud-tools');
   for (let attempt = 0; attempt < 2; attempt++) {
-    const result = run(sandbox, { COREPACK_HOME: corepack });
+    const result = run(sandbox, { COREPACK_HOME: '/ignored', MYK9_TOOLS_DIR: '/ignored' });
     expect(result.status, result.stderr).toBe(0);
     const env = JSON.parse(result.stdout);
-    expect(env.COREPACK_HOME).toBe(corepack);
-    for (const key of [
-      'XDG_CONFIG_HOME',
-      'XDG_CACHE_HOME',
-      'XDG_DATA_HOME',
-      'XDG_STATE_HOME',
-      'PNPM_HOME',
-      'DENO_DIR',
-    ]) {
-      expect(env[key], key).toBeUndefined();
-    }
+    expect(env.MYK9_TOOLS_DIR).toBe(join(root, 'bin'));
+    expect(env.COREPACK_HOME).toBe(join(root, 'corepack'));
+    expect(env.PNPM_HOME).toBe(join(root, 'pnpm'));
+    expect(env.DENO_DIR).toBe(join(root, 'deno'));
+    for (const key of ['XDG_CONFIG_HOME', 'XDG_CACHE_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME'])
+      expect(env[key]).toBeUndefined();
   }
-  const identity = run(sandbox, {}, ['git', 'config', 'user.name']);
-  expect(identity.stdout.trim()).toBe('Cloud Fixture');
-  expect(readFileSync(join(corepack, 'prepared'), 'utf8')).toBe('fixture');
-  expect(readdirSync(browsers)).toEqual([]);
+  expect(readdirSync(sandbox.home)).toEqual([]);
 });
 
-it('redirects only unwritable tool, Corepack, pnpm and Deno paths', ({ sandbox }) => {
-  const blocked = join(sandbox.base, 'blocked');
-  mkdirSync(blocked);
-  chmodSync(blocked, 0o555);
-  const result = run(sandbox, {
-    MYK9_TOOLS_DIR: blocked,
-    COREPACK_HOME: blocked,
-    PNPM_HOME: blocked,
-    DENO_DIR: blocked,
-    XDG_CONFIG_HOME: blocked,
-    XDG_CACHE_HOME: blocked,
-  });
-  expect(result.status, result.stderr).toBe(0);
-  const env = JSON.parse(result.stdout);
+it('fails loudly on a blocked fixed directory without selecting another path, even as root', ({
+  sandbox,
+}) => {
   const cloudHome = join(sandbox.repo, '.cloud-tools');
-  expect(env.MYK9_TOOLS_DIR).toBe(join(cloudHome, 'bin'));
-  expect(env.COREPACK_HOME).toBe(join(cloudHome, 'corepack'));
-  expect(env.PNPM_HOME).toBe(join(cloudHome, 'pnpm'));
-  expect(env.DENO_DIR).toBe(join(cloudHome, 'deno'));
-  // Config/cache discovery is untouched even when read-only: no hidden logins/browsers.
-  expect(env.XDG_CONFIG_HOME).toBe(blocked);
-  expect(env.XDG_CACHE_HOME).toBe(blocked);
-  expect(env.ASTRO_TELEMETRY_DISABLED).toBe('1');
-});
-
-it('uses explicit cloud storage without Git discovery outside a checkout', ({ sandbox }) => {
-  const result = run(
-    sandbox,
-    { MYK9_CLOUD_HOME: join(sandbox.base, 'explicit') },
-    undefined,
-    sandbox.base
-  );
-  expect(result.status, result.stderr).toBe(0);
+  mkdirSync(cloudHome);
+  // A regular file blocks mkdir for all users, including root; no chmod assumption.
+  writeFileSync(join(cloudHome, 'corepack'), 'blocked');
+  const result = run(sandbox, {}, ['bash', '-c', 'echo SHOULD_NOT_RUN']);
+  expect(result.status).not.toBe(0);
+  expect(result.stderr).toMatch(/cloud run:.*COREPACK_HOME/);
+  expect(result.stdout).not.toContain('SHOULD_NOT_RUN');
+  expect(readFileSync(join(cloudHome, 'corepack'), 'utf8')).toBe('blocked');
 });
 
 it('shares prepared tools across linked worktrees and finds them on PATH', ({ sandbox }) => {
@@ -196,6 +166,16 @@ it('shares prepared tools across linked worktrees and finds them on PATH', ({ sa
   const result = run(sandbox, {}, ['prepared-tool'], worktree);
   expect(result.status, result.stderr).toBe(0);
   expect(result.stdout).toBe(tools);
+});
+
+it('uses one physical tools root when the caller reaches the repo through a symlink', ({
+  sandbox,
+}) => {
+  const alias = join(sandbox.base, 'repo alias');
+  symlinkSync(sandbox.repo, alias, 'dir');
+  const result = run(sandbox, {}, undefined, alias);
+  expect(result.status, result.stderr).toBe(0);
+  expect(JSON.parse(result.stdout).MYK9_TOOLS_DIR).toBe(join(sandbox.repo, '.cloud-tools', 'bin'));
 });
 
 it('preserves TLS options and an explicitly chosen Node heap', ({ sandbox }) => {
@@ -252,10 +232,7 @@ it('passes cloud settings through the real Turbo process into docs typecheck', (
     '#!/usr/bin/env node\nconst {spawnSync} = require("node:child_process"); const result = spawnSync(process.execPath, ["probe.cjs"], {stdio: "inherit"}); process.exit(result.status ?? 1);\n'
   );
   chmodSync(pnpm, 0o755);
-  const corepack = join(sandbox.base, 'unwritable corepack');
-  mkdirSync(corepack);
-  chmodSync(corepack, 0o555);
-  const result = run(sandbox, { COREPACK_HOME: corepack }, [
+  const result = run(sandbox, {}, [
     process.execPath,
     TURBO,
     'run',
@@ -272,9 +249,7 @@ it('passes cloud settings through the real Turbo process into docs typecheck', (
   );
   const config = JSON.parse(configText);
   expect(config.globalPassThroughEnv).toBeUndefined();
-  const runtimeShell = ['environment.sh', 'run.sh']
-    .map(file => readFileSync(join(HERE, file), 'utf8'))
-    .join('\n');
+  const runtimeShell = readFileSync(RUN, 'utf8');
   const directOnly = new Set([
     'MYK9_CLOUD',
     'MYK9_CLOUD_HOME',
@@ -282,10 +257,10 @@ it('passes cloud settings through the real Turbo process into docs typecheck', (
     'DENO_DIR',
     'PATH',
   ]);
-  const runtimeKeys = [...runtimeShell.matchAll(/(?:myk9_writable_path|export) (\w+)/g)]
+  const runtimeKeys = [...runtimeShell.matchAll(/export (\w+)/g)]
     .map(match => match[1]!)
     .filter(key => !directOnly.has(key));
-  // Discover exports from both scripts: adding an export without a task allowance
+  // Discover exports from the wrapper: adding an export without a task allowance
   // fails here. The excluded names are direct cloud-command discovery only.
   for (const task of ['build', 'typecheck', 'lint', 'test', 'dev']) {
     expect(config.tasks[task].passThroughEnv).toEqual(

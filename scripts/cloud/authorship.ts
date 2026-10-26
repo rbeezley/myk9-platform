@@ -7,15 +7,24 @@
  * Fail closed: anything this cannot attribute with certainty is refused with a
  * reason a person can act on. Nothing here guesses a reviewer.
  *
- * Merge commits are skipped: a `git merge origin/main` brings in base-branch
- * work and carries no trailer. Any non-base commit a merge brings in is itself
- * in the PR's commit list, so it is still checked.
+ * Only a provably clean merge is skipped: one whose tree is exactly the
+ * automatic merge of its parents (merge-cleanliness.ts), so it adds nothing a
+ * parent did not already have. Any other merge carries authored work, such as
+ * a conflict resolution in neither parent (Codex, #3284), and needs a
+ * trailer like any commit. Any non-base commit a merge brings in is itself in
+ * the PR's commit list, so it is still checked.
  */
 
 export type Harness = 'claude' | 'codex';
 
 /** One entry of the PR's commit list (`GET /repos/{o}/{r}/pulls/{n}/commits`). */
-export type AuthoredCommit = { sha: string; parentCount: number; message: string };
+export type AuthoredCommit = {
+  sha: string;
+  parentCount: number;
+  message: string;
+  /** From isCleanMerge; absent counts as not clean. */
+  cleanMerge?: boolean;
+};
 
 export type Authorship = { implementer: Harness; reviewer: Harness } | { refused: string };
 
@@ -66,8 +75,8 @@ export function resolveAuthorship(input: {
   }
   const implementer = PREFIXES[prefix] as Harness;
 
-  const authored = input.commits.filter(c => c.parentCount < 2);
-  if (authored.length === 0) return { refused: 'no commits to attribute (merge commits only)' };
+  const authored = input.commits.filter(c => !(c.parentCount >= 2 && c.cleanMerge === true));
+  if (authored.length === 0) return { refused: 'no commits to attribute (clean merges only)' };
 
   for (const c of authored) {
     const harnesses = trailerHarnesses(c.message);

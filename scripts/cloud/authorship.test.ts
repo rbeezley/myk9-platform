@@ -17,9 +17,25 @@ function commit(sha: string, ...trailers: string[]): AuthoredCommit {
   };
 }
 
-/** A `git merge origin/main` on the branch: two parents, no trailer. */
+/** A conflict-free `git merge origin/main`: two parents, no trailer, nothing new. */
 function mergeFromMain(sha: string): AuthoredCommit {
-  return { sha, parentCount: 2, message: "Merge remote-tracking branch 'origin/main'" };
+  return {
+    sha,
+    parentCount: 2,
+    cleanMerge: true,
+    message: "Merge remote-tracking branch 'origin/main'",
+  };
+}
+
+/** A merge whose tree differs from the automatic merge of its parents. */
+function resolvedMerge(sha: string, ...trailers: string[]): AuthoredCommit {
+  const message = ["Merge remote-tracking branch 'origin/main'", '', 'Resolve conflicts.'];
+  return {
+    sha,
+    parentCount: 2,
+    cleanMerge: false,
+    message: [...message, '', ...trailers].join('\n'),
+  };
 }
 
 describe('resolveAuthorship', () => {
@@ -45,13 +61,54 @@ describe('resolveAuthorship', () => {
     ).toEqual({ implementer: 'codex', reviewer: 'claude' });
   });
 
-  it('ignores merge commits, which carry base-branch work and no trailer', () => {
+  it('ignores a clean merge, which adds nothing beyond its parents', () => {
     expect(
       resolveAuthorship({
         branch: 'codex/linear-agent-labels',
         commits: [commit('ccc1111', CODEX), mergeFromMain('ccc2222'), commit('ccc3333', CODEX)],
       })
     ).toEqual({ implementer: 'codex', reviewer: 'claude' });
+  });
+
+  // Codex, #3284 round 3: a conflict resolution is code in neither parent.
+  describe('treats a merge that is not provably clean as authored work', () => {
+    it('accepts it when its trailer matches the prefix', () => {
+      expect(
+        resolveAuthorship({
+          branch: 'codex/x',
+          commits: [commit('mmm1111', CODEX), resolvedMerge('mmm2222', CODEX)],
+        })
+      ).toEqual({ implementer: 'codex', reviewer: 'claude' });
+    });
+
+    it('refuses it when the other harness resolved it', () => {
+      expect(
+        resolveAuthorship({
+          branch: 'codex/x',
+          commits: [commit('mmm3333', CODEX), resolvedMerge('mmm4444', CLAUDE)],
+        })
+      ).toEqual({ refused: expect.stringContaining('mmm4444') });
+    });
+
+    it('refuses it when nobody signed it', () => {
+      expect(
+        resolveAuthorship({
+          branch: 'codex/x',
+          commits: [commit('mmm5555', CODEX), resolvedMerge('mmm6666')],
+        })
+      ).toEqual({ refused: expect.stringContaining('mmm6666') });
+    });
+
+    it('treats a merge with no cleanliness verdict as not clean', () => {
+      const unverified: AuthoredCommit = {
+        sha: 'mmm7777',
+        parentCount: 2,
+        message: "Merge remote-tracking branch 'origin/main'",
+      };
+      expect(
+        resolveAuthorship({ branch: 'codex/x', commits: [commit('mmm8888', CODEX), unverified] })
+      ).toEqual({ refused: expect.stringContaining('mmm7777') });
+    });
   });
 
   it('reads the trailer key case-insensitively and ignores a human co-author', () => {

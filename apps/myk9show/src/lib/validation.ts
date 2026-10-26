@@ -311,7 +311,6 @@ export const classSchemas = {
     element: z.string().min(1, 'Please enter an element'),
     level: z.string().min(1, 'Please enter a level'),
     section: requiredString,
-    classOrder: requiredString,
     status: z.string().min(1, 'Please select a status'),
     estimatedJudgingTime: commonValidations.optionalString,
     timeLimit1: timeLimitField('time limit 1'),

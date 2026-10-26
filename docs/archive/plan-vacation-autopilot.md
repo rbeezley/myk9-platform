@@ -1,6 +1,13 @@
 # Vacation Autopilot
 
-> **Status:** Active
+> **Status:** Complete
+
+Historical August 2026 vacation workflow, now retired and archived as superseded. The original
+checklist below is preserved as historical text, not a current completion report. The
+[vacation run journal](https://linear.app/myk9-platform/issue/MYK9-158/vacation-log-autopilot-run-journal-and-control-channel-2026-08-04-08)
+was closed Done on 2026-08-17. Superseded by the shared
+[Linear operating contract](../agents/issue-tracker.md); its labels and merge permissions are
+not current instructions. Preserve the record below, but do not execute or recreate its labels.
 
 Unattended 10-day workflow: Claude Code on the Mac Mini works through triaged Linear
 issues (team **MyK9-platform**) 4×/day while Richard is away with no computer access.

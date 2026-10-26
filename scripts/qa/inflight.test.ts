@@ -4,6 +4,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readdirSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -191,12 +192,16 @@ describe('inflight CLI', () => {
   }
 
   /**
-   * Stub gh. `prs` are open PRs (REST shape served paged through /pulls?state=open,
-   * files through /pulls/N/files); `merged` maps branch -> merged head sha (and
-   * optionally the sha the PR merged AS — it defaults to the fixture's
-   * origin/main tip, i.e. a PR that landed in the base),
-   * answered per branch via `pr list --state merged --head X`; `fail` makes
-   * every call exit 1.
+   * Stub gh. `prs` are open PRs (REST shape, with their files); `merged` lists
+   * merged PRs as [head ref, head sha, merge commit (default: the fixture's
+   * origin/main tip, i.e. landed in the base), head owner (default `o`),
+   * created_at]. Every list is served one page per `&page=N`, as `inflight`
+   * now pages by hand (`gh api --paginate` breaks through the cloud proxy); the
+   * closed-PR inventory also carries a closed-but-unmerged row per head, so the
+   * merged_at filter is exercised, and `closedPadding` unrelated rows ahead of
+   * the real ones push them onto later pages. `fail` makes every call exit 1.
+   * GraphQL routes (`gh pr`, `gh repo`, `gh issue`, `gh api graphql`) 403 as in
+   * a Claude Code cloud session (MYK9-1415); every call is logged to calls.log.
    */
   function stubGh(
     bin: string,
@@ -208,46 +213,72 @@ describe('inflight CLI', () => {
       fork?: boolean;
       files: { path: string; previous?: string }[];
     }[],
-    merged: [string, string, string?][] = [],
-    fail = false
+    merged: [string, string, string?, string?, string?][] = [],
+    fail = false,
+    closedPadding = 0
   ) {
     // A test may call stubGh twice; stale answer files from the first call must not survive.
     for (const f of readdirSync(bin))
-      if (/^(merged-|files-|open\.json)/.test(f)) rmSync(join(bin, f));
-    const rest = prs.map(pr => ({
-      number: pr.number,
-      head: { ref: pr.headRefName, repo: { full_name: pr.fork ? 'someone/fork' : 'o/r' } },
-      html_url: pr.url,
-      user: pr.author,
-    }));
-    const openPages: unknown[][] = [];
-    for (let i = 0; i < rest.length; i += 100) openPages.push(rest.slice(i, i + 100));
-    writeFileSync(join(bin, 'open.json'), JSON.stringify(openPages.length ? openPages : [[]]));
+      if (/^(closed-|files-|open-|calls\.log)/.test(f)) rmSync(join(bin, f));
+    const writePages = (prefix: string, rows: unknown[]) => {
+      for (let i = 0; i * 100 < rows.length; i++)
+        writeFileSync(
+          join(bin, `${prefix}-${i + 1}.json`),
+          JSON.stringify(rows.slice(i * 100, i * 100 + 100))
+        );
+    };
+    writePages(
+      'open',
+      prs.map(pr => ({
+        number: pr.number,
+        head: { ref: pr.headRefName, repo: { full_name: pr.fork ? 'someone/fork' : 'o/r' } },
+        html_url: pr.url,
+        user: pr.author,
+      }))
+    );
     const baseTip = git(fixtureRepo, 'rev-parse', 'refs/remotes/origin/main').trim();
-    for (const [branch, sha, mergeCommit] of merged)
-      writeFileSync(
-        join(bin, `merged-${branch}.json`),
-        JSON.stringify([{ headRefOid: sha, mergeCommit: { oid: mergeCommit ?? baseTip } }])
+    const unmerged = (ref: string, createdAt: string) => ({
+      created_at: createdAt,
+      merged_at: null,
+      merge_commit_sha: null,
+      head: { sha: '0'.repeat(40), ref },
+    });
+    const closed: unknown[] = Array.from({ length: closedPadding }, (_, i) =>
+      unmerged(`padding-${i}`, '2100-01-01T00:00:00Z')
+    );
+    for (const ref of new Set(merged.map(([ref]) => ref)))
+      closed.push(unmerged(ref, '2099-01-01T00:00:00Z'));
+    for (const [ref, sha, mergeCommit, owner = 'o', createdAt] of merged)
+      closed.push({
+        created_at: createdAt ?? '2026-10-25T00:00:00Z',
+        merged_at: '2026-10-25T00:00:00Z',
+        merge_commit_sha: mergeCommit ?? baseTip,
+        head: { sha, ref, repo: { full_name: `${owner}/${owner === 'o' ? 'r' : 'fork'}` } },
+      });
+    writePages('closed', closed);
+    for (const pr of prs)
+      writePages(
+        `files-${pr.number}`,
+        pr.files.map(f => ({ filename: f.path, previous_filename: f.previous }))
       );
-    for (const pr of prs) {
-      const files = pr.files.map(f => ({ filename: f.path, previous_filename: f.previous }));
-      const pages: unknown[][] = [];
-      for (let i = 0; i < files.length; i += 100) pages.push(files.slice(i, i + 100));
-      writeFileSync(
-        join(bin, `files-${pr.number}.json`),
-        JSON.stringify(pages.length ? pages : [[]])
-      );
-    }
     const NL = String.fromCharCode(10);
     const body = fail
       ? ['#!/usr/bin/env bash', 'echo "gh: not logged in" >&2', 'exit 1', ''].join(NL)
       : [
           '#!/usr/bin/env bash',
+          `printf '%s\\n' "$*" >> "${join(bin, 'calls.log')}"`,
+          'case "$1" in',
+          '  api) ;;',
+          '  *) echo "HTTP 403: GitHub GraphQL is not available" >&2; exit 1;;',
+          'esac',
+          "page=$(printf '%s' \"$*\" | sed -nE 's#.*[?&]page=([0-9]+).*#\\1#p')",
+          'serve() { if [ -f "$1" ]; then cat "$1"; else echo "[]"; fi; }',
           'case "$*" in',
-          `  *"repo view"*) echo '{"nameWithOwner":"o/r"}';;`,
-          `  *"--state merged"*) b=$(printf '%s' "$*" | sed -E 's#.*--head ([^ ]+).*#\\1#'); f="${bin}/merged-$b.json"; if [ -f "$f" ]; then cat "$f"; else echo '[]'; fi;;`,
-          `  *"/pulls/"*"/files"*) n=$(printf '%s' "$*" | sed -E 's#.*/pulls/([0-9]+)/files.*#\\1#'); cat "${bin}/files-$n.json";;`,
-          `  *"/pulls?state=open"*) cat "${join(bin, 'open.json')}";;`,
+          '  *graphql*) echo "HTTP 403: GitHub GraphQL is not available" >&2; exit 1;;',
+          `  *"repos/{owner}/{repo}") echo '{"full_name":"o/r"}';;`,
+          `  *"/pulls?state=closed&"*) serve "${bin}/closed-$page.json";;`,
+          `  *"/pulls/"*"/files?"*) n=$(printf '%s' "$*" | sed -E 's#.*/pulls/([0-9]+)/files.*#\\1#'); serve "${bin}/files-$n-$page.json";;`,
+          `  *"/pulls?state=open&"*) serve "${bin}/open-$page.json";;`,
           `  *) echo "stub gh: unexpected args: $*" >&2; exit 1;;`,
           'esac',
           '',
@@ -349,6 +380,194 @@ describe('inflight CLI', () => {
     const r = runCli(main, bin);
     expect(r.code).toBe(1);
     expect(r.out).toContain('branch finished');
+  });
+
+  // MYK9-1415: the stub 403s every GraphQL route, as a Claude Code cloud session
+  // does, so reaching each verdict proves the CLI took none. The log proves the
+  // repo, open-PR, PR-file and merged-PR reads all went through `gh api`.
+  it('reaches its verdicts through REST alone, with no GraphQL call', () => {
+    const { main, bin } = repo();
+    git(main, 'checkout', '-q', '-b', 'finished');
+    writeFileSync(join(main, 'src', 'b.ts'), 'finished elsewhere');
+    git(main, 'add', 'src/b.ts');
+    git(main, 'commit', '-q', '-m', 'finished');
+    const finishedTip = git(main, 'rev-parse', 'finished').trim();
+    git(main, 'checkout', '-q', 'mine');
+    const overlapping = [{ number: 5, headRefName: 'x', files: [{ path: 'src/b.ts' }] }];
+    const verdicts: number[] = [];
+    for (const prs of [[], overlapping]) {
+      stubGh(bin, prs, [['finished', finishedTip]]);
+      verdicts.push(runCli(main, bin, 'src/b.ts').code);
+      const calls = readFileSync(join(bin, 'calls.log'), 'utf8').trim().split('\n');
+      expect(calls.every(call => call.startsWith('api ') && !call.includes('graphql'))).toBe(true);
+      expect(calls).toContain('api repos/{owner}/{repo}');
+      expect(calls.some(call => call.includes('/pulls?state=closed&per_page=100&page=1'))).toBe(
+        true
+      );
+    }
+    expect(verdicts).toEqual([0, 1]);
+  });
+
+  /** Commit `content` to `path` on `name`, then squash the same change into origin/main. */
+  function squashMergedBranch(main: string, name: string, path: string, content: string) {
+    git(main, 'checkout', '-q', '-b', name, 'mine');
+    writeFileSync(join(main, path), content);
+    git(main, 'add', path);
+    git(main, 'commit', '-q', '-m', `${name} work`);
+    const tip = git(main, 'rev-parse', 'HEAD').trim();
+    git(main, 'checkout', '-q', '--detach', 'refs/remotes/origin/main');
+    writeFileSync(join(main, path), content);
+    git(main, 'add', path);
+    git(main, 'commit', '-q', '-m', `squash ${name}`);
+    const squash = git(main, 'rev-parse', 'HEAD').trim();
+    git(main, 'update-ref', 'refs/remotes/origin/main', squash);
+    git(main, 'checkout', '-q', 'mine');
+    return { tip, squash };
+  }
+
+  function callsOf(bin: string): string[] {
+    return readFileSync(join(bin, 'calls.log'), 'utf8').trim().split('\n');
+  }
+
+  // `gh pr list --state merged --head <name>` matched a merged PR by head NAME
+  // from any owner. Each REST substitute for it (remote parsing, commit
+  // association) lost a case in review of #3275, so the inventory reproduces it
+  // directly: a squash-merged fork PR is matched by name whatever the branch's
+  // upstream config, including none.
+  it.each([
+    ['no upstream config', {}],
+    [
+      'a slash-named remote',
+      {
+        'remote.remotes/c.url': 'https://github.com/contributor/fork.git',
+        'branch.finished.remote': 'remotes/c',
+        'branch.finished.merge': 'refs/heads/finished',
+      },
+    ],
+    [
+      'a username-less scp URL',
+      {
+        'branch.finished.remote': 'github.com:contributor/fork.git',
+        'branch.finished.merge': 'refs/heads/finished',
+      },
+    ],
+    [
+      'a base-repo upstream (origin/main)',
+      {
+        'remote.origin.url': 'https://github.com/o/r.git',
+        'branch.finished.remote': 'origin',
+        'branch.finished.merge': 'refs/heads/main',
+      },
+    ],
+  ])('ignores a squash-merged fork PR branch with %s', (_label, config: Record<string, string>) => {
+    const { main, bin } = repo();
+    const { tip, squash } = squashMergedBranch(main, 'finished', 'src/shared.ts', 'fork work');
+    for (const [key, value] of Object.entries(config)) git(main, 'config', key, value);
+    stubGh(bin, [], [['finished', tip, squash, 'contributor']]);
+    expect(runCli(main, bin, 'src/shared.ts').code).toBe(0);
+    // Control: without the merged PR the same branch IS reported.
+    stubGh(bin, []);
+    expect(runCli(main, bin, 'src/shared.ts').code).toBe(1);
+  });
+
+  // Codex, review of #3275: a reused fork branch with an unpushed new commit
+  // keeps its shipped prefix excluded (matched by name), while the new work is
+  // still reported.
+  it('keeps the shipped prefix of a reused fork branch whose new tip is unpushed', () => {
+    const { main, bin } = repo();
+    const { tip, squash } = squashMergedBranch(main, 'finished', 'src/shared.ts', 'shipped');
+    git(main, 'checkout', '-q', 'finished');
+    writeFileSync(join(main, 'src', 'new.ts'), 'unpushed');
+    git(main, 'add', 'src/new.ts');
+    git(main, 'commit', '-q', '-m', 'reuse');
+    git(main, 'checkout', '-q', 'mine');
+    stubGh(bin, [], [['finished', tip, squash, 'contributor']]);
+    expect(runCli(main, bin, 'src/shared.ts').code).toBe(0);
+    const r = runCli(main, bin, 'src/new.ts');
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('branch finished');
+  });
+
+  // Codex, review of #3275: only a PR whose merge commit reached the base is
+  // eligible, and that filter runs BEFORE picking the newest, so a newer
+  // same-name PR merged elsewhere cannot displace the one that shipped.
+  it('does not let a newer same-name PR merged outside the base displace the shipped one', () => {
+    const { main, bin } = repo();
+    const { tip, squash } = squashMergedBranch(main, 'finished', 'src/shared.ts', 'shipped');
+    git(main, 'checkout', '-q', '-b', 'integration', 'mine');
+    git(main, 'commit', '-q', '--allow-empty', '-m', 'merged onto integration');
+    const elsewhere = git(main, 'rev-parse', 'HEAD').trim();
+    git(main, 'checkout', '-q', 'mine');
+    stubGh(
+      bin,
+      [],
+      [
+        ['finished', tip, squash, 'o', '2026-10-20T00:00:00Z'],
+        ['finished', '1'.repeat(40), elsewhere, 'contributor', '2026-10-24T00:00:00Z'],
+      ]
+    );
+    const r = runCli(main, bin, 'src/shared.ts');
+    expect(r.code, r.out).toBe(0);
+  });
+
+  // Codex, review of #3275: a branch that tracks origin/main is matched by its
+  // own name only; a newer main->release PR is never a candidate.
+  it('ignores a squash-merged branch that tracks origin/main despite a newer main->release PR', () => {
+    const { main, bin } = repo();
+    const { tip, squash } = squashMergedBranch(main, 'finished', 'src/shared.ts', 'shipped');
+    git(main, 'checkout', '-q', '--detach', 'refs/remotes/origin/main');
+    git(main, 'commit', '-q', '--allow-empty', '-m', 'merge main into release');
+    const releaseMerge = git(main, 'rev-parse', 'HEAD').trim();
+    git(main, 'update-ref', 'refs/remotes/origin/main', releaseMerge);
+    git(main, 'checkout', '-q', 'mine');
+    git(main, 'remote', 'add', 'origin', 'https://github.com/o/r.git');
+    git(main, 'config', 'branch.finished.remote', 'origin');
+    git(main, 'config', 'branch.finished.merge', 'refs/heads/main');
+    stubGh(
+      bin,
+      [],
+      [
+        ['finished', tip, squash, 'o', '2026-10-20T00:00:00Z'],
+        ['main', squash, releaseMerge, 'o', '2026-10-24T00:00:00Z'],
+      ]
+    );
+    expect(runCli(main, bin, 'src/shared.ts').code).toBe(0);
+  });
+
+  // Same-name merged PRs from two owners, both in the base: the newest-created
+  // wins, whichever owner it is. The older one's head is unrelated, so picking
+  // it would report the shipped branch.
+  it.each([
+    ['the fork', 'contributor', 'o'],
+    ['the base owner', 'o', 'contributor'],
+  ])('takes the newest-created eligible PR when %s is newest', (_label, newest, older) => {
+    const { main, bin } = repo();
+    const { tip, squash } = squashMergedBranch(main, 'finished', 'src/shared.ts', 'work');
+    stubGh(
+      bin,
+      [],
+      [
+        ['finished', tip, squash, newest, '2026-10-24T00:00:00Z'],
+        ['finished', '1'.repeat(40), squash, older, '2026-10-20T00:00:00Z'],
+      ]
+    );
+    expect(runCli(main, bin, 'src/shared.ts').code).toBe(0);
+  });
+
+  // The inventory pages by hand (`&page=N`; `gh api --paginate` breaks through
+  // the cloud proxy), is fetched ONCE per run however many branches ask, and a
+  // match on a later page still counts.
+  it('pages the closed-PR inventory once per run and finds a match past page 1', () => {
+    const { main, bin } = repo();
+    const { tip, squash } = squashMergedBranch(main, 'finished', 'src/shared.ts', 'shipped');
+    git(main, 'checkout', '-q', '-b', 'second', 'mine');
+    git(main, 'commit', '-q', '--allow-empty', '-m', 'another local branch');
+    git(main, 'checkout', '-q', 'mine');
+    stubGh(bin, [], [['finished', tip, squash]], false, 250);
+    expect(runCli(main, bin, 'src/shared.ts').code).toBe(0);
+    const closed = callsOf(bin).filter(call => call.includes('/pulls?state=closed&'));
+    expect(closed.map(call => call.match(/[?&]page=(\d+)/)?.[1])).toEqual(['1', '2', '3']);
+    expect(callsOf(bin).some(call => call.includes('--paginate'))).toBe(false);
   });
 
   it('still reports a branch whose PR merged somewhere OTHER than the base', () => {

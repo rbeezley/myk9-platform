@@ -356,10 +356,46 @@ interface GhPrFile {
   previous_filename?: string;
 }
 
-/** owner/repo for the REST calls below. */
+interface RestMergedPr {
+  created_at: string;
+  merged_at: string | null;
+  merge_commit_sha: string | null;
+  head: { sha: string; ref: string };
+}
+
+/**
+ * Every `gh` call here is REST (`gh api`): `gh repo view` and `gh pr list` are
+ * GraphQL, which Claude Code cloud sessions reject with a 403 (MYK9-1415).
+ */
+let slugCache: string | undefined;
+
+/** owner/repo for the REST calls below; gh fills `{owner}/{repo}` from the checkout's remote. */
 export function repoSlug(): string {
-  return ghJson<{ nameWithOwner: string }>(['repo', 'view', '--json', 'nameWithOwner'], 'repo')
-    .nameWithOwner;
+  slugCache ??= ghJson<{ full_name: string }>(['api', 'repos/{owner}/{repo}'], 'repo').full_name;
+  return slugCache;
+}
+
+const PAGE_SIZE = 100;
+const MAX_PAGES = 500;
+
+/**
+ * Every row of a REST list, paged by hand with `&page=N`. Not `gh api
+ * --paginate`: GitHub's next-page links use `repositories/{id}/…` paths, which
+ * the Claude Code cloud proxy rejects with a 403, so any list past one page
+ * failed there. A short page ends the list; an absurd page count throws rather
+ * than reporting a truncated inventory as complete.
+ */
+function ghPages<T>(path: string, what: string): T[] {
+  const rows: T[] = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const batch = ghJson<T[]>(
+      ['api', `${path}${path.includes('?') ? '&' : '?'}per_page=${PAGE_SIZE}&page=${page}`],
+      what
+    );
+    rows.push(...batch);
+    if (batch.length < PAGE_SIZE) return rows;
+  }
+  throw new InflightQueryError(`could not list ${what}: more than ${MAX_PAGES} pages`);
 }
 
 /**
@@ -368,13 +404,7 @@ export function repoSlug(): string {
  * the REST endpoint is paged instead (Codex, #2073 round 4).
  */
 export function pullRequestFiles(slug: string, number: number): string[] {
-  const pages = ghJson<GhPrFile[][] | GhPrFile[]>(
-    ['api', '--paginate', '--slurp', `repos/${slug}/pulls/${number}/files?per_page=100`],
-    `files of PR #${number}`
-  );
-  const flat = (pages as unknown[]).flatMap(page =>
-    Array.isArray(page) ? (page as GhPrFile[]) : [page as GhPrFile]
-  );
+  const flat = ghPages<GhPrFile>(`repos/${slug}/pulls/${number}/files`, `files of PR #${number}`);
   return flat.flatMap(f =>
     f.previous_filename ? [f.filename, f.previous_filename] : [f.filename]
   );
@@ -403,13 +433,7 @@ function ghJson<T>(args: string[], what: string): T {
  */
 export function openPullRequests(): ChangeSource[] {
   const slug = repoSlug();
-  const pages = ghJson<RestPr[][] | RestPr[]>(
-    ['api', '--paginate', '--slurp', `repos/${slug}/pulls?state=open&per_page=100`],
-    'open PRs'
-  );
-  const prs = (pages as unknown[]).flatMap(page =>
-    Array.isArray(page) ? (page as RestPr[]) : [page as RestPr]
-  );
+  const prs = ghPages<RestPr>(`repos/${slug}/pulls?state=open`, 'open PRs');
   return prs.map(pr => ({
     kind: 'pr',
     id: `#${pr.number}`,
@@ -431,6 +455,7 @@ export function openPullRequests(): ChangeSource[] {
  */
 export class MergedHeads {
   private readonly cache = new Map<string, string | undefined>();
+  private inventory?: Map<string, RestMergedPr[]>;
   private readonly base: string;
   private readonly cwd?: string;
   // Plain fields, not parameter properties: this file runs under node's
@@ -441,34 +466,39 @@ export class MergedHeads {
   }
   get(branch: string): string | undefined {
     if (!this.cache.has(branch)) {
-      const prs = ghJson<{ headRefOid: string; mergeCommit?: { oid: string } | null }[]>(
-        [
-          'pr',
-          'list',
-          '--state',
-          'merged',
-          '--head',
-          branch,
-          '--limit',
-          '1',
-          '--json',
-          'headRefOid,mergeCommit',
-        ],
-        `merged PRs for ${branch}`
-      );
-      const pr = prs[0];
+      // `gh pr list --state merged --head <name>` (GraphQL) matched a head
+      // BRANCH NAME from any owner, fork PRs included. REST's `head` filter needs
+      // an owner, and each substitute (owner-scoped name, remote-URL parsing,
+      // commit association) lost part of that across four review rounds of
+      // #3275. So reproduce it by construction: one inventory of the repo's
+      // closed PRs per run, keyed by head ref.
+      const merged = (this.inventory ??= mergedPrsByHead()).get(branch) ?? [];
       // Merged INTO SOMETHING ELSE is not shipped here. A PR squashed onto an
       // integration branch, or merged after this checkout last fetched, leaves
       // its work outside the selected base, so excluding its head would hide a
       // real collision (Codex, #2073 round 11). Require the merge commit to be
       // in the base; an absent or unreachable one reads as still in flight,
       // which over-reports rather than passing work over in silence.
-      const mergeCommit = pr?.mergeCommit?.oid;
-      const shipped = Boolean(mergeCommit && isAncestor(mergeCommit, this.base, this.cwd));
-      this.cache.set(branch, shipped ? pr?.headRefOid : undefined);
+      // Hence only PRs whose merge commit reached the base are eligible, filtered
+      // BEFORE choosing: a newer same-name PR merged elsewhere must not displace
+      // one that shipped (Codex, review of #3275). Of those, the newest-created.
+      const pr = merged
+        .filter(c => c.merge_commit_sha && isAncestor(c.merge_commit_sha, this.base, this.cwd))
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+      this.cache.set(branch, pr?.head.sha);
     }
     return this.cache.get(branch);
   }
+}
+
+/** Every merged PR of the repo, keyed by head ref (any owner). */
+function mergedPrsByHead(): Map<string, RestMergedPr[]> {
+  const byHead = new Map<string, RestMergedPr[]>();
+  for (const pr of ghPages<RestMergedPr>(`repos/${repoSlug()}/pulls?state=closed`, 'closed PRs')) {
+    if (!pr.merged_at) continue;
+    byHead.set(pr.head.ref, [...(byHead.get(pr.head.ref) ?? []), pr]);
+  }
+  return byHead;
 }
 
 function isAncestor(maybeAncestor: string, ref: string, cwd?: string): boolean {

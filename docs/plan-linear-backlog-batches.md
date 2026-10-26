@@ -543,7 +543,7 @@ This is deliberately the last batch. It does not block Batches 0.5–4. Keep bot
 ## Deferred / parked (no action this cycle)
 
 - [MYK9-27](https://linear.app/myk9-platform/issue/MYK9-27) user-guide Phase 6 — agent-able via the screenshot-docs skill; schedule after Batch 3 lands so screenshots don't go stale (MYK9-220 reflows everything).
-- [MYK9-44](https://linear.app/myk9-platform/issue/MYK9-44) staging/prod separation, [MYK9-31](https://linear.app/myk9-platform/issue/MYK9-31) judge-directory data — Wait for Launch, operator-led.
+- [MYK9-44](https://linear.app/myk9-platform/issue/MYK9-44) staging/prod separation, [MYK9-31](https://linear.app/myk9-platform/issue/MYK9-31) judge-directory data — needs:operator; follow each issue's sequencing and approval gates.
 - [MYK9-28](https://linear.app/myk9-platform/issue/MYK9-28) kill-switch removal — explicitly **post first live shows**.
 - [MYK9-26](https://linear.app/myk9-platform/issue/MYK9-26) remaining evaluation scope (standalone read-only MCP / BYOK) — post-launch by its own framing; only the Batch 0 redeploy is current.
 - [MYK9-195](https://linear.app/myk9-platform/issue/MYK9-195) steps 3–4 — **deferred per D7 (2026-08-22)**, parked in Backlog with both revisit triggers recorded on the issue.

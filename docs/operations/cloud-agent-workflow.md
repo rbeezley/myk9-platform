@@ -56,7 +56,7 @@ At [claude.ai/code](https://claude.ai/code), open the environment selector (the 
 - **Network access**: **Trusted**. Its allowlist already includes `github.com`, `objects.githubusercontent.com` and `release-assets.githubusercontent.com`, which setup downloads gh, Deno and ShellCheck from.
 - **Environment variables**: `NODE_OPTIONS=--use-openssl-ca --max-old-space-size=6144` (the image's own value is `--use-openssl-ca`, which the agent proxy's CA bundle needs; keep it).
 - **Setup script**: leave empty for the proof. The box runs before the environment's variables are set, and it is cached only when it finishes in about five minutes, which a full install and package build may not. Run setup inside the session instead (the route verified on 2026-10-24), and move it into the box only after it has worked there.
-- **GitHub**: the Claude GitHub App on the repository, or `/web-setup`. Through the session's GitHub proxy `gh api` works, but `gh pr` and `gh issue` (GraphQL) are rejected; the handoff CLI and `scripts/qa/watch-pr-checks.sh` (MYK9-1414) use only `gh api`.
+- **GitHub**: the Claude GitHub App on the repository, or `/web-setup`. Through the session's GitHub proxy `gh api` works, but `gh pr` and `gh issue` (GraphQL) are rejected; the handoff CLI, `scripts/qa/watch-pr-checks.sh` (MYK9-1414) and `pnpm qa:inflight` (MYK9-1415) use only `gh api`. `gh api --paginate` still fails past page 1 there (MYK9-1425).
 
 ### Codex cloud environment
 
@@ -155,5 +155,4 @@ Detailed reports and logs go in Actions artifacts with 30-day retention, referen
 
 - Codex cloud setup has not been run (it can't be from a Claude session). Record its versions here once it has.
 - `deno check` reports pre-existing type errors in `push-trigger-class-status` and `push-trigger-announcement`: untyped PostgREST embeds infer arrays where a many-to-one embed returns an object at runtime. `push-trigger-run-proximity` checks clean. Filed separately, not fixed in Stage 1.
-- `pnpm qa:inflight` (Gates step 1) still lists PRs through GraphQL, so in a Claude Code cloud session it exits 2 ("could not list repo"), which is not a pass. Until it reads through REST, check open PRs' files with `gh api repos/{owner}/{repo}/pulls/{n}/files`.
 - The base64 spelling of a secret is not scanned (the shared scanner matches verbatim and JSON-escaped forms).

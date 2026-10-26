@@ -6,7 +6,7 @@
 
 ## Linear
 
-MYK9-
+<!-- The tracking issue only. After merge, reconcile it per docs/agents/issue-tracker.md. -->
 
 ## Acceptance criteria
 
@@ -26,7 +26,7 @@ MYK9-
 
 ## Review gate
 
-- [ ] Independent review recorded for the final head SHA (`/ship-pr` Step 4; the `Review gate` status must be green on the head that merges)
+- [ ] Required review evidence or optional-review eligibility confirmed for the final head (`pnpm qa:review-tier`; `Review gate` must be green on the head that merges)
 
 ## Agent involvement
 
@@ -38,4 +38,4 @@ MYK9-
 
 ## Follow-up issues
 
-<!-- Linear ids for anything deliberately left out; "none" otherwise. -->
+<!-- Write each as "Ignore MYK9-n — title", so the merge does not move it; "none" otherwise. -->

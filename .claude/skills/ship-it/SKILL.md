@@ -211,7 +211,7 @@ Auto-fixes for findings of this class should add the symmetric filter at every r
 
 ## Step 4: Ship through `ship-pr`
 
-Invoke the `ship-pr` skill on this branch (its Step A simplify already ran as Step 3b; skip it). It runs `/commit`, opens the PR (put one bullet per completed plan task in its Summary, and link the plan), asks `pnpm qa:review-tier` for the floor, runs the independent cross-harness review gate, merges from the main repo, closes out the Linear issue, and removes the worktree last.
+Invoke the `ship-pr` skill on this branch (its Step A simplify already ran as Step 3b; skip it). It runs `/commit`, opens the PR (put one bullet per completed plan task in its Summary, and link the plan), asks `pnpm qa:review-tier` for the required review/optional eligibility, satisfies that gate, merges from the main repo, reconciles the full Linear criteria, and follows the deferred cleanup rules.
 
 - The `/ship-it` request authorizes the push and PR creation. Merging still needs the user's explicit go-ahead, so `ship-pr` stops for final merge confirmation unless the user said to ship through completion.
 - A same-harness subagent is never the review gate. That rule, the review-round limit and the merge mechanics are `ship-pr`'s; follow them there.
@@ -220,7 +220,7 @@ Invoke the `ship-pr` skill on this branch (its Step A simplify already ran as St
 
 ## Step 5: Report
 
-`ship-pr` reports the outcome; do not write a second summary. Add only the plan path and one line per completed plan task. If `ship-pr` armed auto-merge and stopped, say the PR is **pending**, not shipped.
+`ship-pr` reports the outcome; do not write a second summary. Add only the plan path and one line per completed plan task. If `ship-pr` armed auto-merge and stopped under the **Asynchronous merge protocol** in `docs/agents/issue-tracker.md`, say the PR is **pending**, not shipped.
 
 After a confirmed merge, if the diff touched `supabase/migrations/` or a `supabase/functions/` tree, name the `deploy` skill as the next operator step — it decides what to run, in what order, and each run needs confirmation. The frontend goes live only on the next Deploy myK9Show run.
 

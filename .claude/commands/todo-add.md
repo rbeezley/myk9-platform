@@ -15,7 +15,7 @@ argument-hint: <todo-description> (optional - infers from conversation if omitte
    - **With $ARGUMENTS**: use as the title/focus.
    - **Without $ARGUMENTS**: analyze the recent conversation for the specific task, relevant file paths, line numbers, error messages, and root cause if identified.
 
-3. **Check for duplicates:** list open issues in the MyK9-platform team (states `Backlog` / `Todo` / `In Progress`) and search titles + descriptions for overlapping scope. If a near-duplicate exists, ask the user:
+3. **Check for duplicates** using the reconciliation contract in `docs/agents/issue-tracker.md`: search overlapping scope in MyK9-platform with `includeArchived: true`, without an open-state restriction. Include In Review and closed history; read every result page and fetch likely canonical matches with `get_issue` before deciding. Resolve a known identifier directly with `get_issue`. If a near-duplicate exists, ask the user:
    "A similar issue already exists: [identifier] [title]. Would you like to:\n\n1. Skip (keep existing)\n2. Update the existing issue\n3. Create anyway as a separate issue\n\nReply with the number of your choice."
    Wait for the response.
 

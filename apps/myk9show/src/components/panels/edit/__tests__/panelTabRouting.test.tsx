@@ -103,14 +103,15 @@ describe('failed Save on a hidden tab', () => {
           element: 'Container',
           level: 'Novice',
           section: 'A',
-          classOrder: '1',
           status: 'Scheduled',
           estimatedJudgingTime: '',
           preEntryFee: -5,
         }}
       />
     );
-    await user.type(await screen.findByLabelText('Class Order'), '2');
+    // Any Basic-tab edit dirties the form; Class Order was removed (MYK9-1405), so change Status.
+    await user.click(await screen.findByRole('combobox', { name: /status/i }));
+    await user.click(await screen.findByRole('option', { name: 'Completed' }));
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     await waitFor(() => expect(selected()).toMatch(/Requirements/));

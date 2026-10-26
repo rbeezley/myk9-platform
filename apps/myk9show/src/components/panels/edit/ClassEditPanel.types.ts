@@ -26,7 +26,6 @@ export interface ClassEditFormData extends Record<string, unknown> {
   element: string;
   level: string;
   section: string;
-  classOrder: string;
   status: ClassStatusValue;
 
   // Timing details

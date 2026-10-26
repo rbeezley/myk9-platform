@@ -138,8 +138,9 @@ export const mapClassInputToInsert = (classData: ClassInput): DbClassInsert => {
     entry_fee: classData.entryFee || null,
     max_entries: classData.maxEntries || null,
 
-    // Timing and scheduling
-    start_time: classData.classOrder ? `${classData.classOrder}:00:00` : null,
+    // Timing and scheduling. Start times are set in the schedule's start-time editor, never
+    // derived from class order (MYK9-1405).
+    start_time: null,
     estimated_duration: null,
 
     // Height restrictions
@@ -192,9 +193,6 @@ export const mapClassInputToUpdate = (updates: Partial<ClassInput>): DbClassUpda
   }
   if (updates.allowsWaitlist !== undefined) {
     updateData.allow_waitlist = updates.allowsWaitlist;
-  }
-  if (updates.classOrder !== undefined) {
-    updateData.start_time = updates.classOrder ? `${updates.classOrder}:00:00` : null;
   }
   if (updates.requiresJumpHeight !== undefined) {
     updateData.jump_heights = updates.requiresJumpHeight ? ['12"', '16"', '20"', '24"'] : null;
@@ -254,7 +252,8 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
     trial: trial?.name || 'Unknown Trial',
     trialDate: trial?.date || new Date().toISOString().split('T')[0],
     trialNumber: trial?.trial_number || 'TBD',
-    classOrder: dbClass.start_time ? extractClassOrder(dbClass.start_time) : '1',
+    // Class order is not stored on this row; start_time is a time of day, not an order (MYK9-1405).
+    classOrder: '',
     startTime: formatClassStartTime(dbClass.start_time),
     revisedExpectedStart: dbClass.revised_expected_start ?? null,
     timeLimitSeconds: dbClass.time_limit_seconds ?? null,
@@ -383,15 +382,6 @@ export const mapDatabaseEntriesArray = (dbEntries: DbEntryWithRelations[]): Sync
 };
 
 // ===== HELPER FUNCTIONS =====
-
-/**
- * Extract class order from start_time
- */
-const extractClassOrder = (startTime: string): string => {
-  if (!startTime) return '1';
-  const hour = startTime.split(':')[0];
-  return hour || '1';
-};
 
 /**
  * Extract element from description

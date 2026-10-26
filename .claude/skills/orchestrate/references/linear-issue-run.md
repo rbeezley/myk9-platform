@@ -105,18 +105,22 @@ terminal command the run can type itself; it produced PR #2937 (MYK9-1122) on 20
 ### 2. Start
 
 Both lanes share these names; set them before the lane split, once per issue, so a cloud-only
-run has them for the watch and the review worktree below:
+run has them for the watch and the review worktree below. `$BRANCH` is chosen here only on
+the local lane. A cloud session works on the branch its harness provisions, named
+`claude/myk9-<n>-<words>-<random>` and the only branch it may push to (dry run 2026-10-26,
+both sessions), so on the cloud lane `$BRANCH` is read back from the PR in step 3.
 
 ```bash
 MAIN="$(git worktree list --porcelain | sed -n '1s/^worktree //p')"
 N=<n>; SLUG=<3-5-word-kebab>
-BRANCH="claude/myk9-$N-$SLUG"  # codex/ when Codex implements; the prefix declares authorship
+PREFIX="claude/myk9-$N-"  # codex/ when Codex implements; the prefix declares authorship
 WT="$MAIN/.claude/worktrees/myk9-$N"
 ```
 
 **Local lane:**
 
 ```bash
+BRANCH="$PREFIX$SLUG"
 git -C "$MAIN" fetch origin main
 git -C "$MAIN" worktree add "$WT" -b "$BRANCH" origin/main
 (cd "$WT" && bash scripts/bootstrap-worktree.sh)
@@ -128,19 +132,28 @@ into the issue worktree. `git -C "$WT" status --short` must be empty afterwards.
 Then `save_issue` → **In Progress**. Write the ledger row.
 
 **Cloud lane:** no worktree yet (`$WT` is created only once the PR exists, below).
-`save_issue` → **In Progress**, write the ledger row with `lane: cloud` and `$BRANCH`, then write the prompt to
+`save_issue` → **In Progress**, write the ledger row with `lane: cloud` and `$PREFIX`, then write the prompt to
 `<scratchpad>/cloud-myk9-$N.md` with the Write tool and dispatch it from the Terminal panel:
 
 ```
 run_in_terminal  title: "cloud myk9-<n>"
-command: claude --cloud "$(cat '<scratchpad>/cloud-myk9-<n>.md')"
+command: claude --cloud "$(cat '<scratchpad>/cloud-myk9-<n>.md')" --permission-mode dontAsk --disallowedTools mcp__claude-code-remote__create_trigger
 ```
 
 `claude --cloud` needs a TTY, which is why it goes through the panel and not the Bash tool.
+The two flags keep the session from ever waiting on a click nobody will give: `dontAsk`
+denies anything that would prompt, and the denied tool is the scheduled-trigger tool with
+which a session armed a "safety-net check-in" nobody asked for on 2026-10-26 and then sat on
+a delete-trigger prompt. Verified 2026-10-26 (CLI 2.1.296) on a check dispatch: the session
+ran in don't-ask mode, its `create_trigger` call was denied at once ("Permission to use
+mcp\_\_claude-code-remote\_\_create_trigger has been denied because Claude Code is running in
+don't ask mode"), and its `gh api` comment posted with no prompt. The session page shows the
+mode at its foot; re-check it on the first dispatch after any CLI upgrade, since the flags'
+effect on `--cloud` is a CLI behaviour, not a repo one.
 Read the tab (`read_terminal`, `wait_for_output_ms` up to 60000) until it prints the session
 name, URL and teleport id; record the URL in the ledger row. Nothing in the tab after that is
 needed; close it with `stop_terminal_tab` once the URL is recorded. A dispatch that prints no
-URL is a hold through the shared table (a capability hold naming the tab's output, `$BRANCH`
+URL is a hold through the shared table (a capability hold naming the tab's output, `$PREFIX`
 and the dispatch time), **never a re-dispatch**: a silent tab does not prove the session was
 not created, so a second dispatch could be a second writer on the branch, and a sign-in error
 fails the same way on a retry (`claude auth login` is the owner's fix). Leave that tab open
@@ -159,11 +172,14 @@ the differences below come from running in the cloud and win where they conflict
    PR body, never a pass. `pnpm typecheck` needs the environment's NODE_OPTIONS heap flag.
 2. After setup, and before any push, confirm the push-hold hook is active:
    `git config core.hooksPath` must print `.githooks` (setup sets it; if it does not, stop
-   and report it as a BLOCKER in the PR body). Then branch:
-   `git switch -c claude/myk9-<n>-<slug> origin/main`. Commit with the Claude
-   Co-Authored-By trailer on every commit; the branch prefix and the trailers are
-   cross-checked. Push whenever you have a commit worth keeping; nothing is lost if the
-   session ends after a push.
+   and report it as a BLOCKER in the PR body). Work on the branch this session was
+   provisioned on (`git branch --show-current`): it is the only branch you may push to, and
+   its name should start with `claude/myk9-<n>-`. Never create or switch branches. If the
+   name does not start with `claude/`, stop without pushing (the run's deadline turns that
+   into a hold); if it starts with `claude/` but not `claude/myk9-<n>-`, carry on and say so
+   under CONCERNS. Commit with the Claude Co-Authored-By trailer on every commit; the branch
+   prefix and the trailers are cross-checked. Push whenever you have a commit worth keeping;
+   nothing is lost if the session ends after a push.
 3. In this session `gh api` works but `gh pr`, `gh issue` and `gh api --paginate` do not
    (the proxy rejects GraphQL). Push with `git push -u origin HEAD`. Open the PR ONLY when
    the work is done and the affected tests and typecheck pass, as a READY (non-draft) PR via
@@ -178,6 +194,9 @@ the differences below come from running in the cloud and win where they conflict
 5. If Linear or GitHub is unreachable, proceed from the task text below; it is complete.
 6. Wait for every test you started before ending your turn. A hang over 30 s is reported
    under CONCERNS, not retried.
+7. Never schedule a trigger, check-in, wakeup or cron, and never create a scheduled task.
+   When the PR is open and your report is in its body, end your turn: nothing watches the
+   PR from your side, and the Mac reads only the PR.
 ```
 
 Dispatch the next cloud issue only after this one's URL is recorded, and only while the
@@ -192,9 +211,20 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
 
 **Cloud lane:** wait for the PR, then review it in a local worktree.
 
-- **Watch for the PR**, bounded: every 60 s
-  (`gh pr list --head "$BRANCH" --state open --json number,isDraft,headRefOid --jq '.[]'`;
-  `.[]`, never `.[0]`, which turns an empty list into a false hit). **Every cloud session
+- **Watch for the PR**, bounded: every 60 s, by prefix and issue reference, never by an
+  exact branch name, since the harness chose it:
+
+  ```bash
+  gh pr list --state open --limit 50 --json number,isDraft,headRefName,headRefOid,body |
+    jq -r --arg p "$PREFIX" --arg n "$N" '.[] | select(.isDraft | not)
+      | select((.headRefName | startswith($p))
+               or ((.headRefName | startswith("claude/")) and (.body | test("Fixes MYK9-\($n)\\b"))))
+      | "\(.number) \(.headRefName) \(.headRefOid)"'
+  ```
+
+  A hit sets `BRANCH=<headRefName>` for everything below (review worktree, fix sessions,
+  merge) and goes in the ledger row. `.[]`, never `.[0]`, which turns an empty list into a
+  false hit. **Every cloud session
   the run starts carries one deadline from its dispatch time**, written in the ledger beside
   the session URL, in every mode, continuous or not: **90 min for a first session's PR**,
   **60 min for a fix session's new head** (below). The session URL that `claude --cloud`
@@ -206,6 +236,7 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
   The owner, or the next run after the hold is cleared, decides what to do with the branch.
   The run's stop time ends any wait it reaches first. Polling never runs without one of
   these endpoints.
+
 - **Review worktree:** when the PR exists,
   `git -C "$MAIN" fetch origin "$BRANCH" && git -C "$MAIN" worktree add "$WT" "$BRANCH"`, then
   `(cd "$WT" && bash scripts/bootstrap-worktree.sh)`. From here the review gate is the one in
@@ -216,8 +247,8 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
   yourself in `$WT` when the defect list is short (this is you implementing, and it counts in
   the run stats), or start a **fresh** cloud session. A fix session is dispatched like the
   first one (prompt file, Terminal panel, URL and dispatch time in the ledger) but with its
-  own preamble, never the first session's, which would create the branch from `origin/main`
-  and push over the PR head:
+  own preamble, never the first session's, which assumes a freshly provisioned branch and
+  would end in a second PR:
 
   ```
   You are fixing review findings on PR #<n> (MYK9-<n>) in rbeezley/myk9-platform, in a
@@ -367,18 +398,20 @@ run, and mark each `refill` issue in the table (e.g. `MYK9-321 (refill)`).
 
 ## Common mistakes
 
-| Mistake                                                     | Instead                                                                |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Treating an automated status as acceptance proof            | Fresh-read all criteria and reconcile the actual post-merge state      |
-| Dispatching the issue's criteria without reproducing them   | Reproduce on `main` first; hold what you cannot see                    |
-| Building the issue's Recommendation as written              | Weigh an alternative; the criteria are the contract, not the fix       |
-| Picking raw Todo or Backlog without eligibility checks      | Ready or its qualified fallback; judge risk from the diff at ship time |
-| Handing a refund fix to sonnet "because it's small"         | Money is held, whatever its size                                       |
-| Letting the implementer push, open the PR or post the gate  | The orchestrator owns every shared-system write                        |
-| Retrying a red CI a third time                              | Hold after two attempts; unfinished code stays In Progress             |
-| Removing a merge-pending worktree                           | Keep it; named executor reconciles merge/evidence before cleanup       |
-| Ending an overnight run when the approved list is done      | Refill from Ready/qualified fallback until an approved stop condition  |
-| Reusing run-start Ready results for refills                 | Re-query and requalify; the board changes overnight                    |
-| Messaging a cloud session, or pushing to its branch early   | Read its PR; a review round is a fresh session after its push lands    |
-| Treating cloud implementers as free of the Mac cap entirely | Their Codex reviews and verifier runs still count; queue those at 2    |
-| Sending an E2E-proven issue to the cloud lane               | No `.env.local` or staging there; it stays local                       |
+| Mistake                                                     | Instead                                                                                       |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Treating an automated status as acceptance proof            | Fresh-read all criteria and reconcile the actual post-merge state                             |
+| Dispatching the issue's criteria without reproducing them   | Reproduce on `main` first; hold what you cannot see                                           |
+| Building the issue's Recommendation as written              | Weigh an alternative; the criteria are the contract, not the fix                              |
+| Picking raw Todo or Backlog without eligibility checks      | Ready or its qualified fallback; judge risk from the diff at ship time                        |
+| Handing a refund fix to sonnet "because it's small"         | Money is held, whatever its size                                                              |
+| Letting the implementer push, open the PR or post the gate  | The orchestrator owns every shared-system write                                               |
+| Retrying a red CI a third time                              | Hold after two attempts; unfinished code stays In Progress                                    |
+| Removing a merge-pending worktree                           | Keep it; named executor reconciles merge/evidence before cleanup                              |
+| Ending an overnight run when the approved list is done      | Refill from Ready/qualified fallback until an approved stop condition                         |
+| Reusing run-start Ready results for refills                 | Re-query and requalify; the board changes overnight                                           |
+| Messaging a cloud session, or pushing to its branch early   | Read its PR; a review round is a fresh session after its push lands                           |
+| Treating cloud implementers as free of the Mac cap entirely | Their Codex reviews and verifier runs still count; queue those at 2                           |
+| Sending an E2E-proven issue to the cloud lane               | No `.env.local` or staging there; it stays local                                              |
+| Watching `gh pr list --head <name>` for a cloud PR          | The harness names the branch; match `$PREFIX` or `Fixes MYK9-<n>`, read `$BRANCH` from the PR |
+| Letting a cloud session schedule its own check-in           | The preamble forbids triggers; `--permission-mode dontAsk` denies whatever would prompt       |

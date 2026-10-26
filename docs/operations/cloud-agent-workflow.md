@@ -1,6 +1,6 @@
 # Cloud Agent Workflow
 
-How Claude Code and Codex sessions set up, check themselves and hand work off, on the Mac or in a cloud checkout. Plan: [`docs/plan-cloud-agent-workflow.md`](../plan-cloud-agent-workflow.md). Stage 1 (this page): setup, preflight, discovered checkout paths, branch prefixes and the handoff ledger (MYK9-1397). Cloud review publication (Stage 2) and continuation (Stage 3) are not built yet.
+How Claude Code and Codex sessions set up, check themselves and hand work off, on the Mac or in a cloud checkout. Plan (archived, Complete 2026-10-26): [`docs/archive/plan-cloud-agent-workflow.md`](../archive/plan-cloud-agent-workflow.md). Stage 1 (this page): setup, preflight, discovered checkout paths, branch prefixes and the handoff ledger (MYK9-1397). Cloud review publication (Stage 2) and continuation (Stage 3) are not built yet.
 
 ## Local and cloud are both permanent
 

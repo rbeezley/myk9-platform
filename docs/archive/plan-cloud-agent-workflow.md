@@ -1,6 +1,17 @@
 # Cloud Agent Workflow Implementation Plan
 
-> **Status:** Active
+> **Status:** Complete
+
+> **Closed 2026-10-26.** Stage 1 closed on the Claude Code cloud side (MYK9-1397, Done): setup,
+> preflight, typecheck, lint and a shuffled test file green in a fresh Claude cloud session,
+> recorded in `docs/operations/cloud-agent-workflow.md`. Stages 2 and 3 were canceled
+> (MYK9-1398, MYK9-1399) when the owner settled on Claude Code implementing and Codex reviewing
+> on the Mac, which leaves no cloud review flow to build; Stage 2's part 1
+> (`scripts/cloud/authorship.ts`, `review-attempt.ts`, `review-publication.ts`,
+> `merge-cleanliness.ts`) stays merged. The Codex cloud environment's own proof and the Option B
+> runtime wrapper from PR #3273 are parked as MYK9-1436 behind the broken environment editor.
+> The cloud implementer lane that took over this plan's goal lives in the orchestrate skill
+> (MYK9-1428, MYK9-1433).
 
 **Goal:** Let Claude and Codex carry authorized myK9 work across cloud sessions, with durable handoffs, independent review and verified acceptance, without depending on Richard's Mac.
 

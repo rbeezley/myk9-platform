@@ -148,8 +148,12 @@ the differences below come from running in the cloud and win where they conflict
 1. Setup: `MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh`, then
    `pnpm cloud:preflight --role=implementer`. A missing tool is a BLOCKER you report in the
    PR body, never a pass. `pnpm typecheck` needs the environment's NODE_OPTIONS heap flag.
-2. Branch `claude/myk9-<n>-<slug>` from `origin/main`. Commit with the Claude Co-Authored-By
-   trailer on every commit; the branch prefix and the trailers are cross-checked.
+2. FIRST, before setup:
+   `git switch -c claude/myk9-<n>-<slug> origin/main && git push -u origin HEAD`
+   The empty branch on `origin` is the startup signal the Mac watches for; a
+   session that spends its first quarter hour installing without it is treated as dead and
+   re-dispatched. Commit with the Claude Co-Authored-By trailer on every commit; the branch
+   prefix and the trailers are cross-checked.
 3. In this session `gh api` works but `gh pr`, `gh issue` and `gh api --paginate` do not
    (the proxy rejects GraphQL). Push with `git push -u origin HEAD`. Open the PR ONLY when
    the work is done and the affected tests and typecheck pass, as a READY (non-draft) PR via
@@ -180,14 +184,17 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
 
 - **Watch for the PR**, bounded: every 60 s, up to 15 min at first
   (`gh pr list --head "$BRANCH" --state open --json number,isDraft,headRefOid --jq '.[]'`;
-  `.[]`, never `.[0]`, which turns an empty list into a false hit). Two deadlines, both
-  counted from the dispatch time in the ledger and both applying in every mode, continuous or
-  not. **Branch deadline, 15 min:** if the branch never appears on `origin`, the session
-  failed before it started; re-dispatch once (same prompt file, new session), then hold.
-  **PR deadline, 90 min:** a cloud session installs and builds before it works, so keep
-  watching at the same interval, but a branch with commits and no PR at 90 min is a hold
-  (In Progress, with the branch and the session URL named, per the shared table), and so is
-  the run's stop time if it comes first. Polling never runs without one of these endpoints.
+  `.[]`, never `.[0]`, which turns an empty list into a false hit). **Every cloud session
+  the run starts carries a deadline from its dispatch time**, written in the ledger beside
+  the session URL, in every mode, continuous or not; missing a deadline is a hold, never a
+  longer wait. **Branch deadline, 15 min** (first session): the preamble makes the session
+  push the empty branch before setup, so a branch that never appears on `origin` means the
+  session died before it started; re-dispatch once (same prompt file, new session), then
+  hold. **PR deadline, 90 min** (first session): a cloud session installs and builds before
+  it works, so keep watching at the same interval, but a branch with no PR at 90 min is a
+  hold (In Progress, with the branch and the session URL named, per the shared table).
+  **Fix deadline, 60 min** (each fix session, below). The run's stop time ends any wait that
+  it reaches first. Polling never runs without one of these endpoints.
 - **Review worktree:** when the PR exists,
   `git -C "$MAIN" fetch origin "$BRANCH" && git -C "$MAIN" worktree add "$WT" "$BRANCH"`, then
   `(cd "$WT" && bash scripts/bootstrap-worktree.sh)`. From here the review gate is the one in
@@ -198,9 +205,14 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
   yourself in `$WT` when the defect list is short (this is you implementing, and it counts in
   the run stats), or start a **fresh** cloud session with the same preamble and a prompt of
   the form "check out `<branch>`, fix these findings (file:line each), push, do not open a new
-  PR". Never push to the branch while a cloud session for it may still be running: a fix
-  session is finished when its push lands (`git -C "$MAIN" fetch origin "$BRANCH"` shows the
-  new head). The fetch moves only the remote-tracking ref, so before re-reviewing bring the
+  PR". A fix session is dispatched like the first one (prompt file, Terminal panel, URL and
+  dispatch time in the ledger) and has its own **60-minute deadline** for a new head to land
+  on the branch; the branch and PR already exist, so the first session's deadlines cannot
+  catch a fix session that dies, and the three-round limit bounds rounds, not one round's
+  wait. No new head by the deadline is a hold with the PR, branch and session URL named.
+  Never push to the branch while a cloud session for it may still be running: a fix session
+  is finished when its push lands (`git -C "$MAIN" fetch origin "$BRANCH"` shows the new
+  head). The fetch moves only the remote-tracking ref, so before re-reviewing bring the
   review worktree to that head: `git -C "$WT" merge --ff-only "origin/$BRANCH"` on a clean
   tree (`git -C "$WT" status --short` empty; a refused fast-forward means the Mac and the
   session both wrote, which is the rule above being broken, so stop and hold). Then re-run

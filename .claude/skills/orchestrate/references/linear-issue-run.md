@@ -47,15 +47,16 @@ run (go to Run end) when any of these holds:
   Codex down, a broken connector), and more attempts would only burn budget.
 
 Run issues one at a time by default. Run two at once only when their expected file sets are
-disjoint, and stay inside the 3-heavy-job cap (each issue's implementer, `/simplify`, Codex
-review and suites all count).
+disjoint, and stay inside the 2-heavy-job cap (each issue's implementer, verifier runs that
+start a suite or a browser, `/simplify`, Codex review and suites all count).
 
 ### 1. Triage (orchestrator, before any state change)
 
 - `get_issue` with `includeRelations: true`. Read the **full** description, acceptance
   criteria, linked plan or OpenSpec change, and the latest comments. If the issue names an
   OpenSpec change, run it in OpenSpec mode instead.
-- **Already fixed?** If the fix may already be on `main`, a `haiku` agent checks. The root then
+- **Already fixed?** If the fix may already be on `main`, dispatch the `verifier` against
+  `main` with each acceptance criterion as an item. The root then
   fresh-reads the full issue and checks every criterion, including production/acceptance proof.
   Record the evidence and apply the shared closeout contract; code on main or the helper's
   report alone cannot establish Done.
@@ -110,7 +111,8 @@ disappear merely because its priority is Medium/Low or its implementation is unf
 **E2E repro runs** need the main checkout's `apps/myk9show/.env.local` (bootstrap doesn't copy
 it): `set -a; . "$MAIN/apps/myk9show/.env.local"; set +a`, then run the spec pinned to its own
 port (`PLAYWRIGHT_BASE_URL=http://127.0.0.1:<port> PLAYWRIGHT_PORT=<port>`) so it doesn't
-attach to another worktree's dev server. Never print the env values.
+attach to another worktree's dev server. Never print the env values. When the `verifier` runs
+the spec, put that sourcing line and the port in its prompt.
 
 ### 4. Ship
 

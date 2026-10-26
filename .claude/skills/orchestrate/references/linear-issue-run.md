@@ -8,7 +8,11 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
 ## Run start (the only pause)
 
 1. **Where you sit.** The orchestrator runs from the main checkout
-   (the first `git worktree list --porcelain` entry) on a clean, pulled `main`. It never edits
+   (the first `git worktree list --porcelain` entry) on a clean, pulled `main`, in a session on
+   an Opus-class model or better: the orchestrator writes no code, and its value is triage and
+   the review gate, so a cheaper model there is the one false economy; a Fable session at high
+   effort is the other extreme, and spent most of a usage window on one two-hour run
+   (2026-10-26). It never edits
    files there. Every issue gets its own worktree. Don't start the run from an `EnterWorktree`
    session: that isolation refuses git in the main checkout, which the merge step and the
    per-issue `git worktree add` need. `ExitWorktree` (keep) first.
@@ -30,7 +34,12 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
    it doesn't, say before starting that any `independent`-tier PR will wait unmerged.
    For the cloud lane, `claude --version` must answer in the Terminal panel and the CLI must be
    signed in to claude.ai (`claude auth login`, a one-time owner step); the first dispatch is
-   the real test, since it prints a session URL within a minute or fails in the open.
+   the real test, since it prints a session URL within a minute or fails in the open. That
+   dispatch must also run without a permission dialog: `.claude/settings.json` carries an
+   `autoMode.allow` rule for exactly this command (MYK9-1437, after the 2026-10-26 run sat on
+   "Allow Claude to run a command in your terminal?" with nobody there to click). A dialog on a
+   dispatch means the rule is missing or the settings schema changed; record it in the run
+   summary as a finding, since an unattended run would have held there until the stop time.
    Review Blocked work under the shared restoration/ownership rules before selecting new work;
    a past capability hold is not proof that the capability is still unavailable now.
 4. **Ledger.** Keep `<scratchpad>/orchestrate-run.md` with one row per issue: id, premise,
@@ -138,10 +147,13 @@ Write the prompt to
 
 ```
 run_in_terminal  title: "cloud myk9-<n>"
-command: claude --cloud "$(cat '<scratchpad>/cloud-myk9-<n>.md')" --permission-mode dontAsk --disallowedTools mcp__claude-code-remote__create_trigger
+command: claude --cloud "$(cat '<scratchpad>/cloud-myk9-<n>.md')" --permission-mode dontAsk --disallowedTools mcp__claude-code-remote__create_trigger --model sonnet
 ```
 
 `claude --cloud` needs a TTY, which is why it goes through the panel and not the Bash tool.
+`--model sonnet` gives the cloud implementer the same model its role file gives a local one
+(verified 2026-10-26: the session footer read Sonnet 5.5); without it the cloud default was the
+orchestrator's own model at high effort, for one-file fixes.
 The two flags keep the session from ever waiting on a click nobody will give: `dontAsk`
 denies anything that would prompt, and the denied tool is the scheduled-trigger tool with
 which a session armed a "safety-net check-in" nobody asked for on 2026-10-26 and then sat on

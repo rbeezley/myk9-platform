@@ -229,4 +229,57 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
       ['entry-held', true],
     ]);
   });
+
+  it('copies the withdrawal reason code from the pull metadata onto the merged row (MYK9-1410)', async () => {
+    mocks.from.mockImplementation((relation: string) => {
+      let heldLookup = false;
+      const query = {
+        select: vi.fn(() => query),
+        eq: vi.fn(() => query),
+        is: vi.fn(() => query),
+        in: vi.fn(() => query),
+        filter: vi.fn(() => {
+          heldLookup = true;
+          return query;
+        }),
+        order: vi.fn(() =>
+          heldLookup
+            ? query
+            : Promise.resolve({
+                data:
+                  relation === 'view_authenticated_entry_results'
+                    ? [{ id: 'entry-withdrawn', show_id: 'show-1' }]
+                    : [],
+                error: null,
+              })
+        ),
+        range: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        then: (resolve: (value: unknown) => unknown) =>
+          Promise.resolve({
+            data:
+              relation === 'entries'
+                ? [
+                    {
+                      id: 'entry-withdrawn',
+                      withdrawn_at: '2026-06-18T11:00:00Z',
+                      refund_decision: null,
+                      refund_decided_at: null,
+                      withdrawal_reason_code: 'in_season',
+                    },
+                  ]
+                : [],
+            error: null,
+          }).then(resolve),
+      };
+      return query;
+    });
+
+    const result = await postgrestGetSecretaryEntriesForShow('show-1', Date.now(), 'test');
+
+    expect(result.data[0]).toMatchObject({
+      id: 'entry-withdrawn',
+      withdrawn_at: '2026-06-18T11:00:00Z',
+      withdrawal_reason_code: 'in_season',
+    });
+  });
 });

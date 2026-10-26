@@ -281,7 +281,7 @@ Before any code edit, file write, formatter, generated snapshot, commit, PR, or 
 1. Run `git branch --show-current` and `git rev-parse --git-dir --git-common-dir`.
 2. If already in a linked worktree (`git-dir` differs from `git-common-dir`), continue there.
 3. If in the primary checkout on `main`, stop and create a feature worktree/branch first (`git worktree add ../wt-<task> -b <branch>`), then `bash scripts/bootstrap-worktree.sh` inside it.
-4. Do not edit files in the primary checkout except docs-only direct-to-`main` work explicitly approved by the user (scope in the shared rules above).
+4. Primary-checkout edits are allowed only for docs-only direct-to-`main` work authorized by the user's commit/push request (scope in the shared rules above).
 
 ## OPSX / OpenSpec Workflow
 
@@ -300,7 +300,7 @@ When asked to review a PR, run focused verification by default when practical:
 
 ## Small Maintenance Changes
 
-For work authorized by the division-of-labour decision, follow the shared rules' docs-only direct-to-`main` scope and PR exceptions.
+Follow the shared rules' docs-only direct-to-`main` scope and approval requirements. The user's request to commit/push supplies the required approval; no separate confirmation is needed. Guardrail paths still require a PR.
 
 - For skill, agent-prompt, or other edits requiring a PR, prefer the standing `codex/maintenance-notes` worktree/branch and run `pnpm qa:inflight` before each batch.
 - Batch related edits into one commit/PR.

@@ -28,7 +28,7 @@ They replace `MYK9_TOOLS_DIR`, `COREPACK_HOME`, `PNPM_HOME` and `DENO_DIR`; sepa
 per-directory overrides are not supported. Initialization creates those fixed
 directories and validates write/search permissions. Any failure names the
 variable and stops before the child runs. No temporary write probes, automatic
-path selection or fallback exists. The old `environment.sh` helper is deleted.
+path selection or fallback exists.
 This intentionally selects the cloud home's runtime caches, even if an image
 has other warmed caches. XDG config/cache/data/state and HOME are never changed;
 gh/git login discovery and browser-cache discovery retain their existing paths.
@@ -36,7 +36,7 @@ gh/git login discovery and browser-cache discovery retain their existing paths.
 `ASTRO_TELEMETRY_DISABLED=1` avoids Astro's config write. The wrapper preserves
 TLS flags and explicit Node heap options, adding a 6144 MB heap otherwise.
 Turbo keeps only the four runtime settings needed by task children through its
-existing task-scoped allowance; it does not receive XDG/auth configuration.
+shared global allowance; it does not receive XDG/auth configuration.
 Dependencies, builds and `.logs/` remain in the active worktree.
 
 `run.sh` does not install or replace Node/pnpm, change tool pins, modify `HOME`, copy `.env` files or configure credentials. The provider must supply the required Node/pnpm versions; `setup.sh` continues to enforce the existing minimums and archive checksums. An image using Corepack can prepare its pnpm shim in the wrapper's writable tools directory before setup:
@@ -76,3 +76,5 @@ Shell tools require network permission for network operations and IPC: use
 `with_additional_permissions` with `additional_permissions.network.enabled: true`.
 Preserve inherited proxy and CA settings. Never infer a pass from a blocked or
 skipped command. Run setup sequentially before typecheck or other proof checks.
+
+Run from inside the checkout. A wrong working directory exits with a `cloud run:` diagnostic, including when the cloud home is absolute. Nested invocations retain a single tools entry on PATH. The Claude Code cloud wrapper command remains **unverified in that provider**; the dated Claude proof used direct setup.

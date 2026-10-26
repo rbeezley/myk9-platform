@@ -23,7 +23,10 @@ if [ -z "${MYK9_CLOUD_HOME:-}" ]; then
   exit 2
 fi
 # Use the same absolute primary-checkout lookup as bootstrap-worktree.sh.
-COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir)"
+if ! COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"; then
+  echo "cloud run: run from inside the Git checkout; cloud home does not select the working directory." >&2
+  exit 2
+fi
 case "$MYK9_CLOUD_HOME" in
   /*) ;;
   *) MYK9_CLOUD_HOME="$(dirname "$COMMON_DIR")/$MYK9_CLOUD_HOME" ;;
@@ -35,7 +38,10 @@ export PNPM_HOME="$MYK9_CLOUD_HOME/pnpm"
 export DENO_DIR="$MYK9_CLOUD_HOME/deno"
 export ASTRO_TELEMETRY_DISABLED=1
 export MYK9_CLOUD=1
-export PATH="$MYK9_TOOLS_DIR:$PATH"
+case ":$PATH:" in
+  *":$MYK9_TOOLS_DIR:"*) ;;
+  *) export PATH="$MYK9_TOOLS_DIR:$PATH" ;;
+esac
 
 # Initialize only the fixed destinations. Permission validation never selects a
 # different path and does not create/delete temporary probe files.

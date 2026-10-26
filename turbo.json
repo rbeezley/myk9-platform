@@ -5,17 +5,20 @@
   // it detects an agent, dirtying every fresh worktree on bootstrap. AGENTS.md
   // is generated from docs/agents/shared-rules.md; keep turbo out of it.
   "agentGuidance": false,
+  // Shared by every task, including clean and future tasks. No XDG/auth roots.
+  "globalPassThroughEnv": [
+    "COREPACK_HOME",
+    "PNPM_HOME",
+    "NODE_OPTIONS",
+    "ASTRO_TELEMETRY_DISABLED"
+  ],
   "tasks": {
     "build": {
-      // Runtime options needed by package-manager/task children, not XDG roots.
-      "passThroughEnv": ["COREPACK_HOME", "PNPM_HOME", "NODE_OPTIONS", "ASTRO_TELEMETRY_DISABLED"],
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "typecheck": {
-      // Runtime options needed by package-manager/task children, not XDG roots.
-      "passThroughEnv": ["COREPACK_HOME", "PNPM_HOME", "NODE_OPTIONS", "ASTRO_TELEMETRY_DISABLED"],
       "dependsOn": ["^build"],
       // The repo-root edge functions live OUTSIDE every package dir, yet
       // apps/myk9show typechecks (tsconfig.edge-tests.json) and runs
@@ -26,22 +29,16 @@
       "outputs": []
     },
     "lint": {
-      // Runtime options needed by package-manager/task children, not XDG roots.
-      "passThroughEnv": ["COREPACK_HOME", "PNPM_HOME", "NODE_OPTIONS", "ASTRO_TELEMETRY_DISABLED"],
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$"],
       "outputs": []
     },
     "test": {
-      // Runtime options needed by package-manager/task children, not XDG roots.
-      "passThroughEnv": ["COREPACK_HOME", "PNPM_HOME", "NODE_OPTIONS", "ASTRO_TELEMETRY_DISABLED"],
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/supabase/functions/**"],
       "outputs": ["coverage/**"]
     },
     "dev": {
-      // Runtime options needed by package-manager/task children, not XDG roots.
-      "passThroughEnv": ["COREPACK_HOME", "PNPM_HOME", "NODE_OPTIONS", "ASTRO_TELEMETRY_DISABLED"],
       "cache": false,
       "persistent": true
     },

@@ -151,6 +151,31 @@ it('fails loudly on a blocked fixed directory without selecting another path, ev
   expect(readFileSync(join(cloudHome, 'corepack'), 'utf8')).toBe('blocked');
 });
 
+it('explains a wrong working directory before initializing fixed paths', ({ sandbox }) => {
+  const result = run(
+    sandbox,
+    { MYK9_CLOUD_HOME: join(sandbox.base, 'outside tools') },
+    undefined,
+    sandbox.base
+  );
+  expect(result.status).toBe(2);
+  expect(result.stderr).toMatch(/cloud run:.*Git checkout/);
+  expect(result.stderr).not.toMatch(/fatal:/);
+  expect(readdirSync(sandbox.base)).not.toContain('outside tools');
+});
+
+it('does not duplicate the tools PATH entry in nested wrapper calls', ({ sandbox }) => {
+  const result = run(sandbox, {}, [
+    'bash',
+    RUN,
+    process.execPath,
+    '-e',
+    'console.log(process.env.PATH.split(":").filter(p => p === process.env.MYK9_TOOLS_DIR).length)',
+  ]);
+  expect(result.status, result.stderr).toBe(0);
+  expect(result.stdout.trim()).toBe('1');
+});
+
 it('shares prepared tools across linked worktrees and finds them on PATH', ({ sandbox }) => {
   const tools = join(sandbox.repo, '.cloud-tools', 'bin');
   mkdirSync(tools, { recursive: true });
@@ -248,7 +273,7 @@ it('passes cloud settings through the real Turbo process into docs typecheck', (
     ''
   );
   const config = JSON.parse(configText);
-  expect(config.globalPassThroughEnv).toBeUndefined();
+
   const runtimeShell = readFileSync(RUN, 'utf8');
   const directOnly = new Set([
     'MYK9_CLOUD',
@@ -262,10 +287,11 @@ it('passes cloud settings through the real Turbo process into docs typecheck', (
     .filter(key => !directOnly.has(key));
   // Discover exports from the wrapper: adding an export without a task allowance
   // fails here. The excluded names are direct cloud-command discovery only.
-  for (const task of ['build', 'typecheck', 'lint', 'test', 'dev']) {
-    expect(config.tasks[task].passThroughEnv).toEqual(
-      expect.arrayContaining([...runtimeKeys, 'NODE_OPTIONS', 'ASTRO_TELEMETRY_DISABLED'])
-    );
+  expect(config.globalPassThroughEnv).toEqual(
+    expect.arrayContaining([...runtimeKeys, 'NODE_OPTIONS', 'ASTRO_TELEMETRY_DISABLED'])
+  );
+  for (const task of Object.values(config.tasks)) {
+    expect(task).not.toHaveProperty('passThroughEnv');
   }
   expect(JSON.parse(output![1]!)).toEqual({
     telemetry: '1',

@@ -26,11 +26,25 @@ Open PRs as **drafts** while iterating and mark them ready for review when they 
 
 Point the provider's setup step at the one script. Wrapped commands require `MYK9_CLOUD_HOME` and use fixed runtime directories under it. `.cloud-tools` is relative to the absolute primary checkout; the wrapper restores PATH for every command. Direct setup uses the same primary-checkout default and prints a PATH hint when needed. See [the command contract](../../scripts/cloud/README.md).
 
-| Provider          | Setup command                                                                                     | Status                                                                                                                   |
-| ----------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Claude Code cloud | `MYK9_CLOUD=1 MYK9_CLOUD_HOME=.cloud-tools bash scripts/cloud/run.sh bash scripts/cloud/setup.sh` | Current Option B command. Historical Claude proof used the earlier setup command; see dated receipts below.              |
-| Codex cloud       | `MYK9_CLOUD=1 MYK9_CLOUD_HOME=.cloud-tools bash scripts/cloud/run.sh bash scripts/cloud/setup.sh` | Owner-selected Option B, fixed paths. JSR remains blocked while the editor is unavailable; see the latest Codex receipt. |
-| GitHub Actions    | `bash scripts/cloud/setup.sh --role=<role>` (`GITHUB_ACTIONS` is the marker)                      | Used from Stage 2                                                                                                        |
+| Provider          | Setup command                                                                                     | Status                                                                                                                                                                      |
+| ----------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Claude Code cloud | `MYK9_CLOUD=1 MYK9_CLOUD_HOME=.cloud-tools bash scripts/cloud/run.sh bash scripts/cloud/setup.sh` | **UNVERIFIED on Claude Code cloud.** Option B has only Codex proof; the dated verified Claude direct-setup route is historical evidence, not proof of this wrapper command. |
+| Codex cloud       | `MYK9_CLOUD=1 MYK9_CLOUD_HOME=.cloud-tools bash scripts/cloud/run.sh bash scripts/cloud/setup.sh` | Owner-selected Option B, fixed paths. JSR remains blocked while the editor is unavailable; see the latest Codex receipt.                                                    |
+| GitHub Actions    | `bash scripts/cloud/setup.sh --role=<role>` followed by the `GITHUB_PATH` step below              | Required for tools to be available in later workflow steps.                                                                                                                 |
+
+For GitHub Actions, append the actual tools directory to `GITHUB_PATH` in the
+same step after successful setup. `GITHUB_PATH` takes effect in subsequent steps;
+it does not change the current step's PATH. Use the same value for installation
+and the exported path:
+
+```yaml
+- name: Set up cloud tools
+  env:
+    MYK9_TOOLS_DIR: ${{ github.workspace }}/.cloud-tools/bin
+  run: |
+    bash scripts/cloud/setup.sh --role=implementer
+    echo "$MYK9_TOOLS_DIR" >> "$GITHUB_PATH"
+```
 
 The script:
 
@@ -204,7 +218,7 @@ Vitest 5.0.0. JSON implementer preflight reported `missing: []`.
 | `deno-combined`    | `deno check --node-modules-dir=none --no-lock supabase/functions/push-trigger-class-status/index.ts supabase/functions/push-trigger-run-proximity/index.ts` | **BLOCKER**, `EXIT=1`: JSR manifest download denied before type validation.                                                                                          |
 | `deno-proximity`   | `deno check --node-modules-dir=none --no-lock supabase/functions/push-trigger-run-proximity/index.ts`                                                       | **BLOCKER**, `EXIT=1`: same JSR manifest denial.                                                                                                                     |
 | `skill-validation` | `bash -c 'cd apps/myk9show && pnpm vitest run src/test/ci/skillTrees.test.ts --sequence.shuffle'`                                                           | `EXIT=0`, 19 tests, seed `1793035879605`; repository skill-tree/link/inventory validator. No skill references changed.                                               |
-| `shellcheck`       | `shellcheck scripts/cloud/run.sh scripts/cloud/setup.sh`                                                                                                    | `EXIT=0`.                                                                                                                                                            |
+| `shellcheck`       | Historical ShellCheck invocation on the intermediate revision’s shell files                                                                                 | `EXIT=0`.                                                                                                                                                            |
 | `ratchet`          | `pnpm qa:code-quality-ratchet`                                                                                                                              | `EXIT=0`, no metric regression.                                                                                                                                      |
 | `inflight`         | `pnpm qa:inflight scripts/cloud/README.md`                                                                                                                  | Initial `EXIT=1`: clean primary on `work`, not `main`. Owner explicitly approved switching the clean primary to new `main` at `origin/main`, preserving `work`.      |
 | `inflight-rerun`   | `pnpm qa:inflight scripts/cloud/README.md`                                                                                                                  | `EXIT=0`, no competing work on this receipt; owned PR excluded by branch.                                                                                            |
@@ -298,7 +312,7 @@ Turbo 2.11.8 and Vitest 5.0.0.
 | `deno-combined`  | `deno check --node-modules-dir=none --no-lock supabase/functions/push-trigger-class-status/index.ts supabase/functions/push-trigger-run-proximity/index.ts` | **BLOCKER**, `EXIT=1`: jsr.io manifest denied, unsuccessful proxy tunnel before type validation.                                                                            |
 | `deno-proximity` | `deno check --node-modules-dir=none --no-lock supabase/functions/push-trigger-run-proximity/index.ts`                                                       | **BLOCKER**, `EXIT=1`: same JSR denial. Known MYK9-1400 errors not reached.                                                                                                 |
 | `app-full`       | `bash -c 'cd apps/myk9show && pnpm vitest run --sequence.shuffle'` (supervised equivalent cwd/argv)                                                         | **BLOCKER: incomplete**, `EXIT=130`; seed `1793037341840`, no test counts/verdict. Owned runner interrupted after >30 seconds without output progress after its banner.     |
-| `shellcheck`     | `shellcheck scripts/cloud/run.sh scripts/cloud/setup.sh scripts/cloud/environment.sh`                                                                       | `EXIT=0`.                                                                                                                                                                   |
+| `shellcheck`     | Historical ShellCheck invocation on the intermediate revision’s shell files                                                                                 | `EXIT=0`.                                                                                                                                                                   |
 | `ratchet`        | `pnpm qa:code-quality-ratchet`                                                                                                                              | `EXIT=0`, includes staged new helper, no metric regression.                                                                                                                 |
 
 An intermediate `pnpm format:check:changed` correctly failed **EXIT=123** on the
@@ -315,16 +329,16 @@ After pushing `cb5fbe8f4514562b5fa475597e28734cb7f1e6b9`, setup ran again
 sequentially through run.sh (**EXIT=0**, `.logs/postpush-setup.log`). Then the
 same wrapper-prefixed proof commands above were rerun on that exact clean head:
 
-| Log                       | Result                                                                                                                                                                                                                                            |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `postpush-preflight`      | **EXIT=0**, JSON implementer `missing: []`.                                                                                                                                                                                                       |
-| `postpush-typecheck`      | **EXIT=0**, strict normal Turbo, 26/26 cached tasks; the earlier uncached review-fix typecheck passed 26/26 with 11 cached.                                                                                                                       |
-| `postpush-lint`           | **EXIT=0**, 14/14 cached tasks, 0 errors / 43 warnings replayed.                                                                                                                                                                                  |
-| `postpush-cloud`          | **EXIT=0**, 8 files / 140 tests, seed `1793037639243`.                                                                                                                                                                                            |
-| `postpush-scanner`        | **EXIT=0**, 6/6 tests, seed `1793037640085`.                                                                                                                                                                                                      |
-| `postpush-deno-combined`  | **BLOCKER**, **EXIT=1**, same JSR manifest tunnel denial before type validation.                                                                                                                                                                  |
-| `postpush-deno-proximity` | **BLOCKER**, **EXIT=1**, same JSR denial. MYK9-1400 errors still not reached.                                                                                                                                                                     |
-| `postpush-quality`        | **EXIT=0**, combined `shellcheck scripts/cloud/run.sh scripts/cloud/setup.sh scripts/cloud/environment.sh && pnpm qa:code-quality-ratchet && pnpm format:check:changed && git diff --check`; each check had also passed separately before commit. |
+| Log                       | Result                                                                                                                                                                       |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `postpush-preflight`      | **EXIT=0**, JSON implementer `missing: []`.                                                                                                                                  |
+| `postpush-typecheck`      | **EXIT=0**, strict normal Turbo, 26/26 cached tasks; the earlier uncached review-fix typecheck passed 26/26 with 11 cached.                                                  |
+| `postpush-lint`           | **EXIT=0**, 14/14 cached tasks, 0 errors / 43 warnings replayed.                                                                                                             |
+| `postpush-cloud`          | **EXIT=0**, 8 files / 140 tests, seed `1793037639243`.                                                                                                                       |
+| `postpush-scanner`        | **EXIT=0**, 6/6 tests, seed `1793037640085`.                                                                                                                                 |
+| `postpush-deno-combined`  | **BLOCKER**, **EXIT=1**, same JSR manifest tunnel denial before type validation.                                                                                             |
+| `postpush-deno-proximity` | **BLOCKER**, **EXIT=1**, same JSR denial. MYK9-1400 errors still not reached.                                                                                                |
+| `postpush-quality`        | **EXIT=0**, historical combined ShellCheck, code-quality ratchet, formatting and whitespace checks on that intermediate revision; each also passed separately before commit. |
 
 The broad app runner was not retried after its documented no-progress interruption.
 The follow-up receipt commit changes documentation only; executable code remains
@@ -341,7 +355,7 @@ establish whether published variables persist. The owner selected Option B after
 the six distinct re-review findings on `ce47f93543826f4c3c820e62595c4ff980e31d79`.
 This is a convergence restructure, not another fallback-detection patch.
 
-`environment.sh` and its detection/fallback logic are deleted. run.sh requires
+The abandoned intermediate path-detection/fallback approach is removed. run.sh requires
 `MYK9_CLOUD_HOME`; relative values are anchored once to the primary checkout
 using `git rev-parse --path-format=absolute --git-common-dir`, as bootstrap does.
 It exports only fixed tools/Corepack/pnpm/Deno locations under that root,
@@ -405,6 +419,68 @@ explicit verification gaps. The PR is handed back for independent Claude
 re-review, not a clean review gate, merge, deployment or completed Stage 1
 acceptance. MYK9-1397 stays In Progress.
 
+##### Review follow-ups and completed app suite, 2026-10-26
+
+Claude's re-review at `93bc6638e624634f6bff783913c1a78037c65dff` reported
+1 P2 and 7 P3 findings. The Option B core is retained. The Claude Code cloud
+provider row now explicitly labels its wrapper command **UNVERIFIED**; the old
+direct-setup receipts do not validate that wrapper on another provider. The
+GitHub Actions instructions append the same installed tool directory to
+GITHUB_PATH so subsequent steps can find it. Intermediate-file references are
+removed, and Known gaps now describes the resolved Codex failures in past tense
+while keeping settings persistence untested and JSR access blocked.
+
+run.sh now returns **EXIT=2** with a `cloud run:` working-directory diagnostic
+outside Git, before initializing destinations, and nested invocations do not
+re-add an existing tools PATH entry. Turbo uses one global four-variable
+pass-through list, shared by clean and future tasks as well as existing tasks;
+XDG/auth roots remain excluded. The real Turbo fixture checks this single
+contract. The updated regression file failed on the reviewed code before fixes:
+**EXIT=1**, 3 failed / 8 passed. No new module-scope mutable state was added.
+
+The full configured app suite then ran to completion in one unsharded shuffled
+invocation with per-file isolation retained. Two workers and verbose reporting
+were used within the executor's four-CPU quota / 16-GiB memory limit; no files
+were excluded beyond the repository's normal app test configuration. It kept
+making useful progress, so the 30-second no-progress watchdog never fired.
+The resource-capped invocation succeeded; this does not diagnose why the earlier
+default-worker attempts stalled. Those historical incomplete attempts remain
+in the ledger, and are superseded by this completed run for current app evidence.
+
+All commands below used
+`MYK9_CLOUD=1 MYK9_CLOUD_HOME=.cloud-tools bash scripts/cloud/run.sh`, with
+network/IPC permission enabled. Setup finished before checks. Each command's
+real exit was immediately captured in this worktree's .logs; no pipeline masked
+runner status. Same published configuration `cecfgver_6ade570b62648197b0587885e71cdaac`,
+Linux x86_64; Node 24.19.0, pnpm 9.15.9, git 2.52.0, gh 2.89.0,
+Deno 2.1.4, ShellCheck 0.10.0, jq 1.7, Turbo 2.11.8, Vitest 5.0.0.
+
+| Log                 | Command after wrapper                                                                                                                                       | Result                                                                                                                                                                                  |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `r4-setup`          | `bash scripts/cloud/setup.sh`                                                                                                                               | **EXIT=0**, frozen install, package builds, dist freshness and embedded preflight ready.                                                                                                |
+| `r4-preflight`      | `pnpm cloud:preflight --role=implementer --json`                                                                                                            | **EXIT=0**, `missing: []`.                                                                                                                                                              |
+| `r4-typecheck`      | `pnpm typecheck`                                                                                                                                            | **EXIT=0**, normal strict Turbo 26/26 tasks, 11 cached; no new script diagnostics.                                                                                                      |
+| `r4-lint`           | `pnpm lint`                                                                                                                                                 | **EXIT=0**, 14/14 tasks, 11 cached, 0 errors / 43 warnings.                                                                                                                             |
+| `r4-cloud`          | `pnpm exec vitest run --project=root scripts/cloud --sequence.shuffle`                                                                                      | **EXIT=0**, 8 files / 142 tests, seed `1793042250316`.                                                                                                                                  |
+| `r4-app-full`       | `bash -c 'cd apps/myk9show && pnpm vitest run --sequence.shuffle --maxWorkers=2 --reporter=verbose'` (supervised equivalent cwd/argv)                       | **EXIT=0**, 3,171 files passed / 2 skipped; 30,678 tests passed / 11 skipped / 1 todo (30,690 total). Seed `1793042314021`; duration 2550.38s (42m30s); completed without interruption. |
+| `r4-scanner`        | `bash -c 'cd apps/myk9show && pnpm vitest run scripts/verify-artifact-secrets.test.ts --sequence.shuffle'`                                                  | **EXIT=0**, 6/6, seed `1793042317658`.                                                                                                                                                  |
+| `r4-skills`         | `bash -c 'cd apps/myk9show && pnpm vitest run src/test/ci/skillTrees.test.ts --sequence.shuffle'`                                                           | **EXIT=0**, 19/19, seed `1793042317903`.                                                                                                                                                |
+| `r4-deno-combined`  | `deno check --node-modules-dir=none --no-lock supabase/functions/push-trigger-class-status/index.ts supabase/functions/push-trigger-run-proximity/index.ts` | **BLOCKER, EXIT=1**, JSR manifest proxy-tunnel denial before type validation.                                                                                                           |
+| `r4-deno-proximity` | `deno check --node-modules-dir=none --no-lock supabase/functions/push-trigger-run-proximity/index.ts`                                                       | **BLOCKER, EXIT=1**, same denial. Known MYK9-1400 diagnostics not reached.                                                                                                              |
+| `r4-shellcheck`     | `shellcheck scripts/cloud/run.sh scripts/cloud/setup.sh`                                                                                                    | **EXIT=0**.                                                                                                                                                                             |
+| `r4-ratchet`        | `pnpm qa:code-quality-ratchet`                                                                                                                              | **EXIT=0**, no metric regression.                                                                                                                                                       |
+| `r4-inflight-final` | `pnpm qa:inflight` naming the five affected files                                                                                                           | **EXIT=0**, owned PR excluded; no competing path overlap.                                                                                                                               |
+
+Final formatting, whitespace and publication-scan receipts are recorded on
+MYK9-1397 with the exact pushed head. All raw logs stay local. No pins, edge
+source, credentials or local .env changed/copied. The Claude wrapper provider
+proof remains unverified, actual macOS execution was not available here, and
+jsr.io remains a named BLOCKER until its allowed-domain setting can be published.
+The app-suite interruption gap is now resolved by the complete run above.
+Independent Claude re-review on the new head is still owed; no CI-green claim,
+clean review gate, merge, deployment or completed Stage 1 acceptance is asserted.
+MYK9-1397 remains In Progress.
+
 ## Preflight
 
 ```bash
@@ -451,9 +527,9 @@ Detailed reports and logs go in Actions artifacts with 30-day retention, referen
 
 ## Known gaps
 
-- **Historical Codex blocker, resolved by wrapper proof 2026-10-26 — install permissions and environment persistence:** the requested setup cannot write `/usr/local/bin`; the install script instead prepared repo-local tools and caches, but its `PATH`, XDG/Corepack settings and heap flag did not persist into the task shell. The raw task commands failed on the pnpm store path and missing Deno/ShellCheck. Explicitly restoring prepared settings lets setup/preflight pass, without resolving fresh-shell configuration or the install destination permission.
-- **Historical Codex blocker, resolved by strict typecheck 2026-10-26 — workspace typecheck:** even with prepared tools and a 6144 MB heap, Astro tries to create `/home/agent/.config/astro` and exits 1 on permissions. The workspace typecheck did not pass.
+- **Historical Codex blocker, resolved by wrapper proof 2026-10-26 — install permissions and environment persistence:** the requested setup cannot write `/usr/local/bin`; the install script instead prepared repo-local tools and caches, but its `PATH`, XDG/Corepack settings and heap flag did not persist into the task shell. The raw task commands failed on the pnpm store path and missing Deno/ShellCheck. Those were failures of the initial direct-setup attempt. Later fixed-path wrapper proof resolved task-shell initialization and the install destination for Codex by using the explicit cloud home; provider settings persistence remains untested because the editor is unavailable.
+- **Historical Codex blocker, resolved by strict typecheck 2026-10-26 — workspace typecheck:** the initial prepared rerun failed when Astro attempted to create `/home/agent/.config/astro`. Later wrapper runs retain the telemetry-disable flag and pass strict workspace typecheck; the dated failure remains in the ledger.
 - **Codex cloud BLOCKER — Deno dependency network access:** `jsr.io` is absent from the supplied allowlist; the JSR functions package manifest request fails with an unsuccessful proxy tunnel. Both the combined check and the separate run-proximity check exit 1 before reaching the known MYK9-1400 diagnostics.
-- **Historical Codex blocker, resolved with owner-approved clean primary switch 2026-10-26 — inflight guard:** the supplied primary checkout is on branch `work`; `qa:inflight` exits 1. The proof branch uses a linked worktree from freshly fetched `origin/main`.
+- **Historical Codex blocker, resolved with owner-approved clean primary switch 2026-10-26 — inflight guard:** the initial supplied primary checkout was on branch `work`, and `qa:inflight` exited 1. The owner later approved switching the clean primary to `main` while preserving `work`; subsequent inflight checks passed. Implementation stayed in the linked feature worktree.
 - `deno check` reports pre-existing type errors in `push-trigger-class-status` and `push-trigger-announcement`: untyped PostgREST embeds infer arrays where a many-to-one embed returns an object at runtime. `push-trigger-run-proximity` checks clean. Filed separately, not fixed in Stage 1.
 - The base64 spelling of a secret is not scanned (the shared scanner matches verbatim and JSON-escaped forms).

@@ -46,7 +46,9 @@ agent on it before your own review. Migrations are never pushed in an orchestrat
 reviews needed a reboot). This counts sub-agents, resumed agents (SendMessage), verifiers that
 run a suite or a browser, Codex reviews and your own full test or Playwright runs. Lightweight
 `gh` watchers don't count. Count before every spawn or resume, and queue the work when you're
-at 2. No size exemption: a "small" fix's agent counts like any other.
+at 2. No size exemption: a "small" fix's agent counts like any other. Implementers running
+in Claude cloud sessions (Linear run mode's cloud lane) don't count, since they use no Mac
+CPU; the Codex review and any verifier run for their PRs do.
 
 ## Verify, then weigh (before any worktree, state change or dispatch)
 
@@ -89,9 +91,14 @@ the same time.
 
 - **OpenSpec mode:** in the change's own worktree, where its artifacts already live, one batch
   at a time.
-- **Linear run mode:** each issue gets its own worktree and branch, created by the orchestrator
-  (see `references/linear-issue-run.md`). After you dispatch, confirm it with
+- **Linear run mode, local lane:** each issue gets its own worktree and branch, created by the
+  orchestrator (see `references/linear-issue-run.md`). After you dispatch, confirm it with
   `git worktree list`.
+- **Linear run mode, cloud lane:** the implementer is a Claude cloud session started with
+  `claude --cloud` from the Terminal panel; the prompt is the same three parts below, preceded
+  by the cloud preamble in `references/linear-issue-run.md` § Lanes, which tells the session to
+  read `implementer.md` as its own rules. It cannot be messaged: its PR is its report, and a
+  review round is a fresh session.
 
 Dispatch with `subagent_type: "implementer"`. Its role file, `.claude/agents/implementer.md`,
 carries the project rules, the scope fence, the verification discipline and the report

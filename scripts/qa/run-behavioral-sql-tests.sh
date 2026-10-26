@@ -204,6 +204,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1315_club_awaiting_authorization_notice_test.sql"
   "$TEST_DIR/myk9_1309_seed_fixture_functions_test.sql"
   "$TEST_DIR/myk9_1311_show_entry_counts_test.sql"
+  "$TEST_DIR/myk9_1409_role_permission_rpcs_test.sql"
 )
 
 for test_file in "${TEST_FILES[@]}"; do

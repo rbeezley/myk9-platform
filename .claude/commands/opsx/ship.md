@@ -14,6 +14,11 @@ Two distinct verification gates, on purpose:
 
 This is an **orchestrator**. Each phase delegates to an existing skill via the Skill tool — do NOT reimplement their steps here. If a delegated skill pauses (ambiguity, blocker, failed check), the pipeline pauses with it; resolve, then continue from that phase.
 
+**Linear owner:** the root running this pipeline owns the linked tracking issue under
+`docs/agents/issue-tracker.md`'s **Lifecycle owner** protocol. Read the full issue and latest
+comments; apply that protocol before Phase 3 starts, at every pause/handoff, after the merge,
+and after archive. OpenSpec task completion does not update Linear or satisfy acceptance proof.
+
 **Skill-name fallback**: the `opsx:<x>` commands are registered as Skill-tool names (e.g. `opsx:propose`, `opsx:apply`). The standalone `openspec-*` skill copies were removed 2026-07-10 — always invoke the `opsx:<x>` names.
 
 **Input**: A description of what to build (e.g., `/opsx:ship add heritage entry confirmations`) OR the name of an existing change (e.g., `/opsx:ship security-passcode-throttle`). If the name matches a directory in `openspec/changes/`, skip Phase 1 and resume from the first incomplete phase (check artifact status, then task checkboxes, then PR state).
@@ -65,7 +70,7 @@ Extras for OpenSpec changes:
 
 - The PR body's Summary should cite the change: `Tracked in openspec change: <name>`.
 - If the diff touches RLS, migrations, payments, auth, or RBAC seed data, also run the Codex second opinion per CLAUDE.md (companion script, `node .../codex-companion.mjs review --base main --scope branch`) before merging.
-- If ship-pr arms auto-merge (checks pending) and stops, **stop the pipeline too**. Tell the user: "Auto-merge armed — run `/opsx:ship <name>` again (or `/opsx:archive <name>`) after the merge lands to archive." Do not archive before merge.
+- If ship-pr arms auto-merge, apply the shared **Asynchronous merge protocol** in `docs/agents/issue-tracker.md`. Do not archive before confirmed merge; resume this pipeline after the protocol's merge/closeout conditions hold.
 
 ## Phase 6: Archive
 

@@ -8,6 +8,11 @@ description: Run an OpenSpec change end-to-end for Codex: propose, verify artifa
 Run the OpenSpec shipping pipeline end-to-end. This is an orchestrator: load and follow the
 phase skill for each phase instead of reimplementing that phase from memory.
 
+**Linear owner:** the root running this pipeline owns the linked tracking issue under
+`docs/agents/issue-tracker.md`'s **Lifecycle owner** protocol. Read the full issue and latest
+comments; apply that protocol before Phase 3 starts, at every pause/handoff, after merge and
+after archive. OpenSpec task completion does not update Linear or satisfy acceptance proof.
+
 ## Inputs
 
 Accept either:
@@ -151,7 +156,7 @@ Use only when no matching change already exists.
 3. Include `Tracked in openspec change: <name>` in the PR body.
 4. For migrations, RLS, payments, auth, RBAC, or shared-system behavior, run the repo's required
    second-opinion/auditor checks before merge.
-5. If auto-merge is armed and checks are still pending, stop. Do not archive until the PR is merged.
+5. If auto-merge is armed, apply the shared **Asynchronous merge protocol** in `docs/agents/issue-tracker.md`. Do not archive before confirmed merge; resume this pipeline after the protocol's merge/closeout conditions hold.
 6. In batch mode, prefer one implementation PR per coherent batch. If multiple PRs are needed,
    keep all of them linked to the same OpenSpec change and archive only after the last required
    PR merges.

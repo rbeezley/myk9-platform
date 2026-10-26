@@ -130,11 +130,16 @@ const RoleEditPage: React.FC = () => {
     try {
       setIsSaving(true);
 
-      // Get current permission IDs
-      const currentPermissionIds = rolePermissions.map(rp => rp.permission_id);
-
-      // Update role permissions
-      await rbacService.updateRolePermissions(roleId, currentPermissionIds);
+      // The save takes codes and replaces the whole set in one transaction (MYK9-1409). An id
+      // with no loaded permission is refused rather than dropped, which would remove it.
+      const codeById = new Map(permissions.map(p => [p.id, p.code] as const));
+      const codes = rolePermissions.map(rp => {
+        const code = codeById.get(rp.permission_id);
+        if (!code)
+          throw new Error('A permission on this role could not be loaded. Reload and try again.');
+        return code;
+      });
+      await rbacService.updateRole(roleId, { permissions: codes });
 
       // Reload data to get updated state
       await loadRoleData();

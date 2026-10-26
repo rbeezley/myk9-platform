@@ -27,7 +27,11 @@ describes, and cleans up only after archive.
 
 ## Model routing
 
-Pass `model` explicitly on every Agent call.
+Dispatch by role: `subagent_type: "implementer"` or `"verifier"`. Each role's file in
+`.claude/agents/` sets its default model and tools and holds every standing rule for that
+kind of work, so a correction to how a role behaves is an edit to that file, not a longer
+prompt or a new LESSON. Pass `model` only to move one dispatch off its role's default, per
+this table.
 
 | Work                                                                                               | Model                                                                                    |
 | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -38,34 +42,40 @@ Pass `model` explicitly on every Agent call.
 Never dispatch migrations blind. After an implementer writes one, run the `migration-auditor`
 agent on it before your own review. Migrations are never pushed in an orchestrated run.
 
-**Concurrency cap: 3 heavy jobs at once.** This counts sub-agents, resumed agents (SendMessage),
-Codex reviews and your own full test or Playwright runs. Lightweight `gh` watchers don't count.
-Count before every spawn or resume, and queue the work when you're at 3.
+**Concurrency cap: 2 heavy jobs at once** (owner, 2026-10-13, after four agents plus Codex
+reviews needed a reboot). This counts sub-agents, resumed agents (SendMessage), verifiers that
+run a suite or a browser, Codex reviews and your own full test or Playwright runs. Lightweight
+`gh` watchers don't count. Count before every spawn or resume, and queue the work when you're
+at 2. No size exemption: a "small" fix's agent counts like any other.
 
 ## Verify, then weigh (before any worktree, state change or dispatch)
 
 An issue or task is a claim, written at one moment by one reader. Nothing is spent on it until
 both of these are done and recorded in the ledger row (`premise:` and `approach:`).
 
-1. **Reproduce the claim on current `main`.** Run what the issue names: the e2e spec, the
-   browser at the stated route and width, the SQL, the failing test. Read the code the issue
-   blames. Then check the premise against what already exists: `list_issues` with
-   `includeArchived: true` on the route or symptom (a Done issue may hold the opposite
-   decision), the `// INTENT:` comments and `docs/INTENT.md` section for that surface, and the
-   consolidation rule in CLAUDE.md. Record one of:
+1. **Reproduce the claim on current `main`.** Dispatch the `verifier` with what the issue
+   names (the e2e spec, the browser at the stated route and width, the SQL, the failing test)
+   and read its verbatim output; read the code the issue blames yourself. Then check the
+   premise against what already exists: `list_issues` with `includeArchived: true` on the
+   route or symptom (a Done issue may hold the opposite decision), the `// INTENT:` comments
+   and `docs/INTENT.md` section for that surface, and the consolidation rule in CLAUDE.md.
+   Record one of:
    - `confirmed` — proceed.
    - `partly true: <what holds>` — the dispatch carries only the criteria that still hold, and
      the triage comment names the ones dropped and why.
-   - `not reproducible` or `by design: <issue or INTENT citation>` — comment with the evidence,
-     add `needs-richard`, leave the state, move on. A symptom you could not see is not fixed by
-     code; an implementer handed the criteria verbatim would undo the earlier decision.
+   - `not reproducible` or `by design: <issue or INTENT citation>` — apply the **Dispositions
+     and holds** table in `docs/agents/issue-tracker.md` before moving on. Do not dispatch an
+     implementer against a rejected premise or leave it eligible for automatic re-selection.
 2. **Weigh at least one alternative to the fix the issue suggests.** The Recommendation is one
    reader's idea; the acceptance criteria are the contract. Write the `approach:` line before
    dispatch: the fix chosen, the alternative considered, and why. The alternatives to try first,
    in this order: do nothing and close with evidence; fix the data or seed, not the UI; change
    the copy, not the code; link to the surface that already does it, not a new page; fix the
    root cause the repro exposed, not the symptom. If the chosen approach changes what the
-   criteria ask for, that is a product decision: hold with `needs-richard`.
+   criteria ask for, route the unresolved product decision through that same table.
+
+`docs/agents/issue-tracker.md` owns selection, dispositions, hold routing and evidence labels.
+Use it for every stop/resume/closeout rather than adding workflow-specific mappings here.
 
 In OpenSpec mode the proposal and design are where the weighing happened; reproduce only for a
 task that fixes a reported defect. Why this gate exists: the 2026-10-20 usability walk's first
@@ -83,7 +93,9 @@ the same time.
   (see `references/linear-issue-run.md`). After you dispatch, confirm it with
   `git worktree list`.
 
-The dispatch prompt is self-contained and has these parts, in order:
+Dispatch with `subagent_type: "implementer"`. Its role file, `.claude/agents/implementer.md`,
+carries the project rules, the scope fence, the verification discipline and the report
+format, so the prompt carries only what is specific to this task, in order:
 
 1. Worktree absolute path and the exact task text: the `tasks.md` items verbatim, or the Linear
    issue's description and acceptance criteria verbatim (minus any criterion triage dropped).
@@ -92,25 +104,11 @@ The dispatch prompt is self-contained and has these parts, in order:
    the issue's Recommendation.
 3. Pointers: change artifacts or linked plan, relevant `docs/INTENT.md` sections and
    `// INTENT:` comments, and the files you expect it to touch.
-4. Project rules: TypeScript only, files under 500 lines, the replication layer is never
-   bypassed in core flows, shadcn/ui on Base UI, tests for new logic, assertion-first for
-   value-sensitive bugs, the custom render from `src/test/utils/testUtils.tsx`.
-5. Scope fence: "Change only what the task requires. No opportunistic refactors. Do not touch
-   `tasks.md`, migrations or Linear. Do not deploy, push, open a PR, spawn sub-agents, run a
-   review or post a `Review gate:` comment. Do not run the full app suite; run the affected
-   test files. Run `pnpm exec prettier --write` on every file you touch. Commit `wip:` before
-   any verification that takes longer than a minute. Use bounded waits only (the Bash tool's timeout, or
-   `for i in $(seq 1 40)`; macOS has no `timeout` command), never open-ended `sleep` loops, and
-   wait for your tests to finish before you end your turn."
-6. The report format below, as its final message.
 
-```
-FILES: <paths touched>
-APPROACH: <2-4 sentences>
-TESTS: <commands run + pass/fail counts, verbatim tail of output>
-TYPECHECK: <pass/fail>
-CONCERNS: <anything ambiguous, skipped, or smelly; "none" only if true>
-```
+Do not restate the role's rules in the prompt. If a rule is missing, or an implementer keeps
+breaking one, fix the role file. The implementer ends with a
+`FILES / APPROACH / TESTS / TYPECHECK / CONCERNS` report; a report you cannot verify means
+re-dispatch, not salvage.
 
 ## Review gate (per batch or per issue)
 
@@ -131,8 +129,9 @@ commands check `main`, not the proposed change.
    - [ ] No direct Supabase reads where replication is required, and no file pushed over 500 lines
    - [ ] `pnpm format:check:changed` clean, and the diff carries no stray or unrelated files
    - [ ] A layout or behavior fix is proven by the real artifact, not by a class or source-text
-         assertion. Run the issue's repro (e2e spec, browser at the stated width) on the branch,
-         and once on `main` as a control that must fail
+         assertion. Dispatch the `verifier` with the issue's repro (e2e spec, browser at the
+         stated width) against the branch worktree and against `main` as a control that must
+         fail, and read its output, not its summary
 3. On failure, send the same agent (SendMessage, which keeps its context) a numbered defect list
    and re-review. **Max 3 rounds.** After that, escalate (see Model routing) or implement it
    yourself. A cheap model looping past the point where you'd be faster is waste.

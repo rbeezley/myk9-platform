@@ -98,13 +98,6 @@ export const ClassEditForm: React.FC<{
     [form]
   );
 
-  const handleBlur = useCallback(
-    (field: keyof ClassEditFormData) => () => {
-      form?.touchField(field);
-    },
-    [form]
-  );
-
   const handleSelectChange = useCallback(
     (field: keyof ClassEditFormData) => (value: string) => {
       const finalValue = value === 'none' ? '' : value;
@@ -185,15 +178,6 @@ export const ClassEditForm: React.FC<{
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <FormField label="Class Order" fieldId="classOrder">
-                  <Input
-                    id="classOrder"
-                    value={data.classOrder}
-                    onChange={handleInputChange('classOrder')}
-                    onBlur={handleBlur('classOrder')}
-                    placeholder="Enter order number"
-                  />
-                </FormField>
                 <FormField label="Status" fieldId="classStatus">
                   <Select value={data.status} onValueChange={handleSelectChange('status')}>
                     <SelectTrigger id="classStatus">

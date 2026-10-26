@@ -45,6 +45,7 @@ A 17-issue performance run from a Claude Code cloud session (PRs #3225 to #3239,
 - Reuse `scripts/qa/codex-review.sh`, `claude-review.sh`, `review-verdict.sh`, `post-review-gate.sh`, `review-gate.ts` and `watch-pr-checks.sh`. Native bot reviews do not replace the independent gate.
 - The other harness performs independent review. Preserve risk tiers, optional-review eligibility and the existing explicit owner-override procedure; automation never selects an override itself.
 - **Authorship is the branch prefix, cross-checked.** `claude/` selects Codex as reviewer; `codex/` selects Claude. Because a PR controls its own branch name, the job also checks every commit's `Co-Authored-By:` trailer against the prefix. Any other prefix, a mismatch, or mixed authorship gets no automatic review: the job refuses and asks for human resolution rather than guessing.
+- **The cloud job reviews in one direction only (owner decision 2026-10-26).** It runs Claude reviewing `codex/` PRs, authenticated with the owner's Claude subscription token (`CLAUDE_CODE_OAUTH_TOKEN`), not an API key. A `claude/` PR gets no cloud review: the job posts one note per head pointing to the Mac route, and Codex reviews it there on the owner's ChatGPT subscription with `pnpm qa:codex-review --post`. Reason: OpenAI's CI guide calls ChatGPT-plan auth in CI a workaround and says not to use it on public repositories (this one is public), and the owner declined pay-per-use OpenAI API billing. Revisiting this needs an owner decision, not an implementation choice.
 - Only the trusted publisher invokes `post-review-gate.sh` to write cloud `Review gate:` evidence. No model-generated or manually typed attestation qualifies.
 - A merge requires BOTH a direct human authorization for the PR/head and a current green review gate plus all required CI. Never use `--admin`, a ruleset bypass or authorization alone to merge.
 - Linked `supabase db push`, `supabase functions deploy` and Deploy myK9Show remain human-triggered. Implementation/reviewer jobs receive no production deployment credentials.
@@ -70,6 +71,8 @@ Checked against current official documentation on 2026-10-24 (by Codex). Recheck
 | [Claude cloud sessions and auto-fix](https://code.claude.com/docs/en/claude-code-on-the-web) | Cloud sessions can continue independently of the laptop. Per-PR auto-fix responds to CI failures/review comments; it requires the Claude GitHub App and does not automatically handle base-advance conflicts. | Leave native auto-fix disabled for managed PRs until it can obey the persisted convergence gate; it is not a dependency of this rollout.         |
 | [Claude in GitHub Actions](https://code.claude.com/docs/en/github-actions)                   | Claude can run in workflows using configured authentication. The documentation notes that pushes using the default GITHUB_TOKEN do not trigger normal follow-on workflows.                                    | Verify implementation-worker identity and actual CI triggers in the live pilot. Do not assume a pushed fix necessarily starts CI.                |
 
+Rechecked 2026-10-26 (by Claude) for subscription billing: [Claude Code GitHub Actions](https://code.claude.com/docs/en/github-actions) accepts a `claude setup-token` OAuth token for Pro/Max/Team/Enterprise plans. [Codex CI/CD auth](https://learn.chatgpt.com/docs/auth/ci-cd-auth) supports ChatGPT-plan auth in CI only as a workaround, recommends an API key for automation, and says not to use the workaround on public repositories. That is why the cloud job reviews in one direction only (Global constraints).
+
 These are product capabilities, not proof of this account's enabled integrations, credentials, API budget, network access or permissions. Stage 1 records those checks.
 
 Provider-hosted implementation sessions and CLI jobs on GitHub-hosted runners are separate execution modes; either may submit a PR, but neither bypasses the gate.
@@ -91,7 +94,7 @@ Provider-hosted implementation sessions and CLI jobs on GitHub-hosted runners ar
 2. PR content tries to alter the wrapper, publisher, instructions or workflow: privileged execution must still use trusted base code.
 3. A session restarts or events arrive twice/out of order: reconstruct ownership and convergence history before dispatching another mutation.
 4. A secret appears in a review verdict, nested report or console output: block publication and leave a failure without exposing the value.
-5. Linear auto-completes on merge, then a status update is denied: report close-out as blocked and identify the incorrect remote state; do not claim the issue is closed correctly.
+5. Linear queues In Review on merge, then a required status/comment update is denied: report close-out as blocked with the actual remote state and pending criterion; do not claim verified Done or successful reconciliation.
 6. A branch prefix does not match the commits' authorship: no reviewer is selected and no evidence is published.
 
 Each case has an owning task and acceptance check below.
@@ -217,7 +220,8 @@ A snapshot is never authorization.
 - [ ] Use trusted default-branch workflow/launcher/wrapper versions and explicitly fetch the reviewed base/head. Review the whole branch diff. The authorship check runs from base-branch code against the PR's commit list, which the PR cannot rewrite after the fact without moving the head.
 - [ ] Reviewer job: model credential plus read-only repository/PR access, no write token, no Linear/production/deploy credentials, and no persisted git push credential. Restrict egress and execution capabilities; run any PR-code validation in a separate credential-free job. PR diffs/instructions are data, not authority to change the trusted launchers.
 - [ ] Triggers: `pull_request_target` on `ready_for_review` and on `synchronize`/`reopened` only when the PR is not a draft, plus `workflow_dispatch`. A draft PR gets no review run and its gate stays red.
-- [ ] Credentials: the reviewer job uses the `independent-review` environment (restricted to `main`) for `OPENAI_API_KEY`/`ANTHROPIC_API_KEY`; the publisher job uses no environment secrets.
+- [ ] Credentials: the reviewer job uses the `independent-review` environment (restricted to `main`) for `CLAUDE_CODE_OAUTH_TOKEN` only; there is no OpenAI credential. The publisher job uses no environment secrets. Verify that `claude-review.sh` completes a real review under the subscription token (not `ANTHROPIC_API_KEY`) before relying on it, and record the CLI version. Stage 1's `scripts/cloud/preflight.ts` still maps the reviewer harnesses to `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` (and `docs/operations/cloud-agent-workflow.md` shows the Codex reviewer example); update both so the cloud Claude reviewer checks `CLAUDE_CODE_OAUTH_TOKEN` and a cloud Codex reviewer is reported as unsupported.
+- [ ] Direction: when `resolveAuthorship` selects Codex as reviewer (a `claude/` PR), the job runs no model and posts one `Codex review runs on the Mac for <head>` note naming `pnpm qa:codex-review --post`. It is not evidence and never greens the gate.
 - [ ] One review per head: a concurrency group keyed on the PR number with `cancel-in-progress: true`, so a quick second push cancels the first review instead of paying for both. A cancelled attempt is incomplete and posts no evidence.
 - [ ] Invoke `codex-review.sh` or `claude-review.sh` without `--post`, with explicit worktree-local log paths. Capture stdout/stderr privately until scanned. Cloud jobs use workflow lifecycle and bounded timeouts (job limit above the sum of step limits, per LESSONS `cancelled-may-be-timeout`), not a Mac Keychain or detached PID as durable identity.
 - [ ] Publisher job: no model execution and no PR-code execution; trusted checkout only. Give it the minimum comment/status write permissions plus required metadata/artifact reads, with no `contents: write`, push, merge or deployment capability. Do not give the model the publisher token.
@@ -225,7 +229,7 @@ A snapshot is never authorization.
 - [ ] Gate the whole workflow on `INDEPENDENT_REVIEW_ENABLED`; when it is not `true` the job exits before checkout and the Mac route is unaffected.
 - [ ] [ADDED] **Review claim.** Both routes record a claim for the exact PR/head before they start: a handoff event plus an `Independent review` pending status naming the route and run. The cloud job exits without running when the head has qualifying evidence or a live local claim. The local wrappers check for an in-flight cloud attempt before starting and refuse unless `--take-over` is passed, which cancels that attempt first. A claim older than the route's timeout is stale. Tests cover all four orderings (local then cloud, cloud then local, concurrent, take-over), and in each one exactly one review runs.
 
-**Deliverable:** Either author's PR can receive a real other-harness wrapper review with original, scanned, current-head evidence and a traceable trusted publisher.
+**Deliverable:** A `codex/` PR receives a real Claude wrapper review in the cloud with original, scanned, current-head evidence and a traceable trusted publisher; a `claude/` PR is pointed to the Mac route, whose evidence keeps working unchanged.
 
 ### Task 2.2: Gate provenance, incomplete attempts and head changes
 
@@ -237,7 +241,8 @@ A snapshot is never authorization.
 - Add `scripts/cloud/review-workflow.test.ts` for executable event/permission controls.
 - Keep new modules small rather than expanding the already-large evaluator opportunistically.
 
-- [ ] Extend cloud evidence trust using a specific approved publisher identity AND API-verified workflow path/ref, run/attempt, PR, requested SHAs and artifact digest. Never trust all bots, an arbitrary workflow URL, a PR-supplied result or a typed owner comment as cloud-job provenance.
+- [ ] Extend cloud evidence trust using a specific approved publisher identity AND the run's workflow ref/SHA, run/attempt, PR, requested SHAs and artifact digest. Never trust all bots, an arbitrary workflow URL, a PR-supplied result or a typed owner comment as cloud-job provenance.
+- [ ] [ADDED, Codex review of #3284] **Workflow ref/SHA come from the run's GitHub-signed OIDC token, never the run API.** For `pull_request_target` the API reports the PR's head as `head_sha` and the PR's _current_ base, so a PR can target a branch carrying a modified copy of the workflow, run it there, then retarget `main`. The workflow requests `id-token: write` with a dedicated audience. The token's signature is verified against GitHub's published keys by base-branch code, and its `workflow_ref` (`<repo>/.github/workflows/cloud-independent-review.yml@refs/heads/main`) and `workflow_sha` are what `validateReviewPublication` checks. Confirm the live claim values for both `pull_request_target` and `workflow_dispatch` in the pilot before trusting the format.
 - [ ] [EXPANDED] A new **cloud** attempt invalidates earlier **cloud** evidence for that PR/head. The evaluator consults the latest trusted cloud attempt, so a cancelled or incomplete cloud rerun on the SAME SHA cannot resurrect an earlier clean cloud comment. A cloud attempt never starts on a head that already has qualifying local evidence or a live local claim (Global constraints, protection 3), so it cannot invalidate a local review. Local evidence keeps today's latest-comment-wins semantics. Terminal usage-limit, interruption, cancellation, publisher failure, timeout or missing output maps to a red failure, never clean. A trusted completion/failure handler covers jobs that die before publication; if GitHub cannot accept the status, report that failure and keep merge blocked rather than invent green.
 - [ ] On a failed attempt, post one `Review not completed for <head>` comment naming the cause and retry once after 15 minutes. A second failure stops and hands the PR to the owner (manual re-dispatch, a Mac review, or the documented `owner` override).
 - [ ] On `synchronize`, invalidate independent review for the new head and record a red missing-current-review verdict until fresh qualifying evidence exists. A late clean result for the old head may be retained as history but cannot green the new head. Re-read current PR/head immediately before publication and before merge.
@@ -245,9 +250,27 @@ A snapshot is never authorization.
 - [ ] Preserve default-branch metadata-only evaluation and the existing failure-status fallback. Test comment edit/delete, replay of older clean evidence, newer findings, cancelled jobs, rejected credentials and workflow/publisher crashes.
 - [ ] Retain optional-review rules for eligible low-risk changes. Run the negative acceptance cases on independent-tier PRs, including one that had clean evidence before the incomplete rerun.
 - [ ] A PR that changes the review machinery itself (this workflow, either wrapper, `post-review-gate.sh`, `review-gate.ts`, `review-tier.ts`, `authorship.ts`) is reviewed by the base-branch job like any other, and additionally needs a Mac review or the documented `owner` override; its changes take effect only after merge.
-- [ ] Record the owner's approval/configuration of any required App identity, secrets, environment protection and ruleset changes. Add required contexts only after a real pilot proves both directions; never silently replace or disable the existing gate during rollout.
+- [ ] Record the owner's approval/configuration of any required App identity, secrets, environment protection and ruleset changes. Add required contexts only after a real pilot proves the cloud direction and the Mac route for a `claude/` PR; never silently replace or disable the existing gate during rollout.
 
-**Stage 2 gate:** Existing wrapper/poster/review-gate/watcher suites and new provenance/failure/authorship tests pass; both live pilot directions pass; no reviewer/publisher credential can push or merge. Independent review and CI on this stage's final head remain required.
+**Stage 2 gate:** Existing wrapper/poster/review-gate/watcher suites and new provenance/failure/authorship tests pass; the live pilot passes (a `codex/` PR reviewed by Claude in the cloud, and a `claude/` PR that gets the Mac-route note and is then gated by a Mac Codex review); no reviewer/publisher credential can push or merge. Independent review and CI on this stage's final head remain required.
+
+### Task 2.3: Mac review runner (MYK9-1426)
+
+Because Codex reviews `claude/` PRs only on the Mac (Global constraints), parallel Claude cloud work would otherwise wait for someone to run the review by hand. A scheduled local runner closes that gap. It depends on Task 2.1's `resolveAuthorship` and review claim, and on the wrapper's `--pr <n>` flag (Codex's pending `codex/review-wrapper-explicit-pr` change), so it ships after them.
+
+**Files:**
+
+- Create `scripts/qa/mac-review-runner.ts` and its tests; add `pnpm qa:mac-review-runner`.
+- Document install, kill switch and logs in `docs/operations/cloud-agent-workflow.md`.
+
+- [ ] One pass per invocation: list candidates, start reviews up to the cap, exit. No model decides anything; the runner never pushes, merges, edits PRs or writes Linear.
+- [ ] Candidates are open, non-draft `claude/` PRs where `resolveAuthorship` selects Codex, `qa:review-tier` requires review, the head has no green `Review gate`, there is no `Codex findings for <head>` comment on that exact head (wait for a fix push), and there is no live claim. Forks and non-collaborators are skipped. Selection is a pure function tested on fixtures.
+- [ ] Each review runs in a fresh detached worktree under a runner-owned directory with `pnpm qa:codex-review --post --pr <n>`, under `caffeinate -i`. The worktree is removed afterwards, whatever the outcome.
+- [ ] Concurrency cap: default 2, never above 3, enforced by a lock directory; an overlapping pass starts nothing.
+- [ ] Exit 2 posts nothing and starts a 60-minute global backoff. A head is retried once, then gets one `Mac review not completed for <head>` note and goes to the owner. At most 5 automatic rounds per PR.
+- [ ] Scheduled by a `launchd` agent on a short interval. Kill switch: `MYK9_MAC_REVIEW_RUNNER_ENABLED=true` in its environment, otherwise exit 0 with no GitHub call.
+
+**Deliverable:** a `claude/` PR marked ready from a cloud session receives a Codex review and posted evidence for its exact head with no manual command, while the Mac is awake.
 
 ## Stage 3 — Bounded continuation, human merge and accurate Linear close-out
 
@@ -304,7 +327,7 @@ Require verified readback and no suppressed API/approval failures.
 - [ ] A direct human merge authorization names the PR and expected head; record its trusted origin. Freshly run `watch-pr-checks.sh`, inspect any non-required failures per existing policy, and require a green independent gate where the floor requires it. Authorization with a red/missing/running gate is refused; green checks without authorization are refused.
 - [ ] Keep merge credentials out of implementation/reviewer/publisher jobs. If the dispatch merge workflow is built, it takes the expected full head SHA, runs in a protected approval environment, and uses a short-lived merge identity that cannot bypass the effective required-check ruleset. An owner's native UI/admin-token bypass is a separate emergency path and is not made safe merely by adding a shell preflight. Changes to bypass settings require Richard's explicit approval. Squash merge, refuse head movement, and preserve local main-checkout rules when running locally; the cloud coordinator discovers its checkout instead of using a Mac path.
 - [ ] Confirm GitHub `MERGED` before close-out. Fetch the full Linear issue via `get_issue` or its full-description API equivalent, including latest acceptance criteria and relations. List summaries never qualify. A criterion requiring production/browser/operator proof remains unmet until that proof exists.
-- [ ] Account for integration auto-Done: restore In Progress when evidence remains, with the exact missing criterion and owner. Prefer non-closing PR references for issues needing post-merge evidence. Read back the full issue after writes; if criteria changed during close-out, reconcile again rather than claim success against the old text.
+- [ ] Apply `docs/agents/issue-tracker.md`'s lifecycle table after every merge: the merge automation moves the issue to In Review; set it back to In Progress when implementation remains, and name the exact missing criterion and owner. Read back the full issue after writes; changed criteria require reconciliation against the new text.
 - [ ] An approval denial, permission failure, rate limit, missing issue or failed readback yields `blocked`; retain the durable checkpoint and report the actual remote state. Do not work around an explicit denial with another identity. Do not mark a failed update, failed comment or unverified Done as successful.
 - [ ] Treat DB pushes, function deploys and Deploy myK9Show as operator tasks. Do not expose those secrets or trigger those workflows from this automation. Cleanup follows durable close-out evidence; keep unmerged/merge-pending worktrees, and remove any local worktree last.
 
@@ -318,7 +341,7 @@ Each task includes red-to-green tests. This final phase verifies the integrated 
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
 | Claude implements **locally**; Codex reviews **locally**           | `pnpm qa:codex-review --post` from the Mac; the gate goes green exactly as today; no cloud job runs.    |
 | Codex implements **locally**; Claude reviews **locally**           | `pnpm qa:claude-review --post` from the Mac; the gate goes green exactly as today; no cloud job runs.   |
-| Claude implements **in the cloud**; Codex reviews **in the cloud** | Existing Codex wrapper completes; trusted scanned evidence matches exact head; required CI green.       |
+| Claude implements **in the cloud**; Codex reviews **on the Mac**   | Cloud job runs no model and posts the Mac-route note; the Mac review runner (Task 2.3) gates the head.  |
 | Codex implements **in the cloud**; Claude reviews **in the cloud** | Existing Claude wrapper completes; identical evidence/permission requirements.                          |
 | Local and cloud review both attempted on one head                  | Exactly one runs (claim honored); the other skips or refuses; neither invalidates the other's evidence. |
 | Cloud setup run on the Mac                                         | Refuses before installing anything; Node/pnpm and Mac credentials unchanged.                            |
@@ -354,7 +377,7 @@ Each task includes red-to-green tests. This final phase verifies the integrated 
 
 **Live checks:**
 
-Use four owner-approved, bounded pilot PRs, one per row of the implementation × review matrix above (local→local in both directions, cloud→cloud in both directions). The two local rows are run before any cloud stage is enabled, so they record today's baseline, and again after each stage merges, to prove nothing regressed.
+Use four owner-approved, bounded pilot PRs, one per row of the implementation × review matrix above (local→local in both directions, Claude cloud→Codex Mac, Codex cloud→Claude cloud). The two local rows are run before any cloud stage is enabled, so they record today's baseline, and again after each stage merges, to prove nothing regressed.
 
 Record:
 
@@ -372,21 +395,24 @@ Run negative drills on a disposable approved PR or fixture repository; never del
 1. Before each implementation stage, rerun the path-specific in-flight/Linear checks, create or select its tracking issue with authorization, and verify actual account access and budget. No unresolved primary-checkout or overlapping-work gate is treated as passed.
 2. Ship one coherent stage at a time through the repository's review-tier floor, other-harness review for guardrail changes, required CI and separately authorized merge. No preview deployment or production release is required to prove a workflow-only change.
 3. Enable cloud publication/continuation only after the corresponding live proof; owner controls App installation, secrets, environment permissions and rulesets. Local and cloud execution remain permanently supported options; enabling the cloud route never retires the local one.
-4. **Calibration period.** Both review routes stay valid permanently: the Mac (`pnpm qa:codex-review --post`, `pnpm qa:claude-review --post`) and the cloud job write evidence the gate accepts. For two weeks after Stage 2 is enabled, compare the two verdicts on at least three PRs (re-running the second route deliberately, with `--take-over` or a manual dispatch after the first finishes, outside the gate) and record the comparison here. This calibrates the cloud route; it does not end the local one.
+4. **Calibration period.** Both review routes stay valid permanently: the Mac (`pnpm qa:codex-review --post`, `pnpm qa:claude-review --post`) and the cloud job write evidence the gate accepts. For two weeks after Stage 2 is enabled, compare the cloud and Mac Claude verdicts on at least three `codex/` PRs (re-running the second route deliberately, with `--take-over` or a manual dispatch after the first finishes, outside the gate) and record the comparison here. This calibrates the cloud route; it does not end the local one.
 5. Rollback first sets the stage's kill-switch variable to `false`, which stops new runs without a revert, then revokes credentials as appropriate and falls back to the local wrapper route, which stays in place throughout. It does not weaken the required gate or erase handoff history. Missing review remains a blocker until a real review or explicit documented owner override exists. Stage 1 is additive and is undone by reverting its PR.
-6. The program is Complete only after all three stages' criteria and both pilot directions pass, failures are recorded, and no acceptance evidence is owed. Then move this plan into `docs/archive/` and remove its index row. Stage-level OPSX changes archive only after their own merge/evidence gates.
+6. The program is Complete only after all three stages' criteria and all four pilot rows pass, failures are recorded, and no acceptance evidence is owed. Then move this plan into `docs/archive/` and remove its index row. Stage-level OPSX changes archive only after their own merge/evidence gates.
 
 ## Linear issues to file
 
 1. Stage 1: portable cloud setup, preflight and tool pins; discovered checkout paths with the `/Users/` guard; branch-prefix convention; durable handoff events.
 2. Stage 2: cloud independent review, authorship resolution, trusted publisher and gate provenance.
 3. Stage 3: bounded continuation, ruleset merge control and full-issue Linear close-out.
+4. Stage 2, Task 2.3: Mac review runner (filed as MYK9-1426, 2026-10-26).
 
-## Owner decisions (2026-10-24)
+## Owner decisions (2026-10-24, amended 2026-10-26)
+
+- **Review direction (2026-10-26):** the cloud job runs only Claude reviewing `codex/` PRs, on the owner's Claude subscription. Codex reviews of `claude/` PRs stay on the Mac on the owner's ChatGPT subscription (see Global constraints). GitHub setup done the same day: environment `independent-review` limited to `main` with no required reviewers, `INDEPENDENT_REVIEW_ENABLED=false`, workflow token default `read`, ruleset unchanged (recorded on MYK9-1398).
 
 - **Authorship:** branch prefix, `claude/` or `codex/`, cross-checked against commit trailers (see Global constraints).
 - **Review trigger:** no review on draft PRs. Marking a PR ready for review starts one, and every later push to a ready PR re-runs it. Manual dispatch stays available. Agents open PRs as drafts while iterating and mark them ready when they want review. Rationale: the gate is pinned to the exact head, so reviewing intermediate draft heads cannot satisfy it and only costs money.
-- **Secrets:** a GitHub environment `independent-review` holds `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` (the names the two CLIs read by default; Stage 1 confirms the Codex CLI's), restricted to the `main` branch so only base-branch code can read them. The publisher job gets no model keys and uses only the workflow token with comment and status permissions. A separate `agent-closeout` environment holds the existing `LINEAR_API_KEY` for Stage 3, so review jobs never see Linear credentials.
+- **Secrets (amended 2026-10-26):** a GitHub environment `independent-review`, restricted to the `main` branch so only base-branch code can read it, holds `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`, billed to the owner's Claude subscription). It holds no OpenAI credential and no `ANTHROPIC_API_KEY`; the repository-level `ANTHROPIC_API_KEY` belongs to `support-triage.yml` and is not used here. The publisher job gets no model keys and uses only the workflow token with comment and status permissions. A separate `agent-closeout` environment holds the existing `LINEAR_API_KEY` for Stage 3, so review jobs never see Linear credentials.
 
 ## Validation Profile
 

@@ -201,6 +201,7 @@ const launchCriticalSqlTests = [
   'myk9_1315_club_awaiting_authorization_notice_test.sql',
   'myk9_1309_seed_fixture_functions_test.sql',
   'myk9_1311_show_entry_counts_test.sql',
+  'myk9_1409_role_permission_rpcs_test.sql',
 ];
 
 // Runs `command` with a stand-in psql first on PATH that logs its arguments,

@@ -292,49 +292,13 @@ describe('RBACService', () => {
         created_at: '',
       };
 
-      const mockPermissions = [
-        {
-          id: 'perm1',
-          code: 'show:create',
-          name: 'Show Create',
-          description: null,
-          category: 'show',
-          created_at: '',
-        },
-        {
-          id: 'perm2',
-          code: 'show:read',
-          name: 'Show Read',
-          description: null,
-          category: 'show',
-          created_at: '',
-        },
-      ];
-
-      mockSupabase.from.mockImplementation((table: string) => {
-        if (table === 'roles') {
-          return {
-            insert: vi.fn().mockReturnValue({
-              select: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({ data: mockRole, error: null }),
-              }),
-            }),
-          };
-        }
-        if (table === 'permissions') {
-          return {
-            select: vi.fn().mockReturnValue({
-              in: vi.fn().mockResolvedValue({ data: mockPermissions, error: null }),
-            }),
-          };
-        }
-        if (table === 'role_permissions') {
-          return { insert: vi.fn().mockResolvedValue({ data: null, error: null }) };
-        }
-        if (table === 'permission_audit_log') {
-          return { insert: vi.fn().mockResolvedValue({ data: null, error: null }) };
-        }
-        return { insert: vi.fn().mockResolvedValue({ data: null, error: null }) };
+      // MYK9-1409: the role and its permissions are written by one RPC.
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: { role: mockRole, permission_codes: ['show:create', 'show:read'] },
+        error: null,
+      });
+      mockSupabase.from.mockReturnValue({
+        insert: vi.fn().mockResolvedValue({ data: null, error: null }),
       });
 
       const result = await rbacService.createRole({
@@ -349,15 +313,7 @@ describe('RBACService', () => {
     });
 
     it('should handle role creation errors', async () => {
-      mockSupabase.from.mockReturnValue({
-        insert: vi.fn().mockReturnValue({
-          select: vi.fn().mockReturnValue({
-            single: vi
-              .fn()
-              .mockResolvedValue({ data: null, error: { message: 'Creation failed' } }),
-          }),
-        }),
-      });
+      mockSupabase.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Creation failed' } });
 
       await expect(
         rbacService.createRole({

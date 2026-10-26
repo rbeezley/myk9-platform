@@ -134,15 +134,16 @@ const CreateRolePage: React.FC = () => {
       setIsLoading(true);
       setError(null);
 
-      const selectedPermissionNames = permissions
+      // createRole takes permission codes, never display names (MYK9-1409).
+      const selectedPermissionCodes = permissions
         .filter(p => selectedPermissions.includes(p.id))
-        .map(p => p.name);
+        .map(p => p.code);
 
       await rbacService.createRole({
         name: formData.name,
         displayName: formData.displayName,
         description: formData.description,
-        permissions: selectedPermissionNames,
+        permissions: selectedPermissionCodes,
       });
 
       navigate('/admin/permissions/roles');

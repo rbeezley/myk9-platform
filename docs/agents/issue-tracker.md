@@ -67,240 +67,128 @@ after 30 days and orphans the ~197 distinct `MYK9-<n>` ids cited across ~737 fil
 
 ## Labels: outstanding evidence and intervention
 
-This contract applies to Claude Code and Codex. Labels help select the next action; read the
-full issue, latest comments and linked plan before acting. Status records progress, priority
-records launch importance, and issue relations record dependencies. Labels do not replace them.
+Status records progress, priority records launch importance, and issue relations record
+dependencies. Labels only say what is still owed. Read the full issue and its latest comments
+before acting on any of them. **Labels never grant authorization** to merge, deploy, change
+shared data or secrets, charge or refund; the existing approval and review gates still apply.
 
-The `verify` and `needs` groups are **multi-select**. Use the exact child names below (or their
-team label IDs); never apply the group itself. Add every independently outstanding proof that
-the issue explicitly requires. Add proof labels to implemented work awaiting acceptance evidence;
-an explicit later evidence gate may also be tagged before implementation, without changing status.
+The `verify` and `needs` groups are multi-select. Apply the children, never the group.
 
-| Evidence label              | Evidence needed before removing it                                                                                                      |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `verify:browser`            | Required real-browser journey, roles, routes, viewports and build                                                                       |
-| `verify:offline`            | Required network loss, cold reload, reconnect and convergence journey                                                                   |
-| `verify:load`               | Representative concurrent-device rehearsal and required capacity/latency/queue/persisted-score verdict                                  |
-| `verify:performance`        | Route baseline, device timing, transfer size or profiler comparison on the stated workload                                              |
-| `verify:physical-print`     | Required printer and paper/label stock, scale, alignment, clipping and readability results                                              |
-| `verify:real-user`          | Target user's observed journey, notes and disposition of trip points                                                                    |
-| `verify:independent-review` | Other-harness review on the required head/range, with findings dispositioned                                                            |
-| `verify:checkout`           | Required end-to-end checkout amounts and denial controls in the authorized environment; stop before charging when the issue requires it |
-| `verify:database`           | Applied-target database/RPC/grant/role or hosted-integration proof with required positive/negative controls                             |
-| `verify:recovery`           | Required backup freshness, restore, Storage and application-failover scope, with cadence/RPO/RTO measurements                           |
-| `verify:spec`               | Integrated OpenSpec implementation verification and required archive/closeout evidence                                                  |
+| Evidence label              | Remove only after recording                                                                  |
+| --------------------------- | -------------------------------------------------------------------------------------------- |
+| `verify:browser`            | The real-browser journey on the required build, roles, routes and viewports                  |
+| `verify:offline`            | Network loss, cold reload, reconnect and convergence                                         |
+| `verify:load`               | A representative concurrent-device rehearsal with the issue's capacity/latency verdict       |
+| `verify:performance`        | Route baseline, device timing, transfer size or profiler comparison on the stated workload   |
+| `verify:physical-print`     | Real printer and stock: scale, alignment, clipping, readability (a PDF is not enough)        |
+| `verify:real-user`          | The target user's observed journey and the disposition of each trip point                    |
+| `verify:independent-review` | The other harness's review of the required head, with its findings dispositioned             |
+| `verify:checkout`           | End-to-end checkout amounts and denial controls in the authorized environment                |
+| `verify:database`           | Applied-database/RPC/grant behavior on the named target, with positive and negative controls |
+| `verify:recovery`           | Backup freshness, restore and failover scope, with measured RPO/RTO                          |
+| `verify:spec`               | OpenSpec verification against the integrated tree, and its archive                           |
 
-| Intervention label   | Add when                                                                                                            | Remove when                                                    |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `needs:decision`     | An unresolved product, scope, risk-acceptance or restructure decision blocks the next step                          | The decision owner records the decision                        |
-| `needs:operator`     | The remaining action requires an authorized person/operator, shared-system operation, hardware or real-user session | That action is completed and recorded                          |
-| `needs:environment`  | This run lacks a required tool, credential, network, fixture or execution environment                               | The missing capability is restored or a capable run takes over |
-| `needs:coordination` | Active work overlaps the intended paths or ownership                                                                | Ownership/sequencing is agreed or the overlap resolves         |
+| Intervention label   | Add when                                                                   | Remove when                         |
+| -------------------- | -------------------------------------------------------------------------- | ----------------------------------- |
+| `needs:decision`     | An owner product, scope, risk or restructure decision blocks the next step | The owner records the decision      |
+| `needs:operator`     | The next action needs an authorized person, hardware or a real user        | That action is done and recorded    |
+| `needs:environment`  | A required tool, credential, fixture or reviewer is confirmed unavailable  | A run with that capability takes it |
+| `needs:coordination` | Other active work owns the same paths                                      | Ownership or sequencing is agreed   |
 
-For each intervention, name the exact action/question, owner and unblock condition in the issue.
-For each proof, keep the exact criterion and runnable next step in the issue or linked evidence.
-Reuse existing accurate comments; do not post a duplicate comment just to apply a label.
-
-Agent lifecycle:
-
-1. Read current evidence before adding a label. An old cloud session lacking credentials does
-   not establish a current environment blocker; an approved owner decision is no longer pending.
-2. Use incremental `addLabels` / `removeLabels` updates, preserving unrelated labels.
-3. Work that still needs implementation or defect fixes stays **In Progress** once started.
-   Keep an unmerged implementation PR In Progress through its code-review gate. After merge,
-   implemented work awaiting acceptance evidence belongs **In Review**. A hold does not itself
-   make unfinished code review-ready. Apply the disposition table below for holds and rejected premises.
-4. Record the tested commit/build, target, role/device/workload, commands, results and evidence
-   link appropriate to the criterion. Link a shared rehearsal result from each issue it proves;
-   do not start separate load runs for every tagged optimization.
-5. Remove only the proof/intervention actually satisfied. Keep other pending labels. Re-add a
-   label when evidence becomes invalid or a required recheck is introduced.
-6. Before Done, fetch the full issue again, check every criterion and the merge/evidence gates,
-   and reconcile its pending labels. **No labels is not proof of completion.** Physical stock,
-   real users, hosted behavior and other-harness review need their respective evidence.
-7. Labels grant no authorization to merge, deploy, change shared data/secrets, charge or refund.
-   Existing approvals and review gates still apply. `verify:independent-review` identifies the
-   review owed; it does not assign the implementation to a model or harness.
-
-Retired labels: `Claude`, `Codex`, `lane:mac`, `lane:pc`, `Oct 10 test show`, `vacation-blocked`,
-`needs-richard`, `Human Tester`, `Wait for Launch`, `auto:green` and `auto:yellow`. Do not apply
-or recreate them. Historical closed issues may retain them. Replace a vague hold with its actual
-`needs:*` blocker or `verify:*` evidence requirement, or remove it when already resolved.
-Record implementation/review provenance in the issue's evidence and PR. Use
-`verify:independent-review` for an outstanding other-harness review. Choose execution hosts by
-the capabilities the next action requires; a device or harness name is neither proof nor permission.
-
-Keep `Bug`, `Improvement`, `Feature` and `Test` as work types. `Test` includes test/harness repair
-and coverage work; it does not mean acceptance verification passed. `Ops` identifies operational
-or business work rather than an implementation task; add `needs:operator` for an outstanding
-authorized-person action. `Parked` marks an explicit decision to defer work until a named trigger,
-not merely an unstarted issue. Do not select it for launch implementation until the owner brings
-it into scope. Record the trigger in the issue and remove the label when that decision changes.
+- Every `needs:*` label comes with a comment naming the question or action, its owner, and the
+  unblock condition. Every `verify:*` label keeps its criterion in the issue.
+- Add and remove labels incrementally; keep unrelated labels. Re-add one when its evidence goes
+  stale. **No labels is not proof of completion**: Done needs a fresh full read of every criterion.
+- Work types: `Bug`, `Improvement`, `Feature`, `Test` (test or harness work; never "tests
+  passed"), `Ops` (operational work: follow its runbook, not a code implementer). `Parked` is an
+  explicit owner decision to defer until a named trigger; leave it out of launch work.
+- Retired, do not apply or recreate: `Claude`, `Codex`, `lane:mac`, `lane:pc`, `Oct 10 test show`,
+  `vacation-blocked`, `needs-richard`, `Human Tester`, `Wait for Launch`, `auto:green`,
+  `auto:yellow`. Replace one on an open issue with the specific `needs:*` or `verify:*` label.
 
 ## Lifecycle owner and GitHub automation
 
-The root agent running a command or pipeline owns the linked Linear issue across delegated
-phases. Read the full tracking issue and latest comments before work; OpenSpec task checkboxes
-describe artifact progress and do not update Linear by themselves. The root must:
+The root agent running a command or pipeline owns the tracking issue through every delegated
+phase. OpenSpec task checkboxes do not update Linear.
 
-1. Complete premise, dependency, ownership and approval checks before implementation. Set the
-   issue In Progress when implementation starts; proposal/exploration alone leaves its state.
-2. Apply the disposition table on every pause and handoff, with the complete hold record.
-3. Reconcile the full issue after merge and again after archive/spec closeout. Keep each pending
-   proof until recorded; move Done only when every criterion and required merge/evidence gate passes.
-4. Use the **Asynchronous merge protocol** below whenever merge is armed but not confirmed.
+| Stage                            | Status                                                   |
+| -------------------------------- | -------------------------------------------------------- |
+| Not started, or held before work | Unchanged (Backlog/Todo)                                 |
+| Implementation started           | In Progress, through the unmerged PR's review gate       |
+| Merged, only acceptance owed     | In Review, with the `verify:*` labels still owed         |
+| Merged, more implementation owed | In Progress (set it back: the merge automation moved it) |
+| Every criterion evidenced        | Done, after a fresh `get_issue` read                     |
 
-Team [Workflows & automations](https://linear.app/myk9-platform/settings/teams/MYK9/workflow)
-was aligned with this lifecycle and read back on 2026-10-25 after owner approval:
+Team automations, owner-approved and read back on 2026-10-25: PR open → In Progress; PR
+review activity → no action; **PR merge → In Review**; parent and sub-issue auto-close off. A
+merge therefore never asserts Done, but it also moves an issue whose implementation is only
+partly merged. **After every merge, the root fresh-reads the issue and sets the row above.**
+Automation is a convenience, not proof.
 
-| Event / setting            | Saved behavior |
-| -------------------------- | -------------- |
-| PR review request/activity | No action      |
-| PR merge                   | In Review      |
-| Auto-close parent issues   | Off            |
-| Auto-close sub-issues      | Off            |
-
-PR open still moves to In Progress. Draft/ready-for-merge events take no action. Thus a merge
-queues acceptance review rather than asserting Done, including asynchronous merges. Parent and
-sub-issue closure requires each issue's own evidence check. Treat automation as a convenience,
-never proof: confirm the actual state and reconcile it even when integration delivery is delayed.
-
-PR linking syntax follows [Linear's GitHub documentation](https://linear.app/docs/github#link-through-pull-requests):
-use `Fixes MYK9-<n>` for the final implementation PR to invoke the saved merge destination,
-In Review. Use `Part of MYK9-<n>` for an intermediate contribution and verify the actual
-Contributes relationship; branch/title associations can also link a PR. Do not infer its effect
-from the text alone. Before an intermediate auto-merge/handoff, correct any actual closing
-association or pause for a capable executor; do not promise a non-closing effect from body text.
-After every merge, remaining implementation stays In Progress and only
-acceptance-only work belongs In Review, regardless of an automated transition.
-
-Only the tracking issue gets a closing/contributing reference. For documentary follow-ups,
-use `Ignore MYK9-<n> — <title/link>` to prevent automatic linking; keep the useful follow-up
-description and URL. Confirm the intended PR/issue relationships rather than relying on keywords alone.
+The PR names only its tracking issue (`Fixes MYK9-<n>`). Write any other issue as
+`Ignore MYK9-<n>`, which stops Linear linking it, so the merge does not move it too.
 
 ### Asynchronous merge protocol
 
-This is the only stop/continue policy for pending merges; consumers reference it.
+When `watch-pr-checks.sh` times out twice (exit 3) after the review gate has passed, arm
+`gh pr merge --squash --auto`. Then:
 
-1. Before arming auto-merge, satisfy the required review gate at the reported review tier and
-   the merge-authorization gate. Do not impose an independent floor on an optional/none/adversarial change.
-   Record the pinned head, pending proof labels, owning executor/worktree/PR and merge-pending ledger.
-2. A timeout alone does not release ownership or advance the queue. Keep the issue In Progress,
-   preserve the worktree, and monitor the current PR until confirmed merged or a real blocker.
-3. **Only if an owner-approved run boundary is reached** (a recorded stop time/cap, or an explicit
-   handoff request), record a named post-merge executor and concrete resume action, then hand off.
-   A generic timeout is not that boundary. A ship-through-completion request without such a
-   boundary keeps the current root responsible; do not silently switch to another issue.
-4. Once merged, fresh-read and reconcile the issue under the disposition table, including
-   remaining implementation versus acceptance proof. In Review automation is not Done evidence.
-   Do not archive or remove the worktree before confirmed merge and required closeout.
+- **Ship through completion was requested:** keep watching. Re-run the watcher, one bounded run
+  at a time, until the PR merges or a check fails, then close out.
+- **Otherwise:** report the PR as merge-pending, keep the worktree, leave the issue In Progress,
+  and stop. Whoever next sees it merged (`/cleanup`, the next run) does the post-merge
+  close-out above. An orchestrate run records it in the run summary.
+
+Never archive an OpenSpec change or remove the worktree before the merge is confirmed.
 
 ## Dispositions and holds — the single routing table
 
-All agent workflows use this table; do not maintain separate label/state mappings in skills.
-The table records confirmed issue interventions. A query/check with no verdict is a run-level
-failure, not proof that an issue-specific capability is missing: stop dispatch and record the
-error without adding a lasting issue label solely for that failure. Use needs:environment only
-when the required capability is confirmed unavailable for the attempted issue.
-A pre-work hold leaves Backlog/Todo unchanged. A hold after implementation starts keeps the issue
-In Progress, including an unmerged PR. After merge, missing acceptance evidence belongs In Review.
-Apply every independent hold that remains; labels never grant the approval they describe.
+Skills reference this table instead of keeping their own mappings. A hold leaves the status as
+the lifecycle table says; the label records why work stopped.
 
-| Situation                                                                                                             | Disposition / intervention                                                                                                                      | Resume or resolution                                                                                                                                                                                                       |
-| --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Reproduction completed but the defect is not reproduced, or the agent considers it by design                          | needs:decision; preserve the pre-work/started state; record tested build/scenario or exact design citation                                      | Owner resolves the disputed premise; do not autonomously cancel or move it to Backlog on this basis                                                                                                                        |
-| New scope/product question reserved for the owner, convergence stop, or model escalation                              | needs:decision; state follows the pre-work/started rule above                                                                                   | Named decision owner records the exact approval or restructure choice                                                                                                                                                      |
-| Work touches payments, refunds, fees or money guards without recorded owner approval for that scope                   | Pre-work stop with needs:decision, regardless of issue size; stop mid-work if discovered later                                                  | Owner explicitly approves the scope before implementation starts or resumes; never infer approval from a label                                                                                                             |
-| Required CI remains red after the run's two fix attempts                                                              | needs:decision for an explicit repair/handoff plan; keep In Progress                                                                            | Owner/executor accepts the next repair approach; code fixes and passing checks remain owed                                                                                                                                 |
-| Required tool, credentials, fixture, network or reviewer unavailable                                                  | needs:environment; state follows the pre-work/started rule                                                                                      | A capable executor establishes the missing capability is restored; do not infer a fix from elapsed time                                                                                                                    |
-| A verification runner hangs over 30 seconds                                                                           | Stop the suite and report; needs:decision for a repair/handoff plan; started work stays In Progress                                             | Name the owner/capable executor and runnable next approach; do not retry the same hung suite in a loop                                                                                                                     |
-| Criteria require an owner-only/person action (including real-user observation)                                        | Pre-work stop with needs:operator unless the owner already authorized the implementation/verification sequence; unmerged work stays In Progress | Record the action, responsible person and approved sequence                                                                                                                                                                |
-| An orchestrate Linear run discovers a migration, before or during implementation                                      | needs:operator; carry the PR through its review gate, then stop before merge in this run                                                        | The owner continues the migration merge/deploy sequence in a separately authorized workflow; the run's generic push/PR/squash-merge authorization does not waive this stop. Never push a migration from an unmerged branch |
-| qa:inflight exits 1, an In Progress issue names the paths, or a running session/PR/branch/worktree overlaps ownership | Pre-work stop with needs:coordination                                                                                                           | Agree ownership/sequencing; a held or idle branch may still contain unmerged work                                                                                                                                          |
-| qa:inflight exits 2 (could not decide), or a required ownership check has no verdict                                  | Stop dispatch; preserve issue state/labels and record the run-level failed check, not a speculative issue hold                                  | Establish ownership before work resumes; use the capability row only for a confirmed missing capability                                                                                                                    |
-| Merged implementation awaiting browser, device, hosted or other acceptance proof                                      | In Review with the applicable verify:* labels and any independent needs:* hold                                                                  | Record each criterion's required proof; remove only satisfied labels and fresh-read before Done                                                                                                                            |
+| Situation                                                                            | Label                | Notes                                                                                         |
+| ------------------------------------------------------------------------------------ | -------------------- | --------------------------------------------------------------------------------------------- |
+| The premise did not reproduce, or the agent reads it as by design                    | `needs:decision`     | Record the build and scenario, or the citation. Never cancel or move to Backlog on this basis |
+| An owner product/scope question, a convergence stop, or a model escalation           | `needs:decision`     | Post the question or restructure proposal                                                     |
+| It touches payments, refunds, fees or money guards with no recorded owner approval   | `needs:decision`     | Stop before work, whatever the size; stop mid-work if found later                             |
+| Required CI is still red after two fix attempts                                      | `needs:decision`     | Record what was tried and the proposed next approach                                          |
+| A required tool, credential, fixture or reviewer is confirmed unavailable            | `needs:environment`  | Name the missing capability                                                                   |
+| The criteria need an owner-only action: shared-system operation, hardware, real user | `needs:operator`     | Skip the stop when the owner already authorized that sequence                                 |
+| An orchestrate run finds a migration                                                 | `needs:operator`     | Carry the PR through its review gate, then do not merge in this run                           |
+| `qa:inflight` exits 1, an In Progress issue names the paths, or a session overlaps   | `needs:coordination` | A held or idle branch can still own unmerged work                                             |
+| `qa:inflight` exits 2, a test runner hangs past 30s, or a Linear read fails          | none                 | A run-level failure: stop and report it in the run summary. Do not label the issue for it     |
+| Merged, acceptance evidence owed                                                     | `verify:*`           | In Review                                                                                     |
 
-When merged work has every criterion supported by recorded evidence, fresh-read the full issue
-before Done and remove satisfied pending labels. Keep its merge/build and acceptance links.
-If reproduction could not run, use the capability row, not the completed-reproduction row.
-An INTENT citation or an agent's reading of a prior decision is evidence for owner review, not
-authority to cancel. Once the owner resolves the premise, apply only that recorded disposition
-to the scope it covers. Non-reproduction is never proof of a fix. Done still requires the merge
-and full acceptance gates.
-
-Every hold comment records: **disposition (held), current executor (active or paused), owning
-chat/worktree/branch/PR, exact question/action, responsible owner or capable next executor, and
-the unblock condition**. Maintain this record on handoff. A paused executor does not release
-another agent's ownership: preserve qa:inflight and the In Progress path checks, inspect the
-recorded work, and agree takeover/sequencing before touching overlapping paths. On a later run,
-review Blocked work for restored capabilities or resolved decisions and remove only stale holds;
-do not wait for the issue to reappear in Ready for an agent by itself.
-
-To resume the same issue, restore its recorded worktree/branch first (or agree a takeover), then
-run qa:inflight there. The check excludes that current branch and its own PR; it does not exclude
-another executor's work. The In Progress path check likewise distinguishes this resumed issue
-from other issues. Reuse the held work and ledger rather than creating a competing branch.
+The hold comment names the owning chat, worktree, branch and PR, the exact question or action,
+its owner, and the unblock condition. To resume, restore the recorded worktree first, then run
+`qa:inflight` there. At the start of a run, check **Blocked work** for holds whose condition has
+cleared and remove only those labels.
 
 ## Saved queues and verification batches
 
-Use the shared team views to select work instead of repeatedly scanning the full board:
+| View                                                                                              | Contents                                                                 |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [Ready for an agent](https://linear.app/myk9-platform/view/81143969-5d01-4991-8b68-d8d994c93426)  | Todo, not blocked, no `Parked` or `needs:*` label; priority order        |
+| [Verification needed](https://linear.app/myk9-platform/view/316a2fa9-78c5-4cb5-9ba5-71332adb4bf7) | All In Review, grouped by `verify:*` (unlabeled rows need only closeout) |
+| [Owner actions](https://linear.app/myk9-platform/view/595922bc-5449-47e9-9f00-908a6852691d)       | Open issues with `needs:decision` or `needs:operator`                    |
+| [Blocked work](https://linear.app/myk9-platform/view/72298184-9990-40b7-ab46-253f9147d580)        | Open issues with any `needs:*` label, every priority                     |
+| [Launch blockers](https://linear.app/myk9-platform/view/81b32ef5-7f1f-4bda-a89e-2533c4ca2df1)     | Open Urgent/High, excluding `Parked` and the Post-launch project         |
 
-| View                                                                                              | Selection and display                                                                                     |
-| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| [Ready for an agent](https://linear.app/myk9-platform/view/81143969-5d01-4991-8b68-d8d994c93426)  | Todo; not blocked by another issue; excludes any of Parked or the four needs:* labels; priority order     |
-| [Verification needed](https://linear.app/myk9-platform/view/316a2fa9-78c5-4cb5-9ba5-71332adb4bf7) | All In Review, including issues without verify labels; grouped by verify and ordered by priority          |
-| [Owner actions](https://linear.app/myk9-platform/view/595922bc-5449-47e9-9f00-908a6852691d)       | Open issues with either needs:decision or needs:operator; grouped by needs; deferred items remain visible |
-| [Blocked work](https://linear.app/myk9-platform/view/72298184-9990-40b7-ab46-253f9147d580)        | Open issues with any of the four needs:* holds, at every priority; grouped by needs for recovery/handoff  |
-| [Launch blockers](https://linear.app/myk9-platform/view/81b32ef5-7f1f-4bda-a89e-2533c4ca2df1)     | Open Urgent/High issues; excludes Parked and the Post-launch project; includes blocked/operator-held work |
-
-Open means Backlog, Todo, In Progress or In Review. These views are candidate selectors, not
-authorization or proof. The launch view ranks attention; the scorecard and full criteria decide
-go/no-go. Hidden nested rows are displayed flat so a nonmatching parent is not mistaken for work
-in the queue. Group counts can overlap when an issue owes several proofs.
-
-Resolve a view with `list_custom_views` and query it using `list_issues(customView: <id or exact
-name>)` when supported. For **Ready for an agent**, the exact connector fallback is:
-
-1. Query team MyK9-platform, state Todo, excluding archived issues; read every page. Never
-   broaden to Backlog when no candidate qualifies.
-2. Exclude any issue carrying Parked, needs:decision, needs:operator, needs:environment or
-   needs:coordination. Use client-side filtering when the connector has no exclusion arguments.
-3. Provisionally rank the remaining metadata by priority, launch fit and closeness to done.
-   In that order, read full issues and blocked-by relations until the requested number of eligible
-   candidates is found, or the list is exhausted. Resolve each blocker and exclude
-   unfinished prerequisites. A merged PR alone is insufficient; a Canceled/Duplicate blocker
-   requires reading its recorded resolution/canonical issue. If a selection read fails or relation
-   state is unknown, skip the candidate for this selection and record the read failure in the run
-   summary; do not add a persistent hold to an unclaimed issue for a transient query failure.
-   Re-read on the next selection. If the connector cannot establish any candidate's eligibility,
-   stop selection and report the missing capability; unknown state never permits starting work.
-4. Refine the eligible candidates' ranking from their full context. Before claiming one,
-   re-read its latest comments, reproduce the premise and check concurrent work/ownership.
-
-Other view fallbacks query their table's statuses and apply its property predicates across all
-pages. Never invent unsupported tool arguments. Even saved-view candidates need the full-issue,
-dependency, premise and ownership checks above. An In Review item with unfinished code or a
-restructure hold is not ready for an acceptance-only session.
-
-At resume, check Verification needed as well as Ready and Blocked work. Its ungrouped/no-verify
-rows include merged issues needing only final reconciliation: fresh-read their full criteria,
-close Done when all evidence already exists, or record the actual outstanding proof/hold. The
-view's membership requires In Review, not a verify label.
+Views select candidates; they do not prove or authorize anything. Query one with
+`list_issues(customView: <id or exact name>)`. **Connector fallback** for Ready for an agent:
+list team MyK9-platform, state Todo, every page; drop `Parked` and `needs:*` client-side; rank
+by priority, launch fit and closeness to done; then read full issues with relations, in that
+order, until you have enough eligible candidates. A blocker counts as finished once its code has
+merged, unless the dependent issue needs the blocker's acceptance evidence. Never broaden to
+Backlog. Before claiming a candidate, re-read its latest comments, reproduce the premise and run
+the ownership checks.
 
 [Launch verification sessions](https://linear.app/myk9-platform/document/launch-verification-sessions-3ab8911b3c10)
-holds the current session matrix; original issues retain their criteria and closure evidence.
-At session start, refresh the view and group by compatible build, target, role/device/workload
-and fixture ownership. Use separate secretary/admin and exhibitor contexts. Coordinate one G9
-rehearsal through its existing parent issues, one route/device performance pass through its
-baseline issue, and reuse a result only for criteria it actually exercises. Other-harness review
-still needs a verdict on each required head/range; a shared session is not a blanket approval.
-
-Before running, record the executor, prerequisites, exact scope, commit/build, target, fixture
-setup/cleanup owner and any required approval. Keep shared-data/paid actions, physical stock,
-real-user observation and recovery operations explicitly owned. Queue setup and grouping do not
-authorize those actions. Afterward record pass/fail/not-run per criterion with sanitized artifacts,
-link the shared result from each covered issue, remove only satisfied labels and fresh-read every
-criterion before Done. Preserve unmet gates and hand off the next concrete action when blocked.
+groups the Verification needed issues into shared sessions by build, target, role and device.
+Before a session, record its executor, build, target and who owns fixture setup and cleanup.
+Afterwards record pass, fail or not-run per criterion, link the result from each issue it
+covers, and remove only the labels it satisfied. A shared session is not a blanket review
+verdict: each independent review still covers its own head.
 
 ## Model routing for issue work
 

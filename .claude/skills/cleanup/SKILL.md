@@ -176,7 +176,7 @@ Worktrees:     2 stale worktrees cleaned up
 Dev servers:   1 orphan killed (PID 83484, was bound to :5173 from removed worktree zealous-carson-15859a)
 Git:           Working tree clean, all pushed
 Migrations:    dry-run clean — remote up to date
-Linear:        3 issues moved to Done, all consistent
+Linear:        3 merged issues reconciled (2 Done, 1 In Review: verify:browser owed)
 Branches:      1 merged branch deleted (worktree-agent-abc123)
 Edge Functions: deploy state verified — all current
 

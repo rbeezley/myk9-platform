@@ -261,9 +261,8 @@ gh pr merge $PR_NUMBER --squash --auto
 gh pr view $PR_NUMBER --json autoMergeRequest
 ```
 
-Then follow the **Asynchronous merge protocol** in `docs/agents/issue-tracker.md`: keep watching
-only when the user asked to ship through completion; otherwise report the PR as merge-pending and
-**stop**, leaving the issue In Progress. Proceed to Steps 6–7 only once the merge is confirmed.
+Then follow the **Asynchronous merge protocol** in `docs/agents/issue-tracker.md`, including its
+ownership and approved-handoff requirements. Proceed to Steps 6–7 only once merge is confirmed.
 
 ---
 

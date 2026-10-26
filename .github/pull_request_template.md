@@ -8,8 +8,6 @@
 
 <!-- The tracking issue only. After merge, reconcile it per docs/agents/issue-tracker.md. -->
 
-Fixes MYK9-
-
 ## Acceptance criteria
 
 <!-- Copy each criterion from the issue and check the ones this PR satisfies; say which are deferred. -->

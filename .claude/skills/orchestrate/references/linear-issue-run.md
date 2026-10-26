@@ -121,9 +121,8 @@ never `origin/main` itself, which may have moved. Then run `ship-pr` from `$WT` 
 4, 5). This run's authorization covers the push, the
 PR and the squash-merge. Additions specific to the run:
 
-- **PR title and body name only `MYK9-<n>`** (`Fixes MYK9-<n>`); write any other id as
-  `Ignore MYK9-<n>`. A merge moves every linked issue to In Review, so a partial PR's issue is
-  set back to In Progress at close-out.
+- **PR references:** use the shared linking contract: final implementation uses `Fixes`;
+  partial PRs and documentary follow-ups use `Ignore`. The root reconciles every merge.
 - **Step A (simplify):** under 150 changed lines, your line-by-line review read is the simplify
   pass, so don't spend three more agents on it. Larger diffs run `/simplify`.
 - **Ratchet:** `pnpm qa:code-quality-ratchet` from `$WT` when the diff adds lines to an
@@ -139,9 +138,8 @@ PR and the squash-merge. Additions specific to the run:
   action through the shared table. Never push a migration from an unmerged branch.
 - **Codex unavailable on an `independent` floor:** leave the PR open and route the unavailable
   reviewer through the shared table. No same-harness substitute, no owner override from an agent.
-- **Watcher exit 3:** run it once more, then follow the **Asynchronous merge protocol** in
-  `docs/agents/issue-tracker.md`: keep watching in continuous mode before the stop time,
-  otherwise mark the ledger "merge pending" and list it in the run summary.
+- **Watcher exit 3:** follow ship-pr Path B and the shared **Asynchronous merge protocol**;
+  an approved stop-time handoff records the named next executor and resume action.
 - **Read the watcher's own exit code** (`…; echo "WATCH_EXIT=$?"`), never a wrapper's. If
   the failed check is `Review gate` and its status predates your gate comment, the
   comment-triggered run hasn't finished yet. Re-run the watcher once before treating it as red.

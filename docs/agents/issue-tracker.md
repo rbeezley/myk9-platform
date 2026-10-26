@@ -125,63 +125,73 @@ merge therefore never asserts Done, but it also moves an issue whose implementat
 partly merged. **After every merge, the root fresh-reads the issue and sets the row above.**
 Automation is a convenience, not proof.
 
-The PR names only its tracking issue (`Fixes MYK9-<n>`). Write any other issue as
-`Ignore MYK9-<n>`, which stops Linear linking it, so the merge does not move it too.
+Final implementation PRs use `Fixes MYK9-<n>`. Partial PRs use `Ignore MYK9-<n>` with a
+tracking link; the root reconciles the issue explicitly after merge. Write documentary
+follow-ups with `Ignore` too. [Linear documents](https://linear.app/docs/github#link-through-pull-requests)
+that `Ignore` suppresses PR linking even when the branch contains the ID. Check the actual
+relationships before merge or handoff, and keep unrelated IDs out of the squash message.
 
 ### Asynchronous merge protocol
 
-When `watch-pr-checks.sh` times out twice (exit 3) after the review gate has passed, arm
-`gh pr merge --squash --auto`. Then:
+Use ship-pr's Path B after watcher exit 3, with the required review and merge authorization
+already satisfied. Record the head, issue, worktree, PR and owning executor before auto-merge.
+Then:
 
 - **Ship through completion was requested:** keep watching. Re-run the watcher, one bounded run
   at a time, until the PR merges or a check fails, then close out.
-- **Otherwise:** report the PR as merge-pending, keep the worktree, leave the issue In Progress,
-  and stop. Whoever next sees it merged (`/cleanup`, the next run) does the post-merge
-  close-out above. An orchestrate run records it in the run summary.
+- **Owner-approved stop or handoff:** report merge-pending, keep the worktree and issue
+  In Progress, and record a named post-merge executor and exact resume action. A watcher
+  timeout alone does not release ownership. Do not advance the queue while still responsible.
 
 Never archive an OpenSpec change or remove the worktree before the merge is confirmed.
 
 ## Dispositions and holds — the single routing table
 
 Skills reference this table instead of keeping their own mappings. A hold leaves the status as
-the lifecycle table says; the label records why work stopped.
+the lifecycle table says; the label records why work stopped. Inconclusive ownership/discovery
+checks are run-level failures, distinct from a verification runner that actually hangs.
 
-| Situation                                                                            | Label                | Notes                                                                                         |
-| ------------------------------------------------------------------------------------ | -------------------- | --------------------------------------------------------------------------------------------- |
-| The premise did not reproduce, or the agent reads it as by design                    | `needs:decision`     | Record the build and scenario, or the citation. Never cancel or move to Backlog on this basis |
-| An owner product/scope question, a convergence stop, or a model escalation           | `needs:decision`     | Post the question or restructure proposal                                                     |
-| It touches payments, refunds, fees or money guards with no recorded owner approval   | `needs:decision`     | Stop before work, whatever the size; stop mid-work if found later                             |
-| Required CI is still red after two fix attempts                                      | `needs:decision`     | Record what was tried and the proposed next approach                                          |
-| A required tool, credential, fixture or reviewer is confirmed unavailable            | `needs:environment`  | Name the missing capability                                                                   |
-| The criteria need an owner-only action: shared-system operation, hardware, real user | `needs:operator`     | Skip the stop when the owner already authorized that sequence                                 |
-| An orchestrate run finds a migration                                                 | `needs:operator`     | Carry the PR through its review gate, then do not merge in this run                           |
-| `qa:inflight` exits 1, an In Progress issue names the paths, or a session overlaps   | `needs:coordination` | A held or idle branch can still own unmerged work                                             |
-| `qa:inflight` exits 2, a test runner hangs past 30s, or a Linear read fails          | none                 | A run-level failure: stop and report it in the run summary. Do not label the issue for it     |
-| Merged, acceptance evidence owed                                                     | `verify:*`           | In Review                                                                                     |
+| Situation                                                                            | Label                | Notes                                                                                                      |
+| ------------------------------------------------------------------------------------ | -------------------- | ---------------------------------------------------------------------------------------------------------- |
+| The premise did not reproduce, or the agent reads it as by design                    | `needs:decision`     | Record the build and scenario, or the citation. Never cancel or move to Backlog on this basis              |
+| An owner product/scope question, a convergence stop, or a model escalation           | `needs:decision`     | Post the question or restructure proposal                                                                  |
+| It touches payments, refunds, fees or money guards with no recorded owner approval   | `needs:decision`     | Stop before work, whatever the size; stop mid-work if found later                                          |
+| Required CI is still red after two fix attempts                                      | `needs:decision`     | Record what was tried and the proposed next approach                                                       |
+| A required tool, credential, fixture or reviewer is confirmed unavailable            | `needs:environment`  | Name the missing capability                                                                                |
+| The criteria need an owner-only action: shared-system operation, hardware, real user | `needs:operator`     | Skip the stop when the owner already authorized that sequence                                              |
+| An orchestrate run finds a migration                                                 | `needs:operator`     | Carry the PR through its review gate, then do not merge in this run                                        |
+| `qa:inflight` exits 1, an In Progress issue names the paths, or a session overlaps   | `needs:coordination` | A held or idle branch can still own unmerged work                                                          |
+| A verification runner hangs past 30s                                                 | `needs:decision`     | Stop the suite; record the repair/handoff question and owner. Do not repeat the hung run                   |
+| `qa:inflight` exits 2 or a Linear read fails                                         | none                 | Stop dispatch and report the failed check; establish ownership before resuming, without a speculative hold |
+| Merged, acceptance evidence owed                                                     | `verify:*`           | In Review                                                                                                  |
 
 The hold comment names the owning chat, worktree, branch and PR, the exact question or action,
 its owner, and the unblock condition. To resume, restore the recorded worktree first, then run
 `qa:inflight` there. At the start of a run, check **Blocked work** for holds whose condition has
 cleared and remove only those labels.
+Also inspect recorded In Progress and In Review PRs at resume, including unlabeled rows:
+reconcile confirmed merges and outstanding criteria before selecting new work. A pause never
+releases another executor's worktree or branch; agree takeover before overlapping edits.
 
 ## Saved queues and verification batches
 
-| View                                                                                              | Contents                                                                 |
-| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| [Ready for an agent](https://linear.app/myk9-platform/view/81143969-5d01-4991-8b68-d8d994c93426)  | Todo, not blocked, no `Parked` or `needs:*` label; priority order        |
-| [Verification needed](https://linear.app/myk9-platform/view/316a2fa9-78c5-4cb5-9ba5-71332adb4bf7) | All In Review, grouped by `verify:*` (unlabeled rows need only closeout) |
-| [Owner actions](https://linear.app/myk9-platform/view/595922bc-5449-47e9-9f00-908a6852691d)       | Open issues with `needs:decision` or `needs:operator`                    |
-| [Blocked work](https://linear.app/myk9-platform/view/72298184-9990-40b7-ab46-253f9147d580)        | Open issues with any `needs:*` label, every priority                     |
-| [Launch blockers](https://linear.app/myk9-platform/view/81b32ef5-7f1f-4bda-a89e-2533c4ca2df1)     | Open Urgent/High, excluding `Parked` and the Post-launch project         |
+| View                                                                                              | Contents                                                          |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| [Ready for an agent](https://linear.app/myk9-platform/view/81143969-5d01-4991-8b68-d8d994c93426)  | Todo, not blocked, no `Parked` or `needs:*` label; priority order |
+| [Verification needed](https://linear.app/myk9-platform/view/316a2fa9-78c5-4cb5-9ba5-71332adb4bf7) | All In Review, including unlabeled rows; grouped by `verify:*`    |
+| [Owner actions](https://linear.app/myk9-platform/view/595922bc-5449-47e9-9f00-908a6852691d)       | Open issues with `needs:decision` or `needs:operator`             |
+| [Blocked work](https://linear.app/myk9-platform/view/72298184-9990-40b7-ab46-253f9147d580)        | Open issues with any `needs:*` label, every priority              |
+| [Launch blockers](https://linear.app/myk9-platform/view/81b32ef5-7f1f-4bda-a89e-2533c4ca2df1)     | Open Urgent/High, excluding `Parked` and the Post-launch project  |
 
 Views select candidates; they do not prove or authorize anything. Query one with
 `list_issues(customView: <id or exact name>)`. **Connector fallback** for Ready for an agent:
 list team MyK9-platform, state Todo, every page; drop `Parked` and `needs:*` client-side; rank
 by priority, launch fit and closeness to done; then read full issues with relations, in that
-order, until you have enough eligible candidates. A blocker counts as finished once its code has
-merged, unless the dependent issue needs the blocker's acceptance evidence. Never broaden to
-Backlog. Before claiming a candidate, re-read its latest comments, reproduce the premise and run
-the ownership checks.
+order, until you have enough eligible candidates. Resolve every blocker: a merged PR alone
+does not satisfy an open prerequisite, including one In Review. Read a Canceled/Duplicate
+blocker's resolution and canonical issue. Unknown relation state excludes the candidate.
+Never broaden to Backlog. Before claiming a candidate, re-read its latest comments, reproduce
+the premise and run the ownership checks.
 
 [Launch verification sessions](https://linear.app/myk9-platform/document/launch-verification-sessions-3ab8911b3c10)
 groups the Verification needed issues into shared sessions by build, target, role and device.

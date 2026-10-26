@@ -27,7 +27,7 @@ description: List open Linear issues (MyK9-platform) and pick one to work on
 
 6. **Handle the choice:**
    - **Ship / Implement**: retain root ownership of the issue while invoking the opsx command. Follow the shared **Lifecycle owner** protocol before implementation, on pauses, after merge and after archive; the phase skills do not own implicit Linear updates. Do not assume archive or merge proves every criterion.
-   - **Invoke skill / Start working**: move the issue to **In Progress** (update-issue `state`), then begin.
+   - **Invoke skill / Start working**: retain root ownership under the same shared Lifecycle owner protocol; after step 4's checks, move the issue to **In Progress** and begin. Reconcile pauses, handoffs and completion through that contract.
    - **Brainstorm**: leave the issue state unchanged; invoke `/brainstorm` with the issue description as argument.
    - **Put it back**: leave state unchanged; return to step 3 to redisplay the list.
 

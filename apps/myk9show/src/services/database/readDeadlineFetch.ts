@@ -24,8 +24,9 @@
  * replication layer (`syncErrorUtils.isAbortSyncMessage`) treats it as a cancelled sync,
  * files it as idle and even dismisses an earlier failure toast. The deadline must not hide
  * behind that, so it aborts with a `TimeoutError` DOMException instead. fetch rejects with
- * the signal's reason; postgrest-js (2.118) rethrows a TimeoutError whose signal is aborted
- * without its own retry and, with `throwOnError` off, maps it to
+ * the signal's reason. The configured client disables postgrest-js retries (MYK9-1355):
+ * the SDK cannot see this private controller, so its retries would each get a fresh
+ * deadline. React Query and RBAC own retries instead. With `throwOnError` off, the SDK maps it to
  * `error.message = "TimeoutError: Read deadline of 30000 ms exceeded"`. The sync adapter's
  * `Supabase query failed:` prefix then makes it SAFE_SYNC_REFRESH_ERROR, a visible refresh
  * failure. `isTransientBrowserFetchError` (services/rbac/PermissionChecker.ts) accepts

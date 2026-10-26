@@ -104,13 +104,19 @@ terminal command the run can type itself; it produced PR #2937 (MYK9-1122) on 20
 
 ### 2. Start
 
-**Local lane:**
+Both lanes share these names; set them before the lane split, once per issue, so a cloud-only
+run has them for the watch and the review worktree below:
 
 ```bash
 MAIN="$(git worktree list --porcelain | sed -n '1s/^worktree //p')"
 N=<n>; SLUG=<3-5-word-kebab>
 BRANCH="claude/myk9-$N-$SLUG"  # codex/ when Codex implements; the prefix declares authorship
 WT="$MAIN/.claude/worktrees/myk9-$N"
+```
+
+**Local lane:**
+
+```bash
 git -C "$MAIN" fetch origin main
 git -C "$MAIN" worktree add "$WT" -b "$BRANCH" origin/main
 (cd "$WT" && bash scripts/bootstrap-worktree.sh)
@@ -121,8 +127,8 @@ into the issue worktree. `git -C "$WT" status --short` must be empty afterwards.
 
 Then `save_issue` → **In Progress**. Write the ledger row.
 
-**Cloud lane:** no worktree yet. `save_issue` → **In Progress**, write the ledger row with
-`lane: cloud` and the branch name (same `claude/myk9-$N-$SLUG` form), then write the prompt to
+**Cloud lane:** no worktree yet (`$WT` is created only once the PR exists, below).
+`save_issue` → **In Progress**, write the ledger row with `lane: cloud` and `$BRANCH`, then write the prompt to
 `<scratchpad>/cloud-myk9-$N.md` with the Write tool and dispatch it from the Terminal panel:
 
 ```
@@ -133,9 +139,12 @@ command: claude --cloud "$(cat '<scratchpad>/cloud-myk9-<n>.md')"
 `claude --cloud` needs a TTY, which is why it goes through the panel and not the Bash tool.
 Read the tab (`read_terminal`, `wait_for_output_ms` up to 60000) until it prints the session
 name, URL and teleport id; record the URL in the ledger row. Nothing in the tab after that is
-needed; close it with `stop_terminal_tab` once the URL is recorded. If nothing prints within a
-minute, or it prints a sign-in error, the dispatch failed: re-dispatch once, then hold the
-issue through the shared table as a capability hold.
+needed; close it with `stop_terminal_tab` once the URL is recorded. A dispatch that prints no
+URL is a hold through the shared table (a capability hold naming the tab's output, `$BRANCH`
+and the dispatch time), **never a re-dispatch**: a silent tab does not prove the session was
+not created, so a second dispatch could be a second writer on the branch, and a sign-in error
+fails the same way on a retry (`claude auth login` is the owner's fix). Leave that tab open
+for the owner to read.
 
 The prompt has the dispatch protocol's three parts (task text, premise and approach,
 pointers), preceded by this cloud preamble, filled in:
@@ -337,9 +346,9 @@ asking:
 1. **Leftovers:** `git worktree list` shows only the expected worktrees (merge-pending ones are
    listed in the summary). `gh pr list --author @me --state open` shows only PRs the summary
    names. `ps -eo pid,etime,command | grep -E 'sleep|vitest'` finds no orphans. Every cloud
-   session the ledger names ended in a PR or a recorded hold, and no `cloud myk9-<n>` Terminal
-   tab is left open (`list_terminal_tabs`). Dismiss any background-task chips that the run
-   absorbed.
+   session the ledger names ended in a PR or a recorded hold, and the only `cloud myk9-<n>`
+   Terminal tabs left open (`list_terminal_tabs`) are the ones a dispatch hold names. Dismiss
+   any background-task chips that the run absorbed.
 2. **Summary**, as the final message (and a push notification when the owner is away):
 
 ```markdown

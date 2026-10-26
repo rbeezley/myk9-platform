@@ -111,6 +111,68 @@ describe('resolveAuthorship', () => {
     expect(result).toEqual({ refused: expect.stringContaining('iii2222') });
   });
 
+  // Codex, #3284: only the trailing trailer block is authorship. A commit body
+  // that quotes a trailer, as docs about this very rule do, is prose.
+  describe('reads only the trailing trailer block', () => {
+    const quoting = (sha: string, quoted: string, ...trailers: string[]): AuthoredCommit => ({
+      sha,
+      parentCount: 1,
+      message: [
+        'docs: explain trailers',
+        '',
+        'An example:',
+        '',
+        quoted,
+        '',
+        'More prose.',
+        '',
+        ...trailers,
+      ].join('\n'),
+    });
+
+    it('ignores a quoted trailer in the body when the real trailer agrees with the prefix', () => {
+      expect(
+        resolveAuthorship({ branch: 'claude/x', commits: [quoting('lll1111', CODEX, CLAUDE)] })
+      ).toEqual({ implementer: 'claude', reviewer: 'codex' });
+    });
+
+    it('refuses a commit whose only harness trailer is quoted in the body', () => {
+      expect(
+        resolveAuthorship({ branch: 'claude/x', commits: [quoting('lll2222', CLAUDE)] })
+      ).toEqual({ refused: expect.stringContaining('lll2222') });
+    });
+
+    it('refuses a final paragraph that is prose around a trailer-shaped line', () => {
+      const commit: AuthoredCommit = {
+        sha: 'lll3333',
+        parentCount: 1,
+        message: `fix: x\n\nBody.\n\nThanks to the reviewer.\n${CLAUDE}`,
+      };
+      expect(resolveAuthorship({ branch: 'claude/x', commits: [commit] })).toEqual({
+        refused: expect.stringContaining('lll3333'),
+      });
+    });
+
+    it('accepts a trailer block with other git trailers and trailing blank lines', () => {
+      const commit: AuthoredCommit = {
+        sha: 'lll4444',
+        parentCount: 1,
+        message: `fix: x\n\nBody.\n\nSigned-off-by: Richard Beezley <r@example.com>\n${CODEX}\n\n`,
+      };
+      expect(resolveAuthorship({ branch: 'codex/x', commits: [commit] })).toEqual({
+        implementer: 'codex',
+        reviewer: 'claude',
+      });
+    });
+
+    it('does not read a one-line message as its own trailer block', () => {
+      const commit: AuthoredCommit = { sha: 'lll5555', parentCount: 1, message: CLAUDE };
+      expect(resolveAuthorship({ branch: 'claude/x', commits: [commit] })).toEqual({
+        refused: expect.stringContaining('lll5555'),
+      });
+    });
+  });
+
   it('does not take a lookalike name for a harness', () => {
     const result = resolveAuthorship({
       branch: 'claude/x',

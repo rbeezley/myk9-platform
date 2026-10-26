@@ -13,10 +13,14 @@
  *   3. Not completed: trusted and current, but no verifiable verdict. The
  *      caller posts one `Review not completed for <head>` note (Task 2.2).
  *
- * Which workflow code ran: for `pull_request_target` GitHub runs the workflow
- * file from the PR's base branch, and reports the run's head_branch/head_sha
- * as the PR's, so the base being `main` is the proof. A `workflow_dispatch`
- * run reports the ref it was dispatched on, which must be `main`.
+ * Which workflow code ran: `pull_request_target` runs the workflow file from
+ * the PR's base branch AT THE TIME, and the run API reports neither that
+ * branch nor its commit (head_sha is the PR's; pull_requests[].base is the
+ * PR's base now). A PR can target a branch carrying a modified copy of this
+ * workflow, run it, then retarget main (Codex, #3284). The only unforgeable
+ * record is the run's GitHub-signed OIDC token: its `workflow_ref` and
+ * `workflow_sha` claims. The caller verifies that token's signature and
+ * passes those claims; nothing a run wrote about itself stands in for them.
  */
 import type { Harness } from './authorship.ts';
 import type { ReviewAttempt } from './review-attempt.ts';
@@ -34,17 +38,17 @@ export type PublicationState = {
     state: 'open' | 'closed';
     draft: boolean;
     headSha: string;
-    baseRef: string;
   };
   /** The run that produced the artifact, read from the API by run id. */
   run: {
     id: number;
     attempt: number;
     event: string;
-    path: string;
     repository: string;
-    headBranch: string;
     headSha: string;
+    /** From the run's verified OIDC token; null when there is none to verify. */
+    workflowRef: string | null;
+    workflowSha: string | null;
   };
   /** Newest trusted cloud attempt for this PR and head; null if none is recorded. */
   latestAttempt: { runId: number; runAttempt: number } | null;
@@ -57,8 +61,13 @@ export type Publication =
 
 function untrustedReason(attempt: ReviewAttempt, state: PublicationState): string | null {
   const { run, pr } = state;
-  if (run.path !== TRUSTED_WORKFLOW)
-    return `run ${run.id} is workflow ${run.path}, not ${TRUSTED_WORKFLOW}`;
+  const trustedRef = `${state.repository}/${TRUSTED_WORKFLOW}@refs/heads/${TRUSTED_BRANCH}`;
+  if (run.workflowRef !== trustedRef) {
+    return `run ${run.id} ran workflow ${run.workflowRef ?? '(unverified)'}, not ${trustedRef}`;
+  }
+  if (run.workflowSha === null || run.workflowSha !== attempt.workflowSha) {
+    return `run ${run.id}'s signed workflow commit does not match the attempt's`;
+  }
   if (run.repository !== state.repository) return `run ${run.id} belongs to ${run.repository}`;
   if (attempt.repository !== state.repository) return `attempt is for ${attempt.repository}`;
   if (attempt.runId !== run.id || attempt.runAttempt !== run.attempt) {
@@ -66,13 +75,8 @@ function untrustedReason(attempt: ReviewAttempt, state: PublicationState): strin
   }
   if (attempt.pr !== pr.number) return `attempt is for PR ${attempt.pr}, not ${pr.number}`;
   if (run.event === 'pull_request_target') {
-    if (pr.baseRef !== TRUSTED_BRANCH)
-      return `PR targets ${pr.baseRef}, so its workflow is not ${TRUSTED_BRANCH}'s`;
     if (run.headSha !== attempt.headSha) return `run ${run.id} was triggered for a different head`;
-  } else if (run.event === 'workflow_dispatch') {
-    if (run.headBranch !== TRUSTED_BRANCH)
-      return `run ${run.id} was dispatched from ${run.headBranch}`;
-  } else {
+  } else if (run.event !== 'workflow_dispatch') {
     return `run ${run.id} came from a ${run.event} event`;
   }
   if (!CLOUD_REVIEWERS.includes(attempt.reviewer))

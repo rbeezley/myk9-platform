@@ -24,8 +24,12 @@ const ATTEMPT: ReviewAttempt = {
   logDigest: DIGEST,
 };
 
-// What the publisher reads back from the API, for a pull_request_target run.
-// GitHub reports such a run's head_branch/head_sha as the PR's, not main's.
+const WORKFLOW_SHA = 'c'.repeat(40);
+const TRUSTED_REF = `rbeezley/myk9-platform/${TRUSTED_WORKFLOW}@refs/heads/main`;
+
+// What the publisher gathers for a pull_request_target run. The run API
+// reports head_sha as the PR's; which workflow file ran comes only from the
+// run's GitHub-signed workflow_ref/workflow_sha claims.
 function state(
   overrides: {
     pr?: Partial<PublicationState['pr']>;
@@ -41,17 +45,16 @@ function state(
       state: 'open',
       draft: false,
       headSha: HEAD,
-      baseRef: 'main',
       ...overrides.pr,
     },
     run: {
       id: 500,
       attempt: 1,
       event: 'pull_request_target',
-      path: TRUSTED_WORKFLOW,
       repository: 'rbeezley/myk9-platform',
-      headBranch: 'codex/some-fix',
       headSha: HEAD,
+      workflowRef: TRUSTED_REF,
+      workflowSha: WORKFLOW_SHA,
       ...overrides.run,
     },
     latestAttempt:
@@ -76,25 +79,52 @@ describe('validateReviewPublication', () => {
     expect(
       validateReviewPublication(
         ATTEMPT,
-        state({ run: { event: 'workflow_dispatch', headBranch: 'main', headSha: 'c'.repeat(40) } })
+        state({ run: { event: 'workflow_dispatch', headSha: WORKFLOW_SHA } })
       )
     ).toEqual({ publish: 'clean' });
   });
 
   describe('refuses provenance it cannot verify, and posts nothing', () => {
     it.each<[string, Parameters<typeof state>[0], Partial<ReviewAttempt>?]>([
-      ['another workflow file', { run: { path: '.github/workflows/ci.yml' } }],
+      [
+        'another workflow file',
+        { run: { workflowRef: 'rbeezley/myk9-platform/.github/workflows/ci.yml@refs/heads/main' } },
+      ],
+      // Codex, #3284: target a branch carrying a modified copy of the workflow,
+      // run it there, then retarget main. Only the signed ref shows the branch.
+      [
+        'the trusted file run from another branch',
+        {
+          run: {
+            workflowRef: `rbeezley/myk9-platform/${TRUSTED_WORKFLOW}@refs/heads/codex/stack-base`,
+          },
+        },
+      ],
+      [
+        'the trusted file from another repository',
+        { run: { workflowRef: `fork/myk9-platform/${TRUSTED_WORKFLOW}@refs/heads/main` } },
+      ],
+      ['no signed workflow ref', { run: { workflowRef: null } }],
+      ['no signed workflow SHA', { run: { workflowSha: null } }],
+      [
+        'a signed workflow SHA the attempt does not record',
+        { run: { workflowSha: 'e'.repeat(40) } },
+      ],
       ['a run in another repository', { run: { repository: 'fork/myk9-platform' } }],
       ['an attempt claiming another run', {}, { runId: 499 }],
       ['an attempt claiming another run attempt', {}, { runAttempt: 2 }],
       ['an attempt for another repository', {}, { repository: 'someone/else' }],
       ['an attempt for another PR', {}, { pr: 3301 }],
       ['an untrusted event', { run: { event: 'pull_request' } }],
-      ['a PR targeting a branch other than main', { pr: { baseRef: 'codex/stack-base' } }],
       ['a pull_request_target run for a different head', { run: { headSha: 'e'.repeat(40) } }],
       [
         'a dispatch from a branch other than main',
-        { run: { event: 'workflow_dispatch', headBranch: 'codex/x' } },
+        {
+          run: {
+            event: 'workflow_dispatch',
+            workflowRef: `rbeezley/myk9-platform/${TRUSTED_WORKFLOW}@refs/heads/codex/x`,
+          },
+        },
       ],
       ['a reviewer the cloud does not run', {}, { implementer: 'claude', reviewer: 'codex' }],
     ])('%s', (_label, stateOverrides, attemptOverrides = {}) => {
@@ -137,7 +167,7 @@ describe('validateReviewPublication', () => {
   it('checks provenance before staleness: an untrusted run on a moved head is untrusted', () => {
     const result = validateReviewPublication(
       ATTEMPT,
-      state({ run: { path: '.github/workflows/ci.yml' }, pr: { headSha: 'f'.repeat(40) } })
+      state({ run: { workflowRef: null }, pr: { headSha: 'f'.repeat(40) } })
     );
     expect(result).toEqual({ reject: expect.stringContaining('workflow'), notCompleted: false });
   });

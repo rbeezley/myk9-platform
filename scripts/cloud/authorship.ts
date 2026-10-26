@@ -24,15 +24,31 @@ const OTHER: Record<Harness, Harness> = { claude: 'codex', codex: 'claude' };
 
 // The display name is the signal: Codex has signed as noreply@openai.com,
 // codex@openai.com and noreply@anthropic.com, so the address cannot be.
-const TRAILER = /^co-authored-by:[ \t]*(.+?)[ \t]*<[^>\n]*>[ \t]*$/gim;
+const CO_AUTHOR = /^co-authored-by:[ \t]*(.+?)[ \t]*<[^>\n]*>[ \t]*$/i;
+const TRAILER_LINE = /^[A-Za-z0-9-]+:[ \t]/;
 const HARNESS_NAME: [RegExp, Harness][] = [
   [/^claude\b/i, 'claude'],
   [/^codex\b/i, 'codex'],
 ];
 
+/**
+ * The message's trailer block: its last paragraph, when that is not the
+ * subject and every line in it is `Key: value` (Codex, #3284: a body that
+ * quotes a trailer is prose, not authorship). Stricter than git, which allows
+ * some non-trailer lines; a looser block here could only add a harness, so
+ * anything ambiguous yields no block and the commit is refused.
+ */
+function trailerBlock(message: string): string[] {
+  const paragraphs = message.trimEnd().split(/\n[ \t]*\n/);
+  if (paragraphs.length < 2) return [];
+  const lines = (paragraphs[paragraphs.length - 1] ?? '').split('\n');
+  return lines.every(line => TRAILER_LINE.test(line)) ? lines : [];
+}
+
 function trailerHarnesses(message: string): Set<Harness> {
   const found = new Set<Harness>();
-  for (const [, name = ''] of message.matchAll(TRAILER)) {
+  for (const line of trailerBlock(message)) {
+    const name = CO_AUTHOR.exec(line)?.[1] ?? '';
     for (const [pattern, harness] of HARNESS_NAME) if (pattern.test(name)) found.add(harness);
   }
   return found;

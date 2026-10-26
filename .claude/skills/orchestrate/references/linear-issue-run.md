@@ -192,9 +192,15 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
   printed is the proof it started; there is no earlier signal to watch for, and a session
   that dies before working is caught by its deadline like any other. Missing a deadline is a
   hold (In Progress, with the branch if it exists and the session URL named, per the shared
-  table), never a longer wait; a first session with no PR may be re-dispatched once (same
-  prompt file, new session) before the hold. The run's stop time ends any wait it reaches
-  first. Polling never runs without one of these endpoints.
+  table), never a longer wait. A first session with no PR may be re-dispatched once before
+  the hold, and which prompt depends on what it left behind: if `git -C "$MAIN" ls-remote
+--heads origin "$BRANCH"` prints nothing, the same first-session prompt file; if the
+  branch exists, the session pushed work before dying, so the retry is a **continuation**
+  session: the fix-session preamble below (setup, hook check, fetch and switch to the
+  existing branch, never create one), with step 3 replaced by the task text and step 4 by
+  the first preamble's PR instructions. A fresh first-session prompt on an existing branch
+  would recreate it from `origin/main` and fail to push. The run's stop time ends any wait
+  it reaches first. Polling never runs without one of these endpoints.
 - **Review worktree:** when the PR exists,
   `git -C "$MAIN" fetch origin "$BRANCH" && git -C "$MAIN" worktree add "$WT" "$BRANCH"`, then
   `(cd "$WT" && bash scripts/bootstrap-worktree.sh)`. From here the review gate is the one in

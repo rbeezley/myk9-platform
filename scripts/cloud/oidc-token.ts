@@ -88,6 +88,18 @@ export function verifyRunToken(
   token: string,
   options: VerifyOptions
 ): RunClaims | { invalid: string } {
+  // Backstop for the never-throws contract: a value from the token that
+  // defeats some check below must still come back as a rejection.
+  try {
+    return checkRunToken(token, options);
+  } catch {
+    return { invalid: 'token could not be checked' };
+  }
+}
+
+// Rejection messages never interpolate token values: JSON can carry objects
+// that throw when coerced to a string (Codex, #3288).
+function checkRunToken(token: string, options: VerifyOptions): RunClaims | { invalid: string } {
   const parts = token.split('.');
   if (parts.length !== 3) return { invalid: 'not a three-part JWT' };
   const [headerPart = '', payloadPart = '', signaturePart = ''] = parts;
@@ -96,7 +108,7 @@ export function verifyRunToken(
   if (!header || !claims) return { invalid: 'header or payload is not a JSON object' };
 
   // RS256 only: never let the token choose a weaker or symmetric algorithm.
-  if (header.alg !== 'RS256') return { invalid: `algorithm ${String(header.alg)} is not RS256` };
+  if (header.alg !== 'RS256') return { invalid: 'algorithm is not RS256' };
   const key = options.jwks.keys.find(k => k.kid === header.kid);
   if (typeof header.kid !== 'string' || !key) return { invalid: 'signing key is not published' };
   if (key.kty !== 'RSA' || (key.alg ?? 'RS256') !== 'RS256' || (key.use ?? 'sig') !== 'sig') {
@@ -106,7 +118,7 @@ export function verifyRunToken(
     return { invalid: 'signature does not verify' };
   }
 
-  if (claims.iss !== GITHUB_OIDC_ISSUER) return { invalid: `issuer ${String(claims.iss)}` };
+  if (claims.iss !== GITHUB_OIDC_ISSUER) return { invalid: 'token is from another issuer' };
   const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
   if (!audiences.includes(options.audience)) return { invalid: 'token is for another audience' };
   if (claims.repository !== options.repository)

@@ -172,7 +172,17 @@ describe('verifyRunToken', () => {
       'a payload that is a JSON array',
       `${b64url('{"alg":"RS256","kid":"test-key-1"}')}.${b64url('[]')}.sig`,
     ],
+    // Codex, #3288: JSON can carry an object that cannot be coerced to a string.
+    [
+      'an algorithm object that refuses string conversion',
+      `${b64url('{"alg":{"toString":null},"kid":"test-key-1"}')}.${b64url('{}')}.sig`,
+    ],
   ])('returns invalid, never throws, for %s', (_label, value) => {
     expect(verifyRunToken(value, OPTIONS)).toEqual(invalid);
+  });
+
+  it('returns invalid, never throws, for a signed issuer that refuses string conversion', () => {
+    const t = token({ ...CLAIMS, iss: { toString: null } });
+    expect(verifyRunToken(t, OPTIONS)).toEqual(invalid);
   });
 });

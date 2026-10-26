@@ -451,23 +451,24 @@ export class MergedHeads {
   }
   get(branch: string): string | undefined {
     if (!this.cache.has(branch)) {
-      // REST's `head` filter needs an owner, where `gh pr list --head` matched
-      // the name from any fork. The candidates are this branch's possible PR
-      // SOURCES: the same-repo head, plus the fork a checked-out fork PR tracks
-      // (`forkHead`). At most two queries. Of the closed rows, the newest-created
-      // with merged_at is the most recent MERGED PR, as `--state merged --limit 1` was.
+      // A branch's PR is identified by CONTENT, never by its remote config: the
+      // PRs GitHub associates with the branch tip (fork PRs and renamed local
+      // checkouts included, since a PR's head commits live on in the base repo
+      // as refs/pull/N/head), plus the same-repo name, which still finds the PR
+      // of a REUSED name whose new commits are not pushed. Parsing upstream URLs
+      // instead lost to git's URL grammar three review rounds running (Codex,
+      // review of #3275). At most two queries. Of the merged rows, the newest-
+      // created is the most recent MERGED PR, as `--state merged --limit 1` was.
       const slug = repoSlug();
       const owner = slug.slice(0, slug.indexOf('/'));
-      const heads = new Set([`${owner}:${branch}`]);
-      const fork = forkHead(branch, owner, this.cwd);
-      if (fork) heads.add(fork);
-      const pr = [...heads]
-        .flatMap(head =>
-          ghPages<RestMergedPr>(
-            `repos/${slug}/pulls?state=closed&head=${encodeURIComponent(head)}&per_page=100`,
-            `merged PRs for ${head}`
-          )
-        )
+      const tip = git(['rev-parse', '--verify', '-q', `refs/heads/${branch}^{commit}`], this.cwd);
+      const pr = [
+        ...ghPages<RestMergedPr>(
+          `repos/${slug}/pulls?state=closed&head=${encodeURIComponent(`${owner}:${branch}`)}&per_page=100`,
+          `merged PRs for ${branch}`
+        ),
+        ...(tip ? commitPulls(slug, tip) : []),
+      ]
         .filter(candidate => candidate.merged_at)
         .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
       // Merged INTO SOMETHING ELSE is not shipped here. A PR squashed onto an
@@ -484,10 +485,14 @@ export class MergedHeads {
   }
 }
 
-function gitConfig(key: string, cwd?: string): string | undefined {
+function git(args: string[], cwd?: string): string | undefined {
   try {
     return (
-      execFileSync('git', ['config', '--get', key], { cwd, encoding: 'utf8' }).trim() || undefined
+      execFileSync('git', args, {
+        cwd,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim() || undefined
     );
   } catch {
     return undefined;
@@ -495,27 +500,20 @@ function gitConfig(key: string, cwd?: string): string | undefined {
 }
 
 /**
- * `<fork-owner>:<ref>` when a branch tracks ANOTHER owner's repository, else
- * undefined. A branch's upstream is usually a BASE relationship (origin/main,
- * origin/<same name>), which says nothing about which PR shipped it; counting it
- * let a newer main->release PR displace the branch's own (Codex, review of
- * #3275). Only a different owner is PR identity: `gh pr checkout` of a fork PR
- * points `branch.<b>.remote` at the fork (a URL, or a remote named for it) and
- * `branch.<b>.merge` at the PR's head ref, which may differ from the local name.
+ * The PRs GitHub associates with a commit. A commit GitHub has never seen (a
+ * local branch that was never pushed) answers 422, which means "no PR", not an
+ * unknown result; every other failure still throws and fails the gate closed.
  */
-export function forkHead(branch: string, baseOwner: string, cwd?: string): string | undefined {
-  const remote = gitConfig(`branch.${branch}.remote`, cwd);
-  if (!remote || remote === '.') return undefined;
-  // A configured remote NAME wins, even one containing "/" (remotes/contributor);
-  // only an unconfigured value shaped like a URL (scheme:// or scp user@host:) is one.
-  const url =
-    gitConfig(`remote.${remote}.url`, cwd) ??
-    (/^(?:[a-z][\w+.-]*:\/\/|[\w.-]+@[\w.-]+:)/i.test(remote) ? remote : undefined);
-  // The owner is the second-to-last path segment: https, ssh and proxy URLs alike.
-  const owner = url?.match(/([^/:]+)\/[^/]+?(?:\.git)?\/?$/)?.[1];
-  if (!owner || owner.toLowerCase() === baseOwner.toLowerCase()) return undefined;
-  const ref = gitConfig(`branch.${branch}.merge`, cwd)?.replace(/^refs\/heads\//, '');
-  return ref && !ref.startsWith('refs/') ? `${owner}:${ref}` : undefined;
+export function commitPulls(slug: string, sha: string): RestMergedPr[] {
+  try {
+    return ghPages<RestMergedPr>(
+      `repos/${slug}/commits/${sha}/pulls?per_page=100`,
+      `PRs for ${sha}`
+    );
+  } catch (error) {
+    if (error instanceof InflightQueryError && /\(HTTP 422\)/.test(error.message)) return [];
+    throw error;
+  }
 }
 
 function isAncestor(maybeAncestor: string, ref: string, cwd?: string): boolean {

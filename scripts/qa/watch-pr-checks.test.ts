@@ -51,7 +51,10 @@ type Status = { context: string; state: string };
 /**
  * A fake `gh` that answers only the REST reads the watcher makes, logs every
  * invocation, and fails any GraphQL route (`gh pr`, `gh issue`, `gh api graphql`)
- * the way a Claude Code cloud session does (MYK9-1414). Output mimics `--jq`.
+ * the way a Claude Code cloud session does (MYK9-1414). Lists are served 100
+ * rows per `&page=N`, already projected the way the watcher's `--jq` would.
+ * `--paginate` gets page 1 and then the proxy's 403, because its next links use
+ * `repositories/{id}/…` paths the cloud proxy rejects (MYK9-1425).
  * `pad` bulks every check run with an `output.text` of that many characters,
  * the way a real REST row carries far more than the watcher reads.
  */
@@ -59,7 +62,6 @@ function restStub(checkRuns: CheckRun[], statuses: Status[], head = 'deadbeef', 
   const dir = mkdtempSync(join(tmpdir(), 'watch-pr-checks-rest-'));
   scratchDirs.push(dir);
   const log = join(dir, 'calls.log');
-  const lines = (rows: unknown[]) => rows.map(row => JSON.stringify(row)).join('\n');
   const runs = checkRuns.map((run, index) => ({
     name: run.name,
     status: run.conclusion === null ? 'in_progress' : 'completed',
@@ -69,26 +71,52 @@ function restStub(checkRuns: CheckRun[], statuses: Status[], head = 'deadbeef', 
     ...(pad ? { output: { text: 'x'.repeat(pad) } } : {}),
   }));
   const contexts = statuses.map(status => ({ ...status, created_at: '2026-10-25T19:00:00Z' }));
+  writeFileSync(join(dir, 'check-runs.json'), JSON.stringify(runs));
+  writeFileSync(join(dir, 'statuses.json'), JSON.stringify(contexts));
+  writeFileSync(join(dir, 'workflow-runs.json'), JSON.stringify([{ id: 100, name: 'CI' }]));
   writeFileSync(
     join(dir, 'gh'),
     [
       '#!/bin/bash',
       `printf '%s\\n' "$*" >> ${JSON.stringify(log)}`,
       '[ "${1:-}" = api ] || { echo "HTTP 403: GitHub GraphQL is not available" >&2; exit 1; }',
+      `page=$(printf '%s' "$*" | sed -nE 's#.*[?&]page=([0-9]+).*#\\1#p')`,
+      'serve() {',
+      `  jq -c --argjson p "\${page:-1}" '.[(($p - 1) * 100):($p * 100)]' ${JSON.stringify(dir)}/"$1"`,
+      '}',
       'case "$*" in',
       '  *graphql*) echo "HTTP 403: GitHub GraphQL is not available" >&2; exit 1 ;;',
       `  *"/rulesets/"*) echo '["Quality Checks","Test","A11y smoke","E2E PR Smoke"]' ;;`,
       '  *"/rulesets"*) echo 17085332 ;;',
       `  *"/pulls/"*) echo ${head} ;;`,
-      `  *"/check-runs"*) cat <<'JSON'\n${lines(runs)}\nJSON\n ;;`,
-      `  *"/status"*) cat <<'JSON'\n${lines(contexts)}\nJSON\n ;;`,
-      `  *"/actions/runs"*) echo '{"id":100,"name":"CI"}' ;;`,
+      '  *"/check-runs"*) serve check-runs.json ;;',
+      '  *"/status"*) serve statuses.json ;;',
+      '  *"/actions/runs"*) serve workflow-runs.json ;;',
       '  *) exit 1 ;;',
+      'esac',
+      'case "$*" in',
+      '  *--paginate*)',
+      '    echo "gh: Numeric-ID repository paths (repositories/{id}/...) are not supported through this proxy. (HTTP 403)" >&2',
+      '    exit 1 ;;',
       'esac',
     ].join('\n')
   );
   chmodSync(join(dir, 'gh'), 0o755);
   return { dir, log };
+}
+
+/** Run the watcher pinned to `deadbeef` for exactly one poll against a stub. */
+function pollOnce(dir: string) {
+  return spawnSync('bash', [watcher, '2053', 'deadbeef'], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PATH: `${dir}:${process.env.PATH ?? ''}`,
+      MYK9_PR_TIMEOUT_SECONDS: '0',
+      MYK9_PR_POLL_SECONDS: '1',
+    },
+    timeout: 60_000,
+  });
 }
 
 describe('watch-pr-checks harness', () => {
@@ -237,7 +265,7 @@ describe('watch-pr-checks harness', () => {
       name: `Job ${i}`,
       conclusion: 'success',
     }));
-    const { dir } = restStub(
+    const { dir, log } = restStub(
       [
         { name: 'Quality Checks', conclusion: 'success' },
         { name: 'Test', conclusion: 'success' },
@@ -250,20 +278,37 @@ describe('watch-pr-checks harness', () => {
       2000
     );
 
-    const result = spawnSync('bash', [watcher, '2053', 'deadbeef'], {
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        PATH: `${dir}:${process.env.PATH ?? ''}`,
-        MYK9_PR_TIMEOUT_SECONDS: '0',
-        MYK9_PR_POLL_SECONDS: '1',
-      },
-      timeout: 60_000,
-    });
+    const result = pollOnce(dir);
 
     expect(result.status, result.stdout + result.stderr).toBe(0);
     expect(result.stdout).toContain('GREEN on deadbeef');
     expect(result.stdout).toContain('400 checks seen');
+    // 400 rows are four full pages plus an empty fifth, read by hand: the stub
+    // 403s `--paginate` past page 1, as the cloud proxy does (MYK9-1425).
+    const pages = readFileSync(log, 'utf8')
+      .split('\n')
+      .filter(call => call.includes('/check-runs?'))
+      .map(call => call.match(/[?&]page=(\d+)/)?.[1]);
+    expect(pages).toEqual(['1', '2', '3', '4', '5']);
+  });
+
+  // A list still full at the page cap is unknown, not complete: the read fails
+  // and the run times out (exit 3, not a verdict). The required checks are all
+  // green in the first page, so a truncated read would wrongly report GREEN.
+  it('fails closed when a list is still full at the page cap', () => {
+    const rows = [
+      { name: 'Quality Checks', conclusion: 'success' },
+      { name: 'Test', conclusion: 'success' },
+      { name: 'A11y smoke', conclusion: 'success' },
+      { name: 'E2E PR Smoke', conclusion: 'success' },
+      ...Array.from({ length: 4996 }, (_, i) => ({ name: `Job ${i}`, conclusion: 'success' })),
+    ];
+    const { dir } = restStub(rows, []);
+
+    const result = pollOnce(dir);
+
+    expect(result.status, result.stdout + result.stderr).toBe(3);
+    expect(result.stdout).toContain('NOT a verdict');
   });
 
   it('aborts when the head moves while the checks are read', () => {

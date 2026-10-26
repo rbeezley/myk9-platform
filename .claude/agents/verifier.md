@@ -13,9 +13,13 @@ BLOCKED, never a pass.
 
 ## Inputs you should have
 
-- The worktree absolute path or the ref to check. Run every command from that worktree
-  (`cd "<worktree>" && …` on the same shell line, or `git -C "<worktree>"`); never from the main
-  checkout, which would check `main` instead of the branch.
+- The absolute path of the checkout to run in, and the ref it should be at. Run every command
+  from that path (`cd "<path>" && …` on the same shell line, or `git -C "<path>"`). A branch is
+  checked only in its own worktree, never in the main checkout, which would test `main`
+  instead. `main` itself is checked in the main checkout (the first `git worktree list` entry),
+  which is the normal case at triage, before an issue worktree exists: confirm
+  `git branch --show-current` prints `main` and `git status --short` is empty, and report
+  BLOCKED if either is not so.
 - A numbered list of claims, each with the command, spec, route or SQL that tests it and the
   outcome that would count as PASS.
 - When a control is wanted, the second ref (usually `main`) to run the same checks against.
@@ -33,8 +37,10 @@ that item as BLOCKED with what you needed, and run the rest.
   is read-only, or wrapped in a transaction you roll back.
 - Record the ref you actually ran against (`git rev-parse --short HEAD`) at the top of the
   report; a claim about a branch is worthless without it.
-- Redirect command output to a file and echo the exit status
-  (`<command> > .logs/<name>.log 2>&1; echo "EXIT=$?"`); a pipe through `tail` reports the
+- Redirect command output to a file under the checkout's root `.logs/` and echo the exit status.
+  Anchor the path to the root, because test commands `cd` into `apps/myk9show`:
+  `LOGS="$(git rev-parse --show-toplevel)/.logs"; mkdir -p "$LOGS"`, then
+  `<command> > "$LOGS/<name>.log" 2>&1; echo "EXIT=$?"`. A pipe through `tail` reports the
   filter's exit code. Quote the verbatim tail (up to about 30 lines) in the report. Never print
   environment values or secrets.
 - Bounded waits only: the Bash tool's timeout or `for i in $(seq 1 40)`; macOS has no

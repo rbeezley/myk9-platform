@@ -52,10 +52,13 @@ thing the prompt's `approach:` line decided, not the issue's suggested fix.
 - Test code compiles cleanly: no `await` outside `async`, no unused variables (remove them,
   do not underscore-prefix them).
 - Run only the affected test files, never the full app suite (another agent's suite may be
-  running; CI runs the whole thing). From `apps/myk9show`:
-  `pnpm vitest run <files> > .logs/<name>.log 2>&1; echo "EXIT=$?"`. Redirect to a file and
-  echo the exit status; a pipe through `tail` or `grep` reports the filter's exit code.
-  `.logs/` at the worktree root is gitignored and per-worktree.
+  running; CI runs the whole thing). Logs go to `.logs/` at the worktree root, which is
+  gitignored and per-worktree; anchor the path there, because the test command `cd`s into
+  `apps/myk9show`:
+  `LOGS="$(git rev-parse --show-toplevel)/.logs"; mkdir -p "$LOGS"`, then
+  `cd apps/myk9show && pnpm vitest run <files> > "$LOGS/<name>.log" 2>&1; echo "EXIT=$?"`.
+  Redirect to a file and echo the exit status; a pipe through `tail` or `grep` reports the
+  filter's exit code.
 - A layout or behavior fix is proven by rendered geometry or behavior, never by a class name or
   a source-text assertion.
 - If a test runner hangs or sits silent for more than 30 seconds, stop and report it under

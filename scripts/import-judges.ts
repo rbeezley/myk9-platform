@@ -164,7 +164,7 @@ function generateSql(rows: QualRow[]): { sql: string; personCount: number } {
     `-- judge_number is stored per-org on judge_qualifications (migration 070).\n`,
   ];
 
-  for (const [personKey, quals] of byPerson) {
+  for (const quals of byPerson.values()) {
     const { first_name, last_name, email } = quals[0];
     const label = `${first_name} ${last_name}${email ? ` <${email}>` : ` (no email — ${quals[0].judge_number}/${quals[0].organization})`}`;
 

@@ -25,6 +25,7 @@ interface GuardOptions {
   env?: NodeJS.ProcessEnv;
   command?: (command: string, args: string[]) => string;
 }
+// eslint-disable-next-line complexity -- guard is one linear audit; splitting it would scatter the provenance checks (MYK9-1429)
 export function runGuard(files: string[], options: GuardOptions = {}): string[] {
   const env = options.env ?? process.env;
   const command =

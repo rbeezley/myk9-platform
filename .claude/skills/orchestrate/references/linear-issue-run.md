@@ -129,10 +129,11 @@ git -C "$MAIN" worktree add "$WT" -b "$BRANCH" origin/main
 Keep the `cd` inside the subshell: a bare `cd` moves the orchestrator's own working directory
 into the issue worktree. `git -C "$WT" status --short` must be empty afterwards.
 
-Then `save_issue` → **In Progress**. Write the ledger row.
+Then `save_issue` → **In Progress** and, in the same step, post the claim comment from the shared
+rules (Gates step 1) with the ledger row's session, branch and `$WT`. Write the ledger row.
 
 **Cloud lane:** no worktree yet (`$WT` is created only once the PR exists, below).
-`save_issue` → **In Progress**, write the ledger row with `lane: cloud` and `$PREFIX`, then write the prompt to
+Write the prompt to
 `<scratchpad>/cloud-myk9-$N.md` with the Write tool and dispatch it from the Terminal panel:
 
 ```
@@ -151,7 +152,9 @@ don't ask mode"), and its `gh api` comment posted with no prompt. The session pa
 mode at its foot; re-check it on the first dispatch after any CLI upgrade, since the flags'
 effect on `--cloud` is a CLI behaviour, not a repo one.
 Read the tab (`read_terminal`, `wait_for_output_ms` up to 60000) until it prints the session
-name, URL and teleport id; record the URL in the ledger row. Nothing in the tab after that is
+name, URL and teleport id; record the URL in the ledger row (`lane: cloud`, `$PREFIX`). Only now `save_issue` →
+**In Progress** with the same claim comment (branch "none yet, prefix `$PREFIX`", worktree
+"cloud session <url>"): the claim waits for the session to exist. Nothing in the tab after that is
 needed; close it with `stop_terminal_tab` once the URL is recorded. A dispatch that prints no
 URL is a hold through the shared table (a capability hold naming the tab's output, `$PREFIX`
 and the dispatch time), **never a re-dispatch**: a silent tab does not prove the session was

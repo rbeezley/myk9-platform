@@ -125,6 +125,11 @@ merge therefore never asserts Done, but it also moves an issue whose implementat
 partly merged. **After every merge, the root fresh-reads the issue and sets the row above.**
 Automation is a convenience, not proof.
 
+Moving an issue to In Progress also posts the one-line claim comment defined in Gates step 1
+of the shared rules (session, branch or `claude/myk9-<n>-` prefix, worktree or cloud session
+URL). The issue janitor (MYK9-1434) reads those three fields from that line to tell a live
+claim from a dead one.
+
 Final implementation PRs use `Fixes MYK9-<n>`. Partial PRs use `Ignore MYK9-<n>` with a
 tracking link; the root reconciles the issue explicitly after merge. Write documentary
 follow-ups with `Ignore` too. [Linear documents](https://linear.app/docs/github#link-through-pull-requests)

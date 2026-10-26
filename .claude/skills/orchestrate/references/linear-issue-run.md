@@ -148,12 +148,13 @@ the differences below come from running in the cloud and win where they conflict
 1. Setup: `MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh`, then
    `pnpm cloud:preflight --role=implementer`. A missing tool is a BLOCKER you report in the
    PR body, never a pass. `pnpm typecheck` needs the environment's NODE_OPTIONS heap flag.
-2. FIRST, before setup:
-   `git switch -c claude/myk9-<n>-<slug> origin/main && git push -u origin HEAD`
-   The empty branch on `origin` is the startup signal the Mac watches for; a
-   session that spends its first quarter hour installing without it is treated as dead and
-   re-dispatched. Commit with the Claude Co-Authored-By trailer on every commit; the branch
-   prefix and the trailers are cross-checked.
+2. After setup, and before any push, confirm the push-hold hook is active:
+   `git config core.hooksPath` must print `.githooks` (setup sets it; if it does not, stop
+   and report it as a BLOCKER in the PR body). Then branch:
+   `git switch -c claude/myk9-<n>-<slug> origin/main`. Commit with the Claude
+   Co-Authored-By trailer on every commit; the branch prefix and the trailers are
+   cross-checked. Push whenever you have a commit worth keeping; nothing is lost if the
+   session ends after a push.
 3. In this session `gh api` works but `gh pr`, `gh issue` and `gh api --paginate` do not
    (the proxy rejects GraphQL). Push with `git push -u origin HEAD`. Open the PR ONLY when
    the work is done and the affected tests and typecheck pass, as a READY (non-draft) PR via
@@ -182,19 +183,18 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
 
 **Cloud lane:** wait for the PR, then review it in a local worktree.
 
-- **Watch for the PR**, bounded: every 60 s, up to 15 min at first
+- **Watch for the PR**, bounded: every 60 s
   (`gh pr list --head "$BRANCH" --state open --json number,isDraft,headRefOid --jq '.[]'`;
   `.[]`, never `.[0]`, which turns an empty list into a false hit). **Every cloud session
-  the run starts carries a deadline from its dispatch time**, written in the ledger beside
-  the session URL, in every mode, continuous or not; missing a deadline is a hold, never a
-  longer wait. **Branch deadline, 15 min** (first session): the preamble makes the session
-  push the empty branch before setup, so a branch that never appears on `origin` means the
-  session died before it started; re-dispatch once (same prompt file, new session), then
-  hold. **PR deadline, 90 min** (first session): a cloud session installs and builds before
-  it works, so keep watching at the same interval, but a branch with no PR at 90 min is a
-  hold (In Progress, with the branch and the session URL named, per the shared table).
-  **Fix deadline, 60 min** (each fix session, below). The run's stop time ends any wait that
-  it reaches first. Polling never runs without one of these endpoints.
+  the run starts carries one deadline from its dispatch time**, written in the ledger beside
+  the session URL, in every mode, continuous or not: **90 min for a first session's PR**,
+  **60 min for a fix session's new head** (below). The session URL that `claude --cloud`
+  printed is the proof it started; there is no earlier signal to watch for, and a session
+  that dies before working is caught by its deadline like any other. Missing a deadline is a
+  hold (In Progress, with the branch if it exists and the session URL named, per the shared
+  table), never a longer wait; a first session with no PR may be re-dispatched once (same
+  prompt file, new session) before the hold. The run's stop time ends any wait it reaches
+  first. Polling never runs without one of these endpoints.
 - **Review worktree:** when the PR exists,
   `git -C "$MAIN" fetch origin "$BRANCH" && git -C "$MAIN" worktree add "$WT" "$BRANCH"`, then
   `(cd "$WT" && bash scripts/bootstrap-worktree.sh)`. From here the review gate is the one in
@@ -203,13 +203,30 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
   report; treat it the same way (verify, don't trust).
 - **Findings:** you cannot send them to the session that wrote the code. Either fix them
   yourself in `$WT` when the defect list is short (this is you implementing, and it counts in
-  the run stats), or start a **fresh** cloud session with the same preamble and a prompt of
-  the form "check out `<branch>`, fix these findings (file:line each), push, do not open a new
-  PR". A fix session is dispatched like the first one (prompt file, Terminal panel, URL and
-  dispatch time in the ledger) and has its own **60-minute deadline** for a new head to land
-  on the branch; the branch and PR already exist, so the first session's deadlines cannot
-  catch a fix session that dies, and the three-round limit bounds rounds, not one round's
-  wait. No new head by the deadline is a hold with the PR, branch and session URL named.
+  the run stats), or start a **fresh** cloud session. A fix session is dispatched like the
+  first one (prompt file, Terminal panel, URL and dispatch time in the ledger) but with its
+  own preamble, never the first session's, which would create the branch from `origin/main`
+  and push over the PR head:
+
+  ```
+  You are fixing review findings on PR #<n> (MYK9-<n>) in rbeezley/myk9-platform, in a
+  Claude Code cloud session. Read `.claude/agents/implementer.md` and follow it as your own
+  rules; the differences below win where they conflict.
+  1. Setup: `MYK9_TOOLS_DIR=/usr/local/bin bash scripts/cloud/setup.sh`, then confirm
+     `git config core.hooksPath` prints `.githooks` before any push.
+  2. `git fetch origin <branch> && git switch <branch>`. Never create a branch, never
+     rebase or force-push; add commits on top, each with the Claude Co-Authored-By trailer.
+  3. Fix exactly these findings, nothing else: <file:line, finding> …
+  4. Run the affected tests and typecheck, push, and stop. Do not open a PR (one exists),
+     post a `Review gate:` comment, run a review, merge, touch Linear, deploy, spawn
+     sub-agents or message anyone. Append your FILES / APPROACH / TESTS / TYPECHECK /
+     CONCERNS report as a comment on the PR via `gh api`.
+  ```
+
+  Its **60-minute deadline** is for a new head to land on the branch; the branch and PR
+  already exist, so nothing else detects a fix session that dies, and the three-round limit
+  bounds rounds, not one round's wait. No new head by the deadline is a hold with the PR,
+  branch and session URL named.
   Never push to the branch while a cloud session for it may still be running: a fix session
   is finished when its push lands (`git -C "$MAIN" fetch origin "$BRANCH"` shows the new
   head). The fetch moves only the remote-tracking ref, so before re-reviewing bring the
@@ -218,6 +235,7 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
   session both wrote, which is the rule above being broken, so stop and hold). Then re-run
   the gate on the head the worktree is now at. **Max 3 rounds** across both routes, as on the
   local lane.
+
 - **The branch's owner is the cloud session until its PR exists.** Before the PR, the Mac
   never fetches it into a worktree to "help".
 

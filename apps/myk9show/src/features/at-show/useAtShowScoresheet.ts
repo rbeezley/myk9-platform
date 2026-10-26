@@ -107,7 +107,9 @@ export function useAtShowScoresheet({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [reloadCount, setReloadCount] = useState(0);
-  const handledLoadAttempt = useRef(0);
+  // Set by the Retry button only; the automatic backoff timer re-runs the load
+  // without it, so it reads the cache first (replication may have filled it).
+  const manualRetryRequested = useRef(false);
   const notLoadedStreak = useRef(0);
 
   useEffect(() => {
@@ -115,8 +117,8 @@ export function useAtShowScoresheet({
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     // Consume the explicit retry once; advancing to another cached dog must
     // not inherit a previous sheet's foreground refresh requirement.
-    const forceRefresh = loadAttempt !== handledLoadAttempt.current;
-    handledLoadAttempt.current = loadAttempt;
+    const forceRefresh = manualRetryRequested.current;
+    manualRetryRequested.current = false;
 
     // The show sync could not finish (saturated server, venue Wi-Fi): say so and
     // try again on our own, backing off, rather than strand the judge on a
@@ -336,7 +338,10 @@ export function useAtShowScoresheet({
     error,
     loadedClassId,
     loadedEntryId,
-    retry: () => setLoadAttempt(attempt => attempt + 1),
+    retry: () => {
+      manualRetryRequested.current = true;
+      setLoadAttempt(attempt => attempt + 1);
+    },
     reload: () => setReloadCount(count => count + 1),
     submit,
     isSyncing,

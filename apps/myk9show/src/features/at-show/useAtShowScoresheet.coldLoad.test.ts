@@ -1,5 +1,5 @@
-import { renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NOT_LOADED_YET_MESSAGE, useAtShowScoresheet } from './useAtShowScoresheet';
 import { syncAtShowData } from './atShowDataAdapter';
 
@@ -153,8 +153,10 @@ describe('useAtShowScoresheet cold load', () => {
   }
 
   it('treats a failed show sync as not loaded yet and retries on its own', async () => {
-    // Missing before and after the failed first sync; present after the retry.
+    // Missing before and after the failed first sync and still missing when the
+    // automatic retry reads the cache, so it syncs; present after that sync.
     mocks.getClassById
+      .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null)
       .mockResolvedValue(CLASS);
@@ -270,5 +272,65 @@ describe('useAtShowScoresheet cold load', () => {
     const { result } = renderScoresheet();
 
     await waitFor(() => expect(result.current.error).toBe('Class not found'));
+  });
+
+  describe('automatic retry versus manual Retry', () => {
+    // The in-flight show sync is module state; a stalled one must be settled
+    // before the next test or it would be joined instead of re-run.
+    let releaseStalledSync: (() => void) | undefined;
+
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
+    afterEach(async () => {
+      releaseStalledSync?.();
+      releaseStalledSync = undefined;
+      await vi.advanceTimersByTimeAsync(0);
+      vi.useRealTimers();
+    });
+
+    it('renders a sheet background replication cached before the automatic retry without awaiting the network', async () => {
+      // Cold: rows absent before and after the failed first sync.
+      mocks.getClassById
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(CLASS);
+      mocks.syncClasses.mockResolvedValue({ success: true });
+      mocks.syncTrials.mockResolvedValueOnce({ success: false }).mockReturnValue(
+        // Any further foreground show sync stalls until the test ends.
+        new Promise<{ success: boolean }>(resolve => {
+          releaseStalledSync = () => resolve({ success: true });
+        })
+      );
+
+      const { result } = renderScoresheet();
+      await waitFor(() => expect(result.current.error).toBe(NOT_LOADED_YET_MESSAGE));
+
+      // Background replication then fills the class, trial and entry rows (the
+      // mocks above already return them); the backoff timer fires.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2_000);
+      });
+
+      await waitFor(() => expect(result.current.entry?.entryId).toBe('entry-1'));
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeNull();
+      expect(mocks.syncTrials).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the manual Retry as a forced foreground sync even with a complete cache', async () => {
+      mocks.getClassById.mockResolvedValue(CLASS);
+      mocks.syncClasses.mockResolvedValue({ success: true });
+
+      const { result } = renderScoresheet();
+      await waitFor(() => expect(result.current.entry?.entryId).toBe('entry-1'));
+      expect(mocks.syncTrials).not.toHaveBeenCalled();
+
+      act(() => result.current.retry());
+
+      await waitFor(() => expect(mocks.syncTrials).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(result.current.entry?.entryId).toBe('entry-1'));
+    });
   });
 });

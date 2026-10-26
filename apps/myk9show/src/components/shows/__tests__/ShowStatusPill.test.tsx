@@ -9,6 +9,10 @@ import {
 } from '@/features/payments/useClubStripeAccount';
 import { useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { toast } from 'sonner';
+import {
+  CLUB_UNAUTHORIZED_MESSAGE,
+  PUBLISH_BLOCKED_MESSAGE,
+} from '@/features/payments/onlineEntryGate';
 
 vi.mock('@/features/payments/useClubStripeAccount', () => ({
   useClubStripeAccount: vi.fn(),
@@ -382,6 +386,29 @@ describe('ShowStatusPill club-authorization gate (MYK9-572)', () => {
     expect(mutateAsync).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hasn't been authorized/i));
     expect(refetchAuth).toHaveBeenCalled();
+  });
+
+  // MYK9-1403: the greying is fail-open (an undefined club row leaves the item enabled),
+  // so this click reaches handleTransition with a club that is NOT Stripe-ready. A client
+  // that checked Stripe first would send the club to a Payments dead end.
+  it('checks club authorization before Stripe readiness', async () => {
+    mockAccount(false);
+    mockedUseAuth.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      refetch: refetchAuth,
+    } as unknown as ReturnType<typeof useClubAuthorization>);
+    const user = userEvent.setup();
+    render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
+
+    await user.click(screen.getByRole('button', { name: /draft/i }));
+    await user.click(await screen.findByText(/publish show/i));
+
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(toast.error).toHaveBeenCalledWith(CLUB_UNAUTHORIZED_MESSAGE);
+    expect(toast.error).not.toHaveBeenCalledWith(PUBLISH_BLOCKED_MESSAGE, expect.anything());
+    expect(mutateAsync).not.toHaveBeenCalled();
   });
 
   // P3-5: pin the exact loading/error copy strings — a future edit could

@@ -328,8 +328,16 @@ describe('RBACService', () => {
             }),
           };
         }
+        // MYK9-1409: permissions are added (upsert) first, then the rest removed.
         if (table === 'role_permissions') {
-          return { insert: vi.fn().mockResolvedValue({ data: null, error: null }) };
+          return {
+            upsert: vi.fn().mockResolvedValue({ data: null, error: null }),
+            delete: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                not: vi.fn().mockResolvedValue({ data: null, error: null }),
+              }),
+            }),
+          };
         }
         if (table === 'permission_audit_log') {
           return { insert: vi.fn().mockResolvedValue({ data: null, error: null }) };

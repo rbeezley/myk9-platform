@@ -220,7 +220,7 @@ Invoke the `ship-pr` skill on this branch (its Step A simplify already ran as St
 
 ## Step 5: Report
 
-`ship-pr` reports the outcome; do not write a second summary. Add only the plan path and one line per completed plan task. For a pending auto-merge, follow the shared **Asynchronous merge protocol** in `docs/agents/issue-tracker.md`; only its owner-approved-boundary handoff can end the run before merge. Report such a handoff as **pending**, with its named post-merge executor and resume action, not shipped.
+`ship-pr` reports the outcome; do not write a second summary. Add only the plan path and one line per completed plan task. If `ship-pr` armed auto-merge and stopped under the **Asynchronous merge protocol** in `docs/agents/issue-tracker.md`, say the PR is **pending**, not shipped.
 
 After a confirmed merge, if the diff touched `supabase/migrations/` or a `supabase/functions/` tree, name the `deploy` skill as the next operator step — it decides what to run, in what order, and each run needs confirmation. The frontend goes live only on the next Deploy myK9Show run.
 

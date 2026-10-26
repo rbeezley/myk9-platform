@@ -6,8 +6,7 @@
 
 ## Linear
 
-<!-- Final implementation: Fixes MYK9-n. Intermediate contribution: Part of MYK9-n.
-Confirm the intended relationship under docs/agents/issue-tracker.md. -->
+<!-- The tracking issue only. After merge, reconcile it per docs/agents/issue-tracker.md. -->
 
 Fixes MYK9-
 
@@ -41,5 +40,4 @@ Fixes MYK9-
 
 ## Follow-up issues
 
-<!-- Documentary follow-ups: Ignore MYK9-n — title/link, per the shared linking contract.
-Only the tracking issue gets closing/contributing automation. "none" otherwise. -->
+<!-- Write each as "Ignore MYK9-n — title", so the merge does not move it; "none" otherwise. -->

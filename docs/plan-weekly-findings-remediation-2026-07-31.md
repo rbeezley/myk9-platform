@@ -458,7 +458,7 @@ CLAUDE.md's workflow rule applies to every slice, not just the program:
 2. On implementation completion, comment with: what changed, tests/checks run and their result,
    branch or PR link, risks or remaining work, and whether acceptance criteria passed.
 3. Move to **Done** only after the PR merges **and** the closure proof passed. Apply
-   `docs/agents/issue-tracker.md` for the current merge-to-In-Review and multi-PR linking contract;
+   `docs/agents/issue-tracker.md` for the merge-to-In-Review automation and its after-every-merge lifecycle table;
    reconcile remaining implementation versus acceptance evidence after each merge.
 4. Keep this plan and the weekly-review automation memory in sync with merged state.
 

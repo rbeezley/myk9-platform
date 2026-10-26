@@ -261,9 +261,9 @@ gh pr merge $PR_NUMBER --squash --auto
 gh pr view $PR_NUMBER --json autoMergeRequest
 ```
 
-Apply the **Asynchronous merge protocol** in `docs/agents/issue-tracker.md`; it is the single
-authority for continued monitoring versus an owner-approved bounded handoff. Proceed to Steps 6–7
-only after its merge/closeout conditions hold.
+Then follow the **Asynchronous merge protocol** in `docs/agents/issue-tracker.md`: keep watching
+only when the user asked to ship through completion; otherwise report the PR as merge-pending and
+**stop**, leaving the issue In Progress. Proceed to Steps 6–7 only once the merge is confirmed.
 
 ---
 
@@ -312,7 +312,7 @@ git worktree remove "<worktree path from Step 0>" --force 2>/dev/null || true
 - NEVER remove the worktree before merge is confirmed, main is updated, AND close-out (Step 6) is done
 - Any push that changes the head after the gate — including a merge from `main` — re-runs the gate
 - Worktree removal is ALWAYS the final command
-- For pending checks, use Path B and the shared Asynchronous merge protocol; its ownership/boundary rules govern monitoring and handoff.
+- For pending checks, use Path B: arm auto-merge, then watch or stop as the Asynchronous merge protocol says.
 - NEVER treat "no pending checks" as green. Use `scripts/qa/watch-pr-checks.sh` — it pins the SHA, waits for the ruleset's required contexts, and fails closed on unknown conclusions.
 - NEVER collapse a non-required failure into a blocking one, or into silence. Exit 5 is that case, and it carries two required confirmations.
 - NEVER accept a merged PR's `headRefName` as proof a branch merged. Compare the tip SHA against its `headRefOid`.

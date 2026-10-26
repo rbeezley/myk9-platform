@@ -1,5 +1,4 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export type AdvisorLevel = 'ERROR' | 'WARN' | 'INFO';

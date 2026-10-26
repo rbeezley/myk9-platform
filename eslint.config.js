@@ -11,7 +11,6 @@ export default [
       'dist',
       'dev-dist',
       'node_modules',
-      'scripts',
       'coverage',
       '*.config.js',
       '*.config.ts',
@@ -64,5 +63,10 @@ export default [
       complexity: ['error', { max: 30 }],
       'max-depth': ['error', { max: 8 }],
     },
+  },
+  {
+    // Scripts print by design; the root rules above are otherwise unchanged (MYK9-1429).
+    files: ['scripts/**/*.ts'],
+    rules: { 'no-console': 'off' },
   },
 ];

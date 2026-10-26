@@ -8,7 +8,11 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
 ## Run start (the only pause)
 
 1. **Where you sit.** The orchestrator runs from the main checkout
-   (the first `git worktree list --porcelain` entry) on a clean, pulled `main`. It never edits
+   (the first `git worktree list --porcelain` entry) on a clean, pulled `main`, in a session on
+   an Opus-class model or better: the orchestrator writes no code, and its value is triage and
+   the review gate, so a cheaper model there is the one false economy; a Fable session at high
+   effort is the other extreme, and spent most of a usage window on one two-hour run
+   (2026-10-26). It never edits
    files there. Every issue gets its own worktree. Don't start the run from an `EnterWorktree`
    session: that isolation refuses git in the main checkout, which the merge step and the
    per-issue `git worktree add` need. `ExitWorktree` (keep) first.
@@ -28,9 +32,17 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
 3. **Preflight.** One `get_issue` call proves the Linear connector works. If it's down, stop: a
    run that can't write Linear can't leave it accurate. Check that `codex --version` answers; if
    it doesn't, say before starting that any `independent`-tier PR will wait unmerged.
-   For the cloud lane, `claude --version` must answer in the Terminal panel and the CLI must be
-   signed in to claude.ai (`claude auth login`, a one-time owner step); the first dispatch is
-   the real test, since it prints a session URL within a minute or fails in the open.
+   For the cloud lane, `claude --version` and `claude auth status` must answer from the Bash
+   tool (`loggedIn: true`; `claude auth login` is a one-time owner step), and the dispatch
+   must run without a permission dialog. It does when it goes through
+   `scripts/cloud/dispatch-cloud-session.sh` from the Bash tool, which the project pre-approves
+   (`Bash(*)`). It did not through the Terminal-panel tool, which the auto-mode classifier
+   judges per call: on 2026-10-26 it sat on "Allow Claude to run a command in your terminal?"
+   with nobody there (MYK9-1437), and a project-level `autoMode` rule cannot fix that, since
+   the CLI reads those only from user, flag or managed settings. A permission dialog on a
+   dispatch is a run finding: an unattended run would have held there until the stop time.
+   The first dispatch is the real test, since it prints a session URL within a minute or
+   fails in the open.
    Review Blocked work under the shared restoration/ownership rules before selecting new work;
    a past capability hold is not proof that the capability is still unavailable now.
 4. **Ledger.** Keep `<scratchpad>/orchestrate-run.md` with one row per issue: id, premise,
@@ -133,34 +145,35 @@ Then `save_issue` → **In Progress** and, in the same step, post the claim comm
 rules (Gates step 1) with the ledger row's session, branch and `$WT`. Write the ledger row.
 
 **Cloud lane:** no worktree yet (`$WT` is created only once the PR exists, below).
-Write the prompt to
-`<scratchpad>/cloud-myk9-$N.md` with the Write tool and dispatch it from the Terminal panel:
+Write the prompt to `<scratchpad>/cloud-myk9-$N.md` with the Write tool and dispatch it from
+the Bash tool:
 
-```
-run_in_terminal  title: "cloud myk9-<n>"
-command: claude --cloud "$(cat '<scratchpad>/cloud-myk9-<n>.md')" --permission-mode dontAsk --disallowedTools mcp__claude-code-remote__create_trigger
+```bash
+bash scripts/cloud/dispatch-cloud-session.sh "<scratchpad>/cloud-myk9-$N.md"
 ```
 
-`claude --cloud` needs a TTY, which is why it goes through the panel and not the Bash tool.
-The two flags keep the session from ever waiting on a click nobody will give: `dontAsk`
-denies anything that would prompt, and the denied tool is the scheduled-trigger tool with
-which a session armed a "safety-net check-in" nobody asked for on 2026-10-26 and then sat on
-a delete-trigger prompt. Verified 2026-10-26 (CLI 2.1.296) on a check dispatch: the session
-ran in don't-ask mode, its `create_trigger` call was denied at once ("Permission to use
-mcp\_\_claude-code-remote\_\_create_trigger has been denied because Claude Code is running in
-don't ask mode"), and its `gh api` comment posted with no prompt. The session page shows the
-mode at its foot; re-check it on the first dispatch after any CLI upgrade, since the flags'
-effect on `--cloud` is a CLI behaviour, not a repo one.
-Read the tab (`read_terminal`, `wait_for_output_ms` up to 60000) until it prints the session
-name, URL and teleport id; record the URL in the ledger row (`lane: cloud`, `$PREFIX`). Only now `save_issue` →
+The script runs `claude --cloud "<prompt>" --permission-mode dontAsk --disallowedTools
+mcp__claude-code-remote__create_trigger --model sonnet` under a pseudo-terminal (the CLI
+needs a TTY and the Bash tool has none), bounded at 90 s, and prints `SESSION_NAME=`,
+`SESSION_URL=` and `DISPATCH_LOG=` lines on success. It never retries. Why each flag:
+`dontAsk` denies anything that would prompt, and the denied tool is the scheduled-trigger
+tool with which a session armed a "safety-net check-in" nobody asked for on 2026-10-26 and
+then sat on a delete-trigger prompt (verified the same day, CLI 2.1.296: a check session in
+don't-ask mode had its `create_trigger` call denied at once and posted its `gh api` comment
+with no prompt). `--model sonnet` gives the cloud implementer the model its role file gives a
+local one (verified 2026-10-26: the session footer read Sonnet 5.5; without it the cloud
+default was the orchestrator's own model at high effort, for one-file fixes). Re-check both
+on the first dispatch after any CLI upgrade: their effect on `--cloud` is CLI behaviour, not
+repo behaviour.
+
+Record the URL in the ledger row (`lane: cloud`, `$PREFIX`). Only now `save_issue` →
 **In Progress** with the same claim comment (branch "none yet, prefix `$PREFIX`", worktree
-"cloud session <url>"): the claim waits for the session to exist. Nothing in the tab after that is
-needed; close it with `stop_terminal_tab` once the URL is recorded. A dispatch that prints no
-URL is a hold through the shared table (a capability hold naming the tab's output, `$PREFIX`
-and the dispatch time), **never a re-dispatch**: a silent tab does not prove the session was
-not created, so a second dispatch could be a second writer on the branch, and a sign-in error
-fails the same way on a retry (`claude auth login` is the owner's fix). Leave that tab open
-for the owner to read.
+"cloud session <url>"): the claim waits for the session to exist. A dispatch that prints no
+URL (exit 3 or 4) is a hold through the shared table (a capability hold naming the dispatch
+log, `$PREFIX` and the dispatch time), **never a re-dispatch**: a timed-out or silent dispatch
+does not prove the session was not created, so a second dispatch could be a second writer on
+the branch, and a sign-in error fails the same way on a retry (`claude auth login` is the
+owner's fix). Keep the dispatch log for the owner.
 
 The prompt has the dispatch protocol's three parts (task text, premise and approach,
 pointers), preceded by this cloud preamble, filled in:
@@ -249,7 +262,7 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
 - **Findings:** you cannot send them to the session that wrote the code. Either fix them
   yourself in `$WT` when the defect list is short (this is you implementing, and it counts in
   the run stats), or start a **fresh** cloud session. A fix session is dispatched like the
-  first one (prompt file, Terminal panel, URL and dispatch time in the ledger) but with its
+  first one (prompt file, the dispatch script, URL and dispatch time in the ledger) but with its
   own preamble, never the first session's, which assumes a freshly provisioned branch and
   would end in a second PR:
 
@@ -386,9 +399,8 @@ asking:
 1. **Leftovers:** `git worktree list` shows only the expected worktrees (merge-pending ones are
    listed in the summary). `gh pr list --author @me --state open` shows only PRs the summary
    names. `ps -eo pid,etime,command | grep -E 'sleep|vitest'` finds no orphans. Every cloud
-   session the ledger names ended in a PR or a recorded hold, and the only `cloud myk9-<n>`
-   Terminal tabs left open (`list_terminal_tabs`) are the ones a dispatch hold names. Dismiss
-   any background-task chips that the run absorbed.
+   session the ledger names ended in a PR or a recorded hold, with its dispatch log kept under
+   `.logs/` (a hold names the log). Dismiss any background-task chips that the run absorbed.
 2. **Summary**, as the final message (and a push notification when the owner is away):
 
 ```markdown

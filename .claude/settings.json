@@ -37,7 +37,10 @@
       "mcp__plugin_linear_linear__list_projects",
       "mcp__plugin_linear_linear__list_teams",
       "mcp__plugin_linear_linear__list_users",
-      "mcp__plugin_linear_linear__get_user"
+      "mcp__plugin_linear_linear__get_user",
+      "mcp__terminal__read_terminal",
+      "mcp__terminal__list_terminal_tabs",
+      "mcp__terminal__stop_terminal_tab"
     ],
     "deny": [
       "Bash(rm)",
@@ -87,6 +90,12 @@
       "Bash(git commit --amend *)",
       "Bash(git rebase)",
       "Bash(git rebase *)"
+    ]
+  },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "The orchestrate skill's cloud-lane dispatch (MYK9-1437): running `claude --cloud \"$(cat '<file>')\" --permission-mode dontAsk --disallowedTools mcp__claude-code-remote__create_trigger --model sonnet` through the Terminal panel tool mcp__terminal__run_in_terminal, where <file> is a prompt file in the session scratchpad. It creates a Claude Code cloud session and runs nothing else on this Mac; an unattended overnight run cannot answer a dialog, so allow it without asking."
     ]
   },
   "hooks": {

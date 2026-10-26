@@ -95,7 +95,9 @@ the same time.
   orchestrator (see `references/linear-issue-run.md`). After you dispatch, confirm it with
   `git worktree list`.
 - **Linear run mode, cloud lane:** the implementer is a Claude cloud session started with
-  `claude --cloud` from the Terminal panel; the prompt is the same three parts below, preceded
+  `claude --cloud` through `scripts/cloud/dispatch-cloud-session.sh` from the Bash tool (never
+  the Terminal-panel tool, which the auto-mode classifier can stop on a dialog); the prompt is
+  the same three parts below, preceded
   by the cloud preamble in `references/linear-issue-run.md` § Lanes, which tells the session to
   read `implementer.md` as its own rules. It cannot be messaged: its PR is its report, and a
   review round is a fresh session.

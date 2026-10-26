@@ -183,7 +183,11 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
     script: 'qa:dist-fresh:test',
     command: 'vitest run scripts/qa/check-dist-fresh.test.ts',
   },
-  { pkgDir: '.', script: 'qa:inflight:test', command: 'vitest run scripts/qa/inflight.test.ts' },
+  {
+    pkgDir: '.',
+    script: 'qa:inflight:test',
+    command: 'vitest run scripts/qa/inflight.test.ts scripts/qa/gh-pages.test.ts',
+  },
   {
     pkgDir: '.',
     script: 'qa:edge-function-drift:test',
@@ -252,7 +256,7 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
     pkgDir: '.',
     script: 'qa:migrations:guard:test',
     command:
-      'vitest run scripts/qa/migration-version-guard.test.ts scripts/qa/migration-version-guard.provenance.test.ts',
+      'vitest run scripts/qa/migration-version-guard.test.ts scripts/qa/migration-version-guard.provenance.test.ts scripts/qa/db-push-sweep.test.ts',
   },
   {
     pkgDir: '.',

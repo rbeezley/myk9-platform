@@ -25,11 +25,17 @@ async function fetchMaxArmbandForShow(showId: string): Promise<string | null> {
 }
 
 async function fetchStartingArmbandForShow(showId: string): Promise<number> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('shows')
     .select('starting_armband_number')
     .eq('id', showId)
     .maybeSingle();
+
+  // MYK9-1411: a failed read must not look like "no starting number configured".
+  // The 100 default is only for a successful read with a null or invalid value.
+  if (error) {
+    throw createDatabaseError(error, 'shows', 'fetch_starting_armband');
+  }
 
   const start = Number(data?.starting_armband_number);
   return Number.isFinite(start) && start > 0 ? start : 100;

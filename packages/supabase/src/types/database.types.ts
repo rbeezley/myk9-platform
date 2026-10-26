@@ -13194,6 +13194,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_role_with_permissions: {
+        Args: {
+          p_description?: string
+          p_name: string
+          p_permission_codes: string[]
+        }
+        Returns: Json
+      }
       create_show_managed_dog: {
         Args: {
           p_breed: string
@@ -13215,14 +13223,6 @@ export type Database = {
           p_show_id: string
         }
         Returns: string
-      }
-      create_role_with_permissions: {
-        Args: {
-          p_description?: string
-          p_name: string
-          p_permission_codes: string[]
-        }
-        Returns: Json
       }
       create_show_with_children: {
         Args: {

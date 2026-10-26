@@ -30,9 +30,6 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   },
   db: {
     schema: 'public',
-    // The SDK retries a private fetch deadline with a fresh timer (MYK9-1355).
-    // Let React Query/RBAC own read retries so the first timeout reaches them.
-    retry: false,
   },
   global: {
     headers: {

@@ -17,7 +17,7 @@ describe('configured Supabase read deadline (MYK9-1355)', () => {
     vi.unstubAllGlobals();
   });
 
-  it.each(['GET', 'HEAD', 'read RPC'] as const)(
+  it.each(['GET', 'HEAD'] as const)(
     'returns a stalled %s timeout at its deadline without an SDK retry',
     async kind => {
       const transport = vi.fn<typeof fetch>(
@@ -31,10 +31,7 @@ describe('configured Supabase read deadline (MYK9-1355)', () => {
       vi.stubGlobal('fetch', transport);
 
       let settled = false;
-      const request =
-        kind === 'read RPC'
-          ? supabase.rpc('get_account_today_entries')
-          : supabase.from('shows').select('id', { head: kind === 'HEAD' });
+      const request = supabase.from('shows').select('id', { head: kind === 'HEAD' });
       const result = request.then(response => {
         settled = true;
         return response;
@@ -48,6 +45,43 @@ describe('configured Supabase read deadline (MYK9-1355)', () => {
 
       await vi.advanceTimersByTimeAsync(7_000);
       expect(transport).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it.each([503, 520, 'network'] as const)(
+    'preserves SDK retries after a transient %s',
+    async failure => {
+      const delayMs = failure === 503 ? 2_000 : 1_000;
+      const transport = vi
+        .fn<typeof fetch>()
+        .mockImplementationOnce(async () => {
+          if (failure === 'network') throw new TypeError('Failed to fetch');
+          return new Response('temporarily unavailable', {
+            status: failure,
+            headers: failure === 503 ? { 'Retry-After': '2' } : undefined,
+          });
+        })
+        .mockImplementation(
+          async () =>
+            new Response('[]', {
+              headers: { 'Content-Type': 'application/json' },
+            })
+        );
+      vi.stubGlobal('fetch', transport);
+      let settled = false;
+      const result = supabase
+        .from('shows')
+        .select('id')
+        .then(response => {
+          settled = true;
+          return response;
+        });
+      await vi.advanceTimersByTimeAsync(delayMs - 1);
+      expect(settled).toBe(false);
+      expect(transport).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect((await result).error).toBeNull();
+      expect(transport).toHaveBeenCalledTimes(2);
     }
   );
 

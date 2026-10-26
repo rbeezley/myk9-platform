@@ -23,10 +23,10 @@
  * AbortError vs TimeoutError. An `AbortError` means somebody cancelled on purpose: the
  * replication layer (`syncErrorUtils.isAbortSyncMessage`) treats it as a cancelled sync,
  * files it as idle and even dismisses an earlier failure toast. The deadline must not hide
- * behind that, so it aborts with a `TimeoutError` DOMException instead. fetch rejects with
- * the signal's reason. The configured client disables postgrest-js retries (MYK9-1355):
- * the SDK cannot see this private controller, so its retries would each get a fresh
- * deadline. React Query and RBAC own retries instead. With `throwOnError` off, the SDK maps it to
+ * behind that, so it aborts with a `TimeoutError` instead. fetch rejects with the signal's
+ * reason. Its `ABORT_ERR` code tells postgrest-js not to retry this private-controller abort
+ * (MYK9-1355); the SDK's ordinary network/503/520 retries remain enabled. With `throwOnError`
+ * off, the SDK maps it to
  * `error.message = "TimeoutError: Read deadline of 30000 ms exceeded"`. The sync adapter's
  * `Supabase query failed:` prefix then makes it SAFE_SYNC_REFRESH_ERROR, a visible refresh
  * failure. `isTransientBrowserFetchError` (services/rbac/PermissionChecker.ts) accepts
@@ -50,8 +50,11 @@ export const SUPABASE_READ_DEADLINE_MS = 30_000;
 export const READ_DEADLINE_ERROR_NAME = 'TimeoutError';
 
 /** The abort reason for a read that outlived its deadline. */
-export function readDeadlineReason(deadlineMs: number = SUPABASE_READ_DEADLINE_MS): DOMException {
-  return new DOMException(`Read deadline of ${deadlineMs} ms exceeded`, READ_DEADLINE_ERROR_NAME);
+export function readDeadlineReason(deadlineMs: number = SUPABASE_READ_DEADLINE_MS): Error {
+  return Object.assign(new Error(`Read deadline of ${deadlineMs} ms exceeded`), {
+    name: READ_DEADLINE_ERROR_NAME,
+    code: 'ABORT_ERR',
+  });
 }
 
 const READ_DEADLINE_MESSAGE = /Read deadline of \d+ ms exceeded/;

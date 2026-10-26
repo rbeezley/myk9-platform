@@ -325,11 +325,17 @@ lanes. Additions specific to the run:
   Pass the wrappers' current `scripts/qa/review-verdict.sh` contract to each lens. A valid clean
   opening is `No actionable defects found.` The final log must contain no finding bullets or
   findings JSON, including fixed findings; preserve earlier findings/dispositions in separate history.
+- **`independent` floor pre-pass:** before the first `pnpm qa:codex-review --post`, run the
+  `ship-pr` Step 4 pre-pass (one read-only `sonnet` lens on the diff, fixes committed, nothing
+  posted) and record `pre-pass: N findings fixed` and `Codex rounds: M` in the PR body.
+- **Docs-only two-round budget:** `ship-pr` Step 4 states the rule and its run-start
+  condition; this run posts that override only when the approval at Run start named the budget.
 - **Migration in the diff:** carry it through the PR and review gate (`migration-auditor`
   is one adversarial lens), then **do not merge** in this run. Route the owner's merge/deploy
   action through the shared table. Never push a migration from an unmerged branch.
 - **Codex unavailable on an `independent` floor:** leave the PR open and route the unavailable
-  reviewer through the shared table. No same-harness substitute, no owner override from an agent.
+  reviewer through the shared table. No same-harness substitute, no owner override from an agent
+  (the docs-only budget above is the one exception, and only when the run-start approval named it).
 - **Watcher exit 3:** follow ship-pr Path B and the shared **Asynchronous merge protocol**;
   an approved stop-time handoff records the named next executor and resume action.
 - **Read the watcher's own exit code** (`…; echo "WATCH_EXIT=$?"`), never a wrapper's. If

@@ -163,6 +163,8 @@ PR_NUMBER=$(gh pr view --json number -q '.number')
 
 **Never type an evidence comment by hand.** `scripts/qa/post-review-gate.sh` is the only writer of `Review gate:` comments; both wrappers call it for you. A hand-typed line attests to a review nobody can check — the poster hashes the log it posts and refuses a log that does not carry the reviewer's clean contract sentence.
 
+**Pre-pass (`independent` tier only).** Before the first Codex run, dispatch one read-only `sonnet` sub-agent (one Mac heavy job against the orchestrate cap) with `git diff origin/main...HEAD`, told to find defects and never to approve, answering as `- [P<n>] file:line finding` bullets. Fix every finding you agree with and commit, so Codex reviews a second draft. It posts nothing and is not gate evidence. Record `pre-pass: N findings fixed` in the PR body, and `Codex rounds: M` once the gate is green.
+
 **Author is Claude Code → Codex reviews.** Run the wrapper from the worktree, foreground:
 
 ```bash
@@ -199,7 +201,9 @@ The reviewer is `codex` or `claude` (whichever ran, i.e. the OTHER harness). The
 
 **If the reviewer is genuinely unavailable** (usage limit, outage, auth failure — not merely slow), this PR's floor is `independent` (see Step 3a) — use the `owner` override documented there and in `docs/PLAYBOOK.md` § 4: claim `override, floor was independent`, set `OVERRIDE_REASON="<harness> unavailable — <detail>"` (or `"convergence stop — <detail>"` when the reviewer is reachable but the convergence rule says to stop the round — never write "unavailable" for that) and `DEFERRED_REVIEW=<ISSUE-ID>`, then run `post-review-gate.sh $PR_NUMBER owner <base-sha> <head-sha> "override, floor was independent" /dev/null`. Keep the PR a draft when nothing is time-pressured; when a maintainer authorizes the override, mark it ready so the status can be evaluated, and re-run the real gate once the reviewer is available.
 
-**Findings:** fix every critical/high (P1/P2) finding and any medium (P3) that is straightforward. Invoke `/commit`, then re-run the wrapper against the new head. **Max 5 review rounds** — escalate to the user if not clean after 5.
+**Findings:** fix every critical/high (P1/P2) finding and any medium (P3) that is straightforward (the docs-only budget below is the one case where a P2 may be deferred). Invoke `/commit`, then re-run the wrapper against the new head. **Max 5 review rounds** — escalate to the user if not clean after 5.
+
+**Two-round budget for documentation-only diffs at the `independent` floor** (skills, references and runbooks under guardrail paths; a pure `docs/` or root `.md` diff has floor `none` and needs no Codex round, so the budget never applies to it). When a Codex round returns only P2 or lower, two rounds is the budget. Fix every P0/P1, file the residual findings as a follow-up issue linked from the PR, and post the gate with the `owner` override above, claiming the floor `pnpm qa:review-tier` prints (`override, floor was independent`; the poster refuses a claimed floor that differs from the real one), with `OVERRIDE_REASON="convergence stop — two-round budget, docs-only diff"` and `DEFERRED_REVIEW=<follow-up issue>` (an uppercase-prefix id like `MYK9-523`; the line counts only from an OWNER/MEMBER account). The grammar has no green line for residual P2s any other way. In an unattended run, post it only when the owner's run-start approval named this budget; otherwise leave the PR open with the residual findings filed.
 
 Never report the PR as ready, arm auto-merge, or merge while a review is running.
 

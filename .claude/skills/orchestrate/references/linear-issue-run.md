@@ -144,9 +144,12 @@ command: claude --cloud "$(cat '<scratchpad>/cloud-myk9-<n>.md')" --permission-m
 The two flags keep the session from ever waiting on a click nobody will give: `dontAsk`
 denies anything that would prompt, and the denied tool is the scheduled-trigger tool with
 which a session armed a "safety-net check-in" nobody asked for on 2026-10-26 and then sat on
-a delete-trigger prompt. The session page shows the mode at its foot; re-check it on the
-first dispatch after any CLI upgrade, since the flags' effect on `--cloud` is a CLI
-behaviour, not a repo one.
+a delete-trigger prompt. Verified 2026-10-26 (CLI 2.1.296) on a check dispatch: the session
+ran in don't-ask mode, its `create_trigger` call was denied at once ("Permission to use
+mcp\_\_claude-code-remote\_\_create_trigger has been denied because Claude Code is running in
+don't ask mode"), and its `gh api` comment posted with no prompt. The session page shows the
+mode at its foot; re-check it on the first dispatch after any CLI upgrade, since the flags'
+effect on `--cloud` is a CLI behaviour, not a repo one.
 Read the tab (`read_terminal`, `wait_for_output_ms` up to 60000) until it prints the session
 name, URL and teleport id; record the URL in the ledger row. Nothing in the tab after that is
 needed; close it with `stop_terminal_tab` once the URL is recorded. A dispatch that prints no

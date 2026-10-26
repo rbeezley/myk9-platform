@@ -2,7 +2,10 @@
  * Issue janitor planner (MYK9-1434). Pure: board + injected GitHub reader +
  * branch list + clock in, plan out. It applies only the dispositions already
  * in docs/agents/issue-tracker.md and never writes anything itself; the
- * scheduled session executes `writes` with the Linear MCP.
+ * scheduled session executes `writes` with the Linear MCP. It changes state on
+ * its own only for a closed-unmerged PR or an unclaimed issue (both to Todo);
+ * anything that could mean Done, In Review or still In Progress is a `fresh-read`
+ * entry whose `outcomes` the session picks from after reading the issue.
  */
 import { describeOwner, latestClaim } from './issue-janitor-claim.ts';
 import {
@@ -64,25 +67,26 @@ const entry = (
       ? [{ tool: 'save_comment' as const, args: { issueId: issue, body: comment } }]
       : []),
   ],
-  doneWrites: [],
-  fallbackWrites: [],
-  fallbackFill: [],
+  fill: [],
 });
 
-function doneCandidate(
-  issue: string,
-  reason: string,
-  comment: string | null,
-  fallback: McpWrite[] = [],
-  fill: string[] = []
-): PlanEntry {
-  const plan = entry(issue, 'to-done-candidate', reason, comment, 'Done');
+const stateWrite = (issue: string, state: string): McpWrite => ({
+  tool: 'save_issue',
+  args: { id: issue, state },
+});
+const commentWrite = (issue: string, body: string): McpWrite => ({
+  tool: 'save_comment',
+  args: { issueId: issue, body },
+});
+
+function freshRead(issue: string, reason: string, outcomes: Record<string, McpWrite[]>): PlanEntry {
+  const templated = Object.values(outcomes)
+    .flat()
+    .some(w => (w.args.body ?? '').includes('{{owed}}'));
   return {
-    ...plan,
-    writes: [],
-    doneWrites: plan.writes,
-    fallbackWrites: fallback,
-    fallbackFill: fill,
+    ...entry(issue, 'fresh-read', reason),
+    outcomes,
+    fill: templated ? ['owed'] : [],
   };
 }
 
@@ -186,25 +190,27 @@ function planInProgress(
       Date.parse(a.mergedAt ?? '') >= Date.parse(b.mergedAt ?? '') ? a : b
     );
     const verify = verifyLabels(issue);
-    const reason = `PR #${pr.number} merged ${pr.mergedAt ?? ''}`;
-    if (verify.length === 0) {
-      // Only if a fresh get_issue read shows every criterion met; else In Review.
-      return doneCandidate(
+    const owed = verify.length ? verify.map(v => `verify:${v}`).join(', ') : '{{owed}}';
+    if (hasKey(issue.comments, `merged#${pr.number}-stay`)) {
+      return skip(
         id,
-        `${reason}; no verify:* label owed`,
-        null,
-        entry(
-          id,
-          'to-in-review',
-          reason,
-          `PR ${pr.url} merged. Moving to In Review.\nOwed: {{owed}}`,
-          'In Review'
-        ).writes,
-        ['owed']
+        'implementation still owed per the janitor comment; the session must resume it'
       );
     }
-    const comment = `PR ${pr.url} merged. Moving to In Review; owed evidence: ${verify.map(v => `verify:${v}`).join(', ')}.`;
-    return entry(id, 'to-in-review', reason, comment, 'In Review');
+    const tag = (suffix: string) => `\n\n${janitorKey(`merged#${pr.number}-${suffix}`)}`;
+    return freshRead(id, `PR #${pr.number} merged ${pr.mergedAt ?? ''}`, {
+      done: [stateWrite(id, 'Done')],
+      inReview: [
+        stateWrite(id, 'In Review'),
+        commentWrite(
+          id,
+          `PR ${pr.url} merged. Moving to In Review.\nOwed: ${owed}${tag('in-review')}`
+        ),
+      ],
+      stayInProgress: [
+        commentWrite(id, `PR ${pr.url} merged; implementation still owed: {{owed}}${tag('stay')}`),
+      ],
+    });
   }
 
   if (activity.reason) return skip(id, activity.reason);
@@ -242,7 +248,8 @@ function planInReview(
   if (merged.every(p => p.partial))
     return skip(id, 'only a partial (Ignore) PR merged; the root reconciles');
   if (prs.some(p => p.state === 'open')) return skip(id, 'a PR is still open');
-  const undeployed = merged.filter(p => !github.isDeployed(p, deployed));
+  const full = merged.filter(p => !p.partial);
+  const undeployed = full.filter(p => !github.isDeployed(p, deployed));
   if (undeployed.length)
     return skip(id, `PR #${undeployed[0]?.number} is not in the deployed commit`);
   const verify = verifyLabels(issue);
@@ -251,12 +258,15 @@ function planInReview(
   const prodOwed = owed !== null && /production/i.test(owed) && !HUMAN_OWED.test(owed);
   if (!prodOwed) return skip(id, 'no production-only evidence recorded as owed');
   const key = `prod-evidence#${id}`;
-  const prLine = merged.map(p => `#${p.number}`).join(', ');
+  const prLine = full.map(p => `#${p.number}`).join(', ');
   const evidence =
-    `Production evidence: deployed commit ${deployed.slice(0, 9)} contains PR ${prLine} (merged ${merged[0]?.mergedAt ?? ''}). ` +
+    `Production evidence: deployed commit ${deployed.slice(0, 9)} contains PR ${prLine} (merged ${full[0]?.mergedAt ?? ''}). ` +
     `Owed: ${owed}.`;
   const comment = hasKey(issue.comments, key) ? null : `${evidence}\n\n${janitorKey(key)}`;
-  return doneCandidate(id, `merged PR ${prLine} deployed; production-only evidence`, comment);
+  return freshRead(id, `merged PR ${prLine} deployed; production-only evidence`, {
+    done: [...(comment ? [commentWrite(id, comment)] : []), stateWrite(id, 'Done')],
+    leave: [],
+  });
 }
 
 function snapshotOf(issue: BoardIssue): Snapshot {
@@ -290,12 +300,15 @@ export function planJanitor(
     if (nowMs - lastCommentAt(issue) < LIVE_SESSION_MS)
       return skip(id, 'last comment under 6 h old (live session)');
     const n = issueNumber(id);
-    const matching = branchesForIssue(n, branches);
+    const claimBranch = latestClaim(issue.comments)?.branch ?? null;
+    const matching = [
+      ...branchesForIssue(n, branches),
+      ...branches.filter(b => b.name === claimBranch && !branchesForIssue(n, [b]).length),
+    ];
     try {
-      const prs = github.prsForIssue(
-        n,
-        matching.map(b => b.name)
-      );
+      const names = new Set(matching.map(b => b.name));
+      if (claimBranch) names.add(claimBranch);
+      const prs = github.prsForIssue(n, [...names]);
       return inProgress
         ? planInProgress(issue, prs, matching, nowMs)
         : planInReview(issue, prs, github, options.deployedCommit ?? '');

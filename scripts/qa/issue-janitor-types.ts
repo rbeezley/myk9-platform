@@ -50,8 +50,8 @@ export interface GitHubReader {
   isDeployed(pr: PrInfo, deployedCommit: string): boolean;
 }
 
-export type JanitorAction =
-  'to-in-review' | 'to-done-candidate' | 'to-todo' | 'comment-stale-pr' | 'skip';
+/** `fresh-read`: the session reads the whole issue fresh, then picks one of `outcomes`. */
+export type JanitorAction = 'fresh-read' | 'to-todo' | 'comment-stale-pr' | 'skip';
 
 export interface McpWrite {
   tool: 'save_issue' | 'save_comment';
@@ -71,18 +71,19 @@ export interface PlanEntry {
   action: JanitorAction;
   reason: string;
   comment: string | null;
-  /** Writes the session executes in order. Never contains a Done write. */
+  /** Writes the session executes in order. Empty for `fresh-read`; never a Done or In Review write. */
   writes: McpWrite[];
-  /** `to-done-candidate` only: executed after a fresh `get_issue` read shows every criterion met. */
-  doneWrites: McpWrite[];
-  /** `to-done-candidate` from In Progress: executed instead if the fresh read finds a criterion unmet. */
-  fallbackWrites: McpWrite[];
   /**
-   * Placeholders in `fallbackWrites` bodies the session must replace before posting, e.g.
-   * `owed`: replace `{{owed}}` with the unmet criteria quoted from the fresh read. This is
-   * the only permitted edit to a listed write; an unfilled template is never posted.
+   * `fresh-read` only: named write lists. After a fresh full read the session executes
+   * exactly one (the script never chooses between Done, In Review and In Progress).
    */
-  fallbackFill: string[];
+  outcomes?: Record<string, McpWrite[]>;
+  /**
+   * Placeholders in `outcomes` bodies the session must replace before posting, e.g.
+   * `owed`: replace `{{owed}}` with text quoted from the fresh read. This is the only
+   * permitted edit to a listed write; an unfilled template is never posted.
+   */
+  fill: string[];
   snapshot?: Snapshot;
 }
 

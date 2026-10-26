@@ -61,7 +61,7 @@ export function linksIssue(pull: RawPull, n: number): LinkKind | null {
 }
 
 /** PRs untouched for longer than this are never fetched (the list is newest-updated first). */
-const PR_WINDOW_MS = 90 * 24 * 3_600_000;
+const PR_WINDOW_MS = 365 * 24 * 3_600_000;
 
 export function makeGitHubReader(
   exec: Exec = defaultExec,
@@ -148,9 +148,13 @@ export function makeGitHubReader(
 }
 
 /** Branches matching any janitor prefix, pushed or local, with the newest commit date. */
-export function readBranches(exec: Exec = defaultExec): BranchInfo[] {
+export function readBranches(
+  exec: Exec = defaultExec,
+  extraNames: Iterable<string> = []
+): BranchInfo[] {
+  const extras = new Set(extraNames);
   const wanted = (name: string) =>
-    BRANCH_PREFIXES.some(p => name.toLowerCase().startsWith(`${p}myk9-`));
+    extras.has(name) || BRANCH_PREFIXES.some(p => name.toLowerCase().startsWith(`${p}myk9-`));
   const tips = new Map<string, Set<string>>();
   const addTip = (name: string, sha: string) => {
     const set = tips.get(name) ?? new Set<string>();

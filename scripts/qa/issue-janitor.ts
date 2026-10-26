@@ -15,17 +15,20 @@
  *   comments: [{ createdAt, body }] }] } built from Linear `list_issues` (one call
  * per state) plus `list_comments` per issue, which is the tool that returns comments.
  *
- * Plan entries carry `writes` (run in order, never a Done write), `doneWrites`
- * (a to-done-candidate only: run after a fresh get_issue read shows every
- * criterion met) and `fallbackWrites` (In Progress candidates: run instead if a
- * criterion is unmet; its bodies carry `{{owed}}`, listed in `fallbackFill`, the one
- * permitted edit to a listed write). Each entry echoes the board `snapshot` (state,
- * labels, newest comment time): before executing an issue's writes the session re-reads
- * it and, if any of the three differ, skips it as `stale snapshot`. Exit 0 clean, 1 when any GitHub read failed (that issue is
+ * Plan entries carry `writes` (run in order; Todo moves and comments only). A
+ * `fresh-read` entry has empty `writes` and an `outcomes` map: the session reads the
+ * issue fresh and in full, then executes exactly one named list (`done` only when every
+ * criterion is met; `inReview`, `stayInProgress`, `leave`). `fill` names placeholders
+ * (`{{owed}}`) in those bodies; filling them from the fresh read is the one permitted
+ * edit to a listed write, and an unfilled template is never posted. Each entry echoes
+ * the board `snapshot` (state, labels, newest comment time): before executing an
+ * issue's writes the session re-reads it and, if any of the three differ, skips it as
+ * `stale snapshot`. Exit 0 clean, 1 when any GitHub read failed (that issue is
  * a skip whose reason starts `GitHub read failed:`), 2 on a usage or runtime error.
  */
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { latestClaim } from './issue-janitor-claim.ts';
 import { makeGitHubReader, readBranches } from './issue-janitor-github.ts';
 import { planJanitor } from './issue-janitor-plan.ts';
 import type { Board, McpWrite, PlanEntry } from './issue-janitor-types.ts';
@@ -72,7 +75,7 @@ export function orderedWrites(plan: PlanEntry[]): McpWrite[] {
 
 export function render(plan: PlanEntry[], args: CliArgs): string {
   const mode = args.apply ? 'apply' : 'dry-run';
-  // `writes` (ordered) never holds a Done write; each to-done-candidate carries its own doneWrites.
+  // `writes` (ordered) never holds a Done or In Review write; fresh-read entries keep theirs in `outcomes`.
   const body = { mode, plan, ...(args.apply ? { writes: orderedWrites(plan) } : {}) };
   return `${summaryMarkdown(plan, mode, args.now)}\n\n\`\`\`json\n${JSON.stringify(body, null, 2)}\n\`\`\`\n`;
 }
@@ -80,9 +83,17 @@ export function render(plan: PlanEntry[], args: CliArgs): string {
 export function run(argv = process.argv.slice(2)): number {
   const args = parseArgs(argv);
   const board = JSON.parse(readFileSync(args.board, 'utf8')) as Board;
-  const plan = planJanitor(board, makeGitHubReader(), readBranches(), args.now, {
-    deployedCommit: args.deployedCommit,
-  });
+  // A claim may name a branch outside the claude/codex/richardbeezley1 prefixes: read it too.
+  const claimBranches = board.issues.flatMap(i => latestClaim(i.comments)?.branch ?? []);
+  const plan = planJanitor(
+    board,
+    makeGitHubReader(),
+    readBranches(undefined, claimBranches),
+    args.now,
+    {
+      deployedCommit: args.deployedCommit,
+    }
+  );
   process.stdout.write(render(plan, args));
   // A failed GitHub read is a skip in the plan, but the session must report it.
   return plan.some(p => p.reason.startsWith('GitHub read failed:')) ? 1 : 0;

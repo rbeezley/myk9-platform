@@ -109,3 +109,34 @@ describe('class search time limits persist (UKC max time)', () => {
     expect(mapDatabaseToClass(base as unknown as DbClassWithRelations).timeLimit1).toBe('');
   });
 });
+
+// MYK9-1405: start times belong to the schedule's start-time editor. A class edit that carries the
+// form's class order must never rewrite classes.start_time (9:30 became 9:00, unset became 1:00 AM).
+describe('class order never touches start_time (MYK9-1405)', () => {
+  it('an update with classOrder and no startTime has no start_time key', () => {
+    expect(mapClassInputToUpdate({ classOrder: '09', status: 'Completed' })).not.toHaveProperty(
+      'start_time'
+    );
+    expect(mapClassInputToUpdate({ classOrder: '' })).not.toHaveProperty('start_time');
+  });
+
+  it('a new class gets no start time from its class order', () => {
+    const insert = mapClassInputToInsert({
+      trialId: 't1',
+      className: 'Interior Novice',
+      classOrder: '3',
+    } as Parameters<typeof mapClassInputToInsert>[0]);
+    expect(insert.start_time).toBeNull();
+  });
+
+  it('a read keeps the start time and derives no class order from it', () => {
+    const cls = mapDatabaseToClass({
+      id: 'c1',
+      trial_id: 't1',
+      name: 'n',
+      start_time: '09:30:00',
+    } as unknown as DbClassWithRelations);
+    expect(cls.startTime).toBe('9:30 AM');
+    expect(cls.classOrder).toBe('');
+  });
+});

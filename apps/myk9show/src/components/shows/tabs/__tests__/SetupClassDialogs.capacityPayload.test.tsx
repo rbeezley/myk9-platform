@@ -7,6 +7,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { mapDatabaseToClass, type DbClassWithRelations } from '@/services/mappers/classMappers';
 import { SetupClassDialogs } from '../SetupClassDialogs';
 
 const dbUpdateClass = vi.hoisted(() => vi.fn());
@@ -135,5 +136,45 @@ describe('Edit class payload at the update layer', () => {
     const payload = dbUpdateClass.mock.calls[0]![1];
     expect(payload).toMatchObject({ allow_waitlist: true });
     expect(payload).not.toHaveProperty('max_entries');
+  });
+});
+
+// MYK9-1405: the full-mode form's "Class Order" field was written into the hour of
+// classes.start_time, so saving any edit turned a 9:30 class into 9:00. The class is what the real
+// read mapper produces for a 09:30 class. `estimatedJudgingTime` selects the full-mode form (the
+// one that carried the field); a mapper-shaped class alone opens the simple form, which never had
+// it, so both are pinned.
+describe('Edit class leaves the start time alone (MYK9-1405)', () => {
+  beforeEach(() => {
+    dbUpdateClass.mockReset();
+    dbUpdateClass.mockResolvedValue({ data: { id: 'c1', trial_id: 't1' }, error: null });
+    showState.shows = [];
+  });
+
+  const read = mapDatabaseToClass({
+    id: 'c1',
+    trial_id: 't1',
+    name: 'Containers Novice A',
+    start_time: '09:30:00',
+  } as unknown as DbClassWithRelations);
+
+  it.each([
+    ['full', { estimatedJudgingTime: '' }],
+    ['simple', {}],
+  ])('saving a 9:30 class from the %s form sends no start_time', async (_form, extra) => {
+    const { user } = renderDialogs({
+      ...snapshot,
+      classOrder: read.classOrder,
+      startTime: read.startTime,
+      ...extra,
+    });
+    await completeStatus(user);
+    expect.soft(screen.queryByRole('textbox', { name: /class order/i })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => expect(dbUpdateClass).toHaveBeenCalled());
+    const payload = dbUpdateClass.mock.calls[0]![1] as Record<string, unknown>;
+    expect(payload).toHaveProperty('status');
+    expect(payload).not.toHaveProperty('start_time');
   });
 });

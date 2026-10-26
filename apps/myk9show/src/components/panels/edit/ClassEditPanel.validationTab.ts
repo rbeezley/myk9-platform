@@ -12,7 +12,6 @@ const FIELD_LOCATION: Record<string, FieldLocation<ClassTabValue>> = {
   element: at('basic', 'element'),
   level: at('basic', 'level'),
   section: at('basic', 'section'),
-  classOrder: at('basic', 'classOrder'),
   status: at('basic', 'classStatus'),
   estimatedJudgingTime: at('timing', 'estimatedJudgingTime'),
   timeLimit1: at('timing', 'timeLimit1'),

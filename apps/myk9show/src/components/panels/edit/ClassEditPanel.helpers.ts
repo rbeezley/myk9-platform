@@ -12,7 +12,6 @@ export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormDat
     element: classItem.element || '',
     level: classItem.level || '',
     section: classItem.section || '',
-    classOrder: classItem.classOrder || '',
     status:
       (classItem.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled' | 'Scheduled') ||
       'Scheduled',
@@ -48,7 +47,6 @@ export const formDataToClass = (formData: ClassEditFormData): Partial<ClassData>
   element: formData.element,
   level: formData.level,
   section: formData.section,
-  classOrder: formData.classOrder,
   status: formData.status,
   ...(formData.estimatedJudgingTime !== undefined && {
     estimatedJudgingTime: formData.estimatedJudgingTime,

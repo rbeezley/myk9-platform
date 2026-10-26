@@ -219,10 +219,15 @@ describe('claim branch activity and merged-PR idempotency', () => {
     const stay = first.outcomes!.stayInProgress![0]!.args.body!;
     expect(stay).toContain('janitor: merged#9600-stay');
     const second = plan1(claimedIssue('none yet', [{ createdAt: ago(30), body: stay }]), merged);
-    expect(second.action).toBe('skip');
-    expect(second.reason).toBe(
-      'implementation still owed per the janitor comment; the session must resume it'
-    );
+    // A prior stay decision never hides newer evidence: the issue is re-read every run,
+    // and only its own duplicate comment is suppressed.
+    expect(second.action).toBe('fresh-read');
+    expect(second.reason).toContain('stay comment already posted');
+    expect(second.outcomes!.stayInProgress).toEqual([]);
+    expect(second.outcomes!.inReview![1]!.args.body).toContain('janitor: merged#9600-in-review');
+    expect(second.outcomes!.done).toEqual([
+      { tool: 'save_issue', args: { id: second.issue, state: 'Done' } },
+    ]);
   });
 
   it('ignores a merged undeployed partial PR in the In Review pass and quotes only full PRs', () => {

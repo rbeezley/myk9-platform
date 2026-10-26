@@ -191,26 +191,32 @@ function planInProgress(
     );
     const verify = verifyLabels(issue);
     const owed = verify.length ? verify.map(v => `verify:${v}`).join(', ') : '{{owed}}';
-    if (hasKey(issue.comments, `merged#${pr.number}-stay`)) {
-      return skip(
-        id,
-        'implementation still owed per the janitor comment; the session must resume it'
-      );
-    }
     const tag = (suffix: string) => `\n\n${janitorKey(`merged#${pr.number}-${suffix}`)}`;
-    return freshRead(id, `PR #${pr.number} merged ${pr.mergedAt ?? ''}`, {
-      done: [stateWrite(id, 'Done')],
-      inReview: [
-        stateWrite(id, 'In Review'),
-        commentWrite(
-          id,
-          `PR ${pr.url} merged. Moving to In Review.\nOwed: ${owed}${tag('in-review')}`
-        ),
-      ],
-      stayInProgress: [
-        commentWrite(id, `PR ${pr.url} merged; implementation still owed: {{owed}}${tag('stay')}`),
-      ],
-    });
+    // Every run re-plans a merged PR, so newer evidence always gets a fresh read; the
+    // only thing a prior `stay` decision suppresses is a duplicate of its own comment.
+    const stayCommented = hasKey(issue.comments, `merged#${pr.number}-stay`);
+    return freshRead(
+      id,
+      `PR #${pr.number} merged ${pr.mergedAt ?? ''}${stayCommented ? '; stay comment already posted' : ''}`,
+      {
+        done: [stateWrite(id, 'Done')],
+        inReview: [
+          stateWrite(id, 'In Review'),
+          commentWrite(
+            id,
+            `PR ${pr.url} merged. Moving to In Review.\nOwed: ${owed}${tag('in-review')}`
+          ),
+        ],
+        stayInProgress: stayCommented
+          ? []
+          : [
+              commentWrite(
+                id,
+                `PR ${pr.url} merged; implementation still owed: {{owed}}${tag('stay')}`
+              ),
+            ],
+      }
+    );
   }
 
   if (activity.reason) return skip(id, activity.reason);

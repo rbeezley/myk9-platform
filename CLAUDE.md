@@ -240,6 +240,8 @@ Auto Mode's "execute immediately" guidance does NOT extend to shared-system muta
 - Creating/closing PRs, issues, or comments on GitHub
 - Posting to Slack, email, or any external service
 
+**Exception — Linear updates are pre-authorized (owner, 2026-10-26):** create MYK9 issues, change their status, labels or description, and comment, without asking. Done still needs a fresh read with every criterion met, and owner decisions are recorded, never made. Deletions, team settings, saved views and label definitions still need confirmation.
+
 One up-front confirmation covers a sequence of related pushes in the same session; re-confirm when switching to a new system or operation type. An explicit "ship this", "create a PR" or `/ship-pr` request authorizes the push, the PR creation and the review-gate comment for that branch; merging still needs its own authorization unless the request said to ship through completion.
 
 **Exception — docs-only changes may go direct to `main`.** When a commit touches _only_ documentation files, skip the PR ceremony: commit on `main` (or fast-forward a feature commit into `main`) and push directly. No confirmation needed beyond the user's request to commit/push. `CLAUDE.md`, `AGENTS.md`, `docs/agents/shared-rules.md`, `.claude/**`, `.codex/**`, `.agents/**` and `.github/**` are always out of scope for this exception — they need a PR regardless of how small the change. Full in-scope/out-of-scope file list and the bypass mechanism: [`docs/reference/git-workflow.md`](docs/reference/git-workflow.md) § "Docs-only direct-to-`main`." Verify the commit's filelist matches the scope before pushing.

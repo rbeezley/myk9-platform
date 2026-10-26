@@ -18,20 +18,12 @@ if [ "${MYK9_CLOUD:-}" != "1" ] && [ "${CLAUDE_CODE_REMOTE:-}" != "true" ] &&
   exit 3
 fi
 
-# The common Git directory belongs to the primary checkout, so tools survive
-# switching worktrees. The active checkout still owns its dependencies and logs.
-COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir)"
-export MYK9_CLOUD_HOME="${MYK9_CLOUD_HOME:-$(dirname "$COMMON_DIR")/.cloud-tools}"
-export MYK9_TOOLS_DIR="${MYK9_TOOLS_DIR:-$MYK9_CLOUD_HOME/bin}"
-export COREPACK_HOME="${COREPACK_HOME:-$MYK9_CLOUD_HOME/corepack}"
-export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$MYK9_CLOUD_HOME/config}"
-export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$MYK9_CLOUD_HOME/cache}"
-export XDG_DATA_HOME="${XDG_DATA_HOME:-$MYK9_CLOUD_HOME/data}"
-export XDG_STATE_HOME="${XDG_STATE_HOME:-$MYK9_CLOUD_HOME/state}"
-export DENO_DIR="${DENO_DIR:-$XDG_CACHE_HOME/deno}"
+# shellcheck source=scripts/cloud/environment.sh
+source "$(dirname "${BASH_SOURCE[0]}")/environment.sh"
+myk9_cloud_tools
+myk9_cloud_runtime
 export ASTRO_TELEMETRY_DISABLED="${ASTRO_TELEMETRY_DISABLED:-1}"
 export MYK9_CLOUD=1
-export PATH="$MYK9_TOOLS_DIR:$PATH"
 
 # Preserve provider TLS/CA flags and any explicit heap choice.
 case " ${NODE_OPTIONS:-} " in
@@ -39,6 +31,4 @@ case " ${NODE_OPTIONS:-} " in
   *) export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--max-old-space-size=6144" ;;
 esac
 
-mkdir -p "$MYK9_TOOLS_DIR" "$COREPACK_HOME" "$XDG_CONFIG_HOME" \
-  "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$DENO_DIR"
 exec "$@"

@@ -123,6 +123,80 @@ describe('scripts/cloud/setup.sh in a cloud session', () => {
     expect(readdirSync(sandbox.home)).toEqual([]);
   });
 
+  it('direct setup and wrapped tasks use the same tools in a linked worktree', () => {
+    const gitEnv = { ...process.env, GIT_CONFIG_NOSYSTEM: '1' };
+    expect(
+      spawnSync(
+        'git',
+        [
+          '-C',
+          sandbox.repo,
+          '-c',
+          'user.name=Fixture',
+          '-c',
+          'user.email=fixture@example.invalid',
+          'add',
+          '.',
+        ],
+        { env: gitEnv }
+      ).status
+    ).toBe(0);
+    expect(
+      spawnSync(
+        'git',
+        [
+          '-C',
+          sandbox.repo,
+          '-c',
+          'user.name=Fixture',
+          '-c',
+          'user.email=fixture@example.invalid',
+          'commit',
+          '-qm',
+          'fixture',
+        ],
+        { env: gitEnv }
+      ).status
+    ).toBe(0);
+    const linked = join(sandbox.base, 'linked');
+    expect(
+      spawnSync('git', ['-C', sandbox.repo, 'worktree', 'add', '-qb', 'feature', linked], {
+        env: gitEnv,
+      }).status
+    ).toBe(0);
+    // The stub sees the exported setup destination without downloading anything.
+    stub(
+      'pnpm',
+      '[ "$1" = "--version" ] && { echo 9.15.9; exit 0; }; echo "$MYK9_TOOLS_DIR" > "$TOOLS_RECEIPT"'
+    );
+    const receipt = join(sandbox.base, 'tools.txt');
+    const env = {
+      ...process.env,
+      PATH: `${sandbox.stubs}:${dirname(process.execPath)}:/usr/bin:/bin`,
+      HOME: sandbox.home,
+      CLAUDE_CODE_REMOTE: 'true',
+      MYK9_CLOUD_HOME: undefined,
+      MYK9_TOOLS_DIR: undefined,
+      CALL_LOG: sandbox.callLog,
+      TOOLS_RECEIPT: receipt,
+    };
+    const setup = spawnSync('bash', [SETUP], {
+      cwd: linked,
+      env,
+      encoding: 'utf8',
+      timeout: 10_000,
+    });
+    expect(setup.status, setup.stderr).toBe(0);
+    const wrapped = spawnSync(
+      'bash',
+      [join(HERE, 'run.sh'), 'bash', '-c', 'printf "%s" "$MYK9_TOOLS_DIR"'],
+      { cwd: linked, env, encoding: 'utf8', timeout: 10_000 }
+    );
+    expect(wrapped.status, wrapped.stderr).toBe(0);
+    expect(wrapped.stdout).toBe(join(sandbox.repo, '.cloud-tools', 'bin'));
+    expect(readFileSync(receipt, 'utf8').trim()).toBe(wrapped.stdout);
+  }, 20_000);
+
   it('forwards a Claude reviewer selection to the preflight', () => {
     const result = runSetup(CLOUD, ['--role=reviewer', '--reviewer-harness=claude']);
     expect(result.status).toBe(0);

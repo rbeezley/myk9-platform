@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readdirSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -20,6 +21,7 @@ const ENV_KEYS = [
   'MYK9_CLOUD',
   'MYK9_TOOLS_DIR',
   'COREPACK_HOME',
+  'PNPM_HOME',
   'XDG_CONFIG_HOME',
   'XDG_CACHE_HOME',
   'XDG_DATA_HOME',
@@ -113,26 +115,70 @@ it('requires a cloud marker and a command before writing anything', ({ sandbox }
   expect(readdirSync(sandbox.home)).toEqual([]);
 });
 
-it('restores writable cloud settings independently in every fresh shell', ({ sandbox }) => {
-  const cloudHome = join(sandbox.repo, '.cloud-tools');
-  const expected = {
-    MYK9_CLOUD: '1',
-    MYK9_TOOLS_DIR: join(cloudHome, 'bin'),
-    COREPACK_HOME: join(cloudHome, 'corepack'),
-    XDG_CONFIG_HOME: join(cloudHome, 'config'),
-    XDG_CACHE_HOME: join(cloudHome, 'cache'),
-    XDG_DATA_HOME: join(cloudHome, 'data'),
-    XDG_STATE_HOME: join(cloudHome, 'state'),
-    DENO_DIR: join(cloudHome, 'cache', 'deno'),
-    NODE_OPTIONS: '--max-old-space-size=6144',
-    ASTRO_TELEMETRY_DISABLED: '1',
-  };
+it('preserves writable defaults, config and warmed caches in fresh shells', ({ sandbox }) => {
+  const config = join(sandbox.home, '.config');
+  mkdirSync(join(config, 'git'), { recursive: true });
+  writeFileSync(join(config, 'git', 'config'), '[user]\nname = Cloud Fixture\n');
+  const corepack = join(sandbox.home, 'corepack');
+  const browsers = join(sandbox.home, '.cache', 'ms-playwright');
+  mkdirSync(corepack, { recursive: true });
+  mkdirSync(browsers, { recursive: true });
+  writeFileSync(join(corepack, 'prepared'), 'fixture');
   for (let attempt = 0; attempt < 2; attempt++) {
-    const result = run(sandbox);
+    const result = run(sandbox, { COREPACK_HOME: corepack });
     expect(result.status, result.stderr).toBe(0);
-    expect(JSON.parse(result.stdout)).toEqual(expected);
+    const env = JSON.parse(result.stdout);
+    expect(env.COREPACK_HOME).toBe(corepack);
+    for (const key of [
+      'XDG_CONFIG_HOME',
+      'XDG_CACHE_HOME',
+      'XDG_DATA_HOME',
+      'XDG_STATE_HOME',
+      'PNPM_HOME',
+      'DENO_DIR',
+    ]) {
+      expect(env[key], key).toBeUndefined();
+    }
   }
-  expect(readdirSync(sandbox.home)).toEqual([]);
+  const identity = run(sandbox, {}, ['git', 'config', 'user.name']);
+  expect(identity.stdout.trim()).toBe('Cloud Fixture');
+  expect(readFileSync(join(corepack, 'prepared'), 'utf8')).toBe('fixture');
+  expect(readdirSync(browsers)).toEqual([]);
+});
+
+it('redirects only unwritable tool, Corepack, pnpm and Deno paths', ({ sandbox }) => {
+  const blocked = join(sandbox.base, 'blocked');
+  mkdirSync(blocked);
+  chmodSync(blocked, 0o555);
+  const result = run(sandbox, {
+    MYK9_TOOLS_DIR: blocked,
+    COREPACK_HOME: blocked,
+    PNPM_HOME: blocked,
+    DENO_DIR: blocked,
+    XDG_CONFIG_HOME: blocked,
+    XDG_CACHE_HOME: blocked,
+  });
+  expect(result.status, result.stderr).toBe(0);
+  const env = JSON.parse(result.stdout);
+  const cloudHome = join(sandbox.repo, '.cloud-tools');
+  expect(env.MYK9_TOOLS_DIR).toBe(join(cloudHome, 'bin'));
+  expect(env.COREPACK_HOME).toBe(join(cloudHome, 'corepack'));
+  expect(env.PNPM_HOME).toBe(join(cloudHome, 'pnpm'));
+  expect(env.DENO_DIR).toBe(join(cloudHome, 'deno'));
+  // Config/cache discovery is untouched even when read-only: no hidden logins/browsers.
+  expect(env.XDG_CONFIG_HOME).toBe(blocked);
+  expect(env.XDG_CACHE_HOME).toBe(blocked);
+  expect(env.ASTRO_TELEMETRY_DISABLED).toBe('1');
+});
+
+it('uses explicit cloud storage without Git discovery outside a checkout', ({ sandbox }) => {
+  const result = run(
+    sandbox,
+    { MYK9_CLOUD_HOME: join(sandbox.base, 'explicit') },
+    undefined,
+    sandbox.base
+  );
+  expect(result.status, result.stderr).toBe(0);
 });
 
 it('shares prepared tools across linked worktrees and finds them on PATH', ({ sandbox }) => {
@@ -196,7 +242,7 @@ it('passes cloud settings through the real Turbo process into docs typecheck', (
   );
   writeFileSync(
     join(app, 'probe.cjs'),
-    `console.log('CLOUD_ENV=' + JSON.stringify({config: process.env.XDG_CONFIG_HOME, telemetry: process.env.ASTRO_TELEMETRY_DISABLED, heap: process.env.NODE_OPTIONS}));`
+    `console.log('CLOUD_ENV=' + JSON.stringify({config: process.env.XDG_CONFIG_HOME, telemetry: process.env.ASTRO_TELEMETRY_DISABLED, heap: process.env.NODE_OPTIONS, corepack: process.env.COREPACK_HOME}));`
   );
   cpSync(resolve(HERE, '../../turbo.json'), join(sandbox.repo, 'turbo.json'));
   // Turbo invokes the package manager; this fixture runs only its local probe.
@@ -206,28 +252,49 @@ it('passes cloud settings through the real Turbo process into docs typecheck', (
     '#!/usr/bin/env node\nconst {spawnSync} = require("node:child_process"); const result = spawnSync(process.execPath, ["probe.cjs"], {stdio: "inherit"}); process.exit(result.status ?? 1);\n'
   );
   chmodSync(pnpm, 0o755);
-  const config = join(sandbox.base, 'writable config');
-  const result = spawnSync(
+  const corepack = join(sandbox.base, 'unwritable corepack');
+  mkdirSync(corepack);
+  chmodSync(corepack, 0o555);
+  const result = run(sandbox, { COREPACK_HOME: corepack }, [
     process.execPath,
-    [TURBO, 'run', 'typecheck', '--filter=@myk9/docs', '--force'],
-    {
-      cwd: sandbox.repo,
-      env: {
-        ...sandbox.env,
-        XDG_CONFIG_HOME: config,
-        ASTRO_TELEMETRY_DISABLED: '1',
-        NODE_OPTIONS: '--max-old-space-size=6144',
-      },
-      encoding: 'utf8',
-      timeout: 10_000,
-    }
-  );
+    TURBO,
+    'run',
+    'typecheck',
+    '--filter=@myk9/docs',
+    '--force',
+  ]);
   expect(result.status, result.stderr).toBe(0);
   const output = result.stdout.match(/CLOUD_ENV=(\{[^\n]+\})/);
   expect(output, result.stdout).not.toBeNull();
+  const configText = readFileSync(resolve(HERE, '../../turbo.json'), 'utf8').replace(
+    /^\s*\/\/.*$/gm,
+    ''
+  );
+  const config = JSON.parse(configText);
+  expect(config.globalPassThroughEnv).toBeUndefined();
+  const runtimeShell = ['environment.sh', 'run.sh']
+    .map(file => readFileSync(join(HERE, file), 'utf8'))
+    .join('\n');
+  const directOnly = new Set([
+    'MYK9_CLOUD',
+    'MYK9_CLOUD_HOME',
+    'MYK9_TOOLS_DIR',
+    'DENO_DIR',
+    'PATH',
+  ]);
+  const runtimeKeys = [...runtimeShell.matchAll(/(?:myk9_writable_path|export) (\w+)/g)]
+    .map(match => match[1]!)
+    .filter(key => !directOnly.has(key));
+  // Discover exports from both scripts: adding an export without a task allowance
+  // fails here. The excluded names are direct cloud-command discovery only.
+  for (const task of ['build', 'typecheck', 'lint', 'test', 'dev']) {
+    expect(config.tasks[task].passThroughEnv).toEqual(
+      expect.arrayContaining([...runtimeKeys, 'NODE_OPTIONS', 'ASTRO_TELEMETRY_DISABLED'])
+    );
+  }
   expect(JSON.parse(output![1]!)).toEqual({
-    config,
     telemetry: '1',
     heap: '--max-old-space-size=6144',
+    corepack: join(sandbox.repo, '.cloud-tools', 'corepack'),
   });
-});
+}, 20_000);

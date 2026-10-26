@@ -14,7 +14,7 @@
 #
 # Usage: bash scripts/cloud/setup.sh [--force] [--role=implementer|reviewer|publisher]
 #        [--reviewer-harness=codex|claude]   (reviewer only; preflight defaults to codex)
-# Env:   MYK9_TOOLS_DIR  where tools are installed (default <repo>/.cloud-tools/bin)
+# Env:   MYK9_TOOLS_DIR  default <primary-checkout>/.cloud-tools/bin (shared with run.sh)
 #        MYK9_CLOUD=1    explicit cloud marker for providers with none of their own
 set -euo pipefail
 
@@ -55,7 +55,10 @@ fi
 
 ROOT="$(git rev-parse --show-toplevel)"
 PINS="$ROOT/scripts/cloud/tool-versions.json"
-TOOLS_DIR="${MYK9_TOOLS_DIR:-$ROOT/.cloud-tools/bin}"
+# shellcheck source=scripts/cloud/environment.sh
+source "$(dirname "${BASH_SOURCE[0]}")/environment.sh"
+myk9_cloud_tools
+TOOLS_DIR="$MYK9_TOOLS_DIR"
 
 pin() { # pin <tool> <field>
   node -e 'const p = require(process.argv[1])[process.argv[2]]; process.stdout.write(String(p[process.argv[3]] ?? ""))' \

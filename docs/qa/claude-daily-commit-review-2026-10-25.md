@@ -4,6 +4,10 @@ source: claude. **11 of 11 uncovered commits reviewed; the window is complete.**
 unchanged-but-worsening P2. No P0 or P1 was introduced or newly confirmed. `main` CI is **green at
 the reviewed tip**, which clears the consequence yesterday's run reported.
 
+Findings filed: [MYK9-1422](https://linear.app/myk9-platform/issue/MYK9-1422) (parent) with
+[MYK9-1423](https://linear.app/myk9-platform/issue/MYK9-1423) (the P3), and
+[MYK9-1402](https://linear.app/myk9-platform/issue/MYK9-1402) updated. Every Linear write succeeded.
+
 The one substantive result of this run is a **local reproduction of MYK9-1402** — yesterday's report
 recorded an unsuccessful attempt. It fails 5 of 9 shuffled single-file runs here, and the root cause
 is a module-scope pointer the test file reassigns on every mock render. That moves the issue from
@@ -285,13 +289,31 @@ Recorded so a later run does not re-derive these.
 | Blocked                              | 0     |
 | Fixes found in subsequent commits    | 0     |
 | Existing QA / Linear references used | 7     |
-| Linear issues created                | 0     |
+| Linear issues created                | 2     |
 | Linear issues updated                | 1     |
 
 No P0 or P1 was introduced or newly confirmed, so no issue was filed under the P0/P1 direct-filing
-rule. The single P3 is new and not recurring; it is recorded as the sole child of the
-`Commit review 2026-10-25 — P2/P3 findings` parent. MYK9-1402 keeps its own issue because it is
-recurring and worsening.
+rule. Every Linear write succeeded.
+
+- **[MYK9-1422](https://linear.app/myk9-platform/issue/MYK9-1422)** —
+  `Commit review 2026-10-25 — P2/P3 findings`, the parent.
+- **[MYK9-1423](https://linear.app/myk9-platform/issue/MYK9-1423)** — NCR-2026-10-25-01, its sole
+  child.
+- **[MYK9-1402](https://linear.app/myk9-platform/issue/MYK9-1402)** — kept its own issue, being
+  recurring and worsening. Its title asserted "`main` is red at `afc542b6d`" and "does not
+  reproduce locally", both false at this baseline, so it was rewritten; priority was set to Medium
+  to match canonical P2 (it read High, which the 2026-10-25 Codex reconciliation had reported as
+  already normalized); and the reproduction, the narrowed root cause and the tightened 20-shuffled-
+  run closure contract were added as a comment.
+
+**Deviation from the task prompt, recorded deliberately.** The prompt asks for `p2`/`p3`,
+`source:claude` and `audit:commit-review` labels. None exists in this workspace, and the
+harness-provenance labels (`Claude`, `Codex`, `lane:mac`, `lane:pc`) were **retired on 2026-10-25 at
+17:42 UTC** — hours before this run — with descriptions stating that provenance belongs in issue
+evidence rather than in labels. Creating them would have reversed a deliberate cleanup, so severity
+and source are recorded in the issue bodies instead, as MYK9-1402 already does, and only the
+existing `Improvement` label was applied. The prompt's label list is stale and
+`docs/operations/scheduled-audits-claude.md` should drop it.
 
 ## Checks run
 
@@ -325,13 +347,18 @@ A skipped check is a coverage gap, not a pass.
 - **Behavioral SQL tests under `supabase/tests/` run only in CI**, so the `get_show_officials`
   reasoning above rests on the live function definition and ACL, read directly, not on a replayed
   test.
-- **MYK9-1288's full acceptance criteria were not read before this report was written.** Walk
-  finding 11 listed five remediations; `7941e4bac` visibly delivers three (results section,
-  secretary email, roster finality), "No entry limit" copy landed earlier outside this window, and
-  no app-level scroll-to-top on route change exists
-  (`grep -rn "ScrollRestoration\|useScrollToTop\|scrollTo({ top"` over non-test source is empty).
-  Whether scroll-to-top is inside MYK9-1288's criteria, and therefore whether closing it on this
-  merge leaves a scope gap, is resolved in the Linear step below and not asserted here.
+- **MYK9-1288 is complete — the scope gap this report first suspected does not exist.** Written
+  before the issue was read, this section asked whether closing MYK9-1288 on `7941e4bac` left walk
+  finding 11's other remediations unmet, having found no app-level scroll-to-top. `get_issue` then
+  gave the five real acceptance criteria, and all five hold at this baseline: show pages open at the
+  top (`components/shows/ShowDetails/ShowPublicLanding.frame.tsx:8-12` — the first search looked
+  only in `App.tsx` and the layout and landing directories, and missed it), every template exposes a
+  way back via `AllShowsBar` (`ShowPublicLanding.tsx:207`), the past-show results criterion is what
+  `7941e4bac` delivered, `HeadlineLandingPage.tsx:229` makes the "The bench is set." headline
+  conditional on `judges.length > 0`, and `ShowPublicLanding.tsx:85` sets the tab title through
+  `useDocumentTitle`. **Nothing is filed against MYK9-1288 and its Done state is correct.** The
+  lesson for the next run: a narrow `grep` over the directories where a behaviour _ought_ to live
+  cannot establish that it is absent.
 - **MYK9-1402's root cause is a located mechanism, not a proven one.** The pointer-reassignment
   path is read from the source and matches the failure signature and rate; it was not confirmed by
   instrumenting which instance `step` points at in a failing run.

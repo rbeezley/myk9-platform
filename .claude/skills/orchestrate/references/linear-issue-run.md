@@ -154,7 +154,8 @@ the differences below come from running in the cloud and win where they conflict
    (the proxy rejects GraphQL). Push with `git push -u origin HEAD`. Open the PR ONLY when
    the work is done and the affected tests and typecheck pass, as a READY (non-draft) PR via
    `gh api repos/rbeezley/myk9-platform/pulls -f title=... -f head=<branch> -f base=main
-   -F draft=false -f body=@<file>`; the PR's existence is how the Mac learns you finished.
+   -F draft=false -F body=@<file>` (`-F` reads the file; `-f` would send the filename as the
+   body). The PR's existence is how the Mac learns you finished.
    Follow `.github/pull_request_template.md`; put the implementer report
    (FILES / APPROACH / TESTS / TYPECHECK / CONCERNS) under Test plan, verbatim, because you
    cannot message the orchestrator. Reference the issue as `Fixes MYK9-<n>`.
@@ -179,12 +180,14 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
 
 - **Watch for the PR**, bounded: every 60 s, up to 15 min at first
   (`gh pr list --head "$BRANCH" --state open --json number,isDraft,headRefOid --jq '.[]'`;
-  `.[]`, never `.[0]`, which turns an empty list into a false hit). A cloud session takes
-  longer than a local one because it installs and builds first, so after the first 15 min keep
-  watching at the same interval until the run's stop time. If the branch never appears on
-  `origin` within 15 min of dispatch, the session failed before it started: re-dispatch once
-  (same prompt file, new session), then hold. A branch with commits but no PR after the stop
-  time is a hold too (In Progress, with the branch named, per the shared table).
+  `.[]`, never `.[0]`, which turns an empty list into a false hit). Two deadlines, both
+  counted from the dispatch time in the ledger and both applying in every mode, continuous or
+  not. **Branch deadline, 15 min:** if the branch never appears on `origin`, the session
+  failed before it started; re-dispatch once (same prompt file, new session), then hold.
+  **PR deadline, 90 min:** a cloud session installs and builds before it works, so keep
+  watching at the same interval, but a branch with commits and no PR at 90 min is a hold
+  (In Progress, with the branch and the session URL named, per the shared table), and so is
+  the run's stop time if it comes first. Polling never runs without one of these endpoints.
 - **Review worktree:** when the PR exists,
   `git -C "$MAIN" fetch origin "$BRANCH" && git -C "$MAIN" worktree add "$WT" "$BRANCH"`, then
   `(cd "$WT" && bash scripts/bootstrap-worktree.sh)`. From here the review gate is the one in
@@ -197,7 +200,12 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
   the form "check out `<branch>`, fix these findings (file:line each), push, do not open a new
   PR". Never push to the branch while a cloud session for it may still be running: a fix
   session is finished when its push lands (`git -C "$MAIN" fetch origin "$BRANCH"` shows the
-  new head). **Max 3 rounds** across both routes, as on the local lane.
+  new head). The fetch moves only the remote-tracking ref, so before re-reviewing bring the
+  review worktree to that head: `git -C "$WT" merge --ff-only "origin/$BRANCH"` on a clean
+  tree (`git -C "$WT" status --short` empty; a refused fast-forward means the Mac and the
+  session both wrote, which is the rule above being broken, so stop and hold). Then re-run
+  the gate on the head the worktree is now at. **Max 3 rounds** across both routes, as on the
+  local lane.
 - **The branch's owner is the cloud session until its PR exists.** Before the PR, the Mac
   never fetches it into a worktree to "help".
 

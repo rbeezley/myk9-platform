@@ -41,9 +41,9 @@ named in the report, not quietly absorbed.
 `Last reviewed SHA` is the newest commit on `main` that has been reviewed for that stream. Dates are
 UTC.
 
-| Stream                | Last reviewed SHA                          | Window end           | Run by                     | Run date   |
-| --------------------- | ------------------------------------------ | -------------------- | -------------------------- | ---------- |
-| `daily-commit-review` | `b7dc2d608acc1883aeaa5d9df00be4b035d2ed48` | 2026-10-25T20:59:39Z | claude-daily-commit-review | 2026-10-25 |
+| Stream                | Last reviewed SHA                          | Window end           | Run by                    | Run date   |
+| --------------------- | ------------------------------------------ | -------------------- | ------------------------- | ---------- |
+| `daily-commit-review` | `956f6ce018c583381e9e42013bcf4e33074b2de4` | 2026-10-26T04:30:41Z | codex-daily-commit-review | 2026-10-26 |
 
 If this row is ever `unset`, nobody has verified which commits the Codex daily stream has actually
 covered; the first run of either automation on this stream must take its default window and stamp a

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { createStepUpFetch, STEP_UP_SQLSTATE } from '@/features/step-up/stepUpFetch';
 import { resetStepUpStore } from '@/features/step-up/stepUpStore';
 import { testJwt } from '@/features/step-up/stepUpTestTokens';
@@ -360,6 +360,17 @@ describe('how the replication layer sees a deadline abort', () => {
 });
 
 describe('isReadDeadlineTimeout (MYK9-1374)', () => {
+  it('exposes the non-retryable code while preserving a visible timeout error', () => {
+    const reason = readDeadlineReason();
+    expectTypeOf<typeof reason.code>().toEqualTypeOf<'ABORT_ERR'>();
+    expect(reason).toBeInstanceOf(Error);
+    expect(reason.name).toBe('TimeoutError');
+    expect(reason.message).toBe(DEADLINE_MESSAGE);
+    expect(reason.code).toBe('ABORT_ERR');
+    expect(isTransientBrowserFetchError(reason)).toBe(true);
+    expect(isAbortSyncError(reason)).toBe(false);
+  });
+
   it('recognises the abort in every shape it reaches a caller', () => {
     const reason = readDeadlineReason();
     expect(isReadDeadlineTimeout(reason)).toBe(true);

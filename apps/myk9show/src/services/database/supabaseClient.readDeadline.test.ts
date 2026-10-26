@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Exercise the configured client and the installed SDK, including its retry loop.
 vi.unmock('@/services/database/supabaseClient');
@@ -7,6 +7,15 @@ import { supabase } from './supabaseClient';
 import { SUPABASE_READ_DEADLINE_MS } from './readDeadlineFetch';
 
 describe('configured Supabase read deadline (MYK9-1355)', () => {
+  beforeAll(async () => {
+    await supabase.auth.initialize();
+    await supabase.auth.stopAutoRefresh();
+  });
+
+  afterAll(async () => {
+    await supabase.auth.dispose();
+  });
+
   beforeEach(() => {
     vi.useFakeTimers();
   });

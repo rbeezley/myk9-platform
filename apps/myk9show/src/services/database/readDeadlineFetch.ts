@@ -19,6 +19,8 @@
  * Every `/rest/v1` GET is deadlined, bulk sync pages included. A page that exceeds 30 s on
  * a saturated server now fails visibly (refresh toast) and the next pass retries. The 30 s
  * value is to be confirmed at the next load rehearsal.
+ * This bounds each fetch attempt. Ordinary SDK retries retain their existing behavior;
+ * a total logical-read budget across those retries is separate work (MYK9-1421).
  *
  * AbortError vs TimeoutError. An `AbortError` means somebody cancelled on purpose: the
  * replication layer (`syncErrorUtils.isAbortSyncMessage`) treats it as a cancelled sync,
@@ -49,19 +51,28 @@ export const SUPABASE_READ_DEADLINE_MS = 30_000;
 
 export const READ_DEADLINE_ERROR_NAME = 'TimeoutError';
 
+/** A visible timeout whose abort code also stops the SDK's transport retry loop. */
+export class ReadDeadlineError extends Error {
+  override readonly name = READ_DEADLINE_ERROR_NAME;
+  readonly code = 'ABORT_ERR' as const;
+
+  constructor(deadlineMs: number) {
+    super(`Read deadline of ${deadlineMs} ms exceeded`);
+  }
+}
+
 /** The abort reason for a read that outlived its deadline. */
-export function readDeadlineReason(deadlineMs: number = SUPABASE_READ_DEADLINE_MS): Error {
-  return Object.assign(new Error(`Read deadline of ${deadlineMs} ms exceeded`), {
-    name: READ_DEADLINE_ERROR_NAME,
-    code: 'ABORT_ERR',
-  });
+export function readDeadlineReason(
+  deadlineMs: number = SUPABASE_READ_DEADLINE_MS
+): ReadDeadlineError {
+  return new ReadDeadlineError(deadlineMs);
 }
 
 const READ_DEADLINE_MESSAGE = /Read deadline of \d+ ms exceeded/;
 
 /**
  * True for the failure a read-deadline abort produces, however it surfaces: the
- * DOMException itself, postgrest-js's rethrow of it, a `DatabaseError` or sync
+ * Error or a TimeoutError DOMException, postgrest-js's rethrow, a `DatabaseError` or sync
  * message that carries its text, or any error whose `cause` chain holds one.
  *
  * Why a caller cares (MYK9-1374): PostgREST does not cancel the statement when

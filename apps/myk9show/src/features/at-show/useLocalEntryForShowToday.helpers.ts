@@ -29,7 +29,7 @@ export function hasLocalEntryForShowToday(input: {
   trials: readonly EntryWindowTrial[];
   show: Pick<ReplicatedShow, 'id' | 'startDate' | 'endDate' | 'deletedAt'> | null | undefined;
   entries: readonly ReplicatedEntry[];
-  dogs: readonly Pick<ReplicatedDog, 'id' | 'ownerId' | 'coOwnerId'>[];
+  dogs: readonly Pick<ReplicatedDog, 'id' | 'ownerId' | 'coOwnerId' | 'deletedAt' | 'deleted_at'>[];
 }): boolean {
   const { personId, showId, now, trials, show, entries, dogs } = input;
   if (!personId || !showId || !show) return false;
@@ -38,12 +38,21 @@ export function hasLocalEntryForShowToday(input: {
   const today = calendarDateInTimeZone(now, getEntryWindowTimezone(trials));
   if (today < show.startDate || today > show.endDate) return false;
 
+  // Like the RPC, a soft-deleted dog admits nobody: not its owner or co-owner,
+  // and not the handler of an entry for it.
+  const deletedDogIds = new Set(
+    dogs.filter(dog => dog.deletedAt ?? dog.deleted_at).map(dog => dog.id)
+  );
   const ownedDogIds = new Set(
-    dogs.filter(dog => dog.ownerId === personId || dog.coOwnerId === personId).map(dog => dog.id)
+    dogs
+      .filter(dog => !deletedDogIds.has(dog.id))
+      .filter(dog => dog.ownerId === personId || dog.coOwnerId === personId)
+      .map(dog => dog.id)
   );
   return entries.some(entry => {
     if (entry.showId !== showId) return false;
     if (entry.deletedAt ?? entry.deleted_at) return false;
+    if (entry.dogId && deletedDogIds.has(entry.dogId)) return false;
     if (INACTIVE_ENTRY_STATUSES.has(entry.entryStatus ?? '')) return false;
     return entry.handlerId === personId || (entry.dogId ? ownedDogIds.has(entry.dogId) : false);
   });

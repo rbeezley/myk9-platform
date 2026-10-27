@@ -76,6 +76,17 @@ describe('hasLocalEntryForShowToday', () => {
         run({ entries: [coOwnedEntry({ entryStatus: 'scratched' })], dogs: coOwnedDogs })
       ).toBe(false);
     });
+
+    it('admits nobody for a soft-deleted dog, as the RPC requires d.deleted_at is null', () => {
+      const deletedDogs = [{ ...coOwnedDogs[0], deletedAt: '2026-10-01T00:00:00Z' }];
+      expect(run({ entries: [coOwnedEntry()], dogs: deletedDogs })).toBe(false);
+      expect(run({ personId: 'primary-owner', entries: [coOwnedEntry()], dogs: deletedDogs })).toBe(
+        false
+      );
+      expect(run({ personId: 'someone-else', entries: [coOwnedEntry()], dogs: deletedDogs })).toBe(
+        false
+      );
+    });
   });
 
   it('ignores an entry that is neither handled nor owned by the person', () => {

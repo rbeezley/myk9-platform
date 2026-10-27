@@ -1,6 +1,6 @@
 import type { CheckInStatus } from '@myk9/core';
 import type { Database } from '@/types/supabase';
-import { optionalColumn } from './optionalColumn';
+import { optionalColumn, optionalNullableColumn } from './optionalColumn';
 
 /** `results_private` from a view row, or undefined when the view lacks it. */
 function resultsPrivateColumn(row: unknown): boolean | undefined {
@@ -413,10 +413,11 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     entryStatus: row.entry_status ?? undefined,
     checkInStatus: (dbRow.check_in_status as CheckInStatus) ?? 'no-status',
     check_in_status: (dbRow.check_in_status as CheckInStatus) ?? 'no-status',
-    // MYK9-1396. `optionalColumn`: absent until migration 20261027014900 is pushed.
-    checkInStatusBeforePull: optionalColumn(row, 'check_in_status_before_pull') as
+    // MYK9-1396. Absent until migration 20261027014900 is pushed (undefined); an
+    // explicit server NULL stays null so it equals the local mirror's null.
+    checkInStatusBeforePull: optionalNullableColumn(row, 'check_in_status_before_pull') as
       CheckInStatus | null | undefined,
-    check_in_status_before_pull: optionalColumn(row, 'check_in_status_before_pull') as
+    check_in_status_before_pull: optionalNullableColumn(row, 'check_in_status_before_pull') as
       CheckInStatus | null | undefined,
     jumpHeight: row.jump_height ?? undefined,
     entryFee: row.entry_fee ?? undefined,

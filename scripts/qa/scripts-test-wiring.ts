@@ -6,6 +6,7 @@
 // Deliberately a declared list, not a heuristic: a script command whose shape is
 // not understood THROWS (naming the script) instead of being guessed at.
 import { matchesGlob } from 'node:path';
+import { classify, gatingJobs, parseWorkflow, workspaceDirs } from './required-job-launchers';
 
 export interface AllowlistEntry {
   file: string;
@@ -26,16 +27,20 @@ const RUNNERS: Runner[] = [
 ];
 
 /**
- * Script names a workflow file invokes as `pnpm <name>` / `pnpm run <name>` that end in `:test`.
- * Only a line whose command IS that pnpm call counts (a `run:` value or a `run: |` block line):
- * an `if:` expression, an `echo "pnpm …"` or a `name:` string mentioning one runs nothing.
+ * Root `*:test` scripts the REQUIRED CI jobs (and their `needs:`) run, parsed by the launcher
+ * pin's workflow reader, so the two guards share one reading of ci.yml: a step's `run:` lines
+ * only (never an `if:`, `name:` or echo), and never a job outside the required set.
  */
-export function extractInvokedTestScripts(workflowText: string): string[] {
+export function requiredJobTestScripts(workflowText: string, root: string): string[] {
+  const pkgDirs = workspaceDirs(root);
   const names = new Set<string>();
-  for (const rawLine of workflowText.split('\n')) {
-    const m = rawLine.match(/^\s*(?:-\s+)?(?:run:\s+)?pnpm\s+(?:run\s+)?([A-Za-z0-9:_-]+)(?:\s|$)/);
-    const name = m?.[1];
-    if (name?.endsWith(':test')) names.add(name);
+  for (const job of gatingJobs(parseWorkflow(workflowText))) {
+    for (const inv of job.invocations) {
+      const c = classify(inv.command, inv.workdir, pkgDirs);
+      if (c.kind === 'script' && c.pkgDir === '.' && c.script.endsWith(':test')) {
+        names.add(c.script);
+      }
+    }
   }
   return [...names].sort();
 }
@@ -114,7 +119,8 @@ export function resolveScriptFiles(
 export interface WiringInput {
   testFiles: string[];
   packageScripts: Record<string, string>;
-  workflowTexts: string[];
+  /** Root `*:test` script names CI runs (see requiredJobTestScripts). */
+  invokedScripts: string[];
   allowlist?: AllowlistEntry[];
 }
 
@@ -128,14 +134,14 @@ export interface WiringResult {
 
 export function checkScriptsTestWiring(input: WiringInput): WiringResult {
   const allowlist = input.allowlist ?? UNWIRED_ALLOWLIST;
-  const invoked = [
-    ...new Set(input.workflowTexts.flatMap(t => extractInvokedTestScripts(t))),
-  ].sort();
   const coverage: Record<string, string[]> = {};
-  for (const name of invoked) {
+  for (const name of [...new Set(input.invokedScripts)].sort()) {
     const command = input.packageScripts[name];
-    // A `pnpm foo:test` in a workflow that is not a root script (e.g. a filtered package) is not ours.
-    if (command === undefined) continue;
+    if (command === undefined) {
+      throw new Error(
+        `scripts-test-wiring: CI runs "${name}", which is not a root package.json script.`
+      );
+    }
     coverage[name] = resolveScriptFiles(name, command, input.testFiles);
   }
   const covered = new Set(Object.values(coverage).flat());

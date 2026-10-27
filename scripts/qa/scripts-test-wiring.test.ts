@@ -2,9 +2,10 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { WORKFLOW_PATH } from './required-job-launchers';
 import {
   checkScriptsTestWiring,
-  extractInvokedTestScripts,
+  requiredJobTestScripts,
   resolveScriptFiles,
   UNWIRED_ALLOWLIST,
 } from './scripts-test-wiring';
@@ -13,13 +14,6 @@ const ROOT = resolve(__dirname, '../..');
 
 // Vitest's default excludes; a test file under these never runs, so it is not in the universe.
 const SKIP_DIRS = new Set(['node_modules', 'dist', '.git']);
-
-/**
- * The workflows that gate a pull request. A script invoked only from a schedule-only or
- * dormant workflow (deploy-staging.yml waits on MYK9-44) never runs on a PR, so it does not
- * count as coverage. Add a workflow here only if it runs on pull_request.
- */
-const PR_GATING_WORKFLOWS = ['.github/workflows/ci.yml'];
 
 function walk(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
@@ -30,20 +24,21 @@ function walk(dir: string): string[] {
 }
 
 function loadRepo() {
+  // Same pattern as the root vitest project's include (VITEST_ROOT_INCLUDE).
   const testFiles = walk(join(ROOT, 'scripts'))
     .map(p => relative(ROOT, p))
-    .filter(f => /\.test\.(?:ts|tsx|mts)$/.test(f))
+    .filter(f => /\.test\.(?:ts|tsx)$/.test(f))
     .sort();
   const packageScripts = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
     .scripts as Record<string, string>;
-  const workflowTexts = PR_GATING_WORKFLOWS.map(f => readFileSync(join(ROOT, f), 'utf8'));
-  return { testFiles, packageScripts, workflowTexts };
+  const workflow = readFileSync(join(ROOT, WORKFLOW_PATH), 'utf8');
+  return { testFiles, packageScripts, invokedScripts: requiredJobTestScripts(workflow, ROOT) };
 }
 
 describe('scripts test wiring: the real repo', () => {
-  it('runs every scripts/**/*.test.ts file from a CI-invoked qa:*:test script (or allowlists it)', () => {
+  it('runs every scripts/ test file from a required-job *:test script (or allowlists it)', () => {
     const result = checkScriptsTestWiring(loadRepo());
-    expect(result.unwired, 'test files no CI-invoked script runs').toEqual([]);
+    expect(result.unwired, 'test files no required CI job runs').toEqual([]);
     expect(result.staleAllowlist, 'stale allowlist entries').toEqual([]);
   });
 
@@ -51,6 +46,7 @@ describe('scripts test wiring: the real repo', () => {
     const repo = loadRepo();
     const result = checkScriptsTestWiring(repo);
     expect(repo.testFiles.length).toBeGreaterThan(50);
+    expect(repo.invokedScripts.length).toBeGreaterThan(20);
     expect(Object.values(result.coverage).flat()).toContain(
       'scripts/qa/scripts-test-wiring.test.ts'
     );
@@ -69,6 +65,18 @@ describe('scripts test wiring: the real repo', () => {
     expect(checkScriptsTestWiring(mutated).unwired).toEqual(['scripts/qa/gh-pages.test.ts']);
   });
 
+  it('goes red when a required job stops invoking a script (mutation check on real data)', () => {
+    const repo = loadRepo();
+    const mutated = {
+      ...repo,
+      invokedScripts: repo.invokedScripts.filter(s => s !== 'qa:inflight:test'),
+    };
+    expect(checkScriptsTestWiring(mutated).unwired).toEqual([
+      'scripts/qa/gh-pages.test.ts',
+      'scripts/qa/inflight.test.ts',
+    ]);
+  });
+
   it('allowlist entries all carry a reason', () => {
     for (const entry of UNWIRED_ALLOWLIST) expect(entry.reason.trim().length).toBeGreaterThan(10);
   });
@@ -76,16 +84,11 @@ describe('scripts test wiring: the real repo', () => {
 
 describe('scripts test wiring: known-answer fixtures', () => {
   const testFiles = ['scripts/a.test.ts', 'scripts/qa/b.test.ts', 'scripts/dir/c.test.ts'];
-  const workflow = [
-    'steps:',
-    '  - run: |',
-    '      pnpm qa:a:test',
-    '      pnpm run qa:dir:test',
-  ].join('\n');
   const scripts = {
     'qa:a:test': 'vitest run scripts/a.test.ts scripts/qa/*.test.ts --sequence.shuffle',
     'qa:dir:test': 'vitest run scripts/dir',
   };
+  const invokedScripts = ['qa:a:test', 'qa:dir:test'];
 
   it('reports exactly the unwired file', () => {
     const result = checkScriptsTestWiring({
@@ -93,7 +96,7 @@ describe('scripts test wiring: known-answer fixtures', () => {
         f => f !== 'scripts/qa/b.test.ts'
       ),
       packageScripts: { ...scripts, 'qa:a:test': 'vitest run scripts/a.test.ts' },
-      workflowTexts: [workflow],
+      invokedScripts,
       allowlist: [],
     });
     expect(result.unwired).toEqual(['scripts/qa/orphan.test.ts']);
@@ -103,38 +106,32 @@ describe('scripts test wiring: known-answer fixtures', () => {
     const result = checkScriptsTestWiring({
       testFiles,
       packageScripts: scripts,
-      workflowTexts: [workflow],
+      invokedScripts,
       allowlist: [],
     });
     expect(result.unwired).toEqual([]);
     expect(result.staleAllowlist).toEqual([]);
   });
 
-  it('does not count a script no workflow invokes', () => {
+  it('does not count a script CI does not invoke', () => {
     const result = checkScriptsTestWiring({
       testFiles,
       packageScripts: scripts,
-      workflowTexts: ['run: pnpm qa:a:test'],
+      invokedScripts: ['qa:a:test'],
       allowlist: [],
     });
     expect(result.unwired).toEqual(['scripts/dir/c.test.ts']);
   });
 
-  it('counts only lines whose command is the pnpm call', () => {
-    const text = [
-      '# pnpm qa:commented:test',
-      "  if: contains(github.event.head_commit.message, 'pnpm qa:if:test')",
-      '  - name: Runs pnpm qa:name:test',
-      '      echo "pnpm qa:echo:test"',
-      '  run: pnpm qa:inline:test',
-      '  - run: pnpm run qa:dashrun:test',
-      '      pnpm qa:block:test',
-    ].join('\n');
-    expect(extractInvokedTestScripts(text)).toEqual([
-      'qa:block:test',
-      'qa:dashrun:test',
-      'qa:inline:test',
-    ]);
+  it('throws when CI invokes a script the root package.json does not define', () => {
+    expect(() =>
+      checkScriptsTestWiring({
+        testFiles,
+        packageScripts: scripts,
+        invokedScripts: [...invokedScripts, 'qa:gone:test'],
+        allowlist: [],
+      })
+    ).toThrow(/"qa:gone:test".*not a root package.json script/);
   });
 
   it('throws on brace and ** globs the CI shell does not expand like matchesGlob', () => {
@@ -147,10 +144,10 @@ describe('scripts test wiring: known-answer fixtures', () => {
   });
 
   it('honours the allowlist, and fails a stale one (missing file or covered file)', () => {
-    const base = { testFiles, packageScripts: scripts, workflowTexts: [workflow] };
     const result = checkScriptsTestWiring({
-      ...base,
       testFiles: [...testFiles, 'scripts/x.test.ts'],
+      packageScripts: scripts,
+      invokedScripts,
       allowlist: [
         { file: 'scripts/x.test.ts', reason: 'deliberately local only' },
         { file: 'scripts/gone.test.ts', reason: 'file was deleted' },

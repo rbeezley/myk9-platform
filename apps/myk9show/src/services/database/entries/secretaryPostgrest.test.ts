@@ -140,6 +140,72 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
     expect(viewReads[0].select).toContain('payment_notes');
   });
 
+  describe('check_in_status_before_pull on the cold path (MYK9-1396)', () => {
+    function stubView(responses: Array<{ data: unknown; error: unknown }>) {
+      const viewSelects: string[] = [];
+      mocks.from.mockImplementation((relation: string) => {
+        let selected = '';
+        const respond = () => {
+          if (relation !== 'view_authenticated_entry_results') return { data: [], error: null };
+          return responses[viewSelects.indexOf(selected)] ?? { data: [], error: null };
+        };
+        const query = {
+          select: vi.fn((columns: string) => {
+            selected = columns;
+            if (relation === 'view_authenticated_entry_results') viewSelects.push(columns);
+            return query;
+          }),
+          eq: vi.fn(() => query),
+          is: vi.fn(() => query),
+          in: vi.fn(() => query),
+          filter: vi.fn(() => query),
+          order: vi.fn(() => Promise.resolve(respond())),
+          then: (resolve: (value: unknown) => unknown) => Promise.resolve(respond()).then(resolve),
+        };
+        return query;
+      });
+      return viewSelects;
+    }
+
+    it('reads the stored prior so an Accept here can restore it', async () => {
+      const viewSelects = stubView([
+        {
+          data: [{ id: 'entry-1', show_id: 'show-1', check_in_status_before_pull: 'checked-in' }],
+          error: null,
+        },
+      ]);
+
+      const result = await postgrestGetSecretaryEntriesForShow('show-1', Date.now(), 'test');
+
+      expect(viewSelects[0]).toContain('check_in_status_before_pull');
+      expect(result.data[0]).toMatchObject({ check_in_status_before_pull: 'checked-in' });
+    });
+
+    it('drops only that column when the schema does not have it yet, and still loads', async () => {
+      const viewSelects = stubView([
+        {
+          data: null,
+          error: {
+            code: '42703',
+            message:
+              'column view_authenticated_entry_results.check_in_status_before_pull does not exist',
+          },
+        },
+        { data: [{ id: 'entry-1', show_id: 'show-1' }], error: null },
+      ]);
+
+      const result = await postgrestGetSecretaryEntriesForShow('show-1', Date.now(), 'test');
+
+      // The main entries read carries the bookkeeping columns; the held-flag read is separate.
+      const mainReads = viewSelects.filter(columns => columns.includes('payment_notes'));
+      expect(mainReads).toHaveLength(2);
+      expect(mainReads[0]).toContain('check_in_status_before_pull');
+      expect(mainReads[1]).not.toContain('check_in_status_before_pull');
+      expect(mainReads[1]).toContain('moved_from_entry_id');
+      expect(result.data).toHaveLength(1);
+    });
+  });
+
   it('projects the canonical handler identity from joined handler and owner rows', async () => {
     mocks.from.mockImplementation((relation: string) => {
       const query = {

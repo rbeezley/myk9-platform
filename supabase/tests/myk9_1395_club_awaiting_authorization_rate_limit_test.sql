@@ -132,7 +132,15 @@ BEGIN
 END;
 $$;
 
--- 2. A read row resurfaces: mark it read and old, insert another club.
+-- 2. A read row resurfaces: mark it read and old, insert another club. The
+--    folded notice is a NEW row (new id), so a client showing the old id renders
+--    it as new and an acknowledgment of the old id cannot consume it.
+CREATE TEMP TABLE _t1395_old_id AS
+SELECT id FROM public.notifications
+WHERE type = 'club_awaiting_authorization'
+  AND user_id = '00000000-0000-0000-0000-000001395101'
+  AND deep_link_url = '/admin/onboarding?creator=00000000-0000-0000-0000-000001395104';
+
 UPDATE public.notifications
 SET read_at = now(), created_at = now() - interval '1 hour'
 WHERE type = 'club_awaiting_authorization'
@@ -159,7 +167,13 @@ BEGIN
   IF v_row.message NOT LIKE '%latest: MYK9-1395 A4.' THEN
     RAISE EXCEPTION 'FAIL message not updated: %', v_row.message;
   END IF;
-  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: a read row resurfaces unread with a newer created_at';
+  IF v_row.id = (SELECT id FROM _t1395_old_id) THEN
+    RAISE EXCEPTION 'FAIL notify_site_admins_club_awaiting_authorization reused the notification id %', v_row.id;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.notifications n JOIN _t1395_old_id o ON o.id = n.id) THEN
+    RAISE EXCEPTION 'FAIL the old notice row still exists alongside the folded one';
+  END IF;
+  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: a read row resurfaces as a new unread row (new id) with a newer created_at';
 END;
 $$;
 

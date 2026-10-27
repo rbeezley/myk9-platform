@@ -7,9 +7,11 @@
 -- Changes against 20261022013700 (the latest definition):
 --   1. FOLD, don't drop: exactly one club_awaiting_authorization row per active
 --      site admin per creator, deep link /admin/onboarding?creator=<auth uid>.
---      A repeat insert by the same creator UPDATEs that row in place (message
---      names the latest club, read_at back to NULL, created_at moved to the clock
---      so it resurfaces unread). The bound is one row per admin per creator,
+--      A repeat insert by the same creator REPLACES that row with a new one (new
+--      id, message names the latest club, unread, current created_at) so it
+--      resurfaces: reusing the id let a client that already showed it ignore the
+--      update, and a stale mark-read by id consume the new club's notice (Codex
+--      round 3). The bound is one row per admin per creator,
 --      forever, kept current. Rows written by the old trigger (/clubs/<id>) are
 --      left alone.
 --   2. pg_advisory_xact_lock keyed on the creator serialises concurrent inserts
@@ -38,6 +40,7 @@ DECLARE
   v_creator text;
   v_admin uuid;
   v_link text;
+  v_folded boolean;
   -- MYK9-1395: the name is caller-supplied; cap what reaches an admin's inbox.
   v_name text := CASE WHEN char_length(NEW.name) > 80
                       THEN left(NEW.name, 80) || '...' ELSE NEW.name END;
@@ -87,23 +90,25 @@ BEGIN
       -- does: a stale id would abort the secretary's club INSERT.
       AND EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.auth_user_id)
   LOOP
-    UPDATE public.notifications n
-    SET message = format('%s created clubs waiting for authorization, latest: %s.', v_creator, v_name),
-        read_at = NULL,
-        created_at = clock_timestamp()
+    -- Replace, never update in place: the folded notice gets a NEW id, so a
+    -- client already showing the old id renders it as new, and acknowledging
+    -- the old alert (mark-read by id) cannot consume this one (Codex round 3).
+    DELETE FROM public.notifications n
     WHERE n.user_id = v_admin
       AND n.type = 'club_awaiting_authorization'
       AND n.deep_link_url = v_link;
+    v_folded := FOUND;
 
-    IF NOT FOUND THEN
-      INSERT INTO public.notifications (user_id, type, message, deep_link_url)
-      VALUES (
-        v_admin,
-        'club_awaiting_authorization',
-        format('%s was created by %s and is waiting for authorization.', v_name, v_creator),
-        v_link
-      );
-    END IF;
+    INSERT INTO public.notifications (user_id, type, message, deep_link_url)
+    VALUES (
+      v_admin,
+      'club_awaiting_authorization',
+      CASE WHEN v_folded
+        THEN format('%s created clubs waiting for authorization, latest: %s.', v_creator, v_name)
+        ELSE format('%s was created by %s and is waiting for authorization.', v_name, v_creator)
+      END,
+      v_link
+    );
   END LOOP;
 
   RETURN NEW;
@@ -111,7 +116,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.notify_site_admins_club_awaiting_authorization() IS
-  'MYK9-1315/MYK9-1395: AFTER INSERT ON clubs. When a non-site-admin account inserts a club that is still unauthorized, writes one club_awaiting_authorization in-app notification per active site admin (the per-club /clubs/<id> link is no longer written). One notification row per active site admin per creator, folded in place and resurfaced unread with the latest club name (deep link /admin/onboarding?creator=<uid>); the club name is capped at 80 characters. Seed/service_role inserts (no auth.uid()) and site admins'' own inserts raise nothing.';
+  'MYK9-1315/MYK9-1395: AFTER INSERT ON clubs. When a non-site-admin account inserts a club that is still unauthorized, writes one club_awaiting_authorization in-app notification per active site admin (the per-club /clubs/<id> link is no longer written). One notification row per active site admin per creator, replaced by a new unread row naming the latest club on each further club (deep link /admin/onboarding?creator=<uid>); the club name is capped at 80 characters. Seed/service_role inserts (no auth.uid()) and site admins'' own inserts raise nothing.';
 
 -- Trigger-only: fired by the trigger as its owner, never callable by a client role.
 REVOKE ALL ON FUNCTION public.notify_site_admins_club_awaiting_authorization() FROM PUBLIC;

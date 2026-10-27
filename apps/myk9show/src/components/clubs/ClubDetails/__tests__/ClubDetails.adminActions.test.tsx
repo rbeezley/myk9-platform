@@ -120,6 +120,18 @@ describe('club page admin tabs (MYK9-1293)', () => {
     expect(screen.getByTestId('active-tab')).toHaveTextContent('payments');
   });
 
+  it('lets a site admin with no club_admin scope manage any club, as /club-admin/* admitted them', async () => {
+    const site = adminOf(CLUB_B);
+    site.roles = [UserRole.SITE_ADMIN];
+    site.scopes = [];
+    mockAuth.userWithRoles = site;
+    validated.value = ready(CLUB_B);
+    renderPage(CLUB_A, '?tab=payments');
+
+    expect(await screen.findByTestId('can-manage')).toHaveTextContent('true');
+    expect(screen.getByTestId('active-tab')).toHaveTextContent('payments');
+  });
+
   it.each([
     ['an admin of club B viewing club A', CLUB_A, adminOf(CLUB_B)],
     ['a viewer without the club_admin scope', CLUB_A, null],

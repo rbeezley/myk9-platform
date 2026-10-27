@@ -144,7 +144,12 @@ export const ClubMembersManager: React.FC<ClubMembersManagerProps> = ({ clubId, 
 
         <Card className="border border-border rounded-2xl shadow-sm ">
           <CardContent className="p-6">
-            <PrimaryTabs tabs={clubMembersTabs} value={selectedTab} onValueChange={setSelectedTab}>
+            <PrimaryTabs
+              tabs={clubMembersTabs}
+              value={selectedTab}
+              onValueChange={setSelectedTab}
+              ariaLabel="Member management"
+            >
               {/* Members Tab */}
               <TabsContent value="members" className="mt-6 space-y-4">
                 {showAccessUnavailable && (

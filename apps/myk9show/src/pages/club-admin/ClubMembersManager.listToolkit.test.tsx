@@ -89,6 +89,15 @@ describe('ClubMembersManager list toolkit', () => {
     countUpcomingClubShows.mockResolvedValue(0);
   });
 
+  it("names its tab strip so it is distinct from the club page's own tabs", async () => {
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
+
+    expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
+    const strip = screen.getByRole('tablist', { name: 'Member management' });
+    expect(within(strip).getByRole('tab', { name: /Members/ })).toBeInTheDocument();
+    expect(within(strip).getByRole('tab', { name: /Officers/ })).toBeInTheDocument();
+  });
+
   it('shows a view per membership status with counts, and both members by default', async () => {
     render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 

@@ -25,6 +25,7 @@ function renderAt(route: string) {
     <Routes>
       <Route path="/club-admin/members" element={<ClubAdminRedirect />} />
       <Route path="/club-admin/payments" element={<ClubAdminRedirect />} />
+      <Route path="/club-admin/payments/:clubId" element={<ClubAdminRedirect />} />
       <Route path="/clubs/:id" element={<Where />} />
     </Routes>,
     { initialRoute: route }
@@ -52,6 +53,13 @@ describe('ClubAdminRedirect (MYK9-1293)', () => {
     renderAt('/club-admin/members?q=ann&status=active');
     expect(await screen.findByTestId('where')).toHaveTextContent(
       '/clubs/club-1?q=ann&status=active&tab=members'
+    );
+  });
+
+  it('sends the Stripe return for a named club to THAT club, not the selected one', async () => {
+    renderAt('/club-admin/payments/club-2?connect=return');
+    expect(await screen.findByTestId('where')).toHaveTextContent(
+      '/clubs/club-2?connect=return&tab=payments'
     );
   });
 

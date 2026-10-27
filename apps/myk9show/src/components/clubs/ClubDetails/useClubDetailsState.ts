@@ -105,8 +105,9 @@ export function useClubDetailsState(selectedClub: Club | null) {
   const authorizationControl = useClubAuthorizationControl(selectedClub, isSiteAdmin);
 
   // MYK9-1293: the manager and Payments tab take their club id from this page, so the gate is
-  // simply "club admin for THIS club" (canManageMembers); the store's selected club is irrelevant.
-  const canManageClubAdmin = canManageMembers && Boolean(selectedClub);
+  // "club admin for THIS club" (canManageMembers) or a site admin, who /club-admin/* also admitted;
+  // the store's selected club is irrelevant.
+  const canManageClubAdmin = (canManageMembers || isSiteAdmin) && Boolean(selectedClub);
 
   const tabHidden =
     (!canEditBranding && activeTab === 'branding') ||

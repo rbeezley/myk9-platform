@@ -28,8 +28,13 @@ test.describe('Club-admin membership + staffing journey', () => {
     // /club-admin/members redirects to the Members tab of the club page (MYK9-1293).
     await expect(page).toHaveURL(/\/clubs\/[^/?]+\?.*tab=members/, { timeout: 20_000 });
 
-    const membersTab = page.getByRole('tab', { name: /^Members/ }).first();
-    const officersTab = page.getByRole('tab', { name: 'Officers' });
+    // Two tab strips: the club page's own, and the manager's "Member management" strip.
+    const clubPageTabs = page
+      .getByRole('tablist')
+      .filter({ has: page.getByRole('tab', { name: /Upcoming Shows/ }) });
+    const memberManagementTabs = page.getByRole('tablist', { name: 'Member management' });
+    const membersTab = clubPageTabs.getByRole('tab', { name: /^Members/ });
+    const officersTab = memberManagementTabs.getByRole('tab', { name: 'Officers' });
     await expect(membersTab).toBeVisible();
     await expect(officersTab).toBeVisible();
 
@@ -74,5 +79,8 @@ test.describe('Club-admin membership + staffing journey', () => {
       'true',
       { timeout: 20_000 }
     );
+    await expect(page.getByText(/Your club receives 100% of entry fees\./i)).toBeVisible({
+      timeout: 20_000,
+    });
   });
 });

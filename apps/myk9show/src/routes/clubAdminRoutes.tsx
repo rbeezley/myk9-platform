@@ -41,6 +41,19 @@ export function ClubAdminRoutes() {
           </ClubAdminRoute>
         }
       />
+
+      <Route
+        path="/club-admin/payments/:clubId"
+        element={
+          <ClubAdminRoute>
+            <SuspenseWrapper>
+              <PageTransition>
+                <ClubAdminRedirect />
+              </PageTransition>
+            </SuspenseWrapper>
+          </ClubAdminRoute>
+        }
+      />
     </>
   );
 }

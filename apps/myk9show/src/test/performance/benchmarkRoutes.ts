@@ -21,7 +21,10 @@ export function benchmarkRoutesFor(
       id: 'public-shows',
       role: 'public',
       path: '/shows',
-      readySelector: '[data-testid="show-card"], [data-testid="show-card-vertical"]',
+      // The public list hides demo-club shows, so the seeded benchmark show never
+      // appears here; the result count is the settled state when no real show exists.
+      readySelector:
+        '[data-testid="show-card"], [data-testid="show-card-vertical"], :text-matches("^Showing [0-9]+ shows?")',
     },
     {
       id: 'public-show-detail',
@@ -56,35 +59,25 @@ export function benchmarkRoutesFor(
       readySelector: 'p:text-matches("^Managing [1-9][0-9]* shows?$")',
     },
     {
-      id: 'secretary-setup',
-      role: 'secretary',
-      path: `/shows/${showId}/setup`,
-      readySelector:
-        'div.space-y-4:has(button[aria-label="Cards view"]) > div.grid [role="button"] h3',
-      unavailableSelectors: [
-        ':text("Entry counts are loading.")',
-        ':text("Couldn\'t load entry counts.")',
-      ],
-    },
-    {
       id: 'secretary-entries',
       role: 'secretary',
       path: `/shows/${showId}/entries`,
       readySelector: '[data-testid="registration-totals"]',
     },
     {
-      id: 'secretary-show-day',
+      // Setup and Show Day both redirect into the show home (MYK9-957); this is the
+      // one cockpit page they land on.
+      id: 'secretary-show-home',
       role: 'secretary',
-      path: `/shows/${showId}/show-day`,
-      readySelector: 'section[aria-label="Show Desk"] h2',
+      path: `/shows/${showId}`,
+      readySelector: '[data-testid="secretary-cockpit"]',
     },
     {
       id: 'secretary-results',
       role: 'secretary',
       path: `/shows/${showId}/results`,
-      readySelector:
-        '[data-testid="results-readiness-verdict"]:not(:has-text("No entries are loaded"))',
-      unavailableSelectors: [':text("No entries are loaded for this show")'],
+      // The Results tab (features/results-tab) replaced the Results Control page here.
+      readySelector: 'ul[aria-label="Classes"] li',
     },
     {
       id: 'secretary-reports',

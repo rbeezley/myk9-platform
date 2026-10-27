@@ -32,6 +32,7 @@ const store = vi.hoisted(() => ({
   updateClub: () => {},
   selectClub: vi.fn(),
   selectedClubId: null as string | null,
+  selectedClubUserId: null as string | null,
 }));
 vi.mock('@/store/clubStore', () => ({ useClubStore: () => store }));
 vi.mock('@/store/showStore', () => ({
@@ -136,6 +137,45 @@ describe('club page admin tabs (MYK9-1293)', () => {
 
     await screen.findByTestId('can-manage');
     expect(store.selectClub).toHaveBeenCalledWith(CLUB_A, 'auth-uid');
+  });
+
+  it('makes the opened club the selection for a site admin too', async () => {
+    const site = adminOf(CLUB_B);
+    site.roles = [UserRole.SITE_ADMIN];
+    site.scopes = [];
+    mockAuth.userWithRoles = site;
+    validated.value = ready(CLUB_B);
+    store.selectedClubId = CLUB_B;
+    store.selectedClubUserId = 'auth-uid';
+    store.selectClub.mockClear();
+    renderPage(CLUB_A);
+
+    await screen.findByTestId('can-manage');
+    expect(store.selectClub).toHaveBeenCalledWith(CLUB_A, 'auth-uid');
+  });
+
+  it('records the current user when the same club was last selected by someone else', async () => {
+    mockAuth.userWithRoles = adminOf(CLUB_A);
+    validated.value = ready(CLUB_A);
+    store.selectedClubId = CLUB_A;
+    store.selectedClubUserId = 'another-user';
+    store.selectClub.mockClear();
+    renderPage(CLUB_A);
+
+    await screen.findByTestId('can-manage');
+    expect(store.selectClub).toHaveBeenCalledWith(CLUB_A, 'auth-uid');
+  });
+
+  it('does not re-select when this user already selected this club', async () => {
+    mockAuth.userWithRoles = adminOf(CLUB_A);
+    validated.value = ready(CLUB_A);
+    store.selectedClubId = CLUB_A;
+    store.selectedClubUserId = 'auth-uid';
+    store.selectClub.mockClear();
+    renderPage(CLUB_A);
+
+    await screen.findByTestId('can-manage');
+    expect(store.selectClub).not.toHaveBeenCalled();
   });
 
   it('leaves the selected admin club alone for a viewer who does not administer this club', async () => {

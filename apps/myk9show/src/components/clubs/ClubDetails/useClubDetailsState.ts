@@ -46,7 +46,7 @@ const CLUB_TAB_IDS = ['upcoming', 'past', 'about', 'members', 'payments', 'brand
 
 export function useClubDetailsState(selectedClub: Club | null) {
   const navigate = useNavigate();
-  const { updateClub, selectClub, selectedClubId } = useClubStore();
+  const { updateClub, selectClub, selectedClubId, selectedClubUserId } = useClubStore();
   // Tab state — URL-synced
   const [activeTab, setActiveTabRaw] = useUrlTab(CLUB_TAB_IDS, 'upcoming');
   const setActiveTab = setActiveTabRaw as (tab: ClubTab) => void;
@@ -113,10 +113,19 @@ export function useClubDetailsState(selectedClub: Club | null) {
   // administer is now the explicit choice, so My Club and the /club-admin redirects follow it.
   const authUserId = user?.id ?? null;
   useEffect(() => {
-    if (canManageMembers && selectedClub && authUserId && selectedClubId !== selectedClub.id) {
+    if (!canManageClubAdmin || !selectedClub || !authUserId) return;
+    // The validated context only trusts a selection this user made, so re-record a match by id alone.
+    if (selectedClubId !== selectedClub.id || selectedClubUserId !== authUserId) {
       selectClub(selectedClub.id, authUserId);
     }
-  }, [canManageMembers, selectedClub, authUserId, selectedClubId, selectClub]);
+  }, [
+    canManageClubAdmin,
+    selectedClub,
+    authUserId,
+    selectedClubId,
+    selectedClubUserId,
+    selectClub,
+  ]);
 
   const tabHidden =
     (!canEditBranding && activeTab === 'branding') ||

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDatabaseError } from '@/services/database/databaseError';
 
 const chain = vi.hoisted(() => {
   const result = { data: [] as unknown[], error: null as unknown };
@@ -13,10 +14,7 @@ const chain = vi.hoisted(() => {
 vi.mock('../supabaseClient', () => ({
   supabase: { from: chain.builder.from },
   logQuery: vi.fn(),
-  createDatabaseError: (error: unknown) => {
-    const message = error instanceof Error ? error.message : 'db error';
-    return Object.assign(new Error(message), { code: 'DB' });
-  },
+  createDatabaseError,
 }));
 
 import { getClubsAwaitingAuthorization } from './reads';

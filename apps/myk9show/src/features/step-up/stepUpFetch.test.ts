@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { keepClonesAlive, releaseKeptClones } from '@/test/utils/keepClonesAlive';
 import { createStepUpFetch, STEP_UP_REQUIRED_CODE, STEP_UP_SQLSTATE } from './stepUpFetch';
 import {
   registerStepUpHost,
@@ -18,11 +17,8 @@ const OTHER_ACCOUNT = testJwt('u2', 1, 'other');
 const REST = 'https://test.supabase.co/rest/v1/rpc/grant_club_secretary';
 const EDGE = 'https://test.supabase.co/functions/v1/stripe-refund-entry';
 
-// keepClonesAlive: isStepUpRefusal clones and drops; see the helper (MYK9-1440).
 const json = (status: number, body: unknown) =>
-  keepClonesAlive(
-    new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
-  );
+  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 const postgrestRefusal = () =>
   json(400, { code: STEP_UP_SQLSTATE, message: 'Confirm your password to continue.' });
@@ -42,10 +38,6 @@ function fakeServer(refusal: () => Response) {
   });
   return { base, freshTokens };
 }
-
-afterEach(() => {
-  releaseKeptClones();
-});
 
 describe('createStepUpFetch', () => {
   beforeEach(() => {

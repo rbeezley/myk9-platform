@@ -6,6 +6,10 @@ import { mockPublicSupabase, mockSupabase, resetMockSupabase } from './mocks/sup
 import { createDatabaseError } from '@/services/database/databaseError';
 import { resetAllStores } from './mocks/zustandReset';
 import { createSupabaseNetworkGuard } from './supabaseNetworkGuard';
+import {
+  installResponseCloneKeepAlive,
+  releaseKeptResponseClones,
+} from './keepResponseClonesAlive';
 import 'fake-indexeddb/auto';
 import { ReplicatedTable } from '@myk9/replication';
 // Side-effect import: the missing-viewer-scope guard patches the shared
@@ -132,8 +136,12 @@ globalThis.IDBKeyRange = FDBKeyRange;
 globalThis.IDBRequest = FDBRequest;
 globalThis.IDBTransaction = FDBTransaction;
 
+// MYK9-1440: a dropped Response clone must not cancel the original's body under Node.
+installResponseCloneKeepAlive();
+
 // Cleanup after each test case with optimizations
 afterEach(() => {
+  releaseKeptResponseClones();
   cleanup();
   testCleanup.cleanup(); // Enhanced cleanup with render loop detection
 });

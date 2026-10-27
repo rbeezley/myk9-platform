@@ -13,6 +13,7 @@ import {
   MutationManager,
   REPLICATION_STORES,
   refetchDirtyRowsById,
+  type RowRefetchAdapter,
 } from '@myk9/replication';
 
 const { mockFrom, mockRpc } = vi.hoisted(() => ({ mockFrom: vi.fn(), mockRpc: vi.fn() }));
@@ -127,8 +128,8 @@ describe('hide count on the dirty-row and role-boundary paths (MYK9-1451)', () =
     await table.updateClass(ID, { description: 'pending edit' });
     expect((await table.getReplicatedRow(ID))?.isDirty).toBe(true);
     const adapter = (
-      table as unknown as { getRowRefetchAdapter(): Parameters<typeof refetchDirtyRowsById>[1] }
-    ).getRowRefetchAdapter();
+      table as unknown as { getRowRefetchAdapter(): RowRefetchAdapter<unknown, ReplicatedClass> }
+    ).getRowRefetchAdapter.bind(table)();
     await refetchDirtyRowsById(table, adapter, [ID]);
     return table.getReplicatedRow(ID);
   }

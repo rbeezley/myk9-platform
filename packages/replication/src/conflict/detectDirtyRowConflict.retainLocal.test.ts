@@ -47,7 +47,8 @@ describe('DirtyRowComparePolicy.retainLocal (MYK9-1451)', () => {
   });
 
   it('is not a same-field conflict when the device changed the retained field', () => {
-    const input = {
+    type Row = { id: string; count?: number | undefined };
+    const input: { base: Row; local: Row; remote: Row } = {
       base: { id: '1', count: 3 },
       local: { id: '1', count: 5 },
       remote: { id: '1', count: undefined },

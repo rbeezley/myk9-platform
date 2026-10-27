@@ -38,6 +38,14 @@ export const PUSH_SEND_CONCURRENCY = 10;
  */
 export const PUSH_SEND_DEADLINE_MS = 90_000;
 
+/**
+ * Per-send socket timeout (web-push's `timeout` request option). The deadline
+ * above only stops new sends from STARTING; without this a stalled push-service
+ * connection would hold its worker past the platform cap and the batch would
+ * die with no count and no TRUNCATED line. A timed-out send counts as failed.
+ */
+export const PUSH_SEND_TIMEOUT_MS = 10_000;
+
 export interface PushSubscriptionRow {
   user_id: string;
   endpoint: string;
@@ -49,7 +57,8 @@ export interface PushSubscriptionRow {
 export interface WebPushSender {
   sendNotification(
     subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
-    payload: string
+    payload: string,
+    options?: { timeout?: number }
   ): Promise<unknown>;
 }
 
@@ -149,7 +158,8 @@ export async function sendWebPushBatch(
         }
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          body
+          body,
+          { timeout: PUSH_SEND_TIMEOUT_MS }
         );
         result.sent++;
       } catch (err: unknown) {

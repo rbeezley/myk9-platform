@@ -7,6 +7,7 @@ import {
   isTruncatedPushBatch,
   loadPushSubscriptions,
   PUSH_SEND_CONCURRENCY,
+  PUSH_SEND_TIMEOUT_MS,
   PUSH_SUBSCRIPTION_CHUNK_SIZE,
   sendWebPushBatch,
   type PushSubscriptionRow,
@@ -107,7 +108,8 @@ describe('sendWebPushBatch', () => {
     expect(webpush.sendNotification).toHaveBeenCalledTimes(3);
     expect(webpush.sendNotification).toHaveBeenCalledWith(
       { endpoint: 'https://push.example/u1/pwa', keys: { p256dh: 'p256dh', auth: 'auth' } },
-      '{"x":1}'
+      '{"x":1}',
+      { timeout: PUSH_SEND_TIMEOUT_MS }
     );
     expect(result).toEqual({ sent: 3, failed: 0, expired: 0, skipped: 0, truncated: 0 });
   });
@@ -190,7 +192,11 @@ describe('sendWebPushBatch', () => {
     );
 
     expect(webpush.sendNotification).toHaveBeenCalledTimes(2);
-    expect(webpush.sendNotification).toHaveBeenCalledWith(expect.anything(), 'payload-for-u1');
+    expect(webpush.sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      'payload-for-u1',
+      expect.anything()
+    );
     expect(result).toEqual({ sent: 2, failed: 0, expired: 0, skipped: 1, truncated: 0 });
   });
 

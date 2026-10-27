@@ -36,12 +36,12 @@
 #      here -- again, loud rather than silent.
 #
 # `skipped` is allowed in (2) because several jobs skip legitimately:
-# `Smoke build`, `A11y smoke` and `E2E PR Smoke` are gated on
-# `MYK9SHOW_SMOKE_CI_ENABLED` and on `smoke-scope`. It is NOT a hole, because a
-# job that skips as a CONSEQUENCE of failure -- `Build` skips when `Test` fails
-# -- is caught by rule (1) via the job that actually failed. Verified against run
-# 33832052383, where `Test packages` failed and `Build`, `Smoke build`,
-# `A11y smoke` and `E2E PR Smoke` were all skipped.
+# `A11y smoke` and `E2E PR Smoke` are gated on `MYK9SHOW_SMOKE_CI_ENABLED` and
+# on `smoke-scope`. It is NOT a hole, because a job that skips as a CONSEQUENCE
+# of failure -- `Build` skips when `Test` fails -- is caught by rule (1) via the
+# job that actually failed. Verified against run 33832052383, where `Test
+# packages` failed and `Build`, `Smoke build` (since folded into the two smoke
+# jobs, MYK9-1449), `A11y smoke` and `E2E PR Smoke` were all skipped.
 #
 # `cancelled` is NOT allowed. A genuinely superseded run has gating jobs
 # cancelled mid-flight (run 33886627564 had `A11y smoke` and `E2E PR Smoke`

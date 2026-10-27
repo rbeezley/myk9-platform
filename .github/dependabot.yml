@@ -7,14 +7,15 @@ version: 2
 # Schedule: Monday 06:00 UTC = early Monday US for triage at start of week.
 # See docs/plan-dependabot-remediation.md for the policy this codifies.
 #
-# Browser-level CI coverage (MYK9-520): ci.yml's smoke-build / A11y smoke /
-# E2E PR Smoke jobs run on Dependabot PRs exactly as on any other PR. GitHub
-# withholds repository secrets from Dependabot-triggered `pull_request` runs,
-# so the secrets those jobs need (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and
-# the E2E_* logins) are registered separately under Settings -> Secrets and
-# variables -> Dependabot (verified 2026-09-25). If one is ever missing there,
-# each job's "Verify Dependabot-run secrets are available" step fails loudly
-# and names it, rather than building against an empty value and going green.
+# Browser-level CI coverage (MYK9-520): ci.yml's A11y smoke / E2E PR Smoke
+# jobs run on Dependabot PRs exactly as on any other PR. GitHub withholds
+# repository secrets from Dependabot-triggered `pull_request` runs, so the
+# secrets those jobs need (the E2E_* passwords; since MYK9-1449 each job builds
+# against its own local Supabase and reads no VITE_SUPABASE_* secret) are
+# registered separately under Settings -> Secrets and variables -> Dependabot
+# (verified 2026-09-25). If one is ever missing there, each job's "Verify
+# Dependabot-run secrets are available" step fails loudly and names it, rather
+# than seeding the fixture accounts with an empty password.
 # Smoke scope treats the root package.json and pnpm-lock.yaml as runtime
 # changes, so a transitive-only bump gets browser coverage too. No label is
 # needed; `run-smoke` remains a general "force browser smoke" label for any PR.

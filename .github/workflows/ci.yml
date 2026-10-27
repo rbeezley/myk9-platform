@@ -37,7 +37,7 @@ jobs:
   # letting E2E/a11y smoke run only when relevant paths changed. Add the
   # `run-smoke` PR label to force browser smoke, or `skip-smoke` for an explicit
   # tooling/docs override. Dependabot PRs get no special treatment (MYK9-520):
-  # see the comment on `smoke-build` and .github/dependabot.yml.
+  # see the comment above the `a11y` job and .github/dependabot.yml.
   smoke-scope:
     name: Smoke scope
     runs-on: ubuntu-latest
@@ -606,8 +606,7 @@ jobs:
           exit 1
 
   # Build no longer waits for the Test umbrella: it needs only an install, and
-  # gating it on tests put the whole build -> smoke-build -> E2E/a11y chain
-  # (~4 min) serially AFTER the 11-minute unit shards. Running it from t=0 lets
+  # gating it on tests put the whole build -> E2E/a11y chain serially AFTER the 11-minute unit shards. Running it from t=0 lets
   # that chain finish while the shards are still going. The repo is public, so
   # a build that runs on a PR whose tests then fail costs nothing but a runner.
   build:
@@ -639,101 +638,53 @@ jobs:
       - name: Bundle budget (myK9Show)
         run: pnpm --filter @myk9/show budget:check
 
-  # Browser smoke needs a Supabase-configured bundle; the budgeted production
-  # build above intentionally runs without shared-project configuration.
-  # Build this once and share it between the a11y and E2E smoke jobs.
+  # Browser smoke runs against a disposable local Supabase that each job builds
+  # for itself, never the live project (MYK9-1449). On 2026-10-27 one E2E PR
+  # Smoke run signed the fixture accounts into production and held p95 API
+  # latency at 4-5 s for real users for eight minutes. `pnpm
+  # qa:isolated-e2e:prepare` is the same target Playwright Regression uses
+  # (MYK9-61): it starts the stack, seeds the fixture accounts and the demo
+  # show, and writes VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY (loopback) into
+  # GITHUB_ENV, so every later step in the job builds and tests against it.
+  # The bundle is therefore built per job: the anon key belongs to that job's
+  # stack, which is why there is no shared `Smoke build` job any more.
   #
-  # Dependabot PRs run all three browser jobs like any other PR (MYK9-520).
-  # A Dependabot-triggered `pull_request` run gets only the Dependabot-scope
-  # secrets, never the repository's Actions secrets, and ALL THREE of
-  # smoke-build, a11y and e2e-myk9show need secrets: THIS job reads
-  # VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY, the other two the E2E_* logins.
-  # Those are registered in the Dependabot scope (verified 2026-09-25), so the
-  # old `github.actor != 'dependabot[bot]'` skip was removed: it hid dependency
-  # bumps that change runtime code (a React renderer bump reached main with no
-  # rendered-app test). Each job's actor-gated "Verify Dependabot-run secrets
-  # are available" step fails loudly if a secret is ever missing from that
-  # scope, instead of building against an empty value and going green. Never
-  # `pull_request_target` here: it would run the PR's code with the
-  # repository's secrets and a write token.
-  smoke-build:
-    name: Smoke build
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [build, smoke-scope]
-    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true'
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '22.12.0'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      # Only smoke-build's own build step lacks a preflight: without this,
-      # a labelled Dependabot PR (whose run still gets no repo secrets unless
-      # a maintainer has separately registered them under Dependabot secrets,
-      # see .github/dependabot.yml) builds against an EMPTY
-      # VITE_SUPABASE_URL/ANON_KEY and goes GREEN on a meaningless bundle,
-      # which a11y/e2e-myk9show then consume and fail against with a
-      # confusing "Missing required env" message that gives no pointer to the
-      # actual cause (MYK9-520).
-      - name: Verify Dependabot-run secrets are available
-        if: github.actor == 'dependabot[bot]'
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        run: |
-          set -euo pipefail
-          missing=()
-          for name in VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY; do
-            [[ -z "${!name:-}" ]] && missing+=("$name")
-          done
-          if [[ ${#missing[@]} -gt 0 ]]; then
-            echo "::error::Repository secrets are withheld from Dependabot-triggered runs (missing: ${missing[*]}). Register VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and the E2E_* credentials under Settings -> Secrets and variables -> Dependabot, or push a human commit to this branch. See .github/dependabot.yml."
-            exit 1
-          fi
-
-      - name: Build app + packages
-        run: pnpm build
-        env:
-          NODE_OPTIONS: --max-old-space-size=6144
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-
-      - name: Upload myK9Show preview build
-        uses: actions/upload-artifact@v7
-        with:
-          name: myk9show-preview-dist
-          path: apps/myk9show/dist
-          retention-days: 1
+  # Dependabot PRs run both jobs like any other PR (MYK9-520). A
+  # Dependabot-triggered `pull_request` run gets only the Dependabot-scope
+  # secrets; these jobs need only the E2E_* passwords, which are registered
+  # there (verified 2026-09-25). Each job's actor-gated "Verify Dependabot-run
+  # secrets are available" step fails loudly if one is ever missing, instead of
+  # seeding accounts with an empty password. Never `pull_request_target` here:
+  # it would run the PR's code with the repository's secrets and a write token.
+  #
+  # NO E2E_*_EMAIL secrets, deliberately: the seed hard-codes the @myk9t.com
+  # addresses (setup-e2e-test-users.ts), and an override would point a sign-in
+  # at an account the seed never created (see nightly-e2e.yml).
 
   # Focused accessibility smoke — runs ONLY the axe-core a11y spec against a
-  # built preview, not the full (still-disabled) e2e suite. This job touches the
-  # shared Supabase project when authenticated role checks run, so keep it
-  # opt-in via the MYK9SHOW_SMOKE_CI_ENABLED repository variable.
+  # built preview, not the full e2e suite. Opt-in via the
+  # MYK9SHOW_SMOKE_CI_ENABLED repository variable.
   #
   # To make this a *required* check, add "A11y smoke" to the main branch ruleset
   # (GitHub settings — not editable from the repo).
   a11y:
     name: A11y smoke
     runs-on: ubuntu-latest
-    # Was 15. The Playwright install now has its own 12-minute cap; 25 leaves
-    # room for it, the setup steps and the suite (MYK9-1335).
-    timeout-minutes: 25
-    needs: [smoke-build, smoke-scope]
+    # Was 25. Preparing the local stack (~2 min) and building the bundle here
+    # (~2 min) moved into this job (MYK9-1449). The Playwright install keeps its
+    # own 12-minute cap (MYK9-1335).
+    timeout-minutes: 30
+    needs: [build, smoke-scope]
     # Runs on Dependabot PRs too, with the Dependabot-scope secrets (MYK9-520):
-    # see the comment on `smoke-build` above.
+    # see the comment above.
     if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true'
 
     steps:
       - uses: actions/checkout@v7
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: latest
 
       - uses: pnpm/action-setup@v6
 
@@ -746,48 +697,54 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # Gives a labelled Dependabot PR a clear, actionable failure instead of
-      # the generic "Missing required env" from the preflight below, which
-      # names variables but not the reason they're empty (MYK9-520).
+      # an account seeded with an empty password (MYK9-520).
       - name: Verify Dependabot-run secrets are available
         if: github.actor == 'dependabot[bot]'
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
-          E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
         run: |
           set -euo pipefail
           missing=()
-          for name in VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY E2E_ADMIN_EMAIL E2E_ADMIN_PASSWORD E2E_SECRETARY_EMAIL E2E_SECRETARY_PASSWORD E2E_JUDGE_EMAIL E2E_JUDGE_PASSWORD; do
+          for name in E2E_ADMIN_PASSWORD E2E_SECRETARY_PASSWORD E2E_JUDGE_PASSWORD E2E_DEMO_EXHIBITOR_PASSWORD; do
             [[ -z "${!name:-}" ]] && missing+=("$name")
           done
           if [[ ${#missing[@]} -gt 0 ]]; then
-            echo "::error::Repository secrets are withheld from Dependabot-triggered runs (missing: ${missing[*]}). Register VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and the E2E_* credentials under Settings -> Secrets and variables -> Dependabot, or push a human commit to this branch. See .github/dependabot.yml."
+            echo "::error::Repository secrets are withheld from Dependabot-triggered runs (missing: ${missing[*]}). Register the E2E_* passwords under Settings -> Secrets and variables -> Dependabot, or push a human commit to this branch. See .github/dependabot.yml."
             exit 1
           fi
+
+      - name: Prepare isolated Supabase target
+        run: pnpm qa:isolated-e2e:prepare
+        env:
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
+          MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
+          MYK9_E2E_APPROVED_PROJECT_REFS: local
+          MYK9_E2E_SUPABASE_PROJECT_REF: local
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
       - name: Verify E2E auth credentials
         working-directory: apps/myk9show
         run: pnpm exec tsx scripts/verify-e2e-auth-preflight.ts --check-roles secretary admin judge
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
-          E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
 
-      - name: Download myK9Show preview build
-        uses: actions/download-artifact@v8
-        with:
-          name: myk9show-preview-dist
-          path: apps/myk9show/dist
+      - name: Build app + packages
+        run: pnpm build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+
+      # The acceptance criterion as a check: the bundle the browser loads must
+      # name the loopback stack and never the live project (MYK9-1449).
+      - name: Prove the bundle targets the local stack
+        run: bash scripts/ci/assert-local-smoke-bundle.sh apps/myk9show/dist
 
       # Cache the browser payload by the lockfile so Playwright downloads only
       # when the pinned browser version changes. Keep --with-deps to guarantee
@@ -832,13 +789,8 @@ jobs:
         run: pnpm test:a11y
         env:
           CI: 'true'
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
-          E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
 
       # MYK9-1128: fail the job (and so skip the upload below) if a configured secret is
@@ -859,30 +811,39 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: myk9show-a11y-report
-          # Never the trace archives: they hold live test-account tokens and
-          # this repository's artifacts are public (MYK9-1057).
+          # Never the trace archives: they hold test-account tokens and this
+          # repository's artifacts are public (MYK9-1057).
           path: |
             apps/myk9show/playwright-report-ci/
             !apps/myk9show/playwright-report-ci/**/*.zip
           retention-days: 7
 
-  # PR Smoke E2E — 2 stable specs (connectivity + secretary regression proof).
-  # This exercises the shared Supabase project, so it is opt-in via the
-  # MYK9SHOW_SMOKE_CI_ENABLED repository variable to prevent auth failures or
-  # bad local loops from consuming project resources.
+      - name: Stop isolated Supabase target
+        if: always()
+        run: pnpm qa:isolated-e2e:stop
+
+  # PR Smoke E2E — the stable specs in playwright.ci.config.ts PR_SMOKE_SPECS,
+  # against this job's own disposable local Supabase (MYK9-1449; see the
+  # comment above the a11y job). Opt-in via the MYK9SHOW_SMOKE_CI_ENABLED
+  # repository variable.
   e2e-myk9show:
     name: E2E PR Smoke
     runs-on: ubuntu-latest
-    # Was 15. The Playwright install now has its own 12-minute cap; 25 leaves
-    # room for it, the setup steps and the suite (MYK9-1335).
-    timeout-minutes: 25
-    needs: [smoke-build, smoke-scope]
+    # Was 25. Preparing the local stack (~2 min) and building the bundle here
+    # (~2 min) moved into this job (MYK9-1449). The Playwright install keeps its
+    # own 12-minute cap (MYK9-1335).
+    timeout-minutes: 30
+    needs: [build, smoke-scope]
     # Runs on Dependabot PRs too, with the Dependabot-scope secrets (MYK9-520):
-    # see the comment on `smoke-build` above.
+    # see the comment above the a11y job.
     if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true'
 
     steps:
       - uses: actions/checkout@v7
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: latest
 
       - uses: pnpm/action-setup@v6
 
@@ -895,44 +856,53 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # Gives a labelled Dependabot PR a clear, actionable failure instead of
-      # the generic "Missing required env" from the preflight below, which
-      # names variables but not the reason they're empty (MYK9-520).
+      # an account seeded with an empty password (MYK9-520).
       - name: Verify Dependabot-run secrets are available
         if: github.actor == 'dependabot[bot]'
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
-          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
         run: |
           set -euo pipefail
           missing=()
-          for name in VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY E2E_SECRETARY_EMAIL E2E_SECRETARY_PASSWORD E2E_DEMO_EXHIBITOR_EMAIL E2E_DEMO_EXHIBITOR_PASSWORD; do
+          for name in E2E_ADMIN_PASSWORD E2E_SECRETARY_PASSWORD E2E_JUDGE_PASSWORD E2E_DEMO_EXHIBITOR_PASSWORD; do
             [[ -z "${!name:-}" ]] && missing+=("$name")
           done
           if [[ ${#missing[@]} -gt 0 ]]; then
-            echo "::error::Repository secrets are withheld from Dependabot-triggered runs (missing: ${missing[*]}). Register VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and the E2E_* credentials under Settings -> Secrets and variables -> Dependabot, or push a human commit to this branch. See .github/dependabot.yml."
+            echo "::error::Repository secrets are withheld from Dependabot-triggered runs (missing: ${missing[*]}). Register the E2E_* passwords under Settings -> Secrets and variables -> Dependabot, or push a human commit to this branch. See .github/dependabot.yml."
             exit 1
           fi
+
+      - name: Prepare isolated Supabase target
+        run: pnpm qa:isolated-e2e:prepare
+        env:
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
+          MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
+          MYK9_E2E_APPROVED_PROJECT_REFS: local
+          MYK9_E2E_SUPABASE_PROJECT_REF: local
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
       - name: Verify E2E auth credentials
         working-directory: apps/myk9show
         run: pnpm exec tsx scripts/verify-e2e-auth-preflight.ts --check-roles secretary exhibitor
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
-          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
-      - name: Download myK9Show preview build
-        uses: actions/download-artifact@v8
-        with:
-          name: myk9show-preview-dist
-          path: apps/myk9show/dist
+      - name: Build app + packages
+        run: pnpm build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+
+      # The acceptance criterion as a check: the bundle the browser loads must
+      # name the loopback stack and never the live project (MYK9-1449).
+      - name: Prove the bundle targets the local stack
+        run: bash scripts/ci/assert-local-smoke-bundle.sh apps/myk9show/dist
 
       # Cache the browser payload by the lockfile so Playwright downloads only
       # when the pinned browser version changes. Keep --with-deps to guarantee
@@ -977,13 +947,12 @@ jobs:
         run: pnpm test:e2e:ci
         env:
           CI: 'true'
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
+          # The local target is always seeded, so missing canary data is a
+          # failure here, not a skip (helpers/liveCanary.ts DATA_REQUIRED).
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
-          # my-entries-page-ui.spec.ts signs in as the exhibitor. This job was
-          # secretary-only, which is why that spec could not gate PRs.
-          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
+          # my-entries-page-ui.spec.ts and the exhibitor fixture specs sign in
+          # as the demo exhibitor.
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
       # MYK9-1128: fail the job (and so skip the upload below) if a configured secret is
@@ -1003,9 +972,13 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: myk9show-e2e-results
-          # Never the trace archives: they hold live test-account tokens and
-          # this repository's artifacts are public (MYK9-1057).
+          # Never the trace archives: they hold test-account tokens and this
+          # repository's artifacts are public (MYK9-1057).
           path: |
             apps/myk9show/playwright-report-ci/
             !apps/myk9show/playwright-report-ci/**/*.zip
           retention-days: 7
+
+      - name: Stop isolated Supabase target
+        if: always()
+        run: pnpm qa:isolated-e2e:stop

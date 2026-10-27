@@ -6,7 +6,8 @@ import { parseGhaExpression, topLevelAndOperands, type GhaExpr } from './ghaExpr
 /**
  * MYK9-520: `smoke-build`, `A11y smoke` and `E2E PR Smoke` used to carry
  * `github.actor != 'dependabot[bot]'`, so every Dependabot PR skipped all
- * three browser-level jobs, including a React renderer bump that reached main
+ * three browser-level jobs (MYK9-1449 later folded `smoke-build` into the
+ * other two), including a React renderer bump that reached main
  * with no rendered-app test. The Dependabot-scope secrets these jobs need are
  * registered (verified 2026-09-25), so the skip is gone: Dependabot PRs run
  * the browser jobs like any other PR. This file pins that:
@@ -27,7 +28,7 @@ const workflow = readFileSync(
   'utf8'
 );
 
-const BROWSER_JOBS = ['smoke-build:', 'a11y:', 'e2e-myk9show:'];
+const BROWSER_JOBS = ['a11y:', 'e2e-myk9show:'];
 
 /** The lines of one job, from its `<name>:` heading at 2-space indent to the next job. */
 function jobBlock(jobHeading: string, source: string = workflow): string[] {

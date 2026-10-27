@@ -136,22 +136,16 @@ describe('BrowseTabs', () => {
     expect(screen.getByRole('heading', { name: 'Clubs list' })).toBeInTheDocument();
   });
 
-  it('gives an exhibitor-only account My Shows and My Dogs, each at its own URL', async () => {
-    const user = userEvent.setup();
-    auth.userWithRoles = { roles: [UserRole.EXHIBITOR] };
-    renderAt('/exhibitor/entries');
+  it.each(['/exhibitor/entries', '/dogs'])(
+    'draws no My Shows / My Dogs tablist for an exhibitor-only account on %s',
+    route => {
+      auth.userWithRoles = { roles: [UserRole.EXHIBITOR] };
+      renderAt(route);
 
-    expect(tabNames()).toEqual(['My Shows', 'My Dogs']);
-    const myShows = screen.getByRole('tab', { name: 'My Shows' });
-    expect(myShows).toHaveAttribute('aria-selected', 'true');
-    expect(myShows).toHaveAttribute('href', '/exhibitor/entries');
-
-    myShows.focus();
-    await user.keyboard('{ArrowRight}');
-    expect(location()).toBe('/dogs');
-    expect(screen.getByRole('tab', { name: 'My Dogs' })).toHaveFocus();
-    expect(screen.getByRole('tab', { name: 'My Dogs' })).toHaveAttribute('aria-selected', 'true');
-  });
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+      expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
+    }
+  );
 
   it('offers an exhibitor-only account no People or Clubs', () => {
     auth.userWithRoles = { roles: [UserRole.EXHIBITOR] };

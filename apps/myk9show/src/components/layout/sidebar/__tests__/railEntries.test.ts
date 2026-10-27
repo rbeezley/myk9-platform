@@ -90,7 +90,7 @@ describe('buildRailEntries', () => {
   // rail menus were sized against. A change here is a design change. Phase 3 folds
   // Shows, Dogs, People and Clubs into one Browse item.
   it.each([
-    ['exhibitor only', [UserRole.EXHIBITOR], 3],
+    ['exhibitor only', [UserRole.EXHIBITOR], 4],
     ['judge only', [UserRole.JUDGE], 2],
     ['secretary + exhibitor', [UserRole.SECRETARY, UserRole.EXHIBITOR], 4],
     ['club admin + exhibitor', [UserRole.CLUB_ADMIN, UserRole.EXHIBITOR], 4],

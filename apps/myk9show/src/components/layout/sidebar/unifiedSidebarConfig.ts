@@ -22,6 +22,7 @@ import {
   Users,
   Building2,
   FileText,
+  Heart,
   Shield,
   ShieldCheck,
   HelpCircle,
@@ -79,7 +80,6 @@ const ADMIN_RAIL_MENU: NavRailMenu = { id: 'admin', title: 'Admin', icon: Shield
 // Flag, not Building2: Building2 is the Clubs list's icon (browseTabs.ts).
 const CLUB_RAIL_MENU: NavRailMenu = { id: 'club', title: 'My Club', icon: Flag };
 const BROWSE_RAIL_LINK: NavRailLink = { id: 'browse', title: 'Browse', icon: LayoutList };
-const MY_SHOWS_RAIL_LINK: NavRailLink = { id: 'my-shows', title: 'My Shows', icon: FileText };
 
 export interface CurrentShowNav {
   currentShow: ShowRef | null;
@@ -144,13 +144,20 @@ export function buildUnifiedSidebarConfig(
   const isExhibitorOnly = isExhibitorOnlyRoles(userRoles);
 
   if (isExhibitorOnly) {
-    // One rail item, My Shows, opening the My Shows / My Dogs tabs on the last one used (the
-    // staff Browse item's mechanism; docs/plan-sidebar-browse-pane.md, phase 4). The drawer lists
-    // both by name. Finding a show is a button on the My Shows list, not a rail item.
+    // Plain rail items (owner decision 2026-10-27, MYK9-1287): My Shows and My Dogs are
+    // separate pages with no tablist and no remembered tab, unlike the staff Browse item. Finding
+    // a show is a button on the My Shows list, not a rail item.
     groups.push({
       title: '',
-      railLink: MY_SHOWS_RAIL_LINK,
-      items: browseTabsForRoles(userRoles),
+      items: [
+        {
+          title: 'My Shows',
+          href: '/exhibitor/entries',
+          icon: FileText,
+          description: 'Your entries, dogs, and upcoming shows',
+        },
+        { title: 'My Dogs', href: '/dogs', icon: Heart },
+      ],
     });
     groups.push({
       title: '',

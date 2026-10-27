@@ -237,10 +237,10 @@ DECLARE
                    + pg_temp.t1395_notices('MYK9-1395 M2')
                    + pg_temp.t1395_notices('MYK9-1395 M3');
 BEGIN
-  IF v_total > pg_temp.t1395_notices('MYK9-1395 A1') THEN
-    RAISE EXCEPTION 'FAIL notify_site_admins_club_awaiting_authorization: a 3-row insert raised % notifications, more than one set', v_total;
+  IF v_total <> 0 THEN
+    RAISE EXCEPTION 'FAIL notify_site_admins_club_awaiting_authorization: a 3-row insert raised % notifications; each row should see its siblings as pending and raise none', v_total;
   END IF;
-  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: a multi-row insert raises at most one notice set (%)', v_total;
+  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: a multi-row insert raises no notice (siblings count as pending)';
 END;
 $$;
 

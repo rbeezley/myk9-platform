@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { HeadlineLandingPage } from '../HeadlineLandingPage';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
+import { ShowHasHappenedContext } from '@/features/_shared/landing/lateEntryContactContext';
 
 const landingDataState = vi.hoisted(() => ({
   showName: 'Spring Scent Work Trial',
@@ -282,5 +283,51 @@ describe('HeadlineLandingPage — entry CTA count (MYK9-633)', () => {
     for (const link of links) {
       expect(link).toHaveAttribute('href', '/shows/show-1/register');
     }
+  });
+});
+
+describe('HeadlineLandingPage - final section says why entry is unavailable once (MYK9-1438)', () => {
+  afterEach(() => {
+    landingDataState.entryClosed = false;
+  });
+
+  // The hero has its own (differently led) explanation; this pins the final section only.
+  const finalSection = () => {
+    const section = document.querySelector<HTMLElement>('section.hd-final');
+    if (!section) throw new Error('final section not rendered');
+    return section;
+  };
+
+  it('renders the closed-entries sentence once', () => {
+    landingDataState.entryClosed = true;
+    render(
+      <HeadlineLandingPage show={null} trial={null} allTrials={[]} hasEntryClassInventory={true} />
+    );
+    expect(
+      within(finalSection()).getAllByText(/Contact the trial secretary for late-entry help/i)
+    ).toHaveLength(1);
+  });
+
+  it('renders the past-show sentence once', () => {
+    landingDataState.entryClosed = true;
+    render(
+      <ShowHasHappenedContext.Provider value={true}>
+        <HeadlineLandingPage show={null} trial={null} allTrials={[]} hasEntryClassInventory />
+      </ShowHasHappenedContext.Provider>
+    );
+    expect(within(finalSection()).getAllByText('This show has already taken place.')).toHaveLength(
+      1
+    );
+  });
+
+  it('renders the classes-pending sentence once', () => {
+    render(
+      <HeadlineLandingPage show={null} trial={null} allTrials={[]} hasEntryClassInventory={false} />
+    );
+    expect(
+      within(finalSection()).getAllByText(
+        'The secretary still needs to assign classes before online entry is available.'
+      )
+    ).toHaveLength(1);
   });
 });

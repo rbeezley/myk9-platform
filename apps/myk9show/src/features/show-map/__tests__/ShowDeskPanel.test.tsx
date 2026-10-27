@@ -14,9 +14,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
   createDatabaseError,
 }));
 vi.mock('@/services/database/day-of-operations', () => ({}));
-vi.mock('@/services/database/entries/lifecycle', () => ({
-  restoreEntryStatus: vi.fn(),
-}));
+vi.mock('@/services/database/entries/lifecycle', () => ({}));
 vi.mock('@/features/show-live-sync/showChangeSignal', () => ({
   subscribeToShowChanges: vi.fn(() => () => undefined),
 }));

@@ -12,8 +12,6 @@ import {
 } from '@/services/replication/ReplicatedEntriesTable';
 import { getReplicatedSecretaryEntriesForShow } from './secretaryReadReplication';
 import type { EntryStatus } from '@/types/entry-lifecycle';
-import type { CheckInStatus } from '@myk9/core';
-import type { TablesUpdate } from '@/types/supabase';
 import type { PendingEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 import { postgrestGetSecretaryEntriesForShow } from './secretaryPostgrest';
 import type { EntryStatusCheckInContext } from './statusCheckIn';
@@ -21,7 +19,6 @@ import { buildReplicatedEntryStatusUpdate } from './entryStatusUpdate';
 
 export { buildReplicatedEntryStatusUpdate };
 import { logger } from '@/services/LoggingService';
-import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
 import { isRawEntryInEntryManagementPendingBucket } from '@/utils/entryCountSelectors';
 import { SECRETARY_ENTRIES_READ_ERROR } from './secretaryReadErrors';
 import { hydrateSecretaryEntriesForShow } from './secretaryReadHydration';
@@ -177,44 +174,6 @@ function secretaryEntriesReadFailure(error: unknown, startTime: number) {
   return { data: null, error: { ...dbError, message: SECRETARY_ENTRIES_READ_ERROR } };
 }
 
-/**
- * Get entry counts by status for a show
- */
-export const getEntryCountsByStatus = async (showId: string) => {
-  const startTime = Date.now();
-
-  try {
-    // Get all entries for the show
-    const { data: entries, error } = await supabase
-      .from('entries')
-      .select('entry_status, payment_status')
-      .eq('show_id', showId)
-      .is('deleted_at', null);
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'get_entry_counts', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'get_entry_counts');
-    }
-
-    const counts = {
-      total: entries?.length || 0,
-      submitted: entries?.filter(e => e.entry_status === 'submitted').length || 0,
-      confirmed: entries?.filter(e => e.entry_status === 'confirmed').length || 0,
-      pendingPayment: entries?.filter(e => e.entry_status === 'pending-payment').length || 0,
-      paymentDue: entries?.filter(e => e.payment_status === 'pending').length || 0,
-    };
-
-    return { data: counts, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'get_entry_counts');
-    logQuery('entries', 'get_entry_counts', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
 function toEntryMutationResult(
   entryId: string,
   mutationId: string | null,
@@ -260,210 +219,6 @@ export const updateEntryStatus = async (
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'update_entry_status');
     logQuery('entries', 'update_entry_status', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-/**
- * Bulk update entry status
- */
-export const bulkUpdateEntryStatus = async (entryIds: string[], status: EntryStatus) => {
-  const startTime = Date.now();
-
-  try {
-    const updateData = buildReplicatedEntryStatusUpdate(status);
-    const data = await Promise.all(
-      entryIds.map(async entryId => {
-        const mutationId = await replicatedEntriesTable.updateSecretaryLifecycleStatus(
-          entryId,
-          updateData
-        );
-        const entry = await replicatedEntriesTable.getEntryById(entryId);
-        return toEntryMutationResult(entryId, mutationId, entry);
-      })
-    );
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'bulk_update_status', duration);
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'bulk_update_status');
-    logQuery('entries', 'bulk_update_status', duration, dbError.message);
-    return { data: [], error: dbError };
-  }
-};
-
-/**
- * Update entry check-in status (mark as in ring)
- */
-export const updateCheckInStatus = async (
-  entryId: string,
-  status: CheckInStatus,
-  notes?: string
-) => {
-  const startTime = Date.now();
-
-  try {
-    const isInRing = status === 'checked-in' || status === 'at-gate';
-    const updateData: TablesUpdate<'entries'> = {
-      check_in_status: status,
-      is_in_ring: isInRing,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (isInRing) {
-      updateData.ring_entry_time = new Date().toISOString();
-    }
-
-    if (notes !== undefined) {
-      updateData.judge_notes = notes;
-    }
-
-    const { data, error } = await supabase
-      .from('entries')
-      .update(updateData)
-      .eq('id', entryId)
-      .select(AUTHENTICATED_ENTRY_READ_COLUMNS)
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'update_check_in', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'update_check_in');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'update_check_in');
-    logQuery('entries', 'update_check_in', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-/**
- * Bulk check-in entries
- */
-export const bulkCheckIn = async (entryIds: string[]) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        is_in_ring: true,
-        ring_entry_time: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .in('id', entryIds)
-      .select(AUTHENTICATED_ENTRY_READ_COLUMNS);
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'bulk_check_in', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'bulk_check_in');
-    }
-
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'bulk_check_in');
-    logQuery('entries', 'bulk_check_in', duration, dbError.message);
-    return { data: [], error: dbError };
-  }
-};
-
-/**
- * Check for armband conflicts in a show
- */
-export const checkArmbandConflicts = async (showId: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { data: entries, error } = await supabase
-      .from('entries')
-      .select('id, armband, dog:dog_id(name, call_name)')
-      .eq('show_id', showId)
-      .is('deleted_at', null)
-      .not('armband', 'is', null);
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'check_armband_conflicts', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'check_armband_conflicts');
-    }
-
-    // Find duplicates
-    const armbandMap = new Map<string, Array<{ id: string; dogName: string }>>();
-    for (const entry of entries || []) {
-      const armband = entry.armband;
-      if (armband) {
-        const existing = armbandMap.get(armband) || [];
-        existing.push({
-          id: entry.id,
-          dogName:
-            (entry.dog as { name: string | null; call_name: string | null } | null)?.call_name ||
-            (entry.dog as { name: string | null } | null)?.name ||
-            'Unknown',
-        });
-        armbandMap.set(armband, existing);
-      }
-    }
-
-    const conflicts: Array<{
-      armband: string;
-      entries: Array<{ id: string; dogName: string }>;
-    }> = [];
-
-    armbandMap.forEach((entryList, armband) => {
-      if (entryList.length > 1) {
-        conflicts.push({ armband, entries: entryList });
-      }
-    });
-
-    return { data: { conflicts, hasConflicts: conflicts.length > 0 }, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'check_armband_conflicts');
-    logQuery('entries', 'check_armband_conflicts', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-/**
- * Update run order for entries in a class
- */
-export const updateRunOrder = async (entryId: string, runOrder: number) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        run_order: runOrder,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId)
-      .select(AUTHENTICATED_ENTRY_READ_COLUMNS)
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'update_run_order', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'update_run_order');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'update_run_order');
-    logQuery('entries', 'update_run_order', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };

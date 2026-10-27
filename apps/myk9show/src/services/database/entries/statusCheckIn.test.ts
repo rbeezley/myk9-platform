@@ -110,3 +110,36 @@ describe('check_in_status_before_pull (MYK9-1396)', () => {
     ).toBe(undefined);
   });
 });
+
+describe('restoring a moment-in-time ring state (MYK9-1396)', () => {
+  it.each(['in-ring', 'at-gate', 'come-to-gate'] as const)(
+    'a plain Accept returns a dog pulled while %s as checked in',
+    stored => {
+      expect(
+        resolveCheckInStatusForTransition('confirmed', {
+          previousEntryStatus: 'scratched',
+          storedCheckInStatusBeforePull: stored,
+        })
+      ).toBe('checked-in');
+    }
+  );
+
+  it('a durable stored value (completed) comes back as it was', () => {
+    expect(
+      resolveCheckInStatusForTransition('confirmed', {
+        previousEntryStatus: 'scratched',
+        storedCheckInStatusBeforePull: 'completed',
+      })
+    ).toBe('completed');
+  });
+
+  it('an immediate Undo still restores the exact ring state', () => {
+    expect(
+      resolveCheckInStatusForTransition('confirmed', {
+        previousEntryStatus: 'scratched',
+        priorCheckInStatus: 'in-ring',
+        storedCheckInStatusBeforePull: 'in-ring',
+      })
+    ).toBe('in-ring');
+  });
+});

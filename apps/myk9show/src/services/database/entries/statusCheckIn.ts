@@ -37,5 +37,21 @@ export function resolveCheckInStatusForTransition(
   // (Pull is offered on withdrawn and not-accepted entries too).
   if (context.priorCheckInStatus !== undefined) return context.priorCheckInStatus;
   if (!REACTIVATING_STATUSES.has(status)) return undefined;
-  return context.storedCheckInStatusBeforePull ?? 'no-status';
+  return durableCheckIn(context.storedCheckInStatusBeforePull) ?? 'no-status';
+}
+
+/**
+ * The stored prior may be a moment-in-time ring state from when the dog was
+ * pulled. A later Accept (unlike an immediate Undo) must not put a dog back
+ * "in the ring" or "at the gate" with nobody there: the dog was present, so it
+ * returns as checked in. Durable values come back as they were.
+ */
+const TRANSIENT_RING_STATES: ReadonlySet<CheckInStatus> = new Set([
+  'at-gate',
+  'come-to-gate',
+  'in-ring',
+] as CheckInStatus[]);
+
+function durableCheckIn(value: CheckInStatus | null | undefined): CheckInStatus | null | undefined {
+  return value && TRANSIENT_RING_STATES.has(value) ? ('checked-in' as CheckInStatus) : value;
 }

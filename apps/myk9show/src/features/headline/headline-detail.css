@@ -247,13 +247,6 @@
   padding: 16px 24px;
 }
 
-[data-headline] .hd-final-side .helper {
-  color: var(--hd-mute);
-  text-align: center;
-  margin-top: 12px;
-  font-size: 12px;
-}
-
 [data-headline] .hd-footer {
   background: var(--hd-paper-warm);
   color: var(--hd-ink);

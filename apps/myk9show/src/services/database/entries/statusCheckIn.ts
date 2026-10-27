@@ -12,8 +12,6 @@ export interface EntryStatusCheckInContext {
   previousEntryStatus?: EntryStatus | undefined;
   /** Check-in value to restore on an un-pull (Undo of a Pull); omitted on a plain Accept. */
   priorCheckInStatus?: CheckInStatus | undefined;
-  /** MYK9-1396: `entries.check_in_status_before_pull`, the durable prior a Pull stored. Read-only here: the database trigger writes it. */
-  storedCheckInStatusBeforePull?: CheckInStatus | null | undefined;
 }
 
 /**
@@ -22,9 +20,12 @@ export interface EntryStatusCheckInContext {
  *
  * - A Pull always writes `pulled`.
  * - Undo of a Pull restores the caller's captured value, whatever status it returns to.
- * - Otherwise leaving `scratched` for an active status restores the value the
- *   Pull stored (MYK9-1396, survives a reload), and only without one clears
- *   `pulled` with `no-status`, the established "not at the show" value.
+ * - Otherwise leaving `scratched` for an active status clears `pulled` with
+ *   `no-status`, the established "not at the show" value. The database then
+ *   restores the check-in the Pull overwrote (MYK9-1396,
+ *   `trg_entries_check_in_before_pull`), so a dog that was checked in comes
+ *   back checked in once the write syncs. Keep writing `no-status` here: it is
+ *   the value that trigger recognises as a plain Accept.
  * - Every other transition (a plain confirm of a checked-in dog) writes nothing.
  */
 export function resolveCheckInStatusForTransition(
@@ -36,22 +37,5 @@ export function resolveCheckInStatusForTransition(
   // Undo of a Pull restores the captured value whatever status it returns to
   // (Pull is offered on withdrawn and not-accepted entries too).
   if (context.priorCheckInStatus !== undefined) return context.priorCheckInStatus;
-  if (!REACTIVATING_STATUSES.has(status)) return undefined;
-  return durableCheckIn(context.storedCheckInStatusBeforePull) ?? 'no-status';
-}
-
-/**
- * The stored prior may be a moment-in-time ring state from when the dog was
- * pulled. A later Accept (unlike an immediate Undo) must not put a dog back
- * "in the ring" or "at the gate" with nobody there: the dog was present, so it
- * returns as checked in. Durable values come back as they were.
- */
-const TRANSIENT_RING_STATES: ReadonlySet<CheckInStatus> = new Set([
-  'at-gate',
-  'come-to-gate',
-  'in-ring',
-] as CheckInStatus[]);
-
-function durableCheckIn(value: CheckInStatus | null | undefined): CheckInStatus | null | undefined {
-  return value && TRANSIENT_RING_STATES.has(value) ? ('checked-in' as CheckInStatus) : value;
+  return REACTIVATING_STATUSES.has(status) ? 'no-status' : undefined;
 }

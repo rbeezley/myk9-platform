@@ -11380,7 +11380,6 @@ export type Database = {
           awaiting_registration_number: boolean | null
           bonus_points: number | null
           check_in_status: string | null
-          check_in_status_before_pull: string | null
           class_element: string | null
           class_id: string | null
           class_level: string | null
@@ -11699,7 +11698,6 @@ export type Database = {
           awaiting_registration_number: boolean | null
           bonus_points: number | null
           check_in_status: string | null
-          check_in_status_before_pull: string | null
           class_element: string | null
           class_id: string | null
           class_level: string | null

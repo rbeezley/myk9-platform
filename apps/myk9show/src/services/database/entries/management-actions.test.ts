@@ -163,26 +163,6 @@ describe('executeStatusChange check-in patch and rollback (MYK9-1384)', () => {
     expect(apply(0, [entry])[0]?.classes[0]?.checkInStatus).toBe('checked-in');
   });
 
-  it('a quick Pull then Accept from the same loaded state restores checked-in (MYK9-1396)', async () => {
-    const loaded = makeEntry({
-      entryStatus: EntryStatus.ACCEPTED,
-      classes: [checkedInClass('checked-in')],
-    });
-    const pull = run(loaded, EntryStatus.SCRATCHED);
-    await pull.done;
-    // The optimistic row now remembers what the Pull overwrote.
-    const afterPull = pull.apply(0, [loaded])[0] as EntryManagementEntry;
-    expect(afterPull.classes[0]?.checkInStatus).toBe('pulled');
-    expect(afterPull.classes[0]?.checkInStatusBeforePull).toBe('checked-in');
-
-    // A plain Accept built from that row (no Undo snapshot) restores it.
-    const accept = run(afterPull, EntryStatus.ACCEPTED);
-    await accept.done;
-    const afterAccept = accept.apply(0, [afterPull])[0] as EntryManagementEntry;
-    expect(afterAccept.classes[0]?.checkInStatus).toBe('checked-in');
-    expect(afterAccept.classes[0]?.checkInStatusBeforePull).toBeNull();
-  });
-
   it('rolls back only the check-in, leaving a concurrent class change alone', async () => {
     const entry = makeEntry({
       entryStatus: EntryStatus.ACCEPTED,

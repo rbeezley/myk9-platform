@@ -51,19 +51,3 @@ export function isMoveUpLinkSchemaUnavailable(
   if (!MOVE_UP_LINK_SCHEMA_TARGET.test(message)) return false;
   return MISSING_SCHEMA_CODES.has(error.code ?? '') || MISSING_SCHEMA_MESSAGE.test(message);
 }
-
-const CHECK_IN_BEFORE_PULL_SCHEMA_TARGET = /check_in_status_before_pull/i;
-
-/**
- * True only when MYK9-1396's `check_in_status_before_pull` is unavailable on the
- * entry-results view (20261027014900 not yet applied). Same deploy-window rule
- * as the move-up link: drop the column, keep the read.
- */
-export function isCheckInBeforePullSchemaUnavailable(
-  error: PostgrestErrorLike | null | undefined
-): boolean {
-  if (!error) return false;
-  const message = error.message ?? '';
-  if (!CHECK_IN_BEFORE_PULL_SCHEMA_TARGET.test(message)) return false;
-  return MISSING_SCHEMA_CODES.has(error.code ?? '') || MISSING_SCHEMA_MESSAGE.test(message);
-}

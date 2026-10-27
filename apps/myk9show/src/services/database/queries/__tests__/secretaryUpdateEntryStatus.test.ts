@@ -57,55 +57,6 @@ describe('secretaryEntryQueries — entry_status updates', () => {
   });
 
   describe('updateEntryStatus', () => {
-    it('a plain Accept after a reload restores the stored prior from the replica (MYK9-1396)', async () => {
-      // The replica holds what the server trigger stamped on the earlier Pull;
-      // the caller passes no in-memory snapshot.
-      mocks.getEntryById.mockResolvedValueOnce({
-        id: 'entry-1',
-        checkInStatus: 'pulled',
-        check_in_status: 'pulled',
-        checkInStatusBeforePull: 'checked-in',
-        check_in_status_before_pull: 'checked-in',
-      });
-      await updateEntryStatus('entry-1', 'confirmed', undefined, undefined, undefined, {
-        previousEntryStatus: 'scratched',
-      });
-      const patch = mocks.updateSecretaryLifecycleStatus.mock.calls.at(-1)?.[1] as Record<
-        string,
-        unknown
-      >;
-      expect(patch).toMatchObject({ check_in_status: 'checked-in' });
-      expect(patch).not.toHaveProperty('check_in_status_before_pull');
-      expect(patch).not.toHaveProperty('checkInStatusBeforePull');
-    });
-
-    it("the in-memory Undo prior wins over the replica's stored prior (MYK9-1396)", async () => {
-      mocks.getEntryById.mockResolvedValue({
-        id: 'entry-1',
-        checkInStatusBeforePull: 'checked-in',
-      });
-      await updateEntryStatus('entry-1', 'confirmed', undefined, undefined, undefined, {
-        previousEntryStatus: 'scratched',
-        priorCheckInStatus: 'at-gate',
-      });
-      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenLastCalledWith(
-        'entry-1',
-        expect.objectContaining({ check_in_status: 'at-gate' }),
-        undefined
-      );
-    });
-
-    it('a Pull payload never carries check_in_status_before_pull (MYK9-1396)', async () => {
-      await updateEntryStatus('entry-1', 'scratched', 'Dog lame');
-      const patch = mocks.updateSecretaryLifecycleStatus.mock.calls.at(-1)?.[1] as Record<
-        string,
-        unknown
-      >;
-      expect(patch).toMatchObject({ check_in_status: 'pulled' });
-      expect(patch).not.toHaveProperty('check_in_status_before_pull');
-      expect(patch).not.toHaveProperty('checkInStatusBeforePull');
-    });
-
     it('queues entry_status = "confirmed" on the replicated entry row', async () => {
       await updateEntryStatus('entry-1', 'confirmed');
 

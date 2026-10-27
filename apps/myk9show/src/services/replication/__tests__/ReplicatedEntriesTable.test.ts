@@ -18,7 +18,6 @@ import {
 import { logger } from '@myk9/core';
 import { fromAny } from '@total-typescript/shoehorn';
 import { supabase } from '@/services/database/supabaseClient';
-import { resolveCheckInStatusForTransition } from '@/services/database/entries/statusCheckIn';
 
 // Mock dependencies
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -616,122 +615,6 @@ describe('ReplicatedEntriesTable', () => {
         'entry-1',
         expect.objectContaining({ entry_status: 'confirmed', check_in_status: 'checked-in' })
       );
-    });
-
-    describe('check_in_status_before_pull (MYK9-1396)', () => {
-      const seed = { showId: 'show-1', classId: 'class-1', dogId: 'dog-1' };
-      const spyQueue = () =>
-        vi.spyOn(
-          table as unknown as {
-            queueMutation: (
-              operation: string,
-              rowId: string,
-              payload: Record<string, unknown>
-            ) => Promise<string | null>;
-          },
-          'queueMutation'
-        );
-      const pull = {
-        entryStatus: 'scratched',
-        entry_status: 'scratched',
-        status: 'scratched',
-        checkInStatus: 'pulled',
-        check_in_status: 'pulled',
-      } as unknown as Partial<ReplicatedEntry>;
-      const accept = (checkIn?: string) =>
-        ({
-          entryStatus: 'confirmed',
-          entry_status: 'confirmed',
-          status: 'confirmed',
-          ...(checkIn ? { checkInStatus: checkIn, check_in_status: checkIn } : {}),
-        }) as unknown as Partial<ReplicatedEntry>;
-      const seedCheckedIn = async () => {
-        await seedSet('entry-1', {
-          id: 'entry-1',
-          showId: 'show-1',
-          classId: 'class-1',
-          dogId: 'dog-1',
-          checkInStatus: 'checked-in',
-          check_in_status: 'checked-in',
-        } as ReplicatedEntry);
-      };
-
-      it('never queues the column, however the status changes', async () => {
-        await seedCheckedIn();
-        const queueMutation = spyQueue();
-        await table.updateSecretaryLifecycleStatus('entry-1', pull, seed);
-        await table.updateSecretaryLifecycleStatus('entry-1', accept('checked-in'), seed);
-        await table.updateCheckInStatus('entry-1', 'pulled');
-        await table.updateEntry('entry-1', { checkInStatus: 'at-gate' });
-        expect(queueMutation).toHaveBeenCalledTimes(4);
-        for (const call of queueMutation.mock.calls) {
-          const payload = call[2] as Record<string, unknown>;
-          expect(payload).not.toHaveProperty('check_in_status_before_pull');
-          expect(payload).not.toHaveProperty('checkInStatusBeforePull');
-        }
-      });
-
-      it('a local Pull mirrors the prior into the replica row, not the payload', async () => {
-        await seedCheckedIn();
-        const queueMutation = spyQueue();
-        await table.updateSecretaryLifecycleStatus('entry-1', pull, seed);
-        const row = await table.getEntryById('entry-1');
-        expect(row?.checkInStatusBeforePull).toBe('checked-in');
-        expect(row?.check_in_status_before_pull).toBe('checked-in');
-        expect(queueMutation.mock.calls[0]?.[2]).toMatchObject({ check_in_status: 'pulled' });
-      });
-
-      it('a desk updateCheckInStatus("pulled") then a secretary Accept restores the prior', async () => {
-        await seedCheckedIn();
-        await table.updateCheckInStatus('entry-1', 'pulled');
-        const pulled = await table.getEntryById('entry-1');
-        expect(pulled?.checkInStatusBeforePull).toBe('checked-in');
-
-        // The Accept resolves the restore from that replica row.
-        const restored = resolveCheckInStatusForTransition('confirmed', {
-          previousEntryStatus: 'scratched',
-          storedCheckInStatusBeforePull: pulled?.checkInStatusBeforePull,
-        });
-        expect(restored).toBe('checked-in');
-        await table.updateSecretaryLifecycleStatus('entry-1', accept(restored), seed);
-        const after = await table.getEntryById('entry-1');
-        expect(after?.checkInStatus).toBe('checked-in');
-        expect(after?.checkInStatusBeforePull).toBeNull();
-      });
-
-      it('pulling an already-pulled row keeps the stored prior', async () => {
-        await seedCheckedIn();
-        await table.updateCheckInStatus('entry-1', 'pulled');
-        await table.updateSecretaryLifecycleStatus('entry-1', pull, seed);
-        await table.updateCheckInStatus('entry-1', 'pulled');
-        const row = await table.getEntryById('entry-1');
-        expect(row?.checkInStatusBeforePull).toBe('checked-in');
-      });
-
-      it('an unrelated edit leaves the stored prior alone', async () => {
-        await seedCheckedIn();
-        await table.updateCheckInStatus('entry-1', 'pulled');
-        await table.updateEntry('entry-1', { armbandNumber: '7' });
-        const row = await table.getEntryById('entry-1');
-        expect(row?.checkInStatusBeforePull).toBe('checked-in');
-      });
-
-      it('a clean server row with its own stamp replaces the local mirror', async () => {
-        await seedCheckedIn();
-        await table.updateCheckInStatus('entry-1', 'pulled');
-        const local = (await table.getEntryById('entry-1')) as ReplicatedEntry;
-        const resolve = (
-          table as unknown as {
-            resolveConflict: (l: ReplicatedEntry, r: ReplicatedEntry) => ReplicatedEntry;
-          }
-        ).resolveConflict.bind(table);
-        const remote = {
-          ...local,
-          checkInStatusBeforePull: 'at-gate',
-          check_in_status_before_pull: 'at-gate',
-        } as ReplicatedEntry;
-        expect(resolve(local, remote).checkInStatusBeforePull).toBe('at-gate');
-      });
     });
 
     it('should seed missing secretary rows and queue only lifecycle status fields', async () => {

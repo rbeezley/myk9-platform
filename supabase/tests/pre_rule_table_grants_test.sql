@@ -350,9 +350,7 @@ BEGIN
       -- set it (trg_entries_junior_fee forces it false on insert, keeps OLD on update).
       -- 57 became 56 when entries.promo_code_id was dropped (20261022131700,
       -- MYK9-1326): dropping a column drops its column grant with it.
-      -- 56 became 57 when entries.check_in_status_before_pull was added and
-      -- granted to authenticated (20261027014900, MYK9-1396).
-      ('entries','authenticated',57),
+      ('entries','authenticated',56),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),
       ('dogs','anon',5),

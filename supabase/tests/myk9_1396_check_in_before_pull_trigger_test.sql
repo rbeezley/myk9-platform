@@ -1,7 +1,6 @@
 -- MYK9-1396: trg_entries_check_in_before_pull is the single owner of
--- entries.check_in_status_before_pull. Every case writes through a plain UPDATE
--- of check_in_status (the check-in desk / Show Map / secretary path), which is
--- the writer a per-RPC stamp missed. Run with psql -X -v ON_ERROR_STOP=1 after
+-- entries.check_in_status_before_pull and of the restore on Accept. Every case
+-- writes through a plain UPDATE (the check-in desk / Show Map / secretary path). Run with psql -X -v ON_ERROR_STOP=1 after
 -- migrations. All fixtures roll back.
 begin;
 
@@ -94,6 +93,60 @@ begin
     'no-status -> pulled stored ' || coalesce(pg_temp.prior(v_id), 'NULL'));
 
   raise notice 'PASS check_in_status_before_pull trigger stamps, keeps, clears and discards plants';
+end;
+$$;
+
+-- The restore: an UPDATE that un-scratches and writes 'no-status' (every
+-- client's plain Accept) gets the stored check-in back.
+do $$
+declare
+  v_id constant uuid := '00000000-0000-0000-0000-000000139631';
+  v_check text;
+begin
+  -- checked-in, Pull, Accept -> checked-in, prior cleared.
+  update public.entries set entry_status = 'confirmed', check_in_status = 'checked-in' where id = v_id;
+  update public.entries set entry_status = 'scratched', check_in_status = 'pulled' where id = v_id;
+  update public.entries set entry_status = 'confirmed', check_in_status = 'no-status' where id = v_id;
+  select check_in_status into v_check from public.entries where id = v_id;
+  perform pg_temp.fail_if(v_check is distinct from 'checked-in',
+    'Accept after a Pull of a checked-in dog wrote ' || coalesce(v_check, 'NULL'));
+  perform pg_temp.fail_if(pg_temp.prior(v_id) is not null, 'Accept left the prior stored');
+
+  -- A ring state restores as checked-in (Accept to submitted too).
+  update public.entries set check_in_status = 'in-ring' where id = v_id;
+  update public.entries set entry_status = 'scratched', check_in_status = 'pulled' where id = v_id;
+  update public.entries set entry_status = 'submitted', check_in_status = 'no-status' where id = v_id;
+  select check_in_status into v_check from public.entries where id = v_id;
+  perform pg_temp.fail_if(v_check is distinct from 'checked-in',
+    'Accept after a mid-ring Pull wrote ' || coalesce(v_check, 'NULL'));
+
+  -- Undo sends the captured value explicitly; it is honoured as sent.
+  update public.entries set check_in_status = 'at-gate' where id = v_id;
+  update public.entries set entry_status = 'scratched', check_in_status = 'pulled' where id = v_id;
+  update public.entries set entry_status = 'confirmed', check_in_status = 'at-gate' where id = v_id;
+  select check_in_status into v_check from public.entries where id = v_id;
+  perform pg_temp.fail_if(v_check is distinct from 'at-gate',
+    'Undo of a Pull did not keep its explicit value, got ' || coalesce(v_check, 'NULL'));
+
+  -- A dog that was not checked in comes back not checked in.
+  update public.entries set check_in_status = 'no-status' where id = v_id;
+  update public.entries set entry_status = 'scratched', check_in_status = 'pulled' where id = v_id;
+  update public.entries set entry_status = 'confirmed', check_in_status = 'no-status' where id = v_id;
+  select check_in_status into v_check from public.entries where id = v_id;
+  perform pg_temp.fail_if(v_check is distinct from 'no-status',
+    'Accept of a never-checked-in dog wrote ' || coalesce(v_check, 'NULL'));
+
+  -- Clearing 'pulled' WITHOUT un-scratching (a desk check-in edit) does not restore.
+  update public.entries set check_in_status = 'checked-in' where id = v_id;
+  update public.entries set entry_status = 'scratched', check_in_status = 'pulled' where id = v_id;
+  update public.entries set check_in_status = 'no-status' where id = v_id;
+  select check_in_status into v_check from public.entries where id = v_id;
+  perform pg_temp.fail_if(v_check is distinct from 'no-status',
+    'a check-in-only move off pulled restored ' || coalesce(v_check, 'NULL'));
+  perform pg_temp.fail_if(pg_temp.prior(v_id) is not null,
+    'a check-in-only move off pulled left the prior stored');
+
+  raise notice 'PASS Accept restores the pre-Pull check-in; Undo and desk edits are honoured';
 end;
 $$;
 

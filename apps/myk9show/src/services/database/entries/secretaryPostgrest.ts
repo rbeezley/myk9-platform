@@ -1,9 +1,6 @@
 import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
 import { stampServerHeldFlags } from './serverHeldFlags';
-import {
-  isCheckInBeforePullSchemaUnavailable,
-  isMoveUpLinkSchemaUnavailable,
-} from '@/features/payments/pullRefundSchemaCompatibility';
+import { isMoveUpLinkSchemaUnavailable } from '@/features/payments/pullRefundSchemaCompatibility';
 import { projectPostgrestEntryHandlerIdentity } from './entryHandlerReadBoundary';
 import type { SecretaryEntry } from './secretaryTypes';
 
@@ -110,14 +107,6 @@ const SECRETARY_ENTRIES_BASE_SELECT = `
 const MOVE_UP_LINK_COLUMN = `,
         moved_from_entry_id`;
 
-/**
- * MYK9-1396: the check-in a Pull overwrote, so an Accept on this cold path
- * restores it instead of `no-status`. Optional for the same deploy-window
- * reason as the move-up link (20261027014900 is pushed by hand).
- */
-const CHECK_IN_BEFORE_PULL_COLUMN = `,
-        check_in_status_before_pull`;
-
 /** Secretary payment bookkeeping (20260828200000, applied; MYK9-654 retired its compat arm). */
 const SECRETARY_ENTRIES_SELECT = `${SECRETARY_ENTRIES_BASE_SELECT},
         payment_reference,
@@ -138,30 +127,17 @@ export async function postgrestGetSecretaryEntriesForShow(
   // brand-new show or a fresh device -- render "Couldn't load entries".
   // This is also the relation `ReplicatedEntriesTable` pulls, so both secretary
   // read paths now agree on columns as well as rows.
-  const optional = { moveUpLink: true, checkInBeforePull: true };
-  const runSelect = () =>
+  const runSelect = (includeMoveUpLink: boolean) =>
     supabase
       .from('view_authenticated_entry_results')
-      .select(
-        SECRETARY_ENTRIES_SELECT +
-          (optional.moveUpLink ? MOVE_UP_LINK_COLUMN : '') +
-          (optional.checkInBeforePull ? CHECK_IN_BEFORE_PULL_COLUMN : '')
-      )
+      .select(SECRETARY_ENTRIES_SELECT + (includeMoveUpLink ? MOVE_UP_LINK_COLUMN : ''))
       .eq('show_id', showId)
       .is('deleted_at', null)
       .order('created_at', { ascending: true });
 
-  // Drop each optional column the schema does not have yet, one retry each.
-  let response = await runSelect();
-  for (let attempt = 0; attempt < 2 && response.error; attempt += 1) {
-    if (optional.moveUpLink && isMoveUpLinkSchemaUnavailable(response.error)) {
-      optional.moveUpLink = false;
-    } else if (optional.checkInBeforePull && isCheckInBeforePullSchemaUnavailable(response.error)) {
-      optional.checkInBeforePull = false;
-    } else {
-      break;
-    }
-    response = await runSelect();
+  let response = await runSelect(true);
+  if (isMoveUpLinkSchemaUnavailable(response.error)) {
+    response = await runSelect(false);
   }
   const { data, error } = response;
 

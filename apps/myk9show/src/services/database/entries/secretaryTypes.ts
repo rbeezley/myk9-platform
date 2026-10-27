@@ -33,8 +33,6 @@ export interface SecretaryEntry {
   disqualification_reason: string | null;
   scoring_completed_at: string | null;
   check_in_status: string | null;
-  /** MYK9-1396: the check-in value a Pull overwrote; absent on the PostgREST fallback read. */
-  check_in_status_before_pull?: string | null;
   withdrawal_reason: string | null;
   /** MYK9-632: the recognised withdrawal reason code, or null for a pull. */
   withdrawal_reason_code?: string | null;

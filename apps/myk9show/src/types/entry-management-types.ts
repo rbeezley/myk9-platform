@@ -33,8 +33,6 @@ export interface EntryClass {
    */
   withdrawalReasonCode?: string | null | undefined;
   checkInStatus?: CheckInStatus;
-  /** MYK9-1396: the check-in value a Pull overwrote, restored on un-pull. */
-  checkInStatusBeforePull?: CheckInStatus | null;
   checkInTime?: Date;
 }
 

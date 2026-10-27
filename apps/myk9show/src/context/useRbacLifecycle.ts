@@ -16,6 +16,7 @@ import { useAuthEventRefresh } from './useAuthEventRefresh';
 import { rbacRetryDelayMs } from './rbacLoadRetry';
 import { rbacService } from '@/services/rbac/RBACService';
 import { onAccountBoundary } from '@/lib/accountBoundary';
+import { getUniqueActiveRoleNames } from './authContextHelpers';
 import {
   clearAllRbacWarmTokens,
   clearRbacWarmToken,
@@ -131,7 +132,15 @@ export function useRbacLifecycle(userId: string | undefined) {
         const tokenCachedAt =
           attempt === 0 && !bypassCache ? freshRbacWarmTokenCachedAt(userId) : null;
         const copy = tokenCachedAt ? loadRbacPermissionsCache(userId) : null;
-        const warm = copy && copy.cachedAt === tokenCachedAt ? copy : null;
+        // Owner decision 2026-10-27: a copy with no active roles never warm-paints.
+        // Those accounts run on the default exhibitor role, which AuthContext
+        // withholds on a server error, so a warm paint could admit then eject.
+        const warm =
+          copy &&
+          copy.cachedAt === tokenCachedAt &&
+          getUniqueActiveRoleNames(copy.data.roles).length > 0
+            ? copy
+            : null;
         if (warm) unverified = true;
         setState(previous =>
           previous.userId === userId

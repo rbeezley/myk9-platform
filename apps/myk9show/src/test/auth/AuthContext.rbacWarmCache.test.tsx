@@ -383,7 +383,35 @@ describe('AuthContext RBAC warm cache (MYK9-1349)', () => {
     expect(screen.getByText('secretary surface')).toBeInTheDocument();
   });
 
-  it('warm seed with an EMPTY role list that then fails offline keeps the default exhibitor role and no error', async () => {
+  it('a copy with no active roles never warm-paints (exhibitor-only accounts wait for the server)', async () => {
+    seed(mockUser.id, 60 * 1000, EMPTY);
+    mockRbacService.getUserPermissions.mockReturnValue(deferred().promise);
+
+    renderProbe();
+
+    await act(async () => {});
+    expect(screen.getByTestId('loading')).toHaveTextContent('true');
+    expect(screen.getByTestId('roles')).toHaveTextContent('none');
+  });
+
+  it('a copy with no active roles never warm-paints, so a server error stays main behaviour (no admit-then-eject)', async () => {
+    seed(mockUser.id, 60 * 1000, EMPTY);
+    const answer = deferred<UserPermissionsResponse>();
+    mockRbacService.getUserPermissions.mockReturnValue(answer.promise);
+
+    renderProbe();
+    await act(async () => {});
+    // Never admitted before the server answers...
+    expect(screen.getByTestId('roles')).toHaveTextContent('none');
+    await act(async () => {
+      answer.reject(new Error('rpc failed: 500'));
+    });
+    // ...so the error cannot eject an exhibitor who was shown the app.
+    await waitFor(() => expect(screen.getByTestId('rbac-error')).not.toHaveTextContent('none'));
+    expect(screen.getByTestId('roles')).toHaveTextContent('none');
+  });
+
+  it('a copy with no active roles still hydrates the offline cold boot with the default exhibitor role and no error', async () => {
     seed(mockUser.id, 60 * 1000, EMPTY);
     mockRbacService.getUserPermissions.mockRejectedValue(new Error('TypeError: Failed to fetch'));
 

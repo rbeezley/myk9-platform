@@ -8,7 +8,6 @@ export {
   createUser,
   updateUser,
   deleteUser,
-  hardDeleteUser,
   permanentDeleteUser,
   restoreUser,
   getDeletedUsers,

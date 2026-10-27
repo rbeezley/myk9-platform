@@ -13,7 +13,7 @@ import { getDeletedClasses, restoreClass, hardDeleteClass } from '@/services/dat
 import { getDeletedEntries, restoreEntry, hardDeleteEntry } from '@/services/database/entries';
 import { getDeletedDogs, restoreDog, hardDeleteDog } from '@/services/database/dogs';
 import { getDeletedClubs, restoreClub, hardDeleteClub } from '@/services/database/clubs';
-import { getDeletedUsers, restoreUser, hardDeleteUser } from '@/services/database/users';
+import { getDeletedUsers, restoreUser, permanentDeleteUser } from '@/services/database/users';
 import {
   describeRestoreDog,
   fetchAndMap,
@@ -172,6 +172,8 @@ export const ENTITY_SECTIONS: EntitySectionConfig[] = [
     iconColor: 'text-indigo-600',
     fetchDeleted: () => fetchAndMap(getDeletedUsers, mapPerson),
     restore: restoreUser,
-    hardDelete: hardDeleteUser,
+    // Routed through admin-delete-user so the step-up re-auth gate (MYK9-1393)
+    // applies; a direct people DELETE would skip it (MYK9-1443).
+    hardDelete: permanentDeleteUser,
   },
 ];

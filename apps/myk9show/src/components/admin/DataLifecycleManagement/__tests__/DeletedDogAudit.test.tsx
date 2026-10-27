@@ -75,7 +75,7 @@ vi.mock('@/services/database/clubs', () => ({
 vi.mock('@/services/database/users', () => ({
   getDeletedUsers: emptyList(),
   restoreUser: ok(),
-  hardDeleteUser: ok(),
+  permanentDeleteUser: ok(),
 }));
 vi.mock('@/services/database/dogs', () => ({
   getDeletedDogs: mockGetDeletedDogs,

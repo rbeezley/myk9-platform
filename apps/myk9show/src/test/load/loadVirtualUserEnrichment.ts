@@ -7,7 +7,7 @@ import type { ReaderContext } from './loadVirtualUserContext';
  * costs a device about a dozen requests, not one.
  *
  * Restated rather than imported for the reason in `loadVirtualUserContext.ts`; the
- * stage order, batch size, filters and the stages that stop early on a failed read
+ * stage order, batch sizes (classes per visibility read, shows per batched RPC), filters and the stages that stop early on a failed read
  * mirror `resolveClass{Visibility,HideCounts,TimeLimitRules,JudgeNames}.ts`.
  * Every stage is best-effort in the application, so none of them fails the pass.
  */
@@ -26,6 +26,8 @@ interface TrialRow {
 const VISIBILITY_COLUMNS =
   'preset, placement_timing, qualification_timing, time_timing, faults_timing, self_checkin_enabled';
 const VISIBILITY_BATCH_SIZE = 100;
+/** `CLASS_ENRICHMENT_SHOW_BATCH`: the batched show RPCs take at most this many ids (MYK9-1450). */
+const SHOW_BATCH_SIZE = 200;
 
 const HIDE_RULE_COLUMNS =
   'element, level, section, hide_count_fixed, hides_known, sport_templates!inner(organization)';
@@ -124,13 +126,27 @@ async function resolveHideCounts(
     );
   }
 
+  // MYK9-1450: one batched call per CLASS_ENRICHMENT_SHOW_BATCH shows, as the application sends.
   await Promise.all(
-    unique(trials.map(trial => trial.show_id)).map(showId =>
+    showIdBatches(sortedShowIds(trials)).map(batch =>
       ctx.request('classes (enrichment)', () =>
-        ctx.client.rpc('get_show_class_hide_counts', { p_show_id: showId }).abortSignal(ctx.signal)
+        ctx.client.rpc('get_shows_class_hide_counts', { p_show_ids: batch }).abortSignal(ctx.signal)
       )
     )
   );
+}
+
+/** The distinct show ids, sorted, as the application sends them. */
+function sortedShowIds(trials: ReadonlyArray<TrialRow>): string[] {
+  return unique(trials.map(trial => trial.show_id)).sort();
+}
+
+/** `showIdBatches`: lists of at most SHOW_BATCH_SIZE ids. */
+function showIdBatches(ids: readonly string[]): string[][] {
+  const batches: string[][] = [];
+  for (let i = 0; i < ids.length; i += SHOW_BATCH_SIZE)
+    batches.push(ids.slice(i, i + SHOW_BATCH_SIZE));
+  return batches;
 }
 
 async function resolveTimeLimitRules(
@@ -163,10 +179,11 @@ async function resolveJudgeNames(
   if (trialIds.length === 0) return;
   const trials = preloaded ?? (await readTrials(ctx, 'id, show_id', trialIds));
   if (!trials) return;
+  // MYK9-1450: one get_shows_judges call per batch of shows, as fetchShowsJudgeNameParts sends.
   await Promise.all(
-    unique(trials.map(trial => trial.show_id)).map(showId =>
+    showIdBatches(sortedShowIds(trials)).map(batch =>
       ctx.request('classes (enrichment)', () =>
-        ctx.client.rpc('get_show_judges', { p_show_id: showId }).abortSignal(ctx.signal)
+        ctx.client.rpc('get_shows_judges', { p_show_ids: batch }).abortSignal(ctx.signal)
       )
     )
   );

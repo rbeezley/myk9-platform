@@ -2,7 +2,7 @@
  * MYK9-494 review follow-ups — the two ways the judge name could still be wrong after the
  * original fix, both of which the first round of tests could not see because they hydrate once.
  *
- *  * P1: the `get_show_judges` enrichment is best-effort and its failure is swallowed. On an
+ *  * P1: the `get_shows_judges` enrichment is best-effort and its failure is swallowed. On an
  *    incremental sync triggered by anything at all, `rowToClass` would then yield
  *    `judgeName: undefined` and `resolveConflict` would commit that over a correct cached
  *    name — back to `Judge TBD`, silently.
@@ -87,6 +87,7 @@ describe('MYK9-494 P1 — a failed enrichment must not erase a cached judge name
     mockRpc.mockResolvedValue({
       data: [
         {
+          show_id: SHOW_ID,
           assignment_id: 'a-1',
           person_id: JUDGE_ID,
           first_name: 'Test',
@@ -115,6 +116,7 @@ describe('MYK9-494 P1 — a failed enrichment must not erase a cached judge name
     mockRpc.mockResolvedValue({
       data: [
         {
+          show_id: SHOW_ID,
           assignment_id: 'a-1',
           person_id: JUDGE_ID,
           first_name: 'Test',
@@ -143,6 +145,7 @@ describe('MYK9-494 P1 — a failed enrichment must not erase a cached judge name
     mockRpc.mockResolvedValue({
       data: [
         {
+          show_id: SHOW_ID,
           assignment_id: 'a-1',
           person_id: JUDGE_ID,
           first_name: 'Test',
@@ -175,6 +178,7 @@ describe('MYK9-494 P1 — a failed enrichment must not erase a cached judge name
     mockRpc.mockResolvedValue({
       data: [
         {
+          show_id: SHOW_ID,
           assignment_id: 'a-1',
           person_id: JUDGE_ID,
           first_name: 'Test',
@@ -216,6 +220,7 @@ describe('MYK9-494 P1 — a failed enrichment must not erase a cached judge name
 describe('MYK9-494 P3 — name and person id come from the same assignment', () => {
   const twoConfirmed = (order: Array<'a-1' | 'a-2'>) =>
     order.map(assignmentId => ({
+      show_id: SHOW_ID,
       assignment_id: assignmentId,
       person_id: assignmentId === 'a-1' ? 'person-first' : 'person-second',
       first_name: assignmentId === 'a-1' ? 'First' : 'Second',

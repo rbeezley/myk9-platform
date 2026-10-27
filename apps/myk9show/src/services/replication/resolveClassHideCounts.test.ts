@@ -159,8 +159,8 @@ describe('resolveHideCountsForClassRows', () => {
     mockReferenceQueries();
     mockRpc.mockResolvedValue({
       data: [
-        { class_id: 'akc-master', num_hides: 4 },
-        { class_id: 'akc-excellent', num_hides: 99 },
+        { show_id: 'show-1', class_id: 'akc-master', num_hides: 4 },
+        { show_id: 'show-1', class_id: 'akc-excellent', num_hides: 99 },
       ],
       error: null,
     });
@@ -170,15 +170,15 @@ describe('resolveHideCountsForClassRows', () => {
     expect(result.get('akc-master')).toBe(4);
     expect(result.get('akc-excellent')).toBe(99);
     expect(result.get('akc-detective')).toBeUndefined();
-    expect(mockRpc).toHaveBeenCalledWith('get_show_class_hide_counts', {
-      p_show_id: 'show-1',
+    expect(mockRpc).toHaveBeenCalledWith('get_shows_class_hide_counts', {
+      p_show_ids: ['show-1'],
     });
   });
 
   it('keeps official counts when public rule lookup fails', async () => {
     mockReferenceQueries({ ruleError: { message: 'rule lookup failed' } });
     mockRpc.mockResolvedValue({
-      data: [{ class_id: 'akc-master', num_hides: 4 }],
+      data: [{ show_id: 'show-1', class_id: 'akc-master', num_hides: 4 }],
       error: null,
     });
 

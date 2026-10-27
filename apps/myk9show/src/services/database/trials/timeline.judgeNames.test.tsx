@@ -206,8 +206,16 @@ beforeEach(() => {
   mockFrom.mockReset();
   mockRpc.mockReset();
   mockFrom.mockImplementation((table: string) => makeQueryBuilder(table));
-  mockRpc.mockImplementation(async (name: string) => {
+  mockRpc.mockImplementation(async (name: string, args: { p_show_ids?: string[] }) => {
+    // The cold PostgREST path still reads one show; replication batches shows (MYK9-1450).
     if (name === 'get_show_judges') return { data: RPC_JUDGE_ROWS, error: null };
+    if (name === 'get_shows_judges') {
+      const asked = args.p_show_ids?.includes(SHOW_ID) ?? false;
+      return {
+        data: asked ? RPC_JUDGE_ROWS.map(row => ({ ...row, show_id: SHOW_ID })) : [],
+        error: null,
+      };
+    }
     return { data: null, error: { message: `unexpected rpc ${name}` } };
   });
 });
@@ -229,7 +237,7 @@ describe('MYK9-494 — warm replication path supplies the confirmed judge', () =
 
   it('never embeds people — the RPC is the only name source', async () => {
     await hydrateReplicatedClasses();
-    expect(mockRpc).toHaveBeenCalledWith('get_show_judges', { p_show_id: SHOW_ID });
+    expect(mockRpc).toHaveBeenCalledWith('get_shows_judges', { p_show_ids: [SHOW_ID] });
   });
 
   it('returns timeline rows carrying the judge name parts', async () => {

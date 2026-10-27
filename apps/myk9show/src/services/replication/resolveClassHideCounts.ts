@@ -148,6 +148,11 @@ export async function resolveHideCountsForClassRows(
     ...new Set(trials.map(trial => trial.show_id).filter((id): id is string => !!id)),
   ].sort();
 
+  // MYK9-1451: filled per batch, published to the caller only once EVERY batch settled. A batch
+  // that throws rejects the whole call, and the caller then treats it as a failed lookup; an
+  // earlier batch's classes must not read as answered.
+  const answered = new Set<string>();
+
   // MYK9-1450: one get_shows_class_hide_counts round trip per batch of shows, not one per show.
   // It runs get_show_class_hide_counts per show, so each show keeps its own role checks.
   await Promise.all(
@@ -168,7 +173,7 @@ export async function resolveHideCountsForClassRows(
       const answeredShows = new Set(batch);
       for (const row of rows) {
         const showId = row.trial_id ? trialById.get(row.trial_id)?.show_id : undefined;
-        if (rulesAnswered && showId && answeredShows.has(showId)) officialAnswered?.add(row.id);
+        if (rulesAnswered && showId && answeredShows.has(showId)) answered.add(row.id);
       }
 
       for (const row of data ?? []) {
@@ -179,5 +184,6 @@ export async function resolveHideCountsForClassRows(
     })
   );
 
+  answered.forEach(id => officialAnswered?.add(id));
   return byClassId;
 }

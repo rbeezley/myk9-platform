@@ -347,6 +347,15 @@ const CLASS_JUDGE_FIELDS: ReadonlySet<string> = new Set([
 const notServerChangedJudge = (field: string, value: unknown): unknown =>
   CLASS_JUDGE_FIELDS.has(field) || field === 'hideCountResolved' ? undefined : value;
 
+/**
+ * MYK9-1451: a remote class row whose hide count was not looked up this sync (the official RPC
+ * or the rules read failed) carries no count and no `hideCountResolved`. That is "unknown", not
+ * "no count": the count already on the device is kept. One rule for the clean-row merge
+ * (resolveConflict) and the dirty-row merge (`retainLocal`).
+ */
+const hideCountUnknown = (remote: { hideCount?: unknown; hideCountResolved?: unknown }): boolean =>
+  remote.hideCountResolved !== true && remote.hideCount === undefined;
+
 export const CLASS_DIRTY_ROW_COMPARE_POLICY: DirtyRowComparePolicy = {
   normalizeValue: (field, value) =>
     field === 'classStatus' && typeof value === 'string' ? foldClassStatus(value) : value,
@@ -354,6 +363,8 @@ export const CLASS_DIRTY_ROW_COMPARE_POLICY: DirtyRowComparePolicy = {
   serverWinsFields: ['actual_end_time'],
   // One judge across five fields: a changed judge is kept whole, never half-replaced.
   fieldGroups: [[...CLASS_JUDGE_FIELDS]],
+  retainLocal: (field, remoteRow) =>
+    (field === 'hideCount' || field === 'hideCountResolved') && hideCountUnknown(remoteRow),
 };
 
 function foldClassStatus(status: string): string {
@@ -767,6 +778,13 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       timeLimitRule: remote.timeLimitRule ?? local.timeLimitRule,
     };
 
+    // MYK9-1451: `hideCount` is enrichment too; an unanswered lookup is "unknown", not "no count",
+    // so the count already on this device stays (see hideCountUnknown).
+    if (hideCountUnknown(remote)) {
+      merged.hideCount = local.hideCount;
+      merged.hideCountResolved = local.hideCountResolved;
+    }
+
     // MYK9-494: judge NAMES are enrichment too, and their resolver is allowed to fail (the
     // catch at fetchRemoteRows swallows it). `judgeResolved === false` therefore means
     // "unknown", not "no judge" — committing it would regress a correct schedule to
@@ -774,12 +792,6 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     //
     // Retained ONLY when the remote row still carries a confirmed assignment for the SAME
     // person: a removed or swapped judge must not keep the old name on the board.
-    const keepCachedHideCount = remote.hideCountResolved !== true && remote.hideCount === undefined;
-    if (keepCachedHideCount) {
-      merged.hideCount = local.hideCount;
-      merged.hideCountResolved = local.hideCountResolved;
-    }
-
     const keepCachedJudgeName =
       remote.judgeResolved !== true &&
       remote.judgeId !== undefined &&

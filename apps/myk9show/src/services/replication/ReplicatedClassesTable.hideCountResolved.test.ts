@@ -107,4 +107,37 @@ describe('official hide count survives a failed lookup (MYK9-1451)', () => {
 
     expect(merged.hideCount).toBe(3);
   });
+
+  it('marks nothing resolved and keeps the count when a later show batch throws', async () => {
+    // 201 shows split into two RPC batches (200 + 1). The first answers with no count; the
+    // second rejects, so the whole lookup is a failure and the first batch must not count.
+    const shows = Array.from({ length: 201 }, (_, i) => `show-${String(i).padStart(3, '0')}`);
+    const trials = shows.map((show, i) => ({
+      id: `trial-${i}`,
+      show_id: show,
+      registry_id: 'AKC',
+    }));
+    mockFrom.mockImplementation((table: string) => builder(table === 'trials' ? trials : []));
+    mockRpc.mockImplementation(async (name: string, args: { p_show_ids?: string[] }) => {
+      if (name !== 'get_shows_class_hide_counts') return { data: [], error: null };
+      if (args.p_show_ids?.includes('show-200')) throw new TypeError('Failed to fetch');
+      return { data: [], error: null };
+    });
+    const first = { id: 'class-1', trial_id: 'trial-0', element: 'Interior', level: 'Novice' };
+    const last = { id: 'class-2', trial_id: 'trial-200', element: 'Interior', level: 'Novice' };
+    const table = new ReplicatedClassesTable();
+
+    const enriched = await (table as unknown as { enrichClassRows: Enrich }).enrichClassRows([
+      first,
+      last,
+    ]);
+    const remote = rowToClass(enriched[0] as unknown as Parameters<typeof rowToClass>[0]);
+    const merged = (table as unknown as { resolveConflict: Resolve }).resolveConflict(
+      warm as ReplicatedClass,
+      remote
+    );
+
+    expect(enriched.map(row => row._hideCountResolved)).toEqual([false, false]);
+    expect(merged.hideCount).toBe(5);
+  });
 });

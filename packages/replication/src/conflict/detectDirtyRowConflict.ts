@@ -104,6 +104,18 @@ export interface DirtyRowComparePolicy {
    * to equal the base cannot be taken from the server and leave a half-replaced value.
    */
   fieldGroups?: readonly (readonly string[])[];
+  /**
+   * MYK9-1451: fields whose server value is "unknown", not changed, in THIS remote row (a
+   * failed enrichment lookup leaves a field absent, which a plain compare reads as the server
+   * clearing it). Row-aware, unlike the value hooks: it sees the remote and local rows. When
+   * it returns true the field is treated as not server-changed on every dirty-row path: never
+   * a conflict, never adopted from the remote, so the device's value stays.
+   */
+  retainLocal?: (
+    field: string,
+    remoteRow: Record<string, unknown>,
+    localRow: Record<string, unknown>
+  ) => boolean;
 }
 
 export interface DirtyRowConflictInput<T extends object> {
@@ -149,6 +161,7 @@ export function detectDirtyRowConflict<T extends object>({
 
   for (const field of fields) {
     if (ignored.has(field)) continue;
+    if (comparePolicy?.retainLocal?.(field, remoteRecord, localRecord)) continue;
 
     const asInstant = instantFields.has(field);
     const baseValue = normalize ? normalize(field, baseRecord[field]) : baseRecord[field];
@@ -235,6 +248,7 @@ export function mergeNonConflictingServerFields<T extends object>({
 
   for (const field of fields) {
     if (ignored.has(field) || deviceOwned.has(field)) continue;
+    if (comparePolicy?.retainLocal?.(field, remoteRecord, localRecord)) continue;
 
     const baseValue = baseRecord[field];
     const localValue = localRecord[field];

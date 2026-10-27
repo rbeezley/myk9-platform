@@ -128,6 +128,7 @@ TEST_FILES=(
   "$TEST_DIR/recoverable_show_access_codes_test.sql"
   "$TEST_DIR/ringside_containment_test.sql"
   "$TEST_DIR/self_checkin_entry_test.sql"
+  "$TEST_DIR/myk9_1396_check_in_before_pull_trigger_test.sql"
   "$TEST_DIR/submit_entries_started_class_test.sql"
   "$TEST_DIR/submit_entries_day_of_show_flag_test.sql"
   "$TEST_DIR/sign_in_email_invariant_test.sql"

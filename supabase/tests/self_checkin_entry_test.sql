@@ -89,6 +89,10 @@ begin
     -- may change. The version assertion also proves exactly one UPDATE.
     expected_rows := jsonb_set(before_rows,
       array[target_id::text, 'check_in_status'], to_jsonb(new_status));
+    -- MYK9-1396: a move to 'pulled' from 'no-status' remembers 'no-status'.
+    expected_rows := jsonb_set(expected_rows,
+      array[target_id::text, 'check_in_status_before_pull'],
+      case when new_status = 'pulled' then to_jsonb('no-status'::text) else 'null'::jsonb end);
     expected_rows := jsonb_set(expected_rows,
       array[target_id::text, 'updated_at'], after_rows #> array[target_id::text, 'updated_at']);
     expected_rows := jsonb_set(expected_rows,
@@ -134,6 +138,54 @@ select pg_temp.assert_self_checkin('nonexistent entry',
 select pg_temp.assert_self_checkin('allowed status ' || status,
   '00000000-0000-0000-0000-000000452101', status)
 from unnest(array['checked-in', 'conflict', 'pulled', 'at-gate', 'no-status']) status;
+
+-- MYK9-1396: the prior check-in survives a self-pull and is forgotten on un-pull.
+-- Visibility settings are still absent here, so self-check-in is default-enabled.
+do $$
+declare
+  v_id constant uuid := '00000000-0000-0000-0000-000000452032';
+  v_caller constant text := '00000000-0000-0000-0000-000000452101';
+  v_prior text;
+begin
+  perform set_config('request.jwt.claim.sub', v_caller, true);
+  perform set_config('request.jwt.claims',
+    jsonb_build_object('sub', v_caller, 'role', 'authenticated')::text, true);
+  perform set_config('role', 'authenticated', true);
+
+  perform public.self_checkin_entry(v_id, 'checked-in');
+  perform public.self_checkin_entry(v_id, 'pulled');
+  reset role;
+  select check_in_status_before_pull into v_prior from public.entries where id = v_id;
+  if v_prior is distinct from 'checked-in' then
+    raise exception 'FAIL self-pull of a checked-in dog stored %, expected checked-in', v_prior;
+  end if;
+
+  perform set_config('role', 'authenticated', true);
+  perform public.self_checkin_entry(v_id, 'pulled');
+  reset role;
+  select check_in_status_before_pull into v_prior from public.entries where id = v_id;
+  if v_prior is distinct from 'checked-in' then
+    raise exception 'FAIL re-pull overwrote the stored prior with %', v_prior;
+  end if;
+
+  perform set_config('role', 'authenticated', true);
+  perform public.self_checkin_entry(v_id, 'at-gate');
+  reset role;
+  select check_in_status_before_pull into v_prior from public.entries where id = v_id;
+  if v_prior is not null then
+    raise exception 'FAIL a self-move off pulled left a stale prior %', v_prior;
+  end if;
+
+  perform set_config('role', 'authenticated', true);
+  perform public.self_checkin_entry(v_id, 'conflict');
+  reset role;
+  select check_in_status_before_pull into v_prior from public.entries where id = v_id;
+  if v_prior is not null then
+    raise exception 'FAIL a non-pull move set the prior to %', v_prior;
+  end if;
+  raise notice 'PASS self-checkin stamps and clears check_in_status_before_pull';
+end;
+$$;
 
 -- All 18 show/trial/class combinations, including explicit NULL inheritance.
 -- The expected result uses independent branching rather than the RPC COALESCE.

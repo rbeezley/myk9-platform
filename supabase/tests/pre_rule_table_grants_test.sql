@@ -407,6 +407,7 @@ BEGIN
     -- proves anon holds ZERO entries columns -- name it here so a future grant
     -- that adds anon back to the table cannot slip this one in with it.
     ('entries','moved_from_entry_id'),
+    ('entries','check_in_status_before_pull'),
     ('platform_settings','updated_by'), ('platform_settings','updated_at'),
     ('platform_settings','id'), ('platform_settings','stripe_livemode')
   ) AS t(tbl, col)

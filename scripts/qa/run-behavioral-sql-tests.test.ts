@@ -125,6 +125,7 @@ const launchCriticalSqlTests = [
   'recoverable_show_access_codes_test.sql',
   'ringside_containment_test.sql',
   'self_checkin_entry_test.sql',
+  'myk9_1396_check_in_before_pull_trigger_test.sql',
   'submit_entries_started_class_test.sql',
   'submit_entries_day_of_show_flag_test.sql',
   'sign_in_email_invariant_test.sql',

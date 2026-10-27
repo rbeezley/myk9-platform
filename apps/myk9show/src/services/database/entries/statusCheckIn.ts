@@ -21,8 +21,11 @@ export interface EntryStatusCheckInContext {
  * - A Pull always writes `pulled`.
  * - Undo of a Pull restores the caller's captured value, whatever status it returns to.
  * - Otherwise leaving `scratched` for an active status clears `pulled` with
- *   `no-status`, the established "not at the show" value. Nothing stores the
- *   pre-Pull value, so a plain Accept cannot restore `checked-in`.
+ *   `no-status`, the established "not at the show" value. The database then
+ *   restores the check-in the Pull overwrote (MYK9-1396,
+ *   `trg_entries_check_in_before_pull`), so a dog that was checked in comes
+ *   back checked in once the write syncs. Keep writing `no-status` here: it is
+ *   the value that trigger recognises as a plain Accept.
  * - Every other transition (a plain confirm of a checked-in dog) writes nothing.
  */
 export function resolveCheckInStatusForTransition(

@@ -26,7 +26,12 @@ export const clubQueryKeys = {
   all: ['clubs'] as const,
   lists: () => [...clubQueryKeys.all, 'list'] as const,
   list: (filters?: Record<string, unknown>) => [...clubQueryKeys.lists(), filters] as const,
-  awaitingAuthorization: () => [...clubQueryKeys.lists(), 'awaiting-authorization'] as const,
+  awaitingAuthorization: (createdBy?: string) =>
+    [
+      ...clubQueryKeys.lists(),
+      'awaiting-authorization',
+      ...(createdBy ? [createdBy] : []),
+    ] as const,
   details: () => [...clubQueryKeys.all, 'detail'] as const,
   detail: (id: string) => [...clubQueryKeys.details(), id] as const,
   search: (term: string) => [...clubQueryKeys.all, 'search', term] as const,
@@ -79,11 +84,11 @@ export const useClubsQuery = () => {
  * the server so it is complete at any club count. The key sits under lists(),
  * so existing lists() and all invalidations refresh it.
  */
-export const useClubsAwaitingAuthorizationQuery = () => {
+export const useClubsAwaitingAuthorizationQuery = (createdBy?: string) => {
   return useQuery({
-    queryKey: clubQueryKeys.awaitingAuthorization(),
+    queryKey: clubQueryKeys.awaitingAuthorization(createdBy),
     queryFn: async () => {
-      const { data, error } = await getClubsAwaitingAuthorization();
+      const { data, error } = await getClubsAwaitingAuthorization(createdBy);
       if (error) throw error;
       return mapDatabaseClubsArray(data as Parameters<typeof mapDatabaseClubsArray>[0]);
     },

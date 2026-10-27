@@ -97,4 +97,30 @@ describe('ClubsAwaitingAuthorizationSection', () => {
 
     expect(mocks.refetch).toHaveBeenCalledTimes(1);
   });
+
+  describe('folded notice link (MYK9-1395)', () => {
+    const CREATOR = '00000000-0000-0000-0000-000000000104';
+
+    it('narrows the list to the creator named in ?creator= and offers the full list', () => {
+      render(<ClubsAwaitingAuthorizationSection />, {
+        initialRoute: `/admin/onboarding?creator=${CREATOR}`,
+      });
+
+      expect(mocks.query).toHaveBeenCalledWith(CREATOR);
+      expect(
+        screen.getByRole('link', { name: 'Show all clubs awaiting authorization' })
+      ).toHaveAttribute('href', '/admin/onboarding');
+    });
+
+    it('ignores a ?creator= value that is not a uuid', () => {
+      render(<ClubsAwaitingAuthorizationSection />, {
+        initialRoute: '/admin/onboarding?creator=not-a-uuid',
+      });
+
+      expect(mocks.query).toHaveBeenCalledWith(undefined);
+      expect(
+        screen.queryByRole('link', { name: 'Show all clubs awaiting authorization' })
+      ).not.toBeInTheDocument();
+    });
+  });
 });

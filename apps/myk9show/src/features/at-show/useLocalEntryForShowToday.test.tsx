@@ -179,6 +179,27 @@ describe('useLocalEntryForShowToday', () => {
     await waitFor(() => expect(result.current.hasLocalEntryToday).toBe(true));
   });
 
+  it('keeps a settled true when a later re-read fails mid-sync', async () => {
+    const { result } = renderLocalEntry('person-1');
+    await waitFor(() => expect(result.current.hasLocalEntryToday).toBe(true));
+    const readsBefore = tables.getEntriesByShow.mock.calls.length;
+
+    tables.getEntriesByShow.mockRejectedValue(new Error('IndexedDB transaction aborted'));
+    tables.notify('entries');
+
+    await waitFor(() =>
+      expect(tables.getEntriesByShow.mock.calls.length).toBeGreaterThan(readsBefore)
+    );
+    // Let the failed refetch settle, then the answer must still be true.
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(result.current.hasLocalEntryToday).toBe(true);
+  });
+
+  it('does not listen to the replicas while disabled (no person id)', () => {
+    renderLocalEntry(null);
+    for (const set of tables.listeners.values()) expect(set.size).toBe(0);
+  });
+
   it('re-evaluates to false when the entry is withdrawn locally', async () => {
     const { result } = renderLocalEntry('person-1');
     await waitFor(() => expect(result.current.hasLocalEntryToday).toBe(true));

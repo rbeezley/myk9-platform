@@ -1,3 +1,4 @@
+import { logger } from '@/utils/logger';
 import { supabase } from '../supabaseClient';
 
 /** The name half of a confirmed judge assignment, split as `people` stores it. */
@@ -105,14 +106,25 @@ export async function fetchShowsJudgeNameParts(
   const byShow = new Map<string, Map<string, JudgeNameParts>>();
   await Promise.all(
     showIdBatches([...new Set(showIds)]).map(async batch => {
+      // A failed batch leaves its shows absent: unknown, not "no judge". Logged, because that
+      // state is otherwise silent (the absent classes are simply not cached, MYK9-1450 review).
       try {
         const { data, error } = await supabase.rpc('get_shows_judges', { p_show_ids: batch });
-        if (error) return;
+        if (error) {
+          logger.warn(
+            `[judgeNamesByClass] Judge names unavailable for ${batch.length} show(s): ${error.message}`,
+            'replication'
+          );
+          return;
+        }
         const rowsByShow = new Map<string, ShowJudgeRows>(batch.map(id => [id, []]));
         for (const row of data ?? []) rowsByShow.get(row.show_id)?.push(row);
         for (const [showId, rows] of rowsByShow) byShow.set(showId, confirmedJudgeByClass(rows));
-      } catch {
-        // Leave the batch's shows absent: unknown, not "no judge".
+      } catch (error) {
+        logger.warn(
+          `[judgeNamesByClass] Judge names unavailable for ${batch.length} show(s): ${error instanceof Error ? error.message : String(error)}`,
+          'replication'
+        );
       }
     })
   );

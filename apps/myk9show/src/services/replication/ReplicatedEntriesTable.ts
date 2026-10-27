@@ -830,6 +830,17 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       payload.check_in_status = updates.check_in_status ?? updates.checkInStatus;
     }
 
+    // MYK9-1396: presence-checked, not `??`, because null CLEARS the stored prior on un-pull.
+    if (
+      updates.check_in_status_before_pull !== undefined ||
+      updates.checkInStatusBeforePull !== undefined
+    ) {
+      payload.check_in_status_before_pull =
+        updates.check_in_status_before_pull !== undefined
+          ? updates.check_in_status_before_pull
+          : updates.checkInStatusBeforePull;
+    }
+
     if (updates.withdrawal_reason !== undefined || updates.withdrawalReason !== undefined) {
       payload.withdrawal_reason = updates.withdrawal_reason ?? updates.withdrawalReason;
     }

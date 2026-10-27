@@ -48,6 +48,14 @@ export interface ReplicatedEntry {
   // Check-in status (show-day flow, separate from entry_status lifecycle)
   checkInStatus?: CheckInStatus | undefined;
   check_in_status?: CheckInStatus | undefined; // snake_case alias for Supabase compatibility
+  /**
+   * MYK9-1396: the check-in value a secretary Pull overwrote (`null` = none
+   * remembered), so un-pulling restores it. `undefined` on a replica row cached
+   * before migration 20261027014900, which is why whole-row upload projects it
+   * only when defined.
+   */
+  checkInStatusBeforePull?: CheckInStatus | null | undefined;
+  check_in_status_before_pull?: CheckInStatus | null | undefined;
 
   jumpHeight?: string | undefined;
   entryFee?: number | undefined;
@@ -261,6 +269,11 @@ export function entryToSupabaseRow(entry: ReplicatedEntry): Record<string, unkno
     handler: entry.handler ?? null,
     entry_status: entry.entryStatus ?? null,
     check_in_status: entry.checkInStatus ?? entry.check_in_status ?? 'no-status',
+    ...(entry.checkInStatusBeforePull !== undefined
+      ? { check_in_status_before_pull: entry.checkInStatusBeforePull }
+      : entry.check_in_status_before_pull !== undefined
+        ? { check_in_status_before_pull: entry.check_in_status_before_pull }
+        : {}),
     jump_height: entry.jumpHeight ?? null,
     entry_fee: entry.entryFee ?? null,
     payment_status: entry.paymentStatus ?? null,
@@ -404,6 +417,11 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     entryStatus: row.entry_status ?? undefined,
     checkInStatus: (dbRow.check_in_status as CheckInStatus) ?? 'no-status',
     check_in_status: (dbRow.check_in_status as CheckInStatus) ?? 'no-status',
+    // MYK9-1396. `optionalColumn`: absent until migration 20261027014900 is pushed.
+    checkInStatusBeforePull: optionalColumn(row, 'check_in_status_before_pull') as
+      CheckInStatus | null | undefined,
+    check_in_status_before_pull: optionalColumn(row, 'check_in_status_before_pull') as
+      CheckInStatus | null | undefined,
     jumpHeight: row.jump_height ?? undefined,
     entryFee: row.entry_fee ?? undefined,
     totalFees: (dbRow.total_fees as number | undefined) ?? undefined,

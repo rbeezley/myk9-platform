@@ -134,7 +134,7 @@ describe('result_text on every results view reads DQ for a disqualified entry', 
     // MYK9-1162 re-emitted this view (appending awaiting_registration_number)
     // from the 1011 body, and MYK9-1326 rebuilt it again without promo_code_id,
     // so the DQ arm below must survive both rebuilds.
-    expect(view.file).toBe('20261022131700_myk9_1326_drop_entries_promo_code_id.sql');
+    expect(view.file).toBe('20261027014900_myk9_1396_check_in_status_before_pull.sql');
     expect(view.body).toContain('AS awaiting_registration_number');
     expect(view.body).toContain(
       "(access.can_view_scores OR vis.qualification_visible) AND e.is_scored = true AND e.result_status = 'disqualified' THEN 'DQ'"

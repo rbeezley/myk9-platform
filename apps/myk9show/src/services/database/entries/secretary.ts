@@ -18,6 +18,7 @@ import type { PendingEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 import { postgrestGetSecretaryEntriesForShow } from './secretaryPostgrest';
 import type { EntryStatusCheckInContext } from './statusCheckIn';
 import { buildReplicatedEntryStatusUpdate } from './entryStatusUpdate';
+import { withReplicaCheckInContext } from './checkInContextFromReplica';
 
 export { buildReplicatedEntryStatusUpdate };
 import { logger } from '@/services/LoggingService';
@@ -240,13 +241,14 @@ export const updateEntryStatus = async (
   const startTime = Date.now();
 
   try {
+    const resolvedCheckInContext = await withReplicaCheckInContext(entryId, status, checkInContext);
     const mutationId = await replicatedEntriesTable.updateSecretaryLifecycleStatus(
       entryId,
       buildReplicatedEntryStatusUpdate(
         status,
         withdrawalReason,
         withdrawalReasonCode,
-        checkInContext
+        resolvedCheckInContext
       ),
       sourceEntry
     );

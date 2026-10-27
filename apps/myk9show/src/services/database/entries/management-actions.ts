@@ -68,6 +68,7 @@ export async function executeStatusChange(
   const nextCheckInStatus = resolveCheckInStatusForTransition(mapStatusToDb(newStatus), {
     previousEntryStatus: mapStatusToDb(oldStatus),
     priorCheckInStatus,
+    storedCheckInStatusBeforePull: entry.classes[0]?.checkInStatusBeforePull,
   });
 
   // Optimistic update

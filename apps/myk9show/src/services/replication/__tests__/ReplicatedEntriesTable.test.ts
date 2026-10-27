@@ -617,6 +617,60 @@ describe('ReplicatedEntriesTable', () => {
       );
     });
 
+    it('queues check_in_status_before_pull on a Pull and an explicit null on un-pull (MYK9-1396)', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+      const seed = { showId: 'show-1', classId: 'class-1', dogId: 'dog-1' };
+
+      await table.updateSecretaryLifecycleStatus(
+        'entry-1',
+        {
+          entryStatus: 'scratched',
+          entry_status: 'scratched',
+          status: 'scratched',
+          checkInStatus: 'pulled',
+          check_in_status: 'pulled',
+          checkInStatusBeforePull: 'checked-in',
+          check_in_status_before_pull: 'checked-in',
+        },
+        seed
+      );
+      await table.updateSecretaryLifecycleStatus(
+        'entry-1',
+        {
+          entryStatus: 'confirmed',
+          entry_status: 'confirmed',
+          status: 'confirmed',
+          checkInStatus: 'checked-in',
+          check_in_status: 'checked-in',
+          checkInStatusBeforePull: null,
+          check_in_status_before_pull: null,
+        },
+        seed
+      );
+
+      expect(queueMutation).toHaveBeenNthCalledWith(
+        1,
+        'UPDATE',
+        'entry-1',
+        expect.objectContaining({
+          check_in_status: 'pulled',
+          check_in_status_before_pull: 'checked-in',
+        })
+      );
+      const unpull = queueMutation.mock.calls[1]?.[2] as Record<string, unknown>;
+      expect(unpull).toHaveProperty('check_in_status', 'checked-in');
+      expect(unpull).toHaveProperty('check_in_status_before_pull', null);
+    });
+
     it('should seed missing secretary rows and queue only lifecycle status fields', async () => {
       const queueMutation = vi.spyOn(
         table as unknown as {

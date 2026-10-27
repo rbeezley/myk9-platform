@@ -1,6 +1,10 @@
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { EntryStatus } from '@/types/entry-lifecycle';
-import { resolveCheckInStatusForTransition, type EntryStatusCheckInContext } from './statusCheckIn';
+import {
+  resolveCheckInBeforePullForTransition,
+  resolveCheckInStatusForTransition,
+  type EntryStatusCheckInContext,
+} from './statusCheckIn';
 
 /** Build the replicated field patch for a secretary entry-status change. */
 export function buildReplicatedEntryStatusUpdate(
@@ -21,6 +25,14 @@ export function buildReplicatedEntryStatusUpdate(
   if (checkIn !== undefined) {
     updateData.checkInStatus = checkIn;
     updateData.check_in_status = checkIn;
+  }
+
+  // MYK9-1396: the durable prior, so a later plain Accept can restore it. It
+  // rides the same queued payload as check_in_status (offline replay).
+  const beforePull = resolveCheckInBeforePullForTransition(status, checkInContext);
+  if (beforePull !== undefined) {
+    updateData.checkInStatusBeforePull = beforePull;
+    updateData.check_in_status_before_pull = beforePull;
   }
 
   if (withdrawalReason !== undefined) {

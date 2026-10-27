@@ -376,6 +376,8 @@ export async function changeSecretaryEntryStatus(
     checkInContext: {
       previousEntryStatus: mapStatusToDb(entry.entryStatus),
       priorCheckInStatus,
+      currentCheckInStatus: entry.classes[0]?.checkInStatus,
+      storedCheckInStatusBeforePull: entry.classes[0]?.checkInStatusBeforePull,
     },
   });
   if (error) throw error;

@@ -350,7 +350,9 @@ BEGIN
       -- set it (trg_entries_junior_fee forces it false on insert, keeps OLD on update).
       -- 57 became 56 when entries.promo_code_id was dropped (20261022131700,
       -- MYK9-1326): dropping a column drops its column grant with it.
-      ('entries','authenticated',56),
+      -- 56 became 57 when entries.check_in_status_before_pull was added and
+      -- granted to authenticated (20261027014900, MYK9-1396).
+      ('entries','authenticated',57),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),
       ('dogs','anon',5),
@@ -407,6 +409,7 @@ BEGIN
     -- proves anon holds ZERO entries columns -- name it here so a future grant
     -- that adds anon back to the table cannot slip this one in with it.
     ('entries','moved_from_entry_id'),
+    ('entries','check_in_status_before_pull'),
     ('platform_settings','updated_by'), ('platform_settings','updated_at'),
     ('platform_settings','id'), ('platform_settings','stripe_livemode')
   ) AS t(tbl, col)

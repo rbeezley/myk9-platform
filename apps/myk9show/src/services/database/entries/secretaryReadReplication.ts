@@ -259,6 +259,9 @@ export function toSecretaryEntry(
       replicatedField(entry, 'scoringCompletedAt', 'scoring_completed_at')
     ),
     check_in_status: entry.checkInStatus ?? entry.check_in_status ?? null,
+    ...(entry.checkInStatusBeforePull !== undefined
+      ? { check_in_status_before_pull: entry.checkInStatusBeforePull }
+      : {}),
     withdrawal_reason: entry.withdrawalReason ?? entry.withdrawal_reason ?? null,
     // MYK9-632: from the side-read, not the replica — the column lives on
     // `entries` and the view the replica mirrors does not carry it.

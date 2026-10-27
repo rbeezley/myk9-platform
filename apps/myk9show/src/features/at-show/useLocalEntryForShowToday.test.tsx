@@ -4,24 +4,47 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { createTestQueryClient, renderHook, waitFor } from '@/test/utils/testUtils';
 import { useLocalEntryForShowToday } from './useLocalEntryForShowToday';
 
-const tables = vi.hoisted(() => ({
-  getShowById: vi.fn(),
-  getTrialsByShow: vi.fn(),
-  getEntriesByShow: vi.fn(),
-  getAllDogs: vi.fn(),
-}));
+// A faithful fake of ReplicatedTable.subscribe: listeners are held per table,
+// `emitCurrent: false` emits nothing, `notify` is what a replica write triggers.
+const tables = vi.hoisted(() => {
+  const listeners = new Map<string, Set<() => void>>();
+  const subscribeFor = (name: string) => (cb: () => void) => {
+    const set = listeners.get(name) ?? new Set<() => void>();
+    listeners.set(name, set);
+    set.add(cb);
+    return () => set.delete(cb);
+  };
+  return {
+    getShowById: vi.fn(),
+    getTrialsByShow: vi.fn(),
+    getEntriesByShow: vi.fn(),
+    getAllDogs: vi.fn(),
+    listeners,
+    subscribeFor,
+    notify: (name: string) => listeners.get(name)?.forEach(cb => cb()),
+  };
+});
 
 vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
-  replicatedShowsTable: { getShowById: tables.getShowById },
+  replicatedShowsTable: {
+    subscribe: tables.subscribeFor('shows'),
+    getShowById: tables.getShowById,
+  },
 }));
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
-  replicatedTrialsTable: { getTrialsByShow: tables.getTrialsByShow },
+  replicatedTrialsTable: {
+    subscribe: tables.subscribeFor('trials'),
+    getTrialsByShow: tables.getTrialsByShow,
+  },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
-  replicatedEntriesTable: { getEntriesByShow: tables.getEntriesByShow },
+  replicatedEntriesTable: {
+    subscribe: tables.subscribeFor('entries'),
+    getEntriesByShow: tables.getEntriesByShow,
+  },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
-  replicatedDogsTable: { getAllDogs: tables.getAllDogs },
+  replicatedDogsTable: { subscribe: tables.subscribeFor('dogs'), getAllDogs: tables.getAllDogs },
 }));
 
 const TODAY = new Date(Date.UTC(2026, 9, 23, 12, 0, 0));
@@ -37,6 +60,7 @@ function renderLocalEntry(personId: string | null, showId: string | undefined = 
 
 describe('useLocalEntryForShowToday', () => {
   beforeEach(() => {
+    tables.listeners.clear();
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(TODAY);
     tables.getShowById.mockReset().mockResolvedValue(LIVE_SHOW);
@@ -125,5 +149,93 @@ describe('useLocalEntryForShowToday', () => {
     expect(tables.getShowById).not.toHaveBeenCalled();
     expect(tables.getEntriesByShow).not.toHaveBeenCalled();
     expect(tables.getAllDogs).not.toHaveBeenCalled();
+  });
+
+  it('flips false to true when a direct sync fills the entries replica, without a remount', async () => {
+    tables.getShowById.mockResolvedValue(null);
+    tables.getEntriesByShow.mockResolvedValue([]);
+    const { result } = renderLocalEntry('person-1');
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.hasLocalEntryToday).toBe(false);
+
+    tables.getShowById.mockResolvedValue(LIVE_SHOW);
+    tables.getEntriesByShow.mockResolvedValue([
+      { id: 'entry-1', showId: 'show-1', handlerId: 'person-1' },
+    ]);
+    tables.notify('entries');
+
+    await waitFor(() => expect(result.current.hasLocalEntryToday).toBe(true));
+  });
+
+  it('flips to true when the shows replica fills after the entries did', async () => {
+    tables.getShowById.mockResolvedValue(null);
+    const { result } = renderLocalEntry('person-1');
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.hasLocalEntryToday).toBe(false);
+
+    tables.getShowById.mockResolvedValue(LIVE_SHOW);
+    tables.notify('shows');
+
+    await waitFor(() => expect(result.current.hasLocalEntryToday).toBe(true));
+  });
+
+  it('keeps a settled true when a later re-read fails mid-sync', async () => {
+    const { result } = renderLocalEntry('person-1');
+    await waitFor(() => expect(result.current.hasLocalEntryToday).toBe(true));
+    const readsBefore = tables.getEntriesByShow.mock.calls.length;
+
+    tables.getEntriesByShow.mockRejectedValue(new Error('IndexedDB transaction aborted'));
+    tables.notify('entries');
+
+    await waitFor(() =>
+      expect(tables.getEntriesByShow.mock.calls.length).toBeGreaterThan(readsBefore)
+    );
+    // Let the failed refetch settle, then the answer must still be true.
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(result.current.hasLocalEntryToday).toBe(true);
+  });
+
+  it('does not listen to the replicas while disabled (no person id)', () => {
+    renderLocalEntry(null);
+    for (const set of tables.listeners.values()) expect(set.size).toBe(0);
+  });
+
+  it('re-evaluates to false when the entry is withdrawn locally', async () => {
+    const { result } = renderLocalEntry('person-1');
+    await waitFor(() => expect(result.current.hasLocalEntryToday).toBe(true));
+
+    tables.getEntriesByShow.mockResolvedValue([
+      { id: 'entry-1', showId: 'show-1', handlerId: 'person-1', entryStatus: 'withdrawn' },
+    ]);
+    tables.notify('entries');
+
+    await waitFor(() => expect(result.current.hasLocalEntryToday).toBe(false));
+  });
+
+  it('re-evaluates when the dogs replica changes ownership', async () => {
+    tables.getEntriesByShow.mockResolvedValue([
+      { id: 'entry-1', showId: 'show-1', handlerId: 'someone-else', dogId: 'dog-1' },
+    ]);
+    const { result } = renderLocalEntry('person-1');
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.hasLocalEntryToday).toBe(false);
+
+    tables.getAllDogs.mockResolvedValue([{ id: 'dog-1', ownerId: 'person-1' }]);
+    tables.notify('dogs');
+
+    await waitFor(() => expect(result.current.hasLocalEntryToday).toBe(true));
+  });
+
+  it('stops listening to the replicas on unmount', async () => {
+    const { result, unmount } = renderLocalEntry('person-1');
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    // Every source the answer derives from is subscribed, trials included.
+    for (const table of ['shows', 'trials', 'entries', 'dogs']) {
+      expect(tables.listeners.get(table)?.size, table).toBe(1);
+    }
+
+    unmount();
+
+    for (const set of tables.listeners.values()) expect(set.size).toBe(0);
   });
 });

@@ -16,33 +16,49 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
+import { useEntriesReplicaInvalidation } from '@/hooks/queries/useEntriesReplicaInvalidation';
 import { hasLocalEntryForShowToday } from './useLocalEntryForShowToday.helpers';
+
+const LOCAL_ENTRY_TODAY_KEY = ['at-show', 'local-entry-today'] as const;
+
+// The four replicas the answer derives from. Their own change notices drive
+// re-evaluation, so every fill path (direct per-show syncs, optimistic local
+// writes, discard-reverts) is covered, not only the provider's sync pass.
+const SOURCES = [
+  replicatedShowsTable,
+  replicatedTrialsTable,
+  replicatedEntriesTable,
+  replicatedDogsTable,
+] as const;
+const NO_SOURCES = [] as const;
+const COALESCE_MS = 250;
 
 export interface LocalEntryForShowToday {
   hasLocalEntryToday: boolean;
   isLoading: boolean;
 }
 
+// A failed read rejects rather than answering false: the hook re-reads on
+// every replica change notice, and a transient IndexedDB failure mid-sync must
+// not turn a settled `true` into `false` and drop an offline exhibitor out of
+// ringside. React Query keeps the last answer when a refetch errors; a first
+// read that errors leaves no data, which the hook reports as false.
 async function readLocalEntryToday(personId: string, showId: string): Promise<boolean> {
-  try {
-    const [show, trials, entries, dogs] = await Promise.all([
-      replicatedShowsTable.getShowById(showId),
-      replicatedTrialsTable.getTrialsByShow(showId),
-      replicatedEntriesTable.getEntriesByShow(showId),
-      replicatedDogsTable.getAllDogs(),
-    ]);
-    return hasLocalEntryForShowToday({
-      personId,
-      showId,
-      now: new Date(),
-      trials,
-      show,
-      entries,
-      dogs,
-    });
-  } catch {
-    return false;
-  }
+  const [show, trials, entries, dogs] = await Promise.all([
+    replicatedShowsTable.getShowById(showId),
+    replicatedTrialsTable.getTrialsByShow(showId),
+    replicatedEntriesTable.getEntriesByShow(showId),
+    replicatedDogsTable.getAllDogs(),
+  ]);
+  return hasLocalEntryForShowToday({
+    personId,
+    showId,
+    now: new Date(),
+    trials,
+    show,
+    entries,
+    dogs,
+  });
 }
 
 export function useLocalEntryForShowToday(
@@ -50,11 +66,16 @@ export function useLocalEntryForShowToday(
   showId: string | undefined
 ): LocalEntryForShowToday {
   const enabled = Boolean(personId && showId);
+  const queryKey = [...LOCAL_ENTRY_TODAY_KEY, personId, showId];
+  // Judges, stewards and passcode holders have no person here: listen to nothing.
+  useEntriesReplicaInvalidation([queryKey], COALESCE_MS, enabled ? SOURCES : NO_SOURCES);
   const { data, isLoading } = useQuery({
-    queryKey: ['at-show', 'local-entry-today', personId, showId],
+    queryKey,
     queryFn: () => readLocalEntryToday(personId as string, showId as string),
     enabled,
     networkMode: 'always',
+    // A refetch that fails keeps the last answer; do not hammer IndexedDB.
+    retry: false,
   });
   return { hasLocalEntryToday: enabled && data === true, isLoading: enabled && isLoading };
 }

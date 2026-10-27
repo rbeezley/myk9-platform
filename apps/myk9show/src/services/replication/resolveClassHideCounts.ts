@@ -56,7 +56,12 @@ export async function resolveHideCountsForClassRows(
   shareRead: ShareRead = readNow,
   preloadedTrials?: ReadonlyArray<ClassTrialRow>,
   /** Called for each lookup that failed and was skipped, so a caller can tell a partial answer. */
-  onPartialFailure?: () => void
+  onPartialFailure?: () => void,
+  /**
+   * MYK9-1451: receives the id of every class whose show's official lookup answered, with or
+   * without a count. A class absent from it is "unknown", not "no count".
+   */
+  officialAnswered?: Set<string>
 ): Promise<Map<string, number>> {
   const byClassId = new Map<string, number>();
 
@@ -153,6 +158,12 @@ export async function resolveHideCountsForClassRows(
           'replication'
         );
         return;
+      }
+
+      const answeredShows = new Set(batch);
+      for (const row of rows) {
+        const showId = row.trial_id ? trialById.get(row.trial_id)?.show_id : undefined;
+        if (showId && answeredShows.has(showId)) officialAnswered?.add(row.id);
       }
 
       for (const row of data ?? []) {

@@ -42,6 +42,8 @@ export const CLASS_ENRICHMENT_TTL_MS = 5 * 60 * 1000;
 export interface ClassEnrichment {
   visibility: Map<string, ResolvedClassVisibility>;
   hideCounts: Map<string, number>;
+  /** MYK9-1451: classes whose official hide-count lookup answered (even with no count). */
+  hideCountsResolved: Set<string>;
   timeLimitRules: Map<string, TimeLimitRule>;
   judges: Map<string, JudgeNameParts | null>;
 }
@@ -51,6 +53,7 @@ interface CachedClass {
   signature: string;
   visibility: ResolvedClassVisibility;
   hideCount: number | undefined;
+  hideCountResolved: boolean;
   timeLimitRule: TimeLimitRule | undefined;
   judge: JudgeNameParts | null;
 }
@@ -153,6 +156,7 @@ async function runResolvers(
       logger.warn(`[${deps.tableName}] ${message}`, 'replication');
       return fallback;
     };
+  const hideCountsResolved = new Set<string>();
   const [visibility, hideCounts, timeLimitRules, judges] = await Promise.all([
     // Best-effort: failure must not break class replication.
     resolveVisibilityForClassRows(rows, trials).catch(
@@ -163,7 +167,13 @@ async function runResolvers(
     ),
     // Public fixed totals come from registry rules; protected judge-set totals only from the
     // show-scoped official RPC. Both are merged so the caller keeps the count it may see.
-    resolveHideCountsForClassRows(rows, deps.shareRead, trials, markUnclean).catch(
+    resolveHideCountsForClassRows(
+      rows,
+      deps.shareRead,
+      trials,
+      markUnclean,
+      hideCountsResolved
+    ).catch(
       failed(
         'Hide-count resolve failed; scoring may fall back to the rule band',
         new Map<string, number>()
@@ -185,7 +195,10 @@ async function runResolvers(
       )
     ),
   ]);
-  return { enrichment: { visibility, hideCounts, timeLimitRules, judges }, clean };
+  return {
+    enrichment: { visibility, hideCounts, hideCountsResolved, timeLimitRules, judges },
+    clean,
+  };
 }
 
 function isFresh(entry: ShowEntry | undefined, userId: string, at: number): entry is ShowEntry {
@@ -221,6 +234,7 @@ function remember(
       signature: signatureOf(row),
       visibility: enrichment.visibility.get(id)!,
       hideCount: enrichment.hideCounts.get(id),
+      hideCountResolved: enrichment.hideCountsResolved.has(id),
       timeLimitRule: enrichment.timeLimitRules.get(id),
       judge: enrichment.judges.get(id) ?? null,
     });
@@ -250,6 +264,7 @@ export async function resolveClassEnrichment(
   const result: ClassEnrichment = {
     visibility: new Map(),
     hideCounts: new Map(),
+    hideCountsResolved: new Set(),
     timeLimitRules: new Map(),
     judges: new Map(),
   };
@@ -266,6 +281,7 @@ export async function resolveClassEnrichment(
     result.visibility.set(id, hit.visibility);
     result.judges.set(id, hit.judge);
     if (hit.hideCount !== undefined) result.hideCounts.set(id, hit.hideCount);
+    if (hit.hideCountResolved) result.hideCountsResolved.add(id);
     if (hit.timeLimitRule) result.timeLimitRules.set(id, hit.timeLimitRule);
   }
   if (missed.length === 0) return result;
@@ -279,6 +295,7 @@ export async function resolveClassEnrichment(
   const fresh = outcome.enrichment;
   fresh.visibility.forEach((value, id) => result.visibility.set(id, value));
   fresh.hideCounts.forEach((value, id) => result.hideCounts.set(id, value));
+  fresh.hideCountsResolved.forEach(id => result.hideCountsResolved.add(id));
   fresh.timeLimitRules.forEach((value, id) => result.timeLimitRules.set(id, value));
   fresh.judges.forEach((value, id) => result.judges.set(id, value));
   return result;

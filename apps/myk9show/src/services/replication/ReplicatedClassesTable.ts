@@ -85,6 +85,11 @@ export interface ReplicatedClass {
    * `false` means the judge fields above are "unknown", NOT "no judge" — see resolveConflict.
    */
   judgeResolved?: boolean | undefined;
+  /**
+   * MYK9-1451: whether the official hide-count lookup answered for this row's show. `false`
+   * or absent means `hideCount` is "unknown", NOT "no count" — see resolveConflict.
+   */
+  hideCountResolved?: boolean | undefined;
   classStatus?: string | undefined;
   /**
    * Resolved visibility-cascade values, denormalized at sync time so the
@@ -268,6 +273,7 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     hidesKnown: (dbRow.hides_known as boolean | undefined) ?? undefined,
     distractionCount: (dbRow.distraction_count as number | undefined) ?? undefined,
     hideCount: (dbRow.num_hides as number | null | undefined) ?? undefined,
+    hideCountResolved: dbRow._hideCountResolved as boolean | undefined,
 
     // Snake_case fields (compatibility)
     trial_id: row.trial_id ?? undefined,
@@ -339,7 +345,7 @@ const CLASS_JUDGE_FIELDS: ReadonlySet<string> = new Set([
  * reads raw values. Compare only; stored values are untouched.
  */
 const notServerChangedJudge = (field: string, value: unknown): unknown =>
-  CLASS_JUDGE_FIELDS.has(field) ? undefined : value;
+  CLASS_JUDGE_FIELDS.has(field) || field === 'hideCountResolved' ? undefined : value;
 
 export const CLASS_DIRTY_ROW_COMPARE_POLICY: DirtyRowComparePolicy = {
   normalizeValue: (field, value) =>
@@ -402,6 +408,7 @@ type EnrichedClassRow = ClassRow & {
   _timeLimitRule?: TimeLimitRule | undefined;
   _judge?: JudgeNameParts | null | undefined;
   _judgeResolved?: boolean | undefined;
+  _hideCountResolved?: boolean | undefined;
 };
 
 // Not `*`: authenticated has no SELECT on num_hides (20260731160000), so a star
@@ -636,6 +643,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     const {
       visibility: visibilityByClassId,
       hideCounts: hideCountByClassId,
+      hideCountsResolved,
       timeLimitRules: timeLimitRuleByClassId,
       judges: judgeByClassId,
     } = await resolveClassEnrichment(rows, {
@@ -651,6 +659,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       _judge: judgeByClassId.get(String(row.id)) ?? null,
       _judgeResolved: judgeByClassId.has(String(row.id)),
       num_hides: hideCountByClassId.get(String(row.id)) ?? null,
+      _hideCountResolved: hideCountsResolved.has(String(row.id)),
       _selfCheckinEnabled: visibilityByClassId.get(String(row.id))?.selfCheckinEnabled,
       _visibilityPreset: visibilityByClassId.get(String(row.id))?.visibilityPreset,
       _timeLimitRule: timeLimitRuleByClassId.get(String(row.id)),
@@ -765,6 +774,12 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     //
     // Retained ONLY when the remote row still carries a confirmed assignment for the SAME
     // person: a removed or swapped judge must not keep the old name on the board.
+    const keepCachedHideCount = remote.hideCountResolved !== true && remote.hideCount === undefined;
+    if (keepCachedHideCount) {
+      merged.hideCount = local.hideCount;
+      merged.hideCountResolved = local.hideCountResolved;
+    }
+
     const keepCachedJudgeName =
       remote.judgeResolved !== true &&
       remote.judgeId !== undefined &&

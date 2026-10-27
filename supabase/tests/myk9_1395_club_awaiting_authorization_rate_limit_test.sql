@@ -1,17 +1,15 @@
 -- MYK9-1395 (SA-2026-10-24-04): notify_site_admins_club_awaiting_authorization()
--- raises at most one notice set (one notification per active site admin) per
--- creator per 24 hours, claimed in private.club_awaiting_authorization_notice_log.
--- Proved here: repeated single-row inserts, a club inserted with deleted_at set,
--- and a created_by that was cleared all fail to reset the window; another creator
--- is not suppressed; moving the ledger back 25h re-arms the creator; a multi-row
--- insert notifies once; a 200-character name is truncated; the ledger grants no
--- privilege to anon or authenticated.
+-- folds repeats into ONE club_awaiting_authorization row per active site admin per
+-- creator (deep link /admin/onboarding?creator=<auth uid>), updated in place with
+-- the latest club name and resurfaced unread. Proved here: single-row and multi-row
+-- inserts, a club inserted with deleted_at set and a cleared created_by never add
+-- rows; a read row is reset to unread with a newer created_at; a second creator
+-- gets its own row; a 200-character name is truncated; no ledger table exists.
 --
 -- NOT exercised: two concurrent transactions by one creator. One psql session
--- cannot interleave them. That case rests on INSERT .. ON CONFLICT DO UPDATE
--- taking the conflicting row's lock: the second transaction blocks until the first
--- commits, then re-evaluates the WHERE (last_notified_at <= now() - 24h) against
--- the committed row, finds it false, and returns no row.
+-- cannot interleave them. That case rests on pg_advisory_xact_lock keyed on the
+-- creator, which serialises the find-or-insert so a second transaction sees the
+-- first one's committed row and UPDATEs it.
 --
 -- Conventions match myk9_1315_club_awaiting_authorization_notice_test.sql: run
 -- with psql -X -v ON_ERROR_STOP=1 after migrations; every fixture rolls back.
@@ -73,15 +71,12 @@ CROSS JOIN (VALUES
 ) AS p(id, auth_id)
 WHERE r.name = 'secretary';
 
--- Club ids by name, filled as postgres after each insert phase.
-CREATE TEMP TABLE _t1395_club (id uuid, name text);
-
--- Notifications per club, counted as postgres.
-CREATE FUNCTION pg_temp.t1395_notices(p_name text) RETURNS integer
+-- Rows for one creator's link, counted as postgres.
+CREATE FUNCTION pg_temp.t1395_rows(p_creator uuid) RETURNS integer
 LANGUAGE sql AS $$
   SELECT count(*)::integer FROM public.notifications n
-  JOIN _t1395_club c ON n.deep_link_url = '/clubs/' || c.id
-  WHERE n.type = 'club_awaiting_authorization' AND c.name = p_name
+  WHERE n.type = 'club_awaiting_authorization'
+    AND n.deep_link_url = '/admin/onboarding?creator=' || p_creator
 $$;
 
 CREATE FUNCTION pg_temp.t1395_admins() RETURNS integer
@@ -96,35 +91,80 @@ LANGUAGE sql AS $$
     AND EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.auth_user_id)
 $$;
 
--- 1. Creator 1 inserts three unauthorized clubs in separate statements: only the
---    first notifies, one notification per active site admin.
+-- Fixed-admin row for one creator (admin A, auth ...101).
+CREATE FUNCTION pg_temp.t1395_admin_a_row(p_creator uuid)
+RETURNS public.notifications
+LANGUAGE sql AS $$
+  SELECT n.* FROM public.notifications n
+  WHERE n.type = 'club_awaiting_authorization'
+    AND n.user_id = '00000000-0000-0000-0000-000001395101'
+    AND n.deep_link_url = '/admin/onboarding?creator=' || p_creator
+$$;
+
+-- 1. Creator 1 inserts three clubs in separate statements: exactly one row per
+--    admin, message names the LATEST club, unread.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001395104', true);
 INSERT INTO public.clubs (name) VALUES ('MYK9-1395 A1');
 INSERT INTO public.clubs (name) VALUES ('MYK9-1395 A2');
 INSERT INTO public.clubs (name) VALUES ('MYK9-1395 A3');
 RESET ROLE;
-INSERT INTO _t1395_club SELECT id, name FROM public.clubs WHERE name LIKE 'MYK9-1395 A%';
 
 DO $$
+DECLARE
+  v_c1 uuid := '00000000-0000-0000-0000-000001395104';
+  v_row public.notifications;
 BEGIN
   IF pg_temp.t1395_admins() < 2 THEN
     RAISE EXCEPTION 'FAIL fixture should yield at least 2 active site admins, found %', pg_temp.t1395_admins();
   END IF;
-  IF pg_temp.t1395_notices('MYK9-1395 A1') <> pg_temp.t1395_admins() THEN
-    RAISE EXCEPTION 'FAIL first club: expected % notifications, found %', pg_temp.t1395_admins(), pg_temp.t1395_notices('MYK9-1395 A1');
+  IF pg_temp.t1395_rows(v_c1) <> pg_temp.t1395_admins() THEN
+    RAISE EXCEPTION 'FAIL notify_site_admins_club_awaiting_authorization: expected one row per admin (%), found %', pg_temp.t1395_admins(), pg_temp.t1395_rows(v_c1);
   END IF;
-  IF pg_temp.t1395_notices('MYK9-1395 A2') <> 0 OR pg_temp.t1395_notices('MYK9-1395 A3') <> 0 THEN
-    RAISE EXCEPTION 'FAIL notify_site_admins_club_awaiting_authorization was not bounded: A2 got %, A3 got %',
-      pg_temp.t1395_notices('MYK9-1395 A2'), pg_temp.t1395_notices('MYK9-1395 A3');
+  v_row := pg_temp.t1395_admin_a_row(v_c1);
+  IF v_row.message IS DISTINCT FROM 'Sam Secretary created clubs waiting for authorization, latest: MYK9-1395 A3.' THEN
+    RAISE EXCEPTION 'FAIL the folded message does not name the latest club: %', v_row.message;
   END IF;
-  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: 3 unauthorized clubs from one creator raise exactly one notice per site admin';
+  IF v_row.read_at IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL the folded row is not unread';
+  END IF;
+  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: 3 clubs from one creator fold into one unread row per admin naming the latest club';
 END;
 $$;
 
--- 2. A club inserted with deleted_at already set must not reset the window. The
---    block trigger is BEFORE UPDATE only, so the insert may succeed or be rejected
---    by policy; either way the next ordinary insert must stay quiet.
+-- 2. A read row resurfaces: mark it read and old, insert another club.
+UPDATE public.notifications
+SET read_at = now(), created_at = now() - interval '1 hour'
+WHERE type = 'club_awaiting_authorization'
+  AND deep_link_url = '/admin/onboarding?creator=00000000-0000-0000-0000-000001395104';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001395104', true);
+INSERT INTO public.clubs (name) VALUES ('MYK9-1395 A4');
+RESET ROLE;
+
+DO $$
+DECLARE
+  v_c1 uuid := '00000000-0000-0000-0000-000001395104';
+  v_row public.notifications := pg_temp.t1395_admin_a_row(v_c1);
+BEGIN
+  IF pg_temp.t1395_rows(v_c1) <> pg_temp.t1395_admins() THEN
+    RAISE EXCEPTION 'FAIL a fourth club added rows: %', pg_temp.t1395_rows(v_c1);
+  END IF;
+  IF v_row.read_at IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL the folded row stayed read';
+  END IF;
+  IF v_row.created_at <= now() - interval '30 minutes' THEN
+    RAISE EXCEPTION 'FAIL created_at did not advance: %', v_row.created_at;
+  END IF;
+  IF v_row.message NOT LIKE '%latest: MYK9-1395 A4.' THEN
+    RAISE EXCEPTION 'FAIL message not updated: %', v_row.message;
+  END IF;
+  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: a read row resurfaces unread with a newer created_at';
+END;
+$$;
+
+-- 3. A club inserted with deleted_at set and a cleared created_by add no rows
+--    (nothing reads club state); either statement may be rejected by policy.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001395104', true);
 DO $$
@@ -134,24 +174,6 @@ EXCEPTION WHEN OTHERS THEN
   RAISE NOTICE 'INFO insert with deleted_at set was rejected: %', SQLERRM;
 END;
 $$;
-INSERT INTO public.clubs (name) VALUES ('MYK9-1395 D2');
-RESET ROLE;
-INSERT INTO _t1395_club SELECT id, name FROM public.clubs WHERE name IN ('MYK9-1395 D1', 'MYK9-1395 D2');
-
-DO $$
-BEGIN
-  IF pg_temp.t1395_notices('MYK9-1395 D1') <> 0 OR pg_temp.t1395_notices('MYK9-1395 D2') <> 0 THEN
-    RAISE EXCEPTION 'FAIL a club inserted with deleted_at set reset the window (D1 got %, D2 got %)',
-      pg_temp.t1395_notices('MYK9-1395 D1'), pg_temp.t1395_notices('MYK9-1395 D2');
-  END IF;
-  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: a club inserted with deleted_at set does not reset the window';
-END;
-$$;
-
--- 3. Clearing created_by on the earlier club (if the guard allows it) must not
---    reset the window either.
-SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001395104', true);
 DO $$
 BEGIN
   UPDATE public.clubs SET created_by = NULL WHERE name = 'MYK9-1395 A1';
@@ -161,79 +183,53 @@ END;
 $$;
 INSERT INTO public.clubs (name) VALUES ('MYK9-1395 C1');
 RESET ROLE;
-INSERT INTO _t1395_club SELECT id, name FROM public.clubs WHERE name = 'MYK9-1395 C1';
 
 DO $$
 BEGIN
-  IF pg_temp.t1395_notices('MYK9-1395 C1') <> 0 THEN
-    RAISE EXCEPTION 'FAIL clearing created_by reset the window (C1 got %)', pg_temp.t1395_notices('MYK9-1395 C1');
+  IF pg_temp.t1395_rows('00000000-0000-0000-0000-000001395104') <> pg_temp.t1395_admins() THEN
+    RAISE EXCEPTION 'FAIL deleted_at / cleared created_by added rows: %', pg_temp.t1395_rows('00000000-0000-0000-0000-000001395104');
   END IF;
-  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: clearing created_by does not reset the window';
+  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: deleted_at on insert and a cleared created_by add no rows';
 END;
 $$;
 
--- 4. A different creator is not suppressed.
+-- 4. Creator 2 gets its own row per admin; creator 1's rows are untouched.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001395105', true);
 INSERT INTO public.clubs (name) VALUES ('MYK9-1395 B1');
 RESET ROLE;
-INSERT INTO _t1395_club SELECT id, name FROM public.clubs WHERE name = 'MYK9-1395 B1';
 
 DO $$
 BEGIN
-  IF pg_temp.t1395_notices('MYK9-1395 B1') <> pg_temp.t1395_admins() THEN
-    RAISE EXCEPTION 'FAIL a second creator was suppressed or over-notified (B1 got %)', pg_temp.t1395_notices('MYK9-1395 B1');
+  IF pg_temp.t1395_rows('00000000-0000-0000-0000-000001395105') <> pg_temp.t1395_admins() THEN
+    RAISE EXCEPTION 'FAIL creator 2 did not get its own row per admin: %', pg_temp.t1395_rows('00000000-0000-0000-0000-000001395105');
   END IF;
-  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: a different creator is not suppressed';
+  IF (SELECT count(*) FROM public.notifications
+      WHERE type = 'club_awaiting_authorization'
+        AND user_id = '00000000-0000-0000-0000-000001395101'
+        AND deep_link_url LIKE '/admin/onboarding?creator=00000000-0000-0000-0000-00000139510%') <> 2 THEN
+    RAISE EXCEPTION 'FAIL admin A should hold exactly two rows, one per creator';
+  END IF;
+  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: a second creator gets its own row';
 END;
 $$;
 
--- 5. Moving creator 1's ledger row back 25 hours re-arms the creator.
-UPDATE private.club_awaiting_authorization_notice_log
-SET last_notified_at = now() - interval '25 hours'
-WHERE creator = '00000000-0000-0000-0000-000001395104';
-SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001395104', true);
-INSERT INTO public.clubs (name) VALUES ('MYK9-1395 R1');
-RESET ROLE;
-INSERT INTO _t1395_club SELECT id, name FROM public.clubs WHERE name = 'MYK9-1395 R1';
-
-DO $$
-BEGIN
-  IF pg_temp.t1395_notices('MYK9-1395 R1') <> pg_temp.t1395_admins() THEN
-    RAISE EXCEPTION 'FAIL after 25h the creator was not re-armed (R1 got %)', pg_temp.t1395_notices('MYK9-1395 R1');
-  END IF;
-  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: notifies again once the 24h window has passed';
-END;
-$$;
-
--- 6. A multi-row insert notifies once (the first row claims), not per row.
-UPDATE private.club_awaiting_authorization_notice_log
-SET last_notified_at = now() - interval '25 hours'
-WHERE creator = '00000000-0000-0000-0000-000001395105';
+-- 5. A multi-row insert stays one row per admin per creator.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001395105', true);
 INSERT INTO public.clubs (name) VALUES ('MYK9-1395 M1'), ('MYK9-1395 M2'), ('MYK9-1395 M3');
 RESET ROLE;
-INSERT INTO _t1395_club SELECT id, name FROM public.clubs WHERE name LIKE 'MYK9-1395 M%';
 
 DO $$
-DECLARE
-  v_total integer := pg_temp.t1395_notices('MYK9-1395 M1')
-                   + pg_temp.t1395_notices('MYK9-1395 M2')
-                   + pg_temp.t1395_notices('MYK9-1395 M3');
 BEGIN
-  IF v_total <> pg_temp.t1395_admins() THEN
-    RAISE EXCEPTION 'FAIL a 3-row insert raised % notifications, expected exactly one set (%)', v_total, pg_temp.t1395_admins();
+  IF pg_temp.t1395_rows('00000000-0000-0000-0000-000001395105') <> pg_temp.t1395_admins() THEN
+    RAISE EXCEPTION 'FAIL a 3-row insert changed the row count: %', pg_temp.t1395_rows('00000000-0000-0000-0000-000001395105');
   END IF;
-  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: a multi-row insert raises exactly one notice set';
+  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: a multi-row insert keeps one row per admin per creator';
 END;
 $$;
 
--- 7. The club name in the message is capped at 80 characters plus an ellipsis.
-UPDATE private.club_awaiting_authorization_notice_log
-SET last_notified_at = now() - interval '25 hours'
-WHERE creator = '00000000-0000-0000-0000-000001395104';
+-- 6. A 200-character name is capped at 80 characters plus an ellipsis.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001395104', true);
 INSERT INTO public.clubs (name) VALUES ('MYK9-1395 L' || repeat('x', 189));
@@ -241,38 +237,26 @@ RESET ROLE;
 
 DO $$
 DECLARE
-  v_msg text;
   v_long text := 'MYK9-1395 L' || repeat('x', 189);
+  v_row public.notifications := pg_temp.t1395_admin_a_row('00000000-0000-0000-0000-000001395104');
 BEGIN
-  SELECT n.message INTO v_msg
-  FROM public.notifications n
-  JOIN public.clubs c ON n.deep_link_url = '/clubs/' || c.id
-  WHERE n.type = 'club_awaiting_authorization' AND c.name = v_long
-    AND n.user_id = '00000000-0000-0000-0000-000001395101';
-  IF v_msg IS NULL THEN
-    RAISE EXCEPTION 'FAIL the long-named club raised no notification';
+  IF v_row.message IS DISTINCT FROM 'Sam Secretary created clubs waiting for authorization, latest: ' || left(v_long, 80) || '....' THEN
+    RAISE EXCEPTION 'FAIL the club name was not capped at 80 characters: %', v_row.message;
   END IF;
-  IF v_msg IS DISTINCT FROM left(v_long, 80) || '... was created by Sam Secretary and is waiting for authorization.' THEN
-    RAISE EXCEPTION 'FAIL the club name was not capped at 80 characters: %', v_msg;
+  IF v_row.deep_link_url IS DISTINCT FROM '/admin/onboarding?creator=00000000-0000-0000-0000-000001395104' THEN
+    RAISE EXCEPTION 'FAIL unexpected deep link: %', v_row.deep_link_url;
   END IF;
-  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: a 200-character name is truncated in the message';
+  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: a 200-character name is truncated and the deep link targets Admin Onboarding';
 END;
 $$;
 
--- 8. The ledger is not reachable by client roles.
+-- 7. No ledger table is created by this change.
 DO $$
-DECLARE
-  v_role text;
-  v_priv text;
 BEGIN
-  FOREACH v_role IN ARRAY ARRAY['anon', 'authenticated'] LOOP
-    FOREACH v_priv IN ARRAY ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE'] LOOP
-      IF has_table_privilege(v_role, 'private.club_awaiting_authorization_notice_log', v_priv) THEN
-        RAISE EXCEPTION 'FAIL % has % on the notice ledger', v_role, v_priv;
-      END IF;
-    END LOOP;
-  END LOOP;
-  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: anon and authenticated have no privilege on the notice ledger';
+  IF to_regclass('private.club_awaiting_authorization_notice_log') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL the notice ledger table exists';
+  END IF;
+  RAISE NOTICE 'PASS notify_site_admins_club_awaiting_authorization: no ledger table exists';
 END;
 $$;
 

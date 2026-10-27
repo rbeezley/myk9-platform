@@ -157,6 +157,31 @@ describe('detectDirtyRowConflict', () => {
     expect(result.fields).toEqual([]);
   });
 
+  it('MYK9-1445: a genuinely different release instant on a class still conflicts', () => {
+    // The row as rowToClass stores it (snake key), released here and elsewhere at another time.
+    const result = detectDirtyRowConflict({
+      base: { id: 'c1', results_released_at: null },
+      local: { id: 'c1', results_released_at: '2026-10-26T18:04:11.123Z' },
+      remote: { id: 'c1', results_released_at: '2026-10-26T18:09:00.000+00:00' },
+      instantFields: instantFieldsFor('classes'),
+    });
+
+    expect(result.hasConflict).toBe(true);
+    expect(result.fields).toEqual(['results_released_at']);
+  });
+
+  it('MYK9-1445: an un-release elsewhere (null) against a local release still conflicts', () => {
+    const result = detectDirtyRowConflict({
+      base: { id: 'c1', results_released_at: '2026-10-26T17:00:00.000Z' },
+      local: { id: 'c1', results_released_at: '2026-10-26T18:04:11.123Z' },
+      remote: { id: 'c1', results_released_at: null },
+      instantFields: instantFieldsFor('classes'),
+    });
+
+    expect(result.hasConflict).toBe(true);
+    expect(result.fields).toEqual(['results_released_at']);
+  });
+
   it('MYK9-1445: lists every class release/sign-off timestamp under both spellings', () => {
     const classInstants = instantFieldsFor('classes');
     for (const field of [

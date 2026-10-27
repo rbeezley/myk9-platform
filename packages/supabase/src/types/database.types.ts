@@ -14112,6 +14112,27 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_shows_class_hide_counts: {
+        Args: { p_show_ids: string[] }
+        Returns: {
+          class_id: string
+          num_hides: number
+          show_id: string
+        }[]
+      }
+      get_shows_judges: {
+        Args: { p_show_ids: string[] }
+        Returns: {
+          assignment_id: string
+          class_id: string
+          first_name: string
+          last_name: string
+          person_id: string
+          show_id: string
+          status: string
+          trial_id: string
+        }[]
+      }
       get_user_permissions: {
         Args: {
           filter_scope_id?: string

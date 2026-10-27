@@ -158,14 +158,14 @@ describe('request set', () => {
     const quiet = createFakePostgrest();
     const empty: string[] = [];
     await reader(emptyServer(empty)).syncOnce();
-    expect(empty.some(url => url.includes('get_show_judges'))).toBe(false);
+    expect(empty.some(url => url.includes('get_shows_judges'))).toBe(false);
     expect(empty.some(url => url.includes('sport_class_rules'))).toBe(false);
 
     // The fixture server answers the classes delta with one class.
     await reader(quiet.fetch).syncOnce();
     const enriched = quiet.requests.map(normalizeRequest);
-    expect(enriched.some(line => line.includes('/rpc/get_show_judges'))).toBe(true);
-    expect(enriched.some(line => line.includes('/rpc/get_show_class_hide_counts'))).toBe(true);
+    expect(enriched.some(line => line.includes('/rpc/get_shows_judges'))).toBe(true);
+    expect(enriched.some(line => line.includes('/rpc/get_shows_class_hide_counts'))).toBe(true);
     expect(enriched.filter(line => line.includes('/sport_class_rules'))).toHaveLength(2);
   });
 

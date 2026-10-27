@@ -77,7 +77,49 @@ export async function fetchShowJudgeNameParts(
 ): Promise<Map<string, JudgeNameParts> | null> {
   const data = await callGetShowJudges(showId);
   if (!data) return null;
+  return confirmedJudgeByClass(data);
+}
 
+/** The most show ids one `get_shows_judges` / `get_shows_class_hide_counts` call may carry. */
+export const CLASS_ENRICHMENT_SHOW_BATCH = 200;
+
+/** `ids` split into lists of at most CLASS_ENRICHMENT_SHOW_BATCH, the batched RPCs' cap. */
+export function showIdBatches(ids: ReadonlyArray<string>): string[][] {
+  const batches: string[][] = [];
+  for (let i = 0; i < ids.length; i += CLASS_ENRICHMENT_SHOW_BATCH) {
+    batches.push(ids.slice(i, i + CLASS_ENRICHMENT_SHOW_BATCH));
+  }
+  return batches;
+}
+
+/**
+ * `fetchShowJudgeNameParts` for many shows in one round trip per batch (MYK9-1450), through
+ * `get_shows_judges`, which runs `get_show_judges` per show so the same gate applies to each.
+ *
+ * Every show of a batch that answered is present, with an empty map when it has no confirmed
+ * judge. A show is ABSENT only when its batch failed, which a caller must not read as "no judge".
+ */
+export async function fetchShowsJudgeNameParts(
+  showIds: ReadonlyArray<string>
+): Promise<Map<string, Map<string, JudgeNameParts>>> {
+  const byShow = new Map<string, Map<string, JudgeNameParts>>();
+  await Promise.all(
+    showIdBatches([...new Set(showIds)]).map(async batch => {
+      try {
+        const { data, error } = await supabase.rpc('get_shows_judges', { p_show_ids: batch });
+        if (error) return;
+        const rowsByShow = new Map<string, ShowJudgeRows>(batch.map(id => [id, []]));
+        for (const row of data ?? []) rowsByShow.get(row.show_id)?.push(row);
+        for (const [showId, rows] of rowsByShow) byShow.set(showId, confirmedJudgeByClass(rows));
+      } catch {
+        // Leave the batch's shows absent: unknown, not "no judge".
+      }
+    })
+  );
+  return byShow;
+}
+
+function confirmedJudgeByClass(data: ShowJudgeRows): Map<string, JudgeNameParts> {
   const byClass = new Map<string, JudgeNameParts>();
   // The RPC has no ORDER BY, so a class with two confirmed assignments would otherwise resolve
   // to whichever row arrived first. Pick the lowest assignment_id — stable across calls and the

@@ -55,10 +55,11 @@ const enrichClasses = () => {
   const table = new ReplicatedClassesTable();
   return (table as unknown as { enrichClassRows: Enrich }).enrichClassRows(ROWS);
 };
+/** Every show id the batched judge RPC was asked about, across all of its calls. */
 const judgeRpcShows = () =>
   mockRpc.mock.calls
-    .filter(call => call[0] === 'get_show_judges')
-    .map(call => (call[1] as { p_show_id: string }).p_show_id)
+    .filter(call => call[0] === 'get_shows_judges')
+    .flatMap(call => (call[1] as { p_show_ids: string[] }).p_show_ids)
     .sort();
 
 describe('a remote judge-assignments delta drops that show from the class enrichment cache', () => {
@@ -83,7 +84,7 @@ describe('a remote judge-assignments delta drops that show from the class enrich
     mockRpc.mockResolvedValue({ data: [], error: null });
   });
 
-  it('re-asks get_show_judges for the changed show only', async () => {
+  it('re-asks get_shows_judges for the changed show only', async () => {
     await enrichClasses();
     mockRpc.mockClear();
 

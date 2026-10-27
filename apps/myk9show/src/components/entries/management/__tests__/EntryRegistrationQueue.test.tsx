@@ -162,7 +162,7 @@ describe('EntryRegistrationQueue', () => {
       const checkbox = screen.getByRole('checkbox', { name: /select all entry forms/i });
       expect(checkbox).toHaveAttribute('aria-checked', 'mixed');
       expect(checkbox).toHaveAttribute('data-indeterminate');
-      expect(checkbox.className).toContain('before:-inset-3.5');
+      expect(checkbox.className).toContain('before:-inset-[15px]');
       await user.click(checkbox);
       expect(onToggleAll).toHaveBeenCalledTimes(1);
     });

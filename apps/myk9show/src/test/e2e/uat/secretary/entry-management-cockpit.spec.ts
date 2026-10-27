@@ -102,6 +102,55 @@ test('Entry Management does not scroll sideways at 150% zoom on a phone', async 
   await expectNoHorizontalScroll(page, 'Entry Management');
 });
 
+// MYK9-643: pagination measured 32px tall and the select-all checkbox's
+// before:-inset-3.5 hit area computed to 42x42 (the 1px border is outside the
+// pseudo-element's padding-box containing block).
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 768, height: 1024 },
+]) {
+  test(`Entry forms pagination and select-all meet the 44px floor at ${viewport.width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
+    await expect(page.getByRole('button', { name: SEARCH_LABEL })).toBeVisible({ timeout: 30_000 });
+
+    const pagination = page.getByRole('navigation', { name: 'Entry form pagination' });
+    for (const name of ['Previous', 'Next']) {
+      const box = await pagination.getByRole('button', { name, exact: true }).boundingBox();
+      expect(box, `${name} must be rendered`).not.toBeNull();
+      const height = Math.round(box!.height);
+      expect(height, `${name} is ${Math.round(box!.width)}x${height}`).toBeGreaterThanOrEqual(44);
+    }
+
+    const selectAll = page.getByRole('checkbox', {
+      name: /^Select all (on page|entry forms on this page)$/,
+    });
+    const box = await selectAll.boundingBox();
+    expect(box, 'select-all checkbox must be rendered').not.toBeNull();
+    // Each corner of the 44x44 square centred on the checkbox must hit the
+    // checkbox itself (its ::before is part of its hit area), not the page.
+    const cx = box!.x + box!.width / 2;
+    const cy = box!.y + box!.height / 2;
+    for (const [dx, dy] of [
+      [-21, -21],
+      [21, -21],
+      [-21, 21],
+      [21, 21],
+    ] as const) {
+      const hitsCheckbox = await selectAll.evaluate(
+        (el, point) => {
+          const hit = document.elementFromPoint(point.x, point.y);
+          return hit === el || el.contains(hit);
+        },
+        { x: cx + dx, y: cy + dy }
+      );
+      expect(hitsCheckbox, `corner offset ${dx},${dy} must hit the checkbox`).toBe(true);
+    }
+  });
+}
+
 test('Entry Management deep-links to the existing Check-in desk', async ({ page }) => {
   await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
   await page.getByRole('button', { name: 'More', exact: true }).click();

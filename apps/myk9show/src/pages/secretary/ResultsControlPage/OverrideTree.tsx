@@ -406,7 +406,7 @@ export function OverrideTree({
                     // 16px intrinsic. The pseudo-element extends the hit area to
                     // the 44px floor without changing the visual size, matching
                     // the treatment the Switch beside it already had.
-                    className="relative before:absolute before:-inset-3.5 before:content-['']"
+                    className="relative before:absolute before:-inset-[15px] before:content-['']"
                     checked={allSelected}
                     onCheckedChange={() => onToggleAllInTrial(trial.id, trialClassIds)}
                     aria-label={`Select all classes in ${trial.name}`}
@@ -426,7 +426,7 @@ export function OverrideTree({
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-2">
                         <Checkbox
-                          className="relative before:absolute before:-inset-3.5 before:content-['']"
+                          className="relative before:absolute before:-inset-[15px] before:content-['']"
                           checked={selectedClasses.has(cls.id)}
                           onCheckedChange={() => onToggleClass(cls.id)}
                           aria-label={`Select ${className}`}

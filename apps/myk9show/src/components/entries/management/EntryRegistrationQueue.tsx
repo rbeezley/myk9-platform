@@ -167,7 +167,7 @@ export function EntryRegistrationQueue({
       {compact ? (
         <div className="flex items-center gap-3 border-b bg-muted/35 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground/70">
           <Checkbox
-            className="relative before:absolute before:-inset-3.5 before:content-['']"
+            className="relative before:absolute before:-inset-[15px] before:content-['']"
             aria-label="Select all on page"
             checked={allSelected}
             indeterminate={partiallySelected}
@@ -184,7 +184,7 @@ export function EntryRegistrationQueue({
         >
           <span className="flex min-h-11 items-center justify-center">
             <Checkbox
-              className="relative before:absolute before:-inset-3.5 before:content-['']"
+              className="relative before:absolute before:-inset-[15px] before:content-['']"
               aria-label="Select all entry forms on this page"
               checked={allSelected}
               indeterminate={partiallySelected}
@@ -236,7 +236,7 @@ export function EntryRegistrationQueue({
                         onKeyDown={event => event.stopPropagation()}
                       >
                         <Checkbox
-                          className="relative before:absolute before:-inset-3.5 before:content-['']"
+                          className="relative before:absolute before:-inset-[15px] before:content-['']"
                           aria-label={`Select ${group.exhibitorName}`}
                           checked={selected}
                           onCheckedChange={() => onToggle(group)}
@@ -280,7 +280,7 @@ export function EntryRegistrationQueue({
                       onKeyDown={event => event.stopPropagation()}
                     >
                       <Checkbox
-                        className="relative before:absolute before:-inset-3.5 before:content-['']"
+                        className="relative before:absolute before:-inset-[15px] before:content-['']"
                         aria-label={`Select ${group.exhibitorName}`}
                         checked={selected}
                         onCheckedChange={() => onToggle(group)}
@@ -346,7 +346,7 @@ export function EntryRegistrationQueue({
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="touch"
             onClick={() => onPageChange(pageIndex - 1)}
             disabled={pageIndex === 0}
           >
@@ -355,7 +355,7 @@ export function EntryRegistrationQueue({
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="touch"
             onClick={() => onPageChange(pageIndex + 1)}
             disabled={pageIndex >= pageCount - 1}
           >

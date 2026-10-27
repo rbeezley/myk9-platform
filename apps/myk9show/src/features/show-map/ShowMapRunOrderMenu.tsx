@@ -60,7 +60,7 @@ export function ShowMapRunOrderMenu({
         <Button
           type="button"
           variant="ghost"
-          size="sm"
+          size="touch"
           disabled={disabled}
           aria-label={`Run order for ${classLabel}`}
         >

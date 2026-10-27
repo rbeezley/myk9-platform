@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
 import { friendlyDbError } from '@/utils/friendlyDbError';
+import { mapPaymentStatus } from '@/utils/entryManagementUtils';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
@@ -11,6 +12,8 @@ import {
   compEntry,
   uncompEntry,
   executeStatusChange,
+  COMP_REFUSED_PAID_CODE,
+  COMP_REFUSED_PAID_MESSAGE,
 } from '@/services/database/entries';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { getEligibleForBulkStatusChange } from '@/components/entries/management/bulkActionEligibility';
@@ -448,7 +451,12 @@ export function useEntryManagementActions({
         const { error: dbError } = await compEntry({ entryId, reason });
 
         if (dbError) {
-          setError('Failed to comp entry');
+          // MYK9-1407: the server refuses a comp on a paid or refunded entry.
+          setError(
+            dbError.code === COMP_REFUSED_PAID_CODE
+              ? COMP_REFUSED_PAID_MESSAGE
+              : 'Failed to comp entry'
+          );
           return;
         }
 
@@ -489,7 +497,7 @@ export function useEntryManagementActions({
       // Same target as the comp it removes (MYK9-639).
       const entryId = moneyRootIdOf(requestedEntryId, entriesRef.current);
       try {
-        const { error: dbError } = await uncompEntry(entryId);
+        const { data, error: dbError } = await uncompEntry(entryId);
 
         if (dbError) {
           setError('Failed to remove comp');
@@ -500,7 +508,12 @@ export function useEntryManagementActions({
           prev.map((e): EntryManagementEntry => {
             if (e.id !== entryId && e.moneyRootEntryId !== entryId) return e;
             const { compedReason: _, ...rest } = e;
-            return { ...rest, comped: false, paymentStatus: PaymentStatus.PENDING };
+            // MYK9-1407: the status the server restored, never an assumed pending.
+            return {
+              ...rest,
+              comped: false,
+              paymentStatus: mapPaymentStatus(data?.payment_status),
+            };
           })
         );
 

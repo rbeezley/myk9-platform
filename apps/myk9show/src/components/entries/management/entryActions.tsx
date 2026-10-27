@@ -14,6 +14,7 @@ import { EntryStatus } from '@/types/show-registration-types';
 import type { BulkActionResult, EntryManagementEntry } from '@/types/entry-management-types';
 import { isPaymentRequestable } from './paymentRequestEligibility';
 import { isStripeRefundable } from './refundEligibility';
+import { isCompable } from './compEligibility';
 import { getEligibleForBulkAction } from './bulkActionEligibility';
 import { STATUS_COMMAND_LABELS } from './reviewStateLabels';
 
@@ -164,7 +165,9 @@ export const entryActions: ReadonlyArray<EntryActionDefinition> = [
     sectionLabel: 'Payment',
     icon: <DollarSign className="h-4 w-4" />,
     applicableWhen: (entry, handlers) =>
-      entry.comped ? Boolean(handlers.onUncompEntry) : Boolean(handlers.onOpenCompDialog),
+      entry.comped
+        ? Boolean(handlers.onUncompEntry)
+        : Boolean(handlers.onOpenCompDialog) && isCompable(entry),
     run: (entry, handlers) =>
       entry.comped ? handlers.onUncompEntry?.(entry.id) : handlers.onOpenCompDialog?.(entry),
   },

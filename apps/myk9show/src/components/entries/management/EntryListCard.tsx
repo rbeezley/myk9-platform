@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { EntryStatus } from '@/types/show-registration-types';
 import { RowActionMenu } from '@/components/ui/RowActionMenu';
+import { isCompable } from './compEligibility';
 import {
   getEffectivePaymentStatus,
   getEntryStatusBadge,
@@ -229,7 +230,8 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                 </TooltipContent>
               </Tooltip>
             ) : (
-              onCompEntry && (
+              onCompEntry &&
+              isCompable(entry) && (
                 <Button
                   size="sm"
                   variant="ghost"

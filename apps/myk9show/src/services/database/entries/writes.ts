@@ -17,10 +17,7 @@ import type {
   WithdrawalReasonCode,
 } from '@/features/registries/withdrawalPolicy';
 import { updateOwnEntryJumpHeight } from './updateOwnEntryJumpHeight';
-import {
-  AUTHENTICATED_ENTRY_READ_COLUMNS,
-  ENTRY_WITH_STANDARD_RELATIONS_SELECT,
-} from './entrySelects';
+import { ENTRY_WITH_STANDARD_RELATIONS_SELECT } from './entrySelects';
 
 // Create new entry
 export const createEntry = async (entryData: DbEntryInsert) => {
@@ -288,72 +285,8 @@ export const withdrawEntry = async (
   return withdrawOwnEntry(entryId, { kind, reason });
 };
 
-// Comp an entry (mark as comped with reason, set payment_status to waived)
-export const compEntry = async (params: { entryId: string; reason: string }) => {
-  const { entryId, reason } = params;
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        comped: true,
-        comped_reason: reason,
-        payment_status: 'waived',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId)
-      .select(AUTHENTICATED_ENTRY_READ_COLUMNS)
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'comp_entry', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'comp_entry');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'comp_entry');
-    logQuery('entries', 'comp_entry', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-// Remove comp from an entry (restore to pending payment status)
-export const uncompEntry = async (entryId: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('entries')
-      .update({
-        comped: false,
-        comped_reason: null,
-        payment_status: 'pending',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId)
-      .select(AUTHENTICATED_ENTRY_READ_COLUMNS)
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'uncomp_entry', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'uncomp_entry');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'uncomp_entry');
-    logQuery('entries', 'uncomp_entry', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
+// MYK9-1407: comp / uncomp live in ./compEntry; re-exported for the index.
+export { compEntry, uncompEntry } from './compEntry';
 
 export type EntrySubmissionSource = 'self_service' | 'organizer' | 'show_desk';
 

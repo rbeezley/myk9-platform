@@ -17,6 +17,9 @@ import { OFFLINE_SESSION_CACHE_TTL_MS } from './offlineSessionCacheTtl';
 /** Entries older than this are ignored — a show weekend plus travel margin. */
 export const RBAC_CACHE_TTL_MS = OFFLINE_SESSION_CACHE_TTL_MS;
 
+/** Clock skew tolerated before a future-dated entry is treated as corrupt. */
+const FUTURE_SKEW_MS = 5 * 60 * 1000;
+
 const KEY_PREFIX = 'myk9show:rbac-cache:';
 
 export interface RbacCacheEntry {
@@ -28,13 +31,19 @@ function cacheKey(userId: string): string {
   return `${KEY_PREFIX}${userId}`;
 }
 
-export function saveRbacPermissionsCache(userId: string, data: UserPermissionsResponse): void {
+/** Returns the saved entry's `cachedAt`, or null when the write failed. */
+export function saveRbacPermissionsCache(
+  userId: string,
+  data: UserPermissionsResponse
+): string | null {
   try {
     const entry: RbacCacheEntry = { cachedAt: new Date().toISOString(), data };
     window.localStorage.setItem(cacheKey(userId), JSON.stringify(entry));
+    return entry.cachedAt;
   } catch {
     // Quota or privacy-mode failure — the cache is best-effort; never let
     // persistence break the live permissions path.
+    return null;
   }
 }
 
@@ -53,6 +62,7 @@ export function loadRbacPermissionsCache(userId: string): RbacCacheEntry | null 
       Array.isArray(value) && value.every(item => typeof item === 'object' && item !== null);
     if (
       Number.isNaN(cachedAtMs) ||
+      cachedAtMs > Date.now() + FUTURE_SKEW_MS ||
       !data ||
       !isObjectArray(data.roles) ||
       !isObjectArray(data.permissions) ||

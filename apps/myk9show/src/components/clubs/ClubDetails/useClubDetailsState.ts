@@ -66,7 +66,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
   const [isUploadingCover, setIsUploadingCover] = useState(false);
 
   // Auth context for RBAC
-  const { userWithRoles, user } = useAuthContext();
+  const { userWithRoles, user, rbacLoading } = useAuthContext();
   const isSiteAdmin = userWithRoles?.roles?.includes(UserRole.SITE_ADMIN) ?? false;
 
   // RBAC permission checks — see computeClubPermissions for the rules.
@@ -132,11 +132,14 @@ export function useClubDetailsState(selectedClub: Club | null) {
     (!canManageClubAdmin && activeTab === 'payments');
   const visibleActiveTab = tabHidden ? 'upcoming' : activeTab;
 
+  // Rewrite the URL only once roles are known: on a cold load (a Stripe return lands on
+  // ?tab=payments) the gate is false until RBAC resolves, and clearing the tab then would
+  // strand an authorized admin on Upcoming (MYK9-1293).
   useEffect(() => {
-    if (tabHidden) {
+    if (tabHidden && !rbacLoading) {
       setActiveTab('upcoming');
     }
-  }, [tabHidden, setActiveTab]);
+  }, [tabHidden, rbacLoading, setActiveTab]);
 
   // MYK9-768: replica for signed-in viewers, the server for guests.
   const clubShows = useClubShows(selectedClub);

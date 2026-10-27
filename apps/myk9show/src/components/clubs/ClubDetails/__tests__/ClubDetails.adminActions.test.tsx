@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { ScopeType, UserRole } from '@/types/auth-types';
 import type { RoleScope, UserWithRoles } from '@/types/auth-types';
 import type { Club } from '@/types/club-types';
@@ -90,6 +90,7 @@ function renderPage(clubId: string, search = '') {
 describe('club page admin tabs (MYK9-1293)', () => {
   beforeEach(() => {
     mockAuth.userWithRoles = null;
+    mockAuth.rbacLoading = false;
     validated.value = { status: 'loading' };
     usePageEditTargetStore.setState({ target: null, owner: null, exports: [] });
   });
@@ -100,6 +101,20 @@ describe('club page admin tabs (MYK9-1293)', () => {
     renderPage(CLUB_A, '?tab=payments');
 
     expect(await screen.findByTestId('can-manage')).toHaveTextContent('true');
+    expect(screen.getByTestId('active-tab')).toHaveTextContent('payments');
+  });
+
+  it('keeps ?tab=payments while roles load, then lands an admin on Payments (cold Stripe return)', async () => {
+    mockAuth.rbacLoading = true;
+    validated.value = ready(CLUB_A);
+    const { rerender } = renderPage(CLUB_A, '?connect=return&tab=payments');
+    await screen.findByTestId('can-manage');
+
+    mockAuth.rbacLoading = false;
+    mockAuth.userWithRoles = adminOf(CLUB_A);
+    rerender(<Harness clubId={CLUB_A} />);
+
+    await waitFor(() => expect(screen.getByTestId('can-manage')).toHaveTextContent('true'));
     expect(screen.getByTestId('active-tab')).toHaveTextContent('payments');
   });
 

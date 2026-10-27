@@ -121,15 +121,13 @@ test.describe('My Shows Page - Enter a Show CTA', () => {
     page,
   }) => {
     await expect(page.getByRole('tablist', { name: 'Browse' })).toHaveCount(0);
-    const rail = page.getByRole('navigation').first();
-    await expect(rail.getByRole('link', { name: 'My Shows' }).first()).toHaveAttribute(
+    // The rail is <nav aria-label="Main"> (RailNav); the header's own <nav> comes first in the DOM.
+    const rail = page.getByRole('navigation', { name: 'Main' });
+    await expect(rail.getByRole('link', { name: 'My Shows' })).toHaveAttribute(
       'href',
       '/exhibitor/entries'
     );
-    await expect(rail.getByRole('link', { name: 'My Dogs' }).first()).toHaveAttribute(
-      'href',
-      '/dogs'
-    );
+    await expect(rail.getByRole('link', { name: 'My Dogs' })).toHaveAttribute('href', '/dogs');
   });
 });
 

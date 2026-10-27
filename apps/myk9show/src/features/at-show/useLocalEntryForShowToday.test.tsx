@@ -208,7 +208,10 @@ describe('useLocalEntryForShowToday', () => {
   it('stops listening to the replicas on unmount', async () => {
     const { result, unmount } = renderLocalEntry('person-1');
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(tables.listeners.get('dogs')?.size).toBe(1);
+    // Every source the answer derives from is subscribed, trials included.
+    for (const table of ['shows', 'trials', 'entries', 'dogs']) {
+      expect(tables.listeners.get(table)?.size, table).toBe(1);
+    }
 
     unmount();
 

@@ -2,6 +2,11 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { replicatedEntriesTable } from '@/services/replication';
 
+/** A replicated table whose change notices can drive invalidation. */
+export interface ReplicaChangeSource {
+  subscribe(callback: () => void, options: { emitCurrent: false }): () => void;
+}
+
 const DEFAULT_SOURCES: readonly ReplicaChangeSource[] = [replicatedEntriesTable];
 
 /**
@@ -16,12 +21,7 @@ const DEFAULT_SOURCES: readonly ReplicaChangeSource[] = [replicatedEntriesTable]
  *
  * `emitCurrent: false` skips the initial emit (the query's own first read
  * already holds the current rows).
- */
-export interface ReplicaChangeSource {
-  subscribe(callback: () => void, options: { emitCurrent: false }): () => void;
-}
-
-/**
+ *
  * `sources` defaults to the entries replica. A read derived from several
  * replicas passes them all; one coalescing window covers the lot (MYK9-1416).
  * Pass a module-level or memoized array: it is a subscription dependency.

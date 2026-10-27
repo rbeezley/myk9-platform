@@ -1,9 +1,9 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { formatShortDate } from '@/lib/format/dates';
-import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
+import { useClubsAwaitingAuthorizationQuery } from '@/hooks/queries/useClubsDatabase';
 
 /**
  * MYK9-855: club authorization is a separate site-admin decision (MYK9-572) for
@@ -15,18 +15,19 @@ import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
  * Online-only, like the request queue above it: this is an admin to-do list,
  * so it reads the server rather than this device's club replica, whose copy
  * can lag an approval. It refetches on every visit, and an approval
- * invalidates it. `authorizedAt === null` means "explicitly not authorized";
- * `undefined` (field absent) is never listed.
+ * invalidates it. MYK9-1448: the server filters `authorized_at IS NULL AND
+ * deleted_at IS NULL`; the list used to be getAllClubs() filtered here, which
+ * lost any pending club past PostgREST's 1,000-row cap.
  */
 export function ClubsAwaitingAuthorizationSection() {
-  const { data: clubs, isPending, isError, refetch } = useClubsQuery();
+  const { data: clubs, isPending, isError, refetch } = useClubsAwaitingAuthorizationQuery();
 
   // A cached list from an earlier visit is not good enough for a to-do list.
   useEffect(() => {
     void refetch();
   }, [refetch]);
 
-  const awaiting = useMemo(() => (clubs ?? []).filter(club => club.authorizedAt === null), [clubs]);
+  const awaiting = clubs ?? [];
 
   return (
     <section className="mb-8 space-y-3" aria-labelledby="clubs-awaiting-authorization-heading">

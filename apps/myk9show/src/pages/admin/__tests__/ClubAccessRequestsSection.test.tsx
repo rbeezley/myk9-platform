@@ -6,6 +6,7 @@ import {
   getPendingClubAccessRequests,
   reviewClubAccessRequest,
 } from '@/services/database/club-access-requests';
+import { notifications } from '@/lib/notifications';
 
 const mocks = vi.hoisted(() => ({
   requests: vi.fn(),
@@ -27,7 +28,10 @@ vi.mock('@/services/database/club-access-requests', () => ({
 
 vi.mock('@/hooks/queries/useClubsDatabase', () => ({
   useClubsQuery: () => ({ data: mocks.clubs() }),
-  clubQueryKeys: { lists: () => ['clubs', 'list'] },
+  clubQueryKeys: {
+    lists: () => ['clubs', 'list'],
+    awaitingAuthorization: () => ['clubs', 'list', 'awaiting-authorization'],
+  },
 }));
 
 vi.mock('@/lib/notifications', () => ({
@@ -146,6 +150,15 @@ describe('ClubAccessRequestsSection', () => {
     await waitFor(() =>
       expect(invalidate).toHaveBeenCalledWith({ queryKey: ['club-authorization', 'club-1'] })
     );
+    // MYK9-1448: the pending-clubs to-do list refreshes, and the approval
+    // completes (requests reload, no error) rather than failing in the catch.
+    await waitFor(() =>
+      expect(invalidate).toHaveBeenCalledWith({
+        queryKey: ['clubs', 'list', 'awaiting-authorization'],
+      })
+    );
+    await waitFor(() => expect(getPendingClubAccessRequests).toHaveBeenCalledTimes(2));
+    expect(notifications.error).not.toHaveBeenCalled();
   });
 
   it('does not offer an authorize link after a denial', async () => {

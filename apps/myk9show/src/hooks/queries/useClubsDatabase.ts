@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Club, ClubInput } from '@/types/club-types';
 import {
   getAllClubs,
+  getClubsAwaitingAuthorization,
   getClubById,
   createClub,
   updateClub,
@@ -25,6 +26,7 @@ export const clubQueryKeys = {
   all: ['clubs'] as const,
   lists: () => [...clubQueryKeys.all, 'list'] as const,
   list: (filters?: Record<string, unknown>) => [...clubQueryKeys.lists(), filters] as const,
+  awaitingAuthorization: () => [...clubQueryKeys.lists(), 'awaiting-authorization'] as const,
   details: () => [...clubQueryKeys.all, 'detail'] as const,
   detail: (id: string) => [...clubQueryKeys.details(), id] as const,
   search: (term: string) => [...clubQueryKeys.all, 'search', term] as const,
@@ -65,6 +67,23 @@ export const useClubsQuery = () => {
     queryKey: clubQueryKeys.lists(),
     queryFn: async () => {
       const { data, error } = await getAllClubs();
+      if (error) throw error;
+      return mapDatabaseClubsArray(data as Parameters<typeof mapDatabaseClubsArray>[0]);
+    },
+    ...cacheStrategies.moderate,
+  });
+};
+
+/**
+ * Clubs still waiting on a site admin's authorization (MYK9-1448). Filtered on
+ * the server so it is complete at any club count. The key sits under lists(),
+ * so existing lists() and all invalidations refresh it.
+ */
+export const useClubsAwaitingAuthorizationQuery = () => {
+  return useQuery({
+    queryKey: clubQueryKeys.awaitingAuthorization(),
+    queryFn: async () => {
+      const { data, error } = await getClubsAwaitingAuthorization();
       if (error) throw error;
       return mapDatabaseClubsArray(data as Parameters<typeof mapDatabaseClubsArray>[0]);
     },

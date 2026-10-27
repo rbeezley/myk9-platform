@@ -1,10 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 import { config as loadEnv } from 'dotenv';
+import { assertPlaywrightRunAllowed } from './src/test/productionFixtureGuard';
 
 // Load .env.local first (gitignored), then .env — so E2E_* test creds reach the
 // test process under this config too (the authed specs read them).
 loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
+// MYK9-1454: refuse to sign fixture accounts into production unless the run opts in.
+assertPlaywrightRunAllowed('playwright.ci.config.ts');
 
 const isA11ySmoke = process.env.PLAYWRIGHT_A11Y === 'true';
 const isRegression =

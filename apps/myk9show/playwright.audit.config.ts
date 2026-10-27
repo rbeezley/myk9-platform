@@ -1,9 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 import { config as loadEnv } from 'dotenv';
+import { assertPlaywrightRunAllowed } from './src/test/productionFixtureGuard';
 import { resolveAuditTarget } from './scripts/playwright-audit-target';
 
 loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
+// MYK9-1454: refuse to sign fixture accounts into production unless the run opts in.
+assertPlaywrightRunAllowed('playwright.audit.config.ts');
 
 const target = resolveAuditTarget(process.env);
 

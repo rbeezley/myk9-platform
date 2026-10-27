@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { assertFixtureSignInAllowed } from '../productionFixtureGuard';
 import { LOAD_SHOWS } from './loadFixture';
 
 /**
@@ -124,6 +125,8 @@ export async function authenticateAndResolveScope(
   anonKey: string,
   credential: { email: string; password: string; showIndex: number }
 ): Promise<{ accessToken: string; scope: ManageableShowScope }> {
+  // MYK9-1454: the load rehearsal targets production on purpose and opts in; nothing else may.
+  assertFixtureSignInAllowed(supabaseUrl, 'load harness sign-in');
   const client = createClient(supabaseUrl, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });

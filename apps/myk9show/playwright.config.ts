@@ -1,10 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 import { config as loadEnv } from 'dotenv';
+import { assertPlaywrightRunAllowed } from './src/test/productionFixtureGuard';
 import { createHash } from 'node:crypto';
 
 // Load .env.local first (gitignored, takes precedence), then fall back to .env.
 loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
+// MYK9-1454: refuse to sign fixture accounts into production unless the run opts in.
+assertPlaywrightRunAllowed('playwright.config.ts');
 
 // `reuseExistingServer` is on outside CI, so a fixed default port means a local
 // run silently tests whichever WORKTREE happens to own it — this machine keeps a

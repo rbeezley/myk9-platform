@@ -12,6 +12,16 @@ This map classifies current Playwright specs into operational suites for the pro
 
 ## Recommended Commands
 
+**Production is refused by default (MYK9-1454).** There is one Supabase project, and it is production. Every fixture sign-in runs a full replication sync (about 2,800 requests), so a local run against it slows the live site for real users: on 2026-10-27 one local perf run held p95 at 3.3 s with 5xx errors.
+
+- Every Playwright config that loads `.env` refuses to start when a fixture password (`E2E_*_PASSWORD`) is configured and the app talks to `sojmvhhwsjxmfistvzbe`. The check is `assertPlaywrightRunAllowed` in `src/test/productionFixtureGuard.ts`.
+- `pnpm performance:baseline` and the load harness refuse the same way at sign-in.
+- **The isolated path:** `pnpm qa:isolated-e2e:prepare` builds a disposable local target. It points `VITE_SUPABASE_URL` and `MYK9_E2E_SUPABASE_URL` at loopback, and the guard then allows the run. CI's smoke, regression, show-day and batch-3 jobs use this. It needs Docker, so on the development Mac use the native-stack recipe instead.
+- **The opt-in:** a run that must measure production sets `MYK9_ALLOW_PROD_E2E=1`.
+  - Workflows that do so on purpose: `nightly-health`, `page-readiness-probe` and `load-rehearsal`.
+  - Locally, set it only for one short, deliberate production run, never for a suite.
+  - Owner-signed-in browser walks and rolled-back psql walks sign in no fixture account, so they need no opt-in.
+
 Both `pnpm test:e2e <paths/flags>` and `pnpm test:e2e:clean <paths/flags>` pass everything after the script name to `playwright test`, so a path runs only that path (MYK9-628; `src/test/ci/e2eScriptArgs.test.ts` keeps it that way). The two are now identical: the `posttest:e2e` cleanup hook that `test:e2e:clean` used to skip was deleted (MYK9-720) because it crashed on load and, had it run, would have killed every browser on the machine. Browser cleanup is per session: see `pnpm qa:browser-session` in CLAUDE.md § Browser automation session ownership.
 
 ### Suite Map Drift

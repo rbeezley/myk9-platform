@@ -23,6 +23,11 @@ concurrency:
   group: page-readiness-probe
   cancel-in-progress: true
 
+env:
+  # MYK9-1454: this workflow measures production on purpose, so it opts in to signing the
+  # fixture accounts into it. Every other run is refused (src/test/productionFixtureGuard.ts).
+  MYK9_ALLOW_PROD_E2E: '1'
+
 jobs:
   probe:
     name: Probe show-day page readiness

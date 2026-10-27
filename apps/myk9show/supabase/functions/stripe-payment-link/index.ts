@@ -18,7 +18,6 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
-const cronSecret = Deno.env.get('CRON_SECRET');
 
 if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey || !stripeSecret) {
   throw new Error('Missing required environment variables');
@@ -53,8 +52,7 @@ function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers':
-      'authorization, x-client-info, apikey, content-type, x-function-secret',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   };
 }
 
@@ -70,21 +68,6 @@ function corsResponse(
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
-}
-
-async function secretMatches(provided: string | null): Promise<boolean> {
-  if (!provided || !cronSecret) return false;
-
-  const enc = new TextEncoder();
-  const [a, b] = await Promise.all([
-    crypto.subtle.digest('SHA-256', enc.encode(provided)),
-    crypto.subtle.digest('SHA-256', enc.encode(cronSecret)),
-  ]);
-  const av = new Uint8Array(a);
-  const bv = new Uint8Array(b);
-  let diff = 0;
-  for (let i = 0; i < av.length; i++) diff |= av[i] ^ bv[i];
-  return diff === 0;
 }
 
 /** Prevent open-redirect: success/cancel must point at one of our origins. */
@@ -140,26 +123,22 @@ Deno.serve(async req => {
     if (req.method !== 'POST')
       return corsResponse(corsHeaders, { error: 'Method not allowed' }, 405);
 
-    const isInternalCall = await secretMatches(req.headers.get('x-function-secret'));
-
-    // Authenticate the caller (the secretary/admin issuing the link). Cron may
-    // call with x-function-secret after it creates a waitlist promotion.
+    // Authenticate the caller: the secretary/admin issuing the link, or the
+    // exhibitor claiming their own waitlist offer. There is no service-to-service
+    // path (MYK9-1394): every request carries a user JWT and passes the role check.
     const authHeader = req.headers.get('Authorization');
-    let userId: string | null = null;
-    if (!isInternalCall) {
-      if (!authHeader)
-        return corsResponse(corsHeaders, { error: 'Missing Authorization header' }, 401);
-      const token = authHeader.replace('Bearer ', '');
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser(token);
-      if (authError || !user) {
-        console.error('Authentication failed:', authError);
-        return corsResponse(corsHeaders, { error: 'Authentication failed' }, 401);
-      }
-      userId = user.id;
+    if (!authHeader)
+      return corsResponse(corsHeaders, { error: 'Missing Authorization header' }, 401);
+    const token = authHeader.replace('Bearer ', '');
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      console.error('Authentication failed:', authError);
+      return corsResponse(corsHeaders, { error: 'Authentication failed' }, 401);
     }
+    const userId = user.id;
 
     const body: PaymentLinkRequest = await req.json();
     const { entry_ids, success_url, cancel_url } = body;
@@ -213,70 +192,68 @@ Deno.serve(async req => {
     }
     const show = entries[0].show;
 
-    if (!isInternalCall) {
-      // Authorize AS THE CALLER via the canonical SQL predicates (mirror
-      // stripe-refund-entry): show-scoped secretary, the club's admin, or site
-      // admin. No club → no club-admin path (is_club_admin(NULL) = any club).
-      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } },
-      });
-      const [secretaryRes, clubAdminRes, siteAdminRes] = await Promise.all([
-        userClient.rpc('is_show_secretary', { check_show_id: show.id }),
-        show.club_id
-          ? userClient.rpc('is_club_admin', { check_club_id: show.club_id })
-          : Promise.resolve({ data: false }),
-        userClient.rpc('is_site_admin'),
-      ]);
-      const authorized =
-        secretaryRes.data === true || clubAdminRes.data === true || siteAdminRes.data === true;
-      if (!authorized) {
-        // An exhibitor may claim only their own active promotion. This is a
-        // deliberately narrow fallback, not generic entry-owner checkout:
-        // every requested entry must match an unexpired offered row owned by
-        // the caller's exhibitor profile.
-        const { data: exhibitorProfile, error: exhibitorError } = await supabase
-          .from('exhibitor_profiles')
-          .select('id')
-          .eq('auth_user_id', userId)
-          .maybeSingle();
-        if (exhibitorError) {
-          console.error('Could not load exhibitor profile for waitlist payment:', exhibitorError);
-          return corsResponse(corsHeaders, { error: 'Could not verify this waitlist offer' }, 500);
-        }
-        if (!exhibitorProfile) {
-          return corsResponse(
-            corsHeaders,
-            { error: 'Not authorized to request payment for this show' },
-            403
-          );
-        }
-
-        const { data: activeOffers, error: offersError } = await supabase
-          .from('waitlist_entries')
-          .select('promoted_entry_id')
-          .in('promoted_entry_id', entry_ids)
-          .eq('exhibitor_id', exhibitorProfile.id)
-          .eq('status', 'offered')
-          .gt('offer_expires_at', new Date().toISOString());
-        if (offersError) {
-          console.error('Could not load active waitlist offers:', offersError);
-          return corsResponse(corsHeaders, { error: 'Could not verify this waitlist offer' }, 500);
-        }
-
-        const activeOfferEntryIds = new Set(
-          ((activeOffers ?? []) as OfferedWaitlistRow[])
-            .map(offer => offer.promoted_entry_id)
-            .filter((entryId): entryId is string => Boolean(entryId))
+    // Authorize AS THE CALLER via the canonical SQL predicates (mirror
+    // stripe-refund-entry): show-scoped secretary, the club's admin, or site
+    // admin. No club → no club-admin path (is_club_admin(NULL) = any club).
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const [secretaryRes, clubAdminRes, siteAdminRes] = await Promise.all([
+      userClient.rpc('is_show_secretary', { check_show_id: show.id }),
+      show.club_id
+        ? userClient.rpc('is_club_admin', { check_club_id: show.club_id })
+        : Promise.resolve({ data: false }),
+      userClient.rpc('is_site_admin'),
+    ]);
+    const authorized =
+      secretaryRes.data === true || clubAdminRes.data === true || siteAdminRes.data === true;
+    if (!authorized) {
+      // An exhibitor may claim only their own active promotion. This is a
+      // deliberately narrow fallback, not generic entry-owner checkout:
+      // every requested entry must match an unexpired offered row owned by
+      // the caller's exhibitor profile.
+      const { data: exhibitorProfile, error: exhibitorError } = await supabase
+        .from('exhibitor_profiles')
+        .select('id')
+        .eq('auth_user_id', userId)
+        .maybeSingle();
+      if (exhibitorError) {
+        console.error('Could not load exhibitor profile for waitlist payment:', exhibitorError);
+        return corsResponse(corsHeaders, { error: 'Could not verify this waitlist offer' }, 500);
+      }
+      if (!exhibitorProfile) {
+        return corsResponse(
+          corsHeaders,
+          { error: 'Not authorized to request payment for this show' },
+          403
         );
-        if (activeOfferEntryIds.size !== entry_ids.length) {
-          return corsResponse(
-            corsHeaders,
-            {
-              error: 'Not authorized to request payment for these waitlist offers',
-            },
-            403
-          );
-        }
+      }
+
+      const { data: activeOffers, error: offersError } = await supabase
+        .from('waitlist_entries')
+        .select('promoted_entry_id')
+        .in('promoted_entry_id', entry_ids)
+        .eq('exhibitor_id', exhibitorProfile.id)
+        .eq('status', 'offered')
+        .gt('offer_expires_at', new Date().toISOString());
+      if (offersError) {
+        console.error('Could not load active waitlist offers:', offersError);
+        return corsResponse(corsHeaders, { error: 'Could not verify this waitlist offer' }, 500);
+      }
+
+      const activeOfferEntryIds = new Set(
+        ((activeOffers ?? []) as OfferedWaitlistRow[])
+          .map(offer => offer.promoted_entry_id)
+          .filter((entryId): entryId is string => Boolean(entryId))
+      );
+      if (activeOfferEntryIds.size !== entry_ids.length) {
+        return corsResponse(
+          corsHeaders,
+          {
+            error: 'Not authorized to request payment for these waitlist offers',
+          },
+          403
+        );
       }
     }
 
@@ -550,7 +527,7 @@ Deno.serve(async req => {
     console.log(
       `Created entry payment link ${session.id} for ${entry_ids.length} entr${
         entry_ids.length === 1 ? 'y' : 'ies'
-      } (show ${show.id}) by ${userId ?? 'cron'}`
+      } (show ${show.id}) by ${userId}`
     );
     // Return the exact breakdown so the dialog can disclose entry fee + platform
     // fee = total (fee-on-top) without re-deriving fee math on the client.

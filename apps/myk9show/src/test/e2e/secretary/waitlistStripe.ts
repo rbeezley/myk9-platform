@@ -53,8 +53,7 @@ function rehome(url: unknown): unknown {
 }
 
 /** The headers `stripe-payment-link`'s own `getCorsHeaders()` allows; used when no preflight names any. */
-const PAYMENT_LINK_ALLOW_HEADERS =
-  'authorization, x-client-info, apikey, content-type, x-function-secret';
+const PAYMENT_LINK_ALLOW_HEADERS = 'authorization, x-client-info, apikey, content-type';
 
 /**
  * See (1) above. Install on the exhibitor's page before "Complete payment".

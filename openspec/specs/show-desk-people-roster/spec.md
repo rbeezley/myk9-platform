@@ -33,7 +33,11 @@ Tools drawer for staff users who can manage the show.
 ### Requirement: Roster defaults to all exhibitors with operational lookup
 
 The system SHALL default the roster to all exhibitors for the show and support
-fast lookup by exhibitor name, dog name, and armband.
+fast lookup by exhibitor name, dog name, and armband. The `All exhibitors`,
+`Needs check-in`, and `Online` filters SHALL render as the shared list-toolkit
+view tabs, each carrying a live count of the exhibitors it matches, and the
+active view SHALL serialize to and restore from the roster's URL state so a
+refresh or shared link preserves it.
 
 #### Scenario: All exhibitors is the default filter
 
@@ -64,6 +68,18 @@ fast lookup by exhibitor name, dog name, and armband.
 - **WHEN** staff selects `Online`
 - **THEN** the roster shows exhibitors currently present in the show presence roster
 - **AND** the UI does not imply presence is authoritative check-in status
+
+#### Scenario: View tabs show live counts
+
+- **WHEN** the People roster renders its view tabs
+- **THEN** each of `All exhibitors`, `Needs check-in`, and `Online` shows the count of exhibitors it currently matches
+- **AND** the counts are derived from the same roster rows the view filters, not a separate query
+
+#### Scenario: Deep link into a filtered view still works
+
+- **WHEN** the Show Desk "Check in N entries" card links to the roster with a requested view
+- **THEN** the roster opens with that view already selected
+- **AND** the URL reflects the active view so refreshing keeps it selected
 
 ### Requirement: Exhibitor rows show presence and class details
 
@@ -200,3 +216,13 @@ actions, routing, and responsive shell behavior.
 
 - **WHEN** the Tools drawer renders the People roster
 - **THEN** tests or visual verification confirm the wide mode is applied only where intended
+
+### Requirement: People roster does not gain cross-exhibitor bulk selection
+
+The People roster SHALL NOT introduce row checkboxes, a header select-all control, or a floating bulk-action bar spanning multiple exhibitors. Each exhibitor's `Check in all eligible` action SHALL remain scoped to that exhibitor's own eligible class rows.
+
+#### Scenario: No multi-exhibitor selection exists
+
+- **WHEN** staff views the People roster, filtered or unfiltered
+- **THEN** no control lets staff select rows across more than one exhibitor at once
+- **AND** `Check in all eligible` for one exhibitor never affects another exhibitor's rows

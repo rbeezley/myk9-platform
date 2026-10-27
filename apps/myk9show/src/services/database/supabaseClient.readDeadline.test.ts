@@ -203,6 +203,47 @@ describe('configured Supabase read deadline (MYK9-1355)', () => {
       expect(transport).toHaveBeenCalledTimes(1);
       expect(transport.mock.calls[0]?.[1]?.signal).toBeUndefined();
     });
+
+    it('never retries a read-only RPC (POST), as postgrest-js never did', async () => {
+      const transport = vi.fn<typeof fetch>(async () => unavailable());
+      vi.stubGlobal('fetch', transport);
+      const response = await supabase.rpc('get_user_permissions');
+      expect(response.status).toBe(503);
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(transport).toHaveBeenCalledTimes(1);
+      // Deadlined all the same: the read-only RPC carries the shared controller's signal.
+      expect(transport.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
+    });
+
+    it('stops after the retry cap: four quick 503s return the last one', async () => {
+      const transport = vi.fn<typeof fetch>(async () => unavailable());
+      vi.stubGlobal('fetch', transport);
+      const { result } = startRead();
+      await vi.advanceTimersByTimeAsync(7_000);
+      expect((await result).status).toBe(503);
+      expect(transport).toHaveBeenCalledTimes(4);
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(transport).toHaveBeenCalledTimes(4);
+    });
+
+    it('returns a slow network failure at once when its backoff would end past the budget', async () => {
+      // Fails just before the budget: a 1 s backoff would end at 30.5 s, so the
+      // failure itself is returned at 29.5 s instead of sleeping into the deadline.
+      const transport = vi.fn<typeof fetch>(
+        () =>
+          new Promise<Response>((_resolve, reject) => {
+            setTimeout(() => reject(new TypeError('Failed to fetch')), 29_500);
+          })
+      );
+      vi.stubGlobal('fetch', transport);
+      const { state, result } = startRead();
+      await vi.advanceTimersByTimeAsync(29_500);
+      expect(state.at).toBe(29_500);
+      const response = await result;
+      expect(response.error?.message).toContain('Failed to fetch');
+      expect(response.error?.message).not.toContain('Read deadline');
+      expect(transport).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('allows a write to finish after the read deadline without aborting or replaying it', async () => {

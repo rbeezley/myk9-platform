@@ -1,15 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { loadRingsideNavigation } from './ringsideNavigation';
+import { keepClonesAlive, releaseKeptClones } from '@/test/utils/keepClonesAlive';
 
 const request = new Request('https://myk9show.com/at-show/show-1');
 const shell = () => Promise.resolve(new Response('cached shell', { status: 200 }));
+// loadRingsideNavigation clones and drops; see the helper (MYK9-1440).
 const appDocument = () =>
-  new Response('<meta name="myk9-supabase-origin" content="test">', {
-    status: 200,
-    headers: { 'content-type': 'text/html' },
-  });
+  keepClonesAlive(
+    new Response('<meta name="myk9-supabase-origin" content="test">', {
+      status: 200,
+      headers: { 'content-type': 'text/html' },
+    })
+  );
 
 afterEach(() => {
+  releaseKeptClones();
   vi.restoreAllMocks();
   vi.useRealTimers();
 });

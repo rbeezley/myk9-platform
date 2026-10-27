@@ -16,7 +16,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ userWithRoles: null, hasPermission: () => false }),
 }));
 vi.mock('@/store/clubStore', () => ({
-  useClubStore: () => ({ updateClub: vi.fn() }),
+  useClubStore: () => ({ updateClub: vi.fn(), selectClub: vi.fn() }),
 }));
 vi.mock('@/store/showStore', () => ({
   useShowStore: (selector: (s: { shows: unknown[] }) => unknown) => selector({ shows: [] }),

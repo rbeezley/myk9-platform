@@ -33,6 +33,8 @@ interface PrimaryTabsProps {
    * their strip.
    */
   hideWhenSingle?: boolean;
+  /** Accessible name for the tab strip; set it when a page holds more than one strip. */
+  ariaLabel?: string;
 }
 
 export function PrimaryTabs({
@@ -44,6 +46,7 @@ export function PrimaryTabs({
   className,
   stripClassName,
   hideWhenSingle = false,
+  ariaLabel,
 }: PrimaryTabsProps) {
   const prevResetKey = useRef(resetKey);
 
@@ -71,6 +74,7 @@ export function PrimaryTabs({
             with min-width-per-trigger below so labels scroll instead of
             crushing illegibly at phone widths (390px). */}
         <TabsList
+          {...(ariaLabel !== undefined ? { 'aria-label': ariaLabel } : {})}
           className={cn(
             'flex w-full max-w-full overflow-x-auto hide-scrollbar scroll-shadow-x border-b border-border bg-transparent p-0 gap-0'
           )}

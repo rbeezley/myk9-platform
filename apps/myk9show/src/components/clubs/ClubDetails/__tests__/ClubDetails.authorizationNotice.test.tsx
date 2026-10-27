@@ -26,7 +26,9 @@ vi.mock('@/hooks/useValidatedClubContext', () => ({
   useCurrentValidatedClubContext: () => validated.value,
 }));
 vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => true }));
-vi.mock('@/store/clubStore', () => ({ useClubStore: () => ({ updateClub: vi.fn() }) }));
+vi.mock('@/store/clubStore', () => ({
+  useClubStore: () => ({ updateClub: vi.fn(), selectClub: vi.fn() }),
+}));
 vi.mock('@/store/showStore', () => ({
   useShowStore: (selector?: (s: { shows: unknown[] }) => unknown) =>
     selector ? selector({ shows: [] }) : { shows: [] },

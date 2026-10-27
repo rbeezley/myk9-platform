@@ -10,7 +10,11 @@ import { describe, expect, it } from 'vitest';
  * dialogs use) rather than behaviours the existing page harness can drive.
  * Same approach as the repo's other *.source.test.ts files.
  */
-const page = readFileSync(resolve(__dirname, 'ClubMembersPage.tsx'), 'utf8');
+// The manager was split into render, hook and dialog files for the 500-line cap (MYK9-1293);
+// the structural contracts span all three.
+const page = ['ClubMembersManager.tsx', 'useClubMembersManager.ts', 'ClubRemovalDialogs.tsx']
+  .map(file => readFileSync(resolve(__dirname, file), 'utf8'))
+  .join('\n');
 const dialogs = readFileSync(resolve(__dirname, 'ClubMemberDialogs.tsx'), 'utf8');
 
 describe('roster query gating', () => {

@@ -94,7 +94,7 @@ test.describe('club surface integrity — read-only', () => {
     await signInAsAdmin(page, '/club-admin/members');
     await expect(
       page
-        .getByRole('heading', { name: /Members$/, level: 1 })
+        .getByRole('tab', { name: 'Officers' })
         .or(page.getByText(/More than one club is linked|couldn.t verify your club access/i))
     ).toBeVisible({
       timeout: 30_000,
@@ -121,12 +121,22 @@ test.describe('club surface integrity — read-only', () => {
   test('payment setup is actionable only after club context validation', async ({ page }) => {
     const errors = installRuntimeGuards(page);
     await signInAsAdmin(page, '/club-admin/payments');
-    await expect(page.getByRole('heading', { name: 'Payments', level: 1 })).toBeVisible({
+    // The old route redirects to the Payments tab of the admin's club page (MYK9-1293).
+    await expect(page).toHaveURL(new RegExp(`/clubs/${SEEDED_CLUB_ID}\\?.*tab=payments`), {
+      timeout: 30_000,
+    });
+    await expect(page.getByRole('tab', { name: 'Payments' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    await expect(page.getByText(/Your club receives 100% of entry fees\./i)).toBeVisible({
       timeout: 30_000,
     });
 
+    // Account state varies by fixture; when no account is connected, the setup dialog is
+    // dismissible and nothing starts without "Continue to Stripe".
     const connectButton = page.getByRole('button', { name: 'Connect payment account' });
-    if (await connectButton.isVisible().catch(() => false)) {
+    if ((await connectButton.count()) > 0) {
       await connectButton.click();
       await expect(page.getByText(/before you start/i)).toBeVisible();
 
@@ -135,10 +145,6 @@ test.describe('club surface integrity — read-only', () => {
       await notNow.press('Enter');
       await expect(page.getByText(/before you start/i)).not.toBeVisible();
       await expect(connectButton).toBeVisible();
-    } else {
-      await expect(
-        page.getByText(/More than one club is linked|couldn.t verify your club access/i)
-      ).toBeVisible();
     }
     await expectNoHorizontalOverflow(page);
     expect(errors).toEqual([]);

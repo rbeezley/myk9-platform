@@ -5,6 +5,7 @@
  * Standalone routes (class management, sync) also render inside the unified layout.
  */
 
+import { PEOPLE_ROUTE_ROLES } from './peopleRouteRoles';
 import { useEffect } from 'react';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { Route, Navigate, useParams, useLocation } from 'react-router-dom';
@@ -70,7 +71,7 @@ const ShowEditRedirect = () => {
 };
 
 const peopleRouteElement = (
-  <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+  <ProtectedRoute requiredRole={PEOPLE_ROUTE_ROLES}>
     <SuspenseWrapper>
       <PeopleMasterDetailPage />
     </SuspenseWrapper>

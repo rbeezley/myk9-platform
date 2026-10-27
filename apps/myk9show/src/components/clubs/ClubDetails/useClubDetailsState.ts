@@ -4,7 +4,6 @@ import { useUrlTab } from '@/hooks/useUrlTab';
 import { useNavigate } from 'react-router-dom';
 import { useClubStore } from '@/store/clubStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { useCurrentValidatedClubContext } from '@/hooks/useValidatedClubContext';
 import { UserRole } from '@/types/auth-types';
 import { Club } from '@/types/club-types';
 import { logger } from '@/services/LoggingService';
@@ -43,11 +42,11 @@ function processPhotoFile(file: File, onResult: (dataUrl: string) => void): void
   reader.readAsDataURL(file);
 }
 
-const CLUB_TAB_IDS = ['upcoming', 'past', 'about', 'members', 'branding'] as const;
+const CLUB_TAB_IDS = ['upcoming', 'past', 'about', 'members', 'payments', 'branding'] as const;
 
 export function useClubDetailsState(selectedClub: Club | null) {
   const navigate = useNavigate();
-  const { updateClub } = useClubStore();
+  const { updateClub, selectClub, selectedClubId, selectedClubUserId } = useClubStore();
   // Tab state — URL-synced
   const [activeTab, setActiveTabRaw] = useUrlTab(CLUB_TAB_IDS, 'upcoming');
   const setActiveTab = setActiveTabRaw as (tab: ClubTab) => void;
@@ -67,8 +66,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
   const [isUploadingCover, setIsUploadingCover] = useState(false);
 
   // Auth context for RBAC
-  const { userWithRoles } = useAuthContext();
-  const validatedClub = useCurrentValidatedClubContext();
+  const { userWithRoles, user, rbacLoading } = useAuthContext();
   const isSiteAdmin = userWithRoles?.roles?.includes(UserRole.SITE_ADMIN) ?? false;
 
   // RBAC permission checks — see computeClubPermissions for the rules.
@@ -106,13 +104,42 @@ export function useClubDetailsState(selectedClub: Club | null) {
   // MYK9-572: site-admin-only control, independent of computeClubPermissions.
   const authorizationControl = useClubAuthorizationControl(selectedClub, isSiteAdmin);
 
-  const visibleActiveTab = !canEditBranding && activeTab === 'branding' ? 'upcoming' : activeTab;
+  // MYK9-1293: the manager and Payments tab take their club id from this page, so the gate is
+  // "club admin for THIS club" (canManageMembers) or a site admin, who /club-admin/* also admitted;
+  // the store's selected club is irrelevant.
+  const canManageClubAdmin = (canManageMembers || isSiteAdmin) && Boolean(selectedClub);
 
+  // MYK9-1293: the club switcher lived on the deleted /club-admin pages. Opening a club you
+  // administer is now the explicit choice, so My Club and the /club-admin redirects follow it.
+  const authUserId = user?.id ?? null;
   useEffect(() => {
-    if (!canEditBranding && activeTab === 'branding') {
+    if (!canManageClubAdmin || !selectedClub || !authUserId) return;
+    // The validated context only trusts a selection this user made, so re-record a match by id alone.
+    if (selectedClubId !== selectedClub.id || selectedClubUserId !== authUserId) {
+      selectClub(selectedClub.id, authUserId);
+    }
+  }, [
+    canManageClubAdmin,
+    selectedClub,
+    authUserId,
+    selectedClubId,
+    selectedClubUserId,
+    selectClub,
+  ]);
+
+  const tabHidden =
+    (!canEditBranding && activeTab === 'branding') ||
+    (!canManageClubAdmin && activeTab === 'payments');
+  const visibleActiveTab = tabHidden ? 'upcoming' : activeTab;
+
+  // Rewrite the URL only once roles are known: on a cold load (a Stripe return lands on
+  // ?tab=payments) the gate is false until RBAC resolves, and clearing the tab then would
+  // strand an authorized admin on Upcoming (MYK9-1293).
+  useEffect(() => {
+    if (tabHidden && !rbacLoading) {
       setActiveTab('upcoming');
     }
-  }, [activeTab, canEditBranding, setActiveTab]);
+  }, [tabHidden, rbacLoading, setActiveTab]);
 
   // MYK9-768: replica for signed-in viewers, the server for guests.
   const clubShows = useClubShows(selectedClub);
@@ -170,13 +197,6 @@ export function useClubDetailsState(selectedClub: Club | null) {
           ...authorizationControl,
           canAddShow,
           canEditBranding,
-          // The members and payments pages resolve against the validated club, so offer them only on that club's own page.
-          canManageClubAdmin:
-            canManageMembers &&
-            validatedClub.status === 'ready' &&
-            validatedClub.clubId === selectedClub.id,
-          onManageMembers: () => navigate('/club-admin/members'),
-          onPayments: () => navigate('/club-admin/payments'),
           onAddShow: () => handleAddShow(),
           onEditPhoto: () => setShowPhotoDialog(true),
           onAuthorize: authorizationControl.handleAuthorizeClub,
@@ -415,6 +435,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     // Permissions
     canEditClub,
     canManageMembers,
+    canManageClubAdmin,
     canEditBranding,
     canDeleteClub,
     canAddShow,

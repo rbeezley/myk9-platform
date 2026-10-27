@@ -2,7 +2,7 @@ import { spawnSync, execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync, existsSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { benchmarkRoutesFor } from './benchmarkRoutes';
+import { assertKnownRouteIds, benchmarkRoutesFor } from './benchmarkRoutes';
 import { chunkInventory } from './browserMetrics';
 import {
   formatBenchmarkReport,
@@ -42,11 +42,13 @@ const pairTimeoutMs =
 
 async function main(): Promise<void> {
   const routes = benchmarkRoutesFor(showId);
+  const requestedRouteIds = process.env.MYK9_PERF_ROUTES?.split(',') ?? null;
+  const excludedRouteIds = process.env.MYK9_PERF_EXCLUDE_ROUTES?.split(',') ?? [];
+  assertKnownRouteIds([...(requestedRouteIds ?? []), ...excludedRouteIds], routes);
   const selected = routes.filter(
     route =>
-      (!process.env.MYK9_PERF_ROUTES ||
-        process.env.MYK9_PERF_ROUTES.split(',').includes(route.id)) &&
-      !process.env.MYK9_PERF_EXCLUDE_ROUTES?.split(',').includes(route.id)
+      (!requestedRouteIds || requestedRouteIds.includes(route.id)) &&
+      !excludedRouteIds.includes(route.id)
   );
   if (!selected.length) throw new Error('No benchmark routes selected');
   const repeats = Number(process.env.MYK9_PERF_REPEATS ?? 3);

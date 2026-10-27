@@ -61,7 +61,7 @@ If this is your first time, you'll need an account before entering a show.
 
 Before entering a show, your dog needs a profile in your account.
 
-1. Go to **My Shows** in the navigation, then choose the **My Dogs** tab.
+1. Go to **My Dogs** in the navigation.
 2. Click **Add Dog**.
 
 ![E-05: Add Dog form — required fields visible](../screenshots/E-05.png)
@@ -243,7 +243,7 @@ To print a receipt, use the **Receipt** link on the row — it opens **My Shows*
 
 ## Section 11 — Manage Your Dog's Profile
 
-1. Go to **My Shows** in the navigation, then choose the **My Dogs** tab.
+1. Go to **My Dogs** in the navigation.
 2. Click a dog's name → the detail page opens.
 3. Click **Edit** → update any field → click **Save**.
 

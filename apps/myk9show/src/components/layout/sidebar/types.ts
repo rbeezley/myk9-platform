@@ -37,11 +37,11 @@ export interface NavRailMenu {
 
 /**
  * Folds a group into one rail link that opens the item used last (Browse: Shows, Dogs, People,
- * Clubs; for an exhibitor-only account, My Shows: My Shows and My Dogs). Unlike `railMenu` there is no panel: the destination page carries the switch between
+ * Clubs). Unlike `railMenu` there is no panel: the destination page carries the switch between
  * the group's items (`BrowseTabs`).
  */
 export interface NavRailLink {
-  id: 'browse' | 'my-shows' | 'my-club';
+  id: 'browse' | 'my-club';
   title: string;
   icon: React.ComponentType<{ className?: string }>;
   /**

@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { signInAsExhibitor } from '../helpers/testUsers';
 import { installSharedStagingWriteGuard } from '../helpers/sharedStagingWriteGuard';
 import { chooseAction } from '../helpers/actionsMenu';
+import { exhibitorNav } from '../helpers/exhibitorNav';
 
 /**
  * Suite category: feature-audit.
@@ -138,18 +139,15 @@ test.describe('Dog offline Discard (MYK9-1124)', () => {
 });
 
 async function goToList(page: Page) {
-  // The My Dogs tab above My Shows from `lg`; a drawer link below it.
-  await page
-    .getByRole('tab', { name: 'My Dogs' })
-    .or(page.getByRole('link', { name: /^(My )?Dogs$/ }))
-    .first()
-    .click();
+  // My Dogs is its own nav item for an exhibitor (MYK9-1287), in the rail or the phone drawer;
+  // a client-side hop.
+  await (await exhibitorNav(page)).getByRole('link', { name: 'My Dogs', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'My Dogs', level: 1 })).toBeVisible();
 }
 
 async function goToMyEntries(page: Page) {
-  // The My Shows tab, not the rail item: after Dogs the rail returns to the last tab used (/dogs).
-  // A client-side hop, so it works with the network off.
-  await page.getByRole('tab', { name: 'My Shows' }).click();
+  // The My Shows nav item always opens /exhibitor/entries (MYK9-1287), in the rail or the phone
+  // drawer. A client-side hop, so it works with the network off.
+  await (await exhibitorNav(page)).getByRole('link', { name: 'My Shows', exact: true }).click();
   await expect(page).toHaveURL(/\/exhibitor\/entries/);
 }

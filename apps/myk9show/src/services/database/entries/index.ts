@@ -18,6 +18,7 @@ export {
   updateEntryStatus as updateEntryStatusWithAudit,
   withdrawEntry,
 } from './writes';
+export { COMP_REFUSED_PAID_CODE, COMP_REFUSED_PAID_MESSAGE } from './compEntry';
 export type {
   EntrySubmissionOutcome,
   EntrySubmissionOutcomeKind,

@@ -9,12 +9,18 @@
 import type { HandlerCtx } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity, rolesInclude } from '../_shared/roleValidity.ts';
+import { STEP_UP_REQUIRED_CODE, stepUpRefusal } from '../_shared/stepUpReauth.ts';
 
 export interface DeleteUserRequest {
   personId: string;
 }
 
-export async function deleteUserHandler({ body, user, supabase }: HandlerCtx<DeleteUserRequest>) {
+export async function deleteUserHandler({
+  req,
+  body,
+  user,
+  supabase,
+}: HandlerCtx<DeleteUserRequest>) {
   // The envelope already validated the JWT; `user` is non-null.
   if (!user) {
     throw new HttpError(401, 'Authentication failed');
@@ -45,6 +51,13 @@ export async function deleteUserHandler({ body, user, supabase }: HandlerCtx<Del
 
   if (!isSiteAdmin) {
     throw new HttpError(403, 'Unauthorized: requires site_admin role');
+  }
+
+  // MYK9-1393: permanently deleting a person and their sign-in is irreversible, so it needs
+  // a password confirmed in the last five minutes (MYK9-1208). After the site-admin check,
+  // before the target lookup and either delete.
+  if (stepUpRefusal(req.headers.get('Authorization') ?? '')) {
+    throw new HttpError(403, STEP_UP_REQUIRED_CODE);
   }
 
   // 3. Validate request

@@ -2,6 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
+import { stepUpRefusal } from '../_shared/stepUpReauth.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -119,6 +120,13 @@ Deno.serve(async req => {
     if (isClubAdmin !== true && isSiteAdmin !== true) {
       return corsResponse(corsHeaders, { error: 'Not authorized for this club' }, 403);
     }
+
+    // MYK9-1393: whoever completes this link sets the bank account every one of the club's
+    // payouts goes to, so it needs a password confirmed in the last five minutes (MYK9-1208).
+    // After the authorization check (a stranger still reads "not authorized"), before the
+    // account lookup and any Stripe call.
+    const stepUp = stepUpRefusal(authHeader);
+    if (stepUp) return corsResponse(corsHeaders, stepUp.body, stepUp.status);
 
     // Redirect URLs must land back on an allowed origin
     const requestOrigin = req.headers.get('origin');

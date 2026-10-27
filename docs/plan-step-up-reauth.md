@@ -31,6 +31,29 @@ exemption is needed. Refund decision logic, amounts and Stripe calls are unchang
 | Site-admin role edits: `components/admin/permissions/ManageUserRolesDialog.tsx`, `services/rbac/RoleManager.ts` (`assignRole`, `ensureUserHasRole`, `revokeRole`, `revokeUserRole`, `migrateUserRoles`, `deleteRole`), `components/admin/users/bulkRolePlanner.ts`, `CreateUserDialog` → `rbacService.ensureUserHasRole` | direct PostgREST writes to `user_roles`, `roles`, `role_permissions` (RLS admits only site admins, plus the legacy show-official insert policy) | `AFTER INSERT OR UPDATE OR DELETE ... FOR EACH ROW` trigger on each table, firing only for direct client writes |
 | Site-admin role definitions: `pages/admin/permissions/{CreateRolePage,CloneRolePage,RoleEditPage}.tsx` → `RoleManager.createRole` / `updateRole` (MYK9-1409)                                                                                                                                                             | `create_role_with_permissions` / `update_role_with_permissions` RPCs (SECURITY DEFINER, so the direct-write trigger does not fire)              | after the site-admin check, before any write                                                                    |
 
+### Payout account and site-admin account administration (MYK9-1393)
+
+MYK9-1393 found three entry points that meet this plan's own criterion, "move money or hand out
+power", and were on neither list. All three are gated, after the role check and before any side
+effect, through the copy of `stepUpReauth.ts` in the function's own tree.
+
+| UI entry point                                                                                                                                                         | Server endpoint                                                     | Gate placed                                                                                                     |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `features/payments/ClubPaymentsCard.tsx` (start, finish, add missing information, try again) → `useClubStripeAccount.ts` `startConnectOnboarding`                      | `stripe-connect-onboard` (`apps/myk9show/supabase/functions/`)      | after the `is_club_admin` / `is_site_admin` check, before the `club_stripe_accounts` lookup and any Stripe call |
+| `/admin/users` permanent delete: `components/admin/users/UserTable` → `usePermanentDeleteUserMutation` → `services/database/users/reads.ts` `permanentDeleteUser`      | `admin-delete-user` (`supabase/functions/`, `deleteUserHandler.ts`) | after the site-admin check, before input validation, the target lookup and either delete                        |
+| `/admin/users` "Create User" with an invitation (`components/admin/users/CreateUserDialog.tsx`), Resend access and the roster's bulk send (`useSendUserInvitation.ts`) | `admin-invite-user` (`supabase/functions/`, `inviteUserHandler.ts`) | after the site-admin check, before the identity lookup, `generateLink` and the email                            |
+
+Why each one: whoever completes a Connect onboarding link sets the bank account that
+`cron-process-payouts` pays every one of the club's shows into; a permanent delete removes a
+person and their sign-in and cannot be undone; an invitation mints a sign-in for an account that
+may already hold the roles `CreateUserDialog` assigned. Every caller is
+`supabase.functions.invoke` on the one app client, so `stepUpFetch.ts` prompts and replays with no
+call-site change, and a cancelled prompt lands in each caller's existing failure copy, which is
+already true for the action ("We couldn't start your payment setup", "Failed to permanently
+delete user", "the invitation could not be sent"). No cron, webhook, script or service-role caller
+invokes any of the three, so no exemption is needed. `stepUpReauthParity.test.ts` holds the
+declared list of every gated edge caller across both trees.
+
 ### Deliberately not gated
 
 - `grant_show_official` / `revoke_show_official`: naming someone on a show's paperwork. Since
@@ -153,7 +176,12 @@ scoring endpoint can return, so offline queues and show-day traffic pass through
 
 - [x] `_shared/stepUpReauth.test.ts` (node environment): fresh password and OTP pass; stale,
       missing, string-form, future and garbage `amr` refuse; each refund function's gate runs
-      after authorization and before its first Stripe or payout read.
+      after authorization and before its first Stripe or payout read. Since MYK9-1393 the same
+      block pins `stripe-connect-onboard`, and `stepUpReauthParity.test.ts` fails by name when
+      any gated edge caller in either tree loses its gate or a new caller is not listed.
+- [x] `admin-delete-user/deleteUserHandler.test.ts`, `admin-invite-user/inviteUserHandler.test.ts`
+      (MYK9-1393): a stale session is refused with `step_up_required` after the role check and
+      nothing is deleted, looked up, minted or sent; a non-site-admin still gets the role refusal.
 - [x] `features/step-up/*.test.ts(x)`: the fetch wrapper replays once with the new token,
       shares one prompt across concurrent refusals, does not re-prompt inside the window,
       passes other errors through; the dialog's wrong-password message and the email-code path.
@@ -165,11 +193,15 @@ scoring endpoint can return, so offline queues and show-day traffic pass through
       now carry a fresh `amr` in their JSON claims, since they call `grant_club_secretary`.
 - [ ] After deploy: on staging, a refund and a secretary appointment prompt once, and a second
       within five minutes does not.
+- [ ] After deploy (MYK9-1393): Connect onboarding from `ClubPaymentsCard` prompts once and
+      then opens Stripe; a permanent delete and an invitation from `/admin/users` prompt once.
 
 ## Deploy
 
 `supabase db push` for `20261017163700_myk9_1208_step_up_reauth.sql`;
 `supabase functions deploy stripe-refund-entry stripe-refund-show stripe-approve-refund`
 (myk9show tree) and `send-auth-email` (root tree); then a Deploy myK9Show run for the client.
+MYK9-1393 adds `supabase functions deploy stripe-connect-onboard` (myk9show tree) and
+`admin-delete-user admin-invite-user` (root tree); the client already handles the refusal.
 Deploy the client before or with the functions so the prompt exists when the server starts
 refusing.

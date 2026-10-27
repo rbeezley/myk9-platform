@@ -71,6 +71,10 @@ export function benchmarkRoutesFor(
       role: 'secretary',
       path: `/shows/${showId}`,
       readySelector: '[data-testid="secretary-cockpit"]',
+      unavailableSelectors: [
+        ':text("Entry counts are loading.")',
+        ':text("Couldn\'t load entry counts.")',
+      ],
     },
     {
       id: 'secretary-results',

@@ -11,9 +11,19 @@ import {
 
 const ROOT = resolve(__dirname, '../..');
 
+// Vitest's default excludes; a test file under these never runs, so it is not in the universe.
+const SKIP_DIRS = new Set(['node_modules', 'dist', '.git']);
+
+/**
+ * The workflows that gate a pull request. A script invoked only from a schedule-only or
+ * dormant workflow (deploy-staging.yml waits on MYK9-44) never runs on a PR, so it does not
+ * count as coverage. Add a workflow here only if it runs on pull_request.
+ */
+const PR_GATING_WORKFLOWS = ['.github/workflows/ci.yml'];
+
 function walk(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
-    if (e.name === 'node_modules') return [];
+    if (SKIP_DIRS.has(e.name)) return [];
     const p = join(dir, e.name);
     return e.isDirectory() ? walk(p) : [p];
   });
@@ -22,14 +32,11 @@ function walk(dir: string): string[] {
 function loadRepo() {
   const testFiles = walk(join(ROOT, 'scripts'))
     .map(p => relative(ROOT, p))
-    .filter(f => f.endsWith('.test.ts'))
+    .filter(f => /\.test\.(?:ts|tsx|mts)$/.test(f))
     .sort();
   const packageScripts = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
     .scripts as Record<string, string>;
-  const workflowDir = join(ROOT, '.github/workflows');
-  const workflowTexts = readdirSync(workflowDir)
-    .filter(f => /\.ya?ml$/.test(f))
-    .map(f => readFileSync(join(workflowDir, f), 'utf8'));
+  const workflowTexts = PR_GATING_WORKFLOWS.map(f => readFileSync(join(ROOT, f), 'utf8'));
   return { testFiles, packageScripts, workflowTexts };
 }
 
@@ -113,10 +120,30 @@ describe('scripts test wiring: known-answer fixtures', () => {
     expect(result.unwired).toEqual(['scripts/dir/c.test.ts']);
   });
 
-  it('ignores commented-out invocations', () => {
-    expect(extractInvokedTestScripts('# pnpm qa:a:test\n  run: pnpm qa:b:test')).toEqual([
-      'qa:b:test',
+  it('counts only lines whose command is the pnpm call', () => {
+    const text = [
+      '# pnpm qa:commented:test',
+      "  if: contains(github.event.head_commit.message, 'pnpm qa:if:test')",
+      '  - name: Runs pnpm qa:name:test',
+      '      echo "pnpm qa:echo:test"',
+      '  run: pnpm qa:inline:test',
+      '  - run: pnpm run qa:dashrun:test',
+      '      pnpm qa:block:test',
+    ].join('\n');
+    expect(extractInvokedTestScripts(text)).toEqual([
+      'qa:block:test',
+      'qa:dashrun:test',
+      'qa:inline:test',
     ]);
+  });
+
+  it('throws on brace and ** globs the CI shell does not expand like matchesGlob', () => {
+    expect(() =>
+      resolveScriptFiles('qa:x:test', 'vitest run scripts/{a,dir/c}.test.ts', testFiles)
+    ).toThrow(/"qa:x:test".*brace or \*\* glob/);
+    expect(() =>
+      resolveScriptFiles('qa:x:test', 'vitest run scripts/**/*.test.ts', testFiles)
+    ).toThrow(/"qa:x:test".*brace or \*\* glob/);
   });
 
   it('honours the allowlist, and fails a stale one (missing file or covered file)', () => {

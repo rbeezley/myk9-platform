@@ -25,22 +25,31 @@ const RUNNERS: Runner[] = [
   { prefix: ['node', '--test'] },
 ];
 
-/** Script names a workflow file invokes as `pnpm <name>` / `pnpm run <name>` and that end in `:test`. */
+/**
+ * Script names a workflow file invokes as `pnpm <name>` / `pnpm run <name>` that end in `:test`.
+ * Only a line whose command IS that pnpm call counts (a `run:` value or a `run: |` block line):
+ * an `if:` expression, an `echo "pnpm …"` or a `name:` string mentioning one runs nothing.
+ */
 export function extractInvokedTestScripts(workflowText: string): string[] {
   const names = new Set<string>();
   for (const rawLine of workflowText.split('\n')) {
-    const line = rawLine.trim();
-    if (line.startsWith('#')) continue;
-    for (const m of line.matchAll(/\bpnpm\s+(?:run\s+)?([A-Za-z0-9:_-]+)/g)) {
-      const name = m[1];
-      if (name?.endsWith(':test')) names.add(name);
-    }
+    const m = rawLine.match(/^\s*(?:-\s+)?(?:run:\s+)?pnpm\s+(?:run\s+)?([A-Za-z0-9:_-]+)(?:\s|$)/);
+    const name = m?.[1];
+    if (name?.endsWith(':test')) names.add(name);
   }
   return [...names].sort();
 }
 
 function hasGlobChars(s: string): boolean {
-  return /[*?[\]{}]/.test(s);
+  return /[*?[\]]/.test(s);
+}
+
+/**
+ * pnpm runs scripts through `sh` (dash on the CI runner), which expands neither braces nor `**`
+ * the way `path.matchesGlob` does, so the guard would report coverage vitest never gets.
+ */
+function hasUnportableGlob(s: string): boolean {
+  return /[{}]|\*\*/.test(s);
 }
 
 function tokenize(command: string): string[] {
@@ -74,18 +83,26 @@ export function resolveScriptFiles(
       if (arg.startsWith('-')) {
         if (!KNOWN_FLAGS.has(arg)) {
           throw new Error(
-            `scripts-test-wiring: script "${scriptName}" uses unrecognised flag "${arg}".`
+            `scripts-test-wiring: script "${scriptName}" uses unrecognised flag "${arg}". ` +
+              'If it does not change which files run, add it to KNOWN_FLAGS.'
           );
         }
         continue;
       }
+      if (hasUnportableGlob(arg)) {
+        throw new Error(
+          `scripts-test-wiring: script "${scriptName}" argument "${arg}" uses a brace or ** glob, ` +
+            'which the CI shell does not expand the way vitest needs. List the files or a directory.'
+        );
+      }
       const matched = hasGlobChars(arg)
         ? universe.filter(f => matchesGlob(f, arg))
         : universe.filter(f => f === arg || f.startsWith(`${arg.replace(/\/$/, '')}/`));
-      // The universe is .test.ts only; a .js file (node --test) legitimately matches nothing.
+      // The universe is TypeScript tests only; a .js file (node --test) legitimately matches nothing.
       if (matched.length === 0 && !/\.(?:js|mjs|cjs)$/.test(arg)) {
         throw new Error(
-          `scripts-test-wiring: script "${scriptName}" argument "${arg}" matches no scripts/**/*.test.ts file.`
+          `scripts-test-wiring: script "${scriptName}" argument "${arg}" matches no scripts/ test file. ` +
+            'A root *:test script that runs tests outside scripts/ needs the guard extended.'
         );
       }
       for (const f of matched) covered.add(f);

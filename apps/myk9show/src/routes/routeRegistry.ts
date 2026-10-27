@@ -118,8 +118,9 @@ const secretaryRouteComponents: Record<string, ImportFunction> = {
 
 // Club admin route components (mounted via clubAdminRoutes.tsx)
 const clubAdminRouteComponents: Record<string, ImportFunction> = {
-  '/club-admin/members': () => import('@/pages/club-admin/ClubMembersPage'),
-  '/club-admin/payments': () => import('@/pages/club-admin/ClubPaymentsPage'),
+  '/club-admin/members': () => import('@/pages/club-admin/ClubAdminRedirect'),
+  '/club-admin/payments': () => import('@/pages/club-admin/ClubAdminRedirect'),
+  '/club-admin/payments/:clubId': () => import('@/pages/club-admin/ClubAdminRedirect'),
 } as const;
 
 // Judge route components (these would be defined in judgeRoutes.tsx)

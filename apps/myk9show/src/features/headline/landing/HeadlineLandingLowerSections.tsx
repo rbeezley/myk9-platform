@@ -151,25 +151,11 @@ export function FinalCta({
           <div className="l">Online entry</div>
           <div className="v">{data.showName}</div>
           {/* MYK9-633 round 2: the button here duplicated the header nav's
-              "Enter this show" CTA — the header CTA is the page's one entry
-              action at 640px+; below that it's joined by the mobile-only
-              sticky bar at the end of the page. "Review before submitting"
-              was orphaned by that deletion (nothing left to submit from
-              here), so this card is information-only when entries are
-              open — it still explains why entry isn't available when it
-              isn't. */}
-          {!canEnterOnline && (
-            <div className="helper">
-              {entryClosed ? (
-                <LateEntryContact />
-              ) : (
-                pendingEntryCopy(
-                  mailInOnly,
-                  'The secretary still needs to assign classes before online entry is available.'
-                )
-              )}
-            </div>
-          )}
+              "Enter this show" CTA, which is the page's one entry action at
+              640px+ (below that, the mobile-only sticky bar joins it).
+              MYK9-1438: the "why entry isn't available" helper card that
+              followed repeated the .hd-final-sub sentence above, so it is
+              gone; this card is information-only. */}
         </div>
       </div>
     </section>

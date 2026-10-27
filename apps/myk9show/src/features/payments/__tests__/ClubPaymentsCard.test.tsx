@@ -117,7 +117,7 @@ describe('ClubPaymentsCard', () => {
     await user.click(screen.getByRole('button', { name: /continue to stripe/i }));
 
     await waitFor(() => {
-      expect(mockedStartOnboarding).toHaveBeenCalledWith('club-1', '/club-admin/payments');
+      expect(mockedStartOnboarding).toHaveBeenCalledWith('club-1', '/club-admin/payments/club-1');
     });
     expect(window.location.assign).toHaveBeenCalledWith('https://connect.stripe.com/setup/x');
   });
@@ -168,7 +168,7 @@ describe('ClubPaymentsCard', () => {
     await user.click(screen.getByRole('button', { name: /add missing information/i }));
 
     await waitFor(() => {
-      expect(mockedStartOnboarding).toHaveBeenCalledWith('club-1', '/club-admin/payments');
+      expect(mockedStartOnboarding).toHaveBeenCalledWith('club-1', '/club-admin/payments/club-1');
     });
     expect(window.location.assign).toHaveBeenCalledWith('https://connect.stripe.com/setup/resume');
   });

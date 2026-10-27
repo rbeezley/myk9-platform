@@ -569,23 +569,34 @@ export const pageDirectory: readonly PageEntry[] = [
     path: '/club-admin/members',
     title: 'Club Members',
     description:
-      'Manage club-level access: add or remove Club Admins and Secretaries and grant show-management rights.',
+      'Opens the Members tab of your club page, where you add or remove members and officers and grant show-management rights.',
     roles: [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Clubs',
     status: 'working',
-    linksTo: ['/club-admin/payments', '/clubs/:id'],
+    linksTo: ['/clubs/:id'],
   },
   {
     path: '/club-admin/payments',
     title: 'Club Payments',
     description:
-      'Connect the club Stripe Express account and review per-show payout history and status.',
+      'Opens the Payments tab of your club page, where you connect the club Stripe Express account and review per-show payout history and status.',
     roles: [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Payments',
     status: 'working',
-    linksTo: ['/club-admin/members'],
+    linksTo: ['/clubs/:id'],
+  },
+  {
+    path: '/club-admin/payments/:clubId',
+    title: 'Stripe Connect Return',
+    description:
+      "Where Stripe sends a club treasurer back after onboarding. It opens that club's Payments tab, so an admin of several clubs lands on the club they just set up.",
+    roles: [UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
+    classification: 'critical-path',
+    category: 'Payments',
+    status: 'working',
+    linksTo: ['/clubs/:id'],
   },
 
   // =========================

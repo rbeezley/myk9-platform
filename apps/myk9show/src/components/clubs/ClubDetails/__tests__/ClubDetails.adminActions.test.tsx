@@ -1,13 +1,11 @@
 /**
- * MYK9-1293: the rail's My Club link opens the club page, so the members and payments pages
- * the old flyout listed must be reachable from that page's header Actions menu. Goes through
- * the real hook and the real menu: the pure builder's own tests cannot see a dropped input or
- * a swapped route.
+ * MYK9-1293: Members and Payments are tabs on the club page, not Actions-menu links. Goes through
+ * the real hook: `canManageClubAdmin` is what shows the Payments tab and the members manager,
+ * and `?tab=payments` must fall back for anyone else.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { useLocation } from 'react-router-dom';
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { ScopeType, UserRole } from '@/types/auth-types';
 import type { RoleScope, UserWithRoles } from '@/types/auth-types';
 import type { Club } from '@/types/club-types';
@@ -30,7 +28,13 @@ vi.mock('@/hooks/useValidatedClubContext', () => ({
   useCurrentValidatedClubContext: () => validated.value,
 }));
 vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => true }));
-vi.mock('@/store/clubStore', () => ({ useClubStore: () => ({ updateClub: vi.fn() }) }));
+const store = vi.hoisted(() => ({
+  updateClub: () => {},
+  selectClub: vi.fn(),
+  selectedClubId: null as string | null,
+  selectedClubUserId: null as string | null,
+}));
+vi.mock('@/store/clubStore', () => ({ useClubStore: () => store }));
 vi.mock('@/store/showStore', () => ({
   useShowStore: (selector?: (s: { shows: unknown[] }) => unknown) =>
     selector ? selector({ shows: [] }) : { shows: [] },
@@ -69,81 +73,158 @@ function ready(clubId: string): ValidatedClubContext {
 }
 
 function Harness({ clubId }: { clubId: string }) {
-  useClubDetailsState({ id: clubId, name: 'Heartland Club' } as Club);
-  const { pathname } = useLocation();
+  const state = useClubDetailsState({ id: clubId, name: 'Heartland Club' } as Club);
   return (
     <>
       <HeaderActions />
-      <p data-testid="location">{pathname}</p>
+      <p data-testid="can-manage">{String(state.canManageClubAdmin)}</p>
+      <p data-testid="active-tab">{state.activeTab}</p>
     </>
   );
 }
 
-function renderPage(clubId: string) {
-  return render(<Harness clubId={clubId} />, { initialRoute: `/clubs/${clubId}` });
+function renderPage(clubId: string, search = '') {
+  return render(<Harness clubId={clubId} />, { initialRoute: `/clubs/${clubId}${search}` });
 }
 
-async function openMenu() {
-  await userEvent.click(await screen.findByTestId('header-actions-trigger'));
-}
-
-describe('club page Actions menu: Manage members and Payments (MYK9-1293)', () => {
+describe('club page admin tabs (MYK9-1293)', () => {
   beforeEach(() => {
     mockAuth.userWithRoles = null;
+    mockAuth.rbacLoading = false;
     validated.value = { status: 'loading' };
     usePageEditTargetStore.setState({ target: null, owner: null, exports: [] });
   });
 
-  it('offers a club admin of this club both entries, and Manage members opens its page', async () => {
+  it('lets an admin of this club manage it, and lands ?tab=payments on Payments', async () => {
+    mockAuth.userWithRoles = adminOf(CLUB_A);
+    validated.value = ready(CLUB_A);
+    renderPage(CLUB_A, '?tab=payments');
+
+    expect(await screen.findByTestId('can-manage')).toHaveTextContent('true');
+    expect(screen.getByTestId('active-tab')).toHaveTextContent('payments');
+  });
+
+  it('keeps ?tab=payments while roles load, then lands an admin on Payments (cold Stripe return)', async () => {
+    mockAuth.rbacLoading = true;
+    validated.value = ready(CLUB_A);
+    const { rerender } = renderPage(CLUB_A, '?connect=return&tab=payments');
+    await screen.findByTestId('can-manage');
+
+    mockAuth.rbacLoading = false;
+    mockAuth.userWithRoles = adminOf(CLUB_A);
+    rerender(<Harness clubId={CLUB_A} />);
+
+    await waitFor(() => expect(screen.getByTestId('can-manage')).toHaveTextContent('true'));
+    expect(screen.getByTestId('active-tab')).toHaveTextContent('payments');
+  });
+
+  it('no longer lists Manage members or Payments in the Actions menu', async () => {
     mockAuth.userWithRoles = adminOf(CLUB_A);
     validated.value = ready(CLUB_A);
     renderPage(CLUB_A);
-    await openMenu();
+    await userEvent.click(await screen.findByTestId('header-actions-trigger'));
 
-    expect(await screen.findByRole('menuitem', { name: /Payments/ })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('menuitem', { name: /Manage members/ }));
-    expect(screen.getByTestId('location')).toHaveTextContent('/club-admin/members');
-  });
-
-  it('opens Payments at the payments page', async () => {
-    mockAuth.userWithRoles = adminOf(CLUB_A);
-    validated.value = ready(CLUB_A);
-    renderPage(CLUB_A);
-    await openMenu();
-
-    await userEvent.click(await screen.findByRole('menuitem', { name: /Payments/ }));
-    expect(screen.getByTestId('location')).toHaveTextContent('/club-admin/payments');
-  });
-
-  it.each([
-    [
-      'an admin of club B viewing club B while the validated club is A',
-      CLUB_B,
-      adminOf(CLUB_B),
-      ready(CLUB_A),
-    ],
-    [
-      'an admin of this club whose club context is still resolving',
-      CLUB_A,
-      adminOf(CLUB_A),
-      { status: 'loading' } as ValidatedClubContext,
-    ],
-  ])('offers neither to %s', async (_label, viewedClub, user, context) => {
-    mockAuth.userWithRoles = user;
-    validated.value = context;
-    renderPage(viewedClub);
-    // Edit club still registers for this admin, so the menu opens: the positive control.
-    await openMenu();
-
+    // Edit is the positive control that the menu opened.
     expect(await screen.findByRole('menuitem', { name: /Edit/ })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /Manage members/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /Payments/ })).not.toBeInTheDocument();
   });
 
-  it('offers a viewer without the club_admin scope no Actions menu at all', () => {
-    validated.value = ready(CLUB_A);
+  it('lets an admin of clubs A and B manage A while the store selection is on B', async () => {
+    const both = adminOf(CLUB_A);
+    both.scopes = [...both.scopes, ...adminOf(CLUB_B).scopes];
+    mockAuth.userWithRoles = both;
+    validated.value = ready(CLUB_B);
+    renderPage(CLUB_A, '?tab=payments');
+
+    expect(await screen.findByTestId('can-manage')).toHaveTextContent('true');
+    expect(screen.getByTestId('active-tab')).toHaveTextContent('payments');
+  });
+
+  it('makes A the selected admin club when an admin of A and B opens A, so My Club follows it', async () => {
+    const both = adminOf(CLUB_A);
+    both.scopes = [...both.scopes, ...adminOf(CLUB_B).scopes];
+    mockAuth.userWithRoles = both;
+    validated.value = ready(CLUB_B);
+    store.selectedClubId = CLUB_B;
+    store.selectClub.mockClear();
     renderPage(CLUB_A);
 
-    expect(screen.queryByTestId('header-actions-trigger')).not.toBeInTheDocument();
+    await screen.findByTestId('can-manage');
+    expect(store.selectClub).toHaveBeenCalledWith(CLUB_A, 'auth-uid');
+  });
+
+  it('makes the opened club the selection for a site admin too', async () => {
+    const site = adminOf(CLUB_B);
+    site.roles = [UserRole.SITE_ADMIN];
+    site.scopes = [];
+    mockAuth.userWithRoles = site;
+    validated.value = ready(CLUB_B);
+    store.selectedClubId = CLUB_B;
+    store.selectedClubUserId = 'auth-uid';
+    store.selectClub.mockClear();
+    renderPage(CLUB_A);
+
+    await screen.findByTestId('can-manage');
+    expect(store.selectClub).toHaveBeenCalledWith(CLUB_A, 'auth-uid');
+  });
+
+  it('records the current user when the same club was last selected by someone else', async () => {
+    mockAuth.userWithRoles = adminOf(CLUB_A);
+    validated.value = ready(CLUB_A);
+    store.selectedClubId = CLUB_A;
+    store.selectedClubUserId = 'another-user';
+    store.selectClub.mockClear();
+    renderPage(CLUB_A);
+
+    await screen.findByTestId('can-manage');
+    expect(store.selectClub).toHaveBeenCalledWith(CLUB_A, 'auth-uid');
+  });
+
+  it('does not re-select when this user already selected this club', async () => {
+    mockAuth.userWithRoles = adminOf(CLUB_A);
+    validated.value = ready(CLUB_A);
+    store.selectedClubId = CLUB_A;
+    store.selectedClubUserId = 'auth-uid';
+    store.selectClub.mockClear();
+    renderPage(CLUB_A);
+
+    await screen.findByTestId('can-manage');
+    expect(store.selectClub).not.toHaveBeenCalled();
+  });
+
+  it('leaves the selected admin club alone for a viewer who does not administer this club', async () => {
+    mockAuth.userWithRoles = adminOf(CLUB_B);
+    validated.value = ready(CLUB_B);
+    store.selectedClubId = CLUB_B;
+    store.selectClub.mockClear();
+    renderPage(CLUB_A);
+
+    await screen.findByTestId('can-manage');
+    expect(store.selectClub).not.toHaveBeenCalled();
+  });
+
+  it('lets a site admin with no club_admin scope manage any club, as /club-admin/* admitted them', async () => {
+    const site = adminOf(CLUB_B);
+    site.roles = [UserRole.SITE_ADMIN];
+    site.scopes = [];
+    mockAuth.userWithRoles = site;
+    validated.value = ready(CLUB_B);
+    renderPage(CLUB_A, '?tab=payments');
+
+    expect(await screen.findByTestId('can-manage')).toHaveTextContent('true');
+    expect(screen.getByTestId('active-tab')).toHaveTextContent('payments');
+  });
+
+  it.each([
+    ['an admin of club B viewing club A', CLUB_A, adminOf(CLUB_B)],
+    ['a viewer without the club_admin scope', CLUB_A, null],
+  ])('%s cannot manage, and ?tab=payments falls back to Upcoming', async (_l, club, user) => {
+    mockAuth.userWithRoles = user;
+    validated.value = ready(CLUB_A);
+    renderPage(club, '?tab=payments');
+
+    expect(await screen.findByTestId('can-manage')).toHaveTextContent('false');
+    expect(screen.getByTestId('active-tab')).toHaveTextContent('upcoming');
   });
 });

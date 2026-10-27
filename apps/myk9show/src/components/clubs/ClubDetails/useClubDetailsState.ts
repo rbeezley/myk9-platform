@@ -46,7 +46,7 @@ const CLUB_TAB_IDS = ['upcoming', 'past', 'about', 'members', 'payments', 'brand
 
 export function useClubDetailsState(selectedClub: Club | null) {
   const navigate = useNavigate();
-  const { updateClub } = useClubStore();
+  const { updateClub, selectClub, selectedClubId } = useClubStore();
   // Tab state — URL-synced
   const [activeTab, setActiveTabRaw] = useUrlTab(CLUB_TAB_IDS, 'upcoming');
   const setActiveTab = setActiveTabRaw as (tab: ClubTab) => void;
@@ -66,7 +66,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
   const [isUploadingCover, setIsUploadingCover] = useState(false);
 
   // Auth context for RBAC
-  const { userWithRoles } = useAuthContext();
+  const { userWithRoles, user } = useAuthContext();
   const isSiteAdmin = userWithRoles?.roles?.includes(UserRole.SITE_ADMIN) ?? false;
 
   // RBAC permission checks — see computeClubPermissions for the rules.
@@ -108,6 +108,15 @@ export function useClubDetailsState(selectedClub: Club | null) {
   // "club admin for THIS club" (canManageMembers) or a site admin, who /club-admin/* also admitted;
   // the store's selected club is irrelevant.
   const canManageClubAdmin = (canManageMembers || isSiteAdmin) && Boolean(selectedClub);
+
+  // MYK9-1293: the club switcher lived on the deleted /club-admin pages. Opening a club you
+  // administer is now the explicit choice, so My Club and the /club-admin redirects follow it.
+  const authUserId = user?.id ?? null;
+  useEffect(() => {
+    if (canManageMembers && selectedClub && authUserId && selectedClubId !== selectedClub.id) {
+      selectClub(selectedClub.id, authUserId);
+    }
+  }, [canManageMembers, selectedClub, authUserId, selectedClubId, selectClub]);
 
   const tabHidden =
     (!canEditBranding && activeTab === 'branding') ||

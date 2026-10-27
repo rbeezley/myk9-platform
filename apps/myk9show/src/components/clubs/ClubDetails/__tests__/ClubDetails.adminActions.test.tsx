@@ -28,7 +28,12 @@ vi.mock('@/hooks/useValidatedClubContext', () => ({
   useCurrentValidatedClubContext: () => validated.value,
 }));
 vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => true }));
-vi.mock('@/store/clubStore', () => ({ useClubStore: () => ({ updateClub: vi.fn() }) }));
+const store = vi.hoisted(() => ({
+  updateClub: () => {},
+  selectClub: vi.fn(),
+  selectedClubId: null as string | null,
+}));
+vi.mock('@/store/clubStore', () => ({ useClubStore: () => store }));
 vi.mock('@/store/showStore', () => ({
   useShowStore: (selector?: (s: { shows: unknown[] }) => unknown) =>
     selector ? selector({ shows: [] }) : { shows: [] },
@@ -118,6 +123,30 @@ describe('club page admin tabs (MYK9-1293)', () => {
 
     expect(await screen.findByTestId('can-manage')).toHaveTextContent('true');
     expect(screen.getByTestId('active-tab')).toHaveTextContent('payments');
+  });
+
+  it('makes A the selected admin club when an admin of A and B opens A, so My Club follows it', async () => {
+    const both = adminOf(CLUB_A);
+    both.scopes = [...both.scopes, ...adminOf(CLUB_B).scopes];
+    mockAuth.userWithRoles = both;
+    validated.value = ready(CLUB_B);
+    store.selectedClubId = CLUB_B;
+    store.selectClub.mockClear();
+    renderPage(CLUB_A);
+
+    await screen.findByTestId('can-manage');
+    expect(store.selectClub).toHaveBeenCalledWith(CLUB_A, 'auth-uid');
+  });
+
+  it('leaves the selected admin club alone for a viewer who does not administer this club', async () => {
+    mockAuth.userWithRoles = adminOf(CLUB_B);
+    validated.value = ready(CLUB_B);
+    store.selectedClubId = CLUB_B;
+    store.selectClub.mockClear();
+    renderPage(CLUB_A);
+
+    await screen.findByTestId('can-manage');
+    expect(store.selectClub).not.toHaveBeenCalled();
   });
 
   it('lets a site admin with no club_admin scope manage any club, as /club-admin/* admitted them', async () => {

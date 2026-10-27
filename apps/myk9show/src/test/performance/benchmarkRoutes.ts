@@ -24,7 +24,7 @@ export function benchmarkRoutesFor(
       // The public list hides demo-club shows, so the seeded benchmark show never
       // appears here; the result count is the settled state when no real show exists.
       readySelector:
-        '[data-testid="show-card"], [data-testid="show-card-vertical"], :text-matches("^Showing [0-9]+ shows?")',
+        '[data-testid="show-card"], [data-testid="show-card-vertical"], :text-matches("^Showing (all )?[0-9]+ shows?")',
     },
     {
       id: 'public-show-detail',
@@ -77,7 +77,8 @@ export function benchmarkRoutesFor(
       role: 'secretary',
       path: `/shows/${showId}/results`,
       // The Results tab (features/results-tab) replaced the Results Control page here.
-      readySelector: 'ul[aria-label="Classes"] li',
+      readySelector:
+        'ul[aria-label="Classes"] li, :text("This show has no classes yet"), :text("No classes match these filters"), :text("Nothing needs you right now")',
     },
     {
       id: 'secretary-reports',

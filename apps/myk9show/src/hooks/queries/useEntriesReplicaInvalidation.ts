@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { replicatedEntriesTable } from '@/services/replication';
 
+const DEFAULT_SOURCES: readonly ReplicaChangeSource[] = [replicatedEntriesTable];
+
 /**
  * Refresh reads that derive from the entries replica when the replica changes,
  * instead of polling them on a timer (MYK9-1368).
@@ -15,9 +17,19 @@ import { replicatedEntriesTable } from '@/services/replication';
  * `emitCurrent: false` skips the initial emit (the query's own first read
  * already holds the current rows).
  */
+export interface ReplicaChangeSource {
+  subscribe(callback: () => void, options: { emitCurrent: false }): () => void;
+}
+
+/**
+ * `sources` defaults to the entries replica. A read derived from several
+ * replicas passes them all; one coalescing window covers the lot (MYK9-1416).
+ * Pass a module-level or memoized array: it is a subscription dependency.
+ */
 export function useEntriesReplicaInvalidation(
   queryKeys: readonly QueryKey[],
-  coalesceMs: number
+  coalesceMs: number,
+  sources: readonly ReplicaChangeSource[] = DEFAULT_SOURCES
 ): void {
   const queryClient = useQueryClient();
   // Keys are rebuilt every render; read them through a ref so the subscription
@@ -39,10 +51,10 @@ export function useEntriesReplicaInvalidation(
         }
       }, coalesceMs);
     };
-    const unsubscribe = replicatedEntriesTable.subscribe(schedule, { emitCurrent: false });
+    const unsubscribes = sources.map(source => source.subscribe(schedule, { emitCurrent: false }));
     return () => {
       clearTimeout(timer);
-      unsubscribe();
+      for (const unsubscribe of unsubscribes) unsubscribe();
     };
-  }, [queryClient, coalesceMs]);
+  }, [queryClient, coalesceMs, sources]);
 }

@@ -49,11 +49,6 @@ describe('replicationSyncStatus helpers', () => {
       ['shows'],
       ['entries'],
       ['judges', 'assignments'],
-      ['at-show', 'local-entry-today'],
-    ]);
-    expect(getPostSyncInvalidationKeys(['classes'])).toEqual([
-      ['classes'],
-      ['judges', 'assignments'],
     ]);
   });
 

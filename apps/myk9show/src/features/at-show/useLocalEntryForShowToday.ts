@@ -16,8 +16,21 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
-import { LOCAL_ENTRY_TODAY_KEY } from './localEntryTodayKey';
+import { useEntriesReplicaInvalidation } from '@/hooks/queries/useEntriesReplicaInvalidation';
 import { hasLocalEntryForShowToday } from './useLocalEntryForShowToday.helpers';
+
+const LOCAL_ENTRY_TODAY_KEY = ['at-show', 'local-entry-today'] as const;
+
+// The four replicas the answer derives from. Their own change notices drive
+// re-evaluation, so every fill path (direct per-show syncs, optimistic local
+// writes, discard-reverts) is covered, not only the provider's sync pass.
+const SOURCES = [
+  replicatedShowsTable,
+  replicatedTrialsTable,
+  replicatedEntriesTable,
+  replicatedDogsTable,
+] as const;
+const COALESCE_MS = 250;
 
 export interface LocalEntryForShowToday {
   hasLocalEntryToday: boolean;
@@ -51,8 +64,10 @@ export function useLocalEntryForShowToday(
   showId: string | undefined
 ): LocalEntryForShowToday {
   const enabled = Boolean(personId && showId);
+  const queryKey = [...LOCAL_ENTRY_TODAY_KEY, personId, showId];
+  useEntriesReplicaInvalidation([queryKey], COALESCE_MS, SOURCES);
   const { data, isLoading } = useQuery({
-    queryKey: [...LOCAL_ENTRY_TODAY_KEY, personId, showId],
+    queryKey,
     queryFn: () => readLocalEntryToday(personId as string, showId as string),
     enabled,
     networkMode: 'always',

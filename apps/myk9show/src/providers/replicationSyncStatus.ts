@@ -1,3 +1,8 @@
+import {
+  LOCAL_ENTRY_TODAY_KEY,
+  LOCAL_ENTRY_TODAY_SOURCE_TABLES,
+} from '@/features/at-show/localEntryTodayKey';
+
 export type TableSyncStatus = 'idle' | 'syncing' | 'success' | 'error';
 
 export interface TableSyncResultSummary {
@@ -51,7 +56,22 @@ export function classifyTableSyncResults(
 
 export function getPostSyncInvalidationKeys(tableNames: readonly string[]): string[][] {
   // The judge dashboard reads a denormalized judge_assignments + classes query.
-  return [...tableNames.map(name => [name]), ['judges', 'assignments']];
+  return [
+    ...tableNames.map(name => [name]),
+    ['judges', 'assignments'],
+    ...getLocalEntryTodayInvalidationKeys(tableNames),
+  ];
+}
+
+/**
+ * MYK9-1416: the at-show gate's local-entry answer is derived from four
+ * replicas but cached under its own `['at-show', ...]` key, which no table
+ * prefix reaches. Any change to one of them re-evaluates it.
+ */
+export function getLocalEntryTodayInvalidationKeys(tableNames: readonly string[]): string[][] {
+  return tableNames.some(name => LOCAL_ENTRY_TODAY_SOURCE_TABLES.has(name))
+    ? [[...LOCAL_ENTRY_TODAY_KEY]]
+    : [];
 }
 
 export function shouldRequestPostUploadSync(

@@ -71,6 +71,7 @@ import { useRegistrationsReplicaCacheSync } from './useRegistrationsReplicaCache
 import {
   classifyTableSyncResults,
   createTablesStatus,
+  getLocalEntryTodayInvalidationKeys,
   shouldRequestPostUploadSync,
   type TableSyncStatus,
 } from './replicationSyncStatus';
@@ -623,6 +624,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       toast.dismiss('replication-queue-overflow');
       for (const table of tables) {
         queryClient.invalidateQueries({ queryKey: [table] });
+      }
+      for (const queryKey of getLocalEntryTodayInvalidationKeys(tables)) {
+        queryClient.invalidateQueries({ queryKey });
       }
       void getRingsideUploadSyncTargets(detail, {
         getEntry: id => replicatedEntriesTable.get(id),

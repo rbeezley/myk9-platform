@@ -16,6 +16,7 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
+import { LOCAL_ENTRY_TODAY_KEY } from './localEntryTodayKey';
 import { hasLocalEntryForShowToday } from './useLocalEntryForShowToday.helpers';
 
 export interface LocalEntryForShowToday {
@@ -51,7 +52,7 @@ export function useLocalEntryForShowToday(
 ): LocalEntryForShowToday {
   const enabled = Boolean(personId && showId);
   const { data, isLoading } = useQuery({
-    queryKey: ['at-show', 'local-entry-today', personId, showId],
+    queryKey: [...LOCAL_ENTRY_TODAY_KEY, personId, showId],
     queryFn: () => readLocalEntryToday(personId as string, showId as string),
     enabled,
     networkMode: 'always',

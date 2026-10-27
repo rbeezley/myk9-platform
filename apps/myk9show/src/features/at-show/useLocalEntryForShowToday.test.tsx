@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createTestQueryClient, renderHook, waitFor } from '@/test/utils/testUtils';
+import { invalidatePostSyncQueries } from '@/providers/showEntriesPostSync';
 import { useLocalEntryForShowToday } from './useLocalEntryForShowToday';
 
 const tables = vi.hoisted(() => ({
@@ -27,8 +28,11 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 const TODAY = new Date(Date.UTC(2026, 9, 23, 12, 0, 0));
 const LIVE_SHOW = { id: 'show-1', startDate: '2026-10-22', endDate: '2026-10-24', deletedAt: null };
 
+let lastClient = createTestQueryClient();
+
 function renderLocalEntry(personId: string | null, showId: string | undefined = 'show-1') {
   const client = createTestQueryClient();
+  lastClient = client;
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
@@ -125,5 +129,33 @@ describe('useLocalEntryForShowToday', () => {
     expect(tables.getShowById).not.toHaveBeenCalled();
     expect(tables.getEntriesByShow).not.toHaveBeenCalled();
     expect(tables.getAllDogs).not.toHaveBeenCalled();
+  });
+
+  it('flips false to true after hydration, on the sync pass signal, without a remount', async () => {
+    tables.getShowById.mockResolvedValue(null);
+    tables.getEntriesByShow.mockResolvedValue([]);
+    const { result } = renderLocalEntry('person-1');
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.hasLocalEntryToday).toBe(false);
+
+    tables.getShowById.mockResolvedValue(LIVE_SHOW);
+    tables.getEntriesByShow.mockResolvedValue([
+      { id: 'entry-1', showId: 'show-1', handlerId: 'person-1' },
+    ]);
+    await invalidatePostSyncQueries(lastClient, ['entries']);
+
+    await waitFor(() => expect(result.current.hasLocalEntryToday).toBe(true));
+  });
+
+  it('re-evaluates to false when the entry is withdrawn locally', async () => {
+    const { result } = renderLocalEntry('person-1');
+    await waitFor(() => expect(result.current.hasLocalEntryToday).toBe(true));
+
+    tables.getEntriesByShow.mockResolvedValue([
+      { id: 'entry-1', showId: 'show-1', handlerId: 'person-1', entryStatus: 'withdrawn' },
+    ]);
+    await invalidatePostSyncQueries(lastClient, ['entries']);
+
+    await waitFor(() => expect(result.current.hasLocalEntryToday).toBe(false));
   });
 });

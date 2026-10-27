@@ -18,8 +18,7 @@ The canonical seam for every Entry `entry_status` change is
 `services/database/entries/lifecycle.ts`. Every status transition has a
 named function (`scratchEntry`, `scratchEntryDayOf`, `requestScratch`,
 `approveScratchRequest`, `denyScratchRequest`, `markEntryMoved`,
-`rollbackEntryMove`, `denyMoveUpRequest`, `restoreEntryStatus`,
-`acceptEntry`, `rejectEntry`, `waitlistEntry`) that:
+`rollbackEntryMove`, `denyMoveUpRequest`) that:
 
 - Writes the status field + any side-effect fields the transition implies
   (e.g., `check_in_status='pulled'` for day-of scratch).

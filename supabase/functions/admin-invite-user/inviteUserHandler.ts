@@ -39,6 +39,7 @@ import type { HandlerCtx } from '../_shared/http/handler.ts';
 import type { ResendEmailRequestInit } from '../_shared/resendEmail.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity, rolesInclude } from '../_shared/roleValidity.ts';
+import { STEP_UP_REQUIRED_CODE, stepUpRefusal } from '../_shared/stepUpReauth.ts';
 import { buildAuthActionUrl } from '../send-auth-email/actionUrl.ts';
 import { buildAdminInviteHtml } from './inviteEmail.ts';
 
@@ -240,7 +241,7 @@ function isAlreadyRegistered(error: { message?: string; code?: string } | null):
 }
 
 export async function inviteUserHandler(
-  { body, user, supabase }: HandlerCtx<InviteUserRequest>,
+  { req, body, user, supabase }: HandlerCtx<InviteUserRequest>,
   deps: InviteUserDeps
 ): Promise<InviteUserResult | InviteSkippedResult | InviteNotFoundResult> {
   if (!user) {
@@ -248,6 +249,14 @@ export async function inviteUserHandler(
   }
 
   await assertSiteAdmin(supabase, user.id);
+
+  // MYK9-1393: an invitation mints a sign-in for an account that may already hold roles
+  // (staff are created with their roles assigned), so it needs a password confirmed in the
+  // last five minutes (MYK9-1208). After the site-admin check, before any identity lookup,
+  // link generation or email.
+  if (stepUpRefusal(req.headers.get('Authorization') ?? '')) {
+    throw new HttpError(403, STEP_UP_REQUIRED_CODE);
+  }
 
   if (!deps.resendApiKey) {
     // Fail loudly rather than reporting a send that cannot happen — reporting

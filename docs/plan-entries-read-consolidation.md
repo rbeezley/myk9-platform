@@ -2,6 +2,8 @@
 
 > **Status:** Active
 
+> **Update:** `getEntryCountsByStatus`, `bulkUpdateEntryStatus`, `updateCheckInStatus` (the `secretary.ts` writer), `bulkCheckIn`, `checkArmbandConflicts` and `updateRunOrder` were deleted as dead code by MYK9-1412; the inventory below describes them as they were.
+
 Findings document produced by executing Plan 004 (`docs/improve-audit-2026-06/004-entries-read-module-consolidation-spike.md`).
 This is an investigation/design artefact — no production code was changed.
 

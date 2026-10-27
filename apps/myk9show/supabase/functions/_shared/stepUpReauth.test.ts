@@ -106,12 +106,13 @@ describe('latestReauthAt', () => {
 });
 
 /**
- * The three refund functions are `Deno.serve` modules vitest cannot run, so the wiring is
- * pinned here: each one asks the gate AFTER it has authorized the caller (a stranger still
- * gets "not authorized", not a password prompt) and BEFORE anything that reads payout state
- * or talks to Stripe. The gate's behavior is the describe block above.
+ * The three refund functions and Connect onboarding (MYK9-1393) are `Deno.serve` modules
+ * vitest cannot run, so the wiring is pinned here: each one asks the gate AFTER it has
+ * authorized the caller (a stranger still gets "not authorized", not a password prompt) and
+ * BEFORE anything that reads payout state or talks to Stripe. The gate's behavior is the
+ * describe block above.
  */
-describe('refund functions refuse before doing anything when the re-auth is stale', () => {
+describe('money functions refuse before doing anything when the re-auth is stale', () => {
   const read = (fn: string) =>
     readFileSync(resolve(__dirname, `../${fn}/index.ts`), 'utf8').replace(/\s+/g, ' ');
   const GATE = 'const stepUp = stepUpRefusal(authHeader); if (stepUp) return '.replace(/\s+/g, ' ');
@@ -135,6 +136,15 @@ describe('refund functions refuse before doing anything when the re-auth is stal
       fn: 'stripe-approve-refund',
       after: "{ error: 'Only a site admin can approve refunds' }",
       before: ['resolveRefundRequestWithoutRefund(', 'approveRefundRequest(', 'req.json()'],
+    },
+    {
+      fn: 'stripe-connect-onboard',
+      after: "{ error: 'Not authorized for this club' }",
+      before: [
+        ".from('club_stripe_accounts')",
+        'stripe.accounts.create(',
+        'stripe.accountLinks.create(',
+      ],
     },
   ];
 

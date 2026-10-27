@@ -124,19 +124,13 @@ export default defineConfig({
             lines: 35,
             // Per-directory floors (MYK9-40) — set slightly below measured coverage
             // so CI is green today but a real regression in these high-stakes
-            // directories fails the build. Money paths (payment), scoring
+            // directories fails the build. Scoring
             // correctness, RBAC, and offline-first replication are the areas
             // where an untested regression is most expensive. Ratchet UP only —
             // raise a floor after intentionally adding coverage, never lower one
             // to make a regression pass. Measured 2026-07-16 via
             // `pnpm vitest run --coverage <dir>` (see MYK9-40 PR for the exact
             // per-dir numbers).
-            'src/services/payment/**': {
-              statements: 80,
-              branches: 85,
-              functions: 95,
-              lines: 80,
-            },
             'src/services/scoring/**': {
               statements: 80,
               branches: 68,

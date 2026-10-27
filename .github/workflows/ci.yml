@@ -299,6 +299,24 @@ jobs:
       - name: Scheduled-task prompt parity contract
         run: pnpm qa:prompt-parity:test
 
+      # MYK9-1432: a scripts/**/*.test.ts file only runs in CI when a `pnpm
+      # qa:*:test` line in a workflow invokes a script that lists it. The guard
+      # fails by name on any file nothing runs (a conditional step, like the
+      # backup one, still counts as CI-run). The remaining suites here are
+      # root-project contracts that had a script but no CI line.
+      - name: Scripts test wiring guard + unwired root tooling suites
+        run: |
+          pnpm qa:scripts-test-wiring:test
+          pnpm qa:code-quality-ratchet:test
+          pnpm qa:db-drift:test
+          pnpm qa:isolated-e2e:test
+          pnpm qa:rls-smoke:test
+          pnpm support:triage:test
+          pnpm qa:go-live:phase1:test
+          pnpm qa:go-live:phase2:test
+          pnpm qa:go-live:phase3:test
+          pnpm qa:go-live:phase4:test
+
       - name: Code-quality ratchets
         run: pnpm qa:code-quality-ratchet
 

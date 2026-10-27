@@ -17,8 +17,26 @@ const OTHER_ACCOUNT = testJwt('u2', 1, 'other');
 const REST = 'https://test.supabase.co/rest/v1/rpc/grant_club_secretary';
 const EDGE = 'https://test.supabase.co/functions/v1/stripe-refund-entry';
 
-const json = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+// Node's fetch (undici) cancels a Response's stream when the Response is garbage collected,
+// and a clone made by isStepUpRefusal and then dropped takes the original's body with it
+// ("Body is unusable: Body has already been read", MYK9-1440). A browser does not do this.
+// Keep every clone reachable until the test ends so a GC pass between the refusal and the
+// assertion cannot consume the body.
+const keptClones: Response[] = [];
+
+const json = (status: number, body: unknown) => {
+  const response = new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+  const clone = response.clone.bind(response);
+  response.clone = () => {
+    const copy = clone();
+    keptClones.push(copy);
+    return copy;
+  };
+  return response;
+};
 
 const postgrestRefusal = () =>
   json(400, { code: STEP_UP_SQLSTATE, message: 'Confirm your password to continue.' });
@@ -38,6 +56,10 @@ function fakeServer(refusal: () => Response) {
   });
   return { base, freshTokens };
 }
+
+afterEach(() => {
+  keptClones.length = 0;
+});
 
 describe('createStepUpFetch', () => {
   beforeEach(() => {

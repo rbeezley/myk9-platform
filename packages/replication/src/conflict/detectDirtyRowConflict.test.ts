@@ -141,6 +141,39 @@ describe('detectDirtyRowConflict', () => {
     expect(result).toEqual({ hasConflict: true, fields: ['scoring_completed_at'] });
   });
 
+  it('MYK9-1445: a class release echoed as +00:00 is the same instant, not a conflict', () => {
+    // Release results writes new Date().toISOString() under both spellings; PostgREST
+    // echoes the same instant as +00:00.
+    const released = '2026-10-26T18:04:11.123Z';
+    const echoed = '2026-10-26T18:04:11.123+00:00';
+    const result = detectDirtyRowConflict({
+      base: { id: 'c1', resultsReleasedAt: null, results_released_at: null },
+      local: { id: 'c1', resultsReleasedAt: released, results_released_at: released },
+      remote: { id: 'c1', resultsReleasedAt: echoed, results_released_at: echoed },
+      instantFields: instantFieldsFor('classes'),
+    });
+
+    expect(result.hasConflict).toBe(false);
+    expect(result.fields).toEqual([]);
+  });
+
+  it('MYK9-1445: lists every class release/sign-off timestamp under both spellings', () => {
+    const classInstants = instantFieldsFor('classes');
+    for (const field of [
+      'results_released_at',
+      'resultsReleasedAt',
+      'results_verified_at',
+      'resultsVerifiedAt',
+      'judge_signed_off_at',
+      'judgeSignedOffAt',
+      'reopened_after_closeout_at',
+      'reopenedAfterCloseoutAt',
+    ]) {
+      expect(classInstants.has(field), field).toBe(true);
+    }
+    expect(classInstants.has('results_released_by')).toBe(false);
+  });
+
   it('lists entries timestamps and nothing for an unlisted table', () => {
     expect(ENTRY_INSTANTS.has('scoring_completed_at')).toBe(true);
     expect(ENTRY_INSTANTS.has('ring_exit_time')).toBe(true);

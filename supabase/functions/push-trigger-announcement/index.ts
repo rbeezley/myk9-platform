@@ -2,6 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import webpush from 'npm:web-push@3';
 
 import { assertAudienceQuerySucceeded } from '../_shared/fanoutErrors.ts';
+import type { EntryAudienceRow, RolePersonRow } from '../_shared/entryAudience.ts';
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { PUSH_SUBSCRIPTION_CHUNK_SIZE as CHUNK_SIZE } from '../_shared/pushFanout.ts';
@@ -68,12 +69,14 @@ handle<WebhookPayload>(
           )
           .eq('show_id', announcement.show_id)
           .is('deleted_at', null)
-          .not('entry_status', 'in', '("withdrawn","scratched","absent")'),
+          .not('entry_status', 'in', '("withdrawn","scratched","absent")')
+          .returns<EntryAudienceRow[]>(),
         applyActiveRoleValidity(
           supabase
             .from('user_roles')
             .select('person:people!user_id(auth_user_id)')
             .eq('show_id', announcement.show_id)
+            .returns<RolePersonRow[]>()
         ),
       ]);
 

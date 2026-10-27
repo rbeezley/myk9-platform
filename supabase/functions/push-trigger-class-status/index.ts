@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import webpush from 'npm:web-push@3';
 
+import type { EntryAudienceRow } from '../_shared/entryAudience.ts';
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { loadPushSubscriptions, sendWebPushBatch } from '../_shared/pushFanout.ts';
@@ -43,7 +44,8 @@ handle<WebhookPayload>(
       .eq('class_id', payload.record.id)
       .is('deleted_at', null)
       .not('entry_status', 'in', '("withdrawn","scratched","absent")')
-      .not('check_in_status', 'eq', 'pulled');
+      .not('check_in_status', 'eq', 'pulled')
+      .returns<EntryAudienceRow[]>();
 
     if (entriesError) {
       console.error('push-trigger-class-status: entry audience query failed', entriesError.message);

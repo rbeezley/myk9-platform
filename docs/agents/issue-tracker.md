@@ -111,17 +111,17 @@ The `verify` and `needs` groups are multi-select. Apply the children, never the 
 The root agent running a command or pipeline owns the tracking issue through every delegated
 phase. OpenSpec task checkboxes do not update Linear.
 
-| Stage                            | Status                                                   |
-| -------------------------------- | -------------------------------------------------------- |
-| Not started, or held before work | Unchanged (Backlog/Todo)                                 |
-| Implementation started           | In Progress, through the unmerged PR's review gate       |
-| Merged, only acceptance owed     | In Review, with the `verify:*` labels still owed         |
-| Merged, more implementation owed | In Progress (set it back: the merge automation moved it) |
-| Every criterion evidenced        | Done, after a fresh `get_issue` read                     |
+| Stage                            | Status                                               |
+| -------------------------------- | ---------------------------------------------------- |
+| Not started, or held before work | Unchanged (Backlog/Todo)                             |
+| Implementation started           | In Progress, through the unmerged PR's review gate   |
+| Merged, only acceptance owed     | In Review, with the `verify:*` labels still owed     |
+| Merged, more implementation owed | In Progress (set it back if a linked merge moved it) |
+| Every criterion evidenced        | Done, after a fresh `get_issue` read                 |
 
 Team automations, owner-approved and read back on 2026-10-25: PR open → In Progress; PR
 review activity → no action; **PR merge → In Review**; parent and sub-issue auto-close off. A
-merge therefore never asserts Done, but it also moves an issue whose implementation is only
+merge therefore never asserts Done, but a linked merge can also move an issue whose implementation is only
 partly merged. **After every merge, the root fresh-reads the issue and sets the row above.**
 Automation is a convenience, not proof.
 

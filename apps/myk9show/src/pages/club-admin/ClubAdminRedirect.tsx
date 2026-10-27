@@ -35,6 +35,9 @@ export const ClubAdminRedirect: React.FC = () => {
     return <Navigate replace to={`/clubs/${targetClubId}?${params.toString()}`} />;
   }
 
+  // A ready context always has a target club, so it returned above; this narrows for the gate.
+  if (clubContext.status === 'ready') return null;
+
   return (
     <PageTransition>
       <ClubContextGate

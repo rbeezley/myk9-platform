@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { BENCHMARK_ROUTES, benchmarkRoutesFor, resolveBenchmarkRoutePath } from './benchmarkRoutes';
+import {
+  BENCHMARK_ROUTES,
+  benchmarkRoutesFor,
+  resolveBenchmarkRoutePath,
+  resolveRequestedRouteIds,
+} from './benchmarkRoutes';
 import { blockedRouteReason, rankSlowestRoutes } from './benchmarkMetrics';
 
 describe('MYK9-843 route matrix', () => {
@@ -9,7 +14,9 @@ describe('MYK9-843 route matrix', () => {
       new Set(['public', 'exhibitor', 'secretary', 'judge', 'admin'])
     );
     expect(
-      BENCHMARK_ROUTES.some(route => route.role === 'secretary' && route.id === 'secretary-show-home')
+      BENCHMARK_ROUTES.some(
+        route => route.role === 'secretary' && route.id === 'secretary-show-home'
+      )
     ).toBe(true);
     expect(
       BENCHMARK_ROUTES.some(route => route.role === 'judge' && route.path.startsWith('/at-show/'))
@@ -76,5 +83,17 @@ describe('MYK9-843 route matrix', () => {
         { status: 'measured' as const },
       ]).map(sample => sample.timeToUsableMs)
     ).toEqual([1400, 900]);
+  });
+
+  it('maps the retired setup and show-day ids to the show home and rejects unknown ids', () => {
+    expect(
+      resolveRequestedRouteIds(
+        ['secretary-setup', 'secretary-show-day', 'public-home'],
+        BENCHMARK_ROUTES
+      )
+    ).toEqual(['secretary-show-home', 'public-home']);
+    expect(() => resolveRequestedRouteIds(['no-such-route'], BENCHMARK_ROUTES)).toThrow(
+      'Unknown benchmark route id(s): no-such-route'
+    );
   });
 });

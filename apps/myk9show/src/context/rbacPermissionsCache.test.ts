@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserPermissionsResponse } from '@/types/rbac-types';
 import {
   RBAC_CACHE_TTL_MS,
+  clearAllRbacPermissionsCaches,
   clearRbacPermissionsCache,
   loadRbacPermissionsCache,
   saveRbacPermissionsCache,
@@ -88,6 +89,39 @@ describe('rbacPermissionsCache', () => {
     vi.setSystemTime(now);
 
     expect(loadRbacPermissionsCache(USER_ID)).not.toBeNull();
+  });
+
+  it('rejects a future-dated entry (it would pass every age check forever)', () => {
+    localStorage.setItem(
+      `myk9show:rbac-cache:${USER_ID}`,
+      JSON.stringify({
+        cachedAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        data: response,
+      })
+    );
+
+    expect(loadRbacPermissionsCache(USER_ID)).toBeNull();
+  });
+
+  it('tolerates a small clock skew into the future', () => {
+    localStorage.setItem(
+      `myk9show:rbac-cache:${USER_ID}`,
+      JSON.stringify({ cachedAt: new Date(Date.now() + 60 * 1000).toISOString(), data: response })
+    );
+
+    expect(loadRbacPermissionsCache(USER_ID)).not.toBeNull();
+  });
+
+  it('clearAllRbacPermissionsCaches removes every user but nothing else', () => {
+    saveRbacPermissionsCache('user-a', response);
+    saveRbacPermissionsCache('user-b', response);
+    localStorage.setItem('unrelated', 'keep');
+
+    clearAllRbacPermissionsCaches();
+
+    expect(loadRbacPermissionsCache('user-a')).toBeNull();
+    expect(loadRbacPermissionsCache('user-b')).toBeNull();
+    expect(localStorage.getItem('unrelated')).toBe('keep');
   });
 
   it("clearRbacPermissionsCache removes only that user's entry", () => {

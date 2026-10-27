@@ -731,7 +731,7 @@ describe('AuthContext RBAC lifecycle', () => {
           } as never)
         : createChainableQuery()
     );
-    mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: null });
+    mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: null, loading: true });
 
     const TestComponent = () => {
       const auth = useAuthContext();

@@ -13,6 +13,7 @@ import {
   mockUser,
   renderWithAuthProvider as renderWithProvider,
 } from './AuthContext.testHarness';
+import { savePersonIdentityCache, loadPersonIdentityCache } from '@/context/personIdentityCache';
 import { createChainableQuery, mockSupabase } from '@/test/mocks/supabase';
 
 const { mockRbacService, mockUseAuth } = vi.hoisted(() => ({
@@ -170,6 +171,91 @@ describe('AuthContext RBAC warm cache (MYK9-1349)', () => {
     expect(screen.getByTestId('loading')).toHaveTextContent('true');
   });
 
+  it('boot with auth resolved and no user purges a prior user copy (sign-out the app never saw)', async () => {
+    seed('user-a', 60 * 1000);
+    savePersonIdentityCache('user-a', 'person-a');
+    mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: null, loading: false });
+    mockRbacService.getUserPermissions.mockReturnValue(deferred().promise);
+
+    const view = renderWithProvider(AuthProvider, <Probe gate={false} />, '/');
+    await waitFor(() => expect(localStorage.getItem('myk9show:rbac-cache:user-a')).toBeNull());
+    expect(loadPersonIdentityCache('user-a')).toBeNull();
+
+    mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: { ...mockUser, id: 'user-a' } });
+    view.rerender(<Probe gate={false} />);
+    expect(screen.getByTestId('roles')).toHaveTextContent('none');
+    expect(screen.getByTestId('loading')).toHaveTextContent('true');
+  });
+
+  it('boot with auth still unresolved does not purge (offline cold boot needs the copy)', async () => {
+    seed('user-a', 60 * 1000);
+    savePersonIdentityCache('user-a', 'person-a');
+    mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: null, loading: true });
+    mockRbacService.getUserPermissions.mockReturnValue(deferred().promise);
+
+    renderWithProvider(AuthProvider, <Probe gate={false} />, '/');
+    await act(async () => {});
+
+    expect(loadRbacPermissionsCache('user-a')).not.toBeNull();
+    expect(loadPersonIdentityCache('user-a')).not.toBeNull();
+  });
+
+  it('non-network failure after a warm seed keeps roles, retries, and a later revoked answer removes the surface', async () => {
+    vi.useFakeTimers();
+    try {
+      seed(mockUser.id, 60 * 1000);
+      mockRbacService.getUserPermissions
+        .mockRejectedValueOnce(new Error('boom: RPC exploded'))
+        .mockResolvedValue(EMPTY);
+
+      renderProbe();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+
+      expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(1);
+      expect(screen.getByText('secretary surface')).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
+
+      expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(2);
+      expect(screen.queryByText('secretary surface')).not.toBeInTheDocument();
+      expect(screen.getByText('denied')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('re-revalidation is bounded: two retries (30s, 60s), then it hands back', async () => {
+    vi.useFakeTimers();
+    try {
+      seed(mockUser.id, 60 * 1000);
+      mockRbacService.getUserPermissions.mockRejectedValue(new Error('boom: RPC exploded'));
+
+      renderProbe();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+      expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(3);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5 * 60_000);
+      });
+      expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(3);
+      expect(screen.getByText('secretary surface')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('max age: a 25h-old copy is not used warm (but survives for the offline fallback)', async () => {
     expect(RBAC_WARM_CACHE_MAX_AGE_MS).toBeLessThan(RBAC_CACHE_TTL_MS);
     seed(mockUser.id, 25 * 60 * 60 * 1000);
@@ -192,7 +278,11 @@ describe('AuthContext RBAC warm cache (MYK9-1349)', () => {
     await waitFor(() => expect(screen.getByText('secretary surface')).toBeInTheDocument(), {
       timeout: 5000,
     });
-    expect(screen.getByTestId('from-cache')).not.toHaveTextContent('live');
+    // toCacheHydratedState stamps the cache entry's own timestamp.
+    const { cachedAt } = JSON.parse(
+      localStorage.getItem(`myk9show:rbac-cache:${mockUser.id}`) as string
+    ) as { cachedAt: string };
+    expect(screen.getByTestId('from-cache')).toHaveTextContent(cachedAt);
   });
 
   it('offline failure after a warm seed keeps the seeded roles and shows the offline notice state', async () => {

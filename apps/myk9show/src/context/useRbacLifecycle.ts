@@ -20,88 +20,16 @@ import {
   loadRbacPermissionsCache,
   RBAC_WARM_CACHE_MAX_AGE_MS,
   saveRbacPermissionsCache,
-  type RbacCacheEntry,
 } from './rbacPermissionsCache';
-import type {
-  EffectivePermissionScope,
-  PermissionWithRole,
-  UserPermissionsResponse,
-  UserRoleWithDetails,
-} from '@/types/rbac-types';
-
-interface RbacState {
-  userId: string | null;
-  userRoles: UserRoleWithDetails[];
-  effectivePermissions: string[];
-  effectivePermissionScopes: EffectivePermissionScope[];
-  scopedPermissions: PermissionWithRole[];
-  isLoading: boolean;
-  loaded: boolean;
-  error: string | null;
-  lastRefreshed: string | null;
-  /** Set when roles were hydrated from the device-local cache (offline cold boot). */
-  fromCacheAt: string | null;
-  /** Painted from a <=24h saved copy while the server answers (MYK9-1349). */
-  warmSeeded: boolean;
-}
-
-const EMPTY_STATE: RbacState = {
-  userId: null,
-  userRoles: [],
-  effectivePermissions: [],
-  effectivePermissionScopes: [],
-  scopedPermissions: [],
-  isLoading: false,
-  loaded: false,
-  error: null,
-  lastRefreshed: null,
-  fromCacheAt: null,
-  warmSeeded: false,
-};
-
-function mapRbacRoles(roles: UserRoleWithDetails[]): UserRoleWithDetails[] {
-  return roles.map(role => {
-    const { scope_type, ...rest } = role;
-    return {
-      ...rest,
-      ...(scope_type && { scope_type }),
-    };
-  });
-}
-
-function toLoadedState(userId: string, data: UserPermissionsResponse): RbacState {
-  return {
-    userId,
-    userRoles: mapRbacRoles(data.roles),
-    effectivePermissions: data.effectivePermissions,
-    effectivePermissionScopes: data.effectivePermissionScopes,
-    scopedPermissions: data.permissions,
-    isLoading: false,
-    loaded: true,
-    error: null,
-    lastRefreshed: new Date().toISOString(),
-    fromCacheAt: null,
-    warmSeeded: false,
-  };
-}
-
-/** Warm seed: renders at once, but the device is online so no offline notice. */
-function toWarmSeededState(userId: string, entry: RbacCacheEntry): RbacState {
-  return {
-    ...toLoadedState(userId, entry.data),
-    lastRefreshed: entry.cachedAt,
-    warmSeeded: true,
-  };
-}
-
-function toCacheHydratedState(userId: string, entry: RbacCacheEntry): RbacState {
-  return {
-    ...toLoadedState(userId, entry.data),
-    // Honest timestamps: this data is as old as the cache entry, not "now".
-    lastRefreshed: entry.cachedAt,
-    fromCacheAt: entry.cachedAt,
-  };
-}
+import type { UserRoleWithDetails } from '@/types/rbac-types';
+import {
+  EMPTY_STATE,
+  toCacheHydratedState,
+  toFailedState,
+  toLoadedState,
+  toWarmSeededState,
+  type RbacState,
+} from './rbacLifecycleState';
 
 function isAbortError(error: unknown): boolean {
   if (error instanceof DOMException && error.name === 'AbortError') return true;
@@ -113,6 +41,8 @@ function isAbortError(error: unknown): boolean {
 
 /** Minimum spacing between focus/visibility-driven refreshes. */
 export const RBAC_FOCUS_REFRESH_GAP_MS = 60 * 1000;
+/** Re-revalidation delays after a non-network failure of a warm seed. */
+export const RBAC_REVALIDATE_DELAYS_MS = [30_000, 60_000];
 /** Slow safety net for a screen that never refocuses or reconnects. */
 export const RBAC_SAFETY_NET_MS = 15 * 60 * 1000;
 
@@ -154,6 +84,12 @@ export function useRbacLifecycle(userId: string | undefined) {
     let stale = false;
 
     let lastLoadAt = Date.now();
+    // Warm seed not yet confirmed by the server (MYK9-1349). While true, a
+    // non-network failure schedules bounded re-revalidations so a revocation
+    // is not hidden behind a saturated server for a whole safety-net period.
+    let unverified = false;
+    let revalidations = 0;
+    let revalidateTimer: number | undefined;
     const load = async (
       attempt = 0,
       requestGeneration = ++requestGenerationRef.current,
@@ -174,6 +110,7 @@ export function useRbacLifecycle(userId: string | undefined) {
           attempt === 0 && !bypassCache
             ? loadRbacPermissionsCache(userId, RBAC_WARM_CACHE_MAX_AGE_MS)
             : null;
+        if (warm) unverified = true;
         setState(previous =>
           previous.userId === userId
             ? previous.lastRefreshed !== null
@@ -190,6 +127,7 @@ export function useRbacLifecycle(userId: string | undefined) {
           : await rbacService.getUserPermissions(userId);
         if (isCurrentRequest()) {
           lastLoadAt = Date.now();
+          unverified = false;
           saveRbacPermissionsCache(userId, data);
           setState(toLoadedState(userId, data));
         }
@@ -206,6 +144,17 @@ export function useRbacLifecycle(userId: string | undefined) {
           return;
         }
         logger.error('Failed to load RBAC data:', 'app', {}, ensureError(error));
+        const failedOffline = isAbortError(error) || isTransientBrowserFetchError(error);
+        if (failedOffline) {
+          unverified = false;
+        } else if (unverified && revalidations < RBAC_REVALIDATE_DELAYS_MS.length) {
+          const delayMs = RBAC_REVALIDATE_DELAYS_MS[revalidations++];
+          revalidateTimer = window.setTimeout(() => {
+            // refresh() uses a fresh generation, so a user change or unmount
+            // (which bumps it and clears this timer) can never be overwritten.
+            if (!stale && unverified) refresh();
+          }, delayMs);
+        }
         setState(previous => {
           const errorMessage =
             error instanceof Error ? error.message : 'Failed to load permissions';
@@ -221,19 +170,7 @@ export function useRbacLifecycle(userId: string | undefined) {
             const cached = loadRbacPermissionsCache(userId);
             if (cached) return toCacheHydratedState(userId, cached);
           }
-          return {
-            ...previous,
-            isLoading: false,
-            loaded: true,
-            error: errorMessage,
-            // A non-network failure means we reached the backend — stop
-            // claiming "working offline" even if the roles came from cache.
-            // A warm seed that could not revalidate offline is cache-served now.
-            fromCacheAt: isOffline
-              ? (previous.fromCacheAt ?? (previous.warmSeeded ? previous.lastRefreshed : null))
-              : null,
-            warmSeeded: false,
-          };
+          return toFailedState(previous, errorMessage, isOffline);
         });
       }
     };
@@ -291,6 +228,7 @@ export function useRbacLifecycle(userId: string | undefined) {
       requestGenerationRef.current += 1;
       rbacService.clearUserCache(userId);
       window.clearInterval(safetyNet);
+      window.clearTimeout(revalidateTimer);
       document.removeEventListener('visibilitychange', refreshIfDue);
       window.removeEventListener('focus', refreshIfDue);
       window.removeEventListener('online', refresh);
@@ -316,15 +254,13 @@ export function useRbacLifecycle(userId: string | undefined) {
       if (!isCurrentRequest()) return;
       logger.error('Failed to refresh RBAC data:', 'app', {}, ensureError(error));
       const isOffline = isAbortError(error) || isTransientBrowserFetchError(error);
-      setState(previous => ({
-        ...previous,
-        isLoading: false,
-        loaded: true,
-        error: error instanceof Error ? error.message : 'Failed to refresh permissions',
-        // Same rule as the load path: a non-network failure reached the
-        // backend, so stop claiming "working offline".
-        fromCacheAt: isOffline ? previous.fromCacheAt : null,
-      }));
+      setState(previous =>
+        toFailedState(
+          previous,
+          error instanceof Error ? error.message : 'Failed to refresh permissions',
+          isOffline
+        )
+      );
     }
   }, [userId]);
 

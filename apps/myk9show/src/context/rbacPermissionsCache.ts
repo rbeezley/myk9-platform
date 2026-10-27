@@ -23,6 +23,9 @@ export const RBAC_CACHE_TTL_MS = OFFLINE_SESSION_CACHE_TTL_MS;
  */
 export const RBAC_WARM_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
+/** Clock skew tolerated before a future-dated entry is treated as corrupt. */
+const FUTURE_SKEW_MS = 5 * 60 * 1000;
+
 const KEY_PREFIX = 'myk9show:rbac-cache:';
 
 export interface RbacCacheEntry {
@@ -62,6 +65,7 @@ export function loadRbacPermissionsCache(
       Array.isArray(value) && value.every(item => typeof item === 'object' && item !== null);
     if (
       Number.isNaN(cachedAtMs) ||
+      cachedAtMs > Date.now() + FUTURE_SKEW_MS ||
       !data ||
       !isObjectArray(data.roles) ||
       !isObjectArray(data.permissions) ||
@@ -93,5 +97,23 @@ export function clearRbacPermissionsCache(userId: string): void {
     window.localStorage.removeItem(cacheKey(userId));
   } catch {
     // Ignore — nothing to clear in environments without storage.
+  }
+}
+
+/**
+ * Remove every user's saved permissions. Used when auth has resolved with no
+ * user: a copy that survived a sign-out the app never observed (session expiry
+ * or revocation while closed) must not warm-paint the next sign-in.
+ */
+export function clearAllRbacPermissionsCaches(): void {
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith(KEY_PREFIX)) keys.push(key);
+    }
+    keys.forEach(key => window.localStorage.removeItem(key));
+  } catch {
+    // Nothing to clear without storage.
   }
 }

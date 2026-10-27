@@ -166,13 +166,17 @@ export function EntryRegistrationQueue({
     >
       {compact ? (
         <div className="flex items-center gap-3 border-b bg-muted/35 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground/70">
-          <Checkbox
-            className="relative before:absolute before:-inset-[15px] before:content-['']"
-            aria-label="Select all on page"
-            checked={allSelected}
-            indeterminate={partiallySelected}
-            onCheckedChange={onToggleAll}
-          />
+          {/* A 44px square around the checkbox keeps its ::before hit area inside the
+              card's overflow-hidden edge and above the first row (MYK9-643). */}
+          <span className="flex min-h-11 min-w-11 shrink-0 items-center justify-center">
+            <Checkbox
+              className="relative before:absolute before:-inset-[15px] before:content-['']"
+              aria-label="Select all on page"
+              checked={allSelected}
+              indeterminate={partiallySelected}
+              onCheckedChange={onToggleAll}
+            />
+          </span>
           <span>Select all on page</span>
         </div>
       ) : (

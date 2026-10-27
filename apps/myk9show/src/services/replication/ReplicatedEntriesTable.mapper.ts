@@ -51,8 +51,9 @@ export interface ReplicatedEntry {
   /**
    * MYK9-1396: the check-in value a secretary Pull overwrote (`null` = none
    * remembered), so un-pulling restores it. `undefined` on a replica row cached
-   * before migration 20261027014900, which is why whole-row upload projects it
-   * only when defined.
+   * before migration 20261027014900. READ-ONLY on the wire: the database trigger
+   * owns the column, so no upload payload carries it; a local Pull mirrors the
+   * stamp into the replica row only (see entryCheckInBeforePull.ts).
    */
   checkInStatusBeforePull?: CheckInStatus | null | undefined;
   check_in_status_before_pull?: CheckInStatus | null | undefined;
@@ -269,11 +270,6 @@ export function entryToSupabaseRow(entry: ReplicatedEntry): Record<string, unkno
     handler: entry.handler ?? null,
     entry_status: entry.entryStatus ?? null,
     check_in_status: entry.checkInStatus ?? entry.check_in_status ?? 'no-status',
-    ...(entry.checkInStatusBeforePull !== undefined
-      ? { check_in_status_before_pull: entry.checkInStatusBeforePull }
-      : entry.check_in_status_before_pull !== undefined
-        ? { check_in_status_before_pull: entry.check_in_status_before_pull }
-        : {}),
     jump_height: entry.jumpHeight ?? null,
     entry_fee: entry.entryFee ?? null,
     payment_status: entry.paymentStatus ?? null,

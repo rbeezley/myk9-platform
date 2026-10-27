@@ -137,9 +137,6 @@ export async function undoShowMapScratch(input: ShowMapScratchUndoInput): Promis
     withdrawal_reason: input.previousWithdrawalReason,
     withdrawalReasonCode: input.previousWithdrawalReasonCode,
     withdrawal_reason_code: input.previousWithdrawalReasonCode,
-    // MYK9-1396: the pull is undone, so the remembered prior is spent.
-    checkInStatusBeforePull: null,
-    check_in_status_before_pull: null,
   });
 
   await logReplicatedEntryStatusChange({

@@ -9,6 +9,7 @@
  * - Check-in status: local takes precedence (offline check-ins are authoritative)
  */
 
+import { mirrorCheckInBeforePull } from './entryCheckInBeforePull';
 import {
   ReplicatedTable,
   syncReplicatedTable,
@@ -683,13 +684,14 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   async updateCheckInStatus(entryId: string, status: CheckInStatus): Promise<string | null> {
     const entry = await this.getOrHydrateEntryForWrite(entryId);
 
-    const updated: ReplicatedEntry = {
+    // MYK9-1396: local mirror of the server trigger; the queued payload stays narrow.
+    const updated = mirrorCheckInBeforePull(entry, {
       ...entry,
       checkInStatus: status,
       check_in_status: status,
       _lastModified: new Date(),
       _syncStatus: 'pending',
-    };
+    });
 
     // Durable-first (MYK9-1206): see updateEntryStatus.
     const mutationId = await this.queueMutation(
@@ -720,12 +722,13 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   async updateEntry(entryId: string, updates: Partial<ReplicatedEntry>): Promise<string | null> {
     const entry = await this.getOrHydrateEntryForWrite(entryId);
 
-    const updated: ReplicatedEntry = {
+    // MYK9-1396: local mirror of the server trigger (not part of supabaseRow).
+    const updated = mirrorCheckInBeforePull(entry, {
       ...entry,
       ...updates,
       _lastModified: new Date(),
       _syncStatus: 'pending',
-    };
+    });
 
     const supabaseRow = entryToSupabaseRow(updated);
     // Auto-route ringside-only writes (scoring/run-order/check-in/placement)
@@ -792,12 +795,13 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const entry = cached ?? seededRow;
 
     if (entry) {
-      const updated: ReplicatedEntry = {
+      // MYK9-1396: local mirror of the server trigger; never part of the payload below.
+      const updated = mirrorCheckInBeforePull(entry, {
         ...entry,
         ...updates,
         _lastModified: new Date(),
         _syncStatus: 'pending',
-      };
+      });
 
       const result = await this.set(
         entryId,
@@ -828,17 +832,6 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
     if (updates.check_in_status !== undefined || updates.checkInStatus !== undefined) {
       payload.check_in_status = updates.check_in_status ?? updates.checkInStatus;
-    }
-
-    // MYK9-1396: presence-checked, not `??`, because null CLEARS the stored prior on un-pull.
-    if (
-      updates.check_in_status_before_pull !== undefined ||
-      updates.checkInStatusBeforePull !== undefined
-    ) {
-      payload.check_in_status_before_pull =
-        updates.check_in_status_before_pull !== undefined
-          ? updates.check_in_status_before_pull
-          : updates.checkInStatusBeforePull;
     }
 
     if (updates.withdrawal_reason !== undefined || updates.withdrawalReason !== undefined) {

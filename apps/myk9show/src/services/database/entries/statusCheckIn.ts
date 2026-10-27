@@ -12,9 +12,7 @@ export interface EntryStatusCheckInContext {
   previousEntryStatus?: EntryStatus | undefined;
   /** Check-in value to restore on an un-pull (Undo of a Pull); omitted on a plain Accept. */
   priorCheckInStatus?: CheckInStatus | undefined;
-  /** MYK9-1396: the entry's check-in value right now; a Pull stores it as the value to restore. */
-  currentCheckInStatus?: CheckInStatus | null | undefined;
-  /** MYK9-1396: `entries.check_in_status_before_pull`, the durable prior a Pull stored. */
+  /** MYK9-1396: `entries.check_in_status_before_pull`, the durable prior a Pull stored. Read-only here: the database trigger writes it. */
   storedCheckInStatusBeforePull?: CheckInStatus | null | undefined;
 }
 
@@ -40,25 +38,4 @@ export function resolveCheckInStatusForTransition(
   if (context.priorCheckInStatus !== undefined) return context.priorCheckInStatus;
   if (!REACTIVATING_STATUSES.has(status)) return undefined;
   return context.storedCheckInStatusBeforePull ?? 'no-status';
-}
-
-/**
- * MYK9-1396: what `check_in_status_before_pull` must become for this change.
- * `undefined` leaves the column alone; `null` clears it.
- *
- * - A Pull stores the current check-in, unless it is already `pulled` (or
- *   unknown): re-pulling must never overwrite the stored prior with `pulled`.
- * - Any un-pull that writes a real check-in clears the column, so a later Pull
- *   starts clean.
- */
-export function resolveCheckInBeforePullForTransition(
-  status: EntryStatus,
-  context: EntryStatusCheckInContext = {}
-): CheckInStatus | null | undefined {
-  if (status === 'scratched') {
-    const current = context.currentCheckInStatus;
-    return current && current !== 'pulled' ? current : undefined;
-  }
-  const next = resolveCheckInStatusForTransition(status, context);
-  return next !== undefined && next !== 'pulled' ? null : undefined;
 }

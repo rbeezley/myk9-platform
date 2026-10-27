@@ -55,43 +55,31 @@ describe('buildReplicatedEntryStatusUpdate check-in (MYK9-1384)', () => {
 });
 
 describe('check_in_status_before_pull (MYK9-1396)', () => {
-  it('a Pull stores the current check-in under both key styles', () => {
-    expect(
-      buildReplicatedEntryStatusUpdate('scratched', undefined, undefined, {
-        currentCheckInStatus: 'checked-in',
-      })
-    ).toMatchObject({
-      check_in_status: 'pulled',
-      check_in_status_before_pull: 'checked-in',
-      checkInStatusBeforePull: 'checked-in',
-    });
+  it('no status change ever puts the column in a write payload (the trigger owns it)', () => {
+    const contexts = [
+      undefined,
+      {
+        previousEntryStatus: 'scratched' as const,
+        storedCheckInStatusBeforePull: 'checked-in' as const,
+      },
+      { previousEntryStatus: 'scratched' as const, priorCheckInStatus: 'at-gate' as const },
+    ];
+    for (const status of ['scratched', 'confirmed', 'withdrawn'] as const) {
+      for (const context of contexts) {
+        const update = buildReplicatedEntryStatusUpdate(status, undefined, undefined, context);
+        expect(update).not.toHaveProperty('check_in_status_before_pull');
+        expect(update).not.toHaveProperty('checkInStatusBeforePull');
+      }
+    }
   });
 
-  it('pulling an already-pulled entry does not overwrite the stored prior', () => {
-    const update = buildReplicatedEntryStatusUpdate('scratched', undefined, undefined, {
-      currentCheckInStatus: 'pulled',
-      storedCheckInStatusBeforePull: 'checked-in',
-    });
-    expect(update).not.toHaveProperty('check_in_status_before_pull');
-    expect(update).not.toHaveProperty('checkInStatusBeforePull');
-  });
-
-  it('a Pull with unknown current check-in leaves the column alone', () => {
-    expect(buildReplicatedEntryStatusUpdate('scratched')).not.toHaveProperty(
-      'check_in_status_before_pull'
-    );
-  });
-
-  it('a plain Accept restores the stored prior and clears the column', () => {
+  it('a plain Accept restores the stored prior', () => {
     expect(
       buildReplicatedEntryStatusUpdate('confirmed', undefined, undefined, {
         previousEntryStatus: 'scratched',
         storedCheckInStatusBeforePull: 'checked-in',
       })
-    ).toMatchObject({
-      check_in_status: 'checked-in',
-      check_in_status_before_pull: null,
-    });
+    ).toMatchObject({ check_in_status: 'checked-in', checkInStatus: 'checked-in' });
   });
 
   it('the in-memory Undo prior still wins over the stored one', () => {
@@ -113,12 +101,12 @@ describe('check_in_status_before_pull (MYK9-1396)', () => {
     ).toBe('no-status');
   });
 
-  it('leaves the stored prior alone when the Pull becomes a Withdraw', () => {
+  it('leaves check-in alone when the Pull becomes a Withdraw', () => {
     expect(
-      buildReplicatedEntryStatusUpdate('withdrawn', undefined, undefined, {
+      resolveCheckInStatusForTransition('withdrawn', {
         previousEntryStatus: 'scratched',
         storedCheckInStatusBeforePull: 'checked-in',
       })
-    ).not.toHaveProperty('check_in_status_before_pull');
+    ).toBe(undefined);
   });
 });

@@ -28,11 +28,21 @@ export interface BulkStatusChangeAdapters {
 
 type EntryClass = EntryManagementEntry['classes'][number];
 
-/** The class with its check-in set, or with the key removed when it had none. */
+/**
+ * The class with its check-in set, or with the key removed when it had none.
+ * MYK9-1396: also mirrors the server trigger's stamp into `checkInStatusBeforePull`
+ * (Pull remembers the old check-in, leaving `pulled` forgets it), so a quick
+ * Pull then Accept from this same loaded state restores the right value.
+ */
 function withCheckIn(c: EntryClass, checkInStatus: EntryClass['checkInStatus']): EntryClass {
   const next = { ...c };
   if (checkInStatus === undefined) delete next.checkInStatus;
   else next.checkInStatus = checkInStatus;
+  if (checkInStatus === 'pulled' && c.checkInStatus !== 'pulled') {
+    next.checkInStatusBeforePull = c.checkInStatus ?? null;
+  } else if (c.checkInStatus === 'pulled' && checkInStatus !== 'pulled') {
+    next.checkInStatusBeforePull = null;
+  }
   return next;
 }
 

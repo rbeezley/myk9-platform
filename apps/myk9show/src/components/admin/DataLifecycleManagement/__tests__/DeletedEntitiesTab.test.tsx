@@ -79,7 +79,7 @@ vi.mock('@/services/database/clubs', () => ({
 vi.mock('@/services/database/users', () => ({
   getDeletedUsers: vi.fn().mockResolvedValue({ data: [], error: null }),
   restoreUser: vi.fn().mockResolvedValue({ error: null }),
-  hardDeleteUser: mockHardDeleteUser,
+  permanentDeleteUser: mockHardDeleteUser,
 }));
 
 // Mock the child component to simplify testing

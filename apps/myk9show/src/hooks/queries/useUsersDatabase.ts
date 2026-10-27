@@ -6,7 +6,6 @@ import {
   getUserById,
   createUser,
   updateUser,
-  hardDeleteUser,
   restoreUser,
   getDeletedUsers,
   searchUsers,
@@ -235,27 +234,6 @@ export const useRestoreUserMutation = () => {
     },
     onSuccess: () => {
       // Invalidate all related queries
-      queryClient.invalidateQueries({ queryKey: queryKeys.people });
-      queryClient.invalidateQueries({ queryKey: ['users', 'deleted'] });
-      queryClient.invalidateQueries({ queryKey: ['users', 'statistics'] });
-      queryClient.invalidateQueries({ queryKey: ['users', 'with-dog-counts'] });
-    },
-  });
-};
-
-// Hard delete user mutation (permanent removal)
-export const useHardDeleteUserMutation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await hardDeleteUser(id);
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (_data, id) => {
-      // Remove from all caches
-      queryClient.removeQueries({ queryKey: queryKeys.person(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.people });
       queryClient.invalidateQueries({ queryKey: ['users', 'deleted'] });
       queryClient.invalidateQueries({ queryKey: ['users', 'statistics'] });

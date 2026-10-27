@@ -14,6 +14,8 @@ const NOW = new Date('2026-10-23T12:00:00Z');
 const LA_SHOW = { id: 'show-1', startDate: '2026-11-07', endDate: '2026-11-08', deletedAt: null };
 const LA_TRIALS = [{ id: 'trial-1', date: '2026-11-07', timezone: 'America/Los_Angeles' }];
 
+const LIVE_TRIALS = [{ id: 'trial-1', date: '2026-10-23', timezone: 'America/New_York' }];
+
 function run(overrides: Partial<Parameters<typeof hasLocalEntryForShowToday>[0]> = {}): boolean {
   return hasLocalEntryForShowToday({
     personId: 'person-1',
@@ -181,6 +183,41 @@ describe('hasLocalEntryForShowToday', () => {
       ).toBe(true);
       // Nov 6 21:30 New York == Nov 7 02:30 UTC: still the evening before.
       expect(laRun('2026-11-07T02:30:00Z', { trials: [] })).toBe(false);
+    });
+  });
+
+  describe('soft-deleted class (MYK9-1441)', () => {
+    it('keeps an entry whose trial the device does not hold (no trial rule, by decision)', () => {
+      expect(run({ entries: [entry({ trialId: 'trial-unknown' })], trials: [] })).toBe(true);
+    });
+
+    it('keeps an entry whose trial is live', () => {
+      expect(run({ entries: [entry({ trialId: 'trial-1' })], trials: LIVE_TRIALS })).toBe(true);
+    });
+
+    it('drops an entry whose class is soft-deleted', () => {
+      expect(
+        run({
+          entries: [entry({ classId: 'class-1' })],
+          classes: [{ id: 'class-1', deletedAt: '2026-10-20T00:00:00Z' }],
+        })
+      ).toBe(false);
+    });
+
+    it('keeps an entry whose class is live or not held on the device', () => {
+      expect(run({ entries: [entry({ classId: 'class-1' })], classes: [{ id: 'class-1' }] })).toBe(
+        true
+      );
+      expect(run({ entries: [entry({ classId: 'class-2' })], classes: [] })).toBe(true);
+    });
+
+    it('still admits through another entry that is not in a deleted class', () => {
+      expect(
+        run({
+          entries: [entry({ id: 'a', classId: 'class-1' }), entry({ id: 'b' })],
+          classes: [{ id: 'class-1', deletedAt: '2026-10-20T00:00:00Z' }],
+        })
+      ).toBe(true);
     });
   });
 });

@@ -19,6 +19,7 @@ const tables = vi.hoisted(() => {
     getTrialsByShow: vi.fn(),
     getEntriesByShow: vi.fn(),
     getAllDogs: vi.fn(),
+    getClassById: vi.fn(),
     listeners,
     subscribeFor,
     notify: (name: string) => listeners.get(name)?.forEach(cb => cb()),
@@ -47,6 +48,13 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { subscribe: tables.subscribeFor('dogs'), getAllDogs: tables.getAllDogs },
 }));
 
+vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
+  replicatedClassesTable: {
+    subscribe: tables.subscribeFor('classes'),
+    getClassById: tables.getClassById,
+  },
+}));
+
 const TODAY = new Date(Date.UTC(2026, 9, 23, 12, 0, 0));
 const LIVE_SHOW = { id: 'show-1', startDate: '2026-10-22', endDate: '2026-10-24', deletedAt: null };
 
@@ -69,6 +77,7 @@ describe('useLocalEntryForShowToday', () => {
       .mockReset()
       .mockResolvedValue([{ id: 'entry-1', showId: 'show-1', handlerId: 'person-1' }]);
     tables.getAllDogs.mockReset().mockResolvedValue([]);
+    tables.getClassById.mockReset().mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -237,5 +246,20 @@ describe('useLocalEntryForShowToday', () => {
     unmount();
 
     for (const set of tables.listeners.values()) expect(set.size).toBe(0);
+  });
+
+  it('answers false when the only entry is in a soft-deleted class, and re-evaluates when classes change', async () => {
+    tables.getEntriesByShow.mockResolvedValue([
+      { id: 'entry-1', showId: 'show-1', handlerId: 'person-1', classId: 'class-1' },
+    ]);
+    tables.getClassById.mockResolvedValue({ id: 'class-1', deletedAt: '2026-10-20T00:00:00Z' });
+    const { result } = renderLocalEntry('person-1');
+    await waitFor(() => expect(tables.getClassById).toHaveBeenCalledWith('class-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.hasLocalEntryToday).toBe(false);
+
+    tables.getClassById.mockResolvedValue({ id: 'class-1' });
+    tables.notify('classes');
+    await waitFor(() => expect(result.current.hasLocalEntryToday).toBe(true));
   });
 });

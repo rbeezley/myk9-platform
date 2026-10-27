@@ -14,6 +14,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { useEntriesReplicaInvalidation } from '@/hooks/queries/useEntriesReplicaInvalidation';
@@ -21,7 +22,7 @@ import { hasLocalEntryForShowToday } from './useLocalEntryForShowToday.helpers';
 
 const LOCAL_ENTRY_TODAY_KEY = ['at-show', 'local-entry-today'] as const;
 
-// The four replicas the answer derives from. Their own change notices drive
+// The five replicas the answer derives from. Their own change notices drive
 // re-evaluation, so every fill path (direct per-show syncs, optimistic local
 // writes, discard-reverts) is covered, not only the provider's sync pass.
 const SOURCES = [
@@ -29,6 +30,7 @@ const SOURCES = [
   replicatedTrialsTable,
   replicatedEntriesTable,
   replicatedDogsTable,
+  replicatedClassesTable,
 ] as const;
 const NO_SOURCES = [] as const;
 const COALESCE_MS = 250;
@@ -50,6 +52,12 @@ async function readLocalEntryToday(personId: string, showId: string): Promise<bo
     replicatedEntriesTable.getEntriesByShow(showId),
     replicatedDogsTable.getAllDogs(),
   ]);
+  // The RPC drops entries in a soft-deleted class; read each class the
+  // entries name so their deletion state reaches the helper.
+  const classIds = [...new Set(entries.flatMap(entry => (entry.classId ? [entry.classId] : [])))];
+  const classes = (
+    await Promise.all(classIds.map(id => replicatedClassesTable.getClassById(id)))
+  ).filter((row): row is NonNullable<typeof row> => row !== null);
   return hasLocalEntryForShowToday({
     personId,
     showId,
@@ -58,6 +66,7 @@ async function readLocalEntryToday(personId: string, showId: string): Promise<bo
     show,
     entries,
     dogs,
+    classes,
   });
 }
 

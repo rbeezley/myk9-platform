@@ -10,11 +10,18 @@
  * server.
  */
 import { entryToSupabaseRow, type ReplicatedEntry } from './ReplicatedEntriesTable.mapper';
+import { toSnakeCase } from './ringsideEntryRpc';
 
 /** Columns every entry UPDATE carries regardless of what changed. */
 const ALWAYS_SENT = ['id', 'updated_at'] as const;
 
-const SENTINEL = '\u0000myk9-1442-probe\u0000';
+/**
+ * Probe values of different types. The mapper coerces some keys (a placement
+ * through Number(), a flag through !!), so one probe can serialize to the very
+ * value the row already holds (a string placement -> NaN -> null over a null
+ * placement) and hide the column. A column counts when ANY probe moves it.
+ */
+const PROBES: readonly unknown[] = ['\u0000myk9-1442-probe\u0000', 987_654_321, null];
 
 function stableJson(value: unknown): string {
   return JSON.stringify(value) ?? 'undefined';
@@ -37,10 +44,18 @@ export function changedEntryColumns(
   const columns = new Set<string>(ALWAYS_SENT);
 
   for (const key of Object.keys(updates)) {
-    const probeRow = entryToSupabaseRow({ ...before, [key]: SENTINEL } as ReplicatedEntry);
-    for (const col of new Set([...Object.keys(beforeRow), ...Object.keys(probeRow)])) {
-      if (col !== 'updated_at' && stableJson(beforeRow[col]) !== stableJson(probeRow[col])) {
-        columns.add(col);
+    // The key's own column is always explicit, even when no probe can move it
+    // (final_placement is forced null for a non-qualified result): a cleared
+    // placement must still reach buildRingsideRpcFields, which maps keys the
+    // same way, or the write falls back to a direct UPDATE a steward cannot make.
+    const direct = toSnakeCase(key);
+    if (direct !== 'updated_at' && direct in afterRow) columns.add(direct);
+    for (const probe of PROBES) {
+      const probeRow = entryToSupabaseRow({ ...before, [key]: probe } as ReplicatedEntry);
+      for (const col of new Set([...Object.keys(beforeRow), ...Object.keys(probeRow)])) {
+        if (col !== 'updated_at' && stableJson(beforeRow[col]) !== stableJson(probeRow[col])) {
+          columns.add(col);
+        }
       }
     }
   }

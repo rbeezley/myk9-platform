@@ -3,7 +3,7 @@ import {
   BENCHMARK_ROUTES,
   benchmarkRoutesFor,
   resolveBenchmarkRoutePath,
-  resolveRequestedRouteIds,
+  assertKnownRouteIds,
 } from './benchmarkRoutes';
 import { blockedRouteReason, rankSlowestRoutes } from './benchmarkMetrics';
 
@@ -85,15 +85,12 @@ describe('MYK9-843 route matrix', () => {
     ).toEqual([1400, 900]);
   });
 
-  it('maps the retired setup and show-day ids to the show home and rejects unknown ids', () => {
-    expect(
-      resolveRequestedRouteIds(
-        ['secretary-setup', 'secretary-show-day', 'public-home'],
-        BENCHMARK_ROUTES
-      )
-    ).toEqual(['secretary-show-home', 'public-home']);
-    expect(() => resolveRequestedRouteIds(['no-such-route'], BENCHMARK_ROUTES)).toThrow(
-      'Unknown benchmark route id(s): no-such-route'
+  it('rejects an unknown or retired route id instead of silently dropping the route', () => {
+    expect(() =>
+      assertKnownRouteIds(['public-home', 'secretary-show-home'], BENCHMARK_ROUTES)
+    ).not.toThrow();
+    expect(() => assertKnownRouteIds(['secretary-setup'], BENCHMARK_ROUTES)).toThrow(
+      'Unknown benchmark route id(s): secretary-setup'
     );
   });
 });

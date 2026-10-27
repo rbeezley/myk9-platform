@@ -135,22 +135,19 @@ export function resolveBenchmarkRoutePath(path: string, origin: string): string 
 }
 
 /**
- * Route ids earlier reports' reproduce commands select. Setup and Show Day were
- * folded into the show home (MYK9-957), so both now mean `secretary-show-home`.
+ * Fail loudly on a route id nothing matches. Setup and Show Day were folded into
+ * `secretary-show-home` (MYK9-957); an old reproduce command that still names them
+ * must be edited, not silently run without the route (or fail to exclude it).
  */
-export const RETIRED_ROUTE_IDS: Readonly<Record<string, string>> = {
-  'secretary-setup': 'secretary-show-home',
-  'secretary-show-day': 'secretary-show-home',
-};
-
-/** Translate retired ids, drop duplicates, and fail loudly on an id no route has. */
-export function resolveRequestedRouteIds(
+export function assertKnownRouteIds(
   requested: readonly string[],
   routes: readonly BenchmarkRoute[]
-): string[] {
+) {
   const known = new Set(routes.map(route => route.id));
-  const resolved = requested.map(id => RETIRED_ROUTE_IDS[id] ?? id);
-  const unknown = resolved.filter(id => !known.has(id));
-  if (unknown.length) throw new Error(`Unknown benchmark route id(s): ${unknown.join(', ')}`);
-  return [...new Set(resolved)];
+  const unknown = requested.filter(id => !known.has(id));
+  if (unknown.length) {
+    throw new Error(
+      `Unknown benchmark route id(s): ${unknown.join(', ')}. Valid ids: ${[...known].join(', ')}`
+    );
+  }
 }

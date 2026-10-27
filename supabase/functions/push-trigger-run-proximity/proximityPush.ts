@@ -8,6 +8,7 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import {
+  isTruncatedPushBatch,
   loadPushSubscriptions,
   sendWebPushBatch,
   type PushSubscriptionRow,
@@ -65,6 +66,12 @@ export function createProximityPushPort(options: {
       JSON.stringify({ ...payload, actionUrl: `/classes/${classId}` }),
       { label: 'push-trigger-run-proximity', quiet: true }
     );
+
+    if (isTruncatedPushBatch(outcome, subscriptions.length)) {
+      console.error(
+        `push-trigger-run-proximity: class ${classId} fanout incomplete: sent=${outcome.sent} failed=${outcome.failed} skipped=${outcome.skipped} truncated=${outcome.truncated} of ${subscriptions.length}`
+      );
+    }
 
     // Delivered to at least one device counts as sent. Throwing when none
     // accepted it keeps the dispatcher's pushFailed counter honest.

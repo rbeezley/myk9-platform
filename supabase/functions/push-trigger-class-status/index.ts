@@ -4,7 +4,11 @@ import webpush from 'npm:web-push@3';
 import type { EntryAudienceRow } from '../_shared/entryAudience.ts';
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
-import { loadPushSubscriptions, sendWebPushBatch } from '../_shared/pushFanout.ts';
+import {
+  isTruncatedPushBatch,
+  loadPushSubscriptions,
+  sendWebPushBatch,
+} from '../_shared/pushFanout.ts';
 import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
 
 interface WebhookPayload {
@@ -82,14 +86,22 @@ handle<WebhookPayload>(
       body: `${payload.record.name} is now in progress`,
       priority: 'high',
     });
-    const { sent, expired } = await sendWebPushBatch(
-      webpush,
-      supabase,
-      subscriptions,
-      pushPayload,
-      { label: 'push-trigger-class-status' }
-    );
+    const outcome = await sendWebPushBatch(webpush, supabase, subscriptions, pushPayload, {
+      label: 'push-trigger-class-status',
+    });
 
-    return { status: 'push_sent', recipients: audienceIds.size, sent, expired };
+    if (isTruncatedPushBatch(outcome, subscriptions.length)) {
+      console.error(
+        `push-trigger-class-status: class ${payload.record.id} fanout incomplete: sent=${outcome.sent} failed=${outcome.failed} skipped=${outcome.skipped} truncated=${outcome.truncated} of ${subscriptions.length}`
+      );
+    }
+
+    return {
+      status: 'push_sent',
+      recipients: audienceIds.size,
+      sent: outcome.sent,
+      expired: outcome.expired,
+      truncated: outcome.truncated,
+    };
   }
 );

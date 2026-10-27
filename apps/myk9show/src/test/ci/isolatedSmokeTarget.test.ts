@@ -88,6 +88,14 @@ describe('browser smoke never targets the live project (MYK9-1449)', () => {
       expect(test).toBeLessThan(stop);
       expect(block[stop - 1]?.trim()).toBe('if: always()');
 
+      // The seeded local target always has canary data, so absence must fail
+      // rather than skip (helpers/liveCanary.ts DATA_REQUIRED).
+      if (jobHeading === 'e2e-myk9show:') {
+        const nextStep = block.findIndex((line, i) => i > test && /^ {6}- /.test(line));
+        const testStep = block.slice(test, nextStep).join('\n');
+        expect(testStep).toContain("MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'");
+      }
+
       const prepareStep = block.slice(prepare - 1, build).join('\n');
       expect(prepareStep).toContain('MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated');
       expect(prepareStep).toContain('MYK9_E2E_APPROVED_PROJECT_REFS: local');

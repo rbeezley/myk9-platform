@@ -947,6 +947,9 @@ jobs:
         run: pnpm test:e2e:ci
         env:
           CI: 'true'
+          # The local target is always seeded, so missing canary data is a
+          # failure here, not a skip (helpers/liveCanary.ts DATA_REQUIRED).
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
           # my-entries-page-ui.spec.ts and the exhibitor fixture specs sign in
           # as the demo exhibitor.

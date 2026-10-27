@@ -395,7 +395,10 @@ describe('AuthContext RBAC lifecycle', () => {
       },
       { timeout: 5000 }
     );
-    expect(screen.getByTestId('offline-from-cache')).not.toHaveTextContent('live');
+    await waitFor(
+      () => expect(screen.getByTestId('offline-from-cache')).not.toHaveTextContent('live'),
+      { timeout: 5000 }
+    );
     expect(screen.getByText('secretary surface')).toBeInTheDocument();
     expect(screen.queryByText('denied')).not.toBeInTheDocument();
   });
@@ -977,7 +980,14 @@ describe('AuthContext RBAC lifecycle', () => {
   });
 
   it('does NOT hydrate from cache on a non-network failure — a server error is not offline', async () => {
-    saveRbacPermissionsCache(mockUser.id, accessForRole(UserRole.SECRETARY));
+    // Older than the 24h warm-read bound (MYK9-1349), so only the offline path could use it.
+    localStorage.setItem(
+      `myk9show:rbac-cache:${mockUser.id}`,
+      JSON.stringify({
+        cachedAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+        data: accessForRole(UserRole.SECRETARY),
+      })
+    );
     mockRbacService.getUserPermissions.mockRejectedValue(new Error('boom: RPC exploded'));
 
     const TestComponent = () => {

@@ -18,6 +18,7 @@ import { rbacService } from '@/services/rbac/RBACService';
 import {
   clearRbacPermissionsCache,
   loadRbacPermissionsCache,
+  RBAC_WARM_CACHE_MAX_AGE_MS,
   saveRbacPermissionsCache,
   type RbacCacheEntry,
 } from './rbacPermissionsCache';
@@ -40,6 +41,8 @@ interface RbacState {
   lastRefreshed: string | null;
   /** Set when roles were hydrated from the device-local cache (offline cold boot). */
   fromCacheAt: string | null;
+  /** Painted from a <=24h saved copy while the server answers (MYK9-1349). */
+  warmSeeded: boolean;
 }
 
 const EMPTY_STATE: RbacState = {
@@ -53,6 +56,7 @@ const EMPTY_STATE: RbacState = {
   error: null,
   lastRefreshed: null,
   fromCacheAt: null,
+  warmSeeded: false,
 };
 
 function mapRbacRoles(roles: UserRoleWithDetails[]): UserRoleWithDetails[] {
@@ -77,6 +81,16 @@ function toLoadedState(userId: string, data: UserPermissionsResponse): RbacState
     error: null,
     lastRefreshed: new Date().toISOString(),
     fromCacheAt: null,
+    warmSeeded: false,
+  };
+}
+
+/** Warm seed: renders at once, but the device is online so no offline notice. */
+function toWarmSeededState(userId: string, entry: RbacCacheEntry): RbacState {
+  return {
+    ...toLoadedState(userId, entry.data),
+    lastRefreshed: entry.cachedAt,
+    warmSeeded: true,
   };
 }
 
@@ -154,12 +168,22 @@ export function useRbacLifecycle(userId: string | undefined) {
         // Silent background refresh: once roles are loaded for this user, keep
         // the state as is (no loading flip, so HomeRedirect and gated routes
         // do not flash a fallback) and replace it on success.
+        // MYK9-1349: first load for a user paints from a saved copy (same id,
+        // <=24h) while the server answers; success below REPLACES it.
+        const warm =
+          attempt === 0 && !bypassCache
+            ? loadRbacPermissionsCache(userId, RBAC_WARM_CACHE_MAX_AGE_MS)
+            : null;
         setState(previous =>
           previous.userId === userId
             ? previous.lastRefreshed !== null
               ? previous
-              : { ...previous, isLoading: true, error: null }
-            : { ...EMPTY_STATE, userId, isLoading: true }
+              : warm
+                ? toWarmSeededState(userId, warm)
+                : { ...previous, isLoading: true, error: null }
+            : warm
+              ? toWarmSeededState(userId, warm)
+              : { ...EMPTY_STATE, userId, isLoading: true }
         );
         const data = bypassCache
           ? await rbacService.getUserPermissions(userId, undefined, { bypassCache })
@@ -204,7 +228,11 @@ export function useRbacLifecycle(userId: string | undefined) {
             error: errorMessage,
             // A non-network failure means we reached the backend — stop
             // claiming "working offline" even if the roles came from cache.
-            fromCacheAt: isOffline ? previous.fromCacheAt : null,
+            // A warm seed that could not revalidate offline is cache-served now.
+            fromCacheAt: isOffline
+              ? (previous.fromCacheAt ?? (previous.warmSeeded ? previous.lastRefreshed : null))
+              : null,
+            warmSeeded: false,
           };
         });
       }

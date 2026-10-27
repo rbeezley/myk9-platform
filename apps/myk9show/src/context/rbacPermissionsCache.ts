@@ -17,6 +17,12 @@ import { OFFLINE_SESSION_CACHE_TTL_MS } from './offlineSessionCacheTtl';
 /** Entries older than this are ignored — a show weekend plus travel margin. */
 export const RBAC_CACHE_TTL_MS = OFFLINE_SESSION_CACHE_TTL_MS;
 
+/**
+ * Warm-read bound (MYK9-1349): a saved copy older than this is never used to
+ * paint before the server answers. The offline fallback keeps the full TTL.
+ */
+export const RBAC_WARM_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
 const KEY_PREFIX = 'myk9show:rbac-cache:';
 
 export interface RbacCacheEntry {
@@ -38,7 +44,10 @@ export function saveRbacPermissionsCache(userId: string, data: UserPermissionsRe
   }
 }
 
-export function loadRbacPermissionsCache(userId: string): RbacCacheEntry | null {
+export function loadRbacPermissionsCache(
+  userId: string,
+  maxAgeMs: number = RBAC_CACHE_TTL_MS
+): RbacCacheEntry | null {
   try {
     const raw = window.localStorage.getItem(cacheKey(userId));
     if (!raw) return null;
@@ -67,6 +76,10 @@ export function loadRbacPermissionsCache(userId: string): RbacCacheEntry | null 
       clearRbacPermissionsCache(userId);
       return null;
     }
+
+    // Too old for THIS reader but still inside the TTL: leave it on disk for
+    // the offline fallback.
+    if (Date.now() - cachedAtMs > maxAgeMs) return null;
 
     return { cachedAt: entry.cachedAt as string, data };
   } catch {

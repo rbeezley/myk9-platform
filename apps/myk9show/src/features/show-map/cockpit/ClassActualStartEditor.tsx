@@ -63,8 +63,8 @@ function ClassActualStartEditorForm({
         <Button
           type="button"
           variant="ghost"
-          size="sm"
-          className="h-8 px-2 text-xs"
+          size="touch"
+          className="px-2 text-xs"
           disabled={saving}
           onClick={() => {
             setError(null);
@@ -78,8 +78,8 @@ function ClassActualStartEditorForm({
           <Button
             type="button"
             variant="ghost"
-            size="sm"
-            className="h-8 px-2 text-xs"
+            size="touch"
+            className="px-2 text-xs"
             disabled={saving}
             onClick={() => void write(undefined)}
             aria-label={`Clear start time for ${className}`}
@@ -115,16 +115,15 @@ function ClassActualStartEditorForm({
           setDraft(value);
           setError(null);
         }}
-        className="h-9 w-32"
+        className="h-11 w-32"
       />
-      <Button type="button" size="sm" className="h-9" disabled={saving} onClick={save}>
+      <Button type="button" size="touch" disabled={saving} onClick={save}>
         Save
       </Button>
       <Button
         type="button"
         variant="ghost"
-        size="sm"
-        className="h-9"
+        size="touch"
         onClick={() => {
           setEditing(false);
           setError(null);

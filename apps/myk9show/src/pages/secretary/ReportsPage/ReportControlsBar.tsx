@@ -153,7 +153,7 @@ export function ReportControlsBar({
             Trial
           </label>
           <Select value={trialId} onValueChange={onTrialChange}>
-            <SelectTrigger id="trial-select" className="h-10 w-full sm:w-[160px]">
+            <SelectTrigger id="trial-select" className="h-11 w-full sm:w-[160px]">
               <SelectValue placeholder="All Trials">{selectedTrialLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -175,7 +175,7 @@ export function ReportControlsBar({
             Class
           </label>
           <Select value={classId} onValueChange={onClassChange} disabled={trialId === 'all'}>
-            <SelectTrigger id="class-select" className="h-10 w-full sm:w-[200px]">
+            <SelectTrigger id="class-select" className="h-11 w-full sm:w-[200px]">
               <SelectValue placeholder="All Classes">{selectedClassLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -224,7 +224,7 @@ export function ReportControlsBar({
             Dog
           </label>
           <Select value={dogId} onValueChange={onDogChange}>
-            <SelectTrigger id="dog-select" className="h-10 w-full sm:w-[240px]">
+            <SelectTrigger id="dog-select" className="h-11 w-full sm:w-[240px]">
               <SelectValue placeholder="All Dogs">{selectedDogLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -252,7 +252,7 @@ export function ReportControlsBar({
             Sort
           </label>
           <Select value={sortOrder} onValueChange={onSortChange}>
-            <SelectTrigger id="sort-select" className="h-10 w-full sm:w-[160px]">
+            <SelectTrigger id="sort-select" className="h-11 w-full sm:w-[160px]">
               <SelectValue placeholder="Sort by">{selectedSortLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>

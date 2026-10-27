@@ -5,7 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
-import ClubMembersPage from './ClubMembersPage';
+import { ClubMembersManager } from './ClubMembersManager';
 
 const {
   getClubShowManagers,
@@ -111,7 +111,7 @@ const pendingRequest = {
   createdAt: '2026-09-20T12:00:00Z',
 };
 
-describe('ClubMembersPage membership requests', () => {
+describe('ClubMembersManager membership requests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getClubShowManagers.mockResolvedValue([]);
@@ -122,7 +122,7 @@ describe('ClubMembersPage membership requests', () => {
   });
 
   it('lists a pending membership request on the Members tab with its reason and a badge', async () => {
-    render(<ClubMembersPage />);
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
     expect(await screen.findByText('Membership requests')).toBeInTheDocument();
     expect(screen.getByText('Rita Requester')).toBeInTheDocument();
@@ -133,7 +133,7 @@ describe('ClubMembersPage membership requests', () => {
 
   it('approves a membership request', async () => {
     const user = userEvent.setup();
-    render(<ClubMembersPage />);
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
     await screen.findByText('Rita Requester');
     await user.click(screen.getByRole('button', { name: /approve/i }));
@@ -148,7 +148,7 @@ describe('ClubMembersPage membership requests', () => {
 
   it('denies with the note the admin typed', async () => {
     const user = userEvent.setup();
-    render(<ClubMembersPage />);
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
     await screen.findByText('Rita Requester');
     await user.click(screen.getByRole('button', { name: /^deny$/i }));
@@ -166,7 +166,7 @@ describe('ClubMembersPage membership requests', () => {
   it('reports a rejected approval', async () => {
     approveClubMembershipRequest.mockRejectedValue(new Error('forbidden'));
     const user = userEvent.setup();
-    render(<ClubMembersPage />);
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
     await screen.findByText('Rita Requester');
     await user.click(screen.getByRole('button', { name: /approve/i }));

@@ -23,15 +23,12 @@ import { signInAsAdmin } from '../helpers/testUsers';
  */
 
 test.describe('Club-admin membership + staffing journey', () => {
-  test('members page shows Members/Officers tabs and the Add Member dialog', async ({ page }) => {
+  test('members tab shows Members/Officers tabs and the Add Member dialog', async ({ page }) => {
     await signInAsAdmin(page, '/club-admin/members');
-    await expect(page).toHaveURL(/\/club-admin\/members/);
+    // /club-admin/members redirects to the Members tab of the club page (MYK9-1293).
+    await expect(page).toHaveURL(/\/clubs\/[^/?]+\?.*tab=members/, { timeout: 20_000 });
 
-    await expect(page.getByRole('heading', { name: /Members$/, level: 1 })).toBeVisible({
-      timeout: 20_000,
-    });
-
-    const membersTab = page.getByRole('tab', { name: 'Members' });
+    const membersTab = page.getByRole('tab', { name: /^Members/ }).first();
     const officersTab = page.getByRole('tab', { name: 'Officers' });
     await expect(membersTab).toBeVisible();
     await expect(officersTab).toBeVisible();
@@ -48,7 +45,7 @@ test.describe('Club-admin membership + staffing journey', () => {
 
   test('officers tab shows the Assign Officer dialog with a position field', async ({ page }) => {
     await signInAsAdmin(page, '/club-admin/members');
-    await expect(page).toHaveURL(/\/club-admin\/members/);
+    await expect(page).toHaveURL(/\/clubs\/[^/?]+\?.*tab=members/, { timeout: 20_000 });
 
     await page.getByRole('tab', { name: 'Officers' }).click();
     const officersPanel = page.getByRole('tabpanel', { name: 'Officers' });
@@ -68,12 +65,14 @@ test.describe('Club-admin membership + staffing journey', () => {
     await page.getByRole('button', { name: 'Cancel' }).click();
   });
 
-  test('club payments page loads for the club admin', async ({ page }) => {
+  test('club payments tab loads for the club admin', async ({ page }) => {
     await signInAsAdmin(page, '/club-admin/payments');
-    await expect(page).toHaveURL(/\/club-admin\/payments/);
+    await expect(page).toHaveURL(/\/clubs\/[^/?]+\?.*tab=payments/, { timeout: 20_000 });
 
-    await expect(page.getByRole('heading', { name: 'Payments', level: 1 })).toBeVisible({
-      timeout: 20_000,
-    });
+    await expect(page.getByRole('tab', { name: 'Payments' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+      { timeout: 20_000 }
+    );
   });
 });

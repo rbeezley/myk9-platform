@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { createTestQueryClient, render, screen, waitFor } from '@/test/utils/testUtils';
 import { queryKeys } from '@/lib/queryClient';
-import ClubMembersPage from './ClubMembersPage';
+import { ClubMembersManager } from './ClubMembersManager';
 
 const {
   getClubShowManagers,
@@ -80,7 +80,7 @@ vi.mock('@/lib/notifications', () => ({
   },
 }));
 
-describe('ClubMembersPage show access', () => {
+describe('ClubMembersManager show access', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getClubShowManagers.mockResolvedValue([]);
@@ -95,7 +95,7 @@ describe('ClubMembersPage show access', () => {
       adminNames: ['Club Admin'],
       secretaryNames: [],
     });
-    render(<ClubMembersPage />, { queryClient });
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />, { queryClient });
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Grant Show Access' }));
@@ -114,7 +114,7 @@ describe('ClubMembersPage show access', () => {
   it('shows an actionable error when the access change is rejected', async () => {
     setClubShowManagerAccess.mockRejectedValue(new Error('forbidden'));
     const user = userEvent.setup();
-    render(<ClubMembersPage />);
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Grant Show Access' }));
@@ -143,7 +143,7 @@ describe('ClubMembersPage show access', () => {
       adminNames: ['Club Admin'],
       secretaryNames: ['Ada Lovelace'],
     });
-    render(<ClubMembersPage />, { queryClient });
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />, { queryClient });
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Revoke Show Access' }));
@@ -187,7 +187,7 @@ describe('ClubMembersPage show access', () => {
     ]);
     setClubShowManagerAccess.mockRejectedValue(new Error('forbidden'));
     const user = userEvent.setup();
-    render(<ClubMembersPage />);
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Revoke Show Access' }));
@@ -201,7 +201,7 @@ describe('ClubMembersPage show access', () => {
   });
 });
 
-describe('ClubMembersPage Show Access tab wiring', () => {
+describe('ClubMembersManager Show Access tab wiring', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     countUpcomingClubShows.mockResolvedValue(0);
@@ -222,7 +222,7 @@ describe('ClubMembersPage Show Access tab wiring', () => {
       },
     ]);
     const user = userEvent.setup();
-    render(<ClubMembersPage />);
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
     await user.click(await screen.findByRole('tab', { name: /show access/i }));
 
@@ -242,7 +242,7 @@ describe('ClubMembersPage Show Access tab wiring', () => {
       },
     ]);
     const user = userEvent.setup();
-    render(<ClubMembersPage />);
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
     await user.click(await screen.findByRole('tab', { name: /show access/i }));
     await user.click(await screen.findByRole('button', { name: /revoke/i }));
@@ -261,7 +261,7 @@ describe('ClubMembersPage Show Access tab wiring', () => {
   it('appoints someone who is not a club member', async () => {
     getClubShowManagers.mockResolvedValue([]);
     const user = userEvent.setup();
-    render(<ClubMembersPage />);
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
     await user.click(await screen.findByRole('tab', { name: /show access/i }));
     await user.click(await screen.findByRole('button', { name: /appoint secretary/i }));
@@ -273,7 +273,7 @@ describe('ClubMembersPage Show Access tab wiring', () => {
   });
 });
 
-describe('ClubMembersPage show-access confirmations name the person', () => {
+describe('ClubMembersManager show-access confirmations name the person', () => {
   // The toast resolved names from `members`, which cannot contain a non-member
   // appointee — the people this feature exists for. It fell back to "the member",
   // which is anonymous AND the one thing they are not. (Codex, PR #1895.)
@@ -294,7 +294,7 @@ describe('ClubMembersPage show-access confirmations name the person', () => {
       },
     ]);
     const user = userEvent.setup();
-    render(<ClubMembersPage />);
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
     await user.click(await screen.findByRole('tab', { name: /show access/i }));
     await user.click(await screen.findByRole('button', { name: /revoke/i }));
@@ -320,7 +320,7 @@ describe('ClubMembersPage show-access confirmations name the person', () => {
       },
     ]);
     const user = userEvent.setup();
-    render(<ClubMembersPage />);
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Revoke Show Access' }));

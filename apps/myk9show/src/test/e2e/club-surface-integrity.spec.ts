@@ -94,7 +94,7 @@ test.describe('club surface integrity — read-only', () => {
     await signInAsAdmin(page, '/club-admin/members');
     await expect(
       page
-        .getByRole('heading', { name: /Members$/, level: 1 })
+        .getByRole('tab', { name: 'Officers' })
         .or(page.getByText(/More than one club is linked|couldn.t verify your club access/i))
     ).toBeVisible({
       timeout: 30_000,
@@ -121,9 +121,11 @@ test.describe('club surface integrity — read-only', () => {
   test('payment setup is actionable only after club context validation', async ({ page }) => {
     const errors = installRuntimeGuards(page);
     await signInAsAdmin(page, '/club-admin/payments');
-    await expect(page.getByRole('heading', { name: 'Payments', level: 1 })).toBeVisible({
-      timeout: 30_000,
-    });
+    await expect(
+      page
+        .getByRole('tab', { name: 'Payments' })
+        .or(page.getByText(/More than one club is linked|couldn.t verify your club access/i))
+    ).toBeVisible({ timeout: 30_000 });
 
     const connectButton = page.getByRole('button', { name: 'Connect payment account' });
     if (await connectButton.isVisible().catch(() => false)) {

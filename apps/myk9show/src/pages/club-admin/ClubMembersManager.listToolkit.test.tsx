@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { useLocation } from 'react-router-dom';
 import { render, screen, waitFor, within } from '@/test/utils/testUtils';
-import ClubMembersPage from './ClubMembersPage';
+import { ClubMembersManager } from './ClubMembersManager';
 
 const { getClubShowManagers, countUpcomingClubShows } = vi.hoisted(() => ({
   getClubShowManagers: vi.fn(),
@@ -82,7 +82,7 @@ function SearchProbe() {
   return <p data-testid="search">{useLocation().search}</p>;
 }
 
-describe('ClubMembersPage list toolkit', () => {
+describe('ClubMembersManager list toolkit', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getClubShowManagers.mockResolvedValue([]);
@@ -90,7 +90,7 @@ describe('ClubMembersPage list toolkit', () => {
   });
 
   it('shows a view per membership status with counts, and both members by default', async () => {
-    render(<ClubMembersPage />);
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
     expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
     expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
@@ -105,7 +105,7 @@ describe('ClubMembersPage list toolkit', () => {
 
   it('selecting the Lapsed view narrows the table and writes ?status= to the URL', async () => {
     const user = userEvent.setup();
-    render(<ClubMembersPage />);
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
     await screen.findByText('Ada Lovelace');
 
     await user.click(screen.getByRole('combobox', { name: 'Show: Member views' }));
@@ -120,7 +120,7 @@ describe('ClubMembersPage list toolkit', () => {
 
   it('searching by name narrows the table', async () => {
     const user = userEvent.setup();
-    render(<ClubMembersPage />);
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
     await screen.findByText('Ada Lovelace');
 
     await user.type(screen.getByPlaceholderText('Search members by name or email...'), 'grace');
@@ -135,7 +135,7 @@ describe('ClubMembersPage list toolkit', () => {
     const user = userEvent.setup();
     render(
       <>
-        <ClubMembersPage />
+        <ClubMembersManager clubId="club-1" clubName="Heartland Club" />
         <SearchProbe />
       </>,
       { initialRoute: '/?status=lapsed&q=grace' }
@@ -148,7 +148,9 @@ describe('ClubMembersPage list toolkit', () => {
   });
 
   it('ignores a status no view offers (a stale link): the list is unfiltered', async () => {
-    render(<ClubMembersPage />, { initialRoute: '/?status=bogus' });
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />, {
+      initialRoute: '/?status=bogus',
+    });
     await screen.findByRole('combobox', { name: 'Show: Member views' });
     await waitFor(() =>
       expect(screen.getAllByRole('status').map(el => el.textContent)).toContain(

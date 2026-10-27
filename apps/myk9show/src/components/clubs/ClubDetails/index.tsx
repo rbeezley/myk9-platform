@@ -1,6 +1,6 @@
 import { ClubNumbersSection } from './ClubNumbersSection';
-import React, { useCallback, useMemo, useRef } from 'react';
-import { Calendar, History, Info, Users, Palette } from 'lucide-react';
+import React, { Suspense, useCallback, useMemo, useRef } from 'react';
+import { Calendar, History, Info, Users, Palette, CreditCard } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { PageShell } from '@/components/common/PageShell';
@@ -17,6 +17,8 @@ import { UpcomingShowsTab } from './UpcomingShowsTab';
 import { PastShowsTab } from './PastShowsTab';
 import { AboutTab } from './AboutTab';
 import { MembersTab } from './MembersTab';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { AdminTabFallback } from './AdminTabFallback';
 import { BrandingTab } from './BrandingTab';
 import { ClubDialogs } from './ClubDialogs';
 import { ClubShowsUnsettled } from './ClubShowsUnsettled';
@@ -24,6 +26,14 @@ import { useClubDetailsState } from './useClubDetailsState';
 import { RevokeClubAuthorizationDialog } from './RevokeClubAuthorizationDialog';
 
 export type { ClubDetailsProps };
+
+// Admin-only tabs: kept out of the chunk every guest loads for a public club page (MYK9-1293).
+const ClubMembersManager = lazyWithRetry(() =>
+  import('@/pages/club-admin/ClubMembersManager').then(m => ({ default: m.ClubMembersManager }))
+);
+const ClubPaymentsTab = lazyWithRetry(() =>
+  import('./ClubPaymentsTab').then(m => ({ default: m.ClubPaymentsTab }))
+);
 
 const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
   logger.debug('ClubDetails render start', 'clubs', {
@@ -72,6 +82,9 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
         count: state.activeMembers.length,
       },
     ];
+    if (state.canManageClubAdmin) {
+      tabs.push({ id: 'payments', label: 'Payments', icon: CreditCard });
+    }
     if (state.canEditBranding) {
       tabs.push({ id: 'branding', label: 'Branding', icon: Palette });
     }
@@ -82,6 +95,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
     pastShows.length,
     state.activeMembers.length,
     state.canEditBranding,
+    state.canManageClubAdmin,
   ]);
 
   if (!selectedClub) {
@@ -170,17 +184,33 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
             </TabsContent>
 
             <TabsContent value="members" className="pt-6">
-              <MembersTab
-                club={selectedClub}
-                members={state.activeMembers}
-                isLoading={state.isMembersLoading}
-                isRefreshing={state.isMembersRefreshing}
-                isError={state.isMembersError}
-                onRetry={() => void state.retryMembers()}
-                canManageMembers={state.canManageMembers}
-                onAddMember={state.handleAddMember}
-              />
+              {/* MYK9-1293: the admin of THIS club manages the roster here; everyone else
+                  keeps the read-only list. */}
+              {state.canManageClubAdmin ? (
+                <Suspense fallback={<AdminTabFallback label="Loading club members" />}>
+                  <ClubMembersManager clubId={selectedClub.id} clubName={selectedClub.name} />
+                </Suspense>
+              ) : (
+                <MembersTab
+                  club={selectedClub}
+                  members={state.activeMembers}
+                  isLoading={state.isMembersLoading}
+                  isRefreshing={state.isMembersRefreshing}
+                  isError={state.isMembersError}
+                  onRetry={() => void state.retryMembers()}
+                  canManageMembers={state.canManageMembers}
+                  onAddMember={state.handleAddMember}
+                />
+              )}
             </TabsContent>
+
+            {state.canManageClubAdmin && (
+              <TabsContent value="payments" className="pt-6">
+                <Suspense fallback={<AdminTabFallback label="Loading club payments" />}>
+                  <ClubPaymentsTab clubId={selectedClub.id} />
+                </Suspense>
+              </TabsContent>
+            )}
 
             {state.canEditBranding && (
               <TabsContent value="branding" className="pt-6">

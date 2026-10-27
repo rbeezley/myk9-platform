@@ -3,6 +3,7 @@
  *
  * All /club-admin/* pages render inside UnifiedAppLayout (sidebar provided by parent).
  * Protected by ClubAdminRoute (CLUB_ADMIN or SITE_ADMIN).
+ * Members and Payments are tabs on the club page (MYK9-1293); these routes redirect there.
  */
 
 import { Route } from 'react-router-dom';
@@ -11,8 +12,7 @@ import { ClubAdminRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 
-const ClubMembersPage = lazyWithRetry(() => import('@/pages/club-admin/ClubMembersPage'));
-const ClubPaymentsPage = lazyWithRetry(() => import('@/pages/club-admin/ClubPaymentsPage'));
+const ClubAdminRedirect = lazyWithRetry(() => import('@/pages/club-admin/ClubAdminRedirect'));
 
 export function ClubAdminRoutes() {
   return (
@@ -23,7 +23,7 @@ export function ClubAdminRoutes() {
           <ClubAdminRoute>
             <SuspenseWrapper>
               <PageTransition>
-                <ClubMembersPage />
+                <ClubAdminRedirect />
               </PageTransition>
             </SuspenseWrapper>
           </ClubAdminRoute>
@@ -35,7 +35,7 @@ export function ClubAdminRoutes() {
           <ClubAdminRoute>
             <SuspenseWrapper>
               <PageTransition>
-                <ClubPaymentsPage />
+                <ClubAdminRedirect />
               </PageTransition>
             </SuspenseWrapper>
           </ClubAdminRoute>

@@ -3,10 +3,12 @@ import { config as loadEnv } from 'dotenv';
 import { assertPlaywrightRunAllowed } from './src/test/productionFixtureGuard';
 import { loadAppServerCommand, resolveLoadAppServerMode } from './src/test/load/loadAppServer';
 
+// MYK9-1454: the shell's own environment, before .env files; the production opt-in is read from it.
+const shellEnv = { ...process.env };
 loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
 // MYK9-1454: refuse to sign fixture accounts into production unless the run opts in.
-assertPlaywrightRunAllowed('playwright.load.config.ts');
+assertPlaywrightRunAllowed('playwright.load.config.ts', shellEnv);
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:5173';
 const parsedBaseURL = new URL(baseURL);

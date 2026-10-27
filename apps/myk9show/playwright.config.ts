@@ -4,10 +4,12 @@ import { assertPlaywrightRunAllowed } from './src/test/productionFixtureGuard';
 import { createHash } from 'node:crypto';
 
 // Load .env.local first (gitignored, takes precedence), then fall back to .env.
+// MYK9-1454: the shell's own environment, before .env files; the production opt-in is read from it.
+const shellEnv = { ...process.env };
 loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
 // MYK9-1454: refuse to sign fixture accounts into production unless the run opts in.
-assertPlaywrightRunAllowed('playwright.config.ts');
+assertPlaywrightRunAllowed('playwright.config.ts', shellEnv);
 
 // `reuseExistingServer` is on outside CI, so a fixed default port means a local
 // run silently tests whichever WORKTREE happens to own it — this machine keeps a

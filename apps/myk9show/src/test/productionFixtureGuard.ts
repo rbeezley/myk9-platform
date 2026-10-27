@@ -9,7 +9,9 @@
  * deliberate, visible choice everywhere else.
  *
  * A run that must measure production (the nightly read-only health check, the page-readiness
- * probe, the load rehearsal) sets `MYK9_ALLOW_PROD_E2E=1`. Nothing else does.
+ * probe, the load rehearsal) sets `MYK9_ALLOW_PROD_E2E=1` in its own environment. The opt-in is
+ * read from the process environment as the shell or workflow set it, never from `.env` files:
+ * a saved opt-in would turn the guard off for good without anyone seeing it.
  */
 
 export const PRODUCTION_PROJECT_REF = 'sojmvhhwsjxmfistvzbe';
@@ -28,37 +30,55 @@ export function targetsProductionProject(supabaseUrl: string | undefined): boole
 }
 
 /**
- * Throws before a fixture password is sent to the production project, unless
- * `MYK9_ALLOW_PROD_E2E=1` is set. `who` names the caller, so the refusal says what to change.
+ * Throws before a fixture password is sent to the production project, unless the run's own
+ * environment sets `MYK9_ALLOW_PROD_E2E=1`. Any one of `supabaseUrls` naming production is
+ * enough: the app bundle and the test process can each read a different variable, and a stale
+ * loopback value in one must not hide a production value in the other. `who` names the caller,
+ * so the refusal says what to change.
  */
 export function assertFixtureSignInAllowed(
-  supabaseUrl: string | undefined,
+  supabaseUrls: string | undefined | ReadonlyArray<string | undefined>,
   who: string,
-  env: Env = process.env
+  optInEnv: Env = process.env
 ): void {
-  if (!targetsProductionProject(supabaseUrl)) return;
-  if (env[ALLOW_PRODUCTION_FIXTURE_SIGN_IN] === '1') return;
+  const urls = typeof supabaseUrls === 'string' || !supabaseUrls ? [supabaseUrls] : supabaseUrls;
+  if (!urls.some(targetsProductionProject)) return;
+  if (optInEnv[ALLOW_PRODUCTION_FIXTURE_SIGN_IN] === '1') return;
   throw new Error(
     `${who}: refusing to sign a test account into the production project (${PRODUCTION_PROJECT_REF}). ` +
       'Every fixture sign-in runs a full sync and slows the live site for real users (MYK9-1454). ' +
       'Point VITE_SUPABASE_URL at an isolated stack (pnpm qa:isolated-e2e:prepare), or, for a run ' +
-      `that must measure production, set ${ALLOW_PRODUCTION_FIXTURE_SIGN_IN}=1.`
+      `that must measure production, set ${ALLOW_PRODUCTION_FIXTURE_SIGN_IN}=1 in the shell ` +
+      '(it is ignored in .env files).'
   );
 }
 
 const FIXTURE_PASSWORD = /^E2E_[A-Z_]+_PASSWORD$/;
 
 /**
- * The Playwright-config form, called at the top of every config that loads `.env`. A spec can
- * sign in through `testUsers.signIn` or type the password itself (show-presence, entry-intent),
- * so the one place every run passes is its config: if any fixture password is configured and
- * the app under test talks to production, the run refuses to start. A run with no fixture
- * password signs nobody in and is left alone.
+ * The Playwright-config form, called at the top of every config. A spec can sign in through
+ * `testUsers.signIn` or type the password itself (show-presence, entry-intent), so the one place
+ * every run passes is its config: if any fixture password is configured and the app under test
+ * talks to production, the run refuses to start. Left alone: a run with no fixture password
+ * (it signs nobody in) and `--list`, which only collects tests.
+ *
+ * `shellEnv` is the environment as it was BEFORE the config loaded `.env` files; the opt-in is
+ * read from it alone. `env` is the merged one the run will use.
  */
-export function assertPlaywrightRunAllowed(configName: string, env: Env = process.env): void {
+export function assertPlaywrightRunAllowed(
+  configName: string,
+  shellEnv: Env,
+  env: Env = process.env,
+  argv: ReadonlyArray<string> = process.argv
+): void {
+  if (argv.includes('--list')) return;
   const signsInFixtures = Object.entries(env).some(
     ([name, value]) => FIXTURE_PASSWORD.test(name) && !!value
   );
   if (!signsInFixtures) return;
-  assertFixtureSignInAllowed(env.MYK9_E2E_SUPABASE_URL || env.VITE_SUPABASE_URL, configName, env);
+  assertFixtureSignInAllowed(
+    [env.MYK9_E2E_SUPABASE_URL, env.VITE_SUPABASE_URL],
+    configName,
+    shellEnv
+  );
 }

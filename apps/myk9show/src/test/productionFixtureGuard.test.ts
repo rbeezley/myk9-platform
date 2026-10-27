@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -56,42 +56,44 @@ describe('production fixture sign-in guard (MYK9-1454)', () => {
 });
 
 describe('a Playwright run refuses to start against production with fixture passwords', () => {
-  const withPassword = { E2E_SECRETARY_PASSWORD: 'pw', VITE_SUPABASE_URL: PRODUCTION };
+  const merged = { E2E_SECRETARY_PASSWORD: 'pw', VITE_SUPABASE_URL: PRODUCTION };
+  const run = (env: Record<string, string>, shell: Record<string, string> = {}, argv = ['test']) =>
+    assertPlaywrightRunAllowed('playwright.config.ts', shell, env, argv);
 
   it('refuses when a fixture password is configured and the app talks to production', () => {
-    expect(() => assertPlaywrightRunAllowed('playwright.config.ts', withPassword)).toThrow(
-      /playwright\.config\.ts: refusing/
-    );
+    expect(() => run(merged)).toThrow(/playwright\.config\.ts: refusing/);
   });
 
-  it('allows the same run with the explicit opt-in', () => {
+  it('allows the same run when the shell opts in', () => {
+    expect(() => run(merged, { [ALLOW_PRODUCTION_FIXTURE_SIGN_IN]: '1' })).not.toThrow();
+  });
+
+  it('ignores an opt-in that only a .env file supplied', () => {
+    // The merged env carries it (dotenv loaded it); the shell never set it.
+    expect(() => run({ ...merged, [ALLOW_PRODUCTION_FIXTURE_SIGN_IN]: '1' })).toThrow(/refusing/);
+  });
+
+  it('leaves a run alone that signs nobody in, and a --list run', () => {
+    expect(() => run({ VITE_SUPABASE_URL: PRODUCTION })).not.toThrow();
+    expect(() => run({ VITE_SUPABASE_URL: PRODUCTION, E2E_SECRETARY_PASSWORD: '' })).not.toThrow();
+    expect(() => run(merged, {}, ['test', '--list'])).not.toThrow();
+  });
+
+  it('allows a run whose app and test process both target the isolated stack', () => {
     expect(() =>
-      assertPlaywrightRunAllowed('playwright.config.ts', {
-        ...withPassword,
-        [ALLOW_PRODUCTION_FIXTURE_SIGN_IN]: '1',
-      })
+      run({ ...merged, VITE_SUPABASE_URL: LOCAL, MYK9_E2E_SUPABASE_URL: LOCAL })
     ).not.toThrow();
   });
 
-  it('leaves a run alone that signs nobody in', () => {
+  it('refuses when only one of the two URLs is isolated: a stale loopback cannot hide production', () => {
+    expect(() => run({ ...merged, MYK9_E2E_SUPABASE_URL: LOCAL })).toThrow(/refusing/);
     expect(() =>
-      assertPlaywrightRunAllowed('playwright.config.ts', { VITE_SUPABASE_URL: PRODUCTION })
-    ).not.toThrow();
-    expect(() =>
-      assertPlaywrightRunAllowed('playwright.config.ts', {
-        VITE_SUPABASE_URL: PRODUCTION,
-        E2E_SECRETARY_PASSWORD: '',
+      run({
+        E2E_SECRETARY_PASSWORD: 'pw',
+        VITE_SUPABASE_URL: LOCAL,
+        MYK9_E2E_SUPABASE_URL: PRODUCTION,
       })
-    ).not.toThrow();
-  });
-
-  it('uses the isolated target when one is prepared, even if .env still names production', () => {
-    expect(() =>
-      assertPlaywrightRunAllowed('playwright.ci.config.ts', {
-        ...withPassword,
-        MYK9_E2E_SUPABASE_URL: LOCAL,
-      })
-    ).not.toThrow();
+    ).toThrow(/refusing/);
   });
 });
 
@@ -133,18 +135,28 @@ describe('every fixture sign-in path is guarded, and only production checks opt 
     expect(guard).toBeLessThan(source.indexOf('signInWithPassword('));
   });
 
-  it.each([
-    'apps/myk9show/playwright.config.ts',
-    'apps/myk9show/playwright.ci.config.ts',
-    'apps/myk9show/playwright.audit.config.ts',
-    'apps/myk9show/playwright.load.config.ts',
-    'apps/myk9show/playwright.readiness.config.ts',
-  ])('%s checks the run after loading .env and before defining the config', path => {
+  // Every config on disk, so a new one cannot slip past unguarded.
+  const configs = readdirSync(resolve(repo, 'apps/myk9show'))
+    .filter(name => /^playwright(\..+)?\.config\.ts$/.test(name))
+    .map(name => `apps/myk9show/${name}`);
+
+  it('finds every Playwright config (positive control)', () => {
+    expect(configs.length).toBeGreaterThanOrEqual(7);
+    expect(configs).toContain('apps/myk9show/playwright.ci.config.ts');
+  });
+
+  it.each(configs)('%s checks the run before defining the config', path => {
     const source = read(path);
     const guard = source.search(/^assertPlaywrightRunAllowed\(/m);
     expect(guard, 'a top-level call, not a comment or import').toBeGreaterThan(-1);
-    expect(guard).toBeGreaterThan(source.lastIndexOf("loadEnv({ path: '.env'"));
     expect(guard).toBeLessThan(source.indexOf('export default defineConfig('));
+    const firstLoad = source.indexOf('loadEnv({');
+    if (firstLoad === -1) return;
+    // A config that loads .env files snapshots the shell first and checks after the last load.
+    expect(source.search(/^const shellEnv = \{ \.\.\.process\.env \};$/m)).toBeLessThan(firstLoad);
+    expect(source.search(/^const shellEnv = /m)).toBeGreaterThan(-1);
+    expect(guard).toBeGreaterThan(source.lastIndexOf('loadEnv({'));
+    expect(source.slice(guard, source.indexOf('\n', guard))).toContain('shellEnv');
   });
 
   it.each([
@@ -155,10 +167,12 @@ describe('every fixture sign-in path is guarded, and only production checks opt 
     expect(read(path)).toContain(`${ALLOW_PRODUCTION_FIXTURE_SIGN_IN}: '1'`);
   });
 
-  it.each(['.github/workflows/ci.yml', '.github/workflows/nightly-e2e.yml'])(
-    '%s never opts in: it runs against an isolated stack',
-    path => {
-      expect(read(path)).not.toContain(ALLOW_PRODUCTION_FIXTURE_SIGN_IN);
-    }
-  );
+  it.each([
+    '.github/workflows/ci.yml',
+    '.github/workflows/nightly-e2e.yml',
+    '.github/workflows/batch3-verification.yml',
+    '.github/workflows/show-day-verification.yml',
+  ])('%s never opts in: it runs against an isolated stack', path => {
+    expect(read(path)).not.toContain(ALLOW_PRODUCTION_FIXTURE_SIGN_IN);
+  });
 });

@@ -127,26 +127,32 @@ for (const viewport of [
     const selectAll = page.getByRole('checkbox', {
       name: /^Select all (on page|entry forms on this page)$/,
     });
+    // elementFromPoint only sees the viewport, and boundingBox does not scroll.
+    await selectAll.scrollIntoViewIfNeeded();
     const box = await selectAll.boundingBox();
     expect(box, 'select-all checkbox must be rendered').not.toBeNull();
-    // Each corner of the 44x44 square centred on the checkbox must hit the
-    // checkbox itself (its ::before is part of its hit area), not the page.
     const cx = box!.x + box!.width / 2;
     const cy = box!.y + box!.height / 2;
-    for (const [dx, dy] of [
-      [-21, -21],
-      [21, -21],
-      [-21, 21],
-      [21, 21],
-    ] as const) {
-      const hitsCheckbox = await selectAll.evaluate(
+    const hitsCheckbox = (dx: number, dy: number) =>
+      selectAll.evaluate(
         (el, point) => {
           const hit = document.elementFromPoint(point.x, point.y);
           return hit === el || el.contains(hit);
         },
         { x: cx + dx, y: cy + dy }
       );
-      expect(hitsCheckbox, `corner offset ${dx},${dy} must hit the checkbox`).toBe(true);
+    // Each corner of the 44x44 square centred on the checkbox must hit the
+    // checkbox itself (its ::before is part of its hit area). ±21.5 sits inside a
+    // 44px square but outside the old 42px one, so a revert to before:-inset-3.5
+    // fails; ±23 lies outside 44 and must not hit it (a positive control).
+    for (const [sx, sy] of [
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+      [1, 1],
+    ] as const) {
+      expect(await hitsCheckbox(sx * 21.5, sy * 21.5), `corner ${sx},${sy} inside 44px`).toBe(true);
+      expect(await hitsCheckbox(sx * 23, sy * 23), `corner ${sx},${sy} outside 44px`).toBe(false);
     }
   });
 }

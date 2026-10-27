@@ -50,7 +50,7 @@ declare
   actual_state text;
   expected_rows jsonb;
 begin
-  update public.entries set check_in_status = 'no-status', check_in_status_before_pull = null
+  update public.entries set check_in_status = 'no-status'
   where id = '00000000-0000-0000-0000-000000452031';
   select jsonb_object_agg(id::text, to_jsonb(e)) into before_rows
   from public.entries e where show_id = '00000000-0000-0000-0000-000000452002';

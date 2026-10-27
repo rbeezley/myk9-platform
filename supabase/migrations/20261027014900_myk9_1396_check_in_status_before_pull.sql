@@ -1,20 +1,40 @@
 -- MYK9-1396: remember the check-in value a Pull overwrote.
 --
--- A secretary Pull writes entry_status='scratched' and check_in_status='pulled'.
--- Un-pulling (MYK9-1384) could only restore the prior check-in from an in-memory
--- Undo snapshot; a plain Accept after a reload wrote 'no-status', so a dog that
--- was checked in read "not checked in" until re-checked by hand. This adds the
--- durable half: entries.check_in_status_before_pull, stamped by the client on a
--- Pull (never overwritten while already 'pulled') and cleared on un-pull. It
--- rides the same queued entries UPDATE as check_in_status, so offline replay is
--- unchanged. entry_status_history does not record check_in_status, so it cannot
--- supply this value.
+-- A Pull writes check_in_status='pulled'. Un-pulling (MYK9-1384) could only
+-- restore the prior check-in from an in-memory Undo snapshot; a plain Accept
+-- after a reload wrote 'no-status', so a dog that was checked in read "not
+-- checked in" until re-checked by hand. This adds the durable half:
+-- entries.check_in_status_before_pull, owned by ONE BEFORE trigger.
 --
--- Server writers audited: exactly one RPC writes check_in_status='pulled',
--- public.self_checkin_entry (an exhibitor's own self-check-in allows 'pulled').
--- It is rebuilt below from its LATEST definition (20260909174329) with only the
--- UPDATE changed, so the exhibitor path stamps and clears the prior the same way
--- the secretary path does. The owner withdraw/pull RPCs only read the column.
+-- Why a trigger and not per-writer stamps: check_in_status is written by the
+-- secretary status builder, the narrow check-in desk / Show Map / ringside
+-- path (CheckinStatusDialog offers 'pulled'), bulk status updates, and the
+-- self_checkin_entry RPC. Stamping per writer missed all but two. The trigger
+-- sees every writer, queued offline replay included, and the clients no longer
+-- write the column at all. self_checkin_entry is deliberately NOT redefined
+-- here: its live body (20260909174329) is untouched and the trigger covers it.
+--
+-- Trigger rules (BEFORE UPDATE OF check_in_status, check_in_status_before_pull):
+--   * moving to 'pulled' from a non-'pulled' value stores OLD.check_in_status;
+--   * moving off 'pulled' clears it to NULL;
+--   * anything else (including a re-Pull, pulled -> pulled) keeps OLD's value.
+-- A caller can never plant a value: the stamp is always recomputed from OLD, so
+-- a supplied value is discarded. The trigger fires on UPDATE OF BOTH columns,
+-- because "UPDATE OF" fires when a column is named in the SET list; naming
+-- check_in_status_before_pull alone must also be caught or a direct write could
+-- plant it. An UPDATE naming neither column never fires it and OLD stands. A
+-- separate BEFORE INSERT trigger clears the column on every new row.
+-- The function is SECURITY INVOKER with an empty search_path in schema private,
+-- EXECUTE revoked from everyone (a trigger needs no EXECUTE grant at fire time).
+--
+-- Firing order (same-event BEFORE triggers fire alphabetically by name). The
+-- other BEFORE UPDATE triggers on entries (updated_at, entries_version_increment,
+-- stamp_entry_withdrawn_at, the refund / payment-field restrictors, the junior
+-- fee, registration-number score block, deleted-parent and soft-delete guards)
+-- each read specific columns; none reads or writes check_in_status_before_pull
+-- or depends on check_in_status's value, so ordering against them does not
+-- matter. This one is named trg_entries_check_in_before_pull and writes only
+-- NEW.check_in_status_before_pull.
 --
 -- Same value domain as check_in_status (092_add_check_in_status.sql is the only
 -- migration that defines that CHECK). NULL means "nothing remembered".
@@ -543,86 +563,47 @@ COMMENT ON VIEW public.view_authenticated_entry_results_replication IS
   'Replication feed wrapping view_authenticated_entry_results, adding the shows join needed to replicate soft-deleted shows (MYK9-291). Owner-run (security_invoker = false) like the view it wraps; the score/payment gating is inherited from that inner view body, and the shows columns are reachable only for entries the inner view already admitted. Advisor security_definer_view ERROR accepted by design 2026-09-09 (docs/improve-audit-2026-07-11/009-advisor-disposition-sweep.md, Verdict 1). Any rebuild MUST carry WITH (security_invoker = false) inline -- CREATE OR REPLACE VIEW resets reloptions. The select list is explicit (MYK9-632): `entries.*` re-expanded on every rebuild and would have reordered the columns the moment the inner view gained one. moved_from_entry_id (MYK9-639) is appended after it. registration_confirmation_number (MYK9-659) is appended after that, so the offline receipt prints the same order reference as the online one -- guarded by the inner view''s can_view_admin alone (see that view''s comment), which is the entry''s access, not the enrollment''s. results_private (MYK9-969) is appended last and carried from the inner view, whose privacy mask already NULLed the result columns, so a replica on another exhibitor''s device never holds a private result. awaiting_registration_number (MYK9-1162) is appended after it, carried from the inner view, so a ringside device knows a held entry without reading dog_registrations. check_in_status_before_pull (MYK9-1396) is appended after it, carried from the inner view.';
 
 -- -----------------------------------------------------------------------------
--- self_checkin_entry: copied EXACTLY from 20260909174329 except the UPDATE's SET.
---   - moving to 'pulled' from a non-'pulled' value stamps the old check_in_status
---   - moving off 'pulled' clears the prior to NULL
---   - any other move leaves it alone
--- Signature, SECURITY DEFINER, search_path, allow-list, authorization and the
--- visibility join are unchanged.
+-- The single owner of the stamp.
 -- -----------------------------------------------------------------------------
-create or replace function public.self_checkin_entry(
-  p_entry_id uuid,
-  p_new_status text
-)
-returns void
-language plpgsql
-security definer
-set search_path = ''
-as $func$
-declare
-  v_person_id uuid;
-  v_allowed_statuses text[] := array[
-    'checked-in', 'conflict', 'pulled', 'at-gate', 'no-status'
-  ];
-begin
-  if p_new_status is null or not p_new_status = any(v_allowed_statuses) then
-    raise exception 'Status % is not allowed for self-check-in', p_new_status;
-  end if;
+CREATE OR REPLACE FUNCTION private.entries_stamp_check_in_before_pull()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    NEW.check_in_status_before_pull := NULL;
+    RETURN NEW;
+  END IF;
 
-  select p.id
-    into v_person_id
-    from public.people p
-   where p.auth_user_id = (select auth.uid())
-   limit 1;
+  IF NEW.check_in_status = 'pulled'
+     AND OLD.check_in_status IS DISTINCT FROM 'pulled' THEN
+    NEW.check_in_status_before_pull := OLD.check_in_status;
+  ELSIF OLD.check_in_status = 'pulled'
+     AND NEW.check_in_status IS DISTINCT FROM 'pulled' THEN
+    NEW.check_in_status_before_pull := NULL;
+  ELSE
+    NEW.check_in_status_before_pull := OLD.check_in_status_before_pull;
+  END IF;
+  RETURN NEW;
+END;
+$$;
 
-  if v_person_id is null then
-    raise exception 'Not authorized: caller is not linked to a person record';
-  end if;
+COMMENT ON FUNCTION private.entries_stamp_check_in_before_pull() IS
+  'MYK9-1396: sole writer of entries.check_in_status_before_pull. Stamps OLD.check_in_status on a move to pulled, clears on a move off pulled, otherwise keeps OLD; a caller-supplied value is discarded.';
 
-  -- The UPDATE target is visible to a correlated EXISTS subquery, but not
-  -- inside the ON clauses of the UPDATE's own FROM join tree (SQLSTATE 42P01).
-  update public.entries e
-     set check_in_status = p_new_status,
-         -- MYK9-1396: remember what a Pull overwrites; forget it on un-pull.
-         check_in_status_before_pull = case
-           when p_new_status = 'pulled' and e.check_in_status is distinct from 'pulled'
-             then e.check_in_status
-           when p_new_status <> 'pulled' and e.check_in_status = 'pulled'
-             then null
-           else e.check_in_status_before_pull
-         end,
-         updated_at = now()
-   where e.id = p_entry_id
-     and exists (
-       select 1
-       from public.dogs d
-       left join public.classes c on c.id = e.class_id
-       left join public.trials t on t.id = coalesce(c.trial_id, e.trial_id)
-       left join public.show_visibility_settings show_vis
-         on show_vis.show_id = coalesce(e.show_id, t.show_id)
-       left join public.trial_visibility_overrides trial_vis
-         on trial_vis.trial_id = coalesce(c.trial_id, e.trial_id)
-       left join public.class_visibility_overrides class_vis
-         on class_vis.class_id = e.class_id
-       where d.id = e.dog_id
-         and (
-           e.handler_id = v_person_id
-           or d.owner_id = v_person_id
-           or d.co_owner_id = v_person_id
-         )
-         and coalesce(
-           class_vis.self_checkin_enabled,
-           trial_vis.self_checkin_enabled,
-           show_vis.self_checkin_enabled,
-           true
-         )
-     );
+REVOKE ALL ON FUNCTION private.entries_stamp_check_in_before_pull()
+  FROM PUBLIC, anon, authenticated, service_role;
 
-  if not found then
-    raise exception 'Not authorized: caller does not own entry % or self check-in is disabled', p_entry_id;
-  end if;
-end;
-$func$;
+DROP TRIGGER IF EXISTS trg_entries_check_in_before_pull ON public.entries;
+CREATE TRIGGER trg_entries_check_in_before_pull
+  BEFORE UPDATE OF check_in_status, check_in_status_before_pull ON public.entries
+  FOR EACH ROW
+  EXECUTE FUNCTION private.entries_stamp_check_in_before_pull();
 
-revoke all on function public.self_checkin_entry(uuid, text) from public, anon;
-grant execute on function public.self_checkin_entry(uuid, text) to authenticated;
+DROP TRIGGER IF EXISTS trg_entries_check_in_before_pull_insert ON public.entries;
+CREATE TRIGGER trg_entries_check_in_before_pull_insert
+  BEFORE INSERT ON public.entries
+  FOR EACH ROW
+  EXECUTE FUNCTION private.entries_stamp_check_in_before_pull();

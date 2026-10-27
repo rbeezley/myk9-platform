@@ -5,6 +5,8 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { PEOPLE_ROUTE_ROLES } from '@/routes/peopleRouteRoles';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -58,6 +60,9 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
   onToggleShowAccess,
 }) => {
   const navigate = useNavigate();
+  const { hasRole } = useAuthContext();
+  // A club admin who is not also a secretary or site admin would be refused by /people/:id.
+  const canOpenProfile = PEOPLE_ROUTE_ROLES.some(role => hasRole(role));
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -67,15 +72,19 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
         <MoreVertical className="h-4 w-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        {/* MYK9-1293: the read-only roster's View Details, kept for admins. */}
-        <DropdownMenuItem
-          onClick={() => navigate(`/people/${member.personId}`)}
-          className={MENU_ITEM_BASE}
-        >
-          <UserRound className="mr-2 h-4 w-4" />
-          View profile
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
+        {/* MYK9-1293: the read-only roster's View Details, for viewers the people route admits. */}
+        {canOpenProfile && (
+          <>
+            <DropdownMenuItem
+              onClick={() => navigate(`/people/${member.personId}`)}
+              className={MENU_ITEM_BASE}
+            >
+              <UserRound className="mr-2 h-4 w-4" />
+              View profile
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
         <DropdownMenuGroup>
           <DropdownMenuLabel className={MENU_LABEL_BASE}>Change Type</DropdownMenuLabel>
           {(Object.entries(MEMBERSHIP_TYPE_LABELS) as [MembershipType, string][]).map(

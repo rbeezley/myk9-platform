@@ -14,9 +14,13 @@
  * versus portaled to the body (free to flip and bound itself). That structural
  * difference is the fix, so that is what this asserts.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 
 const mockNavigate = vi.hoisted(() => vi.fn());
+const mockRoles = vi.hoisted(() => ({ value: ['secretary'] as string[] }));
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ hasRole: (role: string) => mockRoles.value.includes(role) }),
+}));
 vi.mock('react-router-dom', async importOriginal => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
   useNavigate: () => mockNavigate,
@@ -59,6 +63,10 @@ const openMenu = async (user: ReturnType<typeof renderMenu>['user']) => {
 };
 
 describe('MemberActionMenu', () => {
+  beforeEach(() => {
+    mockRoles.value = ['secretary'];
+  });
+
   it('renders the popup outside the trigger subtree', async () => {
     const { user, container } = renderMenu();
     await openMenu(user);
@@ -88,6 +96,15 @@ describe('MemberActionMenu', () => {
 
     await user.click(await screen.findByRole('menuitem', { name: /view profile/i }));
     expect(mockNavigate).toHaveBeenCalledWith('/people/p1');
+  });
+
+  it('hides View profile from a club admin the people route would refuse', async () => {
+    mockRoles.value = ['club_admin'];
+    const { user } = renderMenu();
+    await openMenu(user);
+
+    await screen.findByRole('menu');
+    expect(screen.queryByRole('menuitem', { name: /view profile/i })).not.toBeInTheDocument();
   });
 
   it('keeps every action row at the 44px touch-target floor', async () => {

@@ -5,20 +5,30 @@
 # against their own disposable local stack; this proves the built bundle
 # agrees before any browser opens it.
 #
-#   assert-local-smoke-bundle.sh <dist-dir>
+#   VITE_SUPABASE_URL=<url> assert-local-smoke-bundle.sh <dist-dir>
 #
-# Exit 0: the bundle names a loopback Supabase URL and never the live project.
-# Exit 1: it names the live project, or names no loopback Supabase URL at all.
-# Exit 2: usage error, or no JavaScript to check.
+# VITE_SUPABASE_URL is the loopback URL `pnpm qa:isolated-e2e:prepare` wrote
+# into GITHUB_ENV, so the check asks for THAT stack, not any loopback URL.
+#
+# Exit 0: the bundle names that loopback URL and never the live project.
+# Exit 1: it names the live project, or does not name that URL.
+# Exit 2: usage error, a non-loopback VITE_SUPABASE_URL, or no JavaScript.
 set -euo pipefail
 
 LIVE_PROJECT_REF='sojmvhhwsjxmfistvzbe'
 
 dist="${1:-}"
 if [[ -z "$dist" || ! -d "$dist" ]]; then
-  echo "usage: $0 <dist-dir>" >&2
+  echo "usage: VITE_SUPABASE_URL=<url> $0 <dist-dir>" >&2
   exit 2
 fi
+
+target="${VITE_SUPABASE_URL:-}"
+if [[ ! "$target" =~ ^https?://(127\.0\.0\.1|localhost):[0-9]+/?$ ]]; then
+  echo "::error::VITE_SUPABASE_URL is not a loopback URL (got '${target}'); prepare the isolated target first" >&2
+  exit 2
+fi
+target="${target%/}"
 
 if ! find "$dist" -type f -name '*.js' -print -quit | grep -q .; then
   echo "::error::no JavaScript under $dist; nothing to check" >&2
@@ -31,9 +41,9 @@ if grep -rlF --include='*.js' "$LIVE_PROJECT_REF" "$dist" >/dev/null; then
   exit 1
 fi
 
-if ! grep -rqE --include='*.js' 'https?://(127\.0\.0\.1|localhost):[0-9]+' "$dist"; then
-  echo "::error::the smoke bundle names no loopback Supabase URL; was it built before the isolated target was prepared?" >&2
+if ! grep -rqF --include='*.js' "$target" "$dist"; then
+  echo "::error::the smoke bundle does not name $target; was it built before the isolated target was prepared?" >&2
   exit 1
 fi
 
-echo "Smoke bundle targets the local Supabase stack, not $LIVE_PROJECT_REF."
+echo "Smoke bundle targets $target, not $LIVE_PROJECT_REF."

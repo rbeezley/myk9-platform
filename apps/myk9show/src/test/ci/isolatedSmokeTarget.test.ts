@@ -52,10 +52,18 @@ describe('browser smoke never targets the live project (MYK9-1449)', () => {
     expect(workflow).not.toContain('myk9show-preview-dist');
   });
 
+  it('no workflow-level env hands every job a Supabase value', () => {
+    const lines = workflow.split('\n');
+    const start = lines.indexOf('env:');
+    const end = lines.indexOf('jobs:');
+    const workflowEnv = start === -1 ? '' : lines.slice(start, end).join('\n');
+    expect(workflowEnv).not.toMatch(/SUPABASE/);
+  });
+
   it.each(BROWSER_JOBS)('%s reads no live-project secret', jobHeading => {
     const block = jobBlock(jobHeading).join('\n');
-    expect(block).not.toMatch(/secrets\.VITE_SUPABASE_/);
-    expect(block).not.toMatch(/secrets\.SUPABASE_/);
+    expect(block).not.toMatch(/(secrets|vars)\.VITE_SUPABASE_/);
+    expect(block).not.toMatch(/(secrets|vars)\.SUPABASE_/);
     expect(block).not.toMatch(/secrets\.E2E_[A-Z_]*_EMAIL/);
   });
 
@@ -103,27 +111,42 @@ describe('assert-local-smoke-bundle.sh known answers', () => {
     return dir;
   }
 
-  function exitCode(dir: string): number {
+  const LOCAL = 'http://127.0.0.1:54321';
+
+  function exitCode(dir: string, target: string | null = LOCAL): number {
+    const env = { ...process.env };
+    delete env.VITE_SUPABASE_URL;
+    if (target !== null) env.VITE_SUPABASE_URL = target;
     try {
-      execFileSync('bash', [ASSERT_SCRIPT, dir], { stdio: 'pipe' });
+      execFileSync('bash', [ASSERT_SCRIPT, dir], { stdio: 'pipe', env });
       return 0;
     } catch (error) {
       return (error as { status?: number }).status ?? -1;
     }
   }
 
-  it('passes a bundle built against the loopback stack', () => {
-    expect(exitCode(bundle('const u="http://127.0.0.1:54321";'))).toBe(0);
+  it('passes a bundle built against the prepared loopback stack', () => {
+    expect(exitCode(bundle(`const u="${LOCAL}";`))).toBe(0);
+    expect(exitCode(bundle(`const u="${LOCAL}";`), `${LOCAL}/`)).toBe(0);
   });
 
-  it('fails a bundle that names the live project, even beside a loopback URL', () => {
-    const js =
-      'const u="https://sojmvhhwsjxmfistvzbe.supabase.co";const l="http://127.0.0.1:54321";';
+  it('fails a bundle that names the live project, even beside the loopback URL', () => {
+    const js = `const u="https://sojmvhhwsjxmfistvzbe.supabase.co";const l="${LOCAL}";`;
     expect(exitCode(bundle(js))).toBe(1);
   });
 
   it('fails a bundle with no Supabase URL at all (built before the target was prepared)', () => {
     expect(exitCode(bundle('const u="";'))).toBe(1);
+  });
+
+  it('fails a bundle that names some other loopback URL, not the prepared one', () => {
+    expect(exitCode(bundle('const u="http://localhost:3001";'))).toBe(1);
+  });
+
+  it('refuses to run without a loopback VITE_SUPABASE_URL', () => {
+    const dir = bundle(`const u="${LOCAL}";`);
+    expect(exitCode(dir, null)).toBe(2);
+    expect(exitCode(dir, 'https://sojmvhhwsjxmfistvzbe.supabase.co')).toBe(2);
   });
 
   it('refuses a directory with no JavaScript rather than passing it', () => {

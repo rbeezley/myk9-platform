@@ -7,7 +7,7 @@ const source = readFileSync(
   'utf8'
 );
 
-describe('stripe-payment-link internal waitlist path', () => {
+describe('stripe-payment-link waitlist and secretary paths', () => {
   it('allows an exhibitor only when every requested entry is their active, unexpired offer', () => {
     // The public Edge Function contract must not turn ordinary pending entries
     // into self-service checkout. Every supplied entry is checked against the
@@ -23,24 +23,11 @@ describe('stripe-payment-link internal waitlist path', () => {
     expect(source).toContain('Not authorized to request payment for these waitlist offers');
   });
 
-  it('accepts the cron secret header for trusted waitlist-cascade calls', () => {
-    expect(source).toContain("req.headers.get('x-function-secret')");
-    expect(source).toContain('async function secretMatches');
-    expect(source).toContain("crypto.subtle.digest('SHA-256'");
-    expect(source).toContain("await secretMatches(req.headers.get('x-function-secret'))");
-    expect(source).toContain('if (!isInternalCall)');
-  });
-
   it('keeps public callers on the authenticated secretary/admin authorization path', () => {
     expect(source).toContain('supabase.auth.getUser');
     expect(source).toContain("userClient.rpc('is_show_secretary'");
     expect(source).toContain("userClient.rpc('is_club_admin'");
     expect(source).toContain("userClient.rpc('is_site_admin'");
-  });
-
-  it('marks cron-created links as service-created instead of inventing a user id', () => {
-    expect(source).toContain('created_by: userId');
-    expect(source).toContain("userId ?? 'cron'");
   });
 
   it('shares inactive entry statuses with payment reconciliation', () => {

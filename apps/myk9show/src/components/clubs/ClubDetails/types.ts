@@ -4,7 +4,7 @@ export interface ClubDetailsProps {
   selectedClub: Club | null;
 }
 
-export type ClubTab = 'upcoming' | 'past' | 'about' | 'members' | 'branding';
+export type ClubTab = 'upcoming' | 'past' | 'about' | 'members' | 'payments' | 'branding';
 
 export interface ShowStatus {
   status: 'completed' | 'registration' | 'upcoming';

@@ -12,7 +12,10 @@ import { NEUTRAL_STATUS_CHIP } from '@/components/ui/statusChip';
 import { useConnectReturn, useClearConnectParam } from './useConnectReturn';
 import { ClubFinancialReconciliationCard } from '@/features/financial/components/ClubFinancialReconciliationCard';
 
-const RETURN_PATH = '/club-admin/payments';
+// stripe-connect-onboard appends `?connect=return|refresh` to this path, so it must carry no query of
+// its own. The club rides as a path segment; ClubAdminRedirect turns it into /clubs/:id?tab=payments,
+// so a multi-club admin lands on the club being onboarded, not the store's selected one (MYK9-1293).
+const returnPathFor = (clubId: string) => `/club-admin/payments/${clubId}`;
 
 // INTENT: The pre-flight checklist exists to pre-answer the SSN fear and
 // prevent mid-form abandonment by non-technical club treasurers. Do not
@@ -78,7 +81,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
     setIsStartingOnboarding(true);
     setConnectError(null);
     try {
-      const url = await startConnectOnboarding(clubId, RETURN_PATH);
+      const url = await startConnectOnboarding(clubId, returnPathFor(clubId));
       window.location.assign(url);
     } catch (error) {
       setConnectError(error instanceof Error ? error.message : 'Something went wrong');

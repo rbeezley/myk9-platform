@@ -1,3 +1,4 @@
+import { clearAllRbacWarmTokens } from '@/context/rbacWarmToken';
 import { useEffect, useState, useCallback } from 'react';
 import { changePassword } from '@/features/step-up/passwordChange';
 import { supabase } from '../lib/supabase';
@@ -180,6 +181,7 @@ export function useAuth() {
       if (_event === 'SIGNED_OUT') {
         clearAppearanceCache();
         clearOwnerNameCache();
+        clearAllRbacWarmTokens();
         useRingsideGrantStore.getState().clearGrant();
       }
       if (
@@ -356,6 +358,8 @@ export function useAuth() {
     // Appearance cache holds the signed-out user's per-user preferences;
     // clear it so the next user on this browser doesn't inherit them.
     clearAppearanceCache();
+    // Before the navigation: the unload may beat the hook's own effects.
+    clearAllRbacWarmTokens();
     window.location.href = '/';
   }, []);
 

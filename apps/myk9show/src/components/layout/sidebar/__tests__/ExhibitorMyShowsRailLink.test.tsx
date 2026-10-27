@@ -1,10 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { render, screen } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { RoleSidebar } from '../RoleSidebar';
 import { buildUnifiedSidebarConfig } from '../unifiedSidebarConfig';
-import { browseHref, browseTabForPath, browseTabsForRoles } from '../browseTabs';
-import { useRememberBrowseList } from '../useRememberBrowseList';
+import { browseTabForPath, browseTabsForRoles } from '../browseTabs';
 
 vi.mock('@/components/layout/AccountMenuContent', () => ({
   AccountMenuContent: () => null,
@@ -12,122 +11,81 @@ vi.mock('@/components/layout/AccountMenuContent', () => ({
 
 const LAST_TAB_KEY = 'myk9:browse-last-tab';
 
-function renderRail(initialRoute: string) {
-  const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, 'Jordan');
+function renderRail(initialRoute: string, roles: UserRole[] = [UserRole.EXHIBITOR]) {
+  const config = buildUnifiedSidebarConfig(roles, undefined, 'Jordan');
   return render(<RoleSidebar config={config} variant="rail" />, { initialRoute });
 }
 
-function Remember() {
-  useRememberBrowseList(buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, 'Jordan'));
-  return null;
-}
+const myShows = () => screen.getByRole('link', { name: 'My Shows' });
+const myDogs = () => screen.getByRole('link', { name: 'My Dogs' });
 
-const myShowsLink = () => screen.getByRole('link', { name: 'My Shows' });
-
-describe('My Shows rail item (exhibitor-only account)', () => {
-  it('replaces the My Shows, My Dogs and Find Shows items; Payments and Ringside stay', () => {
+// Owner decision 2026-10-27 (MYK9-1287): an exhibitor-only account has My Shows and My Dogs as two
+// plain rail items. It replaced the MYK9-1245 single "My Shows" item with a remembered tab.
+describe('exhibitor-only rail (MYK9-1287)', () => {
+  it('lists My Shows, My Dogs, My Payments and Ringside as separate items', () => {
     renderRail('/exhibitor/payments');
 
-    expect(myShowsLink()).toHaveTextContent(/^My Shows$/);
-    for (const name of ['My Dogs', 'Find Shows']) {
-      expect(screen.queryByRole('link', { name })).not.toBeInTheDocument();
-    }
+    expect(myShows()).toHaveAttribute('href', '/exhibitor/entries');
+    expect(myDogs()).toHaveAttribute('href', '/dogs');
     expect(screen.getByRole('link', { name: 'My Payments' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /^Ringside/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Browse' })).not.toBeInTheDocument();
   });
 
-  it.each(['/exhibitor/entries', '/dogs', '/dogs/dog-1'])('is the current page on %s', route => {
+  it.each(['/dogs', '/dogs/dog-1'])('highlights only My Dogs on %s', route => {
     renderRail(route);
 
-    expect(myShowsLink()).toHaveAttribute('aria-current', 'page');
+    expect(myDogs()).toHaveAttribute('aria-current', 'page');
+    expect(myShows()).not.toHaveAttribute('aria-current');
+    expect(myShows()).toHaveAttribute('href', '/exhibitor/entries');
   });
 
-  it('is not current on My Payments', () => {
+  it('highlights only My Shows on /exhibitor/entries', () => {
+    renderRail('/exhibitor/entries');
+
+    expect(myShows()).toHaveAttribute('aria-current', 'page');
+    expect(myDogs()).not.toHaveAttribute('aria-current');
+  });
+
+  it('highlights neither on My Payments', () => {
     renderRail('/exhibitor/payments');
 
-    expect(myShowsLink()).not.toHaveAttribute('aria-current');
+    expect(myShows()).not.toHaveAttribute('aria-current');
+    expect(myDogs()).not.toHaveAttribute('aria-current');
   });
 
-  it('opens My Shows the first time, then the tab used last', () => {
-    const { unmount } = renderRail('/exhibitor/payments');
-    expect(myShowsLink()).toHaveAttribute('href', '/exhibitor/entries');
-    unmount();
-
+  it('never follows a remembered tab', () => {
     localStorage.setItem(LAST_TAB_KEY, 'dogs');
     renderRail('/exhibitor/payments');
-    expect(myShowsLink()).toHaveAttribute('href', '/dogs');
+
+    expect(myShows()).toHaveAttribute('href', '/exhibitor/entries');
   });
 
-  it('opens My Shows when the remembered tab is one an exhibitor cannot see', () => {
-    localStorage.setItem(LAST_TAB_KEY, 'people');
-    renderRail('/exhibitor/payments');
-
-    expect(myShowsLink()).toHaveAttribute('href', '/exhibitor/entries');
-  });
-
-  it('opens My Shows when storage cannot be read', () => {
-    const getItem = vi.mocked(localStorage.getItem);
-    const realGet = getItem.getMockImplementation();
-    getItem.mockImplementation(key => {
-      if (key === LAST_TAB_KEY) throw new Error('SecurityError: storage blocked');
-      return realGet ? realGet(key) : null;
-    });
-    try {
-      renderRail('/exhibitor/payments');
-      expect(myShowsLink()).toHaveAttribute('href', '/exhibitor/entries');
-    } finally {
-      if (realGet) getItem.mockImplementation(realGet);
-    }
-  });
-
-  it('keeps My Shows and My Dogs by name in the mobile drawer', () => {
+  it('lists My Dogs as its own item in the mobile drawer', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
     render(<RoleSidebar config={config} />, { initialRoute: '/dogs' });
 
-    expect(screen.getByRole('link', { name: 'My Shows' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'My Dogs' })).toHaveAttribute('aria-current', 'page');
+    expect(myShows()).toHaveAttribute('href', '/exhibitor/entries');
+    expect(myDogs()).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('browses no tabs and resolves no tab for the exhibitor paths', () => {
+    expect(browseTabsForRoles([UserRole.EXHIBITOR])).toEqual([]);
+    expect(browseTabForPath('/exhibitor/entries')).toBeNull();
   });
 });
 
-describe('remembering the exhibitor tab', () => {
-  it.each([
-    ['/exhibitor/entries', 'my-shows'],
-    ['/dogs/dog-1', 'dogs'],
-  ])('remembers %s as %s', async (route, expected) => {
-    render(<Remember />, { initialRoute: route });
+describe('staff who also exhibit keep one Browse rail item', () => {
+  it('shows Browse and neither My Shows nor a My Dogs item for secretary + exhibitor', () => {
+    renderRail('/dogs', [UserRole.SECRETARY, UserRole.EXHIBITOR]);
 
-    await waitFor(() => expect(localStorage.getItem(LAST_TAB_KEY)).toBe(expected));
-  });
-
-  it('writes nothing on My Payments', async () => {
-    render(<Remember />, { initialRoute: '/exhibitor/payments' });
-
-    await new Promise(resolve => setTimeout(resolve, 0));
-    expect(localStorage.getItem(LAST_TAB_KEY)).toBeNull();
-  });
-});
-
-describe('exhibitor tabs', () => {
-  const exhibitor = browseTabsForRoles([UserRole.EXHIBITOR]);
-
-  it('are My Shows and My Dogs, at their own URLs', () => {
-    expect(exhibitor.map(tab => [tab.title, tab.href])).toEqual([
-      ['My Shows', '/exhibitor/entries'],
-      ['My Dogs', '/dogs'],
+    expect(screen.getByRole('link', { name: 'Browse' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('link', { name: 'My Dogs' })).not.toBeInTheDocument();
+    expect(browseTabsForRoles([UserRole.SECRETARY, UserRole.EXHIBITOR]).map(t => t.id)).toEqual([
+      'shows',
+      'dogs',
+      'people',
+      'clubs',
     ]);
-  });
-
-  it('resolve their paths', () => {
-    expect(browseTabForPath('/exhibitor/entries')).toBe('my-shows');
-    expect(browseTabForPath('/exhibitor/entries/anything')).toBe('my-shows');
-    expect(browseTabForPath('/exhibitor/payments')).toBeNull();
-    expect(browseTabForPath('/my-shows')).toBeNull();
-  });
-
-  it('open My Shows first, then the tab used last, ignoring lists an exhibitor cannot browse', () => {
-    expect(browseHref(exhibitor, null, null)).toBe('/exhibitor/entries');
-    expect(browseHref(exhibitor, null, 'dogs')).toBe('/dogs');
-    expect(browseHref(exhibitor, 'my-shows', 'dogs')).toBe('/exhibitor/entries');
-    expect(browseHref(exhibitor, null, 'clubs')).toBe('/exhibitor/entries');
   });
 });

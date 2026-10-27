@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { signInAsExhibitor } from './helpers/testUsers';
 import { entriesAcrossThreeShows, installExhibitorFixture } from './helpers/exhibitorFixture';
+import { exhibitorNav } from './helpers/exhibitorNav';
 
 /**
  * E2E Tests for My Shows Page UI/UX Improvements
@@ -117,13 +118,20 @@ test.describe('My Shows Page - Enter a Show CTA', () => {
     await expect(page).toHaveURL(/\/shows$/);
   });
 
-  test('offers My Shows and My Dogs as tabs, My Shows selected', async ({ page }) => {
-    const tabs = page.getByRole('tablist', { name: 'Browse' });
-    await expect(tabs.getByRole('tab', { name: 'My Shows' })).toHaveAttribute(
-      'aria-selected',
-      'true'
+  test('has no My Shows / My Dogs tabs; they are separate rail items (MYK9-1287)', async ({
+    page,
+  }) => {
+    await expect(page.getByRole('tablist', { name: 'Browse' })).toHaveCount(0);
+    // The rail from `lg`, the header drawer on phones (the helper opens it).
+    const nav = await exhibitorNav(page);
+    await expect(nav.getByRole('link', { name: 'My Shows', exact: true })).toHaveAttribute(
+      'href',
+      '/exhibitor/entries'
     );
-    await expect(tabs.getByRole('tab', { name: 'My Dogs' })).toHaveAttribute('href', '/dogs');
+    await expect(nav.getByRole('link', { name: 'My Dogs', exact: true })).toHaveAttribute(
+      'href',
+      '/dogs'
+    );
   });
 });
 
@@ -145,8 +153,8 @@ test.describe('My Shows Page - Filter Structure', () => {
     // See docs/plan-ia-exhibitor-surface.md, Phase A.
     await expect(timeAxis(page)).toBeVisible();
     await expect(statusAxis(page)).toBeVisible();
-    // The only tablist is the My Shows / My Dogs switch; the filter axes are radiogroups.
-    await expect(page.locator('[role="tablist"]')).toHaveCount(1);
+    // No tablist at all: the filter axes are radiogroups.
+    await expect(page.locator('[role="tablist"]')).toHaveCount(0);
 
     for (const label of ['All', 'Upcoming', 'Completed']) {
       await expect(

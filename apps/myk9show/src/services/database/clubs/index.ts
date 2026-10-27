@@ -4,6 +4,7 @@
 
 export {
   getAllClubs,
+  getClubsAwaitingAuthorization,
   getClubById,
   searchClubsByLocation,
   getActiveClubs,

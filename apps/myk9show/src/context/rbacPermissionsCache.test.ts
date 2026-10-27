@@ -90,6 +90,27 @@ describe('rbacPermissionsCache', () => {
     expect(loadRbacPermissionsCache(USER_ID)).not.toBeNull();
   });
 
+  it('rejects a future-dated entry (it would pass every age check forever)', () => {
+    localStorage.setItem(
+      `myk9show:rbac-cache:${USER_ID}`,
+      JSON.stringify({
+        cachedAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        data: response,
+      })
+    );
+
+    expect(loadRbacPermissionsCache(USER_ID)).toBeNull();
+  });
+
+  it('tolerates a small clock skew into the future', () => {
+    localStorage.setItem(
+      `myk9show:rbac-cache:${USER_ID}`,
+      JSON.stringify({ cachedAt: new Date(Date.now() + 60 * 1000).toISOString(), data: response })
+    );
+
+    expect(loadRbacPermissionsCache(USER_ID)).not.toBeNull();
+  });
+
   it("clearRbacPermissionsCache removes only that user's entry", () => {
     saveRbacPermissionsCache(USER_ID, response);
     saveRbacPermissionsCache('user-2', response);

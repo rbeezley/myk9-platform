@@ -5,14 +5,11 @@ function input(overrides: Partial<ClubPageActionInput> = {}): ClubPageActionInpu
   return {
     canAddShow: false,
     canEditBranding: false,
-    canManageClubAdmin: false,
     canAuthorizeClub: false,
     isClubAuthorized: false,
     isAuthorizationLoading: false,
     isAuthorizationUpdating: false,
     onEditPhoto: vi.fn(),
-    onManageMembers: vi.fn(),
-    onPayments: vi.fn(),
     onAddShow: vi.fn(),
     onAuthorize: vi.fn(),
     onRequestRevoke: vi.fn(),
@@ -24,22 +21,14 @@ const labels = (overrides: Partial<ClubPageActionInput>) =>
   buildClubPageActions(input(overrides)).map(action => action.label);
 
 describe('buildClubPageActions (CRUD standard decision 6)', () => {
-  it("offers a club's admin Manage members and Payments, and each opens its page", () => {
-    const onManageMembers = vi.fn();
-    const onPayments = vi.fn();
-    const actions = buildClubPageActions(
-      input({ canManageClubAdmin: true, onManageMembers, onPayments })
-    );
-    expect(actions.map(action => action.label)).toEqual(['Manage members', 'Payments']);
-    actions[0]?.run();
-    expect(onManageMembers).toHaveBeenCalledTimes(1);
-    expect(onPayments).not.toHaveBeenCalled();
-    actions[1]?.run();
-    expect(onPayments).toHaveBeenCalledTimes(1);
-  });
-
-  it('offers neither to a viewer who is not a club admin for this club', () => {
-    expect(labels({ canManageClubAdmin: false })).toEqual([]);
+  it('no longer lists Manage members or Payments: they are tabs on the club page (MYK9-1293)', () => {
+    const all = labels({
+      canAddShow: true,
+      canEditBranding: true,
+      canAuthorizeClub: true,
+    });
+    expect(all).not.toContain('Manage members');
+    expect(all).not.toContain('Payments');
   });
 
   it('offers Change Photo only to a viewer who may edit the branding', () => {

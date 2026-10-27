@@ -27,7 +27,7 @@ The system SHALL define entity actions once as typed definitions (id, label, ico
 
 ### Requirement: Scoped multi-selection is uniform across management surfaces
 
-The system SHALL provide multi-selection on Entry Management, Class Management, admin Users, dogs, and people management surfaces with: a header checkbox supporting select-all-visible and indeterminate state, per-row checkboxes, and automatic pruning of selections that leave the current filtered scope. Entry Management selection SHALL use its visible Show Registration row unit and SHALL expand selected groups to their child Entry mutation targets only when an action is dispatched. Selection SHALL NOT span entity types.
+The system SHALL provide multi-selection on Entry Management, Class Management, admin Users, dogs, people management surfaces, the Self check-in tool's class list, and the Results Control page's class list, with: a header checkbox supporting select-all-visible and indeterminate state — or, where the surface's rows are grouped by trial (the Self check-in tool and Results Control page), an equivalent per-trial "select all" control scoped to that trial's rows (select-all-visible only; the per-trial control renders checked or unchecked, with no indeterminate state) — per-row checkboxes, and automatic pruning of selections that leave the current filtered scope. Entry Management selection SHALL use its visible Show Registration row unit and SHALL expand selected groups to their child Entry mutation targets only when an action is dispatched. Selection SHALL NOT span entity types.
 
 #### Scenario: Select all visible
 
@@ -49,6 +49,12 @@ The system SHALL provide multi-selection on Entry Management, Class Management, 
 
 - **WHEN** Class Management renders after migration
 - **THEN** selection behaves per this requirement (header checkbox, indeterminate, pruning) and the previous "Select all filtered" button and hand-rolled selection state are removed
+
+#### Scenario: Self check-in and Results Control already share the selection contract
+
+- **WHEN** the Self check-in tool or the Results Control page renders its class list
+- **THEN** selection is driven by the same `useBulkSelection` hook as every other surface named in this requirement, with per-show pruning on show change
+- **AND** the per-trial "select all" control selects or deselects exactly that trial's visible classes, leaving classes in other trials untouched
 
 ### Requirement: Bulk action scope is explicit with exact counts
 
@@ -217,7 +223,7 @@ visibly, never reporting success for work that did not happen.
 
 ### Requirement: Contextual bulk actions use a compact floating toolbar
 
-When selection is active on Entry Management, the system SHALL present a bounded floating toolbar above the bottom edge rather than a full-width fixed footer. The toolbar SHALL keep selected count, primary eligible action, overflow actions, and Clear together; SHALL avoid obscuring content; and SHALL remain usable above mobile safe-area/navigation controls.
+When selection is active on Entry Management, the Self check-in tool, or the Results Control page, the system SHALL present a bounded floating toolbar above the bottom edge rather than a full-width fixed footer or an inline bar rendered in normal document flow. The toolbar SHALL keep selected count, primary eligible action, overflow actions, and Clear together; SHALL avoid obscuring content; and SHALL remain usable above mobile safe-area/navigation controls.
 
 #### Scenario: Registration selection shows both count units
 
@@ -236,3 +242,15 @@ When selection is active on Entry Management, the system SHALL present a bounded
 - **WHEN** selection is active on a tablet or mobile-width layout
 - **THEN** the toolbar remains inset and reachable above safe-area/navigation controls
 - **AND** the last visible queue row is not permanently obscured
+
+#### Scenario: Self check-in bulk actions float instead of docking inline
+
+- **WHEN** one or more classes are selected in the Self check-in tool
+- **THEN** the Enable/Disable self check-in actions appear in the shared floating toolbar instead of the tool's own inline bar
+- **AND** the toolbar disappears when the selection is cleared
+
+#### Scenario: Results Control bulk actions float instead of a fixed full-width footer
+
+- **WHEN** one or more classes are selected on the Results Control page
+- **THEN** Apply Preset appears in the shared floating toolbar instead of the page's own fixed bottom bar
+- **AND** bulk Release Results and Hide Results are not offered there; releasing results is a single-class action (the bulk release path was removed by MYK9-1318)

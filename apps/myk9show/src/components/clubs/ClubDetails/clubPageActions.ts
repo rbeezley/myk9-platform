@@ -4,8 +4,6 @@ export interface ClubPageActionInput {
   /** May create a show for THIS club (`canOpenCreateShowWizard` and a staff grant on it). */
   canAddShow: boolean;
   canEditBranding: boolean;
-  /** A club admin for THIS club: the rail's My Club link opens this page, so the members and payments pages the old flyout listed are reached from here. */
-  canManageClubAdmin: boolean;
   /** MYK9-572: site admin only, mirroring set_club_authorization's is_site_admin(). */
   canAuthorizeClub: boolean;
   /** Undefined while the authorization read is in flight. */
@@ -13,8 +11,6 @@ export interface ClubPageActionInput {
   isAuthorizationLoading: boolean;
   isAuthorizationUpdating: boolean;
   onEditPhoto: () => void;
-  onManageMembers: () => void;
-  onPayments: () => void;
   /** The show wizard, opened with this club already chosen. */
   onAddShow: () => void;
   onAuthorize: () => void;
@@ -40,17 +36,6 @@ export function buildClubPageActions(input: ClubPageActionInput): PageExtraActio
   }
   if (input.canEditBranding) {
     actions.push({ id: 'photo', label: 'Change Photo', icon: 'photo', run: input.onEditPhoto });
-  }
-  if (input.canManageClubAdmin) {
-    actions.push(
-      {
-        id: 'manage-members',
-        label: 'Manage members',
-        icon: 'members',
-        run: input.onManageMembers,
-      },
-      { id: 'club-payments', label: 'Payments', icon: 'payments', run: input.onPayments }
-    );
   }
   if (input.canAuthorizeClub && !input.isAuthorizationLoading) {
     const disabledReason = input.isAuthorizationUpdating ? 'Saving…' : undefined;

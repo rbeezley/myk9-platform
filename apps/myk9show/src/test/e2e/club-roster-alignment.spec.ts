@@ -31,9 +31,7 @@ async function readProfileRoster(page: Page): Promise<{ count: number; names: st
 
 async function readManagementRoster(page: Page): Promise<{ count: number; names: string[] }> {
   await page.goto('/club-admin/members', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('heading', { name: /Members$/, level: 1 })).toBeVisible({
-    timeout: 30_000,
-  });
+  await expect(page.getByRole('tab', { name: 'Officers' })).toBeVisible({ timeout: 30_000 });
 
   const badge = page.getByText(/^\d+ active members?$/).first();
   const badgeText = await badge.innerText();

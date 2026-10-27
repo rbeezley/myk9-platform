@@ -19,7 +19,8 @@ import {
   type ClubMember,
   type ClubOfficer,
 } from '@/types/club-membership-types';
-import { MemberActionMenu, TYPE_BADGE_CLASSES, STATUS_BADGE_CLASSES } from './ClubMemberDialogs';
+import { TYPE_BADGE_CLASSES, STATUS_BADGE_CLASSES } from './ClubMemberDialogs';
+import { MemberActionMenu } from './MemberActionMenu';
 
 /** Placeholder for an empty table cell (ASCII hyphen — no em dash in UI copy). */
 const EMPTY_CELL = '-';

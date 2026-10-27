@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
-import ClubMembersPage from './ClubMembersPage';
+import { ClubMembersManager } from './ClubMembersManager';
 
 const { loadClubs, ensureClubsReady, loadUsers } = vi.hoisted(() => ({
   loadClubs: vi.fn(),
@@ -62,13 +62,13 @@ vi.mock('@/services/rbac/RBACService', () => ({
   },
 }));
 
-describe('ClubMembersPage loading state', () => {
+describe('ClubMembersManager loading state', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('uses a skeleton, not a spinner, while club members load', async () => {
-    render(<ClubMembersPage />);
+    render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
 
     expect(await screen.findByRole('status', { name: 'Loading club members' })).toBeInTheDocument();
     expect(document.querySelector('.animate-spin')).toBeNull();

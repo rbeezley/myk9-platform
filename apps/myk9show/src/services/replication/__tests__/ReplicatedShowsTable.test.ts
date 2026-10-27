@@ -498,56 +498,6 @@ describe('ReplicatedShowsTable', () => {
         expect(pastShow).toBeUndefined();
       });
     });
-
-    describe('getActiveShows', () => {
-      it('should return only currently active shows', async () => {
-        const results = await table.getActiveShows();
-        const now = Date.now();
-
-        results.forEach(show => {
-          const startTime = new Date(show.startDate).getTime();
-          const endTime = new Date(show.endDate).getTime();
-          expect(startTime).toBeLessThanOrEqual(now);
-          expect(endTime).toBeGreaterThanOrEqual(now);
-        });
-      });
-
-      it('should include show happening today', async () => {
-        const results = await table.getActiveShows();
-        const currentShow = results.find(show => show.id === 'show-2');
-        expect(currentShow).toBeDefined();
-      });
-
-      it('should exclude future shows', async () => {
-        const results = await table.getActiveShows();
-        const futureShows = results.filter(show => show.id === 'show-3' || show.id === 'show-4');
-        expect(futureShows).toHaveLength(0);
-      });
-
-      it('should exclude past shows', async () => {
-        const results = await table.getActiveShows();
-        const pastShow = results.find(show => show.id === 'show-1');
-        expect(pastShow).toBeUndefined();
-      });
-
-      it('should return empty array when no active shows', async () => {
-        // Create a completely new test context
-        const { databaseManager } = await import('@myk9/replication');
-        await databaseManager.reset();
-
-        const emptyTable = new ReplicatedShowsTable();
-
-        // Verify cache is truly empty before testing
-        const allShows = await emptyTable.getAll();
-        if (allShows.length > 0) {
-          // Clear the cache if it's not empty
-          await emptyTable.clearCache();
-        }
-
-        const results = await emptyTable.getActiveShows();
-        expect(results).toEqual([]);
-      });
-    });
   });
 
   describe('Show Updates', () => {

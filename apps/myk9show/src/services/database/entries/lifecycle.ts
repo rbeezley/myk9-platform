@@ -27,14 +27,6 @@ import type { EntryStatusCheckInContext } from './statusCheckIn';
 import type { CheckInStatus } from '@myk9/core';
 import type { SecretaryStatusEntrySeed } from './secretary';
 
-export type EntryLifecycleAction = 'accept' | 'reject' | 'pull' | 'waitlist';
-
-export interface EntryLifecycleTransitionParams {
-  entryId: string;
-  action: EntryLifecycleAction;
-  reason?: string | undefined;
-}
-
 export interface SetEntryLifecycleStatusParams {
   entryId: string;
   status: EntryStatus;
@@ -70,16 +62,6 @@ export interface SecretaryEntryStatusDependencies {
   auditLog: typeof auditService.log;
 }
 
-const ENTRY_LIFECYCLE_STATUS: Record<EntryLifecycleAction, EntryStatus> = {
-  accept: 'confirmed',
-  reject: 'withdrawn',
-  pull: 'scratched',
-  // Wait List membership is represented by waitlist_entries today. Until
-  // promotion is unified, this preserves the existing pending-entry decision
-  // behavior behind a named Entry transition.
-  waitlist: 'confirmed',
-};
-
 export async function setEntryLifecycleStatus(params: SetEntryLifecycleStatusParams) {
   return updateEntryStatus(
     params.entryId,
@@ -89,11 +71,6 @@ export async function setEntryLifecycleStatus(params: SetEntryLifecycleStatusPar
     params.reasonCode,
     params.checkInContext
   );
-}
-
-export async function transitionEntryLifecycle(params: EntryLifecycleTransitionParams) {
-  const status = ENTRY_LIFECYCLE_STATUS[params.action];
-  return setEntryLifecycleStatus({ entryId: params.entryId, status, reason: params.reason });
 }
 
 /**
@@ -124,54 +101,6 @@ async function logEntryStatusChange(params: LogEntryStatusChangeParams): Promise
   });
 }
 
-export const acceptEntry = async (entryId: string) => {
-  const result = await transitionEntryLifecycle({ entryId, action: 'accept' });
-  await logEntryStatusChange({
-    entryId,
-    fromStatus: undefined,
-    toStatus: 'confirmed',
-    action: 'accept_entry',
-  });
-  return result;
-};
-
-export const rejectEntry = async (entryId: string, reason?: string) => {
-  const result = await transitionEntryLifecycle({ entryId, action: 'reject', reason });
-  await logEntryStatusChange({
-    entryId,
-    fromStatus: undefined,
-    toStatus: 'withdrawn',
-    action: 'reject_entry',
-    reason,
-  });
-  return result;
-};
-
-/**
- * Pre-show pull — withdrawal before day-of. Writes `entry_status='scratched'`
- * via the secretary transition (which also sets `check_in_status='pulled'` per
- * the `buildEntryStatusUpdate` helper) and `withdrawal_reason`. Does NOT touch
- * `special_requests`. Show Day's day-of "Pull / no-show" uses this same shared
- * mutation (`updateEntryStatus`, MYK9-918), so both entry points write the same fields.
- */
-export const pullEntry = async (entryId: string, reason?: string) => {
-  const result = await transitionEntryLifecycle({ entryId, action: 'pull', reason });
-  await logEntryStatusChange({
-    entryId,
-    fromStatus: undefined,
-    toStatus: 'scratched',
-    // MYK9-632: one act, one audit action. This transition and
-    // `removeEntryAsManager`'s Pull write the same state for the same reason, so
-    // they must not be two names in the audit trail. Grepped repo-wide before
-    // renaming: nothing READS 'scratch_entry' — only this emitter and its test.
-    // Show Day's pull writes the same fields through the same mutation but keeps
-    // its own audit action, 'scratch_entry_day_of' (MYK9-918).
-    action: 'pull_entry',
-    reason,
-  });
-  return result;
-};
-
 /**
  * MYK9-632: a SHOW MANAGER leaving a class on someone's behalf, as the two acts.
  *
@@ -199,17 +128,6 @@ export const removeEntryAsManager = async (
     toStatus: status,
     action: kind === 'pull' ? 'pull_entry' : 'withdraw_entry',
     ...(code ? { metadata: { withdrawalReasonCode: code } } : {}),
-  });
-  return result;
-};
-
-export const waitlistEntry = async (entryId: string) => {
-  const result = await transitionEntryLifecycle({ entryId, action: 'waitlist' });
-  await logEntryStatusChange({
-    entryId,
-    fromStatus: undefined,
-    toStatus: 'confirmed',
-    action: 'waitlist_entry',
   });
   return result;
 };
@@ -278,60 +196,6 @@ export const denyMoveUpRequest = async (entryId: string, reason?: string) => {
     const dbError = createDatabaseError(error, 'entries', 'deny_move_up_request');
     logQuery('entries', 'deny_move_up_request', duration, dbError.message);
     return { data: null, error: dbError };
-  }
-};
-
-/**
- * Restore an entry to a captured prior `entry_status` — used by the Show Map
- * undo-move-up flow which captures the original status before the move and
- * restores it on undo. This is intentionally not a domain transition: the
- * caller supplies the target status verbatim.
- */
-export interface RestoreEntryStatusParams {
-  entryId: string;
-  previousEntryStatus: string;
-  previousCheckInStatus: string | null;
-  previousSpecialRequests: string | null;
-}
-
-export const restoreEntryStatus = async (params: RestoreEntryStatusParams) => {
-  const startTime = Date.now();
-  const { entryId, previousEntryStatus, previousCheckInStatus, previousSpecialRequests } = params;
-
-  try {
-    const { error } = await supabase
-      .from('entries')
-      .update({
-        entry_status: previousEntryStatus,
-        check_in_status: previousCheckInStatus,
-        special_requests: previousSpecialRequests,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entryId);
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'restore_entry_status', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'entries', 'restore_entry_status');
-    }
-
-    await logEntryStatusChange({
-      entryId,
-      fromStatus: undefined,
-      toStatus: previousEntryStatus,
-      action: 'restore_entry_status',
-      metadata: {
-        checkInStatus: previousCheckInStatus,
-      },
-    });
-
-    return { error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'restore_entry_status');
-    logQuery('entries', 'restore_entry_status', duration, dbError.message);
-    return { error: dbError };
   }
 };
 

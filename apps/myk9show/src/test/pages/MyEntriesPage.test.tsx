@@ -7,7 +7,7 @@ import MyEntriesPage from '@/pages/MyEntriesPage';
 import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { getUserEntries, updateCheckInStatus } from '@/services/database/entries';
+import { getUserEntries } from '@/services/database/entries';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import {
   UNCONFIRMED_EMPTY_HEADLINE,
@@ -63,7 +63,6 @@ vi.mock('@/services/LoggingService', () => ({
 }));
 vi.mock('@/services/database/entries', () => ({
   getUserEntries: vi.fn().mockResolvedValue({ data: [], error: null, source: 'confirmed' }),
-  updateCheckInStatus: vi.fn().mockResolvedValue({ data: null, error: null }),
 }));
 vi.mock('@/hooks/mutations/useCheckInMutation', () => ({
   useCheckInMutation: (options?: unknown) => mockUseCheckInMutation(options),
@@ -872,7 +871,6 @@ describe('MyEntriesPage UI Improvements', () => {
           newStatus: 'checked-in',
         })
       );
-      expect(updateCheckInStatus).not.toHaveBeenCalled();
       // The success path is the ONLY path that may close the dialog. Pinned
       // here so the failure-path fix below cannot regress into closing it too.
       await waitFor(() =>

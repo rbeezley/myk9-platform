@@ -4,12 +4,7 @@ import { useEntryManagementActions } from '../useEntryManagementActions';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { setEntryArmband } from '@/services/database/armbands';
-import {
-  compEntry,
-  deleteEntry,
-  uncompEntry,
-  updateCheckInStatus,
-} from '@/services/database/entries';
+import { compEntry, deleteEntry, uncompEntry } from '@/services/database/entries';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { fromAny } from '@total-typescript/shoehorn';
 
@@ -30,8 +25,6 @@ vi.mock('@/services/database/entries', async importOriginal => {
   return {
     ...actual, // real implementations for executeStatusChange, executeBulkStatusChange, executeRemoveEntry
     updateEntryStatus: vi.fn(),
-    updateCheckInStatus: vi.fn(),
-    bulkUpdateEntryStatus: vi.fn(),
     getEntriesForExport: vi.fn(),
     compEntry: vi.fn(),
     uncompEntry: vi.fn(),
@@ -353,7 +346,6 @@ describe('useEntryManagementActions', () => {
   });
 
   it('updates inline class check-in through the replicated check-in writer', async () => {
-    vi.mocked(updateCheckInStatus).mockResolvedValue(fromAny({ data: null, error: null }));
     const cls = {
       id: 'class-1',
       name: 'Novice A',
@@ -385,7 +377,6 @@ describe('useEntryManagementActions', () => {
     });
 
     expect(updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
-    expect(updateCheckInStatus).not.toHaveBeenCalled();
   });
   /**
    * MYK9-639. A move-up creates the destination money-neutral and leaves every

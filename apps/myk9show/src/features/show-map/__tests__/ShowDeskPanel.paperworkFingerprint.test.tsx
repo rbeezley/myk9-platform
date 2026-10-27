@@ -37,9 +37,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
   createDatabaseError,
 }));
 vi.mock('@/services/database/day-of-operations', () => ({}));
-vi.mock('@/services/database/entries/lifecycle', () => ({
-  restoreEntryStatus: vi.fn(),
-}));
+vi.mock('@/services/database/entries/lifecycle', () => ({}));
 vi.mock('@/services/database/classes', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/database/classes')>()),
   getClassesByTrialId: mocks.getClassesByTrialId,

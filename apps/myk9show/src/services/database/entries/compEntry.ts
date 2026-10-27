@@ -20,7 +20,7 @@ export const COMP_REFUSED_PAID_CODE = 'MKCMP';
 
 /** Secretary-facing copy for {@link COMP_REFUSED_PAID_CODE}. */
 export const COMP_REFUSED_PAID_MESSAGE =
-  'This entry already has a payment or refund recorded, so it cannot be comped. To give money back, use Refund payment.';
+  'This entry already has a payment or refund recorded, so it cannot be comped. Its payment stays as recorded.';
 
 async function writeComp(
   entryId: string,

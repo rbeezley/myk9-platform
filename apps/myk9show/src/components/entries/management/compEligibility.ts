@@ -5,8 +5,11 @@ import { getEffectivePaymentStatus } from '@/utils/entryManagementUtils';
 /**
  * Whether to offer Comp on an entry (MYK9-1407). A comp forgives a fee that is
  * still OWED, so it is offered only while the effective payment status is
- * pending. A paid or refunded entry is never relabelled as forgiven: money that
- * should go back goes through Refund payment.
+ * pending. A paid or refunded entry is never relabelled as forgiven: giving
+ * money back is a refund, a separate action.
+ *
+ * A row that is already waived but not comped is not offered Comp either:
+ * there is nothing left to forgive, even though the server would accept it.
  *
  * The entry's own status must be pending too: an entry row that says paid
  * under an unsettled order reads effective pending, but the server refuses a

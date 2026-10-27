@@ -1,17 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { useState, useEffect, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { GeneratedPremium } from '../../../types/premium-types';
 
-// A controllable PDFDownloadLink mock. Each test sets `pdfErrorSequence`
-// before rendering; the mock then steps through the sequence on a timer so
-// the render-prop is genuinely re-invoked (matching real PDFDownloadLink
-// behavior, which re-fires its render prop on every internal state tick).
-const errorController: {
-  sequence: Array<Error | null>;
-  step: ((i: number) => void) | null;
-} = { sequence: [], step: null };
+// A controllable PDFDownloadLink mock. The mock reads `errorController.current`
+// on every render, so a test changes the error and then re-renders the tree
+// itself; there is no captured setter and no timer, so nothing depends on
+// which mounted instance rendered last or on wall-clock ticks.
+const errorController: { current: Error | null } = { current: null };
 
 vi.mock('@react-pdf/renderer', () => ({
   pdf: vi.fn(() => ({ toBlob: vi.fn().mockResolvedValue(new Blob()) })),
@@ -20,10 +17,7 @@ vi.mock('@react-pdf/renderer', () => ({
   }: {
     children: (s: { loading: boolean; error: Error | null }) => ReactNode;
   }) => {
-    const [idx, setIdx] = useState(0);
-    errorController.step = setIdx;
-    const error = errorController.sequence[idx] ?? null;
-    return <>{children({ loading: false, error })}</>;
+    return <>{children({ loading: false, error: errorController.current })}</>;
   },
   Document: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   Page: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -98,20 +92,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 
 import { GeneratePremiumPanel } from '../GeneratePremiumPanel';
 
-function Harness() {
-  // Force several re-renders of the panel after mount so the mocked
-  // PDFDownloadLink's render-prop is invoked many times — emulating
-  // PDFDownloadLink's real internal state-tick behavior.
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    let n = 0;
-    const id = setInterval(() => {
-      n += 1;
-      setTick(n);
-      if (n >= 5) clearInterval(id);
-    }, 5);
-    return () => clearInterval(id);
-  }, []);
+function PanelUnderTest() {
   return (
     <GeneratePremiumPanel
       open
@@ -123,15 +104,21 @@ function Harness() {
   );
 }
 
-function renderHarness() {
+function renderPanel() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return render(
+  // A fresh element each time: React bails out on an identical element.
+  const tree = () => (
     <QueryClientProvider client={client}>
-      <Harness />
+      <PanelUnderTest />
     </QueryClientProvider>
   );
+  const view = render(tree());
+  // Re-renders the whole tree so the mocked render-prop is invoked again,
+  // like PDFDownloadLink's internal state ticks.
+  const rerenderTree = () => act(() => view.rerender(tree()));
+  return { rerenderTree };
 }
 
 async function openPanel() {
@@ -147,62 +134,54 @@ describe('GeneratePremiumPanel — PDF error toast deduplication', () => {
   beforeEach(() => {
     errorMock.mockClear();
     successMock.mockClear();
-    errorController.sequence = [];
-    errorController.step = null;
+    errorController.current = null;
   });
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
   it('fires the error toast exactly once for a sticky error across many render-prop invocations', async () => {
-    const stickyError = new Error('boom-render');
-    errorController.sequence = [stickyError, stickyError, stickyError, stickyError];
-    renderHarness();
+    errorController.current = new Error('boom-render');
+    const { rerenderTree } = renderPanel();
     await openPanel();
+    await waitFor(() => expect(errorMock).toHaveBeenCalledTimes(1));
 
-    // Let the harness tick through several re-renders.
-    await waitFor(
-      () => {
-        expect(errorMock).toHaveBeenCalled();
-      },
-      { timeout: 1000 }
-    );
-    // Wait long enough that all harness ticks fire.
-    await new Promise(r => setTimeout(r, 60));
+    // Each tick hands the watcher a NEW Error instance with the same message,
+    // so only the message-level dedupe can keep the toast to one.
+    for (let i = 0; i < 5; i += 1) {
+      errorController.current = new Error('boom-render');
+      await rerenderTree();
+    }
 
     expect(errorMock).toHaveBeenCalledTimes(1);
   });
 
   it('fires once for the same Error reference passed twice', async () => {
     const sameError = new Error('same-ref');
-    errorController.sequence = [sameError, sameError];
-    renderHarness();
+    errorController.current = sameError;
+    const { rerenderTree } = renderPanel();
     await openPanel();
+    await waitFor(() => expect(errorMock).toHaveBeenCalledTimes(1));
 
-    await waitFor(() => expect(errorMock).toHaveBeenCalled(), { timeout: 1000 });
-    await new Promise(r => setTimeout(r, 60));
+    errorController.current = sameError;
+    await rerenderTree();
+    await rerenderTree();
 
     expect(errorMock).toHaveBeenCalledTimes(1);
   });
 
   it('fires twice for two distinct error messages (null → err1 → err2)', async () => {
-    const err1 = new Error('first-failure');
-    const err2 = new Error('second-failure');
-    errorController.sequence = [null, err1, err2];
-    renderHarness();
+    const { rerenderTree } = renderPanel();
     await openPanel();
+    await screen.findByText('Download PDF');
+    expect(errorMock).not.toHaveBeenCalled();
 
-    // Manually walk the sequence so we observe each transition.
-    await waitFor(() => expect(errorController.step).toBeTruthy(), { timeout: 1000 });
-    act(() => {
-      errorController.step!(1);
-    });
-    await waitFor(() => expect(errorMock).toHaveBeenCalledTimes(1), { timeout: 1000 });
-    act(() => {
-      errorController.step!(2);
-    });
-    await waitFor(() => expect(errorMock).toHaveBeenCalledTimes(2), { timeout: 1000 });
+    errorController.current = new Error('first-failure');
+    await rerenderTree();
+    await waitFor(() => expect(errorMock).toHaveBeenCalledTimes(1));
 
-    expect(errorMock).toHaveBeenCalledTimes(2);
+    errorController.current = new Error('second-failure');
+    await rerenderTree();
+    await waitFor(() => expect(errorMock).toHaveBeenCalledTimes(2));
   });
 });

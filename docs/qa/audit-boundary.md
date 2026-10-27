@@ -90,6 +90,16 @@ real boundary.
 > (`c5ad65a10..b7dc2d608`) were reviewed by `claude-daily-commit-review` on 2026-10-25 and reported
 > in `docs/qa/claude-daily-commit-review-2026-10-25.md`.
 
+> **Retention gap closed, 2026-10-26 ([MYK9-1343](https://linear.app/myk9-platform/issue/MYK9-1343)).**
+> The Codex reports for 2026-10-20 through 2026-10-25 that the notes above describe as untracked
+> are now on `main` under their original names in `docs/qa/`, published verbatim from the
+> automation's backup. The 2026-10-18 and 2026-10-19 Codex reports, covering the 43 commits
+> `0952bffb2..3fab98f7d`, were lost with their worktrees and could not be recovered; that exact
+> range was re-reviewed fresh and is reported as replacement evidence in
+> `docs/qa/claude-daily-commit-review-2026-10-18-19-replacement.md`. None of this moved the cursor.
+> From 2026-10-27 the Codex automation commits its report together with its row stamp, directly to
+> `main`, before removing its worktree.
+
 ### Adding a stream
 
 Add a row only for an audit whose scope is a commit range. Streams scoped to _current state_ — a

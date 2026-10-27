@@ -41,9 +41,9 @@ named in the report, not quietly absorbed.
 `Last reviewed SHA` is the newest commit on `main` that has been reviewed for that stream. Dates are
 UTC.
 
-| Stream                | Last reviewed SHA                          | Window end           | Run by                    | Run date   |
-| --------------------- | ------------------------------------------ | -------------------- | ------------------------- | ---------- |
-| `daily-commit-review` | `956f6ce018c583381e9e42013bcf4e33074b2de4` | 2026-10-26T04:30:41Z | codex-daily-commit-review | 2026-10-26 |
+| Stream                | Last reviewed SHA                          | Window end           | Run by                     | Run date   |
+| --------------------- | ------------------------------------------ | -------------------- | -------------------------- | ---------- |
+| `daily-commit-review` | `4d5a839e6ffa18b2811fc282b7a7dc71b8b24516` | 2026-10-27T03:57:46Z | claude-daily-commit-review | 2026-10-27 |
 
 If this row is ever `unset`, nobody has verified which commits the Codex daily stream has actually
 covered; the first run of either automation on this stream must take its default window and stamp a
@@ -99,6 +99,16 @@ real boundary.
 > `docs/qa/claude-daily-commit-review-2026-10-18-19-replacement.md`. None of this moved the cursor.
 > From 2026-10-27 the Codex automation commits its report together with its row stamp, directly to
 > `main`, before removing its worktree.
+
+> **Provenance of the 2026-10-27 stamp.** The 47 commits from `956f6ce01` to `4d5a839e6` were
+> reviewed in one pass by `claude-daily-commit-review` on 2026-10-27 and reported in
+> `docs/qa/claude-daily-commit-review-2026-10-27.md`. The previous row's coverage was verified,
+> not assumed: `docs/qa/codex-daily-commit-review-2026-10-26.md` states its window as exclusive
+> `b7dc2d608` through inclusive `956f6ce01`, and `git rev-list --count b7dc2d608..956f6ce01`
+> returns exactly the 2 commits its inventory enumerates. This window starts at that commit, so
+> there is no gap. The historical Oct 18-19 evidence gap
+> [MYK9-1343](https://linear.app/myk9-platform/issue/MYK9-1343) owns was closed inside this
+> window by `9ab650fc5` and `551c4bf7f`, not absorbed by this stamp.
 
 ### Adding a stream
 

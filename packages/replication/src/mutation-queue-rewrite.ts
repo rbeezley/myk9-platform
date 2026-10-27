@@ -79,9 +79,14 @@ export function rebaseQueuedMutation(
     return { ...mutation, serverVersion, explicitDataKeys };
   }
 
-  const data = { ...rebuiltData };
+  // Only the columns this mutation queued are rebuilt (MYK9-1442): a rebuild is
+  // a whole-row projection, and a narrow payload that grew columns the caller
+  // never touched would write the device's stale copy of whatever a trigger or
+  // another device moved since.
+  const data: Record<string, unknown> = {};
   for (const key of explicitDataKeys) {
-    if (!(key in data) && Object.prototype.hasOwnProperty.call(mutation.data, key)) {
+    if (key in rebuiltData) data[key] = rebuiltData[key];
+    else if (Object.prototype.hasOwnProperty.call(mutation.data, key)) {
       data[key] = mutation.data[key];
     }
   }

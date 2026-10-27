@@ -1,7 +1,8 @@
 // @vitest-environment node
-import { readdirSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { describe, expect, it, vi } from 'vitest';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const { createClient } = vi.hoisted(() => ({ createClient: vi.fn() }));
 vi.mock('@supabase/supabase-js', () => ({ createClient }));
@@ -11,6 +12,7 @@ import {
   assertFixtureSignInAllowed,
   assertPlaywrightRunAllowed,
   targetsProductionProject,
+  viteSupabaseUrl,
 } from './productionFixtureGuard';
 import { authenticateAndResolveScope } from './load/loadStaffCredentials';
 
@@ -57,8 +59,21 @@ describe('production fixture sign-in guard (MYK9-1454)', () => {
 
 describe('a Playwright run refuses to start against production with fixture passwords', () => {
   const merged = { E2E_SECRETARY_PASSWORD: 'pw', VITE_SUPABASE_URL: PRODUCTION };
-  const run = (env: Record<string, string>, shell: Record<string, string> = {}, argv = ['test']) =>
-    assertPlaywrightRunAllowed('playwright.config.ts', shell, env, argv);
+  const appRoots: string[] = [];
+  afterEach(() => appRoots.splice(0).forEach(dir => rmSync(dir, { recursive: true, force: true })));
+  /** An app folder holding exactly these `.env*` files, so the real worktree's `.env` stays out. */
+  const appRootWith = (files: Record<string, string> = {}) => {
+    const dir = mkdtempSync(join(tmpdir(), 'guard-app-'));
+    appRoots.push(dir);
+    for (const [name, body] of Object.entries(files)) writeFileSync(join(dir, name), body);
+    return dir;
+  };
+  const run = (
+    env: Record<string, string>,
+    shell: Record<string, string> = {},
+    argv = ['test'],
+    appRoot = appRootWith()
+  ) => assertPlaywrightRunAllowed('playwright.config.ts', shell, env, argv, appRoot);
 
   it('refuses when a fixture password is configured and the app talks to production', () => {
     expect(() => run(merged)).toThrow(/playwright\.config\.ts: refusing/);
@@ -94,6 +109,25 @@ describe('a Playwright run refuses to start against production with fixture pass
         MYK9_E2E_SUPABASE_URL: PRODUCTION,
       })
     ).toThrow(/refusing/);
+  });
+
+  it('refuses when only the Vite server mode file names production (Codex round 1)', () => {
+    const local = { E2E_SECRETARY_PASSWORD: 'pw', VITE_SUPABASE_URL: LOCAL };
+    for (const file of ['.env.development', '.env.development.local', '.env.production']) {
+      const appRoot = appRootWith({ [file]: `VITE_SUPABASE_URL=${PRODUCTION}\n` });
+      expect(() => run(local, {}, ['test'], appRoot), file).toThrow(/refusing/);
+    }
+  });
+
+  it('lets a shell-set isolated URL win over every .env file, as Vite does', () => {
+    const appRoot = appRootWith({
+      '.env': `VITE_SUPABASE_URL=${PRODUCTION}\n`,
+      '.env.development': `VITE_SUPABASE_URL=${PRODUCTION}\n`,
+    });
+    const isolated = { VITE_SUPABASE_URL: LOCAL, MYK9_E2E_SUPABASE_URL: LOCAL };
+    expect(() =>
+      run({ E2E_SECRETARY_PASSWORD: 'pw', ...isolated }, isolated, ['test'], appRoot)
+    ).not.toThrow();
   });
 });
 
@@ -174,5 +208,22 @@ describe('every fixture sign-in path is guarded, and only production checks opt 
     '.github/workflows/show-day-verification.yml',
   ])('%s never opts in: it runs against an isolated stack', path => {
     expect(read(path)).not.toContain(ALLOW_PRODUCTION_FIXTURE_SIGN_IN);
+  });
+});
+
+describe('viteSupabaseUrl resolves the app server URL with Vite precedence', () => {
+  it('takes the later file, and the shell over every file', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'guard-vite-'));
+    try {
+      writeFileSync(join(dir, '.env'), 'VITE_SUPABASE_URL=https://a.example\n');
+      writeFileSync(join(dir, '.env.local'), 'VITE_SUPABASE_URL=https://b.example\n');
+      writeFileSync(join(dir, '.env.development'), 'VITE_SUPABASE_URL=https://c.example\n');
+      expect(viteSupabaseUrl('development', {}, dir)).toBe('https://c.example');
+      expect(viteSupabaseUrl('production', {}, dir)).toBe('https://b.example');
+      expect(viteSupabaseUrl('development', { VITE_SUPABASE_URL: LOCAL }, dir)).toBe(LOCAL);
+      expect(viteSupabaseUrl('development', {}, join(dir, 'missing'))).toBeUndefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

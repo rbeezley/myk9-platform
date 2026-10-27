@@ -41,6 +41,43 @@ describe('hasLocalEntryForShowToday', () => {
     ).toBe(true);
   });
 
+  describe('co-owner (MYK9-1417)', () => {
+    const coOwnedDogs = [{ id: 'dog-1', ownerId: 'primary-owner', coOwnerId: 'person-1' }];
+    const coOwnedEntry = (overrides: Partial<ReplicatedEntry> = {}) =>
+      entry({ handlerId: 'someone-else', dogId: 'dog-1', ...overrides });
+
+    it('matches an entry for a dog the person co-owns, though they neither handle nor own it', () => {
+      expect(run({ entries: [coOwnedEntry()], dogs: coOwnedDogs })).toBe(true);
+    });
+
+    it('still matches the primary owner of the same dog', () => {
+      expect(run({ personId: 'primary-owner', entries: [coOwnedEntry()], dogs: coOwnedDogs })).toBe(
+        true
+      );
+    });
+
+    it('still matches the handler of the same dog', () => {
+      expect(run({ personId: 'someone-else', entries: [coOwnedEntry()], dogs: coOwnedDogs })).toBe(
+        true
+      );
+    });
+
+    it('denies an unrelated person', () => {
+      expect(run({ personId: 'stranger', entries: [coOwnedEntry()], dogs: coOwnedDogs })).toBe(
+        false
+      );
+    });
+
+    it('denies a withdrawn or scratched entry for the co-owned dog', () => {
+      expect(
+        run({ entries: [coOwnedEntry({ entryStatus: 'withdrawn' })], dogs: coOwnedDogs })
+      ).toBe(false);
+      expect(
+        run({ entries: [coOwnedEntry({ entryStatus: 'scratched' })], dogs: coOwnedDogs })
+      ).toBe(false);
+    });
+  });
+
   it('ignores an entry that is neither handled nor owned by the person', () => {
     expect(
       run({

@@ -1,5 +1,4 @@
 import type { ReplicatedDog, ReplicatedEntry, ReplicatedShow } from '@/services/replication';
-import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import { calendarDateInTimeZone } from '@/utils/calendarDate';
 import { getEntryWindowTimezone, type EntryWindowTrial } from '@/utils/entryWindowDate';
 
@@ -11,8 +10,8 @@ const INACTIVE_ENTRY_STATUSES = new Set(['withdrawn', 'scratched']);
  * the show is on today? Mirrors the server RPC `get_account_today_entries`
  * (20260908134500, show-timezone rule from 20261024163700): the show is live (`startDate <= today <= endDate`,
  * inclusive, not soft-deleted) and the entry is neither withdrawn, scratched
- * nor soft-deleted. Ownership uses the same rule as the replica fallback of
- * `getUserEntries`: the person handles it, or owns its dog.
+ * nor soft-deleted. Ownership mirrors the RPC's three branches: the person
+ * handles the entry, or is the owner or co-owner of its dog.
  *
  * Pure (rows in, boolean out) so it needs no IndexedDB. "Today" is the
  * show-local calendar date of `now` in the show's primary-trial timezone
@@ -30,7 +29,7 @@ export function hasLocalEntryForShowToday(input: {
   trials: readonly EntryWindowTrial[];
   show: Pick<ReplicatedShow, 'id' | 'startDate' | 'endDate' | 'deletedAt'> | null | undefined;
   entries: readonly ReplicatedEntry[];
-  dogs: readonly Pick<ReplicatedDog, 'id' | 'ownerId'>[];
+  dogs: readonly Pick<ReplicatedDog, 'id' | 'ownerId' | 'coOwnerId'>[];
 }): boolean {
   const { personId, showId, now, trials, show, entries, dogs } = input;
   if (!personId || !showId || !show) return false;
@@ -39,7 +38,9 @@ export function hasLocalEntryForShowToday(input: {
   const today = calendarDateInTimeZone(now, getEntryWindowTimezone(trials));
   if (today < show.startDate || today > show.endDate) return false;
 
-  const ownedDogIds = selectOwnedDogIds(dogs, personId);
+  const ownedDogIds = new Set(
+    dogs.filter(dog => dog.ownerId === personId || dog.coOwnerId === personId).map(dog => dog.id)
+  );
   return entries.some(entry => {
     if (entry.showId !== showId) return false;
     if (entry.deletedAt ?? entry.deleted_at) return false;

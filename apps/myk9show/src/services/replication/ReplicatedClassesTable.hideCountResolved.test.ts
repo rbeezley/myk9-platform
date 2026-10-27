@@ -25,10 +25,11 @@ const CLASS_ROW = { id: 'class-1', trial_id: 'trial-1', element: 'Interior', lev
 type Enrich = (rows: unknown[]) => Promise<Array<Record<string, unknown>>>;
 type Resolve = (local: ReplicatedClass, remote: ReplicatedClass) => ReplicatedClass;
 
-function builder(rows: unknown[]) {
+function builder(rows: unknown[], error: unknown = null) {
   const chain: Record<string, unknown> = {};
   for (const step of ['select', 'in', 'eq', 'not']) chain[step] = () => chain;
-  chain.then = (resolve: (value: unknown) => unknown) => resolve({ data: rows, error: null });
+  chain.then = (resolve: (value: unknown) => unknown) =>
+    resolve({ data: error ? null : rows, error });
   return chain;
 }
 
@@ -82,6 +83,21 @@ describe('official hide count survives a failed lookup (MYK9-1451)', () => {
 
     expect(merged.hideCount).toBeUndefined();
     expect(merged.hideCountResolved).toBe(true);
+  });
+
+  it('keeps a fixed count when the public rules read fails and the official RPC has no row', async () => {
+    // Exhibitor/anon devices and public fixed-count classes get no official row; with the rules
+    // read down the count is unknown, not "none".
+    mockFrom.mockImplementation((table: string) =>
+      table === 'sport_class_rules'
+        ? builder([], { message: 'rules unavailable' })
+        : builder(table === 'trials' ? TRIALS : [])
+    );
+    rpc({ data: [], error: null });
+
+    const merged = await resyncOver({ ...warm, hideCount: 3 } as ReplicatedClass);
+
+    expect(merged.hideCount).toBe(3);
   });
 
   it('adopts the server count when the lookup answered with one', async () => {

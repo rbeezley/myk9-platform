@@ -58,8 +58,9 @@ export async function resolveHideCountsForClassRows(
   /** Called for each lookup that failed and was skipped, so a caller can tell a partial answer. */
   onPartialFailure?: () => void,
   /**
-   * MYK9-1451: receives the id of every class whose show's official lookup answered, with or
-   * without a count. A class absent from it is "unknown", not "no count".
+   * MYK9-1451: receives the id of every class whose show's official lookup AND the public rules
+   * read both answered, with or without a count. A class absent from it is "unknown", not "no
+   * count".
    */
   officialAnswered?: Set<string>
 ): Promise<Map<string, number>> {
@@ -93,6 +94,9 @@ export async function resolveHideCountsForClassRows(
     ...new Set(trials.map(trial => trial.registry_id).filter((id): id is string => !!id)),
   ];
 
+  // MYK9-1451: a class's count is "known" only when BOTH reads answered. A failed rules read
+  // leaves a public fixed count unknown even when the official RPC has no row for the class.
+  let rulesAnswered = true;
   if (registryIds.length > 0) {
     const { data: ruleData, error: rulesError } = await supabase
       .from('sport_class_rules')
@@ -104,6 +108,7 @@ export async function resolveHideCountsForClassRows(
       .not('hide_count_fixed', 'is', null);
 
     if (rulesError) {
+      rulesAnswered = false;
       onPartialFailure?.();
       logger.warn(
         `[resolveClassHideCounts] Public hide rules unavailable this sync: ${rulesError.message}`,
@@ -163,7 +168,7 @@ export async function resolveHideCountsForClassRows(
       const answeredShows = new Set(batch);
       for (const row of rows) {
         const showId = row.trial_id ? trialById.get(row.trial_id)?.show_id : undefined;
-        if (showId && answeredShows.has(showId)) officialAnswered?.add(row.id);
+        if (rulesAnswered && showId && answeredShows.has(showId)) officialAnswered?.add(row.id);
       }
 
       for (const row of data ?? []) {

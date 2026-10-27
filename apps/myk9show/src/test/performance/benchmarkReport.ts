@@ -274,7 +274,7 @@ export function formatBenchmarkReport(
     '|---|---:|',
     ...chunks.map(chunk => `| \`${chunk.file}\` | ${chunk.bytes.toLocaleString()} |`),
     '',
-    'See ignored `apps/myk9show/dist/stats.html` for the full treemap; rebuild with `pnpm --dir apps/myk9show build:production` to reproduce it.',
+    'The full treemap, `apps/myk9show/dist/stats.html` (ignored), exists only for an `ANALYZE_BUNDLE=true` build: run `pnpm --dir apps/myk9show build:analyze` to produce it.',
     '',
     '## Field data and limitations',
     '',

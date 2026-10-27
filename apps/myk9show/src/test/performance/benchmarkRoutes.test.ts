@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { BENCHMARK_ROUTES, benchmarkRoutesFor, resolveBenchmarkRoutePath } from './benchmarkRoutes';
+import {
+  BENCHMARK_ROUTES,
+  benchmarkRoutesFor,
+  resolveBenchmarkRoutePath,
+  assertKnownRouteIds,
+} from './benchmarkRoutes';
 import { blockedRouteReason, rankSlowestRoutes } from './benchmarkMetrics';
 
 describe('MYK9-843 route matrix', () => {
@@ -9,13 +14,15 @@ describe('MYK9-843 route matrix', () => {
       new Set(['public', 'exhibitor', 'secretary', 'judge', 'admin'])
     );
     expect(
-      BENCHMARK_ROUTES.some(route => route.role === 'secretary' && route.path.endsWith('/show-day'))
+      BENCHMARK_ROUTES.some(
+        route => route.role === 'secretary' && route.id === 'secretary-show-home'
+      )
     ).toBe(true);
     expect(
       BENCHMARK_ROUTES.some(route => route.role === 'judge' && route.path.startsWith('/at-show/'))
     ).toBe(true);
     expect(BENCHMARK_ROUTES.some(route => route.id === 'exhibitor-cart')).toBe(true);
-    expect(BENCHMARK_ROUTES.some(route => route.id === 'secretary-show-day')).toBe(true);
+    expect(BENCHMARK_ROUTES.some(route => route.id === 'secretary-show-home')).toBe(true);
     expect(BENCHMARK_ROUTES.some(route => route.id === 'ringside-scoring')).toBe(true);
   });
 
@@ -27,9 +34,10 @@ describe('MYK9-843 route matrix', () => {
 
   it('uses a supplied QA show ID for show-scoped routes', () => {
     const routes = benchmarkRoutesFor('custom-show-id', 'custom-class-id');
-    expect(routes.find(route => route.id === 'secretary-setup')?.path).toBe(
-      '/shows/custom-show-id/setup'
+    expect(routes.find(route => route.id === 'secretary-show-home')?.path).toBe(
+      '/shows/custom-show-id'
     );
+    expect(routes.some(route => route.id === 'secretary-setup')).toBe(false);
     expect(routes.find(route => route.id === 'ringside-class-picker')?.path).toBe(
       '/at-show/custom-show-id'
     );
@@ -46,11 +54,11 @@ describe('MYK9-843 route matrix', () => {
     expect(routes.find(route => route.id === 'exhibitor-entries')?.readySelector).toContain(
       'entry-filter-strip'
     );
-    expect(routes.find(route => route.id === 'secretary-setup')?.readySelector).toContain(
-      '[role="button"] h3'
+    expect(routes.find(route => route.id === 'secretary-show-home')?.readySelector).toContain(
+      'secretary-cockpit'
     );
     expect(routes.find(route => route.id === 'secretary-results')?.readySelector).toContain(
-      ':not(:has-text("No entries are loaded"))'
+      'ul[aria-label="Classes"]'
     );
     expect(routes.find(route => route.id === 'exhibitor-cart')?.readySelector).toContain(
       'Nothing in your entry yet'
@@ -75,5 +83,14 @@ describe('MYK9-843 route matrix', () => {
         { status: 'measured' as const },
       ]).map(sample => sample.timeToUsableMs)
     ).toEqual([1400, 900]);
+  });
+
+  it('rejects an unknown or retired route id instead of silently dropping the route', () => {
+    expect(() =>
+      assertKnownRouteIds(['public-home', 'secretary-show-home'], BENCHMARK_ROUTES)
+    ).not.toThrow();
+    expect(() => assertKnownRouteIds(['secretary-setup'], BENCHMARK_ROUTES)).toThrow(
+      'Unknown benchmark route id(s): secretary-setup'
+    );
   });
 });

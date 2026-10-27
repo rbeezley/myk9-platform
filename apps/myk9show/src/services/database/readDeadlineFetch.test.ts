@@ -131,7 +131,12 @@ describe('createReadDeadlineFetch', () => {
     const base = vi.fn<typeof fetch>(async () => {
       throw new TypeError('Failed to fetch');
     });
-    await expect(createReadDeadlineFetch(base)(CLASSES)).rejects.toThrow('Failed to fetch');
+    const result = expect(createReadDeadlineFetch(base)(CLASSES)).rejects.toThrow(
+      'Failed to fetch'
+    );
+    await vi.advanceTimersByTimeAsync(7_000); // the 1 s + 2 s + 4 s retry backoffs
+    await result;
+    expect(base).toHaveBeenCalledTimes(4);
     expect(vi.getTimerCount()).toBe(0);
   });
 

@@ -19,8 +19,14 @@
  * Every `/rest/v1` GET is deadlined, bulk sync pages included. A page that exceeds 30 s on
  * a saturated server now fails visibly (refresh toast) and the next pass retries. The 30 s
  * value is to be confirmed at the next load rehearsal.
- * This bounds each fetch attempt. Ordinary SDK retries retain their existing behavior;
- * a total logical-read budget across those retries is separate work (MYK9-1421).
+ * MYK9-1421: the deadline is also the TOTAL budget of one logical read. postgrest-js retried
+ * network errors and 503/520 on its own (3 retries, 1/2/4 s backoff, Retry-After honoured),
+ * and each attempt got a fresh deadline, so quick failures could hold a read for ~4 x 30 s.
+ * The main client now sets `db.retry: false` and this layer runs the same retry policy under
+ * ONE controller and ONE timer: attempts share the remaining budget, and a retry whose wait
+ * would not end strictly inside the budget (including a long Retry-After) is not started; the
+ * last response or error is returned at once. Caller cancellation aborts the wait immediately.
+ * Expected first paint: a read never outlives 30 s from its first byte sent, as MYK9-1351 intended.
  *
  * AbortError vs TimeoutError. An `AbortError` means somebody cancelled on purpose: the
  * replication layer (`syncErrorUtils.isAbortSyncMessage`) treats it as a cancelled sync,
@@ -135,6 +141,50 @@ export function isDeadlinedRead(input: RequestInfo | URL, init?: RequestInit): b
   return READ_ONLY_RPCS.has(pathname.slice(RPC_PREFIX.length));
 }
 
+/** Same retry policy postgrest-js applies by default (fetchWithRetry), now bounded by the budget. */
+export const READ_RETRY_MAX = 3;
+const READ_RETRY_STATUSES: ReadonlySet<number> = new Set([503, 520]);
+const readRetryDelayMs = (retryIndex: number) => Math.min(1000 * 2 ** retryIndex, 30_000);
+
+/** Retry-After in seconds, parsed exactly as postgrest-js does; null when absent. */
+function retryAfterMs(res: Response): number | null {
+  const header = res.headers?.get('Retry-After') ?? null;
+  return header === null ? null : Math.max(0, parseInt(header, 10) || 0) * 1000;
+}
+
+function withRetryCount(
+  init: RequestInit | undefined,
+  retryCount: number
+): RequestInit | undefined {
+  if (retryCount === 0) return init;
+  const headers = new Headers(init?.headers);
+  headers.set('X-Retry-Count', String(retryCount));
+  return { ...init, headers };
+}
+
+/** Resolves after `ms`, or rejects with the signal's reason the moment it aborts. */
+function sleepUnlessAborted(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(signal.reason);
+    const id = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    function onAbort() {
+      clearTimeout(id);
+      reject(signal.reason);
+    }
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+function isAbortLike(error: unknown, signal: AbortSignal): boolean {
+  const { name, code } = (error ?? {}) as { name?: unknown; code?: unknown };
+  return (
+    name === 'AbortError' || code === 'ABORT_ERR' || (name === 'TimeoutError' && signal.aborted)
+  );
+}
+
 export function createReadDeadlineFetch(
   baseFetch: Fetch = (input, init) => globalThis.fetch(input, init),
   deadlineMs: number = SUPABASE_READ_DEADLINE_MS
@@ -153,6 +203,7 @@ export function createReadDeadlineFetch(
       settle();
       controller.abort(callerSignal?.reason);
     }
+    const startedAt = Date.now();
     if (callerSignal?.aborted) {
       controller.abort(callerSignal.reason);
     } else {
@@ -162,8 +213,43 @@ export function createReadDeadlineFetch(
         controller.abort(readDeadlineReason(deadlineMs));
       }, deadlineMs);
     }
+
+    // Only idempotent reads are retried, as postgrest-js did (POST read-only RPCs never were).
+    const retryable = ['GET', 'HEAD'].includes(methodOf(input, init));
+    // A retry may start only if its wait ends strictly inside the budget; otherwise the last
+    // failure is surfaced now instead of sleeping into a deadline abort.
+    const fitsBudget = (waitMs: number) => Date.now() - startedAt + waitMs < deadlineMs;
+
     try {
-      return await baseFetch(input, { ...init, signal: controller.signal });
+      for (let retryCount = 0; ; retryCount++) {
+        let res: Response;
+        try {
+          res = await baseFetch(input, {
+            ...withRetryCount(init, retryCount),
+            signal: controller.signal,
+          });
+        } catch (error) {
+          const waitMs = readRetryDelayMs(retryCount);
+          if (
+            isAbortLike(error, controller.signal) ||
+            controller.signal.aborted ||
+            !retryable ||
+            retryCount >= READ_RETRY_MAX ||
+            !fitsBudget(waitMs)
+          ) {
+            throw error;
+          }
+          await sleepUnlessAborted(waitMs, controller.signal);
+          continue;
+        }
+        if (!retryable || !READ_RETRY_STATUSES.has(res.status) || retryCount >= READ_RETRY_MAX) {
+          return res;
+        }
+        const waitMs = retryAfterMs(res) ?? readRetryDelayMs(retryCount);
+        if (!fitsBudget(waitMs)) return res;
+        await res.text().catch(() => undefined);
+        await sleepUnlessAborted(waitMs, controller.signal);
+      }
     } catch (error) {
       settle();
       throw error;

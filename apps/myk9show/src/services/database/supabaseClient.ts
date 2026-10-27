@@ -30,6 +30,8 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   },
   db: {
     schema: 'public',
+    // MYK9-1421: transient read retries run inside createReadDeadlineFetch under one budget.
+    retry: false,
   },
   global: {
     headers: {

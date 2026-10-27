@@ -22,6 +22,30 @@ import { assertAudienceQuerySucceeded } from './fanoutErrors.ts';
 /** Chunk size for PostgREST `.in()` queries, to stay under URL length limits. */
 export const PUSH_SUBSCRIPTION_CHUNK_SIZE = 100;
 
+/**
+ * Concurrent web-push sends per batch. Each send is a TLS round trip to a
+ * third-party push service; 10 keeps a 500-device class under a few seconds
+ * without opening hundreds of sockets in one isolate.
+ */
+export const PUSH_SEND_CONCURRENCY = 10;
+
+/**
+ * Stop STARTING sends after this long. Supabase documents a 150s request idle
+ * timeout and a 400s wall-clock cap (paid plans; lower on free), which could
+ * not be re-confirmed offline for this change, so the budget is deliberately
+ * conservative. Time already spent before the batch (reads, audience
+ * resolution) is not counted, hence the wide margin.
+ */
+export const PUSH_SEND_DEADLINE_MS = 90_000;
+
+/**
+ * Per-send socket timeout (web-push's `timeout` request option). The deadline
+ * above only stops new sends from STARTING; without this a stalled push-service
+ * connection would hold its worker past the platform cap and the batch would
+ * die with no count and no TRUNCATED line. A timed-out send counts as failed.
+ */
+export const PUSH_SEND_TIMEOUT_MS = 10_000;
+
 export interface PushSubscriptionRow {
   user_id: string;
   endpoint: string;
@@ -33,7 +57,8 @@ export interface PushSubscriptionRow {
 export interface WebPushSender {
   sendNotification(
     subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
-    payload: string
+    payload: string,
+    options?: { timeout?: number }
   ): Promise<unknown>;
 }
 
@@ -49,6 +74,8 @@ export interface PushBatchResult {
   expired: number;
   /** Subscriptions not attempted because the payload function returned null. */
   skipped: number;
+  /** Subscriptions never attempted because the send deadline passed. */
+  truncated: number;
 }
 
 /**
@@ -83,32 +110,56 @@ export async function loadPushSubscriptions(
 }
 
 /**
- * Send to EVERY subscription given (no per-user dedupe), then delete the
- * endpoints the push service reported gone (404/410) in one query. Individual
- * send failures are counted, never thrown.
+ * Send to EVERY subscription given (no per-user dedupe), at most
+ * `concurrency` at a time, then delete the endpoints the push service
+ * reported gone (404/410) in one query. Individual send failures are counted,
+ * never thrown. Once `deadlineMs` has elapsed no new send starts; the rest are
+ * reported as `truncated` and logged at error level.
  */
 export async function sendWebPushBatch(
   webpush: WebPushSender,
   supabase: SupabaseClient,
   subscriptions: readonly PushSubscriptionRow[],
   payload: PushPayloadSource,
-  { label, quiet = false }: { label: string; quiet?: boolean }
+  {
+    label,
+    quiet = false,
+    concurrency = PUSH_SEND_CONCURRENCY,
+    deadlineMs = PUSH_SEND_DEADLINE_MS,
+    now = Date.now,
+  }: {
+    label: string;
+    quiet?: boolean;
+    concurrency?: number;
+    deadlineMs?: number;
+    now?: () => number;
+  }
 ): Promise<PushBatchResult> {
   const payloadFor = typeof payload === 'function' ? payload : () => payload;
-  const result: PushBatchResult = { sent: 0, failed: 0, expired: 0, skipped: 0 };
+  const result: PushBatchResult = { sent: 0, failed: 0, expired: 0, skipped: 0, truncated: 0 };
   const expiredEndpoints: string[] = [];
+  const startedAt = now();
+  let next = 0;
 
-  await Promise.allSettled(
-    subscriptions.map(async sub => {
-      const body = payloadFor(sub.user_id);
-      if (body === null) {
-        result.skipped++;
-        return;
+  const worker = async () => {
+    while (next < subscriptions.length) {
+      const sub = subscriptions[next++];
+      if (now() - startedAt >= deadlineMs) {
+        result.truncated++;
+        continue;
       }
       try {
+        // Inside the try: one recipient's payload error must not reject the
+        // whole pool (Promise.all) and skip the expired-endpoint cleanup.
+        const body = payloadFor(sub.user_id);
+        if (body === null) {
+          result.skipped++;
+          continue;
+        }
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          body
+          body,
+          { timeout: PUSH_SEND_TIMEOUT_MS }
         );
         result.sent++;
       } catch (err: unknown) {
@@ -119,18 +170,28 @@ export async function sendWebPushBatch(
         }
         console.error(`${label}: push failed for ${sub.endpoint}:`, (err as Error).message);
       }
-    })
-  );
+    }
+  };
+
+  const workerCount = Math.max(1, Math.min(concurrency, subscriptions.length));
+  await Promise.all(Array.from({ length: workerCount }, worker));
 
   if (expiredEndpoints.length > 0) {
     await supabase.from('push_subscriptions').delete().in('endpoint', expiredEndpoints);
     result.expired = expiredEndpoints.length;
   }
 
-  if (!quiet) {
-    console.log(
-      `${label}: sent=${result.sent}/${subscriptions.length} failed=${result.failed} expired=${result.expired} skipped=${result.skipped}`
-    );
+  const elapsedMs = now() - startedAt;
+  const summary = `${label}: sent=${result.sent}/${subscriptions.length} failed=${result.failed} expired=${result.expired} skipped=${result.skipped} truncated=${result.truncated} elapsedMs=${elapsedMs}`;
+  if (isTruncatedPushBatch(result, subscriptions.length)) {
+    console.error(`${summary} TRUNCATED: some recipients were not sent to`);
+  } else if (!quiet) {
+    console.log(summary);
   }
   return result;
+}
+
+/** True when the batch did not account for every subscription it was given. */
+export function isTruncatedPushBatch(result: PushBatchResult, total: number): boolean {
+  return result.truncated > 0 || result.sent + result.failed + result.skipped < total;
 }

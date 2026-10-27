@@ -106,13 +106,22 @@ function makeDeps(overrides: Partial<InviteUserDeps> = {}) {
   };
 }
 
+// A Bearer request whose JWT says the caller signed in `ageSeconds` ago (MYK9-1393).
+function reqSignedIn(ageSeconds: number): Request {
+  const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const timestamp = Math.floor(Date.now() / 1000) - ageSeconds;
+  const token = `${b64({ alg: 'HS256' })}.${b64({ sub: 'caller', amr: [{ method: 'password', timestamp }] })}.sig`;
+  return new Request('https://example.test', { headers: { Authorization: `Bearer ${token}` } });
+}
+
 function invoke(
   supabase: unknown,
   deps: InviteUserDeps,
   body: Record<string, unknown> = { email: 'new.secretary@example.test' },
-  user: unknown = { id: 'auth-caller' }
+  user: unknown = { id: 'auth-caller' },
+  req: Request = reqSignedIn(10)
 ) {
-  return inviteUserHandler({ body, user, supabase } as never, deps);
+  return inviteUserHandler({ req, body, user, supabase } as never, deps);
 }
 
 describe('inviteUserHandler — authorization', () => {
@@ -163,6 +172,31 @@ describe('inviteUserHandler — authorization', () => {
     await expect(invoke(supabase, deps)).rejects.toMatchObject({ status: 403 });
     expect(generateLink).not.toHaveBeenCalled();
     expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('refuses a stale session with step_up_required and mints nothing (MYK9-1393)', async () => {
+    const { supabase, generateLink, getUserById } = makeSupabase({
+      targetPerson: { auth_user_id: 'auth-target', email: 'pat@example.test' },
+    });
+    const { deps, sendEmail } = makeDeps();
+    const body = { email: 'pat@example.test', personId: 'person-1' };
+
+    await expect(
+      invoke(supabase, deps, body, { id: 'auth-caller' }, reqSignedIn(3600))
+    ).rejects.toMatchObject({ status: 403, message: 'step_up_required' });
+    expect(supabase.from).toHaveBeenCalledTimes(2); // caller lookup + role check only
+    expect(getUserById).not.toHaveBeenCalled();
+    expect(generateLink).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('asks a non-site_admin for no password: the role refusal comes first', async () => {
+    const { supabase } = makeSupabase({ rbacRoles: [{ role: { name: 'secretary' } }] });
+    const { deps } = makeDeps();
+
+    await expect(
+      invoke(supabase, deps, undefined, { id: 'auth-caller' }, reqSignedIn(3600))
+    ).rejects.toThrow('Unauthorized: requires site_admin role');
   });
 });
 

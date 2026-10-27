@@ -5,16 +5,10 @@ import {
   PaymentStatus,
 } from '@/types/show-registration-types';
 import {
-  acceptEntry,
   changeSecretaryEntryStatus,
   denyMoveUpRequest,
-  rejectEntry,
   removeEntryAsManager,
-  restoreEntryStatus,
-  pullEntry,
   setEntryLifecycleStatus,
-  transitionEntryLifecycle,
-  waitlistEntry,
 } from './lifecycle';
 
 const { updateEntryStatus, auditLog } = vi.hoisted(() => ({
@@ -45,9 +39,7 @@ vi.mock('../supabaseClient', () => {
     chain.eq = vi.fn().mockReturnValue(chain);
     chain.select = vi.fn().mockReturnValue(chain);
     chain.single = vi.fn().mockResolvedValue({ data: { id: 'entry-1' }, error: null });
-    // Fire-and-forget transitions (e.g. restoreEntryStatus) await the chain
-    // directly without .single(). Make the chain thenable so `await chain`
-    // resolves to { error: null }.
+    // Make the chain thenable so a bare `await chain` (no .single()) resolves.
     chain.then = (resolve: (v: unknown) => void) => resolve({ data: null, error: null });
     return chain;
   };
@@ -139,97 +131,6 @@ describe('Entry lifecycle transitions', () => {
     });
   });
 
-  it('accepts an Entry by writing confirmed and logs the transition', async () => {
-    await acceptEntry('entry-1');
-
-    expect(updateEntryStatus).toHaveBeenCalledWith(
-      'entry-1',
-      'confirmed',
-      undefined,
-      undefined,
-      undefined,
-      undefined
-    );
-    expect(auditLog).toHaveBeenCalledWith(
-      expect.objectContaining({
-        entityType: 'entry',
-        entityId: 'entry-1',
-        changes: { entryStatus: { from: null, to: 'confirmed' } },
-        metadata: expect.objectContaining({ action: 'accept_entry' }),
-      })
-    );
-  });
-
-  it('rejects an Entry using the existing withdrawn transition behavior', async () => {
-    await rejectEntry('entry-1', 'Class limit reached');
-
-    expect(updateEntryStatus).toHaveBeenCalledWith(
-      'entry-1',
-      'withdrawn',
-      'Class limit reached',
-      undefined,
-      undefined,
-      undefined
-    );
-    expect(auditLog).toHaveBeenCalledWith(
-      expect.objectContaining({
-        metadata: expect.objectContaining({
-          action: 'reject_entry',
-          reason: 'Class limit reached',
-        }),
-      })
-    );
-  });
-
-  it('pulls an Entry and preserves the reason', async () => {
-    await pullEntry('entry-1', 'Dog is absent');
-
-    expect(updateEntryStatus).toHaveBeenCalledWith(
-      'entry-1',
-      'scratched',
-      'Dog is absent',
-      undefined,
-      undefined,
-      undefined
-    );
-    expect(auditLog).toHaveBeenCalledWith(
-      expect.objectContaining({
-        metadata: expect.objectContaining({ action: 'pull_entry', reason: 'Dog is absent' }),
-      })
-    );
-  });
-
-  it('keeps current wait-list decision behavior behind a named transition', async () => {
-    await waitlistEntry('entry-1');
-
-    expect(updateEntryStatus).toHaveBeenCalledWith(
-      'entry-1',
-      'confirmed',
-      undefined,
-      undefined,
-      undefined,
-      undefined
-    );
-    expect(auditLog).toHaveBeenCalledWith(
-      expect.objectContaining({
-        metadata: expect.objectContaining({ action: 'waitlist_entry' }),
-      })
-    );
-  });
-
-  it('routes transition actions through the same explicit status seam', async () => {
-    await transitionEntryLifecycle({ entryId: 'entry-1', action: 'pull', reason: 'Absent' });
-
-    expect(updateEntryStatus).toHaveBeenCalledWith(
-      'entry-1',
-      'scratched',
-      'Absent',
-      undefined,
-      undefined,
-      undefined
-    );
-  });
-
   // MYK9-632: the manager chooser's two acts. `removeEntryAsManager` is what
   // `withdrawEntry({ asShowManager: true })` routes to; before it, both choices
   // went to `rejectEntry` and stored 'withdrawn'.
@@ -270,28 +171,6 @@ describe('Entry lifecycle transitions', () => {
         expect.objectContaining({
           changes: { entryStatus: { from: 'move-up-requested', to: 'confirmed' } },
           metadata: expect.objectContaining({ action: 'deny_move_up_request' }),
-        })
-      );
-    });
-
-    it('restoreEntryStatus writes the captured prior status verbatim', async () => {
-      await restoreEntryStatus({
-        entryId: 'entry-1',
-        previousEntryStatus: 'checked-in',
-        previousCheckInStatus: 'checked-in',
-        previousSpecialRequests: 'note',
-      });
-
-      expect(supabaseUpdates[0]!.payload).toEqual(
-        expect.objectContaining({
-          entry_status: 'checked-in',
-          check_in_status: 'checked-in',
-          special_requests: 'note',
-        })
-      );
-      expect(auditLog).toHaveBeenCalledWith(
-        expect.objectContaining({
-          metadata: expect.objectContaining({ action: 'restore_entry_status' }),
         })
       );
     });

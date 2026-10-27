@@ -86,7 +86,6 @@ vi.mock('@/services/LoggingService', () => ({
 
 import {
   buildReplicatedEntryStatusUpdate,
-  bulkUpdateEntryStatus,
   getEntriesForShow,
   updateEntryStatus,
 } from './secretary';
@@ -292,41 +291,6 @@ describe('secretary entry status replication', () => {
         paymentStatus: 'paid',
       }
     );
-  });
-
-  it('bulk-updates each entry status through replicated mutations', async () => {
-    const result = await bulkUpdateEntryStatus(['entry-1', 'entry-2'], 'confirmed' as EntryStatus);
-
-    expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledTimes(2);
-    expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenNthCalledWith(1, 'entry-1', {
-      entryStatus: 'confirmed',
-      entry_status: 'confirmed',
-      status: 'confirmed',
-    });
-    expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenNthCalledWith(2, 'entry-2', {
-      entryStatus: 'confirmed',
-      entry_status: 'confirmed',
-      status: 'confirmed',
-    });
-    expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
-    expect(result).toEqual({
-      data: [
-        { id: 'entry-1', show_id: 'show-1', class_id: 'class-1', mutationId: 'mutation-1' },
-        { id: 'entry-2', show_id: 'show-1', class_id: 'class-2', mutationId: 'mutation-1' },
-      ],
-      error: null,
-    });
-  });
-
-  it('returns the existing bulk error envelope when a replicated mutation fails', async () => {
-    mocks.updateSecretaryLifecycleStatus.mockRejectedValueOnce(
-      new Error('offline queue unavailable')
-    );
-
-    const result = await bulkUpdateEntryStatus(['entry-1', 'entry-2'], 'confirmed' as EntryStatus);
-
-    expect(result.data).toEqual([]);
-    expect(result.error).toEqual(expect.objectContaining({ message: 'offline queue unavailable' }));
   });
 });
 

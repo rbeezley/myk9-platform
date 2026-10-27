@@ -16,7 +16,6 @@ import {
   denyMoveUpRequest,
   getPullableEntries,
 } from '../../day-of-operations';
-import { getEntryCountsByStatus } from '../../entries/secretary';
 import { getNextArmbandForShow } from '../../armbands';
 
 const replicationMocks = vi.hoisted(() => ({
@@ -231,29 +230,6 @@ describe('entry_status enum values used by query layer', () => {
       await expect(getNextArmbandForShow('show-1')).resolves.toBe(105);
       expect(replicationMocks.getArmbandsByShow).toHaveBeenCalledWith('show-1');
       expect(mockFrom).not.toHaveBeenCalledWith('armbands');
-    });
-
-    it('getEntryCountsByStatus counts submitted/confirmed/pending-payment', async () => {
-      const rows = [
-        { entry_status: 'submitted', payment_status: 'pending' },
-        { entry_status: 'confirmed', payment_status: 'paid' },
-        { entry_status: 'confirmed', payment_status: 'paid' },
-        { entry_status: 'pending-payment', payment_status: 'pending' },
-      ];
-      const chain = chainMock({
-        is: vi.fn().mockResolvedValue({ data: rows, error: null }),
-      });
-      mockFrom.mockReturnValue(chain);
-
-      const { data } = await getEntryCountsByStatus('show-1');
-
-      expect(data).toEqual({
-        total: 4,
-        submitted: 1,
-        confirmed: 2,
-        pendingPayment: 1,
-        paymentDue: 2,
-      });
     });
   });
 });

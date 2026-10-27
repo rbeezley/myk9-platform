@@ -31,6 +31,7 @@ import { verifySecretaryEmptyShow } from '@/services/database/entries/secretaryE
 import type { Database } from '@/types/supabase';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { PendingDeletes } from './pendingDeletes';
+import { entryChangedColumnsRow } from './ReplicatedEntriesTable.changedColumns';
 import {
   entryToSupabaseRow,
   rowToEntry,
@@ -662,7 +663,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const mutationId = await this.queueMutation(
       'UPDATE',
       entryId,
-      entryToSupabaseRow(updated),
+      // Only entry_status (MYK9-1442): a full row would write back every other
+      // column at this device's last-seen value over a trigger's or another
+      // device's change.
+      entryChangedColumnsRow(entry, { entryStatus: status }, updated),
       undefined,
       undefined,
       /* deferUpload */ true
@@ -727,7 +731,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       _syncStatus: 'pending',
     };
 
-    const supabaseRow = entryToSupabaseRow(updated);
+    // Only the columns the caller changed (MYK9-1442), never the whole row.
+    const supabaseRow = entryChangedColumnsRow(entry, updates, updated);
     // Auto-route ringside-only writes (scoring/run-order/check-in/placement)
     // through the SECURITY DEFINER RPC so assigned judges / stewards — who are
     // denied by the entries UPDATE RLS policy — can persist. Writes that touch

@@ -70,16 +70,6 @@ export function formatDateShortMonth(dateStr?: string): string {
 }
 
 /**
- * Formats a date to abbreviated day name (e.g., 'Mon', 'Tue').
- */
-export function formatDayAbbreviation(dateStr?: string): string {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('en-US', { weekday: 'short' });
-}
-
-/**
  * Formats time from Date object or time string.
  */
 export function formatTime(

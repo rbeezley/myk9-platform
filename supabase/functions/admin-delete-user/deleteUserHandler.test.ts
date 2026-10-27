@@ -3,6 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../_shared/http/responses.ts';
 import { deleteUserHandler } from './deleteUserHandler.ts';
 
+// A Bearer request whose JWT says the caller signed in `ageSeconds` ago (MYK9-1393).
+function reqSignedIn(ageSeconds: number): Request {
+  const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const timestamp = Math.floor(Date.now() / 1000) - ageSeconds;
+  const token = `${b64({ alg: 'HS256' })}.${b64({ sub: 'caller', amr: [{ method: 'password', timestamp }] })}.sig`;
+  return new Request('https://example.test', { headers: { Authorization: `Bearer ${token}` } });
+}
+
 /** Minimal thenable query-builder chain, like the send-email authz tests use. */
 function chain<T>(data: T, error: unknown = null) {
   const query: Record<string, unknown> = {};
@@ -84,11 +92,41 @@ function makeSupabase(opts: MockOptions = {}) {
 }
 
 describe('deleteUserHandler', () => {
+  it('refuses a stale session with step_up_required and deletes nothing (MYK9-1393)', async () => {
+    const { supabase, deleteEq, deleteUser } = makeSupabase();
+
+    await expect(
+      deleteUserHandler({
+        req: reqSignedIn(3600),
+        body: { personId: 'target-1' },
+        user: { id: 'auth-caller' },
+        supabase: supabase as never,
+      } as never)
+    ).rejects.toMatchObject({ status: 403, message: 'step_up_required' });
+    expect(supabase.from).toHaveBeenCalledTimes(2); // caller lookup + role check only
+    expect(deleteEq).not.toHaveBeenCalled();
+    expect(deleteUser).not.toHaveBeenCalled();
+  });
+
+  it('asks a non-site_admin for no password: the role refusal comes first', async () => {
+    const { supabase } = makeSupabase({ rbacRoles: [{ role: { name: 'secretary' } }] });
+
+    await expect(
+      deleteUserHandler({
+        req: reqSignedIn(3600),
+        body: { personId: 'target-1' },
+        user: { id: 'auth-caller' },
+        supabase: supabase as never,
+      } as never)
+    ).rejects.toThrow('Unauthorized: requires site_admin role');
+  });
+
   it('rejects an unauthenticated caller (no user on ctx) with 401', async () => {
     const { supabase } = makeSupabase();
 
     await expect(
       deleteUserHandler({
+        req: reqSignedIn(10),
         body: { personId: 'target-1' },
         user: undefined,
         supabase: supabase as never,
@@ -101,6 +139,7 @@ describe('deleteUserHandler', () => {
 
     await expect(
       deleteUserHandler({
+        req: reqSignedIn(10),
         body: { personId: 'target-1' },
         user: { id: 'auth-caller' },
         supabase: supabase as never,
@@ -113,6 +152,7 @@ describe('deleteUserHandler', () => {
 
     await expect(
       deleteUserHandler({
+        req: reqSignedIn(10),
         body: { personId: 'target-1' },
         user: { id: 'auth-caller' },
         supabase: supabase as never,
@@ -125,6 +165,7 @@ describe('deleteUserHandler', () => {
 
     await expect(
       deleteUserHandler({
+        req: reqSignedIn(10),
         body: { personId: 'target-1' },
         user: { id: 'auth-caller' },
         supabase: supabase as never,
@@ -139,6 +180,7 @@ describe('deleteUserHandler', () => {
 
     await expect(
       deleteUserHandler({
+        req: reqSignedIn(10),
         body: {} as never,
         user: { id: 'auth-caller' },
         supabase: supabase as never,
@@ -151,6 +193,7 @@ describe('deleteUserHandler', () => {
 
     await expect(
       deleteUserHandler({
+        req: reqSignedIn(10),
         body: { personId: 'self-1' },
         user: { id: 'auth-caller' },
         supabase: supabase as never,
@@ -163,6 +206,7 @@ describe('deleteUserHandler', () => {
 
     await expect(
       deleteUserHandler({
+        req: reqSignedIn(10),
         body: { personId: 'missing-1' },
         user: { id: 'auth-caller' },
         supabase: supabase as never,
@@ -177,6 +221,7 @@ describe('deleteUserHandler', () => {
 
     await expect(
       deleteUserHandler({
+        req: reqSignedIn(10),
         body: { personId: 'target-1' },
         user: { id: 'auth-caller' },
         supabase: supabase as never,
@@ -198,6 +243,7 @@ describe('deleteUserHandler', () => {
 
     await expect(
       deleteUserHandler({
+        req: reqSignedIn(10),
         body: { personId: 'target-1' },
         user: { id: 'auth-caller' },
         supabase: supabase as never,
@@ -224,6 +270,7 @@ describe('deleteUserHandler', () => {
     });
 
     const refusal = deleteUserHandler({
+      req: reqSignedIn(10),
       body: { personId: 'target-1' },
       user: { id: 'auth-caller' },
       supabase: supabase as never,
@@ -243,6 +290,7 @@ describe('deleteUserHandler', () => {
 
     await expect(
       deleteUserHandler({
+        req: reqSignedIn(10),
         body: { personId: 'target-1' },
         user: { id: 'auth-caller' },
         supabase: supabase as never,
@@ -254,6 +302,7 @@ describe('deleteUserHandler', () => {
     const { supabase, deleteUser, deleteEq } = makeSupabase();
 
     const result = await deleteUserHandler({
+      req: reqSignedIn(10),
       body: { personId: 'target-1' },
       user: { id: 'auth-caller' },
       supabase: supabase as never,
@@ -273,6 +322,7 @@ describe('deleteUserHandler', () => {
     });
 
     const result = await deleteUserHandler({
+      req: reqSignedIn(10),
       body: { personId: 'target-1' },
       user: { id: 'auth-caller' },
       supabase: supabase as never,
@@ -289,6 +339,7 @@ describe('deleteUserHandler', () => {
     const { supabase } = makeSupabase({ authDeleteError: { message: 'auth service down' } });
 
     const result = await deleteUserHandler({
+      req: reqSignedIn(10),
       body: { personId: 'target-1' },
       user: { id: 'auth-caller' },
       supabase: supabase as never,
@@ -304,6 +355,7 @@ describe('deleteUserHandler error shape', () => {
 
     try {
       await deleteUserHandler({
+        req: reqSignedIn(10),
         body: { personId: 'target-1' },
         user: { id: 'auth-caller' },
         supabase: supabase as never,

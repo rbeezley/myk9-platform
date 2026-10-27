@@ -370,22 +370,6 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   }
 
   /**
-   * Get active shows (currently ongoing)
-   */
-  async getActiveShows(): Promise<ReplicatedShow[]> {
-    const allShows = await this.getAllOrThrow();
-    const now = Date.now();
-
-    return allShows
-      .filter(show => {
-        const start = new Date(show.startDate).getTime();
-        const end = new Date(show.endDate).getTime();
-        return start <= now && end >= now;
-      })
-      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-  }
-
-  /**
    * Update show (marks as dirty for later sync)
    * @returns mutation ID if queued, null if no MutationManager
    */

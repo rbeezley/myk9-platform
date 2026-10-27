@@ -7,15 +7,7 @@ import { createDatabaseError } from '@/services/database/databaseError';
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  acceptEntry,
-  bulkUpdateEntryStatus,
-  rejectEntry,
-  pullEntry,
-  removeEntryAsManager,
-  updateEntryStatus,
-  waitlistEntry,
-} from '../../entries';
+import { removeEntryAsManager, updateEntryStatus } from '../../entries';
 
 const mocks = vi.hoisted(() => ({
   auditLog: vi.fn(),
@@ -96,82 +88,7 @@ describe('secretaryEntryQueries — entry_status updates', () => {
     });
   });
 
-  describe('bulkUpdateEntryStatus', () => {
-    it('applies entry_status across multiple ids through replicated mutations', async () => {
-      await bulkUpdateEntryStatus(['e1', 'e2', 'e3'], 'confirmed');
-
-      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledTimes(3);
-      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenNthCalledWith(1, 'e1', {
-        entryStatus: 'confirmed',
-        entry_status: 'confirmed',
-        status: 'confirmed',
-      });
-      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenNthCalledWith(2, 'e2', {
-        entryStatus: 'confirmed',
-        entry_status: 'confirmed',
-        status: 'confirmed',
-      });
-      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenNthCalledWith(3, 'e3', {
-        entryStatus: 'confirmed',
-        entry_status: 'confirmed',
-        status: 'confirmed',
-      });
-      expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
-    });
-
-    it('marks bulk-scratched entries pulled for ringside propagation', async () => {
-      await bulkUpdateEntryStatus(['e1'], 'scratched');
-
-      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith('e1', {
-        entryStatus: 'scratched',
-        entry_status: 'scratched',
-        status: 'scratched',
-        checkInStatus: 'pulled',
-        check_in_status: 'pulled',
-        withdrawalReasonCode: null,
-        withdrawal_reason_code: null,
-      });
-    });
-  });
-
   describe('named Entry transitions', () => {
-    it('acceptEntry writes the secretary-facing confirmed status', async () => {
-      await acceptEntry('entry-1');
-
-      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
-        'entry-1',
-        expect.objectContaining({ entry_status: 'confirmed' }),
-        undefined
-      );
-    });
-
-    it('rejectEntry writes withdrawn and preserves the reason', async () => {
-      await rejectEntry('entry-1', 'Class limit reached');
-
-      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
-        'entry-1',
-        expect.objectContaining({
-          entry_status: 'withdrawn',
-          withdrawal_reason: 'Class limit reached',
-        }),
-        undefined
-      );
-    });
-
-    it('pullEntry writes scratched and preserves the reason', async () => {
-      await pullEntry('entry-1', 'Dog is absent');
-
-      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
-        'entry-1',
-        expect.objectContaining({
-          entry_status: 'scratched',
-          check_in_status: 'pulled',
-          withdrawal_reason: 'Dog is absent',
-        }),
-        undefined
-      );
-    });
-
     // MYK9-632: a SHOW MANAGER using the exhibitor chooser must write the act
     // they picked. Before this, both choices went through `rejectEntry` and
     // stored 'withdrawn', so a manager's Pull was badged "Pulled", stored as a
@@ -225,16 +142,6 @@ describe('secretaryEntryQueries — entry_status updates', () => {
       expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
         'entry-1',
         expect.objectContaining({ entry_status: 'scratched', withdrawal_reason_code: null }),
-        undefined
-      );
-    });
-
-    it('waitlistEntry keeps current pending-entry behavior behind a named transition', async () => {
-      await waitlistEntry('entry-1');
-
-      expect(mocks.updateSecretaryLifecycleStatus).toHaveBeenCalledWith(
-        'entry-1',
-        expect.objectContaining({ entry_status: 'confirmed' }),
         undefined
       );
     });

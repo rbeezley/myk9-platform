@@ -123,7 +123,7 @@ No new page is proposed. Everything below either stays where it is, moves **unde
 | "Any status · Pending · Accepted · Waitlist"                    | status chips                           | `EntryFilterStrip.tsx:125`, defs in `entryTabDefs.ts`                              | Secretary-review vocabulary; and the When and Status rows silently narrow each other — status counts re-scope to the selected time window (`EntryFilterStrip.tsx:5-10`) with nothing on screen saying so |
 | `entry.id.slice(0, 8).toUpperCase()`                            | three more mint sites                  | `useMyEntriesData.ts:282`, `CardDerivedReceipt.tsx:56`, `MyEntriesDialogs.tsx:347` | Deleting the fallback in `OrdersReceiptsList` alone leaves three producers; the data layer mints it before any component sees it                                                                         |
 
-Not exhibitor-facing on this page, listed so a later grep does not read as a miss: `PaymentService.ts:330` (`RCPT-…`), `useEntryManagementData.ts:123` (secretary entry numbers), `AskQAppHelpContent.tsx:84` (support ticket id).
+Not exhibitor-facing on this page, listed so a later grep does not read as a miss: `useEntryManagementData.ts:123` (secretary entry numbers), `AskQAppHelpContent.tsx:84` (support ticket id).
 
 ---
 

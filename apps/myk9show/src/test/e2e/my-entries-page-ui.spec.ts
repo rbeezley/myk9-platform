@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { signInAsExhibitor } from './helpers/testUsers';
 import { entriesAcrossThreeShows, installExhibitorFixture } from './helpers/exhibitorFixture';
+import { exhibitorNav } from './helpers/exhibitorNav';
 
 /**
  * E2E Tests for My Shows Page UI/UX Improvements
@@ -121,13 +122,16 @@ test.describe('My Shows Page - Enter a Show CTA', () => {
     page,
   }) => {
     await expect(page.getByRole('tablist', { name: 'Browse' })).toHaveCount(0);
-    // The rail is <nav aria-label="Main"> (RailNav); the header's own <nav> comes first in the DOM.
-    const rail = page.getByRole('navigation', { name: 'Main' });
-    await expect(rail.getByRole('link', { name: 'My Shows' })).toHaveAttribute(
+    // The rail from `lg`, the header drawer on phones (the helper opens it).
+    const nav = await exhibitorNav(page);
+    await expect(nav.getByRole('link', { name: 'My Shows', exact: true })).toHaveAttribute(
       'href',
       '/exhibitor/entries'
     );
-    await expect(rail.getByRole('link', { name: 'My Dogs' })).toHaveAttribute('href', '/dogs');
+    await expect(nav.getByRole('link', { name: 'My Dogs', exact: true })).toHaveAttribute(
+      'href',
+      '/dogs'
+    );
   });
 });
 

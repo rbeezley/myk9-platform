@@ -53,7 +53,11 @@ function seed(
 ) {
   const at = new Date(Date.now() - ageMs).toISOString();
   localStorage.setItem(`myk9show:rbac-cache:${userId}`, JSON.stringify({ cachedAt: at, data }));
-  if (token) localStorage.setItem(tokenKey(userId), JSON.stringify({ userId, verifiedAt: at }));
+  if (token)
+    localStorage.setItem(
+      tokenKey(userId),
+      JSON.stringify({ userId, verifiedAt: at, cachedAt: at })
+    );
 }
 
 function deferred<T>() {
@@ -242,6 +246,45 @@ describe('AuthContext RBAC warm cache (MYK9-1349)', () => {
     renderProbe();
 
     await waitFor(() => expect(localStorage.getItem(tokenKey(mockUser.id))).not.toBeNull());
+  });
+
+  it('a fresh token never vouches for a different (older) copy', async () => {
+    // Copy from 3 days ago; token fresh but naming a different copy, as after a failed copy write.
+    seed(mockUser.id, 3 * 24 * 60 * 60 * 1000, accessForRole(UserRole.SECRETARY), false);
+    const now = new Date().toISOString();
+    localStorage.setItem(
+      tokenKey(mockUser.id),
+      JSON.stringify({ userId: mockUser.id, verifiedAt: now, cachedAt: now })
+    );
+    mockRbacService.getUserPermissions.mockReturnValue(deferred().promise);
+
+    renderProbe();
+
+    await act(async () => {});
+    expect(screen.queryByText('secretary surface')).not.toBeInTheDocument();
+    expect(screen.getByTestId('loading')).toHaveTextContent('true');
+  });
+
+  it('a failed copy write clears the warm token instead of leaving it to vouch for the old copy', async () => {
+    seed(mockUser.id, 60 * 1000);
+    // src/test/setup.ts installs a plain localStorage mock, so spy on the instance.
+    const realSetItem = window.localStorage.setItem;
+    const setItem = vi
+      .spyOn(window.localStorage, 'setItem')
+      .mockImplementation((k: string, v: string) => {
+        if (k.startsWith('myk9show:rbac-cache:'))
+          throw new DOMException('full', 'QuotaExceededError');
+        realSetItem(k, v);
+      });
+    mockRbacService.getUserPermissions.mockResolvedValue(accessForRole(UserRole.SECRETARY));
+
+    try {
+      renderProbe();
+      await waitFor(() => expect(screen.getByTestId('from-cache')).toHaveTextContent('live'));
+      await waitFor(() => expect(localStorage.getItem(tokenKey(mockUser.id))).toBeNull());
+    } finally {
+      setItem.mockRestore();
+    }
   });
 
   it('non-network failure after a warm seed keeps roles, retries, and a later revoked answer removes the surface', async () => {

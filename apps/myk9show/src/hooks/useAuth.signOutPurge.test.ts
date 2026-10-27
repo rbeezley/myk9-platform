@@ -43,7 +43,7 @@ const DATA: UserPermissionsResponse = {
 
 function seedCaches() {
   saveRbacPermissionsCache('user-a', DATA);
-  saveRbacWarmToken('user-a');
+  saveRbacWarmToken('user-a', new Date().toISOString());
 }
 
 describe('useAuth sign-out purges warm tokens', () => {

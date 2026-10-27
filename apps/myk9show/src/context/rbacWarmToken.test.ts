@@ -10,7 +10,7 @@ import {
 const put = (userId: string, verifiedAt: string, storedUserId = userId) =>
   localStorage.setItem(
     `myk9show:rbac-warm:${userId}`,
-    JSON.stringify({ userId: storedUserId, verifiedAt })
+    JSON.stringify({ userId: storedUserId, verifiedAt, cachedAt: verifiedAt })
   );
 
 describe('rbacWarmToken', () => {
@@ -20,7 +20,7 @@ describe('rbacWarmToken', () => {
   });
 
   it('accepts a fresh token for the same user only', () => {
-    saveRbacWarmToken('user-a');
+    saveRbacWarmToken('user-a', new Date().toISOString());
     expect(hasFreshRbacWarmToken('user-a')).toBe(true);
     expect(hasFreshRbacWarmToken('user-b')).toBe(false);
   });
@@ -28,6 +28,14 @@ describe('rbacWarmToken', () => {
   it('rejects a token whose stored user id differs from its key', () => {
     put('user-b', new Date().toISOString(), 'user-a');
     expect(hasFreshRbacWarmToken('user-b')).toBe(false);
+  });
+
+  it('rejects a token that does not name the copy it vouches for', () => {
+    localStorage.setItem(
+      'myk9show:rbac-warm:user-a',
+      JSON.stringify({ userId: 'user-a', verifiedAt: new Date().toISOString() })
+    );
+    expect(hasFreshRbacWarmToken('user-a')).toBe(false);
   });
 
   it('rejects a token older than 24h and accepts one just inside', () => {
@@ -50,8 +58,8 @@ describe('rbacWarmToken', () => {
   });
 
   it('clear and clearAll remove tokens and nothing else', () => {
-    saveRbacWarmToken('user-a');
-    saveRbacWarmToken('user-b');
+    saveRbacWarmToken('user-a', new Date().toISOString());
+    saveRbacWarmToken('user-b', new Date().toISOString());
     localStorage.setItem('myk9show:rbac-cache:user-a', 'keep');
     clearRbacWarmToken('user-a');
     expect(hasFreshRbacWarmToken('user-a')).toBe(false);

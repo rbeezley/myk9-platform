@@ -31,13 +31,19 @@ function cacheKey(userId: string): string {
   return `${KEY_PREFIX}${userId}`;
 }
 
-export function saveRbacPermissionsCache(userId: string, data: UserPermissionsResponse): void {
+/** Returns the saved entry's `cachedAt`, or null when the write failed. */
+export function saveRbacPermissionsCache(
+  userId: string,
+  data: UserPermissionsResponse
+): string | null {
   try {
     const entry: RbacCacheEntry = { cachedAt: new Date().toISOString(), data };
     window.localStorage.setItem(cacheKey(userId), JSON.stringify(entry));
+    return entry.cachedAt;
   } catch {
     // Quota or privacy-mode failure — the cache is best-effort; never let
     // persistence break the live permissions path.
+    return null;
   }
 }
 

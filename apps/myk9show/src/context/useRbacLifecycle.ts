@@ -19,7 +19,7 @@ import { onAccountBoundary } from '@/lib/accountBoundary';
 import {
   clearAllRbacWarmTokens,
   clearRbacWarmToken,
-  hasFreshRbacWarmToken,
+  freshRbacWarmTokenCachedAt,
   saveRbacWarmToken,
 } from './rbacWarmToken';
 import {
@@ -27,7 +27,7 @@ import {
   loadRbacPermissionsCache,
   saveRbacPermissionsCache,
 } from './rbacPermissionsCache';
-import type { UserRoleWithDetails } from '@/types/rbac-types';
+import type { UserPermissionsResponse, UserRoleWithDetails } from '@/types/rbac-types';
 import {
   EMPTY_STATE,
   toCacheHydratedState,
@@ -54,6 +54,13 @@ export const RBAC_SAFETY_NET_MS = 15 * 60 * 1000;
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => window.setTimeout(resolve, ms));
+}
+
+/** Save the server's answer, and a warm token only for a copy that actually persisted. */
+function persistVerifiedCopy(userId: string, data: UserPermissionsResponse): void {
+  const cachedAt = saveRbacPermissionsCache(userId, data);
+  if (cachedAt) saveRbacWarmToken(userId, cachedAt);
+  else clearRbacWarmToken(userId);
 }
 
 export function useRbacLifecycle(userId: string | undefined) {
@@ -119,12 +126,12 @@ export function useRbacLifecycle(userId: string | undefined) {
         // do not flash a fallback) and replace it on success.
         // MYK9-1349: first load for a user paints from a saved copy (same id,
         // <=24h) while the server answers; success below REPLACES it.
-        const warm =
-          attempt === 0 && !bypassCache
-            ? hasFreshRbacWarmToken(userId)
-              ? loadRbacPermissionsCache(userId)
-              : null
-            : null;
+        // The token vouches for one exact copy (MYK9-1349): a copy left behind
+        // by a failed later write never matches, so it never warm-paints.
+        const tokenCachedAt =
+          attempt === 0 && !bypassCache ? freshRbacWarmTokenCachedAt(userId) : null;
+        const copy = tokenCachedAt ? loadRbacPermissionsCache(userId) : null;
+        const warm = copy && copy.cachedAt === tokenCachedAt ? copy : null;
         if (warm) unverified = true;
         setState(previous =>
           previous.userId === userId
@@ -143,8 +150,7 @@ export function useRbacLifecycle(userId: string | undefined) {
         if (isCurrentRequest()) {
           lastLoadAt = Date.now();
           unverified = false;
-          saveRbacPermissionsCache(userId, data);
-          saveRbacWarmToken(userId);
+          persistVerifiedCopy(userId, data);
           setState(toLoadedState(userId, data));
         }
       } catch (error) {
@@ -263,8 +269,7 @@ export function useRbacLifecycle(userId: string | undefined) {
     try {
       const data = await rbacService.getUserPermissions(userId, undefined, { bypassCache: true });
       if (isCurrentRequest()) {
-        saveRbacPermissionsCache(userId, data);
-        saveRbacWarmToken(userId);
+        persistVerifiedCopy(userId, data);
         setState(toLoadedState(userId, data));
       }
     } catch (error) {

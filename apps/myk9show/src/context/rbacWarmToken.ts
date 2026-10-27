@@ -16,33 +16,45 @@ const FUTURE_SKEW_MS = 5 * 60 * 1000;
 interface RbacWarmToken {
   userId: string;
   verifiedAt: string;
+  /** `cachedAt` of the offline copy this token vouches for; the warm read needs an exact match. */
+  cachedAt: string;
 }
 
 function key(userId: string): string {
   return `${KEY_PREFIX}${userId}`;
 }
 
-export function saveRbacWarmToken(userId: string): void {
+/**
+ * Write the token for the offline copy that was JUST persisted (its `cachedAt`).
+ * Call only after that copy saved: a token must never vouch for an older copy
+ * left behind by a failed write (quota), which could hold a revoked role.
+ */
+export function saveRbacWarmToken(userId: string, cachedAt: string): void {
   try {
-    const token: RbacWarmToken = { userId, verifiedAt: new Date().toISOString() };
+    const token: RbacWarmToken = { userId, verifiedAt: new Date().toISOString(), cachedAt };
     window.localStorage.setItem(key(userId), JSON.stringify(token));
   } catch {
     // Best effort: no token only means no warm paint.
   }
 }
 
-export function hasFreshRbacWarmToken(userId: string): boolean {
+/** The `cachedAt` of the copy a fresh (<=24h) token for this user vouches for, else null. */
+export function freshRbacWarmTokenCachedAt(userId: string): string | null {
   try {
     const raw = window.localStorage.getItem(key(userId));
-    if (!raw) return false;
+    if (!raw) return null;
     const token = JSON.parse(raw) as Partial<RbacWarmToken>;
     const verifiedAtMs = Date.parse(token.verifiedAt ?? '');
-    if (token.userId !== userId || Number.isNaN(verifiedAtMs)) return false;
+    if (token.userId !== userId || Number.isNaN(verifiedAtMs) || !token.cachedAt) return null;
     const ageMs = Date.now() - verifiedAtMs;
-    return ageMs >= -FUTURE_SKEW_MS && ageMs <= RBAC_WARM_MAX_AGE_MS;
+    return ageMs >= -FUTURE_SKEW_MS && ageMs <= RBAC_WARM_MAX_AGE_MS ? token.cachedAt : null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+export function hasFreshRbacWarmToken(userId: string): boolean {
+  return freshRbacWarmTokenCachedAt(userId) !== null;
 }
 
 export function clearRbacWarmToken(userId: string): void {

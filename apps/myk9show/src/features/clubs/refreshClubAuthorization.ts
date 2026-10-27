@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { clubQueryKeys } from '@/hooks/queries/useClubsDatabase';
 import type { ClubReadinessStatus } from '@/store/clubStore';
 
 /**
@@ -47,5 +48,7 @@ export async function refreshClubAuthorization({
 }): Promise<ClubReadinessStatus> {
   const readiness = await ensureClubsReady({ requestedClubId: clubId, force: true });
   await queryClient.invalidateQueries({ queryKey: clubAuthorizationQueryKey(clubId) });
+  // The admin to-do list of pending clubs (MYK9-1448).
+  await queryClient.invalidateQueries({ queryKey: clubQueryKeys.awaitingAuthorization() });
   return readiness.status;
 }

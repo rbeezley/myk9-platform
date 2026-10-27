@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/hooks/queries/useClubsDatabase', () => ({
-  useClubsQuery: mocks.query,
+  useClubsAwaitingAuthorizationQuery: mocks.query,
 }));
 
 function makeClub(overrides: Partial<Club> & { id: string; name: string }): Club {
@@ -41,7 +41,7 @@ describe('ClubsAwaitingAuthorizationSection', () => {
     answer({ data: [] });
   });
 
-  it('lists only clubs whose authorizedAt is explicitly null, each linking to its club page', () => {
+  it('lists every club the server returned as pending, each linking to its club page', () => {
     answer({
       data: [
         makeClub({
@@ -50,8 +50,6 @@ describe('ClubsAwaitingAuthorizationSection', () => {
           authorizedAt: null,
           createdAt: '2026-09-24T12:00:00Z',
         }),
-        makeClub({ id: 'ok-1', name: 'Authorized Club', authorizedAt: '2026-09-01T00:00:00Z' }),
-        makeClub({ id: 'u-1', name: 'Unknown Club', authorizedAt: undefined }),
       ],
     });
 
@@ -61,16 +59,10 @@ describe('ClubsAwaitingAuthorizationSection', () => {
     expect(links).toHaveLength(1);
     expect(links[0]).toHaveAttribute('href', '/clubs/p-1');
     expect(screen.getByText('Pending Club')).toBeInTheDocument();
-    expect(screen.queryByText('Authorized Club')).not.toBeInTheDocument();
-    expect(screen.queryByText('Unknown Club')).not.toBeInTheDocument();
   });
 
   it('says every club is authorized when none are pending', () => {
-    answer({
-      data: [
-        makeClub({ id: 'ok-1', name: 'Authorized Club', authorizedAt: '2026-09-01T00:00:00Z' }),
-      ],
-    });
+    answer({ data: [] });
 
     render(<ClubsAwaitingAuthorizationSection />);
 
@@ -99,11 +91,7 @@ describe('ClubsAwaitingAuthorizationSection', () => {
   });
 
   it('refetches on every visit, even with a cached list', () => {
-    answer({
-      data: [
-        makeClub({ id: 'ok-1', name: 'Authorized Club', authorizedAt: '2026-09-01T00:00:00Z' }),
-      ],
-    });
+    answer({ data: [] });
 
     render(<ClubsAwaitingAuthorizationSection />);
 

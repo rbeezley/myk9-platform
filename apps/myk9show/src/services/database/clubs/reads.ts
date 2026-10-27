@@ -33,6 +33,35 @@ export const getAllClubs = async () => {
   }
 };
 
+// MYK9-1448: pending clubs, filtered on the server. Reading getAllClubs() and
+// filtering afterwards drops any pending club past PostgREST's 1,000-row cap.
+export const getClubsAwaitingAuthorization = async () => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('clubs')
+      .select('*')
+      .is('authorized_at', null)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: true });
+
+    const duration = Date.now() - startTime;
+    logQuery('club', 'select_awaiting_authorization', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'club', 'select_awaiting_authorization');
+    }
+
+    return { data: data || [], error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'club', 'select_awaiting_authorization');
+    logQuery('club', 'select_awaiting_authorization', duration, dbError.message);
+    return { data: [], error: dbError };
+  }
+};
+
 // Get club by ID with complete details
 export const getClubById = async (id: string) => {
   const startTime = Date.now();

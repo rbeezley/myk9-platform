@@ -15,10 +15,16 @@ import { isTransientBrowserFetchError } from '@/services/rbac/PermissionChecker'
 import { useAuthEventRefresh } from './useAuthEventRefresh';
 import { rbacRetryDelayMs } from './rbacLoadRetry';
 import { rbacService } from '@/services/rbac/RBACService';
+import { onAccountBoundary } from '@/lib/accountBoundary';
+import {
+  clearAllRbacWarmTokens,
+  clearRbacWarmToken,
+  hasFreshRbacWarmToken,
+  saveRbacWarmToken,
+} from './rbacWarmToken';
 import {
   clearRbacPermissionsCache,
   loadRbacPermissionsCache,
-  RBAC_WARM_CACHE_MAX_AGE_MS,
   saveRbacPermissionsCache,
 } from './rbacPermissionsCache';
 import type { UserRoleWithDetails } from '@/types/rbac-types';
@@ -69,9 +75,16 @@ export function useRbacLifecycle(userId: string | undefined) {
     const prevUserId = prevAuthedUserIdRef.current;
     if (prevUserId && prevUserId !== userId) {
       clearRbacPermissionsCache(prevUserId);
+      clearRbacWarmToken(prevUserId);
     }
     prevAuthedUserIdRef.current = userId;
   }, [userId]);
+
+  // The account boundary also fires when auth resolves with NO user (a session
+  // that ended while the app was closed, or an offline reload that could not
+  // refresh it) and on every identity change. Warm tokens go; the offline copy
+  // keeps its MYK9-200 rules (cleared on an observed user change only).
+  useEffect(() => onAccountBoundary(clearAllRbacWarmTokens), []);
 
   useEffect(() => {
     if (!userId) {
@@ -108,7 +121,9 @@ export function useRbacLifecycle(userId: string | undefined) {
         // <=24h) while the server answers; success below REPLACES it.
         const warm =
           attempt === 0 && !bypassCache
-            ? loadRbacPermissionsCache(userId, RBAC_WARM_CACHE_MAX_AGE_MS)
+            ? hasFreshRbacWarmToken(userId)
+              ? loadRbacPermissionsCache(userId)
+              : null
             : null;
         if (warm) unverified = true;
         setState(previous =>
@@ -129,6 +144,7 @@ export function useRbacLifecycle(userId: string | undefined) {
           lastLoadAt = Date.now();
           unverified = false;
           saveRbacPermissionsCache(userId, data);
+          saveRbacWarmToken(userId);
           setState(toLoadedState(userId, data));
         }
       } catch (error) {
@@ -248,6 +264,7 @@ export function useRbacLifecycle(userId: string | undefined) {
       const data = await rbacService.getUserPermissions(userId, undefined, { bypassCache: true });
       if (isCurrentRequest()) {
         saveRbacPermissionsCache(userId, data);
+        saveRbacWarmToken(userId);
         setState(toLoadedState(userId, data));
       }
     } catch (error) {

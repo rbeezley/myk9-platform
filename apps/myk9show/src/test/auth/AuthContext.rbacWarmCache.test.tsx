@@ -33,11 +33,7 @@ vi.mock('@/hooks/useAuth', () => ({ useAuth: () => mockUseAuth() }));
 vi.mock('@/services/rbac/RBACService', () => ({ rbacService: mockRbacService }));
 
 import { AuthProvider, ProtectedRoute } from '@/context/AuthContext';
-import {
-  RBAC_CACHE_TTL_MS,
-  RBAC_WARM_CACHE_MAX_AGE_MS,
-  loadRbacPermissionsCache,
-} from '@/context/rbacPermissionsCache';
+import { loadRbacPermissionsCache } from '@/context/rbacPermissionsCache';
 
 const EMPTY: UserPermissionsResponse = {
   roles: [],
@@ -46,11 +42,18 @@ const EMPTY: UserPermissionsResponse = {
   effectivePermissionScopes: [],
 };
 
-function seed(userId: string, ageMs: number, data = accessForRole(UserRole.SECRETARY)) {
-  localStorage.setItem(
-    `myk9show:rbac-cache:${userId}`,
-    JSON.stringify({ cachedAt: new Date(Date.now() - ageMs).toISOString(), data })
-  );
+const tokenKey = (userId: string) => `myk9show:rbac-warm:${userId}`;
+
+/** Offline copy plus (unless `token` is false) the warm token, both `ageMs` old. */
+function seed(
+  userId: string,
+  ageMs: number,
+  data = accessForRole(UserRole.SECRETARY),
+  token = true
+) {
+  const at = new Date(Date.now() - ageMs).toISOString();
+  localStorage.setItem(`myk9show:rbac-cache:${userId}`, JSON.stringify({ cachedAt: at, data }));
+  if (token) localStorage.setItem(tokenKey(userId), JSON.stringify({ userId, verifiedAt: at }));
 }
 
 function deferred<T>() {
@@ -71,6 +74,7 @@ const Probe = ({ gate = true }: { gate?: boolean }) => {
     <div>
       <span data-testid="loading">{String(auth.loading)}</span>
       <span data-testid="roles">{auth.userWithRoles?.roles.join(',') ?? 'none'}</span>
+      <span data-testid="rbac-error">{auth.rbacError ?? 'none'}</span>
       <span data-testid="from-cache">{auth.rbacFromCacheAt ?? 'live'}</span>
       {gate && (
         <ProtectedRoute requiredRole={UserRole.SECRETARY} fallback={<span>denied</span>}>
@@ -154,7 +158,7 @@ describe('AuthContext RBAC warm cache (MYK9-1349)', () => {
     expect(localStorage.getItem('myk9show:rbac-cache:user-a')).toBeNull();
   });
 
-  it('sign-out clears the copy, so signing back in has nothing to warm from', async () => {
+  it('an observed sign-out clears the warm token and the offline copy, so sign-in has nothing to warm from', async () => {
     seed('user-a', 60 * 1000);
     mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: { ...mockUser, id: 'user-a' } });
     mockRbacService.getUserPermissions.mockReturnValue(deferred().promise);
@@ -163,6 +167,7 @@ describe('AuthContext RBAC warm cache (MYK9-1349)', () => {
 
     mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: null });
     view.rerender(<Probe gate={false} />);
+    await waitFor(() => expect(localStorage.getItem(tokenKey('user-a'))).toBeNull());
     await waitFor(() => expect(localStorage.getItem('myk9show:rbac-cache:user-a')).toBeNull());
 
     mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: { ...mockUser, id: 'user-a' } });
@@ -171,23 +176,42 @@ describe('AuthContext RBAC warm cache (MYK9-1349)', () => {
     expect(screen.getByTestId('loading')).toHaveTextContent('true');
   });
 
-  it('boot with auth resolved and no user purges a prior user copy (sign-out the app never saw)', async () => {
+  it('offline reload with an expired token (auth resolves with no user, no SIGNED_OUT): offline copy and identity survive, warm token is gone', async () => {
     seed('user-a', 60 * 1000);
     savePersonIdentityCache('user-a', 'person-a');
     mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: null, loading: false });
     mockRbacService.getUserPermissions.mockReturnValue(deferred().promise);
 
     const view = renderWithProvider(AuthProvider, <Probe gate={false} />, '/');
-    await waitFor(() => expect(localStorage.getItem('myk9show:rbac-cache:user-a')).toBeNull());
-    expect(loadPersonIdentityCache('user-a')).toBeNull();
+    await waitFor(() => expect(localStorage.getItem(tokenKey('user-a'))).toBeNull());
+    expect(loadRbacPermissionsCache('user-a')).not.toBeNull();
+    expect(loadPersonIdentityCache('user-a')).not.toBeNull();
 
+    // Same user signs in within 24h: no warm paint, the roles come from the server.
     mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: { ...mockUser, id: 'user-a' } });
     view.rerender(<Probe gate={false} />);
     expect(screen.getByTestId('roles')).toHaveTextContent('none');
     expect(screen.getByTestId('loading')).toHaveTextContent('true');
   });
 
-  it('boot with auth still unresolved does not purge (offline cold boot needs the copy)', async () => {
+  it('after that purge, an offline cold boot of the same user still hydrates from the offline copy', async () => {
+    seed('user-a', 60 * 1000);
+    mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: null, loading: false });
+    mockRbacService.getUserPermissions.mockRejectedValue(new Error('TypeError: Failed to fetch'));
+
+    const view = renderWithProvider(AuthProvider, <Probe gate={false} />, '/');
+    await waitFor(() => expect(localStorage.getItem(tokenKey('user-a'))).toBeNull());
+
+    mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: { ...mockUser, id: 'user-a' } });
+    view.rerender(<Probe gate={false} />);
+
+    await waitFor(() => expect(screen.getByTestId('roles')).toHaveTextContent(UserRole.SECRETARY), {
+      timeout: 5000,
+    });
+    expect(screen.getByTestId('from-cache')).not.toHaveTextContent('live');
+  });
+
+  it('boot with auth still unresolved purges nothing', async () => {
     seed('user-a', 60 * 1000);
     savePersonIdentityCache('user-a', 'person-a');
     mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: null, loading: true });
@@ -196,8 +220,28 @@ describe('AuthContext RBAC warm cache (MYK9-1349)', () => {
     renderWithProvider(AuthProvider, <Probe gate={false} />, '/');
     await act(async () => {});
 
+    expect(localStorage.getItem(tokenKey('user-a'))).not.toBeNull();
     expect(loadRbacPermissionsCache('user-a')).not.toBeNull();
     expect(loadPersonIdentityCache('user-a')).not.toBeNull();
+  });
+
+  it('an offline copy without a warm token does not paint warm', async () => {
+    seed(mockUser.id, 60 * 1000, accessForRole(UserRole.SECRETARY), false);
+    mockRbacService.getUserPermissions.mockReturnValue(deferred().promise);
+
+    renderProbe();
+
+    await act(async () => {});
+    expect(screen.queryByText('secretary surface')).not.toBeInTheDocument();
+    expect(screen.getByTestId('loading')).toHaveTextContent('true');
+  });
+
+  it('a successful server answer writes the warm token', async () => {
+    mockRbacService.getUserPermissions.mockResolvedValue(accessForRole(UserRole.SECRETARY));
+
+    renderProbe();
+
+    await waitFor(() => expect(localStorage.getItem(tokenKey(mockUser.id))).not.toBeNull());
   });
 
   it('non-network failure after a warm seed keeps roles, retries, and a later revoked answer removes the surface', async () => {
@@ -256,8 +300,7 @@ describe('AuthContext RBAC warm cache (MYK9-1349)', () => {
     }
   });
 
-  it('max age: a 25h-old copy is not used warm (but survives for the offline fallback)', async () => {
-    expect(RBAC_WARM_CACHE_MAX_AGE_MS).toBeLessThan(RBAC_CACHE_TTL_MS);
+  it('max age: a 25h-old warm token does not paint warm (offline copy survives for the fallback)', async () => {
     seed(mockUser.id, 25 * 60 * 60 * 1000);
     mockRbacService.getUserPermissions.mockReturnValue(deferred().promise);
 
@@ -269,7 +312,7 @@ describe('AuthContext RBAC warm cache (MYK9-1349)', () => {
     expect(loadRbacPermissionsCache(mockUser.id)).not.toBeNull();
   });
 
-  it('max age: the same 25h-old copy still hydrates the offline cold boot (7-day TTL)', async () => {
+  it('max age: the same 25h-old token and copy still hydrate the offline cold boot (7-day TTL)', async () => {
     seed(mockUser.id, 25 * 60 * 60 * 1000);
     mockRbacService.getUserPermissions.mockRejectedValue(new Error('TypeError: Failed to fetch'));
 
@@ -295,5 +338,18 @@ describe('AuthContext RBAC warm cache (MYK9-1349)', () => {
       timeout: 5000,
     });
     expect(screen.getByText('secretary surface')).toBeInTheDocument();
+  });
+
+  it('warm seed with an EMPTY role list that then fails offline keeps the default exhibitor role and no error', async () => {
+    seed(mockUser.id, 60 * 1000, EMPTY);
+    mockRbacService.getUserPermissions.mockRejectedValue(new Error('TypeError: Failed to fetch'));
+
+    renderProbe();
+
+    await waitFor(() => expect(screen.getByTestId('from-cache')).not.toHaveTextContent('live'), {
+      timeout: 5000,
+    });
+    expect(screen.getByTestId('roles')).toHaveTextContent(UserRole.EXHIBITOR);
+    expect(screen.getByTestId('rbac-error')).toHaveTextContent('none');
   });
 });

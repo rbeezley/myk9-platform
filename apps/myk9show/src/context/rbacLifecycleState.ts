@@ -92,14 +92,26 @@ export function toFailedState(
   errorMessage: string,
   isOffline: boolean
 ): RbacState {
+  // A warm seed that cannot revalidate offline becomes exactly the cold-cache
+  // hydrated state: no error (an error would drop the default exhibitor role on
+  // an empty role list) and the offline notice on.
+  if (isOffline && previous.warmSeeded) {
+    return {
+      ...previous,
+      isLoading: false,
+      loaded: true,
+      error: null,
+      fromCacheAt: previous.lastRefreshed,
+      warmSeeded: false,
+    };
+  }
   return {
     ...previous,
     isLoading: false,
     loaded: true,
     error: errorMessage,
-    fromCacheAt: isOffline
-      ? (previous.fromCacheAt ?? (previous.warmSeeded ? previous.lastRefreshed : null))
-      : null,
-    warmSeeded: isOffline ? false : previous.warmSeeded,
+    fromCacheAt: isOffline ? previous.fromCacheAt : null,
+    // A non-network failure leaves a warm seed unverified so the lifecycle retries.
+    warmSeeded: previous.warmSeeded && !isOffline,
   };
 }

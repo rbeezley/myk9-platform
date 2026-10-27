@@ -33,7 +33,6 @@ import { useClassHideCacheBoundary } from '@/services/replication/useClassHideCa
 import { useClearQueryCacheOnAccountChange } from '@/hooks/useClearQueryCacheOnAccountChange';
 import { useNotifyAccountBoundary } from '@/hooks/useNotifyAccountBoundary';
 import { usePersonIdentity } from './usePersonIdentity';
-import { useSignedOutCachePurge } from './signedOutCachePurge';
 import { isAccountSession } from '@/hooks/guestServerRead';
 
 export type { AuthContextType, PersonIdentityState, UserRoleWithDetails } from './authContextTypes';
@@ -94,8 +93,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const identity = usePersonIdentity(auth.user?.id);
   const { userProfile, personId, personIdentityState, hasUsablePersonId } = identity;
-
-  useSignedOutCachePurge(auth.loading, !!auth.user);
 
   // Enforce account suspension — sign out if status is 'suspended'
   useEffect(() => {

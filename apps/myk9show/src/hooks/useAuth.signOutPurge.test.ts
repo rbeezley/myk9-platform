@@ -1,11 +1,13 @@
 /**
- * MYK9-1349: no saved roles or identity pairing may cross a sign-out, whether
- * the app signs the user out (signOut) or hears about it (SIGNED_OUT event).
+ * MYK9-1349: no warm token may cross a sign-out, whether the app signs the user
+ * out (signOut) or hears about it (SIGNED_OUT event). The offline copy and
+ * identity pairing keep their MYK9-200 / MYK9-601 rules (cleared by the
+ * lifecycle hooks on an observed user change), so they are not touched here.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { saveRbacPermissionsCache, loadRbacPermissionsCache } from '@/context/rbacPermissionsCache';
-import { loadPersonIdentityCache, savePersonIdentityCache } from '@/context/personIdentityCache';
+import { hasFreshRbacWarmToken, saveRbacWarmToken } from '@/context/rbacWarmToken';
 import type { UserPermissionsResponse } from '@/types/rbac-types';
 
 const auth = vi.hoisted(() => ({
@@ -41,10 +43,10 @@ const DATA: UserPermissionsResponse = {
 
 function seedCaches() {
   saveRbacPermissionsCache('user-a', DATA);
-  savePersonIdentityCache('user-a', 'person-a');
+  saveRbacWarmToken('user-a');
 }
 
-describe('useAuth sign-out purges saved account caches', () => {
+describe('useAuth sign-out purges warm tokens', () => {
   beforeEach(() => {
     localStorage.clear();
     auth.signOut.mockReset().mockResolvedValue({ error: null });
@@ -59,19 +61,19 @@ describe('useAuth sign-out purges saved account caches', () => {
       await result.current.signOut();
     });
 
-    expect(loadRbacPermissionsCache('user-a')).toBeNull();
-    expect(loadPersonIdentityCache('user-a')).toBeNull();
+    expect(hasFreshRbacWarmToken('user-a')).toBe(false);
+    expect(loadRbacPermissionsCache('user-a')).not.toBeNull();
   });
 
   it('a SIGNED_OUT event (expiry, suspension, another tab) clears them', async () => {
     seedCaches();
     const { result } = renderHook(() => useAuth());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(loadRbacPermissionsCache('user-a')).not.toBeNull();
+    expect(hasFreshRbacWarmToken('user-a')).toBe(true);
 
     act(() => auth.listener?.('SIGNED_OUT', null));
 
-    expect(loadRbacPermissionsCache('user-a')).toBeNull();
-    expect(loadPersonIdentityCache('user-a')).toBeNull();
+    expect(hasFreshRbacWarmToken('user-a')).toBe(false);
+    expect(loadRbacPermissionsCache('user-a')).not.toBeNull();
   });
 });

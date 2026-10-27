@@ -17,12 +17,6 @@ import { OFFLINE_SESSION_CACHE_TTL_MS } from './offlineSessionCacheTtl';
 /** Entries older than this are ignored — a show weekend plus travel margin. */
 export const RBAC_CACHE_TTL_MS = OFFLINE_SESSION_CACHE_TTL_MS;
 
-/**
- * Warm-read bound (MYK9-1349): a saved copy older than this is never used to
- * paint before the server answers. The offline fallback keeps the full TTL.
- */
-export const RBAC_WARM_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-
 /** Clock skew tolerated before a future-dated entry is treated as corrupt. */
 const FUTURE_SKEW_MS = 5 * 60 * 1000;
 
@@ -47,10 +41,7 @@ export function saveRbacPermissionsCache(userId: string, data: UserPermissionsRe
   }
 }
 
-export function loadRbacPermissionsCache(
-  userId: string,
-  maxAgeMs: number = RBAC_CACHE_TTL_MS
-): RbacCacheEntry | null {
+export function loadRbacPermissionsCache(userId: string): RbacCacheEntry | null {
   try {
     const raw = window.localStorage.getItem(cacheKey(userId));
     if (!raw) return null;
@@ -81,10 +72,6 @@ export function loadRbacPermissionsCache(
       return null;
     }
 
-    // Too old for THIS reader but still inside the TTL: leave it on disk for
-    // the offline fallback.
-    if (Date.now() - cachedAtMs > maxAgeMs) return null;
-
     return { cachedAt: entry.cachedAt as string, data };
   } catch {
     clearRbacPermissionsCache(userId);
@@ -97,23 +84,5 @@ export function clearRbacPermissionsCache(userId: string): void {
     window.localStorage.removeItem(cacheKey(userId));
   } catch {
     // Ignore — nothing to clear in environments without storage.
-  }
-}
-
-/**
- * Remove every user's saved permissions. Used when auth has resolved with no
- * user: a copy that survived a sign-out the app never observed (session expiry
- * or revocation while closed) must not warm-paint the next sign-in.
- */
-export function clearAllRbacPermissionsCaches(): void {
-  try {
-    const keys: string[] = [];
-    for (let i = 0; i < window.localStorage.length; i += 1) {
-      const key = window.localStorage.key(i);
-      if (key?.startsWith(KEY_PREFIX)) keys.push(key);
-    }
-    keys.forEach(key => window.localStorage.removeItem(key));
-  } catch {
-    // Nothing to clear without storage.
   }
 }

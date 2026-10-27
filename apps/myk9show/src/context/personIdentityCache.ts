@@ -86,17 +86,3 @@ export function clearPersonIdentityCache(userId: string): void {
     // Ignore storage/privacy-mode failures during account cleanup.
   }
 }
-
-/** Remove every user's saved people.id pairing (see clearAllRbacPermissionsCaches). */
-export function clearAllPersonIdentityCaches(): void {
-  try {
-    const keys: string[] = [];
-    for (let i = 0; i < window.localStorage.length; i += 1) {
-      const key = window.localStorage.key(i);
-      if (key?.startsWith(KEY_PREFIX)) keys.push(key);
-    }
-    keys.forEach(key => window.localStorage.removeItem(key));
-  } catch {
-    // Nothing to clear without storage.
-  }
-}

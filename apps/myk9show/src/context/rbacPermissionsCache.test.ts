@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserPermissionsResponse } from '@/types/rbac-types';
 import {
   RBAC_CACHE_TTL_MS,
-  clearAllRbacPermissionsCaches,
   clearRbacPermissionsCache,
   loadRbacPermissionsCache,
   saveRbacPermissionsCache,
@@ -110,18 +109,6 @@ describe('rbacPermissionsCache', () => {
     );
 
     expect(loadRbacPermissionsCache(USER_ID)).not.toBeNull();
-  });
-
-  it('clearAllRbacPermissionsCaches removes every user but nothing else', () => {
-    saveRbacPermissionsCache('user-a', response);
-    saveRbacPermissionsCache('user-b', response);
-    localStorage.setItem('unrelated', 'keep');
-
-    clearAllRbacPermissionsCaches();
-
-    expect(loadRbacPermissionsCache('user-a')).toBeNull();
-    expect(loadRbacPermissionsCache('user-b')).toBeNull();
-    expect(localStorage.getItem('unrelated')).toBe('keep');
   });
 
   it("clearRbacPermissionsCache removes only that user's entry", () => {

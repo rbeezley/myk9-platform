@@ -280,6 +280,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
             warnRecoveredFromEmptyReplica(tableName);
           }
           queryClient.invalidateQueries({ queryKey: [tableName] });
+          for (const queryKey of getLocalEntryTodayInvalidationKeys([tableName])) {
+            queryClient.invalidateQueries({ queryKey });
+          }
           setStatus(prev => ({
             ...prev,
             tablesStatus: { ...prev.tablesStatus, [tableName]: 'success' },

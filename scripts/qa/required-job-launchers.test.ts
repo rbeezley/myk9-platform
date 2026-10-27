@@ -52,7 +52,7 @@ describe('required-job launcher extraction', () => {
     // real work, so a walk that stopped at the required job would cover nothing.
     expect(ids).toContain('test');
     expect(ids).toContain('test-packages');
-    expect(ids).toContain('smoke-build');
+    expect(ids).toContain('e2e-myk9show');
     expect(ids).toContain('build');
   });
 

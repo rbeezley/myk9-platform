@@ -210,6 +210,17 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
     script: 'qa:isolated-e2e:test',
     command: 'vitest run scripts/qa/isolated-e2e-*.test.ts',
   },
+  // MYK9-1449: the browser smoke jobs build their own disposable local Supabase.
+  {
+    pkgDir: '.',
+    script: 'qa:isolated-e2e:prepare',
+    command: 'tsx scripts/qa/isolated-e2e-lifecycle.ts prepare',
+  },
+  {
+    pkgDir: '.',
+    script: 'qa:isolated-e2e:stop',
+    command: 'tsx scripts/qa/isolated-e2e-lifecycle.ts stop',
+  },
   {
     pkgDir: '.',
     script: 'qa:rls-smoke:test',

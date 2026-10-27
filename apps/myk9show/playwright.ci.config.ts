@@ -229,9 +229,11 @@ const REGRESSION_SPECS = [
 // - exhibitorFixtureSmoke carries the positive control: with the profile row
 //   removed the exhibitor lands on /onboarding, so the fixture is proven to
 //   be what makes the converted specs pass.
-// - exhibitorReadPathCanary is the one live read. It SKIPS, with a named
-//   annotation, when staging lacks the data, and FAILS when a read on the
-//   path errors or its data does not render.
+// - exhibitorReadPathCanary is the one live read. Since MYK9-1449 PR smoke runs
+//   it against the job's own seeded local target with
+//   MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true, so missing data FAILS like a read
+//   that errors or does not render. (Pointed at a shared target without that
+//   flag, it skips with a named annotation instead.)
 const PR_SMOKE_SPECS = [
   '**/exhibitorFixtureSmoke.spec.ts',
   '**/exhibitorReadPathCanary.spec.ts',

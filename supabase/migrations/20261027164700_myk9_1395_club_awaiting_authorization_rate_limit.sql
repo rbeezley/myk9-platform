@@ -5,19 +5,34 @@
 -- admin of attacker-controlled text.
 --
 -- Changes against 20261022013700 (the latest definition; body copied from it):
---   1. Skip when the same auth.uid() already has another club that is still
---      unauthorized and not soft-deleted: one outstanding notice set per creator
---      until a site admin acts. A revoked club (authorized_at back to NULL) counts
---      as pending again, which is correct: it is awaiting authorization. There is
---      no "declined" column; deleted_at is the only other way out.
+--   1. One notice set per creator per 24 hours, claimed atomically in a ledger the
+--      caller cannot touch (private.club_awaiting_authorization_notice_log). The
+--      claim runs AFTER the early returns (no auth.uid(), site admin, already
+--      authorized), so those never consume the window.
 --   2. The interpolated name is capped at 80 characters (ellipsis when cut).
--- A multi-row INSERT raises no notice at all: row-level AFTER triggers fire at
--- the end of the statement, so each row sees its siblings as pending. That is
--- inside the bound, and the Onboarding list still shows every pending club.
--- Rejected: a time window (N per hour still lets N through). The pending-club
--- rule bounds the set to one, and Admin -> Onboarding lists every pending club,
--- so a suppressed notice hides nothing.
+-- Why not "skip while another club of this creator is still pending": that rule
+-- keyed on caller-controlled state. A club can be INSERTed with deleted_at already
+-- set (trg_00_block_direct_soft_delete is BEFORE UPDATE only), and created_by can
+-- be cleared afterwards, so either reset the limit without a site admin; and two
+-- concurrent transactions each saw no sibling and each notified. The ledger is
+-- written only by this function, and INSERT .. ON CONFLICT DO UPDATE takes the
+-- row lock, so concurrent inserts by one creator serialise and exactly one wins
+-- the claim (the loser re-checks last_notified_at after the winner commits).
+-- A multi-row INSERT notifies once: the first row claims, later rows skip.
+-- A suppressed notice hides nothing: Admin -> Onboarding lists every pending club.
 -- Trigger definition and notifications_type_check are untouched.
+
+CREATE TABLE IF NOT EXISTS private.club_awaiting_authorization_notice_log (
+  creator uuid PRIMARY KEY,
+  last_notified_at timestamptz NOT NULL
+);
+-- No FK to auth.users on purpose: a deleted account must not be blocked by, or
+-- cascade into, the ledger. No sequence, no trigger.
+ALTER TABLE private.club_awaiting_authorization_notice_log ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON private.club_awaiting_authorization_notice_log FROM PUBLIC, anon, authenticated;
+
+COMMENT ON TABLE private.club_awaiting_authorization_notice_log IS
+  'MYK9-1395: last time a club_awaiting_authorization notice set was raised for this creator (auth uid). Written only by notify_site_admins_club_awaiting_authorization() (SECURITY DEFINER); RLS on with no policies and no client grants.';
 
 CREATE OR REPLACE FUNCTION public.notify_site_admins_club_awaiting_authorization()
 RETURNS trigger
@@ -27,6 +42,7 @@ SET search_path = ''
 AS $$
 DECLARE
   v_creator text;
+  v_claimed integer;
   v_link text := '/clubs/' || NEW.id;
   -- MYK9-1395: the name is caller-supplied; cap what reaches an admin's inbox.
   v_name text := CASE WHEN char_length(NEW.name) > 80
@@ -45,16 +61,14 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- MYK9-1395: one outstanding notice set per creator. While an earlier club of
-  -- this creator is still waiting (not authorized, not soft-deleted), a further
-  -- insert raises nothing; Admin -> Onboarding lists every pending club.
-  IF EXISTS (
-    SELECT 1 FROM public.clubs c
-    WHERE c.created_by = auth.uid()
-      AND c.id <> NEW.id
-      AND c.authorized_at IS NULL
-      AND c.deleted_at IS NULL
-  ) THEN
+  -- MYK9-1395: atomic once-per-24h claim per creator. The ON CONFLICT row lock
+  -- serialises concurrent inserts; only one gets a row back.
+  INSERT INTO private.club_awaiting_authorization_notice_log AS l (creator, last_notified_at)
+  VALUES (auth.uid(), now())
+  ON CONFLICT (creator) DO UPDATE SET last_notified_at = EXCLUDED.last_notified_at
+    WHERE l.last_notified_at <= now() - interval '24 hours'
+  RETURNING 1 INTO v_claimed;
+  IF v_claimed IS NULL THEN
     RETURN NEW;
   END IF;
 
@@ -99,7 +113,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.notify_site_admins_club_awaiting_authorization() IS
-  'MYK9-1315/MYK9-1395: AFTER INSERT ON clubs. When a non-site-admin account inserts a club that is still unauthorized, writes one club_awaiting_authorization in-app notification per active site admin (deep link /clubs/<id>). Skipped while the same creator has another club still unauthorized and not deleted (one outstanding notice set per creator); the club name is capped at 80 characters. Seed/service_role inserts (no auth.uid()) and site admins'' own inserts raise nothing.';
+  'MYK9-1315/MYK9-1395: AFTER INSERT ON clubs. When a non-site-admin account inserts a club that is still unauthorized, writes one club_awaiting_authorization in-app notification per active site admin (deep link /clubs/<id>). At most one notice set per creator per 24 hours (ledger private.club_awaiting_authorization_notice_log); the club name is capped at 80 characters. Seed/service_role inserts (no auth.uid()) and site admins'' own inserts raise nothing.';
 
 -- Trigger-only: fired by the trigger as its owner, never callable by a client role.
 REVOKE ALL ON FUNCTION public.notify_site_admins_club_awaiting_authorization() FROM PUBLIC;

@@ -2440,6 +2440,7 @@ export type Database = {
           payment_received_on: string | null
           payment_reference: string | null
           payment_status: string | null
+          payment_status_before_comp: string | null
           penalty_points: number | null
           points_earned: number | null
           points_possible: number | null
@@ -2538,6 +2539,7 @@ export type Database = {
           payment_received_on?: string | null
           payment_reference?: string | null
           payment_status?: string | null
+          payment_status_before_comp?: string | null
           penalty_points?: number | null
           points_earned?: number | null
           points_possible?: number | null
@@ -2636,6 +2638,7 @@ export type Database = {
           payment_received_on?: string | null
           payment_reference?: string | null
           payment_status?: string | null
+          payment_status_before_comp?: string | null
           penalty_points?: number | null
           points_earned?: number | null
           points_possible?: number | null

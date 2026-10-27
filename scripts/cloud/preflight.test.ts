@@ -116,11 +116,12 @@ describe('runPreflight', () => {
     );
   });
 
-  // The handoff CLI reads every page with `gh api --slurp`, first shipped in gh 2.48.0.
+  // 2.48.0 is the first gh with `gh api --slurp`, which scripts/qa/review-gate.ts still uses
+  // to read PR comments. The handoff CLI pages by hand, so it no longer needs --slurp itself.
   it.each([
     ['gh version 2.47.0 (2024-04-03)', false],
     ['gh version 2.48.0 (2024-04-17)', true],
-  ])('holds gh to the release that added --slurp: %s', (output, ok) => {
+  ])('holds gh to the tested 2.48.0 floor: %s', (output, ok) => {
     const { deps } = fakeDeps({ versions: { gh: output } });
     const report = runPreflight({ root: ROOT, role: 'publisher', env: CLOUD_ENV, deps });
     expect(report.missing.includes('gh')).toBe(!ok);

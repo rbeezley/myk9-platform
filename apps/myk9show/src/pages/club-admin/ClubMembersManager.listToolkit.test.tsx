@@ -12,6 +12,7 @@ const { getClubShowManagers, countUpcomingClubShows } = vi.hoisted(() => ({
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     getUserRoles: () => ['club_admin'],
+    hasRole: (role: string) => role === 'club_admin',
     userWithRoles: {
       scopes: [{ scopeType: 'club', roleId: 'club_admin', scopeId: 'club-1' }],
     },

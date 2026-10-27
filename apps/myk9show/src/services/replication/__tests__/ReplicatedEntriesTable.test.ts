@@ -711,7 +711,7 @@ describe('ReplicatedEntriesTable', () => {
       it('an unrelated edit leaves the stored prior alone', async () => {
         await seedCheckedIn();
         await table.updateCheckInStatus('entry-1', 'pulled');
-        await table.updateEntry('entry-1', { armbandNumber: 7 } as Partial<ReplicatedEntry>);
+        await table.updateEntry('entry-1', { armbandNumber: '7' });
         const row = await table.getEntryById('entry-1');
         expect(row?.checkInStatusBeforePull).toBe('checked-in');
       });

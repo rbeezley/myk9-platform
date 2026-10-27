@@ -4,7 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { AUDIENCE_RESOLUTION_ERROR } from './fanoutErrors.ts';
 import {
+  isTruncatedPushBatch,
   loadPushSubscriptions,
+  PUSH_SEND_CONCURRENCY,
+  PUSH_SEND_TIMEOUT_MS,
   PUSH_SUBSCRIPTION_CHUNK_SIZE,
   sendWebPushBatch,
   type PushSubscriptionRow,
@@ -105,9 +108,10 @@ describe('sendWebPushBatch', () => {
     expect(webpush.sendNotification).toHaveBeenCalledTimes(3);
     expect(webpush.sendNotification).toHaveBeenCalledWith(
       { endpoint: 'https://push.example/u1/pwa', keys: { p256dh: 'p256dh', auth: 'auth' } },
-      '{"x":1}'
+      '{"x":1}',
+      { timeout: PUSH_SEND_TIMEOUT_MS }
     );
-    expect(result).toEqual({ sent: 3, failed: 0, expired: 0, skipped: 0 });
+    expect(result).toEqual({ sent: 3, failed: 0, expired: 0, skipped: 0, truncated: 0 });
   });
 
   it('deletes 404/410 endpoints in one query and keeps transient failures', async () => {
@@ -134,7 +138,33 @@ describe('sendWebPushBatch', () => {
       'https://push.example/u1/gone',
       'https://push.example/u2/missing',
     ]);
-    expect(result).toEqual({ sent: 1, failed: 3, expired: 2, skipped: 0 });
+    expect(result).toEqual({ sent: 1, failed: 3, expired: 2, skipped: 0, truncated: 0 });
+  });
+
+  it('counts a recipient whose payload throws as failed and still sends to the rest', async () => {
+    const { client, deletes } = fakeSupabase();
+    const webpush = {
+      sendNotification: vi.fn(async (s: { endpoint: string }) => {
+        if (s.endpoint.endsWith('/gone')) throw Object.assign(new Error('x'), { statusCode: 410 });
+      }),
+    };
+    const subs = [sub('u1', 'a'), sub('u2', 'gone'), sub('u3', 'a')];
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const result = await sendWebPushBatch(
+      webpush,
+      client,
+      subs,
+      userId => {
+        if (userId === 'u1') throw new Error('bad payload');
+        return 'p';
+      },
+      { label: 't' }
+    );
+
+    expect(result).toEqual({ sent: 1, failed: 2, expired: 1, skipped: 0, truncated: 0 });
+    expect(deletes).toHaveLength(1);
   });
 
   it('does not issue a delete when nothing expired', async () => {
@@ -162,8 +192,12 @@ describe('sendWebPushBatch', () => {
     );
 
     expect(webpush.sendNotification).toHaveBeenCalledTimes(2);
-    expect(webpush.sendNotification).toHaveBeenCalledWith(expect.anything(), 'payload-for-u1');
-    expect(result).toEqual({ sent: 2, failed: 0, expired: 0, skipped: 1 });
+    expect(webpush.sendNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      'payload-for-u1',
+      expect.anything()
+    );
+    expect(result).toEqual({ sent: 2, failed: 0, expired: 0, skipped: 1, truncated: 0 });
   });
 
   it('logs one summary line, or none when quiet', async () => {
@@ -175,7 +209,11 @@ describe('sendWebPushBatch', () => {
       label: 'push-x',
     });
     expect(log).toHaveBeenCalledTimes(1);
-    expect(log).toHaveBeenCalledWith('push-x: sent=2/2 failed=0 expired=0 skipped=0');
+    expect(log).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^push-x: sent=2\/2 failed=0 expired=0 skipped=0 truncated=0 elapsedMs=\d+$/
+      )
+    );
 
     log.mockClear();
     await sendWebPushBatch(webpush, client, [sub('u1', 'a')], 'p', {
@@ -183,5 +221,64 @@ describe('sendWebPushBatch', () => {
       quiet: true,
     });
     expect(log).not.toHaveBeenCalled();
+  });
+});
+
+describe('sendWebPushBatch bounded fanout', () => {
+  const many = (n: number) => Array.from({ length: n }, (_, i) => sub(`u${i}`, 'a'));
+
+  it('never exceeds the concurrency window and still sends to every subscription', async () => {
+    const { client } = fakeSupabase();
+    let inFlight = 0;
+    let peak = 0;
+    const webpush = {
+      sendNotification: vi.fn(async () => {
+        inFlight++;
+        peak = Math.max(peak, inFlight);
+        await new Promise(resolve => setTimeout(resolve, 0));
+        inFlight--;
+      }),
+    };
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const result = await sendWebPushBatch(webpush, client, many(37), 'p', { label: 't' });
+
+    expect(peak).toBe(PUSH_SEND_CONCURRENCY);
+    expect(webpush.sendNotification).toHaveBeenCalledTimes(37);
+    expect(result).toEqual({ sent: 37, failed: 0, expired: 0, skipped: 0, truncated: 0 });
+  });
+
+  it('stops starting sends at the deadline, reports truncated, and logs at error level', async () => {
+    const { client } = fakeSupabase();
+    let clock = 0;
+    const webpush = {
+      sendNotification: vi.fn(async () => {
+        clock += 10;
+      }),
+    };
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const infoLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const result = await sendWebPushBatch(webpush, client, many(10), 'p', {
+      label: 'trunc',
+      concurrency: 1,
+      deadlineMs: 30,
+      now: () => clock,
+    });
+
+    expect(result).toEqual({ sent: 3, failed: 0, expired: 0, skipped: 0, truncated: 7 });
+    expect(webpush.sendNotification).toHaveBeenCalledTimes(3);
+    expect(errorLog).toHaveBeenCalledWith(expect.stringContaining('trunc: sent=3/10'));
+    expect(errorLog).toHaveBeenCalledWith(expect.stringContaining('truncated=7 elapsedMs=30'));
+    expect(infoLog).not.toHaveBeenCalled();
+  });
+
+  it('flags an incomplete batch even when truncated is zero', () => {
+    expect(
+      isTruncatedPushBatch({ sent: 1, failed: 0, expired: 0, skipped: 0, truncated: 0 }, 2)
+    ).toBe(true);
+    expect(
+      isTruncatedPushBatch({ sent: 1, failed: 1, expired: 0, skipped: 0, truncated: 0 }, 2)
+    ).toBe(false);
   });
 });

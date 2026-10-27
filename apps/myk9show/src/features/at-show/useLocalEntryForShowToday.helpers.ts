@@ -18,12 +18,15 @@ const INACTIVE_ENTRY_STATUSES = new Set(['withdrawn', 'scratched']);
  * nor soft-deleted. Ownership mirrors the RPC's three branches: the person
  * handles the entry, or is the owner or co-owner of its dog.
  *
- * The RPC also leaves out an entry whose trial or class is soft-deleted
- * (`e.trial_id is null or t.deleted_at is null`, same for the class). Both are
- * LEFT joins, so an entry is dropped for its trial or class only when that row
- * is present in `deletedTrials` / `classes` and soft-deleted. A trial or class
- * the device does not hold (cold or late-hydrating replica) never excludes an
- * entry: that would be a false "no" for an exhibitor who is entered.
+ * The RPC also leaves out an entry whose class is soft-deleted (a LEFT join,
+ * `e.class_id is null or c.deleted_at is null`): an entry is dropped only when
+ * its class row is present in `classes` and soft-deleted. A class the device
+ * does not hold never excludes an entry; that would be a false "no" for an
+ * exhibitor who is entered. The RPC's matching trial rule is deliberately NOT
+ * mirrored (MYK9-1441, owner decision): the trials replica drops soft-deleted
+ * trials instead of keeping a tombstone, so a deleted trial is indistinguishable
+ * from one not yet synced. The brief false admit it leaves is corrected by the
+ * server's answer once online.
  *
  * Pure (rows in, boolean out) so it needs no IndexedDB. "Today" is the
  * show-local calendar date of `now` in the show's primary-trial timezone
@@ -42,22 +45,10 @@ export function hasLocalEntryForShowToday(input: {
   show: Pick<ReplicatedShow, 'id' | 'startDate' | 'endDate' | 'deletedAt'> | null | undefined;
   entries: readonly ReplicatedEntry[];
   dogs: readonly Pick<ReplicatedDog, 'id' | 'ownerId' | 'coOwnerId' | 'deletedAt' | 'deleted_at'>[];
-  /** Trial rows the device holds for the entries; only their deletion state is read. */
-  deletedTrials?: readonly { id: string; deletedAt?: string | null | undefined }[];
   /** Class rows the device holds for the entries; only their deletion state is read. */
   classes?: readonly Pick<ReplicatedClass, 'id' | 'deletedAt'>[];
 }): boolean {
-  const {
-    personId,
-    showId,
-    now,
-    trials,
-    show,
-    entries,
-    dogs,
-    classes = [],
-    deletedTrials = [],
-  } = input;
+  const { personId, showId, now, trials, show, entries, dogs, classes = [] } = input;
   if (!personId || !showId || !show) return false;
   if (show.id !== showId || show.deletedAt) return false;
   if (!show.startDate || !show.endDate) return false;
@@ -75,13 +66,11 @@ export function hasLocalEntryForShowToday(input: {
       .filter(dog => dog.ownerId === personId || dog.coOwnerId === personId)
       .map(dog => dog.id)
   );
-  const deletedTrialIds = new Set(deletedTrials.filter(t => t.deletedAt).map(t => t.id));
   const deletedClassIds = new Set(classes.filter(c => c.deletedAt).map(c => c.id));
   return entries.some(entry => {
     if (entry.showId !== showId) return false;
     if (entry.deletedAt ?? entry.deleted_at) return false;
     if (entry.dogId && deletedDogIds.has(entry.dogId)) return false;
-    if (entry.trialId && deletedTrialIds.has(entry.trialId)) return false;
     if (entry.classId && deletedClassIds.has(entry.classId)) return false;
     if (INACTIVE_ENTRY_STATUSES.has(entry.entryStatus ?? '')) return false;
     return entry.handlerId === personId || (entry.dogId ? ownedDogIds.has(entry.dogId) : false);

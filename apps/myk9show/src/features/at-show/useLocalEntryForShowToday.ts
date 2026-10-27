@@ -52,15 +52,6 @@ async function readLocalEntryToday(personId: string, showId: string): Promise<bo
     replicatedEntriesTable.getEntriesByShow(showId),
     replicatedDogsTable.getAllDogs(),
   ]);
-  // Entry trials missing from the live list are either soft-deleted or not on
-  // the device; `get` returns tombstones, so only a held, deleted row excludes.
-  const liveTrialIds = new Set(trials.map(trial => trial.id));
-  const otherTrialIds = [
-    ...new Set(entries.flatMap(entry => (entry.trialId ? [entry.trialId] : []))),
-  ].filter(id => !liveTrialIds.has(id));
-  const deletedTrials = (
-    await Promise.all(otherTrialIds.map(id => replicatedTrialsTable.get(id)))
-  ).filter((row): row is NonNullable<typeof row> => row !== null);
   // The RPC drops entries in a soft-deleted class; read each class the
   // entries name so their deletion state reaches the helper.
   const classIds = [...new Set(entries.flatMap(entry => (entry.classId ? [entry.classId] : [])))];
@@ -76,7 +67,6 @@ async function readLocalEntryToday(personId: string, showId: string): Promise<bo
     entries,
     dogs,
     classes,
-    deletedTrials,
   });
 }
 

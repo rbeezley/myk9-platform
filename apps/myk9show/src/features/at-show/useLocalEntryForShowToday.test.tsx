@@ -20,7 +20,6 @@ const tables = vi.hoisted(() => {
     getEntriesByShow: vi.fn(),
     getAllDogs: vi.fn(),
     getClassById: vi.fn(),
-    getTrial: vi.fn(),
     listeners,
     subscribeFor,
     notify: (name: string) => listeners.get(name)?.forEach(cb => cb()),
@@ -37,7 +36,6 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: {
     subscribe: tables.subscribeFor('trials'),
     getTrialsByShow: tables.getTrialsByShow,
-    get: tables.getTrial,
   },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
@@ -80,7 +78,6 @@ describe('useLocalEntryForShowToday', () => {
       .mockResolvedValue([{ id: 'entry-1', showId: 'show-1', handlerId: 'person-1' }]);
     tables.getAllDogs.mockReset().mockResolvedValue([]);
     tables.getClassById.mockReset().mockResolvedValue(null);
-    tables.getTrial.mockReset().mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -263,21 +260,6 @@ describe('useLocalEntryForShowToday', () => {
 
     tables.getClassById.mockResolvedValue({ id: 'class-1' });
     tables.notify('classes');
-    await waitFor(() => expect(result.current.hasLocalEntryToday).toBe(true));
-  });
-
-  it('answers false for an entry in a soft-deleted trial but true when the trial is not on the device', async () => {
-    tables.getEntriesByShow.mockResolvedValue([
-      { id: 'entry-1', showId: 'show-1', handlerId: 'person-1', trialId: 'trial-x' },
-    ]);
-    tables.getTrial.mockResolvedValue({ id: 'trial-x', deletedAt: '2026-10-20T00:00:00Z' });
-    const { result } = renderLocalEntry('person-1');
-    await waitFor(() => expect(tables.getTrial).toHaveBeenCalledWith('trial-x'));
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.hasLocalEntryToday).toBe(false);
-
-    tables.getTrial.mockResolvedValue(null);
-    tables.notify('trials');
     await waitFor(() => expect(result.current.hasLocalEntryToday).toBe(true));
   });
 });

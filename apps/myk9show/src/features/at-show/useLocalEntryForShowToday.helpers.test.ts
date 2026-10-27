@@ -186,18 +186,8 @@ describe('hasLocalEntryForShowToday', () => {
     });
   });
 
-  describe('soft-deleted trial and class (MYK9-1441)', () => {
-    it('drops an entry whose trial row is present and soft-deleted', () => {
-      expect(
-        run({
-          entries: [entry({ trialId: 'trial-gone' })],
-          trials: LIVE_TRIALS,
-          deletedTrials: [{ id: 'trial-gone', deletedAt: '2026-10-20T00:00:00Z' }],
-        })
-      ).toBe(false);
-    });
-
-    it('keeps an entry whose trial the device does not hold', () => {
+  describe('soft-deleted class (MYK9-1441)', () => {
+    it('keeps an entry whose trial the device does not hold (no trial rule, by decision)', () => {
       expect(run({ entries: [entry({ trialId: 'trial-unknown' })], trials: [] })).toBe(true);
     });
 

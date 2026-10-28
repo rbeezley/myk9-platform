@@ -30,7 +30,7 @@ export interface ConfirmedJudgeAssignment {
   firstName: string | null;
   lastName: string | null;
   trialId: string | null;
-  /** Class-level edits (`replaceClassAssignment`) write `class_id` with a null `trial_id`. */
+  /** Class-level assignments (`set_class_judge`) write `class_id` with a null `trial_id`. */
   classId: string | null;
 }
 

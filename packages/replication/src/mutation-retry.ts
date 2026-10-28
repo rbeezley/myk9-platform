@@ -25,7 +25,7 @@ export function classifyMutationFailure({
   now = Date.now(),
 }: ClassifyMutationFailureOptions): MutationFailureClassification {
   const message = describeError(error);
-  const canRetry = isRetryableError(error);
+  const canRetry = isRetryableError(error, mutation);
   const retries = (mutation.retries || 0) + 1;
   const permanentlyFailed = retries >= maxRetries || !canRetry;
 

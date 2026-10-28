@@ -15,6 +15,7 @@ function mutation(overrides: Partial<PendingMutation> = {}): PendingMutation {
     error: overrides.error,
     failedAt: overrides.failedAt,
     nextRetryAt: overrides.nextRetryAt,
+    ...(overrides.rpc && { rpc: overrides.rpc }),
   };
 }
 
@@ -163,5 +164,40 @@ describe('classifyMutationFailure', () => {
     expect(result.message).toBe(expected);
     expect(result.mutation.error).toContain(expected);
     expect(result.mutation.error).not.toContain('[object Object]');
+  });
+
+  describe('RPC-scoped permanent codes (MYK9-1327)', () => {
+    const classify = (rpcName: string, code: string) =>
+      classifyMutationFailure({
+        mutation: mutation({ rpc: { name: rpcName, args: {} } }),
+        error: { message: 'raised', code },
+        maxRetries: 3,
+        retryBackoffBase: 10,
+        now: 1_000,
+      });
+
+    it.each(['P0002', '22023'])('parks a set_class_judge on %s', code => {
+      const result = classify('set_class_judge', code);
+      expect(result.permanentlyFailed).toBe(true);
+      expect(result.mutation).toMatchObject({ status: 'failed', failureKind: 'permanent' });
+    });
+
+    it('backs a ringside_update_entry off on P0002 instead of dead-lettering the score', () => {
+      const result = classify('ringside_update_entry', 'P0002');
+      expect(result.permanentlyFailed).toBe(false);
+      expect(result.mutation.status).toBe('pending');
+      expect(result.mutation.nextRetryAt).toBeGreaterThan(1_000);
+    });
+
+    it('backs a plain UPDATE off on 22023', () => {
+      const result = classifyMutationFailure({
+        mutation: mutation(),
+        error: { message: 'bad', code: '22023' },
+        maxRetries: 3,
+        retryBackoffBase: 10,
+        now: 1_000,
+      });
+      expect(result.permanentlyFailed).toBe(false);
+    });
   });
 });

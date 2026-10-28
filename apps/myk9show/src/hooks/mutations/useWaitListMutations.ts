@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
 import { classAvailabilityQueryKey } from '@/hooks/useClassAvailability';
-import { reassignClassJudge } from '@/services/database/judges';
 import {
   bulkPromoteWaitlistEntries,
   closeWaitlistForClasses,
@@ -51,21 +50,6 @@ export function useWaitListMutations(showId: string) {
     onSuccess: invalidateShow,
   });
 
-  const reassignClass = useMutation({
-    mutationFn: async ({
-      classId,
-      fromJudgeId,
-      toJudgeId,
-    }: {
-      classId: string;
-      fromJudgeId: string;
-      toJudgeId: string;
-    }) => {
-      await reassignClassJudge(showId, classId, fromJudgeId, toJudgeId);
-    },
-    onSuccess: invalidateShow,
-  });
-
   const closeWaitList = useMutation({
     mutationFn: (classIds: string[]) => closeWaitlistForClasses(classIds),
     onSuccess: invalidateShow,
@@ -76,7 +60,6 @@ export function useWaitListMutations(showId: string) {
     removeFromWaitList,
     bulkPromote,
     withdrawFromWaitList,
-    reassignClass,
     closeWaitList,
   };
 }

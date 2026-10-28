@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { reassignClassJudge } from '@/services/database/judges';
 import {
   closeWaitlistForClasses,
   promoteWaitlistEntry,
@@ -10,10 +9,6 @@ import {
 } from '@/services/database/waitlists';
 import { useWaitListMutations } from '../useWaitListMutations';
 import { fromAny } from '@total-typescript/shoehorn';
-
-vi.mock('@/services/database/judges', () => ({
-  reassignClassJudge: vi.fn(),
-}));
 
 vi.mock('@/services/database/waitlists', () => ({
   bulkPromoteWaitlistEntries: vi.fn(),
@@ -43,7 +38,6 @@ describe('useWaitListMutations', () => {
     vi.mocked(promoteWaitlistEntry).mockResolvedValue('new-entry-uuid');
     vi.mocked(removeFromWaitlist).mockResolvedValue(fromAny({ data: null, error: null }));
     vi.mocked(closeWaitlistForClasses).mockResolvedValue(undefined);
-    vi.mocked(reassignClassJudge).mockResolvedValue(undefined);
   });
 
   describe('promoteEntry', () => {
@@ -130,24 +124,6 @@ describe('useWaitListMutations', () => {
       });
 
       expect(closeWaitlistForClasses).toHaveBeenCalledWith(['class-1', 'class-2']);
-    });
-  });
-
-  describe('reassignClass', () => {
-    it('calls the Judge module with show and judge ids', async () => {
-      const { result } = renderHook(() => useWaitListMutations('show-1'), {
-        wrapper: makeWrapper(),
-      });
-
-      await act(async () => {
-        await result.current.reassignClass.mutateAsync({
-          classId: 'class-1',
-          fromJudgeId: 'judge-1',
-          toJudgeId: 'judge-2',
-        });
-      });
-
-      expect(reassignClassJudge).toHaveBeenCalledWith('show-1', 'class-1', 'judge-1', 'judge-2');
     });
   });
 });

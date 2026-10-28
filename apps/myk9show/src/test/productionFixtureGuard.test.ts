@@ -2,7 +2,7 @@
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { createClient } = vi.hoisted(() => ({ createClient: vi.fn() }));
 vi.mock('@supabase/supabase-js', () => ({ createClient }));
@@ -70,11 +70,13 @@ describe('a Playwright run refuses to start against production with fixture pass
   };
   const optIn = { [ALLOW_PRODUCTION_FIXTURE_SIGN_IN]: '1' };
   // A dev server on the browser's own port: the config's own server, nothing to scan.
+  const emptyRoot = mkdtempSync(join(tmpdir(), 'guard-root-'));
   const ownDev: AppServer = {
     kind: 'own',
     mode: 'dev',
     browserUrl: 'http://127.0.0.1:5300',
     serverPort: 5300,
+    appRoot: emptyRoot,
   };
   const run = (
     env: Record<string, string>,
@@ -130,6 +132,63 @@ describe('a Playwright run refuses to start against production with fixture pass
     expect(() =>
       run(isolated, {}, { ...ownDev, browserUrl: 'http://localhost', serverPort: 80 })
     ).not.toThrow();
+  });
+
+  describe('a dev server also reads .env.development (MYK9-1457)', () => {
+    const roots: string[] = [];
+    beforeEach(() => {
+      // vitest.config.ts sets VITE_SUPABASE_URL; Vite lets the process env win over mode files.
+      vi.stubEnv('VITE_SUPABASE_URL', undefined);
+    });
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+    });
+    const rootWith = (files: Record<string, string>): AppServer => {
+      const appRoot = mkdtempSync(join(tmpdir(), 'guard-env-'));
+      roots.push(appRoot);
+      for (const [name, body] of Object.entries(files)) writeFileSync(join(appRoot, name), body);
+      return { ...ownDev, appRoot };
+    };
+    // The test process sees only isolated URLs: production lives in the mode file alone.
+    const noUrls = { E2E_SECRETARY_PASSWORD: 'pw' };
+
+    it('refuses a production URL that only .env.development holds', () => {
+      const server = rootWith({ '.env.development': `VITE_SUPABASE_URL=${PRODUCTION}\n` });
+      expect(() => run(noUrls, {}, server)).toThrow(/refusing .*production project/s);
+    });
+
+    it('lets a shell value win over the mode file, as Vite does', () => {
+      vi.stubEnv('VITE_SUPABASE_URL', LOCAL);
+      const server = rootWith({ '.env.development': `VITE_SUPABASE_URL=${PRODUCTION}\n` });
+      expect(() => run(noUrls, {}, server)).not.toThrow();
+    });
+
+    it('refuses .env.development.local, and a variable-expanded value', () => {
+      expect(() =>
+        run(noUrls, {}, rootWith({ '.env.development.local': `VITE_SUPABASE_URL=${PRODUCTION}\n` }))
+      ).toThrow(/refusing/);
+      expect(() =>
+        run(
+          noUrls,
+          {},
+          rootWith({ '.env.development': `HOST=${PRODUCTION}\nVITE_SUPABASE_URL=$HOST\n` })
+        )
+      ).toThrow(/refusing/);
+    });
+
+    it('allows an isolated mode file, an empty root, and the shell opt-in', () => {
+      const local = rootWith({ '.env.development': `VITE_SUPABASE_URL=${LOCAL}\n` });
+      expect(() => run(noUrls, {}, local)).not.toThrow();
+      expect(() => run(noUrls, {}, rootWith({}))).not.toThrow();
+      const prod = rootWith({ '.env.development': `VITE_SUPABASE_URL=${PRODUCTION}\n` });
+      expect(() => run(noUrls, optIn, prod)).not.toThrow();
+    });
+
+    it('does not read .env.production for a dev server', () => {
+      const server = rootWith({ '.env.production': `VITE_SUPABASE_URL=${PRODUCTION}\n` });
+      expect(() => run(noUrls, {}, server)).not.toThrow();
+    });
   });
 
   describe('a preview serves dist/, so dist/ itself is checked (Codex round 3)', () => {

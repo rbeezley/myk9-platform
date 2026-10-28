@@ -181,7 +181,7 @@ INSERT INTO callers VALUES
 -- fn = the function's answer; delta = whether the replication view has a row
 -- newer than p_since for this caller. Run as that caller, then back.
 CREATE FUNCTION pg_temp.probe(p_label text, p_since timestamptz,
-                              OUT fn boolean, OUT delta boolean)
+                              OUT fn boolean, OUT delta boolean, OUT server_now timestamptz)
 LANGUAGE plpgsql AS $$
 DECLARE
   c record;
@@ -189,7 +189,8 @@ BEGIN
   SELECT * INTO c FROM callers WHERE label = p_label;
   PERFORM pg_temp.act_as(c.auth_id, c.app_metadata);
   EXECUTE 'SET LOCAL ROLE authenticated';
-  fn := public.entry_results_changed_since('00000000-0000-0000-0000-000000136020', p_since);
+  SELECT q.changed, q.server_now INTO fn, server_now
+  FROM public.entry_results_changed_since('00000000-0000-0000-0000-000000136020', p_since) q;
   delta := EXISTS (
     SELECT 1 FROM public.view_authenticated_entry_results_replication
     WHERE show_id = '00000000-0000-0000-0000-000000136020' AND updated_at > p_since
@@ -238,6 +239,10 @@ DECLARE
 BEGIN
   FOR c IN SELECT * FROM callers ORDER BY label LOOP
     SELECT * INTO r FROM pg_temp.probe(c.label, t);
+    IF r.server_now IS DISTINCT FROM now() THEN
+      RAISE EXCEPTION 'FAIL 6 [%] % server_now must be now() for every caller, got %',
+        p_input, c.label, r.server_now;
+    END IF;
     IF NOT c.authorized THEN
       IF r.fn IS DISTINCT FROM true THEN
         RAISE EXCEPTION 'FAIL 3 [%] % must get TRUE (no information), got %', p_input, c.label, r.fn;
@@ -407,10 +412,15 @@ DO $$
 BEGIN
   PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000136114');
   EXECUTE 'SET LOCAL ROLE authenticated';
-  IF public.entry_results_changed_since(NULL, now()) IS DISTINCT FROM true
-     OR public.entry_results_changed_since('00000000-0000-0000-0000-000000136020', NULL) IS DISTINCT FROM true
-     OR public.entry_results_changed_since('00000000-0000-0000-0000-000000136777', now()) IS DISTINCT FROM true THEN
-    RAISE EXCEPTION 'FAIL 4 NULL arguments or an unknown show must return TRUE';
+  IF (public.entry_results_changed_since(NULL, now())).changed IS DISTINCT FROM true
+     OR (public.entry_results_changed_since('00000000-0000-0000-0000-000000136020', NULL)).changed IS DISTINCT FROM true
+     OR (public.entry_results_changed_since('00000000-0000-0000-0000-000000136777', now())).changed IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'FAIL 4 NULL arguments or an unknown show must return changed = TRUE';
+  END IF;
+  IF (public.entry_results_changed_since(NULL, now())).server_now IS DISTINCT FROM now()
+     OR (public.entry_results_changed_since('00000000-0000-0000-0000-000000136020', NULL)).server_now IS DISTINCT FROM now()
+     OR (public.entry_results_changed_since('00000000-0000-0000-0000-000000136777', now())).server_now IS DISTINCT FROM now() THEN
+    RAISE EXCEPTION 'FAIL 4 server_now must be filled in (= now()) for NULL arguments and an unknown show';
   END IF;
   EXECUTE 'RESET ROLE';
   RAISE NOTICE 'PASS 4 NULL arguments and an unknown show return TRUE';
@@ -439,16 +449,55 @@ BEGIN
      OR r.results_private IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'FAIL 5 unreleased result is visible to an unrelated exhibitor: %', row_to_json(r);
   END IF;
-  answer := public.entry_results_changed_since('00000000-0000-0000-0000-000000136020', '2001-01-01');
+  SELECT q.changed INTO answer
+  FROM public.entry_results_changed_since('00000000-0000-0000-0000-000000136020', '2001-01-01') q;
   v_type := pg_typeof(answer)::text;
   IF v_type <> 'boolean' OR answer IS NULL THEN
     RAISE EXCEPTION 'FAIL 5 the function must return a non-null boolean, got %', v_type;
   END IF;
   EXECUTE 'RESET ROLE';
-  IF (SELECT pg_get_function_result('public.entry_results_changed_since(uuid, timestamptz)'::regprocedure)) <> 'boolean' THEN
-    RAISE EXCEPTION 'FAIL 5 the function returns more than a boolean';
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc p
+    WHERE p.oid = 'public.entry_results_changed_since(uuid, timestamptz)'::regprocedure
+      AND NOT p.proretset
+      AND p.proargnames = ARRAY['p_show_id', 'p_since', 'changed', 'server_now']
+      AND p.proargmodes = ARRAY['i', 'i', 'o', 'o']::"char"[]
+  ) THEN
+    RAISE EXCEPTION 'FAIL 5 the function must return exactly one row of (changed, server_now)';
   END IF;
   RAISE NOTICE 'PASS 5 results stay masked in the view and the function returns only a boolean';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 7. Millisecond resolution: a client watermark is epoch milliseconds, so the
+--    row that SET it (microseconds truncated away) must not read as newer.
+-- ---------------------------------------------------------------------------
+SELECT pg_temp.backdate();
+DO $$
+DECLARE
+  same_ms boolean;
+  earlier_ms boolean;
+  next_ms boolean;
+BEGIN
+  SET LOCAL session_replication_role = replica;
+  UPDATE public.entries SET updated_at = '2026-01-01 00:00:00.123456+00'
+  WHERE id = '00000000-0000-0000-0000-000000136061';
+  SET LOCAL session_replication_role = origin;
+  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000136114');
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  SELECT q.changed INTO same_ms FROM public.entry_results_changed_since(
+    '00000000-0000-0000-0000-000000136020', '2026-01-01 00:00:00.123+00') q;
+  SELECT q.changed INTO earlier_ms FROM public.entry_results_changed_since(
+    '00000000-0000-0000-0000-000000136020', '2026-01-01 00:00:00.122+00') q;
+  SELECT q.changed INTO next_ms FROM public.entry_results_changed_since(
+    '00000000-0000-0000-0000-000000136020', '2026-01-01 00:00:00.124+00') q;
+  EXECUTE 'RESET ROLE';
+  IF same_ms IS DISTINCT FROM false OR earlier_ms IS DISTINCT FROM true OR next_ms IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FAIL 7 millisecond resolution: same ms=% (want false), earlier ms=% (want true), later ms=% (want false)',
+      same_ms, earlier_ms, next_ms;
+  END IF;
+  RAISE NOTICE 'PASS 7 the row that set a millisecond watermark does not read as newer than it';
 END;
 $$;
 

@@ -31,7 +31,7 @@ import { verifySecretaryEmptyShow } from '@/services/database/entries/secretaryE
 import type { Database } from '@/types/supabase';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { PendingDeletes } from './pendingDeletes';
-import { entriesUnchangedSince, recordEntriesViewRead } from './entriesChangedSince';
+import { planEntriesRead } from './entriesChangedSince';
 import { entryChangedColumnsRow } from './ReplicatedEntriesTable.changedColumns';
 import {
   entryToSupabaseRow,
@@ -394,10 +394,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           forceFullSync,
           bufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
         };
-        if (await entriesUnchangedSince(readWindow)) return [];
-        const readAt = Date.now();
+        const readPlan = await planEntriesRead(readWindow);
+        if (readPlan.skip) return [];
         const completed = (done: EntryRow[]) => {
-          recordEntriesViewRead({ ...readWindow, readAt });
+          readPlan.recordCompleted();
           return done;
         };
         // Filter by show_id if provided. In myK9Show this scope value is the Show ID.

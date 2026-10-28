@@ -360,10 +360,13 @@ test.describe('offline cold boot', () => {
     await expect(page.getByRole('heading', { name: 'My Shows', level: 1 })).toBeVisible({
       timeout: 45_000,
     });
-    // Let the entry list finish arriving before measuring the healthy baseline.
-    await expect
-      .poll(async () => (await page.locator('main').innerText()).length, { timeout: 45_000 })
-      .toBeGreaterThan(2_000);
+    // Let the entry list finish arriving before measuring the healthy baseline. The gate is
+    // the page's own "N class entries" status line, not a character count: how much text
+    // `<main>` holds depends on the layout (it was 1,242 at the 1280px desktop width, so a
+    // fixed 2,000 never passed there), whereas the relative comparisons below hold at any width.
+    await expect(page.getByRole('status').filter({ hasText: /class entr/i })).toBeVisible({
+      timeout: 45_000,
+    });
     const healthyLength = (await page.locator('main').innerText()).length;
 
     const [interceptedCount, restoreConnectivity] = await goOfflineRestorable(context, page);

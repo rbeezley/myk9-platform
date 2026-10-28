@@ -1,4 +1,5 @@
 import { SHOW_HAS_STRIPE_ORDERS } from '@/services/database/shows';
+import { STEP_UP_REQUIRED_CODE } from '@/features/step-up/stepUpFetch';
 
 /**
  * The Stripe ledger's ON DELETE RESTRICT foreign keys (migration
@@ -25,6 +26,9 @@ export function permanentDeleteRefusalMessage(error: unknown): string | null {
   // The client-side ledger pre-check and the owns-dogs trigger (MK001) both
   // author a sentence that says what to do.
   if (code === SHOW_HAS_STRIPE_ORDERS || code === 'MK001') return text;
+
+  // A cancelled or failed step-up prompt: permanentDeleteUser authors the sentence (MYK9-1461).
+  if (code === STEP_UP_REQUIRED_CODE) return text;
 
   if (code === '23503') {
     if (STRIPE_LEDGER_FK.test(text)) return STRIPE_LEDGER_REFUSAL_MESSAGE;

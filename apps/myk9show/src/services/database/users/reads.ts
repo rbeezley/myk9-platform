@@ -12,6 +12,8 @@ import {
   PERSON_EDIT_NEEDS_CONNECTION_CODE,
   PERSON_EDIT_NEEDS_CONNECTION_MESSAGE,
 } from '@/utils/signInEmailMessages';
+import { isStepUpRefusalBody, STEP_UP_REQUIRED_CODE } from '@/features/step-up/stepUpFetch';
+import { STEP_UP_REFUSAL_MESSAGE } from '@/features/step-up/edgeStepUpRefusal';
 import { hydrateVisibleRoles } from './roleLabels';
 import { PEOPLE_MAPPER_COLUMNS } from './peopleColumns';
 import type { PersonPrivatePatch } from './personPrivate';
@@ -357,6 +359,11 @@ export const permanentDeleteUser = async (personId: string) => {
           const body = (await context.json()) as { error?: string; code?: string };
           edgeMessage = body?.error;
           edgeCode = body?.code;
+          // handler.ts emits { error: 'step_up_required' } with no `code` (MYK9-1461).
+          if (isStepUpRefusalBody(body)) {
+            edgeMessage = STEP_UP_REFUSAL_MESSAGE;
+            edgeCode = STEP_UP_REQUIRED_CODE;
+          }
         } catch {
           // Body wasn't JSON / already consumed — fall back to the error itself.
         }

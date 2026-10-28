@@ -133,4 +133,15 @@ REVOKE ALL ON FUNCTION public.set_class_judge(uuid, uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.set_class_judge(uuid, uuid) FROM anon;
 GRANT EXECUTE ON FUNCTION public.set_class_judge(uuid, uuid) TO authenticated;
 
+-- A class has exactly one judge (owner, 2026-10-28; a show or trial has many). Enforce it for EVERY
+-- writer: during the rollout an older client still deletes and inserts judge_assignments directly,
+-- outside this function's advisory lock, and the two paths could otherwise leave two confirmed
+-- class-level rows, after which the displayed judge depends on row id (Codex review of #3359).
+-- With the index the losing insert fails (23505) and parks on that client instead. Live data had
+-- no class with two confirmed class-level rows on 2026-10-28. This function deletes before it
+-- inserts in one transaction, so it never trips the index itself.
+CREATE UNIQUE INDEX IF NOT EXISTS judge_assignments_one_confirmed_class_judge
+  ON public.judge_assignments (class_id)
+  WHERE class_id IS NOT NULL AND status = 'confirmed';
+
 NOTIFY pgrst, 'reload schema';

@@ -133,7 +133,7 @@ VALUES
   ('00000000-0000-0000-0000-000001327021', '00000000-0000-0000-0000-000001327031', NULL,
    '00000000-0000-0000-0000-000001327054', 'confirmed', now()),
   ('00000000-0000-0000-0000-000001327016', '00000000-0000-0000-0000-000001327031', NULL,
-   '00000000-0000-0000-0000-000001327052', 'confirmed', now());
+   NULL, 'confirmed', now());
 
 -- Helpers. They run as the fixture owner; only t1327_call switches to role authenticated, and it
 -- switches back before returning, so no pg_temp object is ever touched as `authenticated`.
@@ -427,6 +427,32 @@ BEGIN
     RAISE EXCEPTION 'FAIL 9.2 set_class_judge must be SECURITY INVOKER';
   END IF;
   RAISE NOTICE 'PASS 9 anon has no EXECUTE, authenticated does, function is SECURITY INVOKER';
+END;
+$$;
+
+-- 10. One judge per class: the partial unique index refuses a second confirmed class-level row
+--     from any writer (an older client's direct insert racing the RPC).
+DO $$
+DECLARE
+  v_class uuid;
+  v_show uuid;
+  v_person uuid;
+BEGIN
+  SELECT ja.class_id, ja.show_id, ja.person_id INTO v_class, v_show, v_person
+    FROM public.judge_assignments ja
+   WHERE ja.class_id IS NOT NULL AND ja.status = 'confirmed'
+   LIMIT 1;
+  IF v_class IS NULL THEN
+    RAISE EXCEPTION 'FAIL 10.0 no confirmed class-level row to test against (setup)';
+  END IF;
+  BEGIN
+    INSERT INTO public.judge_assignments (person_id, show_id, trial_id, class_id, status, confirmed_at)
+    VALUES (v_person, v_show, NULL, v_class, 'confirmed', now());
+    RAISE EXCEPTION 'FAIL 10.1 a second confirmed class-level row was accepted';
+  EXCEPTION WHEN unique_violation THEN
+    NULL;
+  END;
+  RAISE NOTICE 'PASS 10 a second confirmed judge for one class is refused (23505)';
 END;
 $$;
 

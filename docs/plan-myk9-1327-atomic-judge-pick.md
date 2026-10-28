@@ -145,6 +145,17 @@ The secretary sees the old judge come back. Five rounds of client-side reconstru
 
 4. **(Optional)** Drop `touchClassForJudgeSync` from `reassignClassJudge`.
 
+## Open decisions (owner, before Batch 2)
+
+Codex reviewed this plan twice on 2026-10-28. Round 1's three findings are folded in above. Round 2 found two more. The first is in the parked-row rule round 1 added, so by the convergence rule it is put to the owner rather than patched again.
+
+1. **Discard after a sibling edit has uploaded (P1).** A pick parks, then an unrelated class edit uploads. The parked-row rule keeps the row dirty, but the sibling's write advances the row's local revision. Discarding the parked pick then trips the `newerLocalWrite` guard in `mutation-discard-revert.ts`, so the discarded judge stays visible and the row stays dirty.
+   - **Recommended: field-scoped discard.** Discarding a `set_class_judge` re-reads that class from the server through the existing row-refetch adapter (`getRowRefetchAdapter().fetchRowsById`) and overwrites only the judge fields with the server's values. It clears dirty only if nothing else is pending or parked for the row. The whole-row revision guard stays for every other discard.
+   - Alternative: never let a sibling edit upload while a pick on the same row is parked (`dependsOn` on parked picks). That is simpler, but one parked pick then blocks every edit to the class.
+2. **Old clients during the rollout (P2).** An app version from before Batch 3 still deletes and inserts `judge_assignments` directly, without the advisory lock. That can interleave with the RPC and leave two confirmed class-level rows.
+   - **Recommended: accept for now.** Pre-launch, every client is the owner's or a test device, and the PWA update prompt brings them to the new version. Record it as a known window.
+   - Alternative: add a partial unique index on `judge_assignments (class_id) WHERE class_id IS NOT NULL AND status = 'confirmed'`, so the server refuses a second confirmed row from either path. That needs a check for existing duplicates first, and it turns an old client's racing insert into a parked failure.
+
 ## Risks
 
 - **Version churn.** Each pick bumps `classes.version` once for each row it deletes and once for the row it inserts, so another device's queued unrelated class edit rebases. Today's direct writes do the same, so this is not a regression.

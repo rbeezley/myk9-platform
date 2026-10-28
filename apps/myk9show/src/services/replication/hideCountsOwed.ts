@@ -5,6 +5,14 @@
  * past those classes, so an unchanged class would never be asked again. Each owed class is
  * recorded here (class id -> trial id) and the next sync fetches it by id until a lookup answers.
  * Kept in localStorage so a reload between the failure and the retry does not forget it.
+ *
+ * Accepted races (MYK9-1459): the localStorage read-modify-write is not atomic across tabs, and
+ * two same-scope syncs can interleave a settle with a failed lookup; a row that is dirty during a
+ * sync and clean again before its settle can also settle early. Each can only lose or repeat a
+ * retry. A saved count is never changed by this module, and the next failed lookup owes it again.
+ * In the all-trials sync a chunk can mix trials, so one returned row also settles another trial's
+ * missing ids; and a chunk still in flight across an account switch can settle ids the next account
+ * has just re-owed. Both, again, only lose a retry.
  */
 const STORAGE_KEY = 'myk9:classHideCountsOwed';
 

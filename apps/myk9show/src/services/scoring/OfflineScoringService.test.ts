@@ -198,14 +198,13 @@ describe('OfflineScoringService', () => {
   });
 
   describe('a different judge scoring an already-scored entry', () => {
-    it('is stored under its own judge key; there is no multi-judge diversion', async () => {
+    it('supersedes the previous judge’s score (a judge change mid-class)', async () => {
       await service.submitScore(baseScore({ judgeId: 'judge-1', qualification: 'Qualified' }));
       await service.submitScore(baseScore({ judgeId: 'judge-2', qualification: 'Not Qualified' }));
 
-      expect(service.getScore('entry-1', 'class-1', 'judge-1')?.qualification).toBe('Qualified');
-      expect(service.getScore('entry-1', 'class-1', 'judge-2')?.qualification).toBe(
-        'Not Qualified'
-      );
+      expect(service.getScore('entry-1', 'class-1', 'judge-1')).toBeNull();
+      expect(service.getScore('entry-1', 'class-1')?.judgeId).toBe('judge-2');
+      expect(service.getClassScores('class-1')).toHaveLength(1);
     });
   });
 

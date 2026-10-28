@@ -244,6 +244,13 @@ export class OfflineScoringService extends EventEmitter {
       score.lastModified = new Date();
       score.syncStatus = 'pending';
 
+      // A class has one judge, so a score from a different judge (a judge change mid-class)
+      // supersedes the previous judge's score for this entry rather than sitting beside it.
+      if (existingScore && existingScore.judgeId !== score.judgeId) {
+        this.scoreCache.delete(
+          this.getScoreKey(existingScore.entryId, existingScore.classId, existingScore.judgeId)
+        );
+      }
       this.scoreCache.set(scoreKey, score);
 
       // Update session progress

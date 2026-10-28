@@ -27,6 +27,8 @@ export interface AppApiRequestTracker {
 export interface AppApiRequestSettlement {
   settled: boolean;
   pendingUrls: string[];
+  /** What the page's fetch ledger says of each pending URL, in the same order. */
+  pendingLedger: string[];
 }
 
 /**
@@ -152,6 +154,25 @@ export function stillPending(
   });
 }
 
+/**
+ * The ledger's account of one request the tracker still holds open, for the
+ * unsettled report: whether the page is still awaiting it, has finished it, or
+ * never fetched that exact key (then the page's keys for the same path, so a
+ * URL spelling mismatch shows up as such).
+ */
+export function describeLedgerState(request: Request, ledger: AppApiFetchLedger | null): string {
+  if (!ledger) return 'no page ledger';
+  const key = appApiRequestKey(request.method(), request.url());
+  if (ledger.seen[key]) return `page in flight ${ledger.inFlight[key] ?? 0}`;
+  const path = key.split('?')[0].replace(/^\S+ /, '');
+  const samePath = Object.keys(ledger.seen)
+    .filter(seen => seen.split('?')[0].endsWith(` ${path}`))
+    .map(seen => `${seen} (in flight ${ledger.inFlight[seen] ?? 0})`);
+  return samePath.length > 0
+    ? `page never fetched ${request.method()} at this URL; same path: ${samePath.join(' | ')}`
+    : `page never fetched ${request.method()} at this URL; no fetch to this path`;
+}
+
 export async function waitForAppApiRequestsToSettle(
   page: Page,
   tracker: AppApiRequestTracker,
@@ -163,16 +184,17 @@ export async function waitForAppApiRequestsToSettle(
     const open =
       tracker.pending.size === 0 ? [] : stillPending(tracker.pending, await readFetchLedger(page));
     if (open.length === 0 && Date.now() - tracker.lastActivityAt >= idleMs) {
-      return { settled: true, pendingUrls: [] };
+      return { settled: true, pendingUrls: [], pendingLedger: [] };
     }
 
     await page.waitForTimeout(Math.min(25, idleMs));
   }
 
+  const ledger = await readFetchLedger(page);
+  const open = stillPending(tracker.pending, ledger);
   return {
     settled: false,
-    pendingUrls: stillPending(tracker.pending, await readFetchLedger(page)).map(request =>
-      request.url()
-    ),
+    pendingUrls: open.map(request => request.url()),
+    pendingLedger: open.map(request => describeLedgerState(request, ledger)),
   };
 }

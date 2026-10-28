@@ -67,7 +67,7 @@ describe('app API request tracker', () => {
     await vi.advanceTimersByTimeAsync(1);
     const settlement = await settlementPromise;
 
-    expect(settlement).toEqual({ settled: true, pendingUrls: [] });
+    expect(settlement).toEqual({ settled: true, pendingUrls: [], pendingLedger: [] });
     expect(tracker.pending.size).toBe(0);
   });
 
@@ -84,7 +84,7 @@ describe('app API request tracker', () => {
       timeoutMs: 100,
     });
 
-    expect(settlement).toEqual({ settled: true, pendingUrls: [] });
+    expect(settlement).toEqual({ settled: true, pendingUrls: [], pendingLedger: [] });
     expect(tracker.pending.size).toBe(0);
   });
 
@@ -103,6 +103,7 @@ describe('app API request tracker', () => {
     expect(settlement).toEqual({
       settled: false,
       pendingUrls: ['https://example.supabase.co/rest/v1/clubs?select=*'],
+      pendingLedger: ['no page ledger'],
     });
   });
 
@@ -127,7 +128,7 @@ describe('app API request tracker', () => {
     await vi.advanceTimersByTimeAsync(30);
     const settlement = await settlementPromise;
 
-    expect(settlement).toEqual({ settled: false, pendingUrls: [] });
+    expect(settlement).toEqual({ settled: false, pendingUrls: [], pendingLedger: [] });
   });
 
   it('ignores assets and document requests', async () => {
@@ -145,7 +146,7 @@ describe('app API request tracker', () => {
     await vi.advanceTimersByTimeAsync(5);
     const settlement = await settlementPromise;
 
-    expect(settlement).toEqual({ settled: true, pendingUrls: [] });
+    expect(settlement).toEqual({ settled: true, pendingUrls: [], pendingLedger: [] });
     expect(tracker.pending.size).toBe(0);
   });
 
@@ -200,7 +201,7 @@ describe('app API request tracker', () => {
       harness.emit('requestfinished', liveAgain);
 
       const routeTwoReset = await settle();
-      expect(routeTwoReset).toEqual({ settled: true, pendingUrls: [] });
+      expect(routeTwoReset).toEqual({ settled: true, pendingUrls: [], pendingLedger: [] });
     });
 
     it('still fails the route that OWNS a slow request', async () => {
@@ -253,7 +254,11 @@ describe('app API request tracker', () => {
       expect(resolved).toBe(false);
 
       await vi.advanceTimersByTimeAsync(50);
-      await expect(settlementPromise).resolves.toEqual({ settled: true, pendingUrls: [] });
+      await expect(settlementPromise).resolves.toEqual({
+        settled: true,
+        pendingUrls: [],
+        pendingLedger: [],
+      });
     });
   });
 });
@@ -290,7 +295,7 @@ describe('the page fetch ledger (MYK9-1467)', () => {
       timeoutMs: 100,
     });
 
-    expect(settlement).toEqual({ settled: true, pendingUrls: [] });
+    expect(settlement).toEqual({ settled: true, pendingUrls: [], pendingLedger: [] });
   });
 
   it('keeps waiting while the page still awaits the request', async () => {
@@ -304,7 +309,11 @@ describe('the page fetch ledger (MYK9-1467)', () => {
       timeoutMs: 30,
     });
 
-    expect(settlement).toEqual({ settled: false, pendingUrls: [COUNT_URL] });
+    expect(settlement).toEqual({
+      settled: false,
+      pendingUrls: [COUNT_URL],
+      pendingLedger: ['page in flight 1'],
+    });
   });
 
   it('keeps the network verdict for a request the page never fetched', async () => {
@@ -318,7 +327,13 @@ describe('the page fetch ledger (MYK9-1467)', () => {
       timeoutMs: 30,
     });
 
-    expect(settlement).toEqual({ settled: false, pendingUrls: [COUNT_URL] });
+    expect(settlement).toEqual({
+      settled: false,
+      pendingUrls: [COUNT_URL],
+      pendingLedger: [
+        `page never fetched HEAD at this URL; same path: GET ${COUNT_URL} (in flight 0)`,
+      ],
+    });
   });
 
   it('keeps the network verdict when the page has no ledger', () => {

@@ -1,6 +1,6 @@
 # Atomic class-judge pick (MYK9-1327, Option C)
 
-> **Status:** Active (design, awaiting owner approval before any code)
+> **Status:** Active (design approved by the owner 2026-10-28; implementation not started)
 
 ## Why
 
@@ -145,16 +145,12 @@ The secretary sees the old judge come back. Five rounds of client-side reconstru
 
 4. **(Optional)** Drop `touchClassForJudgeSync` from `reassignClassJudge`.
 
-## Open decisions (owner, before Batch 2)
+## Decisions (owner, 2026-10-28)
 
-Codex reviewed this plan twice on 2026-10-28. Round 1's three findings are folded in above. Round 2 found two more. The first is in the parked-row rule round 1 added, so by the convergence rule it is put to the owner rather than patched again.
+Codex reviewed this plan twice. Round 1's three findings are folded in above. Round 2's two were put to the owner as a convergence stop, and decided:
 
-1. **Discard after a sibling edit has uploaded (P1).** A pick parks, then an unrelated class edit uploads. The parked-row rule keeps the row dirty, but the sibling's write advances the row's local revision. Discarding the parked pick then trips the `newerLocalWrite` guard in `mutation-discard-revert.ts`, so the discarded judge stays visible and the row stays dirty.
-   - **Recommended: field-scoped discard.** Discarding a `set_class_judge` re-reads that class from the server through the existing row-refetch adapter (`getRowRefetchAdapter().fetchRowsById`) and overwrites only the judge fields with the server's values. It clears dirty only if nothing else is pending or parked for the row. The whole-row revision guard stays for every other discard.
-   - Alternative: never let a sibling edit upload while a pick on the same row is parked (`dependsOn` on parked picks). That is simpler, but one parked pick then blocks every edit to the class.
-2. **Old clients during the rollout (P2).** An app version from before Batch 3 still deletes and inserts `judge_assignments` directly, without the advisory lock. That can interleave with the RPC and leave two confirmed class-level rows.
-   - **Recommended: accept for now.** Pre-launch, every client is the owner's or a test device, and the PWA update prompt brings them to the new version. Record it as a known window.
-   - Alternative: add a partial unique index on `judge_assignments (class_id) WHERE class_id IS NOT NULL AND status = 'confirmed'`, so the server refuses a second confirmed row from either path. That needs a check for existing duplicates first, and it turns an old client's racing insert into a parked failure.
+1. **Discard after a sibling edit has uploaded: field-scoped discard.** Discarding a parked `set_class_judge` re-reads that class from the server through the existing row-refetch adapter (`getRowRefetchAdapter().fetchRowsById`) and overwrites only the judge fields with the server's values. It clears dirty only if nothing else is pending or parked for the row. Every other discard keeps the whole-row `newerLocalWrite` guard in `mutation-discard-revert.ts`. This belongs in Batch 2 (engine) or Batch 3 (the class table's discard hook). Test: a pick parks, an unrelated class edit uploads, Discard; the judge returns to the server's value and the row is clean.
+2. **Old clients during the rollout: accepted, pre-launch.** Every client today is the owner's or a test device, and the PWA update prompt moves them to the new version. No unique index is added. This is a known window, and if it ever matters the remedy is a partial unique index on confirmed class-level rows.
 
 ## Risks
 

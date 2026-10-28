@@ -440,31 +440,121 @@ describe('ReplicatedClassesTable.setClassJudge (MYK9-1327)', () => {
     expect(rpcCalls.at(-1)?.args.p_person_id).toBe('judge-c');
   });
 
-  it('still queues the pick, and discards the other superseded picks, when one discard throws', async () => {
+  it('rejects, writes nothing and queues nothing when discarding a superseded pick throws', async () => {
     rpcImpl = parked('P0002');
     await table.setClassJudge(ID, judgeOf('judge-b', 'Bob'));
     await vi.waitFor(async () => expect(await failed()).toHaveLength(1));
-    // A second parked pick for the same class, as an older device state could leave behind.
-    const db = await databaseManager.getDatabase('MutationManager');
-    const [original] = await failed();
-    await db.put(REPLICATION_STORES.FAILED_MUTATIONS, { ...original!, id: 'older-failed-pick' });
-    expect(await failed()).toHaveLength(2);
+    const before = await row();
+    const [failure] = await failed();
 
-    const real = manager.discardFailedMutation.bind(manager);
-    let calls = 0;
-    vi.spyOn(manager, 'discardFailedMutation').mockImplementation(async id => {
-      calls += 1;
-      if (calls === 1) throw new Error('queue busy');
-      await real(id);
+    vi.spyOn(manager, 'discardFailedMutation').mockRejectedValue(new Error('queue busy'));
+    await expect(table.setClassJudge(ID, judgeOf('judge-c', 'Cy'))).rejects.toThrow('queue busy');
+
+    expect(await pending()).toEqual([]);
+    expect((await failed()).map(m => m.id)).toEqual([failure!.id]);
+    const after = await row();
+    expect(after?.data).toEqual(before?.data);
+    expect(after?.version).toBe(before?.version);
+  });
+
+  it('shows the new judge and holds exactly one pick after superseding a failed one', async () => {
+    rpcImpl = parked('P0002');
+    await table.setClassJudge(ID, judgeOf('judge-b', 'Bob'));
+    await vi.waitFor(async () => expect(await failed()).toHaveLength(1));
+    // The refused pick left the row dirty on judge B; discarding it reverts the row, and the
+    // new pick's write must land AFTER that revert.
+    rpcImpl = offline;
+
+    await table.setClassJudge(ID, judgeOf('judge-c', 'Cy'));
+
+    expect(await failed()).toEqual([]);
+    expect(pickTargets(await pending())).toEqual(['judge-c']);
+    expect(picks(await pending())[0]?.dependsOn).toBeUndefined();
+    expect((await row())?.data).toMatchObject({ judgeId: 'judge-c', judgeFirstName: 'Cy' });
+    expect((await row())?.isDirty).toBe(true);
+  });
+
+  it('waits behind a parked people INSERT: not uploaded until Retry succeeds', async () => {
+    insertImpl = parked('42501');
+    const person = await replicatedShowDeskPeopleTable.createPerson({
+      id: 'person-parked',
+      firstName: 'Pia',
+      lastName: 'Parked',
     });
+    await vi.waitFor(async () =>
+      expect(
+        (await manager.getFailedMutations()).filter(m => m.tableName === 'people')
+      ).toHaveLength(1)
+    );
+    const [personFailure] = (await manager.getFailedMutations()).filter(
+      m => m.tableName === 'people'
+    );
+
+    await table.setClassJudge(ID, judgeOf(person.id, 'Pia'));
+    expect(picks(await pending())[0]?.dependsOn).toEqual([personFailure!.id]);
+
     rpcImpl = ok;
+    await upload();
+    expect(rpcCalls).toEqual([]);
 
-    const mutationId = await table.setClassJudge(ID, judgeOf('judge-c', 'Cy'));
+    insertImpl = async () => ({ data: [{ id: person.id }], error: null });
+    await manager.retryFailedMutation(personFailure!.id);
+    await vi.waitFor(async () => {
+      await upload();
+      expect(rpcCalls).toHaveLength(1);
+    });
+    expect(rpcCalls[0]?.args).toEqual({ p_class_id: ID, p_person_id: person.id });
+  });
 
-    expect(mutationId).toEqual(expect.any(String));
-    expect(calls).toBe(2);
-    expect(await failed()).toHaveLength(1);
-    expect(pickTargets(await pending())).toContain('judge-c');
+  it('runs the pick once a parked people INSERT is discarded', async () => {
+    insertImpl = parked('42501');
+    const person = await replicatedShowDeskPeopleTable.createPerson({
+      id: 'person-dropped',
+      firstName: 'Dot',
+      lastName: 'Dropped',
+    });
+    await vi.waitFor(async () =>
+      expect(
+        (await manager.getFailedMutations()).filter(m => m.tableName === 'people')
+      ).toHaveLength(1)
+    );
+    const [personFailure] = (await manager.getFailedMutations()).filter(
+      m => m.tableName === 'people'
+    );
+    await table.setClassJudge(ID, judgeOf(person.id, 'Dot'));
+    rpcImpl = ok;
+    await upload();
+    expect(rpcCalls).toEqual([]);
+
+    await manager.discardFailedMutation(personFailure!.id);
+    await vi.waitFor(async () => {
+      await upload();
+      expect(rpcCalls).toHaveLength(1);
+    });
+  });
+
+  it('makes a wizard pick wait behind a parked class INSERT', async () => {
+    const wizardId = 'class-parked';
+    insertImpl = parked('42501');
+    await table.createClass({
+      id: wizardId,
+      trialId: 'trial-1',
+      name: 'Parked Class',
+      classStatus: 'not_started',
+    } as ReplicatedClass);
+    await vi.waitFor(async () =>
+      expect(
+        (await failed()).filter(m => m.operation === 'INSERT' && m.rowId === wizardId)
+      ).toHaveLength(1)
+    );
+    const [insertFailure] = (await failed()).filter(m => m.operation === 'INSERT');
+
+    await table.setClassJudge(wizardId, judgeOf('judge-b', 'Bob'));
+
+    expect(picks(await pending())[0]?.dependsOn).toEqual([insertFailure!.id]);
+    rpcImpl = ok;
+    await upload();
+    expect(rpcCalls).toEqual([]);
   });
 
   it('does not wait on an unrelated class edit, and an unrelated edit does not wait on the pick', async () => {

@@ -1090,14 +1090,22 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
    * which replaces the class's judge assignment atomically on the server. The local row shows the
    * pick now; the row stays dirty while the pick is queued, so a pull never restores the old judge
    * (CLASS_DIRTY_ROW_COMPARE_POLICY). The pick waits for this class's pending INSERT and for an
-   * earlier pick, and discards earlier FAILED picks so Retry cannot replay an old intent.
+   * earlier pick, and discards earlier FAILED picks first (a throwing discard aborts the pick) so Retry cannot replay an old intent.
    */
   async setClassJudge(classId: string, judge: ClassJudgeTarget | null): Promise<string | null> {
+    const personId = judge?.personId ?? null;
+    if (this.pickQueue) {
+      // Supersede first. A discard that throws leaves nothing written or queued; the discard's
+      // row revert runs before our local write, so the row ends on the NEW judge.
+      const { supersededFailedIds } = await planClassJudgePick(this.pickQueue, classId, personId);
+      await discardSupersededPicks(this.pickQueue, supersededFailedIds);
+    }
+    // Plan again so dependsOn never names a discarded pick.
     const plan = this.pickQueue
-      ? await planClassJudgePick(this.pickQueue, classId, judge?.personId ?? null)
-      : { dependsOn: undefined, supersededFailedIds: [] };
-    // Read the row only after the queue reads, right before the write, so a class edit or sync
-    // that lands while planning is merged in rather than overwritten by a stale copy.
+      ? await planClassJudgePick(this.pickQueue, classId, personId)
+      : { dependsOn: undefined };
+    // Read the row only after the queue work, right before the write, so a class edit or sync
+    // that lands meanwhile (or a discard's revert) is merged in rather than overwritten.
     const currentClass = await this.get(classId);
     if (!currentClass) throw new Error(`Class ${classId} not found`);
     await this.set(
@@ -1116,15 +1124,9 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       classId,
       { id: classId },
       plan.dependsOn,
-      {
-        name: SET_CLASS_JUDGE_RPC,
-        args: { p_class_id: classId, p_person_id: judge?.personId ?? null },
-      }
+      { name: SET_CLASS_JUDGE_RPC, args: { p_class_id: classId, p_person_id: personId } }
     );
     this._lastMutationId = mutationId;
-    if (this.pickQueue && mutationId) {
-      await discardSupersededPicks(this.pickQueue, plan.supersededFailedIds);
-    }
     return mutationId;
   }
 

@@ -80,7 +80,7 @@ The secretary sees the old judge come back. Five rounds of client-side reconstru
 
   No override code comes back.
 
-- **Accepted behaviour change.** The local `judge_assignments` replica now catches up on the post-upload full sync (`ReplicationSyncProvider.tsx:629-631`), not instantly. Readers of the class judge are unaffected. To check: whether `useJudgeAssignedToClass` and the judge-day capacity UI need a class-row fallback while offline.
+- **Accepted behaviour change.** The local `judge_assignments` replica now catches up on the post-upload full sync (`ReplicationSyncProvider.tsx:629-631`), not instantly. **Class-level judge readers use the class row** (Batch 3, Codex round 2 on #3366): the ringside active assignments (`getActiveJudgeAssignmentsForShow`) and the publish comparison (`fetchShowJudgesForPublish`) overlay the replica with the class row's judge through `classLevelJudges.ts`, computed per read and never stored. Show-level rows still come from `judge_assignments`. Readers left on the replica are safe because they are server-gated or advisory: `useJudgeAssignedToClass` (the scoring RPC is the boundary and it fails open), `offlineCapacityOverride` and the judge-day capacity UI (server-enforced since 2026-07-12), the judge's own dashboard `fetchJudgeAssignments`, and the show-card `assignedJudges` display.
 
 ### 4. Entry points
 
@@ -128,6 +128,10 @@ The secretary sees the old judge come back. Five rounds of client-side reconstru
    - **Outside review of the merged Batch 2 (#3361), folded into this branch:**
      - The permanent codes are now scoped to the RPC. `isRetryableError(error, mutation?)` consults `RPC_PERMANENT_CODES` (`set_class_judge`: `P0002`, `22023`) in `mutation-utils.ts`, and `mutation-retry.ts` passes the mutation. A global `P0002` branch would have dead-lettered `ringside_update_entry` ("Entry not found" for an entry the server cannot see yet), which must keep retrying. Tests pin `set_class_judge` parking, `ringside_update_entry` P0002 and a plain UPDATE 22023 backing off.
      - A pick waits for the judge's own pending `people` INSERT (`planClassJudgePick`). Otherwise a person created offline whose INSERT is backing off lets the runner move past it, and the pick would park permanently on 22023. The only offline person creation is `ReplicatedShowDeskPeopleTable.createPerson`, a direct INSERT with a client-made id (no RPC, no row-id remap).
+   - **Codex round 2 on #3366 (owner-approved restructure):**
+     - (a) The class row is the single source of the class-level judge for the ringside assignments and the publish comparison (`classLevelJudges.ts`). A pick for class X makes both report the new judge for X. No `judge_assignments` overlay row is stored. `subscribeToJudgeAssignmentChanges` also listens to the class replica so the ringside list follows a pick.
+     - (b) `setClassJudge` plans, discards every superseded failed pick, and only then reads the row, writes it and queues. A throwing discard rejects before anything is written. The discard's row revert therefore runs first and the new judge lands last. `dependsOn` is planned again after the discards, and the log-and-continue in `discardSupersededPicks` is gone.
+     - (c) `dependsOn` also names the class's FAILED INSERT and the picked person's FAILED `people` INSERT. The runner counts every id in `FAILED_MUTATIONS` as an unresolved dependency (`MutationUploadRunner.ts` ~178, ~203), so the pick waits until the INSERT is retried or discarded.
    - Tests on the real replica and queue (fake-indexeddb `MutationManager` plus `ReplicatedClassesTable`):
      - **Red before, green after:** an unrelated class UPDATE acks while the pick is backed off, then a pull returns the old judge. The local judge stays the new one.
      - Retry success: the row goes clean and shows the picked judge; a later queued class edit rebases through the OCC conflict path and lands.

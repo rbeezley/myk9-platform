@@ -14,12 +14,17 @@ const server = vi.hoisted(() => ({
 }));
 const device = vi.hoisted(() => ({ read: vi.fn() }));
 const queue = vi.hoisted(() => ({ requestUpload: vi.fn() }));
+const classRows = vi.hoisted(() => ({ read: vi.fn() }));
 
 vi.mock('../supabaseClient', () => ({
   supabase: { from: server.from },
   createDatabaseError,
 }));
 vi.mock('./assignmentReads', () => ({ readJudgeAssignmentsOrThrow: device.read }));
+vi.mock('./classLevelJudges', async importOriginal => ({
+  ...(await importOriginal<typeof import('./classLevelJudges')>()),
+  readClassRowJudges: classRows.read,
+}));
 vi.mock('@/services/replication/sharedMutationManager', () => ({ mutationManager: queue }));
 
 import { fetchShowJudgesForPublish } from './publishJudges';
@@ -62,6 +67,7 @@ describe('fetchShowJudgesForPublish', () => {
       .mockReset()
       .mockResolvedValue({ data: [row('j1', 'Pat'), row('j2', 'Sam')], error: null });
     device.read.mockResolvedValue([onDevice('j1'), onDevice('j2')]);
+    classRows.read.mockResolvedValue(new Map());
   });
 
   it("lists the server's judges when the device agrees", async () => {
@@ -70,6 +76,27 @@ describe('fetchShowJudgesForPublish', () => {
     expect(server.from).toHaveBeenCalledWith('judge_assignments');
     expect(server.eq).toHaveBeenCalledWith('show_id', 'show-1');
     expect(judges.map(j => j.judgeName)).toEqual(['Pat Judge', 'Sam Judge']);
+  });
+
+  // MYK9-1327: a pick only updates the class row; the assignment replica keeps the old judge
+  // until the post-upload sync. Comparing the replica alone published the OLD judge.
+  it('blocks the publish while a pending pick has changed a class judge on the device', async () => {
+    server.range.mockResolvedValue({ data: [row('j1', 'Pat', 'class-1')], error: null });
+    device.read.mockResolvedValue([onDevice('j1', 'show-1', 'class-1')]);
+    classRows.read.mockResolvedValue(new Map([['class-1', 'j2']]));
+
+    const error = await publishError();
+
+    expect(error.code).toBe('judges-syncing');
+    expect(queue.requestUpload).toHaveBeenCalled();
+  });
+
+  it('publishes when the class rows agree with the server', async () => {
+    server.range.mockResolvedValue({ data: [row('j1', 'Pat', 'class-1')], error: null });
+    device.read.mockResolvedValue([onDevice('j1', 'show-1', 'class-1')]);
+    classRows.read.mockResolvedValue(new Map([['class-1', 'j1']]));
+
+    await expect(fetchShowJudgesForPublish('show-1')).resolves.toHaveLength(1);
   });
 
   it("lists the server's judges when the device cannot read its own", async () => {

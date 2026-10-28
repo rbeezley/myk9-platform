@@ -5,6 +5,7 @@ import type { ReplicatedJudgeAssignment } from '@/services/replication/Replicate
 import { mutationManager } from '@/services/replication/sharedMutationManager';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import { readJudgeAssignmentsOrThrow } from './assignmentReads';
+import { readClassRowJudges, withClassRowJudges } from './classLevelJudges';
 
 interface ServerJudgeRow {
   person_id: string;
@@ -69,12 +70,21 @@ async function readServerJudges(
   };
 }
 
-/** This device's assignments for the show, or null when the device cannot read them. */
+/**
+ * This device's assignments for the show, or null when the device cannot read them. Class-level
+ * judges come from the class rows, so a pick still waiting to upload counts as the device's
+ * judge and the comparison blocks the publish until it lands (MYK9-1327).
+ */
 async function readDeviceAssignmentKeys(showId: string): Promise<Set<string> | null> {
   try {
-    const assignments = await readJudgeAssignmentsOrThrow();
+    const [stored, classJudges] = await Promise.all([
+      readJudgeAssignmentsOrThrow(),
+      readClassRowJudges(showId),
+    ]);
     return new Set(
-      assignments.filter(a => a.showId === showId).map(a => assignmentKey(a.personId, a.classId))
+      withClassRowJudges(stored, showId, classJudges)
+        .filter(a => a.showId === showId)
+        .map(a => assignmentKey(a.personId, a.classId))
     );
   } catch {
     return null;

@@ -3,19 +3,18 @@
  *
  * A pick is a single baked-args RPC mutation (`UPDATE classes/<id>`). Two things keep a run of
  * picks, and a pick on a class created in the same pass, in the order the secretary made them:
- *  - `dependsOn`: the class's pending INSERT (the wizard creates the class and picks its judge
- *    offline in one pass), the picked person's pending `people` INSERT (a person created offline
+ *  - `dependsOn`: the class's pending or failed INSERT (the wizard creates the class and picks its
+ *    judge offline in one pass), the picked person's pending or failed `people` INSERT (a person created offline
  *    through the show-desk people table, a direct INSERT with a client-made id and no remap; the
  *    runner moves past a backed-off INSERT, and the pick would then hit 22023 and park), and the
  *    latest pending or failed pick. It never names an unrelated
  *    class edit, so a parked status edit does not block a pick.
- *  - supersede: a newer pick discards the class's earlier FAILED picks, so Retry in Sync issues
- *    cannot replay an old intent over the new one.
+ *  - supersede: a newer pick discards the class's earlier FAILED picks before it is queued, so Retry in Sync
+ *    issues cannot replay an old intent over the new one.
  *
  * Every read goes through the MutationManager's owner-scoped queue reads, so another account's
  * work on this device is never named or discarded.
  */
-import { logger } from '@myk9/core';
 import type {
   MutationManager,
   PendingMutation,
@@ -38,20 +37,35 @@ const isPickFor = (mutation: PendingMutation, classId: string): boolean =>
 const queueOrder = (a: PendingMutation, b: PendingMutation): number =>
   (a.sequenceNumber ?? 0) - (b.sequenceNumber ?? 0) || a.timestamp - b.timestamp;
 
-interface ClassPickQueue {
-  pendingInserts: PendingMutation[];
+/** Every unsent mutation a pick on this class and person has to respect. */
+async function readPickQueue(
+  queue: QueueReader,
+  classId: string,
+  personId: string | null
+): Promise<{
+  inserts: PendingMutation[];
   pendingPicks: PendingMutation[];
   failedPicks: PendingMutation[];
-}
-
-async function readPickQueue(queue: QueueReader, classId: string): Promise<ClassPickQueue> {
-  const [pending, failed] = await Promise.all([
+}> {
+  const [pendingClass, pendingPerson, failed] = await Promise.all([
     queue.getPendingMutationsForRow('classes', classId),
+    personId ? queue.getPendingMutationsForRow('people', personId) : Promise.resolve([]),
     queue.getFailedMutations(),
   ]);
+  const isInsertOf = (m: PendingMutation, table: string, rowId: string | null) =>
+    rowId !== null &&
+    m.operation === 'INSERT' &&
+    m.tableName === table &&
+    String(m.rowId) === rowId;
   return {
-    pendingInserts: pending.filter(m => m.operation === 'INSERT'),
-    pendingPicks: pending.filter(m => isPickFor(m, classId)).sort(queueOrder),
+    // Pending AND failed: the runner treats a failed dependency as unresolved, so a pick waits
+    // behind a parked INSERT until it is retried or discarded, instead of hitting P0002 / 22023.
+    inserts: [
+      ...pendingClass.filter(m => m.operation === 'INSERT'),
+      ...pendingPerson.filter(m => m.operation === 'INSERT'),
+      ...failed.filter(m => isInsertOf(m, 'classes', classId) || isInsertOf(m, 'people', personId)),
+    ],
+    pendingPicks: pendingClass.filter(m => isPickFor(m, classId)).sort(queueOrder),
     failedPicks: failed.filter(m => isPickFor(m, classId)).sort(queueOrder),
   };
 }
@@ -62,18 +76,9 @@ export async function planClassJudgePick(
   classId: string,
   personId: string | null
 ): Promise<{ dependsOn: string[] | undefined; supersededFailedIds: string[] }> {
-  const { pendingInserts, pendingPicks, failedPicks } = await readPickQueue(queue, classId);
-  const personInserts = personId
-    ? (await queue.getPendingMutationsForRow('people', personId)).filter(
-        m => m.operation === 'INSERT'
-      )
-    : [];
+  const { inserts, pendingPicks, failedPicks } = await readPickQueue(queue, classId, personId);
   const latestPick = [...pendingPicks, ...failedPicks].sort(queueOrder).at(-1);
-  const dependsOn = [
-    ...pendingInserts.map(m => m.id),
-    ...personInserts.map(m => m.id),
-    ...(latestPick ? [latestPick.id] : []),
-  ];
+  const dependsOn = [...inserts.map(m => m.id), ...(latestPick ? [latestPick.id] : [])];
   return {
     dependsOn: dependsOn.length > 0 ? dependsOn : undefined,
     supersededFailedIds: failedPicks.map(m => m.id),
@@ -81,21 +86,13 @@ export async function planClassJudgePick(
 }
 
 /**
- * Drop earlier failed picks once the newer pick that replaces them is durably queued. Each id is
- * tried on its own, and a failure is logged, never thrown: the new pick is already queued, and a
- * leftover superseded pick only costs the secretary a Discard in Sync issues.
+ * Discard the earlier failed picks a new pick replaces, BEFORE anything is written or queued.
+ * A discard that throws propagates: the caller has changed nothing yet, so the secretary gets the
+ * error and no half-superseded state. (Discarding a class write also reverts the row to the
+ * server's state, which is why this must run before the new pick's local write.)
  */
 export async function discardSupersededPicks(queue: QueueReader, ids: string[]): Promise<void> {
-  for (const id of ids) {
-    try {
-      await queue.discardFailedMutation(id);
-    } catch (error) {
-      logger.warn('Could not discard a superseded set_class_judge pick', 'replication', {
-        mutationId: id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
+  for (const id of ids) await queue.discardFailedMutation(id);
 }
 
 /** True when an upload batch carried a `set_class_judge` pick. */

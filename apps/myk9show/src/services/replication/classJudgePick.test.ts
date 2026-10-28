@@ -1,14 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { vi } from 'vitest';
-import {
-  discardSupersededPicks,
-  invalidatesClassEnrichment,
-  judgeFieldsAfterPick,
-} from './classJudgePick';
-
-vi.mock('@myk9/core', () => ({
-  logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
-}));
+import { invalidatesClassEnrichment, judgeFieldsAfterPick } from './classJudgePick';
 
 const old = {
   judgeId: 'judge-old',
@@ -90,22 +81,5 @@ describe('invalidatesClassEnrichment (MYK9-1327)', () => {
       false
     );
     expect(invalidatesClassEnrichment(upload())).toBe(false);
-  });
-});
-
-describe('discardSupersededPicks (MYK9-1327)', () => {
-  it('tries every id and does not throw when one discard fails', async () => {
-    const discardFailedMutation = vi.fn(async (id: string) => {
-      if (id === 'm1') throw new Error('queue busy');
-    });
-    const queue = {
-      discardFailedMutation,
-      getPendingMutationsForRow: vi.fn(),
-      getFailedMutations: vi.fn(),
-    };
-
-    await expect(discardSupersededPicks(queue, ['m1', 'm2'])).resolves.toBeUndefined();
-
-    expect(discardFailedMutation.mock.calls.map(call => call[0])).toEqual(['m1', 'm2']);
   });
 });

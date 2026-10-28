@@ -1,8 +1,10 @@
 import {
+  replicatedClassesTable,
   replicatedJudgeAssignmentsTable,
   type ReplicatedJudgeAssignment,
 } from '@/services/replication';
 import { isActiveJudgeAssignmentStatus } from './assignmentStatus';
+import { readClassRowJudges, withClassRowJudges } from './classLevelJudges';
 
 /**
  * Every judge assignment on this device. getAll()/getByShowId() turn a failed
@@ -20,14 +22,19 @@ export async function readJudgeAssignmentsOrThrow(): Promise<ReplicatedJudgeAssi
 /**
  * Offline-only active class assignments for one judge at one show. A failed
  * device read throws: the at-show class list would otherwise tell a judge at
- * their ring "No classes assigned yet" (MYK9-769).
+ * their ring "No classes assigned yet" (MYK9-769). Class-level judges come from
+ * the class rows, so a pick still waiting to upload is already reflected
+ * (MYK9-1327; see classLevelJudges.ts).
  */
 export async function getActiveJudgeAssignmentsForShow(
   showId: string,
   personId: string
 ): Promise<ReplicatedJudgeAssignment[]> {
-  const assignments = await readJudgeAssignmentsOrThrow();
-  return assignments.filter(
+  const [stored, classJudges] = await Promise.all([
+    readJudgeAssignmentsOrThrow(),
+    readClassRowJudges(showId),
+  ]);
+  return withClassRowJudges(stored, showId, classJudges).filter(
     assignment =>
       assignment.showId === showId &&
       assignment.personId === personId &&
@@ -73,9 +80,15 @@ function compareDatesNullLast(a: string | null, b: string | null): number {
   return a < b ? -1 : 1;
 }
 
-/** Subscribe to replicated assignment changes without exposing the table to callers. */
-export function subscribeToJudgeAssignmentChanges(
-  listener: (assignments: ReplicatedJudgeAssignment[]) => void
-): () => void {
-  return replicatedJudgeAssignmentsTable.subscribe(listener);
+/**
+ * Subscribe to changes that can move a judge's assignments: the assignment replica, and the class
+ * replica (a pick changes the class row first). Callers re-read; the listener gets no payload.
+ */
+export function subscribeToJudgeAssignmentChanges(listener: () => void): () => void {
+  const stopAssignments = replicatedJudgeAssignmentsTable.subscribe(() => listener());
+  const stopClasses = replicatedClassesTable.subscribe(() => listener());
+  return () => {
+    stopAssignments();
+    stopClasses();
+  };
 }

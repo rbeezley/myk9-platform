@@ -3,7 +3,14 @@ import { resolve } from 'node:path';
 
 import type { Page, Request } from '@playwright/test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { waitForAppApiRequestsToSettle, watchAppApiRequests } from './appApiRequestTracker';
+import {
+  FETCH_LEDGER_GLOBAL,
+  installAppApiFetchLedger,
+  stillPending,
+  type AppApiFetchLedger,
+  waitForAppApiRequestsToSettle,
+  watchAppApiRequests,
+} from './appApiRequestTracker';
 
 type RequestEvent = 'request' | 'requestfinished' | 'requestfailed';
 
@@ -247,6 +254,117 @@ describe('app API request tracker', () => {
 
       await vi.advanceTimersByTimeAsync(50);
       await expect(settlementPromise).resolves.toEqual({ settled: true, pendingUrls: [] });
+    });
+  });
+});
+
+/**
+ * MYK9-1467: a request the PAGE aborts can end with neither `requestfinished`
+ * nor `requestfailed` from Playwright (Chrome net-log: HEAD sent, CANCELLED
+ * 80 ms later, tracker still waiting 28 s on). The page's own fetch ledger is
+ * the authority on whether the page still awaits a request.
+ */
+describe('the page fetch ledger (MYK9-1467)', () => {
+  const COUNT_URL =
+    'http://127.0.0.1:54321/rest/v1/view_authenticated_entry_results_replication?select=id';
+
+  function requestFor(method: string, url: string) {
+    return { url: () => url, method: () => method } as Request;
+  }
+
+  function pageWithLedger(ledger: AppApiFetchLedger | null) {
+    const harness = createPageHarness();
+    (harness.page as unknown as { evaluate: () => Promise<unknown> }).evaluate = () =>
+      Promise.resolve(ledger);
+    return harness;
+  }
+
+  it('settles when the page cancelled a request Playwright never closed', async () => {
+    const key = `HEAD ${COUNT_URL}`;
+    const harness = pageWithLedger({ seen: { [key]: true }, inFlight: { [key]: 0 } });
+    const tracker = watchAppApiRequests(harness.page);
+    harness.emit('request', requestFor('HEAD', COUNT_URL));
+
+    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+      idleMs: 5,
+      timeoutMs: 100,
+    });
+
+    expect(settlement).toEqual({ settled: true, pendingUrls: [] });
+  });
+
+  it('keeps waiting while the page still awaits the request', async () => {
+    const key = `HEAD ${COUNT_URL}`;
+    const harness = pageWithLedger({ seen: { [key]: true }, inFlight: { [key]: 1 } });
+    const tracker = watchAppApiRequests(harness.page);
+    harness.emit('request', requestFor('HEAD', COUNT_URL));
+
+    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+      idleMs: 5,
+      timeoutMs: 30,
+    });
+
+    expect(settlement).toEqual({ settled: false, pendingUrls: [COUNT_URL] });
+  });
+
+  it('keeps the network verdict for a request the page never fetched', async () => {
+    // Only a GET of the same URL was fetched: the HEAD is not the page's, so it stays open.
+    const harness = pageWithLedger({ seen: { [`GET ${COUNT_URL}`]: true }, inFlight: {} });
+    const tracker = watchAppApiRequests(harness.page);
+    harness.emit('request', requestFor('HEAD', COUNT_URL));
+
+    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+      idleMs: 5,
+      timeoutMs: 30,
+    });
+
+    expect(settlement).toEqual({ settled: false, pendingUrls: [COUNT_URL] });
+  });
+
+  it('keeps the network verdict when the page has no ledger', () => {
+    expect(stillPending([requestFor('HEAD', COUNT_URL)], null)).toHaveLength(1);
+  });
+
+  describe('installAppApiFetchLedger, in a real window', () => {
+    const originalFetch = window.fetch;
+    afterEach(() => {
+      window.fetch = originalFetch;
+      delete (window as unknown as Record<string, unknown>)[FETCH_LEDGER_GLOBAL];
+    });
+
+    function ledger() {
+      return (window as unknown as Record<string, AppApiFetchLedger>)[FETCH_LEDGER_GLOBAL];
+    }
+
+    it('ends an aborted fetch, the case Playwright left open', async () => {
+      // A fetch that only ever settles by its abort signal.
+      window.fetch = ((_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError'))
+          );
+        })) as typeof fetch;
+      installAppApiFetchLedger(FETCH_LEDGER_GLOBAL);
+      const controller = new AbortController();
+
+      const pending = window.fetch(COUNT_URL, { method: 'HEAD', signal: controller.signal });
+      expect(ledger().inFlight[`HEAD ${COUNT_URL}`]).toBe(1);
+
+      controller.abort();
+      await expect(pending).rejects.toThrow('aborted');
+      expect(ledger().seen[`HEAD ${COUNT_URL}`]).toBe(true);
+      expect(ledger().inFlight[`HEAD ${COUNT_URL}`]).toBe(0);
+    });
+
+    it('records only app API calls, and defaults the method to GET', async () => {
+      window.fetch = (() => Promise.resolve(new Response('[]'))) as typeof fetch;
+      installAppApiFetchLedger(FETCH_LEDGER_GLOBAL);
+
+      await window.fetch('http://127.0.0.1:5173/src/main.tsx');
+      await window.fetch(COUNT_URL);
+
+      expect(Object.keys(ledger().seen)).toEqual([`GET ${COUNT_URL}`]);
+      expect(ledger().inFlight[`GET ${COUNT_URL}`]).toBe(0);
     });
   });
 });

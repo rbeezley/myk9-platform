@@ -29,9 +29,62 @@ export interface AppApiRequestSettlement {
   pendingUrls: string[];
 }
 
+/**
+ * The page's own record of its app API `fetch` calls, keyed `METHOD url`.
+ *
+ * MYK9-1467: a request the PAGE cancels (an aborted count query) can end with
+ * neither `requestfinished` nor `requestfailed` from Playwright. A Chrome
+ * net-log of the stall showed the HEAD sent, then `CANCELLED` 80 ms later, and
+ * the tracker still waiting on it 28 s on. The page's fetch promise does end on
+ * abort, so this ledger is the authority on whether the page still awaits it.
+ */
+export interface AppApiFetchLedger {
+  /** Keys the page has started at least once since this document loaded. */
+  seen: Record<string, true>;
+  /** Fetches per key the page is still awaiting. */
+  inFlight: Record<string, number>;
+}
+
+export const FETCH_LEDGER_GLOBAL = '__myk9AppApiFetchLedger';
+
 export function isAppApiRequest(request: Request) {
   const url = request.url();
   return url.includes('/rest/v1/') || url.includes('/functions/v1/') || url.includes('/auth/v1/');
+}
+
+export function appApiRequestKey(method: string, url: string) {
+  return `${method.toUpperCase()} ${url}`;
+}
+
+/**
+ * Runs in the page, before any app script, on every document. Self-contained:
+ * Playwright serializes it, so it may not reference anything outside its body.
+ */
+export function installAppApiFetchLedger(globalName: string) {
+  const w = window as unknown as Record<string, unknown> & { fetch: typeof fetch };
+  if (w[globalName]) return;
+  const ledger = { seen: {} as Record<string, true>, inFlight: {} as Record<string, number> };
+  w[globalName] = ledger;
+  const original = w.fetch.bind(window);
+  w.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : String(input), window.location.href)
+      .href;
+    const isApi =
+      url.includes('/rest/v1/') || url.includes('/functions/v1/') || url.includes('/auth/v1/');
+    if (!isApi) return original(input, init);
+    const method = (
+      init?.method ?? (input instanceof Request ? input.method : 'GET')
+    ).toUpperCase();
+    const key = `${method} ${url}`;
+    ledger.seen[key] = true;
+    ledger.inFlight[key] = (ledger.inFlight[key] ?? 0) + 1;
+    const end = () => {
+      ledger.inFlight[key] = Math.max(0, (ledger.inFlight[key] ?? 1) - 1);
+    };
+    const pending = original(input, init);
+    pending.then(end, end);
+    return pending;
+  };
 }
 
 export function watchAppApiRequests(page: Page) {
@@ -47,6 +100,12 @@ export function watchAppApiRequests(page: Page) {
   const recordActivity = () => {
     tracker.lastActivityAt = Date.now();
   };
+
+  // Every later document gets the ledger; a page without the API (a unit-test
+  // stand-in) keeps the network-event view alone.
+  if (typeof page.addInitScript === 'function') {
+    void page.addInitScript(installAppApiFetchLedger, FETCH_LEDGER_GLOBAL);
+  }
 
   page.on('request', request => {
     if (!isAppApiRequest(request)) return;
@@ -65,6 +124,34 @@ export function watchAppApiRequests(page: Page) {
   return tracker;
 }
 
+async function readFetchLedger(page: Page): Promise<AppApiFetchLedger | null> {
+  if (typeof page.evaluate !== 'function') return null;
+  return page
+    .evaluate(
+      name => (window as unknown as Record<string, AppApiFetchLedger | undefined>)[name] ?? null,
+      FETCH_LEDGER_GLOBAL
+    )
+    .catch(() => null);
+}
+
+/**
+ * The requests the page is still waiting on. A request Playwright lists as open
+ * counts as done only when the page's ledger saw it start and holds none of that
+ * key in flight; a request the ledger never saw (not a page `fetch`) keeps the
+ * network-event verdict.
+ */
+export function stillPending(
+  pending: Iterable<Request>,
+  ledger: AppApiFetchLedger | null
+): Request[] {
+  return [...pending].filter(request => {
+    if (!ledger) return true;
+    const key = appApiRequestKey(request.method(), request.url());
+    if (!ledger.seen[key]) return true;
+    return (ledger.inFlight[key] ?? 0) > 0;
+  });
+}
+
 export async function waitForAppApiRequestsToSettle(
   page: Page,
   tracker: AppApiRequestTracker,
@@ -73,7 +160,9 @@ export async function waitForAppApiRequestsToSettle(
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
-    if (tracker.pending.size === 0 && Date.now() - tracker.lastActivityAt >= idleMs) {
+    const open =
+      tracker.pending.size === 0 ? [] : stillPending(tracker.pending, await readFetchLedger(page));
+    if (open.length === 0 && Date.now() - tracker.lastActivityAt >= idleMs) {
       return { settled: true, pendingUrls: [] };
     }
 
@@ -82,6 +171,8 @@ export async function waitForAppApiRequestsToSettle(
 
   return {
     settled: false,
-    pendingUrls: [...tracker.pending].map(request => request.url()),
+    pendingUrls: stillPending(tracker.pending, await readFetchLedger(page)).map(request =>
+      request.url()
+    ),
   };
 }

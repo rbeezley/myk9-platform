@@ -261,9 +261,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
 
   async createAssignment(
     assignment: Omit<ReplicatedJudgeAssignment, 'id' | keyof JudgeAssignmentEnrichment> &
-      Partial<JudgeAssignmentEnrichment>,
-    /** Mutations this INSERT must wait for (e.g. the DELETEs of the row it replaces). */
-    dependsOn?: string[]
+      Partial<JudgeAssignmentEnrichment>
   ): Promise<ReplicatedJudgeAssignment> {
     const id = crypto.randomUUID();
     const newAssignment: ReplicatedJudgeAssignment = {
@@ -280,12 +278,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
 
     await this.set(id, newAssignment, true);
     invalidateClassEnrichment();
-    const mutationId = await this.queueMutation(
-      'INSERT',
-      id,
-      this.toSupabaseRow(newAssignment),
-      dependsOn && dependsOn.length > 0 ? dependsOn : undefined
-    );
+    const mutationId = await this.queueMutation('INSERT', id, this.toSupabaseRow(newAssignment));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created assignment ${id}`);
     return newAssignment;
@@ -384,11 +377,6 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
    * Replace the assignment for a single class: deletes any existing class-level
    * assignment(s), then creates a new one unless `judgeId` is null (removal).
    * Mirrors `upsertClassJudgeAssignment`'s delete-then-insert semantics.
-   *
-   * The INSERT depends on those DELETEs (MYK9-1327): a class has one judge, so the new row must
-   * never reach the server while the old one still exists (a backed-off DELETE overtaken by its
-   * INSERT would leave two confirmed rows today, and a refused INSERT once MYK9-1327 batch 3
-   * enforces one judge per class).
    */
   async replaceClassAssignment(
     showId: string,
@@ -396,26 +384,21 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     judgeId: string | null
   ): Promise<void> {
     const existing = (await this.readAllForWrite()).filter(a => a.classId === classId);
-    const deletes: string[] = [];
     for (const row of existing) {
-      const mutationId = await this.deleteAssignment(row.id);
-      if (mutationId) deletes.push(mutationId);
+      await this.deleteAssignment(row.id);
     }
     if (judgeId) {
-      await this.createAssignment(
-        {
-          personId: judgeId,
-          showId,
-          trialId: null,
-          classId,
-          status: 'confirmed',
-          invitedAt: null,
-          confirmedAt: new Date().toISOString(),
-          fee: null,
-          notes: null,
-        },
-        deletes
-      );
+      await this.createAssignment({
+        personId: judgeId,
+        showId,
+        trialId: null,
+        classId,
+        status: 'confirmed',
+        invitedAt: null,
+        confirmedAt: new Date().toISOString(),
+        fee: null,
+        notes: null,
+      });
     }
   }
 

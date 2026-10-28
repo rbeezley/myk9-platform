@@ -5,7 +5,6 @@ import {
   CONTAINMENT_DEFAULT_RETRY_AFTER_MS,
   getConflictServerVersion,
   getReturnedServerVersion,
-  getRpcReturnedServerVersion,
   isContainmentError,
   isVersionConflictError,
   OccRejectionError,
@@ -240,31 +239,5 @@ describe('getReturnedServerVersion', () => {
   it('returns undefined when no row or version is returned', () => {
     expect(getReturnedServerVersion([])).toBeUndefined();
     expect(getReturnedServerVersion([{}])).toBeUndefined();
-  });
-});
-
-describe('getRpcReturnedServerVersion', () => {
-  it('accepts a bare numeric return', () => {
-    expect(getRpcReturnedServerVersion(7)).toBe(7);
-  });
-
-  it('accepts a jsonb object with a numeric version (set_class_judge)', () => {
-    expect(
-      getRpcReturnedServerVersion({ version: 7, updated_at: '2026-10-28T00:00:00Z', judge: null })
-    ).toBe(7);
-  });
-
-  it.each([
-    ['null', null],
-    ['undefined', undefined],
-    ['a string', '7'],
-    ['a string version', { version: '7' }],
-    ['NaN', Number.NaN],
-    ['a NaN version', { version: Number.NaN }],
-    ['an object without version', { updated_at: 'x' }],
-    ['an array of objects', [{ version: 7 }]],
-    ['an array of non-objects', [1, 2]],
-  ])('returns undefined for %s', (_label, value) => {
-    expect(getRpcReturnedServerVersion(value)).toBeUndefined();
   });
 });

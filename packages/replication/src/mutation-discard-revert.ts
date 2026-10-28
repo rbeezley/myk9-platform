@@ -65,7 +65,12 @@ async function openGuarded(db: IDBPDatabase, discarded: PendingMutation) {
     .index('tableName')
     .getAll(discarded.tableName)) as PendingMutation[];
   const otherFailed = failed.some(m => String(m.rowId) === rowId && m.id !== discarded.id);
-  const newerLocalWrite = row?.isDirty === true && row.version !== discarded.rowRevision;
+  // A newer revision the server already acknowledged is not unsaved work
+  // (MYK9-1327: an edit that uploaded after this one parked).
+  const newerLocalWrite =
+    row?.isDirty === true &&
+    row.version !== discarded.rowRevision &&
+    row.version !== row.acknowledgedRevision;
   return { tx, rows, row, blocked: pending > 0 || otherFailed || newerLocalWrite };
 }
 

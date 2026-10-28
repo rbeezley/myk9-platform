@@ -5,7 +5,6 @@ import {
   ContainmentError,
   getConflictServerVersion,
   getReturnedServerVersion,
-  getRpcReturnedServerVersion,
   isContainmentError,
   isVersionConflictError,
   OccRejectionError,
@@ -162,8 +161,8 @@ export async function executeMutation(
           throw error;
         }
         // The RPC returns the new integer version (or null if the function
-        // signals a no-op), or a jsonb object carrying `version`. Surface it so the local row's OCC token stays fresh.
-        const newServerVersion = getRpcReturnedServerVersion(returned);
+        // signals a no-op). Surface it so the local row's OCC token stays fresh.
+        const newServerVersion = typeof returned === 'number' ? returned : undefined;
         return { newServerVersion };
       }
 

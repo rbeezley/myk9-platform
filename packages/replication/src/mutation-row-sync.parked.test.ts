@@ -61,7 +61,7 @@ describe('markReplicatedRowSynced with a parked sibling (MYK9-1327)', () => {
   it('an unrelated ack leaves the row dirty and a pull does not overwrite the parked field', async () => {
     const db = await setup([mutation('parked', { status: 'failed' })]);
 
-    await markReplicatedRowSynced(db, mutation('acked'), 4);
+    await markReplicatedRowSynced(db, mutation('acked'), 4, undefined, true);
 
     expect(await db.get(REPLICATION_STORES.REPLICATED_TABLES, [tableName, '1'])).toMatchObject({
       isDirty: true,
@@ -82,6 +82,17 @@ describe('markReplicatedRowSynced with a parked sibling (MYK9-1327)', () => {
   it('control: with nothing parked the same ack cleans the row', async () => {
     const db = await setup([]);
 
+    await markReplicatedRowSynced(db, mutation('acked'), 4, undefined, true);
+
+    expect(await db.get(REPLICATION_STORES.REPLICATED_TABLES, [tableName, '1'])).toMatchObject({
+      isDirty: false,
+      syncStatus: 'synced',
+    });
+  });
+
+  it('on a table whose Discard cannot restore the row, a parked sibling does not hold it', async () => {
+    const db = await setup([mutation('parked', { status: 'failed' })]);
+
     await markReplicatedRowSynced(db, mutation('acked'), 4);
 
     expect(await db.get(REPLICATION_STORES.REPLICATED_TABLES, [tableName, '1'])).toMatchObject({
@@ -97,7 +108,7 @@ describe('markReplicatedRowSynced with a parked sibling (MYK9-1327)', () => {
       mutation('other-owner', { authUserId: 'user-2' }),
     ]);
 
-    await markReplicatedRowSynced(db, mutation('acked'), 4);
+    await markReplicatedRowSynced(db, mutation('acked'), 4, undefined, true);
 
     expect(await db.get(REPLICATION_STORES.REPLICATED_TABLES, [tableName, '1'])).toMatchObject({
       isDirty: false,

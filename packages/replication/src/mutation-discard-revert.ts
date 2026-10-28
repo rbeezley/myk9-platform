@@ -181,6 +181,11 @@ export class DiscardRevertRegistry {
     };
   }
 
+  /** Whether Discard on this table puts the server's copy back. */
+  has(tableName: string): boolean {
+    return this.hooks.has(tableName);
+  }
+
   /**
    * Run both steps for a discarded mutation. The local revert is awaited; the
    * re-fetch is not (it fails quietly offline and the next sync carries on).

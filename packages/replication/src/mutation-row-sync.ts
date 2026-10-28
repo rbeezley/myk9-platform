@@ -9,7 +9,8 @@ export async function markReplicatedRowSynced(
   db: IDBPDatabase,
   mutation: PendingMutation,
   newServerVersion?: number,
-  overlayWritten?: WrittenFieldOverlay
+  overlayWritten?: WrittenFieldOverlay,
+  parkedKeepsDirty = false
 ): Promise<number | undefined> {
   if (mutation.operation === 'DELETE') return newServerVersion;
 
@@ -21,15 +22,20 @@ export async function markReplicatedRowSynced(
       String(mutation.rowId),
     ]),
     // The failed store only indexes tableName, so filter the row in memory.
-    db.getAllFromIndex(REPLICATION_STORES.FAILED_MUTATIONS, 'tableName', mutation.tableName),
+    parkedKeepsDirty
+      ? db.getAllFromIndex(REPLICATION_STORES.FAILED_MUTATIONS, 'tableName', mutation.tableName)
+      : [],
   ])) as [ReplicatedRow<unknown> | undefined, PendingMutation[], PendingMutation[]];
 
   if (!existingRow) return newServerVersion;
 
-  // A parked (failed) mutation is still recoverable through Retry or Discard, so
+  // On a table whose Discard puts the server's copy back (`parkedKeepsDirty`),
+  // a parked (failed) mutation is still recoverable through Retry or Discard, so
   // it keeps the row dirty exactly like a queued one: otherwise an unrelated
   // write acking would mark the row clean and a pull would overwrite the parked
-  // edit (MYK9-1327). Applies to every table.
+  // edit (MYK9-1327). Any other table has no Discard that could clean the row
+  // again, so there the ack cleans it and the next pull restores the server's
+  // copy, as before.
   const hasAnotherPendingMutation =
     pendingMutations.some(
       pending => pending.id !== mutation.id && pending.authUserId === mutation.authUserId

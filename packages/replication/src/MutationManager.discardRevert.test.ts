@@ -315,6 +315,19 @@ describe('Discard reverts the row (MYK9-1076)', () => {
       });
     });
 
+    it('on a table that has not opted in, the later ack still cleans the row', async () => {
+      const table = new EditableEntriesTable(tableName);
+      await start(table, refuseFirstServer());
+      await table.edit('1', 'parked');
+      await refuseAll(1);
+      await table.edit('1', 'accepted');
+      await manager!.uploadPendingMutations();
+
+      const row = await table.getReplicatedRow('1');
+      expect(row?.isDirty).toBe(false);
+      expect(row?.serverVersion).toBe(4);
+    });
+
     it('a local write made after that ack still blocks the Discard', async () => {
       const server: ServerRow = { status: 'accepted', final_placement: null, version: 4 };
       const table = new RefetchingRevertingTable(tableName, adapterFor(server));

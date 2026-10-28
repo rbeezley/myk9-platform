@@ -340,7 +340,7 @@ lanes. Additions specific to the run:
   findings JSON, including fixed findings; preserve earlier findings/dispositions in separate history.
 - **`independent` floor pre-pass:** before the first `pnpm qa:codex-review --post`, run the
   `ship-pr` Step 4 pre-pass (Claude's `/code-review` via `claude-review.sh` without `--post`,
-  `sonnet` fallback; fixes committed, nothing posted) and record `pre-pass: N findings fixed` and `Codex rounds: M` in the PR body.
+  `sonnet` fallback; fixes committed and pushed before Codex, nothing posted) and record `pre-pass: N findings fixed` and `Codex rounds: M` in the PR body.
 - **Docs-only two-round budget:** `ship-pr` Step 4 states the rule and its run-start
   condition; this run posts that override only when the approval at Run start named the budget.
 - **Migration in the diff:** carry it through the PR and review gate (`migration-auditor`

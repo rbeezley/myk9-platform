@@ -163,7 +163,7 @@ PR_NUMBER=$(gh pr view --json number -q '.number')
 
 **Never type an evidence comment by hand.** `scripts/qa/post-review-gate.sh` is the only writer of `Review gate:` comments; both wrappers call it for you. A hand-typed line attests to a review nobody can check — the poster hashes the log it posts and refuses a log that does not carry the reviewer's clean contract sentence.
 
-**Pre-pass (`independent` tier only).** Before the first Codex run, review the pushed PR head once (one Mac heavy job against the orchestrate cap). Fix every finding you agree with and commit, so Codex reviews a second draft. It posts nothing and is not gate evidence. Record `pre-pass: N findings fixed` in the PR body, and `Codex rounds: M` once the gate is green.
+**Pre-pass (`independent` tier only).** Before the first Codex run, review the pushed PR head once (one Mac heavy job against the orchestrate cap). Fix every finding you agree with, commit, and **push before the Codex run** (the gate's evidence names the PR head), so Codex reviews a second draft. It posts nothing and is not gate evidence. Record `pre-pass: N findings fixed` in the PR body, and `Codex rounds: M` once the gate is green.
 
 - **Claude Code author:** run Claude Code's built-in `/code-review` through `scripts/qa/claude-review.sh` WITHOUT `--post`. From the worktree, with the PR head pushed (it refuses a local HEAD that differs from the PR head):
 

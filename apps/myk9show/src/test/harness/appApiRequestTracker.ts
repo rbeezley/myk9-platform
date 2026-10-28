@@ -109,16 +109,39 @@ export function watchAppApiRequests(page: Page) {
     void page.addInitScript(installAppApiFetchLedger, FETCH_LEDGER_GLOBAL);
   }
 
+  // MYK9-1467: from a main-frame navigation request until the new document
+  // commits, the OUTGOING document still runs, and what it starts dies with it
+  // without a `requestfinished` or `requestfailed` (run 40785638617 stranded
+  // /exhibitor/entries' reads on /account). The new document cannot fetch before
+  // it commits, so every app API request in that window is the old one's.
+  let outgoingNavigation: Request | null = null;
+  const isMainFrameNavigation = (request: Request) =>
+    request.isNavigationRequest?.() === true &&
+    typeof page.mainFrame === 'function' &&
+    request.frame?.() === page.mainFrame();
+
   page.on('request', request => {
-    if (!isAppApiRequest(request)) return;
+    if (isMainFrameNavigation(request)) {
+      outgoingNavigation = request;
+      tracker.reset();
+      return;
+    }
+    if (!isAppApiRequest(request) || outgoingNavigation) return;
     tracker.pending.add(request);
     recordActivity();
+  });
+  page.on('framenavigated', frame => {
+    if (typeof page.mainFrame === 'function' && frame === page.mainFrame()) {
+      outgoingNavigation = null;
+    }
   });
   page.on('requestfinished', request => {
     if (!tracker.pending.delete(request)) return;
     recordActivity();
   });
   page.on('requestfailed', request => {
+    // A navigation that fails leaves the old document in place, still tracked.
+    if (request === outgoingNavigation) outgoingNavigation = null;
     if (!tracker.pending.delete(request)) return;
     recordActivity();
   });

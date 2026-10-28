@@ -12,7 +12,7 @@ import {
   watchAppApiRequests,
 } from './appApiRequestTracker';
 
-type RequestEvent = 'request' | 'requestfinished' | 'requestfailed';
+type RequestEvent = 'request' | 'requestfinished' | 'requestfailed' | 'framenavigated';
 
 function createRequest(url: string) {
   return { url: () => url } as Request;
@@ -20,7 +20,9 @@ function createRequest(url: string) {
 
 function createPageHarness() {
   const listeners = new Map<RequestEvent, Array<(request: Request) => void>>();
+  const mainFrame = { name: 'main' };
   const page = {
+    mainFrame: () => mainFrame,
     on(event: RequestEvent, listener: (request: Request) => void) {
       listeners.set(event, [...(listeners.get(event) ?? []), listener]);
       return page;
@@ -32,6 +34,7 @@ function createPageHarness() {
 
   return {
     page,
+    mainFrame,
     emit(event: RequestEvent, request: Request) {
       for (const listener of listeners.get(event) ?? []) listener(request);
     },
@@ -422,5 +425,99 @@ describe('the route sweep actually calls reset()', () => {
     // Resetting after the navigation would discard the very requests the route
     // under test had just issued, turning the false failure into a false pass.
     expect(resetAt).toBeLessThan(gotoAt);
+  });
+});
+
+/**
+ * MYK9-1467: when the sweep leaves a route, the outgoing document keeps running
+ * until the new one commits, and a query it starts in that window is killed
+ * with the document: Playwright reports the request and never its end. Run
+ * 40785638617 stranded two of /exhibitor/entries' reads (stripe_orders and the
+ * self check-in classes batch) on /account, whose own ledger never saw them.
+ */
+describe('requests the outgoing document starts during a navigation (MYK9-1467)', () => {
+  const STRANDED = 'http://127.0.0.1:54321/rest/v1/stripe_orders?select=id&offset=0&limit=100';
+
+  function navigationRequest(frame: unknown) {
+    return {
+      url: () => 'http://127.0.0.1:5173/account',
+      isNavigationRequest: () => true,
+      frame: () => frame,
+    } as unknown as Request;
+  }
+
+  it('ignores an app API request started between the navigation request and its commit', async () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    harness.emit('request', navigationRequest(harness.mainFrame));
+    harness.emit('request', createRequest(STRANDED));
+    harness.emit('framenavigated', harness.mainFrame as unknown as Request);
+
+    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+      idleMs: 5,
+      timeoutMs: 100,
+    });
+
+    expect(settlement).toEqual({ settled: true, pendingUrls: [], pendingLedger: [] });
+  });
+
+  it('drops what the outgoing document still had in flight when the navigation starts', async () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    harness.emit('request', createRequest(STRANDED));
+    harness.emit('request', navigationRequest(harness.mainFrame));
+    harness.emit('framenavigated', harness.mainFrame as unknown as Request);
+
+    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+      idleMs: 5,
+      timeoutMs: 100,
+    });
+
+    expect(settlement.settled).toBe(true);
+  });
+
+  it("tracks the new document's requests once the navigation commits", async () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    harness.emit('request', navigationRequest(harness.mainFrame));
+    harness.emit('framenavigated', harness.mainFrame as unknown as Request);
+    harness.emit('request', createRequest(STRANDED));
+
+    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+      idleMs: 5,
+      timeoutMs: 30,
+    });
+
+    expect(settlement.pendingUrls).toEqual([STRANDED]);
+  });
+
+  it('keeps tracking when the navigation request fails and the old document stays', async () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    const navigation = navigationRequest(harness.mainFrame);
+    harness.emit('request', navigation);
+    harness.emit('requestfailed', navigation);
+    harness.emit('request', createRequest(STRANDED));
+
+    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+      idleMs: 5,
+      timeoutMs: 30,
+    });
+
+    expect(settlement.pendingUrls).toEqual([STRANDED]);
+  });
+
+  it('ignores a navigation of a child frame', async () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    harness.emit('request', navigationRequest({ name: 'iframe' }));
+    harness.emit('request', createRequest(STRANDED));
+
+    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+      idleMs: 5,
+      timeoutMs: 30,
+    });
+
+    expect(settlement.pendingUrls).toEqual([STRANDED]);
   });
 });

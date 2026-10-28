@@ -82,9 +82,10 @@ jobs:
         run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
 
       - name: Run read-only nightly health
-        run: pnpm qa:nightly:health
+        run: mkdir -p apps/myk9show/test-results/netlog && pnpm qa:nightly:health
         env:
           CI: 'true'
+          MYK9_NETLOG_DIR: ${{ github.workspace }}/apps/myk9show/test-results/netlog
           # The stack is seeded, so a canary with no qualifying row FAILS instead of
           # skipping (liveCanary.DATA_REQUIRED); a skip would pass having checked nothing.
           MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
@@ -106,6 +107,26 @@ jobs:
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+
+      # TEMP MYK9-1467 diagnostic: the Chrome net-log, after the same secret check.
+      - name: Verify no secrets in the net-log
+        id: verify-netlog
+        if: always()
+        working-directory: apps/myk9show
+        run: pnpm exec tsx scripts/verify-artifact-secrets.ts test-results/netlog
+        env:
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+
+      - name: Upload net-log
+        if: ${{ always() && steps.verify-netlog.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: myk9show-nightly-health-netlog
+          path: apps/myk9show/test-results/netlog/
+          retention-days: 3
 
       - name: Upload route-health report
         if: ${{ always() && steps.verify-artifacts.outcome != 'failure' }}

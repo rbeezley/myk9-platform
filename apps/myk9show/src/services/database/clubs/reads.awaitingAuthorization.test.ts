@@ -7,6 +7,7 @@ const chain = vi.hoisted(() => {
   builder.from = vi.fn(() => builder);
   builder.select = vi.fn(() => builder);
   builder.is = vi.fn(() => builder);
+  builder.eq = vi.fn(() => builder);
   builder.order = vi.fn(() => Promise.resolve(result));
   return { result, builder };
 });
@@ -35,6 +36,22 @@ describe('getClubsAwaitingAuthorization', () => {
     expect(chain.builder.order).toHaveBeenCalledWith('created_at', { ascending: true });
     expect(error).toBeNull();
     expect(data).toEqual([{ id: 'late-1', name: 'Zulu Club', authorized_at: null }]);
+  });
+
+  it('reads every creator when none is given', async () => {
+    await getClubsAwaitingAuthorization();
+
+    expect(chain.builder.eq).not.toHaveBeenCalled();
+  });
+
+  it("narrows to one creator's pending clubs on the server (MYK9-1395 notice link)", async () => {
+    await getClubsAwaitingAuthorization('00000000-0000-0000-0000-000000000104');
+
+    expect(chain.builder.eq).toHaveBeenCalledWith(
+      'created_by',
+      '00000000-0000-0000-0000-000000000104'
+    );
+    expect(chain.builder.is).toHaveBeenCalledWith('authorized_at', null);
   });
 
   it('returns the error instead of an empty list when the read fails', async () => {

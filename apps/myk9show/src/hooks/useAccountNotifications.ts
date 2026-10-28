@@ -41,6 +41,11 @@ export const ACCOUNT_NOTIFICATION_TYPES = [
 ] as const;
 const HANDLED_TYPES = new Set<string>(ACCOUNT_NOTIFICATION_TYPES);
 
+/** Types the database folds into one row per (type, deep link), replacing the
+ * row (new id) on each repeat (MYK9-1395). A newly delivered row replaces the
+ * visible alert with the same key instead of stacking beside it. */
+const FOLDED_TYPES = new Set<string>(['club_awaiting_authorization']);
+
 /**
  * Delivers durable `public.notifications` rows into the existing bell/Message
  * Center: club-access approval (MYK9-859), automatic wait list offers
@@ -128,10 +133,23 @@ export function useAccountNotifications(): void {
 
     let shouldRefreshPermissions = false;
     for (const row of unseen) {
+      if (FOLDED_TYPES.has(row.type) && row.deep_link_url) {
+        for (const alert of useNotificationStore.getState().recentAlerts) {
+          const alertData = alert.payload.data;
+          if (
+            alert.payload.id !== row.id &&
+            alertData?.accountNotificationUserId === userId &&
+            alertData?.accountNotificationType === row.type &&
+            alert.payload.actionUrl === row.deep_link_url
+          ) {
+            dismissAlert(alert.payload.id);
+          }
+        }
+      }
       visibleIds.add(row.id);
       addAlert(buildAccountNotificationPayload(row, userId));
       if (ROLE_CHANGING_TYPES.has(row.type)) shouldRefreshPermissions = true;
     }
     if (shouldRefreshPermissions) refreshPermissions();
-  }, [data, dataUpdatedAt, addAlert, refreshPermissions, authUserId]);
+  }, [data, dataUpdatedAt, addAlert, dismissAlert, refreshPermissions, authUserId]);
 }

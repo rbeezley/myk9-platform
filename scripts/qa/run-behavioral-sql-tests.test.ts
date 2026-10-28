@@ -200,6 +200,7 @@ const launchCriticalSqlTests = [
   'myk9_1254_lifecycle_jobs_column_acl_test.sql',
   'myk9_1310_approval_authorizes_club_test.sql',
   'myk9_1315_club_awaiting_authorization_notice_test.sql',
+  'myk9_1395_club_awaiting_authorization_rate_limit_test.sql',
   'myk9_1309_seed_fixture_functions_test.sql',
   'myk9_1311_show_entry_counts_test.sql',
   'myk9_1409_role_permission_rpcs_test.sql',

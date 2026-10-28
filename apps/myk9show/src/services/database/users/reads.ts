@@ -361,7 +361,7 @@ export const permanentDeleteUser = async (personId: string) => {
           edgeCode = body?.code;
           // handler.ts emits { error: 'step_up_required' } with no `code` (MYK9-1461).
           if (isStepUpRefusalBody(body)) {
-            edgeMessage = STEP_UP_REFUSAL_MESSAGE;
+            edgeMessage = `Nothing was deleted. ${STEP_UP_REFUSAL_MESSAGE}`;
             edgeCode = STEP_UP_REQUIRED_CODE;
           }
         } catch {

@@ -51,6 +51,8 @@ describe('Data Lifecycle person hard delete', () => {
     expect(result.error?.code).toBe('step_up_required');
     expect(from).not.toHaveBeenCalled();
     // What DeletedEntitiesTab toasts: names the password confirmation, not "try again".
-    expect(permanentDeleteRefusalMessage(result.error)).toBe('Confirm your password to continue.');
+    expect(permanentDeleteRefusalMessage(result.error)).toBe(
+      'Nothing was deleted. Confirm your password to continue.'
+    );
   });
 });

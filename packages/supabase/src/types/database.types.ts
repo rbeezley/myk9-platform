@@ -15019,6 +15019,10 @@ export type Database = {
         Args: { p_payment_link_url?: string; p_waitlist_entry_id: string }
         Returns: string
       }
+      set_class_judge: {
+        Args: { p_class_id: string; p_person_id: string | null }
+        Returns: Json
+      }
       send_waitlist_offer_message_internal: {
         Args: {
           p_payment_link_url?: string

@@ -10,6 +10,9 @@
  * two same-scope syncs can interleave a settle with a failed lookup; a row that is dirty during a
  * sync and clean again before its settle can also settle early. Each can only lose or repeat a
  * retry. A saved count is never changed by this module, and the next failed lookup owes it again.
+ * In the all-trials sync a chunk can mix trials, so one returned row also settles another trial's
+ * missing ids; and a chunk still in flight across an account switch can settle ids the next account
+ * has just re-owed. Both, again, only lose a retry.
  */
 const STORAGE_KEY = 'myk9:classHideCountsOwed';
 

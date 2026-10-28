@@ -806,8 +806,10 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     dirtyAtStart: Set<string> | null
   ): Promise<void> {
     if (!dirtyAtStart) return;
-    // Accepted (MYK9-1459): an edit that never uploads keeps its class owed, so each sync re-reads
-    // it by id. The cost is bounded by the unsent edits on the device and changes no count.
+    // Accepted (MYK9-1459): an edit that never uploads keeps its class owed, and so does a class
+    // that was hard-deleted or became invisible when its by-id chunk answers empty (that settles
+    // nothing). Each sync re-reads them by id, one request per 100; an account switch clears the
+    // list. No count changes.
     const candidates = owedHideCountClassIds(undefined).filter(
       id => answered.has(id) && !dirtyAtStart.has(id)
     );

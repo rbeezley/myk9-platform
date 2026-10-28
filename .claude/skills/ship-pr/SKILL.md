@@ -141,9 +141,6 @@ comments for every tier — never type an evidence line by hand.
   one `Adversarial subagent review: <name>` body line per lens, and the gate
   refuses adversarial evidence whose body names fewer than two — or, on a
   migration diff, whose lenses do not include `migration-auditor` exactly.
-  Make one lens the Claude `/code-review` lens (Step 4), named
-  `claude-code-review`; the other is a `sonnet` sub-agent with a distinct
-  bug-finding angle, or `migration-auditor` on a migration diff.
 - **`independent`** — the cross-harness gate in Step 4 below, unchanged.
 - **owner override** (harness genuinely unavailable) — claim the SAME floor
   `pnpm qa:review-tier` just printed (`override, floor was independent` or
@@ -166,16 +163,20 @@ PR_NUMBER=$(gh pr view --json number -q '.number')
 
 **Never type an evidence comment by hand.** `scripts/qa/post-review-gate.sh` is the only writer of `Review gate:` comments; both wrappers call it for you. A hand-typed line attests to a review nobody can check — the poster hashes the log it posts and refuses a log that does not carry the reviewer's clean contract sentence.
 
-**Pre-pass (`independent` tier only).** Before the first Codex run, push and run the Claude `/code-review` lens below on the PR (one Mac heavy job against the orchestrate cap). Fix every finding you agree with and commit, so Codex reviews a second draft. It posts nothing and is not gate evidence. Record `pre-pass: N findings fixed` in the PR body, and `Codex rounds: M` once the gate is green. If the lens exits 2 (did not run), fall back to one read-only `sonnet` sub-agent on `git diff origin/main...HEAD`, told to find defects and never to approve, answering as `- [P<n>] file:line finding` bullets.
+**Pre-pass (`independent` tier only).** Before the first Codex run, review the pushed PR head once (one Mac heavy job against the orchestrate cap). Fix every finding you agree with and commit, so Codex reviews a second draft. It posts nothing and is not gate evidence. Record `pre-pass: N findings fixed` in the PR body, and `Codex rounds: M` once the gate is green.
 
-**The Claude `/code-review` lens.** `scripts/qa/claude-review.sh` runs Claude Code's built-in `/code-review <pr>` headlessly with the shared verdict contract. From the worktree, with the PR head pushed (it refuses a local HEAD that differs from the PR head):
+- **Claude Code author:** run Claude Code's built-in `/code-review` through `scripts/qa/claude-review.sh` WITHOUT `--post`. From the worktree, with the PR head pushed (it refuses a local HEAD that differs from the PR head):
 
-```bash
-bash scripts/qa/claude-review.sh --detach $PR_NUMBER     # returns at once; a review takes 5-20 min
-bash scripts/qa/claude-review.sh --wait 240 $PR_NUMBER   # repeat while it exits 3
-```
+  ```bash
+  bash scripts/qa/claude-review.sh --detach $PR_NUMBER     # returns at once; a review takes 5-20 min
+  bash scripts/qa/claude-review.sh --wait 240 $PR_NUMBER   # repeat while it exits 3
+  ```
 
-Exit 0 clean, 1 findings, 2 did not run (not a verdict); the log is `.logs/claude-review-<head-sha>.log`. **Never pass `--post` on a Claude-authored PR**: it is the same harness, so it is a lens, never the `independent` gate. Claude's built-in `/security-review` is deliberately not used: the `security-audit` skill's diff mode covers it with this repo's RLS, grant and RPC traps.
+  Exit 0 clean, 1 findings (log: `.logs/claude-review-<head-sha>.log`), 2 did not run. **Ignore its "re-run with --post" hint on a clean run**: on a Claude-authored PR that would post same-harness evidence, and only Codex meets the `independent` floor. On exit 2, fall back to the sub-agent below.
+
+- **Codex author, or the Claude lens exited 2:** one read-only `sonnet` sub-agent on `git diff origin/main...HEAD`, told to find defects and never to approve, answering as `- [P<n>] file:line finding` bullets.
+
+Claude's built-in `/security-review` is deliberately not used: the `security-audit` skill's diff mode covers it with this repo's RLS, grant and RPC traps.
 
 **Author is Claude Code → Codex reviews.** Run the wrapper from the worktree, foreground:
 

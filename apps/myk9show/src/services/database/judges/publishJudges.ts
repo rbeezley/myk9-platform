@@ -3,9 +3,11 @@ import { buildAssignedJudges } from '@/utils/buildAssignedJudges';
 import { PremiumPublishError } from '@/features/premium/premiumPublishErrors';
 import type { ReplicatedJudgeAssignment } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import { mutationManager } from '@/services/replication/sharedMutationManager';
+import { unsentPickClassIds } from '@/services/replication/classJudgePick';
+import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
+import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import { readJudgeAssignmentsOrThrow } from './assignmentReads';
-import { readClassRowJudges, withClassRowJudges } from './classLevelJudges';
 
 interface ServerJudgeRow {
   person_id: string;
@@ -70,21 +72,12 @@ async function readServerJudges(
   };
 }
 
-/**
- * This device's assignments for the show, or null when the device cannot read them. Class-level
- * judges come from the class rows, so a pick still waiting to upload counts as the device's
- * judge and the comparison blocks the publish until it lands (MYK9-1327).
- */
+/** This device's assignments for the show, or null when the device cannot read them. */
 async function readDeviceAssignmentKeys(showId: string): Promise<Set<string> | null> {
   try {
-    const [stored, classJudges] = await Promise.all([
-      readJudgeAssignmentsOrThrow(),
-      readClassRowJudges(showId),
-    ]);
+    const assignments = await readJudgeAssignmentsOrThrow();
     return new Set(
-      withClassRowJudges(stored, showId, classJudges)
-        .filter(a => a.showId === showId)
-        .map(a => assignmentKey(a.personId, a.classId))
+      assignments.filter(a => a.showId === showId).map(a => assignmentKey(a.personId, a.classId))
     );
   } catch {
     return null;
@@ -93,6 +86,27 @@ async function readDeviceAssignmentKeys(showId: string): Promise<Set<string> | n
 
 function sameKeys(a: Set<string>, b: Set<string>): boolean {
   return a.size === b.size && [...a].every(id => b.has(id));
+}
+
+/**
+ * True while this device holds a `set_class_judge` pick, pending or parked for Retry, for a class
+ * of the show (MYK9-1327). A pick changes the class row at once, but the assignment replica (and
+ * so the comparison below) names the old judge until the pick uploads and the sync lands. An
+ * unreadable device answers true: publishing the old judge is the worse error.
+ */
+async function hasUnsentPickInShow(showId: string): Promise<boolean> {
+  try {
+    const classIds = await unsentPickClassIds(mutationManager);
+    if (classIds.length === 0) return false;
+    const trialIds = new Set((await replicatedTrialsTable.getTrialsByShow(showId)).map(t => t.id));
+    for (const classId of classIds) {
+      const cls = await replicatedClassesTable.getClassById(classId);
+      if (cls?.trialId && trialIds.has(cls.trialId)) return true;
+    }
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 /**
@@ -108,10 +122,19 @@ function sameKeys(a: Set<string>, b: Set<string>): boolean {
  * guessing which side is right, and asks for an upload. When the device cannot
  * read its judges at all, the server's list stands.
  *
- * Throws a `judges-syncing` PremiumPublishError when the two disagree, and a
+ * Throws a `judges-syncing` PremiumPublishError when the two disagree or a class-judge pick is
+ * still unsent, and a
  * database error when the server cannot be read.
  */
 export async function fetchShowJudgesForPublish(showId: string): Promise<ShowJudgeAssignment[]> {
+  if (await hasUnsentPickInShow(showId)) {
+    mutationManager.requestUpload();
+    throw new PremiumPublishError(
+      "This device's judges don't match the server's yet",
+      'experience-snapshot',
+      'judges-syncing'
+    );
+  }
   const [server, deviceKeys] = await Promise.all([
     readServerJudges(showId),
     readDeviceAssignmentKeys(showId),

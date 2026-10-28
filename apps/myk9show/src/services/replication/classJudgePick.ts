@@ -26,7 +26,10 @@ export const SET_CLASS_JUDGE_RPC = 'set_class_judge';
 
 type QueueReader = Pick<
   MutationManager,
-  'getPendingMutationsForRow' | 'getFailedMutations' | 'discardFailedMutation'
+  | 'getPendingMutationsForRow'
+  | 'getPendingMutationsForTable'
+  | 'getFailedMutations'
+  | 'discardFailedMutation'
 >;
 
 const isPickFor = (mutation: PendingMutation, classId: string): boolean =>
@@ -68,6 +71,24 @@ async function readPickQueue(
     pendingPicks: pendingClass.filter(m => isPickFor(m, classId)).sort(queueOrder),
     failedPicks: failed.filter(m => isPickFor(m, classId)).sort(queueOrder),
   };
+}
+
+/**
+ * Ids of the classes with a `set_class_judge` pick that has not reached the server: pending, or
+ * failed and parked for Retry. Owner-scoped like every queue read here. Publish waits on these
+ * (MYK9-1327): until the pick uploads and the sync pulls `judge_assignments`, this device's
+ * assignment replica still names the old judge.
+ */
+export async function unsentPickClassIds(queue: QueueReader): Promise<string[]> {
+  const [pending, failed] = await Promise.all([
+    queue.getPendingMutationsForTable('classes'),
+    queue.getFailedMutations(),
+  ]);
+  const ids = new Set<string>();
+  for (const m of [...pending, ...failed]) {
+    if (m.tableName === 'classes' && m.rpc?.name === SET_CLASS_JUDGE_RPC) ids.add(String(m.rowId));
+  }
+  return [...ids];
 }
 
 /** What a newly queued pick must wait for, and which earlier failed picks it replaces. */

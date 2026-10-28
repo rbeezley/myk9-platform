@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  getTrialsByShow: vi.fn(),
-  getClassesByTrial: vi.fn(),
-  classSubscribe: vi.fn(),
   getByShowId: vi.fn(),
   getAllWithStatus: vi.fn(),
   subscribe: vi.fn(),
@@ -18,11 +15,6 @@ vi.mock('@/services/replication', () => ({
     getByShowId: mocks.getByShowId,
     getAllWithStatus: mocks.getAllWithStatus,
     subscribe: mocks.subscribe,
-  },
-  replicatedTrialsTable: { getTrialsByShow: mocks.getTrialsByShow },
-  replicatedClassesTable: {
-    getClassesByTrial: mocks.getClassesByTrial,
-    subscribe: mocks.classSubscribe,
   },
 }));
 
@@ -40,8 +32,6 @@ describe('active judge assignment reads', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getByShowId.mockResolvedValue([]);
-    mocks.getTrialsByShow.mockResolvedValue([]);
-    mocks.getClassesByTrial.mockResolvedValue([]);
   });
 
   it('defines the shared assignment lifecycle contract once', () => {
@@ -164,89 +154,13 @@ describe('active judge assignment reads', () => {
     ]);
   });
 
-  it('subscribes to both the assignment replica and the class replica, and stops both', () => {
-    const stopAssignments = vi.fn();
-    const stopClasses = vi.fn();
+  it('forwards replication subscriptions through the Judge data module', () => {
+    const unsubscribe = vi.fn();
     const listener = vi.fn();
-    mocks.subscribe.mockReturnValue(stopAssignments);
-    mocks.classSubscribe.mockReturnValue(stopClasses);
+    mocks.subscribe.mockReturnValue(unsubscribe);
 
-    const stop = subscribeToJudgeAssignmentChanges(listener);
-    (mocks.subscribe.mock.calls[0]?.[0] as () => void)();
-    (mocks.classSubscribe.mock.calls[0]?.[0] as () => void)();
-    expect(listener).toHaveBeenCalledTimes(2);
-
-    stop();
-    expect(stopAssignments).toHaveBeenCalled();
-    expect(stopClasses).toHaveBeenCalled();
-  });
-
-  // MYK9-1327: a pending pick changes only the class row. The ringside list must follow it.
-  describe('class-level judges come from the class row', () => {
-    const assignment = (id: string, personId: string, classId: string | null) => ({
-      id,
-      showId: 'show-1',
-      personId,
-      classId,
-      status: 'confirmed',
-    });
-    const classRow = (id: string, judgeId: string | undefined, judgeResolved = true) => ({
-      id,
-      trialId: 'trial-1',
-      judgeId,
-      judgeResolved,
-    });
-
-    beforeEach(() => {
-      mocks.getTrialsByShow.mockResolvedValue([{ id: 'trial-1' }]);
-    });
-
-    it('reports the NEW judge for a class with a pending pick, and drops the old one', async () => {
-      // The assignment replica still names judge-old; the class row says judge-new.
-      mocks.getAllWithStatus.mockResolvedValue(okRows([assignment('a1', 'judge-old', 'class-X')]));
-      mocks.getClassesByTrial.mockResolvedValue([classRow('class-X', 'judge-new')]);
-
-      const forNew = await getActiveJudgeAssignmentsForShow('show-1', 'judge-new');
-      const forOld = await getActiveJudgeAssignmentsForShow('show-1', 'judge-old');
-
-      expect(forNew.map(a => a.classId)).toEqual(['class-X']);
-      expect(forOld).toEqual([]);
-    });
-
-    it('keeps the replica row (and its fields) when it names the class row judge', async () => {
-      mocks.getAllWithStatus.mockResolvedValue(okRows([assignment('a1', 'judge-1', 'class-X')]));
-      mocks.getClassesByTrial.mockResolvedValue([classRow('class-X', 'judge-1')]);
-
-      const result = await getActiveJudgeAssignmentsForShow('show-1', 'judge-1');
-
-      expect(result.map(a => a.id)).toEqual(['a1']);
-    });
-
-    it('removes a class judge when the class row names none', async () => {
-      mocks.getAllWithStatus.mockResolvedValue(okRows([assignment('a1', 'judge-1', 'class-X')]));
-      mocks.getClassesByTrial.mockResolvedValue([classRow('class-X', undefined)]);
-
-      expect(await getActiveJudgeAssignmentsForShow('show-1', 'judge-1')).toEqual([]);
-    });
-
-    it('falls back to the replica for a class whose judge lookup never ran', async () => {
-      mocks.getAllWithStatus.mockResolvedValue(okRows([assignment('a1', 'judge-1', 'class-X')]));
-      mocks.getClassesByTrial.mockResolvedValue([classRow('class-X', undefined, false)]);
-
-      const result = await getActiveJudgeAssignmentsForShow('show-1', 'judge-1');
-
-      expect(result.map(a => a.id)).toEqual(['a1']);
-    });
-
-    it('leaves show-level rows to the assignment replica', async () => {
-      mocks.getAllWithStatus.mockResolvedValue(okRows([assignment('s1', 'judge-1', null)]));
-      mocks.getClassesByTrial.mockResolvedValue([classRow('class-X', 'judge-2')]);
-
-      // Show-level rows are never class assignments; only the class row's judge is reported.
-      expect(await getActiveJudgeAssignmentsForShow('show-1', 'judge-1')).toEqual([]);
-      const other = await getActiveJudgeAssignmentsForShow('show-1', 'judge-2');
-      expect(other.map(a => a.classId)).toEqual(['class-X']);
-    });
+    expect(subscribeToJudgeAssignmentChanges(listener)).toBe(unsubscribe);
+    expect(mocks.subscribe).toHaveBeenCalledWith(listener);
   });
 });
 

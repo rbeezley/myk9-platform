@@ -13,19 +13,25 @@ const server = vi.hoisted(() => ({
   from: vi.fn(),
 }));
 const device = vi.hoisted(() => ({ read: vi.fn() }));
-const queue = vi.hoisted(() => ({ requestUpload: vi.fn() }));
-const classRows = vi.hoisted(() => ({ read: vi.fn() }));
+const queue = vi.hoisted(() => ({
+  requestUpload: vi.fn(),
+  getPendingMutationsForTable: vi.fn(),
+  getFailedMutations: vi.fn(),
+}));
+const replicas = vi.hoisted(() => ({ getTrialsByShow: vi.fn(), getClassById: vi.fn() }));
 
 vi.mock('../supabaseClient', () => ({
   supabase: { from: server.from },
   createDatabaseError,
 }));
 vi.mock('./assignmentReads', () => ({ readJudgeAssignmentsOrThrow: device.read }));
-vi.mock('./classLevelJudges', async importOriginal => ({
-  ...(await importOriginal<typeof import('./classLevelJudges')>()),
-  readClassRowJudges: classRows.read,
-}));
 vi.mock('@/services/replication/sharedMutationManager', () => ({ mutationManager: queue }));
+vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
+  replicatedTrialsTable: { getTrialsByShow: replicas.getTrialsByShow },
+}));
+vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
+  replicatedClassesTable: { getClassById: replicas.getClassById },
+}));
 
 import { fetchShowJudgesForPublish } from './publishJudges';
 
@@ -67,7 +73,13 @@ describe('fetchShowJudgesForPublish', () => {
       .mockReset()
       .mockResolvedValue({ data: [row('j1', 'Pat'), row('j2', 'Sam')], error: null });
     device.read.mockResolvedValue([onDevice('j1'), onDevice('j2')]);
-    classRows.read.mockResolvedValue(new Map());
+    queue.getPendingMutationsForTable.mockResolvedValue([]);
+    queue.getFailedMutations.mockResolvedValue([]);
+    replicas.getTrialsByShow.mockResolvedValue([{ id: 'trial-1' }]);
+    replicas.getClassById.mockImplementation(async (id: string) => ({
+      id,
+      trialId: id === 'other-class' ? 'trial-other' : 'trial-1',
+    }));
   });
 
   it("lists the server's judges when the device agrees", async () => {
@@ -78,25 +90,46 @@ describe('fetchShowJudgesForPublish', () => {
     expect(judges.map(j => j.judgeName)).toEqual(['Pat Judge', 'Sam Judge']);
   });
 
-  // MYK9-1327: a pick only updates the class row; the assignment replica keeps the old judge
-  // until the post-upload sync. Comparing the replica alone published the OLD judge.
-  it('blocks the publish while a pending pick has changed a class judge on the device', async () => {
-    server.range.mockResolvedValue({ data: [row('j1', 'Pat', 'class-1')], error: null });
-    device.read.mockResolvedValue([onDevice('j1', 'show-1', 'class-1')]);
-    classRows.read.mockResolvedValue(new Map([['class-1', 'j2']]));
+  // MYK9-1327: a pick changes the class row at once, but the assignment replica names the old
+  // judge until the pick uploads and the sync lands, so the comparison below would agree with the
+  // server on the OLD judge and publish it.
+  describe('an unsent set_class_judge pick', () => {
+    const pick = (classId: string) => ({
+      tableName: 'classes',
+      rowId: classId,
+      operation: 'UPDATE',
+      rpc: { name: 'set_class_judge', args: { p_class_id: classId } },
+    });
 
-    const error = await publishError();
+    it('blocks the publish while a pick for a class of the show is pending', async () => {
+      queue.getPendingMutationsForTable.mockResolvedValue([pick('class-1')]);
 
-    expect(error.code).toBe('judges-syncing');
-    expect(queue.requestUpload).toHaveBeenCalled();
-  });
+      const error = await publishError();
 
-  it('publishes when the class rows agree with the server', async () => {
-    server.range.mockResolvedValue({ data: [row('j1', 'Pat', 'class-1')], error: null });
-    device.read.mockResolvedValue([onDevice('j1', 'show-1', 'class-1')]);
-    classRows.read.mockResolvedValue(new Map([['class-1', 'j1']]));
+      expect(error.code).toBe('judges-syncing');
+      expect(queue.requestUpload).toHaveBeenCalled();
+    });
 
-    await expect(fetchShowJudgesForPublish('show-1')).resolves.toHaveLength(1);
+    it('blocks the publish while a pick for a class of the show is parked for Retry', async () => {
+      queue.getFailedMutations.mockResolvedValue([pick('class-1')]);
+
+      expect((await publishError()).code).toBe('judges-syncing');
+    });
+
+    it('does not block for a pick on a class of another show, or an unrelated class write', async () => {
+      queue.getPendingMutationsForTable.mockResolvedValue([
+        pick('other-class'),
+        { tableName: 'classes', rowId: 'class-1', operation: 'UPDATE' },
+      ]);
+
+      await expect(fetchShowJudgesForPublish('show-1')).resolves.toHaveLength(2);
+    });
+
+    it('treats an unreadable queue as unsent rather than publishing the old judge', async () => {
+      queue.getFailedMutations.mockRejectedValue(new Error('IDB timeout'));
+
+      expect((await publishError()).code).toBe('judges-syncing');
+    });
   });
 
   it("lists the server's judges when the device cannot read its own", async () => {

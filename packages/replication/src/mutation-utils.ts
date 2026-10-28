@@ -287,6 +287,12 @@ export function isRetryableError(error: unknown): boolean {
       return false;
     }
 
+    // MYK9-1327: set_class_judge raises P0002 (class or person not found) and
+    // 22023 (invalid_parameter_value). The input will not become valid on retry.
+    if (code === 'P0002' || code === '22023') {
+      return false;
+    }
+
     // MYK9-923: the entries trigger refuses an entry under a deleted class,
     // trial or show. The parent stays deleted, so a retry can never land.
     if (code === 'MK014') {

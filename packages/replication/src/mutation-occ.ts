@@ -186,3 +186,18 @@ export function getReturnedServerVersion(
 ): number | undefined {
   return rows?.[0]?.version;
 }
+
+/**
+ * The new OCC version an RPC returned. Accepts the bare integer shape and the
+ * jsonb shape `{ version, ... }` (MYK9-1327 `set_class_judge` returns
+ * `{ version, updated_at, judge }`). Anything else, including a non-finite or
+ * string version, is undefined so the row keeps its token.
+ */
+export function getRpcReturnedServerVersion(returned: unknown): number | undefined {
+  if (typeof returned === 'number') return Number.isFinite(returned) ? returned : undefined;
+  if (returned === null || typeof returned !== 'object' || Array.isArray(returned)) {
+    return undefined;
+  }
+  const version = (returned as { version?: unknown }).version;
+  return typeof version === 'number' && Number.isFinite(version) ? version : undefined;
+}

@@ -14,19 +14,32 @@ export async function markReplicatedRowSynced(
   if (mutation.operation === 'DELETE') return newServerVersion;
 
   const key = [mutation.tableName, String(mutation.rowId)];
-  const [existingRow, pendingMutations] = (await Promise.all([
+  const [existingRow, pendingMutations, failedForTable] = (await Promise.all([
     db.get(REPLICATION_STORES.REPLICATED_TABLES, key),
     db.getAllFromIndex(REPLICATION_STORES.PENDING_MUTATIONS, 'tableName_rowId', [
       mutation.tableName,
       String(mutation.rowId),
     ]),
-  ])) as [ReplicatedRow<unknown> | undefined, PendingMutation[]];
+    // The failed store only indexes tableName, so filter the row in memory.
+    db.getAllFromIndex(REPLICATION_STORES.FAILED_MUTATIONS, 'tableName', mutation.tableName),
+  ])) as [ReplicatedRow<unknown> | undefined, PendingMutation[], PendingMutation[]];
 
   if (!existingRow) return newServerVersion;
 
-  const hasAnotherPendingMutation = pendingMutations.some(
-    pending => pending.id !== mutation.id && pending.authUserId === mutation.authUserId
-  );
+  // A parked (failed) mutation is still recoverable through Retry or Discard, so
+  // it keeps the row dirty exactly like a queued one: otherwise an unrelated
+  // write acking would mark the row clean and a pull would overwrite the parked
+  // edit (MYK9-1327). Applies to every table.
+  const hasAnotherPendingMutation =
+    pendingMutations.some(
+      pending => pending.id !== mutation.id && pending.authUserId === mutation.authUserId
+    ) ||
+    failedForTable.some(
+      failed =>
+        failed.id !== mutation.id &&
+        String(failed.rowId) === String(mutation.rowId) &&
+        failed.authUserId === mutation.authUserId
+    );
   // An uploaded INSERT is on the server now. Its `_localOnly` flag used to
   // stay until a later fetch returned the row, so counts of server-backed rows
   // skipped it and a create deleted elsewhere before that fetch was never

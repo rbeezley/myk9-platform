@@ -19,6 +19,11 @@ describe('isRetryableError', () => {
       expect(isRetryableError({ message: 'boom', code: '503' })).toBe(true);
     });
 
+    it('returns false for P0002 and 22023 (set_class_judge, MYK9-1327)', () => {
+      expect(isRetryableError({ message: 'class not found', code: 'P0002' })).toBe(false);
+      expect(isRetryableError({ message: 'bad parameter', code: '22023' })).toBe(false);
+    });
+
     it('returns true for 429 rate limit', () => {
       expect(isRetryableError({ message: 'too many', code: '429' })).toBe(true);
     });

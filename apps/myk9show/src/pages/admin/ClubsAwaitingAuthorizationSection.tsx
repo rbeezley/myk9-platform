@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { ShieldCheck } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { formatShortDate } from '@/lib/format/dates';
 import { useClubsAwaitingAuthorizationQuery } from '@/hooks/queries/useClubsDatabase';
@@ -18,9 +18,18 @@ import { useClubsAwaitingAuthorizationQuery } from '@/hooks/queries/useClubsData
  * invalidates it. MYK9-1448: the server filters `authorized_at IS NULL AND
  * deleted_at IS NULL`; the list used to be getAllClubs() filtered here, which
  * lost any pending club past PostgREST's 1,000-row cap.
+ *
+ * MYK9-1395: a folded club-awaiting-authorization notice links here with
+ * `?creator=<auth uid>`, so the list narrows to that creator's pending clubs on the
+ * server and the clubs the notice names are always on screen, whatever the queue size.
  */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function ClubsAwaitingAuthorizationSection() {
-  const { data: clubs, isPending, isError, refetch } = useClubsAwaitingAuthorizationQuery();
+  const [searchParams] = useSearchParams();
+  const requestedCreator = searchParams.get('creator');
+  const creator = requestedCreator && UUID.test(requestedCreator) ? requestedCreator : undefined;
+  const { data: clubs, isPending, isError, refetch } = useClubsAwaitingAuthorizationQuery(creator);
 
   // A cached list from an earlier visit is not good enough for a to-do list.
   useEffect(() => {
@@ -39,6 +48,14 @@ export function ClubsAwaitingAuthorizationSection() {
           These clubs can build shows, but they cannot publish until you authorize them. Open a club
           to authorize it.
         </p>
+        {creator && (
+          <p className="mt-2 text-base text-muted-foreground">
+            Showing the clubs from one notification.{' '}
+            <Link to="/admin/onboarding" className="font-medium text-primary underline">
+              Show all clubs awaiting authorization
+            </Link>
+          </p>
+        )}
       </div>
 
       {isError ? (
@@ -64,7 +81,7 @@ export function ClubsAwaitingAuthorizationSection() {
         </p>
       ) : awaiting.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border bg-card px-4 py-3 text-base text-muted-foreground">
-          All clubs are authorized.
+          {creator ? 'These clubs have all been authorized.' : 'All clubs are authorized.'}
         </p>
       ) : (
         <ul className="space-y-2">

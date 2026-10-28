@@ -21,7 +21,10 @@ describe('buildAccountNotificationPayload', () => {
       title: 'Account update',
       body: 'Riverside Kennel Club is approved. You can now manage the club and create its shows.',
       priority: 'normal',
-      data: { accountNotificationUserId: 'auth-user-1' },
+      data: {
+        accountNotificationUserId: 'auth-user-1',
+        accountNotificationType: 'club_access_approved',
+      },
       actionUrl: '/clubs/club-1',
       timestamp: new Date('2026-09-27T12:00:00.000Z').getTime(),
     });

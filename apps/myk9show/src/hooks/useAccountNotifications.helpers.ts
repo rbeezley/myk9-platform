@@ -32,7 +32,7 @@ export function buildAccountNotificationPayload(
     title: ACCOUNT_NOTIFICATION_TITLES[row.type] ?? 'Account update',
     body: row.message,
     priority: 'normal',
-    data: { accountNotificationUserId: userId },
+    data: { accountNotificationUserId: userId, accountNotificationType: row.type },
     timestamp: new Date(row.created_at).getTime(),
     // exactOptionalPropertyTypes forbids `actionUrl: undefined` — omit the
     // key entirely rather than setting it to a value the type disallows.

@@ -121,7 +121,7 @@ If a class is full and the show allows a waitlist, you can join it at no cost. Y
 
 ## Section 5 — Track Your Entry
 
-Go to **My Shows** in the navigation to see all your entries. Your shows are listed in one column, with every entry shown under its show: today's show first, then upcoming shows (soonest first), and past shows collapsed under **Past shows** (tap to open).
+Go to **My Shows** in the navigation to see all your entries.
 
 ![E-11: My Shows — show card with status badge and entry details](../screenshots/E-11.png)
 

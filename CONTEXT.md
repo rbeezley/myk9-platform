@@ -73,6 +73,11 @@ organization splits the level, a Section. It also holds that Trial's settings:
 entry limit, entry fee, assigned judge, run order, start time and status. The
 same Element, Level and Section at two different Trials are two different
 Classes. Classes belong to Trials, not directly to Shows.
+A Class has exactly one Judge. A Show or a Trial can have many Judges, but
+never one Class. In `judge_assignments` that means at most one confirmed
+class-level row per class. Code, copy or test fixtures that model two judges
+on one Class describe an impossible state (owner, 2026-10-28; cleanup in
+MYK9-1466).
 _Avoid_: Division (as a synonym for Class), Event
 
 **Class name**

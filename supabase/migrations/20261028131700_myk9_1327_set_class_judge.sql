@@ -20,6 +20,15 @@
 -- (parity with the client write this replaces).
 --
 -- No OCC precondition: a pick replaces the whole value. Across devices, commit order decides.
+--
+-- SEQUENCING (docs/plan-myk9-1327-atomic-judge-pick.md). This is Batch 1: it only ADDS the
+-- function, and nothing calls it yet. Today's client still writes judge_assignments directly
+-- (replaceClassAssignment), exactly as on main, so this migration changes no live write path, and
+-- the advisory lock below can't race anything until there is a caller. Batch 3 switches EVERY
+-- class-judge write to this function and, in the same release, adds a partial unique index of one
+-- confirmed class-level judge per class (a Class has exactly one Judge: CONTEXT.md, Class). That
+-- index is deliberately NOT here: enforced while the direct path still exists, it would refuse a
+-- second device's direct insert and park it, stranding that device's pick.
 
 CREATE OR REPLACE FUNCTION public.set_class_judge(p_class_id uuid, p_person_id uuid)
 RETURNS jsonb

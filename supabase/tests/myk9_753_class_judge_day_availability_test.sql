@@ -1,8 +1,9 @@
 -- Behavioral test for 20260925201300_myk9_753_class_judge_day_availability.sql.
 --
 -- MYK9-753: the cart needs every judge day's real remaining spots. A class has
--- exactly one judge (owner, 2026-10-28; MYK9-1327 enforces it with a unique
--- index), so each judged class reads its judge's day.
+-- exactly one judge (owner, 2026-10-28; CONTEXT.md, Class; MYK9-1327 batch 3
+-- adds the unique index), so each judged class reads its judge's day. The
+-- earlier two-judge case modelled an impossible state and was removed.
 --
 -- Why each case earns its place:
 --   1. A class whose judge's day is full returns that judge's day: Alma's day

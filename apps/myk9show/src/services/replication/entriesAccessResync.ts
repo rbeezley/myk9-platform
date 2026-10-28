@@ -13,7 +13,8 @@
  * never a server DELETE) and starts a forced full sync. A purged or partial
  * replica already forces the next sync full, so a failed sync needs no mark. A
  * row with unsent local work is kept. The new signature is recorded only after
- * every purge succeeded, so a failure retries on the next verified load.
+ * every purge and forced sync succeeded, so a failure retries on the next
+ * verified load. Every step is bound to the initiating account.
  */
 import { logger } from '@myk9/core';
 import type { UserRoleWithDetails } from '@/types/rbac-types';
@@ -35,7 +36,11 @@ export function activeRoleSetSignature(roles: UserRoleWithDetails[], now = Date.
  * `removeStaleEntries` keeps every id in `keep`, skips dirty rows itself, and
  * notifies subscribers; rows with other unsent work are added to `keep` here.
  */
-async function purgeShowRows(table: ReplicatedEntriesTable, showId: string): Promise<void> {
+async function purgeShowRows(
+  table: ReplicatedEntriesTable,
+  showId: string,
+  userId: string
+): Promise<void> {
   for (let running = table.whenShowSyncSettles(showId); running;) {
     await running;
     running = table.whenShowSyncSettles(showId);
@@ -48,7 +53,16 @@ async function purgeShowRows(table: ReplicatedEntriesTable, showId: string): Pro
   for (const row of rows) {
     if (row.showId !== showId || (await table.hasUnsyncedLocalWork(row.id))) keep.add(row.id);
   }
-  await table.removeStaleEntries(keep, { syncedBefore });
+  await assertSignedInAs(table, userId);
+  // Bound to the initiating account: never another account's cached rows.
+  await table.removeStaleEntries(keep, { syncedBefore, ownerAuthUserId: userId });
+}
+
+/** Abandons the run at an account boundary (sign-out or switch) mid-purge. */
+async function assertSignedInAs(table: ReplicatedEntriesTable, userId: string): Promise<void> {
+  if ((await table.getCurrentAuthUserId()) !== userId) {
+    throw new Error('signed-in account changed during the entries access resync');
+  }
 }
 
 /**
@@ -68,16 +82,30 @@ export async function noteEntriesAccessRoles(
 
     const table =
       tableOverride ?? (await import('./ReplicatedEntriesTable')).replicatedEntriesTable;
+    await assertSignedInAs(table, userId);
     // getAll() answers [] on a failed read; that would record the set having purged nothing.
     const showIds = new Set<string>();
     for (const row of await table.getAllOrThrow()) if (row.showId) showIds.add(row.showId);
 
+    const syncs: Promise<boolean>[] = [];
     for (const showId of showIds) {
-      await purgeShowRows(table, showId);
-      table.sync(showId, { forceFullSync: true }).catch(error => {
-        logger.warn('[entries] Access resync could not complete', error);
-      });
+      await purgeShowRows(table, showId, userId);
+      await assertSignedInAs(table, userId);
+      syncs.push(
+        table.sync(showId, { forceFullSync: true }).then(
+          result => result.success,
+          () => false
+        )
+      );
     }
+    // Recorded only once every forced sync succeeded: rows kept for unsent work
+    // can hide a failed refetch from the engine's coverage checks, so a failure
+    // re-runs the whole resync on the next verified load.
+    if (!(await Promise.all(syncs)).every(Boolean)) {
+      logger.warn('[entries] Access resync could not complete; retrying on the next load');
+      return;
+    }
+    await assertSignedInAs(table, userId);
     localStorage.setItem(key, signature);
   } catch (error) {
     logger.warn('[entries] Could not purge entries for the changed role set', error);

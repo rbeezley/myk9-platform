@@ -188,7 +188,7 @@ The sign-in/sign-up gate is triggered only by "Enter This Show" — not by brows
    - **Pending** — received; awaiting secretary review
    - **Accepted** — approved; you're in
    - **Waitlisted** — class is full; you're in queue
-3. Tap a show card to see the show details, class, and run order once published.
+3. Each show is its own section with its entries listed inline (Today first, then Upcoming shows soonest first, then a collapsed **Past shows** section). For the show page with class details and run order, use the show's **Actions → View show page**.
 
 **Screenshots:** My Entries page with status tabs and entry cards in each state.
 
@@ -208,11 +208,11 @@ The sign-in/sign-up gate is triggered only by "Enter This Show" — not by brows
 
 **User outcome:** Exhibitor knows when their class runs, their ring, and their armband number.
 
-**Canonical routes:** `/exhibitor/entries` (show card) → `/shows/:showId` (Classes tab)
+**Canonical routes:** `/exhibitor/entries` (show section, Actions menu) → `/shows/:showId` (Classes tab)
 
 **Rough steps (qa-draft):**
 
-1. On My Shows, tap the show card.
+1. On My Shows, find the show's section and open **Actions → View show page**.
 2. The show detail page opens → click the **Classes** tab.
 3. Find your class → see the run order, ring assignment, and your armband number.
 4. Armband numbers are assigned by the secretary and may not appear until closer to show day.

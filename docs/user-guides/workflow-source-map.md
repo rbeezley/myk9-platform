@@ -116,7 +116,7 @@ redirect:
 **Outcome:** Exhibitor sees their dog's placement, Q/NQ, and time after the class is complete.
 **Canonical routes:** `/exhibitor/entries` (result badge) → `/shows/:showId/trials/:trialId/classes/:classId/results` _(source-map re-verified 2026-09-13)_
 **Source-map note:** Re-verified 2026-09-13 after public class previews changed their anonymous data boundary; the guide-facing results flow is unchanged.
-**Source-map note:** Re-verified 2026-10-16 (MYK9-1245). Exhibitor-only accounts open My Shows (`/exhibitor/entries`) and My Dogs (`/dogs`) from two separate rail items, with no tabs (MYK9-1287, 2026-10-27, replacing MYK9-1245's single **My Shows** rail item with tabs); Find Shows (`/shows`) is reached from the page header's **Enter a Show**; from `lg` `/exhibitor/entries` is a list of shows with the selected show's entries beside it. The result badge still sits on the entry card in the show's detail pane; Exhibitor Guide § Results is unchanged.
+**Source-map note:** Re-verified 2026-10-16 (MYK9-1245). Exhibitor-only accounts open My Shows (`/exhibitor/entries`) and My Dogs (`/dogs`) from two separate rail items, with no tabs (MYK9-1287, 2026-10-27, replacing MYK9-1245's single **My Shows** rail item with tabs); Find Shows (`/shows`) is reached from the page header's **Enter a Show**; `/exhibitor/entries` is one column at every width (MYK9-1447, re-verified on production 2026-10-28): Today, then Upcoming shows with each show's entries inline, then a collapsed **Past shows** section; `?show=<id>` scrolls to that show. The result badge sits on the entry card inside the show's section; Exhibitor Guide § Results is unchanged.
 **Docs target:** Exhibitor Guide § Results, KB: `view-results.md`
 
 ### 8. Message the show team

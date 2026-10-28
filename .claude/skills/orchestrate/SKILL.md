@@ -141,12 +141,10 @@ commands check `main`, not the proposed change.
          assertion. Dispatch the `verifier` with the issue's repro (e2e spec, browser at the
          stated width) against the branch worktree and against `main` as a control that must
          fail, and read its output, not its summary
-3. `independent` floor only: when you ship (step 6), after the PR is open and before the
-   first Codex run, run the `ship-pr` Step 4 pre-pass: Claude's `/code-review` via
-   `scripts/qa/claude-review.sh` without `--post`, with a `sonnet` fallback if it exits 2. Fix
-   what you agree with, commit, and push before the Codex run. It posts nothing and is not gate evidence; it counts as one
-   Mac heavy job. The PR body records `pre-pass: N findings fixed`, and `Codex rounds: M` at
-   the end.
+3. `independent` floor only: before the first Codex run, dispatch one read-only `sonnet` lens
+   on `git diff origin/main...HEAD` to find defects (never approve), fix what you agree with,
+   and commit. It posts nothing and is not gate evidence; it counts as one Mac heavy job. The PR
+   body records `pre-pass: N findings fixed`, and `Codex rounds: M` at the end (`ship-pr` Step 4).
 4. On failure, send the same agent (SendMessage, which keeps its context) a numbered defect list
    and re-review. **Max 3 rounds.** After that, escalate (see Model routing) or implement it
    yourself. A cheap model looping past the point where you'd be faster is waste.

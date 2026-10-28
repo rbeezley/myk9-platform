@@ -163,19 +163,7 @@ PR_NUMBER=$(gh pr view --json number -q '.number')
 
 **Never type an evidence comment by hand.** `scripts/qa/post-review-gate.sh` is the only writer of `Review gate:` comments; both wrappers call it for you. A hand-typed line attests to a review nobody can check — the poster hashes the log it posts and refuses a log that does not carry the reviewer's clean contract sentence.
 
-**Pre-pass (`independent` tier only).** Before the first Codex run, review the pushed PR head once (one Mac heavy job against the orchestrate cap). Fix every finding you agree with, commit, and **push before the Codex run** (the gate's evidence names the PR head), so Codex reviews a second draft. It posts nothing and is not gate evidence. Record `pre-pass: N findings fixed` in the PR body, and `Codex rounds: M` once the gate is green.
-
-- **Claude Code author:** run Claude Code's built-in `/code-review` through `scripts/qa/claude-review.sh` WITHOUT `--post`, once, from the worktree with the PR head pushed (it refuses a local HEAD that differs from the PR head). A review takes 5-20 minutes, so start it as ONE Bash background task (`run_in_background`) and wait for its completion notice; do not use `--detach`/`--wait` and never wrap it in `timeout`:
-
-  ```bash
-  bash scripts/qa/claude-review.sh $PR_NUMBER > .logs/pre-pass.log 2>&1
-  ```
-
-  That process's exit code is the final verdict: 0 clean, 1 findings (log: `.logs/claude-review-<head-sha>.log`), 2 did not run. **Ignore its "re-run with --post" hint on a clean run**: on a Claude-authored PR that would post same-harness evidence, and only Codex meets the `independent` floor. On exit 2 (or any other code), fall back to the sub-agent below.
-
-- **Codex author, or the Claude lens exited 2:** one read-only `sonnet` sub-agent on `git diff origin/main...HEAD`, told to find defects and never to approve, answering as `- [P<n>] file:line finding` bullets.
-
-Claude's built-in `/security-review` is deliberately not used: the `security-audit` skill's diff mode covers it with this repo's RLS, grant and RPC traps.
+**Pre-pass (`independent` tier only).** Before the first Codex run, dispatch one read-only `sonnet` sub-agent (one Mac heavy job against the orchestrate cap) with `git diff origin/main...HEAD`, told to find defects and never to approve, answering as `- [P<n>] file:line finding` bullets. Fix every finding you agree with and commit, so Codex reviews a second draft. It posts nothing and is not gate evidence. Record `pre-pass: N findings fixed` in the PR body, and `Codex rounds: M` once the gate is green.
 
 **Author is Claude Code → Codex reviews.** Run the wrapper from the worktree, foreground:
 

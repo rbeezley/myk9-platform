@@ -772,20 +772,37 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   }
 
   /**
-   * Settle owed classes the sync both looked up and applied. A class with an unsent local edit
-   * was not overwritten by the sync, so it stays owed until a later sync applies its count.
+   * Owed classes holding an unsent edit under any account on this device. The sync skips or
+   * merges such a row rather than writing the server copy, so its count may not have applied.
    */
-  private async settleAppliedOwed(answered: Set<string>): Promise<void> {
-    const settled: string[] = [];
+  private async owedWithUnsentEdits(): Promise<Set<string>> {
+    const dirty = new Set<string>();
     for (const id of owedHideCountClassIds(undefined)) {
-      if (answered.has(id) && !(await this.getReplicatedRow(id))?.isDirty) settled.push(id);
+      if ((await this.getReplicatedRowIncludingOtherAccounts(id))?.isDirty) dirty.add(id);
     }
-    settleHideCountsOwed(settled);
+    return dirty;
+  }
+
+  /**
+   * Settle owed classes the sync both looked up and applied: answered in this sync, and holding
+   * no unsent edit when it started or now. Any other stays owed for a later sync.
+   */
+  private async settleAppliedOwed(
+    answered: Set<string>,
+    dirtyAtStart: Set<string>
+  ): Promise<void> {
+    const dirtyNow = await this.owedWithUnsentEdits();
+    settleHideCountsOwed(
+      owedHideCountClassIds(undefined).filter(
+        id => answered.has(id) && !dirtyAtStart.has(id) && !dirtyNow.has(id)
+      )
+    );
   }
 
   async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
     const answered = new Set<string>();
+    const dirtyAtStart = await this.owedWithUnsentEdits();
 
     const adapter: SyncReplicatedTableAdapter<EnrichedClassRow, ReplicatedClass> = {
       ...this.getRowRefetchAdapter(),
@@ -859,7 +876,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       }
     );
 
-    if (result.success) await this.settleAppliedOwed(answered);
+    if (result.success) await this.settleAppliedOwed(answered, dirtyAtStart);
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);

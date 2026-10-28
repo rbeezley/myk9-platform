@@ -314,6 +314,52 @@ describe('class sync when the hide-count lookup fails (MYK9-1451)', () => {
     expect(owedHideCountClassIds(TRIAL)).toEqual([ID]);
   });
 
+  it('retries owed classes on the all-trials sync too', async () => {
+    lookupDown();
+    await sync();
+    changedClasses = [];
+    officialLookup({ data: [{ class_id: ID, num_hides: 7 }], error: null });
+
+    expect((await table.sync('')).success).toBe(true);
+
+    expect(await hideCount()).toBe(7);
+    expect(owedHideCountClassIds(TRIAL)).toEqual([]);
+  });
+
+  it('keeps a class owed when it held an unsent edit as the sync started', async () => {
+    lookupDown();
+    await sync();
+    changedClasses = [];
+    officialLookup({ data: [{ class_id: ID, num_hides: 7 }], error: null });
+    const realRead = table.getReplicatedRowIncludingOtherAccounts.bind(table);
+    vi.spyOn(table, 'getReplicatedRowIncludingOtherAccounts').mockImplementationOnce(async id => {
+      const row = await realRead(id);
+      return row ? { ...row, isDirty: true } : row;
+    });
+
+    expect((await sync()).success).toBe(true);
+
+    expect(owedHideCountClassIds(TRIAL)).toEqual([ID]);
+  });
+
+  it("keeps a class owed while another account's unsent edit holds its row", async () => {
+    lookupDown();
+    await sync();
+    changedClasses = [];
+    officialLookup({ data: [{ class_id: ID, num_hides: 7 }], error: null });
+    const realRead = table.getReplicatedRowIncludingOtherAccounts.bind(table);
+    vi.spyOn(table, 'getReplicatedRowIncludingOtherAccounts').mockImplementation(async id => {
+      const row = await realRead(id);
+      return row ? { ...row, isDirty: true, ownerAuthUserId: 'other-account' } : row;
+    });
+    // The signed-in account's own view does not see the other account's row.
+    vi.spyOn(table, 'getReplicatedRow').mockResolvedValue(null);
+
+    expect((await sync()).success).toBe(true);
+
+    expect(owedHideCountClassIds(TRIAL)).toEqual([ID]);
+  });
+
   it('keeps reading later owed chunks when one fails', async () => {
     const many = Array.from({ length: 150 }, (_, i) => ({ ...SERVER_CLASS, id: `owed-${i}` }));
     markHideCountsOwed(many);

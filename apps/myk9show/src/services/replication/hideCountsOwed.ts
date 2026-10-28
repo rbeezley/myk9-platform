@@ -40,10 +40,10 @@ function write(owed: OwedMap): void {
   }
 }
 
-/** Owed class ids, limited to one trial when the sync is scoped to it. */
+/** Owed class ids, limited to one trial when the sync is scoped to it ('' means every trial). */
 export function owedHideCountClassIds(trialId: string | undefined): string[] {
   return Object.entries(read())
-    .filter(([, owedTrialId]) => trialId === undefined || owedTrialId === trialId)
+    .filter(([, owedTrialId]) => !trialId || owedTrialId === trialId)
     .map(([classId]) => classId);
 }
 

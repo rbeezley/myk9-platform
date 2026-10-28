@@ -82,10 +82,11 @@ jobs:
         run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
 
       - name: Run read-only nightly health
-        run: mkdir -p apps/myk9show/test-results/netlog && pnpm qa:nightly:health
+        run: mkdir -p "$RUNNER_TEMP/netlog" && pnpm qa:nightly:health
         env:
           CI: 'true'
-          MYK9_NETLOG_DIR: ${{ github.workspace }}/apps/myk9show/test-results/netlog
+          # Outside test-results: Playwright empties that folder when the run starts.
+          MYK9_NETLOG_DIR: ${{ runner.temp }}/netlog
           # The stack is seeded, so a canary with no qualifying row FAILS instead of
           # skipping (liveCanary.DATA_REQUIRED); a skip would pass having checked nothing.
           MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
@@ -113,7 +114,7 @@ jobs:
         id: verify-netlog
         if: always()
         working-directory: apps/myk9show
-        run: pnpm exec tsx scripts/verify-artifact-secrets.ts test-results/netlog
+        run: pnpm exec tsx scripts/verify-artifact-secrets.ts "$RUNNER_TEMP/netlog"
         env:
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
@@ -125,7 +126,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: myk9show-nightly-health-netlog
-          path: apps/myk9show/test-results/netlog/
+          path: ${{ runner.temp }}/netlog/
           retention-days: 3
 
       - name: Upload route-health report

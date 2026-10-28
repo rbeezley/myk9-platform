@@ -14,6 +14,7 @@ import {
   REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
   REPLICATION_STORES,
   type DirtyRowComparePolicy,
+  type MutationManager,
   type ReplicatedRow,
   type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
@@ -44,6 +45,14 @@ import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeF
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
 import type { Database } from '@/types/supabase';
 import { buildRingsideClassRpc } from './ringsideClassRpc';
+import {
+  SET_CLASS_JUDGE_RPC,
+  discardSupersededPicks,
+  hasUnsentClassJudgePick,
+  judgeFieldsAfterPick,
+  planClassJudgePick,
+  type ClassJudgeTarget,
+} from './classJudgePick';
 import type { TimeLimitRule } from './resolveClassTimeLimitRules';
 
 /**
@@ -337,8 +346,8 @@ const CLASS_JUDGE_FIELDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * MYK9-1327: a judge change is written onto the local class row
- * (`writeClassJudgeLocally`), while the server derives the row's judge from
+ * MYK9-1327: a judge pick is written onto the local class row
+ * (`setClassJudge`), while the server derives the row's judge from
  * `judge_assignments`. A pull that reaches the row before its writes upload therefore
  * shows the server mid-way (this device's own earlier pick, or a name lookup that did
  * not run), which is not a change to collide with. So the judge fields never count as
@@ -427,6 +436,19 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
 
   constructor() {
     super('classes', { logger });
+  }
+
+  private pickQueue: MutationManager | null = null;
+
+  /**
+   * Discarding a refused class write puts the row back to the server's state (MYK9-1076), so a
+   * discarded `set_class_judge` does not leave the refused judge on a row that stays dirty.
+   */
+  protected override readonly revertsOnDiscard = true;
+
+  override setMutationManager(manager: MutationManager): void {
+    super.setMutationManager(manager);
+    this.pickQueue = manager;
   }
 
   /** Get the mutation ID from the last create/update operation */
@@ -1061,6 +1083,53 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         : { name: 'clear_class_judge_sign_off', args: { p_class_id: classId } }
     );
     this._lastMutationId = mutationId;
+    return mutationId;
+  }
+
+  /** True while a `set_class_judge` pick for this class is pending or parked for Retry. */
+  async hasUnsentJudgePick(classId: string): Promise<boolean> {
+    return this.pickQueue ? hasUnsentClassJudgePick(this.pickQueue, classId) : false;
+  }
+
+  /**
+   * MYK9-1327: pick (or, with `null`, remove) a class's judge as ONE queued `set_class_judge` RPC,
+   * which replaces the class's judge assignment atomically on the server. The local row shows the
+   * pick now; the row stays dirty while the pick is queued, so a pull never restores the old judge
+   * (CLASS_DIRTY_ROW_COMPARE_POLICY). The pick waits for this class's pending INSERT and for an
+   * earlier pick, and discards earlier FAILED picks so Retry cannot replay an old intent.
+   */
+  async setClassJudge(classId: string, judge: ClassJudgeTarget | null): Promise<string | null> {
+    const currentClass = await this.get(classId);
+    if (!currentClass) throw new Error(`Class ${classId} not found`);
+
+    const plan = this.pickQueue
+      ? await planClassJudgePick(this.pickQueue, classId)
+      : { dependsOn: undefined, supersededFailedIds: [] };
+    await this.set(
+      classId,
+      {
+        ...currentClass,
+        ...judgeFieldsAfterPick(currentClass, judge),
+        _lastModified: new Date(),
+        _syncStatus: 'pending',
+      },
+      true
+    );
+    invalidateClassEnrichment();
+    const mutationId = await this.queueMutation(
+      'UPDATE',
+      classId,
+      { id: classId },
+      plan.dependsOn,
+      {
+        name: SET_CLASS_JUDGE_RPC,
+        args: { p_class_id: classId, p_person_id: judge?.personId ?? null },
+      }
+    );
+    this._lastMutationId = mutationId;
+    if (this.pickQueue && mutationId) {
+      await discardSupersededPicks(this.pickQueue, plan.supersededFailedIds);
+    }
     return mutationId;
   }
 

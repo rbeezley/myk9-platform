@@ -374,38 +374,9 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
   }
 
   /**
-   * Replace the assignment for a single class: deletes any existing class-level
-   * assignment(s), then creates a new one unless `judgeId` is null (removal).
-   * Mirrors `upsertClassJudgeAssignment`'s delete-then-insert semantics.
-   */
-  async replaceClassAssignment(
-    showId: string,
-    classId: string,
-    judgeId: string | null
-  ): Promise<void> {
-    const existing = (await this.readAllForWrite()).filter(a => a.classId === classId);
-    for (const row of existing) {
-      await this.deleteAssignment(row.id);
-    }
-    if (judgeId) {
-      await this.createAssignment({
-        personId: judgeId,
-        showId,
-        trialId: null,
-        classId,
-        status: 'confirmed',
-        invitedAt: null,
-        confirmedAt: new Date().toISOString(),
-        fee: null,
-        notes: null,
-      });
-    }
-  }
-
-  /**
    * Reassign a class's judge in place (update, not delete+insert) to preserve the
-   * assignment's identity/history. No-ops if no local row matches the from/class/show
-   * filter, mirroring the raw `.eq()` update's silent no-match behavior.
+   * assignment's identity/history. Throws when no local row matches the from/class/show
+   * filter: a reassignment that queued nothing must never read as done.
    */
   async reassignClassAssignment(
     showId: string,
@@ -417,7 +388,11 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     const match = all.find(
       a => a.classId === classId && a.showId === showId && a.personId === fromPersonId
     );
-    if (!match) return;
+    if (!match) {
+      throw new Error(
+        `No assignment of judge ${fromPersonId} found for class ${classId} to reassign`
+      );
+    }
     await this.updateAssignment(match.id, { personId: toPersonId });
   }
 }

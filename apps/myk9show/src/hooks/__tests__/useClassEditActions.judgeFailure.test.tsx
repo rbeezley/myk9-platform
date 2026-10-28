@@ -4,12 +4,7 @@ import { useClassEditActions } from '../useClassEditActions';
 const mocks = vi.hoisted(() => ({ prepare: vi.fn(), sync: vi.fn(), load: vi.fn() }));
 vi.mock('@/hooks/useConnectionHint', () => ({ useConnectionHint: () => undefined }));
 vi.mock('@/services/replication', () => ({
-  replicatedJudgeAssignmentsTable: { replaceClassAssignment: mocks.prepare },
-  replicatedClassesTable: {
-    sync: mocks.sync,
-    updateClass: vi.fn(async () => 'queued-touch'),
-    getClassById: vi.fn(async () => null),
-  },
+  replicatedClassesTable: { sync: mocks.sync, setClassJudge: mocks.prepare },
 }));
 vi.mock('@/store/trialStore', () => ({
   useTrialStore: { getState: () => ({ loadTrialClasses: mocks.load }) },
@@ -36,7 +31,7 @@ describe('required judge preparation', () => {
     expect(mocks.sync).not.toHaveBeenCalled();
     expect(mocks.load).not.toHaveBeenCalled();
     await result.current.saveClass('c1', { judgeId: 'j2' }, 't1', 'j1');
-    expect(mocks.prepare).toHaveBeenCalledWith('s1', 'c1', 'j2');
+    expect(mocks.prepare).toHaveBeenCalledWith('c1', expect.objectContaining({ personId: 'j2' }));
     expect(updateClass).toHaveBeenCalledWith('c1', { judgeId: 'j2' });
   });
   it('keeps prepared saves successful when cache sync fails', async () => {
@@ -46,7 +41,7 @@ describe('required judge preparation', () => {
     await expect(
       result.current.saveClass('c1', { judgeId: 'j2' }, 't1', 'j1')
     ).resolves.toBeUndefined();
-    expect(mocks.prepare).toHaveBeenCalledWith('s1', 'c1', 'j2');
+    expect(mocks.prepare).toHaveBeenCalledWith('c1', expect.objectContaining({ personId: 'j2' }));
     expect(updateClass).toHaveBeenCalledWith('c1', { judgeId: 'j2' });
   });
 });

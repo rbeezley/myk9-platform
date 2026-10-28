@@ -4,22 +4,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   applyShowLevelJudgeChanges: vi.fn(async () => undefined),
   createAssignment: vi.fn(async () => ({ id: 'new-1' })),
-  replaceClassAssignment: vi.fn(async () => undefined),
   reassignClassAssignment: vi.fn(async () => undefined),
-  updateClass: vi.fn(async () => 'mutation-1'),
-  getClassById: vi.fn(async (): Promise<Record<string, unknown> | null> => null),
+  setClassJudge: vi.fn(async () => 'mutation-1'),
+  hasUnsentJudgePick: vi.fn(async () => false),
 }));
 
 vi.mock('@/services/replication', () => ({
   replicatedJudgeAssignmentsTable: {
     applyShowLevelJudgeChanges: mocks.applyShowLevelJudgeChanges,
     createAssignment: mocks.createAssignment,
-    replaceClassAssignment: mocks.replaceClassAssignment,
     reassignClassAssignment: mocks.reassignClassAssignment,
   },
   replicatedClassesTable: {
-    updateClass: mocks.updateClass,
-    getClassById: mocks.getClassById,
+    setClassJudge: mocks.setClassJudge,
+    hasUnsentJudgePick: mocks.hasUnsentJudgePick,
   },
 }));
 
@@ -135,116 +133,49 @@ describe('saveShowJudgeChanges (an edit)', () => {
 describe('upsertClassJudgeAssignment', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.replaceClassAssignment.mockResolvedValue(undefined);
+    mocks.setClassJudge.mockResolvedValue('mutation-1');
   });
 
-  it('replaces the class assignment through the replicated table', async () => {
-    await upsertClassJudgeAssignment('show-1', 'class-1', 'judge-1');
-
-    expect(mocks.replaceClassAssignment).toHaveBeenCalledWith('show-1', 'class-1', 'judge-1');
-  });
-
-  it('treats TBD as a removal (null judgeId)', async () => {
-    await upsertClassJudgeAssignment('show-1', 'class-1', 'TBD');
-
-    expect(mocks.replaceClassAssignment).toHaveBeenCalledWith('show-1', 'class-1', null);
-  });
-
-  it('touches the class through the replicated table (offline-safe) after the assignment write', async () => {
-    await upsertClassJudgeAssignment('show-1', 'class-1', 'judge-1');
-
-    expect(mocks.updateClass).toHaveBeenCalledWith(
-      'class-1',
-      expect.objectContaining({ _lastModified: expect.any(Date) })
-    );
-    // Must not fall back to a direct, offline-unsafe Supabase write.
-    expect(untypedFromMocks.untypedFromMock).not.toHaveBeenCalledWith('classes');
-  });
-
-  // MYK9-1327: the class row every screen reads carries the new judge at once, offline and
-  // across a reload, instead of the old one until replication syncs.
-  it('writes the picked judge onto the local class row', async () => {
+  // MYK9-1327: one pick is ONE queued set_class_judge mutation, written through the class table.
+  it('queues the pick through the class table with the picked judge', async () => {
     await upsertClassJudgeAssignment('show-1', 'class-1', 'judge-1', {
       name: 'Jane Judge',
       firstName: 'Jane',
       lastName: 'Judge',
     });
 
-    expect(mocks.updateClass).toHaveBeenCalledWith(
-      'class-1',
-      expect.objectContaining({
-        judgeId: 'judge-1',
-        judgeName: 'Jane Judge',
-        judgeFirstName: 'Jane',
-        judgeLastName: 'Judge',
-        judgeResolved: true,
-      })
-    );
+    expect(mocks.setClassJudge).toHaveBeenCalledTimes(1);
+    expect(mocks.setClassJudge).toHaveBeenCalledWith('class-1', {
+      personId: 'judge-1',
+      name: 'Jane Judge',
+      firstName: 'Jane',
+      lastName: 'Judge',
+    });
   });
 
-  it('clears the judge from the local class row on a removal', async () => {
+  it('treats TBD as a removal (null judge)', async () => {
     await upsertClassJudgeAssignment('show-1', 'class-1', 'TBD');
 
-    const [, updates] = mocks.updateClass.mock.calls[0] as unknown as [
-      string,
-      Record<string, unknown>,
-    ];
-    expect(updates).toMatchObject({ judgeResolved: true });
-    expect(updates.judgeId).toBeUndefined();
-    expect(updates.judgeName).toBeUndefined();
-    expect(updates.judgeFirstName).toBeUndefined();
-    expect(updates.judgeLastName).toBeUndefined();
+    expect(mocks.setClassJudge).toHaveBeenCalledWith('class-1', null);
   });
 
-  it("never leaves the previous judge's name beside a new judge when no name is given", async () => {
-    mocks.getClassById.mockResolvedValueOnce({
-      id: 'class-1',
-      judgeId: 'judge-old',
-      judgeName: 'Old Judge',
-      judgeFirstName: 'Old',
-      judgeLastName: 'Judge',
-    });
+  it('treats an empty judge id as a removal', async () => {
+    await upsertClassJudgeAssignment('show-1', 'class-1', '');
 
+    expect(mocks.setClassJudge).toHaveBeenCalledWith('class-1', null);
+  });
+
+  it('writes no judge_assignments row and no plain class update', async () => {
     await upsertClassJudgeAssignment('show-1', 'class-1', 'judge-1');
 
-    const [, updates] = mocks.updateClass.mock.calls[0] as unknown as [
-      string,
-      Record<string, unknown>,
-    ];
-    expect(updates).toMatchObject({ judgeId: 'judge-1', judgeResolved: true });
-    expect(updates.judgeName).toBeUndefined();
-    expect(updates.judgeFirstName).toBeUndefined();
+    expect(mocks.createAssignment).not.toHaveBeenCalled();
+    expect(untypedFromMocks.untypedFromMock).not.toHaveBeenCalled();
   });
 
-  it("keeps the row's name when no name is given and the row already names that judge", async () => {
-    // The wizard creates the class with the judge's name, then writes the assignment.
-    mocks.getClassById.mockResolvedValueOnce({
-      id: 'class-1',
-      judgeId: 'judge-1',
-      judgeName: 'Jane Judge',
-      judgeFirstName: 'Jane',
-      judgeLastName: 'Judge',
-    });
+  it('wraps a failure in a judge_assignments database error', async () => {
+    mocks.setClassJudge.mockRejectedValueOnce(new Error('offline queue full'));
 
-    await upsertClassJudgeAssignment('show-1', 'class-1', 'judge-1');
-
-    expect(mocks.updateClass).toHaveBeenCalledWith(
-      'class-1',
-      expect.objectContaining({
-        judgeId: 'judge-1',
-        judgeName: 'Jane Judge',
-        judgeFirstName: 'Jane',
-      })
-    );
-  });
-
-  it('wraps a replace failure in a judge_assignments database error', async () => {
-    mocks.replaceClassAssignment.mockRejectedValueOnce(new Error('offline queue full'));
-
-    // MYK9-181: assert the table/operation `createDatabaseError` records on
-    // the error. The old file-local mock folded them into the message as
-    // `table:operation:msg`, a format production never emits — so the old
-    // assertion could only ever pass against that mock.
+    // MYK9-181: assert the table/operation `createDatabaseError` records on the error.
     await expect(upsertClassJudgeAssignment('show-1', 'class-1', 'judge-1')).rejects.toMatchObject({
       name: 'DatabaseError',
       table: 'judge_assignments',
@@ -258,9 +189,10 @@ describe('reassignClassJudge', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.reassignClassAssignment.mockResolvedValue(undefined);
+    mocks.hasUnsentJudgePick.mockResolvedValue(false);
   });
 
-  it('reassigns through the replicated table', async () => {
+  it('reassigns in place through the replicated table when no pick is queued', async () => {
     await reassignClassJudge('show-1', 'class-1', 'judge-1', 'judge-2');
 
     expect(mocks.reassignClassAssignment).toHaveBeenCalledWith(
@@ -269,24 +201,21 @@ describe('reassignClassJudge', () => {
       'judge-1',
       'judge-2'
     );
+    expect(mocks.setClassJudge).not.toHaveBeenCalled();
   });
 
-  it('touches the class through the replicated table after reassigning', async () => {
+  it('queues another set_class_judge, and no in-place update, while a pick is unsent', async () => {
+    mocks.hasUnsentJudgePick.mockResolvedValue(true);
+
     await reassignClassJudge('show-1', 'class-1', 'judge-1', 'judge-2');
 
-    expect(mocks.updateClass).toHaveBeenCalledWith(
-      'class-1',
-      expect.objectContaining({ _lastModified: expect.any(Date) })
-    );
+    expect(mocks.setClassJudge).toHaveBeenCalledWith('class-1', { personId: 'judge-2' });
+    expect(mocks.reassignClassAssignment).not.toHaveBeenCalled();
   });
 
   it('wraps a reassign failure in a judge_assignments database error', async () => {
     mocks.reassignClassAssignment.mockRejectedValueOnce(new Error('no match'));
 
-    // MYK9-181: assert the table/operation `createDatabaseError` records on
-    // the error. The old file-local mock folded them into the message as
-    // `table:operation:msg`, a format production never emits — so the old
-    // assertion could only ever pass against that mock.
     await expect(
       reassignClassJudge('show-1', 'class-1', 'judge-1', 'judge-2')
     ).rejects.toMatchObject({

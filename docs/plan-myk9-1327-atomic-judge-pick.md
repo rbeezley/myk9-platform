@@ -1,6 +1,6 @@
 # Atomic class-judge pick (MYK9-1327, Option C)
 
-> **Status:** Active (design approved by the owner 2026-10-28; implementation not started)
+> **Status:** Active (design approved by the owner 2026-10-28; Batches 1 and 2 merged, Batch 3 built and awaiting review and Walk C)
 
 ## Why
 
@@ -116,6 +116,14 @@ The secretary sees the old judge come back. Five rounds of client-side reconstru
      - `packages/replication` shuffled.
    - Review tier: independent (a replication engine path).
 3. **The fix:** `setClassJudge`, the dependency and supersede helpers, rewiring `upsertClassJudgeAssignment`, and the deletions. It ships only after Batch 1 is live.
+   - **Built (2026-10-28):**
+     - `ReplicatedClassesTable.setClassJudge` plus `classJudgePick.ts` (`planClassJudgePick`, `discardSupersededPicks`, `hasUnsentClassJudgePick`, `judgeFieldsAfterPick`). One pick queues one baked-args `set_class_judge` UPDATE. It depends on the class's pending INSERT and on its latest pending or failed pick, and it discards the class's earlier failed picks once it is queued.
+     - `upsertClassJudgeAssignment` calls `setClassJudge`, with its signature unchanged. `writeClassJudgeLocally`, `touchClassForJudgeSync` and `ReplicatedJudgeAssignmentsTable.replaceClassAssignment` are deleted.
+     - `reassignClassJudge` queues a chained `set_class_judge` while the class has an unsent pick, and otherwise updates in place. `reassignClassAssignment` now throws when it finds no match.
+     - The classes table opts in to `revertsOnDiscard` (MYK9-1076). The plan assumed a discarded failed class write already reverted its row; it did not, so a discarded pick left the refused judge on a dirty row. Discard now restores the row to its base, then re-fetches.
+     - Verified: `useClassEditActions`' follow-up `updateClass` sends no judge columns (`mapClassInputToUpdate` maps none), so Setup → Classes writes the judge only through the pick.
+     - Migration `20261028185300_myk9_1327_one_judge_per_class.sql` adds the partial unique index (see Decision 2), with the behavioural test `myk9_1327_one_judge_per_class_test.sql`.
+
    - Tests on the real replica and queue (fake-indexeddb `MutationManager` plus `ReplicatedClassesTable`):
      - **Red before, green after:** an unrelated class UPDATE acks while the pick is backed off, then a pull returns the old judge. The local judge stays the new one.
      - Retry success: the row goes clean and shows the picked judge; a later queued class edit rebases through the OCC conflict path and lands.
@@ -147,7 +155,7 @@ The secretary sees the old judge come back. Five rounds of client-side reconstru
 Codex reviewed this plan twice. Round 1's three findings are folded in above. Round 2's two were put to the owner as a convergence stop, and decided:
 
 1. ~~**Discard after a sibling edit has uploaded: field-scoped discard.**~~ **Moot after the Amendment:** a parked pick no longer holds the row, so a sibling's ack cleans it and Discard has nothing to revert. Discarding a parked `set_class_judge` re-reads that class from the server through the existing row-refetch adapter (`getRowRefetchAdapter().fetchRowsById`) and overwrites only the judge fields with the server's values. It clears dirty only if nothing else is pending or parked for the row. Every other discard keeps the whole-row `newerLocalWrite` guard in `mutation-discard-revert.ts`. This belongs in Batch 2 (engine) or Batch 3 (the class table's discard hook). Test: a pick parks, an unrelated class edit uploads, Discard; the judge returns to the server's value and the row is clean.
-2. **Old clients during the rollout: accepted, pre-launch.** Every client today is the owner's or a test device, and the PWA update prompt moves them to the new version. No unique index is added. This is a known window, and if it ever matters the remedy is a partial unique index on confirmed class-level rows.
+2. **Old clients during the rollout: accepted, pre-launch.** Every client today is the owner's or a test device, and the PWA update prompt moves them to the new version. This is a known window. **Remedy, now built in Batch 3:** the partial unique index `judge_assignments_one_confirmed_judge_per_class` on confirmed class-level rows (`20261028185300`), which ships in the same release as the client switch. The live database had 0 classes with more than one confirmed judge on 2026-10-28.
 
 ## Amendment (owner, 2026-10-28, after Batch 2's Codex rounds)
 

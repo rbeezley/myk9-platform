@@ -411,66 +411,12 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
       });
     });
 
-    it('replaceClassAssignment refuses rather than adding a second judge', async () => {
-      const create = vi.spyOn(table, 'createAssignment');
-      await expect(table.replaceClassAssignment('show-1', 'class-1', 'judge-2')).rejects.toThrow(
-        /Could not read this show's judge assignments/
-      );
-      expect(create).not.toHaveBeenCalled();
-    });
-
     it('reassignClassAssignment fails instead of reporting a no-op success', async () => {
       const update = vi.spyOn(table, 'updateAssignment');
       await expect(
         table.reassignClassAssignment('show-1', 'class-1', 'judge-1', 'judge-2')
       ).rejects.toThrow(/Could not read this show's judge assignments/);
       expect(update).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('replaceClassAssignment', () => {
-    it('removes the old class assignment and creates the new one', async () => {
-      await table.set('ja-1', {
-        id: 'ja-1',
-        personId: 'judge-old',
-        showId: 'show-1',
-        trialId: null,
-        classId: 'class-1',
-        status: 'confirmed',
-        invitedAt: null,
-        confirmedAt: null,
-        fee: null,
-        notes: null,
-        ...NULL_ENRICHMENT,
-      });
-
-      await table.replaceClassAssignment('show-1', 'class-1', 'judge-new');
-
-      expect(await table.get('ja-1')).toBeNull();
-      const all = await table.getByShowId('show-1');
-      expect(all).toHaveLength(1);
-      expect(all[0].personId).toBe('judge-new');
-      expect(all[0].classId).toBe('class-1');
-    });
-
-    it('removes the assignment without creating a replacement when judgeId is null', async () => {
-      await table.set('ja-1', {
-        id: 'ja-1',
-        personId: 'judge-old',
-        showId: 'show-1',
-        trialId: null,
-        classId: 'class-1',
-        status: 'confirmed',
-        invitedAt: null,
-        confirmedAt: null,
-        fee: null,
-        notes: null,
-        ...NULL_ENRICHMENT,
-      });
-
-      await table.replaceClassAssignment('show-1', 'class-1', null);
-
-      expect(await table.getByShowId('show-1')).toHaveLength(0);
     });
   });
 
@@ -496,7 +442,7 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
       expect(result?.personId).toBe('judge-to');
     });
 
-    it('no-ops when no local row matches the from-judge/class/show filter', async () => {
+    it('throws, and changes nothing, when no local row matches the from-judge/class/show filter', async () => {
       await table.set('ja-1', {
         id: 'ja-1',
         personId: 'judge-from',
@@ -511,7 +457,9 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
         ...NULL_ENRICHMENT,
       });
 
-      await table.reassignClassAssignment('show-1', 'class-1', 'judge-nonexistent', 'judge-to');
+      await expect(
+        table.reassignClassAssignment('show-1', 'class-1', 'judge-nonexistent', 'judge-to')
+      ).rejects.toThrow(/No assignment of judge judge-nonexistent found for class class-1/);
 
       const result = await table.get('ja-1');
       expect(result?.personId).toBe('judge-from');

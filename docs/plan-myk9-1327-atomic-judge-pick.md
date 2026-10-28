@@ -57,10 +57,11 @@ The secretary sees the old judge come back. Five rounds of client-side reconstru
   - While any pick is backed off or parked, the row stays dirty, so pulls never overwrite it (`CLASS_DIRTY_ROW_COMPARE_POLICY` judge `fieldGroups`).
   - Discarding a parked A releases B and C, because a missing dependency counts as satisfied.
 - **Engine change (small).** `mutation-execute.ts:165` reads `newServerVersion` only from a numeric return. It should also accept `returned.version` from a jsonb return. That goes in a pure helper beside `getReturnedServerVersion` in `mutation-occ.ts`. After the ack the row's `serverVersion` equals the post-trigger version, so `isOlderThanRow` (`ReplicatedTableBatch.ts:149, 282`) skips any stale pull.
+- **A parked mutation keeps its row dirty (engine change, required).** `markReplicatedRowSynced` (`mutation-row-sync.ts:27-29, 47`) decides "still dirty" from the PENDING queue only. A pick that has parked has already moved to `FAILED_MUTATIONS`. So when an unrelated class update later acks, the row goes clean, and a pull would restore the old judge over a recoverable pick (Codex, 2026-10-28). The fix: count the same owner's failed mutations for the same table and row as keeping it dirty. This is a general rule for every table, since a parked edit of any kind should not be overwritten while Retry or Discard is still offered.
 - **Ack mapper (optional, separable).** A per-table mapper writes the RPC's returned judge onto the row when it goes clean. This stores the server's one answer, and it covers a person the server resolves differently, for example a soft-deleted one.
 - **Failure states:**
   - Network errors back off, with the row dirty and showing the pick.
-  - `42501` parks as authorization; `P0002` and `22023` park as permanent.
+  - `42501` parks as authorization; `P0002` and `22023` park as permanent. Today `isRetryableError` (`packages/replication/src/mutation-utils.ts`, called from `mutation-retry.ts:28`) treats unknown codes as retryable, so both codes must be added to its permanent list. Otherwise they back off until max retries.
   - Sync issues offers Retry or Discard, and Discard reverts the row to the server state. Nothing reverts silently.
 
 ### 3. Deleted vs kept
@@ -83,13 +84,13 @@ The secretary sees the old judge come back. Five rounds of client-side reconstru
 
 ### 4. Entry points
 
-| Entry point                                             | Under Option C                                                                                                     |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Show-home class panel (`useClassJudgeAssignment.ts:80`) | Moves through `upsertClassJudgeAssignment`.                                                                        |
-| Bulk Assign judge (`useBulkJudgeAssignment.ts:55`)      | One RPC mutation per class.                                                                                        |
-| Setup → Classes (`useClassEditActions.ts:55`)           | Moves. Verify that its follow-up `updateClass` sends no judge columns.                                             |
-| Wizard offline path (`createWizardClasses.ts:17`)       | Moves. Its `dependsOn` on the pending class INSERT is required.                                                    |
-| Waitlist reassign (`reassignClassJudge`)                | Keeps its in-place assignment UPDATE (which preserves the id, fee and notes). Only the redundant touch is dropped. |
+| Entry point                                             | Under Option C                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Show-home class panel (`useClassJudgeAssignment.ts:80`) | Moves through `upsertClassJudgeAssignment`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Bulk Assign judge (`useBulkJudgeAssignment.ts:55`)      | One RPC mutation per class.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Setup → Classes (`useClassEditActions.ts:55`)           | Moves. Verify that its follow-up `updateClass` sends no judge columns.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Wizard offline path (`createWizardClasses.ts:17`)       | Moves. Its `dependsOn` on the pending class INSERT is required.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Waitlist reassign (`reassignClassJudge`)                | After an offline pick, the local `judge_assignments` replica still names the previous judge. `reassignClassAssignment` looks for `fromPersonId` there and silently returns when it finds nothing (`ReplicatedJudgeAssignmentsTable.ts:420`), so the reassignment is reported but never queued (Codex, 2026-10-28). Fix in Batch 3: when the class has a pending or failed `set_class_judge`, the reassign queues another `set_class_judge` chained after it. Otherwise it keeps the in-place assignment UPDATE, which preserves the id, fee and notes. A missing match throws a clear error and never returns silently. The redundant touch is dropped. |
 
 ## Batches (one PR each, shippable on its own)
 
@@ -112,6 +113,8 @@ The secretary sees the old judge come back. Five rounds of client-side reconstru
 2. **Engine reads `{version}` from a jsonb RPC return,** plus the optional ack mapper.
    - Tests:
      - unit tests for the version extraction (a number, `{version}`, a malformed return);
+     - a parked mutation keeps its row dirty when an unrelated mutation on the same row acks, and a pull then does not overwrite it;
+     - `isRetryableError` treats `P0002` and `22023` as permanent;
      - mutation-row-sync tests: the mapper applies only when the row goes clean and the ack is not late;
      - `packages/replication` shuffled.
    - Review tier: independent (a replication engine path).
@@ -124,6 +127,8 @@ The secretary sees the old judge come back. Five rounds of client-side reconstru
      - A superseded failed pick is discarded.
      - Last writer wins after the acks.
      - The wizard pick waits for the class INSERT.
+     - A parked pick survives an unrelated class edit's ack and a pull, and stays recoverable.
+     - Offline pick then a waitlist reassign of that class: the reassign is queued as a chained `set_class_judge`, and the final judge is the reassigned one. A reassign that finds no match throws.
      - Offline reload: rebuild from IndexedDB with the mutation still queued, and the judge persists.
      - `reads.test.ts` is updated.
      - `src/services/replication` runs shuffled six times.
@@ -153,6 +158,7 @@ The secretary sees the old judge come back. Five rounds of client-side reconstru
 - The owner-scoped API for reading and discarding a row's failed mutations (`discardFailedMutation`, `MutationQueueStore.ts:253`).
 - How `isRetryableError` classifies `P0002` and `22023` (they should be permanent).
 - That the post-upload full sync re-pulls `judge_assignments`.
+- Whether making failed mutations keep rows dirty changes any existing expectation, for example a table that relied on an ack cleaning a row with a parked sibling. Grep the engine tests before the change.
 
 ## Non-goals
 

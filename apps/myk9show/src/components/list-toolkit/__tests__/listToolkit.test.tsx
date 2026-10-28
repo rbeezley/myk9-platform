@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { createPortal } from 'react-dom';
 import { render, screen, fireEvent, userEvent } from '@/test/utils/testUtils';
 import { BulkBarButton, FloatingBulkBar } from '../FloatingBulkBar';
@@ -79,6 +79,42 @@ describe('FloatingBulkBar portals', () => {
     fireEvent.keyDown(screen.getByRole('button', { name: 'In a dialog' }), { key: 'Escape' });
     expect(onClear).not.toHaveBeenCalled();
     portalTarget.remove();
+  });
+});
+
+describe('FloatingBulkBar spacer (MYK9-1444)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('reserves the wrapped bar measured height, not a fixed guess', () => {
+    // jsdom has no layout: report a three-row bar (168px) through the observer.
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private readonly callback: () => void) {}
+        observe() {
+          this.callback();
+        }
+        disconnect() {}
+      }
+    );
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      height: 168,
+    } as DOMRect);
+
+    render(
+      <FloatingBulkBar count={2} noun={NOUN} onClear={vi.fn()}>
+        <BulkBarButton onClick={vi.fn()} icon={null}>
+          Export
+        </BulkBarButton>
+      </FloatingBulkBar>
+    );
+
+    const spacer = screen.getByTestId('bulk-bar-spacer');
+    expect(spacer.style.height).toContain('168px');
+    expect(spacer).not.toHaveClass('h-24');
   });
 });
 

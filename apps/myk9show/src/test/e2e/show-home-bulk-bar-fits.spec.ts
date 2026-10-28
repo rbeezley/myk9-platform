@@ -8,7 +8,7 @@ import { signInAsSecretary } from './helpers/testUsers';
  * on a phone, and the trial heading must not wrap word by word (MYK9-1444).
  * At 375px the bar was a 341px sideways scroller holding ~778px of buttons, so
  * only Assign judge was visible. Rendered geometry only: each action's box is
- * inside the viewport and the bar does not scroll sideways.
+ * inside the viewport and the spacer reserves the wrapped bar's height.
  */
 
 interface ClassRow {
@@ -28,8 +28,14 @@ async function expectBarFits(page: Page, width: number) {
     expect(box!.x, `${name} left edge`).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width, `${name} right edge`).toBeLessThanOrEqual(width);
   }
-  const overflow = await bar.evaluate(el => el.scrollWidth - el.clientWidth);
-  expect(overflow, 'bar scrolls sideways').toBeLessThanOrEqual(1);
+  // However many rows the bar wraps to, the in-flow spacer must reserve at least its height,
+  // or the bar covers the list's last rows.
+  const barBox = await bar.boundingBox();
+  const spacerBox = await page.getByTestId('bulk-bar-spacer').boundingBox();
+  expect(spacerBox, 'spacer exists').not.toBeNull();
+  expect(spacerBox!.height, 'spacer reserves the wrapped bar').toBeGreaterThanOrEqual(
+    barBox!.height
+  );
 }
 
 for (const viewport of [

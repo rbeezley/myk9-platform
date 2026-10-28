@@ -31,6 +31,7 @@ import { verifySecretaryEmptyShow } from '@/services/database/entries/secretaryE
 import type { Database } from '@/types/supabase';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { PendingDeletes } from './pendingDeletes';
+import { clearEntriesAccessResyncMark, getEntriesAccessResyncMark } from './entriesAccessResync';
 import { entryChangedColumnsRow } from './ReplicatedEntriesTable.changedColumns';
 import {
   entryToSupabaseRow,
@@ -297,7 +298,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // Share only the active operation; the next refresh must still contact the server.
     const syncKey = `${principalId}:${showScopeId}`;
     const running = this._syncsByShow.get(syncKey);
-    const forceFullSync = options?.forceFullSync === true;
+    const forceFullSync =
+      options?.forceFullSync === true || getEntriesAccessResyncMark(showScopeId) !== null;
     // A forced full sync must not be answered by an incremental one already
     // running (MYK9-752): wait that one out, then run its own. Anything shares
     // a forced run; only an ordinary call shares an ordinary one.
@@ -347,6 +349,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   ): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
     const needsReceiptReferenceRefresh = !hasReceiptReferenceRefresh(showScopeId, principalId);
+    const accessResyncMark = getEntriesAccessResyncMark(showScopeId);
     let remoteRowCount: number | undefined;
     let receiptReferenceColumnObserved = false;
     const confirmedDeletionIds = new Set<string>();
@@ -506,10 +509,14 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       adapter,
       { value: showScopeId },
       {
-        forceFullSync: forceFullSync || needsReceiptReferenceRefresh,
+        forceFullSync: forceFullSync || needsReceiptReferenceRefresh || accessResyncMark !== null,
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
       }
     );
+
+    if (accessResyncMark !== null && result.success) {
+      clearEntriesAccessResyncMark(showScopeId, accessResyncMark);
+    }
 
     if (
       needsReceiptReferenceRefresh &&

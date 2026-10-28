@@ -6,6 +6,9 @@
  * to the viewport, it is in view wherever the selection was made. A spacer in
  * normal flow keeps it from covering the list's last rows and pagination.
  *
+ * At narrow widths the actions wrap onto further rows instead of scrolling
+ * sideways, so none is hidden off-screen (MYK9-1444).
+ *
  * Escape inside the bar clears the selection; every control is a 44px target
  * (docs/INTENT.md § 3).
  */
@@ -62,23 +65,23 @@ export function FloatingBulkBar({
 
   return (
     <>
-      <div aria-hidden="true" className="h-24" />
+      <div aria-hidden="true" className="h-40 sm:h-24" />
       <div className="pointer-events-none fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 flex justify-center px-4">
         <div
           role="toolbar"
           aria-label="Bulk actions"
           onKeyDown={handleKeyDown}
           className={cn(
-            'pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border p-1.5 text-popover-foreground',
+            'pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-1 rounded-2xl border p-1.5 text-popover-foreground',
             BAR_SURFACE
           )}
         >
           <span className="whitespace-nowrap px-3 text-sm font-semibold" aria-live="polite">
             {count.toLocaleString()} {count === 1 ? noun[0] : noun[1]} selected
           </span>
-          <span aria-hidden="true" className="h-6 w-px shrink-0 bg-border" />
+          <span aria-hidden="true" className="hidden h-6 w-px shrink-0 bg-border sm:block" />
           {children}
-          <span aria-hidden="true" className="h-6 w-px shrink-0 bg-border" />
+          <span aria-hidden="true" className="hidden h-6 w-px shrink-0 bg-border sm:block" />
           <button
             type="button"
             onClick={onClear}

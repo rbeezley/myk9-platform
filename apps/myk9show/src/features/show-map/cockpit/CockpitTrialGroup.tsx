@@ -114,7 +114,7 @@ export function CockpitTrialGroup({
           <CollapsibleTrigger
             id={getCockpitAnchorElementId(group.trialId)}
             aria-label={`${open ? 'Collapse' : 'Expand'} ${group.label}`}
-            className="min-w-0 flex-1 flex-wrap gap-x-3 gap-y-1.5 px-4 py-3 text-left hover:no-underline sm:flex-nowrap"
+            className="min-w-0 flex-[1_1_14rem] flex-wrap gap-x-3 gap-y-1.5 px-4 py-3 text-left hover:no-underline sm:flex-1 sm:flex-nowrap"
           >
             {/* Wrapped: the shared trigger rotates a direct-child svg 180deg when open. */}
             <span aria-hidden="true" className="shrink-0">

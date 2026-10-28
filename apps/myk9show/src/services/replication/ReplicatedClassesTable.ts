@@ -1093,12 +1093,13 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
    * earlier pick, and discards earlier FAILED picks so Retry cannot replay an old intent.
    */
   async setClassJudge(classId: string, judge: ClassJudgeTarget | null): Promise<string | null> {
-    const currentClass = await this.get(classId);
-    if (!currentClass) throw new Error(`Class ${classId} not found`);
-
     const plan = this.pickQueue
       ? await planClassJudgePick(this.pickQueue, classId, judge?.personId ?? null)
       : { dependsOn: undefined, supersededFailedIds: [] };
+    // Read the row only after the queue reads, right before the write, so a class edit or sync
+    // that lands while planning is merged in rather than overwritten by a stale copy.
+    const currentClass = await this.get(classId);
+    if (!currentClass) throw new Error(`Class ${classId} not found`);
     await this.set(
       classId,
       {

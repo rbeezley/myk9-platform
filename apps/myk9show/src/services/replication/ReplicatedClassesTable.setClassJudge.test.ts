@@ -235,6 +235,27 @@ describe('ReplicatedClassesTable.setClassJudge (MYK9-1327)', () => {
     expect(tablesWritten).toEqual([]);
   });
 
+  it('merges the pick into a class row that changed while the pick read the queue', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => (release = resolve));
+    const realFailed = manager.getFailedMutations.bind(manager);
+    vi.spyOn(manager, 'getFailedMutations').mockImplementation(async () => {
+      await gate;
+      return realFailed();
+    });
+
+    const picking = table.setClassJudge(ID, { personId: 'judge-b', name: 'Bob Judge' });
+    // A sync lands a renamed class while the pick is still reading the queue.
+    const before = (await row())!.data;
+    await table.set(ID, { ...before, name: 'Novice A' }, false, undefined, 4);
+    release();
+    await picking;
+
+    const after = (await row())!.data;
+    expect(after.name).toBe('Novice A');
+    expect(after.judgeId).toBe('judge-b');
+  });
+
   it('sends a null person for a removal and clears the local judge', async () => {
     await upsertClassJudgeAssignment(SHOW, ID, 'TBD');
 

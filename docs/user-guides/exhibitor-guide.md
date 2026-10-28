@@ -64,7 +64,7 @@ Before entering a show, your dog needs a profile in your account.
 
 1. Go to **My Dogs** in the navigation.
 2. Click **Add Dog**. The panel opens on the **Registration** tab.
-3. Choose the **Registration Organization**, type the **Registration Number**, and click **Find dog**. If the dog is already in myK9Show, you are offered that dog instead of a second copy.
+3. Choose the **Registration Organization**, type the **Registration Number**, and click **Find dog**. If the dog is already in myK9Show, you are offered that dog instead of a second copy. If the number belongs to a dog you cannot see, you are told it is already registered to another dog. Contact the show secretary.
 4. Otherwise, fill in the **Registered Name** and **Registered Breed** (the other registration fields are optional), then click **Save and continue**.
 
 ![E-05: Add Dog form — required fields visible](../screenshots/E-05.png)
@@ -73,7 +73,7 @@ Before entering a show, your dog needs a profile in your account.
    - **Call Name** (required) — the name used on the scoresheet
    - **Sex** (required)
    - **Date of Birth** (required)
-6. Click **Add Dog**. The **Optional details** tab (color, height, weight, microchip) can wait.
+6. Open the **Optional details** tab (color, height, weight, microchip). You can leave it blank. **Add Dog** appears on this last tab, so click it there.
 
 ![E-04: My Dogs list — dog card visible](../screenshots/E-04.png)
 

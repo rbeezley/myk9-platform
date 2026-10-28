@@ -8,7 +8,8 @@ const shellEnv = { ...process.env };
 loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
 // MYK9-1454: refuse to sign fixture accounts into production unless the run opts in.
-assertPlaywrightRunAllowed('playwright.audit.config.ts', shellEnv);
+// The audit always drives a server someone else started (PLAYWRIGHT_AUDIT_BASE_URL).
+assertPlaywrightRunAllowed('playwright.audit.config.ts', shellEnv, 'external');
 
 const target = resolveAuditTarget(process.env);
 

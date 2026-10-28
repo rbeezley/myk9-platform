@@ -1,8 +1,7 @@
 // @vitest-environment node
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { readdirSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
 
 const { createClient } = vi.hoisted(() => ({ createClient: vi.fn() }));
 vi.mock('@supabase/supabase-js', () => ({ createClient }));
@@ -11,8 +10,9 @@ import {
   ALLOW_PRODUCTION_FIXTURE_SIGN_IN,
   assertFixtureSignInAllowed,
   assertPlaywrightRunAllowed,
+  isLoopbackOrigin,
+  signsInFixtureAccounts,
   targetsProductionProject,
-  viteSupabaseUrl,
 } from './productionFixtureGuard';
 import { authenticateAndResolveScope } from './load/loadStaffCredentials';
 
@@ -59,77 +59,70 @@ describe('production fixture sign-in guard (MYK9-1454)', () => {
 
 describe('a Playwright run refuses to start against production with fixture passwords', () => {
   const merged = { E2E_SECRETARY_PASSWORD: 'pw', VITE_SUPABASE_URL: PRODUCTION };
-  const appRoots: string[] = [];
-  afterEach(() => {
-    for (const dir of appRoots.splice(0)) rmSync(dir, { recursive: true, force: true });
-  });
-  /** An app folder holding exactly these `.env*` files, so the real worktree's `.env` stays out. */
-  const appRootWith = (files: Record<string, string> = {}) => {
-    const dir = mkdtempSync(join(tmpdir(), 'guard-app-'));
-    appRoots.push(dir);
-    for (const [name, body] of Object.entries(files)) writeFileSync(join(dir, name), body);
-    return dir;
+  const isolated = {
+    E2E_SECRETARY_PASSWORD: 'pw',
+    VITE_SUPABASE_URL: LOCAL,
+    MYK9_E2E_SUPABASE_URL: LOCAL,
   };
+  const optIn = { [ALLOW_PRODUCTION_FIXTURE_SIGN_IN]: '1' };
   const run = (
     env: Record<string, string>,
     shell: Record<string, string> = {},
-    argv = ['test'],
-    appRoot = appRootWith()
-  ) => assertPlaywrightRunAllowed('playwright.config.ts', shell, env, argv, appRoot);
+    server: 'own' | 'external' = 'own',
+    argv = ['test']
+  ) => assertPlaywrightRunAllowed('playwright.config.ts', shell, server, env, argv);
 
-  it('refuses when a fixture password is configured and the app talks to production', () => {
-    expect(() => run(merged)).toThrow(/playwright\.config\.ts: refusing/);
+  it('refuses when a fixture password is configured and the test process names production', () => {
+    expect(() => run(merged)).toThrow(/playwright\.config\.ts: refusing .*production project/s);
   });
 
   it('allows the same run when the shell opts in', () => {
-    expect(() => run(merged, { [ALLOW_PRODUCTION_FIXTURE_SIGN_IN]: '1' })).not.toThrow();
+    expect(() => run(merged, optIn)).not.toThrow();
   });
 
   it('ignores an opt-in that only a .env file supplied', () => {
     // The merged env carries it (dotenv loaded it); the shell never set it.
-    expect(() => run({ ...merged, [ALLOW_PRODUCTION_FIXTURE_SIGN_IN]: '1' })).toThrow(/refusing/);
+    expect(() => run({ ...merged, ...optIn })).toThrow(/refusing/);
   });
 
   it('leaves a run alone that signs nobody in, and a --list run', () => {
     expect(() => run({ VITE_SUPABASE_URL: PRODUCTION })).not.toThrow();
     expect(() => run({ VITE_SUPABASE_URL: PRODUCTION, E2E_SECRETARY_PASSWORD: '' })).not.toThrow();
-    expect(() => run(merged, {}, ['test', '--list'])).not.toThrow();
+    expect(() => run({ VITE_SUPABASE_URL: PRODUCTION }, {}, 'external')).not.toThrow();
+    expect(() => run(merged, {}, 'own', ['test', '--list'])).not.toThrow();
   });
 
-  it('allows a run whose app and test process both target the isolated stack', () => {
-    expect(() =>
-      run({ ...merged, VITE_SUPABASE_URL: LOCAL, MYK9_E2E_SUPABASE_URL: LOCAL })
-    ).not.toThrow();
+  it('allows an isolated run whose config starts its own server', () => {
+    expect(() => run(isolated)).not.toThrow();
   });
 
   it('refuses when only one of the two URLs is isolated: a stale loopback cannot hide production', () => {
     expect(() => run({ ...merged, MYK9_E2E_SUPABASE_URL: LOCAL })).toThrow(/refusing/);
-    expect(() =>
-      run({
-        E2E_SECRETARY_PASSWORD: 'pw',
-        VITE_SUPABASE_URL: LOCAL,
-        MYK9_E2E_SUPABASE_URL: PRODUCTION,
-      })
-    ).toThrow(/refusing/);
+    expect(() => run({ ...isolated, MYK9_E2E_SUPABASE_URL: PRODUCTION })).toThrow(/refusing/);
   });
 
-  it('refuses when only the Vite server mode file names production (Codex round 1)', () => {
-    const local = { E2E_SECRETARY_PASSWORD: 'pw', VITE_SUPABASE_URL: LOCAL };
-    for (const file of ['.env.development', '.env.development.local', '.env.production']) {
-      const appRoot = appRootWith({ [file]: `VITE_SUPABASE_URL=${PRODUCTION}\n` });
-      expect(() => run(local, {}, ['test'], appRoot), file).toThrow(/refusing/);
-    }
+  it('fails closed on a server the config did not start, even when every local URL is isolated', () => {
+    expect(() => run(isolated, {}, 'external')).toThrow(
+      /app server is one this config did not start/
+    );
+    expect(() => run(isolated, optIn, 'external')).not.toThrow();
+  });
+});
+
+describe('the helpers the configs use to declare their server', () => {
+  it("isLoopbackOrigin: only this machine counts as the config's own server", () => {
+    expect(isLoopbackOrigin('http://127.0.0.1:5173')).toBe(true);
+    expect(isLoopbackOrigin('http://localhost:4173')).toBe(true);
+    expect(isLoopbackOrigin('http://[::1]:4173')).toBe(true);
+    expect(isLoopbackOrigin('https://myk9show.com')).toBe(false);
+    expect(isLoopbackOrigin('http://192.168.1.20:5173')).toBe(false);
+    expect(isLoopbackOrigin('not a url')).toBe(false);
   });
 
-  it('lets a shell-set isolated URL win over every .env file, as Vite does', () => {
-    const appRoot = appRootWith({
-      '.env': `VITE_SUPABASE_URL=${PRODUCTION}\n`,
-      '.env.development': `VITE_SUPABASE_URL=${PRODUCTION}\n`,
-    });
-    const isolated = { VITE_SUPABASE_URL: LOCAL, MYK9_E2E_SUPABASE_URL: LOCAL };
-    expect(() =>
-      run({ E2E_SECRETARY_PASSWORD: 'pw', ...isolated }, isolated, ['test'], appRoot)
-    ).not.toThrow();
+  it('signsInFixtureAccounts: any non-empty E2E_*_PASSWORD', () => {
+    expect(signsInFixtureAccounts({ E2E_JUDGE_PASSWORD: 'x' })).toBe(true);
+    expect(signsInFixtureAccounts({ E2E_JUDGE_PASSWORD: '' })).toBe(false);
+    expect(signsInFixtureAccounts({ E2E_JUDGE_EMAIL: 'judge@myk9t.com' })).toBe(false);
   });
 });
 
@@ -184,6 +177,9 @@ describe('every fixture sign-in path is guarded, and only production checks opt 
   it.each(configs)('%s checks the run before defining the config', path => {
     const source = read(path);
     const guard = source.search(/^assertPlaywrightRunAllowed\(/m);
+    const call = source.slice(guard, source.indexOf(');', guard));
+    // Every config says whose server the browser talks to (MYK9-1454 round 2).
+    expect(call, 'declares its app server').toMatch(/'own'|'external'/);
     expect(guard, 'a top-level call, not a comment or import').toBeGreaterThan(-1);
     expect(guard).toBeLessThan(source.indexOf('export default defineConfig('));
     const firstLoad = source.indexOf('loadEnv({');
@@ -192,7 +188,13 @@ describe('every fixture sign-in path is guarded, and only production checks opt 
     expect(source.search(/^const shellEnv = \{ \.\.\.process\.env \};$/m)).toBeLessThan(firstLoad);
     expect(source.search(/^const shellEnv = /m)).toBeGreaterThan(-1);
     expect(guard).toBeGreaterThan(source.lastIndexOf('loadEnv({'));
-    expect(source.slice(guard, source.indexOf('\n', guard))).toContain('shellEnv');
+    expect(call, 'reads the opt-in from the pre-dotenv snapshot').toContain('shellEnv');
+  });
+
+  it('the ci config never reuses a running server for a run that signs fixture accounts in', () => {
+    expect(read('apps/myk9show/playwright.ci.config.ts')).toMatch(
+      /reuseExistingServer: !process\.env\.CI && !signsInFixtureAccounts\(\)/
+    );
   });
 
   it.each([
@@ -210,22 +212,5 @@ describe('every fixture sign-in path is guarded, and only production checks opt 
     '.github/workflows/show-day-verification.yml',
   ])('%s never opts in: it runs against an isolated stack', path => {
     expect(read(path)).not.toContain(ALLOW_PRODUCTION_FIXTURE_SIGN_IN);
-  });
-});
-
-describe('viteSupabaseUrl resolves the app server URL with Vite precedence', () => {
-  it('takes the later file, and the shell over every file', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'guard-vite-'));
-    try {
-      writeFileSync(join(dir, '.env'), 'VITE_SUPABASE_URL=https://a.example\n');
-      writeFileSync(join(dir, '.env.local'), 'VITE_SUPABASE_URL=https://b.example\n');
-      writeFileSync(join(dir, '.env.development'), 'VITE_SUPABASE_URL=https://c.example\n');
-      expect(viteSupabaseUrl('development', {}, dir)).toBe('https://c.example');
-      expect(viteSupabaseUrl('production', {}, dir)).toBe('https://b.example');
-      expect(viteSupabaseUrl('development', { VITE_SUPABASE_URL: LOCAL }, dir)).toBe(LOCAL);
-      expect(viteSupabaseUrl('development', {}, join(dir, 'missing'))).toBeUndefined();
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
   });
 });

@@ -44,7 +44,7 @@ function setup(selectedClasses: ClassBarItem[], bulkBusy = false) {
 
 describe('ClassBulkActionsBar', () => {
   // FloatingBulkBar is `fixed`, so without an in-flow spacer it covers the
-  // bottom of the class list — the kit's own spacer (`h-24`) replaces the
+  // bottom of the class list — the kit's own spacer (sized from the bar, `h-24` before it is measured) replaces the
   // previous measured-height bar.
   it('reserves a spacer in normal flow so the bar does not cover the last rows', () => {
     const { container } = setup([cls('1', 'Scheduled')]);

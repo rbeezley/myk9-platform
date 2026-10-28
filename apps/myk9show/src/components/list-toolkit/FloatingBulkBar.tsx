@@ -6,11 +6,16 @@
  * to the viewport, it is in view wherever the selection was made. A spacer in
  * normal flow keeps it from covering the list's last rows and pagination.
  *
+ * At narrow widths the actions wrap onto further rows instead of scrolling
+ * sideways, so none is hidden off-screen (MYK9-1444). How many rows depends on
+ * the width and on the caller's actions, so the spacer is sized from the bar's
+ * measured height rather than a fixed guess.
+ *
  * Escape inside the bar clears the selection; every control is a 44px target
  * (docs/INTENT.md § 3).
  */
 
-import type { KeyboardEvent, ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -46,7 +51,20 @@ export function FloatingBulkBar({
   children,
   busy = false,
 }: FloatingBulkBarProps) {
-  if (count === 0) return null;
+  const barRef = useRef<HTMLDivElement>(null);
+  const [barHeight, setBarHeight] = useState<number | null>(null);
+  const open = count > 0;
+
+  useLayoutEffect(() => {
+    const bar = barRef.current;
+    if (!open || !bar || typeof ResizeObserver === 'undefined') return;
+    // The observer reports once on observe, then on every wrap change.
+    const observer = new ResizeObserver(() => setBarHeight(bar.getBoundingClientRect().height));
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, [open]);
+
+  if (!open) return null;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     // React bubbles events from portals (a menu or dialog opened from the bar)
@@ -62,23 +80,34 @@ export function FloatingBulkBar({
 
   return (
     <>
-      <div aria-hidden="true" className="h-24" />
+      <div
+        aria-hidden="true"
+        data-testid="bulk-bar-spacer"
+        className={barHeight === null ? 'h-24' : undefined}
+        // The bar's height, its bottom offset, and the gap the original fixed spacer left.
+        style={
+          barHeight === null
+            ? undefined
+            : { height: `calc(${barHeight}px + max(1rem, env(safe-area-inset-bottom)) + 1.5rem)` }
+        }
+      />
       <div className="pointer-events-none fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 flex justify-center px-4">
         <div
+          ref={barRef}
           role="toolbar"
           aria-label="Bulk actions"
           onKeyDown={handleKeyDown}
           className={cn(
-            'pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border p-1.5 text-popover-foreground',
+            'pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-1 rounded-2xl border p-1.5 text-popover-foreground',
             BAR_SURFACE
           )}
         >
           <span className="whitespace-nowrap px-3 text-sm font-semibold" aria-live="polite">
             {count.toLocaleString()} {count === 1 ? noun[0] : noun[1]} selected
           </span>
-          <span aria-hidden="true" className="h-6 w-px shrink-0 bg-border" />
+          <span aria-hidden="true" className="hidden h-6 w-px shrink-0 bg-border lg:block" />
           {children}
-          <span aria-hidden="true" className="h-6 w-px shrink-0 bg-border" />
+          <span aria-hidden="true" className="hidden h-6 w-px shrink-0 bg-border lg:block" />
           <button
             type="button"
             onClick={onClear}

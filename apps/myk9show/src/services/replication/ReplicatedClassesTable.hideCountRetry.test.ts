@@ -239,13 +239,58 @@ describe('class sync when the hide-count lookup fails (MYK9-1451)', () => {
     expect(row?.data.hideCount).toBe(5);
   });
 
-  it('does not bring a stripped count back when the lookup then fails', async () => {
+  it('keeps syncing a held class that has no saved count when the lookup fails', async () => {
     await table.clearCachedHideCounts();
     expect(await hideCount()).toBeUndefined();
     officialLookup({ data: null, error: { message: 'rpc down' } });
 
-    await sync();
+    const result = await sync();
 
+    expect(result.success).toBe(true);
     expect(await hideCount()).toBeUndefined();
+    expect((await table.get(ID))?.classStatus).toBe('in_progress');
+    expect(await watermark()).toBe(Date.parse(UPDATED_AT));
+  });
+
+  it('holds the whole batch when any class in it has a saved count', async () => {
+    const OTHER = 'class-2';
+    await table.set(
+      OTHER,
+      {
+        id: OTHER,
+        trialId: TRIAL,
+        name: 'Advanced',
+        classStatus: 'not_started',
+      } as ReplicatedClass,
+      false,
+      undefined,
+      3
+    );
+    mockFrom.mockImplementation((name: string) => {
+      if (name === 'trials') return builder(TRIALS);
+      if (name === 'classes') return builder([SERVER_CLASS, { ...SERVER_CLASS, id: OTHER }]);
+      return builder([]);
+    });
+    officialLookup({ data: null, error: { message: 'rpc down' } });
+
+    const result = await sync();
+
+    expect(result.success).toBe(false);
+    expect(await hideCount()).toBe(5);
+    expect((await table.get(OTHER))?.classStatus).toBe('not_started');
+    expect(await watermark()).toBe(WARM_WATERMARK);
+  });
+
+  it('refetch keeps a count the partial lookup did answer over the saved one', async () => {
+    rulesError = { message: 'rules down' };
+    officialLookup({ data: [{ class_id: ID, num_hides: 9 }], error: null });
+    const adapter = (
+      table as unknown as { getRowRefetchAdapter(): RowRefetchAdapter<unknown, ReplicatedClass> }
+    ).getRowRefetchAdapter();
+
+    const rows = await adapter.fetchRowsById([ID]);
+
+    expect(rows).toHaveLength(1);
+    expect(adapter.toLocalRow(rows[0]).hideCount).toBe(9);
   });
 });

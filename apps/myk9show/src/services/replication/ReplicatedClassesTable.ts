@@ -638,19 +638,28 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
    * what the device has and must not break class replication. The hide-count lookup is not
    * (MYK9-1451): an empty answer from a failed lookup reads as "no count" and would erase the
    * judge-set count a warm device holds. So when it fails:
-   * - `fail-if-warm` (the sync): if this device already holds any of these classes, throw
-   *   `HideCountLookupFailedError`. The sync then applies nothing and keeps its watermark, and
-   *   the next sync retries. A device holding none of them (cold) has no count to lose, so it
-   *   gets the classes with no count rather than none at all.
+   * - `fail-if-warm` (the sync): if this device already saved a count for any of these classes,
+   *   throw `HideCountLookupFailedError`. The sync then applies nothing and keeps its watermark,
+   *   and the next sync retries. With no saved count at risk (a cold device, or an exhibitor
+   *   whose classes never carry one) the classes apply without a count, as before.
    * - `keep-local` (the row refetch behind OCC rebase, stuck-flag repair and discard): never
-   *   throw; each row carries the count this device already persisted.
+   *   throw; a row the partial lookup did not answer carries the count this device saved.
    */
+  /** The hide counts this device persisted for `rows`, keyed by class id; absent ones omitted. */
+  private async savedHideCounts(rows: ClassRow[]): Promise<Map<string, number>> {
+    const saved = new Map<string, number>();
+    const locals = await Promise.all(rows.map(row => this.get(String(row.id))));
+    for (const local of locals) {
+      if (local?.hideCount !== undefined) saved.set(String(local.id), local.hideCount);
+    }
+    return saved;
+  }
+
   private async enrichClassRows(
     rows: ClassRow[],
     onHideCountFailure: 'fail-if-warm' | 'keep-local' = 'fail-if-warm'
   ): Promise<EnrichedClassRow[]> {
     let enrichment: ClassEnrichment;
-    let keepLocalHideCounts = false;
     try {
       enrichment = await resolveClassEnrichment(rows, {
         shareRead: this.shareShowRead,
@@ -659,13 +668,16 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       });
     } catch (error) {
       if (!(error instanceof HideCountLookupFailedError)) throw error;
-      if (onHideCountFailure === 'fail-if-warm') {
-        const localIds = await this.getAllLocalIds();
-        if (rows.some(row => localIds.has(String(row.id)))) throw error;
-      } else {
-        keepLocalHideCounts = true;
-      }
       enrichment = error.enrichment;
+      const saved = await this.savedHideCounts(rows);
+      if (onHideCountFailure === 'fail-if-warm') {
+        if (saved.size > 0) throw error;
+      } else {
+        // Fill only the counts the partial lookup did not answer; an answered one is fresher.
+        for (const [id, count] of saved) {
+          if (!enrichment.hideCounts.has(id)) enrichment.hideCounts.set(id, count);
+        }
+      }
     }
     const {
       visibility: visibilityByClassId,
@@ -673,13 +685,6 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       timeLimitRules: timeLimitRuleByClassId,
       judges: judgeByClassId,
     } = enrichment;
-    if (keepLocalHideCounts) {
-      for (const row of rows) {
-        const id = String(row.id);
-        const local = (await this.get(id))?.hideCount;
-        if (local !== undefined) hideCountByClassId.set(id, local);
-      }
-    }
 
     return rows.map(row => ({
       ...row,

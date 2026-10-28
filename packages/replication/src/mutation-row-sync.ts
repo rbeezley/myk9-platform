@@ -98,9 +98,12 @@ export async function markReplicatedRowSynced(
       baseServerVersion: newServerVersion,
     }),
     // Record the step only when this upload carried a precondition: then the
-    // server held exactly `from` before it and exactly this write after it.
+    // server held exactly `from` before it and exactly this write after it. An
+    // RPC with baked `args` sends no `p_expected_version` (set_class_judge), so
+    // its ack proves nothing about what the server held before it.
     ...(newServerVersion !== undefined &&
-      mutation.serverVersion !== undefined && {
+      mutation.serverVersion !== undefined &&
+      mutation.rpc?.args === undefined && {
         lastOwnUpload: { from: mutation.serverVersion, to: newServerVersion },
       }),
   });

@@ -156,6 +156,22 @@ describe('markReplicatedRowSynced — own upload step (MYK9-770)', () => {
     ])) as ReplicatedRow<unknown>;
     expect(stored.lastOwnUpload).toBeUndefined();
   });
+
+  it('records nothing for an RPC with baked args, which sends no expected version (MYK9-1327)', async () => {
+    const db = await databaseManager.getDatabase('row-sync-step-test');
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, baseRow);
+    const bakedRpc: PendingMutation = {
+      ...upload,
+      rpc: { name: 'set_class_judge', args: { p_class_id: 'entry-1', p_person_id: null } },
+    };
+    await markReplicatedRowSynced(db, bakedRpc, 2);
+    const stored = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+      'entries',
+      'entry-1',
+    ])) as ReplicatedRow<unknown>;
+    expect(stored.serverVersion).toBe(2);
+    expect(stored.lastOwnUpload).toBeUndefined();
+  });
 });
 
 describe('markReplicatedRowSynced — an uploaded create is server-backed (MYK9-775)', () => {

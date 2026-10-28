@@ -366,6 +366,8 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 
 ## Feature Audit
 
+`apps/myk9show/src/test/e2e/master-detail-name-lists.spec.ts` checks MYK9-1446's narrower Dogs and People list column. It signs in as admin, clears saved panel sizes (keeping the `sb-` session), opens the first row on `/dogs` and `/people` at 1280x800 and 1074x800, and asserts the list is narrower than the details and the divider is bounded 22-40%. Geometry-asserted. Needs seeded dogs and people and admin credentials; run it on an isolated stack (`docs/qa/isolated-e2e-regression.md`) when touching `MasterDetailLayout` or those pages.
+
 `apps/myk9show/src/test/e2e/verification/batch4Paperwork.spec.ts` verifies MYK9-1225's stored/secretary/judge centisecond parity and MYK9-1244's Overview batch preview, real Chromium print lifecycle, persistent row/Reports agreement and Undo at 375px/1280px. It shares the short `playwright.batch3.config.ts` job and fresh disposable-class builder with batch 3. Headless Chromium does not establish native print-dialog cancellation; that operator gate remains explicit. No shared target is permitted.
 
 `apps/myk9show/src/test/e2e/verification/batch3Scoring.spec.ts` verifies MYK9-1246/MYK9-1230/MYK9-1234: independent one/multiple-entry paper scoring, assigned-judge single-entry persistence, and two-class Check Scores/Fix/report-preview parity. Dedicated `playwright.batch3.config.ts` and Isolated scoring and paperwork verification CI run on every pull request or manual dispatch, with runner-only accounts, network probes and whole-stack teardown. Never target shared staging.

@@ -12,6 +12,9 @@ export interface ClassifyMutationFailureOptions {
   error: unknown;
   maxRetries: number;
   retryBackoffBase: number;
+  /** True only when connectivity evidence says the server is unreachable (see uplink-probe.ts).
+   *  Absent or false: a transport-candidate failure spends `maxRetries` like any other. */
+  uplinkDown?: boolean;
   now?: number;
 }
 
@@ -27,12 +30,13 @@ export function classifyMutationFailure({
   error,
   maxRetries,
   retryBackoffBase,
+  uplinkDown = false,
   now = Date.now(),
 }: ClassifyMutationFailureOptions): MutationFailureClassification {
   const message = describeError(error);
   const canRetry = isRetryableError(error, mutation);
-  // MYK9-1474: transport loss keeps retrying with capped backoff and spends no retry budget.
-  if (canRetry && isTransportError(error)) {
+  // MYK9-1474: transport loss, confirmed by the connectivity probe, keeps retrying with capped backoff and spends no retry budget.
+  if (canRetry && uplinkDown && isTransportError(error)) {
     const transportRetries = (mutation.transportRetries || 0) + 1;
     const pending: PendingMutation = {
       ...mutation,
@@ -48,10 +52,13 @@ export function classifyMutationFailure({
 
   const retries = (mutation.retries || 0) + 1;
   const permanentlyFailed = retries >= maxRetries || !canRetry;
+  // The uplink answered (or was never confirmed down): the transport budget no longer applies.
+  const withoutTransport: PendingMutation = { ...mutation };
+  delete withoutTransport.transportRetries;
 
   if (permanentlyFailed) {
     const failed: PendingMutation = {
-      ...mutation,
+      ...withoutTransport,
       retries,
       status: 'failed',
       error: canRetry ? `Max retries exceeded: ${message}` : `Non-retryable error: ${message}`,
@@ -69,7 +76,7 @@ export function classifyMutationFailure({
 
   const retryAt = now + calculateBackoffDelay(retries - 1, retryBackoffBase);
   const pending: PendingMutation = {
-    ...mutation,
+    ...withoutTransport,
     retries,
     status: 'pending',
     error: message,

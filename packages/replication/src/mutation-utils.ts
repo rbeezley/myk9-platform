@@ -241,21 +241,21 @@ export const RPC_PERMANENT_CODES: ReadonlyMap<string, ReadonlySet<string>> = new
 ]);
 
 /**
- * Whether an error is transport loss (the request never got an answer): a fetch `TypeError`,
- * the package's `TimeoutError`, an `AbortError`, or the plain object postgrest-js hands back
- * for them. Transport failures say nothing about the mutation, so they do not spend the
- * `maxRetries` budget (MYK9-1474). A server's answer (including a 5xx code) is NOT transport:
- * the error shapes here expose no HTTP status, so 502/503/504 are not distinguished and keep
- * counting.
+ * Whether an error is a CANDIDATE for "no server answer": a fetch `TypeError`, the package's
+ * `TimeoutError`, an `AbortError`, or the plain object postgrest-js returns for them. The
+ * shape alone does NOT prove the uplink is down: postgrest wraps every fetch-path rejection
+ * (client bugs, a custom fetch wrapper's errors) the same way, and a deterministic timeout
+ * looks identical to an outage. Only a candidate that the connectivity probe confirms
+ * (`uplink-probe.ts`) skips the `maxRetries` budget (MYK9-1474).
  *
  * postgrest-js (2.118.0, dist/index.cjs, the fetch `.catch` when `shouldThrowOnError` is off)
- * swallows the fetch rejection and RETURNS `{ error: { message: `${name}: ${message}`, details,
- * hint, code: '' }, status: 0 }`; `mutation-execute.ts` then throws that plain object. Only a
- * non-Error object with an empty or absent `code` and one of the four name prefixes matches,
- * so a server error that merely mentions "TypeError" (it carries a real code) still parks.
+ * RETURNS `{ error: { message: `${name}: ${message}`, details, hint, code: '' }, status: 0 }`;
+ * `mutation-execute.ts` then throws that plain object. Only a non-Error object with an empty
+ * or absent `code` and one of the four name prefixes matches.
  *
- * AbortError counts as transport because nothing in the upload path aborts deliberately: the
- * only `abort()` is `withTimeout`'s own, which surfaces as `TimeoutError`.
+ * AbortError is a candidate because nothing in the upload path aborts deliberately: the only
+ * `abort()` is `withTimeout`'s own, which surfaces as `TimeoutError`. HTTP 502/503/504 are not
+ * distinguished: the error shapes here expose no status.
  */
 const POSTGREST_TRANSPORT_MESSAGE = /^(TypeError|FetchError|AbortError|TimeoutError): /;
 

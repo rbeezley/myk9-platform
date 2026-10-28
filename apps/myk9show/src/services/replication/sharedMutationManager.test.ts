@@ -32,6 +32,12 @@ vi.mock('@/services/LoggingService', () => ({
 }));
 
 describe('sharedMutationManager auth identity', () => {
+  it('wires the connectivity probe so transport loss is told apart from client bugs', async () => {
+    await import('./sharedMutationManager');
+    const { checkSupabaseReachable } = await import('./checkSupabaseReachable');
+    expect(hoisted.managerOptions?.checkConnectivity).toBe(checkSupabaseReachable);
+  });
+
   beforeEach(() => {
     hoisted.getSession.mockReset();
     hoisted.createSessionBoundSupabaseClient.mockReset();

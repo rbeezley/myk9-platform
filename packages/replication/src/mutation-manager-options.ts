@@ -35,4 +35,11 @@ export interface MutationManagerOptions {
   acquireQueueMutationLock?: () => () => void;
   /** Acquire an async cross-tab-safe write slot before a local write/queue pair. */
   acquireQueueMutationLockAsync?: () => Promise<() => void>;
+  /**
+   * Reports whether the server is reachable (true) or the uplink is down (false). When a
+   * network-class upload failure occurs, it runs once per upload pass; only a false answer
+   * stops that failure from spending `maxRetries` (MYK9-1474). Absent, or throwing, counts as
+   * reachable, so the default behaviour is the bounded retry budget.
+   */
+  checkConnectivity?: () => Promise<boolean>;
 }

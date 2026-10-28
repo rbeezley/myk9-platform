@@ -202,7 +202,7 @@ describe('classifyMutationFailure', () => {
     });
   });
 
-  describe('transport loss does not spend the retry budget (MYK9-1474)', () => {
+  describe('transport loss confirmed by the probe does not spend the retry budget (MYK9-1474)', () => {
     const OUTAGE_MS = 60_000;
     const transportErrors: Array<[string, () => unknown]> = [
       ['a fetch TypeError', () => new TypeError('Failed to fetch')],
@@ -236,6 +236,7 @@ describe('classifyMutationFailure', () => {
           error: makeError(),
           maxRetries: 3,
           retryBackoffBase: 1_000,
+          uplinkDown: true,
           now,
         });
         expect(result.permanentlyFailed).toBe(false);
@@ -275,6 +276,7 @@ describe('classifyMutationFailure', () => {
         error: new TypeError('Failed to fetch'),
         maxRetries: 3,
         retryBackoffBase: 1_000,
+        uplinkDown: true,
         now: 0,
       });
       current = result.mutation;
@@ -287,6 +289,7 @@ describe('classifyMutationFailure', () => {
         error: new TypeError('Failed to fetch'),
         maxRetries: 3,
         retryBackoffBase: 10,
+        uplinkDown: true,
         now: 0,
       });
       expect(result.mutation).toMatchObject({ retries: 1, transportRetries: 1, status: 'pending' });
@@ -322,6 +325,62 @@ describe('classifyMutationFailure', () => {
         expect(result.permanentlyFailed).toBe(i === 2);
       }
       expect(current).toMatchObject({ status: 'failed', failureKind: 'max-retries', retries: 3 });
+    });
+
+    const candidates: Array<[string, unknown]> = [
+      ['a timeout', new TimeoutError('timed out', 15_000)],
+      [
+        'a postgrest-wrapped client bug',
+        {
+          message: 'TypeError: Cannot read properties of undefined',
+          details: '',
+          hint: '',
+          code: '',
+        },
+      ],
+      ['x.fetch is not a function', new TypeError('x.fetch is not a function')],
+    ];
+
+    it.each(candidates)('parks %s after maxRetries when the uplink is reachable', (_n, error) => {
+      let current = mutation({ transportRetries: 4 });
+      for (let i = 0; i < 3; i += 1) {
+        const result = classifyMutationFailure({
+          mutation: current,
+          error,
+          maxRetries: 3,
+          retryBackoffBase: 10,
+          uplinkDown: false,
+          now: i,
+        });
+        expect(result.permanentlyFailed).toBe(i === 2);
+        current = result.mutation;
+      }
+      expect(current).toMatchObject({ status: 'failed', failureKind: 'max-retries', retries: 3 });
+      expect(current.transportRetries).toBeUndefined();
+    });
+
+    it('drops transportRetries once a failure spends the budget', () => {
+      const result = classifyMutationFailure({
+        mutation: mutation({ transportRetries: 7 }),
+        error: { message: 'statement timeout', code: '57014' },
+        maxRetries: 3,
+        retryBackoffBase: 10,
+        now: 0,
+      });
+      expect(result.mutation.status).toBe('pending');
+      expect(result.mutation.transportRetries).toBeUndefined();
+    });
+
+    it('spends the budget when no connectivity evidence is given', () => {
+      const result = classifyMutationFailure({
+        mutation: mutation(),
+        error: new TypeError('Failed to fetch'),
+        maxRetries: 3,
+        retryBackoffBase: 10,
+        now: 0,
+      });
+      expect(result.mutation).toMatchObject({ retries: 1 });
+      expect(result.mutation.transportRetries).toBeUndefined();
     });
   });
 });

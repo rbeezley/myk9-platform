@@ -10,6 +10,7 @@
 
 import { MutationManager, type MutationUploadAuthContext } from '@myk9/replication';
 import { createSessionBoundSupabaseClient, supabase } from '@/services/database/supabaseClient';
+import { checkSupabaseReachable } from './checkSupabaseReachable';
 import { logger } from '@/services/LoggingService';
 import { acquireCacheClearWriteLock } from '@/services/cacheClearGate';
 import {
@@ -45,6 +46,7 @@ let cachedUploadContext:
 
 export const mutationManager = new MutationManager(supabase, {
   logger: replicationLogger,
+  checkConnectivity: checkSupabaseReachable,
   acquireQueueMutationLockAsync: acquireCacheClearWriteLock,
   getCurrentUserId: async () => {
     const { data, error } = await supabase.auth.getSession();

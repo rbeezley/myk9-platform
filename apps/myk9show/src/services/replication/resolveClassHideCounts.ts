@@ -56,13 +56,7 @@ export async function resolveHideCountsForClassRows(
   shareRead: ShareRead = readNow,
   preloadedTrials?: ReadonlyArray<ClassTrialRow>,
   /** Called for each lookup that failed and was skipped, so a caller can tell a partial answer. */
-  onPartialFailure?: () => void,
-  /**
-   * MYK9-1451: receives the id of every class whose show's official lookup AND the public rules
-   * read both answered, with or without a count. A class absent from it is "unknown", not "no
-   * count".
-   */
-  officialAnswered?: Set<string>
+  onPartialFailure?: () => void
 ): Promise<Map<string, number>> {
   const byClassId = new Map<string, number>();
 
@@ -94,9 +88,6 @@ export async function resolveHideCountsForClassRows(
     ...new Set(trials.map(trial => trial.registry_id).filter((id): id is string => !!id)),
   ];
 
-  // MYK9-1451: a class's count is "known" only when BOTH reads answered. A failed rules read
-  // leaves a public fixed count unknown even when the official RPC has no row for the class.
-  let rulesAnswered = true;
   if (registryIds.length > 0) {
     const { data: ruleData, error: rulesError } = await supabase
       .from('sport_class_rules')
@@ -108,7 +99,6 @@ export async function resolveHideCountsForClassRows(
       .not('hide_count_fixed', 'is', null);
 
     if (rulesError) {
-      rulesAnswered = false;
       onPartialFailure?.();
       logger.warn(
         `[resolveClassHideCounts] Public hide rules unavailable this sync: ${rulesError.message}`,
@@ -148,11 +138,6 @@ export async function resolveHideCountsForClassRows(
     ...new Set(trials.map(trial => trial.show_id).filter((id): id is string => !!id)),
   ].sort();
 
-  // MYK9-1451: filled per batch, published to the caller only once EVERY batch settled. A batch
-  // that throws rejects the whole call, and the caller then treats it as a failed lookup; an
-  // earlier batch's classes must not read as answered.
-  const answered = new Set<string>();
-
   // MYK9-1450: one get_shows_class_hide_counts round trip per batch of shows, not one per show.
   // It runs get_show_class_hide_counts per show, so each show keeps its own role checks.
   await Promise.all(
@@ -170,12 +155,6 @@ export async function resolveHideCountsForClassRows(
         return;
       }
 
-      const answeredShows = new Set(batch);
-      for (const row of rows) {
-        const showId = row.trial_id ? trialById.get(row.trial_id)?.show_id : undefined;
-        if (rulesAnswered && showId && answeredShows.has(showId)) answered.add(row.id);
-      }
-
       for (const row of data ?? []) {
         if (row.class_id && typeof row.num_hides === 'number') {
           byClassId.set(row.class_id, row.num_hides);
@@ -184,6 +163,5 @@ export async function resolveHideCountsForClassRows(
     })
   );
 
-  answered.forEach(id => officialAnswered?.add(id));
   return byClassId;
 }

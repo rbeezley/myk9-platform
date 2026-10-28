@@ -42,8 +42,6 @@ export const CLASS_ENRICHMENT_TTL_MS = 5 * 60 * 1000;
 export interface ClassEnrichment {
   visibility: Map<string, ResolvedClassVisibility>;
   hideCounts: Map<string, number>;
-  /** MYK9-1451: classes whose official hide-count lookup answered (even with no count). */
-  hideCountsResolved: Set<string>;
   timeLimitRules: Map<string, TimeLimitRule>;
   judges: Map<string, JudgeNameParts | null>;
 }
@@ -53,7 +51,6 @@ interface CachedClass {
   signature: string;
   visibility: ResolvedClassVisibility;
   hideCount: number | undefined;
-  hideCountResolved: boolean;
   timeLimitRule: TimeLimitRule | undefined;
   judge: JudgeNameParts | null;
 }
@@ -133,8 +130,23 @@ export interface ClassEnrichmentDeps {
   tableName: string;
 }
 
+/**
+ * MYK9-1451: thrown when the hide-count lookup (official RPC, public rules, or the trials read
+ * under them) failed. An empty answer from a failed lookup is indistinguishable from "this class
+ * has no count", so the class rows are not produced at all: the sync fails before it applies
+ * anything or advances its watermark, and the next sync refetches and retries.
+ */
+export class HideCountLookupFailedError extends Error {
+  constructor() {
+    super('Hide-count lookup failed; class rows not applied so the next sync retries them.');
+    this.name = 'HideCountLookupFailedError';
+  }
+}
+
 interface ResolveOutcome {
   enrichment: ClassEnrichment;
+  /** True when the hide-count lookup failed in any part (RPC, rules, trials). */
+  hideCountsFailed: boolean;
   /** False when any lookup threw, so its (partial) answer must not be cached. */
   clean: boolean;
 }
@@ -145,6 +157,11 @@ async function runResolvers(
   deps: ClassEnrichmentDeps
 ): Promise<ResolveOutcome> {
   let clean = true;
+  let hideCountsFailed = false;
+  const markHideCountsFailed = () => {
+    clean = false;
+    hideCountsFailed = true;
+  };
   // A resolver that logs and skips a failed read still answers; that answer is partial.
   const markUnclean = () => {
     clean = false;
@@ -156,7 +173,6 @@ async function runResolvers(
       logger.warn(`[${deps.tableName}] ${message}`, 'replication');
       return fallback;
     };
-  const hideCountsResolved = new Set<string>();
   const [visibility, hideCounts, timeLimitRules, judges] = await Promise.all([
     // Best-effort: failure must not break class replication.
     resolveVisibilityForClassRows(rows, trials).catch(
@@ -167,18 +183,14 @@ async function runResolvers(
     ),
     // Public fixed totals come from registry rules; protected judge-set totals only from the
     // show-scoped official RPC. Both are merged so the caller keeps the count it may see.
-    resolveHideCountsForClassRows(
-      rows,
-      deps.shareRead,
-      trials,
-      markUnclean,
-      hideCountsResolved
-    ).catch(
-      failed(
-        'Hide-count resolve failed; scoring may fall back to the rule band',
-        new Map<string, number>()
-      )
-    ),
+    resolveHideCountsForClassRows(rows, deps.shareRead, trials, markHideCountsFailed).catch(() => {
+      markHideCountsFailed();
+      logger.warn(
+        `[${deps.tableName}] Hide-count resolve failed; class rows are not applied this sync`,
+        'replication'
+      );
+      return new Map<string, number>();
+    }),
     // MYK9-1086: a failed lookup must not read as "no rule", so carry the rule already on this
     // device into the synced row.
     (async () => {
@@ -196,8 +208,9 @@ async function runResolvers(
     ),
   ]);
   return {
-    enrichment: { visibility, hideCounts, hideCountsResolved, timeLimitRules, judges },
+    enrichment: { visibility, hideCounts, timeLimitRules, judges },
     clean,
+    hideCountsFailed,
   };
 }
 
@@ -234,7 +247,6 @@ function remember(
       signature: signatureOf(row),
       visibility: enrichment.visibility.get(id)!,
       hideCount: enrichment.hideCounts.get(id),
-      hideCountResolved: enrichment.hideCountsResolved.has(id),
       timeLimitRule: enrichment.timeLimitRules.get(id),
       judge: enrichment.judges.get(id) ?? null,
     });
@@ -256,7 +268,11 @@ export async function resolveClassEnrichment(
   if (distinctTrialIds(rows).some(id => !showByTrial.has(id))) {
     trials = await readClassTrials(rows);
     // A failed read leaves each resolver to read `trials` itself, uncached, as before.
-    if (!trials) return (await runResolvers(rows, undefined, deps)).enrichment;
+    if (!trials) {
+      const outcome = await runResolvers(rows, undefined, deps);
+      if (outcome.hideCountsFailed) throw new HideCountLookupFailedError();
+      return outcome.enrichment;
+    }
     for (const trial of trials) showByTrial.set(trial.id, trial.show_id);
   }
 
@@ -264,7 +280,6 @@ export async function resolveClassEnrichment(
   const result: ClassEnrichment = {
     visibility: new Map(),
     hideCounts: new Map(),
-    hideCountsResolved: new Set(),
     timeLimitRules: new Map(),
     judges: new Map(),
   };
@@ -281,7 +296,6 @@ export async function resolveClassEnrichment(
     result.visibility.set(id, hit.visibility);
     result.judges.set(id, hit.judge);
     if (hit.hideCount !== undefined) result.hideCounts.set(id, hit.hideCount);
-    if (hit.hideCountResolved) result.hideCountsResolved.add(id);
     if (hit.timeLimitRule) result.timeLimitRules.set(id, hit.timeLimitRule);
   }
   if (missed.length === 0) return result;
@@ -291,11 +305,11 @@ export async function resolveClassEnrichment(
     trials && missed.length === rows.length ? trials : await readClassTrials(missed),
     deps
   );
+  if (outcome.hideCountsFailed) throw new HideCountLookupFailedError();
   if (outcome.clean) remember(missed, outcome, userId, startedGeneration);
   const fresh = outcome.enrichment;
   fresh.visibility.forEach((value, id) => result.visibility.set(id, value));
   fresh.hideCounts.forEach((value, id) => result.hideCounts.set(id, value));
-  fresh.hideCountsResolved.forEach(id => result.hideCountsResolved.add(id));
   fresh.timeLimitRules.forEach((value, id) => result.timeLimitRules.set(id, value));
   fresh.judges.forEach((value, id) => result.judges.set(id, value));
   return result;

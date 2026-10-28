@@ -85,11 +85,6 @@ export interface ReplicatedClass {
    * `false` means the judge fields above are "unknown", NOT "no judge" — see resolveConflict.
    */
   judgeResolved?: boolean | undefined;
-  /**
-   * MYK9-1451: whether the official hide-count lookup answered for this row's show. `false`
-   * or absent means `hideCount` is "unknown", NOT "no count" — see resolveConflict.
-   */
-  hideCountResolved?: boolean | undefined;
   classStatus?: string | undefined;
   /**
    * Resolved visibility-cascade values, denormalized at sync time so the
@@ -273,7 +268,6 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     hidesKnown: (dbRow.hides_known as boolean | undefined) ?? undefined,
     distractionCount: (dbRow.distraction_count as number | undefined) ?? undefined,
     hideCount: (dbRow.num_hides as number | null | undefined) ?? undefined,
-    hideCountResolved: dbRow._hideCountResolved as boolean | undefined,
 
     // Snake_case fields (compatibility)
     trial_id: row.trial_id ?? undefined,
@@ -345,16 +339,7 @@ const CLASS_JUDGE_FIELDS: ReadonlySet<string> = new Set([
  * reads raw values. Compare only; stored values are untouched.
  */
 const notServerChangedJudge = (field: string, value: unknown): unknown =>
-  CLASS_JUDGE_FIELDS.has(field) || field === 'hideCountResolved' ? undefined : value;
-
-/**
- * MYK9-1451: a remote class row whose hide count was not looked up this sync (the official RPC
- * or the rules read failed) carries no count and no `hideCountResolved`. That is "unknown", not
- * "no count": the count already on the device is kept. One rule for the clean-row merge
- * (resolveConflict) and the dirty-row merge (`retainLocal`).
- */
-const hideCountUnknown = (remote: { hideCount?: unknown; hideCountResolved?: unknown }): boolean =>
-  remote.hideCountResolved !== true && remote.hideCount === undefined;
+  CLASS_JUDGE_FIELDS.has(field) ? undefined : value;
 
 export const CLASS_DIRTY_ROW_COMPARE_POLICY: DirtyRowComparePolicy = {
   normalizeValue: (field, value) =>
@@ -363,8 +348,6 @@ export const CLASS_DIRTY_ROW_COMPARE_POLICY: DirtyRowComparePolicy = {
   serverWinsFields: ['actual_end_time'],
   // One judge across five fields: a changed judge is kept whole, never half-replaced.
   fieldGroups: [[...CLASS_JUDGE_FIELDS]],
-  retainLocal: (field, remoteRow) =>
-    (field === 'hideCount' || field === 'hideCountResolved') && hideCountUnknown(remoteRow),
 };
 
 function foldClassStatus(status: string): string {
@@ -419,7 +402,6 @@ type EnrichedClassRow = ClassRow & {
   _timeLimitRule?: TimeLimitRule | undefined;
   _judge?: JudgeNameParts | null | undefined;
   _judgeResolved?: boolean | undefined;
-  _hideCountResolved?: boolean | undefined;
 };
 
 // Not `*`: authenticated has no SELECT on num_hides (20260731160000), so a star
@@ -654,7 +636,6 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     const {
       visibility: visibilityByClassId,
       hideCounts: hideCountByClassId,
-      hideCountsResolved,
       timeLimitRules: timeLimitRuleByClassId,
       judges: judgeByClassId,
     } = await resolveClassEnrichment(rows, {
@@ -670,7 +651,6 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       _judge: judgeByClassId.get(String(row.id)) ?? null,
       _judgeResolved: judgeByClassId.has(String(row.id)),
       num_hides: hideCountByClassId.get(String(row.id)) ?? null,
-      _hideCountResolved: hideCountsResolved.has(String(row.id)),
       _selfCheckinEnabled: visibilityByClassId.get(String(row.id))?.selfCheckinEnabled,
       _visibilityPreset: visibilityByClassId.get(String(row.id))?.visibilityPreset,
       _timeLimitRule: timeLimitRuleByClassId.get(String(row.id)),
@@ -777,13 +757,6 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       visibilityPreset: remote.visibilityPreset ?? local.visibilityPreset,
       timeLimitRule: remote.timeLimitRule ?? local.timeLimitRule,
     };
-
-    // MYK9-1451: `hideCount` is enrichment too; an unanswered lookup is "unknown", not "no count",
-    // so the count already on this device stays (see hideCountUnknown).
-    if (hideCountUnknown(remote)) {
-      merged.hideCount = local.hideCount;
-      merged.hideCountResolved = local.hideCountResolved;
-    }
 
     // MYK9-494: judge NAMES are enrichment too, and their resolver is allowed to fail (the
     // catch at fetchRemoteRows swallows it). `judgeResolved === false` therefore means

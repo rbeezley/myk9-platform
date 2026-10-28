@@ -152,8 +152,7 @@ describe('class enrichment runs in parallel on one trials read (MYK9-1345)', () 
       ROWS,
       expect.any(Function),
       TRIALS,
-      expect.any(Function),
-      expect.any(Set)
+      expect.any(Function)
     );
     expect(resolvers.timeLimits).toHaveBeenCalledWith(ROWS, TRIALS);
     expect(resolvers.judges).toHaveBeenCalledWith(
@@ -179,8 +178,7 @@ describe('class enrichment runs in parallel on one trials read (MYK9-1345)', () 
         ROWS,
         expect.any(Function),
         undefined,
-        expect.any(Function),
-        expect.any(Set)
+        expect.any(Function)
       );
       expect(resolvers.timeLimits).toHaveBeenCalledWith(ROWS, undefined);
       expect(resolvers.judges).toHaveBeenCalledWith(

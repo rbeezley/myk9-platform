@@ -453,6 +453,42 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
       expect(all[0].classId).toBe('class-1');
     });
 
+    it('makes the new judge wait for the old one to be deleted (MYK9-1327)', async () => {
+      await table.set('ja-1', {
+        id: 'ja-1',
+        personId: 'judge-old',
+        showId: 'show-1',
+        trialId: null,
+        classId: 'class-1',
+        status: 'confirmed',
+        invitedAt: null,
+        confirmedAt: null,
+        fee: null,
+        notes: null,
+        ...NULL_ENRICHMENT,
+      });
+      const realDelete = table.deleteAssignment.bind(table);
+      vi.spyOn(table, 'deleteAssignment').mockImplementation(async id => {
+        await realDelete(id);
+        return `delete-${id}`;
+      });
+      const create = vi.spyOn(table, 'createAssignment');
+      const queue = vi.spyOn(
+        table as unknown as { queueMutation: (...args: unknown[]) => Promise<string | null> },
+        'queueMutation'
+      );
+
+      await table.replaceClassAssignment('show-1', 'class-1', 'judge-new');
+
+      expect(queue).toHaveBeenCalledWith('INSERT', expect.any(String), expect.anything(), [
+        'delete-ja-1',
+      ]);
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({ personId: 'judge-new', classId: 'class-1' }),
+        ['delete-ja-1']
+      );
+    });
+
     it('removes the assignment without creating a replacement when judgeId is null', async () => {
       await table.set('ja-1', {
         id: 'ja-1',

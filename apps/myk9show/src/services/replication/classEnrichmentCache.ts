@@ -133,14 +133,13 @@ export interface ClassEnrichmentDeps {
 /**
  * MYK9-1451: thrown when the hide-count lookup (official RPC, public rules, or the trials read
  * under them) failed. An empty answer from a failed lookup is indistinguishable from "this class
- * has no count", so the class rows are not produced at all: the sync fails before it applies
- * anything or advances its watermark, and the next sync refetches and retries.
+ * has no count", so the caller must keep the counts it already saved instead of taking this one.
  */
 export class HideCountLookupFailedError extends Error {
   /** Everything else that did resolve, so a caller that must still produce rows can use it. */
   readonly enrichment: ClassEnrichment;
   constructor(enrichment: ClassEnrichment) {
-    super('Hide-count lookup failed; class rows not applied so the next sync retries them.');
+    super('Hide-count lookup failed; saved counts are kept and the lookup is retried.');
     this.name = 'HideCountLookupFailedError';
     this.enrichment = enrichment;
   }
@@ -189,7 +188,7 @@ async function runResolvers(
     resolveHideCountsForClassRows(rows, deps.shareRead, trials, markHideCountsFailed).catch(() => {
       markHideCountsFailed();
       logger.warn(
-        `[${deps.tableName}] Hide-count resolve failed; class rows are not applied this sync`,
+        `[${deps.tableName}] Hide-count resolve failed; saved counts are kept and retried next sync`,
         'replication'
       );
       return new Map<string, number>();

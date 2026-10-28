@@ -32,6 +32,12 @@ import {
   resolveClassEnrichment,
 } from './classEnrichmentCache';
 import type { ClassEnrichment } from './classEnrichmentCache';
+import {
+  clearHideCountsOwed,
+  markHideCountsOwed,
+  owedHideCountClassIds,
+  settleHideCountsOwed,
+} from './hideCountsOwed';
 import type { JudgeNameParts } from '@/services/database/_shared/judgeNamesByClass';
 import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeFields';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
@@ -436,6 +442,18 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
    * prior session's local data.
    */
   async clearCachedHideCounts(): Promise<void> {
+    this.hideCountBoundaryActive = true;
+    this.hideCountBoundaryGeneration += 1;
+    try {
+      await this.scrubCachedHideCounts();
+    } finally {
+      this.hideCountBoundaryGeneration += 1;
+      this.hideCountBoundaryActive = false;
+    }
+  }
+
+  private async scrubCachedHideCounts(): Promise<void> {
+    clearHideCountsOwed();
     await this.runTransaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite', async store => {
       const index = store.index('tableName');
       const rows = (await index.getAll(this.getTableName())) as ReplicatedRow<ReplicatedClass>[];
@@ -604,7 +622,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
           .select(classReplicationSelect())
           .in('id', ids);
         if (error) throw new Error(`Supabase query failed: ${error.message}`);
-        return this.enrichClassRows((data ?? []) as unknown as ClassRow[], 'keep-local');
+        return this.enrichClassRows((data ?? []) as unknown as ClassRow[]);
       },
       getRemoteId: remote => String(remote.id),
       toLocalRow: remote => ({
@@ -631,20 +649,30 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   private readonly shareShowRead: ShareRead = (key, read) =>
     this.sharedShowReads(`${readPersistedAuthUserId() ?? 'anon'}:${key}`, read);
 
-  /**
-   * Server-derived values a class row carries offline (visibility, hides, judge).
-   *
-   * Visibility, time-limit and judge lookups are best-effort inside (MYK9-1360): a failure keeps
-   * what the device has and must not break class replication. The hide-count lookup is not
-   * (MYK9-1451): an empty answer from a failed lookup reads as "no count" and would erase the
-   * judge-set count a warm device holds. So when it fails:
-   * - `fail-if-warm` (the sync): if this device already saved a count for any of these classes,
-   *   throw `HideCountLookupFailedError`. The sync then applies nothing and keeps its watermark,
-   *   and the next sync retries. With no saved count at risk (a cold device, or an exhibitor
-   *   whose classes never carry one) the classes apply without a count, as before.
-   * - `keep-local` (the row refetch behind OCC rebase, stuck-flag repair and discard): never
-   *   throw; a row the partial lookup did not answer carries the count this device saved.
-   */
+  /** Bumped on entry and exit of `clearCachedHideCounts`, so a lookup that spans it can tell. */
+  private hideCountBoundaryGeneration = 0;
+  private hideCountBoundaryActive = false;
+
+  /** Owed classes in this scope that the incremental fetch did not already return (MYK9-1458). */
+  private async fetchOwedClassRows(
+    fetched: ClassRow[],
+    scope: { value?: string | undefined }
+  ): Promise<ClassRow[]> {
+    const have = new Set(fetched.map(row => String(row.id)));
+    const owed = owedHideCountClassIds(scope.value).filter(id => !have.has(id));
+    if (owed.length === 0) return [];
+    const { data, error } = await supabase
+      .from('classes')
+      .select(classReplicationSelect())
+      .in('id', owed);
+    if (error) throw new Error(`Supabase query failed: ${error.message}`);
+    const rows = (data ?? []) as unknown as ClassRow[];
+    // A class the server no longer returns (deleted, or no longer visible) is owed nothing.
+    const returned = new Set(rows.map(row => String(row.id)));
+    settleHideCountsOwed(owed.filter(id => !returned.has(id)));
+    return rows;
+  }
+
   /** The hide counts this device persisted for `rows`, keyed by class id; absent ones omitted. */
   private async savedHideCounts(rows: ClassRow[]): Promise<Map<string, number>> {
     const saved = new Map<string, number>();
@@ -655,10 +683,18 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     return saved;
   }
 
-  private async enrichClassRows(
-    rows: ClassRow[],
-    onHideCountFailure: 'fail-if-warm' | 'keep-local' = 'fail-if-warm'
-  ): Promise<EnrichedClassRow[]> {
+  /**
+   * Server-derived values a class row carries offline (visibility, hides, judge).
+   *
+   * Visibility, time-limit and judge lookups are best-effort inside (MYK9-1360): a failure keeps
+   * what the device has and must not break class replication. A failed hide-count lookup
+   * (MYK9-1451) must not read as "no count" either: it never changes a count this device saved,
+   * and a class with none takes whatever the partial lookup answered. Every class in the batch
+   * is then owed a lookup (`hideCountsOwed`), which the next sync retries by id even when the
+   * class itself has not changed (MYK9-1458). Rows always apply; no role's sync is held.
+   */
+  private async enrichClassRows(rows: ClassRow[]): Promise<EnrichedClassRow[]> {
+    const boundary = this.hideCountBoundaryGeneration;
     let enrichment: ClassEnrichment;
     try {
       enrichment = await resolveClassEnrichment(rows, {
@@ -666,17 +702,16 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         localTimeLimitRules: ids => this.cachedTimeLimitRules(ids),
         tableName: this.getTableName(),
       });
+      settleHideCountsOwed(rows.map(row => String(row.id)));
     } catch (error) {
       if (!(error instanceof HideCountLookupFailedError)) throw error;
       enrichment = error.enrichment;
+      markHideCountsOwed(rows);
       const saved = await this.savedHideCounts(rows);
-      if (onHideCountFailure === 'fail-if-warm') {
-        if (saved.size > 0) throw error;
-      } else {
-        // Fill only the counts the partial lookup did not answer; an answered one is fresher.
-        for (const [id, count] of saved) {
-          if (!enrichment.hideCounts.has(id)) enrichment.hideCounts.set(id, count);
-        }
+      // An account-boundary strip that ran or is running since this began wins: never carry a
+      // count it removed back into the row.
+      if (!this.hideCountBoundaryActive && boundary === this.hideCountBoundaryGeneration) {
+        for (const [id, count] of saved) enrichment.hideCounts.set(id, count);
       }
     }
     const {
@@ -762,7 +797,8 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
           throw new Error(`Supabase query failed: ${error.message}`);
         }
 
-        return this.enrichClassRows((data ?? []) as unknown as ClassRow[]);
+        const rows = (data ?? []) as unknown as ClassRow[];
+        return this.enrichClassRows([...rows, ...(await this.fetchOwedClassRows(rows, scope))]);
       },
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       filterLocalRows: (rows, scope) =>

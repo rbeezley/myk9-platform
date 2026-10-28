@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { TEST_USERS, signInAsSecretary } from '../helpers/testUsers';
+import { assertFixtureSignInAllowed } from '../../productionFixtureGuard';
 
 /**
  * UI test for the secretary mail-in registration wizard.
@@ -39,12 +40,12 @@ const NON_OWNED_DOG_SEARCH = 'Bravo';
 // Bravo's dog id (used for self-healing entry cleanup before each happy-path run).
 const BRAVO_DOG_ID = '601fd260-6dc5-479e-acd5-29533814797a';
 
-// Supabase project endpoint + public anon key — same project the dev server
-// targets via apps/myk9show/.env. Used for the self-healing pre-test cleanup
-// only; the wizard itself reads these from import.meta.env.
-const SUPABASE_URL = 'https://sojmvhhwsjxmfistvzbe.supabase.co';
+// MYK9-1454: the Supabase project the app under test targets, from the configured environment
+// (an isolated stack in CI), never a hard-coded production URL. Used for the self-healing
+// pre-test cleanup only; the wizard itself reads these from import.meta.env.
+const SUPABASE_URL = process.env.MYK9_E2E_SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvam12aGh3c2p4bWZpc3R2emJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NzQ2MTIsImV4cCI6MjA4MzA1MDYxMn0.pvp1GntQfar0aGdTDl4-4aFoEjQkdmK2kDvxLI6oxHA';
+  process.env.MYK9_E2E_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 async function gotoRegistrationWizard(page: Page) {
   await page.goto(`/secretary/register/${SHOW_ID}`, { waitUntil: 'networkidle' });
@@ -150,14 +151,21 @@ test.describe('Registration Wizard — Mail-in entry happy path', () => {
     // with a fresh secretary token so the apikey + Authorization headers are
     // both set correctly (a page.evaluate fetch struggles to extract anonKey
     // from window in dev builds and 401s).
+    test.skip(
+      !SUPABASE_URL || !SUPABASE_ANON_KEY,
+      'Requires VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY'
+    );
+    // The cleanup signs the secretary in and deletes rows; never against production unless the
+    // shell opted the run in (MYK9-1454).
+    assertFixtureSignInAllowed(SUPABASE_URL, 'registrationUI cleanup sign-in');
     const tokenRes = await request.post(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-      headers: { apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      headers: { apikey: SUPABASE_ANON_KEY!, 'Content-Type': 'application/json' },
       data: { email: SECRETARY_EMAIL, password: SECRETARY_PASSWORD },
     });
     const { access_token } = await tokenRes.json();
     await request.delete(
       `${SUPABASE_URL}/rest/v1/entries?dog_id=eq.${BRAVO_DOG_ID}&show_id=eq.${SHOW_ID}`,
-      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${access_token}` } }
+      { headers: { apikey: SUPABASE_ANON_KEY!, Authorization: `Bearer ${access_token}` } }
     );
     await gotoRegistrationWizard(page);
 

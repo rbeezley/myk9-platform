@@ -9,6 +9,7 @@ vi.mock('@supabase/supabase-js', () => ({ createClient }));
 
 import {
   ALLOW_PRODUCTION_FIXTURE_SIGN_IN,
+  PRODUCTION_PROJECT_REF,
   assertFixtureSignInAllowed,
   assertPlaywrightRunAllowed,
   bundleFilesNamingProduction,
@@ -251,6 +252,23 @@ describe('every fixture sign-in path is guarded, and only production checks opt 
     expect(source.search(/^const shellEnv = /m)).toBeGreaterThan(-1);
     expect(guard).toBeGreaterThan(source.lastIndexOf('loadEnv({'));
     expect(call, 'reads the opt-in from the pre-dotenv snapshot').toContain('shellEnv');
+  });
+
+  it('no e2e spec hard-codes the production project (Codex round 4: registrationUI did)', () => {
+    const specs: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) walk(path);
+        else if (entry.name.endsWith('.spec.ts')) specs.push(path);
+      }
+    };
+    walk(resolve(repo, 'apps/myk9show/src/test/e2e'));
+    expect(specs.length, 'found the specs (positive control)').toBeGreaterThan(100);
+    const offenders = specs.filter(path =>
+      readFileSync(path, 'utf8').includes(PRODUCTION_PROJECT_REF)
+    );
+    expect(offenders.map(path => path.replace(repo, ''))).toEqual([]);
   });
 
   it('the ci config never reuses a running server for a run that signs fixture accounts in', () => {

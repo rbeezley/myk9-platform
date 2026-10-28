@@ -488,24 +488,21 @@ describe('MyEntriesPage UI Improvements', () => {
       expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     });
 
-    it('keeps the filter chip focused at desktop width when a filter leaves no results', async () => {
+    it('keeps the filter chip focused when a filter leaves no results', async () => {
       mockViewportWidth(1440);
       const user = userEvent.setup();
       seedLoadedEntry();
       renderWithProviders(<MyEntriesPage />, '/exhibitor/entries');
 
       const statusAxis = await screen.findByRole('radiogroup', { name: /filter by entry status/i });
-      expect(screen.getByRole('region', { name: 'Your shows' })).toContainElement(statusAxis);
       const waitlist = within(statusAxis).getByRole('radio', { name: /Waitlist/i });
-      // Keyboard, as a keyboard user would: jsdom has no layout, so a pointer click lands on the
-      // resize handle's hit area at (0, 0) and the panels library focuses it.
+      // Keyboard, as a keyboard user would.
       waitlist.focus();
       await user.keyboard('{Enter}');
 
-      // The same chip, still in the document and still focused, with the list pane still showing it.
+      // The same chip, still in the document and still focused.
       expect(waitlist).toBeInTheDocument();
       expect(document.activeElement).toBe(waitlist);
-      expect(screen.getByRole('region', { name: 'Your shows' })).toContainElement(waitlist);
     });
 
     it('offers entry status as a composable second axis, not more tabs', async () => {

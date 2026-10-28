@@ -12,8 +12,14 @@ const shellEnv = { ...process.env };
 loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
 // MYK9-1454: refuse to sign fixture accounts into production unless the run opts in.
-// 'own': a run that signs fixture accounts in never reuses a running server (see webServer).
-assertPlaywrightRunAllowed('playwright.ci.config.ts', shellEnv, 'own');
+// 'own' preview: a run that signs fixture accounts in never reuses a running server (see
+// webServer), and the preview's dist/ is scanned for the production ref.
+assertPlaywrightRunAllowed('playwright.ci.config.ts', shellEnv, {
+  kind: 'own',
+  mode: 'preview',
+  browserUrl: 'http://localhost:4173',
+  serverPort: 4173,
+});
 
 const isA11ySmoke = process.env.PLAYWRIGHT_A11Y === 'true';
 const isRegression =

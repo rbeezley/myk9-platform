@@ -3,8 +3,13 @@ import { assertPlaywrightRunAllowed } from './src/test/productionFixtureGuard';
 
 // Manual proof only: natural token expiry deliberately takes over an hour.
 // MYK9-1454: refuse to sign fixture accounts into production unless the run opts in.
-// Starts its own preview on 127.0.0.1 and never reuses one.
-assertPlaywrightRunAllowed('playwright.show-day.config.ts', process.env, 'own');
+// Starts its own preview on 127.0.0.1:4173 and never reuses one; dist/ is scanned.
+assertPlaywrightRunAllowed('playwright.show-day.config.ts', process.env, {
+  kind: 'own',
+  mode: 'preview',
+  browserUrl: 'http://127.0.0.1:4173',
+  serverPort: 4173,
+});
 
 export default defineConfig({
   testDir: './src/test/e2e/verification',

@@ -1,7 +1,8 @@
 // @vitest-environment node
-import { readdirSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { describe, expect, it, vi } from 'vitest';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const { createClient } = vi.hoisted(() => ({ createClient: vi.fn() }));
 vi.mock('@supabase/supabase-js', () => ({ createClient }));
@@ -10,6 +11,8 @@ import {
   ALLOW_PRODUCTION_FIXTURE_SIGN_IN,
   assertFixtureSignInAllowed,
   assertPlaywrightRunAllowed,
+  bundleFilesNamingProduction,
+  type AppServer,
   isLoopbackOrigin,
   signsInFixtureAccounts,
   targetsProductionProject,
@@ -65,10 +68,17 @@ describe('a Playwright run refuses to start against production with fixture pass
     MYK9_E2E_SUPABASE_URL: LOCAL,
   };
   const optIn = { [ALLOW_PRODUCTION_FIXTURE_SIGN_IN]: '1' };
+  // A dev server on the browser's own port: the config's own server, nothing to scan.
+  const ownDev: AppServer = {
+    kind: 'own',
+    mode: 'dev',
+    browserUrl: 'http://127.0.0.1:5300',
+    serverPort: 5300,
+  };
   const run = (
     env: Record<string, string>,
     shell: Record<string, string> = {},
-    server: 'own' | 'external' = 'own',
+    server: AppServer = ownDev,
     argv = ['test']
   ) => assertPlaywrightRunAllowed('playwright.config.ts', shell, server, env, argv);
 
@@ -88,8 +98,8 @@ describe('a Playwright run refuses to start against production with fixture pass
   it('leaves a run alone that signs nobody in, and a --list run', () => {
     expect(() => run({ VITE_SUPABASE_URL: PRODUCTION })).not.toThrow();
     expect(() => run({ VITE_SUPABASE_URL: PRODUCTION, E2E_SECRETARY_PASSWORD: '' })).not.toThrow();
-    expect(() => run({ VITE_SUPABASE_URL: PRODUCTION }, {}, 'external')).not.toThrow();
-    expect(() => run(merged, {}, 'own', ['test', '--list'])).not.toThrow();
+    expect(() => run({ VITE_SUPABASE_URL: PRODUCTION }, {}, { kind: 'external' })).not.toThrow();
+    expect(() => run(merged, {}, ownDev, ['test', '--list'])).not.toThrow();
   });
 
   it('allows an isolated run whose config starts its own server', () => {
@@ -102,10 +112,62 @@ describe('a Playwright run refuses to start against production with fixture pass
   });
 
   it('fails closed on a server the config did not start, even when every local URL is isolated', () => {
-    expect(() => run(isolated, {}, 'external')).toThrow(
+    expect(() => run(isolated, {}, { kind: 'external' })).toThrow(
       /app server is one this config did not start/
     );
-    expect(() => run(isolated, optIn, 'external')).not.toThrow();
+    expect(() => run(isolated, optIn, { kind: 'external' })).not.toThrow();
+  });
+
+  it('refuses when the browser goes to a different server than the one the config starts (Codex round 3)', () => {
+    const otherPort: AppServer = { ...ownDev, browserUrl: 'http://127.0.0.1:4173' };
+    expect(() => run(isolated, {}, otherPort)).toThrow(
+      /not the server this config starts on port 5300/
+    );
+    const otherHost: AppServer = { ...ownDev, browserUrl: 'https://myk9show.com' };
+    expect(() => run(isolated, {}, otherHost)).toThrow(/not the server this config starts/);
+    // A default-port URL compares as 80 / 443, not as "no port".
+    expect(() =>
+      run(isolated, {}, { ...ownDev, browserUrl: 'http://localhost', serverPort: 80 })
+    ).not.toThrow();
+  });
+
+  describe('a preview serves dist/, so dist/ itself is checked (Codex round 3)', () => {
+    const dists: string[] = [];
+    afterEach(() => {
+      for (const dir of dists.splice(0)) rmSync(dir, { recursive: true, force: true });
+    });
+    const distWith = (js: string) => {
+      const dir = mkdtempSync(join(tmpdir(), 'guard-dist-'));
+      dists.push(dir);
+      mkdirSync(join(dir, 'assets'));
+      writeFileSync(join(dir, 'assets', 'index-abc.js'), js);
+      writeFileSync(join(dir, 'index.html'), '<!doctype html>');
+      return dir;
+    };
+    const preview = (distDir: string): AppServer => ({ ...ownDev, mode: 'preview', distDir });
+
+    it('refuses a preview whose bundle names production, even with every env URL isolated', () => {
+      const dist = distWith(`const u="${PRODUCTION}";`);
+      expect(() => run(isolated, {}, preview(dist))).toThrow(
+        /preview bundle was built against the production project/
+      );
+      expect(() => run(isolated, optIn, preview(dist))).not.toThrow();
+    });
+
+    it('allows a preview whose bundle names only the isolated stack, or that has no dist yet', () => {
+      expect(() => run(isolated, {}, preview(distWith(`const u="${LOCAL}";`)))).not.toThrow();
+      expect(() => run(isolated, {}, preview(join(tmpdir(), 'no-such-dist-myk9')))).not.toThrow();
+    });
+
+    it('bundleFilesNamingProduction walks nested chunks', () => {
+      const dist = distWith('const ok = 1;');
+      mkdirSync(join(dist, 'assets', 'scripts'));
+      writeFileSync(join(dist, 'assets', 'scripts', 'chunk.js'), `x="${PRODUCTION}"`);
+      writeFileSync(join(dist, 'assets', 'note.txt'), PRODUCTION);
+      expect(bundleFilesNamingProduction(dist).map(f => f.replace(dist, ''))).toEqual([
+        '/assets/scripts/chunk.js',
+      ]);
+    });
   });
 });
 
@@ -179,7 +241,7 @@ describe('every fixture sign-in path is guarded, and only production checks opt 
     const guard = source.search(/^assertPlaywrightRunAllowed\(/m);
     const call = source.slice(guard, source.indexOf(');', guard));
     // Every config says whose server the browser talks to (MYK9-1454 round 2).
-    expect(call, 'declares its app server').toMatch(/'own'|'external'/);
+    expect(call, 'declares its app server').toMatch(/kind: '(own|external)'/);
     expect(guard, 'a top-level call, not a comment or import').toBeGreaterThan(-1);
     expect(guard).toBeLessThan(source.indexOf('export default defineConfig('));
     const firstLoad = source.indexOf('loadEnv({');

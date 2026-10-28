@@ -21,7 +21,12 @@
  * the shell, `.env.local` or `.env`) is not seen.
  */
 
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+
 export const PRODUCTION_PROJECT_REF = 'sojmvhhwsjxmfistvzbe';
+/** apps/myk9show/dist: what `vite preview` serves. */
+const DEFAULT_DIST_DIR = resolve(import.meta.dirname, '../../dist');
 export const ALLOW_PRODUCTION_FIXTURE_SIGN_IN = 'MYK9_ALLOW_PROD_E2E';
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -72,12 +77,26 @@ export function signsInFixtureAccounts(env: Env = process.env): boolean {
 }
 
 /**
- * How the config gets its app server. `own`: it starts one, never reusing a running one, so the
- * server inherits the environment checked here. `external`: the browser talks to a server the
- * config did not start (an explicit base URL, or a reused one), whose Supabase target nothing
- * here can see.
+ * How the config gets its app server.
+ *
+ * `external`: the browser talks to a server the config did not start (the audit config, a load
+ * run without LOAD_TEST_START_APP), whose Supabase target nothing here can see.
+ *
+ * `own`: the config starts a server on `serverPort` and never reuses a running one. A `dev`
+ * server inherits the environment checked here. A `preview` server serves whatever `dist/` was
+ * built against, so the bundle itself is scanned. The browser must point at that very server:
+ * `browserUrl` is its base URL, compared host and port.
  */
-export type AppServer = 'own' | 'external';
+export type AppServer =
+  | { kind: 'external' }
+  | {
+      kind: 'own';
+      mode: 'dev' | 'preview';
+      browserUrl: string;
+      serverPort: number;
+      /** For `preview`: the directory it serves. Defaults to apps/myk9show/dist. */
+      distDir?: string;
+    };
 
 /** True when `baseUrl` is served from this machine, where the config's own server listens. */
 export function isLoopbackOrigin(baseUrl: string): boolean {
@@ -89,13 +108,45 @@ export function isLoopbackOrigin(baseUrl: string): boolean {
   }
 }
 
+function portOf(url: string): number | undefined {
+  try {
+    const parsed = new URL(url);
+    if (parsed.port) return Number(parsed.port);
+    return parsed.protocol === 'https:' ? 443 : parsed.protocol === 'http:' ? 80 : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The built JavaScript files under `dir` that name the production project. */
+export function bundleFilesNamingProduction(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  const hits: string[] = [];
+  const walk = (current: string) => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const path = join(current, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (
+        entry.name.endsWith('.js') &&
+        readFileSync(path, 'utf8').includes(PRODUCTION_PROJECT_REF)
+      ) {
+        hits.push(path);
+      }
+    }
+  };
+  walk(dir);
+  return hits;
+}
+
 /**
  * The Playwright-config form, called at the top of every config. A spec can sign in through
  * `testUsers.signIn` or type the password itself (show-presence, entry-intent), so the one place
- * every run passes is its config. A run with fixture passwords is refused, unless opted in, when
- * the test process names production, or when the app server is one the config did not start.
- * Left alone: a run with no fixture password (it signs nobody in) and `--list`, which only
- * collects tests.
+ * every run passes is its config. A run with fixture passwords is refused, unless the shell opts
+ * in, when anything the browser will reach can be shown to be, or cannot be shown not to be,
+ * production: the test process's URLs, a server the config did not start, a browser pointed at a
+ * different server than the one started, or a preview bundle built against production. Left
+ * alone: a run with no fixture password (it signs nobody in) and `--list`, which only collects
+ * tests.
  *
  * `shellEnv` is the environment as it was BEFORE the config loaded `.env` files; the opt-in is
  * read from it alone. `env` is the merged one the run, and any server it starts, will use.
@@ -109,11 +160,30 @@ export function assertPlaywrightRunAllowed(
 ): void {
   if (argv.includes('--list')) return;
   if (!signsInFixtureAccounts(env)) return;
-  if (appServer === 'external' && !optedIn(shellEnv)) {
+  if (optedIn(shellEnv)) return;
+  if (appServer.kind === 'external') {
     throw refusal(
       configName,
       'the app server is one this config did not start, so its Supabase target cannot be checked'
     );
+  }
+  if (
+    !isLoopbackOrigin(appServer.browserUrl) ||
+    portOf(appServer.browserUrl) !== appServer.serverPort
+  ) {
+    throw refusal(
+      configName,
+      `the browser goes to ${appServer.browserUrl}, not the server this config starts on port ${appServer.serverPort}`
+    );
+  }
+  if (appServer.mode === 'preview') {
+    const built = bundleFilesNamingProduction(appServer.distDir ?? DEFAULT_DIST_DIR);
+    if (built.length > 0) {
+      throw refusal(
+        configName,
+        `the preview bundle was built against the production project (${built.length} file(s) in dist/ name ${PRODUCTION_PROJECT_REF}); rebuild against the isolated stack`
+      );
+    }
   }
   assertFixtureSignInAllowed(
     [env.MYK9_E2E_SUPABASE_URL, env.VITE_SUPABASE_URL],

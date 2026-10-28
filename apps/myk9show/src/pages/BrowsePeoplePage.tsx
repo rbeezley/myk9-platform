@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { MasterDetailLayout } from '@/components/layout/MasterDetailLayout';
+import { PEOPLE_LAYOUT_ID, NAME_LIST_SIZE } from '@/components/layout/nameListSize';
 import { SelectModeButton } from '@/components/layout/SelectModeButton';
 import { useSelectMode } from '@/components/layout/useSelectMode';
 import { Button } from '@/components/ui/button';
@@ -308,7 +309,8 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
           )}
 
           <MasterDetailLayout
-            id="people"
+            id={PEOPLE_LAYOUT_ID}
+            listSize={NAME_LIST_SIZE}
             listLabel="People list"
             detailLabel="Person details"
             detail={splitOpen ? detail : null}

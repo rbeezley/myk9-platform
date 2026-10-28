@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { MasterDetailLayout } from '@/components/layout/MasterDetailLayout';
+import { DOGS_LAYOUT_ID, NAME_LIST_SIZE } from '@/components/layout/nameListSize';
 import { SelectModeButton } from '@/components/layout/SelectModeButton';
 import { useSelectMode } from '@/components/layout/useSelectMode';
 import { Button } from '@/components/ui/button';
@@ -391,7 +392,8 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
           )}
 
           <MasterDetailLayout
-            id="dogs"
+            id={DOGS_LAYOUT_ID}
+            listSize={NAME_LIST_SIZE}
             listLabel="Dog list"
             detailLabel="Dog details"
             detail={splitOpen ? detail : null}

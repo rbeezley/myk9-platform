@@ -1,6 +1,12 @@
 # Nightly Health — deterministic logic checks plus read-only route health.
-# This workflow must stay safe to run against shared staging: it does not
-# exercise entry creation, scoring, ringside updates, or other write paths.
+#
+# MYK9-1467: the signed-in route sweeps run against an isolated Supabase stack
+# built on the runner, as nightly-e2e.yml does. Signing the fixture accounts into
+# production made each run send ~12k requests to the live project (p95 rose to
+# 543 ms on 2026-10-28) and failed most nights on the same contention. Production
+# keeps one anonymous probe of the public routes on the deployed site, which
+# signs nobody in. Neither half exercises entry creation, scoring, ringside
+# updates or other write paths.
 name: Nightly Health
 
 on:
@@ -11,13 +17,9 @@ on:
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
-  # MYK9-1454: this workflow measures production on purpose, so it opts in to signing the
-  # fixture accounts into it. Every other run is refused (src/test/productionFixtureGuard.ts).
-  MYK9_ALLOW_PROD_E2E: '1'
 
-# Serialized. The two jobs already avoid signing in as the same E2E accounts
-# concurrently; this extends that to runs of the whole workflow, and keeps
-# the tracking-issue reconciliation free of a lookup/create race.
+# Serialized, so the tracking-issue reconciliation stays free of a
+# lookup/create race between two runs of the whole workflow.
 concurrency:
   group: nightly-health
   cancel-in-progress: false
@@ -26,11 +28,16 @@ jobs:
   nightly-health:
     name: Read-only QA health
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Room for the isolated stack: supabase start, every migration and the seeds.
+    timeout-minutes: 60
     if: vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true'
 
     steps:
       - uses: actions/checkout@v7
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: latest
 
       - uses: pnpm/action-setup@v6
 
@@ -45,19 +52,30 @@ jobs:
       - name: Build shared packages
         run: pnpm -r --filter='./packages/*' build
 
+      # Writes the loopback VITE_SUPABASE_URL / MYK9_E2E_* values into GITHUB_ENV,
+      # so every later step (and the dev server Playwright starts) targets this
+      # runner's own stack. No E2E_*_EMAIL secrets anywhere in this job: the seed
+      # hard-codes the @myk9t.com addresses, so an override could only point at an
+      # account it never created (see nightly-e2e.yml).
+      - name: Prepare isolated Supabase target
+        run: pnpm qa:isolated-e2e:prepare
+        env:
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
+          MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
+          MYK9_E2E_APPROVED_PROJECT_REFS: local
+          MYK9_E2E_SUPABASE_PROJECT_REF: local
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+
       - name: Verify E2E auth credentials
         working-directory: apps/myk9show
         run: pnpm exec tsx scripts/verify-e2e-auth-preflight.ts --check-roles secretary admin judge exhibitor
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
-          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-          E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
-          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
       - name: Install Playwright browser
@@ -67,15 +85,12 @@ jobs:
         run: pnpm qa:nightly:health
         env:
           CI: 'true'
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
+          # The stack is seeded, so a canary with no qualifying row FAILS instead of
+          # skipping (liveCanary.DATA_REQUIRED); a skip would pass having checked nothing.
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
-          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-          E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
-          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
       # MYK9-1128: fail the job (and so skip the upload below) if a configured secret is
@@ -97,12 +112,16 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: myk9show-nightly-health-report
-          # Never the trace archives: they hold live test-account tokens and
+          # Never the trace archives: they hold test-account tokens and
           # this repository's artifacts are public (MYK9-1057).
           path: |
             apps/myk9show/playwright-report/
             !apps/myk9show/playwright-report/**/*.zip
           retention-days: 7
+
+      - name: Stop isolated Supabase target
+        if: always()
+        run: pnpm qa:isolated-e2e:stop
 
   # Cross-browser route health — WebKit and iOS Safari.
   #
@@ -123,19 +142,23 @@ jobs:
   # scheduled runs have been green; the contract test pins the current shape,
   # so promotion is a deliberate two-file edit rather than drift.
   #
-  # Runs after the chromium job rather than beside it so the two sweeps do not
-  # sign in as the same E2E accounts concurrently. `if: always()` so a red
-  # baseline still yields cross-browser data.
+  # Runs after the chromium job, on its own isolated stack, so the advisory
+  # sweep never competes with the gate for the runner pool. `if: always()` so a
+  # red baseline still yields cross-browser data.
   cross-browser-health:
     name: Cross-browser route health (advisory)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 70
     needs: nightly-health
     if: always() && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true'
     continue-on-error: true
 
     steps:
       - uses: actions/checkout@v7
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: latest
 
       - uses: pnpm/action-setup@v6
 
@@ -150,6 +173,18 @@ jobs:
       - name: Build shared packages
         run: pnpm -r --filter='./packages/*' build
 
+      - name: Prepare isolated Supabase target
+        run: pnpm qa:isolated-e2e:prepare
+        env:
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
+          MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
+          MYK9_E2E_APPROVED_PROJECT_REFS: local
+          MYK9_E2E_SUPABASE_PROJECT_REF: local
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+
       # The chromium job's preflight does not cover this one: `if: always()`
       # runs this job even when that job failed for a missing secret, and the
       # route spec `test.skip()`s each role whose credentials are absent — so
@@ -159,15 +194,9 @@ jobs:
         working-directory: apps/myk9show
         run: pnpm exec tsx scripts/verify-e2e-auth-preflight.ts --check-roles secretary admin judge exhibitor
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
-          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-          E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
-          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
       - name: Install Playwright browser
@@ -177,20 +206,15 @@ jobs:
         run: pnpm qa:nightly:health
         env:
           CI: 'true'
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
           # Both projects are WebKit-engine: desktop Safari and iPhone 13.
           MYK9_NIGHTLY_HEALTH_PROJECTS: 'webkit,mobile-safari'
           # The deterministic Vitest block is browser-independent — the
           # chromium job above already ran it.
           MYK9_NIGHTLY_HEALTH_SKIP_VITEST: 'true'
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
-          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-          E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
-          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
       # MYK9-1128: fail the job (and so skip the upload below) if a configured secret is
@@ -212,22 +236,76 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: myk9show-cross-browser-health-report
-          # Never the trace archives: they hold live test-account tokens and
+          # Never the trace archives: they hold test-account tokens and
           # this repository's artifacts are public (MYK9-1057).
           path: |
             apps/myk9show/playwright-report/
             !apps/myk9show/playwright-report/**/*.zip
           retention-days: 7
 
-  # Reported by its OWN job rather than a step inside one of the two above,
-  # because `job.status` would describe only that half. cross-browser-health is
+      - name: Stop isolated Supabase target
+        if: always()
+        run: pnpm qa:isolated-e2e:stop
+
+  # The one check that still touches production: the public route group of the
+  # same spec, as an anonymous visitor on the deployed site. It sets no fixture
+  # password, so it signs nobody in and costs a handful of anonymous reads; the
+  # signed-in groups skip for want of credentials. Blocking: a public page that
+  # breaks on myk9show.com is the outage this workflow exists to catch.
+  production-probe:
+    name: Anonymous production probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true'
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: pnpm -r --filter='./packages/*' build
+
+      - name: Install Playwright browser
+        run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
+
+      - name: Probe the public routes on myk9show.com
+        working-directory: apps/myk9show
+        run: >-
+          pnpm exec playwright test src/test/e2e/route-health-by-role.spec.ts
+          --grep "Route health: public" --project=chromium
+          --workers=1 --timeout=90000 --retries=0
+        env:
+          CI: 'true'
+          PLAYWRIGHT_BASE_URL: https://myk9show.com
+
+      - name: Upload production probe report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: myk9show-production-probe-report
+          path: |
+            apps/myk9show/playwright-report/
+            !apps/myk9show/playwright-report/**/*.zip
+          retention-days: 7
+
+  # Reported by its OWN job rather than a step inside one of the jobs above,
+  # because `job.status` would describe only that one. cross-browser-health is
   # `continue-on-error` and advisory, so the workflow's real verdict is the
-  # chromium baseline — this reports that, and names the advisory result
-  # without letting it open an issue on its own.
+  # chromium baseline plus the production probe — this reports both, and names
+  # the advisory result without letting it open an issue on its own.
   report-status:
     name: Report status to the tracking issue
     runs-on: ubuntu-latest
-    needs: [nightly-health, cross-browser-health]
+    needs: [nightly-health, cross-browser-health, production-probe]
     if: always() && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true'
     permissions:
       contents: read
@@ -239,8 +317,9 @@ jobs:
       - uses: ./.github/actions/report-scheduled-failure
         with:
           workflow-name: Nightly Health
-          outcome: ${{ needs.nightly-health.result }}
+          outcome: ${{ (needs.nightly-health.result == 'success' && needs.production-probe.result == 'success') && 'success' || 'failure' }}
           token: ${{ secrets.GITHUB_TOKEN }}
           extra: >-
-            The read-only staging health smoke failed. Advisory cross-browser
-            sweep: ${{ needs.cross-browser-health.result }}.
+            Isolated route health: ${{ needs.nightly-health.result }}. Anonymous
+            production probe: ${{ needs.production-probe.result }}. Advisory
+            cross-browser sweep: ${{ needs.cross-browser-health.result }}.

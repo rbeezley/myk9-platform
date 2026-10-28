@@ -42,9 +42,10 @@ if [[ "$SKIP_VITEST" != 'true' ]]; then
     src/hooks/useInfiniteScroll.performanceCaching.test.ts
 fi
 
-# walkRegressionCanaries pins walk-verified fixes against live shared staging
-# (MYK9-730). Read-only; a canary with no qualifying row skips with a
-# staging-data-absent annotation rather than failing the gate.
+# walkRegressionCanaries pins walk-verified fixes (MYK9-730). Read-only. In CI it
+# runs on the seeded isolated stack with MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true,
+# where a canary with no qualifying row FAILS (MYK9-1467); without that flag it
+# skips with a data-absent annotation.
 echo "=== Nightly health: read-only route health + walk canaries (${NIGHTLY_HEALTH_PROJECTS}) ==="
 pnpm --dir apps/myk9show test:e2e:clean \
   src/test/e2e/route-health-by-role.spec.ts \

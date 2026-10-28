@@ -332,14 +332,17 @@ lanes. Additions specific to the run:
   pass, so don't spend three more agents on it. Larger diffs run `/simplify`.
 - **Ratchet:** `pnpm qa:code-quality-ratchet` from `$WT` when the diff adds lines to an
   existing file.
-- **`adversarial` floor:** dispatch two `sonnet` lenses (read only, distinct bug-finding
-  angles) in parallel. Fix or evidence every finding, then **re-run both lenses on the new
-  head**: `post-review-gate.sh` posts "all findings addressed" only over a clean final log.
-  Pass the wrappers' current `scripts/qa/review-verdict.sh` contract to each lens. A valid clean
+- **`adversarial` floor:** run two lenses in parallel: the `ship-pr` Step 4 Claude
+  `/code-review` lens (`claude-code-review`, via `scripts/qa/claude-review.sh` without
+  `--post`) and one read-only `sonnet` lens with a distinct bug-finding angle
+  (`migration-auditor` instead on a migration diff). Fix or evidence every finding, then
+  **re-run both lenses on the new head**: `post-review-gate.sh` posts "all findings
+  addressed" only over a clean final log. The wrapper carries the
+  `scripts/qa/review-verdict.sh` contract; pass it to the `sonnet` lens yourself. A valid clean
   opening is `No actionable defects found.` The final log must contain no finding bullets or
   findings JSON, including fixed findings; preserve earlier findings/dispositions in separate history.
 - **`independent` floor pre-pass:** before the first `pnpm qa:codex-review --post`, run the
-  `ship-pr` Step 4 pre-pass (one read-only `sonnet` lens on the diff, fixes committed, nothing
+  `ship-pr` Step 4 pre-pass (the Claude `/code-review` lens on the PR, fixes committed, nothing
   posted) and record `pre-pass: N findings fixed` and `Codex rounds: M` in the PR body.
 - **Docs-only two-round budget:** `ship-pr` Step 4 states the rule and its run-start
   condition; this run posts that override only when the approval at Run start named the budget.

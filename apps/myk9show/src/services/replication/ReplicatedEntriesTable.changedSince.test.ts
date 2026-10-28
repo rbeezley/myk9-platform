@@ -205,6 +205,25 @@ describe('entries incremental pull probes entry_results_changed_since (MYK9-1369
     expect(viewReads()).toHaveLength(1);
   });
 
+  it('records nothing when the view read succeeds but its rows are not applied', async () => {
+    // A row the replica does not hold yet, so the failed write leaves the next pass incremental.
+    const lateId = 'entry-2';
+    await pass(W, quiet(EARLY));
+    mockServerRows([{ ...serverRow, id: lateId, armband: '201' }], undefined, 1);
+    vi.spyOn(table, 'batchSet').mockRejectedValueOnce(new Error('replica write failed'));
+    const failed = await pass(W, quiet(SETTLED));
+    expect(failed.success).toBe(false);
+    expect(viewReads()).toHaveLength(1);
+    expect(await table.get(lateId)).toBeFalsy();
+
+    // The settled read was never applied, so only the EARLY record stands: read again.
+    const retried = await pass(W, quiet(SETTLED + 60_000));
+    expect(retried.operation).toBe('incremental-sync');
+    expect(probes()).toHaveLength(1);
+    expect(viewReads()).toHaveLength(1);
+    expect(await table.get(lateId)).toBeTruthy();
+  });
+
   it('sends no probe on a full sync, and a full sync records nothing', async () => {
     await pass(W, quiet(EARLY));
     await pass(W, quiet(SETTLED + 60_000), { forceFullSync: true });

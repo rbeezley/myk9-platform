@@ -23,7 +23,7 @@ interface ReadWindow {
 export interface EntriesReadPlan {
   /** True only when the view read can be skipped; the caller then returns no rows. */
   skip: boolean;
-  /** Call once the view read completed successfully; never on error or abort. */
+  /** Call once the view read completed AND its rows were applied; never on error or abort. */
   recordCompleted: () => void;
 }
 

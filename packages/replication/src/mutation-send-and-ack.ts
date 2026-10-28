@@ -47,8 +47,7 @@ export async function sendAndAcknowledge(params: {
       db,
       uploaded,
       newServerVersion,
-      writtenOverlays?.get(uploaded.tableName),
-      queueStore.revertsOnDiscard(uploaded.tableName)
+      writtenOverlays?.get(uploaded.tableName)
     );
     if (newServerVersion !== undefined) {
       await queueStore.updateMutationServerVersions(

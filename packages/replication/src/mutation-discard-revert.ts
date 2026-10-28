@@ -65,12 +65,7 @@ async function openGuarded(db: IDBPDatabase, discarded: PendingMutation) {
     .index('tableName')
     .getAll(discarded.tableName)) as PendingMutation[];
   const otherFailed = failed.some(m => String(m.rowId) === rowId && m.id !== discarded.id);
-  // A newer revision the server already acknowledged is not unsaved work
-  // (MYK9-1327: an edit that uploaded after this one parked).
-  const newerLocalWrite =
-    row?.isDirty === true &&
-    row.version !== discarded.rowRevision &&
-    row.version !== row.acknowledgedRevision;
+  const newerLocalWrite = row?.isDirty === true && row.version !== discarded.rowRevision;
   return { tx, rows, row, blocked: pending > 0 || otherFailed || newerLocalWrite };
 }
 
@@ -179,11 +174,6 @@ export class DiscardRevertRegistry {
     return () => {
       if (this.hooks.get(tableName) === hooks) this.hooks.delete(tableName);
     };
-  }
-
-  /** Whether Discard on this table puts the server's copy back. */
-  has(tableName: string): boolean {
-    return this.hooks.has(tableName);
   }
 
   /**

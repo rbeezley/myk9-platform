@@ -24,11 +24,6 @@ export class MutationQueueStore {
     private readonly discardReverters = new DiscardRevertRegistry()
   ) {}
 
-  /** Whether Discard on this table puts the server's copy back (MYK9-1076). */
-  revertsOnDiscard(tableName: string): boolean {
-    return this.discardReverters.has(tableName);
-  }
-
   /**
    * Return the next monotonic sequence number, seeding the in-memory counter on
    * first use from the persisted value AND the max sequence already present in

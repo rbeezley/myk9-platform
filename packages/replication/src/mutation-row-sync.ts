@@ -9,43 +9,24 @@ export async function markReplicatedRowSynced(
   db: IDBPDatabase,
   mutation: PendingMutation,
   newServerVersion?: number,
-  overlayWritten?: WrittenFieldOverlay,
-  parkedKeepsDirty = false
+  overlayWritten?: WrittenFieldOverlay
 ): Promise<number | undefined> {
   if (mutation.operation === 'DELETE') return newServerVersion;
 
   const key = [mutation.tableName, String(mutation.rowId)];
-  const [existingRow, pendingMutations, failedForTable] = (await Promise.all([
+  const [existingRow, pendingMutations] = (await Promise.all([
     db.get(REPLICATION_STORES.REPLICATED_TABLES, key),
     db.getAllFromIndex(REPLICATION_STORES.PENDING_MUTATIONS, 'tableName_rowId', [
       mutation.tableName,
       String(mutation.rowId),
     ]),
-    // The failed store only indexes tableName, so filter the row in memory.
-    parkedKeepsDirty
-      ? db.getAllFromIndex(REPLICATION_STORES.FAILED_MUTATIONS, 'tableName', mutation.tableName)
-      : [],
-  ])) as [ReplicatedRow<unknown> | undefined, PendingMutation[], PendingMutation[]];
+  ])) as [ReplicatedRow<unknown> | undefined, PendingMutation[]];
 
   if (!existingRow) return newServerVersion;
 
-  // On a table whose Discard puts the server's copy back (`parkedKeepsDirty`),
-  // a parked (failed) mutation is still recoverable through Retry or Discard, so
-  // it keeps the row dirty exactly like a queued one: otherwise an unrelated
-  // write acking would mark the row clean and a pull would overwrite the parked
-  // edit (MYK9-1327). Any other table has no Discard that could clean the row
-  // again, so there the ack cleans it and the next pull restores the server's
-  // copy, as before.
-  const hasAnotherPendingMutation =
-    pendingMutations.some(
-      pending => pending.id !== mutation.id && pending.authUserId === mutation.authUserId
-    ) ||
-    failedForTable.some(
-      failed =>
-        failed.id !== mutation.id &&
-        String(failed.rowId) === String(mutation.rowId) &&
-        failed.authUserId === mutation.authUserId
-    );
+  const hasAnotherPendingMutation = pendingMutations.some(
+    pending => pending.id !== mutation.id && pending.authUserId === mutation.authUserId
+  );
   // An uploaded INSERT is on the server now. Its `_localOnly` flag used to
   // stay until a later fetch returned the row, so counts of server-backed rows
   // skipped it and a create deleted elsewhere before that fetch was never
@@ -103,10 +84,6 @@ export async function markReplicatedRowSynced(
       baseData: rebasedBase,
       baseServerVersion: newServerVersion,
     }),
-    // A row kept dirty only by a parked sibling now holds a local revision the
-    // server has: Discard of that sibling must not read it as unsaved work.
-    ...(stillDirty &&
-      mutation.rowRevision !== undefined && { acknowledgedRevision: mutation.rowRevision }),
     // Record the step only when this upload carried a precondition: then the
     // server held exactly `from` before it and exactly this write after it.
     ...(newServerVersion !== undefined &&

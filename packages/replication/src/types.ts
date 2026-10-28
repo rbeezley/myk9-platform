@@ -66,14 +66,6 @@ export interface ReplicatedRow<T> {
    * change of `serverVersion` breaks the `to` match and switches this off.
    */
   lastOwnUpload?: { from: number; to: number };
-  /**
-   * The local revision (`version`) the last acknowledged upload carried, set
-   * when the row stayed dirty after it (a parked sibling still names the row).
-   * While `version` still equals it, no local write is unsaved beyond the parked
-   * ones, so Discard of the last of them may restore the server's copy
-   * (MYK9-1327).
-   */
-  acknowledgedRevision?: number;
   conflict?: ReplicationConflictSnapshot<T>; // Persisted conflict snapshot
   /**
    * The auth user whose session wrote this row (a sync download, or a local

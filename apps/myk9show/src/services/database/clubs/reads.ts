@@ -5,6 +5,7 @@ import { sanitizePostgRESTFilter } from '@/utils/sanitizePostgRESTFilter';
 import type { DbClubInsert, DbClubUpdate } from '../../../types/database-mappings';
 import type { Json } from '@/types/supabase';
 import { translateClubIdentityError } from '@/utils/duplicateIdentityErrors';
+import { POSTGREST_MAX_ROWS } from '@/services/replication/postgrestMaxRows';
 
 // Get all clubs
 export const getAllClubs = async () => {
@@ -35,23 +36,37 @@ export const getAllClubs = async () => {
 
 // MYK9-1448: pending clubs, filtered on the server. Reading getAllClubs() and
 // filtering afterwards drops any pending club past PostgREST's 1,000-row cap.
+// MYK9-1456: pages through the result in max_rows-sized slices so a list past
+// 1,000 rows (all creators, or one creator) is returned whole. `id` breaks ties
+// between clubs created in the same instant so no row repeats or is skipped
+// across pages.
 export const getClubsAwaitingAuthorization = async (createdBy?: string) => {
   const startTime = Date.now();
 
   try {
-    let query = supabase.from('clubs').select('*').is('authorized_at', null).is('deleted_at', null);
-    // MYK9-1395: a folded club-awaiting-authorization notice links here with ?creator=<uid>.
-    if (createdBy) query = query.eq('created_by', createdBy);
-    const { data, error } = await query.order('created_at', { ascending: true });
+    const rows = [];
+    for (let from = 0; ; from += POSTGREST_MAX_ROWS) {
+      let query = supabase
+        .from('clubs')
+        .select('*')
+        .is('authorized_at', null)
+        .is('deleted_at', null);
+      // MYK9-1395: a folded club-awaiting-authorization notice links here with ?creator=<uid>.
+      if (createdBy) query = query.eq('created_by', createdBy);
+      const { data, error } = await query
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, from + POSTGREST_MAX_ROWS - 1);
 
-    const duration = Date.now() - startTime;
-    logQuery('club', 'select_awaiting_authorization', duration, error?.message);
+      if (error) throw createDatabaseError(error, 'club', 'select_awaiting_authorization');
 
-    if (error) {
-      throw createDatabaseError(error, 'club', 'select_awaiting_authorization');
+      const page = data ?? [];
+      rows.push(...page);
+      if (page.length < POSTGREST_MAX_ROWS) break;
     }
 
-    return { data: data || [], error: null };
+    logQuery('club', 'select_awaiting_authorization', Date.now() - startTime);
+    return { data: rows, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'club', 'select_awaiting_authorization');

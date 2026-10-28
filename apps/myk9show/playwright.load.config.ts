@@ -1,7 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 import { config as loadEnv } from 'dotenv';
+import { assertPlaywrightRunAllowed } from './src/test/productionFixtureGuard';
 import { loadAppServerCommand, resolveLoadAppServerMode } from './src/test/load/loadAppServer';
 
+// MYK9-1454: the shell's own environment, before .env files; the production opt-in is read from it.
+const shellEnv = { ...process.env };
 loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
 
@@ -12,6 +15,15 @@ const parsedBaseURL = new URL(baseURL);
 const port = Number(process.env.PLAYWRIGHT_PORT || parsedBaseURL.port || '5173');
 const startApp = process.env.LOAD_TEST_START_APP === 'true';
 const appServerMode = resolveLoadAppServerMode(process.env);
+// MYK9-1454: refuse to sign fixture accounts into production unless the run opts in. Without
+// LOAD_TEST_START_APP the run drives whatever PLAYWRIGHT_BASE_URL serves.
+assertPlaywrightRunAllowed(
+  'playwright.load.config.ts',
+  shellEnv,
+  startApp
+    ? { kind: 'own', mode: appServerMode, browserUrl: baseURL, serverPort: port }
+    : { kind: 'external' }
+);
 
 export default defineConfig({
   testDir: './src/test/load',

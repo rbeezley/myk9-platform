@@ -1,10 +1,25 @@
 import { defineConfig, devices } from '@playwright/test';
 import { config as loadEnv } from 'dotenv';
+import {
+  assertPlaywrightRunAllowed,
+  signsInFixtureAccounts,
+} from './src/test/productionFixtureGuard';
 
 // Load .env.local first (gitignored), then .env — so E2E_* test creds reach the
 // test process under this config too (the authed specs read them).
+// MYK9-1454: the shell's own environment, before .env files; the production opt-in is read from it.
+const shellEnv = { ...process.env };
 loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
+// MYK9-1454: refuse to sign fixture accounts into production unless the run opts in.
+// 'own' preview: a run that signs fixture accounts in never reuses a running server (see
+// webServer), and the preview's dist/ is scanned for the production ref.
+assertPlaywrightRunAllowed('playwright.ci.config.ts', shellEnv, {
+  kind: 'own',
+  mode: 'preview',
+  browserUrl: 'http://localhost:4173',
+  serverPort: 4173,
+});
 
 const isA11ySmoke = process.env.PLAYWRIGHT_A11Y === 'true';
 const isRegression =
@@ -310,7 +325,9 @@ export default defineConfig({
   webServer: {
     command: 'npm run preview',
     port: 4173,
-    reuseExistingServer: !process.env.CI,
+    // MYK9-1454: never reuse a server this run did not start when it signs fixture accounts in;
+    // a reused one (another worktree's preview, a perf run's) may be built against production.
+    reuseExistingServer: !process.env.CI && !signsInFixtureAccounts(),
     timeout: 120000,
   },
 });

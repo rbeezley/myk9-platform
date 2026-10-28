@@ -172,14 +172,32 @@ async function measureHorizontalOverflow(page: Page) {
 
 // TEMP MYK9-1467: every request to the local API host still open, never reset between routes.
 const openToApi = new WeakMap<Page, Map<import('@playwright/test').Request, number>>();
+const cdpOpen = new WeakMap<Page, Map<string, { url: string; at: number; type: string }>>();
 export function trackOpenToApi(page: Page) {
   const open = new Map<import('@playwright/test').Request, number>();
   openToApi.set(page, open);
-  page.on('request', r => {
+  // Context level: includes service-worker and worker requests the page never sees.
+  const ctx = page.context();
+  ctx.on('request', r => {
     if (r.url().includes(':54321/')) open.set(r, Date.now());
   });
-  page.on('requestfinished', r => open.delete(r));
-  page.on('requestfailed', r => open.delete(r));
+  ctx.on('requestfinished', r => open.delete(r));
+  ctx.on('requestfailed', r => open.delete(r));
+  // DevTools level: websockets and requests queued in the browser.
+  const cdpMap = new Map<string, { url: string; at: number; type: string }>();
+  cdpOpen.set(page, cdpMap);
+  void ctx.newCDPSession(page).then(async cdp => {
+    await cdp.send('Network.enable');
+    cdp.on('Network.requestWillBeSent', e => {
+      if (e.request.url.includes(':54321')) cdpMap.set(e.requestId, { url: e.request.url, at: Date.now(), type: e.type ?? '?' });
+    });
+    cdp.on('Network.loadingFinished', e => cdpMap.delete(e.requestId));
+    cdp.on('Network.loadingFailed', e => cdpMap.delete(e.requestId));
+    cdp.on('Network.webSocketCreated', e => {
+      if (e.url.includes(':54321')) cdpMap.set(`ws-${e.requestId}`, { url: e.url, at: Date.now(), type: 'WebSocket' });
+    });
+    cdp.on('Network.webSocketClosed', e => cdpMap.delete(`ws-${e.requestId}`));
+  });
 }
 
 async function assertAppApiRequestsSettled(
@@ -208,6 +226,10 @@ async function assertAppApiRequestsSettled(
       ([r, at]) => `age=${Date.now() - at}ms ${r.method()} ${r.url().slice(0, 140)}`
     );
     console.log(`[holders] ${routeId} (${holders.length} open to the API host)\n  ${holders.join('\n  ')}`);
+    const cdpHolders = [...(cdpOpen.get(page) ?? new Map()).values()].map(
+      v => `age=${Date.now() - v.at}ms ${v.type} ${v.url.slice(0, 140)}`
+    );
+    console.log(`[cdp-holders] ${routeId} (${cdpHolders.length})\n  ${cdpHolders.join('\n  ')}`);
     const diagnostic = logUnsettledAppApiRequests(routeId, settlement.pendingUrls);
     test.info().annotations.push({
       type: 'route',

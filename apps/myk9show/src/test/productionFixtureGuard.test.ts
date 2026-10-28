@@ -60,7 +60,9 @@ describe('production fixture sign-in guard (MYK9-1454)', () => {
 describe('a Playwright run refuses to start against production with fixture passwords', () => {
   const merged = { E2E_SECRETARY_PASSWORD: 'pw', VITE_SUPABASE_URL: PRODUCTION };
   const appRoots: string[] = [];
-  afterEach(() => appRoots.splice(0).forEach(dir => rmSync(dir, { recursive: true, force: true })));
+  afterEach(() => {
+    for (const dir of appRoots.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
   /** An app folder holding exactly these `.env*` files, so the real worktree's `.env` stays out. */
   const appRootWith = (files: Record<string, string> = {}) => {
     const dir = mkdtempSync(join(tmpdir(), 'guard-app-'));

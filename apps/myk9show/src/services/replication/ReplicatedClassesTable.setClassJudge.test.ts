@@ -20,6 +20,7 @@ import {
 } from '@myk9/replication';
 import { replicatedClassesTable as table, type ReplicatedClass } from './ReplicatedClassesTable';
 import { replicatedJudgeAssignmentsTable } from './ReplicatedJudgeAssignmentsTable';
+import { replicatedShowDeskPeopleTable } from './ReplicatedShowDeskPeopleTable';
 import { upsertClassJudgeAssignment } from '@/services/database/judges/reads';
 
 vi.mock('@myk9/core', () => ({
@@ -117,6 +118,7 @@ describe('ReplicatedClassesTable.setClassJudge (MYK9-1327)', () => {
     });
     table.setMutationManager(manager);
     replicatedJudgeAssignmentsTable.setMutationManager(manager);
+    replicatedShowDeskPeopleTable.setMutationManager(manager);
   };
 
   const pending = (): Promise<PendingMutation[]> => manager.getPendingMutationsForTable('classes');
@@ -479,6 +481,40 @@ describe('ReplicatedClassesTable.setClassJudge (MYK9-1327)', () => {
       expect(rpcCalls.filter(c => c.args.p_class_id === wizardId)).toHaveLength(1);
     });
     expect(tablesWritten).toContain('classes');
+  });
+
+  it("makes a pick wait for the judge's own pending people INSERT", async () => {
+    const person = await replicatedShowDeskPeopleTable.createPerson({
+      id: 'person-new',
+      firstName: 'Nia',
+      lastName: 'Newjudge',
+    });
+    await table.setClassJudge(ID, judgeOf(person.id, 'Nia'));
+
+    const personInsert = (await manager.getPendingMutationsForTable('people')).find(
+      m => m.operation === 'INSERT' && m.rowId === person.id
+    );
+    const pick = picks(await pending())[0];
+    expect(personInsert).toBeDefined();
+    expect(pick?.dependsOn).toEqual([personInsert!.id]);
+
+    // The INSERT keeps failing: the pick must not reach the server first (it would hit 22023).
+    rpcImpl = ok;
+    await upload();
+    expect(rpcCalls).toEqual([]);
+
+    insertImpl = async () => ({ data: [{ id: person.id }], error: null });
+    await vi.waitFor(async () => {
+      await upload();
+      expect(rpcCalls).toHaveLength(1);
+    });
+    expect(rpcCalls[0]?.args).toEqual({ p_class_id: ID, p_person_id: person.id });
+    expect(tablesWritten).toContain('people');
+  });
+
+  it('adds no person dependency when the judge has no pending people INSERT', async () => {
+    await table.setClassJudge(ID, judgeOf('judge-b', 'Bob'));
+    expect(picks(await pending())[0]?.dependsOn).toBeUndefined();
   });
 
   it('survives an offline reload: rebuilt from IndexedDB, the judge and the queued pick persist', async () => {

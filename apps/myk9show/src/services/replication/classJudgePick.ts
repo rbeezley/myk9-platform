@@ -4,7 +4,10 @@
  * A pick is a single baked-args RPC mutation (`UPDATE classes/<id>`). Two things keep a run of
  * picks, and a pick on a class created in the same pass, in the order the secretary made them:
  *  - `dependsOn`: the class's pending INSERT (the wizard creates the class and picks its judge
- *    offline in one pass) and the latest pending or failed pick. It never names an unrelated
+ *    offline in one pass), the picked person's pending `people` INSERT (a person created offline
+ *    through the show-desk people table, a direct INSERT with a client-made id and no remap; the
+ *    runner moves past a backed-off INSERT, and the pick would then hit 22023 and park), and the
+ *    latest pending or failed pick. It never names an unrelated
  *    class edit, so a parked status edit does not block a pick.
  *  - supersede: a newer pick discards the class's earlier FAILED picks, so Retry in Sync issues
  *    cannot replay an old intent over the new one.
@@ -56,11 +59,21 @@ async function readPickQueue(queue: QueueReader, classId: string): Promise<Class
 /** What a newly queued pick must wait for, and which earlier failed picks it replaces. */
 export async function planClassJudgePick(
   queue: QueueReader,
-  classId: string
+  classId: string,
+  personId: string | null
 ): Promise<{ dependsOn: string[] | undefined; supersededFailedIds: string[] }> {
   const { pendingInserts, pendingPicks, failedPicks } = await readPickQueue(queue, classId);
+  const personInserts = personId
+    ? (await queue.getPendingMutationsForRow('people', personId)).filter(
+        m => m.operation === 'INSERT'
+      )
+    : [];
   const latestPick = [...pendingPicks, ...failedPicks].sort(queueOrder).at(-1);
-  const dependsOn = [...pendingInserts.map(m => m.id), ...(latestPick ? [latestPick.id] : [])];
+  const dependsOn = [
+    ...pendingInserts.map(m => m.id),
+    ...personInserts.map(m => m.id),
+    ...(latestPick ? [latestPick.id] : []),
+  ];
   return {
     dependsOn: dependsOn.length > 0 ? dependsOn : undefined,
     supersededFailedIds: failedPicks.map(m => m.id),

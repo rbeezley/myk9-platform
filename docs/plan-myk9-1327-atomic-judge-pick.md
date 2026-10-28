@@ -57,7 +57,7 @@ The secretary sees the old judge come back. Five rounds of client-side reconstru
   - While any pick is still queued (pending or backing off), the row stays dirty, so pulls never overwrite it (`CLASS_DIRTY_ROW_COMPARE_POLICY` judge `fieldGroups`). A pick that has **parked** no longer holds the row; see Amendment (2026-10-28) below.
   - Discarding a parked A releases B and C, because a missing dependency counts as satisfied.
 - ~~**Engine change (small).** Read `returned.version` from a jsonb return.~~ **Dropped (Amendment, 2026-10-28).** `set_class_judge` checks no expected version, so its returned version cannot be trusted for token bookkeeping: re-stamping queued siblings with it would let a stale class edit pass OCC over another device's write. The engine keeps reading only a numeric RPC return. After a pick acks, the row's token is unchanged, and a later queued class edit gets 40001 and rebases through the existing OCC path.
-- ~~**A parked mutation keeps its row dirty (engine change, required).**~~ **Dropped (Amendment, 2026-10-28).** `markReplicatedRowSynced` (`mutation-row-sync.ts:27-29, 47`) decides "still dirty" from the PENDING queue only. A pick that has parked has already moved to `FAILED_MUTATIONS`. So when an unrelated class update later acks, the row goes clean, and a pull would restore the old judge over a recoverable pick (Codex, 2026-10-28). The fix: count the same owner's failed mutations for the same table and row as keeping it dirty. This is a general rule for every table, since a parked edit of any kind should not be overwritten while Retry or Discard is still offered.
+- ~~**A parked mutation keeps its row dirty (engine change, required).**~~ **Dropped (Amendment, 2026-10-28).** `markReplicatedRowSynced` (`mutation-row-sync.ts:27-29, 47`) decides "still dirty" from the PENDING queue only. A pick that has parked has already moved to `FAILED_MUTATIONS`. So when an unrelated class update later acks, the row goes clean, and a pull would restore the old judge over a recoverable pick (Codex, 2026-10-28).
 - **Ack mapper (optional, separable).** A per-table mapper writes the RPC's returned judge onto the row when it goes clean. This stores the server's one answer, and it covers a person the server resolves differently, for example a soft-deleted one.
 - **Failure states:**
   - Network errors back off, with the row dirty and showing the pick (it is still in the pending queue).
@@ -112,7 +112,7 @@ The secretary sees the old judge come back. Five rounds of client-side reconstru
    - Review: the migration-auditor plus Codex. Held for the owner's `db push`.
 2. **Engine (as amended 2026-10-28): `isRetryableError` treats `P0002` and `22023` as permanent.** The jsonb version read, the parked-keeps-dirty rule and the ack mapper were dropped (see Amendment).
    - Tests:
-     - `isRetryableError` treats `P0002` and `22023` as permanent;
+     - `isRetryableError` treats `P0002` and `22023` as permanent (superseded: scoped to `set_class_judge` in Batch 3, see below);
      - `packages/replication` shuffled.
    - Review tier: independent (a replication engine path).
 3. **The fix:** `setClassJudge`, the dependency and supersede helpers, rewiring `upsertClassJudgeAssignment`, and the deletions. It ships only after Batch 1 is live.
@@ -125,6 +125,9 @@ The secretary sees the old judge come back. Five rounds of client-side reconstru
      - Verified: `useClassEditActions`' follow-up `updateClass` sends no judge columns (`mapClassInputToUpdate` maps none), so Setup → Classes writes the judge only through the pick.
      - Migration `20261028185300_myk9_1327_one_judge_per_class.sql` adds the partial unique index (see Decision 2), with the behavioural test `myk9_1327_one_judge_per_class_test.sql`.
 
+   - **Outside review of the merged Batch 2 (#3361), folded into this branch:**
+     - The permanent codes are now scoped to the RPC. `isRetryableError(error, mutation?)` consults `RPC_PERMANENT_CODES` (`set_class_judge`: `P0002`, `22023`) in `mutation-utils.ts`, and `mutation-retry.ts` passes the mutation. A global `P0002` branch would have dead-lettered `ringside_update_entry` ("Entry not found" for an entry the server cannot see yet), which must keep retrying. Tests pin `set_class_judge` parking, `ringside_update_entry` P0002 and a plain UPDATE 22023 backing off.
+     - A pick waits for the judge's own pending `people` INSERT (`planClassJudgePick`). Otherwise a person created offline whose INSERT is backing off lets the runner move past it, and the pick would park permanently on 22023. The only offline person creation is `ReplicatedShowDeskPeopleTable.createPerson`, a direct INSERT with a client-made id (no RPC, no row-id remap).
    - Tests on the real replica and queue (fake-indexeddb `MutationManager` plus `ReplicatedClassesTable`):
      - **Red before, green after:** an unrelated class UPDATE acks while the pick is backed off, then a pull returns the old judge. The local judge stays the new one.
      - Retry success: the row goes clean and shows the picked judge; a later queued class edit rebases through the OCC conflict path and lands.
@@ -155,7 +158,7 @@ The secretary sees the old judge come back. Five rounds of client-side reconstru
 
 Codex reviewed this plan twice. Round 1's three findings are folded in above. Round 2's two were put to the owner as a convergence stop, and decided:
 
-1. ~~**Discard after a sibling edit has uploaded: field-scoped discard.**~~ **Moot after the Amendment:** a parked pick no longer holds the row, so a sibling's ack cleans it and Discard has nothing to revert. Discarding a parked `set_class_judge` re-reads that class from the server through the existing row-refetch adapter (`getRowRefetchAdapter().fetchRowsById`) and overwrites only the judge fields with the server's values. It clears dirty only if nothing else is pending or parked for the row. Every other discard keeps the whole-row `newerLocalWrite` guard in `mutation-discard-revert.ts`. This belongs in Batch 2 (engine) or Batch 3 (the class table's discard hook). Test: a pick parks, an unrelated class edit uploads, Discard; the judge returns to the server's value and the row is clean.
+1. ~~**Discard after a sibling edit has uploaded: field-scoped discard.**~~ **Moot after the Amendment:** a parked pick no longer holds the row, so a sibling's ack cleans it. Classes opt into the existing whole-row Discard revert (MYK9-1076, `revertsOnDiscard`), which restores the server's judge when the parked pick is the newest write and nothing else names the row; no field-scoped variant is needed.
 2. **Old clients during the rollout: accepted, pre-launch.** Every client today is the owner's or a test device, and the PWA update prompt moves them to the new version. This is a known window. **Remedy, now built in Batch 3:** the partial unique index `judge_assignments_one_confirmed_judge_per_class` on confirmed class-level rows (`20261028185300`), which ships in the same release as the client switch. The live database had 0 classes with more than one confirmed judge on 2026-10-28.
 
 ## Amendment (owner, 2026-10-28, after Batch 2's Codex rounds)

@@ -1097,7 +1097,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     if (!currentClass) throw new Error(`Class ${classId} not found`);
 
     const plan = this.pickQueue
-      ? await planClassJudgePick(this.pickQueue, classId)
+      ? await planClassJudgePick(this.pickQueue, classId, judge?.personId ?? null)
       : { dependsOn: undefined, supersededFailedIds: [] };
     await this.set(
       classId,

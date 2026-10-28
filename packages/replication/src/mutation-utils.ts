@@ -229,6 +229,18 @@ export function isAuthorizationError(error: unknown): boolean {
 }
 
 /**
+ * Postgres codes that dead-letter a mutation of ONE named RPC on the first failure, because that
+ * RPC raises them only for input that cannot become valid on retry. Keyed by RPC name, as
+ * CONTAINABLE_RPC_NAMES is in MutationUploadRunner: a code is never permanent for every RPC.
+ *
+ * MYK9-1327: `set_class_judge` raises P0002 (class or person not found) and 22023
+ * (invalid_parameter_value, a deleted person).
+ */
+export const RPC_PERMANENT_CODES: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  ['set_class_judge', new Set(['P0002', '22023'])],
+]);
+
+/**
  * Determines if an error is retryable
  *
  * Retryable errors include:
@@ -243,6 +255,11 @@ export function isAuthorizationError(error: unknown): boolean {
  * - Integrity/constraint violations (Postgres class 23xxx)
  * - RLS / permission denials (42501, "row-level security")
  * - Authentication/authorization failures
+ * - MK014 (entry under a deleted class, trial or show)
+ * - Codes that are permanent only for ONE RPC (`RPC_PERMANENT_CODES`, passed as the
+ *   `mutation` argument): P0002 and 22023 for `set_class_judge`. They are NOT global.
+ *   Other RPCs raise P0002 for "not found yet" (`ringside_update_entry` on an entry the
+ *   server cannot see yet), which must keep retrying.
  *
  * FAIL-OPEN default: anything NOT affirmatively classified as permanent is
  * treated as retryable. A dog-show score must never be discarded because an
@@ -252,9 +269,13 @@ export function isAuthorizationError(error: unknown): boolean {
  * dead-letter is a lost score. See July 2026 replication audit finding H2.
  *
  * @param error - The error to check
+ * @param mutation - The failing mutation, when known; its RPC name scopes `RPC_PERMANENT_CODES`
  * @returns true if the error is retryable (the default for anything ambiguous)
  */
-export function isRetryableError(error: unknown): boolean {
+export function isRetryableError(
+  error: unknown,
+  mutation?: { rpc?: { name: string } | undefined }
+): boolean {
   // Timeout errors are always retryable
   if (error instanceof TimeoutError) {
     return true;
@@ -287,9 +308,8 @@ export function isRetryableError(error: unknown): boolean {
       return false;
     }
 
-    // MYK9-1327: set_class_judge raises P0002 (class or person not found) and
-    // 22023 (invalid_parameter_value). The input will not become valid on retry.
-    if (code === 'P0002' || code === '22023') {
+    // Codes that are permanent for this mutation's RPC only (see RPC_PERMANENT_CODES).
+    if (code && mutation?.rpc && RPC_PERMANENT_CODES.get(mutation.rpc.name)?.has(code)) {
       return false;
     }
 

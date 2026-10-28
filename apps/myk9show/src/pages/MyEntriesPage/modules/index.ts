@@ -43,7 +43,6 @@ export type { ScopedPaymentFacts, ScopedPaymentFactRow } from './scopedPaymentFa
 
 // Components
 export { MyShowsList, useMyShowGroups } from './MyShowsList';
-export { MyShowsSplit } from './MyShowsSplit';
 export { MyShowActionsMenu } from './MyShowActionsMenu';
 export { buildMyShowActions } from './myShowActions';
 export type { MyShowAction, MyShowActionId, MyShowActionsFacts } from './myShowActions';

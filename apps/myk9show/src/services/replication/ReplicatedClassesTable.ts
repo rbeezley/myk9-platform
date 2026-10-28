@@ -26,10 +26,19 @@ import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { createInFlightSharer, type ShareRead } from '@/services/database/_shared/shareInFlight';
 import { readPersistedAuthUserId } from '@/services/database/persistedAuthUserId';
 import {
+  HideCountLookupFailedError,
   affectsClassEnrichment,
   invalidateClassEnrichment,
   resolveClassEnrichment,
 } from './classEnrichmentCache';
+import type { ClassEnrichment } from './classEnrichmentCache';
+import {
+  clearHideCountsOwed,
+  markHideCountsOwed,
+  OWED_CLASS_FETCH_CHUNK,
+  owedHideCountClassIds,
+  settleHideCountsOwed,
+} from './hideCountsOwed';
 import type { JudgeNameParts } from '@/services/database/_shared/judgeNamesByClass';
 import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeFields';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
@@ -434,6 +443,18 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
    * prior session's local data.
    */
   async clearCachedHideCounts(): Promise<void> {
+    this.hideCountBoundaryActive = true;
+    this.hideCountBoundaryGeneration += 1;
+    try {
+      await this.scrubCachedHideCounts();
+    } finally {
+      this.hideCountBoundaryGeneration += 1;
+      this.hideCountBoundaryActive = false;
+    }
+  }
+
+  private async scrubCachedHideCounts(): Promise<void> {
+    clearHideCountsOwed();
     await this.runTransaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite', async store => {
       const index = store.index('tableName');
       const rows = (await index.getAll(this.getTableName())) as ReplicatedRow<ReplicatedClass>[];
@@ -629,20 +650,103 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   private readonly shareShowRead: ShareRead = (key, read) =>
     this.sharedShowReads(`${readPersistedAuthUserId() ?? 'anon'}:${key}`, read);
 
-  /** Server-derived values a class row carries offline (visibility, hides, judge). */
-  private async enrichClassRows(rows: ClassRow[]): Promise<EnrichedClassRow[]> {
-    // MYK9-1360: cached per show for a few minutes; the lookups are best-effort inside, so a
-    // failure must not break class replication.
+  /** Bumped on entry and exit of `clearCachedHideCounts`, so a lookup that spans it can tell. */
+  private hideCountBoundaryGeneration = 0;
+  private hideCountBoundaryActive = false;
+
+  /** Owed classes in this scope that the incremental fetch did not already return (MYK9-1458). */
+  private async fetchOwedClassRows(
+    fetched: ClassRow[],
+    scope: { value?: string | undefined }
+  ): Promise<ClassRow[]> {
+    const have = new Set(fetched.map(row => String(row.id)));
+    const owed = owedHideCountClassIds(scope.value).filter(id => !have.has(id));
+    const rows: ClassRow[] = [];
+    // Chunked so a long owed list stays under URL and row caps; best-effort so a failed retry
+    // never holds the sync it rides on. Its ids simply stay owed for the next one.
+    for (let start = 0; start < owed.length; start += OWED_CLASS_FETCH_CHUNK) {
+      const chunk = owed.slice(start, start + OWED_CLASS_FETCH_CHUNK);
+      try {
+        const { data, error } = await supabase
+          .from('classes')
+          .select(classReplicationSelect())
+          .in('id', chunk);
+        if (error) throw new Error(error.message);
+        const fetched = (data ?? []) as unknown as ClassRow[];
+        // A class the server no longer returns (deleted, or no longer visible) is owed nothing.
+        const returned = new Set(fetched.map(row => String(row.id)));
+        settleHideCountsOwed(chunk.filter(id => !returned.has(id)));
+        rows.push(...fetched);
+      } catch (error) {
+        logger.warn(
+          `[${this.getTableName()}] Owed hide-count retry skipped this sync`,
+          'replication',
+          {
+            message: error instanceof Error ? error.message : String(error),
+          }
+        );
+      }
+    }
+    return rows;
+  }
+
+  /** The hide counts this device persisted for `rows`, keyed by class id; absent ones omitted. */
+  private async savedHideCounts(rows: ClassRow[]): Promise<Map<string, number>> {
+    const saved = new Map<string, number>();
+    const locals = await Promise.all(rows.map(row => this.get(String(row.id))));
+    for (const local of locals) {
+      if (local?.hideCount !== undefined) saved.set(String(local.id), local.hideCount);
+    }
+    return saved;
+  }
+
+  /**
+   * Server-derived values a class row carries offline (visibility, hides, judge).
+   *
+   * Visibility, time-limit and judge lookups are best-effort inside (MYK9-1360): a failure keeps
+   * what the device has and must not break class replication. A failed hide-count lookup
+   * (MYK9-1451) must not read as "no count" either: it never changes a count this device saved,
+   * and a class with none takes whatever the partial lookup answered. Every class in the batch
+   * is then owed a lookup (`hideCountsOwed`), which the next sync retries by id even when the
+   * class itself has not changed (MYK9-1458). Rows always apply; no role's sync is held.
+   *
+   * A saved count wins over a partial answer on purpose: a failed official RPC can leave a rule's
+   * default total in the answer, which must not replace a judge-set count mid-scoring. The class
+   * stays owed, so the next good lookup corrects it.
+   *
+   * `answered` collects the classes whose lookup succeeded. Only the sync settles them, and only
+   * after its rows are applied (`settleAppliedOwed`).
+   */
+  private async enrichClassRows(
+    rows: ClassRow[],
+    answered?: Set<string>
+  ): Promise<EnrichedClassRow[]> {
+    const boundary = this.hideCountBoundaryGeneration;
+    let enrichment: ClassEnrichment;
+    try {
+      enrichment = await resolveClassEnrichment(rows, {
+        shareRead: this.shareShowRead,
+        localTimeLimitRules: ids => this.cachedTimeLimitRules(ids),
+        tableName: this.getTableName(),
+      });
+      for (const row of rows) answered?.add(String(row.id));
+    } catch (error) {
+      if (!(error instanceof HideCountLookupFailedError)) throw error;
+      enrichment = error.enrichment;
+      const saved = await this.savedHideCounts(rows);
+      // An account-boundary strip that ran or is running since this began wins: never carry a
+      // count it removed back into the row, nor re-owe the previous account's classes.
+      if (!this.hideCountBoundaryActive && boundary === this.hideCountBoundaryGeneration) {
+        markHideCountsOwed(rows);
+        for (const [id, count] of saved) enrichment.hideCounts.set(id, count);
+      }
+    }
     const {
       visibility: visibilityByClassId,
       hideCounts: hideCountByClassId,
       timeLimitRules: timeLimitRuleByClassId,
       judges: judgeByClassId,
-    } = await resolveClassEnrichment(rows, {
-      shareRead: this.shareShowRead,
-      localTimeLimitRules: ids => this.cachedTimeLimitRules(ids),
-      tableName: this.getTableName(),
-    });
+    } = enrichment;
 
     return rows.map(row => ({
       ...row,
@@ -667,8 +771,49 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     return byId;
   }
 
+  /**
+   * Of `ids`, those holding an unsent edit under any account on this device. The sync skips or
+   * merges such a row rather than writing the server copy, so its count may not have applied.
+   * Null when the device store could not be read: the caller then settles nothing, and the
+   * classes simply stay owed. Never throws, so it cannot change a sync's result.
+   */
+  private async withUnsentEdits(ids: string[]): Promise<Set<string> | null> {
+    try {
+      const dirty = new Set<string>();
+      for (const id of ids) {
+        if ((await this.getReplicatedRowIncludingOtherAccounts(id))?.isDirty) dirty.add(id);
+      }
+      return dirty;
+    } catch (error) {
+      logger.warn(`[${this.getTableName()}] Owed hide-count check skipped`, 'replication', {
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Settle owed classes the sync both looked up and applied: answered in this sync, and holding
+   * no unsent edit when it started or now. Any other stays owed for a later sync.
+   */
+  private async settleAppliedOwed(
+    answered: Set<string>,
+    dirtyAtStart: Set<string> | null
+  ): Promise<void> {
+    if (!dirtyAtStart) return;
+    const candidates = owedHideCountClassIds(undefined).filter(
+      id => answered.has(id) && !dirtyAtStart.has(id)
+    );
+    if (candidates.length === 0) return;
+    const dirtyNow = await this.withUnsentEdits(candidates);
+    if (!dirtyNow) return;
+    settleHideCountsOwed(candidates.filter(id => !dirtyNow.has(id)));
+  }
+
   async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
+    const answered = new Set<string>();
+    const dirtyAtStart = await this.withUnsentEdits(owedHideCountClassIds(undefined));
 
     const adapter: SyncReplicatedTableAdapter<EnrichedClassRow, ReplicatedClass> = {
       ...this.getRowRefetchAdapter(),
@@ -720,7 +865,11 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
           throw new Error(`Supabase query failed: ${error.message}`);
         }
 
-        return this.enrichClassRows((data ?? []) as unknown as ClassRow[]);
+        const rows = (data ?? []) as unknown as ClassRow[];
+        return this.enrichClassRows(
+          [...rows, ...(await this.fetchOwedClassRows(rows, scope))],
+          answered
+        );
       },
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       filterLocalRows: (rows, scope) =>
@@ -737,6 +886,8 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
       }
     );
+
+    if (result.success) await this.settleAppliedOwed(answered, dirtyAtStart);
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);

@@ -62,6 +62,12 @@ vi.mock('@/services/database/supabaseClient', () => {
   };
 });
 
+// These tests are not about hide counts: the bare Supabase mock above cannot answer that lookup,
+// and a failed lookup now fails the class sync (MYK9-1451).
+vi.mock('../resolveClassHideCounts', () => ({
+  resolveHideCountsForClassRows: vi.fn(async () => new Map()),
+}));
+
 // Don't mock @myk9/replication - use the real implementation
 
 // Import after mocks are set up

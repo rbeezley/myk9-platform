@@ -117,6 +117,9 @@ describe('max-time rule enrichment keeps the cached rule when the lookup fails (
     });
     const resolver = await import('../resolveClassTimeLimitRules');
     vi.spyOn(resolver, 'resolveTimeLimitRulesForClassRows').mockResolvedValue(null);
+    // The hide-count lookup is not what this test is about; let it answer (MYK9-1451).
+    const hideCounts = await import('../resolveClassHideCounts');
+    vi.spyOn(hideCounts, 'resolveHideCountsForClassRows').mockResolvedValue(new Map());
 
     const enriched = await (
       table as unknown as {

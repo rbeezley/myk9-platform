@@ -130,8 +130,25 @@ export interface ClassEnrichmentDeps {
   tableName: string;
 }
 
+/**
+ * MYK9-1451: thrown when the hide-count lookup (official RPC, public rules, or the trials read
+ * under them) failed. An empty answer from a failed lookup is indistinguishable from "this class
+ * has no count", so the caller must keep the counts it already saved instead of taking this one.
+ */
+export class HideCountLookupFailedError extends Error {
+  /** Everything else that did resolve, so a caller that must still produce rows can use it. */
+  readonly enrichment: ClassEnrichment;
+  constructor(enrichment: ClassEnrichment) {
+    super('Hide-count lookup failed; saved counts are kept and the lookup is retried.');
+    this.name = 'HideCountLookupFailedError';
+    this.enrichment = enrichment;
+  }
+}
+
 interface ResolveOutcome {
   enrichment: ClassEnrichment;
+  /** True when the hide-count lookup failed in any part (RPC, rules, trials). */
+  hideCountsFailed: boolean;
   /** False when any lookup threw, so its (partial) answer must not be cached. */
   clean: boolean;
 }
@@ -142,6 +159,11 @@ async function runResolvers(
   deps: ClassEnrichmentDeps
 ): Promise<ResolveOutcome> {
   let clean = true;
+  let hideCountsFailed = false;
+  const markHideCountsFailed = () => {
+    clean = false;
+    hideCountsFailed = true;
+  };
   // A resolver that logs and skips a failed read still answers; that answer is partial.
   const markUnclean = () => {
     clean = false;
@@ -163,12 +185,14 @@ async function runResolvers(
     ),
     // Public fixed totals come from registry rules; protected judge-set totals only from the
     // show-scoped official RPC. Both are merged so the caller keeps the count it may see.
-    resolveHideCountsForClassRows(rows, deps.shareRead, trials, markUnclean).catch(
-      failed(
-        'Hide-count resolve failed; scoring may fall back to the rule band',
-        new Map<string, number>()
-      )
-    ),
+    resolveHideCountsForClassRows(rows, deps.shareRead, trials, markHideCountsFailed).catch(() => {
+      markHideCountsFailed();
+      logger.warn(
+        `[${deps.tableName}] Hide-count resolve failed; saved counts are kept and retried next sync`,
+        'replication'
+      );
+      return new Map<string, number>();
+    }),
     // MYK9-1086: a failed lookup must not read as "no rule", so carry the rule already on this
     // device into the synced row.
     (async () => {
@@ -185,7 +209,11 @@ async function runResolvers(
       )
     ),
   ]);
-  return { enrichment: { visibility, hideCounts, timeLimitRules, judges }, clean };
+  return {
+    enrichment: { visibility, hideCounts, timeLimitRules, judges },
+    clean,
+    hideCountsFailed,
+  };
 }
 
 function isFresh(entry: ShowEntry | undefined, userId: string, at: number): entry is ShowEntry {
@@ -242,7 +270,11 @@ export async function resolveClassEnrichment(
   if (distinctTrialIds(rows).some(id => !showByTrial.has(id))) {
     trials = await readClassTrials(rows);
     // A failed read leaves each resolver to read `trials` itself, uncached, as before.
-    if (!trials) return (await runResolvers(rows, undefined, deps)).enrichment;
+    if (!trials) {
+      const outcome = await runResolvers(rows, undefined, deps);
+      if (outcome.hideCountsFailed) throw new HideCountLookupFailedError(outcome.enrichment);
+      return outcome.enrichment;
+    }
     for (const trial of trials) showByTrial.set(trial.id, trial.show_id);
   }
 
@@ -281,5 +313,6 @@ export async function resolveClassEnrichment(
   fresh.hideCounts.forEach((value, id) => result.hideCounts.set(id, value));
   fresh.timeLimitRules.forEach((value, id) => result.timeLimitRules.set(id, value));
   fresh.judges.forEach((value, id) => result.judges.set(id, value));
+  if (outcome.hideCountsFailed) throw new HideCountLookupFailedError(result);
   return result;
 }

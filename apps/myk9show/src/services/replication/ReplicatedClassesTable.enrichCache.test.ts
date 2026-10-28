@@ -145,7 +145,7 @@ describe('class enrichment across consecutive classes deltas (MYK9-1360)', () =>
     );
     const table = new ReplicatedClassesTable();
     const first = await enrich(table)(delta(0));
-    // The failed read still replicates: judge and visibility answered, hide count is absent.
+    // A cold device (MYK9-1451) holds no count to lose: the failed read still replicates.
     expect(first[0]).toMatchObject({ num_hides: null, _judgeResolved: true });
 
     mockRpc.mockImplementation(answer);

@@ -61,7 +61,7 @@ describe('CartItemCard', () => {
     expect(screen.getByText(/remove it to continue to payment/i)).toBeInTheDocument();
   });
 
-  // MYK9-753: a two-judge class can be full on one judge's day only; the line
+  // MYK9-753: a class can be full on its judge's day only; the line
   // says which day, and says it as "right now" because payment re-checks.
   it('names the full judge day on a blocked line', () => {
     render(

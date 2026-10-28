@@ -2,12 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   serializeScore,
   deserializeScore,
-  serializeMultiJudgeScore,
-  deserializeMultiJudgeScore,
   serializeSession,
   deserializeSession,
 } from './offline-scoring-serialization';
-import type { BaseScore, MultiJudgeScore, ScoringSession } from '@/types/scoring-types';
+import type { BaseScore, ScoringSession } from '@/types/scoring-types';
 
 function makeScore(overrides: Partial<BaseScore> = {}): BaseScore {
   return {
@@ -57,83 +55,6 @@ describe('serializeScore / deserializeScore', () => {
     expect(roundTripped.lastModified.toISOString()).toBe(score.lastModified.toISOString());
     expect(roundTripped.entryId).toBe(score.entryId);
     expect(roundTripped.placement).toBe(score.placement);
-  });
-});
-
-describe('serializeMultiJudgeScore / deserializeMultiJudgeScore', () => {
-  it('converts the judgeScores Map to a plain object', () => {
-    const score1 = makeScore({ judgeId: 'judge-1' });
-    const score2 = makeScore({ judgeId: 'judge-2', id: 'score-2' });
-    const multiScore: MultiJudgeScore = {
-      entryId: 'entry-1',
-      classId: 'class-1',
-      format: 'regular' as BaseScore['format'],
-      judgeScores: new Map([
-        ['judge-1', score1],
-        ['judge-2', score2],
-      ]),
-      hasConflicts: false,
-      lastUpdated: new Date('2026-07-01T11:00:00.000Z'),
-      syncStatus: 'pending',
-    };
-
-    const serialized = serializeMultiJudgeScore(multiScore);
-
-    expect(serialized.judgeScores).toEqual({ 'judge-1': score1, 'judge-2': score2 });
-    expect(serialized.lastUpdated).toBe('2026-07-01T11:00:00.000Z');
-    expect(serialized.conflictResolution).toBeUndefined();
-  });
-
-  it('serializes conflictResolution.resolvedAt when present', () => {
-    const multiScore: MultiJudgeScore = {
-      entryId: 'entry-1',
-      classId: 'class-1',
-      format: 'regular' as BaseScore['format'],
-      judgeScores: new Map([['judge-1', makeScore()]]),
-      hasConflicts: true,
-      conflictResolution: {
-        strategy: 'average',
-        resolvedBy: 'head-judge-1',
-        resolvedAt: new Date('2026-07-01T12:00:00.000Z'),
-      },
-      lastUpdated: new Date('2026-07-01T11:00:00.000Z'),
-      syncStatus: 'conflict',
-    };
-
-    const serialized = serializeMultiJudgeScore(multiScore);
-    const conflictResolution = serialized.conflictResolution as Record<string, unknown>;
-
-    expect(conflictResolution.resolvedAt).toBe('2026-07-01T12:00:00.000Z');
-    expect(conflictResolution.strategy).toBe('average');
-  });
-
-  it('round-trips judgeScores Map through serialize -> deserialize', () => {
-    const multiScore: MultiJudgeScore = {
-      entryId: 'entry-1',
-      classId: 'class-1',
-      format: 'regular' as BaseScore['format'],
-      judgeScores: new Map([['judge-1', makeScore()]]),
-      hasConflicts: false,
-      lastUpdated: new Date('2026-07-01T11:00:00.000Z'),
-      syncStatus: 'pending',
-    };
-
-    const roundTripped = deserializeMultiJudgeScore(serializeMultiJudgeScore(multiScore));
-
-    expect(roundTripped.judgeScores).toBeInstanceOf(Map);
-    expect(roundTripped.judgeScores.get('judge-1')?.entryId).toBe('entry-1');
-    expect(roundTripped.lastUpdated).toBeInstanceOf(Date);
-  });
-
-  it('handles missing judgeScores by defaulting to an empty Map on deserialize', () => {
-    const roundTripped = deserializeMultiJudgeScore({
-      entryId: 'entry-1',
-      classId: 'class-1',
-      lastUpdated: '2026-07-01T11:00:00.000Z',
-    });
-
-    expect(roundTripped.judgeScores).toBeInstanceOf(Map);
-    expect(roundTripped.judgeScores.size).toBe(0);
   });
 });
 

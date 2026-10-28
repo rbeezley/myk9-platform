@@ -41,9 +41,8 @@ function line(id: string, classId: string): CartItemWithDetails {
   };
 }
 
-// The server's rows for the SQL test's fixture: Interior is judged by Alma
-// (full) and Bert (3 left); Exterior by Bert alone; Buried has no judge and
-// one class spot left.
+// The server's rows: Interior is judged by Alma (her day is full); Exterior by
+// Bert (3 left); Buried has no judge and one class spot left. One judge per class.
 const serverRows: ClassJudgeDayAvailabilityRow[] = [
   row({
     class_id: 'interior',
@@ -52,29 +51,17 @@ const serverRows: ClassJudgeDayAvailabilityRow[] = [
     day_remaining: 0,
     self_service_block: 'full',
   }),
-  row({
-    class_id: 'interior',
-    judge_id: 'bert',
-    show_date: '2026-10-10',
-    day_remaining: 3,
-    self_service_block: 'full',
-  }),
   row({ class_id: 'exterior', judge_id: 'bert', show_date: '2026-10-10', day_remaining: 3 }),
   row({ class_id: 'buried', class_max_entries: 2, class_entry_count: 1, class_remaining: 1 }),
 ];
 
 describe('cartCapacityFromJudgeDays', () => {
-  it('keeps every judge day of a two-judge class, with its own remaining spots', () => {
+  it('keeps every judge day, with its own remaining spots', () => {
     const facts = cartCapacityFromJudgeDays(serverRows);
 
     expect(facts.judgeDays).toEqual([
       { judgeId: 'alma', showDate: '2026-10-10', availableSpots: 0, classIds: ['interior'] },
-      {
-        judgeId: 'bert',
-        showDate: '2026-10-10',
-        availableSpots: 3,
-        classIds: ['interior', 'exterior'],
-      },
+      { judgeId: 'bert', showDate: '2026-10-10', availableSpots: 3, classIds: ['exterior'] },
     ]);
     expect(facts.classSpots).toEqual([{ classId: 'buried', availableSpots: 1 }]);
   });
@@ -86,7 +73,7 @@ describe('cartCapacityFromJudgeDays', () => {
     expect(facts.classSpots).toEqual([{ classId: 'buried', availableSpots: 0 }]);
   });
 
-  it("blocks the two-judge class on Alma's day but still pays Bert's single-judge class", () => {
+  it("blocks the class on Alma's full day but still pays Bert's class", () => {
     const facts = cartCapacityFromJudgeDays(serverRows);
     const decision = splitCartItemsByJudgeDayCapacity(
       [line('interior-line', 'interior'), line('exterior-line', 'exterior')],
@@ -104,40 +91,13 @@ describe('cartCapacityFromJudgeDays', () => {
     expect(decision.confirmedItemIds).toEqual(new Set(['exterior-line']));
   });
 
-  // The old read named only each class's tightest day (Alma's). With that
-  // shape Bert's day never lists Interior, so an Interior line would not use
-  // one of Bert's spots and a cart could overfill his day.
-  it("charges an Interior line against Bert's day too", () => {
-    const facts = cartCapacityFromJudgeDays(
-      serverRows.map(r => (r.judge_id === 'alma' ? { ...r, day_remaining: 5 } : r))
-    );
-    const bertOneLeft = facts.judgeDays.map(d =>
-      d.judgeId === 'bert' ? { ...d, availableSpots: 1 } : d
-    );
-    const decision = splitCartItemsByJudgeDayCapacity(
-      [line('interior-line', 'interior'), line('exterior-line', 'exterior')],
-      bertOneLeft,
-      facts.classSpots,
-      facts.waitlistClassIds
-    );
-
-    expect(decision.confirmedItemIds).toEqual(new Set(['interior-line']));
-    expect(decision.blockedItems.map(item => item.id)).toEqual(['exterior-line']);
-  });
-
   // MYK9-1019: the server reports the EFFECTIVE allow_waitlist (class, else show); the cart
-  // takes it as given, once per class, whatever its day rows.
-  it('lists each class the server says takes a wait list, once', () => {
+  // takes it as given, whatever its day rows.
+  it('lists each class the server says takes a wait list', () => {
     const facts = cartCapacityFromJudgeDays([
       row({
         class_id: 'interior',
         judge_id: 'alma',
-        show_date: '2026-10-10',
-        allow_waitlist: true,
-      }),
-      row({
-        class_id: 'interior',
-        judge_id: 'bert',
         show_date: '2026-10-10',
         allow_waitlist: true,
       }),

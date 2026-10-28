@@ -10,7 +10,6 @@
  * - Real-time placement calculations
  * - Multi-format support (Scent Work, Agility, Obedience, etc.)
  * - Score validation and error checking
- * - Conflict resolution for multi-judge scenarios
  * - Background sync queue management
  * - Judge workflow management
  */
@@ -23,8 +22,6 @@ import type {
   ScoringSession,
   ScoringEventType,
   ValidationResult,
-  MultiJudgeScore,
-  ConflictResolution,
   PlacementCalculation,
 } from '@/types/scoring-types';
 import { DEFAULT_SCORING_CONFIGS } from '@/types/scoring-types';
@@ -38,18 +35,14 @@ import { DEFAULT_CONFIG } from './offline-scoring-types';
 import {
   serializeScore,
   deserializeScore,
-  serializeMultiJudgeScore,
-  deserializeMultiJudgeScore,
   serializeSession,
   deserializeSession,
 } from './offline-scoring-serialization';
 import {
   buildDeletionSyncQueueItem,
-  buildConflictResolution,
   buildScoreSyncQueueItem,
   buildScoringEvent,
   buildSessionSyncQueueItem,
-  detectQualificationConflict,
   findScoreById,
   findScoreForEntry,
   getClassScoresFromCache,
@@ -74,7 +67,6 @@ export class OfflineScoringService extends EventEmitter {
 
   // Score storage (in-memory cache + persistent storage)
   private scoreCache = new Map<string, BaseScore>();
-  private multiJudgeScores = new Map<string, MultiJudgeScore>();
 
   // Sync queue for offline operations
   private syncQueue: SyncQueueItem[] = [];
@@ -113,14 +105,6 @@ export class OfflineScoringService extends EventEmitter {
 
       Object.entries(scores).forEach(([id, score]) => {
         this.scoreCache.set(id, deserializeScore(score));
-      });
-
-      // Load multi-judge scores
-      const storedMultiScores = (await this.storage.getItem('multi_judge_scores')) || '{}';
-      const multiScores = JSON.parse(storedMultiScores);
-
-      Object.entries(multiScores).forEach(([id, score]) => {
-        this.multiJudgeScores.set(id, deserializeMultiJudgeScore(score));
       });
 
       // Load sync queue
@@ -252,11 +236,7 @@ export class OfflineScoringService extends EventEmitter {
         return validation;
       }
 
-      // Check for existing score and handle conflicts
       const existingScore = this.getScore(score.entryId, score.classId);
-      if (existingScore && existingScore.judgeId !== score.judgeId) {
-        return await this.handleMultiJudgeScore(score, existingScore);
-      }
 
       // Store the score
       const scoreKey = this.getScoreKey(score.entryId, score.classId, score.judgeId);
@@ -380,66 +360,6 @@ export class OfflineScoringService extends EventEmitter {
         judgeId,
       });
     }
-  }
-
-  // ========================================================================
-  // Multi-Judge Support
-  // ========================================================================
-
-  private async handleMultiJudgeScore(
-    newScore: BaseScore,
-    existingScore: BaseScore
-  ): Promise<ValidationResult> {
-    const entryKey = `${newScore.entryId}-${newScore.classId}`;
-
-    let multiScore = this.multiJudgeScores.get(entryKey);
-
-    if (!multiScore) {
-      // Create new multi-judge score entry
-      multiScore = {
-        entryId: newScore.entryId,
-        classId: newScore.classId,
-        format: newScore.format,
-        judgeScores: new Map(),
-        hasConflicts: false,
-        lastUpdated: new Date(),
-        syncStatus: 'pending',
-      };
-
-      // Add existing score
-      multiScore.judgeScores.set(existingScore.judgeId, existingScore);
-    }
-
-    // Add new score
-    multiScore.judgeScores.set(newScore.judgeId, newScore);
-    multiScore.lastUpdated = new Date();
-
-    // Check for conflicts
-    multiScore.hasConflicts = this.detectConflicts(multiScore);
-
-    // Apply conflict resolution if needed
-    if (multiScore.hasConflicts) {
-      multiScore.conflictResolution = await this.resolveConflicts();
-    }
-
-    this.multiJudgeScores.set(entryKey, multiScore);
-
-    this.emitEvent('multi_judge_score_updated', {
-      entryId: newScore.entryId,
-      classId: newScore.classId,
-      judgeCount: multiScore.judgeScores.size,
-      hasConflicts: multiScore.hasConflicts,
-    });
-
-    return { isValid: true, errors: [], warnings: [] };
-  }
-
-  private detectConflicts(multiScore: MultiJudgeScore): boolean {
-    return detectQualificationConflict(Array.from(multiScore.judgeScores.values()));
-  }
-
-  private async resolveConflicts(): Promise<ConflictResolution> {
-    return buildConflictResolution(this.config.conflictResolutionStrategy, new Date());
   }
 
   // ========================================================================
@@ -578,15 +498,6 @@ export class OfflineScoringService extends EventEmitter {
         Array.from(this.scoreCache.entries()).map(([key, score]) => [key, serializeScore(score)])
       );
       await this.storage.setItem('offline_scores', JSON.stringify(scores));
-
-      // Persist multi-judge scores
-      const multiScores = Object.fromEntries(
-        Array.from(this.multiJudgeScores.entries()).map(([key, score]) => [
-          key,
-          serializeMultiJudgeScore(score),
-        ])
-      );
-      await this.storage.setItem('multi_judge_scores', JSON.stringify(multiScores));
 
       await this.persistSyncQueue();
       await this.persistSessions();
@@ -746,7 +657,6 @@ export class OfflineScoringService extends EventEmitter {
    */
   async clearCache(): Promise<void> {
     this.scoreCache.clear();
-    this.multiJudgeScores.clear();
     this.syncQueue.length = 0;
     this.activeSessions.clear();
     this.placementCache.clear();

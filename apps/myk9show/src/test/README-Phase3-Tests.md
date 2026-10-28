@@ -239,7 +239,6 @@ This document provides an overview of the comprehensive test suite created for P
 - **Scoring Performance**
   - High-volume scoring (1000 entries)
   - Placement calculation for large result sets (5000 scores)
-  - Complex multi-judge scoring scenarios
 
 - **Data Query Performance**
   - Large dataset queries (5000 entries)

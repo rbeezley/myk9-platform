@@ -31,6 +31,7 @@ import { verifySecretaryEmptyShow } from '@/services/database/entries/secretaryE
 import type { Database } from '@/types/supabase';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { PendingDeletes } from './pendingDeletes';
+import { entriesUnchangedSince } from './entriesChangedSince';
 import { entryChangedColumnsRow } from './ReplicatedEntriesTable.changedColumns';
 import {
   entryToSupabaseRow,
@@ -385,7 +386,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           return undefined;
         }
       },
-      fetchRemoteRows: async ({ since }) => {
+      fetchRemoteRows: async ({ since, forceFullSync }) => {
+        // MYK9-1369: a definite "nothing moved" skips the view's per-row build.
+        if (await entriesUnchangedSince({ showId: showScopeId, since, forceFullSync })) return [];
         // Filter by show_id if provided. In myK9Show this scope value is the Show ID.
         // Read through the authenticated result view instead of public.entries:
         // managers receive raw scored fields, while exhibitors only receive

@@ -13361,6 +13361,10 @@ export type Database = {
         Returns: boolean
       }
       entry_enrollment_select_show_ids: { Args: never; Returns: string[] }
+      entry_results_changed_since: {
+        Args: { p_show_id: string; p_since: string }
+        Returns: boolean
+      }
       evaluate_entry_capacity: {
         Args: {
           p_allow_override?: boolean

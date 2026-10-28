@@ -385,10 +385,10 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
    * assignment(s), then creates a new one unless `judgeId` is null (removal).
    * Mirrors `upsertClassJudgeAssignment`'s delete-then-insert semantics.
    *
-   * The INSERT depends on those DELETEs (MYK9-1327): a class has one confirmed judge, enforced by
-   * the `judge_assignments_one_confirmed_class_judge` index, so an INSERT that reached the server
-   * while a backed-off DELETE was still pending would be refused and park, and the later DELETE
-   * would leave the class with no judge.
+   * The INSERT depends on those DELETEs (MYK9-1327): a class has one judge, so the new row must
+   * never reach the server while the old one still exists (a backed-off DELETE overtaken by its
+   * INSERT would leave two confirmed rows today, and a refused INSERT once MYK9-1327 batch 3
+   * enforces one judge per class).
    */
   async replaceClassAssignment(
     showId: string,

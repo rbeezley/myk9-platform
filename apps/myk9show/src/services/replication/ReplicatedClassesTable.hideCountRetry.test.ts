@@ -360,6 +360,32 @@ describe('class sync when the hide-count lookup fails (MYK9-1451)', () => {
     expect(owedHideCountClassIds(TRIAL)).toEqual([ID]);
   });
 
+  it.each([
+    ['as the sync starts', 1],
+    ['as it settles', 3],
+  ])(
+    'keeps the sync result and the class owed when the device store read fails %s',
+    async (_label, failingCall) => {
+      lookupDown();
+      await sync();
+      changedClasses = [];
+      officialLookup({ data: [{ class_id: ID, num_hides: 7 }], error: null });
+      // Calls in order: the sync-start check, the engine's own read of the owed row, the settle.
+      const realRead = table.getReplicatedRowIncludingOtherAccounts.bind(table);
+      let call = 0;
+      vi.spyOn(table, 'getReplicatedRowIncludingOtherAccounts').mockImplementation(async id => {
+        call += 1;
+        if (call === failingCall) throw new Error('IDB read failed');
+        return realRead(id);
+      });
+
+      expect((await sync()).success).toBe(true);
+
+      expect(await hideCount()).toBe(7);
+      expect(owedHideCountClassIds(TRIAL)).toEqual([ID]);
+    }
+  );
+
   it('keeps reading later owed chunks when one fails', async () => {
     const many = Array.from({ length: 150 }, (_, i) => ({ ...SERVER_CLASS, id: `owed-${i}` }));
     markHideCountsOwed(many);

@@ -772,34 +772,48 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   }
 
   /**
-   * Owed classes holding an unsent edit under any account on this device. The sync skips or
+   * Of `ids`, those holding an unsent edit under any account on this device. The sync skips or
    * merges such a row rather than writing the server copy, so its count may not have applied.
+   * Null when the device store could not be read: the caller then settles nothing, and the
+   * classes simply stay owed. Never throws, so it cannot change a sync's result.
    */
-  private async owedWithUnsentEdits(): Promise<Set<string>> {
-    const dirty = new Set<string>();
-    for (const id of owedHideCountClassIds(undefined)) {
-      if ((await this.getReplicatedRowIncludingOtherAccounts(id))?.isDirty) dirty.add(id);
+  private async withUnsentEdits(ids: string[]): Promise<Set<string> | null> {
+    try {
+      const dirty = new Set<string>();
+      for (const id of ids) {
+        if ((await this.getReplicatedRowIncludingOtherAccounts(id))?.isDirty) dirty.add(id);
+      }
+      return dirty;
+    } catch (error) {
+      logger.warn(`[${this.getTableName()}] Owed hide-count check skipped`, 'replication', {
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return null;
     }
-    return dirty;
   }
 
   /**
    * Settle owed classes the sync both looked up and applied: answered in this sync, and holding
    * no unsent edit when it started or now. Any other stays owed for a later sync.
    */
-  private async settleAppliedOwed(answered: Set<string>, dirtyAtStart: Set<string>): Promise<void> {
-    const dirtyNow = await this.owedWithUnsentEdits();
-    settleHideCountsOwed(
-      owedHideCountClassIds(undefined).filter(
-        id => answered.has(id) && !dirtyAtStart.has(id) && !dirtyNow.has(id)
-      )
+  private async settleAppliedOwed(
+    answered: Set<string>,
+    dirtyAtStart: Set<string> | null
+  ): Promise<void> {
+    if (!dirtyAtStart) return;
+    const candidates = owedHideCountClassIds(undefined).filter(
+      id => answered.has(id) && !dirtyAtStart.has(id)
     );
+    if (candidates.length === 0) return;
+    const dirtyNow = await this.withUnsentEdits(candidates);
+    if (!dirtyNow) return;
+    settleHideCountsOwed(candidates.filter(id => !dirtyNow.has(id)));
   }
 
   async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
     const answered = new Set<string>();
-    const dirtyAtStart = await this.owedWithUnsentEdits();
+    const dirtyAtStart = await this.withUnsentEdits(owedHideCountClassIds(undefined));
 
     const adapter: SyncReplicatedTableAdapter<EnrichedClassRow, ReplicatedClass> = {
       ...this.getRowRefetchAdapter(),

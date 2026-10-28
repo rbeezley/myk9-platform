@@ -405,7 +405,7 @@ export class MutationUploadRunner {
           } else {
             blockedDependencyIds.add(queuedMutation.id);
             this.logger.warn(
-              `[MutationManager] Mutation ${queuedMutation.id} failed (retry ${failure.mutation.retries}/${this.maxRetries}), next attempt after ${new Date(failure.mutation.nextRetryAt!).toISOString()}:`,
+              `[MutationManager] Mutation ${queuedMutation.id} failed (retry ${failure.mutation.retries}/${this.maxRetries}, transport ${failure.mutation.transportRetries ?? 0}), next attempt after ${new Date(failure.mutation.nextRetryAt!).toISOString()}:`,
               error
             );
 

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PendingMutation } from './types';
 import { classifyMutationFailure } from './mutation-retry';
+import { MAX_BACKOFF_MS, TimeoutError } from './mutation-utils';
 
 function mutation(overrides: Partial<PendingMutation> = {}): PendingMutation {
   return {
@@ -29,19 +30,19 @@ describe('classifyMutationFailure', () => {
 
     const result = classifyMutationFailure({
       mutation: mutation({ retries: 0 }),
-      error: new TypeError('fetch failed'),
+      error: { message: 'statement timeout', code: '57014' },
       maxRetries: 3,
       retryBackoffBase: 10,
       now: 1_000,
     });
 
-    expect(result.message).toBe('fetch failed');
+    expect(result.message).toBe('statement timeout');
     expect(result.canRetry).toBe(true);
     expect(result.permanentlyFailed).toBe(false);
     expect(result.mutation).toMatchObject({
       retries: 1,
       status: 'pending',
-      error: 'fetch failed',
+      error: 'statement timeout',
       nextRetryAt: 1_010,
     });
     expect(result.mutation.failedAt).toBeUndefined();
@@ -50,7 +51,7 @@ describe('classifyMutationFailure', () => {
   it('marks retryable errors as failed when max retries are reached', () => {
     const result = classifyMutationFailure({
       mutation: mutation({ retries: 2 }),
-      error: new TypeError('fetch failed'),
+      error: { message: 'statement timeout', code: '57014' },
       maxRetries: 3,
       retryBackoffBase: 10,
       now: 2_000,
@@ -61,7 +62,7 @@ describe('classifyMutationFailure', () => {
     expect(result.mutation).toMatchObject({
       retries: 3,
       status: 'failed',
-      error: 'Max retries exceeded: fetch failed',
+      error: 'Max retries exceeded: statement timeout',
       failedAt: 2_000,
     });
     expect(result.mutation.nextRetryAt).toBeUndefined();
@@ -198,6 +199,129 @@ describe('classifyMutationFailure', () => {
         now: 1_000,
       });
       expect(result.permanentlyFailed).toBe(false);
+    });
+  });
+
+  describe('transport loss does not spend the retry budget (MYK9-1474)', () => {
+    const OUTAGE_MS = 60_000;
+    const transportErrors: Array<[string, () => unknown]> = [
+      ['a fetch TypeError', () => new TypeError('Failed to fetch')],
+      ['a TimeoutError', () => new TimeoutError('timed out', 15_000)],
+      ['an AbortError', () => Object.assign(new Error('aborted'), { name: 'AbortError' })],
+      [
+        'the postgrest-js fetch failure object',
+        () => ({ message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' }),
+      ],
+    ];
+    const targets: Array<[string, Partial<PendingMutation>]> = [
+      ['a score update', { tableName: 'entries', operation: 'UPDATE' }],
+      [
+        'a ringside_update_entry rpc',
+        { rpc: { name: 'ringside_update_entry', args: {} }, operation: 'UPDATE' },
+      ],
+      [
+        'a set_class_judge rpc',
+        { rpc: { name: 'set_class_judge', args: {} }, operation: 'UPDATE' },
+      ],
+    ];
+
+    // Replays every retry the queue would make across a 60 s outage, then the uplink returns.
+    function runOutage(m: PendingMutation, makeError: () => unknown): PendingMutation {
+      let current = m;
+      let now = 0;
+      let attempts = 0;
+      while (now < OUTAGE_MS) {
+        const result = classifyMutationFailure({
+          mutation: current,
+          error: makeError(),
+          maxRetries: 3,
+          retryBackoffBase: 1_000,
+          now,
+        });
+        expect(result.permanentlyFailed).toBe(false);
+        expect(result.mutation.status).toBe('pending');
+        current = result.mutation;
+        now = current.nextRetryAt!;
+        attempts += 1;
+      }
+      expect(attempts).toBeGreaterThan(3);
+      return current;
+    }
+
+    describe.each(targets)('%s', (_label, overrides) => {
+      it.each(transportErrors)('stays pending through a 60 s outage of %s', (_n, makeError) => {
+        const survivor = runOutage(mutation(overrides), makeError);
+        expect(survivor.retries).toBe(0);
+        expect(survivor.transportRetries).toBeGreaterThan(3);
+      });
+    });
+
+    it('parks a postgrest-shaped error that carries a real code at once', () => {
+      const result = classifyMutationFailure({
+        mutation: mutation(),
+        error: { message: 'TypeError: x', details: '', hint: '', code: '42501' },
+        maxRetries: 3,
+        retryBackoffBase: 10,
+        now: 0,
+      });
+      expect(result.permanentlyFailed).toBe(true);
+      expect(result.mutation).toMatchObject({ status: 'failed', failureKind: 'authorization' });
+    });
+
+    it('caps the transport backoff at MAX_BACKOFF_MS', () => {
+      let current = mutation({ transportRetries: 500 });
+      const result = classifyMutationFailure({
+        mutation: current,
+        error: new TypeError('Failed to fetch'),
+        maxRetries: 3,
+        retryBackoffBase: 1_000,
+        now: 0,
+      });
+      current = result.mutation;
+      expect(current.nextRetryAt).toBeLessThanOrEqual(MAX_BACKOFF_MS);
+    });
+
+    it('treats a legacy row without transportRetries as zero', () => {
+      const result = classifyMutationFailure({
+        mutation: mutation({ retries: 1 }),
+        error: new TypeError('Failed to fetch'),
+        maxRetries: 3,
+        retryBackoffBase: 10,
+        now: 0,
+      });
+      expect(result.mutation).toMatchObject({ retries: 1, transportRetries: 1, status: 'pending' });
+    });
+
+    it.each([
+      ['42501', 'permission denied'],
+      ['23505', 'duplicate key value'],
+      ['MK014', 'entry under a deleted class'],
+    ])('parks %s on the first failure', (code, message) => {
+      const result = classifyMutationFailure({
+        mutation: mutation(),
+        error: { code, message },
+        maxRetries: 3,
+        retryBackoffBase: 10,
+        now: 0,
+      });
+      expect(result.permanentlyFailed).toBe(true);
+      expect(result.mutation.status).toBe('failed');
+    });
+
+    it('still parks an ambiguous non-transport error (57014) after maxRetries', () => {
+      let current = mutation();
+      for (let i = 0; i < 3; i += 1) {
+        const result = classifyMutationFailure({
+          mutation: current,
+          error: { code: '57014', message: 'canceling statement due to statement timeout' },
+          maxRetries: 3,
+          retryBackoffBase: 10,
+          now: i,
+        });
+        current = result.mutation;
+        expect(result.permanentlyFailed).toBe(i === 2);
+      }
+      expect(current).toMatchObject({ status: 'failed', failureKind: 'max-retries', retries: 3 });
     });
   });
 });

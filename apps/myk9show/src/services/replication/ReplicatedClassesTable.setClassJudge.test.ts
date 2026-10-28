@@ -267,7 +267,9 @@ describe('ReplicatedClassesTable.setClassJudge (MYK9-1327)', () => {
 
   it('keeps the pick when an unrelated class edit acks while the pick is backed off and a pull returns the old judge', async () => {
     await table.setClassJudge(ID, judgeOf('judge-b', 'Bob'));
-    await vi.waitFor(async () => expect(picks(await pending())[0]?.retries).toBeGreaterThan(0));
+    await vi.waitFor(async () =>
+      expect(picks(await pending())[0]?.transportRetries).toBeGreaterThan(0)
+    );
 
     updateImpl = async () => ({ data: [{ id: ID, version: 5 }], error: null });
     await table.updateClass(ID, { description: 'Bring water' });

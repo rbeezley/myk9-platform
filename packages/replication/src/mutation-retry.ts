@@ -1,5 +1,10 @@
 import { describeError } from './error-message';
-import { calculateBackoffDelay, isAuthorizationError, isRetryableError } from './mutation-utils';
+import {
+  calculateBackoffDelay,
+  isAuthorizationError,
+  isRetryableError,
+  isTransportError,
+} from './mutation-utils';
 import type { PendingMutation } from './types';
 
 export interface ClassifyMutationFailureOptions {
@@ -26,6 +31,21 @@ export function classifyMutationFailure({
 }: ClassifyMutationFailureOptions): MutationFailureClassification {
   const message = describeError(error);
   const canRetry = isRetryableError(error, mutation);
+  // MYK9-1474: transport loss keeps retrying with capped backoff and spends no retry budget.
+  if (canRetry && isTransportError(error)) {
+    const transportRetries = (mutation.transportRetries || 0) + 1;
+    const pending: PendingMutation = {
+      ...mutation,
+      transportRetries,
+      status: 'pending',
+      error: message,
+      nextRetryAt: now + calculateBackoffDelay(transportRetries - 1, retryBackoffBase),
+    };
+    delete pending.failedAt;
+    delete pending.failureKind;
+    return { mutation: pending, message, canRetry, permanentlyFailed: false };
+  }
+
   const retries = (mutation.retries || 0) + 1;
   const permanentlyFailed = retries >= maxRetries || !canRetry;
 

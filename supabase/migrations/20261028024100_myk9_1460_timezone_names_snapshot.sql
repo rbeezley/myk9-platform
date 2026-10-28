@@ -42,13 +42,15 @@ ON CONFLICT (name) DO NOTHING;
 -- DEFINER functions owned by postgres, which has BYPASSRLS, so forced RLS with
 -- no policies denies every API role and leaves the readers working. This
 -- project's default privileges grant anon full CRUD on new tables (MYK9-93),
--- so revoke explicitly. service_role keeps the default grant, like the other
--- RPC-owned tables (cart_checkout_leases, cart_spot_holds).
+-- so revoke explicitly. service_role is granted explicitly too, like the other
+-- RPC-owned tables (cart_checkout_leases): a migrations-only rebuild has no
+-- hosted default privileges to fall back on.
 ALTER TABLE public.timezone_names ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.timezone_names FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.timezone_names FROM PUBLIC;
 REVOKE ALL ON TABLE public.timezone_names FROM anon;
 REVOKE ALL ON TABLE public.timezone_names FROM authenticated;
+GRANT ALL ON TABLE public.timezone_names TO service_role;
 
 
 -- waitlist_class_trial_has_passed: 1 lookup(s) now read public.timezone_names; body otherwise unchanged.

@@ -53,6 +53,8 @@ const ANON_EXECUTE_KEEP_LIST: Readonly<Record<string, string>> = {
 };
 
 const TABLE_GRANT_DECISION_KEEP_LIST: Readonly<Record<string, string>> = {
+  timezone_names:
+    'RLS with no policies intentionally denies API roles; a snapshot of pg_timezone_names read only by SECURITY DEFINER functions (MYK9-1460).',
   cart_checkout_leases:
     'RLS with no policies intentionally denies API roles; the checkout lease RPCs own access (MYK9-1012).',
   cart_fulfillment_lines:

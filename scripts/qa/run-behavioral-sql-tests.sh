@@ -154,6 +154,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_981_closed_refund_request_releases_cart_test.sql"
   "$TEST_DIR/myk9_968_payment_link_offer_resolves_atomically_test.sql"
   "$TEST_DIR/myk9_1003_waitlist_auto_offer_test.sql"
+  "$TEST_DIR/myk9_1460_timezone_names_snapshot_test.sql"
   "$TEST_DIR/myk9_1000_count_live_waitlist_entries_test.sql"
   "$TEST_DIR/myk9_1001_waitlist_offer_withdrawn_test.sql"
   "$TEST_DIR/myk9_1002_waitlist_offer_message_deadline_test.sql"

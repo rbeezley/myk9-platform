@@ -144,6 +144,8 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   support_tickets: 'SELECT,INSERT,UPDATE',
   sync_conflicts: 'SELECT,INSERT,UPDATE,DELETE',
   system_health_snapshots: 'SELECT',
+  // MYK9-1460: zone-name snapshot read only by SECURITY DEFINER functions.
+  timezone_names: '',
   training_goals: 'SELECT,INSERT,UPDATE,DELETE',
   training_journal_entries: 'SELECT,INSERT,UPDATE,DELETE',
   training_milestones: 'SELECT,INSERT,UPDATE,DELETE',

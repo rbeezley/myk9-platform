@@ -35,6 +35,7 @@ import type { ClassEnrichment } from './classEnrichmentCache';
 import {
   clearHideCountsOwed,
   markHideCountsOwed,
+  OWED_CLASS_FETCH_CHUNK,
   owedHideCountClassIds,
   settleHideCountsOwed,
 } from './hideCountsOwed';
@@ -660,16 +661,32 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   ): Promise<ClassRow[]> {
     const have = new Set(fetched.map(row => String(row.id)));
     const owed = owedHideCountClassIds(scope.value).filter(id => !have.has(id));
-    if (owed.length === 0) return [];
-    const { data, error } = await supabase
-      .from('classes')
-      .select(classReplicationSelect())
-      .in('id', owed);
-    if (error) throw new Error(`Supabase query failed: ${error.message}`);
-    const rows = (data ?? []) as unknown as ClassRow[];
-    // A class the server no longer returns (deleted, or no longer visible) is owed nothing.
-    const returned = new Set(rows.map(row => String(row.id)));
-    settleHideCountsOwed(owed.filter(id => !returned.has(id)));
+    const rows: ClassRow[] = [];
+    // Chunked so a long owed list stays under URL and row caps; best-effort so a failed retry
+    // never holds the sync it rides on. Its ids simply stay owed for the next one.
+    for (let start = 0; start < owed.length; start += OWED_CLASS_FETCH_CHUNK) {
+      const chunk = owed.slice(start, start + OWED_CLASS_FETCH_CHUNK);
+      try {
+        const { data, error } = await supabase
+          .from('classes')
+          .select(classReplicationSelect())
+          .in('id', chunk);
+        if (error) throw new Error(error.message);
+        const fetched = (data ?? []) as unknown as ClassRow[];
+        // A class the server no longer returns (deleted, or no longer visible) is owed nothing.
+        const returned = new Set(fetched.map(row => String(row.id)));
+        settleHideCountsOwed(chunk.filter(id => !returned.has(id)));
+        rows.push(...fetched);
+      } catch (error) {
+        logger.warn(
+          `[${this.getTableName()}] Owed hide-count retry skipped this sync`,
+          'replication',
+          {
+            message: error instanceof Error ? error.message : String(error),
+          }
+        );
+      }
+    }
     return rows;
   }
 
@@ -706,11 +723,11 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     } catch (error) {
       if (!(error instanceof HideCountLookupFailedError)) throw error;
       enrichment = error.enrichment;
-      markHideCountsOwed(rows);
       const saved = await this.savedHideCounts(rows);
       // An account-boundary strip that ran or is running since this began wins: never carry a
-      // count it removed back into the row.
+      // count it removed back into the row, nor re-owe the previous account's classes.
       if (!this.hideCountBoundaryActive && boundary === this.hideCountBoundaryGeneration) {
+        markHideCountsOwed(rows);
         for (const [id, count] of saved) enrichment.hideCounts.set(id, count);
       }
     }

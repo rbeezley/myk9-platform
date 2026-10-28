@@ -30,7 +30,7 @@ vi.mock('@/utils/logger', () => ({ logger: { warn: vi.fn(), log: vi.fn(), error:
 
 import { ReplicatedClassesTable, type ReplicatedClass } from './ReplicatedClassesTable';
 import { invalidateClassEnrichment } from './classEnrichmentCache';
-import { clearHideCountsOwed, owedHideCountClassIds } from './hideCountsOwed';
+import { clearHideCountsOwed, markHideCountsOwed, owedHideCountClassIds } from './hideCountsOwed';
 
 const ID = 'class-1';
 const TRIAL = 'trial-1';
@@ -255,6 +255,60 @@ describe('class sync when the hide-count lookup fails (MYK9-1451)', () => {
     classesById = [];
     await sync();
 
+    expect(owedHideCountClassIds(TRIAL)).toEqual([]);
+  });
+
+  it('does not hold the sync when the owed retry read fails, and keeps the class owed', async () => {
+    lookupDown();
+    await sync();
+    const changedAt = '2026-10-27T13:00:00.000Z';
+    const OTHER = 'class-2';
+    mockFrom.mockImplementation((name: string) => {
+      if (name === 'trials') return builder(TRIALS);
+      if (name === 'classes') {
+        const chain = builder([]);
+        chain.in = () => builder([], { message: 'URI too long' });
+        chain.then = (resolve: (value: unknown) => unknown) =>
+          resolve({
+            data: [{ ...SERVER_CLASS, id: OTHER, status: 'completed', updated_at: changedAt }],
+            error: null,
+          });
+        return chain;
+      }
+      return builder([]);
+    });
+    officialLookup({ data: [{ class_id: ID, num_hides: 7 }], error: null });
+
+    expect((await sync()).success).toBe(true);
+
+    expect((await table.get(OTHER))?.classStatus).toBe('completed');
+    expect(await watermark()).toBe(Date.parse(changedAt));
+    expect(await hideCount()).toBe(5);
+    expect(owedHideCountClassIds(TRIAL)).toContain(ID);
+  });
+
+  it('reads a long owed list in chunks', async () => {
+    const many = Array.from({ length: 250 }, (_, i) => ({ ...SERVER_CLASS, id: `owed-${i}` }));
+    markHideCountsOwed(many);
+    changedClasses = [];
+    const chunks: number[] = [];
+    mockFrom.mockImplementation((name: string) => {
+      if (name === 'trials') return builder(TRIALS);
+      if (name === 'classes') {
+        const chain = builder([]);
+        chain.in = (_column: string, ids: string[]) => {
+          chunks.push(ids.length);
+          return builder([]);
+        };
+        return chain;
+      }
+      return builder([]);
+    });
+    officialLookup({ data: [], error: null });
+
+    await sync();
+
+    expect(chunks).toEqual([100, 100, 50]);
     expect(owedHideCountClassIds(TRIAL)).toEqual([]);
   });
 

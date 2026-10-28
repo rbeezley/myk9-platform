@@ -8,6 +8,9 @@
  */
 const STORAGE_KEY = 'myk9:classHideCountsOwed';
 
+/** Owed ids per by-id read: well under URL limits (~37 chars a UUID) and PostgREST's row cap. */
+export const OWED_CLASS_FETCH_CHUNK = 100;
+
 type OwedMap = Record<string, string>;
 
 function storage(): Storage | undefined {

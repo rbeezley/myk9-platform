@@ -9531,6 +9531,18 @@ export type Database = {
         }
         Relationships: []
       }
+      timezone_names: {
+        Row: {
+          name: string
+        }
+        Insert: {
+          name: string
+        }
+        Update: {
+          name?: string
+        }
+        Relationships: []
+      }
       training_goals: {
         Row: {
           completed_at: string | null

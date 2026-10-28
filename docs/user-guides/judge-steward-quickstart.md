@@ -2,8 +2,8 @@
 
 **Status:** `qa-draft`
 **Audience:** Judges and ring stewards
-**Last verified:** 2026-10-28 — text checked against `main` at `0b537a807`; screenshots J-02, J-04 and J-05 may be out of date and need a recheck; non-author reviewer still pending
-**Verified by:** text accuracy pass (documentation QA checklist, author walkthrough step list: labels, routes and flow steps checked against `apps/myk9show/src` and `packages/scoring-ui`); no browser walkthrough, screenshots not re-captured
+**Last verified:** 2026-10-28 — text checked against `main` at `0b537a807`; screenshots J-02, J-04 and J-05 recaptured 2026-10-28 against `main` at `542b6fa47`; non-author reviewer still pending
+**Verified by:** text accuracy pass (documentation QA checklist, author walkthrough step list: labels, routes and flow steps checked against `apps/myk9show/src` and `packages/scoring-ui`); no browser walkthrough, screenshots re-captured 2026-10-28 from a throwaway local stack (no browser walkthrough of the text)
 
 > **Note:** This is a QA-draft guide written as a testing instrument. Screenshots (J-01…J-06) and the access-paths diagram are captured; a non-author reviewer pass is still needed — see the checklist at the end. Do not publish to customers until status is `verified`.
 
@@ -42,7 +42,7 @@ After you're in, you land on the class list for the show. A judge with assigned 
 1. Each row shows the **class name**, the **judge**, the **scheduled time**, a status badge, and how many dogs are **scored out of the total** (for example, 3 / 12).
 2. Tap a class to open it.
 
-![Class list — trials grouped by day, each row shows class name, judge, entry count, and status (tablet)](../screenshots/J-02.png)
+![Class list — a judge's Your ring, each row showing class, trial and day, judge, scheduled time, status, and dogs scored (tablet)](../screenshots/J-02.png)
 
 **Classes that run two sections together** (for example, Novice A and Novice B) open as **one combined list**, with **All**, **Section A** and **Section B** tabs.
 
@@ -72,9 +72,9 @@ Record the result as soon as the dog finishes — it reaches the secretary insta
 
 The entry list updates to show the saved result. The secretary sees it right away — they don't re-enter anything.
 
-![Scoresheet — timer counting up with Stop button; Qualified / NQ / Absent / Excused buttons below (tablet)](../screenshots/J-04.png)
+![Scoresheet — timer counting up with Stop button; Qualified / NQ / Absent / Excused / DQ chips below (tablet)](../screenshots/J-04.png)
 
-![Scoresheet — timer stopped, time locked in; Qualified / NQ / Absent / Excused buttons ready to select (tablet)](../screenshots/J-05.png)
+![Scoresheet — timer stopped with Resume and Reset timer; Qualified chosen from the Qualified / NQ / Absent / Excused / DQ chips (tablet)](../screenshots/J-05.png)
 
 ![Entry list Completed tab — three entries each showing placement pill, Q badge, and time (tablet)](../screenshots/J-06.png)
 

@@ -2,8 +2,8 @@
 
 **Status:** `qa-draft`
 **Audience:** Dog sport exhibitors
-**Last verified:** 2026-10-28 — text checked against `main` at `0b537a807`; screenshots E-04…E-07, E-09…E-12 and E-14…E-16 are out of date and need recapture; non-author reviewer still pending
-**Verified by:** text accuracy pass (documentation QA checklist, author walkthrough step list: labels, routes and flow steps checked against `apps/myk9show/src`); no browser walkthrough, screenshots not re-captured
+**Last verified:** 2026-10-28 — text checked against `main` at `0b537a807`; screenshots E-04…E-07, E-09…E-16 recaptured 2026-10-28 against `main` at `542b6fa47`; non-author reviewer still pending
+**Verified by:** text accuracy pass (documentation QA checklist, author walkthrough step list: labels, routes and flow steps checked against `apps/myk9show/src`); no browser walkthrough, screenshots re-captured 2026-10-28 from a throwaway local stack (no browser walkthrough of the text)
 
 > **Note:** This is a QA-draft guide — written against the live app as a testing instrument. Ready screenshots are embedded; shots marked `blocked:` in the checklist below require specific seed data or conditions before they can be captured. Do not publish to customers until status is `verified`.
 
@@ -67,7 +67,7 @@ Before entering a show, your dog needs a profile in your account.
 3. Choose the **Registration Organization**, type the **Registration Number**, and click **Find dog**. If the dog is already in myK9Show, you are offered that dog instead of a second copy. If the number belongs to a dog you cannot see, you are told it is already registered to another dog. Contact the show secretary.
 4. Otherwise, fill in the **Registered Name** and **Registered Breed** (the other registration fields are optional), then click **Save and continue**.
 
-![E-05: Add Dog form — required fields visible](../screenshots/E-05.png)
+![E-05: Add Dog panel — Registration tab with Find dog](../screenshots/E-05.png)
 
 5. On the **Essential** tab, fill in:
    - **Call Name** (required) — the name used on the scoresheet
@@ -75,7 +75,7 @@ Before entering a show, your dog needs a profile in your account.
    - **Date of Birth** (required)
 6. Open the **Optional details** tab (color, height, weight, microchip). You can leave it blank. **Add Dog** appears on this last tab, so click it there.
 
-![E-04: My Dogs list — dog card visible](../screenshots/E-04.png)
+![E-04: My Dogs — dog list beside the selected dog's details](../screenshots/E-04.png)
 
 Your dog now appears in your list and is ready to enter shows. The confirmation also offers **Enter a show**.
 
@@ -96,11 +96,11 @@ Your dog now appears in your list and is ready to enter shows. The confirmation 
 
 **Step 2 — Classes:**
 
-![E-06: Registration wizard — Step 1 (class selection; dog chip visible at top)](../screenshots/E-06.png)
+![E-06: Registration wizard — Step 1 (class selection after the Dogs step)](../screenshots/E-06.png)
 
 4. Classes are grouped by trial, then by element, with the level in each class name. Select the class or classes you want to enter. A toast reading **Added to your entry** confirms each selection.
 
-![E-07: Registration wizard — Step 1 with class selected + cart toast](../screenshots/E-07.png)
+![E-07: Registration wizard — class selected, with the "Added to your entry" toast](../screenshots/E-07.png)
 
 5. Click **Next**.
 
@@ -129,10 +129,10 @@ If a class is full and the show allows a waitlist, you can join it at no cost. Y
 
 Go to **My Shows** in the navigation to see all your entries. The page is one column: a **Today** section for a show running today, then **Upcoming shows**, soonest first, each with your dogs and their classes inline. Finished shows sit in a collapsed **Past shows** section at the bottom. Open it to see them.
 
-![E-11: My Shows — show card with status badge and entry details](../screenshots/E-11.png)
+![E-11: My Shows — an upcoming show with its Actions menu open](../screenshots/E-11.png)
 
-![E-09: My Shows — Pending entry card](../screenshots/E-09.png)
-![E-10: My Shows — Accepted entry card](../screenshots/E-10.png)
+![E-09: My Shows — entry with Pending review status](../screenshots/E-09.png)
+![E-10: My Shows — entry with Accepted status](../screenshots/E-10.png)
 
 Each show has an **Actions** menu: **Add Entry**, **Change handler or jump height**, **Receipts**, **Add to calendar**, **Message the show team** and **View show page**. Items that do not apply to that show are left out.
 
@@ -161,7 +161,7 @@ You see your own dogs' place in line, not the whole run order. Open the show pag
 3. Choose **My Entries**. Tap a class to open it.
 4. The class page opens with a box, **Your dog in this class**, showing your place and your armband number.
 
-![E-12: Class detail — run order entry with dog name and armband number](../screenshots/E-12.png)
+![E-12: Class detail — the "Your dogs in this class" box with each dog's armband number](../screenshots/E-12.png)
 
 **Armband numbers** are assigned by the secretary and may not appear until close to show day.
 
@@ -189,11 +189,11 @@ Tap **Go to show day** to open Ringside for that show. A **Where to be today** b
 
 On the day of the trial, a class that is open for check-in shows a **Check in** link on its row, and the dog's card shows a **Check in for** button with the day's name. Tap either, and the dog is checked in. If check-in is not open for a class, its row reads **check in with the secretary**. Before the day, it reads **Check in on the day**.
 
-![E-14: Entry card — "Not Checked In" status on class row](../screenshots/E-14.png)
+![E-14: Entry card — a class row with the Check in link and the Check in for button](../screenshots/E-14.png)
 
 Once you check in, the class row reads **checked in** and the dog's card shows **Checked in**. Use **change** on the row to tell the secretary you are **at the gate**, have a **conflict**, or that the dog is **pulled** from that class. That last choice only tells the secretary. It does not withdraw the entry or change the fee.
 
-![E-15: Entry card showing Interior Advanced class with Checked In status badge](../screenshots/E-15.png)
+![E-15: Entry card — Checked in badge and a class row reading checked in](../screenshots/E-15.png)
 
 **No Check in link?** The secretary controls whether check-in is open, and your entry must be accepted. If you don't see it, check back closer to your ring time, or ask the secretary.
 
@@ -203,7 +203,7 @@ Once you check in, the class row reads **checked in** and the dog's card shows *
 
 After the class is scored and the secretary releases results, they appear on your class row.
 
-![E-16: My Shows — entry card showing Q result badge and placement](../screenshots/E-16.png)
+![E-16: My Shows — entry card showing a Q result badge and search time on the class row](../screenshots/E-16.png)
 
 Each scored class shows:
 

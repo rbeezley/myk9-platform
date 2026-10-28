@@ -2,8 +2,8 @@
 
 **Status:** `qa-draft`
 **Audience:** Club administrators and treasurers
-**Last verified:** 2026-10-28 — text checked against `main` at `0b537a807`; screenshots C-01, C-03, C-04, C-05 and C-06 are out of date and need recapture; non-author reviewer still pending
-**Verified by:** text accuracy pass (documentation QA checklist, author walkthrough step list: labels, routes and flow steps checked against `apps/myk9show/src`); payout and fee claims last re-checked against `_shared/payoutCalc.ts` and `_shared/platformFee.ts` (MYK9-229), not re-checked in this pass; no browser walkthrough, screenshots not re-captured
+**Last verified:** 2026-10-28 — text checked against `main` at `0b537a807`; screenshots C-01, C-03, C-04, C-05 and C-06 recaptured 2026-10-28 against `main` at `542b6fa47`; non-author reviewer still pending
+**Verified by:** text accuracy pass (documentation QA checklist, author walkthrough step list: labels, routes and flow steps checked against `apps/myk9show/src`); payout and fee claims last re-checked against `_shared/payoutCalc.ts` and `_shared/platformFee.ts` (MYK9-229), not re-checked in this pass; no browser walkthrough, screenshots re-captured 2026-10-28 from a throwaway local stack (no browser walkthrough of the text)
 
 > **Note:** This is a QA-draft guide — written against the live app as a testing instrument. Ready screenshots are embedded; shots marked `blocked:` in the checklist below require specific seed data or conditions before they can be captured. Do not publish to customers until status is `verified`.
 
@@ -58,7 +58,7 @@ Your club profile holds the information that flows into every show your club hos
 5. Update any field that is out of date → click **Save Changes**.
 6. For the club numbers, use **Edit** on the **Club numbers** line near the top of the page. Enter the **AKC club number**, **UKC club number** and **ASCA club number** that apply, and click **Save**.
 
-![Club Profile form — club name, AKC number, address, and contact fields visible](../screenshots/C-01.png)
+![Edit Club panel — Basic Info tab with club name, description and club type](../screenshots/C-01.png)
 
 Changes take effect immediately on all future shows. Existing shows that have already been submitted to AKC are not retroactively changed.
 
@@ -114,7 +114,7 @@ When you appoint someone to show access, they can manage any of your club's show
 3. Click **⋮** (the action menu) next to their name.
 4. Under **Show Access**, click **Grant Show Access**.
 
-![Members page — member row showing the Show Manager badge confirming active show access](../screenshots/C-03.png)
+![Members tab — members with the Show Manager badge on those who can run shows](../screenshots/C-03.png)
 
 The member's row now shows a **Show Manager** badge (key icon) indicating active show access. They can sign in and immediately access show management for all of your club's shows.
 
@@ -147,7 +147,7 @@ Before your club can receive entry fee revenue, a treasurer needs to complete St
 4. Click **Continue to Stripe** → you leave myK9Show and enter Stripe's onboarding form.
 5. Fill in your club's details as prompted. When you finish, Stripe returns you to myK9Show.
 
-![C-04: Payments page — pre-onboarding state with "Connect payment account" button](../screenshots/C-04.png)
+![C-04: Payments tab — Bank account card with the Connect payment account button](../screenshots/C-04.png)
 
 Once onboarding is complete, the Payments tab shows a **Payouts enabled** badge. Your club will receive a deposit automatically after each show closes — you do not need to request it.
 
@@ -180,7 +180,7 @@ Three days after the show's end date, myK9Show sends the transfer. Your bank typ
 1. In the sidebar, open **My Club**, then **Payments**.
 2. The **Show reconciliation** card lists each show with its net amount, the transfer amount, the date, and a status.
 
-![C-05: Payments page — "Payouts enabled" with a Show payouts row (show name, date, amount, Paid status)](../screenshots/C-05.png)
+![C-05: Payments tab — Payouts enabled, with the Show reconciliation card listing a show's transfer and Paid status](../screenshots/C-05.png)
 
 | Status                  | Meaning                                                          |
 | ----------------------- | ---------------------------------------------------------------- |
@@ -231,7 +231,7 @@ The **Members** tab lists your club's member roster. Each member has a **Type** 
 1. In the sidebar, open **My Club**, then **Members**. Your club's page opens on its **Members** tab.
 2. The **Members** view lists each person with their type and status. Switch between **All**, **Active**, **Lapsed**, **Suspended** and **Resigned**, or search by name or email.
 
-![Club Members page — member list with name, Show Manager badge, type, status, and action menu](../screenshots/C-06.png)
+![Club Members tab — member list with name, email, type, status and Show Manager badge](../screenshots/C-06.png)
 
 **Membership requests:** exhibitors can ask to join your club from **Request additional access**. Every active club admin of your club receives an email about each request. Waiting requests appear at the top of the **Members** view under **Membership requests**, and the tab shows a count badge. **Approve** adds the person to the member list as an active member, without show access. **Deny** declines, with an optional reason. The requester is emailed either way, and your reason is included. A denied person cannot send the same request again, but you can still add them yourself at any time.
 

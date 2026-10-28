@@ -180,6 +180,18 @@ async function assertAppApiRequestsSettled(
     .soft(settlement.settled, `${routeId}: app API requests did not settle before route transition`)
     .toBe(true);
   if (!settlement.settled) {
+    // TEMP MYK9-1467 instrumentation: do the stuck requests ever finish?
+    const stuck = [...pendingAppApiRequests.pending];
+    const t0 = Date.now();
+    const fate = await Promise.all(
+      stuck.map(r =>
+        Promise.race([
+          r.response().then(res => `answered ${res?.status()} after +${Date.now() - t0}ms`, e => `errored ${String(e).slice(0, 80)}`),
+          new Promise<string>(ok => setTimeout(() => ok('NO ANSWER within +20s'), 20_000)),
+        ]).then(f => `${r.url().slice(0, 90)} :: ${f} :: failure=${r.failure()?.errorText ?? 'none'} timing=${JSON.stringify(r.timing())}`)
+      )
+    );
+    console.log(`[stuck] ${routeId}\n  ${fate.join('\n  ')}`);
     const diagnostic = logUnsettledAppApiRequests(routeId, settlement.pendingUrls);
     test.info().annotations.push({
       type: 'route',

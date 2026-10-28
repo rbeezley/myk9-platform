@@ -336,17 +336,18 @@ describe('every fixture sign-in path is guarded, and only production checks opt 
     );
   });
 
-  it.each([
-    '.github/workflows/nightly-health.yml',
-    '.github/workflows/page-readiness-probe.yml',
-    '.github/workflows/load-rehearsal.yml',
-  ])('%s opts in, because it measures production on purpose', path => {
-    expect(read(path)).toContain(`${ALLOW_PRODUCTION_FIXTURE_SIGN_IN}: '1'`);
-  });
+  it.each(['.github/workflows/page-readiness-probe.yml', '.github/workflows/load-rehearsal.yml'])(
+    '%s opts in, because it measures production on purpose',
+    path => {
+      expect(read(path)).toContain(`${ALLOW_PRODUCTION_FIXTURE_SIGN_IN}: '1'`);
+    }
+  );
 
   it.each([
     '.github/workflows/ci.yml',
     '.github/workflows/nightly-e2e.yml',
+    // MYK9-1467: its signed-in sweeps moved to an isolated stack; its production probe is anonymous.
+    '.github/workflows/nightly-health.yml',
     '.github/workflows/batch3-verification.yml',
     '.github/workflows/show-day-verification.yml',
   ])('%s never opts in: it runs against an isolated stack', path => {

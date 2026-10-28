@@ -230,11 +230,13 @@ async function sweepRoutes(
     pendingAppApiRequests.reset();
 
     let navigationError: string | null = null;
+    let documentStatus: number | null = null;
     try {
-      await page.goto(route.path, {
+      const response = await page.goto(route.path, {
         waitUntil: 'commit',
         timeout: ROUTE_GOTO_TIMEOUT_MS,
       });
+      documentStatus = response?.status() ?? null;
       await page
         .waitForLoadState('domcontentloaded', { timeout: ROUTE_GOTO_TIMEOUT_MS })
         .catch(() => {
@@ -258,6 +260,13 @@ async function sweepRoutes(
       });
       continue;
     }
+
+    // The browser-health watcher records only local and Supabase API responses,
+    // so an error page served by a deployed origin (the anonymous production
+    // probe, MYK9-1467) would otherwise pass on its body text alone.
+    expect
+      .soft(documentStatus ?? 0, `${id}: the page itself answered HTTP ${documentStatus}`)
+      .toBeLessThan(400);
 
     // Compatibility routes can redirect after the initial response commits.
     // Wait for their declared canonical destination before evaluating render

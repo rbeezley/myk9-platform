@@ -282,7 +282,8 @@ describe('the route sweep actually calls reset()', () => {
 
   it('resets BEFORE navigating, so the new route is measured from zero', () => {
     const resetAt = codeLines.indexOf('pendingAppApiRequests.reset();');
-    const gotoAt = codeLines.findIndex(line => line.startsWith('await page.goto(route.path'));
+    // `const response = await page.goto(...)` keeps the document status (MYK9-1467).
+    const gotoAt = codeLines.findIndex(line => /\bawait page\.goto\(route\.path\b/.test(line));
     expect(resetAt).toBeGreaterThan(-1);
     expect(gotoAt).toBeGreaterThan(-1);
     // Resetting after the navigation would discard the very requests the route

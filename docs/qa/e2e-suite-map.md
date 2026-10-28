@@ -22,7 +22,7 @@ This map classifies current Playwright specs into operational suites for the pro
 - `pnpm performance:baseline` and the load harness refuse the same way at sign-in.
 - **The isolated path:** `pnpm qa:isolated-e2e:prepare` builds a disposable local target. It points `VITE_SUPABASE_URL` and `MYK9_E2E_SUPABASE_URL` at loopback, and the guard then allows the run. CI's smoke, regression, show-day and batch-3 jobs use this. It needs Docker, so on the development Mac use the native-stack recipe instead.
 - **The opt-in:** a run that must measure production sets `MYK9_ALLOW_PROD_E2E=1`.
-  - Workflows that do so on purpose: `nightly-health`, `page-readiness-probe` and `load-rehearsal`.
+  - Workflows that do so on purpose: `page-readiness-probe` and `load-rehearsal`. `nightly-health` no longer does (MYK9-1467): its signed-in sweeps run on an isolated stack, and its production probe signs nobody in.
   - Locally, set it only for one short, deliberate production run, never for a suite.
   - Owner-signed-in browser walks and rolled-back psql walks sign in no fixture account, so they need no opt-in.
 
@@ -50,6 +50,8 @@ pnpm test:e2e:clean \
 ### Nightly health
 
 Nightly health is the scheduled, read-only routine: deterministic Vitest registration service/store checks followed by the committed Playwright route-health sweep. It does not create entries, score dogs, submit results, or exercise other stateful workflows.
+
+In CI (`nightly-health.yml`) the signed-in sweeps run against an isolated Supabase stack built on the runner with `pnpm qa:isolated-e2e:prepare`, as `nightly-e2e.yml` does (MYK9-1467). Signing the fixture accounts into production cost about 12k requests a run and pushed live p95 to 543 ms. A separate `production-probe` job runs only the `Route health: public` group against `https://myk9show.com` with no fixture password, so it signs nobody in.
 
 Scheduled Nightly runs should use the managed command, which removes its
 temporary worktree when the checks finish:
@@ -87,8 +89,8 @@ scheduled secretary and exhibitor task walks verified in the browser into
 nightly assertions (MYK9-730). Each test finds its own qualifying row with a
 ground-truth read made as the signed-in user (no seed ids), then asserts the
 page states the same fact. No qualifying row skips with a `staging-data-absent`
-annotation on shared staging (Nightly Health) and fails on the seeded database
-(Playwright Regression). Shared plumbing lives in
+annotation where the data is absent and fails on the seeded database (Playwright
+Regression, and Nightly Health since it moved to an isolated stack, MYK9-1467). Shared plumbing lives in
 `apps/myk9show/src/test/e2e/helpers/liveCanary.ts`.
 
 **Intake.** Every walk report ends with a "Canary candidates" section: one

@@ -31,7 +31,7 @@ import { verifySecretaryEmptyShow } from '@/services/database/entries/secretaryE
 import type { Database } from '@/types/supabase';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { PendingDeletes } from './pendingDeletes';
-import { entriesUnchangedSince } from './entriesChangedSince';
+import { entriesUnchangedSince, recordEntriesViewRead } from './entriesChangedSince';
 import { entryChangedColumnsRow } from './ReplicatedEntriesTable.changedColumns';
 import {
   entryToSupabaseRow,
@@ -388,7 +388,18 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       },
       fetchRemoteRows: async ({ since, forceFullSync }) => {
         // MYK9-1369: a definite "nothing moved" skips the view's per-row build.
-        if (await entriesUnchangedSince({ showId: showScopeId, since, forceFullSync })) return [];
+        const readWindow = {
+          showId: showScopeId,
+          since,
+          forceFullSync,
+          bufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+        };
+        if (await entriesUnchangedSince(readWindow)) return [];
+        const readAt = Date.now();
+        const completed = (done: EntryRow[]) => {
+          recordEntriesViewRead({ ...readWindow, readAt });
+          return done;
+        };
         // Filter by show_id if provided. In myK9Show this scope value is the Show ID.
         // Read through the authenticated result view instead of public.entries:
         // managers receive raw scored fields, while exhibitors only receive
@@ -434,11 +445,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
             receiptReferenceColumnObserved = true;
           }
           if (pageRows.length < ENTRIES_REPLICATION_PAGE_SIZE) {
-            return rows;
+            return completed(rows);
           }
 
           const lastRow = pageRows[pageRows.length - 1];
-          if (!lastRow?.updated_at || !lastRow.id) return rows;
+          if (!lastRow?.updated_at || !lastRow.id) return completed(rows);
           cursorUpdatedAt = String(lastRow.updated_at);
           cursorId = String(lastRow.id);
         }

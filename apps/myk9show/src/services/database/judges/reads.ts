@@ -424,34 +424,6 @@ export async function upsertClassJudgeAssignment(
   }
 }
 
-/**
- * Reassign a class's judge. While the class has a pick that has not reached the server, the local
- * assignment replica still names the previous judge, so the reassign is queued as another
- * `set_class_judge` chained after it. Otherwise it updates the assignment in place, which keeps
- * its id, fee and notes. A missing assignment throws.
- */
-export async function reassignClassJudge(
-  showId: string,
-  classId: string,
-  fromJudgeId: string,
-  toJudgeId: string
-): Promise<void> {
-  try {
-    if (await replicatedClassesTable.hasUnsentJudgePick(classId)) {
-      await replicatedClassesTable.setClassJudge(classId, { personId: toJudgeId });
-      return;
-    }
-    await replicatedJudgeAssignmentsTable.reassignClassAssignment(
-      showId,
-      classId,
-      fromJudgeId,
-      toJudgeId
-    );
-  } catch (error) {
-    throw createDatabaseError(error, 'judge_assignments', 'reassign_class_judge');
-  }
-}
-
 // =============================================================================
 // Judge Analytics Queries (read-only over existing tables)
 // =============================================================================

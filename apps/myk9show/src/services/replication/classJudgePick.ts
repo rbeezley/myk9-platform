@@ -12,7 +12,13 @@
  * Every read goes through the MutationManager's owner-scoped queue reads, so another account's
  * work on this device is never named or discarded.
  */
-import type { MutationManager, PendingMutation } from '@myk9/replication';
+import { logger } from '@myk9/core';
+import type {
+  MutationManager,
+  PendingMutation,
+  UploadCompleteEventDetail,
+} from '@myk9/replication';
+import { invalidateClassEnrichment } from './classEnrichmentCache';
 
 export const SET_CLASS_JUDGE_RPC = 'set_class_judge';
 
@@ -47,15 +53,6 @@ async function readPickQueue(queue: QueueReader, classId: string): Promise<Class
   };
 }
 
-/** True when the class has a pick that has not reached the server: pending, or parked for Retry. */
-export async function hasUnsentClassJudgePick(
-  queue: QueueReader,
-  classId: string
-): Promise<boolean> {
-  const { pendingPicks, failedPicks } = await readPickQueue(queue, classId);
-  return pendingPicks.length > 0 || failedPicks.length > 0;
-}
-
 /** What a newly queued pick must wait for, and which earlier failed picks it replaces. */
 export async function planClassJudgePick(
   queue: QueueReader,
@@ -70,9 +67,36 @@ export async function planClassJudgePick(
   };
 }
 
-/** Drop earlier failed picks once the newer pick that replaces them is durably queued. */
+/**
+ * Drop earlier failed picks once the newer pick that replaces them is durably queued. Each id is
+ * tried on its own, and a failure is logged, never thrown: the new pick is already queued, and a
+ * leftover superseded pick only costs the secretary a Discard in Sync issues.
+ */
 export async function discardSupersededPicks(queue: QueueReader, ids: string[]): Promise<void> {
-  for (const id of ids) await queue.discardFailedMutation(id);
+  for (const id of ids) {
+    try {
+      await queue.discardFailedMutation(id);
+    } catch (error) {
+      logger.warn('Could not discard a superseded set_class_judge pick', 'replication', {
+        mutationId: id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+}
+
+/** True when an upload batch carried a `set_class_judge` pick. */
+export function invalidatesClassEnrichment(detail: UploadCompleteEventDetail): boolean {
+  return detail.mutations?.some(m => m.rpcName === SET_CLASS_JUDGE_RPC) === true;
+}
+
+/**
+ * A sync that ran while a pick was queued refilled the judge-name cache from the server's OLD
+ * judge. Once the pick has uploaded, the post-upload class pull must not reuse it. Call before
+ * that sync is triggered.
+ */
+export function invalidateEnrichmentForUpload(detail: UploadCompleteEventDetail): void {
+  if (invalidatesClassEnrichment(detail)) invalidateClassEnrichment();
 }
 
 /** The judge a pick puts on a class; names are optional (the wizard and reassign know only the id). */

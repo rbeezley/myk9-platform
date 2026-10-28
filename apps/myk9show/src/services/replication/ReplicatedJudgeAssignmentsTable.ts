@@ -372,29 +372,6 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
       });
     }
   }
-
-  /**
-   * Reassign a class's judge in place (update, not delete+insert) to preserve the
-   * assignment's identity/history. Throws when no local row matches the from/class/show
-   * filter: a reassignment that queued nothing must never read as done.
-   */
-  async reassignClassAssignment(
-    showId: string,
-    classId: string,
-    fromPersonId: string,
-    toPersonId: string
-  ): Promise<void> {
-    const all = await this.readAllForWrite();
-    const match = all.find(
-      a => a.classId === classId && a.showId === showId && a.personId === fromPersonId
-    );
-    if (!match) {
-      throw new Error(
-        `No assignment of judge ${fromPersonId} found for class ${classId} to reassign`
-      );
-    }
-    await this.updateAssignment(match.id, { personId: toPersonId });
-  }
 }
 
 export const replicatedJudgeAssignmentsTable = new ReplicatedJudgeAssignmentsTable();

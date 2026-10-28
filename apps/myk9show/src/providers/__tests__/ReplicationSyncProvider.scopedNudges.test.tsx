@@ -37,7 +37,13 @@ const hoisted = vi.hoisted(() => {
   };
 });
 
+const order: string[] = [];
 const { authState, syncSpies, getEntryIds, getPendingCount, uploadPendingMutations } = hoisted;
+
+vi.mock('@/services/replication/classEnrichmentCache', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/replication/classEnrichmentCache')>()),
+  invalidateClassEnrichment: () => order.push('invalidate'),
+}));
 
 vi.mock('@/lib/notifications', () => ({
   notifications: {
@@ -259,5 +265,57 @@ describe('ReplicationSyncProvider: scoped realtime nudges', () => {
     expect(syncSpies.entries).toHaveBeenCalledTimes(1);
     expect(syncSpies.classes.mock.calls.map(call => call[0])).toEqual(['trial-1']);
     expect(syncSpies.paperwork_prints.mock.calls.map(call => call[0])).toEqual(['show-1']);
+  });
+
+  // MYK9-1327: a sync that ran while the pick was queued refilled the judge-name cache with the
+  // old judge. The cache must be dropped BEFORE the post-upload class pull reads it.
+  it('drops the judge-name cache before the post-upload sync when a set_class_judge uploaded', async () => {
+    order.length = 0;
+    syncSpies.classes.mockImplementation(async () => {
+      order.push('sync');
+      return { success: true, rowsAffected: 0 };
+    });
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent('replication:upload-complete', {
+          detail: {
+            tables: ['classes'],
+            count: 1,
+            mutations: [
+              {
+                tableName: 'classes',
+                rowId: 'class-1',
+                operation: 'UPDATE',
+                rpcName: 'set_class_judge',
+              },
+            ],
+          },
+        })
+      );
+      await vi.advanceTimersByTimeAsync(2_000);
+    });
+    await settle();
+
+    expect(order).toContain('sync');
+    expect(order[0]).toBe('invalidate');
+  });
+
+  it('leaves the judge-name cache alone for an upload without a set_class_judge', async () => {
+    order.length = 0;
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent('replication:upload-complete', {
+          detail: {
+            tables: ['classes'],
+            count: 1,
+            mutations: [{ tableName: 'classes', rowId: 'class-1', operation: 'UPDATE' }],
+          },
+        })
+      );
+      await vi.advanceTimersByTimeAsync(2_000);
+    });
+    await settle();
+
+    expect(order).not.toContain('invalidate');
   });
 });

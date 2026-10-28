@@ -48,7 +48,6 @@ import { buildRingsideClassRpc } from './ringsideClassRpc';
 import {
   SET_CLASS_JUDGE_RPC,
   discardSupersededPicks,
-  hasUnsentClassJudgePick,
   judgeFieldsAfterPick,
   planClassJudgePick,
   type ClassJudgeTarget,
@@ -1084,11 +1083,6 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     );
     this._lastMutationId = mutationId;
     return mutationId;
-  }
-
-  /** True while a `set_class_judge` pick for this class is pending or parked for Retry. */
-  async hasUnsentJudgePick(classId: string): Promise<boolean> {
-    return this.pickQueue ? hasUnsentClassJudgePick(this.pickQueue, classId) : false;
   }
 
   /**

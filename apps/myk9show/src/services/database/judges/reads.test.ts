@@ -4,20 +4,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   applyShowLevelJudgeChanges: vi.fn(async () => undefined),
   createAssignment: vi.fn(async () => ({ id: 'new-1' })),
-  reassignClassAssignment: vi.fn(async () => undefined),
   setClassJudge: vi.fn(async () => 'mutation-1'),
-  hasUnsentJudgePick: vi.fn(async () => false),
 }));
 
 vi.mock('@/services/replication', () => ({
   replicatedJudgeAssignmentsTable: {
     applyShowLevelJudgeChanges: mocks.applyShowLevelJudgeChanges,
     createAssignment: mocks.createAssignment,
-    reassignClassAssignment: mocks.reassignClassAssignment,
   },
   replicatedClassesTable: {
     setClassJudge: mocks.setClassJudge,
-    hasUnsentJudgePick: mocks.hasUnsentJudgePick,
   },
 }));
 
@@ -42,7 +38,6 @@ import {
   persistShowJudgeAssignments,
   saveShowJudgeChanges,
   upsertClassJudgeAssignment,
-  reassignClassJudge,
 } from './reads';
 
 describe('persistShowJudgeAssignments (a new show)', () => {
@@ -181,48 +176,6 @@ describe('upsertClassJudgeAssignment', () => {
       table: 'judge_assignments',
       operation: 'upsert_class_assignment',
       message: 'offline queue full',
-    });
-  });
-});
-
-describe('reassignClassJudge', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.reassignClassAssignment.mockResolvedValue(undefined);
-    mocks.hasUnsentJudgePick.mockResolvedValue(false);
-  });
-
-  it('reassigns in place through the replicated table when no pick is queued', async () => {
-    await reassignClassJudge('show-1', 'class-1', 'judge-1', 'judge-2');
-
-    expect(mocks.reassignClassAssignment).toHaveBeenCalledWith(
-      'show-1',
-      'class-1',
-      'judge-1',
-      'judge-2'
-    );
-    expect(mocks.setClassJudge).not.toHaveBeenCalled();
-  });
-
-  it('queues another set_class_judge, and no in-place update, while a pick is unsent', async () => {
-    mocks.hasUnsentJudgePick.mockResolvedValue(true);
-
-    await reassignClassJudge('show-1', 'class-1', 'judge-1', 'judge-2');
-
-    expect(mocks.setClassJudge).toHaveBeenCalledWith('class-1', { personId: 'judge-2' });
-    expect(mocks.reassignClassAssignment).not.toHaveBeenCalled();
-  });
-
-  it('wraps a reassign failure in a judge_assignments database error', async () => {
-    mocks.reassignClassAssignment.mockRejectedValueOnce(new Error('no match'));
-
-    await expect(
-      reassignClassJudge('show-1', 'class-1', 'judge-1', 'judge-2')
-    ).rejects.toMatchObject({
-      name: 'DatabaseError',
-      table: 'judge_assignments',
-      operation: 'reassign_class_judge',
-      message: 'no match',
     });
   });
 });

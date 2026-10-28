@@ -20,7 +20,7 @@ import {
 } from '@myk9/replication';
 import { replicatedClassesTable as table, type ReplicatedClass } from './ReplicatedClassesTable';
 import { replicatedJudgeAssignmentsTable } from './ReplicatedJudgeAssignmentsTable';
-import { reassignClassJudge, upsertClassJudgeAssignment } from '@/services/database/judges/reads';
+import { upsertClassJudgeAssignment } from '@/services/database/judges/reads';
 
 vi.mock('@myk9/core', () => ({
   logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
@@ -417,6 +417,33 @@ describe('ReplicatedClassesTable.setClassJudge (MYK9-1327)', () => {
     expect(rpcCalls.at(-1)?.args.p_person_id).toBe('judge-c');
   });
 
+  it('still queues the pick, and discards the other superseded picks, when one discard throws', async () => {
+    rpcImpl = parked('P0002');
+    await table.setClassJudge(ID, judgeOf('judge-b', 'Bob'));
+    await vi.waitFor(async () => expect(await failed()).toHaveLength(1));
+    // A second parked pick for the same class, as an older device state could leave behind.
+    const db = await databaseManager.getDatabase('MutationManager');
+    const [original] = await failed();
+    await db.put(REPLICATION_STORES.FAILED_MUTATIONS, { ...original!, id: 'older-failed-pick' });
+    expect(await failed()).toHaveLength(2);
+
+    const real = manager.discardFailedMutation.bind(manager);
+    let calls = 0;
+    vi.spyOn(manager, 'discardFailedMutation').mockImplementation(async id => {
+      calls += 1;
+      if (calls === 1) throw new Error('queue busy');
+      await real(id);
+    });
+    rpcImpl = ok;
+
+    const mutationId = await table.setClassJudge(ID, judgeOf('judge-c', 'Cy'));
+
+    expect(mutationId).toEqual(expect.any(String));
+    expect(calls).toBe(2);
+    expect(await failed()).toHaveLength(1);
+    expect(pickTargets(await pending())).toContain('judge-c');
+  });
+
   it('does not wait on an unrelated class edit, and an unrelated edit does not wait on the pick', async () => {
     await table.updateClass(ID, { description: 'Bring water' });
     await table.setClassJudge(ID, judgeOf('judge-b', 'Bob'));
@@ -452,32 +479,6 @@ describe('ReplicatedClassesTable.setClassJudge (MYK9-1327)', () => {
       expect(rpcCalls.filter(c => c.args.p_class_id === wizardId)).toHaveLength(1);
     });
     expect(tablesWritten).toContain('classes');
-  });
-
-  it('queues a reassign after an offline pick as a chained set_class_judge', async () => {
-    await upsertClassJudgeAssignment(SHOW, ID, 'judge-b', judgeOf('judge-b', 'Bob'));
-    await reassignClassJudge(SHOW, ID, 'judge-b', 'judge-c');
-
-    const [first, second] = picks(await pending());
-    expect(second?.rpc?.args).toEqual({ p_class_id: ID, p_person_id: 'judge-c' });
-    expect(second?.dependsOn).toEqual([first!.id]);
-    expect(await manager.getPendingMutationsForTable('judge_assignments')).toEqual([]);
-    expect((await row())?.data.judgeId).toBe('judge-c');
-
-    rpcImpl = ok;
-    await vi.waitFor(async () => {
-      await upload();
-      expect(await pending()).toEqual([]);
-    });
-    expect(rpcCalls.map(c => c.args.p_person_id)).toEqual(['judge-b', 'judge-c']);
-  });
-
-  it('throws when a reassign finds no assignment, and queues nothing', async () => {
-    await expect(reassignClassJudge(SHOW, ID, 'judge-a', 'judge-c')).rejects.toThrow(
-      /No assignment of judge judge-a found for class class-1/
-    );
-    expect(await pending()).toEqual([]);
-    expect((await row())?.data.judgeId).toBe('judge-a');
   });
 
   it('survives an offline reload: rebuilt from IndexedDB, the judge and the queued pick persist', async () => {

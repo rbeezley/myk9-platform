@@ -127,8 +127,14 @@ for (const viewport of [
     const selectAll = page.getByRole('checkbox', {
       name: /^Select all (on page|entry forms on this page)$/,
     });
-    // elementFromPoint only sees the viewport, and boundingBox does not scroll.
-    await selectAll.scrollIntoViewIfNeeded();
+    // elementFromPoint only sees the viewport and answers null outside it, and
+    // boundingBox does not scroll. scrollIntoViewIfNeeded stops as soon as the
+    // checkbox is visible, which at 390px left it on the last row and its lower
+    // probes below the fold (MYK9-1464), so centre it instead, instantly: the
+    // app's smooth scrolling would otherwise still be moving it when we measure.
+    await selectAll.evaluate(el =>
+      el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' })
+    );
     const box = await selectAll.boundingBox();
     expect(box, 'select-all checkbox must be rendered').not.toBeNull();
     const cx = box!.x + box!.width / 2;
@@ -136,8 +142,20 @@ for (const viewport of [
     const hitsCheckbox = (dx: number, dy: number) =>
       selectAll.evaluate(
         (el, point) => {
+          if (
+            point.x < 0 ||
+            point.y < 0 ||
+            point.x >= window.innerWidth ||
+            point.y >= window.innerHeight
+          ) {
+            throw new Error(`probe ${point.x},${point.y} is outside the viewport`);
+          }
           const hit = document.elementFromPoint(point.x, point.y);
-          return hit === el || el.contains(hit);
+          if (hit === el || el.contains(hit)) return 'checkbox';
+          // Name what took the point, so a failure says what covers the target.
+          if (!hit) return 'nothing';
+          const r = hit.getBoundingClientRect();
+          return `${hit.tagName.toLowerCase()}.${String(hit.className).slice(0, 120)} [${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}x${Math.round(r.height)}] el=[${Math.round(el.getBoundingClientRect().x)},${Math.round(el.getBoundingClientRect().y)}]`;
         },
         { x: cx + dx, y: cy + dy }
       );
@@ -151,8 +169,12 @@ for (const viewport of [
       [-1, 1],
       [1, 1],
     ] as const) {
-      expect(await hitsCheckbox(sx * 21.5, sy * 21.5), `corner ${sx},${sy} inside 44px`).toBe(true);
-      expect(await hitsCheckbox(sx * 23, sy * 23), `corner ${sx},${sy} outside 44px`).toBe(false);
+      expect(await hitsCheckbox(sx * 21.5, sy * 21.5), `corner ${sx},${sy} inside 44px`).toBe(
+        'checkbox'
+      );
+      expect(await hitsCheckbox(sx * 23, sy * 23), `corner ${sx},${sy} outside 44px`).not.toBe(
+        'checkbox'
+      );
     }
   });
 }

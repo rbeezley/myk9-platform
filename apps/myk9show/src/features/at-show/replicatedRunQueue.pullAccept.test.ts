@@ -35,9 +35,13 @@ function applied(row: ReplicatedEntry, patch: Partial<ReplicatedEntry>): Replica
 const queuedIds = (rows: ReplicatedEntry[]) => pendingReplicatedByRunOrder(rows).map(r => r.id);
 
 describe('ringside run queue after Entry Forms pulls and then accepts a dog (MYK9-1384)', () => {
-  it('drops a pulled dog from the queue', () => {
+  it('drops a pulled dog from the queue and marks it pulled on both aliases', () => {
     const pulled = applied(entry(), buildReplicatedEntryStatusUpdate('scratched'));
 
+    // The queue drop alone is not discriminating: a scratched entry is already not runnable.
+    // The pulled write is what the accepted case below has to undo.
+    expect(pulled.checkInStatus).toBe('pulled');
+    expect(pulled.check_in_status).toBe('pulled');
     expect(queuedIds([pulled])).toEqual([]);
   });
 
@@ -65,6 +69,7 @@ describe('ringside run queue after Entry Forms pulls and then accepts a dog (MYK
     );
 
     expect(undone.checkInStatus).toBe('checked-in');
+    expect(undone.check_in_status).toBe('checked-in');
     expect(queuedIds([undone])).toEqual(['e1']);
   });
 });

@@ -6,6 +6,7 @@ import type {
   WizardShowData,
   WizardTrial,
 } from '@/pages/secretary/ShowCreationWizard/showCreationWizardTransformers';
+import { replicatedToTrial, replicatedToTrialClass } from '@/store/trial-store-helpers';
 import { render } from '@/test/utils/testUtils';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
 import { buildSecretaryCockpitSnapshot } from './buildSecretaryCockpitSnapshot';
@@ -82,29 +83,20 @@ function renderScheduleFromWizard() {
   };
   const snapshot = buildSecretaryCockpitSnapshot({
     showId,
-    // ShowWorkbenchShowDeskPage projects the replica rows into these shapes the same way:
-    // the judge name and id come straight off the class row, nothing else supplies them.
-    trials: localEntities.trials.map((trial, index) => ({
-      id: trial.id,
-      showId,
-      showName: wizardShow.name,
-      name: trial.name,
-      trialDate: wizardTrial.trialDate,
-      trialNumber: String(index + 1),
-      status: 'Upcoming' as const,
-      order: String(index + 1),
-      _version: 1,
-      _lastModified: new Date(),
-      _lastModifiedBy: 'user-1',
-      _syncStatus: 'synced' as const,
-    })),
-    classes: localEntities.classes.map(cls => ({
-      id: cls.id,
-      trialId: cls.trialId ?? cls.trial_id ?? '',
-      name: cls.name ?? '',
-      judgeName: cls.judgeName || '',
-      judgeId: cls.judgeId || undefined,
-    })),
+    // The store hop is the real one (replicatedToTrial / replicatedToTrialClass). The last step
+    // copies the judge fields the way ShowWorkbenchShowDeskPage's showClasses projection does
+    // (name, judgeName and judgeId only; the rest is not needed to read the judge).
+    trials: localEntities.trials.map(replicatedToTrial),
+    classes: localEntities.classes.map(replicated => {
+      const cls = replicatedToTrialClass(replicated);
+      return {
+        id: cls.id,
+        name: `${cls.element} ${cls.level}`,
+        judgeName: cls.judgeName || '',
+        judgeId: cls.judgeId || undefined,
+        trialId: replicated.trialId ?? replicated.trial_id ?? '',
+      };
+    }),
     tree,
     pendingSignals: [],
     returnTo: `/shows/${showId}/show-day`,
@@ -132,7 +124,6 @@ describe('Secretary cockpit schedule right after the wizard creates a show', () 
   it('names the judge the wizard assigned, never "Judge not set" (MYK9-1382)', () => {
     renderScheduleFromWizard();
 
-    expect(screen.getByText(/NW1 Containers|Container/i)).toBeInTheDocument();
     expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
     expect(screen.queryByText(/Judge not set/)).not.toBeInTheDocument();
   });

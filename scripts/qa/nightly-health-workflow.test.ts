@@ -184,7 +184,7 @@ describe('nightly health workflow', () => {
       expect(probe).toContain('--retries=0');
       // No secret of any kind: with no fixture password the guard lets it run and
       // the signed-in groups skip, so nobody is signed in to production.
-      expect(probe).not.toContain('secrets.');
+      expect(probe).not.toMatch(/\$\{\{\s*secrets\./);
       expect(probe).not.toMatch(/(MYK9_E2E_|VITE_)[A-Z_]+:/);
       expect(probe).not.toContain(HEALTH_STEP);
     });

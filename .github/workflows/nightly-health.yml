@@ -287,8 +287,16 @@ jobs:
           CI: 'true'
           PLAYWRIGHT_BASE_URL: https://myk9show.com
 
-      - name: Upload production probe report
+      # MYK9-1128: every Playwright report upload passes this gate. This job holds no
+      # secret, so it checks against none; it is here so a secret added later is caught.
+      - name: Verify no secrets in artifacts (production probe report)
+        id: verify-artifacts
         if: always()
+        working-directory: apps/myk9show
+        run: pnpm exec tsx scripts/verify-artifact-secrets.ts --skip-zip-files playwright-report
+
+      - name: Upload production probe report
+        if: ${{ always() && steps.verify-artifacts.outcome != 'failure' }}
         uses: actions/upload-artifact@v7
         with:
           name: myk9show-production-probe-report

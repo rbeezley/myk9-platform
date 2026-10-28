@@ -10,7 +10,7 @@
 
 import { MutationManager, type MutationUploadAuthContext } from '@myk9/replication';
 import { createSessionBoundSupabaseClient, supabase } from '@/services/database/supabaseClient';
-import { checkSupabaseReachable } from './checkSupabaseReachable';
+import { probeServer } from '@/lib/serverReachability';
 import { logger } from '@/services/LoggingService';
 import { acquireCacheClearWriteLock } from '@/services/cacheClearGate';
 import {
@@ -46,7 +46,8 @@ let cachedUploadContext:
 
 export const mutationManager = new MutationManager(supabase, {
   logger: replicationLogger,
-  checkConnectivity: checkSupabaseReachable,
+  // MYK9-1474: a transport failure spares the retry budget only while the server is unreachable.
+  checkConnectivity: probeServer,
   acquireQueueMutationLockAsync: acquireCacheClearWriteLock,
   getCurrentUserId: async () => {
     const { data, error } = await supabase.auth.getSession();

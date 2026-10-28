@@ -287,6 +287,60 @@ describe('class sync when the hide-count lookup fails (MYK9-1451)', () => {
     expect(owedHideCountClassIds(TRIAL)).toContain(ID);
   });
 
+  it('keeps a class owed when the sync fails after its lookup answered', async () => {
+    lookupDown();
+    await sync();
+    changedClasses = [];
+    officialLookup({ data: [{ class_id: ID, num_hides: 7 }], error: null });
+    vi.spyOn(table, 'batchSet').mockRejectedValueOnce(new Error('IDB write failed'));
+
+    expect((await sync()).success).toBe(false);
+    expect(owedHideCountClassIds(TRIAL)).toEqual([ID]);
+
+    expect((await sync()).success).toBe(true);
+    expect(await hideCount()).toBe(7);
+    expect(owedHideCountClassIds(TRIAL)).toEqual([]);
+  });
+
+  it('keeps a class with an unsent edit owed until a later sync applies its count', async () => {
+    lookupDown();
+    await sync();
+    await table.updateClass(ID, { description: 'pending edit' });
+    changedClasses = [];
+    officialLookup({ data: [{ class_id: ID, num_hides: 7 }], error: null });
+
+    await sync();
+
+    expect(owedHideCountClassIds(TRIAL)).toEqual([ID]);
+  });
+
+  it('keeps reading later owed chunks when one fails', async () => {
+    const many = Array.from({ length: 150 }, (_, i) => ({ ...SERVER_CLASS, id: `owed-${i}` }));
+    markHideCountsOwed(many);
+    changedClasses = [];
+    let read = 0;
+    mockFrom.mockImplementation((name: string) => {
+      if (name === 'trials') return builder(TRIALS);
+      if (name === 'classes') {
+        const chain = builder([]);
+        chain.in = (_column: string, ids: string[]) => {
+          read += 1;
+          return read === 1
+            ? builder([], { message: 'gateway timeout' })
+            : builder(ids.map(id => ({ ...SERVER_CLASS, id })));
+        };
+        return chain;
+      }
+      return builder([]);
+    });
+    officialLookup({ data: [], error: null });
+
+    expect((await sync()).success).toBe(true);
+
+    expect(await table.get('owed-120')).toBeTruthy();
+    expect(owedHideCountClassIds(TRIAL)).toHaveLength(100);
+  });
+
   it('reads a long owed list in chunks', async () => {
     const many = Array.from({ length: 250 }, (_, i) => ({ ...SERVER_CLASS, id: `owed-${i}` }));
     markHideCountsOwed(many);

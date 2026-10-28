@@ -709,8 +709,18 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
    * and a class with none takes whatever the partial lookup answered. Every class in the batch
    * is then owed a lookup (`hideCountsOwed`), which the next sync retries by id even when the
    * class itself has not changed (MYK9-1458). Rows always apply; no role's sync is held.
+   *
+   * A saved count wins over a partial answer on purpose: a failed official RPC can leave a rule's
+   * default total in the answer, which must not replace a judge-set count mid-scoring. The class
+   * stays owed, so the next good lookup corrects it.
+   *
+   * `answered` collects the classes whose lookup succeeded. Only the sync settles them, and only
+   * after its rows are applied (`settleAppliedOwed`).
    */
-  private async enrichClassRows(rows: ClassRow[]): Promise<EnrichedClassRow[]> {
+  private async enrichClassRows(
+    rows: ClassRow[],
+    answered?: Set<string>
+  ): Promise<EnrichedClassRow[]> {
     const boundary = this.hideCountBoundaryGeneration;
     let enrichment: ClassEnrichment;
     try {
@@ -719,7 +729,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         localTimeLimitRules: ids => this.cachedTimeLimitRules(ids),
         tableName: this.getTableName(),
       });
-      settleHideCountsOwed(rows.map(row => String(row.id)));
+      for (const row of rows) answered?.add(String(row.id));
     } catch (error) {
       if (!(error instanceof HideCountLookupFailedError)) throw error;
       enrichment = error.enrichment;
@@ -761,8 +771,21 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     return byId;
   }
 
+  /**
+   * Settle owed classes the sync both looked up and applied. A class with an unsent local edit
+   * was not overwritten by the sync, so it stays owed until a later sync applies its count.
+   */
+  private async settleAppliedOwed(answered: Set<string>): Promise<void> {
+    const settled: string[] = [];
+    for (const id of owedHideCountClassIds(undefined)) {
+      if (answered.has(id) && !(await this.getReplicatedRow(id))?.isDirty) settled.push(id);
+    }
+    settleHideCountsOwed(settled);
+  }
+
   async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
+    const answered = new Set<string>();
 
     const adapter: SyncReplicatedTableAdapter<EnrichedClassRow, ReplicatedClass> = {
       ...this.getRowRefetchAdapter(),
@@ -815,7 +838,10 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         }
 
         const rows = (data ?? []) as unknown as ClassRow[];
-        return this.enrichClassRows([...rows, ...(await this.fetchOwedClassRows(rows, scope))]);
+        return this.enrichClassRows(
+          [...rows, ...(await this.fetchOwedClassRows(rows, scope))],
+          answered
+        );
       },
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       filterLocalRows: (rows, scope) =>
@@ -832,6 +858,8 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
       }
     );
+
+    if (result.success) await this.settleAppliedOwed(answered);
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);

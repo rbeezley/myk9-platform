@@ -514,7 +514,13 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       }
     );
 
-    if (accessResyncMark !== null && result.success) {
+    // A full fetch that saw no rows leaves a warm replica in place (MYK9-880), so
+    // a revoked role's cached rows would survive it: keep the mark until they go.
+    if (
+      accessResyncMark !== null &&
+      result.success &&
+      ((remoteRowCount ?? 0) > 0 || !(await this.holdsShowRows(showScopeId)))
+    ) {
       clearEntriesAccessResyncMark(showScopeId, accessResyncMark);
     }
 
@@ -532,6 +538,15 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     }
 
     return result;
+  }
+
+  /** True when the replica holds a row of this show, or cannot tell (MYK9-1476). */
+  private async holdsShowRows(showId: string): Promise<boolean> {
+    try {
+      return (await this.getAllOrThrow()).some(row => row.showId === showId);
+    } catch {
+      return true;
+    }
   }
 
   /**

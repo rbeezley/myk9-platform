@@ -102,7 +102,8 @@ export async function noteEntriesAccessRoles(
       return;
     }
     const { replicatedEntriesTable } = await import('./ReplicatedEntriesTable');
-    const rows = await replicatedEntriesTable.getAll();
+    // getAll() answers [] on a failed read; that would record the new set with no marks.
+    const rows = await replicatedEntriesTable.getAllOrThrow();
     const showIds = new Set<string>();
     for (const row of rows) if (row.showId) showIds.add(row.showId);
     recordEntriesAccessRoleSet(userId, roles, [...showIds]);

@@ -144,8 +144,9 @@ describe('class enrichment across consecutive classes deltas (MYK9-1360)', () =>
         : answer(name, args)
     );
     const table = new ReplicatedClassesTable();
-    // MYK9-1451: a failed hide-count read fails the enrichment, so no class row is produced.
-    await expect(enrich(table)(delta(0))).rejects.toThrow('Hide-count lookup failed');
+    const first = await enrich(table)(delta(0));
+    // A cold device (MYK9-1451) holds no count to lose: the failed read still replicates.
+    expect(first[0]).toMatchObject({ num_hides: null, _judgeResolved: true });
 
     mockRpc.mockImplementation(answer);
     mockFrom.mockClear();

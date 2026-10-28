@@ -137,9 +137,12 @@ export interface ClassEnrichmentDeps {
  * anything or advances its watermark, and the next sync refetches and retries.
  */
 export class HideCountLookupFailedError extends Error {
-  constructor() {
+  /** Everything else that did resolve, so a caller that must still produce rows can use it. */
+  readonly enrichment: ClassEnrichment;
+  constructor(enrichment: ClassEnrichment) {
     super('Hide-count lookup failed; class rows not applied so the next sync retries them.');
     this.name = 'HideCountLookupFailedError';
+    this.enrichment = enrichment;
   }
 }
 
@@ -270,7 +273,7 @@ export async function resolveClassEnrichment(
     // A failed read leaves each resolver to read `trials` itself, uncached, as before.
     if (!trials) {
       const outcome = await runResolvers(rows, undefined, deps);
-      if (outcome.hideCountsFailed) throw new HideCountLookupFailedError();
+      if (outcome.hideCountsFailed) throw new HideCountLookupFailedError(outcome.enrichment);
       return outcome.enrichment;
     }
     for (const trial of trials) showByTrial.set(trial.id, trial.show_id);
@@ -305,12 +308,12 @@ export async function resolveClassEnrichment(
     trials && missed.length === rows.length ? trials : await readClassTrials(missed),
     deps
   );
-  if (outcome.hideCountsFailed) throw new HideCountLookupFailedError();
   if (outcome.clean) remember(missed, outcome, userId, startedGeneration);
   const fresh = outcome.enrichment;
   fresh.visibility.forEach((value, id) => result.visibility.set(id, value));
   fresh.hideCounts.forEach((value, id) => result.hideCounts.set(id, value));
   fresh.timeLimitRules.forEach((value, id) => result.timeLimitRules.set(id, value));
   fresh.judges.forEach((value, id) => result.judges.set(id, value));
+  if (outcome.hideCountsFailed) throw new HideCountLookupFailedError(result);
   return result;
 }

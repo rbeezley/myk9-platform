@@ -10,6 +10,8 @@ import {
   databaseManager,
   MutationManager,
   REPLICATION_STORES,
+  refetchDirtyRowsById,
+  type RowRefetchAdapter,
 } from '@myk9/replication';
 
 const { mockFrom, mockRpc } = vi.hoisted(() => ({ mockFrom: vi.fn(), mockRpc: vi.fn() }));
@@ -204,6 +206,37 @@ describe('class sync when the hide-count lookup fails (MYK9-1451)', () => {
     expect(row?.data.description).toBe('pending edit');
     expect(row?.data.hideCount).toBe(5);
     expect(await watermark()).toBe(WARM_WATERMARK);
+  });
+
+  it('still syncs classes onto a cold device, with no count, when the lookup fails', async () => {
+    await table.clearCache();
+    expect(await table.get(ID)).toBeFalsy();
+    officialLookup({ data: null, error: { message: 'rpc down' } });
+
+    const result = await sync();
+
+    expect(result.success).toBe(true);
+    const synced = await table.get(ID);
+    expect(synced?.classStatus).toBe('in_progress');
+    expect(synced?.hideCount).toBeUndefined();
+    expect(await watermark()).toBe(Date.parse(UPDATED_AT));
+  });
+
+  it('refetches a dirty row for the OCC rebase without throwing, keeping the local count', async () => {
+    await table.updateClass(ID, { description: 'pending edit' });
+    expect((await table.getReplicatedRow(ID))?.isDirty).toBe(true);
+    officialLookup({ data: null, error: { message: 'rpc down' } });
+    const adapter = (
+      table as unknown as { getRowRefetchAdapter(): RowRefetchAdapter<unknown, ReplicatedClass> }
+    ).getRowRefetchAdapter();
+
+    const rebased = await refetchDirtyRowsById(table, adapter, [ID]);
+
+    expect(rebased).toBe(1);
+    expect(conflicts).toEqual([]);
+    const row = await table.getReplicatedRow(ID);
+    expect(row?.data.description).toBe('pending edit');
+    expect(row?.data.hideCount).toBe(5);
   });
 
   it('does not bring a stripped count back when the lookup then fails', async () => {

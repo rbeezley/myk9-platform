@@ -26,10 +26,12 @@ import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { createInFlightSharer, type ShareRead } from '@/services/database/_shared/shareInFlight';
 import { readPersistedAuthUserId } from '@/services/database/persistedAuthUserId';
 import {
+  HideCountLookupFailedError,
   affectsClassEnrichment,
   invalidateClassEnrichment,
   resolveClassEnrichment,
 } from './classEnrichmentCache';
+import type { ClassEnrichment } from './classEnrichmentCache';
 import type { JudgeNameParts } from '@/services/database/_shared/judgeNamesByClass';
 import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeFields';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
@@ -602,7 +604,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
           .select(classReplicationSelect())
           .in('id', ids);
         if (error) throw new Error(`Supabase query failed: ${error.message}`);
-        return this.enrichClassRows((data ?? []) as unknown as ClassRow[]);
+        return this.enrichClassRows((data ?? []) as unknown as ClassRow[], 'keep-local');
       },
       getRemoteId: remote => String(remote.id),
       toLocalRow: remote => ({
@@ -629,20 +631,55 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   private readonly shareShowRead: ShareRead = (key, read) =>
     this.sharedShowReads(`${readPersistedAuthUserId() ?? 'anon'}:${key}`, read);
 
-  /** Server-derived values a class row carries offline (visibility, hides, judge). */
-  private async enrichClassRows(rows: ClassRow[]): Promise<EnrichedClassRow[]> {
-    // MYK9-1360: cached per show for a few minutes; the lookups are best-effort inside, so a
-    // failure must not break class replication.
+  /**
+   * Server-derived values a class row carries offline (visibility, hides, judge).
+   *
+   * Visibility, time-limit and judge lookups are best-effort inside (MYK9-1360): a failure keeps
+   * what the device has and must not break class replication. The hide-count lookup is not
+   * (MYK9-1451): an empty answer from a failed lookup reads as "no count" and would erase the
+   * judge-set count a warm device holds. So when it fails:
+   * - `fail-if-warm` (the sync): if this device already holds any of these classes, throw
+   *   `HideCountLookupFailedError`. The sync then applies nothing and keeps its watermark, and
+   *   the next sync retries. A device holding none of them (cold) has no count to lose, so it
+   *   gets the classes with no count rather than none at all.
+   * - `keep-local` (the row refetch behind OCC rebase, stuck-flag repair and discard): never
+   *   throw; each row carries the count this device already persisted.
+   */
+  private async enrichClassRows(
+    rows: ClassRow[],
+    onHideCountFailure: 'fail-if-warm' | 'keep-local' = 'fail-if-warm'
+  ): Promise<EnrichedClassRow[]> {
+    let enrichment: ClassEnrichment;
+    let keepLocalHideCounts = false;
+    try {
+      enrichment = await resolveClassEnrichment(rows, {
+        shareRead: this.shareShowRead,
+        localTimeLimitRules: ids => this.cachedTimeLimitRules(ids),
+        tableName: this.getTableName(),
+      });
+    } catch (error) {
+      if (!(error instanceof HideCountLookupFailedError)) throw error;
+      if (onHideCountFailure === 'fail-if-warm') {
+        const localIds = await this.getAllLocalIds();
+        if (rows.some(row => localIds.has(String(row.id)))) throw error;
+      } else {
+        keepLocalHideCounts = true;
+      }
+      enrichment = error.enrichment;
+    }
     const {
       visibility: visibilityByClassId,
       hideCounts: hideCountByClassId,
       timeLimitRules: timeLimitRuleByClassId,
       judges: judgeByClassId,
-    } = await resolveClassEnrichment(rows, {
-      shareRead: this.shareShowRead,
-      localTimeLimitRules: ids => this.cachedTimeLimitRules(ids),
-      tableName: this.getTableName(),
-    });
+    } = enrichment;
+    if (keepLocalHideCounts) {
+      for (const row of rows) {
+        const id = String(row.id);
+        const local = (await this.get(id))?.hideCount;
+        if (local !== undefined) hideCountByClassId.set(id, local);
+      }
+    }
 
     return rows.map(row => ({
       ...row,

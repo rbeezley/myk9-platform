@@ -128,7 +128,7 @@ describe('class sync when the hide-count lookup fails (MYK9-1451)', () => {
       3
     );
     await table.updateSyncMetadata(
-      { lastIncrementalSyncAt: WARM_WATERMARK, syncStatus: 'success' },
+      { lastIncrementalSyncAt: WARM_WATERMARK, syncStatus: 'idle' },
       { scopeValue: TRIAL }
     );
   });

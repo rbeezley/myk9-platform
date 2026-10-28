@@ -12,6 +12,9 @@
 # back empty the wrapper exits 2 instead of reviewing without a contract.
 #
 # Usage: bash scripts/qa/claude-review.sh [--post] [pr-number]
+#        --post is for CODEX-authored PRs only (head branch codex/*): the gate maps
+#        `claude` evidence to the independent floor, so on any other head --post
+#        refuses to post clean evidence and exits 2 (findings are still reported).
 #        bash scripts/qa/claude-review.sh --detach [--post] [pr-number]
 #        bash scripts/qa/claude-review.sh --wait <seconds> [pr-number]
 #        Check `pnpm qa:review-tier --base origin/main` FIRST — a cross-harness
@@ -275,8 +278,20 @@ if [ -z "$CONTRACT" ]; then
   exit 2
 fi
 
+# /code-review reuses the level the user typed LAST when none is given, so an
+# unpinned headless run could inherit `ultra` (billed, user-only, PLAYBOOK § 4)
+# or `low` (MYK9-1470). The level is the first token after the command; the
+# argument grammar is `/code-review [low|medium|high|xhigh|max] <target>`
+# (verified in the installed Claude Code 2.1.296). Only those five are ever
+# accepted here, so `ultra` cannot be passed even by a typo in this constant.
+REVIEW_EFFORT="high"
+case "$REVIEW_EFFORT" in
+  low|medium|high|xhigh|max) ;;
+  *) echo "claude-review: REVIEW_EFFORT '${REVIEW_EFFORT}' is not a local effort level (ultra is billed and user-only). Exit 2." >&2; exit 2 ;;
+esac
+
 echo "claude-review: PR #${PR}, origin/main (${BASE_SHA:0:9}) .. HEAD (${HEAD_SHA:0:9}) -> ${LOG}"
-"$CLAUDE" -p "$(printf '/code-review %s\n\n%s\n' "$PR" "$CONTRACT")" < /dev/null > "$LOG" 2>&1
+"$CLAUDE" -p "$(printf '/code-review %s %s\n\n%s\n' "$REVIEW_EFFORT" "$PR" "$CONTRACT")" < /dev/null > "$LOG" 2>&1
 CLI_EXIT=$?
 
 if [ ! -s "$LOG" ]; then
@@ -343,11 +358,35 @@ fi
 # file, so no harness can drift into accepting something the others reject.
 if ! review_verdict_is_clean "$VERDICT"; then
   echo
+  # A bare `[]` is what /code-review's structured output can look like when it
+  # found nothing, but the shared contract keeps clean a POSITIVE match, so it
+  # stays exit 2; name the case so it is not mistaken for a crashed run.
+  if [ "$(printf '%s' "$VERDICT" | tr -d '[:space:]')" = "[]" ]; then
+    echo "claude-review: reviewer returned an empty findings array without the verdict sentence; treated as not run (exit 2). No evidence emitted."
+    exit 2
+  fi
   echo "claude-review: verdict is neither findings nor an explicit clean verdict — unrecognized output, treat as not run (exit 2). No evidence emitted."
   exit 2
 fi
 
 VERDICT_LINE="no findings"
+# Same-harness evidence cannot satisfy the `independent` floor, yet review-gate.ts
+# maps the `claude` reviewer token to it, so posting `claude` evidence for a
+# head this harness wrote certifies the floor with the wrong reviewer
+# (MYK9-1470). The branch prefix declares authorship; only a codex/ head is known
+# to be cross-harness, so anything else (claude/, unknown, gh failure) is
+# treated conservatively. Resolved once, used by both the --post and hint paths.
+# Findings (above) are unaffected: a findings comment or withdrawal can only turn
+# the gate red, never certify it.
+PR_BRANCH="$("$GH" pr view "$PR" --json headRefName -q .headRefName 2>/dev/null)"
+case "$PR_BRANCH" in codex/*) CODEX_AUTHORED=1 ;; *) CODEX_AUTHORED=0 ;; esac
+SAME_HARNESS_MSG="claude-review: clean, but this head is not known to be Codex-authored (branch '${PR_BRANCH:-unknown}'), so this log is same-harness evidence (pre-pass or adversarial lens), not cross-harness. The independent floor needs: pnpm qa:codex-review --post ${PR}"
+if [ "$POST" = 1 ] && [ "$CODEX_AUTHORED" = 0 ]; then
+  echo
+  echo "$SAME_HARNESS_MSG"
+  echo "claude-review: --post is for Codex-authored PRs only; refusing to post claude evidence. Exit 2; nothing recorded."
+  exit 2
+fi
 if [ "$POST" = 1 ]; then
   # Fail closed: a transient API failure here returns an empty history, which
   # would post "no findings" over a head that had them (Codex, #2115 round 2).
@@ -361,9 +400,12 @@ if [ "$POST" = 1 ]; then
     echo "claude-review: review was clean but the evidence was NOT posted (poster failed). Exit 2; nothing recorded." >&2
     exit 2
   fi
-else
+elif [ "$CODEX_AUTHORED" = 1 ]; then
   echo
   echo "claude-review: clean. Do NOT type the evidence by hand — re-run with --post, or:"
   echo "  bash scripts/qa/post-review-gate.sh $PR claude ${BASE_SHA:0:9} ${HEAD_SHA:0:9} \"$VERDICT_LINE\" $LOG"
+else
+  echo
+  echo "$SAME_HARNESS_MSG"
 fi
 exit 0

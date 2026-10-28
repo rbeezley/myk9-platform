@@ -29,7 +29,12 @@ for (const viewport of VIEWPORTS) {
     test(`${c.path} list is narrower than its details at ${viewport.width}px`, async ({ page }) => {
       await page.setViewportSize(viewport);
       await signInAsAdmin(page);
-      await page.evaluate(() => window.localStorage.clear());
+      // A fresh layout, not a fresh session: clear saved panel sizes but keep the `sb-` auth token.
+      await page.evaluate(() => {
+        for (const key of Object.keys(window.localStorage)) {
+          if (!key.startsWith('sb-')) window.localStorage.removeItem(key);
+        }
+      });
       await page.goto(c.path);
       await page
         .getByRole('link', { name: /./ })

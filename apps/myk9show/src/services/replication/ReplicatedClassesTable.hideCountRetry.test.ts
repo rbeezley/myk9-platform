@@ -246,7 +246,19 @@ describe('class sync when the hide-count lookup fails (MYK9-1451)', () => {
     expect(await hideCount()).toBe(4);
   });
 
-  it('stops owing a class the server no longer returns', async () => {
+  it('stops owing a class the server no longer returns while it still returns others', async () => {
+    const other = { ...SERVER_CLASS, id: 'other-class' };
+    markHideCountsOwed([SERVER_CLASS, other]);
+    changedClasses = [];
+    classesById = [other];
+    officialLookup({ data: [], error: null });
+
+    await sync();
+
+    expect(owedHideCountClassIds(TRIAL)).toEqual([]);
+  });
+
+  it('keeps a class owed when the by-id read answers empty with no error', async () => {
     lookupDown();
     await sync();
     expect(owedHideCountClassIds(TRIAL)).toEqual([ID]);
@@ -255,7 +267,7 @@ describe('class sync when the hide-count lookup fails (MYK9-1451)', () => {
     classesById = [];
     await sync();
 
-    expect(owedHideCountClassIds(TRIAL)).toEqual([]);
+    expect(owedHideCountClassIds(TRIAL)).toEqual([ID]);
   });
 
   it('does not hold the sync when the owed retry read fails, and keeps the class owed', async () => {
@@ -424,7 +436,7 @@ describe('class sync when the hide-count lookup fails (MYK9-1451)', () => {
         const chain = builder([]);
         chain.in = (_column: string, ids: string[]) => {
           chunks.push(ids.length);
-          return builder([]);
+          return builder(ids.map(id => ({ ...SERVER_CLASS, id })));
         };
         return chain;
       }

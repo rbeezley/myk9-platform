@@ -673,9 +673,14 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
           .in('id', chunk);
         if (error) throw new Error(error.message);
         const fetched = (data ?? []) as unknown as ClassRow[];
-        // A class the server no longer returns (deleted, or no longer visible) is owed nothing.
-        const returned = new Set(fetched.map(row => String(row.id)));
-        settleHideCountsOwed(chunk.filter(id => !returned.has(id)));
+        // A class the server no longer returns (deleted, or no longer visible) is owed nothing,
+        // but only when this same read returned some row: that proves it can see this scope. An
+        // entirely empty answer with no error is also what an expired token or an RLS miss
+        // gives, so it settles nothing and its ids stay owed for the next sync.
+        if (fetched.length > 0) {
+          const returned = new Set(fetched.map(row => String(row.id)));
+          settleHideCountsOwed(chunk.filter(id => !returned.has(id)));
+        }
         rows.push(...fetched);
       } catch (error) {
         logger.warn(
@@ -801,6 +806,8 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     dirtyAtStart: Set<string> | null
   ): Promise<void> {
     if (!dirtyAtStart) return;
+    // Accepted (MYK9-1459): an edit that never uploads keeps its class owed, so each sync re-reads
+    // it by id. The cost is bounded by the unsent edits on the device and changes no count.
     const candidates = owedHideCountClassIds(undefined).filter(
       id => answered.has(id) && !dirtyAtStart.has(id)
     );

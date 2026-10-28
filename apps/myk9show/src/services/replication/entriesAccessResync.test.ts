@@ -1,30 +1,23 @@
 /**
- * MYK9-1476: a change to the signed-in user's active role set marks every held
- * show for one full entries sync; the mark clears only after that show's full
- * sync returned success.
+ * MYK9-1476: a change to the signed-in user's active role set purges each held
+ * show's clean cached entries locally and starts a forced full sync.
+ * Runs against a real IndexedDB replica; only the network sync is stubbed.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SyncResult } from '@myk9/replication';
 import type { UserRoleWithDetails } from '@/types/rbac-types';
+import { supabase } from '@/services/database/supabaseClient';
+import { ReplicatedEntriesTable, type ReplicatedEntry } from './ReplicatedEntriesTable';
+import { noteEntriesAccessRoles } from './entriesAccessResync';
 
-const syncReplicatedTableMock = vi.hoisted(() => vi.fn());
-
-vi.mock('@myk9/replication', async importOriginal => ({
-  ...(await importOriginal<typeof import('@myk9/replication')>()),
-  syncReplicatedTable: syncReplicatedTableMock,
+vi.mock('@myk9/core', () => ({
+  logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { rpc: vi.fn(), from: vi.fn() },
 }));
 
-import { ReplicatedEntriesTable } from './ReplicatedEntriesTable';
-import { replicatedEntriesTable } from './ReplicatedEntriesTable';
-import { supabase } from '@/services/database/supabaseClient';
-import {
-  getEntriesAccessResyncMark,
-  noteEntriesAccessRoles,
-  recordEntriesAccessRoleSet,
-} from './entriesAccessResync';
+const SIGNATURE_KEY = 'myk9:entries:access-signature:v1:user-1';
 
 function role(name: string, clubId: string | null, showId: string | null, active = true) {
   return {
@@ -39,150 +32,174 @@ function role(name: string, clubId: string | null, showId: string | null, active
   } as unknown as UserRoleWithDetails;
 }
 
-const result = (success: boolean): SyncResult => ({
+const entry = (id: string, showId: string) =>
+  ({
+    id,
+    showId,
+    classId: 'class-1',
+    dogId: `dog-${id}`,
+    armband: id,
+    entryStatus: 'confirmed',
+    resultStatus: 'pending',
+  }) as ReplicatedEntry;
+
+const ok: SyncResult = {
   tableName: 'entries',
-  success,
-  operation: success ? 'full-sync' : 'incremental-sync',
+  success: true,
+  operation: 'full-sync',
   rowsAffected: 0,
   duration: 0,
-  ...(success ? {} : { error: 'boom' }),
-});
+};
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(res => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
 
 const secretary = role('secretary', 'club-1', null);
 const steward = role('steward', null, 'show-1');
 
 describe('entries access resync', () => {
+  let table: ReplicatedEntriesTable;
+  let syncShow: ReturnType<typeof vi.fn>;
+  const ids = async () => (await table.getAllOrThrow()).map(row => row.id).sort();
+
   beforeEach(async () => {
+    const { databaseManager } = await import('@myk9/replication');
+    await databaseManager.reset();
     localStorage.clear();
-    syncReplicatedTableMock.mockReset();
+    vi.mocked(supabase.from).mockReset();
+    table = new ReplicatedEntriesTable();
+    await table.clearCache();
+    await table.batchSet([entry('a', 'show-1'), entry('b', 'show-1'), entry('c', 'show-2')]);
+    // The purge never evicts a row synced in or after its own starting millisecond.
+    await new Promise(resolve => setTimeout(resolve, 2));
+    syncShow = vi.fn(async () => ok);
+    (table as unknown as { syncShow: unknown }).syncShow = syncShow;
+    // Record the starting role set; it purges nothing it should not.
+    localStorage.setItem(SIGNATURE_KEY, JSON.stringify(['secretary|club-1|']));
+  });
+
+  afterEach(async () => {
     const { databaseManager } = await import('@myk9/replication');
     await databaseManager.reset();
   });
-  afterEach(() => {
-    vi.restoreAllMocks();
-    localStorage.clear();
+
+  it('purges every held show and starts a forced full sync on a role change', async () => {
+    await noteEntriesAccessRoles('user-1', [secretary, steward], table);
+
+    expect(await ids()).toEqual([]);
+    expect(syncShow).toHaveBeenCalledWith('show-1', 'anonymous', true);
+    expect(syncShow).toHaveBeenCalledWith('show-2', 'anonymous', true);
+    expect(localStorage.getItem(SIGNATURE_KEY)).toContain('steward|');
   });
 
-  const forcedFlags = () =>
-    syncReplicatedTableMock.mock.calls.map(call => call[3]?.forceFullSync as boolean);
+  it('notifies subscribers so open readers see the purge', async () => {
+    const listener = vi.fn();
+    const unsubscribe = table.subscribe(listener);
 
-  it('marks held shows on a role-set change and the next sync is full', async () => {
-    recordEntriesAccessRoleSet('user-1', [secretary], []);
-    expect(recordEntriesAccessRoleSet('user-1', [secretary, steward], ['show-1', 'show-2'])).toBe(
-      true
-    );
-    expect(getEntriesAccessResyncMark('show-1')).not.toBeNull();
-    expect(getEntriesAccessResyncMark('show-2')).not.toBeNull();
+    await noteEntriesAccessRoles('user-1', [secretary, steward], table);
 
-    syncReplicatedTableMock.mockResolvedValue(result(true));
-    await new ReplicatedEntriesTable().sync('show-1');
-    expect(syncReplicatedTableMock).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      { value: 'show-1' },
-      expect.objectContaining({ forceFullSync: true })
-    );
+    unsubscribe();
+    expect(listener).toHaveBeenCalled();
   });
 
-  it('adds no full sync when the role set is unchanged', async () => {
-    recordEntriesAccessRoleSet('user-1', [secretary], []);
-    expect(recordEntriesAccessRoleSet('user-1', [secretary], ['show-1'])).toBe(false);
-    expect(getEntriesAccessResyncMark('show-1')).toBeNull();
+  it('keeps a row with unsent local work', async () => {
+    await table.updateEntry('a', { resultStatus: 'qualified' });
 
-    // Receipt-reference refresh done, so only the access mark could force a full sync.
-    localStorage.setItem('myk9:entries:receipt-reference-refresh:v1:anonymous:show-1', 'complete');
-    syncReplicatedTableMock.mockResolvedValue(result(true));
-    await new ReplicatedEntriesTable().sync('show-1');
-    await new ReplicatedEntriesTable().sync('show-1');
-    expect(forcedFlags()).toEqual([false, false]);
-    expect(getEntriesAccessResyncMark('show-1')).toBeNull();
+    await noteEntriesAccessRoles('user-1', [secretary, steward], table);
+
+    expect(await ids()).toEqual(['a']);
   });
 
-  it('keeps the mark after a failed sync and clears it after a later success', async () => {
-    recordEntriesAccessRoleSet('user-1', [secretary], []);
-    recordEntriesAccessRoleSet('user-1', [steward], ['show-1']);
-    const table = new ReplicatedEntriesTable();
+  it('keeps a clean row that has a pending or failed mutation', async () => {
+    const unsent = vi.spyOn(table, 'hasUnsyncedLocalWork');
+    unsent.mockImplementation(async id => id === 'b');
 
-    syncReplicatedTableMock.mockResolvedValueOnce(result(false));
-    await table.sync('show-1');
-    expect(getEntriesAccessResyncMark('show-1')).not.toBeNull();
+    await noteEntriesAccessRoles('user-1', [secretary, steward], table);
 
-    syncReplicatedTableMock.mockResolvedValueOnce(result(true));
-    await table.sync('show-1');
-    expect(forcedFlags()).toEqual([true, true]);
-    expect(getEntriesAccessResyncMark('show-1')).toBeNull();
+    expect(await ids()).toEqual(['b']);
   });
 
-  it('treats the same roles in a different order as no change', () => {
-    recordEntriesAccessRoleSet('user-1', [secretary, steward], []);
-    expect(recordEntriesAccessRoleSet('user-1', [steward, secretary], ['show-1'])).toBe(false);
-    expect(getEntriesAccessResyncMark('show-1')).toBeNull();
+  it('queues no server delete and records no local delete', async () => {
+    const deleteSpy = vi.spyOn(table, 'delete');
+
+    await noteEntriesAccessRoles('user-1', [secretary, steward], table);
+
+    expect(supabase.from).not.toHaveBeenCalled();
+    expect(deleteSpy).not.toHaveBeenCalled();
+    expect((table as unknown as { _deletedIds: Map<string, unknown> })._deletedIds.size).toBe(0);
   });
 
-  it('counts a deactivated role as a change', () => {
-    recordEntriesAccessRoleSet('user-1', [secretary, steward], []);
-    expect(
-      recordEntriesAccessRoleSet(
-        'user-1',
-        [secretary, role('steward', null, 'show-1', false)],
-        ['show-1']
-      )
-    ).toBe(true);
+  it('purges nothing and starts no sync when the role set is unchanged', async () => {
+    await noteEntriesAccessRoles('user-1', [secretary], table);
+
+    expect(await ids()).toEqual(['a', 'b', 'c']);
+    expect(syncShow).not.toHaveBeenCalled();
   });
 
-  it('does not clear a mark that was replaced while the sync ran', async () => {
-    recordEntriesAccessRoleSet('user-1', [secretary], []);
-    recordEntriesAccessRoleSet('user-1', [steward], ['show-1']);
-    syncReplicatedTableMock.mockImplementationOnce(async () => {
-      recordEntriesAccessRoleSet('user-1', [secretary, steward], ['show-1']);
-      return result(true);
+  it('treats the same roles in a different order as no change', async () => {
+    await noteEntriesAccessRoles('user-1', [secretary, steward], table);
+    syncShow.mockClear();
+    await table.batchSet([entry('d', 'show-1')]);
+
+    await noteEntriesAccessRoles('user-1', [steward, secretary], table);
+
+    expect(await ids()).toEqual(['d']);
+    expect(syncShow).not.toHaveBeenCalled();
+  });
+
+  it('records no signature after a failed read and retries on the next call', async () => {
+    vi.spyOn(table, 'getAllOrThrow').mockRejectedValueOnce(new Error('idb down'));
+    await noteEntriesAccessRoles('user-1', [secretary, steward], table);
+    expect(localStorage.getItem(SIGNATURE_KEY)).toBe(JSON.stringify(['secretary|club-1|']));
+    expect(await ids()).toEqual(['a', 'b', 'c']);
+
+    await noteEntriesAccessRoles('user-1', [secretary, steward], table);
+    expect(await ids()).toEqual([]);
+    expect(localStorage.getItem(SIGNATURE_KEY)).toContain('steward|');
+  });
+
+  it('records no signature after a failed purge and retries on the next call', async () => {
+    vi.spyOn(table, 'removeStaleEntries').mockRejectedValueOnce(new Error('tx aborted'));
+    await noteEntriesAccessRoles('user-1', [secretary, steward], table);
+    expect(localStorage.getItem(SIGNATURE_KEY)).toBe(JSON.stringify(['secretary|club-1|']));
+
+    await noteEntriesAccessRoles('user-1', [secretary, steward], table);
+    expect(await ids()).toEqual([]);
+    expect(localStorage.getItem(SIGNATURE_KEY)).toContain('steward|');
+  });
+
+  it('waits for an in-flight sync of the show to settle before purging', async () => {
+    const inFlight = deferred<SyncResult>();
+    syncShow.mockReturnValueOnce(inFlight.promise);
+    const running = table.sync('show-1');
+
+    const noted = noteEntriesAccessRoles('user-1', [secretary, steward], table);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(await ids()).toEqual(['a', 'b', 'c']);
+
+    inFlight.resolve(ok);
+    await running;
+    await noted;
+    expect(await ids()).toEqual([]);
+  });
+
+  it('keeps a row another sync wrote after the purge read the replica', async () => {
+    const read = table.getAllOrThrow.bind(table);
+    let reads = 0;
+    vi.spyOn(table, 'getAllOrThrow').mockImplementation(async () => {
+      const rows = await read();
+      // The second read is show-1's keep set; another show's sync lands right after it.
+      if (++reads === 2) await table.batchSet([entry('late', 'show-3')]);
+      return rows;
     });
-    await new ReplicatedEntriesTable().sync('show-1');
-    expect(getEntriesAccessResyncMark('show-1')).not.toBeNull();
-  });
+    await noteEntriesAccessRoles('user-1', [secretary, steward], table);
+    vi.mocked(table.getAllOrThrow).mockRestore();
 
-  it('keeps the mark when a zero-row full sync leaves the held rows cached', async () => {
-    recordEntriesAccessRoleSet('user-1', [secretary], []);
-    recordEntriesAccessRoleSet('user-1', [], ['show-1']);
-    const table = new ReplicatedEntriesTable();
-    await table.batchSet([{ id: 'entry-1', showId: 'show-1' } as never]);
-
-    // A revoked role: the full fetch sees nothing, and the engine keeps the replica.
-    syncReplicatedTableMock.mockResolvedValue(result(true));
-    await table.sync('show-1');
-    expect(getEntriesAccessResyncMark('show-1')).not.toBeNull();
-
-    await table.delete('entry-1');
-    await table.sync('show-1');
-    expect(forcedFlags()).toEqual([true, true]);
-    expect(getEntriesAccessResyncMark('show-1')).toBeNull();
-  });
-
-  it('clears the mark after a full sync the server counted rows for', async () => {
-    recordEntriesAccessRoleSet('user-1', [secretary], []);
-    recordEntriesAccessRoleSet('user-1', [steward], ['show-1']);
-    const table = new ReplicatedEntriesTable();
-    await table.batchSet([{ id: 'entry-1', showId: 'show-1' } as never]);
-    const chain: Record<string, unknown> = {};
-    for (const step of ['select', 'eq']) chain[step] = vi.fn(() => chain);
-    chain.then = (resolve: (value: unknown) => unknown) =>
-      Promise.resolve({ count: 3, error: null }).then(resolve);
-    vi.mocked(supabase.from).mockReturnValue(chain as never);
-    syncReplicatedTableMock.mockImplementationOnce(async (_table, adapter) => {
-      await adapter.getRemoteRowCount();
-      return result(true);
-    });
-
-    await table.sync('show-1');
-    expect(getEntriesAccessResyncMark('show-1')).toBeNull();
-  });
-
-  it('records nothing when the replica cannot be read', async () => {
-    recordEntriesAccessRoleSet('user-1', [secretary], []);
-    vi.spyOn(replicatedEntriesTable, 'getAllOrThrow').mockRejectedValue(new Error('idb timeout'));
-    await noteEntriesAccessRoles('user-1', [steward]);
-
-    // The old signature stands, so the next successful load still sees a change.
-    expect(recordEntriesAccessRoleSet('user-1', [steward], ['show-1'])).toBe(true);
+    expect(await ids()).toEqual(['late']);
   });
 });

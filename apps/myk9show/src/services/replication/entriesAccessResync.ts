@@ -5,54 +5,21 @@
  * by the caller's active club_admin / secretary / steward roles, but a role
  * grant, revoke, expiry or deactivation moves no `updated_at` the view exposes,
  * and incremental entries sync reads only rows changed since its watermark. So
- * when the signed-in user's active role set changes, every show held in the
- * entries replica needs one FULL sync to re-read rows under the new mask.
+ * rows cached under the OLD role set stay masked (or unmasked) until the 24 h
+ * full sync.
  *
- * The "needs full sync" mark is persisted per show (a reload before the sync
- * does not lose it). It is cleared by ReplicatedEntriesTable only after that
- * show's full sync returned `success: true`, and only if the mark was not
- * replaced meanwhile (each mark carries a token).
+ * On a server-verified role-set change this purges each held show's clean
+ * cached rows LOCALLY (the engine's own stale-row eviction, `removeStaleEntries`;
+ * never a server DELETE) and starts a forced full sync. A purged or partial
+ * replica already forces the next sync full, so a failed sync needs no mark. A
+ * row with unsent local work is kept. The new signature is recorded only after
+ * every purge succeeded, so a failure retries on the next verified load.
  */
 import { logger } from '@myk9/core';
 import type { UserRoleWithDetails } from '@/types/rbac-types';
+import type { ReplicatedEntriesTable } from './ReplicatedEntriesTable';
 
-const MARKS_KEY = 'myk9:entries:access-resync:v1';
 const SIGNATURE_KEY_PREFIX = 'myk9:entries:access-signature:v1:';
-
-function readMarks(): Record<string, string> {
-  try {
-    if (typeof localStorage === 'undefined') return {};
-    const parsed: unknown = JSON.parse(localStorage.getItem(MARKS_KEY) ?? '{}');
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-    return parsed as Record<string, string>;
-  } catch {
-    return {};
-  }
-}
-
-function writeMarks(marks: Record<string, string>): boolean {
-  try {
-    if (typeof localStorage === 'undefined') return false;
-    if (Object.keys(marks).length === 0) localStorage.removeItem(MARKS_KEY);
-    else localStorage.setItem(MARKS_KEY, JSON.stringify(marks));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** The mark's token for this show, or null when its next sync need not be full. */
-export function getEntriesAccessResyncMark(showId: string): string | null {
-  return readMarks()[showId] ?? null;
-}
-
-/** Clear the mark only if it is still the one the finished sync started under. */
-export function clearEntriesAccessResyncMark(showId: string, token: string): void {
-  const marks = readMarks();
-  if (marks[showId] !== token) return;
-  delete marks[showId];
-  writeMarks(marks);
-}
 
 /** Stable, order-insensitive signature of the active role set (role + club + show). */
 export function activeRoleSetSignature(roles: UserRoleWithDetails[], now = Date.now()): string {
@@ -63,51 +30,56 @@ export function activeRoleSetSignature(roles: UserRoleWithDetails[], now = Date.
 }
 
 /**
- * Compare a SUCCESSFULLY loaded role set with the last one recorded for this
- * user. On a change (or no record yet) mark every given show, then record the
- * signature. A storage failure records nothing, so the next load retries.
- * Callers must pass only server-verified roles (never a cache or warm seed).
+ * Evict one show's clean cached rows. Waits for a running sync of the show
+ * first, so a fetch begun under the old roles cannot write after the purge.
+ * `removeStaleEntries` keeps every id in `keep`, skips dirty rows itself, and
+ * notifies subscribers; rows with other unsent work are added to `keep` here.
  */
-export function recordEntriesAccessRoleSet(
-  userId: string,
-  roles: UserRoleWithDetails[],
-  showIds: readonly string[]
-): boolean {
-  const signature = activeRoleSetSignature(roles);
-  const key = `${SIGNATURE_KEY_PREFIX}${userId}`;
-  try {
-    if (typeof localStorage === 'undefined') return false;
-    if (localStorage.getItem(key) === signature) return false;
-    const marks = readMarks();
-    const token = `${Date.now()}:${Math.random().toString(36).slice(2)}`;
-    for (const showId of showIds) marks[showId] = token;
-    if (showIds.length > 0 && !writeMarks(marks)) return false;
-    localStorage.setItem(key, signature);
-    return true;
-  } catch {
-    return false;
+async function purgeShowRows(table: ReplicatedEntriesTable, showId: string): Promise<void> {
+  for (let running = table.whenShowSyncSettles(showId); running;) {
+    await running;
+    running = table.whenShowSyncSettles(showId);
   }
+  // A row another sync writes after this read is not in `keep`; the engine's own
+  // cutoff never evicts a row synced after it (MYK9-775).
+  const syncedBefore = Date.now();
+  const rows = await table.getAllOrThrow();
+  const keep = new Set<string>();
+  for (const row of rows) {
+    if (row.showId !== showId || (await table.hasUnsyncedLocalWork(row.id))) keep.add(row.id);
+  }
+  await table.removeStaleEntries(keep, { syncedBefore });
 }
 
-/** Lifecycle entry point: list the shows in the entries replica, then record. Never throws. */
+/**
+ * Lifecycle entry point. Pass only server-verified roles (never a cache or warm
+ * seed). Never throws.
+ */
 export async function noteEntriesAccessRoles(
   userId: string,
-  roles: UserRoleWithDetails[]
+  roles: UserRoleWithDetails[],
+  tableOverride?: ReplicatedEntriesTable
 ): Promise<void> {
   try {
-    // Every focus refresh lands here: read the replica only when the set changed.
-    if (
-      localStorage.getItem(`${SIGNATURE_KEY_PREFIX}${userId}`) === activeRoleSetSignature(roles)
-    ) {
-      return;
-    }
-    const { replicatedEntriesTable } = await import('./ReplicatedEntriesTable');
-    // getAll() answers [] on a failed read; that would record the new set with no marks.
-    const rows = await replicatedEntriesTable.getAllOrThrow();
+    // Every focus refresh lands here: touch nothing when the set is unchanged.
+    const key = `${SIGNATURE_KEY_PREFIX}${userId}`;
+    const signature = activeRoleSetSignature(roles);
+    if (localStorage.getItem(key) === signature) return;
+
+    const table =
+      tableOverride ?? (await import('./ReplicatedEntriesTable')).replicatedEntriesTable;
+    // getAll() answers [] on a failed read; that would record the set having purged nothing.
     const showIds = new Set<string>();
-    for (const row of rows) if (row.showId) showIds.add(row.showId);
-    recordEntriesAccessRoleSet(userId, roles, [...showIds]);
+    for (const row of await table.getAllOrThrow()) if (row.showId) showIds.add(row.showId);
+
+    for (const showId of showIds) {
+      await purgeShowRows(table, showId);
+      table.sync(showId, { forceFullSync: true }).catch(error => {
+        logger.warn('[entries] Access resync could not complete', error);
+      });
+    }
+    localStorage.setItem(key, signature);
   } catch (error) {
-    logger.warn('[entries] Could not record role set for access resync', error);
+    logger.warn('[entries] Could not purge entries for the changed role set', error);
   }
 }

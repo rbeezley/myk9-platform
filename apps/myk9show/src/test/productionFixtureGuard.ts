@@ -27,8 +27,8 @@
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
-import { loadEnv } from 'vite';
 
 export const PRODUCTION_PROJECT_REF = 'sojmvhhwsjxmfistvzbe';
 /** apps/myk9show/dist: what `vite preview` serves. */
@@ -36,6 +36,15 @@ const DEFAULT_DIST_DIR = resolve(import.meta.dirname, '../../dist');
 /** apps/myk9show: where Vite looks for `.env.[mode]` files. */
 const DEFAULT_APP_ROOT = resolve(import.meta.dirname, '../..');
 export const ALLOW_PRODUCTION_FIXTURE_SIGN_IN = 'MYK9_ALLOW_PROD_E2E';
+
+/**
+ * Loaded on demand: `vite` pulls in esbuild, which refuses to start under the jsdom environment
+ * the load unit tests run in, and only a dev-server config needs it.
+ */
+function loadViteEnv(mode: string, root: string, prefix: string): Record<string, string> {
+  const vite = createRequire(import.meta.url)('vite') as typeof import('vite');
+  return vite.loadEnv(mode, root, prefix);
+}
 
 type Env = Readonly<Record<string, string | undefined>>;
 
@@ -198,7 +207,7 @@ export function assertPlaywrightRunAllowed(
   // `vite` serves in development mode; loadEnv applies the server's own precedence.
   const devServerUrl =
     appServer.mode === 'dev'
-      ? loadEnv('development', appServer.appRoot ?? DEFAULT_APP_ROOT, 'VITE_').VITE_SUPABASE_URL
+      ? loadViteEnv('development', appServer.appRoot ?? DEFAULT_APP_ROOT, 'VITE_').VITE_SUPABASE_URL
       : undefined;
   assertFixtureSignInAllowed(
     [env.MYK9_E2E_SUPABASE_URL, env.VITE_SUPABASE_URL, devServerUrl],

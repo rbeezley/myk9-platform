@@ -41,9 +41,9 @@ named in the report, not quietly absorbed.
 `Last reviewed SHA` is the newest commit on `main` that has been reviewed for that stream. Dates are
 UTC.
 
-| Stream                | Last reviewed SHA                          | Window end           | Run by                    | Run date   |
-| --------------------- | ------------------------------------------ | -------------------- | ------------------------- | ---------- |
-| `daily-commit-review` | `0d9e4bb1629b7c4234716200c1e6485202e9ebfe` | 2026-10-27T04:33:30Z | codex-daily-commit-review | 2026-10-27 |
+| Stream                | Last reviewed SHA                          | Window end           | Run by                     | Run date   |
+| --------------------- | ------------------------------------------ | -------------------- | -------------------------- | ---------- |
+| `daily-commit-review` | `e1b2ddecd6c57d480ab228f9a78130e57ac8b615` | 2026-10-28T04:10:03Z | claude-daily-commit-review | 2026-10-28 |
 
 If this row is ever `unset`, nobody has verified which commits the Codex daily stream has actually
 covered; the first run of either automation on this stream must take its default window and stamp a
@@ -109,6 +109,17 @@ real boundary.
 > there is no gap. The historical Oct 18-19 evidence gap
 > [MYK9-1343](https://linear.app/myk9-platform/issue/MYK9-1343) owns was closed inside this
 > window by `9ab650fc5` and `551c4bf7f`, not absorbed by this stamp.
+
+> **Provenance of the 2026-10-28 stamp.** The 28 commits from `0d9e4bb16` to
+> `e1b2ddecd` were reviewed in one pass by `claude-daily-commit-review` on 2026-10-28 and
+> reported in `docs/qa/claude-daily-commit-review-2026-10-28.md`. The previous row's
+> coverage was verified, not assumed: `docs/qa/codex-daily-commit-review-2026-10-27.md`
+> (committed in `96e1618eb`) states its window as exclusive `4d5a839e6` through inclusive
+> `0d9e4bb16`, and `git rev-list --count 4d5a839e6..0d9e4bb16` returns exactly the 3 commits
+> its inventory enumerates. This window starts at that commit, so there is no gap. That
+> report's own header describes itself as retained locally because its `pnpm qa:inflight`
+> overlap gate exited 2; it was in fact committed to `main` with its cursor stamp, so the row
+> and the report agree either way.
 
 ### Adding a stream
 

@@ -787,10 +787,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
    * Settle owed classes the sync both looked up and applied: answered in this sync, and holding
    * no unsent edit when it started or now. Any other stays owed for a later sync.
    */
-  private async settleAppliedOwed(
-    answered: Set<string>,
-    dirtyAtStart: Set<string>
-  ): Promise<void> {
+  private async settleAppliedOwed(answered: Set<string>, dirtyAtStart: Set<string>): Promise<void> {
     const dirtyNow = await this.owedWithUnsentEdits();
     settleHideCountsOwed(
       owedHideCountClassIds(undefined).filter(

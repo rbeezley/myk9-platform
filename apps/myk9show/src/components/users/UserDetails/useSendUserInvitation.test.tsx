@@ -170,6 +170,24 @@ describe('useSendUserInvitation', () => {
     expect(notifications.success).not.toHaveBeenCalled();
   });
 
+  it('names the password confirmation when the step-up prompt was cancelled (MYK9-1461)', async () => {
+    mockSupabase.functions.invoke.mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error('Edge Function returned a non-2xx status code'), {
+        context: new Response(JSON.stringify({ error: 'step_up_required' }), { status: 403 }),
+      }),
+    });
+    const { result } = renderHook(() => useSendUserInvitation(), { wrapper });
+
+    act(() => result.current.sendInvitation(ARGS));
+
+    await waitFor(() =>
+      expect(notifications.error).toHaveBeenCalledWith(
+        'No invitation was sent. Confirm your password to continue.'
+      )
+    );
+  });
+
   it('does not send twice on a double click', async () => {
     // isPending lags a render behind, so the component-level guard is a ref.
     const { result } = renderHook(() => useSendUserInvitation(), { wrapper });

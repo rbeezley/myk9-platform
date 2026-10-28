@@ -16,17 +16,25 @@
  * What the guard checks is the URL the run itself will use, never an inference about another
  * process: the test process's environment, which a server the config starts inherits (and which
  * Vite lets win over its `.env.[mode]` files). A server the config did NOT start can talk to
- * anything, so a fixture run against one is refused unless opted in. Known residual, documented in
- * docs/qa/e2e-suite-map.md: a production URL that exists ONLY in `.env.[mode]` (and in none of
- * the shell, `.env.local` or `.env`) is not seen.
+ * anything, so a fixture run against one is refused unless opted in.
+ *
+ * A dev server also reads `.env.development` and `.env.development.local`, which the test process
+ * never loads. For that server the guard asks Vite's own `loadEnv` what `VITE_SUPABASE_URL` the
+ * server will resolve (MYK9-1457), rather than re-implementing its precedence or expansion. A
+ * preview server serves a prebuilt `dist/`, which is scanned instead, so `.env.production` is
+ * covered by what it built. Known residual, documented in docs/qa/e2e-suite-map.md: a server the
+ * config did not start.
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { loadEnv } from 'vite';
 
 export const PRODUCTION_PROJECT_REF = 'sojmvhhwsjxmfistvzbe';
 /** apps/myk9show/dist: what `vite preview` serves. */
 const DEFAULT_DIST_DIR = resolve(import.meta.dirname, '../../dist');
+/** apps/myk9show: where Vite looks for `.env.[mode]` files. */
+const DEFAULT_APP_ROOT = resolve(import.meta.dirname, '../..');
 export const ALLOW_PRODUCTION_FIXTURE_SIGN_IN = 'MYK9_ALLOW_PROD_E2E';
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -96,6 +104,8 @@ export type AppServer =
       serverPort: number;
       /** For `preview`: the directory it serves. Defaults to apps/myk9show/dist. */
       distDir?: string;
+      /** For `dev`: the directory Vite reads `.env.[mode]` from. Defaults to apps/myk9show. */
+      appRoot?: string;
     };
 
 /** True when `baseUrl` is served from this machine, where the config's own server listens. */
@@ -185,8 +195,13 @@ export function assertPlaywrightRunAllowed(
       );
     }
   }
+  // `vite` serves in development mode; loadEnv applies the server's own precedence.
+  const devServerUrl =
+    appServer.mode === 'dev'
+      ? loadEnv('development', appServer.appRoot ?? DEFAULT_APP_ROOT, 'VITE_').VITE_SUPABASE_URL
+      : undefined;
   assertFixtureSignInAllowed(
-    [env.MYK9_E2E_SUPABASE_URL, env.VITE_SUPABASE_URL],
+    [env.MYK9_E2E_SUPABASE_URL, env.VITE_SUPABASE_URL, devServerUrl],
     configName,
     shellEnv
   );

@@ -168,7 +168,7 @@ PR_NUMBER=$(gh pr view --json number -q '.number')
 - **Claude Code author:** run Claude Code's built-in `/code-review` through `scripts/qa/claude-review.sh` WITHOUT `--post`, once, from the worktree with the PR head pushed (it refuses a local HEAD that differs from the PR head). A review takes 5-20 minutes, so start it as ONE Bash background task (`run_in_background`) and wait for its completion notice; do not use `--detach`/`--wait` and never wrap it in `timeout`:
 
   ```bash
-  bash scripts/qa/claude-review.sh $PR_NUMBER > .logs/pre-pass.log 2>&1; echo "EXIT=$?"
+  bash scripts/qa/claude-review.sh $PR_NUMBER > .logs/pre-pass.log 2>&1
   ```
 
   That process's exit code is the final verdict: 0 clean, 1 findings (log: `.logs/claude-review-<head-sha>.log`), 2 did not run. **Ignore its "re-run with --post" hint on a clean run**: on a Claude-authored PR that would post same-harness evidence, and only Codex meets the `independent` floor. On exit 2 (or any other code), fall back to the sub-agent below.

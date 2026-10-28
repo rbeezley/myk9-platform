@@ -170,6 +170,18 @@ async function measureHorizontalOverflow(page: Page) {
   });
 }
 
+// TEMP MYK9-1467: every request to the local API host still open, never reset between routes.
+const openToApi = new WeakMap<Page, Map<import('@playwright/test').Request, number>>();
+export function trackOpenToApi(page: Page) {
+  const open = new Map<import('@playwright/test').Request, number>();
+  openToApi.set(page, open);
+  page.on('request', r => {
+    if (r.url().includes(':54321/')) open.set(r, Date.now());
+  });
+  page.on('requestfinished', r => open.delete(r));
+  page.on('requestfailed', r => open.delete(r));
+}
+
 async function assertAppApiRequestsSettled(
   page: Page,
   pendingAppApiRequests: ReturnType<typeof watchAppApiRequests>,
@@ -192,6 +204,10 @@ async function assertAppApiRequestsSettled(
       )
     );
     console.log(`[stuck] ${routeId}\n  ${fate.join('\n  ')}`);
+    const holders = [...(openToApi.get(page) ?? new Map()).entries()].map(
+      ([r, at]) => `age=${Date.now() - at}ms ${r.method()} ${r.url().slice(0, 140)}`
+    );
+    console.log(`[holders] ${routeId} (${holders.length} open to the API host)\n  ${holders.join('\n  ')}`);
     const diagnostic = logUnsettledAppApiRequests(routeId, settlement.pendingUrls);
     test.info().annotations.push({
       type: 'route',
@@ -363,6 +379,7 @@ async function sweepRoutes(
 test.describe('Route health: public', () => {
   test('public routes render clean', async ({ page }) => {
     const pendingAppApiRequests = watchAppApiRequests(page);
+    trackOpenToApi(page);
     await sweepRoutes(page, 'public', PUBLIC_ROUTES, pendingAppApiRequests);
   });
 });
@@ -378,6 +395,7 @@ test.describe('Route health: exhibitor', () => {
       test.skip(true, 'Exhibitor credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    trackOpenToApi(page);
     await signIn(page, user.email, user.password, '/exhibitor/entries');
     await sweepRoutes(page, 'exhibitor', EXHIBITOR_ROUTES, pendingAppApiRequests);
   });
@@ -394,6 +412,7 @@ test.describe('Route health: secretary', () => {
       test.skip(true, 'Secretary credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    trackOpenToApi(page);
     await signIn(page, user.email, user.password, '/secretary/dashboard');
     await sweepRoutes(page, 'secretary', SECRETARY_ROUTES, pendingAppApiRequests);
   });
@@ -410,6 +429,7 @@ test.describe('Route health: judge', () => {
       test.skip(true, 'Judge credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    trackOpenToApi(page);
     await signIn(page, user.email, user.password, '/judge/dashboard');
     await sweepRoutes(page, 'judge', JUDGE_ROUTES, pendingAppApiRequests);
   });
@@ -426,6 +446,7 @@ test.describe('Route health: club-admin', () => {
       test.skip(true, 'Club-admin credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    trackOpenToApi(page);
     await signIn(page, user.email, user.password, '/club-admin/members');
     await sweepRoutes(page, 'club-admin', CLUB_ADMIN_ROUTES, pendingAppApiRequests);
   });
@@ -442,6 +463,7 @@ test.describe('Route health: admin', () => {
       test.skip(true, 'Admin credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    trackOpenToApi(page);
     await signIn(page, user.email, user.password, '/admin/dashboard');
     await sweepRoutes(page, 'admin', ADMIN_ROUTES, pendingAppApiRequests);
   });

@@ -85,7 +85,12 @@ function mockView() {
 const pending = (userId = TEST_ACCOUNT_ID) => {
   const raw = localStorage.getItem(KEY(userId));
   return raw
-    ? (JSON.parse(raw) as { showIds: string[]; markedAt: number; signature: string })
+    ? (JSON.parse(raw) as {
+        showIds: string[];
+        markedAt: number;
+        signature: string;
+        shrank: boolean;
+      })
     : null;
 };
 
@@ -123,7 +128,7 @@ describe('entries access pending scopes (MYK9-1476)', () => {
     await new Promise(resolve => setTimeout(resolve, 5));
     localStorage.setItem(
       KEY(TEST_ACCOUNT_ID),
-      JSON.stringify({ signature: OLD_SIGNATURE, markedAt: 0, showIds: [] })
+      JSON.stringify({ signature: OLD_SIGNATURE, markedAt: 0, showIds: [], shrank: false })
     );
   });
 
@@ -136,7 +141,12 @@ describe('entries access pending scopes (MYK9-1476)', () => {
   it('an unchanged role set touches nothing', async () => {
     await noteEntriesAccessRoles(TEST_ACCOUNT_ID, [secretary], table);
 
-    expect(pending()).toEqual({ signature: OLD_SIGNATURE, markedAt: 0, showIds: [] });
+    expect(pending()).toEqual({
+      signature: OLD_SIGNATURE,
+      markedAt: 0,
+      showIds: [],
+      shrank: false,
+    });
     expect(supabase.from).not.toHaveBeenCalled();
   });
 
@@ -249,6 +259,83 @@ describe('entries access pending scopes (MYK9-1476)', () => {
 
     expect(pending(TEST_ACCOUNT_ID)?.showIds).toEqual(['show-1']);
     expect(pending('user-b')).toBeNull();
+  });
+
+  it('a re-mark during an older run starts its own replace instead of joining it', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    localStorage.setItem(
+      KEY(TEST_ACCOUNT_ID),
+      JSON.stringify({ signature: 'old', markedAt: 100, showIds: ['show-1'], shrank: true })
+    );
+    answers = { 'show-1': { rows: [serverRow('a', 'show-1')], gate } };
+    const first = table.sync('show-1');
+    await vi.waitFor(() => expect(table.runningShowIds()).toContain('show-1'));
+    // A second role change re-marks while the first run (M1) is still fetching.
+    localStorage.setItem(
+      KEY(TEST_ACCOUNT_ID),
+      JSON.stringify({ signature: 'new', markedAt: 101, showIds: ['show-1'], shrank: true })
+    );
+    const second = table.sync('show-1');
+    release();
+
+    await Promise.all([first, second]);
+
+    expect(pending()?.showIds).toEqual([]);
+  });
+
+  it("an account switch before the engine captures the account never clears the first account's mark", async () => {
+    localStorage.setItem(
+      KEY(TEST_ACCOUNT_ID),
+      JSON.stringify({ signature: 'x', markedAt: 5, showIds: ['show-1'], shrank: false })
+    );
+    // The mark is read as the first account; everything after runs as account B.
+    vi.spyOn(table, 'getCurrentAuthUserId')
+      .mockResolvedValueOnce(TEST_ACCOUNT_ID)
+      .mockResolvedValue('user-b');
+    answers = { 'show-1': { rows: [] } };
+
+    const result = await table.sync('show-1');
+
+    expect(result.success).toBe(true);
+    expect(pending(TEST_ACCOUNT_ID)?.showIds).toEqual(['show-1']);
+  });
+
+  it('a grant followed by a zero-row answer keeps the warm rows and still clears the show', async () => {
+    answers = {};
+
+    await noteEntriesAccessRoles(TEST_ACCOUNT_ID, [secretary, steward], table);
+
+    expect(await ids()).toEqual(['a', 'b', 'c']);
+    expect(pending()).toMatchObject({ shrank: false, showIds: [] });
+  });
+
+  it('the first load with no stored signature and a zero-row answer keeps the warm rows', async () => {
+    localStorage.clear();
+    answers = {};
+
+    await noteEntriesAccessRoles(TEST_ACCOUNT_ID, [secretary], table);
+
+    expect(await ids()).toEqual(['a', 'b', 'c']);
+    expect(pending()).toMatchObject({ shrank: false, showIds: [] });
+  });
+
+  it('a role the view does not read changes nothing', async () => {
+    await noteEntriesAccessRoles(
+      TEST_ACCOUNT_ID,
+      [secretary, role('exhibitor', null, null)],
+      table
+    );
+
+    expect(pending()).toEqual({
+      signature: OLD_SIGNATURE,
+      markedAt: 0,
+      showIds: [],
+      shrank: false,
+    });
+    expect(supabase.from).not.toHaveBeenCalled();
   });
 
   it('a role change noted for a different signed-in account marks nothing', async () => {

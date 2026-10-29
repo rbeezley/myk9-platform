@@ -36,6 +36,7 @@ import { planEntriesRead } from './entriesChangedSince';
 import {
   clearEntriesAccessPending,
   entriesAccessMark,
+  type EntriesAccessMark,
   hasEntriesAccessPending,
 } from './entriesAccessPending';
 import { entryChangedColumnsRow } from './ReplicatedEntriesTable.changedColumns';
@@ -163,7 +164,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
   private _hasWarnedMissingShowScope = false;
-  private readonly _syncsByShow = new Map<string, { sync: Promise<SyncResult>; forced: boolean }>();
+  private readonly _syncsByShow = new Map<
+    string,
+    { sync: Promise<SyncResult>; forced: boolean; markedAt: number | null }
+  >();
 
   /**
    * IDs deleted locally this session. The download sync skips these
@@ -309,22 +313,29 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const syncKey = `${principalId}:${showScopeId}`;
     // A show pending an access refetch (MYK9-1476) is a forced run, so an
     // ordinary running sync, fetched under the old roles, cannot answer it.
-    const forceFullSync =
-      options?.forceFullSync === true ||
-      (hasEntriesAccessPending() && (await entriesAccessMark(this, showScopeId)) !== null);
+    // Read once, here: the run below uses this mark and no other.
+    const mark = hasEntriesAccessPending() ? await entriesAccessMark(this, showScopeId) : null;
+    const forceFullSync = options?.forceFullSync === true || mark !== null;
     // Read after that await: the map may have changed while it was pending.
     const running = this._syncsByShow.get(syncKey);
     // A forced full sync must not be answered by an incremental one already
     // running (MYK9-752): wait that one out, then run its own. Anything shares
     // a forced run; only an ordinary call shares an ordinary one.
-    if (running && (running.forced || !forceFullSync)) return running.sync;
-    const start = () => this.syncShow(showScopeId, principalId, forceFullSync);
+    // A caller holding a mark shares only the run that read that same mark: a
+    // run that read an older one (or none) cannot clear it (MYK9-1476).
+    const sharable = !mark || running?.markedAt === mark.markedAt;
+    if (running && sharable && (running.forced || !forceFullSync)) return running.sync;
+    const start = () => this.syncShow(showScopeId, principalId, forceFullSync, mark);
     // Start at once when nothing is running, as before: only a forced sync
     // behind an ordinary one waits.
     const sync = (running ? running.sync.then(noop, noop).then(start) : start()).finally(() => {
       if (this._syncsByShow.get(syncKey)?.sync === sync) this._syncsByShow.delete(syncKey);
     });
-    this._syncsByShow.set(syncKey, { sync, forced: forceFullSync });
+    this._syncsByShow.set(syncKey, {
+      sync,
+      forced: forceFullSync,
+      markedAt: mark?.markedAt ?? null,
+    });
     return sync;
   }
 
@@ -364,13 +375,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   private async syncShow(
     showScopeId: string,
     principalId: string,
-    forceFullSync = false
+    forceFullSync = false,
+    accessMark: EntriesAccessMark | null = null
   ): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
-    // No await unless something is pending: the common sync still starts at once.
-    const accessMark = hasEntriesAccessPending()
-      ? await entriesAccessMark(this, showScopeId)
-      : null;
     let replacedScope = false;
     const needsReceiptReferenceRefresh = !hasReceiptReferenceRefresh(showScopeId, principalId);
     let remoteRowCount: number | undefined;
@@ -550,13 +558,22 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
     };
     const scope = { value: showScopeId };
-    // MYK9-1476: a show whose access changed replaces its clean rows after the
-    // download, believing a complete zero-row answer.
-    const result = accessMark
+    // MYK9-1476: a show whose access SHRANK replaces its clean rows after the
+    // download, believing a complete zero-row answer. A widened one is a plain
+    // forced sync, which keeps the MYK9-880 proof.
+    const result = accessMark?.shrank
       ? await replaceScope(this, adapter, scope, engineOptions)
       : await syncReplicatedTable(this, adapter, scope, engineOptions);
     if (result.success) recordViewRead();
-    if (accessMark && result.success && replacedScope) {
+    // A grant only widens what is visible, so success alone clears it; a shrink
+    // needs the replace to have completed. Never another account's record: the
+    // engine only guards the account it captured, after this mark was read.
+    if (
+      accessMark &&
+      result.success &&
+      (!accessMark.shrank || replacedScope) &&
+      (await this.getCurrentAuthUserId()) === accessMark.authUserId
+    ) {
       clearEntriesAccessPending(accessMark.authUserId, showScopeId, accessMark.markedAt);
     }
 

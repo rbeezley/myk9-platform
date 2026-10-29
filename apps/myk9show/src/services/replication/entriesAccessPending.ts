@@ -24,12 +24,31 @@ interface PendingRecord {
   signature: string;
   markedAt: number;
   showIds: string[];
+  /** Some part of the old role set is missing from the new one (access narrowed). */
+  shrank: boolean;
 }
+
+export interface EntriesAccessMark {
+  authUserId: string;
+  markedAt: number;
+  shrank: boolean;
+}
+
+/** The roles the results view's caller context reads; any other role cannot change a row. */
+const VIEW_ROLES = new Set([
+  'site_admin',
+  'club_admin',
+  'secretary',
+  'trial_secretary',
+  'steward',
+  'chairman',
+]);
 
 /** Stable, order-insensitive signature of the active role set (role + club + show). */
 export function activeRoleSetSignature(roles: UserRoleWithDetails[], now = Date.now()): string {
   const parts = roles
     .filter(role => role.is_active && (!role.expires_at || Date.parse(role.expires_at) > now))
+    .filter(role => VIEW_ROLES.has(role.role?.name ?? role.role_id))
     .map(role => `${role.role?.name ?? role.role_id}|${role.club_id ?? ''}|${role.show_id ?? ''}`);
   return JSON.stringify([...new Set(parts)].sort());
 }
@@ -42,7 +61,12 @@ function readRecord(userId: string): PendingRecord | null {
     if (typeof signature !== 'string' || typeof markedAt !== 'number' || !Array.isArray(showIds)) {
       return null;
     }
-    return { signature, markedAt, showIds: showIds.filter(id => typeof id === 'string') };
+    return {
+      signature,
+      markedAt,
+      showIds: showIds.filter(id => typeof id === 'string'),
+      shrank: (parsed as Partial<PendingRecord>).shrank === true,
+    };
   } catch {
     return null;
   }
@@ -80,12 +104,12 @@ export function hasEntriesAccessPending(): boolean {
 export async function entriesAccessMark(
   table: ReplicatedEntriesTable,
   showId: string
-): Promise<{ authUserId: string; markedAt: number } | null> {
+): Promise<EntriesAccessMark | null> {
   try {
     const authUserId = await table.getCurrentAuthUserId();
     const record = authUserId ? readRecord(authUserId) : null;
     return authUserId && record?.showIds.includes(showId)
-      ? { authUserId, markedAt: record.markedAt }
+      ? { authUserId, markedAt: record.markedAt, shrank: record.shrank }
       : null;
   } catch {
     return null;
@@ -107,6 +131,16 @@ export function clearEntriesAccessPending(
   const record = readRecord(authUserId);
   if (!record || record.markedAt !== markedAtSeen || !record.showIds.includes(showId)) return;
   writeRecord(authUserId, { ...record, showIds: record.showIds.filter(id => id !== showId) });
+}
+
+/** True when some part of the old signature is absent from the new one. */
+function signatureShrank(oldSignature: string, newSignature: string): boolean {
+  try {
+    const next = new Set(JSON.parse(newSignature) as string[]);
+    return (JSON.parse(oldSignature) as string[]).some(part => !next.has(part));
+  } catch {
+    return true;
+  }
 }
 
 /**
@@ -137,7 +171,12 @@ export async function noteEntriesAccessRoles(
 
     // Strictly increasing, so a re-mark in the same millisecond is still a new mark.
     const markedAt = Math.max(Date.now(), (stored?.markedAt ?? 0) + 1);
-    writeRecord(authUserId, { signature, markedAt, showIds: [...showIds] });
+    // No stored signature (first load after deploy) cannot be known to narrow;
+    // an earlier still-pending shrink stays a shrink.
+    const shrank =
+      (stored ? signatureShrank(stored.signature, signature) : false) ||
+      (stored !== null && stored.showIds.length > 0 && stored.shrank);
+    writeRecord(authUserId, { signature, markedAt, showIds: [...showIds], shrank });
     const results = await Promise.allSettled([...showIds].map(id => table.sync(id)));
     if (results.some(result => result.status === 'rejected' || !result.value.success)) {
       logger.warn('[entries] Access refetch did not complete; it stays pending');

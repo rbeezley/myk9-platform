@@ -2,12 +2,6 @@ import type { Page, Request } from '@playwright/test';
 
 const DEFAULT_IDLE_MS = 100;
 const DEFAULT_TIMEOUT_MS = 5000;
-/**
- * The longest a main-frame navigation may take to commit before the tracker
- * stops ignoring app API requests. A navigation that never commits and never
- * fails (a 204, a download) would otherwise silence the tracker for good.
- */
-export const NAVIGATION_COMMIT_WINDOW_MS = 10_000;
 
 export interface AppApiRequestTracker {
   pending: Set<Request>;
@@ -40,6 +34,11 @@ export function isAppApiRequest(request: Request) {
   return url.includes('/rest/v1/') || url.includes('/functions/v1/') || url.includes('/auth/v1/');
 }
 
+function withoutHash(url: string) {
+  const at = url.indexOf('#');
+  return at === -1 ? url : url.slice(0, at);
+}
+
 export function watchAppApiRequests(page: Page) {
   const tracker: AppApiRequestTracker = {
     pending: new Set<Request>(),
@@ -57,10 +56,14 @@ export function watchAppApiRequests(page: Page) {
   // MYK9-1467: from a main-frame navigation request until the new document
   // commits, the OUTGOING document still runs, and what it starts dies with it
   // without a `requestfinished` or `requestfailed` (run 40785638617 stranded
-  // /exhibitor/entries' reads on /account). The new document cannot fetch before
-  // it commits, so every app API request in that window is the old one's.
-  let outgoingNavigation: Request | null = null;
-  let outgoingNavigationAt = 0;
+  // /exhibitor/entries' reads on /account). Everything stays tracked until the
+  // navigation COMMITS; only then, when the old document is gone and the new one
+  // has not yet run a line, is all of pending the old document's and dropped. A
+  // navigation that fails or never commits (a 204, a download) clears nothing,
+  // so it can only cost a false failure, never a false pass. The commit is the
+  // main frame arriving at the navigation request's own URL, so a same-document
+  // `framenavigated` (pushState) elsewhere clears nothing either.
+  let crossDocumentNavigation: Request | null = null;
   const isMainFrameNavigation = (request: Request) => {
     if (request.isNavigationRequest?.() !== true || typeof page.mainFrame !== 'function') {
       return false;
@@ -71,36 +74,29 @@ export function watchAppApiRequests(page: Page) {
       return false; // A service worker's request has no frame.
     }
   };
-  const awaitingCommit = () => {
-    if (outgoingNavigation && Date.now() - outgoingNavigationAt >= NAVIGATION_COMMIT_WINDOW_MS) {
-      outgoingNavigation = null;
-    }
-    return outgoingNavigation !== null;
-  };
 
   page.on('request', request => {
     if (isMainFrameNavigation(request)) {
-      outgoingNavigation = request;
-      outgoingNavigationAt = Date.now();
-      tracker.reset();
+      crossDocumentNavigation = request;
       return;
     }
-    if (!isAppApiRequest(request) || awaitingCommit()) return;
+    if (!isAppApiRequest(request)) return;
     tracker.pending.add(request);
     recordActivity();
   });
   page.on('framenavigated', frame => {
-    if (typeof page.mainFrame === 'function' && frame === page.mainFrame()) {
-      outgoingNavigation = null;
-    }
+    if (!crossDocumentNavigation) return;
+    if (typeof page.mainFrame !== 'function' || frame !== page.mainFrame()) return;
+    if (withoutHash(frame.url()) !== withoutHash(crossDocumentNavigation.url())) return;
+    crossDocumentNavigation = null;
+    tracker.reset();
   });
   page.on('requestfinished', request => {
     if (!tracker.pending.delete(request)) return;
     recordActivity();
   });
   page.on('requestfailed', request => {
-    // A navigation that fails leaves the old document in place, still tracked.
-    if (request === outgoingNavigation) outgoingNavigation = null;
+    if (request === crossDocumentNavigation) crossDocumentNavigation = null;
     if (!tracker.pending.delete(request)) return;
     recordActivity();
   });

@@ -404,6 +404,42 @@ describe('requests the outgoing document leaves behind at a navigation (MYK9-146
     expect((await settle(tracker, harness)).pendingUrls).toEqual([STRANDED]);
   });
 
+  it('records what the commit dropped as stranded, until it reports an outcome (MYK9-1477)', () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    const stranded = createRequest(STRANDED);
+    const finishesLate = createRequest('http://127.0.0.1:54321/rest/v1/classes?select=id');
+    harness.emit('request', stranded);
+    harness.emit('request', finishesLate);
+    harness.emit('request', navigationRequest(harness.mainFrame));
+    commit(harness);
+    tracker.reset();
+    expect([...tracker.stranded]).toEqual([stranded, finishesLate]);
+
+    harness.emit('requestfinished', finishesLate);
+    expect([...tracker.stranded]).toEqual([stranded]);
+  });
+
+  it('records nothing as stranded without a cross-document commit', () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    harness.emit('request', createRequest(STRANDED));
+    harness.emit('request', navigationRequest(harness.mainFrame));
+    tracker.reset();
+    expect(tracker.stranded.size).toBe(0);
+  });
+
+  it('forgets a stranded request that later fails with a reason', () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    const request = createRequest(STRANDED);
+    harness.emit('request', request);
+    harness.emit('request', navigationRequest(harness.mainFrame));
+    commit(harness);
+    harness.emit('requestfailed', request);
+    expect(tracker.stranded.size).toBe(0);
+  });
+
   it('ignores a navigation of a child frame', async () => {
     const harness = createPageHarness();
     const tracker = watchAppApiRequests(harness.page);

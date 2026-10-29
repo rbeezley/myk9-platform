@@ -22,6 +22,14 @@ export interface AppApiRequestTracker {
    * issued a single request — trading a false failure for a false pass.
    */
   reset(): void;
+  /**
+   * Requests still in flight when a cross-document navigation committed that
+   * have reported no outcome since: no `requestfinished`, no `requestfailed`.
+   * `reset()` leaves it alone; the route sweep clears it per route. WebKit can
+   * report such a request only as a "due to access control checks" page error
+   * (MYK9-1477), and this set is what tells that apart from a real failure.
+   */
+  stranded: Set<Request>;
 }
 
 export interface AppApiRequestSettlement {
@@ -43,6 +51,7 @@ export function watchAppApiRequests(page: Page) {
   const tracker: AppApiRequestTracker = {
     pending: new Set<Request>(),
     lastActivityAt: Date.now(),
+    stranded: new Set<Request>(),
     reset() {
       tracker.pending.clear();
       tracker.lastActivityAt = Date.now();
@@ -89,14 +98,17 @@ export function watchAppApiRequests(page: Page) {
     if (typeof page.mainFrame !== 'function' || frame !== page.mainFrame()) return;
     if (withoutHash(frame.url()) !== withoutHash(crossDocumentNavigation.url())) return;
     crossDocumentNavigation = null;
+    for (const request of tracker.pending) tracker.stranded.add(request);
     tracker.reset();
   });
   page.on('requestfinished', request => {
+    tracker.stranded.delete(request);
     if (!tracker.pending.delete(request)) return;
     recordActivity();
   });
   page.on('requestfailed', request => {
     if (request === crossDocumentNavigation) crossDocumentNavigation = null;
+    tracker.stranded.delete(request);
     if (!tracker.pending.delete(request)) return;
     recordActivity();
   });

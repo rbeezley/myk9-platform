@@ -40,6 +40,7 @@ import {
   watchAppApiRequests,
 } from '../harness/appApiRequestTracker';
 import { logUnsettledAppApiRequests } from '../harness/routeHealthDiagnostics';
+import { triageStrandedAccessControlErrors } from '../harness/strandedAccessControlErrors';
 
 const SEEDED_SHOW = LIVE_SECRETARY_SHOW_ID;
 
@@ -130,9 +131,9 @@ function isReplicationError(text: string) {
  * Filters a BrowserHealth summary for the budgeted error categories,
  * returning one string per violation.
  */
-function violations(health: BrowserHealth): string[] {
+function violations(health: BrowserHealth, pageErrors: string[]): string[] {
   const result: string[] = [];
-  for (const msg of health.pageErrors) {
+  for (const msg of pageErrors) {
     result.push(`pageerror: ${msg}`);
   }
   for (const msg of health.consoleErrors) {
@@ -229,6 +230,7 @@ async function sweepRoutes(
     //
     // Resetting here means a slow route is reported ONCE, against itself.
     pendingAppApiRequests.reset();
+    pendingAppApiRequests.stranded.clear();
 
     let navigationError: string | null = null;
     let documentStatus: number | null = null;
@@ -336,7 +338,16 @@ async function sweepRoutes(
 
     // Health checks (console errors, replication errors, owned 4xx/5xx).
     // Evaluated after the mobile resize so any mobile-triggered errors are included.
-    const viols = violations(health);
+    // Linux WebKit reports a request the outgoing document abandoned at this
+    // route's navigation as "<url> due to access control checks", with no
+    // outcome at all (run 40962869226). Only that exact case is excused, one
+    // error per stranded request, and never for a URL with a recorded failure.
+    const { kept: pageErrors, excused } = triageStrandedAccessControlErrors(
+      health.pageErrors,
+      [...pendingAppApiRequests.stranded].map(request => request.url()),
+      [...health.failedResponses, ...health.failedRequests]
+    );
+    const viols = violations(health, pageErrors);
     // WebKit reports some failed fetches only as "<url> due to access control
     // checks", which hides why. The browser's own reason for each app request
     // that never got a response (`cancelled`, or `… Status code: N`) rides along
@@ -350,7 +361,7 @@ async function sweepRoutes(
     // Annotate result for report visibility.
     test.info().annotations.push({
       type: 'route',
-      description: `${id} render=${bodyText.length}ch health=${viols.length > 0 ? viols.join('; ') : 'ok'}${failedRequests}`,
+      description: `${id} render=${bodyText.length}ch health=${viols.length > 0 ? viols.join('; ') : 'ok'}${failedRequests}${excused.length > 0 ? ` excused-stranded=${excused.join('; ')}` : ''}`,
     });
   }
 }

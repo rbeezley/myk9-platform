@@ -327,13 +327,19 @@ SET LOCAL ROLE authenticated;
 DO $$
 BEGIN
   PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000147311');
+  -- A class with an unresolved ribbon tie cannot be checked (MK018), so the
+  -- first flip is recorded, the class checked, and then the flip is reversed.
+  PERFORM public.set_class_tie_order('00000000-0000-0000-0000-000001473044', ARRAY[
+    '00000000-0000-0000-0000-000000147341'::uuid,
+    '00000000-0000-0000-0000-000000147342'::uuid,
+    '00000000-0000-0000-0000-000000147343'::uuid]);
   PERFORM public.mark_class_results_verified(
     '00000000-0000-0000-0000-000001473044', pg_temp.fp('00000000-0000-0000-0000-000001473044'));
   IF NOT pg_temp.verified('00000000-0000-0000-0000-000001473044') THEN
     RAISE EXCEPTION 'FAIL 3c setup: class 44 was not verified';
   END IF;
 
-  -- The flip: 4543 won, then 4542, then 4541.
+  -- The reversed flip: 4543 won, then 4542, then 4541.
   PERFORM public.set_class_tie_order('00000000-0000-0000-0000-000001473044', ARRAY[
     '00000000-0000-0000-0000-000000147343'::uuid,
     '00000000-0000-0000-0000-000000147342'::uuid,

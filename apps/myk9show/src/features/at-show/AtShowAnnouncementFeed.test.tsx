@@ -97,27 +97,6 @@ describe('AtShowAnnouncementFeed', () => {
     expect(screen.getByText('RINGSIDE CONTENT')).toBeInTheDocument();
   });
 
-  it('stays out of print, open or closed, so a printed sheet starts on its first page (MYK9-1078)', () => {
-    useAnnouncementStore.setState({
-      announcements: [makeAnnouncement()],
-      unreadCount: 1,
-    });
-
-    render(
-      <AtShowAnnouncementFeed showId="show-1">
-        <div>PRINTABLE SHEET</div>
-      </AtShowAnnouncementFeed>
-    );
-
-    const toggle = screen.getByRole('button', { name: /^Announcements/ });
-    fireEvent.click(toggle);
-    const bar = toggle.parentElement;
-    expect(bar).toHaveClass('print:hidden');
-    // The expanded list lives inside the hidden bar, and the page content does not.
-    expect(bar).toContainElement(screen.getByText('Ring 2 delayed 15 minutes'));
-    expect(bar).not.toContainElement(screen.getByText('PRINTABLE SHEET'));
-  });
-
   it('does not render any compose affordance (read-only, per R1 design)', () => {
     useAnnouncementStore.setState({ announcements: [makeAnnouncement()], unreadCount: 1 });
 

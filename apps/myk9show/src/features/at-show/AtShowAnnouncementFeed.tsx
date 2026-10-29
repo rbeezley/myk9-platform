@@ -49,7 +49,7 @@ export function AtShowAnnouncementFeed({
 
   return (
     <>
-      <div className="sticky top-0 z-40 border-b border-border/50 bg-card print:hidden">
+      <div className="sticky top-0 z-40 border-b border-border/50 bg-card">
         <button
           type="button"
           onClick={() => setIsOpen(open => !open)}

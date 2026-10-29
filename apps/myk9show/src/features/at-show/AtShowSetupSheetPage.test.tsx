@@ -97,6 +97,30 @@ describe('AtShowSetupSheetPage', () => {
     expect(screen.queryByTestId('setup-table-vehicles-containers')).not.toBeInTheDocument();
   });
 
+  it('prints the sheet alone through a frame, never the app window with its banners', async () => {
+    classList.groups = groupsFor('UKC');
+    const windowPrint = vi.spyOn(window, 'print').mockImplementation(() => undefined);
+    renderPage();
+
+    const frame = document.querySelector<HTMLIFrameElement>(
+      'iframe[title="Setup cheat sheet for printing"]'
+    );
+    expect(frame).not.toBeNull();
+    const framePrint = vi.fn();
+    Object.defineProperty(frame!.contentWindow!, 'print', { value: framePrint });
+
+    screen.getByRole('button', { name: 'Print' }).click();
+
+    await vi.waitFor(() => expect(framePrint).toHaveBeenCalledTimes(1));
+    expect(windowPrint).not.toHaveBeenCalled();
+    const printed = frame!.contentDocument!;
+    expect(printed.querySelector('[data-testid="setup-table-vehicles-containers"]')).not.toBeNull();
+    expect(printed.querySelector('[data-testid="setup-table-interior-exterior"]')).not.toBeNull();
+    // Only the sheet: no toolbar, no app shell.
+    expect(printed.body.textContent).not.toMatch(/Back to classes|Announcements/);
+    windowPrint.mockRestore();
+  });
+
   it('says there is no sheet for an ASCA show and offers no Print button', () => {
     classList.groups = groupsFor('ASCA');
     renderPage();

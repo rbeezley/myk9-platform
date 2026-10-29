@@ -82,7 +82,7 @@ describe('runTripwire (the CLI core)', () => {
   });
   const POOLER =
     'postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres';
-  const env = { MYK9_MIGRATION_DATABASE_URL: POOLER };
+  const env = { PGPASSWORD: 'secret' };
 
   /** A checkout with its own approvals file, main's copy, and stub git/psql. */
   function setup(
@@ -93,8 +93,10 @@ describe('runTripwire (the CLI core)', () => {
     dirs.push(dir);
     const approvalsPath = join(dir, 'standing-approvals.md');
     const calls: string[][] = [];
-    const command = (name: string, args: string[]): string => {
+    const psqlEnvs: NodeJS.ProcessEnv[] = [];
+    const command = (name: string, args: string[], cmdEnv?: NodeJS.ProcessEnv): string => {
       calls.push([name, ...args]);
+      if (name === 'psql') psqlEnvs.push(cmdEnv ?? {});
       if (name === 'git' && args[0] === 'fetch') return '';
       if (name === 'git' && args[0] === 'show') {
         if (main.fails) throw new Error('fatal: invalid object name');
@@ -110,7 +112,7 @@ describe('runTripwire (the CLI core)', () => {
       throw new Error(`unexpected command ${name} ${args.join(' ')}`);
     };
     const run = (argv: string[] = []) => runTripwire({ approvalsPath, argv, env, command });
-    return { approvalsPath, command, calls, run };
+    return { approvalsPath, command, calls, psqlEnvs, run };
   }
 
   it('re-reads the approvals file on every run', () => {
@@ -134,42 +136,34 @@ describe('runTripwire (the CLI core)', () => {
     expect(run().code).toBe(2);
   });
 
-  it('cannot decide without a database URL', () => {
+  it('cannot decide without PGPASSWORD', () => {
     const { approvalsPath, command } = setup();
     writeFileSync(approvalsPath, block('ACTIVE'));
     expect(runTripwire({ approvalsPath, argv: [], env: {}, command })).toEqual({
       code: 2,
-      reason: expect.stringContaining('MYK9_MIGRATION_DATABASE_URL'),
+      reason: expect.stringContaining('PGPASSWORD'),
     });
   });
 
-  it.each([
-    ['a local database', 'postgresql://postgres@127.0.0.1:54322/postgres'],
-    [
-      'another project',
-      'postgresql://postgres.otherprojectref0000@aws-1-us-east-2.pooler.supabase.com:5432/postgres',
-    ],
-    ['an unparseable URL', 'not a url'],
-  ])('cannot decide when the database URL is %s', (_label, url) => {
-    const { approvalsPath, command } = setup();
+  it('always queries the myK9 pooler, whatever the environment says', () => {
+    const { approvalsPath, command, calls, psqlEnvs } = setup();
     writeFileSync(approvalsPath, block('ACTIVE'));
-    const result = runTripwire({
-      approvalsPath,
-      argv: [],
-      env: { MYK9_MIGRATION_DATABASE_URL: url },
-      command,
-    });
-    expect(result).toEqual({ code: 2, reason: expect.stringContaining('sojmvhhwsjxmfistvzbe') });
-  });
-
-  it('accepts the direct database host for the myK9 project', () => {
-    const { approvalsPath, command } = setup();
-    writeFileSync(approvalsPath, block('ACTIVE'));
-    const url = 'postgresql://postgres@db.sojmvhhwsjxmfistvzbe.supabase.co:5432/postgres';
-    expect(
-      runTripwire({ approvalsPath, argv: [], env: { MYK9_MIGRATION_DATABASE_URL: url }, command })
-        .code
-    ).toBe(0);
+    const hostile = {
+      PGPASSWORD: 'secret',
+      PATH: '/usr/bin',
+      MYK9_MIGRATION_DATABASE_URL: 'postgresql://postgres@127.0.0.1:54322/postgres',
+      PGHOST: '127.0.0.1',
+      PGSERVICE: 'local',
+      PGDATABASE: 'other',
+    };
+    expect(runTripwire({ approvalsPath, argv: [], env: hostile, command }).code).toBe(0);
+    const psqlCalls = calls.filter(c => c[0] === 'psql');
+    expect(psqlCalls.length).toBeGreaterThan(0);
+    for (const c of psqlCalls) expect(c[1]).toBe(POOLER);
+    for (const e of psqlEnvs) {
+      expect(Object.keys(e).filter(k => k.startsWith('PG'))).toEqual(['PGPASSWORD']);
+      expect(e).toMatchObject({ PGPASSWORD: 'secret', PATH: '/usr/bin' });
+    }
   });
 
   it.each<[string, { dirty?: boolean; head?: string }, 0 | 1]>([

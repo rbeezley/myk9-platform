@@ -9,13 +9,12 @@
  *      a known test club, read from the myK9 project itself; with
  *      --functions-deploy, also the checkout is clean and at origin/main
  *   1  one of those is false (the reason names which): do not run the action
- *   2  it could not decide (no database URL or one for another database, a
- *      failed query, a missing or malformed approvals block): do not run the
- *      action either
+ *   2  it could not decide (no PGPASSWORD, a failed query, a missing or
+ *      malformed approvals block): do not run the action either
  *
  * The approvals file is read fresh on every run, so flipping the switch takes
- * effect on the next action. Database access is read-only, through psql with
- * MYK9_MIGRATION_DATABASE_URL (and PGPASSWORD), as the db-push skill does.
+ * effect on the next action. Database access is read-only, through psql to the
+ * fixed myK9 pooler address below; only PGPASSWORD comes from the environment.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -82,7 +81,7 @@ export function evaluateTripwire(
   return { code: 0, reason: 'standing approvals apply' };
 }
 
-export type Command = (name: string, args: string[]) => string;
+export type Command = (name: string, args: string[], env?: NodeJS.ProcessEnv) => string;
 
 export interface RunOptions {
   /** This checkout's docs/agents/standing-approvals.md. */
@@ -94,20 +93,19 @@ export interface RunOptions {
 }
 
 const APPROVALS_ON_MAIN = 'origin/main:docs/agents/standing-approvals.md';
-const PROJECT_REF = 'sojmvhhwsjxmfistvzbe';
-
 /**
- * True when the URL reaches the myK9 project: the pooler's `postgres.<ref>` user
- * or the direct `db.<ref>.supabase.co` host. Any other database could be in test
- * mode while production is not (Codex review, PR #3393).
+ * The myK9 project, fixed here rather than read from the environment: any other
+ * database could be in test mode while production is not, and no check of a
+ * caller-supplied URL proved airtight (Codex review, PR #3393).
  */
-function isMyK9Project(url: string): boolean {
-  try {
-    const { username, hostname } = new URL(url);
-    return username === `postgres.${PROJECT_REF}` || hostname === `db.${PROJECT_REF}.supabase.co`;
-  } catch {
-    return false;
-  }
+const MYK9_DATABASE_URL =
+  'postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres';
+
+/** The caller's environment minus every libpq `PG*` variable but the password, so none can redirect psql. */
+function psqlEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(env).filter(([key]) => !key.startsWith('PG') || key === 'PGPASSWORD')
+  );
 }
 
 /**
@@ -144,26 +142,16 @@ export function runTripwire(options: RunOptions): TripwireResult {
     return options.command('git', ['show', APPROVALS_ON_MAIN]);
   });
   const approvals = combine(local, onMain);
-  const url = options.env.MYK9_MIGRATION_DATABASE_URL;
-  if (approvals?.active && !url)
-    return { code: 2, reason: 'MYK9_MIGRATION_DATABASE_URL is not set' };
-  if (approvals?.active && url && !isMyK9Project(url))
-    return {
-      code: 2,
-      reason: `MYK9_MIGRATION_DATABASE_URL is not the myK9 project (${PROJECT_REF})`,
-    };
+  // Without a password psql would prompt on a terminal and hang.
+  if (approvals?.active && !options.env.PGPASSWORD)
+    return { code: 2, reason: 'PGPASSWORD is not set (source supabase/.env)' };
   const query = (sql: string): string | null => {
     try {
-      return options.command('psql', [
-        url ?? '',
-        '-X',
-        '-A',
-        '-t',
-        '-v',
-        'ON_ERROR_STOP=1',
-        '-c',
-        sql,
-      ]);
+      return options.command(
+        'psql',
+        [MYK9_DATABASE_URL, '-X', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', sql],
+        psqlEnv(options.env)
+      );
     } catch {
       return null;
     }
@@ -202,8 +190,8 @@ function main(argv: string[]): number {
     approvalsPath: join(repoRoot, 'docs', 'agents', 'standing-approvals.md'),
     argv,
     env: process.env,
-    command: (name, args) =>
-      execFileSync(name, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }),
+    command: (name, args, env) =>
+      execFileSync(name, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env }),
   });
   console.log(
     `prelaunch-tripwire: ${result.code === 0 ? 'PASS' : 'STOP'} (exit ${result.code}): ${result.reason}`

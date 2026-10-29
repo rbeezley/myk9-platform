@@ -235,6 +235,22 @@ export function describeLedgerState(request: Request, ledger: AppApiFetchLedger 
     : `page never fetched ${request.method()} at this URL; no fetch to this path`;
 }
 
+/**
+ * Treats the ledger's word that the page has finished a request as that
+ * request's completion: it leaves `pending` and restarts the idle window, as a
+ * `requestfinished` would. Without the restart, a request open longer than the
+ * idle window would let the sweep leave at once, before the reads its
+ * completion triggers.
+ */
+function closeLedgerEndedRequests(tracker: AppApiRequestTracker, ledger: AppApiFetchLedger | null) {
+  const open = new Set(stillPending(tracker.pending, ledger));
+  for (const request of [...tracker.pending]) {
+    if (open.has(request)) continue;
+    tracker.pending.delete(request);
+    tracker.lastActivityAt = Date.now();
+  }
+}
+
 export async function waitForAppApiRequestsToSettle(
   page: Page,
   tracker: AppApiRequestTracker,
@@ -243,9 +259,8 @@ export async function waitForAppApiRequestsToSettle(
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
-    const open =
-      tracker.pending.size === 0 ? [] : stillPending(tracker.pending, await readFetchLedger(page));
-    if (open.length === 0 && Date.now() - tracker.lastActivityAt >= idleMs) {
+    if (tracker.pending.size > 0) closeLedgerEndedRequests(tracker, await readFetchLedger(page));
+    if (tracker.pending.size === 0 && Date.now() - tracker.lastActivityAt >= idleMs) {
       return { settled: true, pendingUrls: [], pendingLedger: [] };
     }
 

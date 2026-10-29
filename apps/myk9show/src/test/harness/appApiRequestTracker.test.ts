@@ -302,6 +302,40 @@ describe('the page fetch ledger (MYK9-1467)', () => {
     expect(settlement).toEqual({ settled: true, pendingUrls: [], pendingLedger: [] });
   });
 
+  it('restarts the idle window when the ledger ends a long-open request', async () => {
+    vi.useFakeTimers();
+    try {
+      const key = `HEAD ${COUNT_URL}`;
+      const harness = pageWithLedger({ seen: { [key]: true }, inFlight: { [key]: 0 } });
+      const tracker = watchAppApiRequests(harness.page);
+      harness.emit('request', requestFor('HEAD', COUNT_URL));
+      // Open far longer than the idle window before the sweep looks.
+      vi.advanceTimersByTime(1000);
+
+      let resolved = false;
+      const settlement = waitForAppApiRequestsToSettle(harness.page, tracker, {
+        idleMs: 50,
+        timeoutMs: 500,
+      }).then(result => {
+        resolved = true;
+        return result;
+      });
+
+      await vi.advanceTimersByTimeAsync(30);
+      expect(resolved).toBe(false);
+      await vi.advanceTimersByTimeAsync(60);
+      expect(resolved).toBe(true);
+      await expect(settlement).resolves.toEqual({
+        settled: true,
+        pendingUrls: [],
+        pendingLedger: [],
+      });
+      expect(tracker.pending.size).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('keeps waiting while the page still awaits the request', async () => {
     const key = `HEAD ${COUNT_URL}`;
     const harness = pageWithLedger({ seen: { [key]: true }, inFlight: { [key]: 1 } });

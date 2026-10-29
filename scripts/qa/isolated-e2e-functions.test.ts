@@ -129,6 +129,12 @@ describe('perWorkerEdgeRuntimeConfig (MYK9-1467)', () => {
       perWorkerEdgeRuntimeConfig('[other]\npolicy = "x"\n[edge_runtime]\npolicy = "oneshot"\n')
     ).toBe('[other]\npolicy = "x"\n[edge_runtime]\npolicy = "per_worker"\n');
   });
+
+  it('finds a section header that carries a trailing comment', () => {
+    expect(perWorkerEdgeRuntimeConfig('[edge_runtime] # runtime\npolicy = "oneshot"\n')).toBe(
+      '[edge_runtime] # runtime\npolicy = "per_worker"\n'
+    );
+  });
 });
 
 describe('resolveIsolatedStripeSecretKey', () => {

@@ -2,6 +2,12 @@ import type { Page, Request } from '@playwright/test';
 
 const DEFAULT_IDLE_MS = 100;
 const DEFAULT_TIMEOUT_MS = 5000;
+/**
+ * The longest a main-frame navigation may take to commit before the tracker
+ * stops ignoring app API requests. A navigation that never commits and never
+ * fails (a 204, a download) would otherwise silence the tracker for good.
+ */
+export const NAVIGATION_COMMIT_WINDOW_MS = 10_000;
 
 export interface AppApiRequestTracker {
   pending: Set<Request>;
@@ -69,8 +75,13 @@ export function installAppApiFetchLedger(globalName: string) {
   w[globalName] = ledger;
   const original = w.fetch.bind(window);
   w.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = new URL(input instanceof Request ? input.url : String(input), window.location.href)
-      .href;
+    const parsed = new URL(
+      input instanceof Request ? input.url : String(input),
+      window.location.href
+    );
+    // The browser never sends a fragment, so Playwright's request URL has none.
+    parsed.hash = '';
+    const url = parsed.href;
     const isApi =
       url.includes('/rest/v1/') || url.includes('/functions/v1/') || url.includes('/auth/v1/');
     if (!isApi) return original(input, init);
@@ -115,18 +126,32 @@ export function watchAppApiRequests(page: Page) {
   // /exhibitor/entries' reads on /account). The new document cannot fetch before
   // it commits, so every app API request in that window is the old one's.
   let outgoingNavigation: Request | null = null;
-  const isMainFrameNavigation = (request: Request) =>
-    request.isNavigationRequest?.() === true &&
-    typeof page.mainFrame === 'function' &&
-    request.frame?.() === page.mainFrame();
+  let outgoingNavigationAt = 0;
+  const isMainFrameNavigation = (request: Request) => {
+    if (request.isNavigationRequest?.() !== true || typeof page.mainFrame !== 'function') {
+      return false;
+    }
+    try {
+      return request.frame?.() === page.mainFrame();
+    } catch {
+      return false; // A service worker's request has no frame.
+    }
+  };
+  const awaitingCommit = () => {
+    if (outgoingNavigation && Date.now() - outgoingNavigationAt >= NAVIGATION_COMMIT_WINDOW_MS) {
+      outgoingNavigation = null;
+    }
+    return outgoingNavigation !== null;
+  };
 
   page.on('request', request => {
     if (isMainFrameNavigation(request)) {
       outgoingNavigation = request;
+      outgoingNavigationAt = Date.now();
       tracker.reset();
       return;
     }
-    if (!isAppApiRequest(request) || outgoingNavigation) return;
+    if (!isAppApiRequest(request) || awaitingCommit()) return;
     tracker.pending.add(request);
     recordActivity();
   });
@@ -171,6 +196,9 @@ export function stillPending(
 ): Request[] {
   return [...pending].filter(request => {
     if (!ledger) return true;
+    // The ledger sees only the page's own `fetch`; a service worker's request
+    // with the same key is not one the ledger can vouch for.
+    if (request.serviceWorker?.()) return true;
     const key = appApiRequestKey(request.method(), request.url());
     if (!ledger.seen[key]) return true;
     return (ledger.inFlight[key] ?? 0) > 0;

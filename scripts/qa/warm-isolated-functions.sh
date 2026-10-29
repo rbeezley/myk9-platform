@@ -33,10 +33,12 @@ functions=()
 while IFS= read -r name; do
   functions+=("$name")
 done < <(
-  grep -rhoE "functions\.invoke(<[^>]*>)?\(\s*['\"][a-z0-9-]+['\"]" \
-    --include='*.ts' --include='*.tsx' --exclude='*.test.ts' --exclude='*.test.tsx' \
-    apps/myk9show/src packages/*/src 2>/dev/null |
-    sed -E "s/.*['\"]([a-z0-9-]+)['\"]$/\1/" | sort -u |
+  # Whole-file match, so a call Prettier wrapped onto two lines still counts.
+  find apps/myk9show/src packages/*/src \( -name '*.ts' -o -name '*.tsx' \) \
+    ! -name '*.test.ts' ! -name '*.test.tsx' -print0 2>/dev/null |
+    xargs -0 perl -0777 -ne \
+      'print "$1\n" while /functions\.invoke(?:<.*?>)?\(\s*[\x27"]([a-z0-9-]+)[\x27"]/g' |
+    sort -u |
     while IFS= read -r fn; do
       for dir in supabase/functions apps/myk9show/supabase/functions; do
         # `handle(` or `handle<...>(`, generics nested to any depth.
@@ -66,6 +68,7 @@ warm_one() {
     out="$(curl -s -o /dev/null -m 90 -X GET "${key[@]}" -w '%{http_code} %{time_total}' \
       "${base}/functions/v1/${fn}")"
     [[ "${out%% *}" == 405 ]] && break
+    [[ $attempt -lt 3 ]] && sleep 2
   done
   # A second call shows whether the worker stayed up: with the per_worker policy
   # (isolated-e2e-functions.ts) it should answer far faster than the first.

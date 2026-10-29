@@ -150,7 +150,7 @@ export function noVerifyJwtConfig(existingConfig: string, functionNames: string[
  * config keeps the default, so local development still reloads on save.
  */
 export function perWorkerEdgeRuntimeConfig(existingConfig: string): string {
-  const section = /^\[edge_runtime\]\s*$/m;
+  const section = /^\[edge_runtime\]\s*(#.*)?$/m;
   if (!section.test(existingConfig)) {
     return `${existingConfig.replace(/\n*$/, '\n')}\n[edge_runtime]\npolicy = "per_worker"\n`;
   }

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   FETCH_LEDGER_GLOBAL,
   installAppApiFetchLedger,
+  NAVIGATION_COMMIT_WINDOW_MS,
   stillPending,
   type AppApiFetchLedger,
   waitForAppApiRequestsToSettle,
@@ -339,6 +340,17 @@ describe('the page fetch ledger (MYK9-1467)', () => {
     });
   });
 
+  it("keeps the network verdict for a service worker's request with a page key", () => {
+    const key = `HEAD ${COUNT_URL}`;
+    const fromWorker = {
+      ...requestFor('HEAD', COUNT_URL),
+      serviceWorker: () => ({}),
+    } as unknown as Request;
+    expect(stillPending([fromWorker], { seen: { [key]: true }, inFlight: { [key]: 0 } })).toEqual([
+      fromWorker,
+    ]);
+  });
+
   it('keeps the network verdict when the page has no ledger', () => {
     expect(stillPending([requestFor('HEAD', COUNT_URL)], null)).toHaveLength(1);
   });
@@ -383,6 +395,15 @@ describe('the page fetch ledger (MYK9-1467)', () => {
 
       expect(Object.keys(ledger().seen)).toEqual([`GET ${COUNT_URL}`]);
       expect(ledger().inFlight[`GET ${COUNT_URL}`]).toBe(0);
+    });
+
+    it('keys a fetch without its fragment, as the browser sends it', async () => {
+      window.fetch = (() => Promise.resolve(new Response('[]'))) as typeof fetch;
+      installAppApiFetchLedger(FETCH_LEDGER_GLOBAL);
+
+      await window.fetch(`${COUNT_URL}#ignored`);
+
+      expect(Object.keys(ledger().seen)).toEqual([`GET ${COUNT_URL}`]);
     });
   });
 });
@@ -519,5 +540,41 @@ describe('requests the outgoing document starts during a navigation (MYK9-1467)'
     });
 
     expect(settlement.pendingUrls).toEqual([STRANDED]);
+  });
+
+  it('resumes tracking when a navigation never commits nor fails', async () => {
+    vi.useFakeTimers();
+    try {
+      const harness = createPageHarness();
+      const tracker = watchAppApiRequests(harness.page);
+      harness.emit('request', navigationRequest(harness.mainFrame));
+      vi.advanceTimersByTime(NAVIGATION_COMMIT_WINDOW_MS);
+      harness.emit('request', createRequest(STRANDED));
+
+      const settlementPromise = waitForAppApiRequestsToSettle(harness.page, tracker, {
+        idleMs: 5,
+        timeoutMs: 30,
+      });
+      await vi.advanceTimersByTimeAsync(40);
+
+      expect((await settlementPromise).pendingUrls).toEqual([STRANDED]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('still ignores the outgoing document just inside the commit window', () => {
+    vi.useFakeTimers();
+    try {
+      const harness = createPageHarness();
+      const tracker = watchAppApiRequests(harness.page);
+      harness.emit('request', navigationRequest(harness.mainFrame));
+      vi.advanceTimersByTime(NAVIGATION_COMMIT_WINDOW_MS - 1);
+      harness.emit('request', createRequest(STRANDED));
+
+      expect(tracker.pending.size).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

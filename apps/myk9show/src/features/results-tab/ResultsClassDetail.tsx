@@ -18,6 +18,7 @@ import { CockpitPaperworkRow } from '@/features/show-map/cockpit/CockpitPaperwor
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import { formatTime } from '@/lib/format/dates';
 import { OFFLINE_COIN_FLIP_MESSAGE } from './CoinFlipDialog';
+import { coinFlipAction } from './coinFlipRows';
 import { useReserveBottomAbove } from '@/hooks/useReserveBottomAbove';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import type { ResultsClassRow } from './buildResultsClassRows';
@@ -48,10 +49,8 @@ interface ResultsClassDetailProps {
   verifying: boolean;
   /** Saving or removing the check needs the server; ticking the dogs does not. */
   online: boolean;
-  /** Opens the coin flip dialog for the class's tied dogs. */
+  /** Opens the coin flip dialog: to record the flip, or to change a recorded one. */
   onRecordCoinFlip: () => void;
-  /** Reopens the dialog on a recorded flip to correct it; undefined = nothing to change here. */
-  onChangeCoinFlip?: (() => void) | undefined;
   /** Why Release is held back on this tab right now (offline, scores still syncing), or null. */
   releaseBlockedReason: string | null;
   /** Why the saved check could not show here yet (class row unsynced or in conflict), or null. */
@@ -329,7 +328,6 @@ export function ResultsClassDetail({
   verifying,
   online,
   onRecordCoinFlip,
-  onChangeCoinFlip,
   releaseBlockedReason,
   verifyBlockedReason,
   currentUserId,
@@ -395,14 +393,14 @@ export function ResultsClassDetail({
         verifyBlockedReason={verifyBlockedReason}
         verifying={verifying}
       />
-      {onChangeCoinFlip && (
+      {coinFlipAction(row) === 'change' && (
         <div className="space-y-1">
           <Button
             type="button"
             variant="outline"
             className="min-h-11"
             disabled={!online || verifying || releasing || hiding}
-            onClick={onChangeCoinFlip}
+            onClick={onRecordCoinFlip}
           >
             Change coin-flip order
           </Button>

@@ -17,8 +17,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 import { useUnreleaseResults } from '@/hooks/mutations/useUnreleaseResults';
 import type { ResultsClassRow } from './buildResultsClassRows';
-import { CoinFlipDialog } from './CoinFlipDialog';
-import { deriveClassTies, hasRecordedTie } from './coinFlipRows';
+import { CoinFlipPanel } from './CoinFlipPanel';
 import { ResultsClassDetail } from './ResultsClassDetail';
 import { ResultsClassList } from './ResultsClassList';
 import { ResultsFinishRow } from './ResultsFinishRow';
@@ -35,7 +34,6 @@ import {
 } from './resultsTabRoutes';
 import { classRowSyncBlockedReason, useClassRowSyncState } from './useClassRowSyncState';
 import { classHasUnsyncedScores, useClassUnsyncedScores } from './useClassUnsyncedScores';
-import { useRecordCoinFlip } from './useRecordCoinFlip';
 import { useResultsTabData } from './useResultsTabData';
 
 function rowMatchesSearch(row: ResultsClassRow, rawQuery: string): boolean {
@@ -117,7 +115,6 @@ export default function ResultsTab() {
   const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
   const [visibilityOpen, setVisibilityOpen] = useState(false);
   const [coinFlipOpen, setCoinFlipOpen] = useState(false);
-  const coinFlip = useRecordCoinFlip(showId);
   const timeZone = getTrialTimezone(trials[0]);
 
   const update = useCallback(
@@ -157,18 +154,6 @@ export default function ResultsTab() {
     [rows, state.classId, state.search, state.status, state.trialId]
   );
   const selected = rows.find(row => row.id === state.classId) ?? null;
-  // The tie groups come from the class's replicated rows.
-  const coinFlipGroups = useMemo(
-    () => deriveClassTies(selected?.entries ?? [], isNationals),
-    [isNationals, selected]
-  );
-  // A recorded flip can be corrected until the results are released (the server re-ranks and
-  // clears the check on a reorder, so a checked class simply needs checking again).
-  const canChangeCoinFlip =
-    selected !== null &&
-    !selected.releasedAt &&
-    (selected.phase === 'needs-checking' || selected.phase === 'ready-to-release') &&
-    hasRecordedTie(selected.entries);
   const unsyncedScores = useClassUnsyncedScores(selected?.id ?? null);
   // The saved check reaches this device through a class sync, which a dirty or conflicted class row
   // refuses; say so up front instead of letting the click look like it did nothing (MYK9-1113).
@@ -374,7 +359,6 @@ export default function ResultsTab() {
       verifying={verification.isPending}
       online={isOnline}
       onRecordCoinFlip={() => setCoinFlipOpen(true)}
-      onChangeCoinFlip={canChangeCoinFlip ? () => setCoinFlipOpen(true) : undefined}
       currentUserId={user?.id ?? null}
       judgeSignOffSlot={
         judgeGroup ? (
@@ -438,22 +422,15 @@ export default function ResultsTab() {
       />
       <ResultsVisibilitySheet open={visibilityOpen} onOpenChange={setVisibilityOpen} />
       {selected && (
-        <CoinFlipDialog
-          key={selected.id}
-          open={coinFlipOpen && (selected.phase === 'needs-coin-flip' || canChangeCoinFlip)}
-          onOpenChange={setCoinFlipOpen}
-          className={selected.name}
-          groups={coinFlipGroups}
-          groupsState={rankingKeyState}
+        <CoinFlipPanel
+          showId={showId}
+          row={selected}
+          isNationals={isNationals}
+          rankingKeyState={rankingKeyState}
           onRetry={retry}
           online={isOnline}
-          saving={coinFlip.isPending}
-          onSave={orders =>
-            coinFlip
-              .save({ classId: selected.id, trialId: selected.trialId, orders })
-              .then(() => setCoinFlipOpen(false))
-              .catch(() => undefined)
-          }
+          open={coinFlipOpen}
+          onOpenChange={setCoinFlipOpen}
         />
       )}
     </div>

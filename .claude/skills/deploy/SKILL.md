@@ -13,9 +13,9 @@ Merging a PR never deploys anything. Migrations and edge functions ship only via
 
 - **Project ref is always `sojmvhhwsjxmfistvzbe`.** Pass `--project-ref sojmvhhwsjxmfistvzbe` explicitly on every `supabase functions deploy`. `--workdir apps/myk9show` follows that dir's stale `.temp/project-ref` (myK9Show-Working, defunct). After deploying, confirm the output line "Deployed Functions on project ..." names the right ref — if it doesn't, the deploy went to the wrong project and must be redone.
 - **Edge functions deploy with `--no-verify-jwt`** (functions handle auth internally).
-- All of this is shared-system mutation. While [`docs/agents/standing-approvals.md`](../../../docs/agents/standing-approvals.md) says `status: ACTIVE` (read it fresh), a functions deploy and the Deploy myK9Show run need no confirmation, but only after the tripwire below exits 0 in this session. Otherwise, confirm with the user once before the first push/deploy of a session (Auto Mode rule in CLAUDE.md).
+- All of this is shared-system mutation. While [`docs/agents/standing-approvals.md`](../../../docs/agents/standing-approvals.md) says `status: ACTIVE` (read it fresh), a functions deploy and the Deploy myK9Show run need no confirmation, but only after the tripwire below exits 0 in this session. `supabase db push` is not pre-approved: always confirm it. Otherwise, confirm with the user once before the first push/deploy of a session (Auto Mode rule in CLAUDE.md).
 
-## Tripwire (before every live write)
+## Tripwire (before a pre-approved functions deploy or Deploy myK9Show run)
 
 ```bash
 source supabase/.env

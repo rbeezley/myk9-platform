@@ -225,7 +225,7 @@ Auto Mode's "execute immediately" guidance does NOT extend to shared-system muta
 - Creating/closing PRs, issues, or comments on GitHub
 - Posting to Slack, email, or any external service
 
-**Exception — standing approvals while pre-launch (owner, 2026-10-29):** while [`docs/agents/standing-approvals.md`](docs/agents/standing-approvals.md) says `status: ACTIVE` and `pnpm qa:prelaunch-tripwire` exits 0 right before the action, merging a green PR, running Deploy myK9Show, `supabase db push` and `supabase functions deploy` need no confirmation. Read that file fresh each time; it lists what stays with the owner and the record each action leaves. Anything that needs the owner goes to Linear (`needs:decision` / `needs:operator`), not a chat question.
+**Exception — standing approvals while pre-launch (owner, 2026-10-29):** while [`docs/agents/standing-approvals.md`](docs/agents/standing-approvals.md) says `status: ACTIVE` and `pnpm qa:prelaunch-tripwire` exits 0 right before the action, merging a green PR, running Deploy myK9Show and `supabase functions deploy` need no confirmation; `supabase db push` always does. Read that file fresh each time; it lists what stays with the owner and the record each action leaves. Anything that needs the owner goes to Linear (`needs:decision` / `needs:operator`), not a chat question.
 
 **Exception — Linear updates are pre-authorized (owner, 2026-10-26):** create MYK9 issues, change their status, labels or description, and comment, without asking. Done still needs a fresh read with every criterion met, and owner decisions are recorded, never made. Deletions, team settings, saved views and label definitions still need confirmation.
 

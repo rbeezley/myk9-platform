@@ -154,23 +154,6 @@ This will prompt for the database password. The password is in `supabase/.env` a
 Run this from the worktree linked to Supabase — **not** the main repo, and
 never from an unmerged branch.
 
-**Approval.** While [`docs/agents/standing-approvals.md`](../../../docs/agents/standing-approvals.md)
-says `status: ACTIVE` (read it fresh), the push needs no confirmation once the
-tripwire exits 0 with `--db-push`. Otherwise confirm with the
-user first (Auto Mode rule in CLAUDE.md).
-
-```bash
-source supabase/.env
-MYK9_MIGRATION_DATABASE_URL=postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres \
-PGPASSWORD="$SUPABASE_DB_PASSWORD" \
-  pnpm qa:prelaunch-tripwire --db-push   # scans every unpushed migration, not just this branch's
-```
-
-Exit 1 (for example, a migration that drops or deletes data) or 2: do **not**
-push. File or update the issue with `needs:operator` and the printed reason.
-After a pushed migration, comment on the issue with the versions and the
-Step 3 ACL output.
-
 ```bash
 source supabase/.env && supabase db push --password "$SUPABASE_DB_PASSWORD"
 ```

@@ -58,7 +58,7 @@ pnpm dev:show &
 until curl -sf http://localhost:5173 >/dev/null; do sleep 1; done
 ```
 
-Confirm the linked Supabase project matches the dev DB. Real-bug fixes that touch RLS will write a migration — that needs `supabase db push` later, which is a shared-system write and requires user confirmation unless `docs/agents/standing-approvals.md` covers it.
+Confirm the linked Supabase project matches the dev DB. Real-bug fixes that touch RLS will write a migration — that needs `supabase db push` later, which is a shared-system write and requires user confirmation.
 
 ### Step 1 — Sign in
 
@@ -204,7 +204,7 @@ A successful run produces:
 - **Never use `waitForTimeout` in the committed spec.** It's a flake factory. The recording session can use it, the spec cannot.
 - **Never reuse a migration number.** Always run `supabase migration list` against the linked project before picking one.
 - **Never commit `.playwright-cli/` artifacts.** It's gitignored; storage state for a role belongs in CI secrets, not the repo.
-- **Never run `supabase db push` without explicit confirmation or standing approvals** (per the Auto Mode rule for shared-system writes in `CLAUDE.md` / `AGENTS.md`).
+- **Never run `supabase db push` without explicit confirmation** (per the Auto Mode rule for shared-system writes in `CLAUDE.md` / `AGENTS.md`).
 - **Don't wander.** If you spot a bug outside the area being audited, flag it for a separate session (Claude Code: a `spawn_task` chip; Codex: a Linear issue via `todo-add`); don't fix it in this PR. Phase 2 has a "no wandering" rule for a reason.
 
 ## When NOT to Use

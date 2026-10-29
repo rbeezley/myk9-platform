@@ -1,11 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   type Approvals,
-  destructiveStatements,
   evaluateTripwire,
   parseApprovals,
   runTripwire,
@@ -41,13 +40,6 @@ describe('evaluateTripwire', () => {
     ['livemode on', approvals, { ...clean, livemode: true }, 1, 'live'],
     ['clubs unreadable', approvals, { ...clean, clubIds: null }, 2, 'clubs'],
     ['an unknown club', approvals, { ...clean, clubIds: [CLUB_A, STRANGER] }, 1, STRANGER],
-    [
-      'a destructive migration',
-      approvals,
-      { ...clean, migrations: [{ path: 'm/1.sql', sql: 'DROP TABLE public.x;' }] },
-      1,
-      'm/1.sql',
-    ],
   ])('%s', (_label, a, facts, code, reason) => {
     expect(evaluateTripwire(a, facts)).toEqual({ code, reason: expect.stringContaining(reason) });
   });
@@ -56,41 +48,10 @@ describe('evaluateTripwire', () => {
     expect(evaluateTripwire(approvals, clean).code).toBe(0);
   });
 
-  it('passes a migration whose only DROP TABLE is in a comment', () => {
-    const facts = {
-      ...clean,
-      migrations: [{ path: 'm/2.sql', sql: '-- DROP TABLE public.x;\nselect 1;' }],
-    };
-    expect(evaluateTripwire(approvals, facts).code).toBe(0);
-  });
-
   it('reports the first failing check: approvals before livemode before clubs', () => {
     const worst: TripwireFacts = { livemode: true, clubIds: [STRANGER] };
     expect(evaluateTripwire({ ...approvals, active: false }, worst).reason).toContain('OFF');
     expect(evaluateTripwire(approvals, worst).reason).toContain('live');
-  });
-});
-
-describe('destructiveStatements', () => {
-  it.each([
-    ['DROP TABLE public.x;', 1],
-    ['alter table public.x drop column y;', 1],
-    ['truncate public.x;', 1],
-    ['DELETE FROM public.x;', 1],
-    ['delete from public.x where id = 1;', 0],
-    ['/* DROP TABLE public.x; */ select 1;', 0],
-    ["do $$ begin execute 'select 1'; drop table public.y; end $$;", 1],
-    ['create table public.z (id int);', 0],
-    ['ALTER TABLE a DROP b;', 1],
-    ['DROP SCHEMA s CASCADE;', 1],
-    ['DELETE FROM a WHERE true;', 1],
-    ["COMMENT ON TABLE a IS 'x -- y'; DROP TABLE b;", 1],
-    ["COMMENT ON TABLE a IS 'x /* y'; DROP TABLE b; -- */", 1],
-    ['alter table a drop constraint c;', 0],
-    ['alter table a alter column b drop default;', 0],
-    ['alter table a alter column b drop not null;', 0],
-  ])('%s → %i statement(s)', (sql, count) => {
-    expect(destructiveStatements(sql)).toHaveLength(count);
   });
 });
 
@@ -121,13 +82,11 @@ describe('runTripwire (the CLI core)', () => {
   });
   const env = { MYK9_MIGRATION_DATABASE_URL: 'postgresql://stub' };
 
-  /** A checkout with its own approvals file, main's copy, a migrations dir, and stub git/psql. */
-  function setup(main: { status?: string; fails?: boolean } = {}, pushed: string[] = []) {
+  /** A checkout with its own approvals file, main's copy, and stub git/psql. */
+  function setup(main: { status?: string; fails?: boolean } = {}) {
     const dir = mkdtempSync(join(tmpdir(), 'tripwire-'));
     dirs.push(dir);
     const approvalsPath = join(dir, 'standing-approvals.md');
-    const migrationsDir = join(dir, 'migrations');
-    mkdirSync(migrationsDir);
     const calls: string[][] = [];
     const command = (name: string, args: string[]): string => {
       calls.push([name, ...args]);
@@ -139,12 +98,10 @@ describe('runTripwire (the CLI core)', () => {
       const sql = args[args.length - 1] ?? '';
       if (sql.includes('platform_settings')) return 'f\n';
       if (sql.includes('public.clubs')) return `${CLUB_A}\n${CLUB_B}\n`;
-      if (sql.includes('schema_migrations')) return pushed.map(v => `${v}\n`).join('');
       throw new Error(`unexpected command ${name} ${args.join(' ')}`);
     };
-    const run = (argv: string[] = []) =>
-      runTripwire({ approvalsPath, migrationsDir, argv, env, command });
-    return { approvalsPath, migrationsDir, command, calls, run };
+    const run = (argv: string[] = []) => runTripwire({ approvalsPath, argv, env, command });
+    return { approvalsPath, command, calls, run };
   }
 
   it('re-reads the approvals file on every run', () => {
@@ -169,31 +126,15 @@ describe('runTripwire (the CLI core)', () => {
   });
 
   it('cannot decide without a database URL', () => {
-    const { approvalsPath, migrationsDir, command } = setup();
+    const { approvalsPath, command } = setup();
     writeFileSync(approvalsPath, block('ACTIVE'));
-    expect(runTripwire({ approvalsPath, migrationsDir, argv: [], env: {}, command })).toEqual({
+    expect(runTripwire({ approvalsPath, argv: [], env: {}, command })).toEqual({
       code: 2,
       reason: expect.stringContaining('MYK9_MIGRATION_DATABASE_URL'),
     });
   });
 
-  it('--db-push scans every pending migration, not only the ones an agent names', () => {
-    const { approvalsPath, migrationsDir, run } = setup({}, ['20261029000000']);
-    writeFileSync(approvalsPath, block('ACTIVE'));
-    writeFileSync(join(migrationsDir, '20261029000000_pushed.sql'), 'drop table public.old;');
-    writeFileSync(
-      join(migrationsDir, '20261030000000_mine.sql'),
-      'create table public.a (id int);'
-    );
-    writeFileSync(join(migrationsDir, '20261030010000_other.sql'), 'alter table public.b drop c;');
-    expect(run(['--db-push'])).toEqual({
-      code: 1,
-      reason: expect.stringContaining('20261030010000_other.sql'),
-    });
-    expect(run().code).toBe(0);
-  });
-
-  it.each([[['--migration', 'x.sql']], [['--db-push=1']], [['--migration']]])(
+  it.each([[['--db-push']], [['--migration', 'x.sql']], [['--anything']]])(
     'rejects an unknown argument: %j',
     argv => {
       const { approvalsPath, run } = setup();
@@ -203,13 +144,13 @@ describe('runTripwire (the CLI core)', () => {
   );
 
   it('treats a failing query as could-not-decide', () => {
-    const { approvalsPath, migrationsDir } = setup();
+    const { approvalsPath } = setup();
     writeFileSync(approvalsPath, block('ACTIVE'));
     const failing = (name: string, args: string[]) => {
       if (name === 'git') return args[0] === 'show' ? block('ACTIVE') : '';
       throw new Error('psql: connection refused');
     };
-    const options = { approvalsPath, migrationsDir, argv: [], env, command: failing };
+    const options = { approvalsPath, argv: [], env, command: failing };
     expect(runTripwire(options).code).toBe(2);
   });
 });

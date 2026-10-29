@@ -231,5 +231,5 @@ After a confirmed merge, if the diff touched `supabase/migrations/` or a `supaba
 - Never add scope beyond the plan.
 - Max 10 test-fix iterations — escalate if hit.
 - If harden returns FAIL, stop before `ship-pr`.
-- Never run `supabase db push`, `supabase functions deploy` or the Deploy myK9Show workflow automatically unless `docs/agents/standing-approvals.md` covers it; either way, go through the `deploy` skill and its tripwire.
+- Never run `supabase db push` automatically. Never run `supabase functions deploy` or the Deploy myK9Show workflow automatically unless `docs/agents/standing-approvals.md` covers it; either way, go through the `deploy` skill and its tripwire.
 - Pre-existing typecheck failures in files this branch did not touch: stop and report, do not fix silently.

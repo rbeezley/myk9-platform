@@ -664,6 +664,10 @@ BEGIN
   IF to_regclass('private.results_privacy_epoch') IS NOT NULL THEN
     EXECUTE 'UPDATE private.results_privacy_epoch SET updated_at = ''2000-01-01''';
   END IF;
+  -- MYK9-1476: the fixture's user_roles inserts stamped the callers' access epochs.
+  IF to_regclass('private.user_access_epoch') IS NOT NULL THEN
+    EXECUTE 'UPDATE private.user_access_epoch SET changed_at = ''2000-01-01''';
+  END IF;
   SET LOCAL session_replication_role = origin;
 END;
 $$;

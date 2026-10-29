@@ -224,6 +224,8 @@ BEGIN
   UPDATE public.exhibitor_profiles SET updated_at = '2000-01-01'
   WHERE auth_user_id::text LIKE '00000000-0000-0000-0000-0000001361__';
   EXECUTE 'UPDATE private.results_privacy_epoch SET updated_at = ''2000-01-01''';
+  -- MYK9-1476: the fixture's user_roles inserts stamped the callers' access epochs.
+  EXECUTE 'UPDATE private.user_access_epoch SET changed_at = ''2000-01-01''';
   SET LOCAL session_replication_role = origin;
 END;
 $$;

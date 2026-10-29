@@ -137,7 +137,7 @@ describe('result_text on every results view reads DQ for a disqualified entry', 
     // MYK9-1369 hoisted is_show_exhibitor out of the per-row lateral, and
     // MYK9-1473 appended placement_tie/placement_tiebreak, so the DQ arm below
     // must survive all four rebuilds.
-    expect(view.file).toBe('20261029043900_myk9_1473_coin_flip_tie_order.sql');
+    expect(view.file).toBe('20261029192700_myk9_1476_caller_access_epoch.sql');
     expect(view.body).toContain('AS awaiting_registration_number');
     expect(view.body).toContain(
       "(access.can_view_scores OR vis.qualification_visible) AND e.is_scored = true AND e.result_status = 'disqualified' THEN 'DQ'"

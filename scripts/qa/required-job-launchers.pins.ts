@@ -164,6 +164,11 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   },
   {
     pkgDir: '.',
+    script: 'qa:no-ci-polling:test',
+    command: 'vitest run scripts/qa/no-ci-polling.test.ts',
+  },
+  {
+    pkgDir: '.',
     script: 'qa:ci-concurrency:test',
     command: 'vitest run scripts/qa/ci-concurrency.test.ts',
   },

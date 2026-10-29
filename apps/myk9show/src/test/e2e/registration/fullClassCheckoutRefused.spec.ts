@@ -1,27 +1,24 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsExhibitor } from '../helpers/testUsers';
 import { getIsolatedAdminClient, isIsolatedTarget } from '../helpers/isolatedFixtures';
-import {
-  aSelectedClass,
-  clickClearOfStickyChrome,
-  selectFirstDogAndContinue,
-  waitForChipsToSettle,
-} from './wizardChips';
+import { aSelectedClass, selectFirstDogAndContinue, waitForChipsToSettle } from './wizardChips';
 
 /**
  * Suite category: regression (isolated only).
  *
  * MYK9-226. Four test-mode carts were once charged for lines the server then
  * denied (a full class with `allow_waitlist = false`), and refunded in full. The
- * fix refuses such a line before payment. This spec rebuilds the incident's
- * shape: a valid line goes in the cart, then a line for a class that is full
- * (as if it filled after being added) is planted with the service key. At
- * Submit & pay the cart must drop that line, say it was not charged, and never
- * open a checkout session for it.
+ * fix drops such a line before it can be paid for: every cart load calls
+ * `reconcile_cart_closed_classes` (`store/cartStore.classClosure.ts`), one server
+ * call that decides and deletes, and the wizard says so with
+ * `ClosedClassRemovedNotice`.
  *
- * Every function call whose path names checkout, stripe or payment is aborted,
- * so nothing reaches Stripe. Both kinds of fullness are covered: the per-class
- * limit, and the judge-day capacity this incident actually hit.
+ * This spec rebuilds the incident's shape: a valid line goes in the cart, then a
+ * line for a class that is full (as if it filled after being added) is planted
+ * with the service key. On the next load the server must delete that line and the
+ * wizard must say it was not charged, before the Payment step is reachable. The
+ * walk stops there, so nothing reaches Stripe. Both kinds of fullness are covered:
+ * the per-class limit, and the judge-day capacity this incident actually hit.
  */
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
@@ -77,13 +74,8 @@ async function restoreJudgeDay(saved: SavedOverrides) {
   }
 }
 
-async function refusedAtPayment(page: Page, fullClassId: string, fullClassName: string) {
+async function droppedOnNextLoad(page: Page, fullClassId: string, fullClassName: string) {
   const client = getIsolatedAdminClient();
-  const checkoutCalls: string[] = [];
-  await page.route(/\/functions\/v1\/[^?]*(checkout|stripe|payment)/i, async route => {
-    checkoutCalls.push(route.request().postData() ?? '');
-    await route.abort('blockedbyclient');
-  });
   // Every cart line that exists now; anything new at the end was this test's and is deleted.
   const { data: existingItems, error: existingError } = await client
     .from('entry_cart_items')
@@ -133,16 +125,11 @@ async function refusedAtPayment(page: Page, fullClassId: string, fullClassName: 
       throw new Error(`Could not plant the stale line: ${plantError?.message}`);
     plantedId = planted.id;
 
+    // The next load reconciles the cart on the server, before Payment is reachable.
     await page.reload();
-    await page.getByRole('button', { name: /^Next$/ }).click({ timeout: 30_000 });
-    await expect(page.getByText(/Payment — step 3 of 4/)).toBeVisible({ timeout: 30_000 });
-    const main = page.locator('main').first();
-    await main.getByRole('button', { name: /^Credit\/Debit Card/ }).click();
-    await clickClearOfStickyChrome(page, page.locator('label[for="entry-agreement"]'));
-    const pay = main.getByRole('button', { name: /^Submit & pay/i });
-    await expect(pay).toBeEnabled({ timeout: 15_000 });
-    await pay.click();
-
+    await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
+      timeout: 30_000,
+    });
     // "it" for one removed line, "them" when the capped day also filled the valid line's class.
     await expect(page.getByText(/so you will not be charged for (it|them)/i)).toBeVisible({
       timeout: 20_000,
@@ -150,18 +137,15 @@ async function refusedAtPayment(page: Page, fullClassId: string, fullClassName: 
     await expect(
       page.getByRole('listitem').filter({ hasText: `in ${fullClassName}: this class is full` })
     ).toBeVisible();
-    // The refusal happens before payment: the planted line is gone from the server's cart,
-    // and no checkout session was requested at all (the exhibitor has not paid again).
     await expect
       .poll(
         async () => {
           const { data } = await client.from('entry_cart_items').select('id').eq('id', plantedId);
           return data?.length ?? -1;
         },
-        { timeout: 15_000, message: 'the full-class line is still in the cart' }
+        { timeout: 15_000, message: 'the server left the full-class line in the cart' }
       )
       .toBe(0);
-    expect(checkoutCalls).toEqual([]);
   } finally {
     const { data: after } = await client.from('entry_cart_items').select('id');
     const created = (after ?? []).map(item => item.id as string).filter(id => !preexisting.has(id));
@@ -169,14 +153,14 @@ async function refusedAtPayment(page: Page, fullClassId: string, fullClassName: 
   }
 }
 
-test('a per-class-full no-waitlist line is removed before payment', async ({ page }) => {
-  await refusedAtPayment(page, PER_CLASS_FULL, 'Handler Discrimination Advanced');
+test('a per-class-full no-waitlist line is dropped on the next cart load', async ({ page }) => {
+  await droppedOnNextLoad(page, PER_CLASS_FULL, 'Handler Discrimination Advanced');
 });
 
-test('a judge-day-full no-waitlist line is removed before payment', async ({ page }) => {
+test('a judge-day-full no-waitlist line is dropped on the next cart load', async ({ page }) => {
   const saved = await capJudgeDay();
   try {
-    await refusedAtPayment(page, JUDGE_DAY_CLASS, 'Interior Advanced');
+    await droppedOnNextLoad(page, JUDGE_DAY_CLASS, 'Interior Advanced');
   } finally {
     await restoreJudgeDay(saved);
   }

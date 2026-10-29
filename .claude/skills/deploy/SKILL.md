@@ -13,7 +13,17 @@ Merging a PR never deploys anything. Migrations and edge functions ship only via
 
 - **Project ref is always `sojmvhhwsjxmfistvzbe`.** Pass `--project-ref sojmvhhwsjxmfistvzbe` explicitly on every `supabase functions deploy`. `--workdir apps/myk9show` follows that dir's stale `.temp/project-ref` (myK9Show-Working, defunct). After deploying, confirm the output line "Deployed Functions on project ..." names the right ref — if it doesn't, the deploy went to the wrong project and must be redone.
 - **Edge functions deploy with `--no-verify-jwt`** (functions handle auth internally).
-- All of this is shared-system mutation: confirm with the user once before the first push/deploy of a session (Auto Mode rule in CLAUDE.md).
+- All of this is shared-system mutation. While [`docs/agents/standing-approvals.md`](../../../docs/agents/standing-approvals.md) says `status: ACTIVE` (read it fresh), a functions deploy and the Deploy myK9Show run need no confirmation, but only after the tripwire below exits 0 in this session. Otherwise, confirm with the user once before the first push/deploy of a session (Auto Mode rule in CLAUDE.md).
+
+## Tripwire (before every live write)
+
+```bash
+source supabase/.env
+MYK9_MIGRATION_DATABASE_URL=postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres \
+PGPASSWORD="$SUPABASE_DB_PASSWORD" pnpm qa:prelaunch-tripwire
+```
+
+Exit 0: proceed, then leave the record the standing-approvals table names on the Linear issue. Exit 1 or 2: do **not** run the action; file or update the issue with `needs:operator` and the printed reason, and move on.
 
 ## Deploying edge functions
 
@@ -37,7 +47,7 @@ Consider dispatching the `migration-auditor` agent on any new migration file bef
 
 1. `supabase migration list` — remote matches local.
 2. Functions: hit the function or check `supabase functions list --project-ref sojmvhhwsjxmfistvzbe` shows the new version; watch logs via the Supabase MCP `get_logs`.
-3. Frontend: nothing deploys on merge. With the user's go-ahead, `gh workflow run deploy-myk9show.yml` deploys the newest `main` commit with a green CI run; `gh run watch` it, and read the summary for the deployed commit and the entry chunk myk9show.com serves.
+3. Frontend: nothing deploys on merge. With the user's go-ahead or under standing approvals (tripwire exit 0), `gh workflow run deploy-myk9show.yml` deploys the newest `main` commit with a green CI run. Wait for it with `gh run watch <id> --exit-status` started with `run_in_background: true` (a foreground watch is refused, MYK9-1481), then read the summary for the deployed commit and the entry chunk myk9show.com serves, and comment on each `MYK9-<n>` issue whose commits it shipped.
 4. Run `get_advisors` after schema changes to catch new RLS/security warnings.
 
 ## Common failure signatures

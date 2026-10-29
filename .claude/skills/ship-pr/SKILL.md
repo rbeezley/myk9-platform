@@ -26,7 +26,7 @@ An explicit `/ship-pr`, "ship this branch," or "create a PR" request authorizes 
 - apply the `codex` and `codex-automation` labels when available; and
 - update the PR description as part of the shipping workflow.
 
-Do not ask for confirmation again before these steps. Merging, enabling auto-merge, closing a PR, or deploying a shared system requires separate explicit authorization unless the user explicitly requested merge or shipping through completion.
+Do not ask for confirmation again before these steps. Merging, enabling auto-merge, closing a PR, or deploying a shared system requires separate explicit authorization unless the user explicitly requested merge or shipping through completion, or [`docs/agents/standing-approvals.md`](../../../docs/agents/standing-approvals.md) covers it: while it says `status: ACTIVE` (read it fresh) and `pnpm qa:prelaunch-tripwire` exits 0 right before the merge, Step 5's merge needs no go-ahead. Anything that needs the owner goes to Linear (`needs:decision` / `needs:operator`), not a chat question.
 
 ## Workflow
 
@@ -275,7 +275,7 @@ ownership and approved-handoff requirements. Proceed to Steps 6–7 only once me
 Do this **before** Step 7: once the worktree is removed the harness keeps its CWD there, and later shell calls fail.
 
 1. Confirm the merge: `gh pr view $PR_NUMBER --json state,mergeCommit`.
-2. A merge is not a deploy. The frontend goes live only on the next **Deploy myK9Show** run (`gh workflow run deploy-myk9show.yml`, only when the user asks); its summary names the deployed commit.
+2. A merge is not a deploy. The frontend goes live only on the next **Deploy myK9Show** run (`gh workflow run deploy-myk9show.yml`, only when the user asks or under standing approvals, through the `deploy` skill's tripwire); its summary names the deployed commit.
 3. Read the **full** issue with `get_issue` and check every criterion. Apply the single disposition/evidence contract in `docs/agents/issue-tracker.md`; do not accept automatic Done while acceptance or production proof remains owed. Record the exact next action and pending evidence rather than duplicating state/label mappings here. If a deploy or production evidence remains owed, explicitly tell the user what is pending and that merge alone did not make the fix live.
 
 ---

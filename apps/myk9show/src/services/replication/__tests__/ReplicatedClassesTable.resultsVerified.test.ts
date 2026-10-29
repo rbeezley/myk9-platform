@@ -42,9 +42,22 @@ describe('ReplicatedClassesTable paper check (MYK9-1031)', () => {
   const manager = {
     rowRefetchers: { register: vi.fn() },
     discardReverters: { register: vi.fn() },
-    queueMutation: vi.fn(async () => 'm1'),
-    acquireMutationWriteLock: vi.fn(async () => () => undefined),
+    prepareMutation: vi.fn(
+      async (tableName: string, operation: string, rowId: string, data: unknown) => ({
+        id: 'm1',
+        authUserId: 'auth-1',
+        tableName,
+        operation,
+        rowId,
+        data,
+        timestamp: 0,
+        retries: 0,
+        status: 'pending',
+      })
+    ),
+    announceQueued: vi.fn(async () => undefined),
     requestUpload: vi.fn(),
+    acquireMutationWriteLock: vi.fn(async () => () => undefined),
   };
 
   beforeEach(async () => {
@@ -64,7 +77,7 @@ describe('ReplicatedClassesTable paper check (MYK9-1031)', () => {
         await store.clear?.();
       });
     }
-    manager.queueMutation.mockClear();
+    manager.prepareMutation.mockClear();
     manager.acquireMutationWriteLock.mockClear();
     table.setMutationManager(fromAny<MutationManager, unknown>(manager));
     await table.set('class-1', baseClass());
@@ -79,7 +92,7 @@ describe('ReplicatedClassesTable paper check (MYK9-1031)', () => {
 
     await table.updateClass('class-1', { name: 'Container Novice B' });
 
-    const payload = manager.queueMutation.mock.calls.at(-1) as unknown as unknown[];
+    const payload = manager.prepareMutation.mock.calls.at(-1) as unknown as unknown[];
     expect(payload[3]).not.toHaveProperty('results_verified_at');
     expect(payload[3]).not.toHaveProperty('results_verified_by');
     expect(await table.getClassById('class-1')).toMatchObject({ resultsVerifiedAt: AT });

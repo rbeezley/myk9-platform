@@ -61,6 +61,7 @@ vi.mock('@myk9/core', () => ({
 // Import mocked dependencies
 import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@myk9/core';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 describe('ReplicatedDogsTable', () => {
   let dogsTable: ReplicatedDogsTable;
@@ -291,16 +292,7 @@ describe('ReplicatedDogsTable', () => {
       it('does not queue unknown lifecycle fields as null during unrelated dog updates', async () => {
         const mockDog = createMockDog({ status: undefined, deletedAt: undefined });
         const mockRow = createReplicatedRow(mockDog);
-        const queueMutation = vi.spyOn(
-          dogsTable as unknown as {
-            queueMutation: (
-              operation: string,
-              rowId: string,
-              payload: Record<string, unknown>
-            ) => Promise<string | null>;
-          },
-          'queueMutation'
-        );
+        const queueMutation = spyOnWriteAndQueue(dogsTable).queue;
 
         mockDb.get.mockResolvedValue(mockRow);
         mockDb.transaction.mockReturnValue({
@@ -322,16 +314,7 @@ describe('ReplicatedDogsTable', () => {
         const deletedAt = '2026-06-05T12:00:00.000Z';
         const mockDog = createMockDog({ status: 'retired', deletedAt });
         const mockRow = createReplicatedRow(mockDog);
-        const queueMutation = vi.spyOn(
-          dogsTable as unknown as {
-            queueMutation: (
-              operation: string,
-              rowId: string,
-              payload: Record<string, unknown>
-            ) => Promise<string | null>;
-          },
-          'queueMutation'
-        );
+        const queueMutation = spyOnWriteAndQueue(dogsTable).queue;
 
         mockDb.get.mockResolvedValue(mockRow);
         mockDb.transaction.mockReturnValue({
@@ -361,25 +344,9 @@ describe('ReplicatedDogsTable', () => {
           breed: 'Border Collie',
           ownerId: 'person-local-1',
         });
-        const setSpy = vi
-          .spyOn(
-            dogsTable as unknown as { setWithRevision: () => Promise<unknown> },
-            'setWithRevision'
-          )
-          .mockResolvedValue({ result: { written: true }, revision: 2 });
-        const queueMutation = vi
-          .spyOn(
-            dogsTable as unknown as {
-              queueMutation: (
-                operation: string,
-                rowId: string,
-                payload: Record<string, unknown>,
-                dependencies?: string[]
-              ) => Promise<string | null>;
-            },
-            'queueMutation'
-          )
-          .mockResolvedValue('dog-mutation-1');
+        const setSpy = spyOnWriteAndQueue(dogsTable, { writeRow: false }).set;
+        const queueMutation =
+          spyOnWriteAndQueue(dogsTable).queue.mockResolvedValue('dog-mutation-1');
 
         const result = await dogsTable.createDogWithId(newDog, {
           dependsOn: ['person-mutation-1'],
@@ -393,10 +360,7 @@ describe('ReplicatedDogsTable', () => {
             _syncStatus: 'pending',
             _localOnly: true,
           }),
-          true,
-          undefined,
-          undefined,
-          undefined
+          true
         );
         expect(queueMutation).toHaveBeenCalledWith(
           'INSERT',
@@ -405,9 +369,7 @@ describe('ReplicatedDogsTable', () => {
             id: 'dog-local-1',
             owner_id: 'person-local-1',
           }),
-          ['person-mutation-1'],
-          undefined,
-          true
+          ['person-mutation-1']
         );
         expect(dogsTable.lastMutationId).toBe('dog-mutation-1');
       });
@@ -434,20 +396,9 @@ describe('ReplicatedDogsTable', () => {
           });
           newDog.callName = callName;
 
-          const setSpy = vi
-            .spyOn(
-              dogsTable as unknown as { setWithRevision: () => Promise<unknown> },
-              'setWithRevision'
-            )
-            .mockResolvedValue({ result: { written: true }, revision: 2 });
-          const queueMutation = vi
-            .spyOn(
-              dogsTable as unknown as {
-                queueMutation: (...args: unknown[]) => Promise<string | null>;
-              },
-              'queueMutation'
-            )
-            .mockResolvedValue('should-never-happen');
+          const setSpy = spyOnWriteAndQueue(dogsTable, { writeRow: false }).set;
+          const queueMutation =
+            spyOnWriteAndQueue(dogsTable).queue.mockResolvedValue('should-never-happen');
 
           await expect(dogsTable.createDogWithId(newDog)).rejects.toThrow(/call name/i);
           await expect(dogsTable.createDogWithRegistrationsRpc(newDog, [])).rejects.toThrow(
@@ -467,30 +418,9 @@ describe('ReplicatedDogsTable', () => {
           breed: 'Border Collie',
           ownerId: 'person-local-1',
         });
-        const setSpy = vi
-          .spyOn(
-            dogsTable as unknown as { setWithRevision: () => Promise<unknown> },
-            'setWithRevision'
-          )
-          .mockResolvedValue({ result: { written: true }, revision: 2 });
-        const queueMutation = vi
-          .spyOn(
-            dogsTable as unknown as {
-              queueMutation: (
-                operation: string,
-                rowId: string,
-                payload: Record<string, unknown>,
-                dependencies?: string[],
-                rpc?: {
-                  name: string;
-                  args: Record<string, unknown>;
-                  expectRowId: boolean;
-                }
-              ) => Promise<string | null>;
-            },
-            'queueMutation'
-          )
-          .mockResolvedValue('dog-mutation-1');
+        const setSpy = spyOnWriteAndQueue(dogsTable, { writeRow: false }).set;
+        const queueMutation =
+          spyOnWriteAndQueue(dogsTable).queue.mockResolvedValue('dog-mutation-1');
 
         await dogsTable.createDogWithRegistrationsRpc(
           newDog,
@@ -514,10 +444,7 @@ describe('ReplicatedDogsTable', () => {
             _syncStatus: 'pending',
             _localOnly: true,
           }),
-          true,
-          undefined,
-          undefined,
-          undefined
+          true
         );
         expect(queueMutation).toHaveBeenCalledWith(
           'INSERT',
@@ -546,8 +473,7 @@ describe('ReplicatedDogsTable', () => {
               ],
             },
             expectRowId: true,
-          },
-          true
+          }
         );
       });
 
@@ -558,12 +484,7 @@ describe('ReplicatedDogsTable', () => {
           ownerId: 'owner-456',
         };
 
-        const setSpy = vi
-          .spyOn(
-            dogsTable as unknown as { setWithRevision: () => Promise<unknown> },
-            'setWithRevision'
-          )
-          .mockResolvedValue({ result: { written: true }, revision: 2 });
+        const setSpy = spyOnWriteAndQueue(dogsTable, { writeRow: false }).set;
 
         const result = await dogsTable.createDog(newDogData);
 
@@ -574,14 +495,7 @@ describe('ReplicatedDogsTable', () => {
         expect(result._syncStatus).toBe('pending');
         expect(result._localOnly).toBe(true);
 
-        expect(setSpy).toHaveBeenCalledWith(
-          result.id,
-          expect.objectContaining(newDogData),
-          true,
-          undefined,
-          undefined,
-          undefined
-        );
+        expect(setSpy).toHaveBeenCalledWith(result.id, expect.objectContaining(newDogData), true);
 
         expect(logger.log).toHaveBeenCalledWith(
           expect.stringContaining(`Created new dog ${result.id}`)

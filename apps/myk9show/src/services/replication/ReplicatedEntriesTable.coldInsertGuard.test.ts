@@ -15,7 +15,7 @@
  * untouched.
  */
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import type { MutationManager } from '@myk9/replication';
+import { databaseManager, REPLICATION_STORES, type MutationManager } from '@myk9/replication';
 import { ReplicatedEntriesTable, type ReplicatedEntry } from './ReplicatedEntriesTable';
 import { readWithReplicationFallback } from '@/services/database/_shared/read-shape';
 import { supabase } from '@/services/database/supabaseClient';
@@ -163,12 +163,27 @@ describe('ReplicatedEntriesTable cold-insert guard (MYK9-575)', () => {
 
   describe('updateSecretaryLifecycleStatus on a cold replica', () => {
     function wireMutationManager() {
+      const prepareMutation = vi.fn(
+        async (tableName: string, operation: string, rowId: string) => ({
+          id: 'mutation-1',
+          authUserId: 'auth-1',
+          tableName,
+          operation,
+          rowId,
+          data: {},
+          timestamp: 0,
+          retries: 0,
+          status: 'pending',
+        })
+      );
       const queueMutation = vi.fn(async () => 'mutation-1');
       table.setMutationManager({
         queueMutation,
+        prepareMutation,
+        announceQueued: vi.fn(async () => undefined),
+        requestUpload: vi.fn(),
         rowRefetchers: { register: () => () => undefined },
         acquireMutationWriteLock: vi.fn(async () => vi.fn()),
-        requestUpload: vi.fn(),
         getPendingCount: vi.fn(async () => 0),
       } as unknown as MutationManager);
       return queueMutation;

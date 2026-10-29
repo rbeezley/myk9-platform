@@ -20,6 +20,7 @@ import {
 } from '../ReplicatedShowsTable';
 import { SHOW_REQUIRES_CLUB_MESSAGE } from '@/services/database/shows/requireShowClub';
 import { fromAny } from '@total-typescript/shoehorn';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 // Mock dependencies
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -535,16 +536,7 @@ describe('ReplicatedShowsTable', () => {
         latitude: 36.15,
         longitude: -95.99,
       };
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       await table.set('show-1', show);
       await table.updateShow('show-1', { location: '200 New Venue Road' });
@@ -556,10 +548,7 @@ describe('ReplicatedShowsTable', () => {
           location: '200 New Venue Road',
           latitude: null,
           longitude: null,
-        }),
-        undefined,
-        undefined,
-        true
+        })
       );
       expect(await table.get('show-1')).toMatchObject({
         location: '200 New Venue Road',
@@ -655,16 +644,7 @@ describe('ReplicatedShowsTable', () => {
         experiencePublishedStyle: null,
         experiencePublishedContent: null,
       };
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       await table.set('show-1', show);
       await table.updateShow('show-1', {
@@ -699,10 +679,7 @@ describe('ReplicatedShowsTable', () => {
           experience_published_at: expect.anything(),
           experience_published_style: expect.anything(),
           experience_published_content: expect.anything(),
-        }),
-        undefined,
-        undefined,
-        true
+        })
       );
       expect(queueMutation.mock.calls[0]?.[2]).not.toHaveProperty('experience_published_content');
       expect((await table.get('show-1'))?.experienceIsPublished).toBe(false);
@@ -723,16 +700,7 @@ describe('ReplicatedShowsTable', () => {
         endDate: '2026-06-16',
         style: 'monogram',
       };
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
       queueMutation.mockResolvedValue('mutation-1');
 
       await table.set('show-1', show);
@@ -741,10 +709,7 @@ describe('ReplicatedShowsTable', () => {
       expect(queueMutation).toHaveBeenCalledWith(
         'UPDATE',
         'show-1',
-        expect.not.objectContaining({ style: expect.anything() }),
-        undefined,
-        undefined,
-        true
+        expect.not.objectContaining({ style: expect.anything() })
       );
       expect((await table.get('show-1'))?.style).toBe('monogram');
     });
@@ -884,16 +849,7 @@ describe('ReplicatedShowsTable', () => {
     // MYK9-1008: shows.club_id is NOT NULL. A clubless create queued offline
     // would only fail when it synced, so it is refused before any write.
     it.each(['', '   '])('refuses a show with no club (%j) and writes nothing', async clubId => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
       const before = await table.getAllShows();
 
       await expect(
@@ -911,16 +867,7 @@ describe('ReplicatedShowsTable', () => {
     });
 
     it('queues the INSERT with the club it was given', async () => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       const result = await table.createShow({
         name: 'Club Show',
@@ -933,24 +880,12 @@ describe('ReplicatedShowsTable', () => {
       expect(queueMutation).toHaveBeenCalledWith(
         'INSERT',
         result.id,
-        expect.objectContaining({ club_id: 'club-123' }),
-        undefined,
-        undefined,
-        true
+        expect.objectContaining({ club_id: 'club-123' })
       );
     });
 
     it('should queue an empty published experience object for new show inserts', async () => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       const result = await table.createShow({
         name: 'Test Show',
@@ -966,24 +901,12 @@ describe('ReplicatedShowsTable', () => {
         expect.objectContaining({
           experience_is_published: false,
           experience_published_content: {},
-        }),
-        undefined,
-        undefined,
-        true
+        })
       );
     });
 
     it('should create show with full metadata', async () => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       const result = await table.createShow({
         name: 'Premium Show',
@@ -1012,10 +935,7 @@ describe('ReplicatedShowsTable', () => {
       expect(queueMutation).toHaveBeenCalledWith(
         'INSERT',
         result.id,
-        expect.objectContaining({ is_nationals: true }),
-        undefined,
-        undefined,
-        true
+        expect.objectContaining({ is_nationals: true })
       );
     });
   });

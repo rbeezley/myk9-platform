@@ -16,6 +16,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fromAny } from '@total-typescript/shoehorn';
 import { ReplicatedTrialsTable, type ReplicatedTrial } from '../ReplicatedTrialsTable';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 // Mock dependencies
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -214,9 +215,7 @@ describe('ReplicatedTrialsTable', () => {
       type Spyable = { queueMutation: (...args: unknown[]) => Promise<string> };
 
       it('persists registry_id from the replicated trial into the INSERT payload', async () => {
-        const spy = vi
-          .spyOn(table as unknown as Spyable, 'queueMutation')
-          .mockResolvedValue('mutation-1');
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-1');
 
         await table.createTrial({
           id: 'trial-ukc',
@@ -231,9 +230,7 @@ describe('ReplicatedTrialsTable', () => {
       });
 
       it('defaults registry_id to AKC when unset (never writes NULL to the NOT-NULL column)', async () => {
-        const spy = vi
-          .spyOn(table as unknown as Spyable, 'queueMutation')
-          .mockResolvedValue('mutation-2');
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-2');
 
         await table.createTrial({
           id: 'trial-default',
@@ -254,9 +251,7 @@ describe('ReplicatedTrialsTable', () => {
       type Spyable = { queueMutation: (...args: unknown[]) => Promise<string> };
 
       it('persists the wizard-selected timezone into the INSERT payload', async () => {
-        const spy = vi
-          .spyOn(table as unknown as Spyable, 'queueMutation')
-          .mockResolvedValue('mutation-tz-1');
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-tz-1');
 
         await table.createTrial({
           id: 'trial-chicago',
@@ -271,9 +266,7 @@ describe('ReplicatedTrialsTable', () => {
       });
 
       it('defaults timezone to America/New_York when unset (never writes NULL to the NOT-NULL column)', async () => {
-        const spy = vi
-          .spyOn(table as unknown as Spyable, 'queueMutation')
-          .mockResolvedValue('mutation-tz-2');
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-tz-2');
 
         await table.createTrial({
           id: 'trial-default-tz',
@@ -305,9 +298,7 @@ describe('ReplicatedTrialsTable', () => {
 
       it('forwards the dependency ids to the queued UPDATE mutation', async () => {
         await table.set('trial-dep', seeded);
-        const spy = vi
-          .spyOn(table as unknown as Spyable, 'queueMutation')
-          .mockResolvedValue('mutation-3');
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-3');
 
         await table.updateTrial('trial-dep', { registryId: 'UKC' }, ['show-mutation-1']);
 
@@ -318,9 +309,7 @@ describe('ReplicatedTrialsTable', () => {
 
       it('queues no dependency for an ordinary update', async () => {
         await table.set('trial-dep', seeded);
-        const spy = vi
-          .spyOn(table as unknown as Spyable, 'queueMutation')
-          .mockResolvedValue('mutation-4');
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-4');
 
         await table.updateTrial('trial-dep', { name: 'Renamed' });
 
@@ -331,9 +320,7 @@ describe('ReplicatedTrialsTable', () => {
         // An empty array would make `dependsOn: []` — harmless for the runner, but it
         // persists a field that reads as "has dependencies" to anything inspecting the queue.
         await table.set('trial-dep', seeded);
-        const spy = vi
-          .spyOn(table as unknown as Spyable, 'queueMutation')
-          .mockResolvedValue('mutation-5');
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-5');
 
         await table.updateTrial('trial-dep', { registryId: 'UKC' }, []);
 

@@ -4,6 +4,7 @@ import {
   ReplicatedPaperworkPrintsTable,
   rowToPaperworkPrint,
 } from '../ReplicatedPaperworkPrintsTable';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { from: vi.fn() } }));
 vi.mock('@myk9/core', () => ({
@@ -25,16 +26,7 @@ describe('ReplicatedPaperworkPrintsTable', () => {
   });
 
   it('queues an append-only Class print confirmation with a stable client id', async () => {
-    const queueMutation = vi.spyOn(
-      table as unknown as {
-        queueMutation: (
-          operation: string,
-          rowId: string,
-          payload: Record<string, unknown>
-        ) => Promise<string | null>;
-      },
-      'queueMutation'
-    );
+    const queueMutation = spyOnWriteAndQueue(table).queue;
 
     const record = await table.confirmPrinted({
       id: 'print-1',
@@ -66,10 +58,7 @@ describe('ReplicatedPaperworkPrintsTable', () => {
         class_id: 'class-1',
         report_id: 'check-in-sheet',
         printed_by: 'user-1',
-      }),
-      undefined,
-      undefined,
-      true
+      })
     );
   });
 
@@ -84,16 +73,7 @@ describe('ReplicatedPaperworkPrintsTable', () => {
       printedByName: 'Jamie',
       printedAt: '2026-07-20T14:00:00.000Z',
     });
-    const queueMutation = vi.spyOn(
-      table as unknown as {
-        queueMutation: (
-          operation: string,
-          rowId: string,
-          payload: Record<string, unknown>
-        ) => Promise<string | null>;
-      },
-      'queueMutation'
-    );
+    const queueMutation = spyOnWriteAndQueue(table).queue;
 
     await table.voidPrint({
       id: 'print-1',
@@ -102,18 +82,11 @@ describe('ReplicatedPaperworkPrintsTable', () => {
       voidedAt: '2026-07-20T14:05:00.000Z',
     });
 
-    expect(queueMutation).toHaveBeenLastCalledWith(
-      'UPDATE',
-      'print-1',
-      {
-        voided_at: '2026-07-20T14:05:00.000Z',
-        voided_by: 'user-2',
-        void_reason: 'Wrong stock',
-      },
-      undefined,
-      undefined,
-      true
-    );
+    expect(queueMutation).toHaveBeenLastCalledWith('UPDATE', 'print-1', {
+      voided_at: '2026-07-20T14:05:00.000Z',
+      voided_by: 'user-2',
+      void_reason: 'Wrong stock',
+    });
     expect(await table.get('print-1')).toEqual(
       expect.objectContaining({
         reportId: 'armband-labels',
@@ -160,18 +133,7 @@ describe('ReplicatedPaperworkPrintsTable', () => {
 
   it('persists an offline confirmation and its full insert payload for later replay', async () => {
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-    const queueMutation = vi
-      .spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      )
-      .mockResolvedValue('mutation-1');
+    const queueMutation = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-1');
     await table.confirmPrinted({
       id: 'offline-print',
       scope: { kind: 'trial', showId: 'show-1', trialId: 'trial-1' },
@@ -191,10 +153,7 @@ describe('ReplicatedPaperworkPrintsTable', () => {
         show_id: 'show-1',
         trial_id: 'trial-1',
         report_id: 'scoresheet',
-      }),
-      undefined,
-      undefined,
-      true
+      })
     );
     expect(await new ReplicatedPaperworkPrintsTable().get('offline-print')).toEqual(
       expect.objectContaining({ _syncStatus: 'pending', _localOnly: true })

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ReplicatedDogRegistrationsTable } from '../ReplicatedDogRegistrationsTable';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 vi.mock('@myk9/core', () => ({
   logger: {
@@ -13,22 +14,9 @@ vi.mock('@myk9/core', () => ({
 describe('ReplicatedDogRegistrationsTable', () => {
   it('queues dog registration inserts behind the dog mutation', async () => {
     const table = new ReplicatedDogRegistrationsTable();
-    const setSpy = vi
-      .spyOn(table as unknown as { setWithRevision: () => Promise<unknown> }, 'setWithRevision')
-      .mockResolvedValue({ result: { written: true }, revision: 2 });
-    const queueMutationSpy = vi
-      .spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>,
-            dependsOn?: string[]
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      )
-      .mockResolvedValue('registration-mutation-1');
+    const setSpy = spyOnWriteAndQueue(table, { writeRow: false }).set;
+    const queueMutationSpy =
+      spyOnWriteAndQueue(table).queue.mockResolvedValue('registration-mutation-1');
 
     const registrations = await table.createRegistrationsForDog(
       'dog-local-1',
@@ -56,10 +44,7 @@ describe('ReplicatedDogRegistrationsTable', () => {
         _syncStatus: 'pending',
         _localOnly: true,
       }),
-      true,
-      undefined,
-      undefined,
-      undefined
+      true
     );
     expect(queueMutationSpy).toHaveBeenCalledWith(
       'INSERT',
@@ -74,26 +59,14 @@ describe('ReplicatedDogRegistrationsTable', () => {
         created_at: expect.any(String),
         status: 'pending',
       }),
-      ['dog-mutation-1'],
-      undefined,
-      true
+      ['dog-mutation-1']
     );
   });
 
   it('can create local registration rows without queueing separate uploads', async () => {
     const table = new ReplicatedDogRegistrationsTable();
     const setSpy = vi.spyOn(table, 'set').mockResolvedValue({ written: true });
-    const queueMutationSpy = vi.spyOn(
-      table as unknown as {
-        queueMutation: (
-          operation: string,
-          rowId: string,
-          payload: Record<string, unknown>,
-          dependsOn?: string[]
-        ) => Promise<string | null>;
-      },
-      'queueMutation'
-    );
+    const queueMutationSpy = spyOnWriteAndQueue(table).queue;
 
     const registrations = await table.createLocalRegistrationsForDog('dog-local-1', [
       {

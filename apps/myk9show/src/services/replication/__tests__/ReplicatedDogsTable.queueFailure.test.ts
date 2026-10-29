@@ -64,7 +64,7 @@ async function snapshot() {
 describe('updateDog when the queue refuses the mutation', () => {
   it('leaves a clean row exactly as it was', async () => {
     const before = await snapshot();
-    vi.spyOn(queue.manager, 'queueMutation').mockRejectedValueOnce(OVERFLOW);
+    vi.spyOn(queue.manager, 'prepareMutation').mockRejectedValueOnce(OVERFLOW);
 
     await expect(table.updateDog(DOG.id, { name: 'Changed' })).rejects.toThrow(/overflow/);
 
@@ -77,7 +77,7 @@ describe('updateDog when the queue refuses the mutation', () => {
     await table.updateDog(DOG.id, { name: 'First edit' });
     const before = await snapshot();
     const pendingBefore = await queue.pending();
-    vi.spyOn(queue.manager, 'queueMutation').mockRejectedValueOnce(OVERFLOW);
+    vi.spyOn(queue.manager, 'prepareMutation').mockRejectedValueOnce(OVERFLOW);
 
     await expect(table.updateDog(DOG.id, { name: 'Second edit' })).rejects.toThrow(/overflow/);
 
@@ -87,7 +87,7 @@ describe('updateDog when the queue refuses the mutation', () => {
   });
 
   it('accepts the next write once the queue recovers', async () => {
-    vi.spyOn(queue.manager, 'queueMutation').mockRejectedValueOnce(OVERFLOW);
+    vi.spyOn(queue.manager, 'prepareMutation').mockRejectedValueOnce(OVERFLOW);
     await expect(table.updateDog(DOG.id, { name: 'Lost' })).rejects.toThrow(/overflow/);
 
     await table.updateDog(DOG.id, { name: 'Saved' });

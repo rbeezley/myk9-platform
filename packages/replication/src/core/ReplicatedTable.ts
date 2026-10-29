@@ -796,7 +796,12 @@ export abstract class ReplicatedTable<T extends { id: string }> {
         : REPLICATION_STORES.REPLICATED_TABLES,
       'readwrite'
     );
-    const rowStore = tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES);
+    const rowStore = (queued
+      ? tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES)
+      : tx.store) as unknown as {
+      get(key: unknown): Promise<unknown>;
+      put(value: unknown): Promise<unknown>;
+    };
 
     const normalizedId = String(id);
     const existingRow = (await rowStore.get([this.tableName, normalizedId])) as
@@ -856,7 +861,12 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       now: Date.now(),
     });
 
-    await putRowAndMutation(tx, rowStore.put(row), row, queued);
+    if (queued) {
+      await putRowAndMutation(tx, rowStore.put(row), row, queued);
+    } else {
+      await rowStore.put(row);
+      await tx.done;
+    }
     if (attempt) attempt.revision = row.version;
 
     this.logger.log(

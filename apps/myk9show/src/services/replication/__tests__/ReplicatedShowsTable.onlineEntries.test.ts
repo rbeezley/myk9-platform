@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { detectDirtyRowConflict } from '@myk9/replication';
 import { ReplicatedShowsTable, rowToShow, type ReplicatedShow } from '../ReplicatedShowsTable';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { from: vi.fn() } }));
 vi.mock('@myk9/core', () => ({
@@ -38,7 +39,7 @@ describe('ReplicatedShowsTable — generic show writes never carry online_entrie
     const { databaseManager } = await import('@myk9/replication');
     await databaseManager.reset();
     table = new ReplicatedShowsTable();
-    queueMutation = vi.spyOn(table as unknown as { queueMutation: QueueMutation }, 'queueMutation');
+    queueMutation = spyOnWriteAndQueue(table).queue;
     queueMutation.mockResolvedValue('mutation-1');
   });
 
@@ -111,9 +112,7 @@ describe('rowToShow — the server version the online-entries switch waits for (
     const { databaseManager } = await import('@myk9/replication');
     await databaseManager.reset();
     const table = new ReplicatedShowsTable();
-    const queue = vi
-      .spyOn(table as unknown as { queueMutation: QueueMutation }, 'queueMutation')
-      .mockResolvedValue('mutation-1');
+    const queue = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-1');
     await table.set(BASE.id, { ...BASE, serverVersion: 12 });
     await table.updateShow(BASE.id, { name: 'Renamed' });
     const payload = queue.mock.calls.at(-1)?.[2] as Record<string, unknown>;
@@ -130,10 +129,7 @@ describe('ReplicatedShowsTable — a sync merge never replaces a known server va
     const { databaseManager } = await import('@myk9/replication');
     await databaseManager.reset();
     table = new ReplicatedShowsTable();
-    vi.spyOn(
-      table as unknown as { queueMutation: QueueMutation },
-      'queueMutation'
-    ).mockResolvedValue('mutation-1');
+    spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-1');
   });
 
   afterEach(async () => {

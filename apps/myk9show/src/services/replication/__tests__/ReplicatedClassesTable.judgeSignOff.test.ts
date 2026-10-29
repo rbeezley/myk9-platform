@@ -22,6 +22,7 @@ import {
   type ReplicatedClass,
 } from '../ReplicatedClassesTable';
 import { REPLICATION_STORES } from '@myk9/replication';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 type QueueMutation = (
   operation: string,
@@ -67,7 +68,7 @@ describe('ReplicatedClassesTable judge sign-off (MYK9-1030)', () => {
         await store.clear?.();
       });
     }
-    queueMutation = vi.spyOn(table as unknown as { queueMutation: QueueMutation }, 'queueMutation');
+    queueMutation = spyOnWriteAndQueue(table).queue;
   });
 
   afterEach(() => {
@@ -87,8 +88,7 @@ describe('ReplicatedClassesTable judge sign-off (MYK9-1030)', () => {
       {
         name: 'mark_classes_judge_signed_off',
         args: { p_class_ids: ['class-1'], p_signed_off_at: AT },
-      },
-      true
+      }
     );
     expect(await table.getClassById('class-1')).toMatchObject({
       judgeSignedOffAt: AT,
@@ -121,8 +121,7 @@ describe('ReplicatedClassesTable judge sign-off (MYK9-1030)', () => {
       'class-1',
       { id: 'class-1', judge_signed_off_at: null },
       undefined,
-      { name: 'clear_class_judge_sign_off', args: { p_class_id: 'class-1' } },
-      true
+      { name: 'clear_class_judge_sign_off', args: { p_class_id: 'class-1' } }
     );
     expect(await table.getClassById('class-1')).toMatchObject({
       judgeSignedOffAt: null,

@@ -27,7 +27,7 @@ function finalizeQueuedMutation(queued: PendingMutation, row: ReplicatedRow<unkn
 }
 
 /**
- * Commit the dirty row and (when given) its mutation in `tx`, one transaction
+ * Commit the dirty row and its mutation in `tx`, one transaction
  * over both stores: they land together or not at all (MYK9-1471). `rowPut` is
  * the row store's pending put; this issues the mutation put right behind it with
  * nothing awaited in between, so the transaction cannot auto-commit between them.
@@ -37,7 +37,7 @@ export async function putRowAndMutation(
   tx: WriteTransaction,
   rowPut: Promise<unknown>,
   row: ReplicatedRow<unknown>,
-  queued: PendingMutation | undefined
+  queued: PendingMutation
 ): Promise<void> {
   // Settled below via Promise.all; this keeps an abort from surfacing it as unhandled.
   rowPut.catch(() => undefined);

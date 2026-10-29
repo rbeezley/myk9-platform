@@ -9,6 +9,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ReplicatedShowsTable, type ReplicatedShow } from '../ReplicatedShowsTable';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { from: vi.fn() } }));
 
@@ -47,7 +48,7 @@ describe('ReplicatedShowsTable date writes', () => {
     const { databaseManager } = await import('@myk9/replication');
     await databaseManager.reset();
     table = new ReplicatedShowsTable();
-    queueMutation = vi.spyOn(table as unknown as { queueMutation: QueueMutation }, 'queueMutation');
+    queueMutation = spyOnWriteAndQueue(table).queue;
     queueMutation.mockResolvedValue('mutation-1');
   });
 
@@ -74,10 +75,7 @@ describe('ReplicatedShowsTable date writes', () => {
     expect(queueMutation).toHaveBeenCalledWith(
       'UPDATE',
       'show-1',
-      expect.objectContaining({ entry_open_date: '2026-10-01', entry_close_date: '2026-10-01' }),
-      undefined,
-      undefined,
-      true
+      expect.objectContaining({ entry_open_date: '2026-10-01', entry_close_date: '2026-10-01' })
     );
     // The local copy holds the same calendar day the server will.
     expect(await table.get('show-1')).toMatchObject({
@@ -151,10 +149,7 @@ describe('ReplicatedShowsTable date writes', () => {
     expect(queueMutation).toHaveBeenCalledWith(
       'INSERT',
       created.id,
-      expect.objectContaining({ entry_open_date: '2026-10-01', start_date: '2026-11-07' }),
-      undefined,
-      undefined,
-      true
+      expect.objectContaining({ entry_open_date: '2026-10-01', start_date: '2026-11-07' })
     );
   });
 

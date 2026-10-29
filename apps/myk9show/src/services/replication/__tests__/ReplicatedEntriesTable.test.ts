@@ -18,6 +18,7 @@ import {
 import { logger } from '@myk9/core';
 import { fromAny } from '@total-typescript/shoehorn';
 import { supabase } from '@/services/database/supabaseClient';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 // Mock dependencies
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -265,17 +266,7 @@ describe('ReplicatedEntriesTable', () => {
       });
 
       it('should default entry source to myK9 when queueing a new entry', async () => {
-        const queueMutation = vi.spyOn(
-          table as unknown as {
-            queueMutation: (
-              operation: string,
-              rowId: string,
-              payload: Record<string, unknown>,
-              dependencies?: string[]
-            ) => Promise<string | null>;
-          },
-          'queueMutation'
-        );
+        const queueMutation = spyOnWriteAndQueue(table).queue;
 
         await table.createEntry({
           id: 'entry-1',
@@ -289,25 +280,12 @@ describe('ReplicatedEntriesTable', () => {
           'entry-1',
           expect.objectContaining({
             entry_source: 'myk9',
-          }),
-          undefined,
-          undefined,
-          true
+          })
         );
       });
 
       it('serializes the dedicated show-desk capacity override flag', async () => {
-        const queueMutation = vi.spyOn(
-          table as unknown as {
-            queueMutation: (
-              operation: string,
-              rowId: string,
-              payload: Record<string, unknown>,
-              dependencies?: string[]
-            ) => Promise<string | null>;
-          },
-          'queueMutation'
-        );
+        const queueMutation = spyOnWriteAndQueue(table).queue;
 
         await table.createEntry({
           id: 'entry-override',
@@ -324,10 +302,7 @@ describe('ReplicatedEntriesTable', () => {
           expect.objectContaining({
             entry_source: 'myk9',
             capacity_override: true,
-          }),
-          undefined,
-          undefined,
-          true
+          })
         );
       });
 
@@ -470,17 +445,7 @@ describe('ReplicatedEntriesTable', () => {
     });
 
     it('should queue only check_in_status for narrow check-in status updates', async () => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>,
-            dependencies?: string[]
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       await seedSet('entry-1', {
         id: 'entry-1',
@@ -505,9 +470,7 @@ describe('ReplicatedEntriesTable', () => {
         }),
         undefined,
         // check_in_status is ringside-whitelisted → routes through the RPC.
-        { name: 'ringside_update_entry', fields: { check_in_status: 'checked-in' } },
-        // durable-first (MYK9-1206): upload deferred until the dirty row exists
-        true
+        { name: 'ringside_update_entry', fields: { check_in_status: 'checked-in' } }
       );
       expect(payload).not.toHaveProperty('result_status');
       expect(payload).not.toHaveProperty('handler');
@@ -524,16 +487,7 @@ describe('ReplicatedEntriesTable', () => {
     // withdrawal left. This is the LAST HOP — the payload that actually reaches
     // the mutation manager — so a field dropped here is a field that never lands.
     it('queues withdrawal_reason_code on a manager WITHDRAW', async () => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       await table.updateSecretaryLifecycleStatus(
         'entry-1',
@@ -553,24 +507,12 @@ describe('ReplicatedEntriesTable', () => {
         expect.objectContaining({
           entry_status: 'withdrawn',
           withdrawal_reason_code: 'in_season',
-        }),
-        undefined,
-        undefined,
-        true
+        })
       );
     });
 
     it('queues an explicit NULL withdrawal_reason_code on a manager PULL', async () => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       await table.updateSecretaryLifecycleStatus(
         'entry-1',
@@ -593,17 +535,7 @@ describe('ReplicatedEntriesTable', () => {
     });
 
     it('queues the restored check_in_status when a scratched entry is accepted (MYK9-1384)', async () => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>,
-            dependencies?: string[]
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       await table.updateSecretaryLifecycleStatus(
         'entry-1',
@@ -620,25 +552,12 @@ describe('ReplicatedEntriesTable', () => {
       expect(queueMutation).toHaveBeenCalledWith(
         'UPDATE',
         'entry-1',
-        expect.objectContaining({ entry_status: 'confirmed', check_in_status: 'checked-in' }),
-        undefined,
-        undefined,
-        true
+        expect.objectContaining({ entry_status: 'confirmed', check_in_status: 'checked-in' })
       );
     });
 
     it('should seed missing secretary rows and queue only lifecycle status fields', async () => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>,
-            dependencies?: string[]
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       await table.updateSecretaryLifecycleStatus(
         'entry-1',
@@ -670,10 +589,7 @@ describe('ReplicatedEntriesTable', () => {
           check_in_status: 'pulled',
           withdrawal_reason: 'Dog absent',
           updated_at: expect.any(String),
-        }),
-        undefined,
-        undefined,
-        true
+        })
       );
       expect(payload).not.toHaveProperty('show_id');
       expect(payload).not.toHaveProperty('class_id');
@@ -696,17 +612,7 @@ describe('ReplicatedEntriesTable', () => {
     });
 
     it('should update armbands for every active entry for the dog in the show with narrow payloads', async () => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>,
-            dependencies?: string[]
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       await seedSet('entry-1', {
         id: 'entry-1',
@@ -746,10 +652,7 @@ describe('ReplicatedEntriesTable', () => {
           id: 'entry-1',
           armband: '205',
           updated_at: expect.any(String),
-        }),
-        undefined,
-        undefined,
-        true
+        })
       );
       expect(queueMutation.mock.calls[0]?.[2]).not.toHaveProperty('handler');
       expect(queueMutation).toHaveBeenNthCalledWith(
@@ -760,10 +663,7 @@ describe('ReplicatedEntriesTable', () => {
           id: 'entry-2',
           armband: '205',
           updated_at: expect.any(String),
-        }),
-        undefined,
-        undefined,
-        true
+        })
       );
 
       expect((await table.get('entry-1'))?.armband).toBe('205');
@@ -775,13 +675,13 @@ describe('ReplicatedEntriesTable', () => {
     });
 
     it('should queue armband updates for submitted entry IDs missing from the local cache', async () => {
+      // No cached row to write, so this path queues a bare UPDATE without a dirty write.
       const queueMutation = vi.spyOn(
         table as unknown as {
           queueMutation: (
             operation: string,
             rowId: string,
-            payload: Record<string, unknown>,
-            dependencies?: string[]
+            payload: Record<string, unknown>
           ) => Promise<string | null>;
         },
         'queueMutation'
@@ -805,18 +705,8 @@ describe('ReplicatedEntriesTable', () => {
     });
 
     it('should preserve lastMutationId when a later armband queue operation returns null', async () => {
-      vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>,
-            dependencies?: string[]
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      )
-        .mockResolvedValueOnce('mutation-1')
+      spyOnWriteAndQueue(table)
+        .queue.mockResolvedValueOnce('mutation-1')
         .mockResolvedValueOnce(null);
 
       await seedSet('entry-1', {
@@ -891,17 +781,7 @@ describe('ReplicatedEntriesTable', () => {
     });
 
     it('should queue null final_placement when a reset clears both placement aliases', async () => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>,
-            dependencies?: string[]
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       await seedSet('entry-1', {
         id: 'entry-1',
@@ -931,9 +811,7 @@ describe('ReplicatedEntriesTable', () => {
         {
           name: 'ringside_update_entry',
           fields: { result_status: 'pending', final_placement: null },
-        },
-        // updateEntry defers the auto-upload until after the cache write.
-        true
+        }
       );
     });
 
@@ -952,17 +830,7 @@ describe('ReplicatedEntriesTable', () => {
     });
 
     it('should queue withdrawal_reason when updating a day-of scratch', async () => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>,
-            dependencies?: string[]
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       await seedSet('entry-1', {
         id: 'entry-1',
@@ -984,27 +852,12 @@ describe('ReplicatedEntriesTable', () => {
           check_in_status: 'pulled',
           withdrawal_reason: 'Dog absent',
           special_requests: 'Dog absent',
-        }),
-        undefined,
-        // entry_status is a management column → NOT routed through the ringside RPC.
-        undefined,
-        // updateEntry defers the auto-upload until after the cache write.
-        true
+        })
       );
     });
 
     it('should queue deleted_at when soft-deleting a move-up entry', async () => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>,
-            dependencies?: string[]
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
       const deletedAt = '2026-06-05T18:00:00.000Z';
 
       await seedSet('entry-1', {
@@ -1022,12 +875,7 @@ describe('ReplicatedEntriesTable', () => {
         'entry-1',
         expect.objectContaining({
           deleted_at: deletedAt,
-        }),
-        undefined,
-        // deleted_at is not a ringside column → NOT routed through the RPC.
-        undefined,
-        // updateEntry defers the auto-upload until after the cache write.
-        true
+        })
       );
     });
 

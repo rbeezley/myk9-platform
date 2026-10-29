@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ReplicatedShowsTable, type ReplicatedShow } from '../ReplicatedShowsTable';
 import { SHOW_DB_STATUSES, mapShowStatusToDb } from '../showStatusMapping';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { from: vi.fn() } }));
 
@@ -70,7 +71,7 @@ describe('ReplicatedShowsTable status on full-row writes', () => {
     const { databaseManager } = await import('@myk9/replication');
     await databaseManager.reset();
     table = new ReplicatedShowsTable();
-    queueMutation = vi.spyOn(table as unknown as { queueMutation: QueueMutation }, 'queueMutation');
+    queueMutation = spyOnWriteAndQueue(table).queue;
     queueMutation.mockResolvedValue('mutation-1');
   });
 
@@ -90,10 +91,7 @@ describe('ReplicatedShowsTable status on full-row writes', () => {
     expect(queueMutation).toHaveBeenCalledWith(
       'UPDATE',
       'show-1',
-      expect.objectContaining({ name: 'Renamed', status }),
-      undefined,
-      undefined,
-      true
+      expect.objectContaining({ name: 'Renamed', status })
     );
   });
 

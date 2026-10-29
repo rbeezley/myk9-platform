@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { AppApiRequestLedgerEntry } from './appApiRequestTracker';
-import { accessControlErrorUrl, partitionCancelledWebkitFetchErrors } from './webkitCancelledFetch';
+import {
+  accessControlErrorUrl,
+  partitionCancelledWebkitFetchErrors,
+  retireSettledLedgerEntries,
+} from './webkitCancelledFetch';
 
 const CLUBS = 'http://127.0.0.1:54321/rest/v1/clubs?select=id&deleted_at=is.null';
 const ORDERS = 'http://127.0.0.1:54321/rest/v1/stripe_orders?select=id&limit=100';
@@ -11,6 +15,7 @@ function entry(over: Partial<AppApiRequestLedgerEntry> = {}): AppApiRequestLedge
     outcome: 'pending',
     failureText: null,
     orphanedByNavigation: false,
+    spent: false,
     ...over,
   };
 }
@@ -103,5 +108,42 @@ describe('partitionCancelledWebkitFetchErrors', () => {
         ignored: [],
       });
     }
+  });
+});
+
+// Codex round 1 on #3391: a cancellation must not outlive its route, and an
+// orphaned request that later failed for a real reason is not a cancellation.
+describe('ledger scoping across routes', () => {
+  it('spends an entry once it excuses an error, so a later route cannot reuse it', () => {
+    const ledger = [entry({ outcome: 'failed', failureText: 'cancelled' })];
+    expect(
+      partitionCancelledWebkitFetchErrors([message(CLUBS)], ledger, 'webkit').ignored
+    ).toHaveLength(1);
+    expect(partitionCancelledWebkitFetchErrors([message(CLUBS)], ledger, 'webkit').kept).toEqual([
+      message(CLUBS),
+    ]);
+  });
+
+  it('retires a settled cancellation at the route check but keeps an in-flight request eligible', () => {
+    const settled = entry({ outcome: 'failed', failureText: 'cancelled' });
+    const inFlight = entry({ url: ORDERS });
+    retireSettledLedgerEntries([settled, inFlight]);
+    inFlight.orphanedByNavigation = true;
+
+    const result = partitionCancelledWebkitFetchErrors(
+      [message(CLUBS), message(ORDERS)],
+      [settled, inFlight],
+      'webkit'
+    );
+    expect(result).toEqual({ kept: [message(CLUBS)], ignored: [message(ORDERS)] });
+  });
+
+  it('keeps an error whose orphaned request later failed for a reason other than a cancel', () => {
+    const result = partitionCancelledWebkitFetchErrors(
+      [message(CLUBS)],
+      [entry({ orphanedByNavigation: true, outcome: 'failed', failureText: 'Origin not allowed' })],
+      'webkit'
+    );
+    expect(result).toEqual({ kept: [message(CLUBS)], ignored: [] });
   });
 });

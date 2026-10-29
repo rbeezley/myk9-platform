@@ -434,14 +434,27 @@ describe('app API request ledger (MYK9-1477)', () => {
     tracker.reset();
 
     expect(tracker.ledger).toEqual([
-      { url: `${URL_A}&n=1`, outcome: 'finished', failureText: null, orphanedByNavigation: false },
+      {
+        url: `${URL_A}&n=1`,
+        outcome: 'finished',
+        failureText: null,
+        orphanedByNavigation: false,
+        spent: false,
+      },
       {
         url: `${URL_A}&n=2`,
         outcome: 'failed',
         failureText: 'cancelled',
         orphanedByNavigation: false,
+        spent: false,
       },
-      { url: `${URL_A}&n=3`, outcome: 'pending', failureText: null, orphanedByNavigation: true },
+      {
+        url: `${URL_A}&n=3`,
+        outcome: 'pending',
+        failureText: null,
+        orphanedByNavigation: true,
+        spent: false,
+      },
     ]);
   });
 

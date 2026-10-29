@@ -20,6 +20,11 @@ export interface AppApiRequestLedgerEntry {
    * its teardown cancelled it.
    */
   orphanedByNavigation: boolean;
+  /**
+   * Can no longer excuse a page error: it already excused one, or it had settled
+   * before a route's health check ran (MYK9-1477, Codex round 1).
+   */
+  spent: boolean;
 }
 
 export interface AppApiRequestTracker {
@@ -113,6 +118,7 @@ export function watchAppApiRequests(page: Page) {
       outcome: 'pending',
       failureText: null,
       orphanedByNavigation: false,
+      spent: false,
     };
     entries.set(request, entry);
     tracker.ledger.push(entry);

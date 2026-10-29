@@ -39,7 +39,10 @@ import {
   waitForAppApiRequestsToSettle,
   watchAppApiRequests,
 } from '../harness/appApiRequestTracker';
-import { partitionCancelledWebkitFetchErrors } from '../harness/webkitCancelledFetch';
+import {
+  partitionCancelledWebkitFetchErrors,
+  retireSettledLedgerEntries,
+} from '../harness/webkitCancelledFetch';
 import { logUnsettledAppApiRequests } from '../harness/routeHealthDiagnostics';
 
 const SEEDED_SHOW = LIVE_SECRETARY_SHOW_ID;
@@ -349,6 +352,7 @@ async function sweepRoutes(
         description: `${id} webkit-cancelled-fetches-ignored=${ignored.length}: ${ignored.join('; ')}`,
       });
     }
+    retireSettledLedgerEntries(pendingAppApiRequests.ledger);
     const viols = violations({ ...health, pageErrors: kept });
     expect.soft(viols, `${id}: browser health violations`).toHaveLength(0);
 

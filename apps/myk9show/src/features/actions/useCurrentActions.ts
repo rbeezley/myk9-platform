@@ -52,12 +52,12 @@ export function useCurrentActions(): CurrentActions {
   const canCreateDogs = !rbacLoading && gates.canCreateDogs;
   const canCreatePeople = !rbacLoading && gates.canCreatePeople;
   const canCreateClubs = !rbacLoading && gates.canCreateClubs;
-  // The roles `/secretary/register/:showId` admits (routes/secretaryRoutes.tsx).
-  // The roles `/secretary/register/:showId` admits (routes/secretaryRoutes.tsx). Withheld while
-  // the shows replica loads, so a secretary with shows is never told they have none.
-  const showsLoading = useShowStore(state => state.isLoading);
+  // The roles `/secretary/register/:showId` admits (routes/secretaryRoutes.tsx). Withheld until
+  // the shows replica's first read, so a secretary with shows is never told they have none; a
+  // later save or refetch does not withdraw it.
+  const showsLoaded = useShowStore(state => state.hasLoaded);
   const canAddEntries =
-    !rbacLoading && !showsLoading && (hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN));
+    !rbacLoading && showsLoaded && (hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN));
   const entryShows = useEntryEligibleShows();
   const openEntryPicker = useAddEntryPickerStore(state => state.setOpen);
   // The show section's heading: the replicated store first (offline-durable, no read), then the

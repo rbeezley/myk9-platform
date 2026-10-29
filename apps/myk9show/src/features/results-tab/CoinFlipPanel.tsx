@@ -33,7 +33,7 @@ export function CoinFlipPanel({
   onOpenChange,
 }: CoinFlipPanelProps) {
   const coinFlip = useRecordCoinFlip(showId);
-  const groups = useMemo(() => deriveClassTies(row.entries, isNationals), [isNationals, row]);
+  const groups = useMemo(() => deriveClassTies(row.tieEntries, isNationals), [isNationals, row]);
   return (
     <CoinFlipDialog
       key={row.id}

@@ -203,6 +203,26 @@ describe('ResultsTab coin flip correction', () => {
     expect(screen.queryByRole('button', { name: 'Change coin-flip order' })).toBeNull();
   });
 
+  // Codex round 8: the server keeps a dog pulled after it ran in its tie group, so the dialog must
+  // send that dog too, or the RPC refuses the partial group (MK016).
+  it('keeps a dog pulled after it ran in the group it sends', async () => {
+    setHook([RECORDED[0], { ...RECORDED[1], check_in_status: 'pulled' } as SecretaryEntry]);
+    const { user } = renderTab();
+
+    await user.click(await screen.findByRole('button', { name: 'Change coin-flip order' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: /Armband 12 Rex/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Save coin flip' }));
+
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith({
+        classId: 'class-1',
+        trialId: 'trial-1',
+        orders: [['Rex', 'Bella']],
+      })
+    );
+  });
+
   it('shows the retry, not an empty dialog, when the show details cannot be read', async () => {
     setHook(UNRESOLVED, { checked: false, rankingKeyState: 'unavailable' });
     const { user } = renderTab();

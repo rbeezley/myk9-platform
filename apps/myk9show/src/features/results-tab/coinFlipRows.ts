@@ -135,10 +135,10 @@ export function deriveClassTies(
  * clears the check on a reorder, so a checked class simply needs checking again), else null.
  */
 export function coinFlipAction(
-  row: Pick<ResultsClassRow, 'phase' | 'releasedAt' | 'entries'> | null
+  row: Pick<ResultsClassRow, 'phase' | 'releasedAt' | 'tieEntries'> | null
 ): 'record' | 'change' | null {
   if (!row) return null;
   if (row.phase === 'needs-coin-flip') return 'record';
   const checkable = row.phase === 'needs-checking' || row.phase === 'ready-to-release';
-  return checkable && !row.releasedAt && hasRecordedTie(row.entries) ? 'change' : null;
+  return checkable && !row.releasedAt && hasRecordedTie(row.tieEntries) ? 'change' : null;
 }

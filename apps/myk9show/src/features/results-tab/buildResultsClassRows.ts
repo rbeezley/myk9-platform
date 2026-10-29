@@ -124,6 +124,11 @@ export interface ResultsClassRow {
   /** False when print status could not be read; the UI says so rather than hiding the buttons. */
   paperworkAvailable: boolean;
   entries: readonly ResultsEntryRow[];
+  /**
+   * The rows the server ranks for ties: scored and qualified, whatever the entry status. A dog
+   * pulled after it ran keeps its place server-side, so a coin flip group must include it (MK016).
+   */
+  tieEntries: readonly ResultsEntryRow[];
 }
 
 export interface BuildResultsClassRowsInput {
@@ -262,8 +267,15 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
   };
   const tallies = tallyEntriesByClass(input.entries);
   const entriesByClass = new Map<string, SecretaryEntry[]>();
+  const tieEntriesByClass = new Map<string, SecretaryEntry[]>();
   for (const entry of input.entries) {
     if (!entry.class_id) continue;
+    // Mirrors `recalculate_class_placements`' eligibility, before the display filter below.
+    if (entry.is_scored === true && entry.result_status === 'qualified') {
+      const ranked = tieEntriesByClass.get(entry.class_id) ?? [];
+      ranked.push(entry);
+      tieEntriesByClass.set(entry.class_id, ranked);
+    }
     // The same rows `tallyEntriesByClass` counts toward `expectedCount`: not pulled, withdrawn,
     // moved or absent, and not still waiting on an accept decision.
     if (!isExpectedEntry(accountingFields(entry)) || isPendingEntryStatus(entry.entry_status))
@@ -378,11 +390,12 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
       judgeDayOpen: day ? judgeDays.openDayKeys.has(day.dayKey) : false,
     };
     const classEntries = (entriesByClass.get(cls.id) ?? []).map(toEntryRow).sort(placementSort);
+    const tieEntries = (tieEntriesByClass.get(cls.id) ?? []).map(toEntryRow);
     // A tie for a ribbon is decided before the scores can be checked (the server refuses the
     // check, MK018). Only a class saved as Completed can be checked, so only it asks for the flip.
     const state: ResultsClassState = {
       ...withDay,
-      ...(isCompletedStatus(cls.status) && hasUnresolvedTie(classEntries)
+      ...(isCompletedStatus(cls.status) && hasUnresolvedTie(tieEntries)
         ? { coinFlipPending: true }
         : {}),
     };
@@ -450,6 +463,7 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
       paperwork,
       paperworkAvailable,
       entries: classEntries,
+      tieEntries,
     };
   });
 }

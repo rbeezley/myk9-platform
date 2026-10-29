@@ -23,6 +23,7 @@ const row = vi.hoisted(
       name: 'Containers Novice',
       phase: 'ready-to-release',
       entries: [],
+      tieEntries: [],
       runFinished: true,
       judgeDayKey: 'k',
       judgeSignedOffAt: null,

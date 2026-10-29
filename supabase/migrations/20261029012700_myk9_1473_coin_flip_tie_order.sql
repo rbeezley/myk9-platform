@@ -588,6 +588,39 @@ CREATE TRIGGER trg_zz_entries_unplaced_clears_tie_marker
 GRANT SELECT (placement_tiebreak, placement_tie) ON public.entries TO authenticated;
 REVOKE ALL (placement_tiebreak, placement_tie) ON public.entries FROM anon;
 
+-- ---------------------------------------------------------------------------
+-- 8. Backfill: re-derive classes that already hold placements
+--
+-- Adding the columns and replacing the function does not run the recalculator,
+-- so a class completed before this migration would keep consecutive placements
+-- for a tie below 4th and no marker on a ribbon tie until an unrelated score
+-- write refreshed it. Re-rank every class that has a placement now (nationals
+-- per its show). Placements that do not change are not written; a verified class
+-- whose placements change loses its results check through the fingerprint,
+-- which is the intended signal to look at it again.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_nationals boolean;
+  v_class_ids uuid[];
+BEGIN
+  FOREACH v_nationals IN ARRAY ARRAY[false, true] LOOP
+    SELECT array_agg(DISTINCT e.class_id)
+      INTO v_class_ids
+    FROM public.entries e
+    JOIN public.classes c ON c.id = e.class_id
+    JOIN public.trials t ON t.id = c.trial_id
+    JOIN public.shows s ON s.id = t.show_id
+    WHERE e.final_placement IS NOT NULL
+      AND coalesce(s.is_nationals, false) = v_nationals;
+
+    IF v_class_ids IS NOT NULL THEN
+      PERFORM public.recalculate_class_placements(v_class_ids, v_nationals);
+    END IF;
+  END LOOP;
+END;
+$$;
+
 COMMIT;
 
 NOTIFY pgrst, 'reload schema';

@@ -4,11 +4,7 @@ import { resolve } from 'node:path';
 import type { Page, Request } from '@playwright/test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  FETCH_LEDGER_GLOBAL,
-  installAppApiFetchLedger,
   NAVIGATION_COMMIT_WINDOW_MS,
-  stillPending,
-  type AppApiFetchLedger,
   waitForAppApiRequestsToSettle,
   watchAppApiRequests,
 } from './appApiRequestTracker';
@@ -71,7 +67,7 @@ describe('app API request tracker', () => {
     await vi.advanceTimersByTimeAsync(1);
     const settlement = await settlementPromise;
 
-    expect(settlement).toEqual({ settled: true, pendingUrls: [], pendingLedger: [] });
+    expect(settlement).toEqual({ settled: true, pendingUrls: [] });
     expect(tracker.pending.size).toBe(0);
   });
 
@@ -88,7 +84,7 @@ describe('app API request tracker', () => {
       timeoutMs: 100,
     });
 
-    expect(settlement).toEqual({ settled: true, pendingUrls: [], pendingLedger: [] });
+    expect(settlement).toEqual({ settled: true, pendingUrls: [] });
     expect(tracker.pending.size).toBe(0);
   });
 
@@ -107,7 +103,6 @@ describe('app API request tracker', () => {
     expect(settlement).toEqual({
       settled: false,
       pendingUrls: ['https://example.supabase.co/rest/v1/clubs?select=*'],
-      pendingLedger: ['no page ledger'],
     });
   });
 
@@ -132,7 +127,7 @@ describe('app API request tracker', () => {
     await vi.advanceTimersByTimeAsync(30);
     const settlement = await settlementPromise;
 
-    expect(settlement).toEqual({ settled: false, pendingUrls: [], pendingLedger: [] });
+    expect(settlement).toEqual({ settled: false, pendingUrls: [] });
   });
 
   it('ignores assets and document requests', async () => {
@@ -150,7 +145,7 @@ describe('app API request tracker', () => {
     await vi.advanceTimersByTimeAsync(5);
     const settlement = await settlementPromise;
 
-    expect(settlement).toEqual({ settled: true, pendingUrls: [], pendingLedger: [] });
+    expect(settlement).toEqual({ settled: true, pendingUrls: [] });
     expect(tracker.pending.size).toBe(0);
   });
 
@@ -205,7 +200,7 @@ describe('app API request tracker', () => {
       harness.emit('requestfinished', liveAgain);
 
       const routeTwoReset = await settle();
-      expect(routeTwoReset).toEqual({ settled: true, pendingUrls: [], pendingLedger: [] });
+      expect(routeTwoReset).toEqual({ settled: true, pendingUrls: [] });
     });
 
     it('still fails the route that OWNS a slow request', async () => {
@@ -258,211 +253,7 @@ describe('app API request tracker', () => {
       expect(resolved).toBe(false);
 
       await vi.advanceTimersByTimeAsync(50);
-      await expect(settlementPromise).resolves.toEqual({
-        settled: true,
-        pendingUrls: [],
-        pendingLedger: [],
-      });
-    });
-  });
-});
-
-/**
- * MYK9-1467: a request the PAGE aborts can end with neither `requestfinished`
- * nor `requestfailed` from Playwright (Chrome net-log: HEAD sent, CANCELLED
- * 80 ms later, tracker still waiting 28 s on). The page's own fetch ledger is
- * the authority on whether the page still awaits a request.
- */
-describe('the page fetch ledger (MYK9-1467)', () => {
-  const COUNT_URL =
-    'http://127.0.0.1:54321/rest/v1/view_authenticated_entry_results_replication?select=id';
-
-  function requestFor(method: string, url: string) {
-    return { url: () => url, method: () => method } as Request;
-  }
-
-  function pageWithLedger(ledger: AppApiFetchLedger | null) {
-    const harness = createPageHarness();
-    (harness.page as unknown as { evaluate: () => Promise<unknown> }).evaluate = () =>
-      Promise.resolve(ledger);
-    return harness;
-  }
-
-  it('settles when the page cancelled a request Playwright never closed', async () => {
-    const key = `HEAD ${COUNT_URL}`;
-    const harness = pageWithLedger({ seen: { [key]: true }, inFlight: { [key]: 0 } });
-    const tracker = watchAppApiRequests(harness.page);
-    harness.emit('request', requestFor('HEAD', COUNT_URL));
-
-    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
-      idleMs: 5,
-      timeoutMs: 100,
-    });
-
-    expect(settlement).toEqual({ settled: true, pendingUrls: [], pendingLedger: [] });
-  });
-
-  it('restarts the idle window when the ledger ends a long-open request', async () => {
-    vi.useFakeTimers();
-    try {
-      const key = `HEAD ${COUNT_URL}`;
-      const harness = pageWithLedger({ seen: { [key]: true }, inFlight: { [key]: 0 } });
-      const tracker = watchAppApiRequests(harness.page);
-      harness.emit('request', requestFor('HEAD', COUNT_URL));
-      // Open far longer than the idle window before the sweep looks.
-      vi.advanceTimersByTime(1000);
-
-      let resolved = false;
-      const settlement = waitForAppApiRequestsToSettle(harness.page, tracker, {
-        idleMs: 50,
-        timeoutMs: 500,
-      }).then(result => {
-        resolved = true;
-        return result;
-      });
-
-      await vi.advanceTimersByTimeAsync(30);
-      expect(resolved).toBe(false);
-      await vi.advanceTimersByTimeAsync(60);
-      expect(resolved).toBe(true);
-      await expect(settlement).resolves.toEqual({
-        settled: true,
-        pendingUrls: [],
-        pendingLedger: [],
-      });
-      expect(tracker.pending.size).toBe(0);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('keeps waiting while the page still awaits the request', async () => {
-    const key = `HEAD ${COUNT_URL}`;
-    const harness = pageWithLedger({ seen: { [key]: true }, inFlight: { [key]: 1 } });
-    const tracker = watchAppApiRequests(harness.page);
-    harness.emit('request', requestFor('HEAD', COUNT_URL));
-
-    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
-      idleMs: 5,
-      timeoutMs: 30,
-    });
-
-    expect(settlement).toEqual({
-      settled: false,
-      pendingUrls: [COUNT_URL],
-      pendingLedger: ['page in flight 1'],
-    });
-  });
-
-  it('keeps the network verdict for a request the page never fetched', async () => {
-    // Only a GET of the same URL was fetched: the HEAD is not the page's, so it stays open.
-    const harness = pageWithLedger({ seen: { [`GET ${COUNT_URL}`]: true }, inFlight: {} });
-    const tracker = watchAppApiRequests(harness.page);
-    harness.emit('request', requestFor('HEAD', COUNT_URL));
-
-    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
-      idleMs: 5,
-      timeoutMs: 30,
-    });
-
-    expect(settlement).toEqual({
-      settled: false,
-      pendingUrls: [COUNT_URL],
-      pendingLedger: [
-        `page never fetched HEAD at this URL; same path: GET ${COUNT_URL} (in flight 0)`,
-      ],
-    });
-  });
-
-  it("keeps the network verdict for a service worker's request with a page key", () => {
-    const key = `HEAD ${COUNT_URL}`;
-    const fromWorker = {
-      ...requestFor('HEAD', COUNT_URL),
-      serviceWorker: () => ({}),
-    } as unknown as Request;
-    expect(stillPending([fromWorker], { seen: { [key]: true }, inFlight: { [key]: 0 } })).toEqual([
-      fromWorker,
-    ]);
-  });
-
-  it('keeps the network verdict when the page has no ledger', () => {
-    expect(stillPending([requestFor('HEAD', COUNT_URL)], null)).toHaveLength(1);
-  });
-
-  describe('installAppApiFetchLedger, in a real window', () => {
-    const originalFetch = window.fetch;
-    afterEach(() => {
-      window.fetch = originalFetch;
-      delete (window as unknown as Record<string, unknown>)[FETCH_LEDGER_GLOBAL];
-    });
-
-    function ledger() {
-      return (window as unknown as Record<string, AppApiFetchLedger>)[FETCH_LEDGER_GLOBAL];
-    }
-
-    it('ends an aborted fetch, the case Playwright left open', async () => {
-      // A fetch that only ever settles by its abort signal.
-      window.fetch = ((_input: RequestInfo | URL, init?: RequestInit) =>
-        new Promise((_resolve, reject) => {
-          init?.signal?.addEventListener('abort', () =>
-            reject(new DOMException('aborted', 'AbortError'))
-          );
-        })) as typeof fetch;
-      installAppApiFetchLedger(FETCH_LEDGER_GLOBAL);
-      const controller = new AbortController();
-
-      const pending = window.fetch(COUNT_URL, { method: 'HEAD', signal: controller.signal });
-      expect(ledger().inFlight[`HEAD ${COUNT_URL}`]).toBe(1);
-
-      controller.abort();
-      await expect(pending).rejects.toThrow('aborted');
-      expect(ledger().seen[`HEAD ${COUNT_URL}`]).toBe(true);
-      expect(ledger().inFlight[`HEAD ${COUNT_URL}`]).toBe(0);
-    });
-
-    it('records only app API calls, and defaults the method to GET', async () => {
-      window.fetch = (() => Promise.resolve(new Response('[]'))) as typeof fetch;
-      installAppApiFetchLedger(FETCH_LEDGER_GLOBAL);
-
-      await window.fetch('http://127.0.0.1:5173/src/main.tsx');
-      await window.fetch(COUNT_URL);
-      await new Promise(resolve => setTimeout(resolve, 0)); // The body copy is read after the headers.
-
-      expect(Object.keys(ledger().seen)).toEqual([`GET ${COUNT_URL}`]);
-      expect(ledger().inFlight[`GET ${COUNT_URL}`]).toBe(0);
-    });
-
-    it('keeps a fetch in flight until its response body has arrived', async () => {
-      let finishBody: () => void = () => {};
-      const body = new ReadableStream<Uint8Array>({
-        start(controller) {
-          controller.enqueue(new TextEncoder().encode('['));
-          finishBody = () => {
-            controller.enqueue(new TextEncoder().encode(']'));
-            controller.close();
-          };
-        },
-      });
-      window.fetch = (() => Promise.resolve(new Response(body))) as typeof fetch;
-      installAppApiFetchLedger(FETCH_LEDGER_GLOBAL);
-
-      const response = await window.fetch(COUNT_URL);
-      await new Promise(resolve => setTimeout(resolve, 0));
-      expect(ledger().inFlight[`GET ${COUNT_URL}`]).toBe(1);
-
-      finishBody();
-      await expect(response.text()).resolves.toBe('[]');
-      await new Promise(resolve => setTimeout(resolve, 0));
-      expect(ledger().inFlight[`GET ${COUNT_URL}`]).toBe(0);
-    });
-
-    it('keys a fetch without its fragment, as the browser sends it', async () => {
-      window.fetch = (() => Promise.resolve(new Response('[]'))) as typeof fetch;
-      installAppApiFetchLedger(FETCH_LEDGER_GLOBAL);
-
-      await window.fetch(`${COUNT_URL}#ignored`);
-
-      expect(Object.keys(ledger().seen)).toEqual([`GET ${COUNT_URL}`]);
+      await expect(settlementPromise).resolves.toEqual({ settled: true, pendingUrls: [] });
     });
   });
 });
@@ -538,7 +329,7 @@ describe('requests the outgoing document starts during a navigation (MYK9-1467)'
       timeoutMs: 100,
     });
 
-    expect(settlement).toEqual({ settled: true, pendingUrls: [], pendingLedger: [] });
+    expect(settlement).toEqual({ settled: true, pendingUrls: [] });
   });
 
   it('drops what the outgoing document still had in flight when the navigation starts', async () => {

@@ -18,20 +18,6 @@ describe('nightly route-health diagnostics', () => {
     );
   });
 
-  it("adds the page fetch ledger's account of each pending URL (MYK9-1467)", () => {
-    const log = vi.fn();
-    logUnsettledAppApiRequests(
-      'exhibitor/account',
-      ['https://example.test/rest/v1/stripe_orders?select=id'],
-      log,
-      ['page in flight 1']
-    );
-
-    expect(log).toHaveBeenLastCalledWith(
-      '[route-health] exhibitor/account: page fetch ledger: ["page in flight 1"]'
-    );
-  });
-
   it('reports an incomplete idle window when no URLs remain', () => {
     const log = vi.fn();
 

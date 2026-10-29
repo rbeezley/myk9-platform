@@ -1,7 +1,6 @@
 import { Show } from '@/types/show-types';
-import { UserWithRoles, PERMISSIONS, Permission } from '@/types/auth-types';
+import { UserWithRoles, Permission } from '@/types/auth-types';
 import { ShowRelationship } from '@/types/unified-shows-types';
-import { ShowPermissionValidator } from './permissionValidation';
 import { logger } from '@/services/LoggingService';
 import { features } from '@/config/features';
 
@@ -42,25 +41,12 @@ export function getTabQuickActions(
 ): ShowAction[] {
   if (!user) return [];
 
-  const userPermissions = user.permissions || [];
   const actions: ShowAction[] = [];
 
   switch (currentTab) {
     case 'all':
-      // Create new show
-      if (userPermissions.includes(PERMISSIONS.SHOW_CREATE)) {
-        actions.push({
-          id: 'create_show',
-          label: 'Add Show',
-          icon: 'Plus',
-          variant: 'default',
-          permission: PERMISSIONS.SHOW_CREATE,
-          onClick: () => {
-            ShowPermissionValidator.auditAction('create_show_attempt', user, 'show', 'new', true);
-            navigate('/secretary/create-show/wizard');
-          },
-        });
-      }
+      // No "Add Show" button: it is the header Actions menu's Create group, on every page,
+      // with the same gate (MYK9-1490). A second copy here was a second door.
 
       // No "Bulk Register" button. It shipped with the app's first commit
       // (35c3a1d4b, 2026-01-02) wired to nothing but a log line, and eight
@@ -71,20 +57,7 @@ export function getTabQuickActions(
       break;
 
     case 'managing':
-      // Create new show
-      if (userPermissions.includes(PERMISSIONS.SHOW_CREATE)) {
-        actions.push({
-          id: 'create_show',
-          label: 'Add Show',
-          icon: 'Plus',
-          variant: 'default',
-          permission: PERMISSIONS.SHOW_CREATE,
-          onClick: () => {
-            ShowPermissionValidator.auditAction('create_show_attempt', user, 'show', 'new', true);
-            navigate('/secretary/create-show/wizard');
-          },
-        });
-      }
+      // No "Add Show" button either; see the 'all' case.
 
       // No "Bulk Actions" button, for the same reason as Bulk Register above.
       // The only bulk affordance in the app is SelfCheckinBulkBar inside the
@@ -127,7 +100,7 @@ export function getTabQuickActions(
       // Nor should this tab gain a "go to my ring" action instead. A judge does
       // not arrive here on the way to work: `buildUnifiedSidebarConfig` gives
       // every ringside role a "Show Day" group carrying STAFF_RINGSIDE_NAV_ITEM,
-      // placed directly after Manage precisely because "for a judge it may be
+      // placed beside the current show (and first for a judge) precisely because "for a judge it may be
       // the only section that matters". An action here would be a second door to
       // a destination already one click away in the sidebar. The tab itself
       // still earns its place as a FILTER — a judge reaching Find Shows through

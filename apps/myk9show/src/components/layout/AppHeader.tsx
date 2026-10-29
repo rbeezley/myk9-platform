@@ -17,6 +17,7 @@ import { AskQIcon } from '@/components/layout/AskQIcon';
 import { AskQPanel } from '@/components/askq/AskQPanel';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { HeaderActions } from '@/components/layout/HeaderActions';
+import { AddEntryShowPicker } from '@/features/actions/AddEntryShowPicker';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useAppShellMobileNav } from './useAppShellMobileNav';
 import { useIsGuestLanding } from './useIsGuestLanding';
@@ -338,6 +339,9 @@ const AppHeader: React.FC = () => {
         onOpenChange={setShortcutsOverlayOpen}
         shortcuts={shortcutDisplays}
       />
+
+      {/* Opened by Add Entry from the Actions menu or the palette */}
+      {user && <AddEntryShowPicker />}
 
       <AskQPanel />
     </nav>

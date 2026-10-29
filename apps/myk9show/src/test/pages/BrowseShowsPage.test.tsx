@@ -715,14 +715,13 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       });
     });
 
-    it('should show Add Show button for secretaries', async () => {
+    it('has no Add Show button: it lives in the header Actions menu (MYK9-1490)', async () => {
       renderWithProviders(<BrowseShowsPage />);
 
       await waitFor(() => {
-        // The Add Show button is rendered via tabQuickActions
-        const createButton = screen.getByRole('button', { name: /add show/i });
-        expect(createButton).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /managing/i })).toBeInTheDocument();
       });
+      expect(screen.queryByRole('button', { name: /add show/i })).not.toBeInTheDocument();
     });
 
     it('should show correct tab counts', async () => {

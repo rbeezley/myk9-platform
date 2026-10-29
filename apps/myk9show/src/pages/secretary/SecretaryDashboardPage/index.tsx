@@ -14,8 +14,6 @@ import {
 } from '@/features/show-map/attention';
 import { AttentionNeededStrip } from './AttentionNeededStrip';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
-import { filterEntryEligibleShows } from './entryEligibleShows';
-import { DashboardQuickLinks } from './DashboardQuickLinks';
 import { MyShowsSection, MyShowsSectionSkeleton } from './MyShowsSection';
 import { TasksTab } from './TasksTab';
 import { getTodayClassCounts } from './todayClassCounts';
@@ -28,16 +26,11 @@ function greeting(): string {
 }
 
 export function SecretaryDashboardPage() {
-  const { firstName, hasRole, userWithRoles } = useAuthContext();
+  const { firstName } = useAuthContext();
 
   const { shows, isLoading: showsLoading } = useMissionControlData();
 
   const { today, upcoming, draft, past, attentionNeeded: showAttentionItems } = useMyShows(shows);
-
-  const entryShows = useMemo(
-    () => filterEntryEligibleShows([...today, ...upcoming], { hasRole, userWithRoles }),
-    [today, upcoming, hasRole, userWithRoles]
-  );
 
   const { data: pendingEntries = [], isError: pendingEntriesError } = usePendingEntries();
 
@@ -117,8 +110,6 @@ export function SecretaryDashboardPage() {
           </p>
         </div>
       </div>
-
-      <DashboardQuickLinks entryShows={entryShows} />
 
       {/* Attention strip */}
       <AttentionNeededStrip items={attentionNeeded} countFailed={pendingEntriesError} />

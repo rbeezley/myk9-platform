@@ -102,24 +102,14 @@ describe('SecretaryDashboardPage', () => {
     expect(screen.getByText('No shows yet.')).toBeInTheDocument();
   });
 
-  it('renders compact quick links to existing creation surfaces without duplicating the show action', () => {
+  // MYK9-1490: Add Show and Add Entry live in the header Actions menu, not as tiles here.
+  it('has no Add Show or Add Entry tiles', () => {
     renderPage();
 
-    expect(screen.getByRole('link', { name: /Add Show/i })).toHaveAttribute(
-      'href',
-      '/secretary/create-show/wizard'
-    );
-    expect(screen.getByRole('button', { name: /Add Entry/i })).toBeDisabled();
-    expect(screen.queryByRole('link', { name: /Add Dog/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Add Person/i })).not.toBeInTheDocument();
-    const quickLinks = screen.getByRole('navigation', { name: /Dashboard quick links/i });
-    expect(quickLinks).toBeInTheDocument();
-    expect(quickLinks.querySelector('[data-testid="dashboard-quick-links-row"]')).toHaveClass(
-      'grid-cols-2'
-    );
-    expect(screen.queryByText('Open dogs')).not.toBeInTheDocument();
-    expect(screen.queryByText('Open people')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Add Show/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: /Dashboard quick links/i })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Add Show/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Add Entry/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Add Entry/i })).not.toBeInTheDocument();
   });
 
   it('only surfaces pending-entry attention for shows the secretary manages', () => {

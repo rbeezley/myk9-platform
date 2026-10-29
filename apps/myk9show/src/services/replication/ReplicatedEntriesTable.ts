@@ -27,7 +27,7 @@ import {
 import { logger } from '@myk9/core';
 import type { CheckInStatus } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
-import { verifySecretaryEmptyShow } from '@/services/database/entries/secretaryEmptyProof';
+import { verifyEntriesScopeEmpty } from '@/services/database/entries/secretaryEmptyProof';
 import type { Database } from '@/types/supabase';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { PendingDeletes } from './pendingDeletes';
@@ -473,8 +473,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       // RLS gap reads 0 of 0. A zero-row fetch over a warm replica only cleans
       // up when the manager-authorized SECURITY DEFINER count confirms the show
       // is empty; exhibitors and offline devices get false, so the replica is
-      // kept (MYK9-880).
-      verifyScopeEmpty: () => verifySecretaryEmptyShow(showScopeId),
+      // kept (MYK9-880). MYK9-1476: or the server says the caller's role set
+      // grants no access to the show (a just-revoked staff member).
+      verifyScopeEmpty: () => verifyEntriesScopeEmpty(showScopeId),
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
       shouldSkipRemoteRow: remote => {
         const entryId = String(remote.id);

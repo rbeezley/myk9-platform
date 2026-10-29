@@ -16,6 +16,14 @@
 --   5. the visible row set and every masked column are unchanged by the view
 --      edit: a temp copy of the view with the epoch term nulled returns an
 --      identical hash (updated_at excluded) for secretary, steward, exhibitor.
+--   6. public.entry_results_caller_has_no_show_access(show), the MYK9-880-
+--      independent proof the replication engine uses to clear a revoked caller's
+--      cached rows: FALSE for every access arm the fixtures cover (club
+--      secretary, show steward, exhibitor with an own entry), TRUE for a
+--      signed-in caller with no access to the show and for the secretary right
+--      after the club role is deactivated, FALSE with no auth.uid() and for an
+--      unknown show, and not executable by anon. The fixtures hold no judge
+--      assignment or ringside claim, so those two arms are not exercised here.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 -- Fixtures: ids 1476xx, auth uids 1476 7xx.
@@ -307,6 +315,65 @@ BEGIN
     RAISE EXCEPTION 'FAIL 3 watermark after expires_at must read FALSE, got %', r.fn;
   END IF;
   RAISE NOTICE 'PASS 3 expiry moves rows to expires_at and not past it';
+END;
+$$;
+
+-- 6. The independent "caller has no access to this show" proof.
+DO $$
+DECLARE
+  show_id constant uuid := '00000000-0000-0000-0000-000000147120';
+  v boolean;
+BEGIN
+  IF has_function_privilege('anon', 'public.entry_results_caller_has_no_show_access(uuid)', 'EXECUTE')
+     OR has_function_privilege('public', 'public.entry_results_caller_has_no_show_access(uuid)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', 'public.entry_results_caller_has_no_show_access(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL 6 no_show_access ACL: anon/PUBLIC must not execute, authenticated must';
+  END IF;
+
+  -- each access arm reads FALSE (has access)
+  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000147714');
+  IF public.entry_results_caller_has_no_show_access(show_id) IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FAIL 6 club secretary must have access';
+  END IF;
+  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000147716');
+  IF public.entry_results_caller_has_no_show_access(show_id) IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FAIL 6 show steward must have access';
+  END IF;
+  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000147711');
+  IF public.entry_results_caller_has_no_show_access(show_id) IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FAIL 6 exhibitor with an own entry must have access';
+  END IF;
+
+  -- a signed-in caller with no access to this show: another club's secretary
+  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000147718');
+  IF public.entry_results_caller_has_no_show_access(show_id) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'FAIL 6 an unrelated signed-in caller must read TRUE';
+  END IF;
+
+  -- doubt is never "proven empty"
+  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000147714');
+  IF public.entry_results_caller_has_no_show_access('00000000-0000-0000-0000-000000147999') IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FAIL 6 an unknown show must read FALSE';
+  END IF;
+  IF public.entry_results_caller_has_no_show_access(NULL) IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FAIL 6 a NULL show must read FALSE';
+  END IF;
+  PERFORM set_config('request.jwt.claim.sub', '', true);
+  PERFORM set_config('request.jwt.claims', '', true);
+  IF public.entry_results_caller_has_no_show_access(show_id) IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FAIL 6 no auth.uid() must read FALSE';
+  END IF;
+
+  -- the revoke case: the secretary's club role is deactivated, no own entries
+  UPDATE public.user_roles SET is_active = false
+  WHERE user_id = '00000000-0000-0000-0000-000000147614'
+    AND club_id = '00000000-0000-0000-0000-000000147101';
+  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000147714');
+  v := public.entry_results_caller_has_no_show_access(show_id);
+  IF v IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'FAIL 6 a deactivated secretary with no own entries must read TRUE, got %', v;
+  END IF;
+  RAISE NOTICE 'PASS 6 caller_has_no_show_access: FALSE per access arm, TRUE for outsider and revoked secretary, FALSE on doubt';
 END;
 $$;
 

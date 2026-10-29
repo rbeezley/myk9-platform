@@ -25,6 +25,13 @@
 --   * Which rows each role sees and which columns are masked do NOT change.
 --   * Backfill: every account that holds a user_roles row is stamped now(), so
 --     the first sync after deploy re-reads that caller's rows once.
+--   * public.entry_results_caller_has_no_show_access(show): the engine's
+--     zero-row stale cleanup (MYK9-880) needs an independent proof that a show
+--     is empty FOR THIS CALLER. A just-revoked steward or secretary with no own
+--     entries reads zero rows from the view, and the manager-only count RPC
+--     refuses them, so their cached privileged rows would stay. This proves "no
+--     access by role" (the view's own access arms, restated), not "the view
+--     returned 0".
 --
 -- Sources copied verbatim, then edited at one spot each:
 --   view_authenticated_entry_results  <- 20261029043900_myk9_1473_coin_flip_tie_order.sql
@@ -35,6 +42,7 @@
 -- security_invoker = false is carried inline; ACLs are kept by CREATE OR REPLACE.
 --
 -- ROLLBACK (in order):
+--   0. DROP FUNCTION public.entry_results_caller_has_no_show_access(uuid);
 --   1. Re-apply the view from 20261029043900_myk9_1473_coin_flip_tie_order.sql and
 --      the function from 20261028213700_myk9_1369_entry_results_changed_since.sql.
 --   2. DROP TRIGGER trg_user_roles_touch_access_epoch ON public.user_roles;
@@ -675,3 +683,89 @@ GRANT EXECUTE ON FUNCTION public.entry_results_changed_since(uuid, timestamptz) 
 COMMENT ON FUNCTION public.entry_results_changed_since(uuid, timestamptz) IS
   'MYK9-1369: returns one row {changed, server_now}. server_now is now() for every caller. changed is TRUE when anything the replication results view reads for this show moved after p_since (a superset of the view''s delta for any authorized caller; may be TRUE for a row the caller cannot see). A caller the view would admit nothing for always gets TRUE, so the boolean leaks nothing to an outsider. NULL arguments or an unknown show also return changed = TRUE. Callers skip the view read only on changed = FALSE with a settled server_now, and read it otherwise.';
 
+
+-- MYK9-1476 / MYK9-880: an independent proof, for the replication engine's
+-- zero-row stale cleanup, that the caller can see NOTHING in a show.
+-- The authorization block is copied verbatim from entry_results_changed_since
+-- above; it mirrors every arm the view admits rows by (can_manage, assigned
+-- judge, steward, own entry, show exhibitor, ringside claim). Doubt (NULL show,
+-- unknown show, no auth.uid()) is FALSE: never "proven empty".
+CREATE OR REPLACE FUNCTION public.entry_results_caller_has_no_show_access(p_show_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  ctx record;
+  v_club_id uuid;
+  v_found boolean;
+  v_authorized boolean;
+BEGIN
+  IF p_show_id IS NULL OR auth.uid() IS NULL THEN
+    RETURN false;
+  END IF;
+
+  SELECT * INTO ctx FROM private.entry_results_caller_context();
+
+  SELECT s.club_id, true INTO v_club_id, v_found
+  FROM public.shows s
+  WHERE s.id = p_show_id;
+  IF v_found IS NOT TRUE THEN
+    RETURN false;
+  END IF;
+
+  v_authorized := COALESCE(
+    ctx.is_site_admin
+    OR v_club_id = ANY(ctx.managed_club_ids)
+    OR p_show_id = ANY(ctx.managed_show_ids)
+    OR p_show_id = ANY(ctx.steward_show_ids)
+    OR v_club_id = ANY(ctx.steward_club_ids)
+    OR (
+      ctx.claim_kind = 'ringside_passcode'
+      AND ctx.claim_show_id = p_show_id::text
+      AND ctx.claim_generation_current
+      AND ctx.claim_role IN ('judge', 'steward', 'admin')
+    ),
+    false
+  );
+
+  IF NOT v_authorized AND ctx.assigned_class_ids IS NOT NULL THEN
+    v_authorized := EXISTS (
+      SELECT 1
+      FROM public.entries e
+      WHERE e.show_id = p_show_id
+        AND e.deleted_at IS NULL
+        AND e.class_id = ANY(ctx.assigned_class_ids)
+    );
+  END IF;
+
+  IF NOT v_authorized AND ctx.person_id IS NOT NULL THEN
+    v_authorized := EXISTS (
+      SELECT 1
+      FROM public.entries e
+      LEFT JOIN public.dogs od ON od.id = e.dog_id
+      WHERE e.show_id = p_show_id
+        AND (
+          e.handler_id = ctx.person_id
+          OR od.owner_id = ctx.person_id
+          OR (
+            e.deleted_at IS NULL
+            AND e.entry_status NOT IN ('withdrawn', 'scratched')
+            AND od.co_owner_id = ctx.person_id
+          )
+        )
+    );
+  END IF;
+
+  RETURN NOT v_authorized;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.entry_results_caller_has_no_show_access(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.entry_results_caller_has_no_show_access(uuid) FROM anon;
+GRANT EXECUTE ON FUNCTION public.entry_results_caller_has_no_show_access(uuid) TO authenticated;
+
+COMMENT ON FUNCTION public.entry_results_caller_has_no_show_access(uuid) IS
+  'MYK9-1476: TRUE only when the signed-in caller has none of the access arms view_authenticated_entry_results admits rows by for this show (site admin, managed club or show, steward, ringside claim, assigned judge, own or exhibitor entry). The MYK9-880-independent proof for the replication engine zero-row stale cleanup: it proves no access by role, NOT that the view returned 0 rows. NULL show, unknown show or no auth.uid() return FALSE, never proven empty on doubt.';
